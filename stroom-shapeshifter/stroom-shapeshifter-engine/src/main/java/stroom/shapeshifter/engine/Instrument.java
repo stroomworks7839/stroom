@@ -54,28 +54,61 @@ public interface Instrument {
      */
     long UNLOCATABLE = Long.MAX_VALUE / 2;
 
+    /** The document itself: the frame every match at depth zero descends from. */
+    long ROOT_FRAME = 0;
+
     /**
-     * A template matched.
-     *
-     * @param templateId   which template
-     * @param templateName its name, for display
-     * @param inputOffset  where the match begins in the input, or {@link #UNLOCATABLE}
-     * @param inputLength  the match's length in bytes, from where it begins to where its
-     *                     consumption ends — so offset and length describe the same span
-     * @param matchIndex   which match this is for that template, counting from one
-     * @param depth        how deep in the dispatch this happened
+     * Reported as a content offset when a frame's content is not a slice of its parent's — it
+     * came from a variable, decoded or built — and its bytes follow in {@link #onMatchContent}.
      */
-    default void onMatch(final String templateId,
+    int NOT_A_SLICE = -1;
+
+    /**
+     * A template matched: a frame opened (design 18 §5.2).
+     *
+     * <p>Frames are numbered from one in the order they open, and every frame names its parent —
+     * the frame whose body dispatched it, or {@link #ROOT_FRAME} for a match of the document
+     * itself — so that a listener never has to reconstruct the tree from event order (design 18
+     * §7 G1). The events do come in execution order all the same, and they bracket: this
+     * frame's {@link #onCapture}s, its children's whole sub-trees and the attempts made while
+     * its body ran all arrive before its {@link #onOutput}.
+     *
+     * <p>The frame's <i>content</i> — what its body works on and its children match within — is
+     * given twice over (G2): where it sits in the input, and where it sits in the parent frame's
+     * content when it is byte-for-byte a slice of it, so that a listener can point at it in an
+     * ancestor rather than hold it again. When it is not a slice — the parent dispatched a
+     * variable's value — {@code contentOffset} is {@link #NOT_A_SLICE} and the bytes follow in
+     * {@link #onMatchContent}.
+     *
+     * @param frameId       this frame, numbered from one across the run
+     * @param parentFrameId the frame whose body dispatched this one, or {@link #ROOT_FRAME}
+     * @param templateId    which template
+     * @param templateName  its name, for display
+     * @param inputOffset   where the match begins in the input, or {@link #UNLOCATABLE}
+     * @param inputLength   the match's length in bytes, from where it begins to where its
+     *                      consumption ends — so offset and length describe the same span
+     * @param contentOffset where the frame's content begins in the parent frame's content, or
+     *                      {@link #NOT_A_SLICE}
+     * @param contentLength the content's length in bytes
+     * @param matchIndex    which match this is for that template, counting from one
+     * @param depth         how deep in the dispatch this happened
+     */
+    default void onMatch(final long frameId,
+                         final long parentFrameId,
+                         final String templateId,
                          final String templateName,
                          final long inputOffset,
                          final int inputLength,
+                         final int contentOffset,
+                         final int contentLength,
                          final int matchIndex,
                          final int depth) {
     }
 
     /**
-     * A capture was bound.
+     * A capture was bound in a frame.
      *
+     * @param frameId    the frame it was bound in
      * @param templateId which template bound it
      * @param name       the variable's name
      * @param value      its value as bound: captured bytes as read, in the encoding class they
@@ -84,18 +117,19 @@ public interface Instrument {
      *                   binding declared (§9); a binding that bound nothing is not reported
      * @param matchIndex which match it belongs to
      */
-    default void onCapture(final String templateId,
+    default void onCapture(final long frameId,
+                           final String templateId,
                            final String name,
                            final TypedValue value,
                            final int matchIndex) {
     }
 
     /**
-     * The bytes a template matched, when they came from a variable rather than the input.
-     *
-     * <p>Reported separately because there is no offset that would let a caller find them.
+     * A frame's content, when it is not a slice of its parent's: it came from a variable rather
+     * than the input, so nothing could find it by offset (G2). Follows the frame's
+     * {@link #onMatch}.
      */
-    default void onMatchContent(final String templateId, final byte[] content) {
+    default void onMatchContent(final long frameId, final byte[] content) {
     }
 
     /**
@@ -111,17 +145,28 @@ public interface Instrument {
      * Finished trying a template, whether or not it matched.
      *
      * <p>Attempts that <i>fail</i> are reported too, and that is the point: a template that never
-     * matches but is tried at every position is exactly the thing worth finding.
+     * matches but is tried at every position is exactly the thing worth finding — and reported
+     * with where it was tried (design 18 §7 G3), so that "why didn't my template fire
+     * <i>here</i>?" is answered by pointing at the place.
      *
-     * @param templateId which template was tried
-     * @param token      whatever {@link #startTiming} returned
-     * @param matched    whether the attempt succeeded
+     * @param parentFrameId the frame whose body was dispatching, or {@link #ROOT_FRAME}
+     * @param templateId    which template was tried
+     * @param token         whatever {@link #startTiming} returned
+     * @param matched       whether the attempt succeeded
+     * @param inputOffset   where in the input it was tried, or {@link #UNLOCATABLE}
+     * @param contentOffset where in the parent frame's content it was tried, or
+     *                      {@link #NOT_A_SLICE} when that content is not a slice of the input
      */
-    default void stopTiming(final String templateId, final long token, final boolean matched) {
+    default void stopTiming(final long parentFrameId,
+                            final String templateId,
+                            final long token,
+                            final boolean matched,
+                            final long inputOffset,
+                            final int contentOffset) {
     }
 
     /**
-     * A match's body finished writing.
+     * A match's body finished writing: the frame closed.
      *
      * <p>The span is measured on the sink's {@link OutputSink#position()} before and after the
      * body, in the sink's own currency — byte offsets for a byte sink, event ordinals for an
@@ -131,13 +176,15 @@ public interface Instrument {
      * first child's span begins with the parent's start tag or start event. That is where the
      * bytes went, and the parent's span covers them too.
      *
+     * @param frameId      the frame that closed
      * @param templateId   which template
      * @param matchIndex   which match
      * @param outputOffset where its output starts
      * @param outputLength how much it wrote
      * @param unit         what offset and length count
      */
-    default void onOutput(final String templateId,
+    default void onOutput(final long frameId,
+                          final String templateId,
                           final int matchIndex,
                           final long outputOffset,
                           final long outputLength,

@@ -65,30 +65,41 @@ class InstrumentTest {
         private final List<Output> outputs = new ArrayList<>();
         private final List<UnitOutput> unitOutputs = new ArrayList<>();
         private final List<byte[]> unlocatable = new ArrayList<>();
+        private final List<Frame> frames = new ArrayList<>();
+        private final List<Long> captureFrames = new ArrayList<>();
+        private final List<Long> contentFrames = new ArrayList<>();
+        private final List<Long> closed = new ArrayList<>();
+        private final List<Attempt> tried = new ArrayList<>();
         private int attempts;
 
         @Override
-        public void onMatch(final String templateId, final String templateName, final long inputOffset,
-                            final int inputLength, final int matchIndex, final int depth) {
+        public void onMatch(final long frameId, final long parentFrameId, final String templateId,
+                            final String templateName, final long inputOffset, final int inputLength,
+                            final int contentOffset, final int contentLength, final int matchIndex,
+                            final int depth) {
             matches.add(new Match(templateId, templateName, inputOffset, inputLength, matchIndex, depth));
+            frames.add(new Frame(frameId, parentFrameId, templateName, contentOffset, contentLength));
         }
 
         @Override
-        public void onCapture(final String templateId, final String name, final TypedValue value,
-                              final int matchIndex) {
+        public void onCapture(final long frameId, final String templateId, final String name,
+                              final TypedValue value, final int matchIndex) {
             captures.add(new Capture(name, value.asString(), matchIndex));
+            captureFrames.add(frameId);
         }
 
         @Override
-        public void onMatchContent(final String templateId, final byte[] content) {
+        public void onMatchContent(final long frameId, final byte[] content) {
             unlocatable.add(content);
+            contentFrames.add(frameId);
         }
 
         @Override
-        public void onOutput(final String templateId, final int matchIndex, final long outputOffset,
-                             final long outputLength, final OutputSink.Unit unit) {
+        public void onOutput(final long frameId, final String templateId, final int matchIndex,
+                             final long outputOffset, final long outputLength, final OutputSink.Unit unit) {
             outputs.add(new Output(matchIndex, outputOffset, outputLength));
             unitOutputs.add(new UnitOutput(matchIndex, outputOffset, outputLength, unit));
+            closed.add(frameId);
         }
 
         @Override
@@ -98,9 +109,19 @@ class InstrumentTest {
         }
 
         @Override
-        public void stopTiming(final String templateId, final long token, final boolean matched) {
+        public void stopTiming(final long parentFrameId, final String templateId, final long token,
+                               final boolean matched, final long inputOffset, final int contentOffset) {
             assertThat(token).as("the token the engine hands back must be the one it was given").isPositive();
+            tried.add(new Attempt(parentFrameId, templateId, matched, inputOffset, contentOffset));
         }
+    }
+
+    private record Frame(long id, long parent, String name, int contentOffset, int contentLength) {
+
+    }
+
+    private record Attempt(long parent, String templateId, boolean matched, long inputOffset, int contentOffset) {
+
     }
 
     private static final String CONFIG = """
@@ -323,6 +344,143 @@ class InstrumentTest {
         assertThat(recorder.matches)
                 .filteredOn(match -> "inner".equals(match.name()))
                 .allMatch(match -> match.offset() >= Instrument.UNLOCATABLE);
+        // G2: the inner frame is no slice of its parent's content, so its bytes are reported,
+        // against its own frame id, right after it opens; the row's content is a slice.
+        final Frame row = recorder.frames.stream().filter(f -> "row".equals(f.name())).findFirst().orElseThrow();
+        final Frame inner = recorder.frames.stream().filter(f -> "inner".equals(f.name())).findFirst().orElseThrow();
+        assertThat(row.contentOffset()).isEqualTo(0);
+        assertThat(inner.parent()).isEqualTo(row.id());
+        assertThat(inner.contentOffset()).isEqualTo(Instrument.NOT_A_SLICE);
+        assertThat(recorder.contentFrames).containsExactly(inner.id());
+        assertThat(new String(recorder.unlocatable.getFirst(), StandardCharsets.UTF_8)).isEqualTo("abc");
+    }
+
+    @Test
+    void framesAreNumberedNameTheirParentAndSliceTheDocument() {
+        final Recorder recorder = watch("alpha\nbeta\n");
+        // G1: two frames, numbered from one, each a child of the document.
+        assertThat(recorder.frames).extracting(Frame::id).containsExactly(1L, 2L);
+        assertThat(recorder.frames).extracting(Frame::parent).containsOnly(Instrument.ROOT_FRAME);
+        // G2: a row's content is the field, a slice of the document at the field's offset.
+        assertThat(recorder.frames.get(0).contentOffset()).isEqualTo(0);
+        assertThat(recorder.frames.get(0).contentLength()).isEqualTo("alpha".length());
+        assertThat(recorder.frames.get(1).contentOffset()).isEqualTo("alpha\n".length());
+        assertThat(recorder.contentFrames).as("slices carry no bytes").isEmpty();
+        // Captures and the closing output name the frame they belong to, and frames bracket.
+        assertThat(recorder.captureFrames).containsExactly(1L, 2L);
+        assertThat(recorder.closed).containsExactly(1L, 2L);
+    }
+
+    @Test
+    void attemptsSayWhereTheyWereTried() {
+        final Recorder recorder = watch("alpha\nbeta\n");
+        // G3: every attempt at the root names the document as its parent and the offset it was
+        // tried at - here the row template, tried at each field start and matching each time.
+        assertThat(recorder.tried).isNotEmpty();
+        assertThat(recorder.tried).extracting(Attempt::parent).containsOnly(Instrument.ROOT_FRAME);
+        assertThat(recorder.tried).filteredOn(Attempt::matched)
+                .extracting(Attempt::contentOffset).containsExactly(0, "alpha\n".length());
+        assertThat(recorder.tried).filteredOn(Attempt::matched)
+                .extracting(Attempt::inputOffset).containsExactly(0L, (long) "alpha\n".length());
+    }
+
+    @Test
+    void nestedFrameSlicesItsParentNotTheDocument() {
+        final Recorder recorder = new Recorder();
+        Shapeshifter.run(
+                Shapeshifter.compile(ProjectReader.read("""
+                        {
+                          "name": "nested", "version": 3,
+                          "source": {"buffer_size": 2000, "ignore_errors": true, "encoding": "utf-8"},
+                          "templates": [
+                            {"id": "00000000-0000-0000-0000-000000000001", "name": "source",
+                             "match": "source",
+                             "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
+                                                           "mode": "row"}}]},
+                            {"id": "00000000-0000-0000-0000-000000000002", "name": "row", "mode": "row",
+                             "match": {"regex": {"pattern": "[^\\n]*\\n"}},
+                             "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
+                                                           "mode": "word"}}]},
+                            {"id": "00000000-0000-0000-0000-000000000003", "name": "word", "mode": "word",
+                             "match": {"regex": {"pattern": "[a-z]+"}},
+                             "body": [{"value-of": {"parts": [{"capture": {"group": 0}}]}}]}
+                          ]
+                        }
+                        """)),
+                new ByteArrayInputStream("ab cd\nef\n".getBytes(StandardCharsets.UTF_8)),
+                new XmlByteSink(new ByteArrayOutputStream()), recorder);
+        // Rows 1 and 4 (frames open depth-first: row, its words, the next row); words slice
+        // their row, so "cd" is at 3 in its row and at 3 in the input, "ef" at 0 in its row and
+        // at 6 in the input.
+        assertThat(recorder.frames).extracting(Frame::name).containsExactly("row", "word", "word", "row", "word");
+        assertThat(recorder.frames).extracting(Frame::parent).containsExactly(0L, 1L, 1L, 0L, 4L);
+        assertThat(recorder.frames).extracting(Frame::contentOffset).containsExactly(0, 0, 3, 6, 0);
+        assertThat(recorder.closed).containsExactly(2L, 3L, 1L, 5L, 4L);
+        // And an attempt inside a row is placed in that row's content, with the row as parent.
+        assertThat(recorder.tried).filteredOn(a -> a.parent() == 4L)
+                .extracting(Attempt::contentOffset).contains(0);
+    }
+
+    @Test
+    void anyLevelReportsItsFramesAsBytesNotSlices() {
+        final Recorder recorder = new Recorder();
+        Shapeshifter.run(
+                Shapeshifter.compile(ProjectReader.read("""
+                        {
+                          "name": "any", "version": 3,
+                          "source": {"buffer_size": 2000, "ignore_errors": true, "encoding": "utf-8"},
+                          "templates": [
+                            {"id": "00000000-0000-0000-0000-000000000001", "name": "source",
+                             "match": "source",
+                             "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
+                                                           "mode": "bits", "dispatch": "any"}}]},
+                            {"id": "00000000-0000-0000-0000-000000000002", "name": "digits", "mode": "bits",
+                             "match": {"regex": {"pattern": "[0-9]+"}},
+                             "body": [{"value-of": {"parts": [{"capture": {"group": 0}}]}}]},
+                            {"id": "00000000-0000-0000-0000-000000000003", "name": "letters", "mode": "bits",
+                             "match": {"regex": {"pattern": "[a-z]+"}},
+                             "body": [{"value-of": {"parts": [{"capture": {"group": 0}}]}}]}
+                          ]
+                        }
+                        """)),
+                new ByteArrayInputStream("ab12cd".getBytes(StandardCharsets.UTF_8)),
+                new XmlByteSink(new ByteArrayOutputStream()), recorder);
+        // The working buffer compacts as templates eat, so nothing in it is a slice of the
+        // document: every frame carries its bytes, and the bytes are what matched - "abcd" for
+        // the letters, which never sat together in the input until the digits were eaten (D36).
+        assertThat(recorder.frames).isNotEmpty();
+        assertThat(recorder.frames).extracting(Frame::contentOffset).containsOnly(Instrument.NOT_A_SLICE);
+        assertThat(recorder.contentFrames).containsExactlyElementsOf(
+                recorder.frames.stream().map(Frame::id).toList());
+        assertThat(recorder.unlocatable.stream().map(b -> new String(b, StandardCharsets.UTF_8)).toList())
+                .containsExactlyInAnyOrder("12", "abcd");
+    }
+
+    @Test
+    void laxMatchAfterSkippedBytesIsPlacedWhereItBegins() {
+        final Recorder recorder = new Recorder();
+        Shapeshifter.run(
+                Shapeshifter.compile(ProjectReader.read("""
+                        {
+                          "name": "lax", "version": 3,
+                          "source": {"buffer_size": 2000, "ignore_errors": true, "encoding": "utf-8",
+                                     "dispatch": "lax"},
+                          "templates": [
+                            {"id": "00000000-0000-0000-0000-000000000001", "name": "source",
+                             "match": "source",
+                             "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
+                                                           "mode": "row"}}]},
+                            {"id": "00000000-0000-0000-0000-000000000002", "name": "num", "mode": "row",
+                             "match": {"regex": {"pattern": "[0-9]+"}},
+                             "body": [{"value-of": {"parts": [{"capture": {"group": 0}}]}}]}
+                          ]
+                        }
+                        """)),
+                new ByteArrayInputStream("xx12yy345".getBytes(StandardCharsets.UTF_8)),
+                new XmlByteSink(new ByteArrayOutputStream()), recorder);
+        assertThat(recorder.frames).extracting(Frame::contentOffset).containsExactly(2, 6);
+        assertThat(recorder.matches).extracting(Match::offset).containsExactly(2L, 6L);
+        assertThat(recorder.frames).extracting(Frame::contentLength).containsExactly(2, 3);
     }
 
     @Test

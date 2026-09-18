@@ -19,7 +19,9 @@ package stroom.shapeshifter.pipeline;
 import stroom.shapeshifter.shared.ShapeshifterLibrary;
 import stroom.shapeshifter.shared.ShapeshifterPatternInfo;
 import stroom.shapeshifter.shared.ShapeshifterPatternRequest;
+import stroom.shapeshifter.shared.ShapeshifterPreviewRequest;
 import stroom.shapeshifter.shared.ShapeshifterText;
+import stroom.shapeshifter.shared.ShapeshifterTrace;
 import stroom.shapeshifter.shared.ShapeshifterValidation;
 
 import org.junit.jupiter.api.Test;
@@ -114,5 +116,38 @@ class ShapeshifterResourceEndpointsTest {
             assertThat(resource.print(new ShapeshifterPatternRequest(tree, false, false)).getText())
                     .isEqualTo(entry.getRegex());
         }
+    }
+
+    @Test
+    void previewRunsTheSampleAndReturnsTheTrace() {
+        final ShapeshifterTrace trace = resource.preview(new ShapeshifterPreviewRequest(PROJECT, "ab\ncd\n"));
+        assertThat(trace.isCompiled()).as(trace.getMessages().toString()).isTrue();
+        assertThat(trace.getInput()).isEqualTo("ab\ncd\n");
+        assertThat(trace.getOutput()).contains("ab").contains("cd");
+        // Two rows, each a child of the document, each with its capture typed, each writing output.
+        assertThat(trace.getFrames()).hasSize(2);
+        assertThat(trace.getFrames()).extracting(ShapeshifterTrace.Frame::getParentId).containsOnly(0L);
+        assertThat(trace.getFrames()).extracting(ShapeshifterTrace.Frame::getTemplateName).containsOnly("row");
+        assertThat(trace.getFrames().get(1).getContentOffset()).isEqualTo(3);
+        assertThat(trace.getFrames().get(1).getContent()).as("a slice carries no bytes").isNull();
+        assertThat(trace.getCaptures()).extracting(ShapeshifterTrace.Capture::getName).containsOnly("who");
+        assertThat(trace.getCaptures()).extracting(ShapeshifterTrace.Capture::getValue).containsExactly("ab", "cd");
+        assertThat(trace.getCaptures()).extracting(ShapeshifterTrace.Capture::getType).containsOnly("string");
+        assertThat(trace.getOutputs()).extracting(ShapeshifterTrace.OutputSpan::getUnit).containsOnly("BYTES");
+        assertThat(trace.getOutputs()).allMatch(o -> o.getLength() > 0);
+        // Every run profiles: the row template was tried twice and matched twice.
+        assertThat(trace.getTimings()).extracting(ShapeshifterTrace.Timing::getMatched).contains(2L);
+        assertThat(trace.getAttempts()).extracting(ShapeshifterTrace.Attempt::getContentOffset).contains(0, 3);
+        assertThat(trace.getAttemptsSeen()).isEqualTo(trace.getAttempts().size());
+        assertThat(trace.getRunNanos()).isPositive();
+    }
+
+    @Test
+    void previewOfAProjectThatWillNotCompileIsMessagesOnly() {
+        final ShapeshifterTrace trace = resource.preview(new ShapeshifterPreviewRequest("{\"name\": \"x\"}", "abc"));
+        assertThat(trace.isCompiled()).isFalse();
+        assertThat(trace.getFrames()).isEmpty();
+        assertThat(trace.getMessages()).isNotEmpty();
+        assertThat(trace.getInput()).isEqualTo("abc");
     }
 }

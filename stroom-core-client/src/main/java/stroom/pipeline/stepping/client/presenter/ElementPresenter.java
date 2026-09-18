@@ -562,6 +562,10 @@ public class ElementPresenter
             final String elementType = element.getType();
             if (PipelineElementType.TYPE_DS_PARSER.equals(elementType)) {
                 mode = AceEditorMode.STROOM_DATA_SPLITTER;
+            } else if (PipelineElementType.TYPE_SHAPESHIFTER_PARSER.equals(elementType)
+                       || PipelineElementType.TYPE_SHAPESHIFTER_FILTER.equals(elementType)) {
+                // The project JSON, until phase C mounts the Design tab here (design 43 section 6).
+                mode = AceEditorMode.JSON;
             } else if (PipelineElementType.TYPE_XML_FRAGMENT_PARSER.equals(elementType)) {
                 mode = AceEditorMode.STROOM_FRAGMENT_PARSER;
             } else if (PipelineElementType.TYPE_COMBINED_PARSER.equals(elementType)) {

@@ -271,7 +271,7 @@ model's wire form; never a doc ref, so the unsaved document can be checked):
 | `explode` | pattern | pattern tree JSON | `PatternExplode` |
 | `print` | pattern tree JSON | regex text | `PatternPrint` — the inverse (§8 Q2), built |
 | `library` | — | the standard library: name and the regex each entry means | `PatternPrint.library()` over `Matchers.standardLibrary()` |
-| `preview` | project text, `SourceLocation` | `TraceModel`, output text, messages, timings | `Shapeshifter.run` with a recording `Instrument` |
+| `preview` | project text, sample text | `ShapeshifterTrace`: frames, captures, output spans, attempts, timings, messages, input and output | `Shapeshifter.runWhole` with `TraceRecorder`. **Built 2026-09-18** over a supplied sample; the `SourceLocation` form — the sample read from the stream store under the caller's permissions — comes with `SampleSourcePresenter` |
 
 `preview` reads the sample from the stream store by `SourceLocation` (meta, part, record)
 under the caller's permissions — Q2's "supplied, never stored" — and runs one record whole.
@@ -367,9 +367,10 @@ shippable.
   `ShapeshifterGinjector`, `App.gwt.xml` and `AppGinjectorUser` wiring, an icon of its own,
   `ShapeshifterPresenter` with Source (Ace JSON), Documentation and Permissions. The document
   opens; stepping works with JSON in the code pane. **Built 2026-09-17**, in
-  `stroom-core-client/…/shapeshifter/client` on the TextConverter groove; the icon is a
-  square fused into a circle (`document/Shapeshifter.svg`, `SvgImage.DOCUMENT_SHAPESHIFTER`;
-  the first cut, a square-to-circle outline, read as a letter D at 16px and went).
+  `stroom-core-client/…/shapeshifter/client` on the TextConverter groove; the icon is the
+  owner's, 2026-09-18: a square, a circle and a triangle over one another in three colours
+  (`document/Shapeshifter.svg`, `SvgImage.DOCUMENT_SHAPESHIFTER`), replacing the square fused
+  into a circle (which replaced a square-to-circle outline that read as a letter D at 16px).
 - **A2 — the model on the client and the forms.** `ShapeshifterConfig.gwt.xml` inherited by
   `App.gwt.xml`; the config module's JSON text parser and printer; `validate`,
   `patternInfo`, `explode`, `print`; the Design tab with `TemplatePanelPresenter`,
@@ -435,6 +436,11 @@ shippable.
   captures grids, which stay stock until the strip has a home for them; undo is phase B.
 - **B — the trace.** Design 18 §7's engine asks; `TraceModel`; `preview`;
   `SampleSourcePresenter`; the navigator's four presenters; `BodyPresenter`; undo; profiling.
+  **Engine side built 2026-09-18:** the `Instrument` contract answers G1–G3 (frame and parent
+  ids, content as a slice of the parent or as bytes, attempts with their place),
+  `TraceRecorder`, `ShapeshifterTrace` as the wire model — `Frame`, `Capture` with its type,
+  `OutputSpan` with its unit, `Attempt`, `Timing` — and `preview` over a supplied sample.
+  `BodyPresenter` landed with A2 (§4.2) as the editor; what B adds to it is the annotations.
 - **C — stepping.** `SteppingEditor` + registry + `DefaultSteppingEditor` extraction in
   `stroom-core-client`; `SteppingDetail` + `detail` through the store in `stroom-pipeline`;
   the recorder in both elements; `ShapeshifterSteppingEditor`.

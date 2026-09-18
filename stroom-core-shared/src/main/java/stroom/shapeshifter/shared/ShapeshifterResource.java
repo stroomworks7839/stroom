@@ -82,6 +82,13 @@ public interface ShapeshifterResource extends RestResource, DirectRestService, F
             operationId = "shapeshifterExplode")
     ShapeshifterText explode(@Parameter(description = "request", required = true) ShapeshifterPatternRequest request);
 
+    @POST
+    @Path("/preview")
+    @Operation(
+            summary = "Run a project over a sample once, whole, and return everything the run did",
+            operationId = "shapeshifterPreview")
+    ShapeshifterTrace preview(@Parameter(description = "request", required = true) ShapeshifterPreviewRequest request);
+
     @GET
     @Path("/library")
     @Operation(

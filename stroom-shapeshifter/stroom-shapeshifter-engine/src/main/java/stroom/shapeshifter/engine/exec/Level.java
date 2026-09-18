@@ -65,6 +65,15 @@ final class Level {
     /** The run's encoding in force, taken on every entry; the same value throughout a run. */
     private Encoding encoding;
 
+    // The frame tree as it opens (design 18 §7 G1, G2): frames numbered from one across the
+    // run; per depth, the frame whose body is running there, where its content starts in its
+    // array, and whether the level's bytes are located in the input. Sized for a deep dispatch
+    // and grown if one goes deeper; the arrays are per Level, and a Level is per run.
+    private long nextFrame;
+    private long[] frameAt = new long[16];
+    private int[] frameContentStart = new int[16];
+    private boolean[] levelLocatable = new boolean[16];
+
     Level(final Instrument instrument,
           final List<Message> messages,
           final VarRegistry vars,
@@ -110,6 +119,7 @@ final class Level {
                   final Encoding encoding,
                   final ByteSource source) {
         this.encoding = encoding;
+        enterLevel(depth, inputBase);
         if (dispatch == Dispatch.CLASSIFY) {
             classify(templates, data, from, to, out, inputBase, ignoreErrors, depth, source);
             return;
@@ -141,7 +151,8 @@ final class Level {
                 }
                 final long timing = instrument.startTiming();
                 final MatchResult attempt = match(candidate, data, cursor, to, atCursor, source);
-                instrument.stopTiming(candidate.template().id(), timing, attempt != null);
+                attempted(depth, candidate.template().id(), timing, attempt != null,
+                        locate(inputBase, cursor - from), cursor);
                 if (attempt == null) {
                     continue;
                 }
@@ -304,6 +315,7 @@ final class Level {
 
         final int[] counts = new int[templates.length];
         final boolean[] allowed = guards(templates);
+        enterLevel(0, window.consumed());
 
         while (!window.isEmpty()) {
             final int start = window.start();
@@ -322,7 +334,7 @@ final class Level {
                 final long timing = instrument.startTiming();
                 final MatchResult attempt = match(candidate, window.bytes(), start, filled, atCursor,
                         window.source());
-                instrument.stopTiming(candidate.template().id(), timing, attempt != null);
+                attempted(0, candidate.template().id(), timing, attempt != null, window.offsetOf(start), start);
                 if (attempt == null) {
                     continue;
                 }
@@ -422,7 +434,9 @@ final class Level {
         final byte[] work = Arrays.copyOfRange(data, from, to);
         // The working buffer is compacted in place as templates eat from it, so a group over
         // it would be overwritten under a slice: this level's groups are copies whatever the
-        // caller's source was (design 37 §5).
+        // caller's source was (design 37 §5). For the same reason no frame here is a slice of
+        // the parent's content: each reports its bytes.
+        levelLocatable[depth] = false;
         final ByteSource source = new ByteSource.Copying(work);
         int length = work.length;
         long base = inputBase;
@@ -444,7 +458,10 @@ final class Level {
                 }
                 final long timing = instrument.startTiming();
                 final MatchResult match = match(candidate, work, 0, length, false, source);
-                instrument.stopTiming(candidate.template().id(), timing, match != null);
+                // The working buffer compacts as templates eat: its indexes mean nothing in the
+                // parent's content, so an any-level attempt has only its input offset.
+                attempted(depth, candidate.template().id(), timing, match != null, locate(base, 0),
+                        Instrument.NOT_A_SLICE);
                 if (match == null) {
                     continue;
                 }
@@ -506,7 +523,7 @@ final class Level {
             final Template template = candidate.template();
             final long timing = instrument.startTiming();
             final MatchResult match = match(candidate, data, from, to, false, source);
-            instrument.stopTiming(template.id(), timing, match != null);
+            attempted(depth, template.id(), timing, match != null, locate(inputBase, 0), from);
             if (match == null) {
                 continue;
             }
@@ -625,18 +642,118 @@ final class Level {
         if (content == null || content.isEmpty()) {
             return;
         }
-        instrument.onMatch(template.id(), template.name(), locate(locateBase, match.matchStart()),
-                match.advance() - match.matchStart(), matchCount, depth);
+        final long frameId = openFrame(depth, content);
+        final long inputOffset = locate(locateBase, match.matchStart());
+        final int contentOffset = contentOffset(depth, content, inputOffset);
+        instrument.onMatch(frameId, parentFrame(depth), template.id(), template.name(), inputOffset,
+                match.advance() - match.matchStart(), contentOffset, contentLength(content), matchCount, depth);
+        if (contentOffset == Instrument.NOT_A_SLICE && instrument != Instrument.NONE) {
+            instrument.onMatchContent(frameId, contentBytes(content));
+        }
         // Declared before the captures bind, so a template capturing a name it declares — a
         // recursive walk keeping each level's own — binds this execution's, not the outer one's.
         enter(candidate);
-        bindCaptures(candidate, match, matchCount);
+        bindCaptures(candidate, match, matchCount, frameId);
         final long before = out.sink().position();
         body.body(candidate.body(), match, matchCount, content, out,
                 locateBase, ignoreErrors, depth);
         exit(candidate);
-        instrument.onOutput(template.id(), matchCount, before, out.sink().position() - before,
+        instrument.onOutput(frameId, template.id(), matchCount, before, out.sink().position() - before,
                 out.sink().unit());
+    }
+
+    // -----------------------------------------------------------------------------------
+    // The frame tree the instrument sees (design 18 §7). All of it is bookkeeping in arrays
+    // indexed by depth: nothing allocates per match, and a run nobody watches pays the array
+    // writes and no more.
+    // -----------------------------------------------------------------------------------
+
+    private void enterLevel(final int depth, final long inputBase) {
+        if (depth >= levelLocatable.length) {
+            final int size = Math.max(depth + 1, levelLocatable.length * 2);
+            levelLocatable = Arrays.copyOf(levelLocatable, size);
+            frameAt = Arrays.copyOf(frameAt, size);
+            frameContentStart = Arrays.copyOf(frameContentStart, size);
+        }
+        levelLocatable[depth] = inputBase < Instrument.UNLOCATABLE;
+    }
+
+    private long openFrame(final int depth, final TypedValue content) {
+        final long frameId = ++nextFrame;
+        frameAt[depth] = frameId;
+        frameContentStart[depth] = content instanceof final TypedValue.Bytes bytes
+                ? bytes.readOffset()
+                : Instrument.NOT_A_SLICE;
+        return frameId;
+    }
+
+    private long parentFrame(final int depth) {
+        return depth == 0
+                ? Instrument.ROOT_FRAME
+                : frameAt[depth - 1];
+    }
+
+    /**
+     * Where a frame's content starts in its parent's, or {@link Instrument#NOT_A_SLICE}.
+     *
+     * <p>At depth zero the parent is the document, whose content is the input, and the root's
+     * groups are copies (design 37 §5) that carry no offset of their own: the content is placed
+     * where the match begins, which is where every kind's content begins. Deeper, a level runs
+     * over its parent's content array and its groups are slices of it, so the content's offset
+     * in that array is its offset in the parent's content — with one approximation the engine's
+     * input offsets already make: a level dispatched on a group other than the content group is
+     * placed as if that group began where the content does. A level whose bytes came from a
+     * variable is no slice of anything the parent frame holds.
+     */
+    private int contentOffset(final int depth, final TypedValue content, final long inputOffset) {
+        if (!levelLocatable[depth] || !(content instanceof final TypedValue.Bytes bytes)) {
+            return Instrument.NOT_A_SLICE;
+        }
+        if (depth == 0) {
+            return inDocument(inputOffset);
+        }
+        final int parentStart = frameContentStart[depth - 1];
+        return parentStart == Instrument.NOT_A_SLICE
+                ? Instrument.NOT_A_SLICE
+                : bytes.readOffset() - parentStart;
+    }
+
+    /** An input offset as an offset into the document frame's content, which is the input. */
+    private static int inDocument(final long inputOffset) {
+        return inputOffset >= Instrument.UNLOCATABLE || inputOffset > Integer.MAX_VALUE
+                ? Instrument.NOT_A_SLICE
+                : (int) inputOffset;
+    }
+
+    private static int contentLength(final TypedValue content) {
+        return content instanceof final TypedValue.Bytes bytes
+                ? bytes.readLength()
+                : content.asUtf8().length;
+    }
+
+    private static byte[] contentBytes(final TypedValue content) {
+        if (content instanceof final TypedValue.Bytes bytes) {
+            return Arrays.copyOfRange(bytes.readArray(), bytes.readOffset(), bytes.readOffset() + bytes.readLength());
+        }
+        return content.asUtf8();
+    }
+
+    /** An attempt at an index into the level's array, reported with its place in the parent's content. */
+    private void attempted(final int depth,
+                           final String templateId,
+                           final long timing,
+                           final boolean matched,
+                           final long inputOffset,
+                           final int index) {
+        int contentOffset = Instrument.NOT_A_SLICE;
+        if (index != Instrument.NOT_A_SLICE && levelLocatable[depth]) {
+            if (depth == 0) {
+                contentOffset = inDocument(inputOffset);
+            } else if (frameContentStart[depth - 1] != Instrument.NOT_A_SLICE) {
+                contentOffset = index - frameContentStart[depth - 1];
+            }
+        }
+        instrument.stopTiming(parentFrame(depth), templateId, timing, matched, inputOffset, contentOffset);
     }
 
     /** True if a region holds anything but whitespace. Blank remainders are not worth a message. */
@@ -899,7 +1016,8 @@ final class Level {
 
     private void bindCaptures(final CompiledTemplate compiledTemplate,
                               final MatchResult match,
-                              final int matchCount) {
+                              final int matchCount,
+                              final long frameId) {
         // This method is kept whole, and so above the JIT's hot-method size, on purpose: inlined
         // into the level's match loop it crowds the regex match itself out of that compilation
         // ("already compiled into a big method"), which read regex_lines 20% down when the
@@ -932,7 +1050,7 @@ final class Level {
             };
             final TypedValue value = cast(read, capture.as());
             if (value != null) {
-                instrument.onCapture(compiledTemplate.template().id(), capture.name().name(), value,
+                instrument.onCapture(frameId, compiledTemplate.template().id(), capture.name().name(), value,
                         matchCount);
             }
             // A capture is a value source (design 35 §4): it assigns the scalar it names, or puts

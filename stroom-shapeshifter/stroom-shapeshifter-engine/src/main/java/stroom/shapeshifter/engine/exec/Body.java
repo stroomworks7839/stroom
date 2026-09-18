@@ -1234,11 +1234,9 @@ final class Body {
                 : (TypedValue.Bytes) TypedValue.utf8(selected.asUtf8());
 
         // Content taken straight from the parent, or from one of its groups, is still part of
-        // the input and can be pointed at. Content built from a variable cannot be.
+        // the input and can be pointed at. Content built from a variable cannot be, and the
+        // level says so of every frame it opens over it (design 18 §7 G2).
         final long childBase = op.locatable() ? parentBase : Instrument.UNLOCATABLE;
-        if (childBase == Instrument.UNLOCATABLE) {
-            instrument.onMatchContent(null, content.asUtf8());
-        }
 
         // A compile-time fact read as a field: the op holds the templates its mode answers to,
         // bound when the project finished compiling (design 29 §3.2).

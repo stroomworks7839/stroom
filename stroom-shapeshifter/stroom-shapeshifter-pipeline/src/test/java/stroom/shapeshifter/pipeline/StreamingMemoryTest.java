@@ -39,18 +39,18 @@ class StreamingMemoryTest {
     @Test
     void openMatchesFallBackToTheEnclosingOneOnTheEventPathAndDoNotAccumulate() {
         final InputLocations locations = new InputLocations();
-        locations.onMatch(ROOT, "root", 100, 50, 1, 0);
-        locations.onMatch(CHILD, "child", 120, 10, 1, 1);
+        locations.onMatch(1, 0, ROOT, "root", 100, 50, 100, 50, 1, 0);
+        locations.onMatch(2, 1, CHILD, "child", 120, 10, 20, 10, 1, 1);
         assertThat(locations.currentInputOffset()).isEqualTo(120);
-        locations.onOutput(CHILD, 1, 0, 3, OutputSink.Unit.EVENTS);
+        locations.onOutput(2, CHILD, 1, 0, 3, OutputSink.Unit.EVENTS);
         // The parent's later events belong to the parent, not to the child that just closed.
         assertThat(locations.currentInputOffset()).isEqualTo(100);
         for (int i = 2; i <= 10_000; i++) {
-            locations.onMatch(CHILD, "child", 120L + i, 10, i, 1);
-            locations.onOutput(CHILD, i, 0, 3, OutputSink.Unit.EVENTS);
+            locations.onMatch(2L + i, 1, CHILD, "child", 120L + i, 10, 20 + i, 10, i, 1);
+            locations.onOutput(2L + i, CHILD, i, 0, 3, OutputSink.Unit.EVENTS);
         }
         assertThat(locations.openMatches()).isEqualTo(1);
-        locations.onOutput(ROOT, 1, 0, 30_000, OutputSink.Unit.EVENTS);
+        locations.onOutput(1, ROOT, 1, 0, 30_000, OutputSink.Unit.EVENTS);
         assertThat(locations.openMatches()).isZero();
     }
 

@@ -75,17 +75,22 @@ final class InputLocations implements Instrument {
     // -----------------------------------------------------------------------------------
 
     @Override
-    public void onMatch(final String templateId,
+    public void onMatch(final long frameId,
+                        final long parentFrameId,
+                        final String templateId,
                         final String templateName,
                         final long inputOffset,
                         final int inputLength,
+                        final int contentOffset,
+                        final int contentLength,
                         final int matchIndex,
                         final int depth) {
         open.push(new Open(templateId, matchIndex, inputOffset));
     }
 
     @Override
-    public void onOutput(final String templateId,
+    public void onOutput(final long frameId,
+                         final String templateId,
                          final int matchIndex,
                          final long outputOffset,
                          final long outputLength,

@@ -1250,11 +1250,12 @@ public enum SvgImage {
             ""),
 
     DOCUMENT_SHAPESHIFTER("document/Shapeshifter.svg", "svg-image__document-shapeshifter", "" +
-            "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1792\" height=\"1792\" viewBox=\"0 0 " +
-            "1792 1792\" version=\"1.1\"><!-- A shape mid-shift: a square fused into a circle. -" +
-            "-><path style=\"fill:var(--icon-colour__black)\" d=\"M 128,384 H 896 V 1408 H 128 Z" +
-            "\"/><circle style=\"fill:var(--icon-colour__black)\" cx=\"1216\" cy=\"896\" r=\"512\"/></" +
-            "svg> \n" +
+            "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"256\" height=\"256\" viewBox=" +
+            "\"38 38 180 180\"><!-- Three shapes over one another: a square, a circle, a tria" +
+            "ngle - the shape shifting. --><g fill=\"none\" stroke-width=\"12\" stroke-linejo" +
+            "in=\"round\"><rect x=\"44\" y=\"44\" width=\"168\" height=\"168\" rx=\"10\" stro" +
+            "ke=\"#94D0FF\"/><circle cx=\"128\" cy=\"128\" r=\"84\" stroke=\"#FF6AD5\"/><path" +
+            " d=\"M128 212 L200.7 86 L55.3 86 Z\" stroke=\"#FCEE0A\"/></g></svg> \n" +
             ""),
 
     DOCUMENT_SIGMA_RULE("document/SigmaRule.svg", "svg-image__document-sigma-rule", "" +

@@ -1122,6 +1122,16 @@ makes the Design tab's scope a quality decision rather than a blocking one.
 
 ## 7. Engine asks, collected
 
+*Answered 2026-09-18 (phase B, engine side): the `Instrument` contract carries frame ids and
+parent ids on `onMatch` (G1), every frame's content as a slice of its parent's — an offset —
+or as bytes in `onMatchContent` when it is no slice (G2), and every attempt with the frame it
+was made in and where in that frame's content and the input it was tried (G3); `onCapture` and
+`onOutput` name their frame. The events still bracket in execution order, and the Javadoc now
+says so. `TraceRecorder` keeps it all with per-template timing, capped only on the attempts
+kept in full; `preview` runs a supplied sample whole and returns the trace with typed captures
+(5). `patternInfo` and the lint (4, 6) had landed with A2. Pinned in `InstrumentTest` and the
+endpoint test.*
+
 1. **G1**: pin `Instrument` event-ordering as contract, or add parent identity to
    `onMatch`. Either way the preview wire format carries explicit parent ids.
 2. **G2**: frame content delivered for every frame — `onMatchContent` generalised to the
