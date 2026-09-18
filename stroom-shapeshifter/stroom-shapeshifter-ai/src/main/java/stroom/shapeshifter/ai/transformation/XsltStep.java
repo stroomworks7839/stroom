@@ -19,26 +19,25 @@ package stroom.shapeshifter.ai.transformation;
 import stroom.pipeline.shared.XsltDoc;
 import stroom.shapeshifter.ai.learning.StepResult;
 import stroom.shapeshifter.ai.learning.StepRunner;
+import stroom.shapeshifter.ai.scoring.ConfinedXml;
 import stroom.util.shared.DefaultLocation;
 import stroom.util.shared.ElementId;
+import stroom.util.shared.ErrorType;
 import stroom.util.shared.Severity;
 import stroom.util.shared.StoredError;
-import stroom.util.xml.SAXParserFactoryFactory;
 
 import net.sf.saxon.Configuration;
 import net.sf.saxon.TransformerFactoryImpl;
+import net.sf.saxon.jaxp.TransformerImpl;
 import net.sf.saxon.lib.FeatureKeys;
+import net.sf.saxon.s9api.XdmNode;
+import net.sf.saxon.s9api.XdmNodeKind;
 import net.sf.saxon.trans.XPathException;
-import org.xml.sax.InputSource;
-import org.xml.sax.SAXException;
-import org.xml.sax.XMLReader;
 
-import java.io.StringReader;
 import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.transform.ErrorListener;
 import javax.xml.transform.OutputKeys;
 import javax.xml.transform.SourceLocator;
@@ -46,7 +45,6 @@ import javax.xml.transform.Templates;
 import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerException;
 import javax.xml.transform.URIResolver;
-import javax.xml.transform.sax.SAXSource;
 import javax.xml.transform.stream.StreamResult;
 
 /**
@@ -94,12 +92,13 @@ public final class XsltStep implements StepRunner {
         confine(factory);
         final StringWriter output = new StringWriter();
         try {
-            final Templates templates = factory.newTemplates(confined(configuration));
+            final Templates templates = factory.newTemplates(ConfinedXml.source(configuration));
             final Transformer transformer = templates.newTransformer();
             transformer.setErrorListener(diagnostics);
+            ((TransformerImpl) transformer).getUnderlyingXsltTransformer().setMessageListener(diagnostics::message);
             transformer.setURIResolver(REFUSING_URI_RESOLVER);
             transformer.setOutputProperty(OutputKeys.INDENT, "yes");
-            transformer.transform(confined(input), new StreamResult(output));
+            transformer.transform(ConfinedXml.source(input), new StreamResult(output));
         } catch (final TransformerException e) {
             // Saxon reports through the listener before throwing, so this is only the rare fault nobody
             // has yet recorded.
@@ -107,8 +106,6 @@ public final class XsltStep implements StepRunner {
                 diagnostics.record(Severity.FATAL_ERROR, e);
             }
             return new StepResult(null, List.copyOf(diagnostics.errors));
-        } catch (final SAXException | ParserConfigurationException e) {
-            throw new IllegalStateException("Unable to set up the transformation run", e);
         }
         return new StepResult(output.toString(), List.copyOf(diagnostics.errors));
     }
@@ -135,20 +132,6 @@ public final class XsltStep implements StepRunner {
     }
 
     /**
-     * Both the stylesheet and the input are parsed by a reader that refuses a DOCTYPE outright, so no
-     * entity — external or expanding — can be declared. Saxon's own parse options are not consulted for a
-     * {@code StreamSource}, which is why the reader is supplied rather than configured.
-     */
-    private static SAXSource confined(final String xml) throws SAXException, ParserConfigurationException {
-        final XMLReader reader = SAXParserFactoryFactory.newInstance().newSAXParser().getXMLReader();
-        reader.setFeature(SAXParserFactoryFactory.FEATURE_DISALLOW_DOCTYPE, true);
-        reader.setFeature(SAXParserFactoryFactory.FEATURE_EXTERNAL_GENERAL_ENTITIES, false);
-        reader.setFeature(SAXParserFactoryFactory.FEATURE_EXTERNAL_PARAMETER_ENTITIES, false);
-        reader.setFeature(SAXParserFactoryFactory.FEATURE_LOAD_EXTERNAL_DTD, false);
-        return new SAXSource(reader, new InputSource(new StringReader(xml)));
-    }
-
-    /**
      * Collects what Saxon reports, at the severity Saxon gave it, located as Saxon located it.
      */
     private static final class Diagnostics implements ErrorListener {
@@ -168,6 +151,43 @@ public final class XsltStep implements StepRunner {
         @Override
         public void fatalError(final TransformerException e) {
             record(Severity.FATAL_ERROR, e);
+        }
+
+        /**
+         * An {@code xsl:message} as Stroom's {@code XSLTFilter} reads one: an error unless its first child
+         * element names a severity ({@code <warn>}, {@code <info>}), fatal if it terminates; the transform's
+         * own channel for a business rule it found broken (design 01 §8.4). Marked as code so that the
+         * business-rules scorer can tell the transform's messages from Saxon's.
+         */
+        private void message(final XdmNode content, final boolean terminate, final SourceLocator locator) {
+            Severity severity = terminate
+                    ? Severity.FATAL_ERROR
+                    : Severity.ERROR;
+            String text = content == null
+                    ? ""
+                    : content.getStringValue();
+            if (!terminate && content != null) {
+                for (final XdmNode child : content.children()) {
+                    if (child.getNodeKind() == XdmNodeKind.ELEMENT) {
+                        final Severity named = Severity.getSeverity(child.getNodeName().getLocalName());
+                        if (named != null) {
+                            severity = named;
+                            text = child.getStringValue();
+                        }
+                    }
+                    break;
+                }
+            }
+            errors.add(new StoredError(
+                    severity,
+                    locator == null
+                            ? null
+                            : DefaultLocation.of(locator.getLineNumber(), locator.getColumnNumber()),
+                    ELEMENT_ID,
+                    text.isEmpty()
+                            ? "NO MESSAGE"
+                            : text,
+                    ErrorType.CODE));
         }
 
         private void record(final Severity severity, final TransformerException e) {

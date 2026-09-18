@@ -55,6 +55,11 @@ public final class DataSplitterStep implements StepRunner {
     }
 
     @Override
+    public boolean parser() {
+        return true;
+    }
+
+    @Override
     public StepResult run(final String configuration, final String input) {
         return switch (compiler.compile(configuration)) {
             case Rejected rejected -> new StepResult(null, rejected.diagnostics());

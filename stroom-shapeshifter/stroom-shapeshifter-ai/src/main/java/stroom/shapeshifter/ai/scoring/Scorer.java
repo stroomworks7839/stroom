@@ -36,4 +36,13 @@ public interface Scorer {
      *                   {@link #type()}; null for a scorer that takes none.
      */
     Optional<Score> score(ScorerParameters parameters, Attempted step);
+
+    /**
+     * Refuse parameters this scorer cannot work with — a path that does not compile — when the
+     * scorecard is built, before a model is asked or a stream fails on them.
+     *
+     * @throws IllegalArgumentException Saying what is wrong with the document's setting.
+     */
+    default void validate(final ScorerParameters parameters) {
+    }
 }

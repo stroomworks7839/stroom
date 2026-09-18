@@ -25,6 +25,7 @@ import stroom.util.shared.StoredError;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * Input coverage (ruling A11) as a scorer: the smaller of the character and line ratios the split
@@ -34,6 +35,7 @@ import java.util.Optional;
 public final class InputCoverageScorer implements Scorer {
 
     private static final ElementId COVERAGE = new ElementId("InputCoverage");
+    private static final int UNCOVERED_LINES_SHOWN = 5;
 
     @Override
     public ScorerType type() {
@@ -51,8 +53,23 @@ public final class InputCoverageScorer implements Scorer {
                 ? List.of(new StoredError(Severity.WARNING, null, COVERAGE,
                 "The split consumed " + coverage.linesCovered() + " of " + coverage.linesTotal()
                 + " lines and " + coverage.charsCovered() + " of " + coverage.charsTotal()
-                + " characters; the rest of the input was discarded"))
+                + " characters; the rest of the input was discarded" + uncovered(coverage)))
                 : List.of();
         return Optional.of(new Score(type(), value, diagnostics));
+    }
+
+    /**
+     * The first few lines nothing consumed, so the model can see what it missed rather than only how much.
+     */
+    private static String uncovered(final InputCoverage coverage) {
+        final List<Integer> lines = coverage.linesUncovered();
+        if (lines.isEmpty()) {
+            return "";
+        }
+        final List<Integer> shown = lines.subList(0, Math.min(lines.size(), UNCOVERED_LINES_SHOWN));
+        return ". Lines not consumed: " + shown.stream().map(String::valueOf).collect(Collectors.joining(", "))
+               + (lines.size() > shown.size()
+                ? " and " + (lines.size() - shown.size()) + " more"
+                : "");
     }
 }

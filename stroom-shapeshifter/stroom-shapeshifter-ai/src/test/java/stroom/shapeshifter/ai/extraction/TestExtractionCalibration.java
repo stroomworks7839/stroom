@@ -45,7 +45,7 @@ class TestExtractionCalibration {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(TestExtractionCalibration.class);
 
-    private static final DataSplitterFixture FIXTURE = new DataSplitterFixture();
+    private static final NodeFixture FIXTURE = new NodeFixture();
 
     @TestFactory
     Stream<DynamicTest> goldenConfigurationReproducesExpectedRecords() {

@@ -51,6 +51,14 @@ public interface StepRunner {
     StepResult run(String configuration, String input);
 
     /**
+     * Whether the element parses raw input into records — the extraction position of design 01 §4 —
+     * rather than transforming records into records.
+     */
+    default boolean parser() {
+        return false;
+    }
+
+    /**
      * @param documentType The document type consumed, e.g. {@code TextConverter}.
      * @param propertyName The element property that references the document, e.g. {@code textConverter}.
      */

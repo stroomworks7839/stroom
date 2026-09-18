@@ -17,10 +17,16 @@
 package stroom.shapeshifter.ai.scoring;
 
 import stroom.shapeshifter.ai.learning.StepResult;
+import stroom.shapeshifter.ai.learning.StepRunner;
 
 /**
- * One step of a chain as the scorers see it: what went in, what came out, and which element did it.
+ * One step of a chain as the scorers see it: what went in, what came out, which element did it, and
+ * whether that element is a parser — whose records are the input's shape, not the target's, so the
+ * scorers that judge meaning leave them alone (design 01 §4).
  */
-public record Attempted(String elementType, String input, StepResult result) {
+public record Attempted(String elementType, boolean parser, String input, StepResult result) {
 
+    public static Attempted of(final StepRunner runner, final String input, final StepResult result) {
+        return new Attempted(runner.elementType(), runner.parser(), input, result);
+    }
 }

@@ -29,8 +29,8 @@ import java.util.stream.Collectors;
 /**
  * The document's scorer set applied to a step (design §8.4): every setting whose scorer has a signal on
  * the step is scored, judged against its threshold, and weighted into a total. A setting whose scorer is
- * not installed is a configuration fault and is refused when the scorecard is built, not silently
- * skipped at scoring time.
+ * not installed, or whose parameters its scorer refuses, is a configuration fault and is refused when
+ * the scorecard is built, not silently skipped or failed stream by stream at scoring time.
  */
 public final class Scorecard {
 
@@ -44,6 +44,7 @@ public final class Scorecard {
             if (!this.scorers.containsKey(setting.getType())) {
                 throw new IllegalArgumentException("No scorer is installed for " + setting.getType());
             }
+            this.scorers.get(setting.getType()).validate(setting.getParameters());
         }
     }
 

@@ -631,8 +631,8 @@ public final class Stage {
         final List<Attempted> attempted = new ArrayList<>();
         String current = input;
         for (final LearnedStep step : chain) {
-            final Attempted attempt = new Attempted(
-                    step.elementType(), current, step.runner().run(step.configuration(), current));
+            final Attempted attempt = Attempted.of(step.runner(), current,
+                    step.runner().run(step.configuration(), current));
             attempted.add(attempt);
             if (attempt.result().output() == null) {
                 break;

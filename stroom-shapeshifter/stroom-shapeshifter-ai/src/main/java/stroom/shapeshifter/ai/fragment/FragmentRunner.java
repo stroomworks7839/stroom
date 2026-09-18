@@ -111,7 +111,7 @@ public final class FragmentRunner {
             final String configuration = runner.configured()
                     .map(configured -> configuration(merged, fragment, elementId, configured.propertyName()))
                     .orElse(null);
-            final Attempted step = new Attempted(element.getType(), current, runner.run(configuration, current));
+            final Attempted step = Attempted.of(runner, current, runner.run(configuration, current));
             steps.add(step);
             if (step.result().output() == null) {
                 break;

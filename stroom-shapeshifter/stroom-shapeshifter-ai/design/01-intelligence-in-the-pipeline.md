@@ -1220,8 +1220,10 @@ arrived last. Items marked *built* already exist in `stroom-shapeshifter-ai` or 
    fragment as a nested pipeline in its own scope, with scenario 18 passing as a processor task;
    the child-task context and per-element capture (item 2) are not.*
 5. **The scorer set of §8.4**, including the input-coverage scorer (A11) and the anti-degeneracy
-   scorer (A16), which have no existing equivalent. *The SPI and the compile, coverage and yield scorers are built; schema
-   conformance, anti-degeneracy, business rules, error load, classification and AI review are not.*
+   scorer (A16), which have no existing equivalent. *The SPI and the compile, coverage and yield scorers
+   are built; schema conformance, extraction quality (anti-degeneracy) and business rules followed on
+   2026-09-18, applying to a step whose input was already records (§4) — design 02 §6.1; error load,
+   classification and AI review are not.*
 6. **Additions to `stroom-ai`:** a multi-turn chat call with message history (A21); transport
    retries, budgets and rate limiting, token accounting, audit logging of invocations — the whole
    transcript, not each call in isolation — and explicit cache bypass.
@@ -1423,3 +1425,7 @@ including the degeneracy trap (§8.3) that changes the scoring model and propose
   task; the fragment runs as a nested pipeline; bindings reach the output stream's attributes (item 7).
   Interim: the fragment runs twice per stream, runtime state is node-local memory, and there is no
   model advisor bound — design 02 §6.1 records each.
+- The scorers of §8.4 that judge meaning built — schema conformance as a gate, extraction quality as
+  the A16 gate, business rules — and scenarios 4–10 and 19 passing. Writing them found the 3.0.0 schema
+  stricter than the catalogue's flawed candidates assumed (§8.2's list stands: a dropped `User` or
+  `Device` fails conformance before anything else can judge it); design 02 §6.1 records the rest.

@@ -50,8 +50,11 @@ import stroom.shapeshifter.ai.extraction.DataSplitterStep;
 import stroom.shapeshifter.ai.fragment.FragmentRunner;
 import stroom.shapeshifter.ai.fragment.FragmentWriter;
 import stroom.shapeshifter.ai.learning.Advisor;
+import stroom.shapeshifter.ai.scoring.BusinessRulesScorer;
 import stroom.shapeshifter.ai.scoring.CompileScorer;
+import stroom.shapeshifter.ai.scoring.ExtractionQualityScorer;
 import stroom.shapeshifter.ai.scoring.InputCoverageScorer;
+import stroom.shapeshifter.ai.scoring.SchemaConformanceScorer;
 import stroom.shapeshifter.ai.scoring.YieldScorer;
 import stroom.shapeshifter.ai.stage.Bindings;
 import stroom.shapeshifter.ai.stage.Decision;
@@ -161,6 +164,7 @@ public class ShapeshifterAiParser extends AbstractParser {
                                 final MetaData metaData,
                                 final FragmentOutput fragmentOutput,
                                 final DataSplitterCompiler dataSplitterCompiler,
+                                final SchemaConformanceScorer schemaConformanceScorer,
                                 final FragmentWriter fragmentWriter,
                                 final Advisor advisor,
                                 final Shapes shapes,
@@ -185,7 +189,8 @@ public class ShapeshifterAiParser extends AbstractParser {
         this.stage = new Stage(
                 advisor,
                 runners,
-                List.of(new CompileScorer(), new InputCoverageScorer(), new YieldScorer()),
+                List.of(new CompileScorer(), new InputCoverageScorer(), new YieldScorer(), schemaConformanceScorer,
+                        new ExtractionQualityScorer(), new BusinessRulesScorer()),
                 fragmentWriter,
                 new FragmentRunner(pipelineStore, pipelineStackLoader, textConverterStore, xsltStore, runners),
                 shapes,

@@ -34,7 +34,7 @@ class TestDataSplitterCompiler {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(TestDataSplitterCompiler.class);
 
-    private static final DataSplitterFixture FIXTURE = new DataSplitterFixture();
+    private static final NodeFixture FIXTURE = new NodeFixture();
 
     @Test
     void rejectsMalformedXmlOnce() {

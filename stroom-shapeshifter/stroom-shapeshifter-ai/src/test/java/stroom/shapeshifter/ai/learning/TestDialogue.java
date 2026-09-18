@@ -17,11 +17,11 @@
 package stroom.shapeshifter.ai.learning;
 
 import stroom.meta.api.StandardHeaderArguments;
-import stroom.shapeshifter.ai.extraction.DataSplitterFixture;
 import stroom.shapeshifter.ai.extraction.DataSplitterStep;
 import stroom.shapeshifter.ai.extraction.ExtractionCorpus;
 import stroom.shapeshifter.ai.extraction.ExtractionCorpus.Failing;
 import stroom.shapeshifter.ai.extraction.ExtractionCorpus.Golden;
+import stroom.shapeshifter.ai.extraction.NodeFixture;
 import stroom.shapeshifter.ai.learning.Outcome.Abandoned;
 import stroom.shapeshifter.ai.learning.Outcome.Learned;
 import stroom.shapeshifter.ai.learning.Question.Chain;
@@ -53,7 +53,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class TestDialogue {
 
-    private static final DataSplitterFixture FIXTURE = new DataSplitterFixture();
+    private static final NodeFixture FIXTURE = new NodeFixture();
     private static final Golden CSV = golden("001_csv_with_header");
     private static final Failing BAD_CSV = failing("008_invalid_xml_FAIL");
     private static final String XSLT = Scenarios.resource("csv-logon.xsl");

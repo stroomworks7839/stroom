@@ -68,6 +68,7 @@ dependencies {
     testFixturesImplementation platform(libs.dropwizard.dependencies)
     testFixturesImplementation libs.assertj.core
     testFixturesImplementation libs.guice
+    testFixturesImplementation libs.jakarta.inject
     testFixturesImplementation libs.junit.jupiter.api
 
     testImplementation project(':stroom-docstore:stroom-docstore-impl')

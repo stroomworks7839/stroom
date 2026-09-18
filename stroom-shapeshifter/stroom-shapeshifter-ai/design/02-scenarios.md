@@ -333,8 +333,50 @@ to report. The second stream is bound with the script never consulted. Five thin
   document through the type's handler where one is registered, as the real service does, returning
   null only for a type this environment has no handler for (which the content store setup relies on).
 
-Not yet: scenarios 19 and 20 (the latter needs the A26 tables for its ledger row), everything from
-scenario 30 on, and the scorers of §6 item 2 that unlock 4–10.
+The sixth slice, 2026-09-18, is the scorers of §6 item 2 and the scenarios they unlock: 4, 5, 6, 7, 8,
+9 and 10 in Tier 1 (`TestScenariosScoring`, `TestScenariosIncumbent`) and 19 in Tier 2. Schema
+conformance validates per record through Stroom's own `SchemaFilter` behind a `SplitFilter`, as
+`SchemaFilterSplit` does, with a counter between them so that each error lands on its record; the
+feedback is the first failing records' messages as Stroom post-processes them. Extraction quality is
+the mean of the typed-element ratio, the proportion of records not naming `Unknown`, and the presence of
+each required field, with a diagnostic for each shortfall. Business rules is the proportion of records
+holding every assertion, a transform `xsl:message` at warning or above counting against one record —
+`XsltStep` now captures messages as Stroom's `XSLTFilter` reads them. Coverage's feedback names the
+first lines nothing consumed. Writing the scenarios found four things:
+
+- **The scorers of meaning apply only to a step that is not a parser.** Left to judge every XML output
+  they refused the parser's `records:2` document against the events schema. Design 01 §4 says where
+  each scorer sits — stream-level after a parser, per record after a filter — and the scorers now
+  honour it: a step runner says whether it parses (`StepRunner.parser`), the fact travels with the
+  attempted step, and the meaning scorers leave a parser's records alone whatever its input looked like
+  (a parser over line-delimited XML fragments has markup for input and is still a parser).
+- **The 3.0.0 schema is stricter than the flawed candidates the catalogue imagined.** `Authenticate`
+  requires one of `LogonType`/`User`/`Device`, and `EventSource` one of `Device`/`Client`/`Server`/`Door`,
+  so a transform that *drops* the user or the device fails conformance first, and the business rule or
+  the required field never gets to speak. The scenarios' flawed candidates emit the element empty
+  instead — schema-valid, and wrong in the way the later scorer exists to catch — which is also a truer
+  picture of what a model produces.
+- **A wholly broken rule must score zero.** The first formula counted "no transform messages" as a
+  passed check per record, so a rule every record broke scored 0.5; the score is now the proportion of
+  records holding every rule.
+- **Feedback numbers are the learning prefix's**, not the stream's: scenario 4's re-ask says the split
+  consumed 3 of 5 lines and names lines 2 and 4, because the model learns from the prefix. The
+  catalogue's rows read as if over the whole stream; the tests state what is actually said.
+
+Also from the audit of the slice: the output a model's stylesheet produced is parsed by the same
+DOCTYPE-refusing reader the step already applies to what a model wrote (`ConfinedXml`), so nothing in
+it can make the harness fetch anything; a required-field path or a rule's XPath that does not compile is
+refused when the scorecard is built (`Scorer.validate`), before a model is asked, rather than failing
+every stream; and a record the validator never reached counts as failing, not conforming.
+
+Scenario 7 runs both ways: a candidate that never clears its yield threshold is abandoned at the
+candidate limit after five questions and the shape given up with a ledger row, and one that clears
+every threshold but not the floor is given up after three. Scenario 8 runs both halves of the gate: a
+candidate worse than the incumbent on the held-out stream (A15) and one worse on a record the rule was
+accepted on (A18), each kept without a document written. The Tier 2 scorer set is the same six, the
+schema-conformance scorer taking the node's `SchemaFilter` and so the node's whole schema store.
+
+Not yet: scenario 20 (needs the A26 tables for its ledger row), everything from scenario 30 on.
 
 ## 7. Decisions taken
 

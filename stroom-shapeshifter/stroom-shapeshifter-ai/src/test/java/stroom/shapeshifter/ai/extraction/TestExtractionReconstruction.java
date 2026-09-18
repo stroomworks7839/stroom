@@ -62,7 +62,7 @@ class TestExtractionReconstruction {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(TestExtractionReconstruction.class);
 
-    private static final DataSplitterFixture FIXTURE = new DataSplitterFixture();
+    private static final NodeFixture FIXTURE = new NodeFixture();
 
     /**
      * Improvement attempts per case, each fed the previous attempt's failure. Transport failures are retried

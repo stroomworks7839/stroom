@@ -19,6 +19,7 @@ package stroom.shapeshifter.ai.extraction;
 import stroom.util.shared.Location;
 import stroom.util.shared.TextRange;
 
+import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.List;
 
@@ -37,10 +38,20 @@ import java.util.List;
  *
  * @param charsCovered Characters, other than line breaks, inside at least one record range.
  * @param charsTotal   Characters in the input, other than line breaks.
- * @param linesCovered Non-blank lines with at least one covered character.
- * @param linesTotal   Non-blank lines in the input.
+ * @param linesCovered   Non-blank lines with at least one covered character.
+ * @param linesTotal     Non-blank lines in the input.
+ * @param linesUncovered The one-based numbers of the non-blank lines nothing consumed, in order: what
+ *                       the model is pointed at when coverage loses marks.
  */
-public record InputCoverage(int charsCovered, int charsTotal, int linesCovered, int linesTotal) {
+public record InputCoverage(int charsCovered,
+                            int charsTotal,
+                            int linesCovered,
+                            int linesTotal,
+                            List<Integer> linesUncovered) {
+
+    public InputCoverage {
+        linesUncovered = List.copyOf(linesUncovered);
+    }
 
     public static InputCoverage measure(final String rawInput, final List<TextRange> recordRanges) {
         // Positions are the Data Splitter's, and its reader drops carriage returns and every other
@@ -62,6 +73,7 @@ public record InputCoverage(int charsCovered, int charsTotal, int linesCovered, 
         int charsTotal = 0;
         int linesTotal = 0;
         int linesCovered = 0;
+        final List<Integer> linesUncovered = new ArrayList<>();
         for (int line = 0; line < lineStarts.length; line++) {
             final int start = lineStarts[line];
             final int end = line + 1 < lineStarts.length
@@ -87,11 +99,13 @@ public record InputCoverage(int charsCovered, int charsTotal, int linesCovered, 
                 linesTotal++;
                 if (lineCovered) {
                     linesCovered++;
+                } else {
+                    linesUncovered.add(line + 1);
                 }
             }
         }
 
-        return new InputCoverage(covered.cardinality(), charsTotal, linesCovered, linesTotal);
+        return new InputCoverage(covered.cardinality(), charsTotal, linesCovered, linesTotal, linesUncovered);
     }
 
     public double charRatio() {

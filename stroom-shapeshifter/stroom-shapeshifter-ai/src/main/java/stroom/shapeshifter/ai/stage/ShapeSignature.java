@@ -53,7 +53,7 @@ public final class ShapeSignature {
         return digest(skeleton);
     }
 
-    static boolean isMarkup(final String data) {
+    public static boolean isMarkup(final String data) {
         return MARKUP.matcher(data).find();
     }
 

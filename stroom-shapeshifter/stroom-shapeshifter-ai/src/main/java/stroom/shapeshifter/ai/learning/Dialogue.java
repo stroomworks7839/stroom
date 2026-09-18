@@ -188,7 +188,7 @@ public final class Dialogue {
         if (!result.passed()) {
             return new Tried(null, result.diagnostics());
         }
-        final Verdict verdict = scorecard.judge(new Attempted(runner.elementType(), input, result));
+        final Verdict verdict = scorecard.judge(Attempted.of(runner, input, result));
         return verdict.passed()
                 ? new Tried(new LearnedStep(runner, configuration, result, verdict), List.of())
                 : new Tried(null, verdict.feedback());

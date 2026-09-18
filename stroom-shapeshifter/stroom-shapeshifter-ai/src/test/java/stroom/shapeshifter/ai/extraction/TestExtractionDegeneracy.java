@@ -37,7 +37,7 @@ class TestExtractionDegeneracy {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(TestExtractionDegeneracy.class);
 
-    private static final DataSplitterFixture FIXTURE = new DataSplitterFixture();
+    private static final NodeFixture FIXTURE = new NodeFixture();
 
     /**
      * Six quoted CSV lines, no header; the golden yields six records at full coverage.

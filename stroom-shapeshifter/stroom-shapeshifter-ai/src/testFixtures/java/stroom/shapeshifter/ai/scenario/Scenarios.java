@@ -16,15 +16,17 @@
 
 package stroom.shapeshifter.ai.scenario;
 
-import stroom.shapeshifter.ai.extraction.DataSplitterFixture;
 import stroom.shapeshifter.ai.extraction.DataSplitterStep;
 import stroom.shapeshifter.ai.extraction.ExtractionCorpus;
 import stroom.shapeshifter.ai.extraction.ExtractionCorpus.Golden;
+import stroom.shapeshifter.ai.extraction.NodeFixture;
 import stroom.shapeshifter.ai.fragment.ContentStores;
 import stroom.shapeshifter.ai.fragment.FragmentRunner;
 import stroom.shapeshifter.ai.learning.Advisor;
 import stroom.shapeshifter.ai.learning.StepRunner;
+import stroom.shapeshifter.ai.scoring.BusinessRulesScorer;
 import stroom.shapeshifter.ai.scoring.CompileScorer;
+import stroom.shapeshifter.ai.scoring.ExtractionQualityScorer;
 import stroom.shapeshifter.ai.scoring.InputCoverageScorer;
 import stroom.shapeshifter.ai.scoring.Scorer;
 import stroom.shapeshifter.ai.scoring.YieldScorer;
@@ -58,7 +60,7 @@ public final class Scenarios {
     public static final Instant NOW = Instant.parse("2026-09-17T09:00:00Z");
     public static final long SEED = 42L;
 
-    private static final DataSplitterFixture DATA_SPLITTER = new DataSplitterFixture();
+    private static final NodeFixture NODE = new NodeFixture();
 
     public final ContentStores stores = new ContentStores();
     public final InMemoryShapes shapes = new InMemoryShapes();
@@ -68,11 +70,12 @@ public final class Scenarios {
     public final InMemoryRegressionSet regressionSet = new InMemoryRegressionSet();
 
     public List<StepRunner> runners() {
-        return List.of(new DataSplitterStep(DATA_SPLITTER.compiler()), new XsltStep());
+        return List.of(new DataSplitterStep(NODE.compiler()), new XsltStep());
     }
 
     public List<Scorer> scorers() {
-        return List.of(new CompileScorer(), new InputCoverageScorer(), new YieldScorer());
+        return List.of(new CompileScorer(), new InputCoverageScorer(), new YieldScorer(),
+                NODE.schemaConformanceScorer(), new ExtractionQualityScorer(), new BusinessRulesScorer());
     }
 
     public Stage stage(final Advisor advisor) {
