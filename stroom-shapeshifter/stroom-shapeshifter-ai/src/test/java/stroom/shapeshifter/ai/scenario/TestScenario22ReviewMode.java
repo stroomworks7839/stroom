@@ -24,6 +24,7 @@ import stroom.shapeshifter.ai.stage.StageRun;
 import stroom.shapeshifter.ai.state.InMemoryLedger;
 import stroom.shapeshifter.ai.state.InMemoryReprocessing;
 import stroom.shapeshifter.ai.state.InMemoryReprocessing.Request;
+import stroom.shapeshifter.shared.DialogueShape;
 import stroom.shapeshifter.shared.LearningMode;
 import stroom.shapeshifter.shared.PromotionMode;
 import stroom.shapeshifter.shared.RoutingRule;
@@ -61,6 +62,7 @@ class TestScenario22ReviewMode {
                 .uuid(DOC)
                 .name("door-access")
                 .learningMode(LearningMode.AUTOMATIC)
+                .dialogueShape(DialogueShape.TARGET_FIRST)
                 .promotionMode(PromotionMode.REVIEW)
                 .allowedElements(List.of("DSParser", "XSLTFilter"))
                 .minRecordsPerShape(5)
@@ -72,8 +74,8 @@ class TestScenario22ReviewMode {
                 .build();
     }
 
-    private static Script learning(final String splitter) {
-        return Script.of()
+    private static Script learning(final Scenarios scenarios, final String splitter) {
+        return scenarios.script(splitter, XSLT)
                 .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter")
                 .expect(QuestionMatcher.configuration("DSParser")).reply(Scenarios.fenced(splitter))
                 .expect(QuestionMatcher.configuration("XSLTFilter")).reply(Scenarios.fenced(XSLT));
@@ -102,7 +104,7 @@ class TestScenario22ReviewMode {
      * The first two streams of the shape: one learns the draft, the next is refused by it.
      */
     private static StageRun drafted(final Scenarios scenarios) {
-        final Script script = learning(FOUR_FIELDS);
+        final Script script = learning(scenarios, FOUR_FIELDS);
         final StageRun first = scenarios.stage(script).run(review(), stream(1, lines(7, 0)));
         script.verifyExhausted();
 
@@ -215,7 +217,7 @@ class TestScenario22ReviewMode {
         assertThat(scenarios.shapes.relearnReason(DOC, SHAPE)).isPresent();
 
         // Relearned: the incumbent serves, and the candidate is written as a draft behind it.
-        final Script relearn = learning(FOUR_FIELDS_AND_ALARMS);
+        final Script relearn = learning(scenarios, FOUR_FIELDS_AND_ALARMS);
         final StageRun relearned = scenarios.stage(relearn).run(bound, stream(4, withAlarms));
         relearn.verifyExhausted();
         assertThat(relearned.decision()).isInstanceOf(Drafted.class);
@@ -259,7 +261,8 @@ class TestScenario22ReviewMode {
         final RoutingRule incumbent = bound.getRoutingTable().get(0);
         final String withAlarms = lines(20, 3);
         scenarios.stage(Script.of()).run(bound, stream(3, withAlarms));
-        final StageRun relearned = scenarios.stage(learning(FOUR_FIELDS_AND_ALARMS)).run(bound, stream(4, withAlarms));
+        final StageRun relearned = scenarios.stage(learning(scenarios, FOUR_FIELDS_AND_ALARMS))
+                .run(bound, stream(4, withAlarms));
         final RoutingRule draft = ((Drafted) relearned.decision()).rule();
 
         final ShapeshifterAiDoc rejected = scenarios.stage(Script.of()).reject(relearned.doc(), draft.getUuid(), "no");
@@ -283,7 +286,7 @@ class TestScenario22ReviewMode {
         // Too few records for A14; a person approving the draft is design 01 §6's exception, and the rule
         // goes live with the records it was judged on in its regression set (A18).
         final Scenarios scenarios = new Scenarios();
-        final Script script = learning(FOUR_FIELDS);
+        final Script script = learning(scenarios, FOUR_FIELDS);
         final StageRun first = scenarios.stage(script).run(review().copy().minRecordsPerShape(10).build(),
                 stream(1, lines(6, 0)));
         final RoutingRule draft = ((Drafted) first.decision()).rule();
@@ -305,7 +308,8 @@ class TestScenario22ReviewMode {
                 .approve(waiting.doc(), waiting.doc().getRoutingTable().get(0).getUuid());
         final String withAlarms = lines(20, 3);
         scenarios.stage(Script.of()).run(bound, stream(3, withAlarms));
-        final StageRun relearned = scenarios.stage(learning(FOUR_FIELDS_AND_ALARMS)).run(bound, stream(4, withAlarms));
+        final StageRun relearned = scenarios.stage(learning(scenarios, FOUR_FIELDS_AND_ALARMS))
+                .run(bound, stream(4, withAlarms));
         final RoutingRule draft = ((Drafted) relearned.decision()).rule();
         final RoutingRule pinned = relearned.doc().getRoutingTable().get(0).copy().pinned(true).build();
         final ShapeshifterAiDoc doc = relearned.doc().copy().routingTable(List.of(pinned, draft)).build();

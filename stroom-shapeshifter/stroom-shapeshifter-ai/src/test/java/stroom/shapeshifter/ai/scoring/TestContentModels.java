@@ -47,7 +47,16 @@ class TestContentModels {
     void theParentOfDescriptionAndTypeIsAlert() {
         final List<String> parents = MODELS.describeParentsOf("Description", List.of("Type"));
         assertThat(parents).hasSize(1);
-        assertThat(parents.get(0)).startsWith("Alert contains, in order: Type, Severity?");
+        assertThat(parents.get(0)).startsWith("Alert contains, in order: Type [Vulnerability | IDS | Malware | "
+                                              + "Network | Change | Error | Other], Severity?");
+    }
+
+    @Test
+    void aRequiredEnumeratedChildCarriesItsValues() {
+        // The rung the live target question climbed: an Alert with Type "Alarm", which the schema does not know.
+        assertThat(MODELS.describe("Alert").get(0)).contains("Type [Vulnerability | IDS | Malware | Network | Change "
+                                                             + "| Error | Other]");
+        assertThat(MODELS.namespace()).contains("event-logging:3");
     }
 
     @Test

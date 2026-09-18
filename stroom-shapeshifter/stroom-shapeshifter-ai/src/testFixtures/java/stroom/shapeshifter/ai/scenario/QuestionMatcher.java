@@ -19,6 +19,8 @@ package stroom.shapeshifter.ai.scenario;
 import stroom.shapeshifter.ai.learning.Question;
 import stroom.shapeshifter.ai.learning.Question.Chain;
 import stroom.shapeshifter.ai.learning.Question.Configuration;
+import stroom.shapeshifter.ai.learning.Question.Split;
+import stroom.shapeshifter.ai.learning.Question.TargetFor;
 import stroom.util.shared.StoredError;
 
 import java.util.ArrayList;
@@ -41,6 +43,24 @@ public final class QuestionMatcher {
 
     public static QuestionMatcher chain() {
         return new QuestionMatcher("chain question", q -> q instanceof Chain);
+    }
+
+    public static QuestionMatcher split() {
+        return new QuestionMatcher("split question", q -> q instanceof Split);
+    }
+
+    public static QuestionMatcher target() {
+        return new QuestionMatcher("target question", q -> q instanceof TargetFor);
+    }
+
+    public QuestionMatcher forRecord(final String record) {
+        return with("for the record " + record,
+                q -> q instanceof final TargetFor t && t.record().equals(record));
+    }
+
+    public QuestionMatcher withTargets(final int count) {
+        return with("with " + count + " target(s)",
+                q -> q instanceof final Configuration c && c.targets().size() == count);
     }
 
     public static QuestionMatcher configuration(final String elementType) {
@@ -94,6 +114,8 @@ public final class QuestionMatcher {
     private static java.util.Map<String, String> keyValues(final Question question) {
         return switch (question) {
             case Chain s -> s.sample().headers();
+            case Split s -> s.sample().headers();
+            case TargetFor t -> t.sample().headers();
             case Configuration c -> c.sample().headers();
         };
     }

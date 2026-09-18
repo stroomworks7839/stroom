@@ -28,6 +28,7 @@ import stroom.shapeshifter.ai.stage.Decision.Rebound;
 import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.StageRun;
 import stroom.shapeshifter.shared.BusinessRulesParameters;
+import stroom.shapeshifter.shared.DialogueShape;
 import stroom.shapeshifter.shared.ExtractionQualityParameters;
 import stroom.shapeshifter.shared.LearningMode;
 import stroom.shapeshifter.shared.SchemaConformanceParameters;
@@ -65,20 +66,30 @@ import static org.assertj.core.api.Assertions.assertThat;
  * accepts, whether the feedback steers a second candidate to a passing one within the candidate limit,
  * and what an attempt costs. The results are a report, not a verdict: this test fails only if the
  * harness itself breaks. It runs only when the environment names an endpoint (see {@link LiveAdvisor}),
- * and writes each run's transcript under {@code build/live} for the write-up.
+ * and writes each run's transcript under {@code build/live/<shape>} for the write-up.
  */
 @EnabledIfEnvironmentVariable(named = LiveAdvisor.BASE_URL, matches = ".+")
 class TestLiveScenarios {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(TestLiveScenarios.class);
-    private static final Path OUT = Paths.get("build", "live");
     /**
      * The candidate limit for the run, to measure how many attempts a strict schema costs a model; the
      * document's default when unset.
      */
     private static final String MAX_ATTEMPTS = "SHAPESHIFTER_LIVE_MAX_ATTEMPTS";
+    /**
+     * The shape of the dialogue for the run, {@code DIRECT} (A21) or {@code TARGET_FIRST} (A31), so the two can
+     * be compared on the same model and feeds; the node's default when unset.
+     */
+    private static final String SHAPE = "SHAPESHIFTER_LIVE_SHAPE";
+    private static final DialogueShape SHAPE_UNDER_TEST = Optional.ofNullable(System.getenv(SHAPE))
+            .map(DialogueShape::valueOf)
+            .orElse(DialogueShape.DIRECT);
+    private static final Path OUT = Paths.get("build", "live", SHAPE_UNDER_TEST.name().toLowerCase());
     private static final Golden CSV = Scenarios.corpus("001_csv_with_header");
     private static final Golden REGEX = Scenarios.corpus("004_simple_regex");
+    private static final Golden MULTI_LINE = Scenarios.corpus("003_multiline_regex");
+    private static final String NESTED_XML = Scenarios.resource("nested-audit.xml");
     private static final String INSTRUCTIONS = """
             The feed is door-access records from a building's badge readers: who went where and what \
             they did, when. Events should name the person as the user and the reader's location as \
@@ -93,6 +104,7 @@ class TestLiveScenarios {
                 .uuid("live-" + name)
                 .name(name)
                 .learningMode(LearningMode.AUTOMATIC)
+                .dialogueShape(SHAPE_UNDER_TEST)
                 .allowedElements(List.of("DSParser", "XSLTFilter"))
                 .instructions(INSTRUCTIONS)
                 .minRecordsPerShape(5)
@@ -130,14 +142,16 @@ class TestLiveScenarios {
         // Scenario 1: the corpus's CSV with its header line, the default key.
         outcomes.add(run("01-csv-with-header", advisor -> {
             final Scenarios scenarios = new Scenarios();
-            return List.of(scenarios.stage(advisor).run(doc("csv-with-header", 0.8), stream(1, CSV.input())));
+            return List.of(scenarios.stage(advisor)
+                    .run(doc("csv-with-header", 0.8), stream(1, CSV.input())));
         }));
 
         // A headerless CSV against the full scorer set: does a first candidate mean something, or does
         // it fall into the degeneracy trap and get steered out of it?
         outcomes.add(run("02-csv-meaning", advisor -> {
             final Scenarios scenarios = new Scenarios();
-            return List.of(scenarios.stage(advisor).run(doc("csv-meaning", 0.9), stream(1, CsvLines.lines(7))));
+            return List.of(scenarios.stage(advisor)
+                    .run(doc("csv-meaning", 0.9), stream(1, CsvLines.lines(7))));
         }));
 
         // Two record kinds in one stream, coverage at 0.9: the splitter must take both.
@@ -153,8 +167,10 @@ class TestLiveScenarios {
             final ShapeshifterAiDoc doc = doc("relearn", 0.9).copy().relearnThreshold(0.8).build();
             final List<StageRun> runs = new ArrayList<>();
             runs.add(scenarios.stage(advisor).run(doc, stream(1, CsvLines.lines(7))));
-            runs.add(scenarios.stage(advisor).run(runs.get(0).doc(), stream(2, CsvLines.lines(20, "user", 3))));
-            runs.add(scenarios.stage(advisor).run(runs.get(1).doc(), stream(3, CsvLines.lines(20, "user", 3))));
+            runs.add(scenarios.stage(advisor)
+                    .run(runs.get(0).doc(), stream(2, CsvLines.lines(20, "user", 3))));
+            runs.add(scenarios.stage(advisor)
+                    .run(runs.get(1).doc(), stream(3, CsvLines.lines(20, "user", 3))));
             return runs;
         }));
 
@@ -169,7 +185,32 @@ class TestLiveScenarios {
                     new Input(1, "SYSLOG-LIKE", "Raw Events", Map.of(), REGEX.input())));
         }));
 
-        LOGGER.info("Live scenarios against {}:\n{}", System.getenv(LiveAdvisor.MODEL),
+        // The feeds A31 was designed for (design 02 §6.3): records of several lines, where a splitter can lose
+        // fields before the model sees them; and nested XML, where the record is already a tree.
+        outcomes.add(run("06-multiline-audit", advisor -> {
+            final Scenarios scenarios = new Scenarios();
+            final ShapeshifterAiDoc doc = doc("multiline-audit", 0.9).copy()
+                    .instructions("Linux audit records: blocks separated by a line of four dashes, a block of "
+                                  + "several lines being one record whose lines share the msg=audit(...) id. Events "
+                                  + "should name the auid or uid as the user and the node as the device.")
+                    .minRecordsPerShape(2)
+                    .build();
+            return List.of(scenarios.stage(advisor).run(doc,
+                    new Input(1, "LINUX-AUDIT", "Raw Events", Map.of(), MULTI_LINE.input())));
+        }));
+        outcomes.add(run("07-nested-xml", advisor -> {
+            final Scenarios scenarios = new Scenarios();
+            final ShapeshifterAiDoc doc = doc("nested-xml", 0.9).copy()
+                    .instructions("An application's audit log as XML, one entry per thing a person did. Events "
+                                  + "should name the login as the user, the host as the device, and the document "
+                                  + "opened where there is one.")
+                    .minRecordsPerShape(2)
+                    .build();
+            return List.of(scenarios.stage(advisor).run(doc,
+                    new Input(1, "DOCVAULT-AUDIT", "Raw Events", Map.of("Format", "XML"), NESTED_XML)));
+        }));
+
+        LOGGER.info("Live scenarios against {}, {}:\n{}", System.getenv(LiveAdvisor.MODEL), SHAPE_UNDER_TEST,
                 AsciiTable.builder(outcomes)
                         .withColumn(Column.of("Run", (Outcome o) -> o.name()))
                         .withColumn(Column.of("Decisions", (Outcome o) -> o.decisions()))
@@ -180,11 +221,12 @@ class TestLiveScenarios {
                         .withColumn(Column.of("Failure", (Outcome o) -> o.failure()))
                         .build());
         Files.writeString(OUT.resolve("report.md"), report(outcomes), StandardCharsets.UTF_8);
-        assertThat(outcomes).describedAs("the harness ran every scenario").hasSize(5);
+        assertThat(outcomes).describedAs("the harness ran every scenario").hasSize(7);
     }
 
     private Outcome run(final String name, final Function<LiveAdvisor, List<StageRun>> scenario) {
-        final LiveAdvisor advisor = LiveAdvisor.fromEnvironment(INSTRUCTIONS).orElseThrow();
+        // The advisor speaks for a document like the scenarios': the same instructions and scorer demands.
+        final LiveAdvisor advisor = LiveAdvisor.fromEnvironment(doc(name, 0.9)).orElseThrow();
         List<StageRun> runs = List.of();
         String failure = "";
         try {
@@ -201,7 +243,8 @@ class TestLiveScenarios {
 
     private void transcript(final Outcome outcome) {
         final StringBuilder text = new StringBuilder("# " + outcome.name() + "\n\n");
-        text.append("Model: ").append(System.getenv(LiveAdvisor.MODEL)).append("\n\n");
+        text.append("Model: ").append(System.getenv(LiveAdvisor.MODEL))
+                .append(", dialogue ").append(SHAPE_UNDER_TEST).append("\n\n");
         text.append("Decisions: ").append(outcome.decisions()).append("\n\n");
         if (!outcome.failure().isEmpty()) {
             text.append("Failure: ").append(outcome.failure()).append("\n\n");
@@ -233,7 +276,7 @@ class TestLiveScenarios {
 
     private static String report(final List<Outcome> outcomes) {
         final StringBuilder text = new StringBuilder("# Live scenarios — " + System.getenv(LiveAdvisor.MODEL));
-        text.append("\n\n");
+        text.append(", dialogue ").append(SHAPE_UNDER_TEST).append("\n\n");
         text.append("| Run | Decisions | Questions | Score | Tokens | Seconds | Failure |\n");
         text.append("|---|---|---|---|---|---|---|\n");
         for (final Outcome o : outcomes) {

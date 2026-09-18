@@ -18,6 +18,16 @@ package stroom.shapeshifter.ai.learning;
 
 import stroom.shapeshifter.ai.learning.Question.Chain;
 import stroom.shapeshifter.ai.learning.Question.Configuration;
+import stroom.shapeshifter.ai.learning.Question.Split;
+import stroom.shapeshifter.shared.BusinessRulesParameters;
+import stroom.shapeshifter.shared.DialogueDefinition;
+import stroom.shapeshifter.shared.DialogueShape;
+import stroom.shapeshifter.shared.ExtractionQualityParameters;
+import stroom.shapeshifter.shared.ScorerSetting;
+import stroom.shapeshifter.shared.ScorerType;
+import stroom.shapeshifter.shared.ShapeshifterAiDoc;
+import stroom.shapeshifter.shared.Template;
+import stroom.shapeshifter.shared.XPathAssertion;
 import stroom.util.shared.ElementId;
 import stroom.util.shared.Severity;
 import stroom.util.shared.StoredError;
@@ -35,10 +45,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 class TestQuestionText {
 
     private static final Sample SAMPLE = new Sample("a,b,c\n", Map.of("Feed", "DOOR-ACCESS", "Format", "CSV"));
+    private static final QuestionText WORDS = QuestionText.builtIn(null);
 
     @Test
     void theChainQuestionCarriesKeyValuesElementsSampleAndGrammar() {
-        final String text = QuestionText.render(new Chain(SAMPLE, List.of("DSParser", "XSLTFilter"), List.of()));
+        final String text = WORDS.render(new Chain(SAMPLE, List.of("DSParser", "XSLTFilter"), List.of()));
 
         assertThat(text)
                 .contains("- Feed: DOOR-ACCESS")
@@ -54,8 +65,8 @@ class TestQuestionText {
     void aReAskCarriesThePreviousConfigurationAndWhatFellShort() {
         final StoredError shortfall = new StoredError(Severity.ERROR, null, new ElementId("Scorecard"),
                 "Input coverage scored 0.6 against a threshold of 0.9");
-        final String text = QuestionText.render(new Configuration("DSParser", "TextConverter", SAMPLE, "a,b,c\n",
-                "<dataSplitter/>", List.of(shortfall)));
+        final String text = WORDS.render(new Configuration("DSParser", "TextConverter", SAMPLE, "a,b,c\n",
+                "<dataSplitter/>", null, List.of(), List.of(shortfall)));
 
         assertThat(text)
                 .contains("Write the TextConverter document for the DSParser element")
@@ -70,8 +81,8 @@ class TestQuestionText {
 
     @Test
     void theTransformQuestionCarriesTheSchemasFailureModesAndTheDegeneracyTrap() {
-        final String text = QuestionText.render(new Configuration("XSLTFilter", "XSLT", SAMPLE,
-                "<records xmlns=\"records:2\"/>", null, List.of()));
+        final String text = WORDS.render(new Configuration("XSLTFilter", "XSLT", SAMPLE,
+                "<records xmlns=\"records:2\"/>", null, null, List.of(), List.of()));
 
         assertThat(text)
                 .contains("event-logging:3")
@@ -84,8 +95,71 @@ class TestQuestionText {
 
     @Test
     void theSystemTextCarriesTheDocumentsInstructions() {
-        assertThat(QuestionText.system("Badge readers.")).contains("The document that governs this stage says:")
+        assertThat(QuestionText.builtIn("Badge readers.").system())
+                .contains("The document that governs this stage says:")
                 .contains("Badge readers.");
-        assertThat(QuestionText.system(null)).doesNotContain("governs this stage says");
+        assertThat(WORDS.system()).doesNotContain("governs this stage says");
+    }
+
+    @Test
+    void theSystemTextForADocumentSaysWhatItsScorersDemand() {
+        // Both live runs put the reader's location under Device/Location, never told that Device/Name was
+        // required until the score had already been taken.
+        final ShapeshifterAiDoc doc = ShapeshifterAiDoc.builder()
+                .uuid("doc-1")
+                .name("door-access")
+                .instructions("Badge readers.")
+                .scorers(List.of(
+                        new ScorerSetting(ScorerType.EXTRACTION_QUALITY, 1.0, 0.7, true,
+                                new ExtractionQualityParameters(false,
+                                        List.of("EventSource/User/Id", "EventSource/Device/Name"))),
+                        new ScorerSetting(ScorerType.BUSINESS_RULES, 1.0, 0.5, false,
+                                new BusinessRulesParameters(List.of(new XPathAssertion(
+                                        "interactive events name the user",
+                                        "not(EventDetail/Authenticate) or EventDetail/Authenticate/User/Id")),
+                                        true))))
+                .build();
+        assertThat(QuestionText.of(doc).system())
+                .startsWith(QuestionText.builtIn("Badge readers.").system())
+                .contains("Events are scored on carrying a value in each of: EventSource/User/Id, "
+                          + "EventSource/Device/Name. Fill each wherever the record has a value for it")
+                .contains("- interactive events name the user: not(EventDetail/Authenticate) or ");
+        assertThat(QuestionText.of(ShapeshifterAiDoc.builder().uuid("doc-2").name("bare").build()).system())
+                .isEqualTo(WORDS.system());
+    }
+
+    @Test
+    void aTemplateOverrideIsRenderedWithItsBlocksAndTheRestFollowsTheBuiltIn() {
+        // Scenario 40: the chain question in the document's own words; every other question as built in.
+        final DialogueDefinition dialogue = DialogueDefinition.of(DialogueShape.TARGET_FIRST)
+                .withTemplates(Map.of(Template.CHAIN, "Pick from:\n${elements}\nGiven:\n${sample}${feedback}"));
+        final QuestionText words = QuestionText.of(dialogue);
+        final Chain chain = new Chain(SAMPLE, List.of("DSParser", "XSLTFilter"), List.of());
+
+        assertThat(words.render(chain))
+                .startsWith("Pick from:\n- DSParser: parses raw text")
+                .contains("Given:\n```xml\na,b,c\n```")
+                .doesNotContain("joined by ->");
+        assertThat(words.render(new Split(SAMPLE, "DSParser", "TextConverter", List.of())))
+                .isEqualTo(WORDS.render(new Split(SAMPLE, "DSParser", "TextConverter", List.of())));
+    }
+
+    @Test
+    void aTemplateNamingAVariableItDoesNotHaveIsRefused() {
+        final DialogueDefinition dialogue = DialogueDefinition.of(DialogueShape.DIRECT)
+                .withTemplates(Map.of(Template.CHAIN, "${sample} then ${targets}",
+                        Template.EXTRACTION_RULES, "Rules ${nothing}"));
+        assertThat(Templates.problems(dialogue)).containsExactlyInAnyOrder(
+                "The chain question template names ${targets}, which it does not have; it may use ${elements}, "
+                + "${feedback}, ${headers}, ${sample}",
+                "The extraction rules template names ${nothing}, which it does not have; it may use no variables");
+        assertThat(Templates.problems(DialogueDefinition.of(DialogueShape.DIRECT))).isEmpty();
+    }
+
+    @Test
+    void aValueThatLooksLikeASlotIsNotReadAsOne() {
+        final Sample tricky = new Sample("price=${amount}\n", Map.of());
+        assertThat(WORDS.render(new Chain(tricky, List.of("DSParser", "XSLTFilter"), List.of())))
+                .contains("price=${amount}");
     }
 }

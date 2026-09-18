@@ -1013,6 +1013,63 @@ reason the boundary is learned first and separately: once it is trusted, every l
 scale, can be put with the exact input text in hand; if it cannot be trusted, nothing downstream can be
 corrected record by record, and the whole stage must be relearned from a fresh sample.
 
+### 10.2 The dialogue is data
+
+A21 and A31 are two dialogues, and the live runs (02 §6.3) found neither better on every feed. The
+owner's ruling (A32, then A33) is that this is not a choice to make in code: models trained differently
+want different dialogues, and what varies between them is *what is asked, in what words, in what
+order* — so that is what the document carries. Two layers, and the line between them is what the
+machine can execute.
+
+**Typed, in code: the question kinds.** A reply has to *be* something the stage can run and judge. There
+are four kinds and each is a (reply grammar, judge) pair: *Chain* — element names joined by `->`,
+checked against the allowed elements; *Split* — one fenced configuration, compiled, run over the
+sample, judged by coverage, yield and wholeness; *Target* — one fenced event or the word `none`,
+validated and judged by the scorers of meaning; *Configure* — one fenced configuration per element,
+compiled, run and judged by the scorecard and, where targets exist, by preservation or fidelity. A new
+kind is new code. Nothing a template says can add one.
+
+**Data, on the document: the dialogue definition.** A `DialogueDefinition` section of the Shapeshifter AI
+document, with three parts:
+
+- *A preset* — `DIRECT` or `TARGET_FIRST` — naming the built-in definition it starts from. The built-ins
+  are the two dialogues as measured, with the text the live runs taught (the worked Data Splitter
+  example, the enumeration and namespace hints, "a header line is a record too"), and carry a version.
+- *Steps* — an ordered list, each a kind, a guard and limits: `CHAIN`, `SPLIT when text`, `TARGET
+  kinds 3`, `CONFIGURE`. The guard is `always`, `text` (the first element is a parser with a
+  configuration to write — raw input) or `xml` (the input is already records). The limits are the
+  candidates a step may spend (the document's `maxAttempts` when unset) and, for *Target*, how many
+  record kinds are asked about. Constraints, checked on save and again before the model is asked:
+  `CHAIN` first and once, `CONFIGURE` last and once, `SPLIT` and `TARGET` at most once each between
+  them, in either order — a target asked before the split is proposed from the sample's lines, and a
+  split asked where the input is already records asks nothing and takes the top-level children.
+  Unset, the steps are the preset's.
+- *Templates* — override-only: the text of any of `SYSTEM`, `CHAIN`, `SPLIT`, `TARGET`,
+  `CONFIGURATION`, `SPLIT_RULES`, `EXTRACTION_RULES`, `TRANSFORMATION_RULES`, with `${variable}` slots
+  bound from the attempt. A definition names only what it changes; everything else follows the built-in
+  text of its preset's version, so a finding added to the defaults reaches every document that did not
+  override that template. Variables render *blocks*, not bare values — `${feedback}` is the whole "what
+  fell short" list or nothing, `${previous}` the previous configuration fenced with its lead-in or
+  nothing — so a template needs no conditionals. Each template has the variables it may use; one that
+  names another is refused on save, naming the template and the variable. The variables:
+  `${headers}` `${sample}` `${elements}` `${feedback}` `${instructions}` `${demands}` (system: the
+  scorers' required fields and rules) `${elementType}` `${documentType}` `${input}` `${previous}`
+  `${split}` `${targets}` `${rules}` (the extraction or transformation rules for the element)
+  `${record}` `${kind}` `${total}` `${splitRules}`.
+
+**What this is not.** Not a script: no expressions over attempt state, no loops beyond the built-in
+candidate loop of each kind, no branching but the guard. The moment a dialogue needs more than an
+ordered list of typed questions with limits, that is a new kind or a new judge, and it is written in
+Java where the scenarios can hold it. Not a prompt-engineering surface either, in intent: the defaults
+are the measured dialogue, and an override is a hypothesis the live harness (02 §6.3) exists to test —
+`SHAPESHIFTER_LIVE_SHAPE` sets the preset on the harness's documents, and a definition under test is
+simply a document.
+
+**Where it is seen.** The Learning tab shows the preset, the steps as one line each in the grammar
+above, and the templates one at a time — the effective text, editable, with the built-in text a reset
+away — and the version of the built-ins the document was last saved against. A28's turn rows record
+the text as sent, so a run read back is the dialogue that ran, whatever the defaults have since become.
+
 ---
 
 ## 11. Safety and runtime state
@@ -1364,6 +1421,12 @@ arrived last. Items marked *built* already exist in `stroom-shapeshifter-ai` or 
    Splitter's locator, recorded with the bindings of §7.3 rule 3 per emitted record, and a way to read a
    record's raw text back from the store by span, so that a fault at any event can be relearned with its
    input in hand. Extends item 7.
+22. **The dialogue as data** (A32, A33, §10.2): `DialogueDefinition` on the document — preset, steps
+   with guards and limits, override-only templates with variables, the built-ins' version; the
+   `Dialogue` interpreting the steps; `QuestionText` rendering templates; validation on save and before
+   the first question; the Learning tab's preset, steps and template editor; a resource that serves the
+   built-in templates to the client. Replaces the `DialogueShape` setting of A32 with the section it
+   named.
 
 Items 1 and 2 are changes to `stroom-pipeline` that benefit the stepper too, and should be proposed
 on that basis rather than as private to this feature.
@@ -1408,6 +1471,8 @@ behaviour of the finished stage is stated as tests.
 | A29 | The learning key — the fields a learned rule binds on and the chain question sees — is a document setting, default `Feed AND Type`, with attribute-map fields and the shape signature choosable; a shape is one value of the key; shown means bound; a bound shape whose rolling per-record score falls below the document's relearn threshold is relearned | **Ruled** 2026-09-17 — the owner's; replaces the fixed `Feed AND Type AND Shape Signature` of the first A22 decisions |
 | A30 | The supervisor element in the stepper shows a stage pane — shape, match path, decision, fragment and verdicts, transcript, actions — in place of a code pane, expands to its fragment's chain, and runs dry | **Proposed, §11.7** — the owner's, 2026-09-18 |
 | A31 | A stage is learned against a target: events the model proposes per kind of record, validated and reviewable before any configuration is written; extraction judged by preserving what the target needs, transformation by reproducing it; the record boundary is its own question for every kind of input, asked first and answered without a target; input spans kept so a fault at any event can be relearned with its record | **Proposed, §10.1** — the owner's, 2026-09-18, after the first live runs; *Split* always its own question ruled the same day |
+| A32 | The dialogue's shape — direct (A21) or target-first (A31) — is a setting on the Shapeshifter AI document beside the model it is used with, default direct; models trained differently want different dialogues, and the two are measured against each other on the same feeds rather than one chosen in code | **Ruled, 2026-09-18** — the owner's, after design 02 §6.3 |
+| A33 | The dialogue is data on the document (§10.2): a preset, an ordered step list of the four typed question kinds with `always/text/xml` guards and per-step limits, and override-only templates with block variables over versioned built-in text; the kinds, their reply grammars and their judges stay in code; no expressions or loops | **Ruled, 2026-09-18** — the owner's, on four questions put with recommendations: section on the document (not a separate type), ordered list with simple guards, override-only, built now as slice 11 |
 
 Where a row says *revised*, *restated* or *settled* 2026-09-17, the change was put to the owner as a
 recommendation with alternatives and taken by them that day: the text is the editor's, the decision
@@ -1518,6 +1583,13 @@ including the degeneracy trap (§8.3) that changes the scoring model and propose
   preserving what the target needs and transformation by reproducing it; the record boundary is its own
   question for every kind of input, learned first and alone; input spans are kept with the bindings so a fault at the millionth event of a large
   stream can be relearned with its record in hand. §12 gains items 20 and 21.
+- A32 ruled, the owner's, after the two dialogues were measured against each other (design 02 §6.3):
+  the shape of the dialogue is a document setting beside the model, default direct, so that a strategy
+  can be chosen per model and per feed rather than fixed in code. `DialogueShape` on the document; the
+  Learning tab offers it.
+- A33 ruled, the owner's, the same evening, on the question A32 raised — is it a fixed set of modes or
+  configurable, templated, staged questions? §10.2: the question kinds stay typed in code; the
+  dialogue — preset, steps, templates — is data on the document. §12 gains item 22.
 - The first live run, against `claude-sonnet-5` through an OpenAI-compatible endpoint: design 02 §6.2.
   Three findings bear on this document. §4.1's prediction held exactly — extraction is taught by a
   worked example, not by diagnostics (0 of 5 splitters compiled without one, 5 of 5 with). §10's prompt

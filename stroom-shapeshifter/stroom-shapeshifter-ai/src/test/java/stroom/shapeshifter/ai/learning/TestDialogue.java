@@ -78,9 +78,11 @@ class TestDialogue {
      * when it runs. Scoring has its own tests and the scenarios.
      */
     private static Dialogue dialogue(final Advisor advisor) {
+        // These tests are about A21's mechanics — the chain, the re-ask, the refusal, the budgets — so they
+        // run the direct shape; the split and target turns of A31 have their own tests.
         return new Dialogue(advisor, List.of(new DataSplitterStep(FIXTURE.compiler()), new XsltStep()),
                 new Scorecard(List.of(new ScorerSetting(ScorerType.COMPILE, 1.0, 1.0, true, null)),
-                        List.of(new CompileScorer())));
+                        List.of(new CompileScorer())), Clock.systemUTC());
     }
 
     private static ShapeshifterAiDoc policy() {
@@ -335,7 +337,7 @@ class TestDialogue {
         };
         final CannedAdvisor model = new CannedAdvisor("XMLParser, XSLTFilter");
         final Dialogue dialogue = new Dialogue(model, List.of(passThrough, new XsltStep()),
-                new Scorecard(List.of(), List.of()));
+                new Scorecard(List.of(), List.of()), Clock.systemUTC());
 
         final Outcome outcome = dialogue.run(policy(), SAMPLE);
 

@@ -22,6 +22,7 @@ import stroom.event.logging.api.DocumentEventLog;
 import stroom.openai.shared.OpenAIModelDoc;
 import stroom.shapeshifter.ai.learning.Advisor;
 import stroom.shapeshifter.ai.learning.Advisors;
+import stroom.shapeshifter.ai.learning.QuestionText;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 
 import jakarta.inject.Inject;
@@ -53,6 +54,6 @@ public class ModelAdvisors implements Advisors {
                                             + doc.getModel() + ", which cannot be read");
         }
         return new ModelAdvisor(aiService.getChatModel(modelDoc), modelDoc.getName(), DocRefUtil.create(doc),
-                doc.getInstructions(), eventLog);
+                QuestionText.of(doc), eventLog);
     }
 }

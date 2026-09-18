@@ -54,31 +54,31 @@ public final class ModelAdvisor implements Advisor {
     private final ChatModel model;
     private final String modelName;
     private final DocRef document;
-    private final String system;
+    private final QuestionText words;
     private final DocumentEventLog eventLog;
     private final AtomicLong tokens = new AtomicLong();
 
     public ModelAdvisor(final ChatModel model,
                         final String modelName,
                         final DocRef document,
-                        final String instructions,
+                        final QuestionText words,
                         final DocumentEventLog eventLog) {
         this.model = model;
         this.modelName = modelName;
         this.document = document;
-        this.system = QuestionText.system(instructions);
+        this.words = words;
         this.eventLog = eventLog;
     }
 
     @Override
     public String ask(final List<Exchange> transcript, final Question question) {
         final List<ChatMessage> messages = new ArrayList<>();
-        messages.add(SystemMessage.from(system));
+        messages.add(SystemMessage.from(words.system()));
         for (final Exchange exchange : transcript) {
-            messages.add(UserMessage.from(QuestionText.render(exchange.question())));
+            messages.add(UserMessage.from(words.render(exchange.question())));
             messages.add(AiMessage.from(exchange.reply()));
         }
-        messages.add(UserMessage.from(QuestionText.render(question)));
+        messages.add(UserMessage.from(words.render(question)));
 
         final String kind = question.getClass().getSimpleName();
         try {

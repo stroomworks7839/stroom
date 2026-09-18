@@ -46,6 +46,13 @@ public interface ShapeshifterAiResource
             operationId = "fetchShapeshifterAi")
     ShapeshifterAiDoc fetch(@PathParam("uuid") String uuid);
 
+    @GET
+    @Path("/templates")
+    @Operation(
+            summary = "The built-in text of the dialogue's templates and its version",
+            operationId = "fetchShapeshifterAiTemplates")
+    BuiltInTemplates templates();
+
     @PUT
     @Path("/{uuid}")
     @Operation(

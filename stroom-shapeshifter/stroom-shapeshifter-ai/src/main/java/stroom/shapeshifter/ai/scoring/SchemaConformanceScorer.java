@@ -175,6 +175,7 @@ public final class SchemaConformanceScorer implements Scorer {
      */
     private List<StoredError> hints(final String schemaGroup, final Collection<String> messages) {
         final Set<String> texts = new LinkedHashSet<>();
+        final Set<String> misplaced = new LinkedHashSet<>();
         try {
             final ContentModels models = contentModels.computeIfAbsent(schemaGroup, this::load);
             for (final String message : messages) {
@@ -184,11 +185,22 @@ public final class SchemaConformanceScorer implements Scorer {
                 }
                 final Matcher unexpected = UNEXPECTED.matcher(message);
                 if (unexpected.find()) {
+                    final String found = local(unexpected.group(1));
                     final List<String> expected = Arrays.stream(unexpected.group(2).split(","))
                             .map(SchemaConformanceScorer::local)
                             .filter(name -> !name.isEmpty())
                             .toList();
-                    texts.addAll(models.describeParentsOf(local(unexpected.group(1)), expected));
+                    if (expected.contains(found)) {
+                        // The right name in the wrong namespace: a literal result element outside the
+                        // stylesheet's default namespace, most often.
+                        misplaced.add(found + " was found where " + found + " is expected, so it is in the wrong "
+                                      + "namespace or none" + models.namespace()
+                                              .map(ns -> ": declare xmlns=\"" + ns + "\" on the xsl:stylesheet "
+                                                         + "element so every literal result element is in it")
+                                              .orElse(""));
+                    } else {
+                        texts.addAll(models.describeParentsOf(found, expected));
+                    }
                 }
                 if (texts.size() >= HINTS_SHOWN) {
                     break;
@@ -199,12 +211,13 @@ public final class SchemaConformanceScorer implements Scorer {
             return List.of();
         }
         final List<StoredError> hints = new ArrayList<>();
+        misplaced.forEach(text -> hints.add(new StoredError(Severity.WARNING, null, CONFORMANCE, text)));
         for (final String text : texts.stream().limit(HINTS_SHOWN).toList()) {
             hints.add(new StoredError(Severity.WARNING, null, CONFORMANCE, "The schema says: " + text
                                                                             + ". Add every required child at once, "
                                                                             + "not one per attempt."));
         }
-        if (!hints.isEmpty()) {
+        if (!texts.isEmpty()) {
             hints.add(new StoredError(Severity.INFO, null, CONFORMANCE, "Notation: " + ContentModels.legend()));
         }
         return hints;

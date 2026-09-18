@@ -57,7 +57,7 @@ public final class ShapeSignature {
         return MARKUP.matcher(data).find();
     }
 
-    static String textSkeleton(final String data) {
+    public static String textSkeleton(final String data) {
         final String line = data.lines()
                 .filter(l -> !l.isBlank())
                 .findFirst()

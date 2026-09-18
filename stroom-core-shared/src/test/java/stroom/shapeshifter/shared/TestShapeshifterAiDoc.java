@@ -48,6 +48,46 @@ class TestShapeshifterAiDoc {
         assertThat(read).isEqualTo(doc);
         assertThat(read.getScorers()).containsExactlyElementsOf(doc.getScorers());
         assertThat(read.getRoutingTable()).containsExactlyElementsOf(doc.getRoutingTable());
+        assertThat(read.getDialogue().effectiveSteps()).extracting(DialogueStep::format)
+                .containsExactly("CHAIN", "TARGET when text kinds 1", "CONFIGURE candidates 2");
+    }
+
+    @Test
+    void aDialogueDefinitionKnowsWhatIsWrongWithItsSteps() {
+        assertThat(DialogueDefinition.of(DialogueShape.TARGET_FIRST).problems()).isEmpty();
+        assertThat(DialogueDefinition.of(DialogueShape.DIRECT).withSteps(List.of(
+                DialogueStep.of(QuestionKind.CONFIGURE), DialogueStep.of(QuestionKind.CHAIN))).problems())
+                .containsExactly("The first step must be CHAIN", "The last step must be CONFIGURE");
+        assertThat(DialogueDefinition.of(DialogueShape.DIRECT).withSteps(List.of(
+                DialogueStep.of(QuestionKind.CHAIN), DialogueStep.of(QuestionKind.SPLIT),
+                DialogueStep.of(QuestionKind.SPLIT), DialogueStep.of(QuestionKind.CONFIGURE))).problems())
+                .containsExactly("SPLIT may appear once, not 2 times");
+        assertThat(DialogueDefinition.of(DialogueShape.DIRECT).withSteps(List.of()).problems())
+                .containsExactly("The dialogue has no steps");
+    }
+
+    @Test
+    void aStepReadsBackFromItsLine() {
+        assertThat(DialogueStep.parse("target when xml candidates 4 kinds 2").format())
+                .isEqualTo("TARGET when xml candidates 4 kinds 2");
+        assertThat(DialogueStep.parse("  CHAIN ").format()).isEqualTo("CHAIN");
+        assertThatThrownBy(() -> DialogueStep.parse("SPLIT when sometimes"))
+                .hasMessageContaining("'when sometimes' is not one of always, text or xml");
+        assertThatThrownBy(() -> DialogueStep.parse("SPLIT candidates"))
+                .hasMessageContaining("'candidates' needs a value");
+        assertThatThrownBy(() -> DialogueStep.parse("SPLIT kinds 0"))
+                .hasMessageContaining("'kinds' must be at least 1");
+        assertThatThrownBy(() -> DialogueStep.parse("ASK")).hasMessageContaining("'ASK' is not a question kind");
+        // The limits hold however the step is made, not only from its line.
+        assertThatThrownBy(() -> new DialogueStep(QuestionKind.TARGET, null, null, 0))
+                .hasMessageContaining("'kinds' must be at least 1");
+    }
+
+    @Test
+    void aBlankTemplateOverrideIsNoOverride() {
+        final DialogueDefinition dialogue = DialogueDefinition.of(DialogueShape.DIRECT)
+                .withTemplates(Map.of(Template.CHAIN, "  \n", Template.SPLIT, "Cut it: ${sample}"));
+        assertThat(dialogue.getTemplates()).containsOnlyKeys(Template.SPLIT);
     }
 
     @Test
@@ -57,7 +97,7 @@ class TestShapeshifterAiDoc {
         final ShapeshifterAiDoc doc = new ShapeshifterAiDoc(
                 "uuid", "name", "1", null, null, null, null,
                 null, null, null, null, null, null, null, null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null);
 
         assertThat(doc.getExecutionMode()).isEqualTo(ExecutionMode.DEFERRED);
         assertThat(doc.getLearningMode()).isEqualTo(LearningMode.DISABLED);
@@ -69,6 +109,7 @@ class TestShapeshifterAiDoc {
         assertThat(doc.getAllowedElements())
                 .describedAs("A10's initial set until a document narrows it")
                 .containsExactly("DSParser", "JSONParser", "XMLParser", "XSLTFilter");
+        assertThat(doc.getDialogue()).isEqualTo(DialogueDefinition.of(DialogueShape.DIRECT));
         assertThat(doc.getMaxAttempts()).describedAs("five since the first live run, design 02 §6.2").isEqualTo(5);
         assertThat(doc.getAttemptBudgetMs()).isEqualTo(60_000L);
         assertThat(doc.getTokenBudget()).isNull();
@@ -92,7 +133,7 @@ class TestShapeshifterAiDoc {
         final ShapeshifterAiDoc created = new ShapeshifterAiDoc(
                 "uuid", "name", null, null, null, null, null,
                 null, null, null, null, null, null, null, null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null);
 
         assertThat(built).isEqualTo(created);
     }
@@ -193,6 +234,10 @@ class TestShapeshifterAiDoc {
                 .relearnThreshold(0.75)
                 .allowedElements(List.of("XSLTFilter"))
                 .instructions("Prefer named fields.")
+                .dialogue(new DialogueDefinition(DialogueShape.TARGET_FIRST,
+                        List.of(DialogueStep.parse("CHAIN"), DialogueStep.parse("TARGET when text kinds 1"),
+                                DialogueStep.parse("CONFIGURE candidates 2")),
+                        Map.of(Template.CHAIN, "Pick: ${elements}\n${sample}"), 3))
                 .maxAttempts(5)
                 .attemptBudgetMs(120_000L)
                 .tokenBudget(4_096L)

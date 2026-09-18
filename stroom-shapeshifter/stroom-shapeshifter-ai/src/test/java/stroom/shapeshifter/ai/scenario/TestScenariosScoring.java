@@ -22,6 +22,7 @@ import stroom.shapeshifter.ai.stage.Decision.Promoted;
 import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.StageRun;
 import stroom.shapeshifter.shared.BusinessRulesParameters;
+import stroom.shapeshifter.shared.DialogueShape;
 import stroom.shapeshifter.shared.ExtractionQualityParameters;
 import stroom.shapeshifter.shared.LearningMode;
 import stroom.shapeshifter.shared.SchemaConformanceParameters;
@@ -96,6 +97,7 @@ class TestScenariosScoring {
                 .uuid(DOC)
                 .name("door-access")
                 .learningMode(LearningMode.AUTOMATIC)
+                .dialogueShape(DialogueShape.TARGET_FIRST)
                 .allowedElements(List.of("DSParser", "XSLTFilter"))
                 .minRecordsPerShape(5)
                 .scorers(List.of(
@@ -123,7 +125,7 @@ class TestScenariosScoring {
     @Test
     void scenario4DiscardedInputIsPointedAtThenCoverageIsFixed() {
         final Scenarios scenarios = new Scenarios();
-        final Script script = Script.of()
+        final Script script = scenarios.script(FOUR_FIELDS, XSLT)
                 .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter")
                 .expect(QuestionMatcher.configuration("DSParser").withoutFeedback())
                 .reply(Scenarios.fenced(EVEN_USERS_ONLY))
@@ -140,7 +142,7 @@ class TestScenariosScoring {
 
         script.verifyExhausted();
         assertThat(run.decision()).isInstanceOf(Promoted.class);
-        assertThat(script.asked()).hasSize(4);
+        assertThat(script.scripted()).hasSize(4);
         // The second splitter consumed everything; the split's verdict says so and the whole stream scores full.
         assertThat(run.verdicts().get(0).passed()).isTrue();
         assertThat(((Promoted) run.decision()).score()).isEqualTo(1.0);
@@ -149,7 +151,7 @@ class TestScenariosScoring {
     @Test
     void scenario5TheDegenerateTransformValidatesAndIsRefused() {
         final Scenarios scenarios = new Scenarios();
-        final Script script = Script.of()
+        final Script script = scenarios.script(FOUR_FIELDS, XSLT)
                 .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter")
                 .expect(QuestionMatcher.configuration("DSParser")).reply(Scenarios.fenced(FOUR_FIELDS))
                 .expect(QuestionMatcher.configuration("XSLTFilter").withoutFeedback())
@@ -167,7 +169,7 @@ class TestScenariosScoring {
         script.verifyExhausted();
         assertThat(run.decision()).isInstanceOf(Promoted.class);
         // The degenerate candidate passed the schema gate: nothing in its feedback came from conformance.
-        final Question reAsk = script.asked().get(3);
+        final Question reAsk = script.scripted().get(3);
         assertThat(feedback(reAsk)).noneMatch(message -> message.startsWith("Schema conformance scored"));
         assertThat(feedback(reAsk)).noneMatch(message -> message.startsWith("Record "));
         // The promoted transform scores full on every judge of meaning over the whole stream.
@@ -184,8 +186,9 @@ class TestScenariosScoring {
     void schemaFeedbackCarriesTheContentModelOfWhatFellShort() {
         // The ladder of design 02 §6.2: a Door with only a Name, an Alert with only a Description. The
         // validator names one missing child; the feedback names them all, and the parent it did not name.
+        final Scenarios scenarios = new Scenarios();
         final String doorAndAlert = CsvLines.replacing(CsvLines.replacing(XSLT, DEVICE, DOOR), AUTHENTICATE, ALERT);
-        final Script script = Script.of()
+        final Script script = scenarios.script(FOUR_FIELDS, XSLT)
                 .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter")
                 .expect(QuestionMatcher.configuration("DSParser")).reply(Scenarios.fenced(FOUR_FIELDS))
                 .expect(QuestionMatcher.configuration("XSLTFilter").withoutFeedback())
@@ -198,10 +201,35 @@ class TestScenariosScoring {
                 .reply(Scenarios.fenced(CsvLines.replacing(XSLT, AUTHENTICATE, ALERT)))
                 .expect(QuestionMatcher.configuration("XSLTFilter")
                         .withFeedbackMentioning("Invalid content was found starting with element '{Description}'")
-                        .withFeedbackMentioning("The schema says: Alert contains, in order: Type, Severity?"))
+                        .withFeedbackMentioning("The schema says: Alert contains, in order: Type [Vulnerability | "
+                                                + "IDS | Malware | Network | Change | Error | Other], Severity?"))
                 .reply(Scenarios.fenced(XSLT));
 
-        final StageRun run = new Scenarios().stage(script).run(doc(), stream(1, CsvLines.lines(6)));
+        final StageRun run = scenarios.stage(script).run(doc(), stream(1, CsvLines.lines(6)));
+
+        script.verifyExhausted();
+        assertThat(run.decision()).isInstanceOf(Promoted.class);
+    }
+
+    @Test
+    void anEventOutsideTheSchemaNamespaceIsToldWhereItBelongs() {
+        // A live transform declared event-logging:3 on the Events literal alone, so every Event it wrote was
+        // in no namespace; the validator says only that Event was found where Event is expected.
+        final Scenarios scenarios = new Scenarios();
+        final String unqualified = XSLT.replace("xmlns=\"event-logging:3\"", "xmlns:evt=\"event-logging:3\"")
+                .replace("<Events ", "<Events xmlns=\"event-logging:3\" ");
+        final Script script = scenarios.script(FOUR_FIELDS, XSLT)
+                .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter")
+                .expect(QuestionMatcher.configuration("DSParser")).reply(Scenarios.fenced(FOUR_FIELDS))
+                .expect(QuestionMatcher.configuration("XSLTFilter").withoutFeedback())
+                .reply(Scenarios.fenced(unqualified))
+                .expect(QuestionMatcher.configuration("XSLTFilter")
+                        .withFeedbackMentioning("Event was found where Event is expected, so it is in the wrong "
+                                                + "namespace or none: declare xmlns=\"event-logging:3\" on the "
+                                                + "xsl:stylesheet element"))
+                .reply(Scenarios.fenced(XSLT));
+
+        final StageRun run = scenarios.stage(script).run(doc(), stream(1, CsvLines.lines(6)));
 
         script.verifyExhausted();
         assertThat(run.decision()).isInstanceOf(Promoted.class);
@@ -213,7 +241,7 @@ class TestScenariosScoring {
         // Schema-valid — the 3.0.0 schema wants a User under Authenticate — but the user it names is empty.
         final String noUserOnLogon = CsvLines.replacing(XSLT, AUTHENTICATE_USER_ID,
                 "            <Id/>\n          </User>\n        </Authenticate>");
-        final Script script = Script.of()
+        final Script script = scenarios.script(FOUR_FIELDS, XSLT)
                 .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter")
                 .expect(QuestionMatcher.configuration("DSParser")).reply(Scenarios.fenced(FOUR_FIELDS))
                 .expect(QuestionMatcher.configuration("XSLTFilter").withoutFeedback())
@@ -229,8 +257,8 @@ class TestScenariosScoring {
         script.verifyExhausted();
         assertThat(run.decision()).isInstanceOf(Promoted.class);
         // The flawed transform still validated and still extracted the user at the source: only the rule spoke.
-        assertThat(feedback(script.asked().get(3))).noneMatch(message -> message.startsWith("Schema conformance"));
-        assertThat(feedback(script.asked().get(3))).noneMatch(message -> message.startsWith("Extraction quality"));
+        assertThat(feedback(script.scripted().get(3))).noneMatch(message -> message.startsWith("Schema conformance"));
+        assertThat(feedback(script.scripted().get(3))).noneMatch(message -> message.startsWith("Extraction quality"));
     }
 
     @Test
@@ -249,7 +277,7 @@ class TestScenariosScoring {
                 .build();
         final String everyOther = CsvLines.replacing(XSLT, "  <xsl:template match=\"record\">",
                 "  <xsl:template match=\"record[position() mod 2 = 0]\"/>\n\n  <xsl:template match=\"record\">");
-        final Script script = Script.of()
+        final Script script = scenarios.script(FOUR_FIELDS, XSLT)
                 .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter")
                 .expect(QuestionMatcher.configuration("DSParser")).reply(Scenarios.fenced(FOUR_FIELDS))
                 .expect(QuestionMatcher.configuration("XSLTFilter").withoutFeedback())
@@ -262,10 +290,10 @@ class TestScenariosScoring {
         final StageRun run = scenarios.stage(script).run(doc, stream(1, CsvLines.lines(6)));
 
         script.verifyExhausted();
-        assertThat(script.asked()).hasSize(5);
+        assertThat(script.scripted()).hasSize(5);
         assertThat(run.decision()).isInstanceOf(GivenUp.class);
         assertThat(((GivenUp) run.decision()).reason()).contains("No passing configuration for XSLTFilter after 3");
-        assertThat(feedback(script.asked().get(4)))
+        assertThat(feedback(script.scripted().get(4)))
                 .anyMatch(message -> message.contains("against an expected 1.0"));
         assertThat(run.doc().getRoutingTable()).isEmpty();
         assertThat(scenarios.stores.pipelines.list()).isEmpty();
@@ -288,7 +316,7 @@ class TestScenariosScoring {
         final ShapeshifterAiDoc doc = doc().copy().promotionFloor(0.95).build();
         final String everyOther = CsvLines.replacing(XSLT, "  <xsl:template match=\"record\">",
                 "  <xsl:template match=\"record[position() mod 2 = 0]\"/>\n\n  <xsl:template match=\"record\">");
-        final Script script = Script.of()
+        final Script script = scenarios.script(FOUR_FIELDS, XSLT)
                 .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter")
                 .expect(QuestionMatcher.configuration("DSParser")).reply(Scenarios.fenced(FOUR_FIELDS))
                 .expect(QuestionMatcher.configuration("XSLTFilter")).reply(Scenarios.fenced(everyOther));
@@ -296,7 +324,7 @@ class TestScenariosScoring {
         final StageRun run = scenarios.stage(script).run(doc, stream(1, CsvLines.lines(6)));
 
         script.verifyExhausted();
-        assertThat(script.asked()).hasSize(3);
+        assertThat(script.scripted()).hasSize(3);
         assertThat(run.decision()).isInstanceOf(GivenUp.class);
         assertThat(((GivenUp) run.decision()).reason()).isEqualTo("Below the promotion floor");
         assertThat(scenarios.shapes.reasonGivenUp(DOC, SHAPE).orElseThrow()).contains("against a floor of 0.95");

@@ -78,6 +78,15 @@ public final class Scenarios {
                 NODE.schemaConformanceScorer(), new ExtractionQualityScorer(), new BusinessRulesScorer());
     }
 
+
+    /**
+     * A script that answers the split and target questions from the configurations it will give, so the
+     * scenario states only what it is about.
+     */
+    public Script script(final String splitter, final String stylesheet) {
+        return Script.of().structure(new Structure(runners(), splitter, stylesheet));
+    }
+
     public Stage stage(final Advisor advisor) {
         final List<StepRunner> runners = runners();
         return new Stage(

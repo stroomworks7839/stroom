@@ -3,7 +3,8 @@
              xmlns:g="urn:import:com.google.gwt.user.client.ui"
              xmlns:form="urn:import:stroom.widget.form.client"
              xmlns:l="urn:import:stroom.item.client"
-             xmlns:v="urn:import:stroom.widget.valuespinner.client">
+             xmlns:v="urn:import:stroom.widget.valuespinner.client"
+             xmlns:b="urn:import:stroom.widget.button.client">
     <g:FlowPanel styleName="max form-padding form">
         <form:FormGroup identity="shapeshifterLearningModel"
                         label="Model"
@@ -29,6 +30,26 @@
                         label="Instructions"
                         helpText="Free-text instructions added to every question put to the model.">
             <g:TextArea ui:field="instructions" width="400px" height="120px"/>
+        </form:FormGroup>
+        <form:FormGroup identity="shapeshifterAiDialogueShape"
+                        label="Dialogue"
+                        helpText="The built-in dialogue this document starts from. Direct asks for the chain and then each element's configuration. Target first settles the record boundary, asks what one record of each kind should become, and holds every configuration to those events; more questions, and the schema is learned on the cheaper one.">
+            <l:SelectionBox ui:field="dialogueShape"/>
+        </form:FormGroup>
+        <form:FormGroup identity="shapeshifterAiDialogueSteps"
+                        label="Dialogue steps"
+                        helpText="The questions asked, one per line, in order; empty for the dialogue's own. A line is a kind — CHAIN, SPLIT, TARGET or CONFIGURE — then optionally 'when text', 'when xml' or 'when always', 'candidates N' (the maximum candidates when unset) and, for TARGET, 'kinds N' (how many kinds of record are asked about). CHAIN must come first and CONFIGURE last; SPLIT and TARGET at most once each between them.">
+            <g:TextArea ui:field="dialogueSteps" width="400px" height="70px"/>
+        </form:FormGroup>
+        <form:FormGroup identity="shapeshifterAiTemplate"
+                        label="Question text"
+                        helpText="The words of each question, editable. The text shown is what this document uses: the built-in text, or this document's own where it has been changed. A variable written as a dollar sign and a name in braces is filled in when the question is put; each text names the variables it may use in the built-in. 'Use built-in' drops this document's change.">
+            <g:FlowPanel>
+                <l:SelectionBox ui:field="template"/>
+                <g:TextArea ui:field="templateText" width="600px" height="240px" styleName="templateText"/>
+                <b:Button ui:field="resetTemplate" text="Use built-in" width="120px" addStyleNames="allow-focus"/>
+                <g:Label ui:field="templateStatus"/>
+            </g:FlowPanel>
         </form:FormGroup>
         <form:FormGroup identity="shapeshifterAiMaxAttempts"
                         label="Maximum candidates"

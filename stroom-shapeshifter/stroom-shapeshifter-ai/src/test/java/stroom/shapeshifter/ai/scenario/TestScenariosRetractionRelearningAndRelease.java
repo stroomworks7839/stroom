@@ -27,6 +27,7 @@ import stroom.shapeshifter.ai.stage.StageRun;
 import stroom.shapeshifter.ai.state.InMemoryLedger;
 import stroom.shapeshifter.ai.state.InMemoryReprocessing;
 import stroom.shapeshifter.ai.state.InMemoryReprocessing.Request;
+import stroom.shapeshifter.shared.DialogueShape;
 import stroom.shapeshifter.shared.LearningMode;
 import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ScorerSetting;
@@ -63,6 +64,7 @@ class TestScenariosRetractionRelearningAndRelease {
                 .uuid(DOC)
                 .name("door-access")
                 .learningMode(LearningMode.AUTOMATIC)
+                .dialogueShape(DialogueShape.TARGET_FIRST)
                 .allowedElements(List.of("DSParser", "XSLTFilter"))
                 .minRecordsPerShape(minRecordsPerShape)
                 .relearnThreshold(0.8)
@@ -74,8 +76,8 @@ class TestScenariosRetractionRelearningAndRelease {
                 .build();
     }
 
-    private static Script learning(final String splitter) {
-        return Script.of()
+    private static Script learning(final Scenarios scenarios, final String splitter) {
+        return scenarios.script(splitter, XSLT)
                 .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter")
                 .expect(QuestionMatcher.configuration("DSParser")).reply(Scenarios.fenced(splitter))
                 .expect(QuestionMatcher.configuration("XSLTFilter")).reply(Scenarios.fenced(XSLT));
@@ -112,7 +114,7 @@ class TestScenariosRetractionRelearningAndRelease {
         final ShapeshifterAiDoc doc = doc(10);
 
         // Six records against a minimum of ten: learned, bound provisionally (scenario 14).
-        final Script script = learning(FOUR_FIELDS);
+        final Script script = learning(scenarios, FOUR_FIELDS);
         final StageRun first = scenarios.stage(script).run(doc, stream(1, lines(6, 0)));
         script.verifyExhausted();
         assertThat(first.decision()).isInstanceOf(Provisional.class);
@@ -151,7 +153,7 @@ class TestScenariosRetractionRelearningAndRelease {
 
         // The next stream of the shape learns afresh — and, with ten records, promotes outright — and
         // binding the shape releases the ledger as a second request.
-        final Script again = learning(FOUR_FIELDS);
+        final Script again = learning(scenarios, FOUR_FIELDS);
         final StageRun fourth = scenarios.stage(again).run(third.doc(), stream(4, lines(10, 0)));
         again.verifyExhausted();
         assertThat(fourth.decision()).isInstanceOf(Promoted.class);
@@ -167,7 +169,7 @@ class TestScenariosRetractionRelearningAndRelease {
         final ShapeshifterAiDoc doc = doc(5);
 
         // Seven clean records: learned and promoted at a perfect score.
-        final Script script = learning(FOUR_FIELDS);
+        final Script script = learning(scenarios, FOUR_FIELDS);
         final StageRun first = scenarios.stage(script).run(doc, stream(1, lines(7, 0)));
         script.verifyExhausted();
         assertThat(first.decision()).isInstanceOf(Promoted.class);
@@ -200,7 +202,7 @@ class TestScenariosRetractionRelearningAndRelease {
         // serves it meanwhile; the candidate handles both kinds, beats the incumbent on this stream and
         // is no worse on the record it was accepted on, so the rule is rebound to it — same rule, new
         // fragment.
-        final Script relearn = Script.of()
+        final Script relearn = scenarios.script(FOUR_FIELDS_AND_ALARMS, XSLT)
                 .expect(QuestionMatcher.chain()
                         .withFeedbackMentioning("Relearning: Rolling score")
                         .withFeedbackMentioning("The split consumed 14 of 20 lines"))
@@ -239,7 +241,7 @@ class TestScenariosRetractionRelearningAndRelease {
         // Design 01 §7.3 rule 2: a pin exempts a rule from automatic rebinding and retraction, provisional
         // or not. The stream that would retract the rule in scenario 28 is simply served.
         final Scenarios scenarios = new Scenarios();
-        final Script script = learning(FOUR_FIELDS);
+        final Script script = learning(scenarios, FOUR_FIELDS);
         final StageRun first = scenarios.stage(script).run(doc(10), stream(1, lines(6, 0)));
         final RoutingRule pinned = ((Provisional) first.decision()).rule().copy().pinned(true).build();
         final ShapeshifterAiDoc doc = first.doc().copy().routingTable(List.of(pinned)).build();
@@ -258,7 +260,7 @@ class TestScenariosRetractionRelearningAndRelease {
     @Test
     void aMarkedShapeWaitsForAStreamACandidateCanBeJudgedOn() {
         final Scenarios scenarios = new Scenarios();
-        final Script script = learning(FOUR_FIELDS);
+        final Script script = learning(scenarios, FOUR_FIELDS);
         final StageRun first = scenarios.stage(script).run(doc(5), stream(1, lines(7, 0)));
         assertThat(first.decision()).isInstanceOf(Promoted.class);
 
@@ -279,7 +281,7 @@ class TestScenariosRetractionRelearningAndRelease {
         assertThat(scenarios.shapes.relearnReason(DOC, SHAPE)).isPresent();
 
         // A stream with enough records is relearned.
-        final Script relearn = learning(FOUR_FIELDS_AND_ALARMS);
+        final Script relearn = learning(scenarios, FOUR_FIELDS_AND_ALARMS);
         final StageRun big = scenarios.stage(relearn).run(first.doc(), stream(5, lines(20, 3)));
         relearn.verifyExhausted();
         assertThat(big.decision()).isInstanceOf(Rebound.class);
@@ -301,7 +303,7 @@ class TestScenariosRetractionRelearningAndRelease {
 
         // Learning is switched on and the next stream learns the shape: the ledger is cleared and a
         // reprocess request names exactly the two inputs — not this one, which has its output.
-        final Script script = learning(FOUR_FIELDS);
+        final Script script = learning(scenarios, FOUR_FIELDS);
         final StageRun run = scenarios.stage(script).run(doc(5), stream(13, lines(6, 0)));
         script.verifyExhausted();
 

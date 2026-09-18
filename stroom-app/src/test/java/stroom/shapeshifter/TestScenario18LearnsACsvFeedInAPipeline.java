@@ -23,11 +23,13 @@ import stroom.meta.mock.MockMetaService;
 import stroom.meta.shared.Meta;
 import stroom.meta.shared.MetaFields;
 import stroom.pipeline.PipelineStore;
+import stroom.pipeline.errorhandler.ErrorReceiverProxy;
 import stroom.pipeline.shared.PipelineDoc;
 import stroom.pipeline.shared.data.PipelineData;
 import stroom.pipeline.shared.data.PipelineDataBuilder;
 import stroom.pipeline.shared.data.PipelineDataUtil;
 import stroom.pipeline.shared.data.PipelineElement;
+import stroom.pipeline.xml.converter.ds3.DS3ParserFactory;
 import stroom.processor.api.ProcessorFilterService;
 import stroom.processor.api.ProcessorResult;
 import stroom.processor.shared.CreateProcessFilterRequest;
@@ -36,12 +38,17 @@ import stroom.query.api.ExpressionOperator;
 import stroom.query.api.ExpressionTerm.Condition;
 import stroom.shapeshifter.ai.doc.ShapeshifterAiStore;
 import stroom.shapeshifter.ai.element.ShapeshifterAiParser;
+import stroom.shapeshifter.ai.extraction.DataSplitterCompiler;
+import stroom.shapeshifter.ai.extraction.DataSplitterStep;
 import stroom.shapeshifter.ai.extraction.ExtractionCorpus.Golden;
 import stroom.shapeshifter.ai.scenario.AdvisorHolder;
 import stroom.shapeshifter.ai.scenario.QuestionMatcher;
 import stroom.shapeshifter.ai.scenario.Scenarios;
 import stroom.shapeshifter.ai.scenario.Script;
+import stroom.shapeshifter.ai.scenario.Structure;
 import stroom.shapeshifter.ai.stage.Bindings;
+import stroom.shapeshifter.ai.transformation.XsltStep;
+import stroom.shapeshifter.shared.DialogueShape;
 import stroom.shapeshifter.shared.LearningMode;
 import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ScorerSetting;
@@ -55,6 +62,7 @@ import stroom.test.StoreCreationTool;
 import stroom.util.shared.Severity;
 
 import jakarta.inject.Inject;
+import jakarta.inject.Provider;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -97,6 +105,8 @@ class TestScenario18LearnsACsvFeedInAPipeline extends AbstractProcessIntegration
     private MockStore streamStore;
     @Inject
     private AdvisorHolder advisor;
+    @Inject
+    private Provider<DS3ParserFactory> parserFactories;
 
     @Test
     void learnsInAPipelineThenBindsTheNextStream() {
@@ -117,7 +127,7 @@ class TestScenario18LearnsACsvFeedInAPipeline extends AbstractProcessIntegration
 
         // The first stream: the model is asked, as in scenario 1, and the stream is processed by what it
         // taught.
-        final Script script = Script.of()
+        final Script script = script()
                 .expect(QuestionMatcher.chain()
                         .withKey("Feed", FEED)
                         .withKey("Type", StreamTypeNames.RAW_EVENTS))
@@ -167,11 +177,24 @@ class TestScenario18LearnsACsvFeedInAPipeline extends AbstractProcessIntegration
         assertThat(shapeshifterAiStore.readDocument(doc).getRoutingTable()).hasSize(1);
     }
 
+    /**
+     * The split and target questions are answered from the configurations the script will give, as the
+     * module's scenarios do; the script states only what the scenario is about. The structure's compiler
+     * is built when a question is asked, inside the processing pipeline's scope, so it reaches the node's
+     * parser factory the way the element does.
+     */
+    private Script script() {
+        final DataSplitterCompiler compiler = new DataSplitterCompiler(parserFactories, new ErrorReceiverProxy());
+        return Script.of().structure(new Structure(
+                List.of(new DataSplitterStep(compiler), new XsltStep()), CSV.configuration(), XSLT));
+    }
+
     private DocRef document() {
         final DocRef docRef = shapeshifterAiStore.createDocument("door-access");
         shapeshifterAiStore.writeDocument(shapeshifterAiStore.readDocument(docRef)
                 .copy()
                 .learningMode(LearningMode.AUTOMATIC)
+                .dialogueShape(DialogueShape.TARGET_FIRST)
                 .allowedElements(List.of("DSParser", "XSLTFilter"))
                 .minRecordsPerShape(5)
                 .promotionFloor(0.85)

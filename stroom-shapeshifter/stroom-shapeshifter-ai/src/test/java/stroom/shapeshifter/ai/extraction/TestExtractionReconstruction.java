@@ -20,8 +20,9 @@ import stroom.shapeshifter.ai.extraction.Compilation.Compiled;
 import stroom.shapeshifter.ai.extraction.Compilation.Rejected;
 import stroom.shapeshifter.ai.extraction.ExtractionCorpus.Golden;
 import stroom.shapeshifter.ai.learning.ConfigurationReply;
-import stroom.shapeshifter.ai.learning.QuestionText;
+import stroom.shapeshifter.ai.learning.Templates;
 import stroom.shapeshifter.ai.scenario.LiveAdvisor;
+import stroom.shapeshifter.shared.Template;
 import stroom.util.logging.AsciiTable;
 import stroom.util.logging.AsciiTable.Column;
 import stroom.util.shared.Severity;
@@ -76,7 +77,7 @@ class TestExtractionReconstruction {
             You write Stroom Data Splitter 3.0 configurations. Given a sample of raw input and the records \
             document it must produce, reply with a configuration that produces exactly that document.
 
-            """ + QuestionText.EXTRACTION_RULES + """
+            """ + Templates.builtIn(Template.EXTRACTION_RULES) + """
 
             Reply with the configuration as a single fenced XML code block and nothing else.
             """;

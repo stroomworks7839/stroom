@@ -30,10 +30,15 @@ public sealed interface Outcome {
     List<Exchange> transcript();
 
     /**
-     * @param chain  The learned steps in chain order.
-     * @param output What the last step produced over the sample: the translation, for a transform stage.
+     * @param chain   The learned steps in chain order.
+     * @param output  What the last step produced over the sample: the translation, for a transform stage.
+     * @param targets What each kind of record was to become (A31), as validated; empty under the direct
+     *                dialogue. They go onto the regression set at promotion as its goldens.
      */
-    record Learned(List<LearnedStep> chain, String output, List<Exchange> transcript) implements Outcome {
+    record Learned(List<LearnedStep> chain,
+                   String output,
+                   List<Target> targets,
+                   List<Exchange> transcript) implements Outcome {
 
     }
 

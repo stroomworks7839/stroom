@@ -26,6 +26,7 @@ import stroom.shapeshifter.ai.stage.Decision.Provisional;
 import stroom.shapeshifter.ai.stage.Decision.Sentinel;
 import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.StageRun;
+import stroom.shapeshifter.shared.DialogueShape;
 import stroom.shapeshifter.shared.LearningMode;
 import stroom.shapeshifter.shared.RoutingFields;
 import stroom.shapeshifter.shared.RoutingRule;
@@ -62,6 +63,7 @@ class TestScenariosBindingBeforeLearning {
                 .uuid("doc-1")
                 .name("door-access")
                 .learningMode(LearningMode.AUTOMATIC)
+                .dialogueShape(DialogueShape.TARGET_FIRST)
                 .learningKey(List.of(MetaFields.FIELD_FEED, MetaFields.FIELD_TYPE, RoutingFields.FORMAT))
                 .allowedElements(List.of("DSParser", "XSLTFilter"))
                 .minRecordsPerShape(5)
@@ -82,7 +84,7 @@ class TestScenariosBindingBeforeLearning {
      * Learns shape X (Format=CSV) with a scripted model, so that a rule is bound for the feed and type.
      */
     private static StageRun learnShapeX(final Scenarios scenarios, final ShapeshifterAiDoc doc) {
-        final Script script = Script.of()
+        final Script script = scenarios.script(CSV.configuration(), XSLT)
                 .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter")
                 .expect(QuestionMatcher.configuration("DSParser")).reply(Scenarios.fenced(CSV.configuration()))
                 .expect(QuestionMatcher.configuration("XSLTFilter")).reply(Scenarios.fenced(XSLT));
@@ -163,7 +165,7 @@ class TestScenariosBindingBeforeLearning {
     void scenario14TooFewRecordsBindsProvisionallyThenPromotesWhenEnoughArrive() {
         final Scenarios scenarios = new Scenarios();
         final ShapeshifterAiDoc doc = keyedOnFormat().copy().minRecordsPerShape(10).build();
-        final Script script = Script.of()
+        final Script script = scenarios.script(CSV.configuration(), XSLT)
                 .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter")
                 .expect(QuestionMatcher.configuration("DSParser")).reply(Scenarios.fenced(CSV.configuration()))
                 .expect(QuestionMatcher.configuration("XSLTFilter")).reply(Scenarios.fenced(XSLT));

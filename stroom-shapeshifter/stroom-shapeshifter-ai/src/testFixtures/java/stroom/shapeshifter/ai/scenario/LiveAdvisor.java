@@ -20,6 +20,7 @@ import stroom.shapeshifter.ai.learning.Advisor;
 import stroom.shapeshifter.ai.learning.Exchange;
 import stroom.shapeshifter.ai.learning.Question;
 import stroom.shapeshifter.ai.learning.QuestionText;
+import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 
 import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.data.message.ChatMessage;
@@ -57,21 +58,22 @@ public final class LiveAdvisor implements Advisor {
     public static final String TEMPERATURE = "SHAPESHIFTER_AI_TEMPERATURE";
 
     private final ChatModel model;
-    private final String system;
+    private final QuestionText words;
     private final List<Turn> turns = new ArrayList<>();
     private long tokens;
     private long millis;
 
-    public LiveAdvisor(final ChatModel model, final String instructions) {
+    public LiveAdvisor(final ChatModel model, final QuestionText words) {
         this.model = model;
-        this.system = QuestionText.system(instructions);
+        this.words = words;
     }
 
     /**
-     * @return An advisor over the endpoint the environment names, or empty when it names none.
+     * @return An advisor over the endpoint the environment names, speaking for the document as the node's
+     * advisor would, or empty when it names none.
      */
-    public static Optional<LiveAdvisor> fromEnvironment(final String instructions) {
-        return modelFromEnvironment().map(model -> new LiveAdvisor(model, instructions));
+    public static Optional<LiveAdvisor> fromEnvironment(final ShapeshifterAiDoc doc) {
+        return modelFromEnvironment().map(model -> new LiveAdvisor(model, QuestionText.of(doc)));
     }
 
     /**
@@ -98,12 +100,12 @@ public final class LiveAdvisor implements Advisor {
     @Override
     public String ask(final List<Exchange> transcript, final Question question) {
         final List<ChatMessage> messages = new ArrayList<>();
-        messages.add(SystemMessage.from(system));
+        messages.add(SystemMessage.from(words.system()));
         for (final Exchange exchange : transcript) {
-            messages.add(UserMessage.from(QuestionText.render(exchange.question())));
+            messages.add(UserMessage.from(words.render(exchange.question())));
             messages.add(AiMessage.from(exchange.reply()));
         }
-        final String prompt = QuestionText.render(question);
+        final String prompt = words.render(question);
         messages.add(UserMessage.from(prompt));
 
         final long started = System.currentTimeMillis();

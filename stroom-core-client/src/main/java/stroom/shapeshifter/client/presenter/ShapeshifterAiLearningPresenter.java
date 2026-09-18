@@ -16,6 +16,8 @@
 
 package stroom.shapeshifter.client.presenter;
 
+import stroom.alert.client.event.AlertEvent;
+import stroom.dispatch.client.RestFactory;
 import stroom.docref.DocRef;
 import stroom.entity.client.presenter.DocPresenter;
 import stroom.entity.client.presenter.ReadOnlyChangeHandler;
@@ -23,15 +25,24 @@ import stroom.explorer.client.presenter.DocSelectionBoxPresenter;
 import stroom.openai.shared.OpenAIModelDoc;
 import stroom.security.shared.DocumentPermission;
 import stroom.shapeshifter.client.presenter.ShapeshifterAiLearningPresenter.ShapeshifterAiLearningView;
+import stroom.shapeshifter.shared.DialogueDefinition;
+import stroom.shapeshifter.shared.DialogueShape;
+import stroom.shapeshifter.shared.DialogueStep;
 import stroom.shapeshifter.shared.SampleRedaction;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
+import stroom.shapeshifter.shared.ShapeshifterAiResource;
+import stroom.shapeshifter.shared.Template;
 
+import com.google.gwt.core.client.GWT;
 import com.google.inject.Inject;
 import com.google.web.bindery.event.shared.EventBus;
 import com.gwtplatform.mvp.client.HasUiHandlers;
 import com.gwtplatform.mvp.client.View;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * The Learning tab: what the stage learns and binds on (A29), what it may ask a model and within what
@@ -42,17 +53,26 @@ public class ShapeshifterAiLearningPresenter
         extends DocPresenter<ShapeshifterAiLearningView, ShapeshifterAiDoc>
         implements ShapeshifterAiSettingsUiHandlers {
 
+    private static final ShapeshifterAiResource RESOURCE = GWT.create(ShapeshifterAiResource.class);
+
     private final DocSelectionBoxPresenter modelPresenter;
     private final LearningKeyPresenter learningKeyPresenter;
+    private final RestFactory restFactory;
+    /**
+     * The dialogue as read, kept so that steps the view cannot parse leave the saved ones standing.
+     */
+    private DialogueDefinition dialogue = DialogueDefinition.of(DialogueShape.DIRECT);
 
     @Inject
     public ShapeshifterAiLearningPresenter(final EventBus eventBus,
                                               final ShapeshifterAiLearningView view,
                                               final DocSelectionBoxPresenter modelPresenter,
-                                              final LearningKeyPresenter learningKeyPresenter) {
+                                              final LearningKeyPresenter learningKeyPresenter,
+                                              final RestFactory restFactory) {
         super(eventBus, view);
         this.modelPresenter = modelPresenter;
         this.learningKeyPresenter = learningKeyPresenter;
+        this.restFactory = restFactory;
         view.setUiHandlers(this);
 
         modelPresenter.setIncludedTypes(OpenAIModelDoc.TYPE);
@@ -66,6 +86,13 @@ public class ShapeshifterAiLearningPresenter
     protected void onBind() {
         super.onBind();
         registerHandler(modelPresenter.addDataSelectionHandler(e -> onChange()));
+        // The built-in text of every template, so an override is edited from the words it replaces.
+        restFactory
+                .create(RESOURCE)
+                .method(ShapeshifterAiResource::templates)
+                .onSuccess(builtIns -> getView().setBuiltInTemplates(builtIns.getTemplates(), builtIns.getVersion()))
+                .taskMonitorFactory(this)
+                .exec();
     }
 
     @Override
@@ -78,6 +105,12 @@ public class ShapeshifterAiLearningPresenter
         view.setRelearnThreshold(doc.getRelearnThreshold());
         view.setAllowedElements(doc.getAllowedElements());
         view.setInstructions(doc.getInstructions());
+        dialogue = doc.getDialogue();
+        view.setDialogueShape(dialogue.getPreset());
+        view.setDialogueSteps(dialogue.getSteps() == null
+                ? ""
+                : dialogue.getSteps().stream().map(DialogueStep::format).collect(Collectors.joining("\n")));
+        view.setTemplateOverrides(dialogue.getTemplates(), dialogue.getBuiltInVersion());
         view.setMaxAttempts(doc.getMaxAttempts());
         view.setAttemptBudgetMs(doc.getAttemptBudgetMs());
         view.setTokenBudget(doc.getTokenBudget());
@@ -95,12 +128,41 @@ public class ShapeshifterAiLearningPresenter
                 .relearnThreshold(view.getRelearnThreshold())
                 .allowedElements(view.getAllowedElements())
                 .instructions(view.getInstructions())
+                .dialogue(dialogue())
                 .maxAttempts(view.getMaxAttempts())
                 .attemptBudgetMs(view.getAttemptBudgetMs())
                 .tokenBudget(view.getTokenBudget())
                 .sampleRedaction(view.getSampleRedaction())
                 .sampleSizeLimit(view.getSampleSizeLimit())
                 .build();
+    }
+
+
+    /**
+     * The dialogue as the tab shows it. Steps the view cannot parse are reported and the saved steps kept, so
+     * a slip in one line does not lose the rest; the store checks the order and the variables on save.
+     */
+    private DialogueDefinition dialogue() {
+        final ShapeshifterAiLearningView view = getView();
+        List<DialogueStep> steps = dialogue.getSteps();
+        final String text = view.getDialogueSteps();
+        if (text == null || text.trim().isEmpty()) {
+            steps = null;
+        } else {
+            final List<DialogueStep> parsed = new ArrayList<>();
+            try {
+                for (final String line : text.split("\n")) {
+                    if (!line.trim().isEmpty()) {
+                        parsed.add(DialogueStep.parse(line));
+                    }
+                }
+                steps = parsed;
+            } catch (final IllegalArgumentException e) {
+                AlertEvent.fireError(this, "The dialogue steps were not saved: " + e.getMessage(), null);
+            }
+        }
+        return new DialogueDefinition(view.getDialogueShape(), steps, view.getTemplateOverrides(),
+                dialogue.getBuiltInVersion());
     }
 
 
@@ -150,6 +212,23 @@ public class ShapeshifterAiLearningPresenter
         SampleRedaction getSampleRedaction();
 
         void setSampleRedaction(SampleRedaction sampleRedaction);
+
+        DialogueShape getDialogueShape();
+
+        void setDialogueShape(DialogueShape dialogueShape);
+
+        /**
+         * One step per line in {@link DialogueStep#format()}'s form; empty for the preset's own.
+         */
+        String getDialogueSteps();
+
+        void setDialogueSteps(String steps);
+
+        Map<Template, String> getTemplateOverrides();
+
+        void setTemplateOverrides(Map<Template, String> templates, Integer savedAgainstVersion);
+
+        void setBuiltInTemplates(Map<Template, String> templates, int version);
 
         int getSampleSizeLimit();
 

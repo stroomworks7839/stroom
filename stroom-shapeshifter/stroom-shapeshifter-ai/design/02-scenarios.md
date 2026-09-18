@@ -172,6 +172,8 @@ Ordered by what each needs built; each one is unlocked by the machinery the prev
 | 36 | **The transform must reproduce the target** (A31) | as 34 | an XSLT that produces a valid event with `where` in the wrong element; then the right one | target fidelity fails naming the record and the difference; the stream-level scorers alone would have passed it | target-fidelity scorer, canonical tree comparison |
 | 37 | **Record boundaries first** (A31) | a multi-line record shape — corpus 003 — with the target question in the dialogue; as a variant, an XML document of many records | *Split* reply that cuts one record per unit, then targets, then the rest | the split question is asked before any target, for the CSV of scenario 34 as much as here; targets are proposed for whole records, not lines; a split that cuts mid-record is re-asked on yield and coverage before a target is ever proposed; for the XML variant the split names the element that is one record | `Question.Split` for every kind of input; boundary judged without a target |
 | 38 | **Relearning from the millionth event** (A31, design 01 §10.1) | a bound shape; a stream of many records with a fault in one late record kind; bindings carry each record's input span | as 27, the relearn's target question carrying the faulty record's raw text | the record's raw text is read back from the source by its recorded span, not by re-running the parser; the relearn's target and transform questions carry that record; the incumbent serves meanwhile | input spans in the bindings; read-back by span |
+| 39 | **The dialogue is the document's** (A33, design 01 §10.2) | two documents over one feed: one with steps `CHAIN, TARGET kinds 1, CONFIGURE` (a target from the raw sample, no split), one on the `DIRECT` preset | as 34 for the first; as 1 for the second | the first asks chain, one target, two configurations and no split, the target's record being a line of the sample; the second asks chain and two configurations; a definition with `CONFIGURE` before `CHAIN`, or two `SPLIT`s, is refused on save naming the rule, and a document that reaches the stage with one is abandoned before the model is asked | `DialogueDefinition` on the document; the step interpreter; validation on save and at the stage |
+| 40 | **A template override reaches the model; the rest follows the preset** (A33) | a document overriding the `CHAIN` template with text using `${elements}` and `${sample}`, on the `TARGET_FIRST` preset | as 1 | the chain question put to the model is the override with both blocks rendered; the split, target and configuration questions are the built-in text; a template naming `${nothing}` is refused on save naming the template and the variable; the built-ins' version is on the saved document | override-only templates; block variables; the templates resource |
 
 Scenarios 3, 15, 16 and 17 exist today as unit tests of one component; they become scenarios so
 that the catalogue is the one place the behaviour is stated.
@@ -209,6 +211,8 @@ superset; this is its test-driven ordering.
    **scenario 33**.
 7a. **Learning against a target** (A31, §12 items 20 and 21) — scenarios 34–38 — before the tables and
    the durable attempts, since it changes what an attempt's turns are and what the regression set holds.
+7b. **The dialogue as data** (A33, §12 item 22) — scenarios 39–40 — straight after, before the stepper
+   pane and the durable attempts, so the document settles before either shows it.
 8. **Durable attempts and the worker** (A28, §12 item 15) — scenario 30 — then the A26 tables under
    scenario 20 and A27 under scenario 32 (§12 items 8 and 16).
 
@@ -528,8 +532,131 @@ of model time, and the second found the key's credit spent. It gained a robustne
 is recorded as `FAILED` and the others go on, so a run always yields its table — and the measurement is
 still owed.
 
-Not yet: the reconstruction run and the louder hint live; scenario 20 (needs the A26 tables for its
-ledger row); everything from scenario 30 on.
+Not yet: the reconstruction run; scenario 20 (needs the A26 tables for its ledger row); everything
+from scenario 30 on.
+
+### 6.3 Direct against target-first
+
+Run 2026-09-18 against `claude-sonnet-5`, the five runs of §6.2 in each shape of the dialogue, twice:
+run 5a as slice 10 left it, run 5b after the fixes 5a called for. Archived as `build/live-runs/
+sonnet-5-run5{a,b}-{direct,target_first}`. Scores are the stream score; questions and tokens are the
+whole run (04 is three streams).
+
+| Run | 5a direct | 5a target-first | 5b direct | 5b target-first |
+|---|---|---|---|---|
+| 01 header CSV | 0.902 · 5 q · 21.6k | **given up 0.80** · 8 q · 41.7k | 0.964 · 3 q · 7.1k | 0.857 · 7 q · 30.7k |
+| 02 headerless | 1.000 · 3 q · 6.2k | 1.000 · 5 q · 15.7k | 1.000 · 3 q · 6.4k | 1.000 · 6 q · 26.1k |
+| 03 two kinds | 0.981 · 6 q · 53.0k | 0.981 · 11 q · 82.1k | 1.000 · 5 q · 39.5k | 0.925 · 6 q · 26.0k |
+| 04 scenario 27 | 0.981 · 10 q · 85.8k | 0.981 · 18 q · 127.9k | 0.981 · 7 q · 30.6k | **1.000** · 13 q · 69.7k |
+| 05 regex corpus | 1.000 · 7 q · 54.9k | 0.938 · 7 q · 25.4k | 1.000 · 5 q · 23.4k | 1.000 · 8 q · 49.4k |
+
+**Run 5a did not show target-first winning**: the same or lower scores at one and a half to two times
+the questions and tokens, and one stream given up. The transcripts laid the cost at four doors, three of
+them this side of the dialogue:
+
+- *Fidelity compared serialisations.* 01's first transform wrote `evt:Event` — the same tree in the same
+  namespace — and was refused, then re-asked at 16k tokens and 49 seconds. `TargetChecks.canonical` now
+  walks the tree by namespace and local name, attributes sorted, whitespace-only text dropped; and the
+  refusal shows the nearest event produced beside the target, so the model sees the difference rather
+  than the demand.
+- *The schema ladder moved, as A31 meant it to, but was still a ladder.* The alarm kind's target in 03
+  climbed Door-incomplete, Alert-needs-Type, `Type="Alarm"`-not-in-the-enumeration, accepted: four
+  target questions at 4k to 8k tokens where the direct run had spent five transform questions at 10k to
+  19k on the same rungs. The content-model hint now carries the values of a required child whose type is
+  an enumeration — `Type [Vulnerability | IDS | Malware | Network | Change | Error | Other]` — so that
+  rung is gone.
+- *A namespace slip read as nonsense.* 03's transform declared `xmlns="event-logging:3"` on the `Events`
+  literal alone, so every `Event` beneath was in no namespace; the validator said *Event was found where
+  Event is expected* and the hint added *Events contains Event\**. The scorer now sees the found name
+  among the expected and says so: wrong namespace or none, declare the default namespace on
+  `xsl:stylesheet`. In run 5b that hint fired three times across both shapes and was taken first time
+  each.
+- *The required fields never reached the model.* Both shapes put the reader's location under
+  `Device/Location` and scored extraction quality 0.75 on 01 — `EventSource/Device/Name` is required by
+  the document, but the list reached the model only as feedback, and 0.75 clears the 0.7 gate, so it
+  never did. `QuestionText.system(doc)` now states the document's required fields and business-rule
+  XPaths in the system text; `ModelAdvisors` and `LiveAdvisor` both use it.
+
+**Run 5b, with those in, is the measurement.** Direct improved most: 01 right first time at 3
+questions and 7k tokens (from 5 and 21.6k), 03 and 05 at 1.000. Target-first promoted every stream and
+03 went from 11 questions to 6 — both targets accepted first time, both configurations right first time
+— and 04's relearn rebound at 1.000 where direct rebound at 0.981. It still costs more: 5 to 8 questions
+against 3 to 5 for one stream, and about twice the tokens, because every question carries the whole
+transcript and the split and target exchanges compound into every later one.
+
+Two things it lost on are findings, not verdicts:
+
+- *01 at 0.857 under target-first, 0.964 direct*: the same header line, lost either way. Target-first's
+  target for the header kind is `none`, and the parser the model then wrote dropped the header in DS3 —
+  coverage 0.857 in the parser step, which has no other weighted scorer, so the step product carries the
+  whole 0.857. Direct's parser kept the header as a record and the transform dropped it — yield 0.857 in
+  the transform step, averaged against three 1.0s. Same information lost, a different score by where
+  it was lost. That is §9.1's finding meeting the step product, and it wants a ruling: should a line
+  whose kind's target is `none` count against coverage at all?
+- *03 at 0.925 under target-first*: the alarm kind's target was `none` — the model, now told every
+  event is scored on carrying `EventSource/User/Id`, judged a record with no user to be no event. The
+  yield scorer caught it at the end (14 events from 20 records, 0.7), but only after promotion was
+  decided. The system text now says the fields are scored as a share and a record without one is still
+  an event; and the `none` reply is an unguarded exit from the target question, which the scripted
+  scenarios do not yet test. A guard — a kind that is more than a small share of the sample is asked
+  once more before `none` is taken — is the obvious shape, not yet built.
+
+What the comparison said for A31 at that point: target-first does what it was designed to do — the
+schema is learned on the cheap question, the transform is held to a concrete event, and the relearn
+came back at a higher score — at about twice the token cost, and the two streams it scored lower on
+were scored lower by the scoring, not by the events. On that evidence the node's default was set to
+**direct** (`Dialogue.Shape.DIRECT`; the scripted fixture stays target-first so every scenario
+exercises the fuller dialogue), the `none` reply was guarded — a kind seen more than once in the sample
+has its first `none` questioned and its second taken — and the parser question was told to emit a
+`none` kind as a record still, so the loss lands where direct's does.
+
+**Run 6** added the feeds A31 was designed for: 06, corpus 003's Linux audit blocks (records of one and
+five lines between `----` separators), and 07, a nested XML audit log (`nested-audit.xml`: eight
+entries of two kinds, actor, session and document as subtrees). Both shapes, all seven feeds:
+
+| Run | 6 direct | 6 target-first |
+|---|---|---|
+| 01 header CSV | 0.857 · 4 q · 14.8k | 0.964 · 7 q · 31.8k |
+| 02 headerless | 1.000 · 3 q · 6.4k | 1.000 · 5 q · 16.1k |
+| 03 two kinds | 0.963 · 4 q · 19.2k | 0.981 · 8 q · 53.1k |
+| 04 scenario 27 | 0.981 · 7 q · 29.2k | 0.981 · 14 q · 70.5k |
+| 05 regex corpus | 1.000 · 5 q · 21.4k | 1.000 · 8 q · 45.1k |
+| 06 multi-line audit | 0.881 · 4 q · 45.3k · 183 s | **given up 0.85** · 8 q · 95.2k · 324 s |
+| 07 nested XML | **given up** · 6 q · 102.9k · 578 s | — quota reached at question 3 |
+
+- *01 swapped places*: this time direct's parser dropped the header in DS3 (coverage 0.857) and
+  target-first's kept it (0.964) — the same asymmetry as 5b, the other way round. It is model variance
+  meeting the scoring, not a property of either shape. The extraction rules now say a header line is a
+  record too, emitted with its fields as data for the transform to drop; and the A11 question stands:
+  coverage is `min(chars, lines)`, and on a sample of seven lines one header line is a seventh, where
+  by characters it is a sixteenth. Whether coverage should be the character ratio alone is a ruling.
+- *06 is the first feed where target-first's events were plainly better and it still lost*: yield 1.0
+  against 0.69, extraction quality 0.917 against 0.833, conformance right first time against a re-ask
+  — and given up at 0.85 on parser coverage 0.846, because its block split relied on a trailing
+  separator and dropped the last record (line 13) with the leading `----` (line 1). Direct's parser
+  took every line as a record and let the transform sort them, at the cost of yield. The loss of the
+  last block is real and rightly penalised; a split judged on the sample alone cannot see that the
+  stream's last record has no terminator, which is an argument for the split question to say so. The
+  cost is also plain: the split question took 68 seconds and 10k tokens, the parser configuration 154
+  seconds and 30k, on a twelve-line sample.
+- *07 exposed the chain question, not the dialogue*: direct chose `DSParser -> XSLTFilter` for XML
+  input — the question's one example was that chain — and spent five parser candidates and 578 seconds
+  failing to cut XML with the Data Splitter. Target-first made the same choice and then met the key's
+  monthly usage limit at its third question. The chain question now says raw text needs a parser and a
+  stream that is already XML begins with the transform, with an example of each. The XML feed is
+  unmeasured in both shapes.
+
+The key's usage limit closed the run: no more live questions this month. Where it stands: on clean
+single-line feeds direct is as good and half the price; on the multi-line feed target-first's events
+were better but its split was not, and the scoring made the split decisive; the nested feed has not
+been measured. The owner's ruling on this (A32): the shape is not a choice to make in code but a
+setting on the document beside the model — different models, trained differently, may want different
+dialogues, and the harness exists to find out which. `DialogueShape` is now a field of the Shapeshifter
+AI document, default `DIRECT`, offered on the Learning tab; `Dialogue` reads it from the document it is
+learning for, and the constructors and fixtures that carried it are gone. The scripted scenarios name
+`TARGET_FIRST` on their documents, so the fuller dialogue stays exercised. The next live run, when the
+key allows, should be 06 and 07 in both shapes with the chain steer and header rule in, and — if 06
+repeats — the split question told that a record may end the stream without its terminator.
 
 The ninth slice, 2026-09-18, is the node's advisor (design 01 §12 item 6). `Advisors` gives a stage its
 advisor per document — the document names the model and the instructions — and `ModelAdvisors`, the
@@ -544,6 +671,60 @@ candidate. A document naming no model gets an advisor that fails the stream nami
 `Dialogue` now holds an attempt to its budgets (A5): wall-clock from `attemptBudgetMs` and tokens from
 `tokenBudget` through `Advisor.tokensUsed()`, checked around every question, exhaustion an abandonment
 with the reason. A node can now learn for real; what stops it is only a model document and credit.
+
+The tenth slice, 2026-09-18, is **learning against a target** (A31; design 01 §10.1) — scenarios 34 to 37
+scripted, 38 not yet. The dialogue has a shape, `DIRECT` (A21, kept for the comparison) or
+`TARGET_FIRST`, the node's default. Target-first goes: the chain question as before; then, for a parser,
+the **split** question — a DS3 configuration that cuts the sample into whole records and nothing more,
+judged by compile, coverage, yield and a *wholeness* check that the record text emitted is at least nine
+tenths of the input, since coverage counts a consumed group as covered whatever it kept (scenario 37's
+bad split, `maxMatch="1"` with `<all/>`, passes coverage and fails wholeness); then one **target**
+question per record kind — kinds by `ShapeSignature`'s text skeleton of the record's first line, first
+seen, at most three — asking for the event that record becomes, or `none`, each reply validated and
+scored against the document's scorers as a one-event document before any configuration is written
+(scenario 34's degenerate target is refused with the extraction-quality feedback); then the
+**configuration** questions, each carrying the settled split and the targets. Two checks follow the
+scorecard in judging a configuration: **preservation** for a parser — every leaf and attribute value the
+target takes from its record must appear in some emitted record's data, the re-ask naming the values the
+records lack (scenario 35: a splitter keeping two fields of four passes coverage at 1.0 and is sent back
+for `logon` and `office`); **fidelity** for a transform — some event produced must equal the target,
+canonically (inter-tag whitespace and namespace declarations set aside), the re-ask quoting the target
+(scenario 36: `where` in `User/Id` is valid and wrong). The targets ride the `Learned` outcome onto the
+regression set's `Accepted` rows, where the A18 check will read them as goldens.
+
+The fixtures grew a **`Structure`**: a script built with `scenarios.script(splitter, stylesheet)` answers
+the split and target questions from the configurations it will give — running the splitter over the
+whole sample, finding the record the question's representative came from, running the stylesheet and
+returning the event at that index — so a scenario states only what it is about, and `scripted()` is the
+questions the scenario wrote. The Tier 2 tests build theirs with the node's parser factory, reached
+inside the processing pipeline's scope. Every earlier scenario passes with the new questions in the
+dialogue; 126 in the module, two in `stroom-app`.
+
+The live comparison — the five runs of §6.2 with `SHAPESHIFTER_LIVE_SHAPE=DIRECT` and then
+`TARGET_FIRST`, same model, same feeds, transcripts under `build/live/<shape>` — ran twice the same day;
+§6.3 has what it found, and what it changed between the two.
+
+The eleventh slice, 2026-09-18, is **the dialogue as data** (A33; design 01 §10.2; scenarios 39–40).
+On the document, `DialogueDefinition`: a preset (`DialogueShape`, now the name of a built-in step
+list), the steps — `DialogueStep`s of a `QuestionKind`, a `StepGuard` and per-step limits, written and
+read as one line each, `TARGET when text candidates 3 kinds 2` — and override-only templates by
+`Template`, with the built-ins' version stamped on save. Structural problems (`CHAIN` first and once,
+`CONFIGURE` last and once, `SPLIT` and `TARGET` at most once) are the shared class's, so the client can
+say them too; a template's variables are checked by the server's `Templates`, which holds the built-in
+text of every template with its `${variable}` slots and renders in one pass, so a sample that happens
+to contain `${amount}` is not read as a slot. `QuestionText` is now an instance over a document's
+templates: it computes the blocks the variables stand for — headers, elements, sample, feedback, split,
+targets, previous, rules — and `Templates` fills them; both advisors take a `QuestionText` and put the
+same words. `Dialogue` walks the effective steps: chain, then whatever the list asks between, each under
+its guard (raw text is a parser with a configuration to write; otherwise the input is already records)
+and its candidate limit, then the configurations; a target asked before any split is proposed over the
+sample's lines. A definition it cannot hold is abandoned before the model is asked, naming the rule
+and the Learning tab; the store refuses the same on save. The Learning tab shows the preset, the steps
+as text, and the templates one at a time — the effective text, editable, "Use built-in" to drop a
+change, the built-in version and the version the document was last saved against — the built-ins
+served by a `templates` resource. `TestQuestionText` covers the override, the refused variable and the
+slot-lookalike; the store test the refusals and the stamp; scenario 39 the reordered steps and the
+abandonment. 134 tests in the module, 12 in `stroom-core-shared`, two in `stroom-app`.
 
 ## 7. Decisions taken
 

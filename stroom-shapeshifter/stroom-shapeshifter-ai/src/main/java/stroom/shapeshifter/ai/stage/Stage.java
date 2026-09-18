@@ -29,6 +29,7 @@ import stroom.shapeshifter.ai.learning.Outcome.Abandoned;
 import stroom.shapeshifter.ai.learning.Outcome.Learned;
 import stroom.shapeshifter.ai.learning.Sample;
 import stroom.shapeshifter.ai.learning.StepRunner;
+import stroom.shapeshifter.ai.learning.Target;
 import stroom.shapeshifter.ai.scoring.Attempted;
 import stroom.shapeshifter.ai.scoring.Records;
 import stroom.shapeshifter.ai.scoring.Scorecard;
@@ -169,7 +170,7 @@ public final class Stage {
         for (final DocRef variant : compatibleVariants(doc, input)) {
             final Judged judged = judge(scorecard, variant, input.data());
             if (judged.clearsFloor(doc)) {
-                return bind(doc, shape, input, selector, variant, judged, List.of());
+                return bind(doc, shape, input, selector, variant, judged, List.of(), List.of());
             }
         }
 
@@ -196,7 +197,7 @@ public final class Stage {
                     judged.verdicts(), learned.transcript());
         }
         final DocRef fragment = write(doc, shape, learned);
-        return bind(doc, shape, input, selector, fragment, judged, learned.transcript());
+        return bind(doc, shape, input, selector, fragment, judged, learned.targets(), learned.transcript());
     }
 
     /**
@@ -357,8 +358,8 @@ public final class Stage {
                     .build();
             final List<RoutingRule> table = new ArrayList<>(doc.getRoutingTable());
             table.add(draft);
-            regressionSet.accept(draft.getUuid(), List.of(new Accepted(input.data(), candidate.score())),
-                    doc.getRegressionCap());
+            regressionSet.accept(draft.getUuid(), List.of(new Accepted(input.data(), candidate.score(),
+                    learned.targets())), doc.getRegressionCap());
             shapes.awaitReview(doc.getUuid(), shape.id(), draft.getUuid());
             return emit(doc.copy().routingTable(table).build(), new Drafted(draft, candidate.score()), shape, input,
                     incumbent, served, learned.transcript());
@@ -368,8 +369,8 @@ public final class Stage {
                 .promotedTimeMs(clock.millis())
                 .score(candidate.score())
                 .build();
-        regressionSet.accept(rebound.getUuid(), List.of(new Accepted(input.data(), candidate.score())),
-                doc.getRegressionCap());
+        regressionSet.accept(rebound.getUuid(), List.of(new Accepted(input.data(), candidate.score(),
+                learned.targets())), doc.getRegressionCap());
         return emit(replace(doc, incumbent, rebound), new Rebound(incumbent, rebound, candidate.score()), shape,
                 input, incumbent, served, learned.transcript());
     }
@@ -388,6 +389,7 @@ public final class Stage {
                           final ExpressionOperator selector,
                           final DocRef fragment,
                           final Judged judged,
+                          final List<Target> targets,
                           final List<Exchange> transcript) {
         final boolean provisional = judged.records() < doc.getMinRecordsPerShape();
         final boolean draft = doc.getPromotionMode() == PromotionMode.REVIEW;
@@ -410,7 +412,7 @@ public final class Stage {
             // A draft's records go in now, under its uuid, however few: they are what it was judged on
             // whether or not it is approved — and a person approving it on too few is the A14 exception
             // design 01 §6 allows them — and Reject takes them out again.
-            regressionSet.accept(rule.getUuid(), List.of(new Accepted(input.data(), judged.score())),
+            regressionSet.accept(rule.getUuid(), List.of(new Accepted(input.data(), judged.score(), targets)),
                     doc.getRegressionCap());
         }
         shapes.reset(doc.getUuid(), shape.id());

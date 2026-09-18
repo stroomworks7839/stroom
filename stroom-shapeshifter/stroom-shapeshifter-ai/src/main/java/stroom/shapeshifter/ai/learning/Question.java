@@ -45,6 +45,35 @@ public sealed interface Question {
     }
 
     /**
+     * What one record is in this input (A31): asked before anything about meaning, for every kind of
+     * input, and answered without a target. For raw text the reply is a Data Splitter configuration
+     * that cuts the input into records and emits each record's whole text as one field — the boundary
+     * and nothing else — judged by coverage and yield alone.
+     */
+    record Split(Sample sample, String elementType, String documentType, List<StoredError> feedback)
+            implements Question {
+
+    }
+
+    /**
+     * What one kind of record should become (A31): one representative record, as the split cut it, put
+     * with the schema's rules and the document's instructions; the reply is the event as a single
+     * document, or {@code none} for a kind that yields no event. Validated at once by the scorers of
+     * meaning, so the re-ask carries the shortfall of the document the model itself wrote.
+     *
+     * @param record The representative record's text.
+     * @param kind   Which of the sample's record kinds this is, one-based.
+     * @param total  How many kinds the sample has.
+     */
+    record TargetFor(Sample sample,
+                     String record,
+                     int kind,
+                     int total,
+                     List<StoredError> feedback) implements Question {
+
+    }
+
+    /**
      * The configuration document for one element of the chain (A21 step 2). Carries the real input that
      * element will receive — the sample for the first element, the previous element's output after that —
      * and the previous configuration if this is a re-ask.
@@ -54,13 +83,24 @@ public sealed interface Question {
      * @param sample                The input sample and headers the whole attempt is about.
      * @param input                 What this element will actually be given to process.
      * @param previousConfiguration The configuration this question is asking to improve on, or null.
+     * @param split                 The record boundary already settled (A31), as the configuration that
+     *                              cuts it, for the parser that must extract within it; null where the
+     *                              element is not a parser or the dialogue has no split.
+     * @param targets               What each kind of record must become (A31): the parser's records must
+     *                              carry every value these need, the transform must produce exactly
+     *                              these. Empty where the dialogue has no targets.
      */
     record Configuration(String elementType,
                          String documentType,
                          Sample sample,
                          String input,
                          String previousConfiguration,
+                         String split,
+                         List<Target> targets,
                          List<StoredError> feedback) implements Question {
 
+        public Configuration {
+            targets = List.copyOf(targets);
+        }
     }
 }

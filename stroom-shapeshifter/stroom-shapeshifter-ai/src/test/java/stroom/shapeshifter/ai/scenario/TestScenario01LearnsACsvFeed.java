@@ -18,6 +18,7 @@ package stroom.shapeshifter.ai.scenario;
 
 import stroom.meta.shared.MetaFields;
 import stroom.shapeshifter.ai.extraction.ExtractionCorpus.Golden;
+import stroom.shapeshifter.ai.learning.Question;
 import stroom.shapeshifter.ai.learning.Question.Chain;
 import stroom.shapeshifter.ai.learning.Question.Configuration;
 import stroom.shapeshifter.ai.scoring.Judgement;
@@ -27,6 +28,7 @@ import stroom.shapeshifter.ai.stage.Decision.Promoted;
 import stroom.shapeshifter.ai.stage.Decision.Sentinel;
 import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.StageRun;
+import stroom.shapeshifter.shared.DialogueShape;
 import stroom.shapeshifter.shared.LearningMode;
 import stroom.shapeshifter.shared.RoutingFields;
 import stroom.shapeshifter.shared.RoutingRule;
@@ -63,6 +65,7 @@ class TestScenario01LearnsACsvFeed {
                 .uuid("policy-1")
                 .name("door-access")
                 .learningMode(LearningMode.AUTOMATIC)
+                .dialogueShape(DialogueShape.TARGET_FIRST)
                 .allowedElements(List.of("DSParser", "XSLTFilter"))
                 .minRecordsPerShape(5)
                 // The golden splitter reads the header line into a variable, which coverage counts as
@@ -84,7 +87,7 @@ class TestScenario01LearnsACsvFeed {
     @Test
     void learnsPromotesAndRoutes() {
         final Scenarios scenarios = new Scenarios();
-        final Script script = Script.of()
+        final Script script = scenarios.script(CSV.configuration(), XSLT)
                 .expect(QuestionMatcher.chain()
                         .allowing("DSParser", "XSLTFilter")
                         .withKey("Feed", "DOOR-ACCESS")
@@ -100,8 +103,17 @@ class TestScenario01LearnsACsvFeed {
 
         script.verifyExhausted();
         // The transform question carried the parser's real output over the learning prefix (A21 step 2).
-        final Configuration transform = (Configuration) script.asked().get(2);
+        final Configuration transform = (Configuration) script.scripted().get(2);
         assertThat(transform.input()).startsWith("<?xml").contains("<records").contains("<record>");
+        // A31: the split and one target per record kind — the header, which becomes nothing, and a data
+        // line — were asked between the chain and the parser, and every configuration carried the targets.
+        assertThat(script.asked()).hasSize(6);
+        assertThat(script.asked().get(1)).isInstanceOf(Question.Split.class);
+        assertThat(script.asked().get(2)).isInstanceOf(Question.TargetFor.class);
+        assertThat(script.asked().get(3)).isInstanceOf(Question.TargetFor.class);
+        assertThat(transform.targets()).hasSize(2);
+        assertThat(transform.targets().get(0).event()).describedAs("the header becomes no event").isEmpty();
+        assertThat(transform.targets().get(1).event()).isPresent();
         assertThat(((Chain) script.asked().get(0)).sample().text())
                 .describedAs("the model learns from a prefix, header + 5 of 6 records; the whole stream is held out")
                 .hasLineCount(6);
@@ -109,7 +121,7 @@ class TestScenario01LearnsACsvFeed {
         assertThat(run.decision()).isInstanceOf(Promoted.class);
         final Promoted promoted = (Promoted) run.decision();
         assertThat(run.output()).isEqualTo(EXPECTED_EVENTS);
-        assertThat(run.transcript()).hasSize(3);
+        assertThat(run.transcript()).hasSize(6);
         assertThat(scenarios.shapes.reasonGivenUp(run.doc().getUuid(), run.shape().id())).isEmpty();
         assertThat(scenarios.ledger.isEmpty()).isTrue();
         assertThat(run.bindings())
@@ -180,7 +192,7 @@ class TestScenario01LearnsACsvFeed {
     @Test
     void theSecondStreamOfTheShapeIsBoundWithoutLearning() {
         final Scenarios scenarios = new Scenarios();
-        final Script script = Script.of()
+        final Script script = scenarios.script(CSV.configuration(), XSLT)
                 .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter")
                 .expect(QuestionMatcher.configuration("DSParser")).reply(Scenarios.fenced(CSV.configuration()))
                 .expect(QuestionMatcher.configuration("XSLTFilter")).reply(Scenarios.fenced(XSLT));

@@ -82,22 +82,23 @@ class TestModelAdvisor {
     void putsTheSystemTextTheTranscriptAndTheQuestion() {
         final Recording model = new Recording(List.of("DSParser -> XSLTFilter", "```xml\n<x/>\n```"), null);
         final DocumentEventLog eventLog = Mockito.mock(DocumentEventLog.class);
-        final ModelAdvisor advisor = new ModelAdvisor(model, "test-model", DOCUMENT, "Badge readers.", eventLog);
+        final QuestionText words = QuestionText.builtIn("Badge readers.");
+        final ModelAdvisor advisor = new ModelAdvisor(model, "test-model", DOCUMENT, words, eventLog);
 
         final Chain chain = new Chain(SAMPLE, List.of("DSParser", "XSLTFilter"), List.of());
         final String first = advisor.ask(List.of(), chain);
         final Configuration configuration = new Configuration("DSParser", "TextConverter", SAMPLE, "a,b\n", null,
-                List.of());
+                null, List.of(), List.of());
         final String second = advisor.ask(List.of(new Exchange(chain, first)), configuration);
 
         assertThat(first).isEqualTo("DSParser -> XSLTFilter");
         assertThat(second).contains("<x/>");
         final List<ChatMessage> request = model.requests.get(1);
         assertThat(request).hasSize(4);
-        assertThat(((SystemMessage) request.get(0)).text()).isEqualTo(QuestionText.system("Badge readers."));
-        assertThat(((UserMessage) request.get(1)).singleText()).isEqualTo(QuestionText.render(chain));
+        assertThat(((SystemMessage) request.get(0)).text()).isEqualTo(words.system());
+        assertThat(((UserMessage) request.get(1)).singleText()).isEqualTo(words.render(chain));
         assertThat(((AiMessage) request.get(2)).text()).isEqualTo(first);
-        assertThat(((UserMessage) request.get(3)).singleText()).isEqualTo(QuestionText.render(configuration));
+        assertThat(((UserMessage) request.get(3)).singleText()).isEqualTo(words.render(configuration));
         assertThat(advisor.tokensUsed()).isEqualTo(240);
 
         final ArgumentCaptor<String> descriptions = ArgumentCaptor.forClass(String.class);
@@ -114,7 +115,8 @@ class TestModelAdvisor {
         final RuntimeException boom = new IllegalStateException("503");
         final Recording model = new Recording(List.of(), boom);
         final DocumentEventLog eventLog = Mockito.mock(DocumentEventLog.class);
-        final ModelAdvisor advisor = new ModelAdvisor(model, "test-model", DOCUMENT, null, eventLog);
+        final ModelAdvisor advisor = new ModelAdvisor(model, "test-model", DOCUMENT, QuestionText.builtIn(null),
+                eventLog);
 
         assertThatThrownBy(() -> advisor.ask(List.of(), new Chain(SAMPLE, List.of("DSParser"), List.of())))
                 .isSameAs(boom);

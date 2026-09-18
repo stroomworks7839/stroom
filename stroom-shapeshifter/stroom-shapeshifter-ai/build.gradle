@@ -73,6 +73,7 @@ dependencies {
     testFixturesImplementation libs.guice
     testFixturesImplementation libs.jakarta.inject
     testFixturesImplementation libs.junit.jupiter.api
+    testFixturesImplementation libs.saxon.he
     testFixturesImplementation libs.langchain4j
     testFixturesImplementation libs.langchain4j.open.ai
     testFixturesImplementation libs.slf4j.api

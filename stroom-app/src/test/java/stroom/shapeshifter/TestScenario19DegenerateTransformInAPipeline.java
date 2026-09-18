@@ -23,11 +23,13 @@ import stroom.meta.mock.MockMetaService;
 import stroom.meta.shared.Meta;
 import stroom.meta.shared.MetaFields;
 import stroom.pipeline.PipelineStore;
+import stroom.pipeline.errorhandler.ErrorReceiverProxy;
 import stroom.pipeline.shared.PipelineDoc;
 import stroom.pipeline.shared.data.PipelineData;
 import stroom.pipeline.shared.data.PipelineDataBuilder;
 import stroom.pipeline.shared.data.PipelineDataUtil;
 import stroom.pipeline.shared.data.PipelineElement;
+import stroom.pipeline.xml.converter.ds3.DS3ParserFactory;
 import stroom.processor.api.ProcessorFilterService;
 import stroom.processor.api.ProcessorResult;
 import stroom.processor.shared.CreateProcessFilterRequest;
@@ -36,12 +38,17 @@ import stroom.query.api.ExpressionOperator;
 import stroom.query.api.ExpressionTerm.Condition;
 import stroom.shapeshifter.ai.doc.ShapeshifterAiStore;
 import stroom.shapeshifter.ai.element.ShapeshifterAiParser;
+import stroom.shapeshifter.ai.extraction.DataSplitterCompiler;
+import stroom.shapeshifter.ai.extraction.DataSplitterStep;
 import stroom.shapeshifter.ai.extraction.ExtractionCorpus.Golden;
 import stroom.shapeshifter.ai.scenario.AdvisorHolder;
 import stroom.shapeshifter.ai.scenario.QuestionMatcher;
 import stroom.shapeshifter.ai.scenario.Scenarios;
 import stroom.shapeshifter.ai.scenario.Script;
+import stroom.shapeshifter.ai.scenario.Structure;
 import stroom.shapeshifter.ai.stage.Bindings;
+import stroom.shapeshifter.ai.transformation.XsltStep;
+import stroom.shapeshifter.shared.DialogueShape;
 import stroom.shapeshifter.shared.ExtractionQualityParameters;
 import stroom.shapeshifter.shared.LearningMode;
 import stroom.shapeshifter.shared.RoutingRule;
@@ -57,6 +64,7 @@ import stroom.test.StoreCreationTool;
 import stroom.util.shared.Severity;
 
 import jakarta.inject.Inject;
+import jakarta.inject.Provider;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -100,6 +108,8 @@ class TestScenario19DegenerateTransformInAPipeline extends AbstractProcessIntegr
     private MockStore streamStore;
     @Inject
     private AdvisorHolder advisor;
+    @Inject
+    private Provider<DS3ParserFactory> parserFactories;
 
     @Test
     void theDegenerateTransformIsRefusedAndTheRealOnePromoted() {
@@ -118,7 +128,7 @@ class TestScenario19DegenerateTransformInAPipeline extends AbstractProcessIntegr
                 .priority(1)
                 .build());
 
-        final Script script = Script.of()
+        final Script script = script()
                 .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter")
                 .expect(QuestionMatcher.configuration("DSParser")).reply(Scenarios.fenced(CSV.configuration()))
                 .expect(QuestionMatcher.configuration("XSLTFilter").withoutFeedback())
@@ -134,7 +144,7 @@ class TestScenario19DegenerateTransformInAPipeline extends AbstractProcessIntegr
 
         // The degenerate candidate cleared the schema gate against the node's schemas: its re-ask carries no
         // conformance feedback. The promoted transform's events pass the pipeline's own schema filter.
-        assertThat(script.asked().get(3).feedback())
+        assertThat(script.scripted().get(3).feedback())
                 .noneMatch(error -> error.getMessage().startsWith("Schema conformance"));
         assertThat(result.getMarkerCount(Severity.ERROR, Severity.FATAL_ERROR)).isZero();
         assertThat(result.getWritten()).isEqualTo(6);
@@ -146,11 +156,24 @@ class TestScenario19DegenerateTransformInAPipeline extends AbstractProcessIntegr
         assertThat(streamStore.getAttributes(output.getId())).containsEntry(Bindings.RULE_ATTRIBUTE, rule.getUuid());
     }
 
+    /**
+     * The split and target questions are answered from the configurations the script will give, as the
+     * module's scenarios do; the script states only what the scenario is about. The structure's compiler
+     * is built when a question is asked, inside the processing pipeline's scope, so it reaches the node's
+     * parser factory the way the element does.
+     */
+    private Script script() {
+        final DataSplitterCompiler compiler = new DataSplitterCompiler(parserFactories, new ErrorReceiverProxy());
+        return Script.of().structure(new Structure(
+                List.of(new DataSplitterStep(compiler), new XsltStep()), CSV.configuration(), XSLT));
+    }
+
     private DocRef document() {
         final DocRef docRef = shapeshifterAiStore.createDocument("door-access");
         shapeshifterAiStore.writeDocument(shapeshifterAiStore.readDocument(docRef)
                 .copy()
                 .learningMode(LearningMode.AUTOMATIC)
+                .dialogueShape(DialogueShape.TARGET_FIRST)
                 .allowedElements(List.of("DSParser", "XSLTFilter"))
                 .minRecordsPerShape(5)
                 .promotionFloor(0.85)

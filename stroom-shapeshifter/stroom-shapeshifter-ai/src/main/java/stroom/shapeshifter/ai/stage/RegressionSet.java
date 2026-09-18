@@ -16,6 +16,8 @@
 
 package stroom.shapeshifter.ai.stage;
 
+import stroom.shapeshifter.ai.learning.Target;
+
 import java.util.List;
 
 /**
@@ -37,10 +39,20 @@ public interface RegressionSet {
     void discard(String ruleUuid);
 
     /**
-     * @param input The record as it was received.
-     * @param score The weighted score the promoted variant achieved on it.
+     * @param input   The record as it was received.
+     * @param score   The weighted score the promoted variant achieved on it.
+     * @param targets What each kind of record in it was to become (A31): the goldens, as design 01 §7.4
+     *                described the set — empty where the attempt had none.
      */
-    record Accepted(String input, double score) {
+    record Accepted(String input, double score, List<Target> targets) {
+
+        public Accepted {
+            targets = List.copyOf(targets);
+        }
+
+        public Accepted(final String input, final double score) {
+            this(input, score, List.of());
+        }
 
     }
 }

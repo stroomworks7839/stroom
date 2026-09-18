@@ -22,6 +22,7 @@ import stroom.docstore.api.DependencyRemapper;
 import stroom.docstore.api.StoreFactory;
 import stroom.security.api.SecurityContext;
 import stroom.shapeshifter.ai.fragment.FragmentCheck;
+import stroom.shapeshifter.ai.learning.Templates;
 import stroom.shapeshifter.shared.RoutingFields;
 import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
@@ -29,6 +30,7 @@ import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -78,8 +80,16 @@ public class ShapeshifterAiStoreImpl
         if (document.getLearningKey().isEmpty()) {
             throw new IllegalArgumentException("The learning key must name at least one field");
         }
+        // A33: a dialogue the stage cannot hold is refused here, naming the rule, rather than found when
+        // the first stream arrives; and the document is stamped with the built-in text it was saved against.
+        final List<String> problems = new ArrayList<>(document.getDialogue().problems());
+        problems.addAll(Templates.problems(document.getDialogue()));
+        if (!problems.isEmpty()) {
+            throw new IllegalArgumentException("The dialogue cannot be held: " + String.join("; ", problems));
+        }
         return super.writeDocument(document.copy()
                 .routingTable(document.getRoutingTable().stream().map(ShapeshifterAiStoreImpl::identified).toList())
+                .dialogue(document.getDialogue().withBuiltInVersion(Templates.VERSION))
                 .build());
     }
 

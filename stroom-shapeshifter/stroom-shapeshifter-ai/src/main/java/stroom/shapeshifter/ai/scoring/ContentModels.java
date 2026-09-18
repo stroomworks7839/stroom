@@ -43,14 +43,17 @@ import javax.xml.parsers.ParserConfigurationException;
  * children in order, optional ones marked {@code ?}, repeating ones {@code *} or {@code +}, a choice as
  * {@code (A | B)}, and a required child that is itself complex opened one level so that a candidate can
  * finish the element in one step rather than be told one missing child per turn — the ladder the first
- * live run climbed (design 02 §6.2). Resolves named and inline complex types, {@code ref}, {@code group}
- * and {@code extension}; anything it cannot follow it leaves out rather than guesses at.
+ * live run climbed (design 02 §6.2); a required child whose type is an enumeration carries its values as
+ * {@code [A | B]}, so that a candidate is not told the element it added holds a value the schema does
+ * not know. Resolves named and inline complex types, simple types, {@code ref}, {@code group} and
+ * {@code extension}; anything it cannot follow it leaves out rather than guesses at.
  */
 public final class ContentModels {
 
     private static final String XS = XMLConstants.W3C_XML_SCHEMA_NS_URI;
     private static final int TEXT_LIMIT = 700;
     private static final int PARENTS_SHOWN = 3;
+    private static final int VALUES_SHOWN = 8;
 
     /**
      * Every element declaration by local name; a name declared in several places has several.
@@ -58,6 +61,11 @@ public final class ContentModels {
     private final Map<String, List<Element>> elements = new HashMap<>();
     private final Map<String, Element> complexTypes = new HashMap<>();
     private final Map<String, Element> groups = new HashMap<>();
+    /**
+     * The values of every named simple type that is an enumeration.
+     */
+    private final Map<String, List<String>> enumerations = new HashMap<>();
+    private final Set<String> targetNamespaces = new LinkedHashSet<>();
 
     /**
      * A schema text that does not parse is left out: the hint is best effort, and the validator has its
@@ -65,8 +73,23 @@ public final class ContentModels {
      */
     public ContentModels(final Collection<String> schemaTexts) {
         for (final String text : schemaTexts) {
-            parse(text).ifPresent(document -> index(document.getDocumentElement()));
+            parse(text).ifPresent(document -> {
+                final Element schema = document.getDocumentElement();
+                if (schema.hasAttribute("targetNamespace")) {
+                    targetNamespaces.add(schema.getAttribute("targetNamespace"));
+                }
+                index(schema);
+            });
         }
+    }
+
+    /**
+     * The namespace the group's elements live in, where the schemas agree on one.
+     */
+    public Optional<String> namespace() {
+        return targetNamespaces.size() == 1
+                ? Optional.of(targetNamespaces.iterator().next())
+                : Optional.empty();
     }
 
     /**
@@ -96,7 +119,8 @@ public final class ContentModels {
      * How the notation reads, said once alongside the first hint.
      */
     public static String legend() {
-        return "? optional, * any number, + one or more, ( | ) one of, { } what a required child holds";
+        return "? optional, * any number, + one or more, ( | ) one of, { } what a required child holds, "
+               + "[ | ] the values allowed";
     }
 
     /**
@@ -203,6 +227,14 @@ public final class ContentModels {
                             groups.put(child.getAttribute("name"), child);
                         }
                     }
+                    case "simpleType" -> {
+                        if (child.hasAttribute("name")) {
+                            final List<String> values = enumerationOf(child);
+                            if (!values.isEmpty()) {
+                                enumerations.put(child.getAttribute("name"), values);
+                            }
+                        }
+                    }
                     default -> {
                     }
                 }
@@ -265,14 +297,15 @@ public final class ContentModels {
                                 options.add(run.get(0));
                             } else if (!run.isEmpty()) {
                                 options.add(new Particle(null, null, minOccurs(alternative), maxOccurs(alternative),
-                                        null, run));
+                                        null, run, List.of()));
                             }
                         } else {
                             collect(wrap(alternative), options, depth);
                         }
                     }
                     if (!options.isEmpty()) {
-                        into.add(new Particle(null, options, minOccurs(child), maxOccurs(child), null, null));
+                        into.add(new Particle(null, options, minOccurs(child), maxOccurs(child), null, null,
+                                List.of()));
                     }
                 }
                 case "group" -> {
@@ -303,7 +336,40 @@ public final class ContentModels {
                 within = particlesOfType(type, depth + 1);
             }
         }
-        return new Particle(name, null, minOccurs(declaration), maxOccurs(declaration), within, null);
+        return new Particle(name, null, minOccurs(declaration), maxOccurs(declaration), within, null,
+                valuesOf(declaration));
+    }
+
+    /**
+     * The values a required element may hold where its type is an enumeration, named or inline.
+     */
+    private List<String> valuesOf(final Element declaration) {
+        if (minOccurs(declaration) == 0) {
+            return List.of();
+        }
+        if (declaration.hasAttribute("type")) {
+            return enumerations.getOrDefault(local(declaration.getAttribute("type")), List.of());
+        }
+        final Element simpleType = firstChild(declaration, "simpleType");
+        return simpleType == null
+                ? List.of()
+                : enumerationOf(simpleType);
+    }
+
+    private static List<String> enumerationOf(final Element simpleType) {
+        final Element restriction = firstChild(simpleType, "restriction");
+        if (restriction == null) {
+            return List.of();
+        }
+        final List<String> values = new ArrayList<>();
+        final NodeList children = restriction.getChildNodes();
+        for (int i = 0; i < children.getLength(); i++) {
+            if (children.item(i) instanceof final Element child && XS.equals(child.getNamespaceURI())
+                && "enumeration".equals(child.getLocalName()) && child.hasAttribute("value")) {
+                values.add(child.getAttribute("value"));
+            }
+        }
+        return values;
     }
 
     /**
@@ -417,7 +483,8 @@ public final class ContentModels {
                             int minOccurs,
                             int maxOccurs,
                             List<Particle> within,
-                            List<Particle> run) {
+                            List<Particle> run,
+                            List<String> values) {
 
         String render(final boolean open) {
             final String body;
@@ -426,6 +493,12 @@ public final class ContentModels {
                        + ")";
             } else if (run != null) {
                 body = "(" + ContentModels.render(run, false) + ")";
+            } else if (!values.isEmpty()) {
+                body = name + " [" + String.join(" | ", values.size() > VALUES_SHOWN
+                        ? values.subList(0, VALUES_SHOWN)
+                        : values) + (values.size() > VALUES_SHOWN
+                        ? " | …]"
+                        : "]");
             } else {
                 body = name + (open && within != null && !within.isEmpty()
                         ? " { " + ContentModels.render(within, false) + " }"

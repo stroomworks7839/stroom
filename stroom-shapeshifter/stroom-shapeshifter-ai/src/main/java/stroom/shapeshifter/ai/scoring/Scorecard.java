@@ -20,9 +20,11 @@ import stroom.shapeshifter.shared.ScorerSetting;
 import stroom.shapeshifter.shared.ScorerType;
 
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -33,6 +35,10 @@ import java.util.stream.Collectors;
  * the scorecard is built, not silently skipped or failed stream by stream at scoring time.
  */
 public final class Scorecard {
+
+    private static final Set<ScorerType> MEANING = EnumSet.of(
+            ScorerType.SCHEMA_CONFORMANCE, ScorerType.EXTRACTION_QUALITY, ScorerType.BUSINESS_RULES,
+            ScorerType.EVENT_CLASSIFICATION);
 
     private final List<ScorerSetting> settings;
     private final Map<ScorerType, Scorer> scorers;
@@ -46,6 +52,15 @@ public final class Scorecard {
             }
             this.scorers.get(setting.getType()).validate(setting.getParameters());
         }
+    }
+
+    /**
+     * This scorecard with only the scorers of meaning — those that judge what the output says, not how
+     * much of the input it took or how many records it made — for judging one event on its own.
+     */
+    public Scorecard meaning() {
+        return new Scorecard(settings.stream().filter(setting -> MEANING.contains(setting.getType())).toList(),
+                List.copyOf(scorers.values()));
     }
 
     public Verdict judge(final Attempted step) {

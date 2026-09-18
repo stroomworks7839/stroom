@@ -14,28 +14,39 @@
  * limitations under the License.
  */
 
+
 package stroom.shapeshifter.ai.learning;
 
 import stroom.shapeshifter.ai.learning.Question.Chain;
 import stroom.shapeshifter.ai.learning.Question.Configuration;
+import stroom.shapeshifter.ai.learning.Question.Split;
+import stroom.shapeshifter.ai.learning.Question.TargetFor;
+import stroom.shapeshifter.shared.BusinessRulesParameters;
+import stroom.shapeshifter.shared.DialogueDefinition;
+import stroom.shapeshifter.shared.ExtractionQualityParameters;
+import stroom.shapeshifter.shared.ScorerSetting;
+import stroom.shapeshifter.shared.ShapeshifterAiDoc;
+import stroom.shapeshifter.shared.Template;
 import stroom.util.shared.StoredError;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
  * The prompt contract of design 01 §10 as text: what a model is told before its first answer, and how
- * each typed question is put. Every question carries the stage's objective and the document's
- * instructions (the system text), the sample and the learning key's values, the real input the element
- * will receive, the previous configuration on a re-ask, and the feedback that lost the marks. For
- * extraction it carries the mandatory {@code xsi:schemaLocation} and the {@code ignoreErrors}
- * prohibition (§9.1); for transformation, the schema's named failure modes (§8.2) and the degeneracy
- * trap (§8.3). The reply grammar is stated on every question: a chain is element names joined by
- * {@code ->}; a configuration is one fenced code block and nothing else.
+ * each typed question is put — in the words of the document's dialogue (§10.2). Every question carries
+ * the stage's objective and the document's instructions (the system text), the sample and the learning
+ * key's values, the real input the element will receive, the previous configuration on a re-ask, and the
+ * feedback that lost the marks. For extraction it carries the mandatory {@code xsi:schemaLocation} and
+ * the {@code ignoreErrors} prohibition (§9.1); for transformation, the schema's named failure modes
+ * (§8.2) and the degeneracy trap (§8.3). The reply grammar is stated on every question.
  * <p>
- * Where a node's advisor over {@code stroom-ai} (§12 item 6) and the live harness agree on what is
- * said, so that the harness measures the prompt the node will use.
+ * This class computes the blocks a template's variables stand for — {@code ${feedback}} is the whole
+ * "what fell short" list or nothing — and {@link Templates} fills them in. Where a node's advisor over
+ * {@code stroom-ai} (§12 item 6) and the live harness agree on what is said, so that the harness
+ * measures the prompt the node will use.
  */
 public final class QuestionText {
 
@@ -49,120 +60,161 @@ public final class QuestionText {
             "XMLParser", "parses XML input as it is, with no configuration",
             "XSLTFilter", "transforms XML records into event-logging:3 events with an XSLT 2.0 stylesheet");
 
-    /**
-     * What an extraction question tells the model about the Data Splitter, worked example included; public so
-     * that the reconstruction test of design 01 §9.1 measures the same words.
-     */
-    public static final String EXTRACTION_RULES = """
-            The root element is <dataSplitter xmlns="data-splitter:3" \
-            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" \
-            xsi:schemaLocation="data-splitter:3 file://data-splitter-v3.0.xsd" version="3.0">. \
-            The schemaLocation is mandatory; a configuration without it is rejected.
-
-            The structure is strict, so follow this shape exactly. A <split delimiter="\\n"> cuts the input \
-            into lines; inside it, one <group value="$1"> takes each line as the text the elements inside \
-            the group match. Inside the group put a <regex pattern="..."> (or a further <split>); the \
-            <data name="..." value="$n"/> elements go directly inside that <regex> or <split>, one per \
-            captured field, never wrapped in another <group>. Each line that matches becomes one record. \
-            <var id="..."/> stores a match for later reference as $id$n. A worked example for lines of \
-            "time,user,place,action":
-
-            ```xml
-            <?xml version="1.0" encoding="UTF-8"?>
-            <dataSplitter xmlns="data-splitter:3" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" \
-            xsi:schemaLocation="data-splitter:3 file://data-splitter-v3.0.xsd" version="3.0">
-              <split delimiter="\\n">
-                <group value="$1">
-                  <regex pattern="^([^,]+),([^,]+),([^,]+),([^,]+)$">
-                    <data name="time" value="$1"/>
-                    <data name="user" value="$2"/>
-                    <data name="place" value="$3"/>
-                    <data name="action" value="$4"/>
-                  </regex>
-                </group>
-              </split>
-            </dataSplitter>
-            ```
-
-            Where the input has more than one kind of line, put one <regex> per kind inside the same group. \
-            Do not use ignoreErrors. Every line of the input should be consumed by a match that emits a record; \
-            a line the configuration quietly drops counts against it.""";
-
-    private static final String TRANSFORMATION_RULES = """
-            The stylesheet reads records:2 (use xpath-default-namespace="records:2") and writes event-logging:3 \
-            events: <Events xmlns="event-logging:3" xsi:schemaLocation="event-logging:3 \
-            file://event-logging-v3.0.0.xsd" Version="3.0.0"> holding one <Event> per record. Every Event needs \
-            EventTime/TimeCreated, EventSource and EventDetail, in that order. EventSource needs System (Name, \
-            Environment), Generator and one of Device, Client, Server or Door, and should name the User where the \
-            input has one. EventDetail needs TypeId and then exactly one branch describing what happened, from \
-            this list and no other: Authenticate, Authorise, Search, Copy, Move, Create, View, Import, Export, \
-            Update, Delete, Process, Print, Install, Uninstall, Network, AntiMalware, Alert, Send, Receive. \
-            Authenticate holds Action first (Logon, Logoff, ...), then User with its Id; other branches hold \
-            their own typed elements — a Description is a child of the branch's element, never the branch. \
-            Element order is enforced everywhere; datetimes are ISO 8601 with milliseconds and a trailing Z. \
-            Every field the input carries should land in a typed element. Do not put fields into Data elements \
-            or use the Unknown branch: output that validates but says nothing scores as nothing.""";
-
     private static final int INPUT_SHOWN = 6000;
 
-    private QuestionText() {
+    private final Templates templates;
+    private final String system;
+
+    private QuestionText(final Templates templates, final String system) {
+        this.templates = templates;
+        this.system = system;
     }
 
     /**
-     * The system text: the stage's objective and the document's instructions, if it has any.
+     * The words of a document's dialogue: its templates, and a system text carrying its instructions
+     * and what its scorers will demand of every event — the fields required and the rules asserted —
+     * said up front, so the model aims at them rather than learning them from a shortfall.
      */
-    public static String system(final String instructions) {
-        return "You configure one stage of a Stroom data pipeline so that it turns the streams a feed sends into "
-               + "well-formed, meaningful events. You are asked a series of questions: which chain of elements "
-               + "fits a sample of the data, then the configuration document for each element in turn, each "
-               + "shown the real output of the elements before it. When a candidate falls short you are asked "
-               + "again with exactly what lost the marks; fix that. Answer each question in the form it asks for "
-               + "and nothing else."
-               + (instructions == null || instructions.isBlank()
-                ? ""
-                : "\n\nThe document that governs this stage says:\n" + instructions.strip());
+    public static QuestionText of(final ShapeshifterAiDoc doc) {
+        final Templates templates = Templates.of(doc.getDialogue());
+        final StringBuilder demands = new StringBuilder();
+        for (final ScorerSetting setting : doc.getScorers()) {
+            if (setting.getParameters() instanceof final ExtractionQualityParameters quality
+                && !quality.getRequiredFields().isEmpty()) {
+                // Scored as the share of events that carry each, so said as a place, not a bar: a kind of
+                // record with no user is still an event.
+                demands.append("\n\nEvents are scored on carrying a value in each of: ")
+                        .append(String.join(", ", quality.getRequiredFields()))
+                        .append(". Fill each wherever the record has a value for it; a record without one is "
+                                + "still an event.");
+            }
+            if (setting.getParameters() instanceof final BusinessRulesParameters rules
+                && !rules.getAssertions().isEmpty()) {
+                demands.append("\n\nEvery event must satisfy these rules, each an XPath over the Event:");
+                rules.getAssertions().forEach(rule -> demands.append("\n- ").append(rule.getName()).append(": ")
+                        .append(rule.getXpath()));
+            }
+        }
+        return new QuestionText(templates, templates.render(Template.SYSTEM,
+                Map.of("instructions", instructions(doc.getInstructions()), "demands", demands.toString())));
     }
 
-    public static String render(final Question question) {
+    /**
+     * The built-in words with only the instructions: for a test or a harness that has no document.
+     */
+    public static QuestionText builtIn(final String instructions) {
+        final Templates templates = Templates.builtIn();
+        return new QuestionText(templates, templates.render(Template.SYSTEM,
+                Map.of("instructions", instructions(instructions), "demands", "")));
+    }
+
+    public static QuestionText of(final DialogueDefinition dialogue) {
+        return of(ShapeshifterAiDoc.builder().uuid("dialogue").name("dialogue").dialogue(dialogue).build());
+    }
+
+    private static String instructions(final String instructions) {
+        return instructions == null || instructions.isBlank()
+                ? ""
+                : "\n\nThe document that governs this stage says:\n" + instructions.strip();
+    }
+
+    /**
+     * The system text: the stage's objective, the document's instructions and its scorers' demands.
+     */
+    public String system() {
+        return system;
+    }
+
+    public String render(final Question question) {
         return switch (question) {
             case Chain chain -> chain(chain);
+            case Split split -> split(split);
+            case TargetFor target -> target(target);
             case Configuration configuration -> configuration(configuration);
         };
     }
 
-    private static String chain(final Chain question) {
-        final StringBuilder text = new StringBuilder();
-        text.append("Which chain of elements turns this stream into events?\n\n");
-        text.append(headers(question.sample()));
-        text.append("The elements you may use:\n");
-        for (final String element : question.allowedElements()) {
-            text.append("- ").append(element).append(": ")
-                    .append(ELEMENTS.getOrDefault(element, "a pipeline element")).append('\n');
-        }
-        text.append("\nA sample of the stream:\n").append(shown(question.sample().text())).append('\n');
-        text.append(feedback(question.feedback()));
-        text.append("\nReply with the element names in order, joined by ->, for example \"DSParser -> XSLTFilter\", "
-                    + "and nothing else.");
-        return text.toString();
+    private String chain(final Chain question) {
+        final Map<String, String> variables = new HashMap<>();
+        variables.put("headers", headers(question.sample()));
+        variables.put("elements", question.allowedElements().stream()
+                .map(element -> "- " + element + ": " + ELEMENTS.getOrDefault(element, "a pipeline element"))
+                .collect(Collectors.joining("\n")));
+        variables.put("sample", shown(question.sample().text()));
+        variables.put("feedback", feedback(question.feedback()));
+        return templates.render(Template.CHAIN, variables);
     }
 
-    private static String configuration(final Configuration question) {
-        final StringBuilder text = new StringBuilder();
+    /**
+     * The record boundary and nothing else (A31): a configuration that cuts the sample into records and
+     * emits each whole as one field, so that what follows can be asked about records.
+     */
+    private String split(final Split question) {
+        final Map<String, String> variables = new HashMap<>();
+        variables.put("headers", headers(question.sample()));
+        variables.put("elementType", question.elementType());
+        variables.put("documentType", question.documentType());
+        variables.put("splitRules", templates.text(Template.SPLIT_RULES));
+        variables.put("sample", shown(question.sample().text()));
+        variables.put("feedback", feedback(question.feedback()));
+        return templates.render(Template.SPLIT, variables);
+    }
+
+    /**
+     * What one kind of record should become (A31): the event, or the word none.
+     */
+    private String target(final TargetFor question) {
+        final Map<String, String> variables = new HashMap<>();
+        variables.put("headers", headers(question.sample()));
+        variables.put("kind", String.valueOf(question.kind()));
+        variables.put("total", String.valueOf(question.total()));
+        variables.put("transformationRules", templates.text(Template.TRANSFORMATION_RULES));
+        variables.put("record", fenced(question.record()));
+        variables.put("feedback", feedback(question.feedback()));
+        return templates.render(Template.TARGET, variables);
+    }
+
+    private String configuration(final Configuration question) {
         final boolean extraction = "DSParser".equals(question.elementType());
-        text.append("Write the ").append(question.documentType()).append(" document for the ")
-                .append(question.elementType()).append(" element.\n\n");
-        text.append(headers(question.sample()));
-        text.append(extraction
-                ? EXTRACTION_RULES
-                : TRANSFORMATION_RULES).append("\n\n");
-        text.append("The element will receive this input:\n").append(shown(question.input())).append('\n');
-        if (question.previousConfiguration() != null) {
-            text.append("\nYour previous configuration was:\n")
-                    .append(fenced(question.previousConfiguration())).append('\n');
+        final Map<String, String> variables = new HashMap<>();
+        variables.put("headers", headers(question.sample()));
+        variables.put("elementType", question.elementType());
+        variables.put("documentType", question.documentType());
+        variables.put("rules", templates.text(extraction
+                ? Template.EXTRACTION_RULES
+                : Template.TRANSFORMATION_RULES));
+        variables.put("input", shown(question.input()));
+        variables.put("split", question.split() == null
+                ? ""
+                : "\nThe record boundary is settled; this configuration cuts one record per unit, and yours must "
+                  + "cut the same records while extracting every field:\n" + fenced(question.split()) + "\n");
+        variables.put("targets", targets(question.targets(), extraction));
+        variables.put("previous", question.previousConfiguration() == null
+                ? ""
+                : "\nYour previous configuration was:\n" + fenced(question.previousConfiguration()) + "\n");
+        variables.put("feedback", feedback(question.feedback()));
+        return templates.render(Template.CONFIGURATION, variables);
+    }
+
+    private static String targets(final List<Target> targets, final boolean extraction) {
+        if (targets.isEmpty()) {
+            return "";
         }
-        text.append(feedback(question.feedback()));
-        text.append("\nReply with the ").append(question.documentType())
-                .append(" document as a single fenced XML code block and nothing else.");
+        final StringBuilder text = new StringBuilder(extraction
+                ? "\nWhat each kind of record must become — the records you emit must carry, as data values, "
+                  + "every value these events take from the record:\n"
+                : "\nWhat each kind of record must become — produce exactly these events for these records:\n");
+        int kind = 0;
+        for (final Target target : targets) {
+            kind++;
+            text.append("\nRecord kind ").append(kind).append(":\n").append(fenced(target.record())).append('\n');
+            text.append(target.event()
+                    .map(event -> "becomes:\n" + fenced(event) + "\n")
+                    .orElse(extraction
+                            ? "becomes no event. Still emit it as a record, whole; the transform drops it, and "
+                              + "coverage measures what the split kept.\n"
+                            : "becomes no event.\n"));
+        }
         return text.toString();
     }
 

@@ -22,6 +22,7 @@ import stroom.shapeshifter.ai.learning.Question;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * The simulated model of design 02 §3: an ordered list of expected question and scripted reply. Each
@@ -34,6 +35,7 @@ public final class Script implements Advisor {
 
     private final List<Line> lines = new ArrayList<>();
     private final List<Question> asked = new ArrayList<>();
+    private Structure structure;
     private int next;
 
     private Script() {
@@ -50,9 +52,25 @@ public final class Script implements Advisor {
         };
     }
 
+    /**
+     * Answer the structural questions of A31 — split and targets — from the configurations this script
+     * will give, so that the scripted lines need state only the questions the scenario is about. A line
+     * that expects a split or target question explicitly still takes precedence.
+     */
+    public Script structure(final Structure structure) {
+        this.structure = structure;
+        return this;
+    }
+
     @Override
     public String ask(final List<Exchange> transcript, final Question question) {
         asked.add(question);
+        if (structure != null && (next >= lines.size() || !lines.get(next).matcher().matches(question))) {
+            final Optional<String> answer = structure.answer(question);
+            if (answer.isPresent()) {
+                return answer.get();
+            }
+        }
         if (next >= lines.size()) {
             throw new AssertionError("The dialogue asked a question " + (next + 1)
                                      + " the script did not expect:\n" + question);
@@ -70,6 +88,16 @@ public final class Script implements Advisor {
      */
     public List<Question> asked() {
         return List.copyOf(asked);
+    }
+
+    /**
+     * The questions asked that the scenario scripted — everything but the split and target turns the
+     * structure answered — so that a scenario about the configurations can count and index those alone.
+     */
+    public List<Question> scripted() {
+        return asked.stream()
+                .filter(question -> !(question instanceof Question.Split) && !(question instanceof Question.TargetFor))
+                .toList();
     }
 
     public void verifyExhausted() {

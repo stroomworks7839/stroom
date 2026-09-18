@@ -18,6 +18,8 @@ package stroom.shapeshifter.ai.doc;
 
 import stroom.docstore.api.DocumentResourceHelper;
 import stroom.event.logging.rs.api.AutoLogged;
+import stroom.shapeshifter.ai.learning.Templates;
+import stroom.shapeshifter.shared.BuiltInTemplates;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 import stroom.shapeshifter.shared.ShapeshifterAiResource;
 import stroom.util.shared.EntityServiceException;
@@ -43,6 +45,11 @@ public class ShapeshifterAiResourceImpl implements ShapeshifterAiResource {
         return documentResourceHelperProvider.get().read(
                 storeProvider.get(),
                 ShapeshifterAiDoc.buildDocRef().uuid(uuid).build());
+    }
+
+    @Override
+    public BuiltInTemplates templates() {
+        return new BuiltInTemplates(Templates.VERSION, Templates.builtIns());
     }
 
     @Override

@@ -68,6 +68,7 @@ import java.util.Objects;
         "relearnThreshold",
         "allowedElements",
         "instructions",
+        "dialogue",
         "maxAttempts",
         "attemptBudgetMs",
         "tokenBudget",
@@ -111,6 +112,11 @@ public class ShapeshifterAiDoc extends AbstractDoc {
      * for a transform that needs a rarer schema branch; the attempt budget is the real bound (A5).
      */
     static final int DEFAULT_MAX_ATTEMPTS = 5;
+    /**
+     * The direct preset, unchanged: on the feeds measured so far it reached the same scores at half the tokens
+     * (design 02 §6.3).
+     */
+    static final DialogueDefinition DEFAULT_DIALOGUE = DialogueDefinition.of(DialogueShape.DIRECT);
     static final long DEFAULT_ATTEMPT_BUDGET_MS = 60_000L;
     static final SampleRedaction DEFAULT_SAMPLE_REDACTION = SampleRedaction.REDACTED;
     static final int DEFAULT_SAMPLE_SIZE_LIMIT = 8_192;
@@ -173,6 +179,11 @@ public class ShapeshifterAiDoc extends AbstractDoc {
      */
     @JsonProperty
     private final int maxAttempts;
+    /**
+     * The dialogue the stage holds with the model (A32, A33; design 01 §10.2).
+     */
+    @JsonProperty
+    private final DialogueDefinition dialogue;
     /**
      * Wall-clock budget for one attempt. Ruling A5 makes the budget mandatory; there is no unlimited value.
      */
@@ -256,6 +267,7 @@ public class ShapeshifterAiDoc extends AbstractDoc {
             @JsonProperty("relearnThreshold") final Double relearnThreshold,
             @JsonProperty("allowedElements") final List<String> allowedElements,
             @JsonProperty("instructions") final String instructions,
+            @JsonProperty("dialogue") final DialogueDefinition dialogue,
             @JsonProperty("maxAttempts") final Integer maxAttempts,
             @JsonProperty("attemptBudgetMs") final Long attemptBudgetMs,
             @JsonProperty("tokenBudget") final Long tokenBudget,
@@ -283,6 +295,7 @@ public class ShapeshifterAiDoc extends AbstractDoc {
                 ? DEFAULT_ALLOWED_ELEMENTS
                 : List.copyOf(allowedElements);
         this.instructions = instructions;
+        this.dialogue = Objects.requireNonNullElse(dialogue, DEFAULT_DIALOGUE);
         this.maxAttempts = Objects.requireNonNullElse(maxAttempts, DEFAULT_MAX_ATTEMPTS);
         this.attemptBudgetMs = Objects.requireNonNullElse(attemptBudgetMs, DEFAULT_ATTEMPT_BUDGET_MS);
         this.tokenBudget = tokenBudget;
@@ -349,6 +362,10 @@ public class ShapeshifterAiDoc extends AbstractDoc {
 
     public String getInstructions() {
         return instructions;
+    }
+
+    public DialogueDefinition getDialogue() {
+        return dialogue;
     }
 
     public int getMaxAttempts() {
@@ -427,6 +444,7 @@ public class ShapeshifterAiDoc extends AbstractDoc {
                Objects.equals(description, that.description) &&
                executionMode == that.executionMode &&
                learningMode == that.learningMode &&
+               Objects.equals(dialogue, that.dialogue) &&
                promotionMode == that.promotionMode &&
                Objects.equals(model, that.model) &&
                Objects.equals(learningKey, that.learningKey) &&
@@ -451,6 +469,7 @@ public class ShapeshifterAiDoc extends AbstractDoc {
                 relearnThreshold,
                 allowedElements,
                 instructions,
+                dialogue,
                 maxAttempts,
                 attemptBudgetMs,
                 tokenBudget,
@@ -477,6 +496,7 @@ public class ShapeshifterAiDoc extends AbstractDoc {
                ", learningKey=" + learningKey +
                ", relearnThreshold=" + relearnThreshold +
                ", allowedElements=" + allowedElements +
+               ", dialogue=" + dialogue +
                ", maxAttempts=" + maxAttempts +
                ", attemptBudgetMs=" + attemptBudgetMs +
                ", tokenBudget=" + tokenBudget +
@@ -516,6 +536,7 @@ public class ShapeshifterAiDoc extends AbstractDoc {
         private double relearnThreshold = DEFAULT_RELEARN_THRESHOLD;
         private List<String> allowedElements = DEFAULT_ALLOWED_ELEMENTS;
         private String instructions;
+        private DialogueDefinition dialogue = DEFAULT_DIALOGUE;
         private int maxAttempts = DEFAULT_MAX_ATTEMPTS;
         private long attemptBudgetMs = DEFAULT_ATTEMPT_BUDGET_MS;
         private Long tokenBudget;
@@ -544,6 +565,7 @@ public class ShapeshifterAiDoc extends AbstractDoc {
             this.relearnThreshold = doc.relearnThreshold;
             this.allowedElements = doc.allowedElements;
             this.instructions = doc.instructions;
+            this.dialogue = doc.dialogue;
             this.maxAttempts = doc.maxAttempts;
             this.attemptBudgetMs = doc.attemptBudgetMs;
             this.tokenBudget = doc.tokenBudget;
@@ -601,6 +623,19 @@ public class ShapeshifterAiDoc extends AbstractDoc {
 
         public Builder instructions(final String instructions) {
             this.instructions = instructions;
+            return self();
+        }
+
+        public Builder dialogue(final DialogueDefinition dialogue) {
+            this.dialogue = dialogue;
+            return self();
+        }
+
+        /**
+         * The preset alone, with its own steps and the built-in text.
+         */
+        public Builder dialogueShape(final DialogueShape preset) {
+            this.dialogue = DialogueDefinition.of(preset);
             return self();
         }
 
@@ -692,6 +727,7 @@ public class ShapeshifterAiDoc extends AbstractDoc {
                     relearnThreshold,
                     allowedElements,
                     instructions,
+                    dialogue,
                     maxAttempts,
                     attemptBudgetMs,
                     tokenBudget,
