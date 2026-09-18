@@ -20,6 +20,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
+import java.util.regex.Pattern;
 
 /**
  * The record shape signature of design §5: a hash of a record's structure with its values removed.
@@ -39,8 +40,14 @@ public final class ShapeSignature {
     private ShapeSignature() {
     }
 
+    /**
+     * Markup begins with a tag, a declaration or a comment; a BSD syslog line begins with {@code <34>},
+     * which is text.
+     */
+    private static final Pattern MARKUP = Pattern.compile("^\\s*<(\\?|!|[A-Za-z_])");
+
     public static String of(final String data) {
-        final String skeleton = data.stripLeading().startsWith("<")
+        final String skeleton = MARKUP.matcher(data).find()
                 ? xmlSkeleton(data)
                 : textSkeleton(data);
         return digest(skeleton);

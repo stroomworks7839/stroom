@@ -35,8 +35,10 @@ import stroom.shapeshifter.ai.learning.StepRunner;
 import stroom.shapeshifter.ai.scoring.Attempted;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -86,9 +88,14 @@ public final class FragmentRunner {
                 }));
 
         final List<Attempted> steps = new ArrayList<>();
+        final Set<String> visited = new HashSet<>();
         String current = input;
         for (String id = next.get(SOURCE); id != null; id = next.get(id)) {
             final String elementId = id;
+            if (SOURCE.equals(elementId) || !visited.add(elementId)) {
+                throw new IllegalStateException("Fragment " + fragment.getName()
+                                                + " links back to '" + elementId + "': a fragment is a chain");
+            }
             final PipelineElement element = elements.get(elementId);
             if (element == null) {
                 throw new IllegalStateException("Fragment " + fragment.getName() + " links to element '"

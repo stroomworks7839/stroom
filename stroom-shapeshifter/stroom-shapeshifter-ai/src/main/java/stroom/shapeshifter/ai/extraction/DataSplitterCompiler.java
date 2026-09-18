@@ -20,7 +20,6 @@ import stroom.pipeline.DefaultLocationFactory;
 import stroom.pipeline.errorhandler.ErrorHandlerAdaptor;
 import stroom.pipeline.errorhandler.ErrorReceiver;
 import stroom.pipeline.errorhandler.ErrorReceiverProxy;
-import stroom.pipeline.errorhandler.ProcessException;
 import stroom.pipeline.errorhandler.StoredErrorReceiver;
 import stroom.pipeline.xml.converter.ds3.DS3ParserFactory;
 import stroom.shapeshifter.ai.extraction.Compilation.Compiled;
@@ -41,6 +40,11 @@ import java.util.List;
  * <p>
  * Nothing is written to a document store on the way through. The configuration is compiled from text,
  * which is what lets a candidate be scored before anything persists it (design §7.3, rule 1).
+ * <p>
+ * Scope: {@code DS3ParserFactory} and the proxy it reports through are pipeline-scoped in a node. This
+ * class is constructed by hand in the harness; when it is bound for a node it must be given a pipeline
+ * scope to run in, and it must not be shared between threads, since the proxy swap in {@link #compile}
+ * is not synchronised.
  */
 public class DataSplitterCompiler {
 
@@ -80,9 +84,12 @@ public class DataSplitterCompiler {
         errorReceiverProxy.setErrorReceiver(errorReceiver);
         try {
             parserFactory.configure(new StringReader(configuration), errorHandler);
-        } catch (final ProcessException e) {
+        } catch (final RuntimeException e) {
             // A parse failure reaches the error handler first and is then rethrown, wrapped, so it is
-            // already on record by the time it arrives here. Log only a failure nobody has yet reported.
+            // already on record by the time it arrives here. The Data Splitter's own compile faults — an
+            // undefined variable reference, a duplicate id, a regex that does not compile — arrive as bare
+            // runtime exceptions with nothing on record. Either way the configuration is rejected with the
+            // message as its diagnostic, which is what the next candidate needs; it is never a crash.
             if (errorReceiver.getCount(Severity.FATAL_ERROR) == 0) {
                 errorReceiver.log(Severity.FATAL_ERROR, null, ELEMENT_ID, e.getMessage(), e);
             }

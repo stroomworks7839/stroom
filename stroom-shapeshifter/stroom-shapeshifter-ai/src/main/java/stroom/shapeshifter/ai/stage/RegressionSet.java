@@ -19,15 +19,16 @@ package stroom.shapeshifter.ai.stage;
 import java.util.List;
 
 /**
- * The records a promoted variant was accepted on, per feed and shape (ruling A18): a candidate that
- * would score lower on any of them is not promoted, however well it does on new data. Appended at
- * promotion, capped per shape by the document. In-memory in scenarios; a stream in a node.
+ * The records a promoted variant was accepted on, per rule (ruling A18, keyed on the rule's uuid so
+ * that a rule an operator widens keeps its history): a candidate that would score lower on any of them
+ * is not promoted, however well it does on new data. Appended at promotion, capped per rule by the
+ * document. In-memory in scenarios; a stream in a node.
  */
 public interface RegressionSet {
 
-    List<Accepted> accepted(String feed, String shapeSignature);
+    List<Accepted> accepted(String ruleUuid);
 
-    void accept(String feed, String shapeSignature, List<Accepted> records, int capPerShape);
+    void accept(String ruleUuid, List<Accepted> records, int cap);
 
     /**
      * @param input The record as it was received.

@@ -42,7 +42,10 @@ import java.util.List;
  */
 public record InputCoverage(int charsCovered, int charsTotal, int linesCovered, int linesTotal) {
 
-    public static InputCoverage measure(final String input, final List<TextRange> recordRanges) {
+    public static InputCoverage measure(final String rawInput, final List<TextRange> recordRanges) {
+        // Positions are the Data Splitter's, and its reader drops carriage returns and every other
+        // control character before it counts a column, so coverage is measured over the same text.
+        final String input = asRead(rawInput);
         final int[] lineStarts = lineStarts(input);
         final BitSet covered = new BitSet(input.length());
 
@@ -134,5 +137,16 @@ public record InputCoverage(int charsCovered, int charsTotal, int linesCovered, 
 
     private static boolean isLineBreak(final char c) {
         return c == '\n' || c == '\r';
+    }
+
+    static String asRead(final String input) {
+        final StringBuilder read = new StringBuilder(input.length());
+        for (int i = 0; i < input.length(); i++) {
+            final char c = input.charAt(i);
+            if (c >= ' ' || c == '\n' || c == '\t') {
+                read.append(c);
+            }
+        }
+        return read.toString();
     }
 }

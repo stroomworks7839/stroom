@@ -17,10 +17,12 @@
 package stroom.shapeshifter.ai.stage;
 
 import stroom.docref.DocRef;
+import stroom.query.api.ExpressionOperator;
 import stroom.shapeshifter.ai.fragment.FragmentRunner;
 import stroom.shapeshifter.ai.fragment.FragmentWriter;
 import stroom.shapeshifter.ai.learning.Advisor;
 import stroom.shapeshifter.ai.learning.Dialogue;
+import stroom.shapeshifter.ai.learning.Exchange;
 import stroom.shapeshifter.ai.learning.LearnedStep;
 import stroom.shapeshifter.ai.learning.Outcome;
 import stroom.shapeshifter.ai.learning.Outcome.Abandoned;
@@ -34,10 +36,9 @@ import stroom.shapeshifter.ai.scoring.Scorer;
 import stroom.shapeshifter.ai.scoring.Verdict;
 import stroom.shapeshifter.ai.stage.Decision.Bound;
 import stroom.shapeshifter.ai.stage.Decision.GivenUp;
-import stroom.shapeshifter.ai.stage.Decision.Kept;
 import stroom.shapeshifter.ai.stage.Decision.Promoted;
+import stroom.shapeshifter.ai.stage.Decision.Provisional;
 import stroom.shapeshifter.ai.stage.Decision.Sentinel;
-import stroom.shapeshifter.ai.stage.Decision.Waiting;
 import stroom.shapeshifter.ai.stage.RegressionSet.Accepted;
 import stroom.shapeshifter.shared.LearningMode;
 import stroom.shapeshifter.shared.RoutingRule;
@@ -95,108 +96,171 @@ public final class Stage {
         this.seed = seed;
     }
 
-    public StageRun run(final ShapeshifterAiDoc policy, final Input input) {
-        final String shape = ShapeSignature.of(input.data());
-        final Scorecard scorecard = new Scorecard(policy.getScorers(), scorers);
-        final Optional<RoutingRule> matched = router.route(policy.getRoutingTable(), input.routingAttributes(shape));
+    /**
+     * Route, learn, judge, write, emit — design 02 §4 — over one stream.
+     */
+    public StageRun run(final ShapeshifterAiDoc doc, final Input input) {
+        final Map<String, Object> attributes = input.routingAttributes(ShapeSignature.of(input.data()));
+        final Shape shape = Shape.of(doc.getLearningKey(), attributes);
+        final Scorecard scorecard = new Scorecard(doc.getScorers(), scorers);
+        final Optional<RoutingRule> matched = router.route(doc.getRoutingTable(), attributes);
 
-        // A rule bound to a fragment processes the stream, and a pinned one is never relearned.
-        if (matched.isPresent() && matched.get().getPipeline() != null) {
+        if (matched.isPresent()) {
             final RoutingRule rule = matched.get();
-            final Judged judged = judge(scorecard, rule.getPipeline(), input.data());
-            return new StageRun(policy, new Bound(rule), shape, judged.output(), judged.verdicts(), List.of());
+            if (rule.isReserved()) {
+                // An operator has decided this selector is not to be learned (design 01 §3).
+                return sentinel(doc, shape, "Reserved: rule " + (doc.getRoutingTable().indexOf(rule) + 1)
+                                            + " matches and binds nothing");
+            }
+            if (rule.isDraft()) {
+                return sentinel(doc, shape, "Awaiting review: draft rule " + rule.getUuid() + " binds "
+                                            + rule.getPipeline().getName() + " for shape " + shape.id());
+            }
+            return serve(doc, shape, rule, input, scorecard);
         }
 
-        if (policy.getLearningMode() == LearningMode.DISABLED) {
-            return sentinel(policy, shape, "Shapeshifter AI is disabled for this document");
-        }
-        final Optional<String> givenUp = quarantine.reasonGivenUp(input.feed(), shape);
+        final Optional<String> givenUp = quarantine.reasonGivenUp(doc.getUuid(), shape.id());
         if (givenUp.isPresent()) {
-            return sentinel(policy, shape, "Shape given up: " + givenUp.get());
+            return sentinel(doc, shape, "Shape given up: " + givenUp.get());
         }
         // A stream without a value for a key field has no shape under that key (design 01 §3), so it is
         // sentinelled here, before a model is asked or a document written, rather than failing later.
-        final Map<String, Object> keyValues = input.routingAttributes(shape);
-        for (final String field : policy.getLearningKey()) {
-            if (keyValues.get(field) == null) {
-                return sentinel(policy, shape,
-                        "The learning key names '" + field + "' but the stream carries no value for it");
+        if (!shape.missing().isEmpty()) {
+            return sentinel(doc, shape, "The learning key names '" + shape.missing().get(0)
+                                        + "' but the stream carries no value for it");
+        }
+        final ExpressionOperator selector;
+        try {
+            selector = RoutingRule.learnedSelector(doc.getLearningKey(), attributes);
+        } catch (final IllegalArgumentException e) {
+            // A value the matcher cannot be made to take literally (an empty header, a '*') is as
+            // unbindable as a missing one.
+            return sentinel(doc, shape, e.getMessage());
+        }
+
+        // Before any call, the variants already bound for this feed and type are tried (design 01 §6):
+        // a splitter written for one shape will often consume its neighbour, and that costs no question.
+        for (final DocRef variant : compatibleVariants(doc, input)) {
+            final Judged judged = judge(scorecard, variant, input.data());
+            if (judged.clearsFloor(doc)) {
+                return bind(doc, shape, selector, variant, judged, List.of());
             }
+        }
+
+        if (doc.getLearningMode() == LearningMode.DISABLED) {
+            return sentinel(doc, shape, "Shapeshifter AI is disabled for this document and no bound variant fits");
         }
 
         // Learn on a prefix, judge on the whole stream.
         final Dialogue dialogue = new Dialogue(advisor, runners, scorecard);
-        final Sample sample = Sample.of(learningPrefix(input.data(), policy), policy.getLearningKey(), keyValues);
-        final Outcome outcome = dialogue.run(policy, sample);
+        final Sample sample = Sample.of(learningPrefix(input.data(), doc), doc.getLearningKey(), attributes);
+        final Outcome outcome = dialogue.run(doc, sample);
         if (outcome instanceof final Abandoned abandoned) {
-            quarantine.giveUp(input.feed(), shape, abandoned.reason());
-            return new StageRun(policy, new GivenUp(abandoned.reason()), shape, null, List.of(), outcome.transcript());
+            quarantine.giveUp(doc.getUuid(), shape.id(), abandoned.reason());
+            return new StageRun(doc, new GivenUp(abandoned.reason()), shape, null, List.of(), outcome.transcript());
         }
         final Learned learned = (Learned) outcome;
 
-        // The candidate over the whole stream: this is the held-out judgement of A14/A15.
-        final List<Attempted> attempted = rerun(learned.chain(), input.data());
-        final List<Verdict> verdicts = attempted.stream()
-                .map(scorecard::judge)
-                .toList();
-        final String output = attempted.get(attempted.size() - 1).result().output();
-        final double score = candidateScore(verdicts);
-        final int records = output == null
-                ? 0
-                : Records.count(output);
-
-        if (records < policy.getMinRecordsPerShape()) {
-            return new StageRun(policy, new Waiting(records, policy.getMinRecordsPerShape()), shape, output,
-                    verdicts, learned.transcript());
-        }
-        final boolean passes = score >= policy.getPromotionFloor()
-                               && verdicts.stream().allMatch(Verdict::gatesPassed)
-                               && !regresses(input.feed(), shape, learned.chain(), scorecard);
-        if (!passes) {
-            if (matched.isPresent()) {
-                return new StageRun(policy, new Kept(matched.get(), score), shape, null, verdicts,
-                        learned.transcript());
-            }
-            quarantine.giveUp(input.feed(), shape, "Candidate scored " + score + " against a floor of "
-                                                    + policy.getPromotionFloor());
-            return new StageRun(policy, new GivenUp("Below the promotion floor"), shape, null, verdicts,
+        // The candidate over the whole stream: the held-out judgement of A14/A15 where there are enough
+        // records for one, and the floor a provisional binding must clear where there are not.
+        final Judged judged = Judged.of(rerun(learned.chain(), input.data()), scorecard);
+        if (!judged.clearsFloor(doc)) {
+            final String reason = "Candidate scored " + judged.score() + " against a floor of "
+                                  + doc.getPromotionFloor();
+            quarantine.giveUp(doc.getUuid(), shape.id(), reason);
+            return new StageRun(doc, new GivenUp("Below the promotion floor"), shape, null, judged.verdicts(),
                     learned.transcript());
         }
-
-        // Promote: new documents, a rule appended or rebound, the regression set extended, the
-        // quarantine released.
         final DocRef fragment = writer.write(
-                DocPath.fromParts(FOLDER, input.feed()),
-                input.feed() + "-" + shape,
+                DocPath.fromParts(FOLDER, doc.getName()),
+                shape.slug() + "-" + clock.millis(),
                 learned.chain());
-        final RoutingRule rule = RoutingRule.builder()
-                .uuid(UUID.randomUUID().toString())
-                .expression(RoutingRule.learnedSelector(policy.getLearningKey(), keyValues))
-                .pipeline(fragment)
-                .promotedTimeMs(clock.millis())
-                .score(score)
-                .build();
-        final List<RoutingRule> table = new ArrayList<>(policy.getRoutingTable());
-        if (matched.isPresent()) {
-            table.set(table.indexOf(matched.get()), matched.get().copy()
-                    .pipeline(fragment)
-                    .promotedTimeMs(clock.millis())
-                    .score(score)
-                    .build());
-        } else {
-            table.add(0, rule);
-        }
-        regressionSet.accept(input.feed(), shape, List.of(new Accepted(input.data(), score)),
-                policy.getRegressionCap());
-        quarantine.release(input.feed(), shape);
-        final ShapeshifterAiDoc after = policy.copy().routingTable(table).build();
-        return new StageRun(after, new Promoted(matched.isPresent()
-                ? table.get(table.indexOf(matched.get()))
-                : rule, score), shape, output, verdicts, learned.transcript());
+        return bind(doc, shape, selector, fragment, judged, learned.transcript());
     }
 
-    private static StageRun sentinel(final ShapeshifterAiDoc policy, final String shape, final String reason) {
-        return new StageRun(policy, new Sentinel(reason), shape, null, List.of(), List.of());
+    /**
+     * A matched rule's fragment processes the stream. A provisional rule is promoted the first time the
+     * shape brings enough records for the gate and they clear the floor (A14, design 01 §6); otherwise it
+     * keeps serving, and its retraction is the next slice's.
+     */
+    private StageRun serve(final ShapeshifterAiDoc doc,
+                           final Shape shape,
+                           final RoutingRule rule,
+                           final Input input,
+                           final Scorecard scorecard) {
+        final Judged judged = judge(scorecard, rule.getPipeline(), input.data());
+        if (rule.isProvisional() && judged.records() >= doc.getMinRecordsPerShape() && judged.clearsFloor(doc)) {
+            final RoutingRule promoted = rule.copy()
+                    .provisional(false)
+                    .promotedTimeMs(clock.millis())
+                    .score(judged.score())
+                    .build();
+            final List<RoutingRule> table = new ArrayList<>(doc.getRoutingTable());
+            table.set(table.indexOf(rule), promoted);
+            regressionSet.accept(promoted.getUuid(), List.of(new Accepted(input.data(), judged.score())),
+                    doc.getRegressionCap());
+            return new StageRun(doc.copy().routingTable(table).build(), new Promoted(promoted, judged.score()),
+                    shape, judged.output(), judged.verdicts(), List.of());
+        }
+        return new StageRun(doc, new Bound(rule), shape, judged.output(), judged.verdicts(), List.of());
+    }
+
+    /**
+     * Bind a fragment that cleared the floor on this shape: a new rule on the learning key, promoted if
+     * the shape has enough records for a held-out judgement and provisional otherwise, the shape released
+     * from the ledger (A12), and the stream's output emitted.
+     */
+    private StageRun bind(final ShapeshifterAiDoc doc,
+                          final Shape shape,
+                          final ExpressionOperator selector,
+                          final DocRef fragment,
+                          final Judged judged,
+                          final List<Exchange> transcript) {
+        final boolean provisional = judged.records() < doc.getMinRecordsPerShape();
+        final RoutingRule rule = RoutingRule.builder()
+                .uuid(UUID.randomUUID().toString())
+                .expression(selector)
+                .pipeline(fragment)
+                .provisional(provisional)
+                .promotedTimeMs(provisional
+                        ? null
+                        : clock.millis())
+                .score(judged.score())
+                .build();
+        // Appended, not prepended (design 02 §4): learned rules are exclusive by key, so order among them
+        // is moot, and an operator's more specific rule above them keeps its precedence.
+        final List<RoutingRule> table = new ArrayList<>(doc.getRoutingTable());
+        table.add(rule);
+        if (!provisional) {
+            regressionSet.accept(rule.getUuid(), List.of(new Accepted(judged.input(), judged.score())),
+                    doc.getRegressionCap());
+        }
+        quarantine.release(doc.getUuid(), shape.id());
+        final Decision decision = provisional
+                ? new Provisional(rule, judged.score(), judged.records(), doc.getMinRecordsPerShape())
+                : new Promoted(rule, judged.score());
+        return new StageRun(doc.copy().routingTable(table).build(), decision, shape, judged.output(),
+                judged.verdicts(), transcript);
+    }
+
+    /**
+     * The fragments bound for this feed and type, in table order, each once: what an unknown shape is
+     * tried against before the model is asked.
+     */
+    private static List<DocRef> compatibleVariants(final ShapeshifterAiDoc doc, final Input input) {
+        final List<DocRef> variants = new ArrayList<>();
+        for (final RoutingRule rule : doc.getRoutingTable()) {
+            if (!rule.isReserved() && !rule.isDraft()
+                && Router.compatible(rule, input.feed(), input.type())
+                && variants.stream().noneMatch(v -> v.getUuid().equals(rule.getPipeline().getUuid()))) {
+                variants.add(rule.getPipeline());
+            }
+        }
+        return variants;
+    }
+
+    private static StageRun sentinel(final ShapeshifterAiDoc doc, final Shape shape, final String reason) {
+        return new StageRun(doc, new Sentinel(reason), shape, null, List.of(), List.of());
     }
 
     /**
@@ -241,33 +305,33 @@ public final class Stage {
                 .orElse(0.0);
     }
 
-    /**
-     * A18: the candidate is re-run over every record the shape was previously accepted on and must not
-     * score lower on any of them.
-     */
-    private boolean regresses(final String feed,
-                              final String shape,
-                              final List<LearnedStep> chain,
-                              final Scorecard scorecard) {
-        for (final Accepted accepted : regressionSet.accepted(feed, shape)) {
-            final double score = candidateScore(rerun(chain, accepted.input()).stream()
-                    .map(scorecard::judge)
-                    .toList());
-            if (score < accepted.score()) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     private Judged judge(final Scorecard scorecard, final DocRef fragment, final String input) {
-        final List<Attempted> attempted = fragmentRunner.run(fragment, input);
-        return new Judged(
-                attempted.get(attempted.size() - 1).result().output(),
-                attempted.stream().map(scorecard::judge).toList());
+        return Judged.of(fragmentRunner.run(fragment, input), scorecard);
     }
 
-    private record Judged(String output, List<Verdict> verdicts) {
+    /**
+     * A variant's run over a whole stream, scored: what promotion, provisional binding and the bound
+     * path all decide on.
+     */
+    private record Judged(String input, String output, List<Verdict> verdicts, double score, int records) {
 
+        static Judged of(final List<Attempted> attempted, final Scorecard scorecard) {
+            final List<Verdict> verdicts = attempted.stream().map(scorecard::judge).toList();
+            final String output = attempted.isEmpty()
+                    ? null
+                    : attempted.get(attempted.size() - 1).result().output();
+            final String input = attempted.isEmpty()
+                    ? null
+                    : attempted.get(0).input();
+            return new Judged(input, output, verdicts, candidateScore(verdicts), output == null
+                    ? 0
+                    : Records.count(output));
+        }
+
+        boolean clearsFloor(final ShapeshifterAiDoc doc) {
+            return !verdicts.isEmpty()
+                   && score >= doc.getPromotionFloor()
+                   && verdicts.stream().allMatch(Verdict::gatesPassed);
+        }
     }
 }

@@ -17,6 +17,12 @@
 package stroom.shapeshifter.ai.stage;
 
 import stroom.expression.matcher.ExpressionMatcher;
+import stroom.meta.shared.MetaFields;
+import stroom.query.api.ExpressionItem;
+import stroom.query.api.ExpressionOperator;
+import stroom.query.api.ExpressionOperator.Op;
+import stroom.query.api.ExpressionTerm;
+import stroom.query.api.ExpressionTerm.Condition;
 import stroom.query.api.datasource.QueryField;
 import stroom.shapeshifter.shared.RoutingFields;
 import stroom.shapeshifter.shared.RoutingRule;
@@ -25,6 +31,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 import java.util.stream.Collectors;
 
 /**
@@ -48,6 +56,58 @@ public final class Router {
             }
         }
         return Optional.empty();
+    }
+
+    /**
+     * Whether a rule's variant is worth trying on a stream of another shape (design 01 §6): the rule
+     * binds for the same feed and type, judged from its selector alone — every {@code Feed} or
+     * {@code Type} term at the top level must agree with the stream, and a selector too intricate to
+     * read that way (an {@code OR} or {@code NOT} at the root) is left alone.
+     */
+    public static boolean compatible(final RoutingRule rule, final String feed, final String type) {
+        final ExpressionOperator expression = rule.getExpression();
+        if (expression == null) {
+            return true;
+        }
+        if (expression.op() != Op.AND) {
+            return false;
+        }
+        for (final ExpressionItem item : expression.getEnabledChildren()) {
+            if (!(item instanceof final ExpressionTerm term)) {
+                return false;
+            }
+            final String actual = MetaFields.FIELD_FEED.equals(term.getField())
+                    ? feed
+                    : MetaFields.FIELD_TYPE.equals(term.getField())
+                            ? type
+                            : null;
+            if (actual == null) {
+                continue;
+            }
+            final boolean equal = valueMatches(term.getValue(), actual);
+            if (term.getCondition() == Condition.EQUALS && !equal
+                || term.getCondition() == Condition.NOT_EQUALS && equal) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * A term value as the matcher reads it: a case-insensitive pattern with {@code *} for anything; a
+     * value the matcher could not compile matches nothing, as it would there.
+     */
+    private static boolean valueMatches(final String termValue, final String actual) {
+        if (termValue == null || termValue.isBlank()) {
+            return false;
+        }
+        try {
+            return Pattern.compile(termValue.trim().replaceAll("\\*", ".*"), Pattern.CASE_INSENSITIVE)
+                    .matcher(actual)
+                    .matches();
+        } catch (final PatternSyntaxException e) {
+            return false;
+        }
     }
 
     private boolean matches(final RoutingRule rule, final Map<String, Object> attributes) {

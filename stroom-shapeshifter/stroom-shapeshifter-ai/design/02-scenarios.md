@@ -226,9 +226,18 @@ never came because the splitter was being re-asked with the coverage feedback.
 Later on 2026-09-17 the document and the UI were brought up to the day's rulings (design 01 §12 items
 17 and 18): scenario 1 now asserts a `Feed AND Type` rule with a `uuid`, the chain question carries
 the key's values (`Feed`, `Type`) rather than a fixed header list, and the fixture's `shape()` is
-`chain()`. The `Stage` still learns on every unknown shape, sentinels on `DISABLED` before trying bound
-variants, writes no provisional rule and knows nothing of reserved rules or drafts — scenarios 14 and
-25–29 are the next slice.
+`chain()`.
+
+The Stage was then brought up to §4 as rewritten (the second slice, after the first commit): a shape is
+one value of the learning key (`Shape`); the ledger and regression set are keyed on document-and-shape
+and on rule `uuid` (A26, A18); an unknown shape is tried against the fragments bound for its feed and
+type before any question (`Router.compatible` reads the selector's top-level `Feed`/`Type` terms);
+a candidate that clears the floor is bound provisionally when the shape has too few records, and a
+provisional rule is promoted in place the first time a stream brings enough; a matching reserved rule
+gives the shape up; a matching draft is sentinelled naming it; `DISABLED` still selects. Scenarios 14,
+25, 26 and 29 pass, and the routing half of 22. Not yet: retraction of a provisional rule (28), the
+rolling score and relearning (27), the ledger's inputs and release as a reprocess request (13),
+Approve/Reject (22), and everything from scenario 30 on.
 
 ## 7. Decisions taken
 

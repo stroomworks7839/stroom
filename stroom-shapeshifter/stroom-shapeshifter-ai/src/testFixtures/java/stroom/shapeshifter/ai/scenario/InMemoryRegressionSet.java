@@ -28,24 +28,17 @@ public final class InMemoryRegressionSet implements RegressionSet {
     private final Map<String, List<Accepted>> accepted = new HashMap<>();
 
     @Override
-    public List<Accepted> accepted(final String feed, final String shapeSignature) {
-        return List.copyOf(accepted.getOrDefault(key(feed, shapeSignature), List.of()));
+    public List<Accepted> accepted(final String ruleUuid) {
+        return List.copyOf(accepted.getOrDefault(ruleUuid, List.of()));
     }
 
     @Override
-    public void accept(final String feed,
-                       final String shapeSignature,
-                       final List<Accepted> records,
-                       final int capPerShape) {
-        final List<Accepted> kept = accepted.computeIfAbsent(key(feed, shapeSignature), k -> new ArrayList<>());
+    public void accept(final String ruleUuid, final List<Accepted> records, final int cap) {
+        final List<Accepted> kept = accepted.computeIfAbsent(ruleUuid, k -> new ArrayList<>());
         kept.addAll(records);
         // The cap keeps the most recent; the oldest accepted records are the first to go.
-        while (kept.size() > capPerShape) {
+        while (kept.size() > cap) {
             kept.remove(0);
         }
-    }
-
-    private static String key(final String feed, final String shapeSignature) {
-        return feed + "/" + shapeSignature;
     }
 }

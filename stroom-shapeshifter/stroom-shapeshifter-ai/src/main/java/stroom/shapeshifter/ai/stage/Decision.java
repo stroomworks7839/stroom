@@ -45,22 +45,25 @@ public sealed interface Decision {
     }
 
     /**
-     * A fragment was learned and passed, but the shape has too few records to judge promotion (A14).
+     * A variant cleared the floor on the shape's records but there were too few for a held-out split
+     * (A14), so it is bound provisionally (A5, design 01 §6): it handles this stream and every one after
+     * it, marked as such, until the shape has {@code required} records and the gate can be met.
      */
-    record Waiting(int records, int required) implements Decision {
+    record Provisional(RoutingRule rule, double score, int records, int required) implements Decision {
 
     }
 
     /**
-     * No fragment passed within the budget; the shape is quarantined as given up.
+     * No fragment passed within the budget; the shape is recorded as given up.
      */
     record GivenUp(String reason) implements Decision {
 
     }
 
     /**
-     * The model was not consulted: Shapeshifter AI is disabled, or the shape was already given up. The stream is
-     * emitted as a sentinel.
+     * The stream was not processed and the model was not consulted: the shape is given up, reserved by
+     * a rule, awaiting review as a draft, lacks a value for a key field, or learning is disabled and no
+     * bound variant fits. The stream is sentinelled — an error stream and a ledger row (A4).
      */
     record Sentinel(String reason) implements Decision {
 

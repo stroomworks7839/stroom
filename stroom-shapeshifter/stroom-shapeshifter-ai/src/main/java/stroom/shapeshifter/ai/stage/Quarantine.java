@@ -19,15 +19,16 @@ package stroom.shapeshifter.ai.stage;
 import java.util.Optional;
 
 /**
- * The shapes a stage has given up on (design §5, item 4): later records of a given-up shape are emitted
- * as sentinels without consulting the model. Promotion of a variant covering the shape releases it
- * (A12). In-memory in scenarios; a stream in a node.
+ * The shapes a stage has given up on (design 01 §5, item 4), keyed by document and shape (A26): later
+ * streams of a given-up shape are sentinelled without consulting the model. Promotion of a variant
+ * covering the shape releases it (A12). In-memory in scenarios; the {@code shapeshifter_shape} row in
+ * a node.
  */
 public interface Quarantine {
 
-    Optional<String> reasonGivenUp(String feed, String shapeSignature);
+    Optional<String> reasonGivenUp(String docUuid, String shape);
 
-    void giveUp(String feed, String shapeSignature, String reason);
+    void giveUp(String docUuid, String shape, String reason);
 
-    void release(String feed, String shapeSignature);
+    void release(String docUuid, String shape);
 }

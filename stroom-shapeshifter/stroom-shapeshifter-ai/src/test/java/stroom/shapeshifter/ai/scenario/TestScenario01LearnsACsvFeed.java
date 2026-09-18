@@ -134,14 +134,17 @@ class TestScenario01LearnsACsvFeed {
         assertThat(rule.isPinned()).isFalse();
 
         // The fragment is real content: a Source → DSParser → XSLTFilter pipeline over two new documents.
-        assertThat(rule.getPipeline().getName()).isEqualTo("DOOR-ACCESS-" + run.shapeSignature());
+        assertThat(rule.getPipeline().getName()).startsWith("DOOR-ACCESS-Raw-Events-");
+        assertThat(run.shape().id()).isEqualTo("Feed=DOOR-ACCESS|Type=Raw Events");
         assertThat(scenarios.stores.pipelines.readDocument(rule.getPipeline()).getPipelineData()
                 .getAddedElements())
                 .extracting(element -> element.getType())
                 .containsExactly("Source", "DSParser", "XSLTFilter");
         assertThat(scenarios.stores.textConverters.list()).hasSize(1);
         assertThat(scenarios.stores.xslts.list()).hasSize(1);
-        assertThat(scenarios.regressionSet.accepted("DOOR-ACCESS", run.shapeSignature())).hasSize(1);
+        assertThat(scenarios.regressionSet.accepted(rule.getUuid()))
+                .describedAs("A18: the regression set is per rule")
+                .hasSize(1);
     }
 
     @Test

@@ -28,7 +28,7 @@ import java.util.List;
  * @param doc            The document as it stands afterwards: the routing table rewritten if a promotion
  *                       happened, otherwise as given.
  * @param decision       What was decided.
- * @param shapeSignature The stream's shape, as routing and quarantine keyed it.
+ * @param shape          The stream's shape under the document's learning key, as the ledger keys it.
  * @param output         What the bound or promoted fragment produced over the whole stream; null for a
  *                       sentinel or a given-up shape.
  * @param verdicts       The scorecard's verdicts on the fragment over the whole stream, one per step, in
@@ -37,7 +37,7 @@ import java.util.List;
  */
 public record StageRun(ShapeshifterAiDoc doc,
                        Decision decision,
-                       String shapeSignature,
+                       Shape shape,
                        String output,
                        List<Verdict> verdicts,
                        List<Exchange> transcript) {

@@ -27,25 +27,25 @@ public final class InMemoryQuarantine implements Quarantine {
     private final Map<String, String> reasons = new HashMap<>();
 
     @Override
-    public Optional<String> reasonGivenUp(final String feed, final String shapeSignature) {
-        return Optional.ofNullable(reasons.get(key(feed, shapeSignature)));
+    public Optional<String> reasonGivenUp(final String docUuid, final String shape) {
+        return Optional.ofNullable(reasons.get(key(docUuid, shape)));
     }
 
     @Override
-    public void giveUp(final String feed, final String shapeSignature, final String reason) {
-        reasons.put(key(feed, shapeSignature), reason);
+    public void giveUp(final String docUuid, final String shape, final String reason) {
+        reasons.put(key(docUuid, shape), reason);
     }
 
     @Override
-    public void release(final String feed, final String shapeSignature) {
-        reasons.remove(key(feed, shapeSignature));
+    public void release(final String docUuid, final String shape) {
+        reasons.remove(key(docUuid, shape));
     }
 
     public boolean isEmpty() {
         return reasons.isEmpty();
     }
 
-    private static String key(final String feed, final String shapeSignature) {
-        return feed + "/" + shapeSignature;
+    private static String key(final String docUuid, final String shape) {
+        return docUuid + "/" + shape;
     }
 }

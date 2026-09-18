@@ -126,6 +126,10 @@ public final class XsltStep implements StepRunner {
         configuration.setUnparsedTextURIResolver((uri, encoding, config) -> {
             throw new XPathException(REFUSED + uri);
         });
+        // collection() and uri-collection() resolve file: URIs themselves, consulting neither resolver.
+        configuration.setCollectionFinder((context, uri) -> {
+            throw new XPathException(REFUSED + uri);
+        });
         configuration.setConfigurationProperty(FeatureKeys.ALLOW_EXTERNAL_FUNCTIONS, false);
         configuration.setRecoveryPolicy(Configuration.DO_NOT_RECOVER);
     }

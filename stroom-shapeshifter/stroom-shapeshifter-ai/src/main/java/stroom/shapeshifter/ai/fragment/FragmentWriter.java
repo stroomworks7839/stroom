@@ -38,6 +38,8 @@ import jakarta.inject.Inject;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 
 /**
  * Turns a learned chain into content: one configuration document per document-bearing step, and a
@@ -51,6 +53,7 @@ import java.util.Map;
 public final class FragmentWriter {
 
     private static final String SOURCE = "Source";
+    private static final Set<String> WRITABLE = Set.of(TextConverterDoc.TYPE, XsltDoc.TYPE);
 
     private final ContentCreator creator;
     private final PipelineStore pipelineStore;
@@ -75,6 +78,17 @@ public final class FragmentWriter {
      * @return The fragment's DocRef, for the routing table.
      */
     public DocRef write(final DocPath folder, final String name, final List<LearnedStep> chain) {
+        // Checked for the whole chain before anything is created: a step whose document this writer
+        // cannot write must not leave the earlier steps' documents behind.
+        chain.stream()
+                .map(step -> step.runner().configured())
+                .flatMap(Optional::stream)
+                .map(Configured::documentType)
+                .filter(type -> !WRITABLE.contains(type))
+                .findFirst()
+                .ifPresent(type -> {
+                    throw new IllegalArgumentException("No store to write a " + type + " document");
+                });
         final PipelineDataBuilder builder = new PipelineDataBuilder()
                 .addElement(new PipelineElement(SOURCE, SOURCE));
         String previous = SOURCE;
