@@ -961,40 +961,45 @@ and open to review. Extraction is then judged by whether its records* preserve *
 transformation by whether its output* reproduces *the target. The dialogue of A21 becomes:*
 
 1. *Chain, as now.*
-2. *Target. From the raw sample — one representative input record per kind of line, chosen by
-   signature — the schema's rules (§8.2) and the document's instructions, the model proposes the event
+2. *Split. What one record is in this input, before anything is said about its meaning: for raw text
+   the delimiter or pattern that cuts one record per unit; for XML the element that is one record; for
+   JSON the array whose items are records. Judged by coverage and yield against the input's own
+   structure, and by nothing else.*
+3. *Target. From the records the split yields — one representative per kind, chosen by signature — the
+   schema's rules (§8.2) and the document's instructions, the model proposes the event
    each record should become. Each is validated at once by schema conformance, extraction quality and
    the business rules, with the content model of whatever fell short (§8.2's enrichment); a re-ask
    carries the shortfall of the document the model itself wrote, so the ladder of one missing child per
    candidate is one step. In review mode a person may approve the targets before anything is written
    (A25, A28): "this record becomes this event" is the artefact to read.*
-3. *Configuration for the parser, carrying the sample, the worked example (design 02 §6.2) and the
-   targets: the records must carry every value the events need. A* field-preservation *scorer holds it
+4. *Configuration for the parser, carrying the sample, the split, the worked example (design 02 §6.2)
+   and the targets: the records must carry every value the events need. A* field-preservation *scorer holds it
    to that — every leaf value of a target that appears in its source record must appear as a data value
    in the record the parser emits — beside coverage, which still catches dropped lines. Constants the
    instructions supply (a system name, an environment) are not in the source and are not demanded.*
-4. *Configuration for the transform, carrying the real records and their targets: produce exactly
+5. *Configuration for the transform, carrying the real records and their targets: produce exactly
    these. A* target-fidelity *scorer compares the stylesheet's output with each target as canonical
    trees; the stream-level scorers judge the rest of the stream, which is what catches a stylesheet that
    reproduces the three records it was shown by literal values and no others.*
-5. *Feedback goes to the step that lost the value: a target value absent from the records re-asks the
+6. *Feedback goes to the step that lost the value: a target value absent from the records re-asks the
    parser; present in the records but missing or wrong in the events re-asks the transform. §10's rule
    4, with a way to know which.*
 
 *Targets persist: onto the regression set at promotion as its goldens (A18) — the* (input, expected
 output) *pairs §7.4 said the set has and §9.1's harness runs — and as what the Supervisor view shows and
-Approve and Reject act on. An XML or JSON input has no parser document to write; its target is set from
-the parsed record and governs the transform alike.*
+Approve and Reject act on. An XML or JSON input has no parser document to write, but it has a split —
+which element or array item is one record — and its target is set from the records the split yields,
+and governs the transform alike.*
 
-**Record boundaries come first, and are the one thing a target cannot fix.** A target is chosen from
-representative *records*, which presumes the sample is already cut into records: a line each, as the
-harness assumes today, or a multi-line record the corpus also holds (cases 003, 007, 009). For raw text
-the first thing to settle is therefore the record boundary — the delimiter or pattern that yields one
-record per unit — judged by coverage and yield against the input's own structure before any target is
-proposed. Where the sample's structure is plain, this is the first part of the parser's configuration;
-where it is not, it is its own question, *Split*, asked before *Target*: extract nothing yet, only cut.
-A target set on mis-cut records steers everything after it wrong, so the boundary is the one thing
-learned without a target.
+**Record boundaries come first, always, and are the one thing a target cannot fix.** A target is
+chosen from representative *records*, which presumes the sample is already cut into records: a line
+each, as the harness assumes today, a multi-line record the corpus also holds (cases 003, 007, 009), an
+element within an XML document, an item within a JSON array. So *Split* is its own question for every
+kind of input — ruled 2026-09-18 — asked before *Target* and answered without one: extract nothing yet,
+only cut. It is judged by coverage and yield against the input's own structure, since meaning is not
+yet in play. A target set on mis-cut records steers everything after it wrong, so the boundary is the
+one thing learned without a target, and the parser's configuration that follows is written to the split
+already settled.
 
 **Finding the input again, at scale.** A stream may be thirty gigabytes and a fault found at its
 millionth event. Relearning against that event needs its *input* record, and the design has the means:
@@ -1350,8 +1355,8 @@ arrived last. Items marked *built* already exist in `stroom-shapeshifter-ai` or 
    `ShapeshifterAiStepDetails` subtype built from `StageRun`; the presenter that replaces the code
    pane; the stepping tree expanding the element to its fragment's chain; the dry-run rule for the
    element under a `SteppingController`. Depends on item 4.
-20. **Learning against a target** (A31, §10.1): the *Target* question and, for raw text whose structure
-   is not plain, the *Split* question before it; representative records per line kind by signature;
+20. **Learning against a target** (A31, §10.1): the *Split* question first for every kind of input,
+   then the *Target* question; representative records per line kind by signature;
    the field-preservation and target-fidelity scorers; feedback attributed to the step that lost the
    value; targets carried on the attempt and onto the regression set; the target as what review shows.
    Changes A21's dialogue and what A28's turn rows hold, so it is sequenced before items 8 and 15.
@@ -1402,7 +1407,7 @@ behaviour of the finished stage is stated as tests.
 | A28 | Every attempt is a durable, resumable record in its own tables; a cross-document Supervisor view lists all attempts in every mode, with pending ones decidable and any turn amendable; the job advancing attempts awaiting the model is deferred mode's worker | **Proposed, §11.6** — the owner's, 2026-09-17; makes A25 and deferred A5 usable |
 | A29 | The learning key — the fields a learned rule binds on and the chain question sees — is a document setting, default `Feed AND Type`, with attribute-map fields and the shape signature choosable; a shape is one value of the key; shown means bound; a bound shape whose rolling per-record score falls below the document's relearn threshold is relearned | **Ruled** 2026-09-17 — the owner's; replaces the fixed `Feed AND Type AND Shape Signature` of the first A22 decisions |
 | A30 | The supervisor element in the stepper shows a stage pane — shape, match path, decision, fragment and verdicts, transcript, actions — in place of a code pane, expands to its fragment's chain, and runs dry | **Proposed, §11.7** — the owner's, 2026-09-18 |
-| A31 | A stage is learned against a target: events the model proposes from the raw sample per kind of record, validated and reviewable before any configuration is written; extraction judged by preserving what the target needs, transformation by reproducing it; the record boundary learned first and without a target; input spans kept so a fault at any event can be relearned with its record | **Proposed, §10.1** — the owner's, 2026-09-18, after the first live runs |
+| A31 | A stage is learned against a target: events the model proposes per kind of record, validated and reviewable before any configuration is written; extraction judged by preserving what the target needs, transformation by reproducing it; the record boundary is its own question for every kind of input, asked first and answered without a target; input spans kept so a fault at any event can be relearned with its record | **Proposed, §10.1** — the owner's, 2026-09-18, after the first live runs; *Split* always its own question ruled the same day |
 
 Where a row says *revised*, *restated* or *settled* 2026-09-17, the change was put to the owner as a
 recommendation with alternatives and taken by them that day: the text is the editor's, the decision
@@ -1510,8 +1515,8 @@ including the degeneracy trap (§8.3) that changes the scoring model and propose
   `Device` fails conformance before anything else can judge it); design 02 §6.1 records the rest.
 - A31 proposed, the owner's, from the live runs: a stage learned against a target (§10.1) — the model
   proposes the events from the raw sample first, validated and reviewable; extraction is judged by
-  preserving what the target needs and transformation by reproducing it; the record boundary is learned
-  first and alone; input spans are kept with the bindings so a fault at the millionth event of a large
+  preserving what the target needs and transformation by reproducing it; the record boundary is its own
+  question for every kind of input, learned first and alone; input spans are kept with the bindings so a fault at the millionth event of a large
   stream can be relearned with its record in hand. §12 gains items 20 and 21.
 - The first live run, against `claude-sonnet-5` through an OpenAI-compatible endpoint: design 02 §6.2.
   Three findings bear on this document. §4.1's prediction held exactly — extraction is taught by a
