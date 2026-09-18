@@ -57,7 +57,9 @@ public class ShapeshifterSerialiser implements DocumentSerialiser2<ShapeshifterD
     public ImportExportDocument write(final ShapeshifterDoc document) throws IOException {
         final String json = document.getData();
         final ImportExportDocument importExportDocument = delegate.write(document.copy().data(null).build());
-        if (json != null) {
+        // Blank is absent: the asset is typed JSON, and the store's JSON column refuses an empty
+        // string where it accepts no row at all.
+        if (json != null && !json.isBlank()) {
             importExportDocument.addExtAsset(
                     new ByteArrayImportExportAsset(JSON, DocDataType.JSON, EncodingUtil.asBytes(json)));
         }

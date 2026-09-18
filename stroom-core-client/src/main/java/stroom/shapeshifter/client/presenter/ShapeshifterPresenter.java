@@ -55,6 +55,7 @@ public class ShapeshifterPresenter extends DocTabPresenter<LinkTabPanelView, Sha
 
     private final DelayedUpdate parseSource;
 
+    private String lastRead;
     private String text;
     private Project project;
     private String sourceError;
@@ -149,22 +150,32 @@ public class ShapeshifterPresenter extends DocTabPresenter<LinkTabPanelView, Sha
         selectTab(DESIGN);
     }
 
-    /** The document's text as read: parse it once, whichever tab asked. */
+    /**
+     * The document's text as read: parse it once, whichever tab asked. A text that parses is
+     * shown and kept as the printed project (design 43 §3) - the store's JSON column hands back
+     * what it was given re-spaced and with its keys reordered, and the engine's form is the one
+     * a reader should see; a text that does not parse is kept as it is, so it can be fixed.
+     */
     private void readText(final String data) {
         final String read = data == null
                 ? ""
                 : data;
-        if (read.equals(text) && (project != null || sourceError != null)) {
+        if (read.equals(lastRead) && (project != null || sourceError != null)) {
             return;
         }
+        lastRead = read;
         text = read;
         parse();
+        if (sourceError == null) {
+            text = ProjectText.print(project);
+        }
     }
 
     private void parse() {
         if (text.trim().isEmpty()) {
             // A new document: the Design tab starts from an empty project rather than a syntax
-            // error, and the first edit writes it out.
+            // error, and readText prints it, so the text is never blank - the store keeps the
+            // project in a JSON column that refuses anything but JSON.
             project = ProjectText.empty(docRef == null
                     ? null
                     : docRef.getName());
