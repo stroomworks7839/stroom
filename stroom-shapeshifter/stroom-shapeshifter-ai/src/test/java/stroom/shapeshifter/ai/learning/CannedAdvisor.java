@@ -26,7 +26,7 @@ import java.util.List;
  * test can assert what the dialogue put to it. Running out of script is a test failure, not a refusal —
  * a dialogue asking more than the test expected is the thing under test.
  */
-final class CannedAdvisor implements Advisor {
+class CannedAdvisor implements Advisor {
 
     private final Deque<String> replies;
     private final List<Question> questions = new ArrayList<>();

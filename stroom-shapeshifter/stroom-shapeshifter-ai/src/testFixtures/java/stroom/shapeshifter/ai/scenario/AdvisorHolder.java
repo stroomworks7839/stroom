@@ -17,17 +17,15 @@
 package stroom.shapeshifter.ai.scenario;
 
 import stroom.shapeshifter.ai.learning.Advisor;
-import stroom.shapeshifter.ai.learning.Exchange;
-import stroom.shapeshifter.ai.learning.Question;
-
-import java.util.List;
+import stroom.shapeshifter.ai.learning.Advisors;
+import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 
 /**
- * The advisor a node under test is bound to: whichever {@link Script} the running scenario has set. A
- * Tier 2 scenario cannot hand its script to the element, which the pipeline factory builds, so it hands
- * it to this and the element finds it here.
+ * The advisors a node under test is bound to: whichever {@link Script} the running scenario has set,
+ * whatever the document. A Tier 2 scenario cannot hand its script to the element, which the pipeline
+ * factory builds, so it hands it to this and the element finds it here.
  */
-public final class AdvisorHolder implements Advisor {
+public final class AdvisorHolder implements Advisors {
 
     private volatile Advisor advisor = Script.of();
 
@@ -36,7 +34,7 @@ public final class AdvisorHolder implements Advisor {
     }
 
     @Override
-    public String ask(final List<Exchange> transcript, final Question question) {
-        return advisor.ask(transcript, question);
+    public Advisor of(final ShapeshifterAiDoc doc) {
+        return advisor;
     }
 }

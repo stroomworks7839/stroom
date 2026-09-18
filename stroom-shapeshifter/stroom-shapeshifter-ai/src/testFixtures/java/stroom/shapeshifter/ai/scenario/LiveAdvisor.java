@@ -71,6 +71,14 @@ public final class LiveAdvisor implements Advisor {
      * @return An advisor over the endpoint the environment names, or empty when it names none.
      */
     public static Optional<LiveAdvisor> fromEnvironment(final String instructions) {
+        return modelFromEnvironment().map(model -> new LiveAdvisor(model, instructions));
+    }
+
+    /**
+     * The chat model the environment names, or empty when it names none: for whatever else wants to put a
+     * question to the same endpoint the same way.
+     */
+    public static Optional<ChatModel> modelFromEnvironment() {
         final String baseUrl = System.getenv(BASE_URL);
         if (baseUrl == null || baseUrl.isBlank()) {
             return Optional.empty();
@@ -84,7 +92,7 @@ public final class LiveAdvisor implements Advisor {
         Optional.ofNullable(System.getenv(TEMPERATURE))
                 .filter(value -> !value.isBlank())
                 .ifPresent(value -> builder.temperature(Double.parseDouble(value)));
-        return Optional.of(new LiveAdvisor(builder.build(), instructions));
+        return Optional.of(builder.build());
     }
 
     @Override

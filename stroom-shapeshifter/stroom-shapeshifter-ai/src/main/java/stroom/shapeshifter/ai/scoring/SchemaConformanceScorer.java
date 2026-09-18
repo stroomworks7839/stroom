@@ -151,6 +151,10 @@ public final class SchemaConformanceScorer implements Scorer {
         final int passing = Math.max(0, counter.records - errors.failing.size());
         final int failing = total - passing;
         final List<StoredError> diagnostics = new ArrayList<>();
+        // The schema's own account first: it is what turns one missing child per candidate into one step.
+        if (!errors.failing.isEmpty()) {
+            diagnostics.addAll(hints(conformance.getSchemaGroup(), errors.failing.values()));
+        }
         int shown = 0;
         for (final Map.Entry<Integer, String> failure : errors.failing.entrySet()) {
             if (shown++ == RECORDS_SHOWN) {
@@ -160,9 +164,6 @@ public final class SchemaConformanceScorer implements Scorer {
             }
             diagnostics.add(new StoredError(Severity.WARNING, null, CONFORMANCE,
                     "Record " + failure.getKey() + ": " + failure.getValue()));
-        }
-        if (!errors.failing.isEmpty()) {
-            diagnostics.addAll(hints(conformance.getSchemaGroup(), errors.failing.values()));
         }
         return Optional.of(new Score(type(), (double) passing / total, diagnostics));
     }
@@ -197,10 +198,16 @@ public final class SchemaConformanceScorer implements Scorer {
             // The hint is best effort; the score and the validator's own messages stand without it.
             return List.of();
         }
-        return texts.stream()
-                .limit(HINTS_SHOWN)
-                .map(text -> new StoredError(Severity.INFO, null, CONFORMANCE, "The schema says: " + text))
-                .toList();
+        final List<StoredError> hints = new ArrayList<>();
+        for (final String text : texts.stream().limit(HINTS_SHOWN).toList()) {
+            hints.add(new StoredError(Severity.WARNING, null, CONFORMANCE, "The schema says: " + text
+                                                                            + ". Add every required child at once, "
+                                                                            + "not one per attempt."));
+        }
+        if (!hints.isEmpty()) {
+            hints.add(new StoredError(Severity.INFO, null, CONFORMANCE, "Notation: " + ContentModels.legend()));
+        }
+        return hints;
     }
 
     /**

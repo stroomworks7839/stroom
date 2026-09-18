@@ -39,6 +39,10 @@ import stroom.util.shared.StoredError;
 
 import org.junit.jupiter.api.Test;
 
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -81,6 +85,79 @@ class TestDialogue {
 
     private static ShapeshifterAiDoc policy() {
         return ShapeshifterAiDoc.builder().uuid("policy-1").name("csv-logon").build();
+    }
+
+    /**
+     * A clock that jumps by a set amount every time it is read, so a question can be made to take as long
+     * as a test needs.
+     */
+    private static Clock ticking(final long stepMs) {
+        return new Clock() {
+            private long now;
+
+            @Override
+            public ZoneId getZone() {
+                return ZoneOffset.UTC;
+            }
+
+            @Override
+            public Clock withZone(final ZoneId zone) {
+                return this;
+            }
+
+            @Override
+            public Instant instant() {
+                now += stepMs;
+                return Instant.ofEpochMilli(now);
+            }
+        };
+    }
+
+    @Test
+    void anAttemptThatOutrunsItsWallClockBudgetIsAbandoned() {
+        // A5: the budget bounds the whole dialogue. Every read of the clock moves it by a minute, so the
+        // first question's check passes at one minute and the check after it fails at two.
+        final CannedAdvisor model = new CannedAdvisor(
+                "DSParser -> XSLTFilter",
+                CannedAdvisor.fenced(CSV.configuration()),
+                CannedAdvisor.fenced(XSLT));
+        final Dialogue dialogue = new Dialogue(model, List.of(new DataSplitterStep(FIXTURE.compiler()), new XsltStep()),
+                new Scorecard(List.of(new ScorerSetting(ScorerType.COMPILE, 1.0, 1.0, true, null)),
+                        List.of(new CompileScorer())), ticking(60_000));
+
+        final Outcome outcome = dialogue.run(policy().copy().attemptBudgetMs(90_000).build(), SAMPLE);
+
+        assertThat(outcome).isInstanceOf(Abandoned.class);
+        assertThat(((Abandoned) outcome).reason()).contains("budget of 90000 ms is spent");
+        assertThat(model.questions()).describedAs("the first question was asked; the second was not").hasSize(1);
+        assertThat(outcome.transcript()).hasSize(1);
+    }
+
+    @Test
+    void anAttemptThatOutrunsItsTokenBudgetIsAbandoned() {
+        final CannedAdvisor model = new CannedAdvisor(
+                "DSParser -> XSLTFilter",
+                CannedAdvisor.fenced(CSV.configuration()),
+                CannedAdvisor.fenced(XSLT)) {
+            private long tokens;
+
+            @Override
+            public String ask(final List<Exchange> transcript, final Question question) {
+                tokens += 700;
+                return super.ask(transcript, question);
+            }
+
+            @Override
+            public long tokensUsed() {
+                return tokens;
+            }
+        };
+
+        final Outcome outcome = dialogue(model).run(policy().copy().tokenBudget(1000L).build(), SAMPLE);
+
+        assertThat(outcome).isInstanceOf(Abandoned.class);
+        assertThat(((Abandoned) outcome).reason()).contains("budget of 1000 tokens is spent after 1400 tokens");
+        assertThat(model.questions()).hasSize(2);
     }
 
     @Test

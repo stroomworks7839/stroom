@@ -23,16 +23,14 @@ import stroom.shapeshifter.ai.learning.Question;
 import java.util.List;
 
 /**
- * The advisor a node has until the model is wired in (design 01 §12 item 6): a stage that would ask
- * fails on the stream, loudly, rather than pretending to learn. A document in {@code DISABLED} mode
- * never reaches it.
+ * The advisor of a document that names no model: a stage that would ask fails on the stream, loudly,
+ * rather than pretending to learn. A document in {@code DISABLED} mode never reaches it.
  */
 public class NoModelAdvisor implements Advisor {
 
     @Override
     public String ask(final List<Exchange> transcript, final Question question) {
-        throw new IllegalStateException("Shapeshifter AI has no model to ask: the model advisor is not yet bound "
-                                        + "(design 01 §12 item 6). Set the document's learning mode to DISABLED "
-                                        + "or bind an Advisor.");
+        throw new IllegalStateException("The Shapeshifter AI document names no model to ask. Choose one on its "
+                                        + "Learning tab, or set its learning mode to DISABLED.");
     }
 }

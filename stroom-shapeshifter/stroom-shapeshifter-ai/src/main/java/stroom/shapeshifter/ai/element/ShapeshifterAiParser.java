@@ -49,7 +49,7 @@ import stroom.shapeshifter.ai.extraction.DataSplitterCompiler;
 import stroom.shapeshifter.ai.extraction.DataSplitterStep;
 import stroom.shapeshifter.ai.fragment.FragmentRunner;
 import stroom.shapeshifter.ai.fragment.FragmentWriter;
-import stroom.shapeshifter.ai.learning.Advisor;
+import stroom.shapeshifter.ai.learning.Advisors;
 import stroom.shapeshifter.ai.scoring.BusinessRulesScorer;
 import stroom.shapeshifter.ai.scoring.CompileScorer;
 import stroom.shapeshifter.ai.scoring.ExtractionQualityScorer;
@@ -166,7 +166,7 @@ public class ShapeshifterAiParser extends AbstractParser {
                                 final DataSplitterCompiler dataSplitterCompiler,
                                 final SchemaConformanceScorer schemaConformanceScorer,
                                 final FragmentWriter fragmentWriter,
-                                final Advisor advisor,
+                                final Advisors advisors,
                                 final Shapes shapes,
                                 final Ledger ledger,
                                 final Outputs outputs,
@@ -187,7 +187,7 @@ public class ShapeshifterAiParser extends AbstractParser {
         final List<stroom.shapeshifter.ai.learning.StepRunner> runners = List.of(
                 new DataSplitterStep(dataSplitterCompiler), new XsltStep());
         this.stage = new Stage(
-                advisor,
+                advisors,
                 runners,
                 List.of(new CompileScorer(), new InputCoverageScorer(), new YieldScorer(), schemaConformanceScorer,
                         new ExtractionQualityScorer(), new BusinessRulesScorer()),

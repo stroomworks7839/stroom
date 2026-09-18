@@ -28,6 +28,7 @@ import stroom.util.shared.ElementId;
 import stroom.util.shared.Severity;
 import stroom.util.shared.StoredError;
 
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -59,10 +60,20 @@ public final class Dialogue {
     private final Advisor advisor;
     private final Map<String, StepRunner> runners;
     private final Scorecard scorecard;
+    private final Clock clock;
+    private Budget budget;
 
     public Dialogue(final Advisor advisor, final List<StepRunner> runners, final Scorecard scorecard) {
+        this(advisor, runners, scorecard, Clock.systemUTC());
+    }
+
+    public Dialogue(final Advisor advisor,
+                    final List<StepRunner> runners,
+                    final Scorecard scorecard,
+                    final Clock clock) {
         this.advisor = advisor;
         this.scorecard = scorecard;
+        this.clock = clock;
         this.runners = runners.stream()
                 .collect(Collectors.toUnmodifiableMap(StepRunner::elementType, Function.identity()));
     }
@@ -77,6 +88,20 @@ public final class Dialogue {
      */
     public Outcome run(final ShapeshifterAiDoc policy, final Sample sample, final List<StoredError> opening) {
         final List<Exchange> transcript = new ArrayList<>();
+        budget = new Budget(policy, clock.millis(), advisor.tokensUsed());
+        try {
+            return dialogue(policy, sample, opening, transcript);
+        } catch (final BudgetExhausted e) {
+            // A5: an attempt has a wall-clock and token budget for the whole dialogue, whichever mode; one that
+            // runs out is abandoned, not left to block a task or spend without end.
+            return abandoned(e.getMessage(), List.of(), transcript);
+        }
+    }
+
+    private Outcome dialogue(final ShapeshifterAiDoc policy,
+                             final Sample sample,
+                             final List<StoredError> opening,
+                             final List<Exchange> transcript) {
         final List<String> allowed = policy.getAllowedElements().stream()
                 .filter(runners::containsKey)
                 .toList();
@@ -209,9 +234,37 @@ public final class Dialogue {
     }
 
     private String ask(final List<Exchange> transcript, final Question question) {
+        budget.check(clock.millis(), advisor.tokensUsed());
         final String reply = advisor.ask(List.copyOf(transcript), question);
         transcript.add(new Exchange(question, reply));
+        budget.check(clock.millis(), advisor.tokensUsed());
         return reply;
+    }
+
+    /**
+     * The attempt's budget (A5): how long it may take and how many tokens it may spend, from where it began.
+     */
+    private record Budget(ShapeshifterAiDoc policy, long startedMs, long tokensAtStart) {
+
+        void check(final long nowMs, final long tokensNow) {
+            final long elapsed = nowMs - startedMs;
+            if (elapsed > policy.getAttemptBudgetMs()) {
+                throw new BudgetExhausted("The attempt's budget of " + policy.getAttemptBudgetMs()
+                                          + " ms is spent after " + elapsed + " ms");
+            }
+            final long tokens = tokensNow - tokensAtStart;
+            if (policy.getTokenBudget() != null && tokens > policy.getTokenBudget()) {
+                throw new BudgetExhausted("The attempt's budget of " + policy.getTokenBudget()
+                                          + " tokens is spent after " + tokens + " tokens");
+            }
+        }
+    }
+
+    private static final class BudgetExhausted extends RuntimeException {
+
+        private BudgetExhausted(final String message) {
+            super(message);
+        }
     }
 
     private static List<StoredError> refusal(final String message) {

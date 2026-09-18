@@ -39,7 +39,8 @@ class TestContentModels {
         assertThat(door.get(0))
                 .startsWith("Door (in ")
                 .contains("Name, Description?, Location {")
-                .contains("SingleEntry, RemoveAll");
+                .contains("SingleEntry, RemoveAll")
+                .contains("It is one alternative of ((Device, Client?, Server?) | Door); another may be simpler");
     }
 
     @Test

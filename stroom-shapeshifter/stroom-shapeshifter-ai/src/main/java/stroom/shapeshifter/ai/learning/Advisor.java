@@ -31,4 +31,12 @@ public interface Advisor {
      * @return The model's reply, verbatim. Parsing it is the caller's job.
      */
     String ask(List<Exchange> transcript, Question question);
+
+    /**
+     * Tokens the model has charged this advisor for so far, where it says; zero where it does not. The
+     * dialogue reads it before and after each question to hold an attempt to its token budget (A5).
+     */
+    default long tokensUsed() {
+        return 0;
+    }
 }

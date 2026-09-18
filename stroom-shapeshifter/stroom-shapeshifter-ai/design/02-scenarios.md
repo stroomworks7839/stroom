@@ -503,12 +503,40 @@ score — and the Tier 1 scenario reproduces run 3's ladder exactly and shows bo
 re-ask. **The default candidate limit is five.** The §9.1 reconstruction test now builds its prompt from
 `QuestionText`'s extraction rules, so the two measure the same words.
 
-Two live checks are owed and were not run, the owner's key having been withdrawn between runs: scenario 03
-again, to see the ladder taken in one step; and the reconstruction test across the corpus's nineteen
-shapes with the worked example. Both are one line of environment away.
+**The fourth live run**, later the same day with the hint in place (five candidates): scenario 03 — the
+ladder — **promoted at 0.981** in five questions where run 3 had given up after seven; 01, 02 and 05
+promoted as before (01 at 0.964 this time). Run 04's relearn failed, though: the relearned splitter
+was right first time (two regexes), and the stylesheet climbed `Door` again — `Description, Location`,
+`Location`, `SingleEntry`, `RemoveAll` — with the hint present on every re-ask. It was the last of six
+lines, at INFO, in a notation the model was not told, and the validator's own "one of {Location}" was
+followed instead. So the hint now comes **first**, at WARNING, with a legend for the notation, the
+instruction *add every required child at once, not one per attempt*, and — where the element is one
+option of a choice in its parent — the alternatives, since `Device` needs a `Name` where `Door` needs
+six things: `It is one alternative of ((Device, Client?, Server?) | Door); another may be simpler`. That
+form has not yet been run live.
 
-Not yet: those two live checks; scenario 20 (needs the A26 tables for its ledger row); everything from
-scenario 30 on.
+The reconstruction test across the corpus's shapes was attempted twice and measured nothing: the first
+run was spoiled by a concurrent Gradle build in the same module overwriting its results after 22 minutes
+of model time, and the second found the key's credit spent. It gained a robustness fix — a case that fails
+is recorded as `FAILED` and the others go on, so a run always yields its table — and the measurement is
+still owed.
+
+Not yet: the reconstruction run and the louder hint live; scenario 20 (needs the A26 tables for its
+ledger row); everything from scenario 30 on.
+
+The ninth slice, 2026-09-18, is the node's advisor (design 01 §12 item 6). `Advisors` gives a stage its
+advisor per document — the document names the model and the instructions — and `ModelAdvisors`, the
+node's default, answers with `ModelAdvisor` over `stroom-ai`'s chat model for the document's model: the
+key resolved through the credentials service, the base URL guarded against SSRF, the HTTP client as
+configured, all as `stroom-ai` already does them. It puts `QuestionText`'s words after the system text
+and the attempt's transcript, counts the tokens the model charges, and audits every call against the
+Shapeshifter AI document through `DocumentEventLog` — model, kind of question, turn, tokens, outcome; not
+the sample, since A17's redaction is not built. No response cache stands between it and the model, which
+is §10's cache bypass; transport retries are the client's own, so a dropped connection is not a failed
+candidate. A document naming no model gets an advisor that fails the stream naming the Learning tab. The
+`Dialogue` now holds an attempt to its budgets (A5): wall-clock from `attemptBudgetMs` and tokens from
+`tokenBudget` through `Advisor.tokensUsed()`, checked around every question, exhaustion an abandonment
+with the reason. A node can now learn for real; what stops it is only a model document and credit.
 
 ## 7. Decisions taken
 

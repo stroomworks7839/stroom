@@ -1227,7 +1227,11 @@ arrived last. Items marked *built* already exist in `stroom-shapeshifter-ai` or 
    classification and AI review are not.*
 6. **Additions to `stroom-ai`:** a multi-turn chat call with message history (A21); transport
    retries, budgets and rate limiting, token accounting, audit logging of invocations — the whole
-   transcript, not each call in isolation — and explicit cache bypass.
+   transcript, not each call in isolation — and explicit cache bypass. *Built 2026-09-18 beside
+   `stroom-ai` rather than in it: `ModelAdvisor` takes the chat model `stroom-ai` builds for the
+   document's model and puts the whole transcript to it, counts tokens, audits each call against the
+   Shapeshifter AI document, and bypasses the response cache by not using it; the `Dialogue` enforces the
+   attempt's budgets (A5). Rate limiting across documents is not built — design 02 §6.1.*
 7. **Output stream metadata for bindings** (§7.3 rule 3), and a reprocessing mode that honours it.
    *The `Bindings` record on every `StageRun` and the `Outputs` seam are built 2026-09-18, and the
    element writes them to the output stream's attributes through `MetaData`; the reprocessing mode

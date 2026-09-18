@@ -20,7 +20,7 @@ import stroom.docref.DocRef;
 import stroom.query.api.ExpressionOperator;
 import stroom.shapeshifter.ai.fragment.FragmentRunner;
 import stroom.shapeshifter.ai.fragment.FragmentWriter;
-import stroom.shapeshifter.ai.learning.Advisor;
+import stroom.shapeshifter.ai.learning.Advisors;
 import stroom.shapeshifter.ai.learning.Dialogue;
 import stroom.shapeshifter.ai.learning.Exchange;
 import stroom.shapeshifter.ai.learning.LearnedStep;
@@ -82,7 +82,7 @@ public final class Stage {
     private static final String FOLDER = "Shapeshifter";
     private static final ElementId STAGE = new ElementId("Stage");
 
-    private final Advisor advisor;
+    private final Advisors advisors;
     private final List<StepRunner> runners;
     private final List<Scorer> scorers;
     private final FragmentWriter writer;
@@ -96,7 +96,7 @@ public final class Stage {
     private final Clock clock;
     private final long seed;
 
-    public Stage(final Advisor advisor,
+    public Stage(final Advisors advisors,
                  final List<StepRunner> runners,
                  final List<Scorer> scorers,
                  final FragmentWriter writer,
@@ -108,7 +108,7 @@ public final class Stage {
                  final RegressionSet regressionSet,
                  final Clock clock,
                  final long seed) {
-        this.advisor = advisor;
+        this.advisors = advisors;
         this.runners = List.copyOf(runners);
         this.scorers = List.copyOf(scorers);
         this.writer = writer;
@@ -447,7 +447,7 @@ public final class Stage {
                           final Map<String, Object> attributes,
                           final Scorecard scorecard,
                           final List<StoredError> opening) {
-        final Dialogue dialogue = new Dialogue(advisor, runners, scorecard);
+        final Dialogue dialogue = new Dialogue(advisors.of(doc), runners, scorecard, clock);
         final Sample sample = Sample.of(learningPrefix(input.data(), doc), doc.getLearningKey(), attributes);
         return dialogue.run(doc, sample, opening);
     }

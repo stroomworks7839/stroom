@@ -81,12 +81,51 @@ public final class ContentModels {
                 continue;
             }
             final String text = elementName + parentOf(declaration).map(parent -> " (in " + parent + ")").orElse("")
-                                + " contains, in order: " + render(particles, true);
+                                + " contains, in order: " + render(particles, true)
+                                + alternativesTo(declaration).map(choice -> ". It is one alternative of " + choice
+                                                                            + "; another may be simpler")
+                                .orElse("");
             if (!described.contains(text)) {
                 described.add(limit(text));
             }
         }
         return described;
+    }
+
+    /**
+     * How the notation reads, said once alongside the first hint.
+     */
+    public static String legend() {
+        return "? optional, * any number, + one or more, ( | ) one of, { } what a required child holds";
+    }
+
+    /**
+     * Where the element is one option of a choice in its parent, that choice — so that a model told what a
+     * costly element needs can also see what it could have used instead.
+     */
+    private Optional<String> alternativesTo(final Element declaration) {
+        for (Node node = declaration.getParentNode(); node != null; node = node.getParentNode()) {
+            if (!(node instanceof final Element element) || !XS.equals(element.getNamespaceURI())) {
+                return Optional.empty();
+            }
+            if ("choice".equals(element.getLocalName())) {
+                final List<Particle> options = new ArrayList<>();
+                collect(wrapChoice(element), options, 1);
+                return options.isEmpty()
+                        ? Optional.empty()
+                        : Optional.of(options.get(0).render(false));
+            }
+            if ("element".equals(element.getLocalName()) || "complexType".equals(element.getLocalName())) {
+                return Optional.empty();
+            }
+        }
+        return Optional.empty();
+    }
+
+    private static Element wrapChoice(final Element choice) {
+        final Element holder = choice.getOwnerDocument().createElementNS(XS, "xs:sequence");
+        holder.appendChild(choice.cloneNode(true));
+        return holder;
     }
 
     /**

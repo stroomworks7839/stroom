@@ -81,7 +81,7 @@ public final class Scenarios {
     public Stage stage(final Advisor advisor) {
         final List<StepRunner> runners = runners();
         return new Stage(
-                advisor,
+                doc -> advisor,
                 runners,
                 scorers(),
                 stores.writer(),

@@ -17,7 +17,7 @@
 package stroom.shapeshifter;
 
 import stroom.shapeshifter.ai.doc.ShapeshifterAiModule;
-import stroom.shapeshifter.ai.learning.Advisor;
+import stroom.shapeshifter.ai.learning.Advisors;
 import stroom.shapeshifter.ai.scenario.AdvisorHolder;
 
 import com.google.inject.AbstractModule;
@@ -34,6 +34,6 @@ public class ShapeshifterAiTestModule extends AbstractModule {
     protected void configure() {
         install(new ShapeshifterAiModule());
         bind(AdvisorHolder.class).in(Scopes.SINGLETON);
-        OptionalBinder.newOptionalBinder(binder(), Advisor.class).setBinding().to(AdvisorHolder.class);
+        OptionalBinder.newOptionalBinder(binder(), Advisors.class).setBinding().to(AdvisorHolder.class);
     }
 }

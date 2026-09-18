@@ -21,6 +21,7 @@ import stroom.shapeshifter.ai.extraction.Compilation.Rejected;
 import stroom.shapeshifter.ai.extraction.ExtractionCorpus.Golden;
 import stroom.shapeshifter.ai.learning.ConfigurationReply;
 import stroom.shapeshifter.ai.learning.QuestionText;
+import stroom.shapeshifter.ai.scenario.LiveAdvisor;
 import stroom.util.logging.AsciiTable;
 import stroom.util.logging.AsciiTable.Column;
 import stroom.util.shared.Severity;
@@ -31,13 +32,11 @@ import dev.langchain4j.data.message.SystemMessage;
 import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.chat.response.ChatResponse;
-import dev.langchain4j.model.openai.OpenAiChatModel;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -54,12 +53,10 @@ import static org.assertj.core.api.Assertions.assertThat;
  * if it wants one. Samples go to that endpoint unredacted; ruling A17 governs production, not this
  * evaluation, so the endpoint should be one the corpus may be sent to.
  */
-@EnabledIfEnvironmentVariable(named = TestExtractionReconstruction.BASE_URL, matches = ".+")
+@EnabledIfEnvironmentVariable(named = LiveAdvisor.BASE_URL, matches = ".+")
 class TestExtractionReconstruction {
 
-    static final String BASE_URL = "SHAPESHIFTER_AI_BASE_URL";
-    private static final String MODEL = "SHAPESHIFTER_LEARNING_MODEL";
-    private static final String API_KEY = "SHAPESHIFTER_AI_API_KEY";
+    private static final String MODEL = LiveAdvisor.MODEL;
 
     private static final Logger LOGGER = LoggerFactory.getLogger(TestExtractionReconstruction.class);
 
@@ -86,18 +83,18 @@ class TestExtractionReconstruction {
 
     @Test
     void reconstructsGoldenConfigurationsFromInputAndExpectedOutput() {
-        final ChatModel model = OpenAiChatModel.builder()
-                .baseUrl(System.getenv(BASE_URL))
-                .modelName(System.getenv(MODEL))
-                .apiKey(Optional.ofNullable(System.getenv(API_KEY)).orElse("unused"))
-                .temperature(0.0)
-                .timeout(Duration.ofMinutes(5))
-                .maxRetries(2)
-                .build();
+        final ChatModel model = LiveAdvisor.modelFromEnvironment().orElseThrow();
 
         final List<Golden> goldens = ExtractionCorpus.goldens();
         final List<Reconstruction> reconstructions = goldens.stream()
-                .map(golden -> reconstruct(model, golden, workedExample(goldens, golden)))
+                .map(golden -> {
+                    try {
+                        return reconstruct(model, golden, workedExample(goldens, golden));
+                    } catch (final RuntimeException e) {
+                        LOGGER.warn("{} failed: {}", golden, e.toString());
+                        return new Reconstruction(golden, Outcome.FAILED, 0, 0, 0, 0);
+                    }
+                })
                 .toList();
 
         final long exact = reconstructions.stream().filter(r -> r.outcome() == Outcome.EXACT).count();
@@ -217,6 +214,11 @@ class TestExtractionReconstruction {
         REFUSED,
         REJECTED,
         ERRORS,
+        /**
+         * The run itself failed on this case — a request refused, a connection lost past the client's
+         * retries — recorded so the other cases still count.
+         */
+        FAILED,
         DIFFERENT,
         EXACT
     }

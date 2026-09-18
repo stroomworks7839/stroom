@@ -17,7 +17,7 @@
 package stroom.shapeshifter.ai.element;
 
 import stroom.pipeline.factory.PipelineElementModule;
-import stroom.shapeshifter.ai.learning.Advisor;
+import stroom.shapeshifter.ai.learning.Advisors;
 import stroom.shapeshifter.ai.stage.Ledger;
 import stroom.shapeshifter.ai.stage.Outputs;
 import stroom.shapeshifter.ai.stage.RegressionSet;
@@ -32,17 +32,17 @@ import com.google.inject.Scopes;
 import com.google.inject.multibindings.OptionalBinder;
 
 /**
- * The supervisor element and what it runs over. The advisor is an optional binding with the no-model
- * default, so that a test — or, later, the module that wires {@code stroom-ai} in (design 01 §12 item 6)
- * — can set it. The runtime state of A26 is bound to the in-memory implementations until the module
- * of §12 item 8 replaces them; a reprocess request is real already, a reprocess filter on the pipeline.
+ * The supervisor element and what it runs over. The advisors are an optional binding whose default asks
+ * the model each document names through {@code stroom-ai}; a test node sets it to a script. The runtime
+ * state of A26 is bound to the in-memory implementations until the module of §12 item 8 replaces them; a
+ * reprocess request is real already, a reprocess filter on the pipeline.
  */
 public class ShapeshifterAiElementModule extends PipelineElementModule {
 
     @Override
     protected void configure() {
         super.configure();
-        OptionalBinder.newOptionalBinder(binder(), Advisor.class).setDefault().to(NoModelAdvisor.class);
+        OptionalBinder.newOptionalBinder(binder(), Advisors.class).setDefault().to(ModelAdvisors.class);
         bind(Shapes.class).to(InMemoryShapes.class).in(Scopes.SINGLETON);
         bind(Ledger.class).to(InMemoryLedger.class).in(Scopes.SINGLETON);
         bind(Outputs.class).to(InMemoryOutputs.class).in(Scopes.SINGLETON);
