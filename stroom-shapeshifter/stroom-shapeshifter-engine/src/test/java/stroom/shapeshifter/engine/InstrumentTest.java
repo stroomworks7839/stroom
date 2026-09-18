@@ -53,6 +53,14 @@ class InstrumentTest {
 
     }
 
+    private record Verdict(long parent, String templateId, boolean allowed) {
+
+    }
+
+    private record Wrote(long frame, int index, long offset, long length) {
+
+    }
+
     private record Output(int index, long offset, long length) {
 
     }
@@ -72,6 +80,8 @@ class InstrumentTest {
         private final List<Frame> frames = new ArrayList<>();
         private final List<Long> captureFrames = new ArrayList<>();
         private final List<Placed> placed = new ArrayList<>();
+        private final List<Verdict> verdicts = new ArrayList<>();
+        private final List<Wrote> wrote = new ArrayList<>();
         private final List<Long> contentFrames = new ArrayList<>();
         private final List<Long> closed = new ArrayList<>();
         private final List<Attempt> tried = new ArrayList<>();
@@ -99,6 +109,17 @@ class InstrumentTest {
         public void onMatchContent(final long frameId, final byte[] content) {
             unlocatable.add(content);
             contentFrames.add(frameId);
+        }
+
+        @Override
+        public void onGuard(final long parentFrameId, final String templateId, final boolean allowed) {
+            verdicts.add(new Verdict(parentFrameId, templateId, allowed));
+        }
+
+        @Override
+        public void onInstruction(final long frameId, final int index, final long outputOffset,
+                                  final long outputLength, final OutputSink.Unit unit) {
+            wrote.add(new Wrote(frameId, index, outputOffset, outputLength));
         }
 
         @Override
@@ -476,6 +497,62 @@ class InstrumentTest {
                 new Placed(1, "v", Instrument.NOT_A_SLICE, 0),
                 new Placed(2, "w", 0, 2),
                 new Placed(3, "w", 0, 2));
+    }
+
+    @Test
+    void guardVerdictsAreReportedAsALevelBeginsInItsFrame() {
+        // Two row templates, one guarded on a name the source binds: the guard is read once
+        // as the source's body begins dispatching, and reported against the source's frame.
+        final Recorder recorder = new Recorder();
+        Shapeshifter.runWhole(Shapeshifter.compile(ProjectReader.read("""
+                        {
+                          "name": "guarded", "version": 3,
+                          "source": {"buffer_size": 2000, "ignore_errors": true, "encoding": "utf-8"},
+                          "templates": [
+                            {"id": "00000000-0000-0000-0000-000000000001", "name": "source",
+                             "match": "source",
+                             "declarations": [{"name": "flag", "type": "scalar"}],
+                             "body": [{"variable": {"name": "flag", "body": [{"text": "no"}]}},
+                                      {"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
+                                                           "mode": "row"}}]},
+                            {"id": "00000000-0000-0000-0000-000000000002", "name": "yes", "mode": "row",
+                             "guard": {"eq": {"left": {"ref": {"parts": [{"capture": {"var_id": "flag", "group": 0}}]},
+                                              "as": "string"},
+                                              "right": {"value": "yes", "as": "string"}}},
+                             "match": {"regex": {"pattern": "[^\\n]*\\n"}},
+                             "body": [{"text": "Y"}]},
+                            {"id": "00000000-0000-0000-0000-000000000003", "name": "any", "mode": "row",
+                             "match": {"regex": {"pattern": "[^\\n]*\\n"}},
+                             "body": [{"text": "A"}]}
+                          ]
+                        }
+                        """)),
+                "a\nb\n".getBytes(StandardCharsets.UTF_8),
+                new XmlByteSink(new ByteArrayOutputStream()), recorder);
+        assertThat(recorder.verdicts).containsExactly(
+                new Verdict(Instrument.ROOT_FRAME, "00000000-0000-0000-0000-000000000002", false));
+        assertThat(recorder.matches).extracting(Match::name).containsExactly("any", "any");
+    }
+
+    @Test
+    void watchedFrameReportsWhatEachTopLevelInstructionWrote() {
+        final Recorder recorder = new Recorder();
+        final ByteArrayOutputStream out = new ByteArrayOutputStream();
+        Shapeshifter.runWhole(Shapeshifter.compile(ProjectReader.read(PLACED)),
+                "abc=de fg\n".getBytes(StandardCharsets.UTF_8), new XmlByteSink(out), recorder);
+        // The row's one instruction is the apply-templates, whose output is its two words'
+        // value-ofs; each word's one instruction wrote its two letters. Offsets are in the
+        // sink's bytes, and contiguous.
+        assertThat(recorder.wrote).extracting(Wrote::frame).containsExactly(2L, 3L, 1L);
+        assertThat(recorder.wrote).extracting(Wrote::index).containsOnly(0);
+        final Wrote first = recorder.wrote.get(0);
+        final Wrote second = recorder.wrote.get(1);
+        final Wrote row = recorder.wrote.get(2);
+        assertThat(first.length()).isEqualTo(2);
+        assertThat(second.offset()).isEqualTo(first.offset() + first.length());
+        assertThat(row.offset()).isEqualTo(first.offset());
+        assertThat(row.length()).isEqualTo(first.length() + second.length());
+        assertThat(out.toString(StandardCharsets.UTF_8)).contains("defg");
     }
 
     @Test

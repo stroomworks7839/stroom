@@ -4,8 +4,10 @@
     <g:FlowPanel styleName="ss-card-outer">
         <g:FocusPanel ui:field="head" styleName="ss-card">
             <g:FlowPanel styleName="ss-card-line">
+                <g:Label ui:field="swatch" styleName="ss-swatch ss-swatch--small"/>
                 <g:Label ui:field="kind" styleName="ss-card-kind"/>
                 <g:Label ui:field="summary" styleName="ss-card-lit"/>
+                <g:Label ui:field="note" styleName="ss-card-note"/>
                 <g:FlowPanel ui:field="actions" styleName="ss-card-actions">
                     <g:Label ui:field="up" styleName="ss-act" text="↑" title="Move up"/>
                     <g:Label ui:field="down" styleName="ss-act" text="↓" title="Move down"/>

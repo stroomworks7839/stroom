@@ -22,6 +22,12 @@ public interface BodyUiHandlers extends UiHandlers {
 
     void onEdit(String path);
 
+    /** The run's note on a dispatch card was clicked: go to the frame it made. */
+    void onDescend(long frameId);
+
+    /** The pointer is over a top-level card, or over none for -1. */
+    void onHover(int index);
+
     void onRemove(String path);
 
     void onMove(String path, int by);

@@ -21,4 +21,6 @@ import com.gwtplatform.mvp.client.UiHandlers;
 public interface VariablesUiHandlers extends UiHandlers {
 
     void onFrame(long frameId);
+
+    void onHover(Hot hot);
 }

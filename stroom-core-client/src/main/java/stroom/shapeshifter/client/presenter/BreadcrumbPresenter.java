@@ -77,6 +77,7 @@ public class BreadcrumbPresenter extends MyPresenterWidget<BreadcrumbView> imple
         final TraceModel trace = host == null
                 ? null
                 : host.trace();
+        getView().setHistory(host != null && host.canGoBack(), host != null && host.canGoForward());
         runButton.setEnabled(host != null && host.getSample() != null && host.getProject() != null);
         sampleButton.setEnabled(host != null && host.getProject() != null);
         if (trace == null) {
@@ -93,7 +94,9 @@ public class BreadcrumbPresenter extends MyPresenterWidget<BreadcrumbView> imple
         final List<Segment> segments = new ArrayList<>();
         for (final long id : trace.path(cursor)) {
             final Frame frame = trace.frame(id);
-            segments.add(new Segment(id, trace.label(id), frame == null
+            segments.add(new Segment(id, frame == null
+                    ? null
+                    : frame.getTemplateId(), trace.label(id), frame == null
                     ? null
                     : host.colour(frame.getTemplateId()), siblingIndex(trace, frame), siblingCount(trace, frame)));
         }
@@ -125,8 +128,33 @@ public class BreadcrumbPresenter extends MyPresenterWidget<BreadcrumbView> imple
     }
 
     @Override
+    public void onHistory(final int delta) {
+        if (delta < 0) {
+            host.goBack();
+        } else {
+            host.goForward();
+        }
+    }
+
+    @Override
     public void onSegment(final long frameId) {
         host.setCursor(frameId);
+    }
+
+    @Override
+    public void onHover(final Hot hot) {
+        host.hover(hot);
+    }
+
+    /** A frame or a capture names its frame: the segment that is it lights (an outer-scope row points here). */
+    public void setHot(final Hot hot) {
+        final boolean ownCapture = hot != null && hot.getKind() == Hot.Kind.CAPTURE
+                                   && hot.getFrameId() == host.cursor();
+        final boolean lights = hot != null && !ownCapture
+                               && (hot.getKind() == Hot.Kind.FRAME || hot.getKind() == Hot.Kind.CAPTURE);
+        getView().setHot(lights
+                ? hot.getFrameId()
+                : -1);
     }
 
     /** Step within the parent: the cursor's previous or next sibling. */
@@ -167,14 +195,16 @@ public class BreadcrumbPresenter extends MyPresenterWidget<BreadcrumbView> imple
     public static final class Segment {
 
         private final long frameId;
+        private final String templateId;
         private final String label;
         private final String colour;
         private final int index;
         private final int count;
 
-        public Segment(final long frameId, final String label, final String colour, final int index,
-                       final int count) {
+        public Segment(final long frameId, final String templateId, final String label, final String colour,
+                       final int index, final int count) {
             this.frameId = frameId;
+            this.templateId = templateId;
             this.label = label;
             this.colour = colour;
             this.index = index;
@@ -183,6 +213,11 @@ public class BreadcrumbPresenter extends MyPresenterWidget<BreadcrumbView> imple
 
         public long getFrameId() {
             return frameId;
+        }
+
+        /** The frame's template; null for the document. */
+        public String getTemplateId() {
+            return templateId;
         }
 
         public String getLabel() {
@@ -211,6 +246,12 @@ public class BreadcrumbPresenter extends MyPresenterWidget<BreadcrumbView> imple
 
         /** The whole-input stepper: the template's name and the cursor's place among its matches; null hides it. */
         void setStepper(String templateName, int index, int count);
+
+        /** Back and forward at the head: which of them can go. */
+        void setHistory(boolean back, boolean forward);
+
+        /** Light the segment of a frame, or none for -1. */
+        void setHot(long frameId);
 
         /** A note at the crumb's end — the empty state, stale, running — or null for none. */
         void setState(String text);

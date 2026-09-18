@@ -54,6 +54,10 @@ public class ShapeshifterTrace {
     @JsonProperty
     private final List<Attempt> attempts;
     @JsonProperty
+    private final List<Guard> guards;
+    @JsonProperty
+    private final List<Instruction> instructions;
+    @JsonProperty
     private final long attemptsSeen;
     @JsonProperty
     private final List<Timing> timings;
@@ -70,6 +74,8 @@ public class ShapeshifterTrace {
                              @JsonProperty("captures") final List<Capture> captures,
                              @JsonProperty("outputs") final List<OutputSpan> outputs,
                              @JsonProperty("attempts") final List<Attempt> attempts,
+                             @JsonProperty("guards") final List<Guard> guards,
+                             @JsonProperty("instructions") final List<Instruction> instructions,
                              @JsonProperty("attemptsSeen") final long attemptsSeen,
                              @JsonProperty("timings") final List<Timing> timings,
                              @JsonProperty("messages") final List<ShapeshifterMessage> messages,
@@ -81,6 +87,8 @@ public class ShapeshifterTrace {
         this.captures = captures;
         this.outputs = outputs;
         this.attempts = attempts;
+        this.guards = guards;
+        this.instructions = instructions;
         this.attemptsSeen = attemptsSeen;
         this.timings = timings;
         this.messages = messages;
@@ -114,6 +122,14 @@ public class ShapeshifterTrace {
 
     public List<Attempt> getAttempts() {
         return attempts;
+    }
+
+    public List<Guard> getGuards() {
+        return guards;
+    }
+
+    public List<Instruction> getInstructions() {
+        return instructions;
     }
 
     /** How many attempts there were; the list holds up to the recorder's cap. */
@@ -320,6 +336,91 @@ public class ShapeshifterTrace {
 
         public long getFrameId() {
             return frameId;
+        }
+
+        public long getOffset() {
+            return offset;
+        }
+
+        public long getLength() {
+            return length;
+        }
+
+        public String getUnit() {
+            return unit;
+        }
+    }
+
+    /** A guard's verdict for a template as a frame's body began dispatching (design 18 §5.6). */
+    @JsonInclude(Include.NON_NULL)
+    public static class Guard {
+
+        @JsonProperty
+        private final long parentFrameId;
+        @JsonProperty
+        private final String templateId;
+        @JsonProperty
+        private final boolean allowed;
+
+        @JsonCreator
+        public Guard(@JsonProperty("parentFrameId") final long parentFrameId,
+                     @JsonProperty("templateId") final String templateId,
+                     @JsonProperty("allowed") final boolean allowed) {
+            this.parentFrameId = parentFrameId;
+            this.templateId = templateId;
+            this.allowed = allowed;
+        }
+
+        public long getParentFrameId() {
+            return parentFrameId;
+        }
+
+        public String getTemplateId() {
+            return templateId;
+        }
+
+        public boolean isAllowed() {
+            return allowed;
+        }
+    }
+
+    /**
+     * What one top-level instruction of a frame's body wrote: the instruction by its index in
+     * the template's body, and its output in the sink's currency (design 18 §5.5).
+     */
+    @JsonInclude(Include.NON_NULL)
+    public static class Instruction {
+
+        @JsonProperty
+        private final long frameId;
+        @JsonProperty
+        private final int index;
+        @JsonProperty
+        private final long offset;
+        @JsonProperty
+        private final long length;
+        @JsonProperty
+        private final String unit;
+
+        @JsonCreator
+        public Instruction(@JsonProperty("frameId") final long frameId,
+                           @JsonProperty("index") final int index,
+                           @JsonProperty("offset") final long offset,
+                           @JsonProperty("length") final long length,
+                           @JsonProperty("unit") final String unit) {
+            this.frameId = frameId;
+            this.index = index;
+            this.offset = offset;
+            this.length = length;
+            this.unit = unit;
+        }
+
+        public long getFrameId() {
+            return frameId;
+        }
+
+        public int getIndex() {
+            return index;
         }
 
         public long getOffset() {

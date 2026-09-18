@@ -20,9 +20,14 @@ import com.gwtplatform.mvp.client.UiHandlers;
 
 public interface BreadcrumbUiHandlers extends UiHandlers {
 
+    /** Back (-1) or forward (1) through where the user has been. */
+    void onHistory(int delta);
+
     void onSegment(long frameId);
 
     void onSibling(long frameId, int delta);
 
     void onStep(int delta);
+
+    void onHover(Hot hot);
 }

@@ -2,10 +2,15 @@
 <ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
              xmlns:g="urn:import:com.google.gwt.user.client.ui">
     <g:FocusPanel ui:field="row" styleName="ss-tpl-row">
-        <g:FlowPanel styleName="ss-tpl-line">
-            <g:Label ui:field="chip" styleName="ss-chip"/>
-            <g:Label ui:field="name" styleName="ss-tpl-name mono"/>
-            <g:Label ui:field="count" styleName="ss-tpl-count"/>
+        <g:FlowPanel>
+            <g:FlowPanel styleName="ss-tpl-line">
+                <g:Label ui:field="chip" styleName="ss-chip"/>
+                <g:Label ui:field="name" styleName="ss-tpl-name mono"/>
+                <g:Label ui:field="count" styleName="ss-tpl-count"/>
+            </g:FlowPanel>
+            <g:FlowPanel ui:field="heat" styleName="ss-heat">
+                <g:Label ui:field="heatBar" styleName="ss-heat-bar"/>
+            </g:FlowPanel>
         </g:FlowPanel>
     </g:FocusPanel>
 </ui:UiBinder>

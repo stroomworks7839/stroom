@@ -18,6 +18,7 @@ package stroom.shapeshifter.client.view;
 
 import stroom.shapeshifter.client.presenter.Bodies;
 import stroom.shapeshifter.client.presenter.BodyUiHandlers;
+import stroom.shapeshifter.client.presenter.CardNote;
 import stroom.shapeshifter.config.OutputNode;
 
 import com.google.gwt.event.dom.client.ClickEvent;
@@ -25,19 +26,27 @@ import com.google.gwt.user.client.ui.Composite;
 import com.google.gwt.user.client.ui.FlowPanel;
 import com.google.gwt.user.client.ui.Label;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /** A card list at a list path — the body, or a branch — with its <i>+ instruction</i> line. */
 public class CardList extends Composite {
 
-    public CardList(final int[] listPath, final List<OutputNode> cards, final BodyUiHandlers handlers,
-                    final boolean enabled, final boolean nested) {
+    private final List<BodyCard> cards = new ArrayList<>();
+
+    /** Notes are per card by position; a nested list has none (the run annotates top-level cards). */
+    public CardList(final int[] listPath, final List<OutputNode> cards, final List<CardNote> notes,
+                    final BodyUiHandlers handlers, final boolean enabled, final boolean nested) {
         final FlowPanel panel = new FlowPanel();
         panel.setStyleName(nested
                 ? "ss-cards ss-cards--nested"
                 : "ss-cards");
         for (int i = 0; i < cards.size(); i++) {
-            panel.add(new BodyCard(listPath, i, cards.get(i), cards.size(), handlers, enabled));
+            final BodyCard card = new BodyCard(listPath, i, cards.get(i), cards.size(), i < notes.size()
+                    ? notes.get(i)
+                    : null, handlers, enabled, !nested);
+            this.cards.add(card);
+            panel.add(card);
         }
         if (enabled) {
             final Label add = new Label("+ instruction");
@@ -53,5 +62,12 @@ public class CardList extends Composite {
             panel.add(none);
         }
         initWidget(panel);
+    }
+
+    /** Light the top-level card at an index, or none for -1. */
+    public void setHot(final int index) {
+        for (int i = 0; i < cards.size(); i++) {
+            cards.get(i).setHot(i == index);
+        }
     }
 }

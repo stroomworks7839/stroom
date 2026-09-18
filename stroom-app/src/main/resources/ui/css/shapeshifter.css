@@ -1091,3 +1091,99 @@
 .ss-cap:hover {
     outline-color: var(--hue);
 }
+
+/* The run's word on a card (design 18 §5.6), and its output in the card's hue. */
+.ss-card-note {
+    color: var(--ss-muted);
+    font-size: 11.5px;
+    white-space: nowrap;
+}
+
+.ss-card-note--link {
+    cursor: pointer;
+    text-decoration: underline dotted;
+}
+
+.ss-card-note--link:hover {
+    color: var(--blue-300);
+}
+
+.ss-card .ss-swatch--small {
+    align-self: center;
+    flex: none;
+}
+
+.ss-o-instr {
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+    border-radius: 2px;
+    color: var(--hue);
+    outline: 2px solid transparent;
+    outline-offset: 1px;
+    transition: outline-color .15s ease-out;
+}
+
+.ss-o-instr:hover {
+    outline-color: var(--hue);
+}
+
+/* One highlight vocabulary (design 18 §5.5): whatever is pointed at, from whichever end, gets
+   the same outline in its own hue; rows and cards get the hovered background. */
+.ss-m.ss-hot,
+.ss-cap.ss-hot,
+.ss-o-instr.ss-hot {
+    outline-color: var(--hue);
+}
+
+.ss-var-row.ss-hot,
+.ss-tpl-row.ss-hot {
+    background-color: var(--row__background-color--hovered);
+}
+
+.ss-card.ss-hot {
+    border-color: var(--focus-border);
+}
+
+.ss-crumb-name.ss-hot {
+    background-color: var(--row__background-color--hovered);
+    outline-color: var(--blue-300);
+}
+
+/* The heat bar under a template row (design 18 §5.8). */
+.ss-heat {
+    height: 3px;
+    margin: 3px 0 0 26px;
+    background-color: rgba(127, 127, 127, .15);
+    border-radius: 2px;
+}
+
+.ss-heat-bar {
+    height: 3px;
+    border-radius: 2px;
+}
+
+.ss-heat-bar--cool {
+    background-color: #4caf50;
+}
+
+.ss-heat-bar--warm {
+    background-color: #ffb300;
+}
+
+.ss-heat-bar--hot {
+    background-color: #e53935;
+}
+
+/* Back and forward at the crumb's head: where was I, beside where am I (design 18 §5.3). */
+.ss-crumb-hist {
+    display: inline-flex;
+    gap: 2px;
+    margin-right: 6px;
+    padding-right: 8px;
+    border-right: 1px solid var(--border-color);
+}
+
+.ss-crumb-arrow--hist {
+    visibility: visible;
+    font-size: 13px;
+}

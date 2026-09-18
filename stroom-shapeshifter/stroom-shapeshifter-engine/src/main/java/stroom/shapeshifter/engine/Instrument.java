@@ -133,6 +133,33 @@ public interface Instrument {
     }
 
     /**
+     * A guard's verdict, as a level begins in a frame: every guarded template of the level is
+     * reported once, held or refused, before any attempt is made (design 27 ruling 11 - guards
+     * read once on the way in, so a template refused here is refused for the whole level).
+     * The editor's strip shows it beside the guard (design 18 §5.6).
+     *
+     * @param parentFrameId the frame whose body is dispatching; {@link #ROOT_FRAME} at the root
+     * @param templateId    the guarded template
+     * @param allowed       whether the guard held
+     */
+    default void onGuard(final long parentFrameId, final String templateId, final boolean allowed) {
+    }
+
+    /**
+     * What one instruction of a frame's body wrote: the top-level instruction at {@code index}
+     * in the template's body, and the output it produced, in the sink's unit - the finer
+     * attribution the editor's output pane colours by (design 18 §5.5: the body card that wrote
+     * it). Only a watched run pays for it: the body interpreter's hot loop is untouched, and
+     * a watched frame runs its instructions one at a time instead.
+     */
+    default void onInstruction(final long frameId,
+                               final int index,
+                               final long outputOffset,
+                               final long outputLength,
+                               final OutputSink.Unit unit) {
+    }
+
+    /**
      * A frame's content, when it is not a slice of its parent's: it came from a variable rather
      * than the input, so nothing could find it by offset (G2). Follows the frame's
      * {@link #onMatch}.

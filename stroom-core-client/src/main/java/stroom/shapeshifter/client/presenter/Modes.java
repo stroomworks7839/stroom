@@ -50,6 +50,19 @@ public final class Modes {
     private Modes() {
     }
 
+    /** Whether any template is dispatched in a mode (null for the root). */
+    public static boolean hasTemplates(final Project project, final String mode) {
+        if (project == null) {
+            return false;
+        }
+        for (final Template template : project.templates()) {
+            if (Objects.equals(template.mode(), mode)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** The modes the project has, templates' first then sites', in first-appearance order. */
     public static List<String> of(final Project project) {
         final Set<String> modes = new LinkedHashSet<>();

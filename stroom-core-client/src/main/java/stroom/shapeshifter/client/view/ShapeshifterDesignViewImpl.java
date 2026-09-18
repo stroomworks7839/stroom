@@ -18,6 +18,8 @@ package stroom.shapeshifter.client.view;
 
 import stroom.shapeshifter.client.presenter.ShapeshifterDesignPresenter.ShapeshifterDesignView;
 
+import com.google.gwt.event.dom.client.KeyDownEvent;
+import com.google.gwt.event.dom.client.KeyDownHandler;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
 import com.google.gwt.user.client.ui.Label;
@@ -64,6 +66,12 @@ public class ShapeshifterDesignViewImpl extends ViewImpl implements Shapeshifter
     public ShapeshifterDesignViewImpl(final Binder binder) {
         widget = binder.createAndBindUi(this);
         setBanner(null);
+    }
+
+    @Override
+    public void setKeyHandler(final KeyDownHandler handler) {
+        // Keys bubble here from whatever has focus in the tab: a row, a card, a pane's block.
+        layout.addDomHandler(handler, KeyDownEvent.getType());
     }
 
     @Override

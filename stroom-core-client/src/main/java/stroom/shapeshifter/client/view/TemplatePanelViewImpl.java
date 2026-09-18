@@ -91,6 +91,13 @@ public class TemplatePanelViewImpl
     }
 
     @Override
+    public void setHot(final String id) {
+        for (final TemplateRow row : rows) {
+            row.setHot(id != null && Objects.equals(row.getData().getId(), id));
+        }
+    }
+
+    @Override
     public void setSelected(final String id) {
         for (final TemplateRow row : rows) {
             row.setSelected(Objects.equals(row.getData().getId(), id));
@@ -102,6 +109,11 @@ public class TemplatePanelViewImpl
         if (getUiHandlers() != null) {
             getUiHandlers().onSelect(id);
         }
+    }
+
+    @Override
+    public void onHover(final String id) {
+        getUiHandlers().onHover(id);
     }
 
     @Override

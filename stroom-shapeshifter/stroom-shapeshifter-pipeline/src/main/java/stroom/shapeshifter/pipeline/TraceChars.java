@@ -167,6 +167,29 @@ final class TraceChars {
         return out;
     }
 
+    List<ShapeshifterTrace.Guard> guards() {
+        final List<ShapeshifterTrace.Guard> out = new ArrayList<>(recorder.guards().size());
+        for (final TraceRecorder.Guard g : recorder.guards()) {
+            out.add(new ShapeshifterTrace.Guard(g.parentFrameId(), g.templateId(), g.allowed()));
+        }
+        return out;
+    }
+
+    List<ShapeshifterTrace.Instruction> instructions() {
+        final List<ShapeshifterTrace.Instruction> out = new ArrayList<>(recorder.instructions().size());
+        for (final TraceRecorder.Instruction i : recorder.instructions()) {
+            if (i.unit() == stroom.shapeshifter.engine.OutputSink.Unit.BYTES) {
+                final int from = at(outputChars, i.offset());
+                out.add(new ShapeshifterTrace.Instruction(i.frameId(), i.index(), from,
+                        at(outputChars, i.offset() + i.length()) - from, i.unit().name()));
+            } else {
+                out.add(new ShapeshifterTrace.Instruction(i.frameId(), i.index(), i.offset(), i.length(),
+                        i.unit().name()));
+            }
+        }
+        return out;
+    }
+
     List<ShapeshifterTrace.Attempt> attempts() {
         final List<ShapeshifterTrace.Attempt> out = new ArrayList<>(recorder.attempts().size());
         for (final TraceRecorder.Attempt a : recorder.attempts()) {

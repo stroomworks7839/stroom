@@ -3,6 +3,10 @@
              xmlns:g="urn:import:com.google.gwt.user.client.ui"
              xmlns:b="urn:import:stroom.widget.button.client">
     <g:FlowPanel styleName="max ss-crumb">
+        <g:FlowPanel styleName="ss-crumb-hist">
+            <g:Anchor ui:field="back" text="◀" styleName="ss-crumb-arrow ss-crumb-arrow--hist" title="Back (Alt+←)"/>
+            <g:Anchor ui:field="forward" text="▶" styleName="ss-crumb-arrow ss-crumb-arrow--hist" title="Forward (Alt+→)"/>
+        </g:FlowPanel>
         <g:FlowPanel ui:field="segments" styleName="ss-crumb-segs"/>
         <g:Label ui:field="state" styleName="ss-crumb-state"/>
         <g:Label styleName="ss-spacer"/>

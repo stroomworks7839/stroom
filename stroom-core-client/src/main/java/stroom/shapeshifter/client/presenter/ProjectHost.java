@@ -64,6 +64,19 @@ public interface ProjectHost {
 
     void setCursor(long frameId);
 
+    // ---- where I was (design 18 §5.3): navigation states, walkable ----
+
+    boolean canGoBack();
+
+    boolean canGoForward();
+
+    void goBack();
+
+    void goForward();
+
+    /** Point at something, or at nothing for null: every surface lights what the request names (design 18 §5.5). */
+    void hover(Hot hot);
+
     /** The template with this id in the current project, or null. */
     default Template template(final String id) {
         final Project project = getProject();

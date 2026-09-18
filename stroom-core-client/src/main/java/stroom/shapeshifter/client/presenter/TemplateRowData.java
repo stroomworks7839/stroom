@@ -25,15 +25,27 @@ public final class TemplateRowData {
     private final String colour;
     private final String count;
     private final boolean zero;
+    private final double share;
+    private final int cost;
+    private final String profile;
 
     public TemplateRowData(final String id, final String name, final String mode, final String colour,
                            final String count, final boolean zero) {
+        this(id, name, mode, colour, count, zero, 0, 0, null);
+    }
+
+    public TemplateRowData(final String id, final String name, final String mode, final String colour,
+                           final String count, final boolean zero, final double share, final int cost,
+                           final String profile) {
         this.id = id;
         this.name = name;
         this.mode = mode;
         this.colour = colour;
         this.count = count;
         this.zero = zero;
+        this.share = share;
+        this.cost = cost;
+        this.profile = profile;
     }
 
     public String getId() {
@@ -61,5 +73,20 @@ public final class TemplateRowData {
     /** Dimmed: no matches, or nothing to show yet. */
     public boolean isZero() {
         return zero;
+    }
+
+    /** The heat bar's length: this template's share of the run's time, 0..1 (design 18 §5.8). */
+    public double getShare() {
+        return share;
+    }
+
+    /** The heat bar's colour: per-attempt cost against the run's, 0 cool, 1 warm, 2 hot. */
+    public int getCost() {
+        return cost;
+    }
+
+    /** The numbers behind the bar, for its title; null before a run. */
+    public String getProfile() {
+        return profile;
     }
 }

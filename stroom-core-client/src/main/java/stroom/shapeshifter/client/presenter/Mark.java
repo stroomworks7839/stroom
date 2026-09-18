@@ -20,9 +20,11 @@ import java.util.Comparator;
 
 /**
  * A marked run of a text the panes render (design 18 §5.3, §5.4): a child match, a capture's
- * tint, a gap where nothing matched, or the cursor's own extent. Marks nest — a capture inside
- * a match inside the cursor's content — so a pane sorts them outer first and emits them as a
- * tree; a mark that straddles another's end is clipped to it, since text has no overlaps.
+ * tint, an instruction's output, a gap where nothing matched, or the cursor's own extent.
+ * Marks nest — a capture inside a match inside the cursor's content — so a pane sorts them
+ * outer first and emits them as a tree; a mark that straddles another's end is clipped to it,
+ * since text has no overlaps. A mark names what it is of, so that pointing at it can be
+ * answered everywhere ({@link Hot}).
  */
 public final class Mark {
 
@@ -31,6 +33,8 @@ public final class Mark {
         DIM,
         /** The cursor's own extent, in the output. */
         OWN,
+        /** What one top-level instruction of the cursor's body wrote: the card's hue. */
+        INSTRUCTION,
         /** A child frame's content: its template's colour; a click descends. */
         MATCH,
         /** A capture's bytes: its hue; the text itself is coloured. */
@@ -55,15 +59,19 @@ public final class Mark {
 
     private final Kind kind;
     private final long frameId;
+    private final int index;
+    private final String templateId;
     private final int start;
     private final int end;
     private final String colour;
     private final String title;
 
-    public Mark(final Kind kind, final long frameId, final int start, final int end, final String colour,
-                final String title) {
+    public Mark(final Kind kind, final long frameId, final int index, final String templateId, final int start,
+                final int end, final String colour, final String title) {
         this.kind = kind;
         this.frameId = frameId;
+        this.index = index;
+        this.templateId = templateId;
         this.start = start;
         this.end = end;
         this.colour = colour;
@@ -74,9 +82,19 @@ public final class Mark {
         return kind;
     }
 
-    /** The frame a click goes to, for a match; the frame the capture belongs to; unused otherwise. */
+    /** The frame: the one a click descends to, for a match; the one the capture or instruction belongs to. */
     public long getFrameId() {
         return frameId;
+    }
+
+    /** The capture's or instruction's index in its frame; -1 otherwise. */
+    public int getIndex() {
+        return index;
+    }
+
+    /** The match's template, or null. */
+    public String getTemplateId() {
+        return templateId;
     }
 
     public int getStart() {

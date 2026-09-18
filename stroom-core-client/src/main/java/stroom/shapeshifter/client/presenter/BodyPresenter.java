@@ -22,12 +22,16 @@ import stroom.shapeshifter.client.presenter.Instructions.Category;
 import stroom.shapeshifter.config.Condition;
 import stroom.shapeshifter.config.Declaration;
 import stroom.shapeshifter.config.EngineVars;
+import stroom.shapeshifter.config.MatchExpression;
 import stroom.shapeshifter.config.OutputNode;
+import stroom.shapeshifter.config.OutputNode.ApplyTemplates;
 import stroom.shapeshifter.config.OutputNode.Choose;
 import stroom.shapeshifter.config.OutputNode.Holder;
 import stroom.shapeshifter.config.OutputNode.Switch;
 import stroom.shapeshifter.config.Template;
 import stroom.shapeshifter.config.Template.ParamDecl;
+import stroom.shapeshifter.shared.ShapeshifterTrace.Frame;
+import stroom.shapeshifter.shared.ShapeshifterTrace.Instruction;
 import stroom.widget.menu.client.presenter.GroupHeading;
 import stroom.widget.menu.client.presenter.IconMenuItem;
 import stroom.widget.menu.client.presenter.Item;
@@ -43,6 +47,7 @@ import com.gwtplatform.mvp.client.View;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -88,7 +93,96 @@ public class BodyPresenter
             body = template.body();
         }
         getView().setEnabled(template != null && !host.isReadOnly());
-        getView().setBody(body);
+        getView().setBody(body, notes(template));
+    }
+
+    /**
+     * The run's annotations, one per top-level card, about one frame of this template: the
+     * cursor when it is an instance of it, else its first match (design 18 §5.6: the strip is
+     * the definition, trace-annotated). Every card gets the hue its output is painted in; a
+     * card that wrote says how much; a dispatch says how many matches it made and leads to
+     * the first, or says that nothing applies into its mode.
+     */
+    private List<CardNote> notes(final Template template) {
+        final TraceModel trace = host.trace();
+        final List<CardNote> notes = new ArrayList<>();
+        if (template == null || trace == null) {
+            return notes;
+        }
+        final long frame = annotationFrame(trace, template);
+        final List<Instruction> wrote = frame < 0
+                ? List.of()
+                : trace.instructions(frame);
+        final List<Frame> children = frame < 0
+                ? List.of()
+                : trace.children(frame);
+        for (int i = 0; i < template.body().size(); i++) {
+            final OutputNode node = template.body().get(i);
+            final StringBuilder text = new StringBuilder();
+            long descendTo = -1;
+            if (node instanceof ApplyTemplates apply) {
+                final String mode = apply.directive().mode();
+                int matches = 0;
+                for (final Frame child : children) {
+                    final Template t = host.template(child.getTemplateId());
+                    if (t != null && Objects.equals(t.mode(), mode)) {
+                        if (matches++ == 0) {
+                            descendTo = child.getId();
+                        }
+                    }
+                }
+                if (!Modes.hasTemplates(host.getProject(), mode)) {
+                    text.append("nothing applies into mode ").append(mode == null
+                            ? "root"
+                            : mode);
+                } else if (frame >= 0) {
+                    text.append(matches == 0
+                            ? "no matches"
+                            : matches + (matches == 1
+                                    ? " match"
+                                    : " matches"));
+                }
+            }
+            for (final Instruction instruction : wrote) {
+                if (instruction.getIndex() == i) {
+                    if (text.length() > 0) {
+                        text.append(" · ");
+                    }
+                    text.append("wrote ").append(instruction.getLength())
+                            .append("EVENTS".equals(instruction.getUnit())
+                                    ? " events"
+                                    : " chars");
+                }
+            }
+            notes.add(new CardNote(cardHue(i), text.length() == 0
+                    ? null
+                    : text.toString(), descendTo));
+        }
+        return notes;
+    }
+
+    /**
+     * The frame the strip is annotated with, or -1: the cursor as an instance of the template,
+     * else its first match; the document, for the template that matches the source, since its
+     * body dispatches the root level and the root's matches are the document's children.
+     */
+    static long annotationFrame(final TraceModel trace, final Template template) {
+        if (template.match() instanceof MatchExpression.Source) {
+            return TraceModel.ROOT;
+        }
+        final Frame cursor = trace.frame(trace.cursorOf());
+        if (cursor != null && cursor.getTemplateId().equals(template.id())) {
+            return cursor.getId();
+        }
+        final List<Frame> matches = trace.matches(template.id());
+        return matches.isEmpty()
+                ? -1
+                : matches.get(0).getId();
+    }
+
+    /** The hue a top-level card's output is painted in, by its position - the same rule the output pane uses. */
+    public static String cardHue(final int index) {
+        return RegexTabPresenter.hue(index);
     }
 
     private void apply(final List<OutputNode> next) {
@@ -117,6 +211,36 @@ public class BodyPresenter
     }
 
     // ---- the cards ----
+
+    @Override
+    public void onDescend(final long frameId) {
+        host.setCursor(frameId);
+    }
+
+    @Override
+    public void onHover(final int index) {
+        final long frame = annotatedFrame();
+        host.hover(index < 0 || frame < 0
+                ? null
+                : Hot.instruction(frame, index));
+    }
+
+    /** An instruction of the annotated frame lights its card. */
+    public void setHot(final Hot hot) {
+        final long frame = annotatedFrame();
+        getView().setHot(hot != null && hot.getKind() == Hot.Kind.INSTRUCTION && frame >= 0
+                         && hot.getFrameId() == frame
+                ? hot.getIndex()
+                : -1);
+    }
+
+    private long annotatedFrame() {
+        final TraceModel trace = host.trace();
+        final Template template = host.template(templateId);
+        return trace == null || template == null
+                ? -1
+                : annotationFrame(trace, template);
+    }
 
     @Override
     public void onEdit(final String path) {
@@ -317,7 +441,11 @@ public class BodyPresenter
 
         void setEnabled(boolean enabled);
 
-        void setBody(List<OutputNode> body);
+        /** The body's cards, with a note per top-level card where the run has one (an empty list before a run). */
+        void setBody(List<OutputNode> body, List<CardNote> notes);
+
+        /** Light a top-level card, or none for -1. */
+        void setHot(int index);
 
         /** Ask for a case value; the answer is null when cancelled. */
         void promptCase(String current, java.util.function.Consumer<String> then);

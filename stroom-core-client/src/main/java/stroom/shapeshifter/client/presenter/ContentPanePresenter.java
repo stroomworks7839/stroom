@@ -92,6 +92,15 @@ public class ContentPanePresenter extends MyPresenterWidget<ContentPaneView> imp
         host.setCursor(frameId);
     }
 
+    @Override
+    public void onHover(final Hot hot) {
+        host.hover(hot);
+    }
+
+    public void setHot(final Hot hot) {
+        getView().setHot(hot);
+    }
+
     public void refresh() {
         if (host == null || editing) {
             return;
@@ -118,7 +127,7 @@ public class ContentPanePresenter extends MyPresenterWidget<ContentPaneView> imp
             if (child.getContentOffset() < 0) {
                 loose.add(new Loose(child.getId(), trace.label(child.getId()), colour, trace.content(child.getId())));
             } else {
-                marks.add(new Mark(Kind.MATCH, child.getId(), child.getContentOffset(),
+                marks.add(new Mark(Kind.MATCH, child.getId(), -1, child.getTemplateId(), child.getContentOffset(),
                         child.getContentOffset() + child.getContentLength(), colour, title));
             }
         }
@@ -138,7 +147,7 @@ public class ContentPanePresenter extends MyPresenterWidget<ContentPaneView> imp
             }
         }
         for (final int at : tried) {
-            marks.add(new Mark(Kind.GAP, -1, at, at, null, "no template matched here"));
+            marks.add(new Mark(Kind.GAP, -1, -1, null, at, at, null, "no template matched here"));
         }
         marks.sort(Mark.OUTER_FIRST);
         getView().showContent(content.length() > RENDER_CAP
@@ -154,12 +163,13 @@ public class ContentPanePresenter extends MyPresenterWidget<ContentPaneView> imp
      * whose content is no slice ends the descent, since nothing under it has a place here.
      */
     private void captureMarks(final TraceModel trace, final long frameId, final int base, final List<Mark> marks) {
-        int hue = 0;
-        for (final Capture capture : trace.captures(frameId)) {
-            final String colour = RegexTabPresenter.hue(hue++);
+        final List<Capture> captures = trace.captures(frameId);
+        for (int i = 0; i < captures.size(); i++) {
+            final Capture capture = captures.get(i);
+            final String colour = RegexTabPresenter.hue(i);
             if (capture.getContentOffset() >= 0) {
                 final Frame frame = trace.frame(frameId);
-                marks.add(new Mark(Kind.CAPTURE, frameId, base + capture.getContentOffset(),
+                marks.add(new Mark(Kind.CAPTURE, frameId, i, null, base + capture.getContentOffset(),
                         base + capture.getContentOffset() + capture.getContentLength(), colour,
                         "$" + capture.getName() + " = " + shortValue(capture.getValue()) + (frame == null
                                 ? ""
@@ -217,6 +227,8 @@ public class ContentPanePresenter extends MyPresenterWidget<ContentPaneView> imp
 
         /** The sample editor; with a sample to go back to, a Cancel. */
         void showEditor(String sample, boolean cancellable);
+
+        void setHot(Hot hot);
 
         void showEmpty(String text);
 

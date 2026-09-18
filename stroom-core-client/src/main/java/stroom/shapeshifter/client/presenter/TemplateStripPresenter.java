@@ -105,13 +105,18 @@ public class TemplateStripPresenter
                 : "mode " + template.mode(),
                 "dispatched from " + dispatchedFrom(project, template) + runNote(template));
         getView().setMatch(Templates.kind(template.match()), Templates.describe(template.match()),
-                guardSummary(template.guard()) + " · " + limitsSummary(template.matchLimits()));
+                guardSummary(template.guard()) + guardVerdict(template) + " · "
+                + limitsSummary(template.matchLimits()));
         getView().setMatchVisible(true);
         bodyPresenter.setTemplate(id);
         getView().setContent(bodyPresenter.getView());
         declarations.setTemplate(id);
         captures.setTemplate(id);
         getView().setDetailsVisible(true);
+    }
+
+    public void setHot(final Hot hot) {
+        bodyPresenter.setHot(hot);
     }
 
     /** After a run, what it made of this template: how many matches, or where it was tried for none. */
@@ -127,11 +132,9 @@ public class TemplateStripPresenter
             return " · not tried in this run";
         }
         if (timing.getMatched() == 0) {
-            return " · no matches · tried " + timing.getAttempts() + " places";
+            return " · no matches · " + Profile.describe(trace, template.id());
         }
-        return " · " + timing.getMatched() + " match" + (timing.getMatched() == 1
-                ? ""
-                : "es") + " · " + (timing.getNanos() / 1000) + " µs";
+        return " · " + Profile.describe(trace, template.id());
     }
 
     public String getTemplateId() {
@@ -189,6 +192,34 @@ public class TemplateStripPresenter
             }
         }
         return false;
+    }
+
+    /**
+     * The guard's verdicts from the run (design 18 §5.6): at the cursor, when the cursor's body
+     * dispatched to this template's mode; and over the run, how often it held and was refused.
+     */
+    private String guardVerdict(final Template template) {
+        final TraceModel trace = host.trace();
+        if (template.guard() == null || trace == null) {
+            return "";
+        }
+        final StringBuilder text = new StringBuilder();
+        final Boolean atCursor = trace.guard(trace.cursorOf(), template.id());
+        if (atCursor != null) {
+            text.append(" — ").append(atCursor
+                    ? "held"
+                    : "refused").append(" at ").append(trace.label(trace.cursorOf()));
+        }
+        final int[] counts = trace.guardCounts(template.id());
+        if (counts[0] + counts[1] > 0) {
+            text.append(atCursor == null
+                    ? " — "
+                    : "; ").append("held in ").append(counts[0]).append(", refused in ").append(counts[1])
+                    .append(counts[0] + counts[1] == 1
+                            ? " frame"
+                            : " frames");
+        }
+        return text.toString();
     }
 
     static String guardSummary(final Condition guard) {

@@ -21,4 +21,6 @@ import com.gwtplatform.mvp.client.UiHandlers;
 public interface OutputUiHandlers extends UiHandlers {
 
     void onDescend(long frameId);
+
+    void onHover(Hot hot);
 }

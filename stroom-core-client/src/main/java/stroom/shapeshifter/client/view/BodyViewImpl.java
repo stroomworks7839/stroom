@@ -18,6 +18,7 @@ package stroom.shapeshifter.client.view;
 
 import stroom.shapeshifter.client.presenter.BodyPresenter.BodyView;
 import stroom.shapeshifter.client.presenter.BodyUiHandlers;
+import stroom.shapeshifter.client.presenter.CardNote;
 import stroom.shapeshifter.config.OutputNode;
 
 import com.google.gwt.user.client.Window;
@@ -35,6 +36,7 @@ public class BodyViewImpl extends ViewWithUiHandlers<BodyUiHandlers> implements 
     private final FlowPanel widget = new FlowPanel();
     private final FlowPanel cards = new FlowPanel();
     private boolean enabled = true;
+    private CardList list;
 
     @Inject
     public BodyViewImpl() {
@@ -56,9 +58,17 @@ public class BodyViewImpl extends ViewWithUiHandlers<BodyUiHandlers> implements 
     }
 
     @Override
-    public void setBody(final List<OutputNode> body) {
+    public void setBody(final List<OutputNode> body, final List<CardNote> notes) {
         cards.clear();
-        cards.add(new CardList(new int[0], body, getUiHandlers(), enabled, false));
+        list = new CardList(new int[0], body, notes, getUiHandlers(), enabled, false);
+        cards.add(list);
+    }
+
+    @Override
+    public void setHot(final int index) {
+        if (list != null) {
+            list.setHot(index);
+        }
     }
 
     @Override

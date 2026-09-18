@@ -143,6 +143,22 @@ public class TemplatePanelPresenter
         editSelected();
     }
 
+    @Override
+    public void onHover(final String id) {
+        if (host != null) {
+            host.hover(id == null
+                    ? null
+                    : Hot.template(id));
+        }
+    }
+
+    /** A template, or a frame of one, lights its row. */
+    public void setHot(final Hot hot) {
+        getView().setHot(hot == null || hot.getKind() == Hot.Kind.CAPTURE || hot.getKind() == Hot.Kind.INSTRUCTION
+                ? null
+                : hot.getTemplateId());
+    }
+
     /** Select a template, or the project for null, as if clicked: the root follows through the event. */
     public void select(final String id) {
         select(id, true);
@@ -164,7 +180,9 @@ public class TemplatePanelPresenter
         final List<TemplateRowData> rows = new ArrayList<>();
         rows.add(new TemplateRowData(null, project == null
                 ? "project"
-                : project.name(), null, "transparent", "doc", false));
+                : project.name(), null, "transparent", host.trace() == null
+                ? "doc"
+                : Profile.runTotal(host.trace()), false));
         boolean survives = selected == null;
         if (project != null) {
             // Grouped by mode - the root group first, then modes as they first appear - and in
@@ -181,7 +199,9 @@ public class TemplatePanelPresenter
                 for (final Template template : project.templates()) {
                     if (Objects.equals(template.mode(), mode)) {
                         rows.add(new TemplateRowData(template.id(), template.name(), template.mode(),
-                                host.colour(template.id()), count(trace, template), zero(trace, template)));
+                                host.colour(template.id()), count(trace, template), zero(trace, template),
+                                Profile.share(trace, template.id()), Profile.cost(trace, template.id()),
+                                Profile.describe(trace, template.id())));
                         survives |= template.id().equals(selected);
                     }
                 }
@@ -360,5 +380,8 @@ public class TemplatePanelPresenter
         void setRows(List<TemplateRowData> rows);
 
         void setSelected(String id);
+
+        /** Light a template's row, or none for null. */
+        void setHot(String id);
     }
 }

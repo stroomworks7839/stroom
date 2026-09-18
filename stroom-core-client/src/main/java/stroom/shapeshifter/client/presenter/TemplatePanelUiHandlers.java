@@ -25,4 +25,7 @@ public interface TemplatePanelUiHandlers extends UiHandlers {
 
     /** A row was double-clicked: open it for editing. */
     void onOpen(String id);
+
+    /** The pointer is over a template\'s row, or over none. */
+    void onHover(String id);
 }

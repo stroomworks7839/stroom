@@ -28,6 +28,9 @@ import stroom.shapeshifter.shared.ShapeshifterTrace;
 import stroom.util.client.DelayedUpdate;
 
 import com.google.gwt.core.client.GWT;
+import com.google.gwt.event.dom.client.KeyCodes;
+import com.google.gwt.event.dom.client.KeyDownEvent;
+import com.google.gwt.event.dom.client.KeyDownHandler;
 import com.google.gwt.event.logical.shared.HasValueChangeHandlers;
 import com.google.gwt.event.logical.shared.ValueChangeEvent;
 import com.google.gwt.event.logical.shared.ValueChangeHandler;
@@ -38,6 +41,7 @@ import com.google.web.bindery.event.shared.EventBus;
 import com.gwtplatform.mvp.client.MyPresenterWidget;
 import com.gwtplatform.mvp.client.View;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -94,6 +98,14 @@ public class ShapeshifterDesignPresenter
     private boolean stale;
     private boolean running;
     private boolean runAgain;
+    private Hot hot;
+
+    // Navigation states - (frame, selected template), the two things that make this tab show
+    // something else - recorded on every move the user makes and walked with back and forward;
+    // a new move truncates the forward branch, as a browser's does (design 18 §5.3).
+    private final List<NavState> history = new ArrayList<>();
+    private int historyAt = -1;
+    private boolean walking;
 
     @Inject
     public ShapeshifterDesignPresenter(final EventBus eventBus,
@@ -142,7 +154,143 @@ public class ShapeshifterDesignPresenter
     @Override
     protected void onBind() {
         super.onBind();
-        registerHandler(templatePanel.addValueChangeHandler(event -> onSelect(event.getValue())));
+        registerHandler(templatePanel.addValueChangeHandler(event -> {
+            onSelect(event.getValue());
+            record();
+        }));
+        getView().setKeyHandler(this::onKey);
+    }
+
+    // ---- where I was ----
+
+    private void record() {
+        if (walking) {
+            return;
+        }
+        final NavState state = new NavState(cursor, templatePanel.getSelectedTemplateId());
+        if (historyAt >= 0 && history.get(historyAt).equals(state)) {
+            return;
+        }
+        while (history.size() > historyAt + 1) {
+            history.remove(history.size() - 1);
+        }
+        history.add(state);
+        historyAt = history.size() - 1;
+        crumb.refresh();
+    }
+
+    @Override
+    public boolean canGoBack() {
+        return historyAt > 0;
+    }
+
+    @Override
+    public boolean canGoForward() {
+        return historyAt >= 0 && historyAt < history.size() - 1;
+    }
+
+    @Override
+    public void goBack() {
+        if (canGoBack()) {
+            walk(historyAt - 1);
+        }
+    }
+
+    @Override
+    public void goForward() {
+        if (canGoForward()) {
+            walk(historyAt + 1);
+        }
+    }
+
+    private void walk(final int to) {
+        historyAt = to;
+        final NavState state = history.get(to);
+        walking = true;
+        try {
+            if (trace != null && trace.has(state.frameId)) {
+                cursor = state.frameId;
+                trace.setCursor(cursor);
+            }
+            templatePanel.select(state.templateId);
+            refreshTrace();
+        } finally {
+            walking = false;
+        }
+    }
+
+    /**
+     * The tab's keys (design 18 §5.3, §5.7): Ctrl+Enter runs; Alt+←/→ walk the history, the
+     * convention every browser has taught; Alt+Shift+←/→ step the cursor's template across the
+     * whole input, Ctrl+Alt+←/→ among its siblings, Alt+↑ to the parent, Alt+↓ to the first
+     * child. A card with focus keeps its own Alt+arrows (they stop there).
+     */
+    private void onKey(final KeyDownEvent event) {
+        final int key = event.getNativeKeyCode();
+        if (key == KeyCodes.KEY_ENTER && event.isControlKeyDown()) {
+            event.preventDefault();
+            run();
+            return;
+        }
+        if (!event.isAltKeyDown() || trace == null) {
+            return;
+        }
+        final boolean handled;
+        if (key == KeyCodes.KEY_LEFT || key == KeyCodes.KEY_RIGHT) {
+            final int delta = key == KeyCodes.KEY_LEFT
+                    ? -1
+                    : 1;
+            if (event.isShiftKeyDown()) {
+                crumb.onStep(delta);
+            } else if (event.isControlKeyDown()) {
+                crumb.onSibling(cursor, delta);
+            } else if (delta < 0) {
+                goBack();
+            } else {
+                goForward();
+            }
+            handled = true;
+        } else if (key == KeyCodes.KEY_UP) {
+            if (cursor != TraceModel.ROOT) {
+                setCursor(trace.parent(cursor));
+            }
+            handled = true;
+        } else if (key == KeyCodes.KEY_DOWN) {
+            final List<ShapeshifterTrace.Frame> children = trace.children(cursor);
+            if (!children.isEmpty()) {
+                setCursor(children.get(0).getId());
+            }
+            handled = true;
+        } else {
+            handled = false;
+        }
+        if (handled) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+    }
+
+    /** One place the user has been: the cursor and the selected template. */
+    private static final class NavState {
+
+        private final long frameId;
+        private final String templateId;
+
+        private NavState(final long frameId, final String templateId) {
+            this.frameId = frameId;
+            this.templateId = templateId;
+        }
+
+        @Override
+        public boolean equals(final Object o) {
+            return o instanceof NavState && ((NavState) o).frameId == frameId
+                   && Objects.equals(((NavState) o).templateId, templateId);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(frameId, templateId);
+        }
     }
 
     /**
@@ -298,13 +446,16 @@ public class ShapeshifterDesignPresenter
                 .onSuccess(result -> {
                     running = false;
                     trace = new TraceModel(result);
+                    trace.setCursor(cursor);
                     stale = false;
                     lastMessages = result.getMessages();
                     messages.setMessages(sourceError, lastMessages);
                     if (!trace.has(cursor)) {
                         cursor = TraceModel.ROOT;
+                        trace.setCursor(cursor);
                     }
                     refreshTrace();
+                    record();
                     if (runAgain) {
                         runAgain = false;
                         run();
@@ -343,12 +494,33 @@ public class ShapeshifterDesignPresenter
             return;
         }
         cursor = frameId;
+        trace.setCursor(cursor);
         // A frame selects its template (design 18 §5.1): the strip shows what the cursor is an instance of.
         final ShapeshifterTrace.Frame frame = trace.frame(frameId);
-        templatePanel.select(frame == null
-                ? null
-                : frame.getTemplateId());
+        walking = true;
+        try {
+            templatePanel.select(frame == null
+                    ? null
+                    : frame.getTemplateId());
+        } finally {
+            walking = false;
+        }
         refreshTrace();
+        record();
+    }
+
+    @Override
+    public void hover(final Hot hot) {
+        if (Objects.equals(hot, this.hot)) {
+            return;
+        }
+        this.hot = hot;
+        templatePanel.setHot(hot);
+        crumb.setHot(hot);
+        input.setHot(hot);
+        variables.setHot(hot);
+        output.setHot(hot);
+        strip.setHot(hot);
     }
 
     /** Everything that reads the trace or the cursor, after either changes. */
@@ -443,5 +615,8 @@ public class ShapeshifterDesignPresenter
 
         /** A line above everything, or nothing: the Source tab's syntax error while it has one. */
         void setBanner(String text);
+
+        /** The tab's keys, from wherever in it focus is. */
+        void setKeyHandler(KeyDownHandler handler);
     }
 }

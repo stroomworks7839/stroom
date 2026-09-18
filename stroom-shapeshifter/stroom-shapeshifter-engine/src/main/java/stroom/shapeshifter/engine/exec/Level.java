@@ -133,7 +133,7 @@ final class Level {
         final boolean atCursor = dispatch == Dispatch.STRICT || dispatch == Dispatch.LEXER;
         final int[] counts = new int[templates.length];
 
-        final boolean[] allowed = guards(templates);
+        final boolean[] allowed = guards(templates, depth);
 
         int cursor = from;
 
@@ -314,7 +314,7 @@ final class Level {
         final boolean atCursor = dispatch == Dispatch.STRICT || dispatch == Dispatch.LEXER;
 
         final int[] counts = new int[templates.length];
-        final boolean[] allowed = guards(templates);
+        final boolean[] allowed = guards(templates, 0);
         enterLevel(0, window.consumed());
 
         while (!window.isEmpty()) {
@@ -442,7 +442,7 @@ final class Level {
         long base = inputBase;
 
         final int[] counts = new int[templates.length];
-        final boolean[] allowed = guards(templates);
+        final boolean[] allowed = guards(templates, depth);
 
         boolean matched = true;
         while (length > 0 && matched) {
@@ -514,7 +514,7 @@ final class Level {
                          final ByteSource source) {
         // Guards once on the way in, as every mode (design 27 ruling 11): a guard read after an
         // earlier sibling's match would see that sibling's counters and captures.
-        final boolean[] allowed = guards(templates);
+        final boolean[] allowed = guards(templates, depth);
         for (int i = 0; i < templates.length; i++) {
             if (allowed != null && !allowed[i]) {
                 continue;
@@ -550,7 +550,7 @@ final class Level {
      * when nothing in it is guarded — most levels in most configurations — and which then costs
      * neither the array nor the walk (design 29 §3.1).
      */
-    private boolean[] guards(final CompiledTemplate[] templates) {
+    private boolean[] guards(final CompiledTemplate[] templates, final int depth) {
         boolean any = false;
         for (final CompiledTemplate candidate : templates) {
             if (candidate.guard() != null) {
@@ -567,6 +567,13 @@ final class Level {
             allowed[i] = candidate.guard() == null
                          || Conditions.evaluate(candidate.guard(),
                     MatchResult.empty(), 1, vars);
+        }
+        if (instrument != Instrument.NONE) {
+            for (int i = 0; i < templates.length; i++) {
+                if (templates[i].guard() != null) {
+                    instrument.onGuard(parentFrame(depth), templates[i].template().id(), allowed[i]);
+                }
+            }
         }
         return allowed;
     }
@@ -655,8 +662,13 @@ final class Level {
         enter(candidate);
         bindCaptures(candidate, match, matchCount, frameId, content);
         final long before = out.sink().position();
-        body.body(candidate.body(), match, matchCount, content, out,
-                locateBase, ignoreErrors, depth);
+        if (instrument == Instrument.NONE) {
+            body.body(candidate.body(), match, matchCount, content, out,
+                    locateBase, ignoreErrors, depth);
+        } else {
+            body.watchedBody(candidate.body(), match, matchCount, content, out,
+                    locateBase, ignoreErrors, depth, frameId);
+        }
         exit(candidate);
         instrument.onOutput(frameId, template.id(), matchCount, before, out.sink().position() - before,
                 out.sink().unit());

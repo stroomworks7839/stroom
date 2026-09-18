@@ -54,6 +54,15 @@ public class VariablesPanePresenter extends MyPresenterWidget<VariablesPaneView>
         host.setCursor(frameId);
     }
 
+    @Override
+    public void onHover(final Hot hot) {
+        host.hover(hot);
+    }
+
+    public void setHot(final Hot hot) {
+        getView().setHot(hot);
+    }
+
     public void refresh() {
         final TraceModel trace = host == null
                 ? null
@@ -69,10 +78,11 @@ public class VariablesPanePresenter extends MyPresenterWidget<VariablesPaneView>
             final long id = path.get(i);
             final Frame frame = trace.frame(id);
             final List<Row> rows = new ArrayList<>();
-            int hue = 0;
-            for (final Capture capture : trace.captures(id)) {
-                rows.add(new Row("$" + capture.getName(), capture.getType(), capture.getValue(),
-                        RegexTabPresenter.hue(hue++)));
+            final List<Capture> captures = trace.captures(id);
+            for (int c = 0; c < captures.size(); c++) {
+                final Capture capture = captures.get(c);
+                rows.add(new Row(id, c, "$" + capture.getName(), capture.getType(), capture.getValue(),
+                        RegexTabPresenter.hue(c)));
             }
             final boolean own = id == host.cursor();
             sections.add(new Section(id, own
@@ -125,16 +135,29 @@ public class VariablesPanePresenter extends MyPresenterWidget<VariablesPaneView>
 
     public static final class Row {
 
+        private final long frameId;
+        private final int index;
         private final String name;
         private final String type;
         private final String value;
         private final String colour;
 
-        public Row(final String name, final String type, final String value, final String colour) {
+        public Row(final long frameId, final int index, final String name, final String type, final String value,
+                   final String colour) {
+            this.frameId = frameId;
+            this.index = index;
             this.name = name;
             this.type = type;
             this.value = value;
             this.colour = colour;
+        }
+
+        public long getFrameId() {
+            return frameId;
+        }
+
+        public int getIndex() {
+            return index;
         }
 
         public String getName() {
@@ -158,5 +181,7 @@ public class VariablesPanePresenter extends MyPresenterWidget<VariablesPaneView>
 
         /** The sections innermost first; or, with none, the empty text. */
         void setSections(List<Section> sections, String emptyText);
+
+        void setHot(Hot hot);
     }
 }

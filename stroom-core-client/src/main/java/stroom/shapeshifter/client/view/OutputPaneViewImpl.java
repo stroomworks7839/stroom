@@ -16,6 +16,7 @@
 
 package stroom.shapeshifter.client.view;
 
+import stroom.shapeshifter.client.presenter.Hot;
 import stroom.shapeshifter.client.presenter.Mark;
 import stroom.shapeshifter.client.presenter.OutputPanePresenter.OutputPaneView;
 import stroom.shapeshifter.client.presenter.OutputUiHandlers;
@@ -51,19 +52,27 @@ public class OutputPaneViewImpl extends ViewWithUiHandlers<OutputUiHandlers> imp
     @Inject
     public OutputPaneViewImpl(final Binder binder) {
         widget = binder.createAndBindUi(this);
+        output.getElement().setTabIndex(-1);
         output.addClickHandler(event -> {
             final EventTarget target = event.getNativeEvent().getEventTarget();
-            if (!Element.is(target)) {
-                return;
-            }
-            Element at = Element.as(target);
-            while (at != null && at != output.getElement()) {
-                final String id = at.getAttribute(Marks.FRAME_ATTR);
-                if (id != null && !id.isEmpty()) {
-                    getUiHandlers().onDescend(Long.parseLong(id));
-                    return;
+            if (Element.is(target)) {
+                final long frame = Marks.frameOf(output.getElement(), Element.as(target));
+                if (frame >= 0) {
+                    getUiHandlers().onDescend(frame);
                 }
-                at = at.getParentElement();
+            }
+        });
+        output.addMouseOverHandler(event -> {
+            final EventTarget target = event.getNativeEvent().getEventTarget();
+            getUiHandlers().onHover(Element.is(target)
+                    ? Marks.hotOf(output.getElement(), Element.as(target))
+                    : null);
+        });
+        output.addMouseOutHandler(event -> {
+            // Leaving one span for another inside the block is not leaving the block.
+            final EventTarget to = event.getRelatedTarget();
+            if (to == null || !Element.is(to) || !output.getElement().isOrHasChild(Element.as(to))) {
+                getUiHandlers().onHover(null);
             }
         });
     }
@@ -90,6 +99,11 @@ public class OutputPaneViewImpl extends ViewWithUiHandlers<OutputUiHandlers> imp
                 ? ""
                 : noteText);
         note.setVisible(noteText != null);
+    }
+
+    @Override
+    public void setHot(final Hot hot) {
+        Marks.light(output.getElement(), hot);
     }
 
     public interface Binder extends UiBinder<Widget, OutputPaneViewImpl> {

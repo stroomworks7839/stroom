@@ -470,8 +470,29 @@ shippable.
   converts them, and the content pane paints every capture of the cursor and of every sliced
   frame beneath it in its hue, nested inside the match spans — `Mark` and the `Marks` emitter
   (outer first, straddlers clipped, pinned by `MarksTest`) serve the content and output panes
-  both. Not yet: the body cards' annotations, the guard's verdict, the stream picker, undo,
-  the keyboard moves, and pointing from a variables row to its span.
+  both.
+  **The strip annotated, 2026-09-18:** design 18 §7's asks 8 and 9 — `onGuard` at level
+  entry and `onInstruction` from a watched frame's body run one instruction at a time (the
+  hot loop untouched) — carried by `TraceRecorder`, `TraceChars` and the wire. The strip is
+  annotated with one frame of its template: the cursor when it is an instance, else the
+  first match. Each top-level card carries a swatch in its hue and the run's word — *wrote n
+  chars*, and for a dispatch *n matches* (a click descends to the first) or *no matches* or
+  *nothing applies into mode m* — and the output pane paints each instruction's output in
+  the card's hue with the child matches inside. The guard line says *held at row #2; held in
+  3, refused in 2 frames*.
+  **The hover topology, the heat bars, history and the keys, 2026-09-18:** `Hot` is the one
+  request (frame · capture · instruction · template) the root broadcasts and every surface
+  answers — the content and output blocks by the attributes their marks carry (`data-frame`,
+  `data-tpl`, `data-cap`, `data-instr`; `Marks.light` walks a block's spans once per request),
+  the variables rows, the crumb's segments, the panel's rows, the body's top-level cards —
+  the same outline in the thing's own hue from whichever end it is pointed at (§5.5).
+  `Profile` turns the timings into the panel's heat bars (length the share of attempted
+  time, colour the per-attempt cost against the run's) and the strip's profile line
+  (attempts · matched (rate) · per attempt · total · share), the document row carrying the
+  run's total (§5.8). Navigation states `(frame, template)` are recorded on every move and
+  walked with back and forward at the crumb's head and `Alt+←/→`; the tab's other keys as
+  §5.3 now states them. Not yet: positioned messages, the stream picker, undo, the keyboard
+  moves of cards, child stores and params in the variables pane.
 - **C — stepping.** `SteppingEditor` + registry + `DefaultSteppingEditor` extraction in
   `stroom-core-client`; `SteppingDetail` + `detail` through the store in `stroom-pipeline`;
   the recorder in both elements; `ShapeshifterSteppingEditor`.

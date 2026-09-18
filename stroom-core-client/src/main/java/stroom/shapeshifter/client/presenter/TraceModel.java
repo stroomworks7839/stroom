@@ -20,6 +20,8 @@ import stroom.shapeshifter.shared.ShapeshifterTrace;
 import stroom.shapeshifter.shared.ShapeshifterTrace.Attempt;
 import stroom.shapeshifter.shared.ShapeshifterTrace.Capture;
 import stroom.shapeshifter.shared.ShapeshifterTrace.Frame;
+import stroom.shapeshifter.shared.ShapeshifterTrace.Guard;
+import stroom.shapeshifter.shared.ShapeshifterTrace.Instruction;
 import stroom.shapeshifter.shared.ShapeshifterTrace.OutputSpan;
 import stroom.shapeshifter.shared.ShapeshifterTrace.Timing;
 
@@ -45,8 +47,12 @@ public final class TraceModel {
     private final Map<Long, List<Capture>> captures = new HashMap<>();
     private final Map<Long, OutputSpan> outputs = new HashMap<>();
     private final Map<Long, List<Attempt>> attempts = new HashMap<>();
+    private final Map<Long, Map<String, Boolean>> guards = new HashMap<>();
+    private final Map<String, int[]> guardCounts = new HashMap<>();
+    private final Map<Long, List<Instruction>> instructions = new HashMap<>();
     private final Map<String, Timing> timings = new HashMap<>();
     private final Map<Long, String> contents = new HashMap<>();
+    private long cursor = ROOT;
 
     public TraceModel(final ShapeshifterTrace trace) {
         this.trace = trace;
@@ -64,6 +70,16 @@ public final class TraceModel {
         for (final Attempt attempt : list(trace.getAttempts())) {
             attempts.computeIfAbsent(attempt.getParentFrameId(), k -> new ArrayList<>()).add(attempt);
         }
+        for (final Guard guard : list(trace.getGuards())) {
+            guards.computeIfAbsent(guard.getParentFrameId(), k -> new HashMap<>())
+                    .put(guard.getTemplateId(), guard.isAllowed());
+            guardCounts.computeIfAbsent(guard.getTemplateId(), k -> new int[2])[guard.isAllowed()
+                    ? 0
+                    : 1]++;
+        }
+        for (final Instruction instruction : list(trace.getInstructions())) {
+            instructions.computeIfAbsent(instruction.getFrameId(), k -> new ArrayList<>()).add(instruction);
+        }
         for (final Timing timing : list(trace.getTimings())) {
             timings.put(timing.getTemplateId(), timing);
         }
@@ -73,6 +89,15 @@ public final class TraceModel {
         return list == null
                 ? List.of()
                 : list;
+    }
+
+    /** The cursor as the host last set it; kept here so a reader of the trace can ask which frame is selected. */
+    public long cursorOf() {
+        return cursor;
+    }
+
+    public void setCursor(final long cursor) {
+        this.cursor = cursor;
     }
 
     public ShapeshifterTrace trace() {
@@ -134,6 +159,27 @@ public final class TraceModel {
     /** The attempts made while this frame's body dispatched, in order. */
     public List<Attempt> attempts(final long frameId) {
         return attempts.getOrDefault(frameId, List.of());
+    }
+
+    /** The guard's verdict for a template as this frame's body dispatched, or null when it was not read there. */
+    public Boolean guard(final long parentFrameId, final String templateId) {
+        final Map<String, Boolean> verdicts = guards.get(parentFrameId);
+        return verdicts == null
+                ? null
+                : verdicts.get(templateId);
+    }
+
+    /** How often a template's guard held and was refused over the run: {@code {held, refused}}. */
+    public int[] guardCounts(final String templateId) {
+        final int[] counts = guardCounts.get(templateId);
+        return counts == null
+                ? new int[2]
+                : new int[]{counts[0], counts[1]};
+    }
+
+    /** What each top-level instruction of the frame's body wrote, in execution order. */
+    public List<Instruction> instructions(final long frameId) {
+        return instructions.getOrDefault(frameId, List.of());
     }
 
     public Timing timing(final String templateId) {

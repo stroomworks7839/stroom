@@ -16,11 +16,14 @@
 
 package stroom.shapeshifter.client.view;
 
+import stroom.shapeshifter.client.presenter.Hot;
 import stroom.shapeshifter.client.presenter.VariablesPanePresenter.Row;
 import stroom.shapeshifter.client.presenter.VariablesPanePresenter.Section;
 import stroom.shapeshifter.client.presenter.VariablesPanePresenter.VariablesPaneView;
 import stroom.shapeshifter.client.presenter.VariablesUiHandlers;
 
+import com.google.gwt.event.dom.client.MouseOutEvent;
+import com.google.gwt.event.dom.client.MouseOverEvent;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
 import com.google.gwt.user.client.ui.Anchor;
@@ -31,7 +34,9 @@ import com.google.gwt.user.client.ui.Widget;
 import com.google.inject.Inject;
 import com.gwtplatform.mvp.client.ViewWithUiHandlers;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /** A debugger's variables pane: sections with quiet headings, rows of swatch, name, type badge, value. */
 public class VariablesPaneViewImpl extends ViewWithUiHandlers<VariablesUiHandlers> implements VariablesPaneView {
@@ -42,6 +47,9 @@ public class VariablesPaneViewImpl extends ViewWithUiHandlers<VariablesUiHandler
     FlowPanel body;
     @UiField
     Label empty;
+
+    private final Map<Hot, FlowPanel> lines = new HashMap<>();
+    private FlowPanel lit;
 
     @Inject
     public VariablesPaneViewImpl(final Binder binder) {
@@ -56,6 +64,7 @@ public class VariablesPaneViewImpl extends ViewWithUiHandlers<VariablesUiHandler
     @Override
     public void setSections(final List<Section> sections, final String emptyText) {
         body.clear();
+        lines.clear();
         empty.setText(emptyText == null
                 ? ""
                 : emptyText);
@@ -82,6 +91,10 @@ public class VariablesPaneViewImpl extends ViewWithUiHandlers<VariablesUiHandler
             for (final Row row : section.getRows()) {
                 final FlowPanel line = new FlowPanel();
                 line.addStyleName("ss-var-row");
+                final Hot hot = Hot.capture(row.getFrameId(), row.getIndex());
+                lines.put(hot, line);
+                line.addDomHandler(event -> getUiHandlers().onHover(hot), MouseOverEvent.getType());
+                line.addDomHandler(event -> getUiHandlers().onHover(null), MouseOutEvent.getType());
                 final InlineLabel swatch = new InlineLabel();
                 swatch.addStyleName("ss-swatch ss-swatch--small");
                 swatch.getElement().getStyle().setBackgroundColor(Colours.safe(row.getColour()));
@@ -105,6 +118,20 @@ public class VariablesPaneViewImpl extends ViewWithUiHandlers<VariablesUiHandler
                 panel.add(line);
             }
             body.add(panel);
+        }
+    }
+
+    @Override
+    public void setHot(final Hot hot) {
+        if (lit != null) {
+            lit.removeStyleName(Marks.HOT_CLASS);
+            lit = null;
+        }
+        if (hot != null && hot.getKind() == Hot.Kind.CAPTURE) {
+            lit = lines.get(hot);
+            if (lit != null) {
+                lit.addStyleName(Marks.HOT_CLASS);
+            }
         }
     }
 

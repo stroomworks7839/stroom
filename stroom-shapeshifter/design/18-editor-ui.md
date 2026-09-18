@@ -296,6 +296,13 @@ input, `Alt+↑` parent, `Alt+↓` first child. If hover-reveal still reads as c
 practice, full deletion is the fallback — the counts and keyboard carry the capability.
 (Stroom's stepper uses toolbar buttons; the keyboard bindings are additive.)
 
+*Built 2026-09-18, with one binding settled: this section had given `Alt+←/→` to both
+history (above) and within-parent stepping (here). History keeps it — it is the browser's
+convention, which was the reason for choosing it — and within-parent stepping is
+`Ctrl+Alt+←/→`; `Alt+Shift+←/→`, `Alt+↑`, `Alt+↓` as stated, `Ctrl+Enter` runs. The keys
+are read at the tab's root from wherever in it focus is; the content and output blocks take
+focus when clicked so that they have somewhere to come from.*
+
 ### 5.4 The content renderer — highlights live inside a variable
 
 The old "data pane" survives as something better-founded: **the expanded value renderer
@@ -1156,6 +1163,14 @@ capture and the stepping mount will place all but the root's until the window is
 6. Nice-to-have: `BytePattern.explain()`/`ambiguities()` surfaced as pattern-editor lint.
 7. The capture tint (Q15, §5.3) needs each capture's extent in its frame's content, not
    only its value: `onCapture` with an offset and a length where the bytes are a slice.
+8. The guard's verdict (§5.6): a guard is read once as a level begins, so its verdict is a
+   fact per (frame, template), not per attempt — `onGuard(parentFrameId, templateId,
+   allowed)` at level entry, watched runs only. *Answered 2026-09-18.*
+9. Output attributed to the instruction that wrote it (§5.5, the bottom row's link): the
+   body interpreter's hot loop must not pay, so a watched frame runs its top-level
+   instructions one at a time through the same loop and reports each one's output —
+   `onInstruction(frameId, index, offset, length, unit)`; a holder's branches are the
+   holder's. *Answered 2026-09-18.*
 
 ## 8. Wireframes
 

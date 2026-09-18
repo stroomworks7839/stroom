@@ -19,6 +19,7 @@ package stroom.shapeshifter.client.view;
 import stroom.shapeshifter.client.presenter.ContentPanePresenter.ContentPaneView;
 import stroom.shapeshifter.client.presenter.ContentPanePresenter.Loose;
 import stroom.shapeshifter.client.presenter.ContentPaneUiHandlers;
+import stroom.shapeshifter.client.presenter.Hot;
 import stroom.shapeshifter.client.presenter.Mark;
 
 import com.google.gwt.dom.client.Element;
@@ -68,27 +69,39 @@ public class ContentPaneViewImpl extends ViewWithUiHandlers<ContentPaneUiHandler
     @Inject
     public ContentPaneViewImpl(final Binder binder) {
         widget = binder.createAndBindUi(this);
+        content.getElement().setTabIndex(-1);
         run.addClickHandler(event -> getUiHandlers().onRun(sample.getValue()));
         cancel.addClickHandler(event -> getUiHandlers().onCancel());
         sample.addKeyDownHandler(event -> {
             if (event.getNativeKeyCode() == KeyCodes.KEY_ENTER && event.isControlKeyDown()) {
+                // Runs here, with the text as typed; not again at the tab's root.
                 event.preventDefault();
+                event.stopPropagation();
                 getUiHandlers().onRun(sample.getValue());
             }
         });
         content.addClickHandler(event -> {
             final EventTarget target = event.getNativeEvent().getEventTarget();
-            if (!Element.is(target)) {
-                return;
-            }
-            Element at = Element.as(target);
-            while (at != null && at != content.getElement()) {
-                final String id = at.getAttribute(Marks.FRAME_ATTR);
-                if (id != null && !id.isEmpty()) {
-                    getUiHandlers().onDescend(Long.parseLong(id));
-                    return;
+            if (Element.is(target)) {
+                final long frame = Marks.frameOf(content.getElement(), Element.as(target));
+                if (frame >= 0) {
+                    getUiHandlers().onDescend(frame);
                 }
-                at = at.getParentElement();
+            }
+        });
+        // The pane's own delegated handler, not :hover - a wrapped span loses :hover in the
+        // leading between its lines (the mockup's delegateHover).
+        content.addMouseOverHandler(event -> {
+            final EventTarget target = event.getNativeEvent().getEventTarget();
+            getUiHandlers().onHover(Element.is(target)
+                    ? Marks.hotOf(content.getElement(), Element.as(target))
+                    : null);
+        });
+        content.addMouseOutHandler(event -> {
+            // Leaving one span for another inside the block is not leaving the block.
+            final EventTarget to = event.getRelatedTarget();
+            if (to == null || !Element.is(to) || !content.getElement().isOrHasChild(Element.as(to))) {
+                getUiHandlers().onHover(null);
             }
         });
     }
@@ -137,6 +150,11 @@ public class ContentPaneViewImpl extends ViewWithUiHandlers<ContentPaneUiHandler
                 : noteText);
         note.setVisible(noteText != null);
         show(reader);
+    }
+
+    @Override
+    public void setHot(final Hot hot) {
+        Marks.light(content.getElement(), hot);
     }
 
     private void show(final Widget which) {

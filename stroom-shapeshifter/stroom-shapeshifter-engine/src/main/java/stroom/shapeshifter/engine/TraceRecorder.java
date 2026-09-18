@@ -43,6 +43,8 @@ public final class TraceRecorder implements Instrument {
     private final List<Capture> captures = new ArrayList<>();
     private final List<OutputSpan> outputs = new ArrayList<>();
     private final List<Attempt> attempts = new ArrayList<>();
+    private final List<Guard> guards = new ArrayList<>();
+    private final List<Instruction> instructions = new ArrayList<>();
     private final Map<String, Timing> timings = new LinkedHashMap<>();
     private final Map<Long, byte[]> contents = new LinkedHashMap<>();
     private long attemptsSeen;
@@ -69,6 +71,16 @@ public final class TraceRecorder implements Instrument {
 
     public record OutputSpan(long frameId, String templateId, int matchIndex, long offset, long length,
                              OutputSink.Unit unit) {
+
+    }
+
+    /** A guard's verdict for a template, as a frame's body began dispatching. */
+    public record Guard(long parentFrameId, String templateId, boolean allowed) {
+
+    }
+
+    /** What the top-level instruction at an index of a frame's body wrote. */
+    public record Instruction(long frameId, int index, long offset, long length, OutputSink.Unit unit) {
 
     }
 
@@ -142,6 +154,17 @@ public final class TraceRecorder implements Instrument {
     }
 
     @Override
+    public void onGuard(final long parentFrameId, final String templateId, final boolean allowed) {
+        guards.add(new Guard(parentFrameId, templateId, allowed));
+    }
+
+    @Override
+    public void onInstruction(final long frameId, final int index, final long outputOffset,
+                              final long outputLength, final OutputSink.Unit unit) {
+        instructions.add(new Instruction(frameId, index, outputOffset, outputLength, unit));
+    }
+
+    @Override
     public void onOutput(final long frameId, final String templateId, final int matchIndex,
                          final long outputOffset, final long outputLength, final OutputSink.Unit unit) {
         outputs.add(new OutputSpan(frameId, templateId, matchIndex, outputOffset, outputLength, unit));
@@ -188,6 +211,14 @@ public final class TraceRecorder implements Instrument {
 
     public long attemptsSeen() {
         return attemptsSeen;
+    }
+
+    public List<Guard> guards() {
+        return Collections.unmodifiableList(guards);
+    }
+
+    public List<Instruction> instructions() {
+        return Collections.unmodifiableList(instructions);
     }
 
     public Map<String, Timing> timings() {

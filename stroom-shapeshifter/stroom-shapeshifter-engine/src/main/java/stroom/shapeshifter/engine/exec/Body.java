@@ -214,6 +214,28 @@ final class Body {
         }
     }
 
+    /**
+     * A watched frame's body: the same instructions, run one at a time so that what each wrote
+     * can be reported ({@link Instrument#onInstruction}). Only the top-level instructions are
+     * attributed - what a holder's branches wrote is the holder's - and only a watched run comes
+     * here, so the array an instruction is wrapped in costs nothing anyone measures.
+     */
+    void watchedBody(final CompiledOp[] ops,
+                     final MatchResult match,
+                     final int matchCount,
+                     final TypedValue content,
+                     final Output out,
+                     final long inputBase,
+                     final boolean ignoreErrors,
+                     final int depth,
+                     final long frameId) {
+        for (int i = 0; i < ops.length; i++) {
+            final long before = out.sink().position();
+            body(new CompiledOp[]{ops[i]}, match, matchCount, content, out, inputBase, ignoreErrors, depth);
+            instrument.onInstruction(frameId, i, before, out.sink().position() - before, out.sink().unit());
+        }
+    }
+
     private void choose(final CompiledOp.Choose value,
                         final MatchResult match,
                         final int matchCount,

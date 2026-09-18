@@ -19,6 +19,7 @@ package stroom.shapeshifter.client.view;
 import stroom.shapeshifter.client.presenter.BreadcrumbPresenter.BreadcrumbView;
 import stroom.shapeshifter.client.presenter.BreadcrumbPresenter.Segment;
 import stroom.shapeshifter.client.presenter.BreadcrumbUiHandlers;
+import stroom.shapeshifter.client.presenter.Hot;
 import stroom.svg.client.Preset;
 import stroom.widget.button.client.ButtonPanel;
 import stroom.widget.button.client.ButtonView;
@@ -33,7 +34,9 @@ import com.google.gwt.user.client.ui.Widget;
 import com.google.inject.Inject;
 import com.gwtplatform.mvp.client.ViewWithUiHandlers;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * The crumb as the mockup draws it: name › name › name, each a click, the current one plain;
@@ -44,6 +47,10 @@ public class BreadcrumbViewImpl extends ViewWithUiHandlers<BreadcrumbUiHandlers>
 
     private final Widget widget;
 
+    @UiField
+    Anchor back;
+    @UiField
+    Anchor forward;
     @UiField
     FlowPanel segments;
     @UiField
@@ -61,9 +68,14 @@ public class BreadcrumbViewImpl extends ViewWithUiHandlers<BreadcrumbUiHandlers>
     @UiField
     ButtonPanel buttons;
 
+    private final Map<Long, Anchor> names = new HashMap<>();
+    private Anchor lit;
+
     @Inject
     public BreadcrumbViewImpl(final Binder binder) {
         widget = binder.createAndBindUi(this);
+        back.addClickHandler(event -> getUiHandlers().onHistory(-1));
+        forward.addClickHandler(event -> getUiHandlers().onHistory(1));
         stepPrev.addClickHandler(event -> getUiHandlers().onStep(-1));
         stepNext.addClickHandler(event -> getUiHandlers().onStep(1));
     }
@@ -81,6 +93,7 @@ public class BreadcrumbViewImpl extends ViewWithUiHandlers<BreadcrumbUiHandlers>
     @Override
     public void setSegments(final List<Segment> list) {
         segments.clear();
+        names.clear();
         for (int i = 0; i < list.size(); i++) {
             final Segment segment = list.get(i);
             if (i > 0) {
@@ -99,6 +112,10 @@ public class BreadcrumbViewImpl extends ViewWithUiHandlers<BreadcrumbUiHandlers>
                 name.addStyleName("ss-crumb-name--current");
             }
             name.addClickHandler(event -> getUiHandlers().onSegment(segment.getFrameId()));
+            final Hot hot = Hot.frame(segment.getFrameId(), segment.getTemplateId());
+            name.addMouseOverHandler(event -> getUiHandlers().onHover(hot));
+            name.addMouseOutHandler(event -> getUiHandlers().onHover(null));
+            names.put(segment.getFrameId(), name);
             seg.add(name);
             if (segment.getCount() > 0) {
                 final Anchor prev = arrow("◀", segment.getIndex() > 1);
@@ -132,6 +149,24 @@ public class BreadcrumbViewImpl extends ViewWithUiHandlers<BreadcrumbUiHandlers>
             stepperIndex.setText(index + "/" + count);
             stepPrev.setStyleName("ss-crumb-arrow--off", index <= 1);
             stepNext.setStyleName("ss-crumb-arrow--off", index >= count);
+        }
+    }
+
+    @Override
+    public void setHistory(final boolean canBack, final boolean canForward) {
+        back.setStyleName("ss-crumb-arrow--off", !canBack);
+        forward.setStyleName("ss-crumb-arrow--off", !canForward);
+    }
+
+    @Override
+    public void setHot(final long frameId) {
+        if (lit != null) {
+            lit.removeStyleName(Marks.HOT_CLASS);
+            lit = null;
+        }
+        lit = names.get(frameId);
+        if (lit != null) {
+            lit.addStyleName(Marks.HOT_CLASS);
         }
     }
 

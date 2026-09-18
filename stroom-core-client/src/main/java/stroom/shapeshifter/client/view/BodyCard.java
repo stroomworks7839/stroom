@@ -18,6 +18,7 @@ package stroom.shapeshifter.client.view;
 
 import stroom.shapeshifter.client.presenter.Bodies;
 import stroom.shapeshifter.client.presenter.BodyUiHandlers;
+import stroom.shapeshifter.client.presenter.CardNote;
 import stroom.shapeshifter.client.presenter.Instructions;
 import stroom.shapeshifter.config.OutputNode;
 import stroom.shapeshifter.config.OutputNode.Choose;
@@ -62,22 +63,50 @@ public class BodyCard extends Composite {
     @UiField
     Label remove;
     @UiField
+    Label swatch;
+    @UiField
+    Label note;
+    @UiField
     FlowPanel branches;
 
     private final int[] path;
     private final BodyUiHandlers handlers;
 
     public BodyCard(final int[] listPath, final int index, final OutputNode node, final int count,
-                    final BodyUiHandlers handlers, final boolean enabled) {
+                    final CardNote runNote, final BodyUiHandlers handlers, final boolean enabled,
+                    final boolean topLevel) {
         this.path = Bodies.child(listPath, index);
         this.handlers = handlers;
         initWidget(BINDER.createAndBindUi(this));
+        if (topLevel) {
+            // A top-level card is what the run attributes output to (design 18 §5.5).
+            head.addMouseOverHandler(event -> handlers.onHover(index));
+            head.addMouseOutHandler(event -> handlers.onHover(-1));
+        }
         final String kindName = Instructions.kind(node);
         kind.setText(kindName);
         summary.setText(Instructions.describe(node));
         summary.setTitle(Instructions.describe(node));
         head.setTitle("Click to edit this " + kindName);
         actions.setVisible(enabled);
+        // The run's word on the card (design 18 §5.6): its swatch, what it wrote or dispatched,
+        // and for a dispatch that matched, the first frame - a click on the note descends.
+        swatch.setVisible(runNote != null && runNote.getColour() != null);
+        if (runNote != null && runNote.getColour() != null) {
+            swatch.getElement().getStyle().setBackgroundColor(Colours.safe(runNote.getColour()));
+        }
+        note.setVisible(runNote != null && runNote.getText() != null);
+        if (runNote != null && runNote.getText() != null) {
+            note.setText(runNote.getText());
+            if (runNote.getDescendTo() >= 0) {
+                note.addStyleName("ss-card-note--link");
+                note.setTitle("Descend to the first match");
+                note.addClickHandler((ClickEvent e) -> {
+                    e.stopPropagation();
+                    handlers.onDescend(runNote.getDescendTo());
+                });
+            }
+        }
         up.setVisible(index > 0);
         down.setVisible(index < count - 1);
         if (node instanceof Holder holder) {
@@ -94,6 +123,14 @@ public class BodyCard extends Composite {
                 addBranch.addClickHandler((ClickEvent e) -> handlers.onAddBranch(Bodies.path(path)));
                 branches.add(addBranch);
             }
+        }
+    }
+
+    public void setHot(final boolean hot) {
+        if (hot) {
+            head.addStyleName(Marks.HOT_CLASS);
+        } else {
+            head.removeStyleName(Marks.HOT_CLASS);
         }
     }
 
@@ -157,7 +194,7 @@ public class BodyCard extends Composite {
                 panel.add(headLine);
             }
             final int[] listPath = Bodies.branch(Bodies.parent(path), path[path.length - 1], branch);
-            panel.add(new CardList(listPath, cards, handlers, enabled, true));
+            panel.add(new CardList(listPath, cards, List.of(), handlers, enabled, true));
             initWidget(panel);
         }
     }

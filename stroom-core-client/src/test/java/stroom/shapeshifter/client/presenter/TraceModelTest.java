@@ -20,6 +20,8 @@ import stroom.shapeshifter.shared.ShapeshifterTrace;
 import stroom.shapeshifter.shared.ShapeshifterTrace.Attempt;
 import stroom.shapeshifter.shared.ShapeshifterTrace.Capture;
 import stroom.shapeshifter.shared.ShapeshifterTrace.Frame;
+import stroom.shapeshifter.shared.ShapeshifterTrace.Guard;
+import stroom.shapeshifter.shared.ShapeshifterTrace.Instruction;
 import stroom.shapeshifter.shared.ShapeshifterTrace.OutputSpan;
 import stroom.shapeshifter.shared.ShapeshifterTrace.Timing;
 
@@ -45,6 +47,8 @@ class TraceModelTest {
                 List.of(new Capture(3, "n", "22", "integer", 0, 2)),
                 List.of(new OutputSpan(1, 0, 4, "BYTES"), new OutputSpan(2, 4, 4, "BYTES")),
                 List.of(new Attempt(0, "row", true, 0, 0, 1), new Attempt(2, "field", false, 4, 0, 1)),
+                List.of(new Guard(0, "row", true), new Guard(2, "field", false)),
+                List.of(new Instruction(2, 0, 4, 4, "BYTES")),
                 2,
                 List.of(new Timing("row", 3, 2, 10)),
                 List.of(),
@@ -89,13 +93,20 @@ class TraceModelTest {
         assertThat(model.timing("row").getMatched()).isEqualTo(2);
         assertThat(model.timing("field")).isNull();
         assertThat(model.has(9)).isFalse();
+        assertThat(model.guard(2, "field")).isFalse();
+        assertThat(model.guard(0, "row")).isTrue();
+        assertThat(model.guard(0, "field")).isNull();
+        assertThat(model.guardCounts("row")).containsExactly(1, 0);
+        assertThat(model.guardCounts("field")).containsExactly(0, 1);
+        assertThat(model.guardCounts("none")).containsExactly(0, 0);
+        assertThat(model.instructions(2)).extracting(Instruction::getIndex).containsExactly(0);
     }
 
     @Test
     void sliceBeyondTheParentIsClampedNotThrown() {
         final TraceModel model = new TraceModel(new ShapeshifterTrace(true, "ab", "", List.of(
                 new Frame(1, 0, "t", "t", 1, 1, 0, 2, 1, 50, null)),
-                List.of(), List.of(), List.of(), 0, List.of(), List.of(), 0));
+                List.of(), List.of(), List.of(), List.of(), List.of(), 0, List.of(), List.of(), 0));
         assertThat(model.content(1)).isEqualTo("b");
     }
 }

@@ -19,6 +19,7 @@ package stroom.shapeshifter.client.presenter;
 import stroom.shapeshifter.client.presenter.Mark.Kind;
 import stroom.shapeshifter.client.presenter.OutputPanePresenter.OutputPaneView;
 import stroom.shapeshifter.shared.ShapeshifterTrace.Frame;
+import stroom.shapeshifter.shared.ShapeshifterTrace.Instruction;
 import stroom.shapeshifter.shared.ShapeshifterTrace.OutputSpan;
 
 import com.google.inject.Inject;
@@ -57,6 +58,15 @@ public class OutputPanePresenter extends MyPresenterWidget<OutputPaneView> imple
         host.setCursor(frameId);
     }
 
+    @Override
+    public void onHover(final Hot hot) {
+        host.hover(hot);
+    }
+
+    public void setHot(final Hot hot) {
+        getView().setHot(hot);
+    }
+
     public void refresh() {
         final TraceModel trace = host == null
                 ? null
@@ -75,10 +85,22 @@ public class OutputPanePresenter extends MyPresenterWidget<OutputPaneView> imple
         if (own != null && !"EVENTS".equals(own.getUnit())) {
             final int from = (int) own.getOffset();
             final int to = (int) (own.getOffset() + own.getLength());
-            marks.add(new Mark(Kind.OWN, cursor, from, to, null, "written by " + trace.label(cursor)));
+            marks.add(new Mark(Kind.OWN, cursor, -1, null, from, to, null, "written by " + trace.label(cursor)));
             // Dimmed as marks of its own: an opacity on the pane could not be undone inside it.
-            marks.add(new Mark(Kind.DIM, cursor, 0, from, null, null));
-            marks.add(new Mark(Kind.DIM, cursor, to, output.length(), null, null));
+            marks.add(new Mark(Kind.DIM, cursor, -1, null, 0, from, null, null));
+            marks.add(new Mark(Kind.DIM, cursor, -1, null, to, output.length(), null, null));
+        }
+        // Coloured by the body card that wrote it (design 18 §5.5): each top-level instruction's
+        // output in its card's hue, the children's matches inside.
+        for (final Instruction instruction : trace.instructions(cursor)) {
+            if ("EVENTS".equals(instruction.getUnit())) {
+                events = true;
+                continue;
+            }
+            marks.add(new Mark(Kind.INSTRUCTION, cursor, instruction.getIndex(), null, (int) instruction.getOffset(),
+                    (int) (instruction.getOffset() + instruction.getLength()),
+                    BodyPresenter.cardHue(instruction.getIndex()),
+                    "written by instruction " + (instruction.getIndex() + 1) + " of " + trace.label(cursor)));
         }
         for (final Frame child : trace.children(cursor)) {
             final OutputSpan span = trace.output(child.getId());
@@ -89,7 +111,7 @@ public class OutputPanePresenter extends MyPresenterWidget<OutputPaneView> imple
                 events = true;
                 continue;
             }
-            marks.add(new Mark(Kind.MATCH, child.getId(), (int) span.getOffset(),
+            marks.add(new Mark(Kind.MATCH, child.getId(), -1, child.getTemplateId(), (int) span.getOffset(),
                     (int) (span.getOffset() + span.getLength()), host.colour(child.getTemplateId()),
                     child.getTemplateName() + " #" + child.getMatchIndex() + " — click to descend"));
         }
@@ -102,6 +124,8 @@ public class OutputPanePresenter extends MyPresenterWidget<OutputPaneView> imple
     public interface OutputPaneView extends View, HasUiHandlers<OutputUiHandlers> {
 
         void showEmpty(String text);
+
+        void setHot(Hot hot);
 
         /** The output with its marks, outer first - the cursor's own extent, the children's - and a note or null. */
         void showOutput(String output, List<Mark> marks, String note);
