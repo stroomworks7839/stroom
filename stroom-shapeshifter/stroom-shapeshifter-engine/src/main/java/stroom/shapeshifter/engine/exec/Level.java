@@ -666,8 +666,11 @@ final class Level {
             body.body(candidate.body(), match, matchCount, content, out,
                     locateBase, ignoreErrors, depth);
         } else {
+            final long outer = currentFrame;
+            currentFrame = frameId;
             body.watchedBody(candidate.body(), match, matchCount, content, out,
                     locateBase, ignoreErrors, depth, frameId);
+            currentFrame = outer;
         }
         exit(candidate);
         instrument.onOutput(frameId, template.id(), matchCount, before, out.sink().position() - before,
@@ -688,6 +691,13 @@ final class Level {
             frameContentStart = Arrays.copyOf(frameContentStart, size);
         }
         levelLocatable[depth] = inputBase < Instrument.UNLOCATABLE;
+    }
+
+    /** The innermost frame whose body is running, for a watched run's messages; the document otherwise. */
+    private long currentFrame = Instrument.ROOT_FRAME;
+
+    long currentFrame() {
+        return currentFrame;
     }
 
     private long openFrame(final int depth, final TypedValue content) {

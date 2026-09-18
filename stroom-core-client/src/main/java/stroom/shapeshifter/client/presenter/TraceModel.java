@@ -16,6 +16,7 @@
 
 package stroom.shapeshifter.client.presenter;
 
+import stroom.shapeshifter.shared.ShapeshifterMessage;
 import stroom.shapeshifter.shared.ShapeshifterTrace;
 import stroom.shapeshifter.shared.ShapeshifterTrace.Attempt;
 import stroom.shapeshifter.shared.ShapeshifterTrace.Capture;
@@ -49,6 +50,10 @@ public final class TraceModel {
     private final Map<Long, List<Attempt>> attempts = new HashMap<>();
     private final Map<Long, Map<String, Boolean>> guards = new HashMap<>();
     private final Map<String, int[]> guardCounts = new HashMap<>();
+    private final Map<Long, List<ShapeshifterMessage>> messages = new HashMap<>();
+    private final Map<Long, Integer> worstHere = new HashMap<>();
+    private final Map<Long, Integer> worstBelow = new HashMap<>();
+    private final Map<String, Integer> worstOfTemplate = new HashMap<>();
     private final Map<Long, List<Instruction>> instructions = new HashMap<>();
     private final Map<String, Timing> timings = new HashMap<>();
     private final Map<Long, String> contents = new HashMap<>();
@@ -83,6 +88,70 @@ public final class TraceModel {
         for (final Timing timing : list(trace.getTimings())) {
             timings.put(timing.getTemplateId(), timing);
         }
+        // A message's severity is its frame's and its frame's template's, and every ancestor's
+        // "below": a document frame showing a row in red is showing that something under it
+        // went wrong (design 18 §5.8). The ancestors' templates are not tinted - a field's
+        // error is the field template's, not the row's.
+        for (final ShapeshifterMessage message : list(trace.getMessages())) {
+            if (message.getFrameId() == ShapeshifterMessage.NO_FRAME) {
+                continue;
+            }
+            messages.computeIfAbsent(message.getFrameId(), k -> new ArrayList<>()).add(message);
+            final int rank = rank(message.getSeverity());
+            worstHere.merge(message.getFrameId(), rank, Math::max);
+            final Frame said = byId.get(message.getFrameId());
+            if (said != null) {
+                worstOfTemplate.merge(said.getTemplateId(), rank, Math::max);
+            }
+            long at = message.getFrameId();
+            while (true) {
+                worstBelow.merge(at, rank, Math::max);
+                final Frame frame = byId.get(at);
+                if (frame == null) {
+                    break;
+                }
+                at = frame.getParentId();
+            }
+        }
+    }
+
+    /** Severity as the engine spells it, ranked: 0 none, 1 info, 2 warning, 3 error, 4 fatal. */
+    public static int rank(final String severity) {
+        if (severity == null) {
+            return 0;
+        }
+        switch (severity.toUpperCase()) {
+            case "INFO":
+                return 1;
+            case "WARNING":
+                return 2;
+            case "ERROR":
+                return 3;
+            case "FATAL":
+                return 4;
+            default:
+                return 0;
+        }
+    }
+
+    /** The messages said in a frame, in order. */
+    public List<ShapeshifterMessage> messages(final long frameId) {
+        return messages.getOrDefault(frameId, List.of());
+    }
+
+    /** The worst severity said in the frame itself, as {@link #rank}. */
+    public int worstHere(final long frameId) {
+        return worstHere.getOrDefault(frameId, 0);
+    }
+
+    /** The worst severity said in the frame or any frame beneath it. */
+    public int worstBelow(final long frameId) {
+        return worstBelow.getOrDefault(frameId, 0);
+    }
+
+    /** The worst severity said in any frame of the template itself. */
+    public int worstOfTemplate(final String templateId) {
+        return worstOfTemplate.getOrDefault(templateId, 0);
     }
 
     private static <T> List<T> list(final List<T> list) {

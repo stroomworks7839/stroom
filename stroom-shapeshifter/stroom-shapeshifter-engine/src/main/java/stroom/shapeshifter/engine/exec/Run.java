@@ -36,7 +36,6 @@ import stroom.shapeshifter.engine.value.TypedValue;
 
 import java.io.InputStream;
 import java.io.UncheckedIOException;
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -57,7 +56,7 @@ public final class Run {
     /** What a prologue or a tail works on: nothing. */
     private static final TypedValue NO_CONTENT = TypedValue.utf8(new byte[0]);
 
-    private final List<Message> messages = new ArrayList<>();
+    private final MessageLog messages;
     /** The functions bound to this run, and what they may reach (design 26). */
     private final FunctionRuntime functions;
 
@@ -82,11 +81,13 @@ public final class Run {
         this.compiled = compiled;
         this.out = Output.of(sink);
         this.encoding = compiled.encoding();
+        this.messages = new MessageLog(instrument);
         this.messages.addAll(compiled.warnings());
         this.functions = new FunctionRuntime(compiled.functions(), mode, services, messages);
         this.body = new Body(compiled, instrument, messages, functions, encoding);
         this.level = body.level();
         this.watched = instrument != Instrument.NONE;
+        this.messages.frames(level::currentFrame);
     }
 
     /**

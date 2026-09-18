@@ -28,15 +28,16 @@ public final class TemplateRowData {
     private final double share;
     private final int cost;
     private final String profile;
+    private final int severity;
 
     public TemplateRowData(final String id, final String name, final String mode, final String colour,
                            final String count, final boolean zero) {
-        this(id, name, mode, colour, count, zero, 0, 0, null);
+        this(id, name, mode, colour, count, zero, 0, 0, null, 0);
     }
 
     public TemplateRowData(final String id, final String name, final String mode, final String colour,
                            final String count, final boolean zero, final double share, final int cost,
-                           final String profile) {
+                           final String profile, final int severity) {
         this.id = id;
         this.name = name;
         this.mode = mode;
@@ -46,6 +47,7 @@ public final class TemplateRowData {
         this.share = share;
         this.cost = cost;
         this.profile = profile;
+        this.severity = severity;
     }
 
     public String getId() {
@@ -83,6 +85,11 @@ public final class TemplateRowData {
     /** The heat bar's colour: per-attempt cost against the run's, 0 cool, 1 warm, 2 hot. */
     public int getCost() {
         return cost;
+    }
+
+    /** The worst thing said in any frame of the template or beneath one, as {@link TraceModel#rank}. */
+    public int getSeverity() {
+        return severity;
     }
 
     /** The numbers behind the bar, for its title; null before a run. */

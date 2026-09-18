@@ -65,9 +65,15 @@ public final class Mark {
     private final int end;
     private final String colour;
     private final String title;
+    private final String flag;
 
     public Mark(final Kind kind, final long frameId, final int index, final String templateId, final int start,
                 final int end, final String colour, final String title) {
+        this(kind, frameId, index, templateId, start, end, colour, title, null);
+    }
+
+    public Mark(final Kind kind, final long frameId, final int index, final String templateId, final int start,
+                final int end, final String colour, final String title, final String flag) {
         this.kind = kind;
         this.frameId = frameId;
         this.index = index;
@@ -76,6 +82,7 @@ public final class Mark {
         this.end = end;
         this.colour = colour;
         this.title = title;
+        this.flag = flag;
     }
 
     public Kind getKind() {
@@ -111,5 +118,27 @@ public final class Mark {
 
     public String getTitle() {
         return title;
+    }
+
+    /**
+     * A word the stylesheet paints the mark by — a severity: {@code warning}, {@code error},
+     * {@code fatal} — or null.
+     */
+    public String getFlag() {
+        return flag;
+    }
+
+    /** The flag for a severity rank, or null below warning. */
+    public static String flagOf(final int rank) {
+        switch (rank) {
+            case 2:
+                return "warning";
+            case 3:
+                return "error";
+            case 4:
+                return "fatal";
+            default:
+                return null;
+        }
     }
 }

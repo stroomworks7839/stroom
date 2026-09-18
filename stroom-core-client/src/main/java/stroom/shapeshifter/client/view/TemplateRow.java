@@ -16,6 +16,7 @@
 
 package stroom.shapeshifter.client.view;
 
+import stroom.shapeshifter.client.presenter.Mark;
 import stroom.shapeshifter.client.presenter.TemplateRowData;
 
 import com.google.gwt.core.client.GWT;
@@ -49,6 +50,8 @@ public class TemplateRow extends Composite {
     @UiField
     Label name;
     @UiField
+    Label flag;
+    @UiField
     Label count;
     @UiField
     FlowPanel heat;
@@ -70,6 +73,15 @@ public class TemplateRow extends Composite {
         count.setText(data.getCount());
         if (data.isZero()) {
             row.addStyleName("ss-tpl-row--zero");
+        }
+        // The severity mark (design 18 §5.8), as stepping colours its pipeline tree: a glyph in
+        // the severity's colour, so it is not colour alone and it survives the row's selection.
+        final String severity = Mark.flagOf(data.getSeverity());
+        flag.setVisible(severity != null);
+        if (severity != null) {
+            flag.setText("▲");
+            flag.addStyleName("ss-flag--" + severity);
+            flag.setTitle("A run said something at " + severity + " level in a match of this template");
         }
         row.setTitle(data.getId() == null
                 ? "The document: its name and source settings"

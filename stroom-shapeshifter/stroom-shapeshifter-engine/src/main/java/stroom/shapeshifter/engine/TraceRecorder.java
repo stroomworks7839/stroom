@@ -45,6 +45,7 @@ public final class TraceRecorder implements Instrument {
     private final List<Attempt> attempts = new ArrayList<>();
     private final List<Guard> guards = new ArrayList<>();
     private final List<Instruction> instructions = new ArrayList<>();
+    private final List<Said> said = new ArrayList<>();
     private final Map<String, Timing> timings = new LinkedHashMap<>();
     private final Map<Long, byte[]> contents = new LinkedHashMap<>();
     private long attemptsSeen;
@@ -71,6 +72,11 @@ public final class TraceRecorder implements Instrument {
 
     public record OutputSpan(long frameId, String templateId, int matchIndex, long offset, long length,
                              OutputSink.Unit unit) {
+
+    }
+
+    /** Something the engine said, in the frame it was in. */
+    public record Said(long frameId, Message message) {
 
     }
 
@@ -154,6 +160,11 @@ public final class TraceRecorder implements Instrument {
     }
 
     @Override
+    public void onMessage(final long frameId, final Message message) {
+        said.add(new Said(frameId, message));
+    }
+
+    @Override
     public void onGuard(final long parentFrameId, final String templateId, final boolean allowed) {
         guards.add(new Guard(parentFrameId, templateId, allowed));
     }
@@ -211,6 +222,11 @@ public final class TraceRecorder implements Instrument {
 
     public long attemptsSeen() {
         return attemptsSeen;
+    }
+
+    /** Every message of the run in order, each with its frame. */
+    public List<Said> said() {
+        return Collections.unmodifiableList(said);
     }
 
     public List<Guard> guards() {

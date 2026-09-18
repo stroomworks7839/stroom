@@ -160,6 +160,16 @@ public interface Instrument {
     }
 
     /**
+     * Something the engine said, and the frame it was in when it said it: the innermost frame
+     * whose body was running, {@link #ROOT_FRAME} at the root level and before any match. The
+     * message itself is unchanged - the goldens pin its shape - so a watched run attributes it
+     * here instead (design 18 §5.8: a message marked in the owning frame, and its severity on
+     * the owning template's row).
+     */
+    default void onMessage(final long frameId, final Message message) {
+    }
+
+    /**
      * A frame's content, when it is not a slice of its parent's: it came from a variable rather
      * than the input, so nothing could find it by offset (G2). Follows the frame's
      * {@link #onMatch}.

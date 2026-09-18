@@ -155,10 +155,8 @@ class ShapeshifterResourceImpl implements ShapeshifterResource {
         final CompiledProject compiled;
         try {
             final Project project = ProjectReader.read(request.getProject());
+            // The compile's warnings are the run's first messages: the run says them again.
             compiled = Shapeshifter.compile(project, functionLibraryProvider.get().registry());
-            for (final Message warning : compiled.warnings()) {
-                messages.add(message(warning.severity(), warning.text()));
-            }
         } catch (final ConfigException e) {
             messages.add(message(Severity.FATAL, e.getMessage()));
             return new ShapeshifterTrace(false, sample, null, List.of(), List.of(), List.of(), List.of(), List.of(),
@@ -168,10 +166,12 @@ class ShapeshifterResourceImpl implements ShapeshifterResource {
         final ByteArrayOutputStream out = new ByteArrayOutputStream();
         final byte[] input = sample.getBytes(StandardCharsets.UTF_8);
         final long started = System.nanoTime();
-        final List<Message> runMessages = Shapeshifter.runWhole(compiled, input, new XmlByteSink(out), recorder);
+        Shapeshifter.runWhole(compiled, input, new XmlByteSink(out), recorder);
         final long runNanos = System.nanoTime() - started;
-        for (final Message m : runMessages) {
-            messages.add(message(m.severity(), m.text()));
+        // Every message of the run, in order, with the frame it was said in.
+        for (final TraceRecorder.Said said : recorder.said()) {
+            messages.add(new ShapeshifterMessage(said.message().severity().name(), said.message().text(),
+                    said.frameId()));
         }
         // The client holds strings: every offset crosses the wire in characters (TraceChars).
         final TraceChars chars = new TraceChars(recorder, input, out.toByteArray());

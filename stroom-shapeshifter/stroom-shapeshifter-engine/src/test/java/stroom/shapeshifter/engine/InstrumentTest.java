@@ -61,6 +61,10 @@ class InstrumentTest {
 
     }
 
+    private record SaidIn(long frame, String text) {
+
+    }
+
     private record Output(int index, long offset, long length) {
 
     }
@@ -82,6 +86,7 @@ class InstrumentTest {
         private final List<Placed> placed = new ArrayList<>();
         private final List<Verdict> verdicts = new ArrayList<>();
         private final List<Wrote> wrote = new ArrayList<>();
+        private final List<SaidIn> said = new ArrayList<>();
         private final List<Long> contentFrames = new ArrayList<>();
         private final List<Long> closed = new ArrayList<>();
         private final List<Attempt> tried = new ArrayList<>();
@@ -109,6 +114,11 @@ class InstrumentTest {
         public void onMatchContent(final long frameId, final byte[] content) {
             unlocatable.add(content);
             contentFrames.add(frameId);
+        }
+
+        @Override
+        public void onMessage(final long frameId, final Message message) {
+            said.add(new SaidIn(frameId, message.text()));
         }
 
         @Override
@@ -553,6 +563,35 @@ class InstrumentTest {
         assertThat(row.offset()).isEqualTo(first.offset());
         assertThat(row.length()).isEqualTo(first.length() + second.length());
         assertThat(out.toString(StandardCharsets.UTF_8)).contains("defg");
+    }
+
+    @Test
+    void messagesAreSaidInTheFrameThatWasOpen() {
+        // The row's body emits an error from inside the row's frame; the document's own
+        // complaint that not everything matched is said at the root, after the frames closed.
+        final Recorder recorder = new Recorder();
+        Shapeshifter.runWhole(Shapeshifter.compile(ProjectReader.read("""
+                        {
+                          "name": "said", "version": 3,
+                          "source": {"buffer_size": 2000, "ignore_errors": false, "encoding": "utf-8"},
+                          "templates": [
+                            {"id": "00000000-0000-0000-0000-000000000001", "name": "source",
+                             "match": "source",
+                             "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
+                                                           "mode": "row"}}]},
+                            {"id": "00000000-0000-0000-0000-000000000002", "name": "row", "mode": "row",
+                             "match": {"regex": {"pattern": "[a-z]+\\n"}},
+                             "body": [{"emit-error": {"severity": "warning",
+                                                      "message": {"parts": [{"text": "said in a row"}]}}}]}
+                          ]
+                        }
+                        """)),
+                "ab\n12\n".getBytes(StandardCharsets.UTF_8),
+                new XmlByteSink(new ByteArrayOutputStream()), recorder);
+        assertThat(recorder.said).extracting(SaidIn::frame).startsWith(1L);
+        assertThat(recorder.said.get(0).text()).isEqualTo("said in a row");
+        assertThat(recorder.said).filteredOn(m -> m.text().contains("failed to match all"))
+                .extracting(SaidIn::frame).containsExactly(Instrument.ROOT_FRAME);
     }
 
     @Test

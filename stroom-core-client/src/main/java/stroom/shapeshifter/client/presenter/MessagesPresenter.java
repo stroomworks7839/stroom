@@ -20,6 +20,7 @@ import stroom.data.grid.client.MyDataGrid;
 import stroom.data.grid.client.PagerView;
 import stroom.shapeshifter.shared.ShapeshifterMessage;
 import stroom.util.client.DataGridUtil;
+import stroom.widget.util.client.MultiSelectionModelImpl;
 
 import com.google.gwt.user.cellview.client.Column;
 import com.google.inject.Inject;
@@ -28,6 +29,7 @@ import com.gwtplatform.mvp.client.MyPresenterWidget;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.LongConsumer;
 
 /**
  * Design 18 §5.8: the engine's messages about the project as it stands, fed by {@code validate}
@@ -37,12 +39,15 @@ import java.util.List;
 public class MessagesPresenter extends MyPresenterWidget<PagerView> {
 
     private final MyDataGrid<ShapeshifterMessage> dataGrid;
+    private final MultiSelectionModelImpl<ShapeshifterMessage> selectionModel;
+    private LongConsumer onGoTo;
 
     @Inject
     public MessagesPresenter(final EventBus eventBus, final PagerView view) {
         super(eventBus, view);
         dataGrid = new MyDataGrid<>(this);
         dataGrid.setTableName("Messages");
+        selectionModel = dataGrid.addDefaultSelectionModel(false);
         view.setDataWidget(dataGrid);
         // The toolbar shares the pager's bar, so paging is hidden by style rather than the bar by API.
         view.asWidget().addStyleName("shapeshifter-no-paging");
@@ -56,6 +61,23 @@ public class MessagesPresenter extends MyPresenterWidget<PagerView> {
                 .build();
         dataGrid.addAutoResizableColumn(text, "Message", 400);
         setMessages(null, null);
+    }
+
+    @Override
+    protected void onBind() {
+        super.onBind();
+        // A message from a run names its frame: selecting it goes there (design 18 §5.8).
+        registerHandler(selectionModel.addSelectionHandler(event -> {
+            final ShapeshifterMessage selected = selectionModel.getSelected();
+            if (selected != null && selected.getFrameId() != ShapeshifterMessage.NO_FRAME && onGoTo != null) {
+                onGoTo.accept(selected.getFrameId());
+            }
+        }));
+    }
+
+    /** What a selected message's frame does: the root moves the cursor there. */
+    public void setOnGoTo(final LongConsumer onGoTo) {
+        this.onGoTo = onGoTo;
     }
 
     public void setMessages(final String sourceError, final List<ShapeshifterMessage> messages) {

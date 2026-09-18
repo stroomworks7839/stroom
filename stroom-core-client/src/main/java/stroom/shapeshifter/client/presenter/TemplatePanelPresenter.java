@@ -201,7 +201,9 @@ public class TemplatePanelPresenter
                         rows.add(new TemplateRowData(template.id(), template.name(), template.mode(),
                                 host.colour(template.id()), count(trace, template), zero(trace, template),
                                 Profile.share(trace, template.id()), Profile.cost(trace, template.id()),
-                                Profile.describe(trace, template.id())));
+                                Profile.describe(trace, template.id()), trace == null
+                                        ? 0
+                                        : trace.worstOfTemplate(template.id())));
                         survives |= template.id().equals(selected);
                     }
                 }

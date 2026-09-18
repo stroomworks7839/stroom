@@ -1187,3 +1187,30 @@
     visibility: visible;
     font-size: 13px;
 }
+
+/* A message's severity on what it was said in (design 18 §5.8): a match span in the content, a
+   template's row - as stepping colours its pipeline tree. */
+.ss-m.ss-flag--warning {
+    border-bottom-color: #ffb300;
+    border-bottom-style: double;
+}
+
+.ss-m.ss-flag--error,
+.ss-m.ss-flag--fatal {
+    border-bottom-color: #e53935;
+    border-bottom-style: double;
+}
+
+.ss-tpl-flag {
+    font-size: 10px;
+    flex: none;
+}
+
+.ss-tpl-flag.ss-flag--warning {
+    color: #ffb300;
+}
+
+.ss-tpl-flag.ss-flag--error,
+.ss-tpl-flag.ss-flag--fatal {
+    color: #e53935;
+}

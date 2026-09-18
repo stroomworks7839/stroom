@@ -18,6 +18,7 @@ package stroom.shapeshifter.client.presenter;
 
 import stroom.shapeshifter.client.presenter.ContentPanePresenter.ContentPaneView;
 import stroom.shapeshifter.client.presenter.Mark.Kind;
+import stroom.shapeshifter.shared.ShapeshifterMessage;
 import stroom.shapeshifter.shared.ShapeshifterTrace.Attempt;
 import stroom.shapeshifter.shared.ShapeshifterTrace.Capture;
 import stroom.shapeshifter.shared.ShapeshifterTrace.Frame;
@@ -123,12 +124,16 @@ public class ContentPanePresenter extends MyPresenterWidget<ContentPaneView> imp
         final List<Loose> loose = new ArrayList<>();
         for (final Frame child : trace.children(cursor)) {
             final String colour = host.colour(child.getTemplateId());
-            final String title = child.getTemplateName() + " #" + child.getMatchIndex() + " — click to descend";
+            final int worst = trace.worstBelow(child.getId());
+            final String title = child.getTemplateName() + " #" + child.getMatchIndex() + " — click to descend"
+                                 + (worst == 0
+                    ? ""
+                    : " · " + messageNote(trace, child.getId()));
             if (child.getContentOffset() < 0) {
                 loose.add(new Loose(child.getId(), trace.label(child.getId()), colour, trace.content(child.getId())));
             } else {
                 marks.add(new Mark(Kind.MATCH, child.getId(), -1, child.getTemplateId(), child.getContentOffset(),
-                        child.getContentOffset() + child.getContentLength(), colour, title));
+                        child.getContentOffset() + child.getContentLength(), colour, title, Mark.flagOf(worst)));
             }
         }
         captureMarks(trace, cursor, 0, marks);
@@ -155,6 +160,17 @@ public class ContentPanePresenter extends MyPresenterWidget<ContentPaneView> imp
                 : content, marks, loose, content.length() > RENDER_CAP
                 ? "showing the first " + RENDER_CAP + " of " + content.length() + " characters"
                 : null);
+    }
+
+    /** What the messages under a frame say, for a title: the first one's text, and how many more. */
+    private static String messageNote(final TraceModel trace, final long frameId) {
+        final List<ShapeshifterMessage> own = trace.messages(frameId);
+        if (!own.isEmpty()) {
+            return own.get(0).getText() + (own.size() > 1
+                    ? " (+" + (own.size() - 1) + ")"
+                    : "");
+        }
+        return "a message beneath — descend to see it";
     }
 
     /**

@@ -138,6 +138,7 @@ public class ShapeshifterDesignPresenter
         workbench.setOnClose(this::closeWorkbench);
         crumb.setHost(this);
         crumb.setOnSample(input::editSample);
+        messages.setOnGoTo(this::setCursor);
         input.setHost(this);
         variables.setHost(this);
         output.setHost(this);

@@ -1171,6 +1171,11 @@ capture and the stepping mount will place all but the root's until the window is
    instructions one at a time through the same loop and reports each one's output —
    `onInstruction(frameId, index, offset, length, unit)`; a holder's branches are the
    holder's. *Answered 2026-09-18.*
+10. A message's place (§5.8): `Message` carries no position and the goldens pin its shape,
+   so a watched run attributes each message to the frame whose body was running when it was
+   said — `onMessage(frameId, message)`, from the run's message log as each is added, the
+   root frame outside any match. Frame granularity, not offset: the marks are on the frame's
+   match span and its template's row. *Answered 2026-09-18.*
 
 ## 8. Wireframes
 

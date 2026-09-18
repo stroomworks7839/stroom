@@ -17,6 +17,7 @@
 package stroom.shapeshifter.pipeline;
 
 import stroom.shapeshifter.shared.ShapeshifterLibrary;
+import stroom.shapeshifter.shared.ShapeshifterMessage;
 import stroom.shapeshifter.shared.ShapeshifterPatternInfo;
 import stroom.shapeshifter.shared.ShapeshifterPatternRequest;
 import stroom.shapeshifter.shared.ShapeshifterPreviewRequest;
@@ -174,6 +175,17 @@ class ShapeshifterResourceEndpointsTest {
             assertThat(trace.getOutput().substring((int) span.getOffset(), (int) (span.getOffset() + span.getLength())))
                     .isNotEmpty();
         }
+    }
+
+    @Test
+    void previewMessagesNameTheirFrameAndAreSaidOnce() {
+        // "12" matches no row, so the document complains once, at the root frame; the compile's
+        // warnings (none here) would come first and not twice.
+        final ShapeshifterTrace trace = resource.preview(new ShapeshifterPreviewRequest(PROJECT, "ab\n12\n"));
+        assertThat(trace.isCompiled()).isTrue();
+        assertThat(trace.getMessages()).extracting(ShapeshifterMessage::getFrameId).containsExactly(0L);
+        assertThat(trace.getMessages().get(0).getText()).contains("failed to match all");
+        assertThat(trace.getMessages().get(0).getSeverity()).isEqualTo("ERROR");
     }
 
     private static final String PROJECT_UTF8 = PROJECT.replace("[a-z]+", "[^\\\\n]+");

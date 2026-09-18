@@ -491,8 +491,16 @@ shippable.
   (attempts · matched (rate) · per attempt · total · share), the document row carrying the
   run's total (§5.8). Navigation states `(frame, template)` are recorded on every move and
   walked with back and forward at the crumb's head and `Alt+←/→`; the tab's other keys as
-  §5.3 now states them. Not yet: positioned messages, the stream picker, undo, the keyboard
-  moves of cards, child stores and params in the variables pane.
+  §5.3 now states them.
+  **Messages placed, 2026-09-18:** design 18 §7's ask 10 — `onMessage` from the run's message
+  log (`MessageLog`, the list every part of the run adds to) with the frame open at the time;
+  the preview's messages now come from the recorder, once (the compile's warnings had been
+  added twice). `TraceModel` ranks each frame's worst severity, and every ancestor's "below",
+  and each template's; a child match whose subtree said something is flagged in the content
+  (a double rule in the severity's colour, the message in its title), the template's row is
+  tinted, and selecting a message in the grid moves the cursor to its frame. Not yet: the
+  stream picker, undo, the keyboard moves of cards, child stores and params in the variables
+  pane.
 - **C — stepping.** `SteppingEditor` + registry + `DefaultSteppingEditor` extraction in
   `stroom-core-client`; `SteppingDetail` + `detail` through the store in `stroom-pipeline`;
   the recorder in both elements; `ShapeshifterSteppingEditor`.

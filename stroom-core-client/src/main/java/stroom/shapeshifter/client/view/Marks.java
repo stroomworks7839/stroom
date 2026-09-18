@@ -170,6 +170,9 @@ final class Marks {
             case INSTRUCTION -> tag.append("ss-o-instr");
             case DIM -> tag.append("ss-o-dim");
         }
+        if (mark.getFlag() != null) {
+            tag.append(" ss-flag ss-flag--").append(mark.getFlag());
+        }
         tag.append('"');
         switch (mark.getKind()) {
             case MATCH -> tag.append(' ').append(FRAME_ATTR).append("=\"").append(mark.getFrameId()).append('"')

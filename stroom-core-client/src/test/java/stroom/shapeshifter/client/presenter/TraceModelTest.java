@@ -16,6 +16,7 @@
 
 package stroom.shapeshifter.client.presenter;
 
+import stroom.shapeshifter.shared.ShapeshifterMessage;
 import stroom.shapeshifter.shared.ShapeshifterTrace;
 import stroom.shapeshifter.shared.ShapeshifterTrace.Attempt;
 import stroom.shapeshifter.shared.ShapeshifterTrace.Capture;
@@ -51,7 +52,8 @@ class TraceModelTest {
                 List.of(new Instruction(2, 0, 4, 4, "BYTES")),
                 2,
                 List.of(new Timing("row", 3, 2, 10)),
-                List.of(),
+                List.of(new ShapeshifterMessage("WARNING", "odd", 3), new ShapeshifterMessage("ERROR", "bad", 4),
+                        new ShapeshifterMessage("INFO", "compiled", ShapeshifterMessage.NO_FRAME)),
                 20));
     }
 
@@ -100,6 +102,23 @@ class TraceModelTest {
         assertThat(model.guardCounts("field")).containsExactly(0, 1);
         assertThat(model.guardCounts("none")).containsExactly(0, 0);
         assertThat(model.instructions(2)).extracting(Instruction::getIndex).containsExactly(0);
+    }
+
+    @Test
+    void messagesRankTheirFrameAndEveryAncestorAndTheTemplate() {
+        final TraceModel model = model();
+        assertThat(model.messages(3)).hasSize(1);
+        assertThat(model.messages(0)).isEmpty();
+        assertThat(model.worstHere(3)).isEqualTo(2);
+        assertThat(model.worstHere(2)).isEqualTo(0);
+        assertThat(model.worstBelow(2)).isEqualTo(2);
+        assertThat(model.worstBelow(1)).isEqualTo(3);
+        assertThat(model.worstBelow(TraceModel.ROOT)).isEqualTo(3);
+        assertThat(model.worstOfTemplate("row")).isEqualTo(0);
+        assertThat(model.worstOfTemplate("field")).isEqualTo(2);
+        assertThat(model.worstOfTemplate("any")).isEqualTo(3);
+        assertThat(Mark.flagOf(model.worstBelow(1))).isEqualTo("error");
+        assertThat(Mark.flagOf(1)).isNull();
     }
 
     @Test
