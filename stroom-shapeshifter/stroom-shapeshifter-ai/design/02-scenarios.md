@@ -274,8 +274,25 @@ owner's eye:
 
 Also: a fragment step that produced output with errors is now followed, as a pipeline would follow it,
 the errors being the failing records' (design 01 §5); only a step that produced nothing stops the chain.
-Not yet: Approve/Reject on top of the ledger (22), the relearn question carrying the incumbent's
-shortfall as feedback, and everything from scenario 30 on.
+
+The fourth slice, also 2026-09-18, closes the routing table's story: scenario 22 and the relearn
+question. In review mode (A25) `bind` writes the rule as a draft — fragment written, regression records
+kept under the draft's `uuid`, nothing released, the stream itself onto the ledger — and every later
+stream of the shape is the sentinel the catalogue names. `Stage.approve` is the promotion: the rule goes
+live with time and score and the shape's ledger is released as a reprocess request; `Stage.reject`
+drops the rule and its records, leaves its documents, and gives the shape up with the reason so the
+model is not asked again until an operator says otherwise. The case the catalogue leaves implicit is
+covered too: a *relearned* candidate under review is a draft with the incumbent's selector, appended
+behind it so the incumbent keeps matching first and serving; while it waits the shape is neither scored
+nor relearned again; Approve rebinds the incumbent to the draft's fragment, keeping the incumbent's
+`uuid` and folding the draft's regression records into its history, and is refused while the incumbent
+is pinned; Reject leaves the incumbent serving, and gives the shape up so that the same falling score
+does not draft the same candidate again. A draft's regression records are kept however few, since a
+person approving a draft on too few records is §6's exception to A14. The relearn dialogue now opens with why the incumbent fell short — the mark's reason, the
+incumbent's score on the stream, and the failing scorers' diagnostics — as the feedback of every
+question's first asking (`Dialogue.run` with an opening). Approve and Reject are operations on the
+`Stage`; the Routing tab's buttons and the Supervisor view (A28) will call them.
+Not yet: everything from scenario 30 on, and the scorers of §6 item 2 that unlock 4–10.
 
 ## 7. Decisions taken
 

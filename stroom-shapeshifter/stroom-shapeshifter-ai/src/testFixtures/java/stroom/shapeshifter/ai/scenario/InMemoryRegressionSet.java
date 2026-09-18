@@ -33,6 +33,11 @@ public final class InMemoryRegressionSet implements RegressionSet {
     }
 
     @Override
+    public void discard(final String ruleUuid) {
+        accepted.remove(ruleUuid);
+    }
+
+    @Override
     public void accept(final String ruleUuid, final List<Accepted> records, final int cap) {
         final List<Accepted> kept = accepted.computeIfAbsent(ruleUuid, k -> new ArrayList<>());
         kept.addAll(records);

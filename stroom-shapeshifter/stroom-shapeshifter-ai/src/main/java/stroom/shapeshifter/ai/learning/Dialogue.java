@@ -68,6 +68,14 @@ public final class Dialogue {
     }
 
     public Outcome run(final ShapeshifterAiDoc policy, final Sample sample) {
+        return run(policy, sample, List.of());
+    }
+
+    /**
+     * @param opening What the model is told before its first answer — a relearn's account of how the
+     *                incumbent fell short (A29) — carried as the feedback of every question's first asking.
+     */
+    public Outcome run(final ShapeshifterAiDoc policy, final Sample sample, final List<StoredError> opening) {
         final List<Exchange> transcript = new ArrayList<>();
         final List<String> allowed = policy.getAllowedElements().stream()
                 .filter(runners::containsKey)
@@ -76,7 +84,7 @@ public final class Dialogue {
             return abandoned("The document allows no element this dialogue can run: "
                              + policy.getAllowedElements(), List.of(), transcript);
         }
-        final Chosen chosen = chain(policy, allowed, sample, transcript);
+        final Chosen chosen = chain(policy, allowed, sample, opening, transcript);
         if (chosen.chain() == null) {
             return abandoned("No usable chain after " + policy.getMaxAttempts() + " candidates",
                     chosen.refusal(), transcript);
@@ -95,7 +103,7 @@ public final class Dialogue {
                 }
                 chain.add(tried.learned());
             } else {
-                final Tried tried = configure(policy, runner, configured.get(), sample, input, transcript);
+                final Tried tried = configure(policy, runner, configured.get(), sample, input, opening, transcript);
                 if (tried.learned() == null) {
                     return abandoned("No passing configuration for " + elementType + " after "
                                      + policy.getMaxAttempts() + " attempts", tried.diagnostics(), transcript);
@@ -116,12 +124,13 @@ public final class Dialogue {
     private Chosen chain(final ShapeshifterAiDoc policy,
                          final List<String> allowed,
                          final Sample sample,
+                         final List<StoredError> opening,
                          final List<Exchange> transcript) {
         if (allowed.size() == 1) {
             return new Chosen(allowed, List.of());
         }
         final Set<String> allowedSet = new HashSet<>(allowed);
-        List<StoredError> feedback = List.of();
+        List<StoredError> feedback = opening;
         for (int candidate = 0; candidate < policy.getMaxAttempts(); candidate++) {
             final Chain question = new Chain(sample, allowed, feedback);
             final String reply = ask(transcript, question);
@@ -146,9 +155,10 @@ public final class Dialogue {
                             final StepRunner.Configured configured,
                             final Sample sample,
                             final String input,
+                            final List<StoredError> opening,
                             final List<Exchange> transcript) {
         String previous = null;
-        List<StoredError> feedback = List.of();
+        List<StoredError> feedback = opening;
         for (int attempt = 0; attempt < policy.getMaxAttempts(); attempt++) {
             final Configuration question = new Configuration(
                     runner.elementType(), configured.documentType(), sample, input, previous, feedback);

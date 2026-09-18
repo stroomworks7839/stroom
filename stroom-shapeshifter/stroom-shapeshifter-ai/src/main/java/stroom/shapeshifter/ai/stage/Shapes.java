@@ -21,8 +21,9 @@ import java.util.OptionalDouble;
 
 /**
  * The shape rows of ruling A26, one per document and learning-key value: whether the shape is given up
- * and why, whether it is marked for relearning and why, and the rolling per-record score of design 01 §5
- * that decides the mark. In-memory in scenarios; the {@code shapeshifter_shape} table in a node.
+ * and why, whether it is marked for relearning and why, the rolling per-record score of design 01 §5
+ * that decides the mark, and the draft rule awaiting review for it (A25). In-memory in scenarios; the
+ * {@code shapeshifter_shape} table in a node.
  */
 public interface Shapes {
 
@@ -45,7 +46,23 @@ public interface Shapes {
     void markForRelearning(String docUuid, String shape, String reason);
 
     /**
-     * The shape is bound, or unknown again: not given up, not marked, and its rolling score starts afresh.
+     * A draft rule was written for the shape and waits for Approve or Reject (A25).
+     */
+    void awaitReview(String docUuid, String shape, String ruleUuid);
+
+    /**
+     * @return The draft rule awaiting review for the shape, if there is one.
+     */
+    Optional<String> draftAwaiting(String docUuid, String shape);
+
+    /**
+     * @return The shape whose draft this rule is, if it is one.
+     */
+    Optional<String> shapeAwaiting(String docUuid, String ruleUuid);
+
+    /**
+     * The shape is bound, or unknown again: not given up, not marked, nothing awaiting review, and its
+     * rolling score starts afresh.
      */
     void reset(String docUuid, String shape);
 }

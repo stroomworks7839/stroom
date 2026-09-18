@@ -28,7 +28,8 @@ public sealed interface Question {
 
     /**
      * Diagnostics from the previous answer to the same question, if it was refused or failed. Empty the
-     * first time a question is asked.
+     * first time a question is asked — unless the attempt is relearning a bound shape (A29), when the
+     * first asking of each question carries why the incumbent fell short.
      */
     List<StoredError> feedback();
 

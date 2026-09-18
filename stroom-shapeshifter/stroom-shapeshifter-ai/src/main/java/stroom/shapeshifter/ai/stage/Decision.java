@@ -56,6 +56,16 @@ public sealed interface Decision {
     }
 
     /**
+     * The document is in review mode (A25): a candidate that would have been bound is written as a draft
+     * rule the router does not bind, and waits for Approve or Reject. For a new shape the stream is
+     * sentinelled and on the ledger, released when the draft is approved; for a relearned shape the
+     * incumbent served the stream and the draft sits behind it in the table.
+     */
+    record Drafted(RoutingRule rule, double score) implements Decision {
+
+    }
+
+    /**
      * A provisional rule failed the gate once the shape brought enough records to judge it (design 01 §6):
      * the rule is gone from the table, the shape is unknown again, the inputs whose output it produced
      * are requested for reprocessing as-current, and this stream is sentinelled.

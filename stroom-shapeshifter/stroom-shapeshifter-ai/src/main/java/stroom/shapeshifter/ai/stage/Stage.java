@@ -35,6 +35,7 @@ import stroom.shapeshifter.ai.scoring.Scorecard;
 import stroom.shapeshifter.ai.scoring.Scorer;
 import stroom.shapeshifter.ai.scoring.Verdict;
 import stroom.shapeshifter.ai.stage.Decision.Bound;
+import stroom.shapeshifter.ai.stage.Decision.Drafted;
 import stroom.shapeshifter.ai.stage.Decision.GivenUp;
 import stroom.shapeshifter.ai.stage.Decision.Kept;
 import stroom.shapeshifter.ai.stage.Decision.Promoted;
@@ -44,14 +45,19 @@ import stroom.shapeshifter.ai.stage.Decision.Retracted;
 import stroom.shapeshifter.ai.stage.Decision.Sentinel;
 import stroom.shapeshifter.ai.stage.RegressionSet.Accepted;
 import stroom.shapeshifter.shared.LearningMode;
+import stroom.shapeshifter.shared.PromotionMode;
 import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 import stroom.util.shared.DocPath;
+import stroom.util.shared.ElementId;
+import stroom.util.shared.Severity;
+import stroom.util.shared.StoredError;
 
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.UUID;
@@ -68,11 +74,13 @@ import java.util.UUID;
  * Runtime state is what the stage is given (A26): the shape rows, the ledger, the outputs' bindings, the
  * reprocess requests and the regression set. A sentinel is an error and a ledger row (A4); binding a
  * shape releases its ledger as a reprocess request (A12); retracting a provisional rule requests its
- * outputs' inputs the same way (§6).
+ * outputs' inputs the same way (§6). In review mode (A25) a binding is a draft until {@link #approve}
+ * makes it the promotion or {@link #reject} discards it.
  */
 public final class Stage {
 
     private static final String FOLDER = "Shapeshifter";
+    private static final ElementId STAGE = new ElementId("Stage");
 
     private final Advisor advisor;
     private final List<StepRunner> runners;
@@ -217,11 +225,18 @@ public final class Stage {
                     ? promote(doc, shape, rule, input, judged)
                     : retract(doc, shape, rule, input, judged);
         }
-        if (shapes.relearnReason(doc.getUuid(), shape.id()).isPresent()) {
+        if (shapes.draftAwaiting(doc.getUuid(), shape.id()).isPresent()
+            || shapes.reasonGivenUp(doc.getUuid(), shape.id()).isPresent()) {
+            // A relearned candidate waits for a person (A25), or a person rejected one: until they decide
+            // otherwise, the incumbent serves and the shape is not scored against or relearned again.
+            return emit(doc, new Bound(rule), shape, input, rule, judged, List.of());
+        }
+        final Optional<String> marked = shapes.relearnReason(doc.getUuid(), shape.id());
+        if (marked.isPresent()) {
             // Marked: relearned on a stream that can meet A14 for the candidate, once learning is allowed;
             // a smaller stream is served as it stands and the mark waits.
             return enough && doc.getLearningMode() == LearningMode.AUTOMATIC
-                    ? relearn(doc, shape, rule, input, attributes, scorecard, judged)
+                    ? relearn(doc, shape, rule, input, attributes, scorecard, judged, marked.get())
                     : emit(doc, new Bound(rule), shape, input, rule, judged, List.of());
         }
         final OptionalDouble rolling = shapes.scored(doc.getUuid(), shape.id(), judged.score(), judged.records(),
@@ -286,7 +301,8 @@ public final class Stage {
      * incumbent on this stream (A15) and is not worse on any record the rule was accepted on (A18);
      * otherwise the incumbent is kept and nothing is written. Either way the mark is spent and the rolling
      * score starts again, and is not acted on until another memory's worth of records has been seen, so a
-     * shape that cannot be fixed is not relearned on every stream.
+     * shape that cannot be fixed is not relearned on every stream. The model opens with why the incumbent
+     * fell short. In review mode the candidate is a draft behind the incumbent (A25).
      */
     private StageRun relearn(final ShapeshifterAiDoc doc,
                              final Shape shape,
@@ -294,9 +310,15 @@ public final class Stage {
                              final Input input,
                              final Map<String, Object> attributes,
                              final Scorecard scorecard,
-                             final Judged served) {
+                             final Judged served,
+                             final String marked) {
         shapes.reset(doc.getUuid(), shape.id());
-        final Outcome outcome = learn(doc, input, attributes, scorecard);
+        final List<StoredError> opening = new ArrayList<>();
+        opening.add(new StoredError(Severity.ERROR, null, STAGE, "Relearning: " + marked
+                                                                 + ". The bound fragment scored " + served.score()
+                                                                 + " on this stream"));
+        served.verdicts().forEach(verdict -> opening.addAll(verdict.feedback()));
+        final Outcome outcome = learn(doc, input, attributes, scorecard, opening);
         if (outcome instanceof final Abandoned abandoned) {
             return emit(doc, new Kept(incumbent, "No candidate: " + abandoned.reason()), shape, input, incumbent,
                     served, outcome.transcript());
@@ -321,8 +343,27 @@ public final class Stage {
                         served, learned.transcript());
             }
         }
+        final DocRef fragment = write(doc, shape, learned);
+        if (doc.getPromotionMode() == PromotionMode.REVIEW) {
+            // Behind the incumbent, which keeps matching first; Approve rebinds the incumbent to this
+            // fragment and carries the history over.
+            final RoutingRule draft = RoutingRule.builder()
+                    .uuid(UUID.randomUUID().toString())
+                    .expression(incumbent.getExpression())
+                    .pipeline(fragment)
+                    .draft(true)
+                    .score(candidate.score())
+                    .build();
+            final List<RoutingRule> table = new ArrayList<>(doc.getRoutingTable());
+            table.add(draft);
+            regressionSet.accept(draft.getUuid(), List.of(new Accepted(input.data(), candidate.score())),
+                    doc.getRegressionCap());
+            shapes.awaitReview(doc.getUuid(), shape.id(), draft.getUuid());
+            return emit(doc.copy().routingTable(table).build(), new Drafted(draft, candidate.score()), shape, input,
+                    incumbent, served, learned.transcript());
+        }
         final RoutingRule rebound = incumbent.copy()
-                .pipeline(write(doc, shape, learned))
+                .pipeline(fragment)
                 .promotedTimeMs(clock.millis())
                 .score(candidate.score())
                 .build();
@@ -337,7 +378,8 @@ public final class Stage {
      * the shape has enough records for a held-out judgement and provisional otherwise; the shape's ledger
      * released as a reprocess request (A12) — under a provisional rule too, since those inputs are the
      * records the rule is waiting on to meet A14, and its outputs are retracted if it does not; and the
-     * stream's output emitted.
+     * stream's output emitted. In review mode (A25) the rule is a draft instead: the router will not bind
+     * it, nothing is released, and this stream joins the ledger for Approve to release.
      */
     private StageRun bind(final ShapeshifterAiDoc doc,
                           final Shape shape,
@@ -347,12 +389,14 @@ public final class Stage {
                           final Judged judged,
                           final List<Exchange> transcript) {
         final boolean provisional = judged.records() < doc.getMinRecordsPerShape();
+        final boolean draft = doc.getPromotionMode() == PromotionMode.REVIEW;
         final RoutingRule rule = RoutingRule.builder()
                 .uuid(UUID.randomUUID().toString())
                 .expression(selector)
                 .pipeline(fragment)
                 .provisional(provisional)
-                .promotedTimeMs(provisional
+                .draft(draft)
+                .promotedTimeMs(provisional || draft
                         ? null
                         : clock.millis())
                 .score(judged.score())
@@ -361,11 +405,22 @@ public final class Stage {
         // is moot, and an operator's more specific rule above them keeps its precedence.
         final List<RoutingRule> table = new ArrayList<>(doc.getRoutingTable());
         table.add(rule);
-        if (!provisional) {
+        if (!provisional || draft) {
+            // A draft's records go in now, under its uuid, however few: they are what it was judged on
+            // whether or not it is approved — and a person approving it on too few is the A14 exception
+            // design 01 §6 allows them — and Reject takes them out again.
             regressionSet.accept(rule.getUuid(), List.of(new Accepted(input.data(), judged.score())),
                     doc.getRegressionCap());
         }
         shapes.reset(doc.getUuid(), shape.id());
+        if (draft) {
+            shapes.awaitReview(doc.getUuid(), shape.id(), rule.getUuid());
+            ledger.sentinelled(doc.getUuid(), shape.id(), input.id(), "Awaiting review: draft rule " + rule.getUuid()
+                                                                      + " binds " + fragment.getName()
+                                                                      + " for shape " + shape.id());
+            return new StageRun(doc.copy().routingTable(table).build(), new Drafted(rule, judged.score()), shape, null,
+                    null, judged.verdicts(), transcript);
+        }
         final List<Long> released = ledger.release(doc.getUuid(), shape.id());
         if (!released.isEmpty()) {
             reprocessing.request(doc.getUuid(), "Shape " + shape.id() + " bound by rule " + rule.getUuid()
@@ -383,9 +438,105 @@ public final class Stage {
                           final Input input,
                           final Map<String, Object> attributes,
                           final Scorecard scorecard) {
+        return learn(doc, input, attributes, scorecard, List.of());
+    }
+
+    private Outcome learn(final ShapeshifterAiDoc doc,
+                          final Input input,
+                          final Map<String, Object> attributes,
+                          final Scorecard scorecard,
+                          final List<StoredError> opening) {
         final Dialogue dialogue = new Dialogue(advisor, runners, scorecard);
         final Sample sample = Sample.of(learningPrefix(input.data(), doc), doc.getLearningKey(), attributes);
-        return dialogue.run(doc, sample);
+        return dialogue.run(doc, sample, opening);
+    }
+
+    /**
+     * Approve a draft (A25): the promotion. Where an active rule already binds the same selector — the
+     * draft came of relearning — that rule is rebound to the draft's fragment and keeps its {@code uuid}
+     * and its history; otherwise the draft itself goes live. Either way the shape's ledger is released as
+     * a reprocess request (A12).
+     *
+     * @return The document with its routing table rewritten; the caller saves it.
+     */
+    public ShapeshifterAiDoc approve(final ShapeshifterAiDoc doc, final String ruleUuid) {
+        final RoutingRule draft = draft(doc, ruleUuid);
+        final String shape = shapeAwaiting(doc, draft);
+        final List<RoutingRule> table = new ArrayList<>(doc.getRoutingTable());
+        final Optional<RoutingRule> incumbent = incumbentOf(doc, draft);
+        if (incumbent.isPresent()) {
+            if (incumbent.get().isPinned()) {
+                // Design 01 §7.3 rule 2: a pin exempts a rule from rebinding until it is unpinned.
+                throw new IllegalStateException("Rule " + incumbent.get().getUuid() + " is pinned; unpin it before "
+                                                + "approving draft " + ruleUuid + " in its place");
+            }
+            table.set(table.indexOf(incumbent.get()), incumbent.get().copy()
+                    .pipeline(draft.getPipeline())
+                    .provisional(false)
+                    .promotedTimeMs(clock.millis())
+                    .score(draft.getScore())
+                    .build());
+            table.remove(draft);
+            regressionSet.accept(incumbent.get().getUuid(), regressionSet.accepted(draft.getUuid()),
+                    doc.getRegressionCap());
+            regressionSet.discard(draft.getUuid());
+        } else {
+            table.set(table.indexOf(draft), draft.copy()
+                    .draft(false)
+                    .provisional(false)
+                    .promotedTimeMs(clock.millis())
+                    .build());
+        }
+        shapes.reset(doc.getUuid(), shape);
+        final List<Long> released = ledger.release(doc.getUuid(), shape);
+        if (!released.isEmpty()) {
+            reprocessing.request(doc.getUuid(), "Draft rule " + ruleUuid + " approved for shape " + shape, released);
+        }
+        return doc.copy().routingTable(table).build();
+    }
+
+    /**
+     * Reject a draft (A25): the rule goes, with its records; its documents stay, as every document does.
+     * The shape is given up with the reason, so the model is not asked the same question again until an
+     * operator says otherwise: a shape with no rule is sentinelled, and a relearned shape's incumbent
+     * carries on serving without being scored against or relearned.
+     *
+     * @return The document with its routing table rewritten; the caller saves it.
+     */
+    public ShapeshifterAiDoc reject(final ShapeshifterAiDoc doc, final String ruleUuid, final String reason) {
+        final RoutingRule draft = draft(doc, ruleUuid);
+        final String shape = shapeAwaiting(doc, draft);
+        final List<RoutingRule> table = new ArrayList<>(doc.getRoutingTable());
+        table.remove(draft);
+        regressionSet.discard(draft.getUuid());
+        shapes.reset(doc.getUuid(), shape);
+        shapes.giveUp(doc.getUuid(), shape, "Rejected: " + reason);
+        return doc.copy().routingTable(table).build();
+    }
+
+    private static RoutingRule draft(final ShapeshifterAiDoc doc, final String ruleUuid) {
+        return doc.getRoutingTable().stream()
+                .filter(rule -> ruleUuid.equals(rule.getUuid()))
+                .findFirst()
+                .filter(RoutingRule::isDraft)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Rule " + ruleUuid + " is not a draft on document " + doc.getName()));
+    }
+
+    private String shapeAwaiting(final ShapeshifterAiDoc doc, final RoutingRule draft) {
+        return shapes.shapeAwaiting(doc.getUuid(), draft.getUuid())
+                .orElseThrow(() -> new IllegalStateException("No shape awaits review under draft rule "
+                                                             + draft.getUuid() + " on document " + doc.getName()));
+    }
+
+    /**
+     * The active rule a draft would replace: one that binds the same selector.
+     */
+    private static Optional<RoutingRule> incumbentOf(final ShapeshifterAiDoc doc, final RoutingRule draft) {
+        return doc.getRoutingTable().stream()
+                .filter(rule -> !rule.isDraft() && !rule.isReserved()
+                                && Objects.equals(rule.getExpression(), draft.getExpression()))
+                .findFirst();
     }
 
     private DocRef write(final ShapeshifterAiDoc doc, final Shape shape, final Learned learned) {

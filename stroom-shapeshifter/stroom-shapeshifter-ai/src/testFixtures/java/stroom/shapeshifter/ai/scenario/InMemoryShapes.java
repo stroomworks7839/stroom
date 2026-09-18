@@ -70,6 +70,25 @@ public final class InMemoryShapes implements Shapes {
     }
 
     @Override
+    public void awaitReview(final String docUuid, final String shape, final String ruleUuid) {
+        row(docUuid, shape).draft = ruleUuid;
+    }
+
+    @Override
+    public Optional<String> draftAwaiting(final String docUuid, final String shape) {
+        return Optional.ofNullable(row(docUuid, shape).draft);
+    }
+
+    @Override
+    public Optional<String> shapeAwaiting(final String docUuid, final String ruleUuid) {
+        final String prefix = docUuid + "/";
+        return rows.entrySet().stream()
+                .filter(entry -> entry.getKey().startsWith(prefix) && ruleUuid.equals(entry.getValue().draft))
+                .map(entry -> entry.getKey().substring(prefix.length()))
+                .findFirst();
+    }
+
+    @Override
     public void reset(final String docUuid, final String shape) {
         rows.remove(key(docUuid, shape));
     }
@@ -94,6 +113,7 @@ public final class InMemoryShapes implements Shapes {
 
         private String givenUp;
         private String relearn;
+        private String draft;
         private double score;
         private int records;
     }

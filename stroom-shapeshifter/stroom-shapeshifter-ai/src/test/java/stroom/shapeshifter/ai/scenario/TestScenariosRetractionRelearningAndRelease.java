@@ -193,10 +193,20 @@ class TestScenariosRetractionRelearningAndRelease {
         assertThat(scenarios.shapes.relearnReason(DOC, SHAPE)).isPresent();
         assertThat(second.doc()).isEqualTo(first.doc());
 
-        // The next stream starts an attempt. The incumbent serves it meanwhile; the candidate handles
-        // both kinds, beats the incumbent on this stream and is no worse on the record it was accepted
-        // on, so the rule is rebound to it — same rule, new fragment.
-        final Script relearn = learning(FOUR_FIELDS_AND_ALARMS);
+        // The next stream starts an attempt, opening with why the incumbent fell short: the mark's reason
+        // and the coverage shortfall, on the chain question and on each element's first. The incumbent
+        // serves it meanwhile; the candidate handles both kinds, beats the incumbent on this stream and
+        // is no worse on the record it was accepted on, so the rule is rebound to it — same rule, new
+        // fragment.
+        final Script relearn = Script.of()
+                .expect(QuestionMatcher.chain()
+                        .withFeedbackMentioning("Relearning: Rolling score")
+                        .withFeedbackMentioning("The split consumed 14 of 20 lines"))
+                .reply("DSParser -> XSLTFilter")
+                .expect(QuestionMatcher.configuration("DSParser").withFeedbackMentioning("14 of 20 lines"))
+                .reply(Scenarios.fenced(FOUR_FIELDS_AND_ALARMS))
+                .expect(QuestionMatcher.configuration("XSLTFilter").withFeedbackMentioning("Relearning"))
+                .reply(Scenarios.fenced(XSLT));
         final StageRun third = scenarios.stage(relearn).run(second.doc(), stream(3, withAlarms));
         relearn.verifyExhausted();
 

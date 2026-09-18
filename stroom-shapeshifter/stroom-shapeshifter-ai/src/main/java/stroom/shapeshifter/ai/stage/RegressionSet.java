@@ -31,6 +31,12 @@ public interface RegressionSet {
     void accept(String ruleUuid, List<Accepted> records, int cap);
 
     /**
+     * A rule that will never serve — a rejected draft, or a draft whose history moved to the rule it
+     * replaced on Approve — takes its records with it.
+     */
+    void discard(String ruleUuid);
+
+    /**
      * @param input The record as it was received.
      * @param score The weighted score the promoted variant achieved on it.
      */
