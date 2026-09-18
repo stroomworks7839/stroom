@@ -79,10 +79,12 @@ public final class NodeFixture {
     private final DataSplitterCompiler compiler;
     private final Provider<SchemaFilter> schemaFilters;
     private final ErrorReceiverProxy errorReceiverProxy;
+    private final XmlSchemaStore schemaStore;
+    private final SecurityContext securityContext;
 
     public NodeFixture() {
-        final SecurityContext securityContext = new MockSecurityContext();
-        final XmlSchemaStore schemaStore = new XmlSchemaStoreImpl(
+        securityContext = new MockSecurityContext();
+        schemaStore = new XmlSchemaStoreImpl(
                 new StoreFactoryImpl(new MemoryPersistence(), null, securityContext, null, null),
                 securityContext,
                 new XmlSchemaSerialiser(new Serialiser2FactoryImpl()));
@@ -114,10 +116,21 @@ public final class NodeFixture {
     }
 
     /**
+     * The event-logging 3.0.0 schema text, for what reads a schema rather than validates against one.
+     */
+    public static String eventLoggingSchema() {
+        final ContentPack pack = ContentPacks.EVENT_LOGGING_XML_SCHEMA_PACK;
+        final Path packDir = ContentPackZipDownloader.downloadContentPack(
+                pack,
+                FileSystemTestUtil.getExplodedContentPacksDir());
+        return StreamUtil.fileToString(packDir.resolve(pack.getPath()).resolve(EVENTS_SCHEMA_FILE));
+    }
+
+    /**
      * A scorer over a fresh schema filter each run, reporting through the fixture's proxy, as a node's does.
      */
     public SchemaConformanceScorer schemaConformanceScorer() {
-        return new SchemaConformanceScorer(schemaFilters, errorReceiverProxy);
+        return new SchemaConformanceScorer(schemaFilters, errorReceiverProxy, schemaStore, securityContext);
     }
 
     private static void loadDataSplitterSchema(final XmlSchemaStore schemaStore) {

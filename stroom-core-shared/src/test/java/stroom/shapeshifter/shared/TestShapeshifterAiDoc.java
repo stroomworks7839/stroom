@@ -69,7 +69,7 @@ class TestShapeshifterAiDoc {
         assertThat(doc.getAllowedElements())
                 .describedAs("A10's initial set until a document narrows it")
                 .containsExactly("DSParser", "JSONParser", "XMLParser", "XSLTFilter");
-        assertThat(doc.getMaxAttempts()).isEqualTo(3);
+        assertThat(doc.getMaxAttempts()).describedAs("five since the first live run, design 02 §6.2").isEqualTo(5);
         assertThat(doc.getAttemptBudgetMs()).isEqualTo(60_000L);
         assertThat(doc.getTokenBudget()).isNull();
         assertThat(doc.getSampleRedaction()).isEqualTo(SampleRedaction.REDACTED);

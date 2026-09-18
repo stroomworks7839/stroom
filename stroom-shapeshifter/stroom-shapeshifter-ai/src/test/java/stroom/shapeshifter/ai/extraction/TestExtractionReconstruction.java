@@ -20,6 +20,7 @@ import stroom.shapeshifter.ai.extraction.Compilation.Compiled;
 import stroom.shapeshifter.ai.extraction.Compilation.Rejected;
 import stroom.shapeshifter.ai.extraction.ExtractionCorpus.Golden;
 import stroom.shapeshifter.ai.learning.ConfigurationReply;
+import stroom.shapeshifter.ai.learning.QuestionText;
 import stroom.util.logging.AsciiTable;
 import stroom.util.logging.AsciiTable.Column;
 import stroom.util.shared.Severity;
@@ -70,19 +71,15 @@ class TestExtractionReconstruction {
      */
     private static final int ATTEMPTS = 3;
 
+    /**
+     * The stage's own extraction question, so that this measures the words the stage will use (design 02
+     * §6.2), plus what only this test needs: the expected records, and the reply grammar.
+     */
     private static final String OBJECTIVE = """
             You write Stroom Data Splitter 3.0 configurations. Given a sample of raw input and the records \
             document it must produce, reply with a configuration that produces exactly that document.
 
-            The root element is <dataSplitter xmlns="data-splitter:3" \
-            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" \
-            xsi:schemaLocation="data-splitter:3 file://data-splitter-v3.0.xsd" version="3.0">. \
-            The schemaLocation is mandatory; a configuration without it is rejected. \
-            Content is matched by <split delimiter="..."> and <regex pattern="...">, grouped by <group value="$n">, \
-            and emitted by <data name="..." value="$n"/>; <var id="..."/> stores a match for later reference as \
-            $id$n. A <group> becomes one output record. Escape a line break in a delimiter as \\n.
-
-            Do not use ignoreErrors. Every character of the input should be consumed by a match.
+            """ + QuestionText.EXTRACTION_RULES + """
 
             Reply with the configuration as a single fenced XML code block and nothing else.
             """;

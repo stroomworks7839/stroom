@@ -49,7 +49,11 @@ public final class QuestionText {
             "XMLParser", "parses XML input as it is, with no configuration",
             "XSLTFilter", "transforms XML records into event-logging:3 events with an XSLT 2.0 stylesheet");
 
-    private static final String EXTRACTION_RULES = """
+    /**
+     * What an extraction question tells the model about the Data Splitter, worked example included; public so
+     * that the reconstruction test of design 01 §9.1 measures the same words.
+     */
+    public static final String EXTRACTION_RULES = """
             The root element is <dataSplitter xmlns="data-splitter:3" \
             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" \
             xsi:schemaLocation="data-splitter:3 file://data-splitter-v3.0.xsd" version="3.0">. \

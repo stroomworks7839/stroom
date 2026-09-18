@@ -59,6 +59,30 @@ class TestScenariosScoring {
             "            <Id><xsl:value-of select=\"data[@name='who']/@value\"/></Id>",
             "          </User>",
             "        </Authenticate>");
+    private static final String DEVICE = String.join("\n",
+            "        <Device>",
+            "          <Name><xsl:value-of select=\"data[@name='where']/@value\"/></Name>",
+            "        </Device>");
+    private static final String DOOR = String.join("\n",
+            "        <Door>",
+            "          <Name><xsl:value-of select=\"data[@name='where']/@value\"/></Name>",
+            "        </Door>");
+    private static final String AUTHENTICATE = String.join("\n",
+            "        <Authenticate>",
+            "          <Action>",
+            "            <xsl:choose>",
+            "              <xsl:when test=\"data[@name='what']/@value = 'logon'\">Logon</xsl:when>",
+            "              <xsl:otherwise>Logoff</xsl:otherwise>",
+            "            </xsl:choose>",
+            "          </Action>",
+            "          <User>",
+            "            <Id><xsl:value-of select=\"data[@name='who']/@value\"/></Id>",
+            "          </User>",
+            "        </Authenticate>");
+    private static final String ALERT = String.join("\n",
+            "        <Alert>",
+            "          <Description><xsl:value-of select=\"data[@name='what']/@value\"/></Description>",
+            "        </Alert>");
     private static final XPathAssertion NAMES_THE_USER = new XPathAssertion(
             "interactive events name the user",
             "not(EventDetail/Authenticate) or EventDetail/Authenticate/User/Id[normalize-space(.) != '']");
@@ -157,6 +181,33 @@ class TestScenariosScoring {
     }
 
     @Test
+    void schemaFeedbackCarriesTheContentModelOfWhatFellShort() {
+        // The ladder of design 02 §6.2: a Door with only a Name, an Alert with only a Description. The
+        // validator names one missing child; the feedback names them all, and the parent it did not name.
+        final String doorAndAlert = CsvLines.replacing(CsvLines.replacing(XSLT, DEVICE, DOOR), AUTHENTICATE, ALERT);
+        final Script script = Script.of()
+                .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter")
+                .expect(QuestionMatcher.configuration("DSParser")).reply(Scenarios.fenced(FOUR_FIELDS))
+                .expect(QuestionMatcher.configuration("XSLTFilter").withoutFeedback())
+                .reply(Scenarios.fenced(doorAndAlert))
+                .expect(QuestionMatcher.configuration("XSLTFilter")
+                        .withFeedbackMentioning("The content of element 'Door' is not complete")
+                        .withFeedbackMentioning("The schema says: Door (in EventSource) contains, in order: "
+                                                + "Name, Description?, Location {")
+                        .withFeedbackMentioning("SingleEntry, RemoveAll, AddAccess { AccessZone+ }"))
+                .reply(Scenarios.fenced(CsvLines.replacing(XSLT, AUTHENTICATE, ALERT)))
+                .expect(QuestionMatcher.configuration("XSLTFilter")
+                        .withFeedbackMentioning("Invalid content was found starting with element '{Description}'")
+                        .withFeedbackMentioning("The schema says: Alert contains, in order: Type, Severity?"))
+                .reply(Scenarios.fenced(XSLT));
+
+        final StageRun run = new Scenarios().stage(script).run(doc(), stream(1, CsvLines.lines(6)));
+
+        script.verifyExhausted();
+        assertThat(run.decision()).isInstanceOf(Promoted.class);
+    }
+
+    @Test
     void scenario6ABrokenBusinessRuleNamesItself() {
         final Scenarios scenarios = new Scenarios();
         // Schema-valid — the 3.0.0 schema wants a User under Authenticate — but the user it names is empty.
@@ -185,8 +236,10 @@ class TestScenariosScoring {
     @Test
     void scenario7ACandidateThatNeverClearsItsThresholdIsAbandonedAtTheLimit() {
         final Scenarios scenarios = new Scenarios();
+        // The catalogue's three candidates, pinned: the document's default is now five (design 02 §6.2).
         final ShapeshifterAiDoc doc = doc().copy()
                 .promotionFloor(0.95)
+                .maxAttempts(3)
                 .scorers(doc().getScorers().stream()
                         .map(setting -> setting.getType() == ScorerType.YIELD
                                 ? new ScorerSetting(ScorerType.YIELD, 1.0, 0.75, false,

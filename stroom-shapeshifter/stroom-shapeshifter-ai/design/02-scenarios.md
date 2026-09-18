@@ -489,8 +489,26 @@ candidate limit to five; `QuestionText` as the node advisor's prompt (design 01 
 main for that reason); the reconstruction test re-run with the new extraction question; a small-model
 run.
 
-Not yet: the content-model hint in conformance feedback; scenario 20 (needs the A26 tables for its
-ledger row); everything from scenario 30 on.
+The eighth slice, 2026-09-18, closes what the live run found. **The schema's feedback now carries the
+content model** of what fell short: `ContentModels` reads the group's XSD text and writes an element as a
+model can use it — children in order, `?`/`*`/`+`, a choice as `(A | B)` with a run inside a choice kept
+as a run, a required complex child opened one level — and `SchemaConformanceScorer` appends up to three
+such hints after the record messages: the whole model of an element reported incomplete, and, for
+*invalid content starting with X, one of {Y} expected*, the parents that could hold both, ranked by
+whether they require what was expected (which picks `Alert` out of seventeen elements with an optional
+`Type`). Against the real 3.0.0 schema: `Door (in EventSource) contains, in order: Name, Description?,
+Location { Country?, Site?, … }, SingleEntry, RemoveAll, AddAccess { AccessZone+ }`. The hint is best
+effort — read as the processing user, a schema that does not parse left out, nothing in it able to fail a
+score — and the Tier 1 scenario reproduces run 3's ladder exactly and shows both hints reaching the
+re-ask. **The default candidate limit is five.** The §9.1 reconstruction test now builds its prompt from
+`QuestionText`'s extraction rules, so the two measure the same words.
+
+Two live checks are owed and were not run, the owner's key having been withdrawn between runs: scenario 03
+again, to see the ladder taken in one step; and the reconstruction test across the corpus's nineteen
+shapes with the worked example. Both are one line of environment away.
+
+Not yet: those two live checks; scenario 20 (needs the A26 tables for its ledger row); everything from
+scenario 30 on.
 
 ## 7. Decisions taken
 

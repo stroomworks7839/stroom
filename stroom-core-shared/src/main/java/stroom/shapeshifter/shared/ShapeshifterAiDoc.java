@@ -106,7 +106,11 @@ public class ShapeshifterAiDoc extends AbstractDoc {
      */
     static final List<String> DEFAULT_ALLOWED_ELEMENTS =
             List.of("DSParser", "JSONParser", "XMLParser", "XSLTFilter");
-    static final int DEFAULT_MAX_ATTEMPTS = 3;
+    /**
+     * Five, not three: the first live run (design 02 §6.2) found three right for a simple feed and one short
+     * for a transform that needs a rarer schema branch; the attempt budget is the real bound (A5).
+     */
+    static final int DEFAULT_MAX_ATTEMPTS = 5;
     static final long DEFAULT_ATTEMPT_BUDGET_MS = 60_000L;
     static final SampleRedaction DEFAULT_SAMPLE_REDACTION = SampleRedaction.REDACTED;
     static final int DEFAULT_SAMPLE_SIZE_LIMIT = 8_192;
