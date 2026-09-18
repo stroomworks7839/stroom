@@ -53,6 +53,7 @@ import stroom.security.api.UserService;
 import stroom.security.mock.MockSecurityContext;
 import stroom.security.mock.MockSecurityContextModule;
 import stroom.security.shared.User;
+import stroom.shapeshifter.ShapeshifterAiTestModule;
 import stroom.statistics.mock.MockInternalStatisticsModule;
 import stroom.task.impl.MockTaskModule;
 import stroom.test.common.MockMetricsModule;
@@ -127,6 +128,7 @@ public class MockServiceModule extends AbstractModule {
         install(new MockPlanBModule());
         install(new MockClusterLockModule());
         install(new MockAiModule());
+        install(new ShapeshifterAiTestModule());
         install(new stroom.core.entity.event.EntityEventModule());
 
         bind(DocDependencyService.class).to(MockDocDependencyService.class);

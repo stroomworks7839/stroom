@@ -294,7 +294,47 @@ person approving a draft on too few records is §6's exception to A14. The relea
 incumbent's score on the stream, and the failing scorers' diagnostics — as the feedback of every
 question's first asking (`Dialogue.run` with an opening). Approve and Reject are operations on the
 `Stage`; the Routing tab's buttons and the Supervisor view (A28) will call them.
-Not yet: everything from scenario 30 on, and the scorers of §6 item 2 that unlock 4–10.
+
+The fifth slice, 2026-09-18, is Tier 2: scenario 18 passes with the supervisor element in a real
+pipeline, processed as a processor task under `AbstractProcessIntegrationTest`
+(`TestScenario18LearnsACsvFeedInAPipeline` in `stroom-app`). `ShapeshifterAiParser` sits where a parser
+sits — `Source → ShapeshifterAi → SchemaFilter → RecordOutputFilter → RecordCountFilter → XMLWriter →
+StreamAppender` — reads the stream, lets the `Stage` decide, writes the document back when the routing
+table changed, and either runs the bound fragment or logs the refusal as an `ERROR` naming the shape.
+The fragment runs as a **nested pipeline** (A20, design 01 §3): its merged `PipelineData` with a
+`ShapeshifterAiOutput` filter linked from its tail, built by the same `PipelineFactory` in the same
+pipeline scope, so its events reach the element's targets and its errors this pipeline's error stream.
+The bindings go into the output stream's attributes through `MetaData` (§7.3 rule 3), and the real
+`SchemaFilter` validates the learned transform's events against the event-logging schema with nothing
+to report. The second stream is bound with the script never consulted. Five things to know:
+
+- **The fragment runs twice on a stream** for now: once through the step runners for the score the
+  stage decides on, once as a pipeline for the output. A fragment runner over the nested pipeline with
+  per-element capture (design 01 §12 item 2) removes the first run; until then Tier 2 pays double.
+- **Runtime state in a node is in-memory and node-local**: the `InMemory*` implementations moved from
+  test fixtures to `stroom.shapeshifter.ai.state`, synchronised, and bound as singletons until the A26
+  module exists. A cluster does not yet share what a stage has learned about a shape, and a restart
+  forgets it; the routing table, being on the document, survives both. **A reprocess request is real
+  already**: `PipelineReprocessing` creates a reprocess filter over the outputs this pipeline made from
+  the named inputs — error streams, or a retracted rule's output — at the lowest priority, which task
+  creation turns back into their inputs and runs as-current, exactly as an operator's reprocess does.
+  It is not yet exercised by a Tier 2 scenario, since the mock processor filter service's `reprocess`
+  is a stub; scenario 13 in Tier 2 waits on that.
+- **The advisor is an optional Guice binding** whose default, `NoModelAdvisor`, fails a stream loudly
+  when a document in `AUTOMATIC` mode would ask; the test node binds the scenario's `Script` through an
+  `AdvisorHolder`. Wiring `stroom-ai` in is design 01 §12 item 6.
+- **Two tasks learning the same shape at once race on the document write**; the loser's
+  `DataChangedException` fails its stream rather than overwriting. The learning lease of A26 is the fix.
+- **A stream of several parts** is served part by part, but the output stream's attributes are one set:
+  the first part's bindings stand for the stream and a later part bound differently is reported as a
+  warning, since the attributes cannot say so and an as-processed reprocess of it would be misled.
+- **Two mocks were made truthful for this**: `MockStore` now keeps the attributes a target closed with,
+  as the real store hands them to the meta service, and `MockExplorerService.create` creates the
+  document through the type's handler where one is registered, as the real service does, returning
+  null only for a type this environment has no handler for (which the content store setup relies on).
+
+Not yet: scenarios 19 and 20 (the latter needs the A26 tables for its ledger row), everything from
+scenario 30 on, and the scorers of §6 item 2 that unlock 4–10.
 
 ## 7. Decisions taken
 

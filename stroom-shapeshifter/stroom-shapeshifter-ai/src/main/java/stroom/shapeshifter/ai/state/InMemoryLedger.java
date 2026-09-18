@@ -14,24 +14,32 @@
  * limitations under the License.
  */
 
-package stroom.shapeshifter.ai.scenario;
+package stroom.shapeshifter.ai.state;
 
 import stroom.shapeshifter.ai.stage.Ledger;
 
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * The ledger rows as a list: what scenarios run over, and what a node runs over until the A26 module
+ * exists — node-local and gone on restart.
+ Every method is synchronised: one node's tasks share it.
+ */
 public final class InMemoryLedger implements Ledger {
 
     private final List<Row> rows = new ArrayList<>();
 
     @Override
-    public void sentinelled(final String docUuid, final String shape, final long inputId, final String reason) {
+    public synchronized void sentinelled(final String docUuid,
+                                         final String shape,
+                                         final long inputId,
+                                         final String reason) {
         rows.add(new Row(docUuid, shape, inputId, reason));
     }
 
     @Override
-    public List<Long> release(final String docUuid, final String shape) {
+    public synchronized List<Long> release(final String docUuid, final String shape) {
         final List<Long> released = new ArrayList<>();
         rows.removeIf(row -> {
             final boolean match = row.docUuid().equals(docUuid) && row.shape().equals(shape);
@@ -43,11 +51,11 @@ public final class InMemoryLedger implements Ledger {
         return released;
     }
 
-    public List<Row> rows() {
+    public synchronized List<Row> rows() {
         return List.copyOf(rows);
     }
 
-    public boolean isEmpty() {
+    public synchronized boolean isEmpty() {
         return rows.isEmpty();
     }
 

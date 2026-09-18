@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package stroom.shapeshifter.ai.scenario;
+package stroom.shapeshifter.ai.state;
 
 import stroom.shapeshifter.ai.stage.RegressionSet;
 
@@ -23,22 +23,27 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * The regression set as a map of lists: what scenarios run over, and what a node runs over until the
+ * A26 module exists — node-local and gone on restart.
+ Every method is synchronised: one node's tasks share it.
+ */
 public final class InMemoryRegressionSet implements RegressionSet {
 
     private final Map<String, List<Accepted>> accepted = new HashMap<>();
 
     @Override
-    public List<Accepted> accepted(final String ruleUuid) {
+    public synchronized List<Accepted> accepted(final String ruleUuid) {
         return List.copyOf(accepted.getOrDefault(ruleUuid, List.of()));
     }
 
     @Override
-    public void discard(final String ruleUuid) {
+    public synchronized void discard(final String ruleUuid) {
         accepted.remove(ruleUuid);
     }
 
     @Override
-    public void accept(final String ruleUuid, final List<Accepted> records, final int cap) {
+    public synchronized void accept(final String ruleUuid, final List<Accepted> records, final int cap) {
         final List<Accepted> kept = accepted.computeIfAbsent(ruleUuid, k -> new ArrayList<>());
         kept.addAll(records);
         // The cap keeps the most recent; the oldest accepted records are the first to go.

@@ -29,6 +29,11 @@ import stroom.shapeshifter.ai.scoring.InputCoverageScorer;
 import stroom.shapeshifter.ai.scoring.Scorer;
 import stroom.shapeshifter.ai.scoring.YieldScorer;
 import stroom.shapeshifter.ai.stage.Stage;
+import stroom.shapeshifter.ai.state.InMemoryLedger;
+import stroom.shapeshifter.ai.state.InMemoryOutputs;
+import stroom.shapeshifter.ai.state.InMemoryRegressionSet;
+import stroom.shapeshifter.ai.state.InMemoryReprocessing;
+import stroom.shapeshifter.ai.state.InMemoryShapes;
 import stroom.shapeshifter.ai.transformation.XsltStep;
 
 import java.io.IOException;

@@ -16,7 +16,6 @@
 
 package stroom.shapeshifter.ai.scenario;
 
-import stroom.shapeshifter.ai.scenario.InMemoryReprocessing.Request;
 import stroom.shapeshifter.ai.stage.Decision.Bound;
 import stroom.shapeshifter.ai.stage.Decision.Promoted;
 import stroom.shapeshifter.ai.stage.Decision.Provisional;
@@ -25,6 +24,9 @@ import stroom.shapeshifter.ai.stage.Decision.Retracted;
 import stroom.shapeshifter.ai.stage.Decision.Sentinel;
 import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.StageRun;
+import stroom.shapeshifter.ai.state.InMemoryLedger;
+import stroom.shapeshifter.ai.state.InMemoryReprocessing;
+import stroom.shapeshifter.ai.state.InMemoryReprocessing.Request;
 import stroom.shapeshifter.shared.LearningMode;
 import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ScorerSetting;

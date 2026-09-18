@@ -16,12 +16,14 @@
 
 package stroom.shapeshifter.ai.scenario;
 
-import stroom.shapeshifter.ai.scenario.InMemoryReprocessing.Request;
 import stroom.shapeshifter.ai.stage.Decision.Bound;
 import stroom.shapeshifter.ai.stage.Decision.Drafted;
 import stroom.shapeshifter.ai.stage.Decision.Sentinel;
 import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.StageRun;
+import stroom.shapeshifter.ai.state.InMemoryLedger;
+import stroom.shapeshifter.ai.state.InMemoryReprocessing;
+import stroom.shapeshifter.ai.state.InMemoryReprocessing.Request;
 import stroom.shapeshifter.shared.LearningMode;
 import stroom.shapeshifter.shared.PromotionMode;
 import stroom.shapeshifter.shared.RoutingRule;

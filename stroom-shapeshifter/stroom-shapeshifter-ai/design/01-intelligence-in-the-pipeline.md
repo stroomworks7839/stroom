@@ -1215,7 +1215,10 @@ arrived last. Items marked *built* already exist in `stroom-shapeshifter-ai` or 
    `Quarantine` and `FragmentRunner` hold the element's logic, built; the pipeline element and the
    child-task run are not. By 2026-09-18 the `Stage` covers route, learn, judge, write, emit,
    bound-variant trial, provisional binding, promotion, retraction, relearning, review mode with
-   Approve and Reject, over the runtime-state seams of A26 — design 02 §6.1.*
+   Approve and Reject, over the runtime-state seams of A26 — design 02 §6.1. The element itself,
+   `ShapeshifterAiParser`, is built the same day: a parser-position element that runs the bound
+   fragment as a nested pipeline in its own scope, with scenario 18 passing as a processor task;
+   the child-task context and per-element capture (item 2) are not.*
 5. **The scorer set of §8.4**, including the input-coverage scorer (A11) and the anti-degeneracy
    scorer (A16), which have no existing equivalent. *The SPI and the compile, coverage and yield scorers are built; schema
    conformance, anti-degeneracy, business rules, error load, classification and AI review are not.*
@@ -1223,8 +1226,9 @@ arrived last. Items marked *built* already exist in `stroom-shapeshifter-ai` or 
    retries, budgets and rate limiting, token accounting, audit logging of invocations — the whole
    transcript, not each call in isolation — and explicit cache bypass.
 7. **Output stream metadata for bindings** (§7.3 rule 3), and a reprocessing mode that honours it.
-   *The `Bindings` record on every `StageRun` and the `Outputs` seam are built 2026-09-18; writing them
-   to the output stream waits on item 4.*
+   *The `Bindings` record on every `StageRun` and the `Outputs` seam are built 2026-09-18, and the
+   element writes them to the output stream's attributes through `MetaData`; the reprocessing mode
+   that reads them is not built.*
 8. **The runtime-state schema** (A26): a `stroom-shapeshifter-ai-impl-db` module in the pattern of
    `stroom-ai-impl-db` — Flyway migration, jOOQ codegen, its own connection provider — holding the
    three tables of §11.4; the DAO in the impl module; the error stream
@@ -1415,3 +1419,7 @@ including the degeneracy trap (§8.3) that changes the scoring model and propose
 - A30 proposed, at the owner's framing: the supervisor element's place in the pipeline stepper (§11.7)
   — a stage pane in place of a code pane, the fragment's chain stepped as children, and a dry run.
   §11.7 also names the feature's four UI surfaces and where each is specified; §12 gains item 19.
+- The supervisor element built (§12 item 4) and scenario 18 passing in a real pipeline as a processor
+  task; the fragment runs as a nested pipeline; bindings reach the output stream's attributes (item 7).
+  Interim: the fragment runs twice per stream, runtime state is node-local memory, and there is no
+  model advisor bound — design 02 §6.1 records each.

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package stroom.shapeshifter.ai.scenario;
+package stroom.shapeshifter.ai.state;
 
 import stroom.shapeshifter.ai.stage.Bindings;
 import stroom.shapeshifter.ai.stage.Outputs;
@@ -22,24 +22,29 @@ import stroom.shapeshifter.ai.stage.Outputs;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * The bindings of every output as a list: what scenarios run over, and what a node runs over until the
+ * A26 module exists — node-local and gone on restart.
+ Every method is synchronised: one node's tasks share it.
+ */
 public final class InMemoryOutputs implements Outputs {
 
     private final List<Emitted> emitted = new ArrayList<>();
 
     @Override
-    public void emitted(final long inputId, final Bindings bindings) {
+    public synchronized void emitted(final long inputId, final Bindings bindings) {
         emitted.add(new Emitted(inputId, bindings));
     }
 
     @Override
-    public List<Long> boundBy(final String ruleUuid) {
+    public synchronized List<Long> boundBy(final String ruleUuid) {
         return emitted.stream()
                 .filter(output -> output.bindings().ruleUuid().equals(ruleUuid))
                 .map(Emitted::inputId)
                 .toList();
     }
 
-    public List<Emitted> emitted() {
+    public synchronized List<Emitted> emitted() {
         return List.copyOf(emitted);
     }
 

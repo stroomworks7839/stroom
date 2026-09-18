@@ -17,6 +17,7 @@
 package stroom.shapeshifter.ai.doc;
 
 import stroom.docstore.api.DocumentStoreBinder;
+import stroom.shapeshifter.ai.element.ShapeshifterAiElementModule;
 import stroom.shapeshifter.ai.fragment.ContentCreator;
 import stroom.shapeshifter.ai.fragment.ExplorerContentCreator;
 import stroom.shapeshifter.ai.fragment.FragmentCheck;
@@ -30,6 +31,7 @@ public class ShapeshifterAiModule extends AbstractModule {
 
     @Override
     protected void configure() {
+        install(new ShapeshifterAiElementModule());
         bind(FragmentCheck.class).to(FragmentCheckImpl.class);
         bind(ContentCreator.class).to(ExplorerContentCreator.class);
 

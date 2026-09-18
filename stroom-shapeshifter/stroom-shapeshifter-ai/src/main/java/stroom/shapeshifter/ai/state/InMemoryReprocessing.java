@@ -14,23 +14,29 @@
  * limitations under the License.
  */
 
-package stroom.shapeshifter.ai.scenario;
+package stroom.shapeshifter.ai.state;
 
 import stroom.shapeshifter.ai.stage.Reprocessing;
 
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Reprocess requests as a list, for a scenario to inspect; a node creates a reprocess filter instead:
+ * what scenarios run over, and what a node runs over until the A26 module exists — node-local and gone
+ * on restart.
+ Every method is synchronised: one node's tasks share it.
+ */
 public final class InMemoryReprocessing implements Reprocessing {
 
     private final List<Request> requests = new ArrayList<>();
 
     @Override
-    public void request(final String docUuid, final String reason, final List<Long> inputIds) {
+    public synchronized void request(final String docUuid, final String reason, final List<Long> inputIds) {
         requests.add(new Request(docUuid, reason, List.copyOf(inputIds)));
     }
 
-    public List<Request> requests() {
+    public synchronized List<Request> requests() {
         return List.copyOf(requests);
     }
 

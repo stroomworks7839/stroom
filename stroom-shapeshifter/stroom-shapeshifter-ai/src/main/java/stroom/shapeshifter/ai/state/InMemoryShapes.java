@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package stroom.shapeshifter.ai.scenario;
+package stroom.shapeshifter.ai.state;
 
 import stroom.shapeshifter.ai.stage.Shapes;
 
@@ -24,26 +24,29 @@ import java.util.Optional;
 import java.util.OptionalDouble;
 
 /**
- * The shape rows as a map. The rolling score is a running mean whose memory is capped in records: the
+ * The shape rows as a map: what scenarios run over, and what a node runs over until the tables of A26
+ * exist — node-local and gone on restart, so until then a cluster does not share what a stage has
+ * learned about a shape. The rolling score is a running mean whose memory is capped in records: the
  * two columns a row can hold, {@code score} and {@code records}, with {@code records} never counted
  * above the memory so that the latest stream always weighs against at most that many earlier records.
+ Every method is synchronised: one node's tasks share it.
  */
 public final class InMemoryShapes implements Shapes {
 
     private final Map<String, Row> rows = new HashMap<>();
 
     @Override
-    public Optional<String> reasonGivenUp(final String docUuid, final String shape) {
+    public synchronized Optional<String> reasonGivenUp(final String docUuid, final String shape) {
         return Optional.ofNullable(row(docUuid, shape).givenUp);
     }
 
     @Override
-    public void giveUp(final String docUuid, final String shape, final String reason) {
+    public synchronized void giveUp(final String docUuid, final String shape, final String reason) {
         row(docUuid, shape).givenUp = reason;
     }
 
     @Override
-    public OptionalDouble scored(final String docUuid,
+    public synchronized OptionalDouble scored(final String docUuid,
                                  final String shape,
                                  final double score,
                                  final int records,
@@ -60,27 +63,27 @@ public final class InMemoryShapes implements Shapes {
     }
 
     @Override
-    public Optional<String> relearnReason(final String docUuid, final String shape) {
+    public synchronized Optional<String> relearnReason(final String docUuid, final String shape) {
         return Optional.ofNullable(row(docUuid, shape).relearn);
     }
 
     @Override
-    public void markForRelearning(final String docUuid, final String shape, final String reason) {
+    public synchronized void markForRelearning(final String docUuid, final String shape, final String reason) {
         row(docUuid, shape).relearn = reason;
     }
 
     @Override
-    public void awaitReview(final String docUuid, final String shape, final String ruleUuid) {
+    public synchronized void awaitReview(final String docUuid, final String shape, final String ruleUuid) {
         row(docUuid, shape).draft = ruleUuid;
     }
 
     @Override
-    public Optional<String> draftAwaiting(final String docUuid, final String shape) {
+    public synchronized Optional<String> draftAwaiting(final String docUuid, final String shape) {
         return Optional.ofNullable(row(docUuid, shape).draft);
     }
 
     @Override
-    public Optional<String> shapeAwaiting(final String docUuid, final String ruleUuid) {
+    public synchronized Optional<String> shapeAwaiting(final String docUuid, final String ruleUuid) {
         final String prefix = docUuid + "/";
         return rows.entrySet().stream()
                 .filter(entry -> entry.getKey().startsWith(prefix) && ruleUuid.equals(entry.getValue().draft))
@@ -89,15 +92,15 @@ public final class InMemoryShapes implements Shapes {
     }
 
     @Override
-    public void reset(final String docUuid, final String shape) {
+    public synchronized void reset(final String docUuid, final String shape) {
         rows.remove(key(docUuid, shape));
     }
 
-    public double rollingScore(final String docUuid, final String shape) {
+    public synchronized double rollingScore(final String docUuid, final String shape) {
         return row(docUuid, shape).score;
     }
 
-    public boolean isEmpty() {
+    public synchronized boolean isEmpty() {
         return rows.isEmpty();
     }
 
