@@ -1,0 +1,40 @@
+<!DOCTYPE ui:UiBinder SYSTEM "http://dl.google.com/gwt/DTD/xhtml.ent">
+<ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
+             xmlns:g="urn:import:com.google.gwt.user.client.ui"
+             xmlns:l="urn:import:stroom.item.client">
+    <g:ThinSplitLayoutPanel styleName="max default-min-sizes shapeshifter-structure">
+        <g:west size="360">
+            <g:ScrollPanel styleName="max">
+                <g:FlowPanel styleName="ss-wb-right">
+                    <g:FlowPanel styleName="ss-wb-sec">
+                        <g:HTML styleName="ss-wb-h4">Kind <span class="ss-wb-h4-note">(source is the whole document; all and named are the engine's own; delimiter splits)</span></g:HTML>
+                        <l:SelectionBox ui:field="kind" addStyleNames="w-100"/>
+                        <g:FlowPanel ui:field="delimiterFields">
+                            <g:FlowPanel styleName="ss-step-row">
+                                <g:Label styleName="ss-lim-label" text="delimiter"/>
+                                <g:TextBox ui:field="delimiter" styleName="ss-edit-in ss-clause-val"/>
+                            </g:FlowPanel>
+                            <g:FlowPanel styleName="ss-step-row">
+                                <g:Label styleName="ss-lim-label" text="escape"/>
+                                <g:TextBox ui:field="escape" styleName="ss-edit-in ss-clause-val"/>
+                            </g:FlowPanel>
+                            <g:FlowPanel styleName="ss-step-row">
+                                <g:Label styleName="ss-lim-label" text="container"/>
+                                <g:TextBox ui:field="containerStart" styleName="ss-edit-in ss-lim-in" title="Container start"/>
+                                <g:Label styleName="ss-det-desc" text="to"/>
+                                <g:TextBox ui:field="containerEnd" styleName="ss-edit-in ss-lim-in" title="Container end"/>
+                            </g:FlowPanel>
+                        </g:FlowPanel>
+                        <g:Label ui:field="error" styleName="ss-wb-err"/>
+                    </g:FlowPanel>
+                    <g:FlowPanel styleName="ss-wb-sec">
+                        <g:Label styleName="ss-wb-lint" text="The wire form beside is the match as the document holds it, whatever its kind, and edits there commit as they parse."/>
+                    </g:FlowPanel>
+                </g:FlowPanel>
+            </g:ScrollPanel>
+        </g:west>
+        <g:center>
+            <g:SimplePanel ui:field="editor" styleName="max"/>
+        </g:center>
+    </g:ThinSplitLayoutPanel>
+</ui:UiBinder>

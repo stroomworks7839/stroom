@@ -19,6 +19,7 @@ package stroom.shapeshifter.client.presenter;
 import stroom.dispatch.client.RestFactory;
 import stroom.shapeshifter.client.presenter.ShapeshifterDesignPresenter.ShapeshifterDesignView;
 import stroom.shapeshifter.config.Project;
+import stroom.shapeshifter.config.Template;
 import stroom.shapeshifter.shared.ShapeshifterMessage;
 import stroom.shapeshifter.shared.ShapeshifterResource;
 import stroom.util.client.DelayedUpdate;
@@ -35,7 +36,10 @@ import com.google.web.bindery.event.shared.EventBus;
 import com.gwtplatform.mvp.client.MyPresenterWidget;
 import com.gwtplatform.mvp.client.View;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 /**
  * The Design tab's root (design 43 §4): owns the {@link Project}, the selection, and the one
@@ -65,6 +69,7 @@ public class ShapeshifterDesignPresenter
     private final DelayedUpdate validate;
 
     private Project project;
+    private final Map<String, String> colours = new HashMap<>();
     private String sourceError;
     private boolean readOnly = true;
     private boolean workbenchOpen;
@@ -118,11 +123,16 @@ public class ShapeshifterDesignPresenter
      * The document as read, or as the Source tab last parsed it. A null project with a source
      * error keeps the previous project on screen, read-only, under the error.
      */
-    public void read(final Project project, final String sourceError, final boolean readOnly) {
+    public void read(final Project project, final Map<String, String> colours, final String sourceError,
+                     final boolean readOnly) {
         this.readOnly = readOnly;
         this.sourceError = sourceError;
         if (project != null) {
             this.project = project;
+        }
+        if (colours != null) {
+            this.colours.clear();
+            this.colours.putAll(colours);
         }
         getView().setBanner(sourceError == null
                 ? null
@@ -143,6 +153,53 @@ public class ShapeshifterDesignPresenter
     @Override
     public boolean isReadOnly() {
         return readOnly || sourceError != null;
+    }
+
+    /** The colour overrides as they stand, for the document to keep: only for templates that still exist. */
+    public Map<String, String> getColours() {
+        final Map<String, String> kept = new HashMap<>();
+        for (final Map.Entry<String, String> entry : colours.entrySet()) {
+            if (template(entry.getKey()) != null) {
+                kept.put(entry.getKey(), entry.getValue());
+            }
+        }
+        return kept;
+    }
+
+    @Override
+    public String colour(final String templateId) {
+        final String override = colours.get(templateId);
+        if (override != null) {
+            return override;
+        }
+        final List<Template> templates = project == null
+                ? List.of()
+                : project.templates();
+        for (int i = 0; i < templates.size(); i++) {
+            if (templates.get(i).id().equals(templateId)) {
+                return Templates.colour(i);
+            }
+        }
+        return "transparent";
+    }
+
+    @Override
+    public void setColour(final String templateId, final String colour) {
+        if (isReadOnly() || templateId == null) {
+            return;
+        }
+        final String before = colours.get(templateId);
+        if (Objects.equals(before, colour)) {
+            return;
+        }
+        if (colour == null) {
+            colours.remove(templateId);
+        } else {
+            colours.put(templateId, colour);
+        }
+        refresh();
+        // The document is dirty for it; the project is unchanged, and the run never stale for a colour.
+        ValueChangeEvent.fire(this, project);
     }
 
     @Override

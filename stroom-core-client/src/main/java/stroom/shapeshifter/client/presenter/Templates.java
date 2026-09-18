@@ -23,9 +23,11 @@ import stroom.shapeshifter.config.Declaration;
 import stroom.shapeshifter.config.MatchExpression;
 import stroom.shapeshifter.config.MatchExpression.Length;
 import stroom.shapeshifter.config.MatchExpression.MatchPart;
+import stroom.shapeshifter.config.OutputNode;
 import stroom.shapeshifter.config.PatternNode;
 import stroom.shapeshifter.config.Template;
 import stroom.shapeshifter.config.Template.MatchLimits;
+import stroom.shapeshifter.config.Template.ParamDecl;
 
 import java.util.List;
 
@@ -45,6 +47,10 @@ public final class Templates {
 
     public static String colour(final int index) {
         return PALETTE[Math.floorMod(index, PALETTE.length)];
+    }
+
+    public static int paletteSize() {
+        return PALETTE.length;
     }
 
     public static Template withMatch(final Template t, final MatchExpression match) {
@@ -72,9 +78,16 @@ public final class Templates {
                 t.match(), limits, t.captures(), t.body(), t.encoding(), t.ignoreErrors());
     }
 
-    public static Template withIdentity(final Template t, final String name, final String mode, final boolean consume) {
-        return new Template(t.id(), name, mode, consume, t.guard(), t.param(), t.declarations(),
-                t.match(), t.matchLimits(), t.captures(), t.body(), t.encoding(), t.ignoreErrors());
+    public static Template withIdentity(final Template t, final String name, final String mode, final boolean consume,
+                                        final List<ParamDecl> params, final String encoding,
+                                        final boolean ignoreErrors) {
+        return new Template(t.id(), name, mode, consume, t.guard(), params, t.declarations(),
+                t.match(), t.matchLimits(), t.captures(), t.body(), encoding, ignoreErrors);
+    }
+
+    public static Template withBody(final Template t, final List<OutputNode> body) {
+        return new Template(t.id(), t.name(), t.mode(), t.consume(), t.guard(), t.param(), t.declarations(),
+                t.match(), t.matchLimits(), t.captures(), body, t.encoding(), t.ignoreErrors());
     }
 
     /** A new template: a regex that matches nothing yet, everything else empty. */

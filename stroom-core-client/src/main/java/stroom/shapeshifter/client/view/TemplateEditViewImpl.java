@@ -16,12 +16,13 @@
 
 package stroom.shapeshifter.client.view;
 
+import stroom.item.client.SelectionBox;
 import stroom.shapeshifter.client.presenter.TemplateEditPresenter.TemplateEditView;
 import stroom.widget.tickbox.client.view.CustomCheckBox;
 
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
-import com.google.gwt.user.client.ui.Label;
+import com.google.gwt.user.client.ui.TextArea;
 import com.google.gwt.user.client.ui.TextBox;
 import com.google.gwt.user.client.ui.Widget;
 import com.google.inject.Inject;
@@ -36,15 +37,22 @@ public class TemplateEditViewImpl extends ViewImpl implements TemplateEditView {
     @UiField
     TextBox name;
     @UiField
-    TextBox mode;
-    @UiField
-    Label modes;
+    SelectionBox<String> mode;
     @UiField
     CustomCheckBox consume;
+    @UiField
+    ColourPalette colour;
+    @UiField
+    TextArea params;
+    @UiField
+    TextBox encoding;
+    @UiField
+    CustomCheckBox ignoreErrors;
 
     @Inject
     public TemplateEditViewImpl(final Binder binder) {
         widget = binder.createAndBindUi(this);
+        mode.setAllowTextEntry(true);
     }
 
     @Override
@@ -69,19 +77,21 @@ public class TemplateEditViewImpl extends ViewImpl implements TemplateEditView {
 
     @Override
     public String getMode() {
+        // With text entry allowed the text is the value: a pick writes it, and typing replaces it.
         return mode.getText();
     }
 
     @Override
     public void setMode(final String value) {
-        mode.setText(value);
+        mode.setValue(value == null || value.isEmpty()
+                ? null
+                : value, false);
     }
 
     @Override
     public void setModes(final Set<String> values) {
-        modes.setText(values.isEmpty()
-                ? "No modes yet; blank is the root."
-                : "Existing: " + String.join(", ", values) + ". Blank is the root.");
+        mode.clear();
+        mode.addItems(values);
     }
 
     @Override
@@ -92,6 +102,46 @@ public class TemplateEditViewImpl extends ViewImpl implements TemplateEditView {
     @Override
     public void setConsume(final boolean value) {
         consume.setValue(value);
+    }
+
+    @Override
+    public String getColour() {
+        return colour.getValue();
+    }
+
+    @Override
+    public void setColour(final String value) {
+        colour.setValue(value);
+    }
+
+    @Override
+    public String getParams() {
+        return params.getText();
+    }
+
+    @Override
+    public void setParams(final String value) {
+        params.setText(value);
+    }
+
+    @Override
+    public String getEncoding() {
+        return encoding.getText();
+    }
+
+    @Override
+    public void setEncoding(final String value) {
+        encoding.setText(value);
+    }
+
+    @Override
+    public boolean isIgnoreErrors() {
+        return ignoreErrors.getValue();
+    }
+
+    @Override
+    public void setIgnoreErrors(final boolean value) {
+        ignoreErrors.setValue(value);
     }
 
     public interface Binder extends UiBinder<Widget, TemplateEditViewImpl> {

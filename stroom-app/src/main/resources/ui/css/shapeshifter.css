@@ -646,3 +646,152 @@
     color: var(--ss-muted);
     font-size: 11.5px;
 }
+
+/* The colour palette in the template dialog. */
+.ss-palette {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+}
+
+.ss-pal-swatch {
+    width: 22px;
+    height: 22px;
+    border-radius: 5px;
+    cursor: pointer;
+    border: 2px solid transparent;
+    box-sizing: border-box;
+}
+
+.ss-pal-swatch:hover {
+    border-color: var(--row__background-color--hovered);
+}
+
+.ss-pal-swatch-sel {
+    border-color: var(--text-color);
+}
+
+.ss-pal-swatch--auto {
+    width: auto;
+    padding: 0 6px;
+    font-size: 11px;
+    line-height: 18px;
+    color: var(--ss-muted);
+    border: 1px dashed var(--ss-muted);
+}
+
+.ss-mode-name {
+    width: 180px;
+}
+
+/* The parts tab's rows. */
+.ss-parts--editable > li {
+    cursor: pointer;
+    border-radius: 3px;
+    padding: 2px 4px;
+}
+
+.ss-parts--editable > li:hover {
+    background-color: var(--row__background-color--hovered);
+}
+
+.ss-part--sel {
+    background-color: var(--row__background-color--selected);
+}
+
+/* The body as cards (mockup .card, .cards, .branch, .br-head, .addline). */
+.ss-body {
+    padding: 4px 12px 8px;
+}
+
+.ss-body-title {
+    display: block;
+    padding: 2px 0;
+}
+
+.ss-cards--nested {
+    padding: 0 0 0 10px;
+}
+
+.ss-card-outer {
+    margin: 4px 0;
+}
+
+.ss-card {
+    padding: 4px 8px;
+    background-color: var(--control__background-color);
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    font-size: 12.5px;
+    cursor: pointer;
+    outline: none;
+    transition: border-color .15s ease-out;
+}
+
+.ss-card:hover,
+.ss-card:focus-visible {
+    border-color: var(--focus-border);
+}
+
+.ss-card-line {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    min-width: 0;
+}
+
+.ss-card-kind {
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.ss-card-lit {
+    color: var(--ss-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+}
+
+.ss-card-actions {
+    display: flex;
+    gap: 2px;
+    opacity: 0;
+    white-space: nowrap;
+}
+
+.ss-card:hover .ss-card-actions,
+.ss-card:focus-within .ss-card-actions {
+    opacity: 1;
+}
+
+.ss-branch {
+    margin: 2px 0 0 10px;
+    border-left: 1px dashed var(--border-color);
+}
+
+.ss-br-head {
+    display: flex;
+    gap: 8px;
+    align-items: baseline;
+    padding: 2px 0 0 10px;
+}
+
+.ss-br-key {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--ss-muted);
+}
+
+.ss-addline {
+    display: inline-block;
+    padding: 2px 0 6px;
+}
+
+.ss-add-branch {
+    display: inline-block;
+    padding: 2px 0 4px 10px;
+}

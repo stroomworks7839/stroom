@@ -21,41 +21,25 @@ import stroom.shapeshifter.client.presenter.GuardAndLimitsUiHandlers;
 import stroom.shapeshifter.client.presenter.GuardClause;
 
 import com.google.gwt.event.dom.client.BlurEvent;
-import com.google.gwt.event.dom.client.ClickEvent;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
 import com.google.gwt.uibinder.client.UiHandler;
-import com.google.gwt.user.client.ui.FlowPanel;
 import com.google.gwt.user.client.ui.Label;
-import com.google.gwt.user.client.ui.TextArea;
 import com.google.gwt.user.client.ui.TextBox;
 import com.google.gwt.user.client.ui.Widget;
 import com.google.inject.Inject;
 import com.gwtplatform.mvp.client.ViewWithUiHandlers;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public class GuardAndLimitsViewImpl
         extends ViewWithUiHandlers<GuardAndLimitsUiHandlers>
-        implements GuardAndLimitsView, GuardClauseRow.Listener {
+        implements GuardAndLimitsView, ClauseListPanel.Listener {
 
     private final Widget widget;
-    private final List<GuardClauseRow> rows = new ArrayList<>();
-    private List<String> names = List.of();
-    private boolean enabled = true;
-    private String committedJson = "";
 
     @UiField
-    FlowPanel clauses;
-    @UiField
-    Label noGuard;
-    @UiField
-    Label addClause;
-    @UiField
-    FlowPanel jsonPanel;
-    @UiField
-    TextArea guardJson;
+    ClauseListPanel clauses;
     @UiField
     Label error;
     @UiField
@@ -68,29 +52,14 @@ public class GuardAndLimitsViewImpl
     @Inject
     public GuardAndLimitsViewImpl(final Binder binder) {
         widget = binder.createAndBindUi(this);
+        clauses.setListener(this);
+        clauses.setEmptyText("(no guard — the template is tried whenever its mode applies)");
         setError(null);
-        jsonPanel.setVisible(false);
     }
 
     @Override
     public Widget asWidget() {
         return widget;
-    }
-
-    @UiHandler("addClause")
-    void onAdd(final ClickEvent e) {
-        if (enabled && getUiHandlers() != null) {
-            getUiHandlers().onClauseAdd();
-        }
-    }
-
-    @UiHandler("guardJson")
-    void onJsonBlur(final BlurEvent e) {
-        final String text = guardJson.getText();
-        if (!text.equals(committedJson) && getUiHandlers() != null) {
-            committedJson = text;
-            getUiHandlers().onGuardJson(text);
-        }
     }
 
     @UiHandler("min")
@@ -129,10 +98,22 @@ public class GuardAndLimitsViewImpl
     }
 
     @Override
+    public void onClauseAdd() {
+        if (getUiHandlers() != null) {
+            getUiHandlers().onClauseAdd();
+        }
+    }
+
+    @Override
+    public void onJson(final String json) {
+        if (getUiHandlers() != null) {
+            getUiHandlers().onGuardJson(json);
+        }
+    }
+
+    @Override
     public void setEnabled(final boolean enabled) {
-        this.enabled = enabled;
-        addClause.setStyleDependentName("disabled", !enabled);
-        guardJson.setEnabled(enabled);
+        clauses.setEnabled(enabled);
         min.setEnabled(enabled);
         max.setEnabled(enabled);
         only.setEnabled(enabled);
@@ -140,43 +121,22 @@ public class GuardAndLimitsViewImpl
 
     @Override
     public void setNames(final List<String> names) {
-        this.names = names;
+        clauses.setNames(names);
     }
 
     @Override
     public void setClauses(final List<GuardClause> list) {
-        clauses.clear();
-        rows.clear();
-        for (int i = 0; i < list.size(); i++) {
-            final GuardClauseRow row = new GuardClauseRow(i, list.get(i), names, this, enabled);
-            rows.add(row);
-            clauses.add(row);
-        }
-        noGuard.setVisible(list.isEmpty());
-        clauses.setVisible(true);
-        addClause.setVisible(true);
-        jsonPanel.setVisible(false);
+        clauses.setClauses(list);
     }
 
     @Override
     public List<GuardClause> getClauses() {
-        final List<GuardClause> list = new ArrayList<>();
-        for (final GuardClauseRow row : rows) {
-            list.add(row.getClause());
-        }
-        return list;
+        return clauses.getClauses();
     }
 
     @Override
     public void setGuardJson(final String json) {
-        clauses.clear();
-        rows.clear();
-        noGuard.setVisible(false);
-        clauses.setVisible(false);
-        addClause.setVisible(false);
-        jsonPanel.setVisible(true);
-        committedJson = json;
-        guardJson.setText(json);
+        clauses.setJson(json);
     }
 
     @Override

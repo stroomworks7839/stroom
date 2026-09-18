@@ -1,0 +1,54 @@
+<!DOCTYPE ui:UiBinder SYSTEM "http://dl.google.com/gwt/DTD/xhtml.ent">
+<ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
+             xmlns:g="urn:import:com.google.gwt.user.client.ui"
+             xmlns:form="urn:import:stroom.widget.form.client"
+             xmlns:tickbox="urn:import:stroom.widget.tickbox.client.view"
+             xmlns:l="urn:import:stroom.item.client"
+             xmlns:ss="urn:import:stroom.shapeshifter.client.view">
+    <g:ScrollPanel styleName="max">
+        <g:FlowPanel styleName="form dock-container-vertical">
+            <form:FormGroup identity="ssInstrKind" label="Instruction"
+                            helpText="What the card does. Output writes; invoke dispatches or calls; control branches, loops and binds; a transform computes a named value; a collection op changes a list, map or set.">
+                <g:FlowPanel>
+                    <l:SelectionBox ui:field="kind" addStyleNames="w-100"/>
+                    <g:Label ui:field="note" styleName="shapeshifter-hint"/>
+                </g:FlowPanel>
+            </form:FormGroup>
+            <form:FormGroup ui:field="field0Group" identity="ssInstrF0" label="">
+                <g:TextBox ui:field="field0" addStyleNames="w-100"/>
+            </form:FormGroup>
+            <form:FormGroup ui:field="field1Group" identity="ssInstrF1" label="">
+                <g:TextBox ui:field="field1" addStyleNames="w-100"/>
+            </form:FormGroup>
+            <form:FormGroup ui:field="field2Group" identity="ssInstrF2" label="">
+                <g:TextBox ui:field="field2" addStyleNames="w-100"/>
+            </form:FormGroup>
+            <form:FormGroup ui:field="field3Group" identity="ssInstrF3" label="">
+                <g:TextBox ui:field="field3" addStyleNames="w-100"/>
+            </form:FormGroup>
+            <form:FormGroup ui:field="severityGroup" identity="ssInstrSeverity" label="Severity">
+                <l:SelectionBox ui:field="severity" addStyleNames="w-100"/>
+            </form:FormGroup>
+            <form:FormGroup ui:field="dispatchGroup" identity="ssInstrDispatch" label="Dispatch"
+                            helpText="How candidates in the mode are chosen at this site; blank takes the project's.">
+                <l:SelectionBox ui:field="dispatch" addStyleNames="w-100"/>
+            </form:FormGroup>
+            <form:FormGroup ui:field="flag0Group" identity="ssInstrFlag0" label="">
+                <tickbox:CustomCheckBox ui:field="flag0"/>
+            </form:FormGroup>
+            <form:FormGroup ui:field="flag1Group" identity="ssInstrFlag1" label="">
+                <tickbox:CustomCheckBox ui:field="flag1"/>
+            </form:FormGroup>
+            <form:FormGroup ui:field="multiGroup" identity="ssInstrMulti" label="">
+                <g:TextArea ui:field="multi" addStyleNames="w-100 shapeshifter-entries" visibleLines="5"/>
+            </form:FormGroup>
+            <form:FormGroup ui:field="conditionGroup" identity="ssInstrCondition" label="Test">
+                <ss:ClauseListPanel ui:field="condition"/>
+            </form:FormGroup>
+            <form:FormGroup ui:field="wireGroup" identity="ssInstrWire" label="Wire form"
+                            helpText="The instruction as the document holds it.">
+                <g:TextArea ui:field="wire" addStyleNames="w-100 shapeshifter-entries" visibleLines="10"/>
+            </form:FormGroup>
+        </g:FlowPanel>
+    </g:ScrollPanel>
+</ui:UiBinder>

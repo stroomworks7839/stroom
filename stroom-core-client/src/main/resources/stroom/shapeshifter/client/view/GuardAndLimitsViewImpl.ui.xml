@@ -1,17 +1,12 @@
 <!DOCTYPE ui:UiBinder SYSTEM "http://dl.google.com/gwt/DTD/xhtml.ent">
 <ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
-             xmlns:g="urn:import:com.google.gwt.user.client.ui">
+             xmlns:g="urn:import:com.google.gwt.user.client.ui"
+             xmlns:ss="urn:import:stroom.shapeshifter.client.view">
     <g:ScrollPanel styleName="max">
         <g:FlowPanel styleName="ss-wb-right">
             <g:FlowPanel styleName="ss-wb-sec">
                 <g:HTML styleName="ss-wb-h4">Guard <span class="ss-wb-h4-note">(evaluated before matching, against the names in scope)</span></g:HTML>
-                <g:Label ui:field="noGuard" styleName="ss-none" text="(no guard — the template is tried whenever its mode applies)"/>
-                <g:FlowPanel ui:field="clauses"/>
-                <g:Label ui:field="addClause" styleName="ss-addbtn" text="+ clause"/>
-                <g:FlowPanel ui:field="jsonPanel">
-                    <g:Label styleName="ss-wb-lint" text="This guard is more than clauses joined by and — an or, a not, a comparison of two references — so it is edited as its wire form."/>
-                    <g:TextArea ui:field="guardJson" styleName="ss-wb-pat" visibleLines="6"/>
-                </g:FlowPanel>
+                <ss:ClauseListPanel ui:field="clauses"/>
                 <g:Label ui:field="error" styleName="ss-wb-err"/>
             </g:FlowPanel>
             <g:FlowPanel styleName="ss-wb-sec">

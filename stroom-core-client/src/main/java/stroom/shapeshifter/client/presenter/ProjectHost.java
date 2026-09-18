@@ -36,6 +36,12 @@ public interface ProjectHost {
 
     boolean isReadOnly();
 
+    /** A template's swatch colour: the author's override, or the palette by position (design 18 §5.6). */
+    String colour(String templateId);
+
+    /** Choose a template's colour, or null for the palette's; presentation, so the run is never stale for it. */
+    void setColour(String templateId, String colour);
+
     /** The template with this id in the current project, or null. */
     default Template template(final String id) {
         final Project project = getProject();

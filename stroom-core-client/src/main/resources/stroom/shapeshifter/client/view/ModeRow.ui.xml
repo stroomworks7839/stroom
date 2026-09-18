@@ -1,0 +1,9 @@
+<!DOCTYPE ui:UiBinder SYSTEM "http://dl.google.com/gwt/DTD/xhtml.ent">
+<ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
+             xmlns:g="urn:import:com.google.gwt.user.client.ui">
+    <g:FlowPanel styleName="ss-step-row ss-mode-row">
+        <g:TextBox ui:field="name" styleName="ss-edit-in ss-mode-name" title="Rename: the mode's templates and every apply site naming it follow"/>
+        <g:Label ui:field="count" styleName="ss-det-desc"/>
+        <g:Label ui:field="remove" styleName="ss-act ss-act--del" text="✕"/>
+    </g:FlowPanel>
+</ui:UiBinder>

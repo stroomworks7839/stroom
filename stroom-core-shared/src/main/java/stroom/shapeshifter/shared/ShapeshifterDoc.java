@@ -29,6 +29,9 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 
 @Description(
@@ -49,7 +52,8 @@ import java.util.Objects;
         "createUser",
         "updateUser",
         "description",
-        "data"})
+        "data",
+        "colours"})
 @JsonInclude(Include.NON_NULL)
 public class ShapeshifterDoc extends AbstractEmbeddableDoc implements HasData {
 
@@ -61,6 +65,13 @@ public class ShapeshifterDoc extends AbstractEmbeddableDoc implements HasData {
     /** The project JSON, exactly as the engine's {@code ProjectReader} reads it. */
     @JsonProperty
     private final String data;
+    /**
+     * Editor metadata (design 18 §5.6): a template's swatch colour where the author chose one,
+     * by template id. Presentation, never engine configuration: the project text does not carry
+     * it, and the engine never sees it.
+     */
+    @JsonProperty
+    private final Map<String, String> colours;
 
     @JsonCreator
     public ShapeshifterDoc(@JsonProperty("uuid") final String uuid,
@@ -72,10 +83,14 @@ public class ShapeshifterDoc extends AbstractEmbeddableDoc implements HasData {
                            @JsonProperty("updateUser") final String updateUser,
                            @JsonProperty("description") final String description,
                            @JsonProperty("data") final String data,
+                           @JsonProperty("colours") final Map<String, String> colours,
                            @JsonProperty("embeddedIn") final DocRef embeddedIn) {
         super(TYPE, uuid, name, version, createTimeMs, updateTimeMs, createUser, updateUser, embeddedIn);
         this.description = description;
         this.data = data;
+        this.colours = colours == null || colours.isEmpty()
+                ? null
+                : Collections.unmodifiableMap(new HashMap<>(colours));
     }
 
     public static DocRef getDocRef(final String uuid) {
@@ -97,6 +112,13 @@ public class ShapeshifterDoc extends AbstractEmbeddableDoc implements HasData {
         return data;
     }
 
+    /** Colour overrides by template id; empty when none were chosen. */
+    public Map<String, String> getColours() {
+        return colours == null
+                ? Collections.emptyMap()
+                : colours;
+    }
+
     @Override
     public boolean equals(final Object o) {
         if (this == o) {
@@ -110,12 +132,13 @@ public class ShapeshifterDoc extends AbstractEmbeddableDoc implements HasData {
         }
         final ShapeshifterDoc that = (ShapeshifterDoc) o;
         return Objects.equals(description, that.description) &&
-               Objects.equals(data, that.data);
+               Objects.equals(data, that.data) &&
+               Objects.equals(colours, that.colours);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(super.hashCode(), description, data);
+        return Objects.hash(super.hashCode(), description, data, colours);
     }
 
     public Builder copy() {
@@ -135,6 +158,7 @@ public class ShapeshifterDoc extends AbstractEmbeddableDoc implements HasData {
 
         private String description;
         private String data;
+        private Map<String, String> colours;
         private DocRef embeddedIn;
 
         public Builder() {
@@ -144,6 +168,7 @@ public class ShapeshifterDoc extends AbstractEmbeddableDoc implements HasData {
             super(doc);
             this.description = doc.description;
             this.data = doc.data;
+            this.colours = doc.colours;
             this.embeddedIn = doc.getEmbeddedIn();
         }
 
@@ -154,6 +179,11 @@ public class ShapeshifterDoc extends AbstractEmbeddableDoc implements HasData {
 
         public Builder data(final String data) {
             this.data = data;
+            return self();
+        }
+
+        public Builder colours(final Map<String, String> colours) {
+            this.colours = colours;
             return self();
         }
 
@@ -178,6 +208,7 @@ public class ShapeshifterDoc extends AbstractEmbeddableDoc implements HasData {
                     updateUser,
                     description,
                     data,
+                    colours,
                     embeddedIn);
         }
     }

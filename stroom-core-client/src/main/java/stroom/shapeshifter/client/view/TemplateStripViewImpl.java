@@ -64,8 +64,6 @@ public class TemplateStripViewImpl
     @UiField
     SimplePanel content;
     @UiField
-    Label bodyNote;
-    @UiField
     ThinSplitLayoutPanel details;
     @UiField
     SimplePanel declarations;
@@ -139,7 +137,6 @@ public class TemplateStripViewImpl
     @Override
     public void setMatchVisible(final boolean visible) {
         matchLine.setVisible(visible);
-        bodyNote.setVisible(visible);
     }
 
     @Override

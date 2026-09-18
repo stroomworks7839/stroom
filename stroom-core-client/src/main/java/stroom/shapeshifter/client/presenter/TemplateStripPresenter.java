@@ -39,8 +39,8 @@ import java.util.Objects;
  * The template strip (design 18 §5.6): "what it is", beneath the panes that say what
  * happened. Its title line is the template's identity — swatch, name, mode, where it is
  * dispatched from, computed from the mode graph — and its body opens with the match as a
- * read-only chip that opens the pattern workbench, then guard and limits as a summary. The
- * body cards follow in phase B; until then the declarations and captures grids sit beneath.
+ * read-only chip that opens the pattern workbench, then guard and limits as a summary, then the
+ * body as cards; the declarations and captures grids sit beneath.
  * For the project row the strip shows the document: its name and source settings.
  */
 public class TemplateStripPresenter
@@ -48,6 +48,7 @@ public class TemplateStripPresenter
         implements TemplateStripUiHandlers {
 
     private final SourceConfigPresenter sourceConfig;
+    private final BodyPresenter bodyPresenter;
     private final DeclarationsPresenter declarations;
     private final CapturesPresenter captures;
 
@@ -59,10 +60,12 @@ public class TemplateStripPresenter
     public TemplateStripPresenter(final EventBus eventBus,
                                   final TemplateStripView view,
                                   final SourceConfigPresenter sourceConfig,
+                                  final BodyPresenter bodyPresenter,
                                   final DeclarationsPresenter declarations,
                                   final CapturesPresenter captures) {
         super(eventBus, view);
         this.sourceConfig = sourceConfig;
+        this.bodyPresenter = bodyPresenter;
         this.declarations = declarations;
         this.captures = captures;
         view.setUiHandlers(this);
@@ -72,6 +75,7 @@ public class TemplateStripPresenter
     public void setHost(final ProjectHost host) {
         this.host = host;
         sourceConfig.setHost(host);
+        bodyPresenter.setHost(host);
         declarations.setHost(host);
         captures.setHost(host);
     }
@@ -95,14 +99,14 @@ public class TemplateStripPresenter
             getView().setContent(sourceConfig.getView());
             return;
         }
-        final int index = project.templates().indexOf(template);
-        getView().setHeader("template", Templates.colour(index), template.name(), template.mode() == null
+        getView().setHeader("template", host.colour(template.id()), template.name(), template.mode() == null
                 ? "root"
                 : "mode " + template.mode(), "dispatched from " + dispatchedFrom(project, template));
         getView().setMatch(Templates.kind(template.match()), Templates.describe(template.match()),
                 guardSummary(template.guard()) + " · " + limitsSummary(template.matchLimits()));
         getView().setMatchVisible(true);
-        getView().setContent(null);
+        bodyPresenter.setTemplate(id);
+        getView().setContent(bodyPresenter.getView());
         declarations.setTemplate(id);
         captures.setTemplate(id);
         getView().setDetailsVisible(true);

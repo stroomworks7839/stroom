@@ -1,0 +1,38 @@
+<!DOCTYPE ui:UiBinder SYSTEM "http://dl.google.com/gwt/DTD/xhtml.ent">
+<ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
+             xmlns:g="urn:import:com.google.gwt.user.client.ui"
+             xmlns:form="urn:import:stroom.widget.form.client"
+             xmlns:tickbox="urn:import:stroom.widget.tickbox.client.view"
+             xmlns:l="urn:import:stroom.item.client">
+    <g:ScrollPanel styleName="max">
+        <g:FlowPanel styleName="form dock-container-vertical">
+            <form:FormGroup identity="shapeshifterPartKind" label="Kind"
+                            helpText="pattern matches a tree at the cursor; take consumes a length; seek moves the cursor by a length, or to an offset; read casts the bytes at the cursor.">
+                <l:SelectionBox ui:field="kind" addStyleNames="w-100"/>
+            </form:FormGroup>
+            <form:FormGroup ui:field="patternGroup" identity="shapeshifterPartPattern" label="Pattern tree"
+                            helpText="The pattern node in its wire form, as the tree tab holds it.">
+                <g:TextArea ui:field="pattern" addStyleNames="w-100 shapeshifter-entries" visibleLines="8"/>
+            </form:FormGroup>
+            <form:FormGroup ui:field="lengthGroup" identity="shapeshifterPartLength" label="Length"
+                            helpText="A count of bytes, or the value a label or a variable holds.">
+                <g:FlowPanel styleName="ss-step-row">
+                    <l:SelectionBox ui:field="lengthKind" addStyleNames="ss-clause-op"/>
+                    <g:TextBox ui:field="length" styleName="ss-edit-in ss-clause-val"/>
+                </g:FlowPanel>
+            </form:FormGroup>
+            <form:FormGroup ui:field="absoluteGroup" identity="shapeshifterPartAbsolute" label="Absolute"
+                            helpText="Seek to this offset from the start of the match, rather than by this many bytes.">
+                <tickbox:CustomCheckBox ui:field="absolute"/>
+            </form:FormGroup>
+            <form:FormGroup ui:field="castGroup" identity="shapeshifterPartCast" label="As"
+                            helpText="What the bytes at the cursor mean; the read consumes the cast's width.">
+                <l:SelectionBox ui:field="cast" addStyleNames="w-100"/>
+            </form:FormGroup>
+            <form:FormGroup ui:field="labelGroup" identity="shapeshifterPartLabel" label="Label"
+                            helpText="Names what this part took or read, for a capture to bind. Blank for none.">
+                <g:TextBox ui:field="label" addStyleNames="w-100"/>
+            </form:FormGroup>
+        </g:FlowPanel>
+    </g:ScrollPanel>
+</ui:UiBinder>

@@ -21,6 +21,7 @@ import stroom.shapeshifter.config.Condition;
 import stroom.shapeshifter.config.ConfigException;
 import stroom.shapeshifter.config.Declaration;
 import stroom.shapeshifter.config.MatchExpression;
+import stroom.shapeshifter.config.OutputNode;
 import stroom.shapeshifter.config.PatternNode;
 import stroom.shapeshifter.config.Project;
 import stroom.shapeshifter.config.Project.SourceConfig;
@@ -94,6 +95,14 @@ public final class ProjectJson {
         return ReferenceJson.writeCapture(capture);
     }
 
+    public static OutputNode readOutput(final JsonValue node) {
+        return OutputJson.readOutput(node);
+    }
+
+    public static JsonValue writeOutput(final OutputNode output) {
+        return OutputJson.writeOutput(output);
+    }
+
     public static Condition readCondition(final JsonValue node) {
         return ConditionJson.readCondition(node);
     }
@@ -108,6 +117,11 @@ public final class ProjectJson {
      */
     public static RefExpression readRefOrName(final String text) {
         return ReferenceJson.readRefOrName(new JsonString(text));
+    }
+
+    /** A reference in the wire form a collection site holds it: a name, a function, or parts. */
+    public static JsonValue writeRefOrNameWire(final RefExpression ref) {
+        return ReferenceJson.writeRefOrName(ref);
     }
 
     /**

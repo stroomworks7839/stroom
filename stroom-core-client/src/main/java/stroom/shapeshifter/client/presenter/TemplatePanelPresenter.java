@@ -52,11 +52,13 @@ public class TemplatePanelPresenter
         implements TemplatePanelUiHandlers, HasValueChangeHandlers<String> {
 
     private final TemplateEditPresenter editPresenter;
+    private final ModeEditorPresenter modeEditor;
     private final ButtonView addButton;
     private final ButtonView editButton;
     private final ButtonView removeButton;
     private final ButtonView upButton;
     private final ButtonView downButton;
+    private final ButtonView modesButton;
 
     private ProjectHost host;
     private String selected;
@@ -64,20 +66,24 @@ public class TemplatePanelPresenter
     @Inject
     public TemplatePanelPresenter(final EventBus eventBus,
                                   final TemplatePanelView view,
-                                  final TemplateEditPresenter editPresenter) {
+                                  final TemplateEditPresenter editPresenter,
+                                  final ModeEditorPresenter modeEditor) {
         super(eventBus, view);
         this.editPresenter = editPresenter;
+        this.modeEditor = modeEditor;
         view.setUiHandlers(this);
         addButton = view.addButton(SvgPresets.ADD.title("Add template"));
         editButton = view.addButton(SvgPresets.EDIT.title("Edit template"));
         removeButton = view.addButton(SvgPresets.DELETE.title("Remove template"));
         upButton = view.addButton(SvgPresets.UP.title("Move up: earlier in dispatch order"));
         downButton = view.addButton(SvgPresets.DOWN.title("Move down: later in dispatch order"));
+        modesButton = view.addButton(SvgPresets.PROPERTIES.title("Modes: rename or remove"));
         enableButtons();
     }
 
     public void setHost(final ProjectHost host) {
         this.host = host;
+        modeEditor.setHost(host);
     }
 
     @Override
@@ -106,6 +112,11 @@ public class TemplatePanelPresenter
         registerHandler(downButton.addClickHandler(event -> {
             if (MouseUtil.isPrimary(event)) {
                 onMove(1);
+            }
+        }));
+        registerHandler(modesButton.addClickHandler(event -> {
+            if (MouseUtil.isPrimary(event) && host.getProject() != null) {
+                modeEditor.show();
             }
         }));
     }
@@ -160,14 +171,12 @@ public class TemplatePanelPresenter
                 }
             }
             for (final String mode : modes) {
-                int i = 0;
                 for (final Template template : project.templates()) {
                     if (Objects.equals(template.mode(), mode)) {
                         rows.add(new TemplateRowData(template.id(), template.name(), template.mode(),
-                                Templates.colour(i), Templates.kind(template.match()), false));
+                                host.colour(template.id()), Templates.kind(template.match()), false));
                         survives |= template.id().equals(selected);
                     }
-                    i++;
                 }
             }
         }
@@ -183,6 +192,7 @@ public class TemplatePanelPresenter
         final boolean editable = host != null && !host.isReadOnly();
         final boolean template = selected != null && host != null && host.template(selected) != null;
         addButton.setEnabled(editable);
+        modesButton.setEnabled(host != null && host.getProject() != null);
         editButton.setEnabled(editable && template);
         removeButton.setEnabled(editable && template);
         final int index = template
@@ -221,12 +231,13 @@ public class TemplatePanelPresenter
         final Template current = host.template(selected);
         editPresenter.read(host.getProject(), Templates.create("", current == null
                 ? null
-                : current.mode(), true));
+                : current.mode(), true), null);
         editPresenter.show("New Template", e -> {
             if (e.isOk()) {
                 final Template template = editPresenter.write();
                 if (template != null) {
                     host.replace(host.withTemplate(template));
+                    host.setColour(template.id(), editPresenter.getColour());
                     select(template.id(), true);
                     e.hide();
                 }
@@ -242,18 +253,30 @@ public class TemplatePanelPresenter
         if (existing == null || host.isReadOnly()) {
             return;
         }
-        editPresenter.read(host.getProject(), existing);
+        editPresenter.read(host.getProject(), existing, overrideOf(existing.id()));
         editPresenter.show("Edit Template", e -> {
             if (e.isOk()) {
                 final Template template = editPresenter.write();
                 if (template != null) {
-                    host.replace(host.withTemplate(template));
+                    if (!template.equals(existing)) {
+                        host.replace(host.withTemplate(template));
+                    }
+                    host.setColour(template.id(), editPresenter.getColour());
                     e.hide();
                 }
             } else {
                 e.hide();
             }
         });
+    }
+
+    /** The colour the author chose for a template, or null when it wears the palette's. */
+    private String overrideOf(final String id) {
+        final String colour = host.colour(id);
+        final int index = indexOf(id);
+        return index >= 0 && colour.equals(Templates.colour(index))
+                ? null
+                : colour;
     }
 
     private void onRemove() {

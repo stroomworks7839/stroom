@@ -20,6 +20,7 @@ import stroom.alert.client.event.AlertEvent;
 import stroom.shapeshifter.client.presenter.TemplateEditPresenter.TemplateEditView;
 import stroom.shapeshifter.config.Project;
 import stroom.shapeshifter.config.Template;
+import stroom.shapeshifter.config.Template.ParamDecl;
 import stroom.widget.popup.client.event.HidePopupRequestEvent;
 import stroom.widget.popup.client.event.ShowPopupEvent;
 import stroom.widget.popup.client.presenter.PopupSize;
@@ -31,12 +32,15 @@ import com.google.web.bindery.event.shared.EventBus;
 import com.gwtplatform.mvp.client.MyPresenterWidget;
 import com.gwtplatform.mvp.client.View;
 
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 
 /**
- * A template's identity — name, mode, whether it consumes — the same fields whether creating or
- * editing (design 18 §5.6: mode has exactly one home). A blank mode is the root: the templates
+ * A template's identity — name, colour, mode, whether it consumes — the same fields whether
+ * creating or editing (design 18 §5.6: mode has exactly one home). Colour is presentation and
+ * lives beside the project in the document, not in it. A blank mode is the root: the templates
  * the document itself dispatches to.
  */
 public class TemplateEditPresenter extends MyPresenterWidget<TemplateEditView> {
@@ -48,20 +52,28 @@ public class TemplateEditPresenter extends MyPresenterWidget<TemplateEditView> {
         super(eventBus, view);
     }
 
-    public void read(final Project project, final Template template) {
+    public void read(final Project project, final Template template, final String colour) {
         this.template = template;
-        final Set<String> modes = new LinkedHashSet<>();
-        for (final Template t : project.templates()) {
-            if (t.mode() != null && !t.mode().isEmpty()) {
-                modes.add(t.mode());
-            }
-        }
-        getView().setModes(modes);
+        getView().setColour(colour);
+        getView().setModes(new LinkedHashSet<>(Modes.of(project)));
         getView().setName(template.name());
         getView().setMode(template.mode() == null
                 ? ""
                 : template.mode());
         getView().setConsume(template.consume());
+        getView().setEncoding(template.encoding() == null
+                ? ""
+                : template.encoding());
+        getView().setIgnoreErrors(template.ignoreErrors());
+        final StringBuilder params = new StringBuilder();
+        for (final ParamDecl param : template.param()) {
+            params.append(param.name());
+            if (param.defaultValue() != null) {
+                params.append(" = ").append(param.defaultValue());
+            }
+            params.append('\n');
+        }
+        getView().setParams(params.toString());
     }
 
     /** The edited template, or null after telling the user what is missing. */
@@ -72,15 +84,40 @@ public class TemplateEditPresenter extends MyPresenterWidget<TemplateEditView> {
             return null;
         }
         final String mode = getView().getMode().trim();
+        final List<ParamDecl> params = new ArrayList<>();
+        for (final String line : getView().getParams().split("\n")) {
+            if (line.trim().isEmpty()) {
+                continue;
+            }
+            final int eq = line.indexOf('=');
+            final String paramName = (eq < 0
+                    ? line
+                    : line.substring(0, eq)).trim();
+            if (paramName.isEmpty()) {
+                AlertEvent.fireWarn(this, "A param is 'name' or 'name = default': " + line, null);
+                return null;
+            }
+            params.add(new ParamDecl(paramName, eq < 0
+                    ? null
+                    : line.substring(eq + 1).trim()));
+        }
+        final String encoding = getView().getEncoding().trim();
         return Templates.withIdentity(template, name, mode.isEmpty()
                 ? null
-                : mode, getView().isConsume());
+                : mode, getView().isConsume(), params, encoding.isEmpty()
+                ? null
+                : encoding, getView().isIgnoreErrors());
+    }
+
+    /** The colour chosen for the template, or null for the palette's. */
+    public String getColour() {
+        return getView().getColour();
     }
 
     public void show(final String caption, final HidePopupRequestEvent.Handler handler) {
         ShowPopupEvent.builder(this)
                 .popupType(PopupType.OK_CANCEL_DIALOG)
-                .popupSize(PopupSize.resizable(420, 260))
+                .popupSize(PopupSize.resizable(460, 520))
                 .caption(caption)
                 .onShow(e -> getView().focus())
                 .onHideRequest(handler)
@@ -103,5 +140,22 @@ public class TemplateEditPresenter extends MyPresenterWidget<TemplateEditView> {
         boolean isConsume();
 
         void setConsume(boolean consume);
+
+        String getColour();
+
+        void setColour(String colour);
+
+        /** Params as lines: {@code name} or {@code name = default}. */
+        String getParams();
+
+        void setParams(String params);
+
+        String getEncoding();
+
+        void setEncoding(String encoding);
+
+        boolean isIgnoreErrors();
+
+        void setIgnoreErrors(boolean ignoreErrors);
     }
 }

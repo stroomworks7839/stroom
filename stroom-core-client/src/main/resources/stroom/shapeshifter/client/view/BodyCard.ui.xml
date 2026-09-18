@@ -1,0 +1,19 @@
+<!DOCTYPE ui:UiBinder SYSTEM "http://dl.google.com/gwt/DTD/xhtml.ent">
+<ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
+             xmlns:g="urn:import:com.google.gwt.user.client.ui">
+    <g:FlowPanel styleName="ss-card-outer">
+        <g:FocusPanel ui:field="head" styleName="ss-card">
+            <g:FlowPanel styleName="ss-card-line">
+                <g:Label ui:field="kind" styleName="ss-card-kind"/>
+                <g:Label ui:field="summary" styleName="ss-card-lit"/>
+                <g:FlowPanel ui:field="actions" styleName="ss-card-actions">
+                    <g:Label ui:field="up" styleName="ss-act" text="↑" title="Move up"/>
+                    <g:Label ui:field="down" styleName="ss-act" text="↓" title="Move down"/>
+                    <g:Label ui:field="addAfter" styleName="ss-act" text="+" title="Add an instruction after this one"/>
+                    <g:Label ui:field="remove" styleName="ss-act ss-act--del" text="✕" title="Remove"/>
+                </g:FlowPanel>
+            </g:FlowPanel>
+        </g:FocusPanel>
+        <g:FlowPanel ui:field="branches" styleName="ss-branches"/>
+    </g:FlowPanel>
+</ui:UiBinder>

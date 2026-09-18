@@ -37,8 +37,6 @@
                         <g:Label ui:field="guardLimits" styleName="ss-none ss-clickable"
                                  title="Guard and limits — edited in the workbench"/>
                     </g:FlowPanel>
-                    <g:Label ui:field="bodyNote" styleName="ss-none"
-                             text="Body — the instructions and what they wrote — arrives with the trace (phase B); until then the body is edited in the Source tab."/>
                     <g:SimplePanel ui:field="content" styleName="ss-strip-content"/>
                 </g:FlowPanel>
             </g:ScrollPanel>

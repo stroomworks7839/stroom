@@ -18,18 +18,30 @@ package stroom.shapeshifter.client.gin;
 
 import stroom.core.client.gin.PluginModule;
 import stroom.shapeshifter.client.ShapeshifterPlugin;
+import stroom.shapeshifter.client.presenter.BodyPresenter;
+import stroom.shapeshifter.client.presenter.BodyPresenter.BodyView;
 import stroom.shapeshifter.client.presenter.CaptureEditPresenter;
 import stroom.shapeshifter.client.presenter.CaptureEditPresenter.CaptureEditView;
 import stroom.shapeshifter.client.presenter.CapturesPresenter;
+import stroom.shapeshifter.client.presenter.ConditionEditPresenter;
+import stroom.shapeshifter.client.presenter.ConditionEditPresenter.ConditionEditView;
 import stroom.shapeshifter.client.presenter.DeclarationEditPresenter;
 import stroom.shapeshifter.client.presenter.DeclarationEditPresenter.DeclarationEditView;
 import stroom.shapeshifter.client.presenter.DeclarationsPresenter;
 import stroom.shapeshifter.client.presenter.GuardAndLimitsPresenter;
 import stroom.shapeshifter.client.presenter.GuardAndLimitsPresenter.GuardAndLimitsView;
+import stroom.shapeshifter.client.presenter.InstructionEditPresenter;
+import stroom.shapeshifter.client.presenter.InstructionEditPresenter.InstructionEditView;
 import stroom.shapeshifter.client.presenter.MatchEditorPresenter;
-import stroom.shapeshifter.client.presenter.MatchStructurePresenter;
-import stroom.shapeshifter.client.presenter.MatchStructurePresenter.MatchStructureView;
 import stroom.shapeshifter.client.presenter.MessagesPresenter;
+import stroom.shapeshifter.client.presenter.ModeEditorPresenter;
+import stroom.shapeshifter.client.presenter.ModeEditorPresenter.ModeEditorView;
+import stroom.shapeshifter.client.presenter.OtherMatchPresenter;
+import stroom.shapeshifter.client.presenter.OtherMatchPresenter.OtherMatchView;
+import stroom.shapeshifter.client.presenter.PartEditPresenter;
+import stroom.shapeshifter.client.presenter.PartEditPresenter.PartEditView;
+import stroom.shapeshifter.client.presenter.PartsPresenter;
+import stroom.shapeshifter.client.presenter.PartsPresenter.PartsView;
 import stroom.shapeshifter.client.presenter.PatternNodeEditPresenter;
 import stroom.shapeshifter.client.presenter.PatternNodeEditPresenter.PatternNodeEditView;
 import stroom.shapeshifter.client.presenter.PatternTreePresenter;
@@ -51,10 +63,16 @@ import stroom.shapeshifter.client.presenter.TemplateStripPresenter;
 import stroom.shapeshifter.client.presenter.TemplateStripPresenter.TemplateStripView;
 import stroom.shapeshifter.client.presenter.TracePanePresenter;
 import stroom.shapeshifter.client.presenter.TracePanePresenter.TracePaneView;
+import stroom.shapeshifter.client.view.BodyViewImpl;
 import stroom.shapeshifter.client.view.CaptureEditViewImpl;
+import stroom.shapeshifter.client.view.ConditionEditViewImpl;
 import stroom.shapeshifter.client.view.DeclarationEditViewImpl;
 import stroom.shapeshifter.client.view.GuardAndLimitsViewImpl;
-import stroom.shapeshifter.client.view.MatchStructureViewImpl;
+import stroom.shapeshifter.client.view.InstructionEditViewImpl;
+import stroom.shapeshifter.client.view.ModeEditorViewImpl;
+import stroom.shapeshifter.client.view.OtherMatchViewImpl;
+import stroom.shapeshifter.client.view.PartEditViewImpl;
+import stroom.shapeshifter.client.view.PartsViewImpl;
 import stroom.shapeshifter.client.view.PatternNodeEditViewImpl;
 import stroom.shapeshifter.client.view.PatternTreeViewImpl;
 import stroom.shapeshifter.client.view.PatternWorkbenchViewImpl;
@@ -103,9 +121,15 @@ public class ShapeshifterModule extends PluginModule {
         bindPresenterWidget(RegexTabPresenter.class,
                 RegexTabView.class,
                 RegexTabViewImpl.class);
-        bindPresenterWidget(MatchStructurePresenter.class,
-                MatchStructureView.class,
-                MatchStructureViewImpl.class);
+        bindPresenterWidget(OtherMatchPresenter.class,
+                OtherMatchView.class,
+                OtherMatchViewImpl.class);
+        bindPresenterWidget(PartsPresenter.class,
+                PartsView.class,
+                PartsViewImpl.class);
+        bindPresenterWidget(PartEditPresenter.class,
+                PartEditView.class,
+                PartEditViewImpl.class);
         bindPresenterWidget(PatternTreePresenter.class,
                 PatternTreeView.class,
                 PatternTreeViewImpl.class);
@@ -121,5 +145,17 @@ public class ShapeshifterModule extends PluginModule {
                 CaptureEditView.class,
                 CaptureEditViewImpl.class);
         bind(MessagesPresenter.class);
+        bindPresenterWidget(BodyPresenter.class,
+                BodyView.class,
+                BodyViewImpl.class);
+        bindPresenterWidget(InstructionEditPresenter.class,
+                InstructionEditView.class,
+                InstructionEditViewImpl.class);
+        bindPresenterWidget(ConditionEditPresenter.class,
+                ConditionEditView.class,
+                ConditionEditViewImpl.class);
+        bindPresenterWidget(ModeEditorPresenter.class,
+                ModeEditorView.class,
+                ModeEditorViewImpl.class);
     }
 }

@@ -241,6 +241,24 @@ rows' vertical splitters are independent where the mockup ties them to one line;
 workbench takes the top row's space as well as the strip's, so the output pane grows to full
 height while it is open — both accepted.
 
+### 4.2 Model coverage: what the forms could not reach — 2026-09-18
+
+With phase A's workbench built, the owner asked which items of the model the UI still could
+not edit except as Source text. Inventoried against `ProjectJson.readTemplate` and the
+`OutputNode` vocabulary:
+
+| model item | had | now |
+|---|---|---|
+| `Template.param`, `encoding`, `ignore_errors` | nothing | the template dialog: params as `name = default` lines, encoding, ignore errors |
+| match kinds `delimiter`, `source`, `all`, `named` | the Other tab's wire form | the Other tab is a **kind picker** — source, all, named, delimiter with its four fields — over the wire form, which stays for what it is: a view of any match |
+| `Template.body` | nothing | **`BodyPresenter`**, the card list of 18 §5.6 *without* the trace's annotations: cards with kind and summary, containers holding card lists per branch with their own add line, move and delete by button (drag and the keyboard moves are B), *+ instruction* grouped output · invoke · control · transform · collection; each card's editor is per kind for the kinds an author writes constantly — text, value-of, apply-templates, call-template, element, attribute, variable, namespace, emit-error, if, choose, switch, for-each, for-each-group, the five collection ops — and the wire form for the thirty transforms, with the same rule as the guard: a reference is a name or a function in a field, and a card whose reference is a path is edited as wire form. Conditions on `if`, `when` and the guard share one clause editor. Phase B adds what a card shows about the run, not what it edits. |
+| capture sources `select`, `key-value` | wire form in the dialog | unchanged, deliberately: a reference has no text syntax in the model, only its wire form, and a builder for `parts` would be a second language |
+
+The body's path addressing follows the tree editor's: a card is addressed by its index at the
+top level, then by *(branch, index)* pairs into a holder's `bodies()`, and every edit is a
+rewrite returning a new body (`Bodies`), the label-through-rewrite convention of `PatternNodes`
+applied to holders keeping their heads.
+
 ## 5. Endpoints and wire types
 
 Additions to `ShapeshifterResource`, all `POST`, all taking the project as JSON text (the
@@ -401,10 +419,20 @@ shippable.
   two references, a path — is edited as its wire form. Limits are min, max and only with their
   semantics inline. The strip's summary reads the rows: `status ge 400 and user exists`.
   The live verdict against the current frame waits for the trace.
-  *Left for the next piece of workbench work, deliberately:* template colour overrides (18
-  §5.6, editor metadata in the doc) are unbuilt; the Source tab's format action is Ace's
-  formatter, not yet the `validate` round trip; modes are typed, not chosen from a mode
-  editor; undo is phase B with the trace.
+  **The rest of phase A, 2026-09-18:** colour overrides as editor metadata — `ShapeshifterDoc`
+  gains `colours` (template id → colour) beside `data`, chosen from a `ColourPalette` in the
+  template dialog, read by the panel and strip before the palette's position, dirtying the
+  document without touching the project; the **mode editor** — modes exist through their
+  templates and apply sites, so it renames (both follow, into every branch of every holder)
+  and removes empty modes (their sites become root dispatches, with a warning), while a mode is
+  created by giving it to a template, whose dialog now offers the existing modes with free
+  text; the **parts tab** as rows with add, edit, remove, up and down and a part dialog
+  (pattern as wire form, take and seek with a length as count, label or variable, read with a
+  cast), the wire form still editable beside; and the Source tab's format action is
+  **canonicalise**: the engine's own pretty form replacing Ace's when the text reads as a
+  project — printed locally, since the printer is the config module's and the engine prints
+  with the same one, so §3's `validate` round trip is not needed for it. Phase A of the workbench is complete but for the declarations and
+  captures grids, which stay stock until the strip has a home for them; undo is phase B.
 - **B — the trace.** Design 18 §7's engine asks; `TraceModel`; `preview`;
   `SampleSourcePresenter`; the navigator's four presenters; `BodyPresenter`; undo; profiling.
 - **C — stepping.** `SteppingEditor` + registry + `DefaultSteppingEditor` extraction in

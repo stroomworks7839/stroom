@@ -30,7 +30,6 @@ import stroom.widget.tab.client.presenter.TabDataImpl;
 
 import com.google.gwt.core.client.GWT;
 import com.google.inject.Inject;
-import com.google.inject.Provider;
 import com.google.web.bindery.event.shared.EventBus;
 import com.gwtplatform.mvp.client.MyPresenterWidget;
 
@@ -56,8 +55,8 @@ public class MatchEditorPresenter extends MyPresenterWidget<LinkTabPanelView> {
     private final RestFactory restFactory;
     private final RegexTabPresenter regexTab;
     private final PatternTreePresenter treeTab;
-    private final MatchStructurePresenter partsTab;
-    private final MatchStructurePresenter otherTab;
+    private final PartsPresenter partsTab;
+    private final OtherMatchPresenter otherTab;
 
     private ProjectHost host;
     private String templateId;
@@ -69,15 +68,14 @@ public class MatchEditorPresenter extends MyPresenterWidget<LinkTabPanelView> {
                                 final RestFactory restFactory,
                                 final RegexTabPresenter regexTab,
                                 final PatternTreePresenter treeTab,
-                                final Provider<MatchStructurePresenter> structureProvider) {
+                                final PartsPresenter partsTab,
+                                final OtherMatchPresenter otherTab) {
         super(eventBus, view);
         this.restFactory = restFactory;
         this.regexTab = regexTab;
         this.treeTab = treeTab;
-        this.partsTab = structureProvider.get();
-        this.otherTab = structureProvider.get();
-        partsTab.setMode(MatchStructurePresenter.Mode.PARTS);
-        otherTab.setMode(MatchStructurePresenter.Mode.ANY);
+        this.partsTab = partsTab;
+        this.otherTab = otherTab;
         regexTab.setOnExplode(() -> convert(TREE));
         view.getTabBar().addTab(REGEX);
         view.getTabBar().addTab(TREE);

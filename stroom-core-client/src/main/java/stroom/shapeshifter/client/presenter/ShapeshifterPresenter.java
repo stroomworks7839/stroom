@@ -88,13 +88,13 @@ public class ShapeshifterPresenter extends DocTabPresenter<LinkTabPanelView, Sha
                                final ShapeshifterDoc document,
                                final boolean readOnly) {
                 readText(document.getData());
-                presenter.read(project, sourceError, readOnly);
+                presenter.read(project, document.getColours(), sourceError, readOnly);
             }
 
             @Override
             public ShapeshifterDoc onWrite(final ShapeshifterDesignPresenter presenter,
                                            final ShapeshifterDoc document) {
-                return document.copy().data(text).build();
+                return document.copy().data(text).colours(presenter.getColours()).build();
             }
         });
         addTab(SOURCE, new AbstractTabProvider<ShapeshifterDoc, EditorPresenter>(eventBus) {
@@ -105,7 +105,7 @@ public class ShapeshifterPresenter extends DocTabPresenter<LinkTabPanelView, Sha
                 source.setReadOnly(isReadOnly());
                 source.getFormatAction().setAvailable(!isReadOnly());
                 registerHandler(source.addValueChangeHandler(event -> onSourceEdit()));
-                registerHandler(source.addFormatHandler(event -> onSourceEdit()));
+                registerHandler(source.addFormatHandler(event -> canonicalise()));
                 return source;
             }
 
@@ -211,19 +211,44 @@ public class ShapeshifterPresenter extends DocTabPresenter<LinkTabPanelView, Sha
             // under the banner; one that parses again replaces it.
             design.read(sourceError == null
                     ? project
-                    : null, sourceError, isReadOnly());
+                    : null, null, sourceError, isReadOnly());
         }
         if (had != (sourceError == null)) {
             onChange();
         }
     }
 
+    /**
+     * The Source tab's format action is canonicalise (design 43 §3): Ace has already re-indented
+     * the text; the engine's own pretty form replaces it when the text reads as a project, and
+     * what Ace made of it stands when it does not. The printer is the config module's, the same
+     * one the engine prints with, so this needs no round trip.
+     */
+    private void canonicalise() {
+        onSourceEdit();
+        parseSource.reset();
+        parseSource();
+        if (sourceError != null || source == null) {
+            return;
+        }
+        text = ProjectText.print(project);
+        syncing = true;
+        try {
+            source.setText(text);
+        } finally {
+            syncing = false;
+        }
+        onChange();
+    }
+
     private void onDesignEdit(final Project edited) {
         project = edited;
         sourceError = null;
-        text = ProjectText.print(edited);
+        final String printed = ProjectText.print(edited);
+        final boolean textChanged = !printed.equals(text);
+        text = printed;
         onChange();
-        if (source != null) {
+        if (textChanged && source != null) {
             syncing = true;
             try {
                 source.setText(text);
