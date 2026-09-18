@@ -29,13 +29,15 @@ import com.gwtplatform.mvp.client.View;
 
 /**
  * The pattern workbench (design 18 §5.6): an in-place mode of the Design tab, not a dialog and
- * not full-screen. Its subject is a template's match; the match editor's tabs are its body.
+ * not full-screen. Its subject is a template's match; the match editor's tabs are its body, and
+ * guard and limits sit beneath them, mechanism-independent, belonging to the workbench itself.
  * There is no Apply or Cancel — every field commits as it changes, as everywhere else — so
  * closing, or retargeting to another template, never has anything to lose.
  */
 public class PatternWorkbenchPresenter extends MyPresenterWidget<PatternWorkbenchView> {
 
     private final MatchEditorPresenter matchEditor;
+    private final GuardAndLimitsPresenter guardAndLimits;
     private final ButtonView closeButton;
 
     private ProjectHost host;
@@ -44,10 +46,13 @@ public class PatternWorkbenchPresenter extends MyPresenterWidget<PatternWorkbenc
     @Inject
     public PatternWorkbenchPresenter(final EventBus eventBus,
                                      final PatternWorkbenchView view,
-                                     final MatchEditorPresenter matchEditor) {
+                                     final MatchEditorPresenter matchEditor,
+                                     final GuardAndLimitsPresenter guardAndLimits) {
         super(eventBus, view);
         this.matchEditor = matchEditor;
+        this.guardAndLimits = guardAndLimits;
         view.setEditor(matchEditor.getView());
+        view.setGuardAndLimits(guardAndLimits.getView());
         closeButton = view.addButton(SvgPresets.CLOSE.title("Close the workbench"));
     }
 
@@ -64,6 +69,7 @@ public class PatternWorkbenchPresenter extends MyPresenterWidget<PatternWorkbenc
     public void setHost(final ProjectHost host) {
         this.host = host;
         matchEditor.setHost(host);
+        guardAndLimits.setHost(host);
     }
 
     public void setOnClose(final Runnable onClose) {
@@ -76,6 +82,7 @@ public class PatternWorkbenchPresenter extends MyPresenterWidget<PatternWorkbenc
                 ? ""
                 : template.name());
         matchEditor.setTemplate(id);
+        guardAndLimits.setTemplate(id);
     }
 
     public interface PatternWorkbenchView extends View {
@@ -85,5 +92,7 @@ public class PatternWorkbenchPresenter extends MyPresenterWidget<PatternWorkbenc
         void setSubject(String name);
 
         void setEditor(View view);
+
+        void setGuardAndLimits(View view);
     }
 }

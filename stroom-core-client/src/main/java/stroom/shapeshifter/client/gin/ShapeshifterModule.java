@@ -24,6 +24,8 @@ import stroom.shapeshifter.client.presenter.CapturesPresenter;
 import stroom.shapeshifter.client.presenter.DeclarationEditPresenter;
 import stroom.shapeshifter.client.presenter.DeclarationEditPresenter.DeclarationEditView;
 import stroom.shapeshifter.client.presenter.DeclarationsPresenter;
+import stroom.shapeshifter.client.presenter.GuardAndLimitsPresenter;
+import stroom.shapeshifter.client.presenter.GuardAndLimitsPresenter.GuardAndLimitsView;
 import stroom.shapeshifter.client.presenter.MatchEditorPresenter;
 import stroom.shapeshifter.client.presenter.MatchStructurePresenter;
 import stroom.shapeshifter.client.presenter.MatchStructurePresenter.MatchStructureView;
@@ -51,6 +53,7 @@ import stroom.shapeshifter.client.presenter.TracePanePresenter;
 import stroom.shapeshifter.client.presenter.TracePanePresenter.TracePaneView;
 import stroom.shapeshifter.client.view.CaptureEditViewImpl;
 import stroom.shapeshifter.client.view.DeclarationEditViewImpl;
+import stroom.shapeshifter.client.view.GuardAndLimitsViewImpl;
 import stroom.shapeshifter.client.view.MatchStructureViewImpl;
 import stroom.shapeshifter.client.view.PatternNodeEditViewImpl;
 import stroom.shapeshifter.client.view.PatternTreeViewImpl;
@@ -94,6 +97,9 @@ public class ShapeshifterModule extends PluginModule {
                 TemplateStripView.class,
                 TemplateStripViewImpl.class);
         bind(MatchEditorPresenter.class);
+        bindPresenterWidget(GuardAndLimitsPresenter.class,
+                GuardAndLimitsView.class,
+                GuardAndLimitsViewImpl.class);
         bindPresenterWidget(RegexTabPresenter.class,
                 RegexTabView.class,
                 RegexTabViewImpl.class);

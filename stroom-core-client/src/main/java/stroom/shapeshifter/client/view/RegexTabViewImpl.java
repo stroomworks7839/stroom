@@ -16,19 +16,20 @@
 
 package stroom.shapeshifter.client.view;
 
+import stroom.shapeshifter.client.presenter.GroupRowData;
 import stroom.shapeshifter.client.presenter.RegexTabPresenter.RegexTabView;
 import stroom.shapeshifter.client.presenter.RegexTabUiHandlers;
-import stroom.shapeshifter.shared.ShapeshifterPatternInfo.Group;
-import stroom.widget.button.client.Button;
 import stroom.widget.tickbox.client.view.CustomCheckBox;
 
+import com.google.gwt.dom.client.Element;
 import com.google.gwt.event.dom.client.ClickEvent;
 import com.google.gwt.event.dom.client.KeyUpEvent;
 import com.google.gwt.event.logical.shared.ValueChangeEvent;
-import com.google.gwt.safehtml.shared.SafeHtmlBuilder;
+import com.google.gwt.safehtml.shared.SafeHtml;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
 import com.google.gwt.uibinder.client.UiHandler;
+import com.google.gwt.user.client.ui.FlowPanel;
 import com.google.gwt.user.client.ui.HTML;
 import com.google.gwt.user.client.ui.Label;
 import com.google.gwt.user.client.ui.TextArea;
@@ -41,31 +42,54 @@ import java.util.List;
 
 public class RegexTabViewImpl
         extends ViewWithUiHandlers<RegexTabUiHandlers>
-        implements RegexTabView {
+        implements RegexTabView, GroupRow.Listener {
+
+    private static final String GROUP = "data-group";
 
     private final Widget widget;
+    private boolean enabled = true;
 
     @UiField
     TextArea pattern;
     @UiField
-    CustomCheckBox caseInsensitive;
-    @UiField
-    CustomCheckBox dotAll;
-    @UiField
-    TextBox advance;
-    @UiField
-    Button explode;
+    HTML patternMap;
     @UiField
     Label error;
     @UiField
-    HTML groups;
+    Label explode;
+    @UiField
+    CustomCheckBox dotAll;
+    @UiField
+    CustomCheckBox caseInsensitive;
+    @UiField
+    TextBox advance;
+    @UiField
+    FlowPanel groups;
+    @UiField
+    Label noGroups;
     @UiField
     Label explain;
 
     @Inject
     public RegexTabViewImpl(final Binder binder) {
         widget = binder.createAndBindUi(this);
-        setInfo(null, List.of(), null);
+        setError(null);
+        setExplain(null);
+        patternMap.addDomHandler(event -> {
+            if (!Element.is(event.getNativeEvent().getEventTarget())) {
+                return;
+            }
+            Element element = Element.as(event.getNativeEvent().getEventTarget());
+            while (element != null && element != patternMap.getElement()) {
+                if (element.hasAttribute(GROUP)) {
+                    if (getUiHandlers() != null) {
+                        getUiHandlers().onGroupSelect(Integer.parseInt(element.getAttribute(GROUP)));
+                    }
+                    return;
+                }
+                element = element.getParentElement();
+            }
+        }, ClickEvent.getType());
     }
 
     @Override
@@ -100,7 +124,7 @@ public class RegexTabViewImpl
 
     @UiHandler("explode")
     void onExplode(final ClickEvent e) {
-        if (getUiHandlers() != null) {
+        if (enabled && getUiHandlers() != null) {
             getUiHandlers().onExplode();
         }
     }
@@ -112,12 +136,27 @@ public class RegexTabViewImpl
     }
 
     @Override
+    public void onGroupName(final int index, final String name) {
+        if (getUiHandlers() != null) {
+            getUiHandlers().onGroupName(index, name);
+        }
+    }
+
+    @Override
+    public void onGroupSelect(final int index) {
+        if (getUiHandlers() != null) {
+            getUiHandlers().onGroupSelect(index);
+        }
+    }
+
+    @Override
     public void setEnabled(final boolean enabled) {
+        this.enabled = enabled;
         pattern.setEnabled(enabled);
         caseInsensitive.setEnabled(enabled);
         dotAll.setEnabled(enabled);
         advance.setEnabled(enabled);
-        explode.setEnabled(enabled);
+        explode.setStyleDependentName("disabled", !enabled);
     }
 
     @Override
@@ -165,31 +204,31 @@ public class RegexTabViewImpl
     }
 
     @Override
-    public void setInfo(final String errorText, final List<Group> groupList, final String explainText) {
-        error.setText(errorText == null
+    public void setError(final String text) {
+        error.setText(text == null
                 ? ""
-                : errorText);
-        error.setVisible(errorText != null);
-        final SafeHtmlBuilder sb = new SafeHtmlBuilder();
-        if (groupList.isEmpty()) {
-            sb.appendHtmlConstant("<div class=\"shapeshifter-hint\">No capture groups</div>");
-        } else {
-            sb.appendHtmlConstant("<table class=\"shapeshifter-groups\">");
-            for (final Group group : groupList) {
-                sb.appendHtmlConstant("<tr><td class=\"shapeshifter-group-index\">$")
-                        .append(group.getIndex())
-                        .appendHtmlConstant("</td><td>")
-                        .appendEscaped(group.getName() == null
-                                ? "(unnamed)"
-                                : group.getName())
-                        .appendHtmlConstant("</td></tr>");
-            }
-            sb.appendHtmlConstant("</table>");
+                : text);
+    }
+
+    @Override
+    public void setPatternMap(final SafeHtml html) {
+        patternMap.setHTML(html);
+    }
+
+    @Override
+    public void setGroups(final List<GroupRowData> data) {
+        groups.clear();
+        noGroups.setVisible(data.isEmpty());
+        for (final GroupRowData row : data) {
+            groups.add(new GroupRow(row, this, enabled));
         }
-        groups.setHTML(sb.toSafeHtml());
-        explain.setText(explainText == null
-                ? ""
-                : explainText);
+    }
+
+    @Override
+    public void setExplain(final String text) {
+        explain.setText(text == null
+                ? "—"
+                : text);
     }
 
     public interface Binder extends UiBinder<Widget, RegexTabViewImpl> {

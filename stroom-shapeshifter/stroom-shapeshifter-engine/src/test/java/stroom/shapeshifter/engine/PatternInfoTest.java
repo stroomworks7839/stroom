@@ -36,20 +36,20 @@ class PatternInfoTest {
         assertThat(info.valid()).isTrue();
         assertThat(info.error()).isNull();
         assertThat(info.groups()).containsExactly(
-                new Group(1, null), new Group(2, null), new Group(3, null));
+                new Group(1, null, 1, 9), new Group(2, null, 12, 20), new Group(3, null, 23, 27));
     }
 
     @Test
     void findsTheNamesOfNamedGroups() {
         final PatternInfo info = PatternInfo.inspect("(?<year>\\d{4})-(?<month>\\d{2})");
         assertThat(info.groups()).containsExactly(
-                new Group(1, "year"), new Group(2, "month"));
+                new Group(1, "year", 0, 14), new Group(2, "month", 15, 30));
     }
 
     @Test
     void leavesUnnamedGroupsUnnamedAmongNamedOnes() {
         final PatternInfo info = PatternInfo.inspect("(\\w+)=(?<value>\\d+)");
-        assertThat(info.groups()).containsExactly(new Group(1, null), new Group(2, "value"));
+        assertThat(info.groups()).containsExactly(new Group(1, null, 0, 5), new Group(2, "value", 6, 19));
     }
 
     @Test
@@ -58,7 +58,7 @@ class PatternInfoTest {
         // one for the other would report a group called "=foo".
         final PatternInfo info = PatternInfo.inspect("(?<=x)(\\d+)");
         assertThat(info.valid()).isTrue();
-        assertThat(info.groups()).containsExactly(new Group(1, null));
+        assertThat(info.groups()).containsExactly(new Group(1, null, 6, 11));
     }
 
     @Test
@@ -92,5 +92,14 @@ class PatternInfoTest {
         assertThat(PatternInfo.inspect("+").valid()).isFalse();
         assertThat(PatternInfo.inspect("(?>a+)b").valid()).isTrue();
         assertThat(PatternInfo.inspect("(a)\\1").valid()).isTrue();
+    }
+
+    @Test
+    void spansComeInGroupOrderWithNestedGroupsInside() {
+        // The parser records a group when its ')' closes, inner first; the report is by number.
+        final PatternInfo info = PatternInfo.inspect("((a)(b))c");
+        assertThat(info.groups()).containsExactly(
+                new Group(1, null, 0, 8), new Group(2, null, 1, 4), new Group(3, null, 4, 7));
+        assertThat("((a)(b))c".substring(2, 3)).isEqualTo("a");
     }
 }

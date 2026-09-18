@@ -1,0 +1,14 @@
+<!DOCTYPE ui:UiBinder SYSTEM "http://dl.google.com/gwt/DTD/xhtml.ent">
+<ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
+             xmlns:g="urn:import:com.google.gwt.user.client.ui"
+             xmlns:l="urn:import:stroom.item.client">
+    <g:FlowPanel styleName="ss-step-row">
+        <g:Label ui:field="joiner" styleName="ss-num-s"/>
+        <l:SelectionBox ui:field="variable" addStyleNames="ss-clause-var" title="A declared name, a param, or a function such as index()"/>
+        <l:SelectionBox ui:field="op" addStyleNames="ss-clause-op"/>
+        <g:TextBox ui:field="value" styleName="ss-edit-in ss-clause-val"
+                   title="A number, true or false, or text - in quotes when it would otherwise read as a number"/>
+        <l:SelectionBox ui:field="as" addStyleNames="ss-clause-as" title="How the variable is read before comparing"/>
+        <g:Label ui:field="remove" styleName="ss-act ss-act--del" text="✕" title="Remove this clause"/>
+    </g:FlowPanel>
+</ui:UiBinder>

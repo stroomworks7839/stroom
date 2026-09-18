@@ -74,12 +74,20 @@ public class ShapeshifterPatternInfo {
         private final int index;
         @JsonProperty
         private final String name;
+        @JsonProperty
+        private final int start;
+        @JsonProperty
+        private final int end;
 
         @JsonCreator
         public Group(@JsonProperty("index") final int index,
-                     @JsonProperty("name") final String name) {
+                     @JsonProperty("name") final String name,
+                     @JsonProperty("start") final int start,
+                     @JsonProperty("end") final int end) {
             this.index = index;
             this.name = name;
+            this.start = start;
+            this.end = end;
         }
 
         public int getIndex() {
@@ -88,6 +96,16 @@ public class ShapeshifterPatternInfo {
 
         public String getName() {
             return name;
+        }
+
+        /** Where the group's '(' is in the pattern text. */
+        public int getStart() {
+            return start;
+        }
+
+        /** Just past the group's ')'. */
+        public int getEnd() {
+            return end;
         }
     }
 }

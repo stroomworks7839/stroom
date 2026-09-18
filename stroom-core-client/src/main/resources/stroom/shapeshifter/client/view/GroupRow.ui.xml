@@ -1,0 +1,11 @@
+<!DOCTYPE ui:UiBinder SYSTEM "http://dl.google.com/gwt/DTD/xhtml.ent">
+<ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
+             xmlns:g="urn:import:com.google.gwt.user.client.ui">
+    <g:FlowPanel ui:field="row" styleName="ss-group-row">
+        <g:Label ui:field="chip" styleName="ss-chip ss-chip--editable" title="Isolate this group in the pattern map"/>
+        <g:Label ui:field="index" styleName="mono ss-clickable"/>
+        <g:Label styleName="ss-group-arrow" text="→"/>
+        <g:TextBox ui:field="name" styleName="ss-edit-in ss-cap-name"
+                   title="The declaration this group is captured into; blank for none"/>
+    </g:FlowPanel>
+</ui:UiBinder>

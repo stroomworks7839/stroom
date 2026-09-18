@@ -18,16 +18,18 @@ package stroom.shapeshifter.client.presenter;
 
 import com.gwtplatform.mvp.client.UiHandlers;
 
-public interface RegexTabUiHandlers extends UiHandlers {
+public interface GuardAndLimitsUiHandlers extends UiHandlers {
 
-    /** The pattern text or a flag changed; the presenter commits on a debounce. */
-    void onChange();
+    /** A clause row changed (any field left, or an operator picked). */
+    void onClauseChange(int index, GuardClause clause);
 
-    void onExplode();
+    void onClauseRemove(int index);
 
-    /** A group's name was edited and left: bind the group to a declaration of that name, or unbind it. */
-    void onGroupName(int index, String name);
+    void onClauseAdd();
 
-    /** A group was clicked in the pattern map or its row: isolate it. */
-    void onGroupSelect(int index);
+    /** The guard's wire form was edited and left. */
+    void onGuardJson(String json);
+
+    /** A limit field was left. */
+    void onLimitsChange(String min, String max, String only);
 }

@@ -11,6 +11,9 @@
                 <b:ButtonPanel ui:field="buttons"/>
             </g:FlowPanel>
         </g:north>
+        <g:south size="210">
+            <g:SimplePanel ui:field="guardAndLimits" styleName="max"/>
+        </g:south>
         <g:center>
             <g:SimplePanel ui:field="editor" styleName="max"/>
         </g:center>

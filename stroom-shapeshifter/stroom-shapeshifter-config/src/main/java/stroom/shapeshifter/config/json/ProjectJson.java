@@ -17,12 +17,14 @@
 package stroom.shapeshifter.config.json;
 
 import stroom.shapeshifter.config.CaptureBinding;
+import stroom.shapeshifter.config.Condition;
 import stroom.shapeshifter.config.ConfigException;
 import stroom.shapeshifter.config.Declaration;
 import stroom.shapeshifter.config.MatchExpression;
 import stroom.shapeshifter.config.PatternNode;
 import stroom.shapeshifter.config.Project;
 import stroom.shapeshifter.config.Project.SourceConfig;
+import stroom.shapeshifter.config.RefExpression;
 import stroom.shapeshifter.config.Template;
 import stroom.shapeshifter.config.Template.MatchLimits;
 import stroom.shapeshifter.config.Template.ParamDecl;
@@ -90,6 +92,33 @@ public final class ProjectJson {
 
     public static JsonObject writeCapture(final CaptureBinding capture) {
         return ReferenceJson.writeCapture(capture);
+    }
+
+    public static Condition readCondition(final JsonValue node) {
+        return ConditionJson.readCondition(node);
+    }
+
+    public static JsonValue writeCondition(final Condition condition) {
+        return ConditionJson.writeCondition(condition);
+    }
+
+    /**
+     * A reference as the editor spells it in a field: a declared name, or a function such as
+     * {@code index()} - the sugar every collection site accepts - read by the one reader.
+     */
+    public static RefExpression readRefOrName(final String text) {
+        return ReferenceJson.readRefOrName(new JsonString(text));
+    }
+
+    /**
+     * The field spelling of a reference, or null when it has none - a path, an accessor - and
+     * only its wire form will do.
+     */
+    public static String refOrName(final RefExpression ref) {
+        final JsonValue wire = ReferenceJson.writeRefOrName(ref);
+        return wire.isString()
+                ? wire.asString()
+                : null;
     }
 
     private static SourceConfig readSource(final JsonValue node) {

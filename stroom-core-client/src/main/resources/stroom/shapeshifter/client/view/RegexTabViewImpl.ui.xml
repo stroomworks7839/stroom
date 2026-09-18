@@ -1,37 +1,34 @@
 <!DOCTYPE ui:UiBinder SYSTEM "http://dl.google.com/gwt/DTD/xhtml.ent">
 <ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
              xmlns:g="urn:import:com.google.gwt.user.client.ui"
-             xmlns:form="urn:import:stroom.widget.form.client"
-             xmlns:button="urn:import:stroom.widget.button.client"
              xmlns:tickbox="urn:import:stroom.widget.tickbox.client.view">
     <g:ScrollPanel styleName="max">
-        <g:FlowPanel styleName="form dock-container-vertical shapeshifter-regex">
-            <form:FormGroup identity="shapeshifterPattern" label="Pattern">
-                <g:TextArea ui:field="pattern" addStyleNames="w-100 shapeshifter-pattern" visibleLines="3"/>
-            </form:FormGroup>
-            <g:FlowPanel styleName="shapeshifter-row">
-                <form:FormGroup identity="shapeshifterCaseInsensitive" label="Case insensitive">
-                    <tickbox:CustomCheckBox ui:field="caseInsensitive"/>
-                </form:FormGroup>
-                <form:FormGroup identity="shapeshifterDotAll" label="Dot matches newline">
-                    <tickbox:CustomCheckBox ui:field="dotAll"/>
-                </form:FormGroup>
-                <form:FormGroup identity="shapeshifterAdvance" label="Advance"
-                                helpText="Bytes to step past after a match that consumed nothing; 0 lets the engine decide.">
-                    <g:TextBox ui:field="advance" addStyleNames="shapeshifter-short"/>
-                </form:FormGroup>
-                <button:Button ui:field="explode" text="Explode into tree"
-                               title="Rewrite this regex as the pattern tree it is, and edit it there"/>
+        <g:FlowPanel styleName="ss-wb-right">
+            <g:FlowPanel styleName="ss-wb-sec">
+                <g:Label styleName="ss-wb-h4" text="Pattern"/>
+                <g:TextArea ui:field="pattern" styleName="ss-wb-pat" visibleLines="2"/>
+                <g:HTML ui:field="patternMap" styleName="ss-pat-map"
+                        title="The pattern, group spans coloured — click a group to isolate it"/>
+                <g:Label ui:field="error" styleName="ss-wb-err"/>
+                <g:FlowPanel styleName="ss-wb-row">
+                    <g:Label ui:field="explode" styleName="ss-addbtn" text="explode into the tree ›"
+                             title="Rewrite this regex as the pattern tree it is: meaning preserved, text not"/>
+                    <tickbox:CustomCheckBox ui:field="dotAll" label="dot-all"/>
+                    <tickbox:CustomCheckBox ui:field="caseInsensitive" label="case-insensitive"/>
+                    <g:Label styleName="ss-lim-label" text="advance"/>
+                    <g:TextBox ui:field="advance" styleName="ss-edit-in ss-lim-in"
+                               title="Bytes to step past after a match that consumed nothing; 0 lets the engine decide"/>
+                </g:FlowPanel>
             </g:FlowPanel>
-            <g:Label ui:field="error" styleName="shapeshifter-error"/>
-            <form:FormGroup identity="shapeshifterGroups" label="Groups"
-                            helpText="The pattern's capture groups as the engine numbers them. A capture binds a group or a label to a declaration.">
-                <g:HTML ui:field="groups"/>
-            </form:FormGroup>
-            <form:FormGroup identity="shapeshifterExplain" label="How it runs"
-                            helpText="The engine's own account of the plan it would run for this pattern.">
-                <g:Label ui:field="explain" styleName="shapeshifter-explain"/>
-            </form:FormGroup>
+            <g:FlowPanel styleName="ss-wb-sec">
+                <g:HTML styleName="ss-wb-h4">Groups <span class="ss-wb-h4-note">(a name beside a group declares it and captures the group into it; blank captures nothing)</span></g:HTML>
+                <g:Label ui:field="noGroups" styleName="ss-none" text="(no capturing groups)"/>
+                <g:FlowPanel ui:field="groups" styleName="ss-wb-groups"/>
+            </g:FlowPanel>
+            <g:FlowPanel styleName="ss-wb-sec">
+                <g:Label styleName="ss-wb-h4" text="How it runs"/>
+                <g:Label ui:field="explain" styleName="ss-wb-lint ss-explain"/>
+            </g:FlowPanel>
         </g:FlowPanel>
     </g:ScrollPanel>
 </ui:UiBinder>

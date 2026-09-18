@@ -30,7 +30,9 @@ import stroom.shapeshifter.regex.internal.Plan;
 import stroom.shapeshifter.regex.internal.PlanCompiler;
 import stroom.shapeshifter.regex.internal.Reverse;
 
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
@@ -602,6 +604,27 @@ public final class BytePattern {
      */
     public List<String> groupNames() {
         return Collections.unmodifiableList(groupNames);
+    }
+
+    /**
+     * Where each capturing group sits in a pattern's text, in group order — {@code start} at
+     * its '(' and {@code end} just past its ')' — for an editor that paints the groups. The
+     * parser publishes the spans; nothing else reads the pattern for them.
+     *
+     * @throws PatternCompileException if the pattern does not parse
+     */
+    public static List<GroupSpan> groupSpans(final String pattern, final Set<Flag> flags, final Encoding encoding) {
+        final List<GroupSpan> spans = new ArrayList<>();
+        for (final Parser.GroupSpan span : Parser.parse(pattern, flags, ByteForm.of(encoding)).groupSpans()) {
+            spans.add(new GroupSpan(span.index(), span.name(), span.start(), span.end()));
+        }
+        spans.sort(Comparator.comparingInt(GroupSpan::index));
+        return spans;
+    }
+
+    /** A capturing group's place in the pattern text. */
+    public record GroupSpan(int index, String name, int start, int end) {
+
     }
 
     /**

@@ -386,9 +386,22 @@ shippable.
   and the standard library a `ref` can name is listed read-only beside it and offered in the
   dialog, from a new `library` endpoint (`PatternPrint.library()`). The wire form stays
   editable in the right-hand pane.
-  *Left for the next piece of workbench work, deliberately:* the regex tab's groups are shown,
-  not yet the capture-declaration editor of
-  18 §5.6; guard and limits (`GuardAndLimitsPresenter`) and template colour overrides (18
+  **The regex tab as the mockup lays it out, 2026-09-18:** pattern text over the pattern map —
+  each group's span in its capture hue, from spans the parser now publishes
+  (`BytePattern.groupSpans`, `PatternInfo.Group.start/end`), never read client-side — the
+  error as you type, explode, the flags; then the **groups panel as the capture-declaration
+  editor** (design 18 §5.6): a name beside `$n` declares it (scalar) and captures the group
+  into it, blanking unbinds, the pattern's `(?<name>…)` is the placeholder; then the plan the
+  engine would run.
+  **Guard and limits, 2026-09-18:** `GuardAndLimitsPresenter` beneath the workbench's tabs,
+  mechanism-independent as 18 §5.6 places them. The guard is clause rows — variable ·
+  operator · value · as — joined by *and*, the names in scope (declarations, params, the
+  functions) offered with free text allowed, the value's spelling declaring the literal's type
+  (quoted for text that would read as a number); a guard the rows cannot express — *or*, *not*,
+  two references, a path — is edited as its wire form. Limits are min, max and only with their
+  semantics inline. The strip's summary reads the rows: `status ge 400 and user exists`.
+  The live verdict against the current frame waits for the trace.
+  *Left for the next piece of workbench work, deliberately:* template colour overrides (18
   §5.6, editor metadata in the doc) are unbuilt; the Source tab's format action is Ace's
   formatter, not yet the `validate` round trip; modes are typed, not chosen from a mode
   editor; undo is phase B with the trace.

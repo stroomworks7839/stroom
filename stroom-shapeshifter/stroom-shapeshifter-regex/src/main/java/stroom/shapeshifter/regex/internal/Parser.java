@@ -38,7 +38,16 @@ import java.util.Set;
 public final class Parser {
 
     public record Result(Hir root, int groupCount, List<String> groupNames,
-                         List<String> warnings) {
+                         List<String> warnings, List<GroupSpan> groupSpans) {
+
+    }
+
+    /**
+     * Where a capturing group sits in the pattern text: {@code start} at its '(' and {@code end}
+     * just past its ')'. The parser publishes this so that an editor can paint the pattern's
+     * groups without reading the pattern itself (the pattern's facts have one source).
+     */
+    public record GroupSpan(int index, String name, int start, int end) {
 
     }
 
@@ -59,6 +68,9 @@ public final class Parser {
 
     /** Warnings the parse itself produces — today only the byte escape's straddle note. */
     private final List<String> warnings = new ArrayList<>();
+
+    /** Each capturing group's place in the text, in group order. */
+    private final List<GroupSpan> groupSpans = new ArrayList<>();
 
     /** Numeric backreferences seen, as (group, position) pairs — validated after the whole
      * pattern is parsed, because a reference ahead of its group is legal: {@code (\2two|(one))+}. */
@@ -124,7 +136,7 @@ public final class Parser {
             throw parser.fail(Reason.SYNTAX, "unbalanced ')'");
         }
         parser.validateBackrefs();
-        return new Result(root, parser.groupCount, parser.groupNames, parser.warnings);
+        return new Result(root, parser.groupCount, parser.groupNames, parser.warnings, parser.groupSpans);
     }
 
     /**
@@ -433,6 +445,9 @@ public final class Parser {
         expect(')', start);
         flags.clear();
         flags.addAll(outer);
+        if (index > 0) {
+            groupSpans.add(new GroupSpan(index, name, start, pos));
+        }
         return new Hir.Group(body, index, name);
     }
 

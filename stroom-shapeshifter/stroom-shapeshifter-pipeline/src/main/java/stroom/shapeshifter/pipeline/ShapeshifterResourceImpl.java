@@ -120,7 +120,8 @@ class ShapeshifterResourceImpl implements ShapeshifterResource {
     public ShapeshifterPatternInfo patternInfo(final ShapeshifterPatternRequest request) {
         final PatternInfo info = PatternInfo.inspect(request.getPattern());
         final List<ShapeshifterPatternInfo.Group> groups = info.groups().stream()
-                .map(group -> new ShapeshifterPatternInfo.Group(group.index(), group.name()))
+                .map(group -> new ShapeshifterPatternInfo.Group(group.index(), group.name(), group.start(),
+                        group.end()))
                 .toList();
         final String explain = info.valid() ? PatternInfo.explain(request.getPattern(), flags(request)) : null;
         return new ShapeshifterPatternInfo(info.valid(), info.error(), groups, explain);

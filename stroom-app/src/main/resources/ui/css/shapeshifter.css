@@ -447,3 +447,202 @@
     color: var(--heading-color);
     white-space: nowrap;
 }
+
+/* The workbench's right column: sections with quiet uppercase headings (mockup #wbRight). */
+.ss-wb-right {
+    min-width: 0;
+}
+
+.ss-wb-sec {
+    padding: 8px 14px;
+}
+
+.ss-wb-h4 {
+    margin: 0 0 4px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--ss-muted);
+}
+
+.ss-wb-h4-note {
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+.ss-wb-pat,
+.ss-edit-in {
+    font-family: var(--monospace-font-family);
+    font-size: 13px;
+    padding: 4px 8px;
+    border: 1px solid var(--control__border-color);
+    border-radius: 5px;
+    background-color: var(--control__background-color);
+    color: var(--text-color);
+    box-sizing: border-box;
+}
+
+.ss-wb-pat {
+    width: 100%;
+    resize: vertical;
+}
+
+.ss-wb-pat:focus,
+.ss-edit-in:focus {
+    outline: none;
+    border-color: var(--focus-border);
+    box-shadow: var(--focus-shadow);
+}
+
+.ss-pat-map {
+    margin: 6px 0 0;
+    padding: 6px 8px;
+    border: 1px dashed var(--border-color);
+    border-radius: 5px;
+    font-family: var(--monospace-font-family);
+    font-size: 13px;
+    word-break: break-all;
+    white-space: pre-wrap;
+    min-height: 18px;
+}
+
+.ss-pm-g {
+    cursor: pointer;
+    border-radius: 2px;
+    border-bottom: 2px solid;
+}
+
+.ss-pm-g:hover {
+    background-color: var(--row__background-color--hovered);
+}
+
+.ss-wb-err {
+    color: var(--bootstrap-error);
+    font-size: 12.5px;
+    padding-top: 4px;
+    min-height: 18px;
+    white-space: pre-wrap;
+}
+
+.ss-wb-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    padding-top: 4px;
+}
+
+.ss-addbtn {
+    color: var(--link__text-color);
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.ss-addbtn:hover {
+    text-decoration: underline;
+}
+
+.ss-addbtn-disabled {
+    opacity: .4;
+    cursor: default;
+    text-decoration: none;
+}
+
+.ss-lim-label {
+    color: var(--ss-muted);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+}
+
+.ss-lim-in {
+    width: 64px;
+}
+
+.ss-wb-groups {
+    font-size: 12.5px;
+}
+
+.ss-group-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    padding: 2px 4px;
+    border-radius: 3px;
+}
+
+.ss-group-row--sel {
+    background-color: var(--row__background-color--selected);
+}
+
+.ss-group-arrow {
+    color: var(--ss-muted);
+}
+
+.ss-cap-name {
+    width: 160px;
+}
+
+.ss-wb-lint {
+    color: var(--ss-muted);
+    font-size: 12px;
+    font-style: italic;
+}
+
+.ss-explain {
+    font-style: normal;
+    font-family: var(--monospace-font-family);
+    white-space: pre-wrap;
+}
+
+/* Guard clauses and limits: the mockup's step rows. */
+.ss-step-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 0;
+    flex-wrap: wrap;
+}
+
+.ss-num-s {
+    color: var(--ss-muted);
+    font-size: 11px;
+    min-width: 26px;
+    text-align: right;
+}
+
+.ss-clause-var {
+    width: 150px;
+}
+
+.ss-clause-op {
+    width: 110px;
+}
+
+.ss-clause-val {
+    width: 160px;
+}
+
+.ss-clause-as {
+    width: 100px;
+}
+
+.ss-act {
+    color: var(--ss-muted);
+    padding: 0 3px;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.ss-act:hover {
+    color: var(--link__text-color);
+}
+
+.ss-act--del:hover {
+    color: var(--bootstrap-error);
+}
+
+.ss-det-desc {
+    color: var(--ss-muted);
+    font-size: 11.5px;
+}

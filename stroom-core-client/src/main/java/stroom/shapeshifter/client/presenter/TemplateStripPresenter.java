@@ -166,9 +166,7 @@ public class TemplateStripPresenter
     }
 
     static String guardSummary(final Condition guard) {
-        return guard == null
-                ? "no guard"
-                : "guarded";
+        return GuardClause.describe(guard);
     }
 
     static String limitsSummary(final MatchLimits limits) {

@@ -40,6 +40,8 @@ public class PatternWorkbenchViewImpl extends ViewImpl implements PatternWorkben
     ButtonPanel buttons;
     @UiField
     SimplePanel editor;
+    @UiField
+    SimplePanel guardAndLimits;
 
     @Inject
     public PatternWorkbenchViewImpl(final Binder binder) {
@@ -64,6 +66,11 @@ public class PatternWorkbenchViewImpl extends ViewImpl implements PatternWorkben
     @Override
     public void setEditor(final View view) {
         editor.setWidget(view.asWidget());
+    }
+
+    @Override
+    public void setGuardAndLimits(final View view) {
+        guardAndLimits.setWidget(view.asWidget());
     }
 
     public interface Binder extends UiBinder<Widget, PatternWorkbenchViewImpl> {

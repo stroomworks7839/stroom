@@ -18,12 +18,14 @@ package stroom.shapeshifter.client.presenter;
 
 import stroom.shapeshifter.config.CaptureBinding;
 import stroom.shapeshifter.config.CaptureBinding.CaptureSource;
+import stroom.shapeshifter.config.Condition;
 import stroom.shapeshifter.config.Declaration;
 import stroom.shapeshifter.config.MatchExpression;
 import stroom.shapeshifter.config.MatchExpression.Length;
 import stroom.shapeshifter.config.MatchExpression.MatchPart;
 import stroom.shapeshifter.config.PatternNode;
 import stroom.shapeshifter.config.Template;
+import stroom.shapeshifter.config.Template.MatchLimits;
 
 import java.util.List;
 
@@ -58,6 +60,16 @@ public final class Templates {
     public static Template withCaptures(final Template t, final List<CaptureBinding> captures) {
         return new Template(t.id(), t.name(), t.mode(), t.consume(), t.guard(), t.param(), t.declarations(),
                 t.match(), t.matchLimits(), captures, t.body(), t.encoding(), t.ignoreErrors());
+    }
+
+    public static Template withGuard(final Template t, final Condition guard) {
+        return new Template(t.id(), t.name(), t.mode(), t.consume(), guard, t.param(), t.declarations(),
+                t.match(), t.matchLimits(), t.captures(), t.body(), t.encoding(), t.ignoreErrors());
+    }
+
+    public static Template withLimits(final Template t, final MatchLimits limits) {
+        return new Template(t.id(), t.name(), t.mode(), t.consume(), t.guard(), t.param(), t.declarations(),
+                t.match(), limits, t.captures(), t.body(), t.encoding(), t.ignoreErrors());
     }
 
     public static Template withIdentity(final Template t, final String name, final String mode, final boolean consume) {

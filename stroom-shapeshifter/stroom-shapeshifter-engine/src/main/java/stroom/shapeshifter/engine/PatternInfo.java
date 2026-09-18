@@ -53,8 +53,10 @@ public record PatternInfo(boolean valid, String error, List<Group> groups) {
      *
      * @param index its number, counting from one
      * @param name  its name, or null if it has none
+     * @param start where its '(' is in the pattern text
+     * @param end   just past its ')'
      */
-    public record Group(int index, String name) {
+    public record Group(int index, String name, int start, int end) {
 
     }
 
@@ -81,9 +83,11 @@ public record PatternInfo(boolean valid, String error, List<Group> groups) {
 
         // Indexed by group number, entry 0 the whole match: the library's stated contract.
         final List<String> names = compiled.groupNames();
+        final List<BytePattern.GroupSpan> spans = BytePattern.groupSpans(pattern, EnumSet.noneOf(Flag.class), encoding);
         final List<Group> groups = new ArrayList<>(compiled.groupCount());
         for (int i = 1; i <= compiled.groupCount(); i++) {
-            groups.add(new Group(i, names.get(i)));
+            final BytePattern.GroupSpan span = spans.get(i - 1);
+            groups.add(new Group(i, names.get(i), span.start(), span.end()));
         }
         return new PatternInfo(true, null, groups);
     }
