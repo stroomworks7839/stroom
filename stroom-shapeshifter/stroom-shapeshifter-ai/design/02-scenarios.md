@@ -166,6 +166,7 @@ Ordered by what each needs built; each one is unlocked by the machinery the prev
 | 30 | **Deferred: the worker learns later** (A5, A28) | `executionMode: DEFERRED`; unknown shape, nothing fits | as 1, but answered by the worker | the stream is sentinelled and an attempt recorded `AWAITING_MODEL` with zero questions asked in the task; the worker advances the attempt against the script; promotion issues a reprocess request for the ledger's inputs | durable attempts; the worker |
 | 31 | **A person answers a turn** (A28) | as 3 | the model's bad DS3, then a person's good one | the attempt pauses after the failed candidate; a person's *edit and re-run* replaces the DSParser answer and the dialogue resumes from that turn; the transcript records who answered each turn; promoted | resumable dialogue; per-turn answerer |
 | 32 | **(Tier 2) The processor waits** (A27) | a filter depending on the document; scenario 23's feed in error mode | — | no tasks are created for that feed while `shapeshifter_feed_state` says `ERROR`; another feed under the same document is processed; reset resumes task creation from where it stopped | A27 in `ProcessorTaskCreatorImpl` |
+| 33 | **(Tier 2) Stepping the supervisor element** (A30, design 01 §11.7) | scenario 18's pipeline, with a second rule that does not match the stream; a stream of an unknown shape as a variant | step to the element with the bound stream, then with the unknown one | the element's step data carries `ShapeshifterAiStepDetails`: the shape, the match path (rule 1 missed on its failing term, rule 2 matched), the decision `Bound`, the fragment and its verdicts, an empty transcript; the stepping tree shows `DSParser` and `XSLTFilter` under the element with real input and output; for the unknown shape the decision reads *would learn* — and the script was never consulted, no document written, no ledger row, no request | the `details` slot on `SharedElementData`; the dry-run rule under a `SteppingController`; the tree expansion |
 
 Scenarios 3, 15, 16 and 17 exist today as unit tests of one component; they become scenarios so
 that the catalogue is the one place the behaviour is stated.
@@ -199,7 +200,8 @@ superset; this is its test-driven ordering.
    scorers that scenarios 5 and 6 force. Its structural form, with Compile and Yield alone, proves
    the chaining and the record-unit split before those scorers exist.
 7. **§12 items 1, 2, 4, 7** — the `stroom-pipeline` harness, the supervisor element, bindings
-   metadata — and **Tier 2 scenarios 18–20**.
+   metadata — and **Tier 2 scenarios 18–20**; then §12 item 19, the stage pane in the stepper, and
+   **scenario 33**.
 8. **Durable attempts and the worker** (A28, §12 item 15) — scenario 30 — then the A26 tables under
    scenario 20 and A27 under scenario 32 (§12 items 8 and 16).
 

@@ -1137,6 +1137,57 @@ strip: feeds in error mode with reason and reset (A24), and provisional rules by
 seen, which a person may approve (§6). The raw exchange with the model is additionally
 logged through `stroom-ai`'s audit as §10 requires.*
 
+### 11.7 The stepper
+
+**Where the UI lives.** The feature has four surfaces, and this section is the fourth: the document
+editor's five tabs (§3), Approve and Reject on the Routing tab (§11.3), the Supervisor view over every
+attempt (§11.6), and the pipeline stepper, where a person meets the supervisor element in the place
+they already debug pipelines.
+
+**The element in the stepper.** Shapeshifter AI is one pipeline element per supervised stage (§12
+item 4): `Source → ShapeshifterAI → …`, or two elements for the extract-then-transform picture of §3
+(design 02, scenario 21). The stepper today gives every selected element the same panes —
+`ElementPresenter` shows a *code* pane when the element type has `ROLE_HAS_CODE`, an *input* pane
+when it has `ROLE_MUTATOR`, always an *output* pane, and a *log* pane — fed by `SharedElementData`,
+which is three strings: input, output, indicators. The supervisor element has no single document to
+show as code — the Shapeshifter AI document is edited in its own editor — and what a person needs to
+see when they select it is not text at all but the stage's decision for the current stream: exactly
+what `StageRun` carries.
+
+**Proposed ruling A30.** *When the supervisor element is selected in the stepper, its code pane is
+replaced by a* stage pane *showing, for the stream and record at the cursor:*
+
+- *the stream's* shape *— the learning key's values (§3);*
+- *the routing table with its* match path *— every rule in order, whether it matched, the term that
+  failed where it did not, and the winner highlighted; each rule's state (reserved, draft, provisional,
+  pinned, promoted) as the Routing tab shows it;*
+- *the* decision *and its reason — bound, provisional, promoted, drafted, sentinelled, given up,
+  retracted, or* would learn *— with the ledger row and the reprocess request where one was written;*
+- *the bound fragment as an openable document link, with the scorecard's verdicts per step (§8);*
+- *the transcript, turn by turn, where the stream was learned; and*
+- *the actions the Routing tab and the Supervisor view offer on the matched rule — Approve, Reject,
+  pin, retract — beside the evidence they act on.*
+
+*The element's node in the stepping tree expands to the bound fragment's chain, so that its elements
+—* `DSParser → XSLTFilter` *— are stepped like any other, each with its own code, input and output.
+This is §5.2's reviewer flow: a draft's fragment stepped against the stream that errored, real input
+and no copy, with Approve one pane away.*
+
+*Stepping is a dry run. Under a `SteppingController` the element routes and serves only: it asks no
+model, writes no document, no ledger row and no reprocess request, and for an unknown shape the
+stage pane says what the stage* would *do —* would learn*,* would sentinel: disabled*,* would try v1
+— rather than doing it. A* learn now *action may follow, as an explicit act, once attempts are
+durable (A28).*
+
+**How it is carried.** `SharedElementData` gains an optional, JSON-typed `details` — an
+`ElementStepDetails` with one subtype for now, `ShapeshifterAiStepDetails`, built from the `StageRun`
+— and `ElementPresenter` hands details it recognises to a presenter registered for the type in place
+of the code pane. The slot is generic so that another element with a decision to explain can use it;
+the alternative, rendering the decision into the log string, would lose the links and the actions.
+`SteppingPipelineTreeBuilder` expands the element's node to the fragment's elements when the element
+reports a binding. The `StageRun` itself is unchanged: it was designed as everything a scenario
+asserts on (design 02 §1), and that is the same list a person wants to see.
+
 ---
 
 ## 12. What has to change in Stroom
@@ -1162,7 +1213,9 @@ arrived last. Items marked *built* already exist in `stroom-shapeshifter-ai` or 
 4. **The supervisor element**, merging the fragment's `PipelineData` with a capture filter and running
    it in a child task context, following `ReferenceDataLoadTaskHandler`. *`Stage`, `Router`,
    `Quarantine` and `FragmentRunner` hold the element's logic, built; the pipeline element and the
-   child-task run are not.*
+   child-task run are not. By 2026-09-18 the `Stage` covers route, learn, judge, write, emit,
+   bound-variant trial, provisional binding, promotion, retraction, relearning, review mode with
+   Approve and Reject, over the runtime-state seams of A26 — design 02 §6.1.*
 5. **The scorer set of §8.4**, including the input-coverage scorer (A11) and the anti-degeneracy
    scorer (A16), which have no existing equivalent. *The SPI and the compile, coverage and yield scorers are built; schema
    conformance, anti-degeneracy, business rules, error load, classification and AI review are not.*
@@ -1170,11 +1223,15 @@ arrived last. Items marked *built* already exist in `stroom-shapeshifter-ai` or 
    retries, budgets and rate limiting, token accounting, audit logging of invocations — the whole
    transcript, not each call in isolation — and explicit cache bypass.
 7. **Output stream metadata for bindings** (§7.3 rule 3), and a reprocessing mode that honours it.
+   *The `Bindings` record on every `StageRun` and the `Outputs` seam are built 2026-09-18; writing them
+   to the output stream waits on item 4.*
 8. **The runtime-state schema** (A26): a `stroom-shapeshifter-ai-impl-db` module in the pattern of
    `stroom-ai-impl-db` — Flyway migration, jOOQ codegen, its own connection provider — holding the
    three tables of §11.4; the DAO in the impl module; the error stream
    text for a given-up and for a draft shape; release as the creation of a reprocess filter for the
-   ledger's inputs; a scheduled prune job; and a `uuid` on `RoutingRule`.
+   ledger's inputs; a scheduled prune job; and a `uuid` on `RoutingRule`. *The `Shapes`, `Ledger`,
+   `Outputs` and `Reprocessing` seams the tables will implement, and the `Stage`'s use of them, are
+   built 2026-09-18 with in-memory implementations; the module is not.*
 9. **A regression stream per rule** (A18), appended at promotion and re-scored by the
    promotion gate; retention a document setting capped by the source feed's retention (A18).
 10. **A restricted XSLT function library** for AI-authored transforms (§11).
@@ -1184,7 +1241,9 @@ arrived last. Items marked *built* already exist in `stroom-shapeshifter-ai` or 
    written while open, a per-document status strip with reset in the Supervisor view, and the optional
    half-open retry.
 13. **Review mode** (A25): `promotionMode` on the document, `draft` on a routing rule (authoritative; the
-   shape's `awaiting review` status mirrors it), the router skipping drafts, Approve and Reject on the Routing tab, and rejection recorded against the shape.
+   shape's `awaiting review` status mirrors it), the router skipping drafts, Approve and Reject on the
+   Routing tab, and rejection recorded against the shape. *All but the Routing tab's buttons built
+   2026-09-18 as `Stage.approve` and `Stage.reject` — design 02 §6.1.*
 14. **The AI review job** (A23): sampling of emitted records under an hourly budget, the audit
    stream of findings, the rolling score per shape, the relearn trigger and the `Critique` question.
 15. **Durable attempts and the Supervisor view** (A28): `shapeshifter_attempt` and
@@ -1211,6 +1270,11 @@ arrived last. Items marked *built* already exist in `stroom-shapeshifter-ai` or 
    the Settings tab; derive it from the fragment at build time and check the allowed-element list
    against the stage's position. Extends item 3. *Removed 2026-09-17; the derivation and the check
    wait on the supervisor element.*
+
+19. **The stage pane in the stepper** (A30, §11.7): the `details` slot on `SharedElementData` and its
+   `ShapeshifterAiStepDetails` subtype built from `StageRun`; the presenter that replaces the code
+   pane; the stepping tree expanding the element to its fragment's chain; the dry-run rule for the
+   element under a `SteppingController`. Depends on item 4.
 
 Items 1 and 2 are changes to `stroom-pipeline` that benefit the stepper too, and should be proposed
 on that basis rather than as private to this feature.
@@ -1253,6 +1317,7 @@ behaviour of the finished stage is stated as tests.
 | A27 | Processor filters may depend on a Shapeshifter AI document and create no tasks for a feed while its feed-state row is `ERROR` or a shape of it is `AWAITING_REVIEW`; per (doc, feed); the intended mechanism for waiting, sequenced last because it touches `stroom-processor` | **Proposed, §11.5** — the owner's, 2026-09-17 |
 | A28 | Every attempt is a durable, resumable record in its own tables; a cross-document Supervisor view lists all attempts in every mode, with pending ones decidable and any turn amendable; the job advancing attempts awaiting the model is deferred mode's worker | **Proposed, §11.6** — the owner's, 2026-09-17; makes A25 and deferred A5 usable |
 | A29 | The learning key — the fields a learned rule binds on and the chain question sees — is a document setting, default `Feed AND Type`, with attribute-map fields and the shape signature choosable; a shape is one value of the key; shown means bound; a bound shape whose rolling per-record score falls below the document's relearn threshold is relearned | **Ruled** 2026-09-17 — the owner's; replaces the fixed `Feed AND Type AND Shape Signature` of the first A22 decisions |
+| A30 | The supervisor element in the stepper shows a stage pane — shape, match path, decision, fragment and verdicts, transcript, actions — in place of a code pane, expands to its fragment's chain, and runs dry | **Proposed, §11.7** — the owner's, 2026-09-18 |
 
 Where a row says *revised*, *restated* or *settled* 2026-09-17, the change was put to the owner as a
 recommendation with alternatives and taken by them that day: the text is the editor's, the decision
@@ -1340,3 +1405,13 @@ including the degeneracy trap (§8.3) that changes the scoring model and propose
   diagnostics; the Routing tab edits rules by position, so a copied rule cannot be mistaken for its
   original. Accepted as documented behaviour: a selector naming a header the stream lacks does not
   match, even under `NOT`. A GWT draft compile validated the UI templates.
+
+**2026-09-18.**
+- The `Stage` brought through design 02's slices 2–4 — bound-variant trial, provisional binding and
+  promotion, retraction, the rolling score and relearning, the ledger and its release, review mode
+  with Approve and Reject — over the A26 seams with in-memory implementations; design 02 §6.1 records
+  each slice and the decisions taken in it, four of which are put to the owner there. §12 items 4, 7, 8
+  and 13 marked accordingly.
+- A30 proposed, at the owner's framing: the supervisor element's place in the pipeline stepper (§11.7)
+  — a stage pane in place of a code pane, the fragment's chain stepped as children, and a dry run.
+  §11.7 also names the feature's four UI surfaces and where each is specified; §12 gains item 19.
