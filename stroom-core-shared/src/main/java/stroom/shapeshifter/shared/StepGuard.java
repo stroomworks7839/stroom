@@ -25,7 +25,8 @@ import stroom.docref.HasDisplayValue;
 public enum StepGuard implements HasDisplayValue {
     ALWAYS("always"),
     TEXT("text"),
-    XML("xml");
+    XML("xml"),
+    JSON("json");
 
     private final String displayValue;
 
@@ -39,7 +40,8 @@ public enum StepGuard implements HasDisplayValue {
     }
 
     /**
-     * @return The guard written as {@code always}, {@code text} or {@code xml}, or null for anything else.
+     * @return The guard written as {@code always}, {@code text}, {@code xml} or {@code json}, or null for anything
+     * else.
      */
     public static StepGuard parse(final String word) {
         for (final StepGuard guard : values()) {

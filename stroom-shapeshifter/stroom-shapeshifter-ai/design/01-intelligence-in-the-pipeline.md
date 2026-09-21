@@ -981,8 +981,10 @@ transformation by whether its output* reproduces *the target. The dialogue of A2
    the delimiter or pattern that cuts one record per unit; for XML the element that is one record; for
    JSON the array whose items are records. Judged by coverage and yield against the input's own
    structure, and by nothing else.*
-3. *Target. From the records the split yields — one representative per kind, chosen by signature — the
-   schema's rules (§8.2) and the document's instructions, the model proposes the event
+3. *Target. From the records the split yields — one representative per kind, chosen by signature: the
+   text skeleton of a line, the element skeleton of a markup record with the values of its naming
+   attributes (`Name`, `key`), since records of one vocabulary are told apart by what they are called —
+   the schema's rules (§8.2) and the document's instructions, the model proposes the event
    each record should become. Each is validated at once by schema conformance, extraction quality and
    the business rules, with the content model of whatever fell short (§8.2's enrichment); a re-ask
    carries the shortfall of the document the model itself wrote, so the ladder of one missing child per
@@ -1100,8 +1102,8 @@ it is in:
   *role* — `parser`, the chain's first element where it is a parser with a document to write, or
   `transform`, the filters after it — so that a graph can put a step between the two; unqualified it
   configures every element in chain order, as A21 wrote it, and a role the chain does not have is
-  skipped. The *guard* is `always`, `text` (raw input) or `xml` (the input is already records). The
-  *limits* are the candidates a step may spend (the document's `maxAttempts` when unset) and, for
+  skipped. The *guard* is `always`, `text` (raw input a parser with a configuration cuts), `xml` (the
+  input is already records) or `json` (a run-only parser turns it into records). The *limits* are the candidates a step may spend (the document's `maxAttempts` when unset) and, for
   *Target*, how many record kinds are asked about. *Checks* names which of the closed list judge this
   step; unset, the kind's own — coverage, yield and wholeness for a split, the scorecard and, where
   targets exist, preservation or fidelity for a configuration — and the thresholds are the Scoring
@@ -1119,9 +1121,10 @@ it is in:
   Constraints, checked on save and again before the model is asked: `CHAIN` first and once; ids
   unique and none `end`; every `goto` names a step or `end`; `SPLIT` and `TARGET` at most once each;
   the last step a `CONFIGURE`. A target asked before any split is proposed from the sample's lines (raw text) or the
-  root's children (XML), and a split asked of XML input asks for the element that is one record
-  (A35). A new document starts with the *direct* example's steps — `CHAIN`, `CONFIGURE` — and the
-  Learning tab can load any example into the list to edit from; the examples (`PlanExample`) are the
+  root's children (XML) or the parser's records (JSON); a split asked of XML input asks for the element
+  that is one record (A35), and of JSON for the key of the array whose items are records, or `root`
+  where each top-level value is one, as JSON lines are. A new document starts with the *direct*
+  example's steps — `CHAIN`, `CONFIGURE` — and the Learning tab can load any example into the list to edit from; the examples (`PlanExample`) are the
   plans as measured in 02 §6.3 and carry no other weight. *Direct* is the two lines above.
   *Target-first* is `CHAIN`, `SPLIT`, `TARGET kinds 3`, `CONFIGURE parser`, `CONFIGURE transform
   on preservation-short goto parser` — A31 as ruled, its split asked of every input and its rule 6
@@ -1140,7 +1143,7 @@ it is in:
   The direct transform's pass ends the plan; only its exhaustion reaches the target. The re-asked
   parser needs no `checks`: once targets exist, preservation is a `CONFIGURE parser` step's own.
 
-- *Templates* — override-only: the text of any of `SYSTEM`, `CHAIN`, `SPLIT`, `SPLIT_XML`, `TARGET`,
+- *Templates* — override-only: the text of any of `SYSTEM`, `CHAIN`, `SPLIT`, `SPLIT_XML`, `SPLIT_JSON`, `TARGET`,
   `CONFIGURATION`, `SPLIT_RULES`, `EXTRACTION_RULES`, `TRANSFORMATION_RULES`, with `${variable}` slots
   bound from the attempt. A definition names only what it changes; everything else follows the built-in
   text — the words the live runs taught: the worked Data Splitter example, the enumeration and namespace
@@ -1819,6 +1822,15 @@ including the degeneracy trap (§8.3) that changes the scoring model and propose
 - Audit of slice 15 and the range since upstream: nine findings, eight fixed — design 02 §6.1; among them
   a failed gate now decides a candidate's outcome ahead of any other shortfall, and feedback carried to a
   run-only element reaches the next question asked.
+- Slice 16, JSON (design 02 scenarios 2 and 46, §6.1; design 03 §5): the `JSONParser` step runner, run
+  only; the `json` guard and `SPLIT_JSON` template (§10.2); the split names the array whose items are
+  records, or `root`; a markup record's kind carries its naming attributes (§10.1), which tells the three
+  Windows event kinds of scenario 45 apart; a JSON document is learned whole and counts as one record at
+  the stage, so it binds provisionally as nested XML does — the cut and the count by the array's items
+  are owed (design 03 §5).
+- Audit of slice 16: five findings, four fixed — design 02 §6.1; a JSON document is told by parsing its
+  one value, not by its first bracket; `root` reaches a top-level array's items; a markup record's kind
+  counts repeated siblings once and a `Name` only where the element repeats.
 - Design 03 written: the phases, at the owner's asking for one plan covering everything discussed and
   the formats never yet exercised — syslog, auditd, Windows security events, JSON, fixed-width,
   multi-line CSV. Slice 12 is phase A; phase B is a slice per format.

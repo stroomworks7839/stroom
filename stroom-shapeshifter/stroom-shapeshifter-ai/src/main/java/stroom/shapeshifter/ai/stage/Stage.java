@@ -55,8 +55,11 @@ import stroom.util.shared.ElementId;
 import stroom.util.shared.Severity;
 import stroom.util.shared.StoredError;
 
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonParser;
 import net.sf.saxon.s9api.XdmNode;
 
+import java.io.IOException;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
@@ -84,6 +87,7 @@ import java.util.UUID;
 public final class Stage {
 
     private static final String FOLDER = "Shapeshifter";
+    private static final JsonFactory JSON = new JsonFactory();
     private static final ElementId STAGE = new ElementId("Stage");
 
     private final Advisors advisors;
@@ -629,6 +633,11 @@ public final class Stage {
                     ? data
                     : wholeChildren(data, limit);
         }
+        if (isJsonDocument(data)) {
+            // A prefix of a JSON document is not a document either. It is learned whole; a cut at the array's
+            // items, as wholeChildren makes for XML, is owed (design 03 §5).
+            return data;
+        }
         final List<String> lines = data.lines().filter(line -> !line.isBlank()).toList();
         if (lines.isEmpty()) {
             // A blank stream has nothing to learn from; the compile gate and coverage will say so.
@@ -650,6 +659,30 @@ public final class Stage {
             within++;
         }
         return String.join("\n", lines.subList(0, within)) + "\n";
+    }
+
+    /**
+     * Whether text is one JSON document spanning lines — one object or array, and nothing after it, whose
+     * first line does not close it — rather than JSON lines, each a value of its own, which are cut like any
+     * text. A bracket is not enough: a log whose lines open with {@code [Mon Sep 21 ...]} is text, so the
+     * value is parsed.
+     */
+    static boolean isJsonDocument(final String data) {
+        final String trimmed = data.stripLeading();
+        if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) {
+            return false;
+        }
+        final String first = trimmed.lines().findFirst().orElse("").stripTrailing();
+        if (first.endsWith("}") || first.endsWith("]")) {
+            return false;
+        }
+        try (JsonParser parser = JSON.createParser(trimmed)) {
+            parser.nextToken();
+            parser.skipChildren();
+            return parser.nextToken() == null;
+        } catch (final IOException e) {
+            return false;
+        }
     }
 
     /**
@@ -752,8 +785,8 @@ public final class Stage {
      * relearning all decide on.
      *
      * @param records How many records the stream brought — its lines where it is text, its records where
-     *                it is already XML. The evidence the judgement rests on (A14), counted on the input
-     *                so that a variant that drops records is judged, not excused.
+     *                it is already XML, one where it is a JSON document. The evidence the judgement rests on
+     *                (A14), counted on the input so that a variant that drops records is judged, not excused.
      */
     private record Judged(String output, List<Verdict> verdicts, double score, int records) {
 
@@ -769,9 +802,15 @@ public final class Stage {
         }
 
         private static int units(final String input) {
-            return ShapeSignature.isMarkup(input)
-                    ? Records.count(input)
-                    : (int) input.lines().filter(line -> !line.isBlank()).count();
+            if (ShapeSignature.isMarkup(input)) {
+                return Records.count(input);
+            }
+            if (isJsonDocument(input)) {
+                // One value, however many lines it is printed over; a count by its array's items is owed
+                // (design 03 §5).
+                return 1;
+            }
+            return (int) input.lines().filter(line -> !line.isBlank()).count();
         }
 
         boolean clearsFloor(final ShapeshifterAiDoc doc) {

@@ -19,6 +19,7 @@ package stroom.shapeshifter.ai.scenario;
 import stroom.shapeshifter.ai.extraction.DataSplitterStep;
 import stroom.shapeshifter.ai.extraction.ExtractionCorpus;
 import stroom.shapeshifter.ai.extraction.ExtractionCorpus.Golden;
+import stroom.shapeshifter.ai.extraction.JsonStep;
 import stroom.shapeshifter.ai.extraction.NodeFixture;
 import stroom.shapeshifter.ai.fragment.ContentStores;
 import stroom.shapeshifter.ai.fragment.FragmentRunner;
@@ -70,7 +71,7 @@ public final class Scenarios {
     public final InMemoryRegressionSet regressionSet = new InMemoryRegressionSet();
 
     public List<StepRunner> runners() {
-        return List.of(new DataSplitterStep(NODE.compiler()), new XsltStep());
+        return List.of(new DataSplitterStep(NODE.compiler()), new JsonStep(), new XsltStep());
     }
 
     public List<Scorer> scorers() {
@@ -91,6 +92,12 @@ public final class Scenarios {
     /// record, the targets from the stylesheet (A35).
     public Script xmlScript(final String recordElement, final String stylesheet) {
         return Script.of().structure(Structure.ofXml(runners(), recordElement, stylesheet));
+    }
+
+    /// A script for JSON: the split question is answered with the array's key, or root, the targets from the
+    /// stylesheet over the parser's XML.
+    public Script jsonScript(final String arrayKey, final String stylesheet) {
+        return Script.of().structure(Structure.ofJson(runners(), arrayKey, stylesheet));
     }
 
     public Stage stage(final Advisor advisor) {

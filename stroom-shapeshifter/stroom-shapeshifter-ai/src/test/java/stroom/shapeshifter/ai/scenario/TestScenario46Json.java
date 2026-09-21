@@ -1,0 +1,147 @@
+/*
+ * Copyright 2026 Crown Copyright
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package stroom.shapeshifter.ai.scenario;
+
+import stroom.shapeshifter.ai.learning.Exchange;
+import stroom.shapeshifter.ai.learning.InputKind;
+import stroom.shapeshifter.ai.learning.Question.Configuration;
+import stroom.shapeshifter.ai.learning.Question.Split;
+import stroom.shapeshifter.ai.learning.Question.TargetFor;
+import stroom.shapeshifter.ai.stage.Decision.Promoted;
+import stroom.shapeshifter.ai.stage.Decision.Provisional;
+import stroom.shapeshifter.ai.stage.Input;
+import stroom.shapeshifter.ai.stage.StageRun;
+import stroom.shapeshifter.shared.BusinessRulesParameters;
+import stroom.shapeshifter.shared.ExtractionQualityParameters;
+import stroom.shapeshifter.shared.LearningMode;
+import stroom.shapeshifter.shared.PlanExample;
+import stroom.shapeshifter.shared.SchemaConformanceParameters;
+import stroom.shapeshifter.shared.ScorerSetting;
+import stroom.shapeshifter.shared.ScorerType;
+import stroom.shapeshifter.shared.ShapeshifterAiDoc;
+import stroom.shapeshifter.shared.XPathAssertion;
+import stroom.shapeshifter.shared.YieldBasis;
+import stroom.shapeshifter.shared.YieldParameters;
+
+import org.junit.jupiter.api.Test;
+
+import java.util.List;
+import java.util.Map;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+/// Design 02 §5, scenario 46 (design 03 §3): JSON, as lines and as one document with an array of records. The
+/// chain is a JSONParser, which takes no configuration, so no configuration question is asked for it; the
+/// split question asks which array holds the records — root for the lines — and the transform is asked with
+/// the parser's real XML. The lines promote outright; the document, whose records sit inside an array, binds
+/// provisionally until the record boundary reaches the stage's count (design 01 §10.1).
+class TestScenario46Json {
+
+    private static final String XSLT = Scenarios.resource("records.xsl");
+    private static final String LINES = Scenarios.resource("records.jsonl");
+    private static final String DOCUMENT = Scenarios.resource("records.json");
+    private static final String EVENTS = Scenarios.resource("records.events.xml");
+
+    private static ShapeshifterAiDoc doc() {
+        return ShapeshifterAiDoc.builder()
+                .uuid("doc-1")
+                .name("api-gateway")
+                .learningMode(LearningMode.AUTOMATIC)
+                .plan(PlanExample.TARGET_FIRST)
+                .allowedElements(List.of("JSONParser", "XSLTFilter"))
+                .minRecordsPerShape(5)
+                .scorers(List.of(
+                        new ScorerSetting(ScorerType.COMPILE, 0.0, 1.0, true, null),
+                        new ScorerSetting(ScorerType.YIELD, 1.0, 0.5, false,
+                                new YieldParameters(1.0, YieldBasis.RECORDS)),
+                        new ScorerSetting(ScorerType.SCHEMA_CONFORMANCE, 1.0, 1.0, true,
+                                new SchemaConformanceParameters("EVENTS")),
+                        new ScorerSetting(ScorerType.EXTRACTION_QUALITY, 1.0, 0.7, true,
+                                new ExtractionQualityParameters(false, List.of("EventSource/User/Id"))),
+                        new ScorerSetting(ScorerType.BUSINESS_RULES, 1.0, 1.0, false,
+                                new BusinessRulesParameters(List.of(new XPathAssertion(
+                                        "logons name the user",
+                                        "not(EventDetail/Authenticate) "
+                                        + "or EventDetail/Authenticate/User/Id[normalize-space(.) != '']")),
+                                        true))))
+                .build();
+    }
+
+    private static Input stream(final long id, final String data) {
+        return new Input(id, "API-GATEWAY", "Raw Events", Map.of("Format", "JSON"), data);
+    }
+
+    @Test
+    void scenario46JsonLinesAreRecordsOfTheRoot() {
+        final Scenarios scenarios = new Scenarios();
+        final Script script = scenarios.jsonScript("root", XSLT)
+                .expect(QuestionMatcher.chain()).reply("JSONParser -> XSLTFilter")
+                .expect(QuestionMatcher.configuration("XSLTFilter").withTargets(2)).reply(Scenarios.fenced(XSLT));
+
+        final StageRun run = scenarios.stage(script).run(doc(), stream(1, LINES));
+
+        assertThat(run.decision()).describedAs(run.decision().toString()).isInstanceOf(Promoted.class);
+        script.verifyExhausted();
+        assertThat(run.output()).isEqualTo(EVENTS);
+        // Chain, split, two targets — a login and a logout, told apart by their keys — and the transform; nothing
+        // for the parser, which takes no configuration.
+        assertThat(script.asked()).hasSize(5);
+        assertThat(script.asked()).noneMatch(question -> question instanceof Configuration c
+                                                         && c.elementType().equals("JSONParser"));
+        final Split split = (Split) script.asked().get(1);
+        assertThat(split.kind()).isEqualTo(InputKind.JSON);
+        assertThat(split.documentType()).isNull();
+        assertThat(script.asked().stream().filter(TargetFor.class::isInstance)).hasSize(2);
+        final Configuration transform = (Configuration) script.asked().get(4);
+        assertThat(transform.split().array()).isEqualTo("root");
+        assertThat(transform.input()).contains("http://www.w3.org/2013/XSL/json");
+    }
+
+    @Test
+    void scenario46ADocumentsRecordsAreTheItemsOfAnArray() {
+        final Scenarios scenarios = new Scenarios();
+        final Script script = scenarios.jsonScript("events", XSLT)
+                .expect(QuestionMatcher.chain()).reply("JSONParser -> XSLTFilter")
+                // A key that is not an array's is refused; the array of records is accepted.
+                .expect(QuestionMatcher.split().withoutFeedback()).reply("client")
+                .expect(QuestionMatcher.split().withFeedbackMentioning("No array with the key \"client\""))
+                .reply("events")
+                .expect(QuestionMatcher.configuration("XSLTFilter").withTargets(2)).reply(Scenarios.fenced(XSLT));
+
+        // Yield by records would count the root's one child against twelve events, as it would for nested XML
+        // (scenario 37), so it is not asked here until the record boundary reaches the count (design 01 §10.1).
+        final ShapeshifterAiDoc doc = doc().copy()
+                .scorers(doc().getScorers().stream()
+                        .filter(setting -> setting.getType() != ScorerType.YIELD)
+                        .toList())
+                .build();
+        final StageRun run = scenarios.stage(script).run(doc, stream(1, DOCUMENT));
+
+        script.verifyExhausted();
+        // Learned whole; the stage then counts the document as one value, however many lines it is printed
+        // over, and binds provisionally for want of evidence, as the nested XML of scenario 37 does (design 01
+        // §10.1); the count by the array's items is owed (design 03 §5).
+        assertThat(run.decision()).describedAs(run.decision().toString()).isInstanceOf(Provisional.class);
+        assertThat(((Provisional) run.decision()).records()).isEqualTo(1);
+        assertThat(run.output()).isEqualTo(EVENTS);
+        final Configuration transform = (Configuration) script.asked().get(script.asked().size() - 1);
+        assertThat(transform.targets()).describedAs(transform.targets().toString()).hasSize(2);
+        assertThat(transform.split().array()).isEqualTo("events");
+        final List<Exchange> turns = run.transcript();
+        assertThat(turns.get(1).question()).isInstanceOf(Split.class);
+    }
+}

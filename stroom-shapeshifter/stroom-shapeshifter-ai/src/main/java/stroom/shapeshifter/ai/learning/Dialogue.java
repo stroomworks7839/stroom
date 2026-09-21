@@ -184,8 +184,8 @@ public final class Dialogue {
      * One step of the plan: asked and judged by its kind, under its guard and its checks.
      */
     private Visit enter(final PlanStep step, final List<String> allowed, final Walk walk) {
-        if (walk.chain != null && (step.getWhen() == StepGuard.TEXT && !walk.raw
-                                   || step.getWhen() == StepGuard.XML && walk.raw)) {
+        if (walk.chain != null && step.getWhen() != StepGuard.ALWAYS
+            && !walk.kind.name().equals(step.getWhen().name())) {
             return Visit.next();
         }
         return switch (step.getKind()) {
@@ -290,7 +290,10 @@ public final class Dialogue {
         final StepRunner first = walk.first(runners);
         final Set<Check> checks = checks(step, SPLIT_CHECKS);
         final String spent = "No record boundary after " + candidates(step, walk.policy) + " candidates";
-        if (!walk.raw) {
+        if (walk.kind == InputKind.JSON) {
+            return passed(step, splitJson(step, walk, first, checks, spent));
+        }
+        if (walk.kind == InputKind.XML) {
             final Optional<OutputRecords> document = OutputRecords.parse(walk.sample.text());
             if (document.isEmpty()) {
                 walk.cut(null, List.of(walk.sample.text()));
@@ -298,7 +301,8 @@ public final class Dialogue {
             }
             return passed(step, candidates(step, walk, (candidate, feedback) -> {
                 final String reply = ask(walk, step, candidate,
-                        new Split(walk.sample, first.elementType(), null, feedback)).strip().replaceAll("^<|>$", "");
+                        new Split(walk.sample, first.elementType(), null, InputKind.XML, feedback))
+                        .strip().replaceAll("^<|>$", "");
                 if (!reply.matches("[A-Za-z_][\\w.-]*")) {
                     return Judged.refused("The reply was not an element name");
                 }
@@ -320,7 +324,7 @@ public final class Dialogue {
         final Scorecard over = scorecard.only(checks);
         return passed(step, candidates(step, walk, (candidate, feedback) -> {
             final String reply = ask(walk, step, candidate,
-                    new Split(walk.sample, first.elementType(), configured.documentType(), feedback));
+                    new Split(walk.sample, first.elementType(), configured.documentType(), InputKind.TEXT, feedback));
             final Optional<String> configuration = ConfigurationReply.configuration(reply);
             if (configuration.isEmpty()) {
                 return Judged.refused("The reply was not a single " + configured.documentType() + " document");
@@ -350,6 +354,53 @@ public final class Dialogue {
     }
 
     /**
+     * The split question for JSON (A31): the parser turns the sample into XML of the XSL/json vocabulary, and
+     * the model names the array whose items are the records by its key, or {@code root} where each top-level
+     * value is one — judged by whether such an array occurs and whether its items hold the document whole.
+     */
+    private Visit splitJson(final PlanStep step,
+                            final Walk walk,
+                            final StepRunner first,
+                            final Set<Check> checks,
+                            final String spent) {
+        final StepResult parsed = first.run(null, walk.sample.text());
+        final Optional<OutputRecords> document = parsed.passed()
+                ? OutputRecords.parse(parsed.output())
+                : Optional.empty();
+        if (document.isEmpty()) {
+            return Visit.abandon(first.elementType() + " cannot read the sample as JSON", parsed.diagnostics());
+        }
+        return candidates(step, walk, (candidate, feedback) -> {
+            final String reply = ask(walk, step, candidate,
+                    new Split(walk.sample, first.elementType(), null, InputKind.JSON, feedback)).strip()
+                    .replaceAll("^[\"']|[\"']$", "");
+            if (!reply.matches("[^\\s<>]+")) {
+                return Judged.refused("The reply was not an array's key, nor the word " + Boundary.ROOT);
+            }
+            final List<String> records;
+            if (Boundary.ROOT.equalsIgnoreCase(reply)) {
+                records = TargetChecks.rootRecords(document.get());
+            } else {
+                records = TargetChecks.arrayItems(document.get(), reply);
+                if (records.isEmpty()) {
+                    return Judged.refused("No array with the key \"" + reply + "\" occurs in the input");
+                }
+            }
+            if (checks.contains(Check.WHOLENESS)) {
+                final Optional<StoredError> partial = TargetChecks.wholeness(document.get().root().getStringValue(),
+                        records.stream().map(TargetChecks::textOf).toList());
+                if (partial.isPresent()) {
+                    return new Judged(StepOutcome.WHOLENESS_SHORT, List.of(partial.get()), null);
+                }
+            }
+            walk.cut(Boundary.ofArray(Boundary.ROOT.equalsIgnoreCase(reply)
+                    ? Boundary.ROOT
+                    : reply), records);
+            return Judged.passed();
+        }, spent);
+    }
+
+    /**
      * What one kind of record should become: proposed by the model, judged at once by the scorers of
      * meaning over the wrapped event, re-asked with the shortfall of the document it wrote; or
      * {@code none}, for a kind that yields no event. A header or a comment is seen once in a sample; a kind
@@ -358,7 +409,7 @@ public final class Dialogue {
      */
     private Visit target(final PlanStep step, final Walk walk) {
         final List<String> over = walk.records == null
-                ? recordsOf(walk.sample, walk.raw)
+                ? recordsOf(walk, runners)
                 : walk.records;
         final int kinds = step.getKinds() == null
                 ? PlanStep.DEFAULT_KINDS
@@ -448,7 +499,8 @@ public final class Dialogue {
                 }
             } else {
                 // A parser is held to the split's records; a transform over XML input is told the record element.
-                final boolean carriesSplit = runner.parser() || (walk.split != null && walk.split.element() != null);
+                final boolean carriesSplit = runner.parser()
+                                             || (walk.split != null && walk.split.configuration() == null);
                 final Boundary split = carriesSplit
                         ? walk.split
                         : null;
@@ -506,7 +558,7 @@ public final class Dialogue {
             } else if (last && checks.contains(Check.FIDELITY)) {
                 final List<StoredError> unlike = TargetChecks.fidelity(result.output(), walk.targets);
                 if (!unlike.isEmpty()) {
-                    final List<StoredError> lacking = walk.raw
+                    final List<StoredError> lacking = walk.kind == InputKind.TEXT
                             ? TargetChecks.preservation(input, walk.targets)
                             : List.of();
                     return lacking.isEmpty()
@@ -520,15 +572,25 @@ public final class Dialogue {
 
     /**
      * The records a target is proposed over where no split has been asked: the sample's top-level
-     * children where it is already records, its non-blank lines where it is raw text.
+     * children where it is already records, or once the parser has made it records, its non-blank lines
+     * where it is raw text.
      */
-    private static List<String> recordsOf(final Sample sample, final boolean raw) {
-        if (raw) {
-            return sample.text().lines().filter(line -> !line.isBlank()).toList();
-        }
-        return OutputRecords.parse(sample.text())
-                .map(parsed -> parsed.records().stream().map(Object::toString).toList())
-                .orElse(List.of(sample.text()));
+    private static List<String> recordsOf(final Walk walk, final Map<String, StepRunner> runners) {
+        final Sample sample = walk.sample;
+        return switch (walk.kind) {
+            case TEXT -> sample.text().lines().filter(line -> !line.isBlank()).toList();
+            case XML -> OutputRecords.parse(sample.text())
+                    .map(parsed -> parsed.records().stream().map(Object::toString).toList())
+                    .orElse(List.of(sample.text()));
+            case JSON -> {
+                final StepResult parsed = walk.first(runners).run(null, sample.text());
+                yield parsed.passed()
+                        ? OutputRecords.parse(parsed.output())
+                        .map(TargetChecks::rootRecords)
+                        .orElse(List.of(sample.text()))
+                        : List.of(sample.text());
+            }
+        };
     }
 
     private static int candidates(final PlanStep step, final ShapeshifterAiDoc policy) {
@@ -665,7 +727,7 @@ public final class Dialogue {
         private final Set<String> taken = new HashSet<>();
         private List<StoredError> carried = List.of();
         private List<String> chain;
-        private boolean raw;
+        private InputKind kind;
         private Boundary split;
         private List<String> records;
         private List<Target> targets = List.of();
@@ -680,14 +742,18 @@ public final class Dialogue {
 
         /**
          * The chain settled, or settled again: what was cut, aimed at and learned was over the old chain
-         * and is forgotten with it. Raw text is a first element that is a parser with a configuration to
-         * write; otherwise the input is already records — the sample's top-level children — and the guards
-         * read accordingly.
+         * and is forgotten with it. The first element says what the input is: a parser with a configuration
+         * to write means raw text; a parser with none means JSON it turns into records; no parser means the
+         * input is already records — and the guards read accordingly.
          */
         private void chosen(final List<String> chain, final Map<String, StepRunner> runners) {
             this.chain = List.copyOf(chain);
             final StepRunner first = runners.get(chain.get(0));
-            raw = first.parser() && first.configured().isPresent();
+            kind = !first.parser()
+                    ? InputKind.XML
+                    : first.configured().isPresent()
+                            ? InputKind.TEXT
+                            : InputKind.JSON;
             split = null;
             records = null;
             targets = List.of();

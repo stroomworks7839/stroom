@@ -94,6 +94,8 @@ class TestLiveScenarios {
     private static final String SYSLOG = Scenarios.resource("syslog.log");
     private static final String AUDITD = Scenarios.resource("auditd.log");
     private static final String WINDOWS = Scenarios.resource("windows-security.xml");
+    private static final String JSON_LINES = Scenarios.resource("records.jsonl");
+    private static final String JSON_DOCUMENT = Scenarios.resource("records.json");
     private static final String INSTRUCTIONS = """
             The feed is door-access records from a building's badge readers: who went where and what \
             they did, when. Events should name the person as the user and the reader's location as \
@@ -269,6 +271,31 @@ class TestLiveScenarios {
                     .build();
             return List.of(scenarios.stage(advisor).run(doc,
                     new Input(1, "WINDOWS-SECURITY", "Raw Events", Map.of("Format", "XML"), WINDOWS)));
+        }));
+
+        // JSON in both shapes: the chain may choose the JSONParser, which takes no configuration.
+        outcomes.add(run("11-json-lines", advisor -> {
+            final Scenarios scenarios = new Scenarios();
+            final ShapeshifterAiDoc doc = doc("json-lines", 0.9).copy()
+                    .allowedElements(List.of("DSParser", "JSONParser", "XSLTFilter"))
+                    .instructions("An API gateway's audit log as JSON lines, one object per line: logins and "
+                                  + "logouts naming the user, the host and the client. Each is an Authenticate "
+                                  + "event; the host is the device.")
+                    .build();
+            return List.of(scenarios.stage(advisor).run(doc,
+                    new Input(1, "API-GATEWAY", "Raw Events", Map.of("Format", "JSON"), JSON_LINES)));
+        }));
+        outcomes.add(run("12-json-document", advisor -> {
+            final Scenarios scenarios = new Scenarios();
+            final ShapeshifterAiDoc doc = doc("json-document", 0.9).copy()
+                    .allowedElements(List.of("DSParser", "JSONParser", "XSLTFilter"))
+                    .instructions("An API gateway's audit log as one JSON document: an object whose events array "
+                                  + "holds the records, logins and logouts naming the user, the host and the "
+                                  + "client. Each is an Authenticate event; the host is the device.")
+                    .minRecordsPerShape(1)
+                    .build();
+            return List.of(scenarios.stage(advisor).run(doc,
+                    new Input(1, "API-GATEWAY-DOC", "Raw Events", Map.of("Format", "JSON"), JSON_DOCUMENT)));
         }));
 
         LOGGER.info("Live scenarios against {}, {}:\n{}", System.getenv(LiveAdvisor.MODEL), PLAN_UNDER_TEST,

@@ -101,6 +101,51 @@ class TestShapeSignature {
     }
 
     @Test
+    void aRecordsKindIsItsFieldsNotItsValuesNorItsArrayLengths() {
+        // Named Data repeat among their siblings, so their Names are the fields and tell a logon from a
+        // process creation; a lone User's Name is a value and does not make every user a kind.
+        final String logon = "<Event><System><EventID>4624</EventID></System><EventData>"
+                             + "<Data Name=\"TargetUserName\">alice</Data><Data Name=\"LogonType\">2</Data>"
+                             + "</EventData><User Name=\"alice\"/></Event>";
+        final String otherLogon = logon.replace("alice", "bob");
+        final String process = "<Event><System><EventID>4688</EventID></System><EventData>"
+                               + "<Data Name=\"NewProcessName\">cmd.exe</Data><Data Name=\"LogonType\">2</Data>"
+                               + "</EventData><User Name=\"carol\"/></Event>";
+        assertThat(ShapeSignature.recordSkeleton(logon)).isEqualTo(ShapeSignature.recordSkeleton(otherLogon));
+        assertThat(ShapeSignature.recordSkeleton(logon)).isNotEqualTo(ShapeSignature.recordSkeleton(process));
+        assertThat(ShapeSignature.recordSkeleton(logon))
+                .contains("<Data Name=TargetUserName>", "<User Name>")
+                .doesNotContain("alice");
+        // A JSON key always names a field; an array is one kind however many items it holds.
+        final String twoRoles = "<map xmlns=\"http://www.w3.org/2013/XSL/json\"><string key=\"user\">a</string>"
+                                + "<array key=\"roles\"><string>x</string><string>y</string></array></map>";
+        final String threeRoles = twoRoles.replace("<string>y</string>", "<string>y</string><string>z</string>");
+        final String noRoles = twoRoles.replace("<array key=\"roles\">", "<array key=\"groups\">");
+        assertThat(ShapeSignature.recordSkeleton(twoRoles)).isEqualTo(ShapeSignature.recordSkeleton(threeRoles));
+        assertThat(ShapeSignature.recordSkeleton(twoRoles)).isNotEqualTo(ShapeSignature.recordSkeleton(noRoles));
+        assertThat(ShapeSignature.recordSkeleton(twoRoles))
+                .isEqualTo("<map><string key=user></string><array key=roles><string></string></array></map>");
+        // What does not parse falls back to the text skeleton rather than throwing.
+        assertThat(ShapeSignature.recordSkeleton("<a><b></a>")).isEqualTo(ShapeSignature.textSkeleton("<a><b></a>"));
+    }
+
+    @Test
+    void aJsonDocumentIsOneValueOverLinesAndABracketedLogIsNot() {
+        assertThat(Stage.isJsonDocument("{\n  \"events\": [\n    {\"a\": 1}\n  ]\n}\n")).isTrue();
+        assertThat(Stage.isJsonDocument("[\n  {\"a\": 1},\n  {\"a\": 2}\n]\n")).isTrue();
+        assertThat(Stage.isJsonDocument("{\"a\": 1}\n{\"a\": 2}\n")).describedAs("JSON lines").isFalse();
+        final String apache = "[Mon Sep 21 10:00:00 2026] [error] [client 10.0.0.1] File does not exist\n"
+                              + "[Mon Sep 21 10:00:01 2026] [error] [client 10.0.0.2] File does not exist\n";
+        assertThat(Stage.isJsonDocument(apache)).isFalse();
+        assertThat(Stage.isJsonDocument("[1.2.3.4] up\n[1.2.3.5] down\n")).isFalse();
+        assertThat(Stage.isJsonDocument("{\n\"a\": 1}\n{\"b\": 2}\n")).describedAs("two values").isFalse();
+        // A bracketed log is cut by lines and held out like any text, not learned whole.
+        final ShapeshifterAiDoc doc = ShapeshifterAiDoc.builder().uuid("d").heldOutFraction(0.5).sampleSizeLimit(1000)
+                .build();
+        assertThat(Stage.learningPrefix(apache, doc)).isEqualTo(apache.lines().findFirst().orElseThrow() + "\n");
+    }
+
+    @Test
     void textOverTheSampleSizeLimitIsCutByWholeLines() {
         final String lines = "one,1\ntwo,2\nthree,3\nfour,4\n";
         final ShapeshifterAiDoc doc = ShapeshifterAiDoc.builder().uuid("d").heldOutFraction(0.0).sampleSizeLimit(14)

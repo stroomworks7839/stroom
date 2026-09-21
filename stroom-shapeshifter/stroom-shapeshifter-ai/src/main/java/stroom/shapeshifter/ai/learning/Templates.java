@@ -42,7 +42,7 @@ public final class Templates {
     /**
      * Raised when the built-in text changes in a way a stored run should be told apart from.
      */
-    public static final int VERSION = 2;
+    public static final int VERSION = 3;
 
     private static final Map<Template, String> BUILT_IN = new EnumMap<>(Template.class);
 
@@ -95,6 +95,21 @@ public final class Templates {
                 ${feedback}
                 Reply with the element's name alone — its local name, no prefix, no angle brackets — and nothing \
                 else.""");
+        BUILT_IN.put(Template.SPLIT_JSON, """
+                Before anything is extracted, settle what one record is in this stream.
+
+                ${headers}The input is JSON, which the JSONParser turns into XML of the \
+                http://www.w3.org/2013/XSL/json vocabulary: a map for an object, an array for an array, each \
+                value an element named for its type with the object key as its key attribute. Name the array \
+                whose items are the records — the array that holds one item per record and nearly the whole \
+                document — by its key; or reply root where each top-level value is one record, as in JSON \
+                lines, or where the document is one top-level array of records, which the parser shows as a \
+                keyless array under the root map. Not a field within a record.
+
+                A sample of the stream:
+                ${sample}
+                ${feedback}
+                Reply with the key alone, or the word root, and nothing else.""");
         BUILT_IN.put(Template.TARGET, """
                 Record kind ${kind} of ${total}: what event should this record become?
 

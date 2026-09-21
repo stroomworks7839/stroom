@@ -34,7 +34,7 @@ import java.util.Objects;
 /// on each outcome. Written and read as one line:
 ///
 /// ```
-/// [id:] KIND [parser|transform] [when always|text|xml] [candidates n] [kinds n]
+/// [id:] KIND [parser|transform] [when always|text|xml|json] [candidates n] [kinds n]
 ///       [checks a,b,…] [on <outcome> goto <id> | abandon]… [on spent goto <id> | abandon]
 ///
 /// A `goto` may name the reserved step `end`, the end of the plan.
@@ -277,8 +277,8 @@ public class PlanStep {
                 case WHEN -> {
                     when = StepGuard.parse(value);
                     if (when == null) {
-                        throw new IllegalArgumentException("'when " + value + "' is not one of always, text or xml, "
-                                                           + "in step '" + trimmed + "'");
+                        throw new IllegalArgumentException("'when " + value + "' is not one of always, text, xml or "
+                                                           + "json, in step '" + trimmed + "'");
                     }
                 }
                 case CANDIDATES -> candidates = positive(key, value, trimmed);

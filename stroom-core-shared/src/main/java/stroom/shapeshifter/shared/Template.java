@@ -28,6 +28,7 @@ public enum Template implements HasDisplayValue {
     CHAIN("Chain question", "headers", "elements", "sample", "feedback"),
     SPLIT("Split question", "headers", "elementType", "documentType", "splitRules", "sample", "feedback"),
     SPLIT_XML("Split question, XML input", "headers", "sample", "feedback"),
+    SPLIT_JSON("Split question, JSON input", "headers", "sample", "feedback"),
     TARGET("Target question", "headers", "kind", "total", "transformationRules", "record", "feedback"),
     CONFIGURATION("Configuration question", "headers", "elementType", "documentType", "rules", "input", "split",
             "targets", "previous", "feedback"),

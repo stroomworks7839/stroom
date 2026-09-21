@@ -140,8 +140,8 @@ class TestQuestionText {
                 .startsWith("Pick from:\n- DSParser: parses raw text")
                 .contains("Given:\n```xml\na,b,c\n```")
                 .doesNotContain("joined by ->");
-        assertThat(words.render(new Split(SAMPLE, "DSParser", "TextConverter", List.of())))
-                .isEqualTo(WORDS.render(new Split(SAMPLE, "DSParser", "TextConverter", List.of())));
+        assertThat(words.render(new Split(SAMPLE, "DSParser", "TextConverter", InputKind.TEXT, List.of())))
+                .isEqualTo(WORDS.render(new Split(SAMPLE, "DSParser", "TextConverter", InputKind.TEXT, List.of())));
     }
 
     @Test

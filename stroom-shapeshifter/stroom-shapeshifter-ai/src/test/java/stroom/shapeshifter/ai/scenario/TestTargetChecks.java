@@ -168,4 +168,37 @@ class TestTargetChecks {
                 + "<Data><Text>a</Text></Data><Data><Text>b</Text></Data></EventData></Event></Events>").orElseThrow();
         assertThat(TargetChecks.recordElement(event, "Event")).isEmpty();
     }
+
+    @Test
+    void theRootsRecordsAreATopLevelArraysItems() {
+        // The parser wraps a top-level array in a keyless array under the root map, which no key could name:
+        // root reaches its items. A root map of values, as JSON lines make, gives the values.
+        final String ns = "http://www.w3.org/2013/XSL/json";
+        final OutputRecords array = OutputRecords.parse("<map xmlns=\"" + ns + "\"><array>"
+                + "<map><string key=\"a\">1</string></map><map><string key=\"a\">2</string></map></array></map>")
+                .orElseThrow();
+        assertThat(TargetChecks.rootRecords(array)).hasSize(2);
+        assertThat(TargetChecks.rootRecords(array).get(0)).contains("key=\"a\"").contains(">1<");
+        final OutputRecords lines = OutputRecords.parse("<map xmlns=\"" + ns + "\">"
+                + "<map><string key=\"a\">1</string></map><map><string key=\"a\">2</string></map></map>")
+                .orElseThrow();
+        assertThat(TargetChecks.rootRecords(lines)).hasSize(2);
+        final OutputRecords keyed = OutputRecords.parse("<map xmlns=\"" + ns + "\"><array key=\"events\">"
+                + "<map><string key=\"a\">1</string></map></array></map>").orElseThrow();
+        assertThat(TargetChecks.rootRecords(keyed)).describedAs("a keyed array is named by its key").hasSize(1);
+        assertThat(TargetChecks.rootRecords(keyed).get(0)).startsWith("<array");
+    }
+
+    @Test
+    void markupRecordsAreCountedByTheKindTheirRepresentativeWasChosenBy() {
+        final String login = "<map xmlns=\"j\"><string key=\"kind\">login</string>"
+                             + "<string key=\"user\">a</string></map>";
+        final String logout = "<map xmlns=\"j\"><string key=\"kind\">logout</string></map>";
+        final List<String> records = List.of(login, login.replace(">a<", ">b<"), logout);
+        final List<String> representatives = TargetChecks.representatives(records);
+        assertThat(representatives).containsExactly(login, logout);
+        // The first line of every record is the same, so a count by it would say three of each kind.
+        assertThat(TargetChecks.count(records, login)).isEqualTo(2);
+        assertThat(TargetChecks.count(records, logout)).isEqualTo(1);
+    }
 }

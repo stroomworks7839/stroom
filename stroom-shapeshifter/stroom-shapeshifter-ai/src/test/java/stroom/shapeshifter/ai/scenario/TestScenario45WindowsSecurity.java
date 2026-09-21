@@ -107,13 +107,17 @@ class TestScenario45WindowsSecurity {
         final List<Exchange> turns = run.transcript();
         assertThat(turns.get(1).question()).isInstanceOf(Split.class);
         assertThat(turns.get(1).outcome()).isEqualTo(StepOutcome.WHOLENESS_SHORT);
-        // Kinds of record are told apart by structure, and a logon, a process and a logoff are one structure —
-        // a System block and named Data — so one target stands for all three (design 03 §5); the transform is
-        // still judged over the whole stream, and its output carries all three TypeIds.
+        // Kinds of record are told apart by structure, and the skeleton carries the value of an attribute that
+        // names — Data/@Name — so a logon, a logoff and a process creation, each a System block and its own run
+        // of named Data, are three kinds, and a target is asked for each (design 03 §5).
         final List<TargetFor> targets = script.asked().stream()
                 .filter(TargetFor.class::isInstance).map(TargetFor.class::cast).toList();
-        assertThat(targets).hasSize(1);
-        assertThat(targets.get(0).record()).startsWith("<Event ").contains("<EventData>");
+        assertThat(targets).hasSize(3);
+        assertThat(targets).allSatisfy(target -> assertThat(target.record())
+                .startsWith("<Event ").contains("<EventData>"));
+        assertThat(targets.stream()
+                .map(target -> target.record().replaceAll("(?s).*<EventID>(\\d+)</EventID>.*", "$1")))
+                .containsExactlyInAnyOrder("4624", "4634", "4688");
         assertThat(run.output()).contains("<TypeId>4624</TypeId>", "<TypeId>4634</TypeId>", "<TypeId>4688</TypeId>");
         // The degenerate transform validated; only extraction quality refused it.
         final Exchange degenerate = turns.stream()

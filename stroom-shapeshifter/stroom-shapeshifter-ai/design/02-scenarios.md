@@ -186,7 +186,7 @@ Ordered by what each needs built; each one is unlocked by the machinery the prev
 | 43 | **Syslog: two forms in one feed** (design 03 §3) | fixture `syslog.log`: RFC 3164 and RFC 5424 lines from two senders; `System` header; golden `syslog.events.xml`; first with the default key, then with the signature in it | as 1, the DS3 handling both forms; then, under the signature key, two attempts | with the default key one shape, one rule, one variant that emits every line as a record — a DS3 that handles only 3164 fails coverage and is re-asked naming the 5424 lines; with the signature in the key two shapes, two attempts, two rules, each learned from its own representative | the fixture and golden; `Format` in the chain question |
 | 44 | **auditd: a record is several lines** (A31, A35, design 03 §3) | fixture `auditd.log`: interpreted audit records, no separators, events of 2–4 lines sharing `msg=audit(time:serial)`; the target-first plan; yield per line expected 0.35, threshold 0.6 — the document's way of saying a record is several lines | a line-per-record split, then one that joins by serial; targets; a parser that drops the EXECVE's quoted arguments, then the full one; XSLT | the first split consumes every character and is refused on yield alone — 1.0 per line against 0.35 — before any target is asked; the split by serial passes; targets are proposed for whole events, every line of the record sharing one serial; the parser without the arguments passes coverage and is caught by preservation naming `/etc/hosts`; the full parser and the stylesheet promote and the output equals the golden | yield against the input's structure; a lines basis judging the transform record for record; the fixture and golden |
 | 45 | **Windows security events: `Data[@Name]` to typed fields** (A16, A35, design 03 §3) | fixture `windows-security.xml`: fifteen `Event` elements in the Windows namespace under an `Events` root, each a `System` block and `EventData/Data[@Name]`, `EventID` 4624, 4634 and 4688; the target-first plan; scorers Schema conformance (gate), Extraction quality (gate, `EventSource/User/Id` required) | chain `XSLTFilter`; split `EventData`, then `Event`; a stylesheet that copies each named `Data` to a `Data` under `Unknown`; then one mapping the `EventID` to Authenticate or Process and the named fields to typed elements | `EventData` — most of an event but not its System block — is refused on wholeness; `Event` is accepted; the degenerate transform validates and is refused on extraction quality alone, the typed ratio and the `Unknown` rate in the re-ask; the typed one is promoted outright, the `Event`s being the root's children, and the output equals the golden with all three `TypeId`s; one target stood for the three kinds of event, since kinds of XML record are told apart by structure and these share one — a finding for phase B | the fixture and golden; a kind of record for XML that structure cannot tell apart is owed |
-| 46 | **JSON: lines and an array** (A31, design 03 §3; scenario 2's promise) | fixtures `records.jsonl` and `records.json`; `Format: JSON`; allowed elements include `JSONParser`; the target-first plan | chain `JSONParser -> XSLTFilter`; the split names the array for the document, one line per record for the lines; targets; XSLT | no configuration question for the parser; the split guard `json` beside `text` and `xml`; the transform is asked with the parser's real XML; both learned to the floor | the `JSONParser` step runner; the `json` guard; the fixture and golden |
+| 46 | **JSON: lines and an array** (A31, design 03 §3; scenario 2's promise) | fixtures `records.jsonl` and `records.json`, twelve logins and logouts with a nested `client`; `Format: JSON`; allowed elements include `JSONParser`; the target-first plan; scorers Yield (records), Schema conformance (gate), Extraction quality (gate, `EventSource/User/Id` required), Business rules | chain `JSONParser -> XSLTFilter`; for the lines the split is skipped — every top-level value is a record, `root` — and the transform is asked over two targets; for the document the split names `client`, then `events`; XSLT | no configuration question for the parser; the split guard `json` beside `text` and `xml`; the split of the document refuses a key that is no array's and takes the array; a login and a logout are two kinds, told apart by their keys, and two targets are asked; the transform is asked with the parser's real XML in the XSL/json vocabulary; the lines are promoted outright; the document is learned whole, counts as one record at the stage and binds provisionally as the nested XML of scenario 37 does — yield by records is not asked of it until the count is by the array's items (design 03 §5) | the `JSONParser` step runner; the `json` guard and `SPLIT_JSON` template; the array split; the fixtures, stylesheet and golden |
 | 47 | **Fixed-width: nothing to split on** (A11, A36, design 03 §3) | fixture `fixed-width.log`: six columns by position; the escalating plan | a positional regex capturing four columns, then six; XSLT | coverage is 1.0 with four columns — every character is consumed — and the loss is caught by preservation once the plan escalates to a target, or by conformance on the missing field before it; the six-column parser is promoted | the fixture and golden; the escalating plan on a real shortfall |
 | 48 | **CSV with embedded newlines** (A36, design 03 §3) | fixture `csv-multiline.csv`: quoted fields spanning lines, escaped quotes; the target-first plan | a line-based DS3, then one honouring the quoting; targets; XSLT | the line split cuts a record in two, scores well on coverage and fails wholeness; the quoting split passes; the golden holds the field with the newline intact | the fixture and golden; the worked example teaching DS3 quoting |
 
@@ -847,6 +847,42 @@ stream and its output carries all three `TypeId`s, but the target step did not s
 has. What tells them apart is a value — the `EventID`, or the `Name` attributes of the `Data` — and how a
 kind of XML record is recognised by a discriminating value is owed (design 03 §5). The live harness gains
 row `10-windows-security`. 155 tests in the module.
+
+The sixteenth slice, 2026-09-21, is **JSON** (scenarios 2 and 46): `records.jsonl` and `records.json`, twelve
+API-gateway logins and logouts, one object per line and one document holding them in an `events` array,
+`records.xsl` mapping the XSL/json vocabulary the parser emits to Authenticate events, and the golden.
+The `JSONParser` step runner is run only — no configuration, no document — so the plan asks nothing
+of it and the transform is asked over the parser's real XML; the `json` guard and the `SPLIT_JSON`
+template join `text` and `xml`, and the walk knows its kind from the chain's first element: a parser
+with a document to write is text, a parser without is JSON, no parser is XML. The split of a document
+names the array whose items are records by its key, or `root` where every top-level value is one, as
+JSON lines are; it is judged by whether such an array occurs and whether its items hold the document
+whole. For the lines the split is skipped and the transform asked at once over two targets — a login
+and a logout, two kinds — and the stream is promoted outright. For the document the split refuses
+`client`, no array's key, and takes `events`; the document is learned whole, and at the stage counts as
+one record, so it binds provisionally as the nested XML of scenario 37 does: the sample cut at the
+array's items, and the stream's count by them, are owed (design 03 §5). Slice 15's finding is met in
+part: a markup record's kind is its element skeleton with the values of its naming attributes — `Name`,
+`key` — so the three Windows event kinds of scenario 45 are now three targets, and JSON maps with
+different keys are different kinds; a kind by a discriminating value such as `EventID` is still owed.
+The live harness gains rows `11-json-lines` and `12-json-document`. 161 tests in the module, 14 shared.
+
+Audited the same day (code review, high): five findings, four fixed and one left as the convention it
+questioned. A JSON document was told by its first bracket, so a log whose lines open with
+`[Mon Sep 21 ...]` was learned whole, unheld-out and unbounded, and counted as one record, never enough
+to promote — the value is now parsed, one object or array and nothing after it. A top-level JSON array is
+wrapped by the parser in a keyless array under the root map, which no key reply could name, so the
+split could not settle the commonest batch shape — `root` now reaches such an array's items. The record
+skeleton was every element in document order with every naming value, so an array of three roles and
+one of four were two kinds and a lone `<User Name="alice"/>` made every user a kind, starving later real
+kinds of targets under the `kinds` cap — a record's kind is now its parsed tree with repeated siblings
+of one skeleton counted once, a `key` always a field's name and a `Name` one only where the element
+repeats among its siblings. Representatives were chosen by the record skeleton but counted by the text
+skeleton of the first line, the same for every markup record, so a kind seen once was questioned as if
+seen by all — one kind function serves both. Not changed: a run-only parser that cannot read the sample
+abandons the attempt from the split as it does from `CONFIGURE`, outside the candidate loop and the
+step's transitions; whether a wrong choice of parser should route back to the chain question is a
+ruling for the plan, not this slice. 165 tests in the module.
 
 Audited the same day (code review, high): nine findings, eight fixed and one found not to hold. The
 serialiser threw where a document had no meta asset and parsed every document's JSON twice — it now

@@ -47,6 +47,7 @@ import stroom.pipeline.xslt.XsltStore;
 import stroom.shapeshifter.ai.doc.ShapeshifterAiStore;
 import stroom.shapeshifter.ai.extraction.DataSplitterCompiler;
 import stroom.shapeshifter.ai.extraction.DataSplitterStep;
+import stroom.shapeshifter.ai.extraction.JsonStep;
 import stroom.shapeshifter.ai.fragment.FragmentRunner;
 import stroom.shapeshifter.ai.fragment.FragmentWriter;
 import stroom.shapeshifter.ai.learning.Advisors;
@@ -185,7 +186,7 @@ public class ShapeshifterAiParser extends AbstractParser {
         this.metaData = metaData;
         this.fragmentOutput = fragmentOutput;
         final List<stroom.shapeshifter.ai.learning.StepRunner> runners = List.of(
-                new DataSplitterStep(dataSplitterCompiler), new XsltStep());
+                new DataSplitterStep(dataSplitterCompiler), new JsonStep(), new XsltStep());
         this.stage = new Stage(
                 advisors,
                 runners,

@@ -152,11 +152,13 @@ public final class QuestionText {
     private String split(final Split question) {
         final Map<String, String> variables = new HashMap<>();
         variables.put("headers", headers(question.sample()));
-        if (question.documentType() == null) {
-            // Input already in XML: no document to write, an element to name (A35).
+        if (question.kind() != InputKind.TEXT) {
+            // Input already in XML, or JSON a parser turns into it: no document to write, a name to give (A35).
             variables.put("sample", shown(question.sample().text()));
             variables.put("feedback", feedback(question.feedback()));
-            return templates.render(Template.SPLIT_XML, variables);
+            return templates.render(question.kind() == InputKind.XML
+                    ? Template.SPLIT_XML
+                    : Template.SPLIT_JSON, variables);
         }
         variables.put("elementType", question.elementType());
         variables.put("documentType", question.documentType());
@@ -210,6 +212,15 @@ public final class QuestionText {
         if (split.configuration() != null) {
             return "\nThe record boundary is settled; this configuration cuts one record per unit, and yours must "
                    + "cut the same records while extracting every field:\n" + fenced(split.configuration()) + "\n";
+        }
+        if (split.array() != null) {
+            return Boundary.ROOT.equals(split.array())
+                    ? "\nThe record boundary is settled: each top-level JSON value is one record — in the parsed "
+                      + "XML, each child of the root map, or each item of its one keyless array where the document "
+                      + "is a top-level array. Produce one event per record.\n"
+                    : "\nThe record boundary is settled: each item of the JSON array \"" + split.array() + "\" is one "
+                      + "record — in the parsed XML, each child of the array element with key=\"" + split.array()
+                      + "\". Produce one event per item, and nothing for the values around them.\n";
         }
         return "\nThe record boundary is settled: each <" + split.element() + "> element is one record. Produce one "
                + "event per <" + split.element() + ">, and nothing for the elements around them.\n";

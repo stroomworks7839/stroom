@@ -64,9 +64,10 @@ public final class TargetChecks {
     }
 
     /**
-     * One record of each kind the split yielded, first seen first, kind by the text skeleton of
-     * {@link ShapeSignature} — the same discrimination the routing signature uses — at most
-     * {@link #REPRESENTATIVES}.
+     * One record of each kind the split yielded, first seen first, at most {@link #REPRESENTATIVES}. A text
+     * record's kind is the text skeleton of {@link ShapeSignature} — the same discrimination the routing
+     * signature uses; a markup record's is its element skeleton with its naming attributes, since records
+     * of one vocabulary — named {@code Data}, or a JSON map — are told apart by what they are called.
      */
     public static List<String> representatives(final List<String> records) {
         return representatives(records, REPRESENTATIVES);
@@ -78,7 +79,7 @@ public final class TargetChecks {
             if (record == null || record.isBlank()) {
                 continue;
             }
-            byKind.putIfAbsent(ShapeSignature.textSkeleton(record), record);
+            byKind.putIfAbsent(kindOf(record), record);
             if (byKind.size() == atMost) {
                 break;
             }
@@ -91,6 +92,43 @@ public final class TargetChecks {
     /// of that record, not a record of its own.
     public static List<String> elementsNamed(final OutputRecords document, final String name) {
         return occurrences(document, name).stream().map(XdmNode::toString).toList();
+    }
+
+    /// The records of JSON where every top-level value is one ([Boundary#ROOT]): the root map's children —
+    /// or, where the document is one top-level array, that array's items, since the parser wraps such a
+    /// document in a keyless array under the root map, which no key could name.
+    public static List<String> rootRecords(final OutputRecords document) {
+        final List<XdmNode> children = document.records();
+        if (children.size() == 1) {
+            final List<String> items = document.evaluate(children.get(0),
+                            "self::*[local-name() = 'array'][not(@key)]/*")
+                    .stream()
+                    .map(Object::toString)
+                    .toList();
+            if (!items.isEmpty()) {
+                return items;
+            }
+        }
+        return children.stream().map(Object::toString).toList();
+    }
+
+    /// The items of the JSON array with this key, in the XSL/json vocabulary the parser produces, each as its
+    /// text — the records where that array holds them (A31). The outermost such array counts.
+    public static List<String> arrayItems(final OutputRecords document, final String key) {
+        final String wanted = key.replace("'", "");
+        return document.evaluate(document.root(), "(descendant::*[local-name() = 'array'][@key = '" + wanted + "']"
+                                                  + "[not(ancestor::*[local-name() = 'array'][@key = '" + wanted
+                                                  + "'])])[1]/*")
+                .stream()
+                .map(Object::toString)
+                .toList();
+    }
+
+    /// The text a markup record carries: its element and attribute values, for wholeness against the document.
+    public static String textOf(final String record) {
+        return OutputRecords.parse(record)
+                .map(parsed -> parsed.root().getStringValue())
+                .orElse(record);
     }
 
     private static List<XdmNode> occurrences(final OutputRecords document, final String name) {
@@ -147,11 +185,21 @@ public final class TargetChecks {
      * How many of the records are of the representative's kind.
      */
     public static int count(final List<String> records, final String representative) {
-        final String kind = ShapeSignature.textSkeleton(representative);
+        final String kind = kindOf(representative);
         return (int) records.stream()
                 .filter(record -> record != null && !record.isBlank())
-                .filter(record -> kind.equals(ShapeSignature.textSkeleton(record)))
+                .filter(record -> kind.equals(kindOf(record)))
                 .count();
+    }
+
+    /**
+     * The kind of one record, by which representatives are chosen and counted: the text skeleton of a line,
+     * the record skeleton of markup.
+     */
+    static String kindOf(final String record) {
+        return ShapeSignature.isMarkup(record)
+                ? ShapeSignature.recordSkeleton(record)
+                : ShapeSignature.textSkeleton(record);
     }
 
     /**

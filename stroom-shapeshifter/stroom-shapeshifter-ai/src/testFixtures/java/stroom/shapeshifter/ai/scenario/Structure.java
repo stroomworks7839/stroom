@@ -16,6 +16,7 @@
 
 package stroom.shapeshifter.ai.scenario;
 
+import stroom.shapeshifter.ai.learning.Boundary;
 import stroom.shapeshifter.ai.learning.Question;
 import stroom.shapeshifter.ai.learning.Question.Split;
 import stroom.shapeshifter.ai.learning.Question.TargetFor;
@@ -45,6 +46,7 @@ public final class Structure {
     private final List<StepRunner> runners;
     private final String splitter;
     private final String recordElement;
+    private final String arrayKey;
     private final String stylesheet;
 
     /**
@@ -52,36 +54,75 @@ public final class Structure {
      * @param stylesheet The stylesheet the script will answer the transform question with.
      */
     public Structure(final List<StepRunner> runners, final String splitter, final String stylesheet) {
-        this(runners, splitter, null, stylesheet);
+        this(runners, splitter, null, null, stylesheet);
     }
 
     /// For input that is already XML: the element that is one record, which answers the split question, and
     /// the stylesheet the script will answer the transform question with.
     public static Structure ofXml(final List<StepRunner> runners, final String recordElement,
                                   final String stylesheet) {
-        return new Structure(runners, null, recordElement, stylesheet);
+        return new Structure(runners, null, recordElement, null, stylesheet);
+    }
+
+    /// For JSON: the key of the array whose items are records — or {@link Boundary#ROOT} — which answers the
+    /// split question, and the stylesheet over the parser's XML the script will answer the transform question
+    /// with.
+    public static Structure ofJson(final List<StepRunner> runners, final String arrayKey, final String stylesheet) {
+        return new Structure(runners, null, null, arrayKey, stylesheet);
     }
 
     private Structure(final List<StepRunner> runners,
                       final String splitter,
                       final String recordElement,
+                      final String arrayKey,
                       final String stylesheet) {
         this.runners = runners;
         this.splitter = splitter;
         this.recordElement = recordElement;
+        this.arrayKey = arrayKey;
         this.stylesheet = stylesheet;
     }
 
     public Optional<String> answer(final Question question) {
         return switch (question) {
-            case Split split -> Optional.of(recordElement != null
-                    ? recordElement
-                    : Scenarios.fenced(LINE_SPLIT));
-            case TargetFor target -> Optional.of(recordElement != null
-                    ? targetForElement(target.sample().text(), target.record())
-                    : targetFor(target.sample().text(), target.record()));
+            case Split split -> Optional.of(arrayKey != null
+                    ? arrayKey
+                    : recordElement != null
+                            ? recordElement
+                            : Scenarios.fenced(LINE_SPLIT));
+            case TargetFor target -> Optional.of(arrayKey != null
+                    ? targetForItem(target.sample().text(), target.record())
+                    : recordElement != null
+                            ? targetForElement(target.sample().text(), target.record())
+                            : targetFor(target.sample().text(), target.record()));
             default -> Optional.empty();
         };
+    }
+
+    /**
+     * For JSON: the event the stylesheet makes of the array item at the record's position, over the XML the
+     * parser makes of the sample.
+     */
+    private String targetForItem(final String sample, final String record) {
+        final StepResult parsed = runner("JSONParser").run(null, sample);
+        final Optional<OutputRecords> document = parsed.passed()
+                ? OutputRecords.parse(parsed.output())
+                : Optional.empty();
+        if (document.isEmpty()) {
+            return TargetChecks.NONE;
+        }
+        final List<String> records = Boundary.ROOT.equals(arrayKey)
+                ? TargetChecks.rootRecords(document.get())
+                : TargetChecks.arrayItems(document.get(), arrayKey);
+        final int at = records.indexOf(record);
+        if (at < 0) {
+            return TargetChecks.NONE;
+        }
+        final StepResult events = runner("XSLTFilter").run(stylesheet, parsed.output());
+        return OutputRecords.parse(events.output())
+                .filter(produced -> produced.records().size() > at)
+                .map(produced -> Scenarios.fenced(produced.records().get(at).toString()))
+                .orElse(TargetChecks.NONE);
     }
 
     /**

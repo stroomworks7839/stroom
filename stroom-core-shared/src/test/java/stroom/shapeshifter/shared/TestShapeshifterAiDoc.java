@@ -137,8 +137,9 @@ class TestShapeshifterAiDoc {
         assertThat(PlanStep.parse("target when xml candidates 4 kinds 2").format())
                 .isEqualTo("TARGET when xml candidates 4 kinds 2");
         assertThat(PlanStep.parse("  CHAIN ").format()).isEqualTo("CHAIN");
+        assertThat(PlanStep.parse("SPLIT when json").getWhen()).isEqualTo(StepGuard.JSON);
         assertThatThrownBy(() -> PlanStep.parse("SPLIT when sometimes"))
-                .hasMessageContaining("'when sometimes' is not one of always, text or xml");
+                .hasMessageContaining("'when sometimes' is not one of always, text, xml or json");
         assertThatThrownBy(() -> PlanStep.parse("SPLIT candidates"))
                 .hasMessageContaining("'candidates' needs a value");
         assertThatThrownBy(() -> PlanStep.parse("SPLIT kinds 0"))

@@ -48,10 +48,14 @@ public sealed interface Question {
      * What one record is in this input (A31): asked before anything about meaning, for every kind of
      * input, and answered without a target. For raw text the reply is a Data Splitter configuration
      * that cuts the input into records and emits each record's whole text as one field — the boundary
-     * and nothing else — judged by coverage and yield alone.
+     * and nothing else — judged by coverage and yield alone; for XML the element that is one record
+     * (A35); for JSON the key of the array whose items are records, or {@code root}.
      */
-    record Split(Sample sample, String elementType, String documentType, List<StoredError> feedback)
-            implements Question {
+    record Split(Sample sample,
+                 String elementType,
+                 String documentType,
+                 InputKind kind,
+                 List<StoredError> feedback) implements Question {
 
     }
 
