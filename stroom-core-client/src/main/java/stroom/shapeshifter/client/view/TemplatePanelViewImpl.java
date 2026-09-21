@@ -66,24 +66,14 @@ public class TemplatePanelViewImpl
     public void setRows(final List<TemplateRowData> data) {
         list.clear();
         rows.clear();
-        String group = null;
-        boolean first = true;
+        String section = null;
         for (final TemplateRowData row : data) {
-            if (!first) {
-                // The root group is structural, not a named mode; it is headed once, unnamed.
-                final String mode = row.getMode() == null
-                        ? ""
-                        : row.getMode();
-                if (group == null || !Objects.equals(group, mode)) {
-                    group = mode;
-                    final Label head = new Label(mode.isEmpty()
-                            ? "root"
-                            : "mode: " + mode);
-                    head.setStyleName("ss-mode-head");
-                    list.add(head);
-                }
+            if (row.getSection() != null && !Objects.equals(section, row.getSection())) {
+                section = row.getSection();
+                final Label head = new Label(section);
+                head.setStyleName("ss-mode-head");
+                list.add(head);
             }
-            first = false;
             final TemplateRow widget = new TemplateRow(row, this);
             rows.add(widget);
             list.add(widget);

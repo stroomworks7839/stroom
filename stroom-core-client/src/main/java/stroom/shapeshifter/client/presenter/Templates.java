@@ -30,6 +30,7 @@ import stroom.shapeshifter.config.Template;
 import stroom.shapeshifter.config.Template.MatchLimits;
 import stroom.shapeshifter.config.Template.ParamDecl;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -95,6 +96,32 @@ public final class Templates {
     public static Template create(final String name, final String mode, final boolean consume) {
         return new Template(ProjectText.newId(), name, mode, consume, null, null, null,
                 new MatchExpression.Regex("", null, 0), null, null, null, null, false);
+    }
+
+    /** The template with an id in a project, or null. */
+    public static Template byId(final Project project, final String id) {
+        if (project == null || id == null) {
+            return null;
+        }
+        for (final Template template : project.templates()) {
+            if (template.id().equals(id)) {
+                return template;
+            }
+        }
+        return null;
+    }
+
+    /** The project with a template replaced by id, or appended when it is new. */
+    public static Project replace(final Project project, final Template template) {
+        final List<Template> templates = new ArrayList<>(project.templates());
+        for (int i = 0; i < templates.size(); i++) {
+            if (templates.get(i).id().equals(template.id())) {
+                templates.set(i, template);
+                return project.withTemplates(templates);
+            }
+        }
+        templates.add(template);
+        return project.withTemplates(templates);
     }
 
     /**

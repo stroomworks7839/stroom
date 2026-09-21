@@ -2,7 +2,7 @@
 <ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
              xmlns:g="urn:import:com.google.gwt.user.client.ui"
              xmlns:b="urn:import:stroom.widget.button.client">
-    <g:ThinSplitLayoutPanel styleName="max default-min-sizes ss-wb">
+    <g:ThinSplitLayoutPanel ui:field="layout" styleName="max default-min-sizes ss-wb">
         <g:north size="34">
             <g:FlowPanel styleName="ss-wb-title">
                 <g:Label text="Pattern workbench —"/>

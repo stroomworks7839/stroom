@@ -19,7 +19,6 @@ package stroom.shapeshifter.client.presenter;
 import stroom.shapeshifter.config.Project;
 import stroom.shapeshifter.config.Template;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -108,15 +107,6 @@ public interface ProjectHost {
 
     /** The current project with one template replaced by id. */
     default Project withTemplate(final Template template) {
-        final Project project = getProject();
-        final List<Template> templates = new ArrayList<>(project.templates());
-        for (int i = 0; i < templates.size(); i++) {
-            if (templates.get(i).id().equals(template.id())) {
-                templates.set(i, template);
-                return project.withTemplates(templates);
-            }
-        }
-        templates.add(template);
-        return project.withTemplates(templates);
+        return Templates.replace(getProject(), template);
     }
 }

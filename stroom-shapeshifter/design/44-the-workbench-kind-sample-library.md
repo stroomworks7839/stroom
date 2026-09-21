@@ -135,22 +135,35 @@ resolves and refuses. `library_parts` in the fixture corpus: the text-steps line
 four parts, byte-identical output to `progressive_text_steps`. The print endpoint pinned with
 and without the library.
 
-### 3b. The client — planned
+### 3b. The client — built 2026-09-21
 
-- A **Patterns** section in the nav panel beneath the templates — design 18 §5.9's library
-  pane, now editable: rows of name · kind · *used by n*; add, rename and delete with the
-  item-manager icons; delete refused while referenced; rename follows every `ref`.
-- Selecting a row opens the workbench on it. The workbench becomes subject-agnostic, as
-  design 18 §5.9 already said it was: a template's match or a library pattern; guard and
-  limits, which belong to a template, hidden for a pattern. The sample tries a pattern as a
-  one-template experiment whose match is the pattern, with the library beside it.
-- The `ref` picker lists the project's patterns above the standard ones.
-- **Extract to library** on any tree node: names it, moves it to `patterns`, leaves a `ref`
-  in its place — composing in one gesture. Its inverse, **inline**, on a `ref`.
+- **Patterns in the nav panel**, a section beneath the templates' modes (design 18 §5.9's
+  library pane, editable): a row per part — name, *used by n* or *unused* — with a row id of
+  its own (`Patterns.rowId`, never a template's uuid). The toolbar's link icon adds a part (a
+  name, then an empty regex leaf to edit); with a part selected, the edit and delete icons
+  rename and remove it — a rename follows every `ref`, in templates and in other parts, and a
+  removal is refused while anything names it. `NamePresenter` (the mode-name prompt,
+  generalised) asks for the name, refusing one the project or the standard library has.
+- **Selecting a part opens the workbench on it.** The workbench is subject-agnostic now: a
+  template's match, or a part. For a part the kind row is hidden (a part is a tree), guard and
+  limits are hidden (they are a template's), and the sample tries the part as a one-template
+  experiment whose match is `{"pattern": {"ref": NAME}}` with the library beside it — so the
+  part's labels are the groups the sample paints. Closing the workbench on a part leaves it:
+  the document row is selected, so the next edit does not reopen it.
+- **The tree form edits a `Subject`** — a template's match or a part — read live from the
+  host and written as one rewrite of the project, so an edit that also touches the library is a
+  single replacement. Two toolbar actions (design 44 §3): **extract** (link icon) names the
+  selected node, makes it a part less its label — the label is the tree's use of it and stays —
+  and leaves a `ref` in its place; **inline** (unlink icon) puts the part a `ref` names back,
+  keeping the tree's label. A part's own root cannot be extracted.
+- **The `ref` picker** in the node editor lists the project's parts before the standard
+  library's.
+- `Patterns` is the model of it, JVM-tested: uses, define, remove, rename, extract, inline, and
+  a node walker that treats a label's body as a node of its own.
 
 ## 4. Order
 
-§1 (built), then §2 (built), then §3a (built) and §3b. Each phase gated as design 43's were — core-client compile and checkstyle, the
+§1, §2, §3a and §3b — all built 2026-09-21. Each phase gated as design 43's were — core-client compile and checkstyle, the
 presenter tests, the engine and pipeline suites where touched, the GWT draft compile — and
 left in the working tree for review.
 

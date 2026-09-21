@@ -24,12 +24,14 @@ import stroom.shapeshifter.client.presenter.PatternTreePresenter.PatternTreeView
 import stroom.shapeshifter.config.ConfigException;
 import stroom.shapeshifter.config.MatchExpression;
 import stroom.shapeshifter.config.PatternNode;
+import stroom.shapeshifter.config.Project;
 import stroom.shapeshifter.config.Template;
 import stroom.shapeshifter.shared.ShapeshifterLibrary;
 import stroom.shapeshifter.shared.ShapeshifterPatternRequest;
 import stroom.shapeshifter.shared.ShapeshifterResource;
 import stroom.svg.client.Preset;
 import stroom.svg.client.SvgPresets;
+import stroom.svg.shared.SvgImage;
 import stroom.util.client.DelayedUpdate;
 import stroom.widget.button.client.ButtonView;
 import stroom.widget.util.client.MouseUtil;
@@ -45,6 +47,7 @@ import com.gwtplatform.mvp.client.MyPresenterWidget;
 import com.gwtplatform.mvp.client.View;
 import edu.ycp.cs.dh.acegwt.client.ace.AceEditorMode;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.function.Consumer;
@@ -53,11 +56,12 @@ import java.util.function.Consumer;
  * The pattern tree form (design 18 §10, design 43 §4): a nested node editor over the design 38
  * vocabulary. The tree is rendered as nested rows — click selects, double-click edits — and
  * a toolbar over it acts on the selection: add a child, add after, wrap, edit, remove, unwrap,
- * up and down. Every action is a rewrite through {@link PatternNodes} and lands on the host
- * as a replacement match. Beside the tree: the regex the tree means, printed live by the
- * engine ({@code print}), and the standard library a {@code ref} can name, read-only. The
- * wire form stays editable in the pane to the right, for pasting and for what the rows do not
- * yet surface.
+ * up and down, and (design 44 §3) extract to the project's library and inline from it. Every
+ * action is a rewrite through {@link PatternNodes} and lands on the host as a replacement of
+ * the {@link Subject}: a template's match, or a part of the library. Beside the tree: the
+ * regex the tree means, printed live by the engine ({@code print}), and what a {@code ref}
+ * can name — the project's parts, then the standard library — read-only. The wire form stays
+ * editable in the pane to the right, for pasting and for what the rows do not yet surface.
  */
 public class PatternTreePresenter
         extends MyPresenterWidget<PatternTreeView>
@@ -77,9 +81,12 @@ public class PatternTreePresenter
     private final ButtonView unwrapButton;
     private final ButtonView upButton;
     private final ButtonView downButton;
+    private final ButtonView extractButton;
+    private final ButtonView inlineButton;
+    private final NamePresenter namePrompt;
 
     private ProjectHost host;
-    private String templateId;
+    private Subject subject;
     private PatternNode root;
     private int[] selected = new int[0];
     private Consumer<String> onLabelSelect;
@@ -93,10 +100,12 @@ public class PatternTreePresenter
                                 final PatternTreeView view,
                                 final RestFactory restFactory,
                                 final PatternNodeEditPresenter nodeEditor,
+                                final NamePresenter namePrompt,
                                 final Provider<EditorPresenter> editorProvider) {
         super(eventBus, view);
         this.restFactory = restFactory;
         this.nodeEditor = nodeEditor;
+        this.namePrompt = namePrompt;
         this.editor = editorProvider.get();
         this.commit = new DelayedUpdate(400, this::commit);
         editor.setMode(AceEditorMode.JSON);
@@ -111,6 +120,10 @@ public class PatternTreePresenter
         unwrapButton = view.addButton(SvgPresets.COLLAPSE_UP.title("Replace the selected container by what it holds"));
         upButton = view.addButton(SvgPresets.UP.title("Move up among its siblings"));
         downButton = view.addButton(SvgPresets.DOWN.title("Move down among its siblings"));
+        extractButton = view.addButton(SvgPresets.enabled(SvgImage.LINK,
+                "Extract to the library: the node becomes a named part, and a ref to it stays here"));
+        inlineButton = view.addButton(SvgPresets.enabled(SvgImage.UNLINK,
+                "Inline: the part the ref names, in its place"));
         enableButtons();
     }
 
@@ -131,6 +144,16 @@ public class PatternTreePresenter
         registerHandler(wrapButton.addClickHandler(e -> {
             if (MouseUtil.isPrimary(e)) {
                 onWrap();
+            }
+        }));
+        registerHandler(extractButton.addClickHandler(e -> {
+            if (MouseUtil.isPrimary(e)) {
+                onExtract();
+            }
+        }));
+        registerHandler(inlineButton.addClickHandler(e -> {
+            if (MouseUtil.isPrimary(e)) {
+                onInline();
             }
         }));
         registerHandler(editButton.addClickHandler(e -> {
@@ -171,17 +194,77 @@ public class PatternTreePresenter
 
     @Override
     public void setTemplate(final String id) {
-        if (!id.equals(templateId)) {
+        setSubject(new Subject() {
+            @Override
+            public String key() {
+                return id;
+            }
+
+            @Override
+            public String name() {
+                final Template template = host.template(id);
+                return template == null
+                        ? ""
+                        : template.name();
+            }
+
+            @Override
+            public PatternNode node() {
+                final Template template = host.template(id);
+                return template != null && template.match() instanceof MatchExpression.Pattern pattern
+                        ? pattern.node()
+                        : null;
+            }
+
+            @Override
+            public Project with(final Project project, final PatternNode node) {
+                final Template template = Templates.byId(project, id);
+                return template == null
+                        ? project
+                        : Templates.replace(project, Templates.withMatch(template, new MatchExpression.Pattern(node)));
+            }
+        });
+    }
+
+    /** Edit a part of the project's library (design 44 §3). */
+    public void setPattern(final String name) {
+        setSubject(new Subject() {
+            @Override
+            public String key() {
+                return Patterns.rowId(name);
+            }
+
+            @Override
+            public String name() {
+                return name;
+            }
+
+            @Override
+            public PatternNode node() {
+                return host.getProject() == null
+                        ? null
+                        : host.getProject().patterns().get(name);
+            }
+
+            @Override
+            public Project with(final Project project, final PatternNode node) {
+                return Patterns.define(project, name, node);
+            }
+        });
+    }
+
+    private void setSubject(final Subject next) {
+        if (subject == null || !next.key().equals(subject.key())) {
             commit.reset();
             selected = new int[0];
         }
-        this.templateId = id;
-        final Template template = host.template(id);
-        if (template == null || !(template.match() instanceof MatchExpression.Pattern pattern)) {
+        this.subject = next;
+        final PatternNode node = next.node();
+        if (node == null) {
             return;
         }
         editor.setReadOnly(host.isReadOnly());
-        root = pattern.node();
+        root = node;
         if (PatternNodes.get(root, selected) == null) {
             selected = new int[0];
         }
@@ -234,6 +317,10 @@ public class PatternTreePresenter
         editButton.setEnabled(editable && node != null);
         removeButton.setEnabled(editable && node != null);
         unwrapButton.setEnabled(editable && container && PatternNodes.children(node).size() == 1);
+        extractButton.setEnabled(editable && node != null);
+        inlineButton.setEnabled(editable && node != null && host.getProject() != null
+                                && PatternNodes.bare(node) instanceof PatternNode.Ref ref
+                                && host.getProject().patterns().containsKey(ref.name()));
         upButton.setEnabled(editable && hasParent && selected[selected.length - 1] > 0);
         downButton.setEnabled(editable && hasParent
                               && selected[selected.length - 1]
@@ -292,7 +379,7 @@ public class PatternTreePresenter
             return;
         }
         final int[] path = selected;
-        nodeEditor.setLibrary(library);
+        nodeEditor.setLibrary(host.getProject(), library);
         nodeEditor.read(node, null);
         nodeEditor.show("Edit Node", e -> {
             if (e.isOk()) {
@@ -367,7 +454,7 @@ public class PatternTreePresenter
     /** Open the node dialog for a new node; a body pre-fills what a container will wrap. */
     private void newNode(final String caption, final PatternNode body,
                          final java.util.function.Consumer<PatternNode> then) {
-        nodeEditor.setLibrary(library);
+        nodeEditor.setLibrary(host.getProject(), library);
         nodeEditor.read(null, body);
         nodeEditor.show(caption, e -> {
             if (e.isOk()) {
@@ -384,21 +471,58 @@ public class PatternTreePresenter
 
     /** Hand a rewritten tree to the host and select a path in it. */
     private void apply(final PatternNode next, final int[] select) {
-        final Template template = host.template(templateId);
-        if (template == null) {
+        apply(host.getProject(), next, select);
+    }
+
+    /** Hand a rewritten tree to the host, on a project rewritten with it, and select a path. */
+    private void apply(final Project base, final PatternNode next, final int[] select) {
+        if (subject == null || base == null) {
             return;
         }
         selected = select;
         committed = ProjectText.printPatternNode(next);
         editor.setText(committed);
-        host.replace(host.withTemplate(Templates.withMatch(template, new MatchExpression.Pattern(next))));
+        host.replace(subject.with(base, next));
+    }
+
+    /** The selected node becomes a part of the library, named here, and a ref to it stays in its place. */
+    private void onExtract() {
+        final PatternNode node = PatternNodes.get(root, selected);
+        final Project project = host.getProject();
+        if (node == null || project == null || host.isReadOnly()) {
+            return;
+        }
+        if (subject.key().equals(Patterns.rowId(subject.name())) && selected.length == 0) {
+            AlertEvent.fireWarn(this, "This is the part itself; extract a node within it", null);
+            return;
+        }
+        final int[] path = selected;
+        final List<String> taken = new ArrayList<>(project.patterns().keySet());
+        if (library != null) {
+            for (final ShapeshifterLibrary.Entry entry : library.getEntries()) {
+                taken.add(entry.getName());
+            }
+        }
+        namePrompt.show("Extract to Library", "pattern part", Patterns.HELP, "", taken, name -> apply(
+                Patterns.define(project, name, Patterns.part(node)), Patterns.extract(root, path, name), path));
+    }
+
+    /** The part a ref names, in the ref's place. */
+    private void onInline() {
+        final Project project = host.getProject();
+        if (project == null || host.isReadOnly()) {
+            return;
+        }
+        final PatternNode next = Patterns.inline(root, selected, project.patterns());
+        if (next != root) {
+            apply(next, selected);
+        }
     }
 
     // ---- the wire-form editor ----
 
     private void commit() {
-        final Template template = host.template(templateId);
-        if (template == null || host.isReadOnly()) {
+        if (subject == null || subject.node() == null || host.isReadOnly()) {
             return;
         }
         final PatternNode node;
@@ -413,7 +537,7 @@ public class PatternTreePresenter
             return;
         }
         committed = ProjectText.printPatternNode(node);
-        host.replace(host.withTemplate(Templates.withMatch(template, new MatchExpression.Pattern(node))));
+        host.replace(subject.with(host.getProject(), node));
     }
 
     // ---- rendering ----
@@ -499,6 +623,25 @@ public class PatternTreePresenter
                 })
                 .taskMonitorFactory(this)
                 .exec();
+    }
+
+    /**
+     * What the tree edits (design 44 §3): a template's match, or a part of the project's
+     * library. Read live from the host, so every refresh sees the model; written as a rewrite
+     * of a project, so an edit that also touches the library is one replacement.
+     */
+    public interface Subject {
+
+        /** Distinct across subjects: a template's id, or a part's row id. */
+        String key();
+
+        String name();
+
+        /** The tree, or null when the subject no longer holds one. */
+        PatternNode node();
+
+        /** The project with this subject's tree replaced. */
+        Project with(Project project, PatternNode node);
     }
 
     public interface PatternTreeView extends View, HasUiHandlers<PatternTreeUiHandlers> {

@@ -25,6 +25,8 @@ import com.google.gwt.event.logical.shared.ValueChangeEvent;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
 import com.google.gwt.uibinder.client.UiHandler;
+import com.google.gwt.user.client.ui.DockLayoutPanel;
+import com.google.gwt.user.client.ui.FlowPanel;
 import com.google.gwt.user.client.ui.Label;
 import com.google.gwt.user.client.ui.SimplePanel;
 import com.google.gwt.user.client.ui.Widget;
@@ -38,6 +40,10 @@ public class MatchEditorViewImpl
 
     private final Widget widget;
 
+    @UiField
+    DockLayoutPanel layout;
+    @UiField
+    FlowPanel kindRow;
     @UiField
     SelectionBox<MatchKind> kind;
     @UiField
@@ -70,6 +76,11 @@ public class MatchEditorViewImpl
     @Override
     public void setKind(final MatchKind value) {
         kind.setValue(value, false);
+    }
+
+    @Override
+    public void showKind(final boolean shown) {
+        layout.setWidgetHidden(kindRow, !shown);
     }
 
     @Override

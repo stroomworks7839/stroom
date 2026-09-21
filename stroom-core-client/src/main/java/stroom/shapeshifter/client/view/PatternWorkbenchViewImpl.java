@@ -25,6 +25,7 @@ import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
 import com.google.gwt.user.client.ui.Label;
 import com.google.gwt.user.client.ui.SimplePanel;
+import com.google.gwt.user.client.ui.ThinSplitLayoutPanel;
 import com.google.gwt.user.client.ui.Widget;
 import com.google.inject.Inject;
 import com.gwtplatform.mvp.client.View;
@@ -42,6 +43,8 @@ public class PatternWorkbenchViewImpl extends ViewImpl implements PatternWorkben
     SimplePanel sample;
     @UiField
     SimplePanel editor;
+    @UiField
+    ThinSplitLayoutPanel layout;
     @UiField
     SimplePanel guardAndLimits;
 
@@ -78,6 +81,11 @@ public class PatternWorkbenchViewImpl extends ViewImpl implements PatternWorkben
     @Override
     public void setGuardAndLimits(final View view) {
         guardAndLimits.setWidget(view.asWidget());
+    }
+
+    @Override
+    public void showGuardAndLimits(final boolean shown) {
+        layout.setWidgetHidden(guardAndLimits, !shown);
     }
 
     public interface Binder extends UiBinder<Widget, PatternWorkbenchViewImpl> {

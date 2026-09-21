@@ -16,12 +16,15 @@
 
 package stroom.shapeshifter.client.presenter;
 
-/** One row of the template panel: the project itself (id null), a template, or a library entry. */
+/**
+ * One row of the nav panel: the project itself (id null), a template, or a part of the pattern
+ * library (design 44 §3), under a section heading — the root, a mode, the patterns.
+ */
 public final class TemplateRowData {
 
     private final String id;
     private final String name;
-    private final String mode;
+    private final String section;
     private final String colour;
     private final String count;
     private final boolean zero;
@@ -30,17 +33,17 @@ public final class TemplateRowData {
     private final String profile;
     private final int severity;
 
-    public TemplateRowData(final String id, final String name, final String mode, final String colour,
+    public TemplateRowData(final String id, final String name, final String section, final String colour,
                            final String count, final boolean zero) {
-        this(id, name, mode, colour, count, zero, 0, 0, null, 0);
+        this(id, name, section, colour, count, zero, 0, 0, null, 0);
     }
 
-    public TemplateRowData(final String id, final String name, final String mode, final String colour,
+    public TemplateRowData(final String id, final String name, final String section, final String colour,
                            final String count, final boolean zero, final double share, final int cost,
                            final String profile, final int severity) {
         this.id = id;
         this.name = name;
-        this.mode = mode;
+        this.section = section;
         this.colour = colour;
         this.count = count;
         this.zero = zero;
@@ -58,9 +61,9 @@ public final class TemplateRowData {
         return name;
     }
 
-    /** The mode group the row sits under; null for the project row and the root group. */
-    public String getMode() {
-        return mode;
+    /** The heading the row sits under; null for the project's own row. */
+    public String getSection() {
+        return section;
     }
 
     public String getColour() {

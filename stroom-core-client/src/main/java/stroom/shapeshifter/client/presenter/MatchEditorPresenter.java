@@ -100,6 +100,15 @@ public class MatchEditorPresenter
         delimiterForm.setHost(host);
     }
 
+    /** A part of the library as the subject (design 44 §3): a tree, so the tree form and no kind to choose. */
+    public void setPattern(final String name) {
+        this.templateId = null;
+        shown = null;
+        getView().showKind(false);
+        getView().setBody(treeForm.getView());
+        treeForm.setPattern(name);
+    }
+
     public void setTemplate(final String id) {
         this.templateId = id;
         final Template template = host.template(id);
@@ -107,6 +116,7 @@ public class MatchEditorPresenter
             return;
         }
         final MatchKind kind = MatchKind.of(template.match());
+        getView().showKind(true);
         getView().setEnabled(!host.isReadOnly());
         getView().setKind(kind);
         if (kind != shown) {
@@ -297,6 +307,9 @@ public class MatchEditorPresenter
 
         /** The picker's choice, without telling the handlers. */
         void setKind(MatchKind kind);
+
+        /** The kind row is a template's; a library part has none. */
+        void showKind(boolean shown);
 
         /** The kind's form as the body. */
         void setBody(View form);

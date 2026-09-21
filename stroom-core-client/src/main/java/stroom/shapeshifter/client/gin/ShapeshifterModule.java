@@ -42,8 +42,8 @@ import stroom.shapeshifter.client.presenter.MatchEditorPresenter;
 import stroom.shapeshifter.client.presenter.MatchEditorPresenter.MatchEditorView;
 import stroom.shapeshifter.client.presenter.MessagesPresenter;
 import stroom.shapeshifter.client.presenter.ModeEditorPresenter;
-import stroom.shapeshifter.client.presenter.ModeNamePresenter;
-import stroom.shapeshifter.client.presenter.ModeNamePresenter.ModeNameView;
+import stroom.shapeshifter.client.presenter.NamePresenter;
+import stroom.shapeshifter.client.presenter.NamePresenter.NameView;
 import stroom.shapeshifter.client.presenter.OutputPanePresenter;
 import stroom.shapeshifter.client.presenter.OutputPanePresenter.OutputPaneView;
 import stroom.shapeshifter.client.presenter.PartEditPresenter;
@@ -83,7 +83,7 @@ import stroom.shapeshifter.client.view.DelimiterViewImpl;
 import stroom.shapeshifter.client.view.GuardAndLimitsViewImpl;
 import stroom.shapeshifter.client.view.InstructionEditViewImpl;
 import stroom.shapeshifter.client.view.MatchEditorViewImpl;
-import stroom.shapeshifter.client.view.ModeNameViewImpl;
+import stroom.shapeshifter.client.view.NameViewImpl;
 import stroom.shapeshifter.client.view.OutputPaneViewImpl;
 import stroom.shapeshifter.client.view.PartEditViewImpl;
 import stroom.shapeshifter.client.view.PartsViewImpl;
@@ -184,8 +184,8 @@ public class ShapeshifterModule extends PluginModule {
                 ConditionEditView.class,
                 ConditionEditViewImpl.class);
         bind(ModeEditorPresenter.class);
-        bindPresenterWidget(ModeNamePresenter.class,
-                ModeNameView.class,
-                ModeNameViewImpl.class);
+        bindPresenterWidget(NamePresenter.class,
+                NameView.class,
+                NameViewImpl.class);
     }
 }

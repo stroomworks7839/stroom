@@ -16,8 +16,10 @@
 
 package stroom.shapeshifter.client.presenter;
 
+import stroom.alert.client.event.AlertEvent;
 import stroom.alert.client.event.ConfirmEvent;
 import stroom.shapeshifter.client.presenter.TemplatePanelPresenter.TemplatePanelView;
+import stroom.shapeshifter.config.PatternNode;
 import stroom.shapeshifter.config.Project;
 import stroom.shapeshifter.config.Template;
 import stroom.shapeshifter.shared.ShapeshifterTrace.Timing;
@@ -55,12 +57,14 @@ public class TemplatePanelPresenter
 
     private final TemplateEditPresenter editPresenter;
     private final ModeEditorPresenter modeEditor;
+    private final NamePresenter namePrompt;
     private final ButtonView addButton;
     private final ButtonView editButton;
     private final ButtonView removeButton;
     private final ButtonView upButton;
     private final ButtonView downButton;
     private final ButtonView modesButton;
+    private final ButtonView patternButton;
 
     private ProjectHost host;
     private String selected;
@@ -69,10 +73,12 @@ public class TemplatePanelPresenter
     public TemplatePanelPresenter(final EventBus eventBus,
                                   final TemplatePanelView view,
                                   final TemplateEditPresenter editPresenter,
-                                  final ModeEditorPresenter modeEditor) {
+                                  final ModeEditorPresenter modeEditor,
+                                  final NamePresenter namePrompt) {
         super(eventBus, view);
         this.editPresenter = editPresenter;
         this.modeEditor = modeEditor;
+        this.namePrompt = namePrompt;
         view.setUiHandlers(this);
         addButton = view.addButton(SvgPresets.ADD.title("Add template"));
         editButton = view.addButton(SvgPresets.EDIT.title("Edit template"));
@@ -80,6 +86,8 @@ public class TemplatePanelPresenter
         upButton = view.addButton(SvgPresets.UP.title("Move up: earlier in dispatch order"));
         downButton = view.addButton(SvgPresets.DOWN.title("Move down: later in dispatch order"));
         modesButton = view.addButton(SvgPresets.enabled(SvgImage.TAGS, "Modes: add, rename or remove"));
+        patternButton = view.addButton(SvgPresets.enabled(SvgImage.LINK,
+                "Add a pattern part: a tree defined once, named with ref from any template"));
         enableButtons();
     }
 
@@ -119,6 +127,11 @@ public class TemplatePanelPresenter
         registerHandler(modesButton.addClickHandler(event -> {
             if (MouseUtil.isPrimary(event) && host.getProject() != null) {
                 modeEditor.show();
+            }
+        }));
+        registerHandler(patternButton.addClickHandler(event -> {
+            if (MouseUtil.isPrimary(event)) {
+                onAddPattern();
             }
         }));
     }
@@ -197,14 +210,18 @@ public class TemplatePanelPresenter
             }
             final TraceModel trace = host.trace();
             for (final String mode : modes) {
+                // The root group is structural, not a named mode; it is headed once, unnamed.
+                final String section = mode == null
+                        ? "root"
+                        : "mode: " + mode;
                 for (final Template template : project.templates()) {
                     if (Objects.equals(template.mode(), mode)) {
                         // The profile is a run's reading (design 18 §5.8): before one, the row has a
                         // kind and no heat.
                         rows.add(trace == null
-                                ? new TemplateRowData(template.id(), template.name(), template.mode(),
+                                ? new TemplateRowData(template.id(), template.name(), section,
                                         host.colour(template.id()), count(null, template), false)
-                                : new TemplateRowData(template.id(), template.name(), template.mode(),
+                                : new TemplateRowData(template.id(), template.name(), section,
                                         host.colour(template.id()), count(trace, template), zero(trace, template),
                                         Profile.share(trace, template.id()), Profile.cost(trace, template.id()),
                                         Profile.describe(trace, template.id()),
@@ -212,6 +229,14 @@ public class TemplatePanelPresenter
                         survives |= template.id().equals(selected);
                     }
                 }
+            }
+            // The library's parts (design 44 §3): each with how many trees name it.
+            for (final String name : project.patterns().keySet()) {
+                final int uses = Patterns.uses(project, name);
+                rows.add(new TemplateRowData(Patterns.rowId(name), name, "patterns", "transparent", uses == 0
+                        ? "unused"
+                        : "used by " + uses, uses == 0));
+                survives |= Patterns.rowId(name).equals(selected);
             }
         }
         getView().setRows(rows);
@@ -252,10 +277,12 @@ public class TemplatePanelPresenter
     private void enableButtons() {
         final boolean editable = host != null && !host.isReadOnly();
         final boolean template = selected != null && host != null && host.template(selected) != null;
+        final boolean pattern = selectedPattern() != null;
         addButton.setEnabled(editable);
         modesButton.setEnabled(host != null && host.getProject() != null);
-        editButton.setEnabled(editable && template);
-        removeButton.setEnabled(editable && template);
+        patternButton.setEnabled(editable && host.getProject() != null);
+        editButton.setEnabled(editable && (template || pattern));
+        removeButton.setEnabled(editable && (template || pattern));
         final int index = template
                 ? indexOf(selected)
                 : -1;
@@ -308,8 +335,62 @@ public class TemplatePanelPresenter
         });
     }
 
+    /** The library part the selection is, or null. */
+    private String selectedPattern() {
+        final String name = Patterns.nameOf(selected);
+        return name != null && host != null && host.getProject() != null
+               && host.getProject().patterns().containsKey(name)
+                ? name
+                : null;
+    }
+
+    // ---- the library's parts (design 44 §3) ----
+
+    private void onAddPattern() {
+        final Project project = host.getProject();
+        if (project == null || host.isReadOnly()) {
+            return;
+        }
+        namePrompt.show("New Pattern Part", "pattern part", Patterns.HELP, "", project.patterns().keySet(), name -> {
+            host.replace(Patterns.define(project, name, new PatternNode.Regex("", null)));
+            select(Patterns.rowId(name), true);
+        });
+    }
+
+    private void renamePattern(final String from) {
+        final Project project = host.getProject();
+        namePrompt.show("Rename Pattern Part", "pattern part", Patterns.HELP, from, project.patterns().keySet(),
+                name -> {
+                    host.replace(Patterns.rename(project, from, name));
+                    select(Patterns.rowId(name), true);
+                });
+    }
+
+    private void removePattern(final String name) {
+        final Project project = host.getProject();
+        final int uses = Patterns.uses(project, name);
+        if (uses > 0) {
+            AlertEvent.fireWarn(this, "'" + name + "' is named by " + uses + (uses == 1
+                    ? " tree"
+                    : " trees") + "; inline or re-point those refs first", null);
+            return;
+        }
+        ConfirmEvent.fire(this, "Remove pattern part '" + name + "'?", ok -> {
+            if (ok) {
+                selected = null;
+                host.replace(Patterns.remove(project, name));
+            }
+        });
+    }
+
     /** Open the selected template's name, mode and consume for editing; the strip's header calls this too. */
     public void editSelected() {
+        if (selectedPattern() != null) {
+            if (!host.isReadOnly()) {
+                renamePattern(selectedPattern());
+            }
+            return;
+        }
         final Template existing = host.template(selected);
         if (existing == null || host.isReadOnly()) {
             return;
@@ -341,6 +422,12 @@ public class TemplatePanelPresenter
     }
 
     private void onRemove() {
+        if (selectedPattern() != null) {
+            if (!host.isReadOnly()) {
+                removePattern(selectedPattern());
+            }
+            return;
+        }
         final Template existing = host.template(selected);
         if (existing == null || host.isReadOnly()) {
             return;

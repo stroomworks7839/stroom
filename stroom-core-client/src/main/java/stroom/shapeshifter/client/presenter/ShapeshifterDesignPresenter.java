@@ -563,10 +563,20 @@ public class ShapeshifterDesignPresenter
         output.refresh();
     }
 
-    private void onSelect(final String templateId) {
-        final String id = template(templateId) == null
+    private void onSelect(final String rowId) {
+        final String pattern = Patterns.nameOf(rowId);
+        if (pattern != null && project != null && project.patterns().containsKey(pattern)) {
+            // A part of the library has no frame and no strip: selecting it is opening the
+            // workbench on it (design 18 §5.9, design 44 §3).
+            strip.setTemplate(null);
+            workbenchOpen = true;
+            workbench.setPattern(pattern);
+            getView().showWorkbench(true);
+            return;
+        }
+        final String id = template(rowId) == null
                 ? null
-                : templateId;
+                : rowId;
         strip.setTemplate(id);
         if (workbenchOpen) {
             // The workbench follows the selection (design 18 §5.6: retargeted in place); the
@@ -598,6 +608,10 @@ public class ShapeshifterDesignPresenter
         if (workbenchOpen) {
             workbenchOpen = false;
             getView().showWorkbench(false);
+            if (Patterns.nameOf(templatePanel.getSelectedTemplateId()) != null) {
+                // A part is only ever looked at in the workbench: closing it is leaving the part.
+                templatePanel.select(null);
+            }
         }
     }
 

@@ -89,9 +89,18 @@ public class PatternWorkbenchPresenter extends MyPresenterWidget<PatternWorkbenc
         getView().setSubject(template == null
                 ? ""
                 : template.name());
+        getView().showGuardAndLimits(true);
         matchEditor.setTemplate(id);
         guardAndLimits.setTemplate(id);
         sample.setTemplate(id);
+    }
+
+    /** A part of the project's library as the subject (design 44 §3): a tree with no template around it. */
+    public void setPattern(final String name) {
+        getView().setSubject("part " + name);
+        getView().showGuardAndLimits(false);
+        matchEditor.setPattern(name);
+        sample.setPattern(name);
     }
 
     public interface PatternWorkbenchView extends View {
@@ -105,5 +114,8 @@ public class PatternWorkbenchPresenter extends MyPresenterWidget<PatternWorkbenc
         void setEditor(View view);
 
         void setGuardAndLimits(View view);
+
+        /** Guard and limits belong to a template; a part has none. */
+        void showGuardAndLimits(boolean shown);
     }
 }

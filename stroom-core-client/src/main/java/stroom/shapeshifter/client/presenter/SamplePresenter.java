@@ -19,6 +19,7 @@ package stroom.shapeshifter.client.presenter;
 import stroom.dispatch.client.RestFactory;
 import stroom.shapeshifter.client.presenter.SamplePresenter.SampleView;
 import stroom.shapeshifter.config.MatchExpression;
+import stroom.shapeshifter.config.PatternNode;
 import stroom.shapeshifter.config.Template;
 import stroom.shapeshifter.shared.ShapeshifterMessage;
 import stroom.shapeshifter.shared.ShapeshifterPreviewRequest;
@@ -59,7 +60,9 @@ public class SamplePresenter
     private final DelayedUpdate rerun;
 
     private ProjectHost host;
-    private String templateId;
+    private String subjectKey;
+    private Template experiment;
+    private String colour;
     private String seed;
     private String requested;
     private boolean running;
@@ -82,18 +85,37 @@ public class SamplePresenter
 
     /** Shown for a template, and again after every edit of it: the match may have changed. */
     public void setTemplate(final String id) {
-        if (!Objects.equals(id, templateId)) {
-            templateId = id;
+        subject(id, host.template(id), host.colour(id));
+    }
+
+    /**
+     * A part of the library as the subject (design 44 §3): tried as a template whose match is a
+     * ref to it, with the library beside, so its labels are the groups.
+     */
+    public void setPattern(final String name) {
+        final String key = Patterns.rowId(name);
+        if (!key.equals(subjectKey)) {
+            experiment = Templates.withMatch(Templates.create(name, null, true),
+                    new MatchExpression.Pattern(new PatternNode.Ref(name)));
+        }
+        subject(key, experiment, Templates.colour(0));
+    }
+
+    private void subject(final String key, final Template template, final String colour) {
+        if (!Objects.equals(key, subjectKey)) {
+            subjectKey = key;
             isolatedGroup = 0;
             isolatedLabel = null;
             // A new subject gets the cursor's frame as its sample unless the author has typed
-            // one; what was typed is the experiment, and follows the author to the next template.
+            // one; what was typed is the experiment, and follows the author to the next subject.
             final String current = getView().getSample();
             if (current.isEmpty() || current.equals(seed)) {
                 seed = seedText();
                 getView().setSample(seed);
             }
         }
+        experiment = template;
+        this.colour = colour;
         run();
     }
 
@@ -131,9 +153,7 @@ public class SamplePresenter
     }
 
     private void run() {
-        final Template template = templateId == null
-                ? null
-                : host.template(templateId);
+        final Template template = experiment;
         if (template == null) {
             trace = null;
             requested = null;
@@ -211,7 +231,6 @@ public class SamplePresenter
         final String text = trace.getInput();
         final List<Mark> marks = new ArrayList<>();
         final List<SampleView.Row> rows = new ArrayList<>();
-        final String colour = host.colour(templateId);
         int tried = 0;
         for (final Attempt attempt : trace.getAttempts()) {
             if (attempt.getParentFrameId() == TraceModel.ROOT) {
@@ -230,7 +249,7 @@ public class SamplePresenter
             }
             matches++;
             final int from = frame.getContentOffset();
-            marks.add(new Mark(Mark.Kind.MATCH, frame.getId(), -1, templateId, from,
+            marks.add(new Mark(Mark.Kind.MATCH, frame.getId(), -1, frame.getTemplateId(), from,
                     from + frame.getContentLength(), colour, "Match " + frame.getMatchIndex()));
             final List<SampleView.Cell> cells = new ArrayList<>();
             for (final Group group : groupsOf(frame.getId())) {

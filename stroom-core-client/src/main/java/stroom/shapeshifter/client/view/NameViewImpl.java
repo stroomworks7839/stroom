@@ -16,7 +16,8 @@
 
 package stroom.shapeshifter.client.view;
 
-import stroom.shapeshifter.client.presenter.ModeNamePresenter.ModeNameView;
+import stroom.shapeshifter.client.presenter.NamePresenter.NameView;
+import stroom.widget.form.client.FormGroup;
 
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
@@ -25,15 +26,17 @@ import com.google.gwt.user.client.ui.Widget;
 import com.google.inject.Inject;
 import com.gwtplatform.mvp.client.ViewImpl;
 
-public class ModeNameViewImpl extends ViewImpl implements ModeNameView {
+public class NameViewImpl extends ViewImpl implements NameView {
 
     private final Widget widget;
 
     @UiField
+    FormGroup group;
+    @UiField
     TextBox name;
 
     @Inject
-    public ModeNameViewImpl(final Binder binder) {
+    public NameViewImpl(final Binder binder) {
         widget = binder.createAndBindUi(this);
     }
 
@@ -53,11 +56,16 @@ public class ModeNameViewImpl extends ViewImpl implements ModeNameView {
     }
 
     @Override
+    public void setHelp(final String help) {
+        group.setHelpText(help);
+    }
+
+    @Override
     public void focus() {
         name.setFocus(true);
     }
 
-    public interface Binder extends UiBinder<Widget, ModeNameViewImpl> {
+    public interface Binder extends UiBinder<Widget, NameViewImpl> {
 
     }
 }

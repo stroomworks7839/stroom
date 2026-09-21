@@ -17,7 +17,7 @@
 package stroom.shapeshifter.client.presenter;
 
 import stroom.alert.client.event.AlertEvent;
-import stroom.shapeshifter.client.presenter.ModeNamePresenter.ModeNameView;
+import stroom.shapeshifter.client.presenter.NamePresenter.NameView;
 import stroom.widget.popup.client.event.ShowPopupEvent;
 import stroom.widget.popup.client.presenter.PopupSize;
 import stroom.widget.popup.client.presenter.PopupType;
@@ -31,26 +31,33 @@ import java.util.Collection;
 import java.util.function.Consumer;
 
 /**
- * Ask for a mode's name (design 18 §5.6): a new one, or a new name for one. A mode is created
- * the moment it is needed - from the template dialog's mode field or the mode editor - and
- * declared with the host until a template takes it, so it is offered everywhere a mode is picked.
+ * Ask for a name: a mode's or a pattern part's, new or renamed. A mode is created the moment
+ * it is needed (design 18 §5.6) - from the template dialog's mode field or the mode editor -
+ * and a part from the nav panel or by extracting a node (design 44 §3); either way the
+ * question is one word, refused blank or taken.
  */
-public class ModeNamePresenter extends MyPresenterWidget<ModeNameView> {
+public class NamePresenter extends MyPresenterWidget<NameView> {
 
     @Inject
-    public ModeNamePresenter(final EventBus eventBus, final ModeNameView view) {
+    public NamePresenter(final EventBus eventBus, final NameView view) {
         super(eventBus, view);
     }
 
     /**
      * Ask, refusing a blank or a name in {@code existing} other than {@code initial} itself;
      * {@code onNamed} gets the trimmed name when it is new.
+     *
+     * @param what    the kind of thing named, for the messages: "mode" or "pattern part"
+     * @param help    what a name of that kind means, beneath the field
      */
     public void show(final String caption,
+                     final String what,
+                     final String help,
                      final String initial,
                      final Collection<String> existing,
                      final Consumer<String> onNamed) {
         getView().setName(initial);
+        getView().setHelp(help);
         ShowPopupEvent.builder(this)
                 .popupType(PopupType.OK_CANCEL_DIALOG)
                 .popupSize(PopupSize.resizable(350, 190, 350, 190))
@@ -63,11 +70,11 @@ public class ModeNamePresenter extends MyPresenterWidget<ModeNameView> {
                     }
                     final String name = getView().getName().trim();
                     if (name.isEmpty()) {
-                        AlertEvent.fireWarn(this, "A mode needs a name; the root is not a mode", e::reset);
+                        AlertEvent.fireWarn(this, "A " + what + " needs a name", e::reset);
                     } else if (name.equals(initial)) {
                         e.hide();
                     } else if (existing.contains(name)) {
-                        AlertEvent.fireWarn(this, "There is already a mode named '" + name + "'", e::reset);
+                        AlertEvent.fireWarn(this, "There is already a " + what + " named '" + name + "'", e::reset);
                     } else {
                         onNamed.accept(name);
                         e.hide();
@@ -76,7 +83,9 @@ public class ModeNamePresenter extends MyPresenterWidget<ModeNameView> {
                 .fire();
     }
 
-    public interface ModeNameView extends View {
+    public interface NameView extends View {
+
+        void setHelp(String help);
 
         String getName();
 

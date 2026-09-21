@@ -21,6 +21,7 @@ import stroom.shapeshifter.client.presenter.PatternNodeEditPresenter.PatternNode
 import stroom.shapeshifter.config.BinaryCast;
 import stroom.shapeshifter.config.ConfigException;
 import stroom.shapeshifter.config.PatternNode;
+import stroom.shapeshifter.config.Project;
 import stroom.shapeshifter.config.Template.RegexFlags;
 import stroom.shapeshifter.shared.ShapeshifterLibrary;
 import stroom.widget.popup.client.event.HidePopupRequestEvent;
@@ -92,8 +93,12 @@ public class PatternNodeEditPresenter extends MyPresenterWidget<PatternNodeEditV
         super(eventBus, view);
     }
 
-    public void setLibrary(final ShapeshifterLibrary library) {
+    /** What a ref may name: the project's parts first (design 44 §3), then the standard library. */
+    public void setLibrary(final Project project, final ShapeshifterLibrary library) {
         final List<String> names = new ArrayList<>();
+        if (project != null) {
+            names.addAll(project.patterns().keySet());
+        }
         if (library != null) {
             for (final ShapeshifterLibrary.Entry entry : library.getEntries()) {
                 names.add(entry.getName());

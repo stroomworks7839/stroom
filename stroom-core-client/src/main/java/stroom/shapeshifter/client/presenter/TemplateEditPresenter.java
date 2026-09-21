@@ -50,7 +50,7 @@ public class TemplateEditPresenter
 
     private static final ShapeshifterResource RESOURCE = GWT.create(ShapeshifterResource.class);
 
-    private final ModeNamePresenter modeName;
+    private final NamePresenter namePrompt;
 
     private ProjectHost host;
     private Template template;
@@ -59,9 +59,9 @@ public class TemplateEditPresenter
     public TemplateEditPresenter(final EventBus eventBus,
                                  final TemplateEditView view,
                                  final RestFactory restFactory,
-                                 final ModeNamePresenter modeName) {
+                                 final NamePresenter namePrompt) {
         super(eventBus, view);
-        this.modeName = modeName;
+        this.namePrompt = namePrompt;
         view.setUiHandlers(this);
         restFactory
                 .create(RESOURCE)
@@ -148,7 +148,7 @@ public class TemplateEditPresenter
 
     @Override
     public void onNewMode() {
-        modeName.show("New Mode", "", host.modes(), name -> {
+        namePrompt.show("New Mode", "mode", Modes.HELP, "", host.modes(), name -> {
             host.declareMode(name);
             getView().setModes(host.modes());
             getView().setMode(name);

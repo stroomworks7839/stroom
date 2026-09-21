@@ -48,7 +48,7 @@ public class ModeEditorPresenter extends MyPresenterWidget<PagerView> {
 
     private final MyDataGrid<ModeRowData> dataGrid;
     private final MultiSelectionModelImpl<ModeRowData> selectionModel;
-    private final ModeNamePresenter modeName;
+    private final NamePresenter namePrompt;
     private final ButtonView addButton;
     private final ButtonView editButton;
     private final ButtonView removeButton;
@@ -58,9 +58,9 @@ public class ModeEditorPresenter extends MyPresenterWidget<PagerView> {
     @Inject
     public ModeEditorPresenter(final EventBus eventBus,
                                final PagerView view,
-                               final ModeNamePresenter modeName) {
+                               final NamePresenter namePrompt) {
         super(eventBus, view);
-        this.modeName = modeName;
+        this.namePrompt = namePrompt;
         dataGrid = new MyDataGrid<>(this);
         dataGrid.setTableName("Modes");
         selectionModel = dataGrid.addDefaultSelectionModel(false);
@@ -161,7 +161,7 @@ public class ModeEditorPresenter extends MyPresenterWidget<PagerView> {
         if (host.getProject() == null || host.isReadOnly()) {
             return;
         }
-        modeName.show("New Mode", "", host.modes(), name -> {
+        namePrompt.show("New Mode", "mode", Modes.HELP, "", host.modes(), name -> {
             host.declareMode(name);
             refresh();
             selectionModel.setSelected(new ModeRowData(name, 0, 0));
@@ -175,7 +175,7 @@ public class ModeEditorPresenter extends MyPresenterWidget<PagerView> {
             return;
         }
         final String from = existing.getName();
-        modeName.show("Rename Mode", from, host.modes(), name -> {
+        namePrompt.show("Rename Mode", "mode", Modes.HELP, from, host.modes(), name -> {
             if (existing.isWaiting()) {
                 host.forgetMode(from);
                 host.declareMode(name);

@@ -47,6 +47,10 @@ import java.util.function.Function;
  */
 public final class Modes {
 
+    /** What a mode's name means, beneath the field that asks for one. */
+    public static final String HELP =
+            "Templates in a mode are dispatched only by apply-templates sites naming it.";
+
     private Modes() {
     }
 
