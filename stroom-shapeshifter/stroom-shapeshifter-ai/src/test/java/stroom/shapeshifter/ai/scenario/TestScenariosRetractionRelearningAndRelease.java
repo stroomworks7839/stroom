@@ -27,8 +27,8 @@ import stroom.shapeshifter.ai.stage.StageRun;
 import stroom.shapeshifter.ai.state.InMemoryLedger;
 import stroom.shapeshifter.ai.state.InMemoryReprocessing;
 import stroom.shapeshifter.ai.state.InMemoryReprocessing.Request;
-import stroom.shapeshifter.shared.DialogueShape;
 import stroom.shapeshifter.shared.LearningMode;
+import stroom.shapeshifter.shared.PlanExample;
 import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ScorerSetting;
 import stroom.shapeshifter.shared.ScorerType;
@@ -64,7 +64,7 @@ class TestScenariosRetractionRelearningAndRelease {
                 .uuid(DOC)
                 .name("door-access")
                 .learningMode(LearningMode.AUTOMATIC)
-                .dialogueShape(DialogueShape.TARGET_FIRST)
+                .plan(PlanExample.TARGET_FIRST)
                 .allowedElements(List.of("DSParser", "XSLTFilter"))
                 .minRecordsPerShape(minRecordsPerShape)
                 .relearnThreshold(0.8)

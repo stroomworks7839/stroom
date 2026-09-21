@@ -87,6 +87,12 @@ public final class Scenarios {
         return Script.of().structure(new Structure(runners(), splitter, stylesheet));
     }
 
+    /// A script for input that is already XML: the split question is answered with the element that is one
+    /// record, the targets from the stylesheet (A35).
+    public Script xmlScript(final String recordElement, final String stylesheet) {
+        return Script.of().structure(Structure.ofXml(runners(), recordElement, stylesheet));
+    }
+
     public Stage stage(final Advisor advisor) {
         final List<StepRunner> runners = runners();
         return new Stage(

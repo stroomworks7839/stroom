@@ -19,6 +19,7 @@ package stroom.shapeshifter.ai.scenario;
 
 import stroom.shapeshifter.ai.learning.Target;
 import stroom.shapeshifter.ai.learning.TargetChecks;
+import stroom.shapeshifter.ai.scoring.OutputRecords;
 import stroom.shapeshifter.ai.scoring.Scorecard;
 import stroom.shapeshifter.shared.ExtractionQualityParameters;
 import stroom.shapeshifter.shared.SchemaConformanceParameters;
@@ -140,5 +141,17 @@ class TestTargetChecks {
         final int start = events.indexOf("<Event>");
         final int end = events.indexOf("</Event>") + "</Event>".length();
         return events.substring(start, end);
+    }
+
+    @Test
+    void aRecordElementIsCountedByItsOutermostOccurrences() {
+        final OutputRecords document = OutputRecords.parse(
+                "<log><item id=\"1\"><item id=\"1a\"/></item><item id=\"2\"/></log>").orElseThrow();
+        // The inner item is part of the outer record, not a record of its own; the count and the wholeness
+        // check agree on two.
+        assertThat(TargetChecks.elementsNamed(document, "item")).hasSize(2);
+        assertThat(TargetChecks.elementsNamed(document, "item").get(0)).contains("1a");
+        assertThat(TargetChecks.recordElement(document, "item")).isEmpty();
+        assertThat(TargetChecks.recordElement(document, "log")).isPresent();
     }
 }

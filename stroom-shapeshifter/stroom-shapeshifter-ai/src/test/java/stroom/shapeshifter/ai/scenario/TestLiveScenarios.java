@@ -28,9 +28,9 @@ import stroom.shapeshifter.ai.stage.Decision.Rebound;
 import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.StageRun;
 import stroom.shapeshifter.shared.BusinessRulesParameters;
-import stroom.shapeshifter.shared.DialogueShape;
 import stroom.shapeshifter.shared.ExtractionQualityParameters;
 import stroom.shapeshifter.shared.LearningMode;
+import stroom.shapeshifter.shared.PlanExample;
 import stroom.shapeshifter.shared.SchemaConformanceParameters;
 import stroom.shapeshifter.shared.ScorerSetting;
 import stroom.shapeshifter.shared.ScorerType;
@@ -66,7 +66,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * accepts, whether the feedback steers a second candidate to a passing one within the candidate limit,
  * and what an attempt costs. The results are a report, not a verdict: this test fails only if the
  * harness itself breaks. It runs only when the environment names an endpoint (see {@link LiveAdvisor}),
- * and writes each run's transcript under {@code build/live/<shape>} for the write-up.
+ * and writes each run's transcript under {@code build/live/<plan>} for the write-up.
  */
 @EnabledIfEnvironmentVariable(named = LiveAdvisor.BASE_URL, matches = ".+")
 class TestLiveScenarios {
@@ -78,14 +78,15 @@ class TestLiveScenarios {
      */
     private static final String MAX_ATTEMPTS = "SHAPESHIFTER_LIVE_MAX_ATTEMPTS";
     /**
-     * The shape of the dialogue for the run, {@code DIRECT} (A21) or {@code TARGET_FIRST} (A31), so the two can
-     * be compared on the same model and feeds; the node's default when unset.
+     * The example plan the run's documents carry as their steps — {@code DIRECT} (A21), {@code TARGET_FIRST}
+     * (A31) or {@code ESCALATING} (A37) — so that plans can be compared on the same model and feeds; a new
+     * document's when unset.
      */
-    private static final String SHAPE = "SHAPESHIFTER_LIVE_SHAPE";
-    private static final DialogueShape SHAPE_UNDER_TEST = Optional.ofNullable(System.getenv(SHAPE))
-            .map(DialogueShape::valueOf)
-            .orElse(DialogueShape.DIRECT);
-    private static final Path OUT = Paths.get("build", "live", SHAPE_UNDER_TEST.name().toLowerCase());
+    private static final String PLAN = "SHAPESHIFTER_LIVE_PLAN";
+    private static final PlanExample PLAN_UNDER_TEST = Optional.ofNullable(System.getenv(PLAN))
+            .map(PlanExample::valueOf)
+            .orElse(PlanExample.DIRECT);
+    private static final Path OUT = Paths.get("build", "live", PLAN_UNDER_TEST.name().toLowerCase());
     private static final Golden CSV = Scenarios.corpus("001_csv_with_header");
     private static final Golden REGEX = Scenarios.corpus("004_simple_regex");
     private static final Golden MULTI_LINE = Scenarios.corpus("003_multiline_regex");
@@ -104,7 +105,7 @@ class TestLiveScenarios {
                 .uuid("live-" + name)
                 .name(name)
                 .learningMode(LearningMode.AUTOMATIC)
-                .dialogueShape(SHAPE_UNDER_TEST)
+                .plan(PLAN_UNDER_TEST)
                 .allowedElements(List.of("DSParser", "XSLTFilter"))
                 .instructions(INSTRUCTIONS)
                 .minRecordsPerShape(5)
@@ -210,7 +211,7 @@ class TestLiveScenarios {
                     new Input(1, "DOCVAULT-AUDIT", "Raw Events", Map.of("Format", "XML"), NESTED_XML)));
         }));
 
-        LOGGER.info("Live scenarios against {}, {}:\n{}", System.getenv(LiveAdvisor.MODEL), SHAPE_UNDER_TEST,
+        LOGGER.info("Live scenarios against {}, {}:\n{}", System.getenv(LiveAdvisor.MODEL), PLAN_UNDER_TEST,
                 AsciiTable.builder(outcomes)
                         .withColumn(Column.of("Run", (Outcome o) -> o.name()))
                         .withColumn(Column.of("Decisions", (Outcome o) -> o.decisions()))
@@ -244,7 +245,7 @@ class TestLiveScenarios {
     private void transcript(final Outcome outcome) {
         final StringBuilder text = new StringBuilder("# " + outcome.name() + "\n\n");
         text.append("Model: ").append(System.getenv(LiveAdvisor.MODEL))
-                .append(", dialogue ").append(SHAPE_UNDER_TEST).append("\n\n");
+                .append(", plan ").append(PLAN_UNDER_TEST).append("\n\n");
         text.append("Decisions: ").append(outcome.decisions()).append("\n\n");
         if (!outcome.failure().isEmpty()) {
             text.append("Failure: ").append(outcome.failure()).append("\n\n");
@@ -276,7 +277,7 @@ class TestLiveScenarios {
 
     private static String report(final List<Outcome> outcomes) {
         final StringBuilder text = new StringBuilder("# Live scenarios — " + System.getenv(LiveAdvisor.MODEL));
-        text.append(", dialogue ").append(SHAPE_UNDER_TEST).append("\n\n");
+        text.append(", plan ").append(PLAN_UNDER_TEST).append("\n\n");
         text.append("| Run | Decisions | Questions | Score | Tokens | Seconds | Failure |\n");
         text.append("|---|---|---|---|---|---|---|\n");
         for (final Outcome o : outcomes) {

@@ -16,10 +16,13 @@
 
 package stroom.shapeshifter.ai.scoring;
 
+import stroom.shapeshifter.shared.Check;
 import stroom.shapeshifter.shared.ScorerSetting;
 import stroom.shapeshifter.shared.ScorerType;
+import stroom.shapeshifter.shared.StepOutcome;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
@@ -61,6 +64,29 @@ public final class Scorecard {
     public Scorecard meaning() {
         return new Scorecard(settings.stream().filter(setting -> MEANING.contains(setting.getType())).toList(),
                 List.copyOf(scorers.values()));
+    }
+
+    /// This scorecard with only the scorers a plan step names as its checks (A37), and the compile gate,
+    /// which is not a check but the floor every step stands on.
+    public Scorecard only(final Collection<Check> checks) {
+        return new Scorecard(settings.stream()
+                .filter(setting -> setting.getType() == ScorerType.COMPILE
+                                   || checks.contains(Check.of(setting.getType())))
+                .toList(), List.copyOf(scorers.values()));
+    }
+
+    /// The outcome of a verdict (A37): passed, or the shortfall of the first scorer that did not meet its
+    /// threshold — the compile gate's as {@code COMPILE_FAILED}.
+    public static StepOutcome outcome(final Verdict verdict) {
+        for (final Judgement judgement : verdict.judgements()) {
+            if (!judgement.metThreshold()) {
+                final Check check = Check.of(judgement.setting().getType());
+                return check == null
+                        ? StepOutcome.COMPILE_FAILED
+                        : check.shortfall();
+            }
+        }
+        return StepOutcome.PASSED;
     }
 
     public Verdict judge(final Attempted step) {

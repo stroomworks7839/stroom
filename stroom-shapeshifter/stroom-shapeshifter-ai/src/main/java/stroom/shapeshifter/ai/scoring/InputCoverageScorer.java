@@ -28,9 +28,13 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
- * Input coverage (ruling A11) as a scorer: the smaller of the character and line ratios the split
- * consumed. Applies only to a step that reports record ranges — an extraction step — and only when it
- * produced output; a step that did not run has nothing to cover and is the compile gate's to fail.
+ * Input coverage (rulings A11, A36) as a scorer: the share of the input's characters the split
+ * consumed. Lines are counted and named in the diagnostic, so the model is told which it missed, but
+ * do not set the score: on a sample of seven lines a header line is a seventh by lines and a
+ * sixteenth by characters, and the live runs (design 02 §6.3) found that difference deciding
+ * promotions. A dropped header costs what it is worth; a dropped record costs its size. Applies only
+ * to a step that reports record ranges — an extraction step — and only when it produced output; a step
+ * that did not run has nothing to cover and is the compile gate's to fail.
  */
 public final class InputCoverageScorer implements Scorer {
 
@@ -48,8 +52,8 @@ public final class InputCoverageScorer implements Scorer {
             return Optional.empty();
         }
         final InputCoverage coverage = InputCoverage.measure(step.input(), step.result().recordRanges());
-        final double value = Math.min(coverage.charRatio(), coverage.lineRatio());
-        final List<StoredError> diagnostics = value < 1.0
+        final double value = coverage.charRatio();
+        final List<StoredError> diagnostics = value < 1.0 || coverage.lineRatio() < 1.0
                 ? List.of(new StoredError(Severity.WARNING, null, COVERAGE,
                 "The split consumed " + coverage.linesCovered() + " of " + coverage.linesTotal()
                 + " lines and " + coverage.charsCovered() + " of " + coverage.charsTotal()

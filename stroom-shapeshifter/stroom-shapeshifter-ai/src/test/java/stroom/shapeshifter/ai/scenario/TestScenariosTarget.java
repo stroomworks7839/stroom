@@ -24,14 +24,15 @@ import stroom.shapeshifter.ai.learning.Question.TargetFor;
 import stroom.shapeshifter.ai.learning.TargetChecks;
 import stroom.shapeshifter.ai.stage.Decision.GivenUp;
 import stroom.shapeshifter.ai.stage.Decision.Promoted;
+import stroom.shapeshifter.ai.stage.Decision.Provisional;
 import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.StageRun;
 import stroom.shapeshifter.shared.BusinessRulesParameters;
-import stroom.shapeshifter.shared.DialogueDefinition;
-import stroom.shapeshifter.shared.DialogueShape;
-import stroom.shapeshifter.shared.DialogueStep;
 import stroom.shapeshifter.shared.ExtractionQualityParameters;
 import stroom.shapeshifter.shared.LearningMode;
+import stroom.shapeshifter.shared.LearningPlan;
+import stroom.shapeshifter.shared.PlanExample;
+import stroom.shapeshifter.shared.PlanStep;
 import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.SchemaConformanceParameters;
 import stroom.shapeshifter.shared.ScorerSetting;
@@ -62,6 +63,8 @@ class TestScenariosTarget {
     private static final String BLOCK_SPLIT = Scenarios.resource("block-split.ds3.xml");
     private static final String XSLT = Scenarios.resource("csv-logon.xsl");
     private static final String ONE_EVENT_PER_RECORD = Scenarios.resource("one-event-per-record.xsl");
+    private static final String NESTED_XML = Scenarios.resource("nested-entries.xml");
+    private static final String NESTED_XSL = Scenarios.resource("nested-entries.xsl");
     private static final Golden MULTI_LINE = Scenarios.corpus("003_multiline_regex");
     private static final String DOC = "doc-1";
     /**
@@ -94,7 +97,7 @@ class TestScenariosTarget {
                 .uuid(DOC)
                 .name("door-access")
                 .learningMode(LearningMode.AUTOMATIC)
-                .dialogueShape(DialogueShape.TARGET_FIRST)
+                .plan(PlanExample.TARGET_FIRST)
                 .allowedElements(List.of("DSParser", "XSLTFilter"))
                 .minRecordsPerShape(5)
                 .scorers(List.of(
@@ -180,9 +183,9 @@ class TestScenariosTarget {
         final Scenarios scenarios = new Scenarios();
         // With one candidate: the questioning of the first none is not a candidate spent.
         final ShapeshifterAiDoc doc = doc().copy()
-                .dialogue(DialogueDefinition.of(DialogueShape.TARGET_FIRST).withSteps(List.of(
-                        DialogueStep.parse("CHAIN"), DialogueStep.parse("SPLIT when text"),
-                        DialogueStep.parse("TARGET candidates 1"), DialogueStep.parse("CONFIGURE"))))
+                .plan(LearningPlan.of(PlanExample.TARGET_FIRST).withSteps(List.of(
+                        PlanStep.parse("CHAIN"), PlanStep.parse("SPLIT when text"),
+                        PlanStep.parse("TARGET candidates 1"), PlanStep.parse("CONFIGURE"))))
                 .build();
         final Script script = scenarios.script(FOUR_FIELDS, XSLT)
                 .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter")
@@ -200,14 +203,14 @@ class TestScenariosTarget {
     }
 
     @Test
-    void scenario39TheDialogueIsTheDocuments() {
+    void scenario39ThePlanIsTheDocuments() {
         final Scenarios scenarios = new Scenarios();
         // A target from the raw sample, no split: the target's record is a line of the sample, and the split
         // question is never asked. One kind, so one target.
         final ShapeshifterAiDoc doc = doc().copy()
-                .dialogue(DialogueDefinition.of(DialogueShape.TARGET_FIRST).withSteps(List.of(
-                        DialogueStep.parse("CHAIN"), DialogueStep.parse("TARGET kinds 1"),
-                        DialogueStep.parse("CONFIGURE"))))
+                .plan(LearningPlan.of(PlanExample.TARGET_FIRST).withSteps(List.of(
+                        PlanStep.parse("CHAIN"), PlanStep.parse("TARGET kinds 1"),
+                        PlanStep.parse("CONFIGURE"))))
                 .build();
         final Script script = scenarios.script(FOUR_FIELDS, XSLT)
                 .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter")
@@ -226,12 +229,12 @@ class TestScenariosTarget {
     }
 
     @Test
-    void scenario39ADialogueTheStageCannotHoldIsAbandonedBeforeTheModelIsAsked() {
+    void scenario39APlanTheStageCannotHoldIsAbandonedBeforeTheModelIsAsked() {
         final Scenarios scenarios = new Scenarios();
         // The store refuses this on save; a document that reaches the stage with it anyway asks nothing.
         final ShapeshifterAiDoc doc = doc().copy()
-                .dialogue(DialogueDefinition.of(DialogueShape.DIRECT).withSteps(List.of(
-                        DialogueStep.parse("CONFIGURE"), DialogueStep.parse("CHAIN"))))
+                .plan(LearningPlan.of(PlanExample.DIRECT).withSteps(List.of(
+                        PlanStep.parse("CONFIGURE"), PlanStep.parse("CHAIN"))))
                 .build();
         final Script script = Script.of();
 
@@ -240,7 +243,7 @@ class TestScenariosTarget {
         assertThat(script.asked()).isEmpty();
         assertThat(run.decision()).isInstanceOf(GivenUp.class);
         assertThat(((GivenUp) run.decision()).reason())
-                .contains("The document's dialogue cannot be held (see its Learning tab)")
+                .contains("The document's plan cannot be held (see its Learning tab)")
                 .contains("The first step must be CHAIN");
     }
 
@@ -351,6 +354,47 @@ class TestScenariosTarget {
     /**
      * The nth block of the multi-line corpus case, trimmed, as the block split yields it.
      */
+    @Test
+    void scenario37XmlVariantTheSplitNamesTheElementThatIsOneRecord() {
+        // A35: input already in XML, the records two levels down. The scorers are about structure and the
+        // schema; yield by records would count the root's one child, so it is not asked here (design 01 §10.1).
+        final Scenarios scenarios = new Scenarios();
+        final ShapeshifterAiDoc doc = doc().copy()
+                .minRecordsPerShape(2)
+                .scorers(List.of(
+                        new ScorerSetting(ScorerType.COMPILE, 0.0, 1.0, true, null),
+                        new ScorerSetting(ScorerType.SCHEMA_CONFORMANCE, 1.0, 1.0, true,
+                                new SchemaConformanceParameters("EVENTS"))))
+                .build();
+        final Script script = scenarios.xmlScript("entry", NESTED_XSL)
+                .expect(QuestionMatcher.chain()).reply("XSLTFilter")
+                // The container of the records is not a record: one occurrence for three records.
+                .expect(QuestionMatcher.split().withoutFeedback()).reply("entries")
+                .expect(QuestionMatcher.split().withFeedbackMentioning("a container of records is not a record"))
+                .reply("<entry>")
+                .expect(QuestionMatcher.configuration("XSLTFilter").withTargets(1)).reply(Scenarios.fenced(NESTED_XSL));
+
+        final StageRun run = scenarios.stage(script).run(doc,
+                new Input(1, "DOCVAULT", "Raw Events", Map.of("Format", "XML"), NESTED_XML));
+
+        script.verifyExhausted();
+        // The dialogue learned the shape whole; the stage then counted the stream's records as the root's
+        // children — one <entries> — and bound provisionally for want of evidence. The record element the split
+        // settled does not yet reach the stage's judging or the rule (design 01 §10.1, owed with the A26 tables).
+        assertThat(run.decision()).isInstanceOf(Provisional.class);
+        assertThat(((Provisional) run.decision()).records()).isEqualTo(1);
+        assertThat(((Provisional) run.decision()).score()).isEqualTo(1.0);
+        final List<Question> asked = script.asked();
+        // Chain, split, split again, one target (all three entries are one kind), the transform.
+        assertThat(asked).hasSize(5);
+        final Split split = (Split) asked.get(1);
+        assertThat(split.documentType()).isNull();
+        assertThat(((TargetFor) asked.get(3)).record()).contains("<entry id=\"e1\">");
+        final Configuration transform = (Configuration) asked.get(4);
+        assertThat(transform.split()).isEqualTo("entry");
+        assertThat(transform.targets().get(0).event()).isPresent();
+    }
+
     private static String block(final int n) {
         final String[] blocks = MULTI_LINE.input().split("----\n");
         int seen = 0;

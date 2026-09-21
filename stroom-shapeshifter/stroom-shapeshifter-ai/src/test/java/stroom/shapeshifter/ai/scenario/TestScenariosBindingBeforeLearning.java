@@ -26,8 +26,8 @@ import stroom.shapeshifter.ai.stage.Decision.Provisional;
 import stroom.shapeshifter.ai.stage.Decision.Sentinel;
 import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.StageRun;
-import stroom.shapeshifter.shared.DialogueShape;
 import stroom.shapeshifter.shared.LearningMode;
+import stroom.shapeshifter.shared.PlanExample;
 import stroom.shapeshifter.shared.RoutingFields;
 import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ScorerSetting;
@@ -63,7 +63,7 @@ class TestScenariosBindingBeforeLearning {
                 .uuid("doc-1")
                 .name("door-access")
                 .learningMode(LearningMode.AUTOMATIC)
-                .dialogueShape(DialogueShape.TARGET_FIRST)
+                .plan(PlanExample.TARGET_FIRST)
                 .learningKey(List.of(MetaFields.FIELD_FEED, MetaFields.FIELD_TYPE, RoutingFields.FORMAT))
                 .allowedElements(List.of("DSParser", "XSLTFilter"))
                 .minRecordsPerShape(5)

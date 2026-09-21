@@ -86,6 +86,62 @@ public final class TargetChecks {
         return List.copyOf(byKind.values());
     }
 
+    /// The elements of a document with this local name, each as its text — the records where that element is
+    /// one record (A35). Only the outermost occurrences count: an element of the name inside another is part
+    /// of that record, not a record of its own.
+    public static List<String> elementsNamed(final OutputRecords document, final String name) {
+        return occurrences(document, name).stream().map(XdmNode::toString).toList();
+    }
+
+    private static List<XdmNode> occurrences(final OutputRecords document, final String name) {
+        final String local = name.replace("'", "");
+        return document.evaluate(document.root(), "descendant::*[local-name() = '" + local + "']"
+                                                  + "[not(ancestor::*[local-name() = '" + local + "'])]")
+                .stream()
+                .map(item -> (XdmNode) item)
+                .toList();
+    }
+
+    /// Whether an element that occurs is one record: it must not be the root, must not be a container of a
+    /// repeated child, and its occurrences together must hold the document whole, as a split's records must.
+    /// That it occurs at all is the caller's to check first.
+    ///
+    /// @return The shortfall, empty where the element will do.
+    public static Optional<StoredError> recordElement(final OutputRecords document, final String name) {
+        if (name.equals(document.root().getNodeName().getLocalName())) {
+            return Optional.of(new StoredError(Severity.ERROR, null, TARGET, name + " is the root, which holds every "
+                                                                             + "record; name the element that is one "
+                                                                             + "record"));
+        }
+        final List<XdmNode> found = occurrences(document, name);
+        if (found.size() == 1) {
+            // One occurrence holding a repeated child is the records' container, not a record.
+            final Map<String, Long> children = new LinkedHashMap<>();
+            document.evaluate(found.get(0), "*")
+                    .forEach(child -> children.merge(((XdmNode) child).getNodeName().getLocalName(), 1L, Long::sum));
+            final Optional<Map.Entry<String, Long>> repeated = children.entrySet().stream()
+                    .filter(entry -> entry.getValue() > 1)
+                    .max(Map.Entry.comparingByValue());
+            if (repeated.isPresent()) {
+                return Optional.of(new StoredError(Severity.ERROR, null, TARGET, name + " occurs once and holds "
+                        + repeated.get().getValue() + " <" + repeated.get().getKey() + "> elements; a container of "
+                        + "records is not a record — name the element that repeats"));
+            }
+        }
+        final long documentChars = document.root().getStringValue().chars().filter(c -> !Character.isWhitespace(c))
+                .count();
+        final long recordChars = found.stream()
+                .mapToLong(item -> item.getStringValue().chars().filter(c -> !Character.isWhitespace(c)).count())
+                .sum();
+        if (documentChars > 0 && (double) recordChars / documentChars < SPLIT_WHOLENESS) {
+            return Optional.of(new StoredError(Severity.ERROR, null, TARGET, "The " + found.size() + " element(s) "
+                    + "named " + name + " hold " + recordChars + " of the document's " + documentChars
+                    + " characters; the element that is one record holds nearly all of them between its "
+                    + "occurrences"));
+        }
+        return Optional.empty();
+    }
+
     /**
      * How many of the records are of the representative's kind.
      */
@@ -151,18 +207,34 @@ public final class TargetChecks {
      * @return The shortfalls, empty where the target is accepted.
      */
     public static List<StoredError> judge(final Scorecard scorecard, final String record, final String document) {
+        final Optional<StoredError> refusal = refusal(document);
+        if (refusal.isPresent()) {
+            return List.of(refusal.get());
+        }
+        final Verdict verdict = verdict(scorecard, record, document);
+        return verdict.passed()
+                ? List.of()
+                : verdict.feedback();
+    }
+
+    /// Why a proposed target is not an event to judge at all: not well-formed, or more than one event.
+    ///
+    /// @return The refusal, empty where the document is one event.
+    public static Optional<StoredError> refusal(final String document) {
         final Optional<OutputRecords> parsed = OutputRecords.parse(document);
         if (parsed.isEmpty() || parsed.get().records().size() != 1) {
-            return List.of(new StoredError(Severity.FATAL_ERROR, null, TARGET, parsed.isEmpty()
+            return Optional.of(new StoredError(Severity.FATAL_ERROR, null, TARGET, parsed.isEmpty()
                     ? "The event is not well-formed XML. Reply with the Event element alone, without an XML "
                       + "declaration or an Events wrapper"
                     : "The reply holds " + parsed.get().records().size() + " events; one record becomes one event"));
         }
-        final Verdict verdict = scorecard.meaning()
+        return Optional.empty();
+    }
+
+    /// The scorers of meaning over one proposed event, as a transform's output would be judged.
+    public static Verdict verdict(final Scorecard scorecard, final String record, final String document) {
+        return scorecard.meaning()
                 .judge(new Attempted("Target", false, record, new StepResult(document, List.of())));
-        return verdict.passed()
-                ? List.of()
-                : verdict.feedback();
     }
 
     /**

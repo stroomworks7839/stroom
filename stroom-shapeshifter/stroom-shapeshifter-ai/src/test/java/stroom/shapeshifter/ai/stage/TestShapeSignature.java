@@ -16,6 +16,7 @@
 
 package stroom.shapeshifter.ai.stage;
 
+import stroom.shapeshifter.ai.scoring.OutputRecords;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 
 import org.junit.jupiter.api.Test;
@@ -66,5 +67,38 @@ class TestShapeSignature {
         assertThat(Stage.learningPrefix("only\n", ShapeshifterAiDoc.builder().uuid("d").heldOutFraction(0.9).build()))
                 .describedAs("at least one line is kept when there is one")
                 .isEqualTo("only\n");
+    }
+
+    @Test
+    void markupOverTheSampleSizeLimitIsCutAtARecordBoundary() {
+        final StringBuilder document = new StringBuilder("<?xml version=\"1.0\"?>\n<log xmlns=\"urn:x\" v=\"a>b\">\n");
+        for (int i = 0; i < 40; i++) {
+            document.append("  <entry id=\"").append(i).append("\"><who>user").append(i).append("</who></entry>\n");
+        }
+        document.append("</log>\n");
+        final ShapeshifterAiDoc doc = ShapeshifterAiDoc.builder().uuid("d").sampleSizeLimit(600).build();
+
+        final String prefix = Stage.learningPrefix(document.toString(), doc);
+
+        // Still a document — the root's start tag whole, whole children, the root closed — within the limit.
+        assertThat(prefix).startsWith("<log xmlns=\"urn:x\" v=\"a>b\">").endsWith("</log>");
+        assertThat(prefix.length()).isLessThanOrEqualTo(600 + "</log>".length());
+        assertThat(OutputRecords.parse(prefix)).isPresent();
+        assertThat(OutputRecords.parse(prefix).orElseThrow().records()).hasSizeBetween(1, 39);
+        // A document too small to cut is shown whole; one whose first child alone exceeds the limit still shows it.
+        assertThat(Stage.learningPrefix("<a><b/></a>", doc)).isEqualTo("<a><b/></a>");
+        assertThat(OutputRecords.parse(Stage.learningPrefix(document.toString(),
+                ShapeshifterAiDoc.builder().uuid("d").sampleSizeLimit(10).build())).orElseThrow().records())
+                .hasSize(1);
+    }
+
+    @Test
+    void textOverTheSampleSizeLimitIsCutByWholeLines() {
+        final String lines = "one,1\ntwo,2\nthree,3\nfour,4\n";
+        final ShapeshifterAiDoc doc = ShapeshifterAiDoc.builder().uuid("d").heldOutFraction(0.0).sampleSizeLimit(14)
+                .build();
+        assertThat(Stage.learningPrefix(lines, doc)).isEqualTo("one,1\ntwo,2\n");
+        assertThat(Stage.learningPrefix(lines, ShapeshifterAiDoc.builder().uuid("d").heldOutFraction(0.0)
+                .sampleSizeLimit(2).build())).describedAs("one line is always shown").isEqualTo("one,1\n");
     }
 }

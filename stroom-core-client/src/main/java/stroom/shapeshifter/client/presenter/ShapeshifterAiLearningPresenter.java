@@ -25,9 +25,9 @@ import stroom.explorer.client.presenter.DocSelectionBoxPresenter;
 import stroom.openai.shared.OpenAIModelDoc;
 import stroom.security.shared.DocumentPermission;
 import stroom.shapeshifter.client.presenter.ShapeshifterAiLearningPresenter.ShapeshifterAiLearningView;
-import stroom.shapeshifter.shared.DialogueDefinition;
-import stroom.shapeshifter.shared.DialogueShape;
-import stroom.shapeshifter.shared.DialogueStep;
+import stroom.shapeshifter.shared.LearningPlan;
+import stroom.shapeshifter.shared.PlanExample;
+import stroom.shapeshifter.shared.PlanStep;
 import stroom.shapeshifter.shared.SampleRedaction;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 import stroom.shapeshifter.shared.ShapeshifterAiResource;
@@ -59,9 +59,9 @@ public class ShapeshifterAiLearningPresenter
     private final LearningKeyPresenter learningKeyPresenter;
     private final RestFactory restFactory;
     /**
-     * The dialogue as read, kept so that steps the view cannot parse leave the saved ones standing.
+     * The plan as read, kept so that steps the view cannot parse leave the saved ones standing.
      */
-    private DialogueDefinition dialogue = DialogueDefinition.of(DialogueShape.DIRECT);
+    private LearningPlan plan = LearningPlan.of(PlanExample.DIRECT);
 
     @Inject
     public ShapeshifterAiLearningPresenter(final EventBus eventBus,
@@ -105,12 +105,9 @@ public class ShapeshifterAiLearningPresenter
         view.setRelearnThreshold(doc.getRelearnThreshold());
         view.setAllowedElements(doc.getAllowedElements());
         view.setInstructions(doc.getInstructions());
-        dialogue = doc.getDialogue();
-        view.setDialogueShape(dialogue.getPreset());
-        view.setDialogueSteps(dialogue.getSteps() == null
-                ? ""
-                : dialogue.getSteps().stream().map(DialogueStep::format).collect(Collectors.joining("\n")));
-        view.setTemplateOverrides(dialogue.getTemplates(), dialogue.getBuiltInVersion());
+        plan = doc.getPlan();
+        view.setPlanSteps(plan.getSteps().stream().map(PlanStep::format).collect(Collectors.joining("\n")));
+        view.setTemplateOverrides(plan.getTemplates(), plan.getBuiltInVersion());
         view.setMaxAttempts(doc.getMaxAttempts());
         view.setAttemptBudgetMs(doc.getAttemptBudgetMs());
         view.setTokenBudget(doc.getTokenBudget());
@@ -128,7 +125,7 @@ public class ShapeshifterAiLearningPresenter
                 .relearnThreshold(view.getRelearnThreshold())
                 .allowedElements(view.getAllowedElements())
                 .instructions(view.getInstructions())
-                .dialogue(dialogue())
+                .plan(plan())
                 .maxAttempts(view.getMaxAttempts())
                 .attemptBudgetMs(view.getAttemptBudgetMs())
                 .tokenBudget(view.getTokenBudget())
@@ -139,30 +136,30 @@ public class ShapeshifterAiLearningPresenter
 
 
     /**
-     * The dialogue as the tab shows it. Steps the view cannot parse are reported and the saved steps kept, so
+     * The plan as the tab shows it. Steps the view cannot parse are reported and the saved steps kept, so
      * a slip in one line does not lose the rest; the store checks the order and the variables on save.
      */
-    private DialogueDefinition dialogue() {
+    private LearningPlan plan() {
         final ShapeshifterAiLearningView view = getView();
-        List<DialogueStep> steps = dialogue.getSteps();
-        final String text = view.getDialogueSteps();
-        if (text == null || text.trim().isEmpty()) {
-            steps = null;
-        } else {
-            final List<DialogueStep> parsed = new ArrayList<>();
-            try {
-                for (final String line : text.split("\n")) {
-                    if (!line.trim().isEmpty()) {
-                        parsed.add(DialogueStep.parse(line));
-                    }
+        List<PlanStep> steps = plan.getSteps();
+        final String text = view.getPlanSteps();
+        final List<PlanStep> parsed = new ArrayList<>();
+        try {
+            for (final String line : (text == null
+                    ? ""
+                    : text).split("\n")) {
+                if (!line.trim().isEmpty()) {
+                    parsed.add(PlanStep.parse(line));
                 }
-                steps = parsed;
-            } catch (final IllegalArgumentException e) {
-                AlertEvent.fireError(this, "The dialogue steps were not saved: " + e.getMessage(), null);
             }
+            if (parsed.isEmpty()) {
+                throw new IllegalArgumentException("a plan needs at least CHAIN and CONFIGURE");
+            }
+            steps = parsed;
+        } catch (final IllegalArgumentException e) {
+            AlertEvent.fireError(this, "The plan's steps were not saved: " + e.getMessage(), null);
         }
-        return new DialogueDefinition(view.getDialogueShape(), steps, view.getTemplateOverrides(),
-                dialogue.getBuiltInVersion());
+        return new LearningPlan(steps, view.getTemplateOverrides(), plan.getBuiltInVersion());
     }
 
 
@@ -213,16 +210,12 @@ public class ShapeshifterAiLearningPresenter
 
         void setSampleRedaction(SampleRedaction sampleRedaction);
 
-        DialogueShape getDialogueShape();
-
-        void setDialogueShape(DialogueShape dialogueShape);
-
         /**
-         * One step per line in {@link DialogueStep#format()}'s form; empty for the preset's own.
+         * One step per line in {@link PlanStep#format()}'s form.
          */
-        String getDialogueSteps();
+        String getPlanSteps();
 
-        void setDialogueSteps(String steps);
+        void setPlanSteps(String steps);
 
         Map<Template, String> getTemplateOverrides();
 

@@ -31,6 +31,7 @@ import stroom.shapeshifter.ai.learning.Sample;
 import stroom.shapeshifter.ai.learning.StepRunner;
 import stroom.shapeshifter.ai.learning.Target;
 import stroom.shapeshifter.ai.scoring.Attempted;
+import stroom.shapeshifter.ai.scoring.OutputRecords;
 import stroom.shapeshifter.ai.scoring.Records;
 import stroom.shapeshifter.ai.scoring.Scorecard;
 import stroom.shapeshifter.ai.scoring.Scorer;
@@ -53,6 +54,8 @@ import stroom.util.shared.DocPath;
 import stroom.util.shared.ElementId;
 import stroom.util.shared.Severity;
 import stroom.util.shared.StoredError;
+
+import net.sf.saxon.s9api.XdmNode;
 
 import java.time.Clock;
 import java.util.ArrayList;
@@ -615,16 +618,85 @@ public final class Stage {
 
     /**
      * The first {@code 1 - heldOutFraction} of the non-blank lines: what the model learns from. The
-     * whole stream is what it is judged on.
+     * whole stream is what it is judged on. Input that is already markup is not cut — a prefix of a
+     * document is not a document, and which elements are its records is the split question's to settle
+     * (A35) — so the model learns from the whole of it, within the document's sample size limit.
      */
     static String learningPrefix(final String data, final ShapeshifterAiDoc policy) {
+        final int limit = policy.getSampleSizeLimit();
+        if (ShapeSignature.isMarkup(data)) {
+            return data.length() <= limit
+                    ? data
+                    : wholeChildren(data, limit);
+        }
         final List<String> lines = data.lines().filter(line -> !line.isBlank()).toList();
         if (lines.isEmpty()) {
             // A blank stream has nothing to learn from; the compile gate and coverage will say so.
             return "";
         }
-        final int keep = (int) Math.ceil(lines.size() * (1.0 - policy.getHeldOutFraction()));
-        return String.join("\n", lines.subList(0, Math.max(1, Math.min(keep, lines.size())))) + "\n";
+        int keep = (int) Math.ceil(lines.size() * (1.0 - policy.getHeldOutFraction()));
+        keep = Math.max(1, Math.min(keep, lines.size()));
+        // The size limit bounds what the model is shown, by whole lines; one line is always shown.
+        int length = lines.get(0).length();
+        int within = 1;
+        while (within < keep && length + 1 + lines.get(within).length() <= limit) {
+            length += 1 + lines.get(within).length();
+            within++;
+        }
+        return String.join("\n", lines.subList(0, within)) + "\n";
+    }
+
+    /**
+     * A document over the sample size limit, cut at a record boundary: the root's start tag, as many of its
+     * children as fit — at least one — and its end tag, so that what the model is shown is still a document.
+     * A document that does not parse cannot be cut anywhere and is shown whole; the split question will
+     * find it wanting.
+     */
+    private static String wholeChildren(final String data, final int limit) {
+        final Optional<OutputRecords> document = OutputRecords.parse(data);
+        if (document.isEmpty() || document.get().records().isEmpty()) {
+            return data;
+        }
+        final String rootName = document.get().root().getNodeName().toString();
+        final int open = data.indexOf('<' + rootName);
+        final int close = open < 0
+                ? -1
+                : endOfTag(data, open);
+        if (close < 0) {
+            return data;
+        }
+        final StringBuilder cut = new StringBuilder(data.substring(open, close + 1)).append('\n');
+        int kept = 0;
+        for (final XdmNode child : document.get().records()) {
+            final String text = child.toString();
+            if (kept > 0 && cut.length() + text.length() > limit) {
+                break;
+            }
+            cut.append(text).append('\n');
+            kept++;
+        }
+        return cut.append("</").append(rootName).append('>').toString();
+    }
+
+    /**
+     * @return The index of the {@code >} that ends the tag opening at {@code from}, outside any quoted
+     * attribute value, or -1.
+     */
+    private static int endOfTag(final String data, final int from) {
+        char quote = 0;
+        for (int i = from; i < data.length(); i++) {
+            final char c = data.charAt(i);
+            if (quote != 0) {
+                if (c == quote) {
+                    quote = 0;
+                }
+            } else if (c == '"' || c == '\'') {
+                quote = c;
+            } else if (c == '>') {
+                return i;
+            }
+        }
+        return -1;
     }
 
     /**

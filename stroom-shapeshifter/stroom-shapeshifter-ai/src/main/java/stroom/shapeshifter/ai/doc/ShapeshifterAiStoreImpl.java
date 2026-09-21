@@ -80,16 +80,16 @@ public class ShapeshifterAiStoreImpl
         if (document.getLearningKey().isEmpty()) {
             throw new IllegalArgumentException("The learning key must name at least one field");
         }
-        // A33: a dialogue the stage cannot hold is refused here, naming the rule, rather than found when
+        // A33: a plan the stage cannot hold is refused here, naming the rule, rather than found when
         // the first stream arrives; and the document is stamped with the built-in text it was saved against.
-        final List<String> problems = new ArrayList<>(document.getDialogue().problems());
-        problems.addAll(Templates.problems(document.getDialogue()));
+        final List<String> problems = new ArrayList<>(document.getPlan().problems());
+        problems.addAll(Templates.problems(document.getPlan()));
         if (!problems.isEmpty()) {
-            throw new IllegalArgumentException("The dialogue cannot be held: " + String.join("; ", problems));
+            throw new IllegalArgumentException("The plan cannot be held: " + String.join("; ", problems));
         }
         return super.writeDocument(document.copy()
                 .routingTable(document.getRoutingTable().stream().map(ShapeshifterAiStoreImpl::identified).toList())
-                .dialogue(document.getDialogue().withBuiltInVersion(Templates.VERSION))
+                .plan(document.getPlan().withBuiltInVersion(Templates.VERSION))
                 .build());
     }
 

@@ -44,6 +44,7 @@ public final class Structure {
 
     private final List<StepRunner> runners;
     private final String splitter;
+    private final String recordElement;
     private final String stylesheet;
 
     /**
@@ -51,17 +52,56 @@ public final class Structure {
      * @param stylesheet The stylesheet the script will answer the transform question with.
      */
     public Structure(final List<StepRunner> runners, final String splitter, final String stylesheet) {
+        this(runners, splitter, null, stylesheet);
+    }
+
+    /// For input that is already XML: the element that is one record, which answers the split question, and
+    /// the stylesheet the script will answer the transform question with.
+    public static Structure ofXml(final List<StepRunner> runners, final String recordElement,
+                                  final String stylesheet) {
+        return new Structure(runners, null, recordElement, stylesheet);
+    }
+
+    private Structure(final List<StepRunner> runners,
+                      final String splitter,
+                      final String recordElement,
+                      final String stylesheet) {
         this.runners = runners;
         this.splitter = splitter;
+        this.recordElement = recordElement;
         this.stylesheet = stylesheet;
     }
 
     public Optional<String> answer(final Question question) {
         return switch (question) {
-            case Split split -> Optional.of(Scenarios.fenced(LINE_SPLIT));
-            case TargetFor target -> Optional.of(targetFor(target.sample().text(), target.record()));
+            case Split split -> Optional.of(recordElement != null
+                    ? recordElement
+                    : Scenarios.fenced(LINE_SPLIT));
+            case TargetFor target -> Optional.of(recordElement != null
+                    ? targetForElement(target.sample().text(), target.record())
+                    : targetFor(target.sample().text(), target.record()));
             default -> Optional.empty();
         };
+    }
+
+    /**
+     * For XML input: the event the stylesheet makes of the record element at the record's position.
+     */
+    private String targetForElement(final String sample, final String record) {
+        final Optional<OutputRecords> document = OutputRecords.parse(sample);
+        if (document.isEmpty()) {
+            return TargetChecks.NONE;
+        }
+        final List<String> records = TargetChecks.elementsNamed(document.get(), recordElement);
+        final int at = records.indexOf(record);
+        if (at < 0) {
+            return TargetChecks.NONE;
+        }
+        final StepResult events = runner("XSLTFilter").run(stylesheet, sample);
+        return OutputRecords.parse(events.output())
+                .filter(produced -> produced.records().size() > at)
+                .map(produced -> Scenarios.fenced(produced.records().get(at).toString()))
+                .orElse(TargetChecks.NONE);
     }
 
     /**

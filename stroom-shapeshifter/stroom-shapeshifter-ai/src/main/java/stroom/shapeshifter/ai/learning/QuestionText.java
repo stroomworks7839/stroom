@@ -22,8 +22,8 @@ import stroom.shapeshifter.ai.learning.Question.Configuration;
 import stroom.shapeshifter.ai.learning.Question.Split;
 import stroom.shapeshifter.ai.learning.Question.TargetFor;
 import stroom.shapeshifter.shared.BusinessRulesParameters;
-import stroom.shapeshifter.shared.DialogueDefinition;
 import stroom.shapeshifter.shared.ExtractionQualityParameters;
+import stroom.shapeshifter.shared.LearningPlan;
 import stroom.shapeshifter.shared.ScorerSetting;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 import stroom.shapeshifter.shared.Template;
@@ -71,12 +71,12 @@ public final class QuestionText {
     }
 
     /**
-     * The words of a document's dialogue: its templates, and a system text carrying its instructions
+     * The words of a document's plan: its templates, and a system text carrying its instructions
      * and what its scorers will demand of every event — the fields required and the rules asserted —
      * said up front, so the model aims at them rather than learning them from a shortfall.
      */
     public static QuestionText of(final ShapeshifterAiDoc doc) {
-        final Templates templates = Templates.of(doc.getDialogue());
+        final Templates templates = Templates.of(doc.getPlan());
         final StringBuilder demands = new StringBuilder();
         for (final ScorerSetting setting : doc.getScorers()) {
             if (setting.getParameters() instanceof final ExtractionQualityParameters quality
@@ -108,8 +108,8 @@ public final class QuestionText {
                 Map.of("instructions", instructions(instructions), "demands", "")));
     }
 
-    public static QuestionText of(final DialogueDefinition dialogue) {
-        return of(ShapeshifterAiDoc.builder().uuid("dialogue").name("dialogue").dialogue(dialogue).build());
+    public static QuestionText of(final LearningPlan plan) {
+        return of(ShapeshifterAiDoc.builder().uuid("plan").name("plan").plan(plan).build());
     }
 
     private static String instructions(final String instructions) {
@@ -152,6 +152,12 @@ public final class QuestionText {
     private String split(final Split question) {
         final Map<String, String> variables = new HashMap<>();
         variables.put("headers", headers(question.sample()));
+        if (question.documentType() == null) {
+            // Input already in XML: no document to write, an element to name (A35).
+            variables.put("sample", shown(question.sample().text()));
+            variables.put("feedback", feedback(question.feedback()));
+            return templates.render(Template.SPLIT_XML, variables);
+        }
         variables.put("elementType", question.elementType());
         variables.put("documentType", question.documentType());
         variables.put("splitRules", templates.text(Template.SPLIT_RULES));
@@ -184,16 +190,29 @@ public final class QuestionText {
                 ? Template.EXTRACTION_RULES
                 : Template.TRANSFORMATION_RULES));
         variables.put("input", shown(question.input()));
-        variables.put("split", question.split() == null
-                ? ""
-                : "\nThe record boundary is settled; this configuration cuts one record per unit, and yours must "
-                  + "cut the same records while extracting every field:\n" + fenced(question.split()) + "\n");
+        variables.put("split", split(question.split()));
         variables.put("targets", targets(question.targets(), extraction));
         variables.put("previous", question.previousConfiguration() == null
                 ? ""
                 : "\nYour previous configuration was:\n" + fenced(question.previousConfiguration()) + "\n");
         variables.put("feedback", feedback(question.feedback()));
         return templates.render(Template.CONFIGURATION, variables);
+    }
+
+    /**
+     * The settled boundary as the configuration question carries it: a parser's configuration to cut the
+     * same records, or the element that is one record where the input is XML (A35).
+     */
+    private static String split(final String split) {
+        if (split == null) {
+            return "";
+        }
+        if (split.stripLeading().startsWith("<")) {
+            return "\nThe record boundary is settled; this configuration cuts one record per unit, and yours must "
+                   + "cut the same records while extracting every field:\n" + fenced(split) + "\n";
+        }
+        return "\nThe record boundary is settled: each <" + split + "> element is one record. Produce one event "
+               + "per <" + split + ">, and nothing for the elements around them.\n";
     }
 
     private static String targets(final List<Target> targets, final boolean extraction) {

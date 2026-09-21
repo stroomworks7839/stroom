@@ -68,7 +68,7 @@ import java.util.Objects;
         "relearnThreshold",
         "allowedElements",
         "instructions",
-        "dialogue",
+        "plan",
         "maxAttempts",
         "attemptBudgetMs",
         "tokenBudget",
@@ -113,10 +113,10 @@ public class ShapeshifterAiDoc extends AbstractDoc {
      */
     static final int DEFAULT_MAX_ATTEMPTS = 5;
     /**
-     * The direct preset, unchanged: on the feeds measured so far it reached the same scores at half the tokens
-     * (design 02 §6.3).
+     * The direct example's steps and the built-in text: on the feeds measured so far the direct plan reached
+     * the same scores at half the tokens (design 02 §6.3).
      */
-    static final DialogueDefinition DEFAULT_DIALOGUE = DialogueDefinition.of(DialogueShape.DIRECT);
+    static final LearningPlan DEFAULT_PLAN = LearningPlan.of(PlanExample.DIRECT);
     static final long DEFAULT_ATTEMPT_BUDGET_MS = 60_000L;
     static final SampleRedaction DEFAULT_SAMPLE_REDACTION = SampleRedaction.REDACTED;
     static final int DEFAULT_SAMPLE_SIZE_LIMIT = 8_192;
@@ -180,10 +180,10 @@ public class ShapeshifterAiDoc extends AbstractDoc {
     @JsonProperty
     private final int maxAttempts;
     /**
-     * The dialogue the stage holds with the model (A32, A33; design 01 §10.2).
+     * The learning plan an attempt follows (A33, A34, A37; design 01 §10.2).
      */
     @JsonProperty
-    private final DialogueDefinition dialogue;
+    private final LearningPlan plan;
     /**
      * Wall-clock budget for one attempt. Ruling A5 makes the budget mandatory; there is no unlimited value.
      */
@@ -267,7 +267,7 @@ public class ShapeshifterAiDoc extends AbstractDoc {
             @JsonProperty("relearnThreshold") final Double relearnThreshold,
             @JsonProperty("allowedElements") final List<String> allowedElements,
             @JsonProperty("instructions") final String instructions,
-            @JsonProperty("dialogue") final DialogueDefinition dialogue,
+            @JsonProperty("plan") final LearningPlan plan,
             @JsonProperty("maxAttempts") final Integer maxAttempts,
             @JsonProperty("attemptBudgetMs") final Long attemptBudgetMs,
             @JsonProperty("tokenBudget") final Long tokenBudget,
@@ -295,7 +295,7 @@ public class ShapeshifterAiDoc extends AbstractDoc {
                 ? DEFAULT_ALLOWED_ELEMENTS
                 : List.copyOf(allowedElements);
         this.instructions = instructions;
-        this.dialogue = Objects.requireNonNullElse(dialogue, DEFAULT_DIALOGUE);
+        this.plan = Objects.requireNonNullElse(plan, DEFAULT_PLAN);
         this.maxAttempts = Objects.requireNonNullElse(maxAttempts, DEFAULT_MAX_ATTEMPTS);
         this.attemptBudgetMs = Objects.requireNonNullElse(attemptBudgetMs, DEFAULT_ATTEMPT_BUDGET_MS);
         this.tokenBudget = tokenBudget;
@@ -364,8 +364,8 @@ public class ShapeshifterAiDoc extends AbstractDoc {
         return instructions;
     }
 
-    public DialogueDefinition getDialogue() {
-        return dialogue;
+    public LearningPlan getPlan() {
+        return plan;
     }
 
     public int getMaxAttempts() {
@@ -444,7 +444,7 @@ public class ShapeshifterAiDoc extends AbstractDoc {
                Objects.equals(description, that.description) &&
                executionMode == that.executionMode &&
                learningMode == that.learningMode &&
-               Objects.equals(dialogue, that.dialogue) &&
+               Objects.equals(plan, that.plan) &&
                promotionMode == that.promotionMode &&
                Objects.equals(model, that.model) &&
                Objects.equals(learningKey, that.learningKey) &&
@@ -469,7 +469,7 @@ public class ShapeshifterAiDoc extends AbstractDoc {
                 relearnThreshold,
                 allowedElements,
                 instructions,
-                dialogue,
+                plan,
                 maxAttempts,
                 attemptBudgetMs,
                 tokenBudget,
@@ -496,7 +496,7 @@ public class ShapeshifterAiDoc extends AbstractDoc {
                ", learningKey=" + learningKey +
                ", relearnThreshold=" + relearnThreshold +
                ", allowedElements=" + allowedElements +
-               ", dialogue=" + dialogue +
+               ", plan=" + plan +
                ", maxAttempts=" + maxAttempts +
                ", attemptBudgetMs=" + attemptBudgetMs +
                ", tokenBudget=" + tokenBudget +
@@ -536,7 +536,7 @@ public class ShapeshifterAiDoc extends AbstractDoc {
         private double relearnThreshold = DEFAULT_RELEARN_THRESHOLD;
         private List<String> allowedElements = DEFAULT_ALLOWED_ELEMENTS;
         private String instructions;
-        private DialogueDefinition dialogue = DEFAULT_DIALOGUE;
+        private LearningPlan plan = DEFAULT_PLAN;
         private int maxAttempts = DEFAULT_MAX_ATTEMPTS;
         private long attemptBudgetMs = DEFAULT_ATTEMPT_BUDGET_MS;
         private Long tokenBudget;
@@ -565,7 +565,7 @@ public class ShapeshifterAiDoc extends AbstractDoc {
             this.relearnThreshold = doc.relearnThreshold;
             this.allowedElements = doc.allowedElements;
             this.instructions = doc.instructions;
-            this.dialogue = doc.dialogue;
+            this.plan = doc.plan;
             this.maxAttempts = doc.maxAttempts;
             this.attemptBudgetMs = doc.attemptBudgetMs;
             this.tokenBudget = doc.tokenBudget;
@@ -626,16 +626,16 @@ public class ShapeshifterAiDoc extends AbstractDoc {
             return self();
         }
 
-        public Builder dialogue(final DialogueDefinition dialogue) {
-            this.dialogue = dialogue;
+        public Builder plan(final LearningPlan plan) {
+            this.plan = plan;
             return self();
         }
 
         /**
-         * The preset alone, with its own steps and the built-in text.
+         * An example's steps as the document's own, with the built-in text.
          */
-        public Builder dialogueShape(final DialogueShape preset) {
-            this.dialogue = DialogueDefinition.of(preset);
+        public Builder plan(final PlanExample example) {
+            this.plan = LearningPlan.of(example);
             return self();
         }
 
@@ -727,7 +727,7 @@ public class ShapeshifterAiDoc extends AbstractDoc {
                     relearnThreshold,
                     allowedElements,
                     instructions,
-                    dialogue,
+                    plan,
                     maxAttempts,
                     attemptBudgetMs,
                     tokenBudget,

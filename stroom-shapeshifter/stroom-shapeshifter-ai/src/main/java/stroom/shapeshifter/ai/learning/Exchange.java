@@ -16,10 +16,21 @@
 
 package stroom.shapeshifter.ai.learning;
 
-/**
- * One turn of the dialogue: a question and the reply it drew, kept so later questions can carry the
- * transcript (design §10: without it, the second attempt commonly repeats the first).
- */
-public record Exchange(Question question, String reply) {
+import stroom.shapeshifter.shared.StepOutcome;
 
+/**
+ * One turn of the dialogue: a question as put, the reply as given, and — once judged — which step of the
+ * plan asked it, which candidate it was, and how it ended (A28, A37). The outcome is null until the
+ * candidate is judged, and stays null for a turn that was never judged, such as a reply the budget cut off.
+ */
+public record Exchange(Question question, String reply, String step, int candidate, StepOutcome outcome) {
+
+    public Exchange(final Question question, final String reply) {
+        this(question, reply, null, 0, null);
+    }
+
+    /// This turn with its outcome known.
+    public Exchange judged(final StepOutcome outcome) {
+        return new Exchange(question, reply, step, candidate, outcome);
+    }
 }

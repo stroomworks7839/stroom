@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2026 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,18 +18,16 @@ package stroom.shapeshifter.shared;
 
 import stroom.docref.HasDisplayValue;
 
-/**
- * When a step of the plan is asked (design 01 §10.2): always; only where the input is raw text and the first
- * element is a parser with a configuration to write; or only where the input is already records.
- */
-public enum StepGuard implements HasDisplayValue {
-    ALWAYS("always"),
-    TEXT("text"),
-    XML("xml");
+/// Which of the chain's elements a `CONFIGURE` step configures (A37): the `parser` is the chain's first
+/// element where it parses raw input; the `transform` is every element after it. A step with no role
+/// configures every element in chain order.
+public enum ConfigureRole implements HasDisplayValue {
+    PARSER("parser"),
+    TRANSFORM("transform");
 
     private final String displayValue;
 
-    StepGuard(final String displayValue) {
+    ConfigureRole(final String displayValue) {
         this.displayValue = displayValue;
     }
 
@@ -38,13 +36,11 @@ public enum StepGuard implements HasDisplayValue {
         return displayValue;
     }
 
-    /**
-     * @return The guard written as {@code always}, {@code text} or {@code xml}, or null for anything else.
-     */
-    public static StepGuard parse(final String word) {
-        for (final StepGuard guard : values()) {
-            if (guard.displayValue.equalsIgnoreCase(word)) {
-                return guard;
+    /// @return The role written as `parser` or `transform`, or null for anything else.
+    public static ConfigureRole parse(final String word) {
+        for (final ConfigureRole role : values()) {
+            if (role.displayValue.equalsIgnoreCase(word)) {
+                return role;
             }
         }
         return null;

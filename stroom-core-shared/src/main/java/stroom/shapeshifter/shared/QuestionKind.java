@@ -19,8 +19,8 @@ package stroom.shapeshifter.shared;
 import stroom.docref.HasDisplayValue;
 
 /**
- * The four typed questions a dialogue is made of (design 01 §10.2): each is a reply grammar and a judge, and
- * they are the vocabulary a dialogue definition's steps are written in. A new kind is new code.
+ * The four typed questions a plan is made of (design 01 §10.2): each is a reply grammar and a judge, and
+ * they are the vocabulary a learning plan's steps are written in. A new kind is new code.
  */
 public enum QuestionKind implements HasDisplayValue {
     /**
@@ -28,7 +28,8 @@ public enum QuestionKind implements HasDisplayValue {
      */
     CHAIN("Chain"),
     /**
-     * What one record is: a parser configuration that cuts the sample into whole records (A31).
+     * What one record is (A31): for raw text a parser configuration that cuts the sample into whole
+     * records; for input that is already XML the element that is one record (A35).
      */
     SPLIT("Split"),
     /**

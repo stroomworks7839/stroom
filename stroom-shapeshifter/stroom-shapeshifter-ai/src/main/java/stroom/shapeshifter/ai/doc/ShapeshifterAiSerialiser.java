@@ -20,13 +20,21 @@ import stroom.docstore.api.DocumentSerialiser2;
 import stroom.docstore.api.Serialiser2;
 import stroom.docstore.api.Serialiser2Factory;
 import stroom.importexport.api.ImportExportDocument;
+import stroom.shapeshifter.shared.LearningPlan;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
+import stroom.util.json.JsonUtil;
 
 import jakarta.inject.Inject;
+import tools.jackson.databind.JsonNode;
 
 import java.io.IOException;
 
 public class ShapeshifterAiSerialiser implements DocumentSerialiser2<ShapeshifterAiDoc> {
+
+    /// The asset the delegate keeps the document's JSON in.
+    private static final String META = "meta";
+    private static final String PLAN = "plan";
+    private static final String LEGACY_PLAN = "dialogue";
 
     private final Serialiser2<ShapeshifterAiDoc> delegate;
 
@@ -37,7 +45,16 @@ public class ShapeshifterAiSerialiser implements DocumentSerialiser2<Shapeshifte
 
     @Override
     public ShapeshifterAiDoc read(final ImportExportDocument importExportDocument) throws IOException {
-        return delegate.read(importExportDocument);
+        final ShapeshifterAiDoc document = delegate.read(importExportDocument);
+        // A document saved when the plan was called the dialogue (before A37) reads as it was written. The
+        // shared class cannot carry the old name — its JSON is generated for the client too — so it is
+        // honoured here, on the way in only.
+        final JsonNode json = JsonUtil.getMapper().readTree(importExportDocument.getExtAssetData(META));
+        final JsonNode legacy = json.get(LEGACY_PLAN);
+        if (legacy != null && !legacy.isNull() && json.get(PLAN) == null) {
+            return document.copy().plan(JsonUtil.getMapper().treeToValue(legacy, LearningPlan.class)).build();
+        }
+        return document;
     }
 
     @Override

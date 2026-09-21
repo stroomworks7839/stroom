@@ -17,7 +17,7 @@
 
 package stroom.shapeshifter.ai.learning;
 
-import stroom.shapeshifter.shared.DialogueDefinition;
+import stroom.shapeshifter.shared.LearningPlan;
 import stroom.shapeshifter.shared.Template;
 
 import java.util.ArrayList;
@@ -42,7 +42,7 @@ public final class Templates {
     /**
      * Raised when the built-in text changes in a way a stored run should be told apart from.
      */
-    public static final int VERSION = 1;
+    public static final int VERSION = 2;
 
     private static final Map<Template, String> BUILT_IN = new EnumMap<>(Template.class);
 
@@ -82,6 +82,19 @@ public final class Templates {
                 ${sample}
                 ${feedback}
                 Reply with the ${documentType} document as a single fenced XML code block and nothing else.""");
+        BUILT_IN.put(Template.SPLIT_XML, """
+                Before anything is extracted, settle what one record is in this stream.
+
+                ${headers}The input is already XML. Name the element that is one record: the element that occurs \
+                once per record, whose elements together hold nearly the whole document, and which the \
+                transform will turn into one event each. Not the root, which holds every record; not a field \
+                within a record.
+
+                A sample of the stream:
+                ${sample}
+                ${feedback}
+                Reply with the element's name alone — its local name, no prefix, no angle brackets — and nothing \
+                else.""");
         BUILT_IN.put(Template.TARGET, """
                 Record kind ${kind} of ${total}: what event should this record become?
 
@@ -184,10 +197,10 @@ public final class Templates {
     }
 
     /**
-     * The templates a document's dialogue reads by: its overrides over the built-ins.
+     * The templates a document's plan reads by: its overrides over the built-ins.
      */
-    public static Templates of(final DialogueDefinition dialogue) {
-        return new Templates(dialogue.getTemplates());
+    public static Templates of(final LearningPlan plan) {
+        return new Templates(plan.getTemplates());
     }
 
     public static Templates builtIn() {
@@ -242,9 +255,9 @@ public final class Templates {
      * What is wrong with a definition's templates: a slot naming a variable the template does not have.
      * Empty where every override renders.
      */
-    public static List<String> problems(final DialogueDefinition dialogue) {
+    public static List<String> problems(final LearningPlan plan) {
         final List<String> problems = new ArrayList<>();
-        dialogue.getTemplates().forEach((template, text) -> {
+        plan.getTemplates().forEach((template, text) -> {
             final Set<String> allowed = Set.of(template.getVariables());
             for (final String name : slots(text)) {
                 if (!allowed.contains(name)) {

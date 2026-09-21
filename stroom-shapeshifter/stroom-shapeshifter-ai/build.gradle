@@ -40,6 +40,7 @@ dependencies {
     implementation project(':stroom-util-shared')
 
     implementation libs.guice
+    implementation libs.jackson.databind
     implementation libs.jakarta.inject
     implementation libs.langchain4j
     implementation libs.restygwt

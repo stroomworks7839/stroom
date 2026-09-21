@@ -19,11 +19,11 @@ package stroom.shapeshifter.ai.doc;
 import stroom.docref.DocRef;
 import stroom.meta.shared.MetaFields;
 import stroom.shapeshifter.ai.learning.Templates;
-import stroom.shapeshifter.shared.DialogueDefinition;
-import stroom.shapeshifter.shared.DialogueShape;
-import stroom.shapeshifter.shared.DialogueStep;
 import stroom.shapeshifter.shared.ExecutionMode;
 import stroom.shapeshifter.shared.LearningMode;
+import stroom.shapeshifter.shared.LearningPlan;
+import stroom.shapeshifter.shared.PlanExample;
+import stroom.shapeshifter.shared.PlanStep;
 import stroom.shapeshifter.shared.PromotionMode;
 import stroom.shapeshifter.shared.QuestionKind;
 import stroom.shapeshifter.shared.RoutingRule;
@@ -109,37 +109,44 @@ class TestShapeshifterAiStoreImpl {
     }
 
     @Test
-    void saveRefusesADialogueTheStageCannotHoldAndStampsTheBuiltInVersion() {
+    void saveRefusesAPlanTheStageCannotHoldAndStampsTheBuiltInVersion() {
         // Scenarios 39 and 40 (A33): the rule and the variable are named where the editor cannot check them;
         // a definition that holds is saved against the built-in text of the day.
         final DocRef docRef = store.createDocument("syslog-ai");
         assertThatThrownBy(() -> store.writeDocument(store.readDocument(docRef).copy()
-                .dialogue(DialogueDefinition.of(DialogueShape.DIRECT).withSteps(List.of(
-                        DialogueStep.of(QuestionKind.CONFIGURE), DialogueStep.of(QuestionKind.CHAIN))))
+                .plan(LearningPlan.of(PlanExample.DIRECT).withSteps(List.of(
+                        PlanStep.of(QuestionKind.CONFIGURE), PlanStep.of(QuestionKind.CHAIN))))
                 .build()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("The first step must be CHAIN")
                 .hasMessageContaining("The last step must be CONFIGURE");
         assertThatThrownBy(() -> store.writeDocument(store.readDocument(docRef).copy()
-                .dialogue(DialogueDefinition.of(DialogueShape.DIRECT).withSteps(List.of(
-                        DialogueStep.of(QuestionKind.CHAIN), DialogueStep.of(QuestionKind.SPLIT),
-                        DialogueStep.of(QuestionKind.SPLIT), DialogueStep.of(QuestionKind.CONFIGURE))))
+                .plan(LearningPlan.of(PlanExample.DIRECT).withSteps(List.of(
+                        PlanStep.of(QuestionKind.CHAIN), PlanStep.of(QuestionKind.SPLIT),
+                        PlanStep.of(QuestionKind.SPLIT), PlanStep.of(QuestionKind.CONFIGURE))))
                 .build()))
                 .hasMessageContaining("SPLIT may appear once");
         assertThatThrownBy(() -> store.writeDocument(store.readDocument(docRef).copy()
-                .dialogue(DialogueDefinition.of(DialogueShape.DIRECT)
+                .plan(LearningPlan.of(PlanExample.DIRECT).withSteps(List.of(
+                        PlanStep.parse("CHAIN"), PlanStep.parse("CONFIGURE parser on spent goto nowhere"),
+                        PlanStep.parse("CONFIGURE parser"))))
+                .build()))
+                .hasMessageContaining("Two steps are named 'parser'")
+                .hasMessageContaining("'on spent goto nowhere' in step 'parser' names no step");
+        assertThatThrownBy(() -> store.writeDocument(store.readDocument(docRef).copy()
+                .plan(LearningPlan.of(PlanExample.DIRECT)
                         .withTemplates(Map.of(Template.TARGET, "Become ${nothing}")))
                 .build()))
                 .hasMessageContaining("The target question template names ${nothing}");
 
         store.writeDocument(store.readDocument(docRef).copy()
-                .dialogue(DialogueDefinition.of(DialogueShape.TARGET_FIRST)
+                .plan(LearningPlan.of(PlanExample.TARGET_FIRST)
                         .withTemplates(Map.of(Template.CHAIN, "Pick: ${elements}\n${sample}")))
                 .build());
-        final DialogueDefinition saved = store.readDocument(docRef).getDialogue();
+        final LearningPlan saved = store.readDocument(docRef).getPlan();
         assertThat(saved.getBuiltInVersion()).isEqualTo(Templates.VERSION);
         assertThat(saved.getTemplates()).containsOnlyKeys(Template.CHAIN);
-        assertThat(saved.effectiveSteps()).isEqualTo(DialogueShape.TARGET_FIRST.steps());
+        assertThat(saved.getSteps()).isEqualTo(PlanExample.TARGET_FIRST.steps());
     }
 
     @Test

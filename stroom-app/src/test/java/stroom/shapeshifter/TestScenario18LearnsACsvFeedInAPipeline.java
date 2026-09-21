@@ -48,7 +48,7 @@ import stroom.shapeshifter.ai.scenario.Script;
 import stroom.shapeshifter.ai.scenario.Structure;
 import stroom.shapeshifter.ai.stage.Bindings;
 import stroom.shapeshifter.ai.transformation.XsltStep;
-import stroom.shapeshifter.shared.DialogueShape;
+import stroom.shapeshifter.shared.PlanExample;
 import stroom.shapeshifter.shared.LearningMode;
 import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ScorerSetting;
@@ -194,7 +194,7 @@ class TestScenario18LearnsACsvFeedInAPipeline extends AbstractProcessIntegration
         shapeshifterAiStore.writeDocument(shapeshifterAiStore.readDocument(docRef)
                 .copy()
                 .learningMode(LearningMode.AUTOMATIC)
-                .dialogueShape(DialogueShape.TARGET_FIRST)
+                .plan(PlanExample.TARGET_FIRST)
                 .allowedElements(List.of("DSParser", "XSLTFilter"))
                 .minRecordsPerShape(5)
                 .promotionFloor(0.85)

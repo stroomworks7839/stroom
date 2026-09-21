@@ -20,9 +20,9 @@ import stroom.shapeshifter.ai.learning.Question.Chain;
 import stroom.shapeshifter.ai.learning.Question.Configuration;
 import stroom.shapeshifter.ai.learning.Question.Split;
 import stroom.shapeshifter.shared.BusinessRulesParameters;
-import stroom.shapeshifter.shared.DialogueDefinition;
-import stroom.shapeshifter.shared.DialogueShape;
 import stroom.shapeshifter.shared.ExtractionQualityParameters;
+import stroom.shapeshifter.shared.LearningPlan;
+import stroom.shapeshifter.shared.PlanExample;
 import stroom.shapeshifter.shared.ScorerSetting;
 import stroom.shapeshifter.shared.ScorerType;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
@@ -131,9 +131,9 @@ class TestQuestionText {
     @Test
     void aTemplateOverrideIsRenderedWithItsBlocksAndTheRestFollowsTheBuiltIn() {
         // Scenario 40: the chain question in the document's own words; every other question as built in.
-        final DialogueDefinition dialogue = DialogueDefinition.of(DialogueShape.TARGET_FIRST)
+        final LearningPlan plan = LearningPlan.of(PlanExample.TARGET_FIRST)
                 .withTemplates(Map.of(Template.CHAIN, "Pick from:\n${elements}\nGiven:\n${sample}${feedback}"));
-        final QuestionText words = QuestionText.of(dialogue);
+        final QuestionText words = QuestionText.of(plan);
         final Chain chain = new Chain(SAMPLE, List.of("DSParser", "XSLTFilter"), List.of());
 
         assertThat(words.render(chain))
@@ -146,14 +146,14 @@ class TestQuestionText {
 
     @Test
     void aTemplateNamingAVariableItDoesNotHaveIsRefused() {
-        final DialogueDefinition dialogue = DialogueDefinition.of(DialogueShape.DIRECT)
+        final LearningPlan plan = LearningPlan.of(PlanExample.DIRECT)
                 .withTemplates(Map.of(Template.CHAIN, "${sample} then ${targets}",
                         Template.EXTRACTION_RULES, "Rules ${nothing}"));
-        assertThat(Templates.problems(dialogue)).containsExactlyInAnyOrder(
+        assertThat(Templates.problems(plan)).containsExactlyInAnyOrder(
                 "The chain question template names ${targets}, which it does not have; it may use ${elements}, "
                 + "${feedback}, ${headers}, ${sample}",
                 "The extraction rules template names ${nothing}, which it does not have; it may use no variables");
-        assertThat(Templates.problems(DialogueDefinition.of(DialogueShape.DIRECT))).isEmpty();
+        assertThat(Templates.problems(LearningPlan.of(PlanExample.DIRECT))).isEmpty();
     }
 
     @Test

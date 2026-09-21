@@ -48,46 +48,105 @@ class TestShapeshifterAiDoc {
         assertThat(read).isEqualTo(doc);
         assertThat(read.getScorers()).containsExactlyElementsOf(doc.getScorers());
         assertThat(read.getRoutingTable()).containsExactlyElementsOf(doc.getRoutingTable());
-        assertThat(read.getDialogue().effectiveSteps()).extracting(DialogueStep::format)
+        assertThat(read.getPlan().getSteps()).extracting(PlanStep::format)
                 .containsExactly("CHAIN", "TARGET when text kinds 1", "CONFIGURE candidates 2");
     }
 
     @Test
-    void aDialogueDefinitionKnowsWhatIsWrongWithItsSteps() {
-        assertThat(DialogueDefinition.of(DialogueShape.TARGET_FIRST).problems()).isEmpty();
-        assertThat(DialogueDefinition.of(DialogueShape.DIRECT).withSteps(List.of(
-                DialogueStep.of(QuestionKind.CONFIGURE), DialogueStep.of(QuestionKind.CHAIN))).problems())
+    void aLearningPlanKnowsWhatIsWrongWithItsSteps() {
+        assertThat(LearningPlan.of(PlanExample.TARGET_FIRST).problems()).isEmpty();
+        assertThat(new LearningPlan(null, null, null).getSteps()).isEqualTo(PlanExample.DIRECT.steps());
+        assertThat(LearningPlan.of(PlanExample.DIRECT).withSteps(List.of(
+                PlanStep.of(QuestionKind.CONFIGURE), PlanStep.of(QuestionKind.CHAIN))).problems())
                 .containsExactly("The first step must be CHAIN", "The last step must be CONFIGURE");
-        assertThat(DialogueDefinition.of(DialogueShape.DIRECT).withSteps(List.of(
-                DialogueStep.of(QuestionKind.CHAIN), DialogueStep.of(QuestionKind.SPLIT),
-                DialogueStep.of(QuestionKind.SPLIT), DialogueStep.of(QuestionKind.CONFIGURE))).problems())
+        assertThat(LearningPlan.of(PlanExample.DIRECT).withSteps(List.of(
+                PlanStep.of(QuestionKind.CHAIN), PlanStep.of(QuestionKind.SPLIT),
+                PlanStep.of(QuestionKind.SPLIT), PlanStep.of(QuestionKind.CONFIGURE))).problems())
                 .containsExactly("SPLIT may appear once, not 2 times");
-        assertThat(DialogueDefinition.of(DialogueShape.DIRECT).withSteps(List.of()).problems())
-                .containsExactly("The dialogue has no steps");
+        assertThat(LearningPlan.of(PlanExample.DIRECT).withSteps(List.of()).problems())
+                .containsExactly("The plan has no steps");
+    }
+
+    @Test
+    void aPlanIsAGraphOverTypedOutcomes() {
+        // A37: every example holds; ids default to the kind or the role; a goto must name a step, once.
+        for (final PlanExample example : PlanExample.values()) {
+            assertThat(LearningPlan.of(example).problems()).describedAs(example.name()).isEmpty();
+        }
+        assertThat(LearningPlan.of(PlanExample.ESCALATING).getSteps()).extracting(PlanStep::effectiveId)
+                .containsExactly("chain", "parser", "first", "target", "again", "transform");
+        assertThat(LearningPlan.of(PlanExample.ESCALATING).step("first").getTransitions())
+                .extracting(Transition::format).containsExactly("on passed goto end", "on spent goto target");
+        assertThat(LearningPlan.of(PlanExample.DIRECT).withSteps(List.of(
+                PlanStep.parse("CHAIN"), PlanStep.parse("end: CONFIGURE"))).problems())
+                .containsExactly("'end' is the end of the plan and cannot name a step");
+        assertThat(LearningPlan.of(PlanExample.DIRECT).withSteps(List.of(
+                PlanStep.parse("CHAIN"), PlanStep.parse("CONFIGURE parser"), PlanStep.parse("CONFIGURE parser")))
+                .problems())
+                .containsExactly("Two steps are named 'parser'; give one an id");
+        assertThat(LearningPlan.of(PlanExample.DIRECT).withSteps(List.of(
+                PlanStep.parse("CHAIN"), PlanStep.parse("CONFIGURE on refused goto nowhere on spent abandon")))
+                .problems())
+                .containsExactly("'on refused goto nowhere' in step 'configure' names no step");
+        // An id given on purpose that shadows another step's default name is a collision too.
+        assertThat(LearningPlan.of(PlanExample.DIRECT).withSteps(List.of(
+                PlanStep.parse("CHAIN"), PlanStep.parse("target: CONFIGURE parser"), PlanStep.parse("TARGET"),
+                PlanStep.parse("CONFIGURE transform"))).problems())
+                .containsExactly("Two steps are named 'target'; give one an id");
+    }
+
+    @Test
+    void aStepLineCarriesItsIdRoleChecksAndTransitions() {
+        final String line = "first: CONFIGURE transform candidates 2 checks conformance,fidelity "
+                            + "on preservation-short goto parser on spent abandon";
+        final PlanStep step = PlanStep.parse(line);
+        assertThat(step.format()).isEqualTo(line);
+        assertThat(step.getId()).isEqualTo("first");
+        assertThat(step.getRole()).isEqualTo(ConfigureRole.TRANSFORM);
+        assertThat(step.getChecks()).containsExactly(Check.CONFORMANCE, Check.FIDELITY);
+        assertThat(step.transitionOn(StepOutcome.PRESERVATION_SHORT).getGoTo()).isEqualTo("parser");
+        assertThat(step.transitionOn(StepOutcome.REFUSED)).isNull();
+        assertThat(step.transitionOnSpent().abandons()).isTrue();
+        assertThat(PlanStep.parse("CONFIGURE parser").effectiveId()).isEqualTo("parser");
+        assertThat(PlanStep.parse("split").effectiveId()).isEqualTo("split");
+        assertThatThrownBy(() -> PlanStep.parse("SPLIT parser")).hasMessageContaining("Only CONFIGURE takes a role");
+        assertThatThrownBy(() -> PlanStep.parse("CONFIGURE checks bogus"))
+                .hasMessageContaining("'bogus' is not a check");
+        assertThatThrownBy(() -> PlanStep.parse("CONFIGURE on flimsy goto parser"))
+                .hasMessageContaining("'on flimsy' is not an outcome");
+        assertThatThrownBy(() -> PlanStep.parse("CONFIGURE on spent"))
+                .hasMessageContaining("'on' needs an outcome");
+        assertThatThrownBy(() -> PlanStep.parse("CONFIGURE on spent goto"))
+                .hasMessageContaining("must be followed by 'goto <step>' or 'abandon'");
+        assertThatThrownBy(() -> PlanStep.parse("1st: CHAIN")).hasMessageContaining("is not a step id");
+        // The check's shortfall is its outcome, and the outcome reads back from its word.
+        assertThat(Check.FIDELITY.shortfall()).isEqualTo(StepOutcome.FIDELITY_SHORT);
+        assertThat(StepOutcome.parse("coverage-short")).isEqualTo(StepOutcome.COVERAGE_SHORT);
+        assertThat(Check.of(ScorerType.COMPILE)).isNull();
     }
 
     @Test
     void aStepReadsBackFromItsLine() {
-        assertThat(DialogueStep.parse("target when xml candidates 4 kinds 2").format())
+        assertThat(PlanStep.parse("target when xml candidates 4 kinds 2").format())
                 .isEqualTo("TARGET when xml candidates 4 kinds 2");
-        assertThat(DialogueStep.parse("  CHAIN ").format()).isEqualTo("CHAIN");
-        assertThatThrownBy(() -> DialogueStep.parse("SPLIT when sometimes"))
+        assertThat(PlanStep.parse("  CHAIN ").format()).isEqualTo("CHAIN");
+        assertThatThrownBy(() -> PlanStep.parse("SPLIT when sometimes"))
                 .hasMessageContaining("'when sometimes' is not one of always, text or xml");
-        assertThatThrownBy(() -> DialogueStep.parse("SPLIT candidates"))
+        assertThatThrownBy(() -> PlanStep.parse("SPLIT candidates"))
                 .hasMessageContaining("'candidates' needs a value");
-        assertThatThrownBy(() -> DialogueStep.parse("SPLIT kinds 0"))
+        assertThatThrownBy(() -> PlanStep.parse("SPLIT kinds 0"))
                 .hasMessageContaining("'kinds' must be at least 1");
-        assertThatThrownBy(() -> DialogueStep.parse("ASK")).hasMessageContaining("'ASK' is not a question kind");
+        assertThatThrownBy(() -> PlanStep.parse("ASK")).hasMessageContaining("'ASK' is not a question kind");
         // The limits hold however the step is made, not only from its line.
-        assertThatThrownBy(() -> new DialogueStep(QuestionKind.TARGET, null, null, 0))
+        assertThatThrownBy(() -> new PlanStep(QuestionKind.TARGET, null, null, 0))
                 .hasMessageContaining("'kinds' must be at least 1");
     }
 
     @Test
     void aBlankTemplateOverrideIsNoOverride() {
-        final DialogueDefinition dialogue = DialogueDefinition.of(DialogueShape.DIRECT)
+        final LearningPlan plan = LearningPlan.of(PlanExample.DIRECT)
                 .withTemplates(Map.of(Template.CHAIN, "  \n", Template.SPLIT, "Cut it: ${sample}"));
-        assertThat(dialogue.getTemplates()).containsOnlyKeys(Template.SPLIT);
+        assertThat(plan.getTemplates()).containsOnlyKeys(Template.SPLIT);
     }
 
     @Test
@@ -109,7 +168,7 @@ class TestShapeshifterAiDoc {
         assertThat(doc.getAllowedElements())
                 .describedAs("A10's initial set until a document narrows it")
                 .containsExactly("DSParser", "JSONParser", "XMLParser", "XSLTFilter");
-        assertThat(doc.getDialogue()).isEqualTo(DialogueDefinition.of(DialogueShape.DIRECT));
+        assertThat(doc.getPlan()).isEqualTo(LearningPlan.of(PlanExample.DIRECT));
         assertThat(doc.getMaxAttempts()).describedAs("five since the first live run, design 02 §6.2").isEqualTo(5);
         assertThat(doc.getAttemptBudgetMs()).isEqualTo(60_000L);
         assertThat(doc.getTokenBudget()).isNull();
@@ -234,9 +293,9 @@ class TestShapeshifterAiDoc {
                 .relearnThreshold(0.75)
                 .allowedElements(List.of("XSLTFilter"))
                 .instructions("Prefer named fields.")
-                .dialogue(new DialogueDefinition(DialogueShape.TARGET_FIRST,
-                        List.of(DialogueStep.parse("CHAIN"), DialogueStep.parse("TARGET when text kinds 1"),
-                                DialogueStep.parse("CONFIGURE candidates 2")),
+                .plan(new LearningPlan(
+                        List.of(PlanStep.parse("CHAIN"), PlanStep.parse("TARGET when text kinds 1"),
+                                PlanStep.parse("CONFIGURE candidates 2")),
                         Map.of(Template.CHAIN, "Pick: ${elements}\n${sample}"), 3))
                 .maxAttempts(5)
                 .attemptBudgetMs(120_000L)

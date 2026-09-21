@@ -20,7 +20,8 @@ import stroom.entity.client.presenter.ReadOnlyChangeHandler;
 import stroom.item.client.SelectionBox;
 import stroom.shapeshifter.client.presenter.ShapeshifterAiLearningPresenter.ShapeshifterAiLearningView;
 import stroom.shapeshifter.client.presenter.ShapeshifterAiSettingsUiHandlers;
-import stroom.shapeshifter.shared.DialogueShape;
+import stroom.shapeshifter.shared.PlanExample;
+import stroom.shapeshifter.shared.PlanStep;
 import stroom.shapeshifter.shared.SampleRedaction;
 import stroom.shapeshifter.shared.Template;
 import stroom.widget.button.client.Button;
@@ -63,9 +64,9 @@ public class ShapeshifterAiLearningViewImpl
     @UiField
     TextArea instructions;
     @UiField
-    SelectionBox<DialogueShape> dialogueShape;
+    SelectionBox<PlanExample> planExample;
     @UiField
-    TextArea dialogueSteps;
+    TextArea planSteps;
     @UiField
     SelectionBox<Template> template;
     @UiField
@@ -96,7 +97,8 @@ public class ShapeshifterAiLearningViewImpl
     @Inject
     public ShapeshifterAiLearningViewImpl(final Binder binder) {
         widget = binder.createAndBindUi(this);
-        dialogueShape.addItems(DialogueShape.values());
+        planExample.setNonSelectString("Load an example…");
+        planExample.addItems(PlanExample.values());
         template.addItems(Template.values());
         template.setValue(Template.CHAIN);
         showTemplate();
@@ -160,23 +162,13 @@ public class ShapeshifterAiLearningViewImpl
     }
 
     @Override
-    public DialogueShape getDialogueShape() {
-        return dialogueShape.getValue();
+    public String getPlanSteps() {
+        return planSteps.getValue();
     }
 
     @Override
-    public void setDialogueShape(final DialogueShape dialogueShape) {
-        this.dialogueShape.setValue(dialogueShape);
-    }
-
-    @Override
-    public String getDialogueSteps() {
-        return dialogueSteps.getValue();
-    }
-
-    @Override
-    public void setDialogueSteps(final String steps) {
-        dialogueSteps.setValue(steps);
+    public void setPlanSteps(final String steps) {
+        planSteps.setValue(steps);
     }
 
     @Override
@@ -313,8 +305,8 @@ public class ShapeshifterAiLearningViewImpl
         relearnThreshold.setEnabled(enabled);
         allowedElements.setEnabled(enabled);
         instructions.setEnabled(enabled);
-        dialogueShape.setEnabled(enabled);
-        dialogueSteps.setEnabled(enabled);
+        planExample.setEnabled(enabled);
+        planSteps.setEnabled(enabled);
         template.setEnabled(enabled);
         templateText.setReadOnly(readOnly);
         resetTemplate.setEnabled(enabled && overrides.containsKey(template.getValue()));
@@ -366,13 +358,27 @@ public class ShapeshifterAiLearningViewImpl
         fireChange();
     }
 
-    @UiHandler("dialogueShape")
-    public void onDialogueShape(final ValueChangeEvent<DialogueShape> event) {
+    /**
+     * Loading an example replaces the steps with its own; the selector goes back to its prompt, since the
+     * example is a starting point and not a setting.
+     */
+    @UiHandler("planExample")
+    public void onPlanExample(final ValueChangeEvent<PlanExample> event) {
+        final PlanExample example = event.getValue();
+        if (example == null) {
+            return;
+        }
+        final List<String> lines = new ArrayList<>();
+        for (final PlanStep step : example.steps()) {
+            lines.add(step.format());
+        }
+        planSteps.setValue(String.join("\n", lines));
+        planExample.setValue(null);
         fireChange();
     }
 
-    @UiHandler("dialogueSteps")
-    public void onDialogueSteps(final ValueChangeEvent<String> event) {
+    @UiHandler("planSteps")
+    public void onPlanSteps(final ValueChangeEvent<String> event) {
         fireChange();
     }
 

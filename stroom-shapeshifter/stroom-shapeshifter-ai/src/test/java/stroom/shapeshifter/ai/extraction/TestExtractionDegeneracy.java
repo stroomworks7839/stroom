@@ -18,11 +18,18 @@ package stroom.shapeshifter.ai.extraction;
 
 import stroom.shapeshifter.ai.extraction.Compilation.Compiled;
 import stroom.shapeshifter.ai.extraction.ExtractionCorpus.Golden;
+import stroom.shapeshifter.ai.learning.StepResult;
+import stroom.shapeshifter.ai.scoring.Attempted;
+import stroom.shapeshifter.ai.scoring.InputCoverageScorer;
+import stroom.shapeshifter.ai.scoring.Score;
 import stroom.util.shared.Severity;
 
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -98,6 +105,26 @@ class TestExtractionDegeneracy {
         assertThat(good.coverage().charRatio()).isEqualTo(1.0);
         assertThat(degenerate.coverage().charRatio()).isLessThan(0.5);
         assertThat(degenerate.coverage().lineRatio()).isLessThan(0.5);
+    }
+
+    @Test
+    void theCoverageScoreIsTheCharacterShareAndTheDiagnosticNamesTheLines() {
+        // A36: the header case's golden reads the header into a variable — one line in seven, a sixteenth of
+        // the characters. The score is the sixteenth; the line is still named.
+        final Golden header = ExtractionCorpus.goldens().stream()
+                .filter(golden -> golden.stem().equals("001_csv_with_header"))
+                .findFirst()
+                .orElseThrow();
+        final Probe probe = probe(header.configuration(), header);
+        final Optional<Score> score = new InputCoverageScorer().score(null, new Attempted("DSParser", true,
+                header.input(), new StepResult(probe.result().records(), List.of(), probe.result().recordRanges())));
+
+        assertThat(probe.coverage().lineRatio()).isLessThan(0.9);
+        assertThat(probe.coverage().charRatio()).isGreaterThan(0.9);
+        assertThat(score).isPresent();
+        assertThat(score.get().value()).isEqualTo(probe.coverage().charRatio());
+        assertThat(score.get().diagnostics()).hasSize(1);
+        assertThat(score.get().diagnostics().get(0).getMessage()).contains("Lines not consumed: 1");
     }
 
     @Test
