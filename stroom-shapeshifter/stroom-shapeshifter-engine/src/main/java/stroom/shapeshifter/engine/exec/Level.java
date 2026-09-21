@@ -654,8 +654,11 @@ final class Level {
         final int contentOffset = contentOffset(depth, content, inputOffset);
         instrument.onMatch(frameId, parentFrame(depth), template.id(), template.name(), inputOffset,
                 match.advance() - match.matchStart(), contentOffset, contentLength(content), matchCount, depth);
-        if (contentOffset == Instrument.NOT_A_SLICE && instrument != Instrument.NONE) {
-            instrument.onMatchContent(frameId, contentBytes(content));
+        if (instrument != Instrument.NONE) {
+            if (contentOffset == Instrument.NOT_A_SLICE) {
+                instrument.onMatchContent(frameId, contentBytes(content));
+            }
+            reportGroups(candidate, match, matchCount, frameId, content);
         }
         // Declared before the captures bind, so a template capturing a name it declares — a
         // recursive walk keeping each level's own — binds this execution's, not the outer one's.
@@ -1101,6 +1104,44 @@ final class Level {
         }
     }
 
+
+    /** A watched match's groups, each placed in the frame's content the way a capture is. */
+    private void reportGroups(final CompiledTemplate candidate,
+                              final MatchResult match,
+                              final int matchCount,
+                              final long frameId,
+                              final TypedValue content) {
+        final TypedValue[] groups = match.groups();
+        final String[] known = candidate.match().groupNames();
+        final String[] names = new String[groups.length];
+        final int[] offsets = new int[groups.length];
+        final int[] lengths = new int[groups.length];
+        for (int i = 0; i < groups.length; i++) {
+            names[i] = i < known.length
+                    ? known[i]
+                    : null;
+            offsets[i] = placeIn(groups[i], content);
+            lengths[i] = offsets[i] == Instrument.NOT_A_SLICE
+                    ? 0
+                    : ((TypedValue.Bytes) groups[i]).readLength();
+        }
+        instrument.onGroups(frameId, candidate.template().id(), matchCount, names, offsets, lengths);
+    }
+
+    /**
+     * Where a value lies in a content, or {@link Instrument#NOT_A_SLICE}: placed when the two are
+     * ranges of one array — a slice's array is the level's, a copy's is its own — and the value
+     * lies within the content.
+     */
+    private static int placeIn(final TypedValue value, final TypedValue content) {
+        return value instanceof final TypedValue.Bytes bytes
+               && content instanceof final TypedValue.Bytes range
+               && bytes.readArray() == range.readArray()
+               && bytes.readOffset() >= range.readOffset()
+               && bytes.readOffset() + bytes.readLength() <= range.readOffset() + range.readLength()
+                ? bytes.readOffset() - range.readOffset()
+                : Instrument.NOT_A_SLICE;
+    }
 
     /**
      * The capture's declared kind, applied once at bind (design 25 §9.1, D50): the casting

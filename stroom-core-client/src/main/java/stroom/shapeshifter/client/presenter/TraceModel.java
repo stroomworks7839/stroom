@@ -21,6 +21,7 @@ import stroom.shapeshifter.shared.ShapeshifterTrace;
 import stroom.shapeshifter.shared.ShapeshifterTrace.Attempt;
 import stroom.shapeshifter.shared.ShapeshifterTrace.Capture;
 import stroom.shapeshifter.shared.ShapeshifterTrace.Frame;
+import stroom.shapeshifter.shared.ShapeshifterTrace.Group;
 import stroom.shapeshifter.shared.ShapeshifterTrace.Guard;
 import stroom.shapeshifter.shared.ShapeshifterTrace.Instruction;
 import stroom.shapeshifter.shared.ShapeshifterTrace.OutputSpan;
@@ -46,6 +47,7 @@ public final class TraceModel {
     private final Map<Long, List<Frame>> children = new HashMap<>();
     private final Map<String, List<Frame>> byTemplate = new HashMap<>();
     private final Map<Long, List<Capture>> captures = new HashMap<>();
+    private final Map<Long, List<Group>> groups = new HashMap<>();
     private final Map<Long, OutputSpan> outputs = new HashMap<>();
     private final Map<Long, List<Attempt>> attempts = new HashMap<>();
     private final Map<Long, Map<String, Boolean>> guards = new HashMap<>();
@@ -68,6 +70,9 @@ public final class TraceModel {
         }
         for (final Capture capture : list(trace.getCaptures())) {
             captures.computeIfAbsent(capture.getFrameId(), k -> new ArrayList<>()).add(capture);
+        }
+        for (final Group group : list(trace.getGroups())) {
+            groups.computeIfAbsent(group.getFrameId(), k -> new ArrayList<>()).add(group);
         }
         for (final OutputSpan span : list(trace.getOutputs())) {
             outputs.put(span.getFrameId(), span);
@@ -219,6 +224,11 @@ public final class TraceModel {
 
     public List<Capture> captures(final long frameId) {
         return captures.getOrDefault(frameId, List.of());
+    }
+
+    /** The groups of a frame's match, by number, whether or not a capture bound them. */
+    public List<Group> groups(final long frameId) {
+        return groups.getOrDefault(frameId, List.of());
     }
 
     public OutputSpan output(final long frameId) {

@@ -41,6 +41,7 @@ import com.gwtplatform.mvp.client.View;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.IntConsumer;
 
 /**
  * The regex form (design 18 §5.6): the pattern, committed live on a debounce, rendered twice —
@@ -63,6 +64,7 @@ public class RegexPresenter
     private ProjectHost host;
     private String templateId;
     private Runnable onExplode;
+    private IntConsumer onGroupSelect;
     private ShapeshifterPatternRequest inspected;
     private ShapeshifterPatternInfo info;
     private int selectedGroup;
@@ -81,6 +83,10 @@ public class RegexPresenter
 
     public void setOnExplode(final Runnable onExplode) {
         this.onExplode = onExplode;
+    }
+
+    public void setOnGroupSelect(final IntConsumer onGroupSelect) {
+        this.onGroupSelect = onGroupSelect;
     }
 
     @Override
@@ -135,6 +141,9 @@ public class RegexPresenter
         final Template template = host.template(templateId);
         if (template != null && info != null) {
             showGroups(template);
+        }
+        if (onGroupSelect != null) {
+            onGroupSelect.accept(selectedGroup);
         }
     }
 

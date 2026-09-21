@@ -22,12 +22,16 @@ final class Colours {
     private Colours() {
     }
 
-    /** The colour if it is a hex triplet/sextet or a word; {@code transparent} otherwise. */
+    /**
+     * The colour if it is a hex triplet/sextet, a word or the hue form {@code hsl(h, s%, l%)};
+     * {@code transparent} otherwise.
+     */
     static String safe(final String colour) {
         if (colour == null) {
             return "transparent";
         }
-        if (colour.matches("#[0-9a-fA-F]{3,8}") || colour.matches("[a-zA-Z]{1,24}")) {
+        if (colour.matches("#[0-9a-fA-F]{3,8}") || colour.matches("[a-zA-Z]{1,24}")
+            || colour.matches("hsl\\([0-9]{1,3}, [0-9]{1,3}%, [0-9]{1,3}%\\)")) {
             return colour;
         }
         return "transparent";

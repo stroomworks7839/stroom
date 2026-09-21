@@ -45,7 +45,7 @@ class TraceModelTest {
                 new Frame(3, 2, "field", "field", 1, 2, 6, 2, 2, 2, null),
                 new Frame(4, 1, "any", "any", 1, 2, 0, 0, ShapeshifterTrace.NOT_A_SLICE, 0, "own"));
         return new TraceModel(new ShapeshifterTrace(true, INPUT, "<a/><b/>", frames,
-                List.of(new Capture(3, "n", "22", "integer", 0, 2)),
+                List.of(new Capture(3, "n", "22", "integer", 0, 2)), List.of(),
                 List.of(new OutputSpan(1, 0, 4, "BYTES"), new OutputSpan(2, 4, 4, "BYTES")),
                 List.of(new Attempt(0, "row", true, 0, 0, 1), new Attempt(2, "field", false, 4, 0, 1)),
                 List.of(new Guard(0, "row", true), new Guard(2, "field", false)),
@@ -125,7 +125,7 @@ class TraceModelTest {
     void sliceBeyondTheParentIsClampedNotThrown() {
         final TraceModel model = new TraceModel(new ShapeshifterTrace(true, "ab", "", List.of(
                 new Frame(1, 0, "t", "t", 1, 1, 0, 2, 1, 50, null)),
-                List.of(), List.of(), List.of(), List.of(), List.of(), 0, List.of(), List.of(), 0));
+                List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), 0, List.of(), List.of(), 0));
         assertThat(model.content(1)).isEqualTo("b");
     }
 }

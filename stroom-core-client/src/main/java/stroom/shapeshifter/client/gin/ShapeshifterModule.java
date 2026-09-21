@@ -58,6 +58,8 @@ import stroom.shapeshifter.client.presenter.PatternWorkbenchPresenter;
 import stroom.shapeshifter.client.presenter.PatternWorkbenchPresenter.PatternWorkbenchView;
 import stroom.shapeshifter.client.presenter.RegexPresenter;
 import stroom.shapeshifter.client.presenter.RegexPresenter.RegexView;
+import stroom.shapeshifter.client.presenter.SamplePresenter;
+import stroom.shapeshifter.client.presenter.SamplePresenter.SampleView;
 import stroom.shapeshifter.client.presenter.ShapeshifterDesignPresenter;
 import stroom.shapeshifter.client.presenter.ShapeshifterDesignPresenter.ShapeshifterDesignView;
 import stroom.shapeshifter.client.presenter.ShapeshifterPresenter;
@@ -89,6 +91,7 @@ import stroom.shapeshifter.client.view.PatternNodeEditViewImpl;
 import stroom.shapeshifter.client.view.PatternTreeViewImpl;
 import stroom.shapeshifter.client.view.PatternWorkbenchViewImpl;
 import stroom.shapeshifter.client.view.RegexViewImpl;
+import stroom.shapeshifter.client.view.SampleViewImpl;
 import stroom.shapeshifter.client.view.ShapeshifterDesignViewImpl;
 import stroom.shapeshifter.client.view.SourceConfigViewImpl;
 import stroom.shapeshifter.client.view.TemplateEditViewImpl;
@@ -144,6 +147,9 @@ public class ShapeshifterModule extends PluginModule {
         bindPresenterWidget(RegexPresenter.class,
                 RegexView.class,
                 RegexViewImpl.class);
+        bindPresenterWidget(SamplePresenter.class,
+                SampleView.class,
+                SampleViewImpl.class);
         bindPresenterWidget(DelimiterPresenter.class,
                 DelimiterView.class,
                 DelimiterViewImpl.class);

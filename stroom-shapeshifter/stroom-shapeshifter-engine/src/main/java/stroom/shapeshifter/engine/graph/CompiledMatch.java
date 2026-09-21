@@ -32,6 +32,13 @@ import stroom.shapeshifter.regex.LeadingAnchor;
 public sealed interface CompiledMatch {
 
     /**
+     * Each group's name by group number — a regex's named group, a tree's label, a part's label —
+     * null where a group has none, entry 0 the whole match; what a watched run reports a match's
+     * groups under (design 44 §2). As long as the match has groups, plus one.
+     */
+    String[] groupNames();
+
+    /**
      * A pattern tree lowered to one plan (design 38): the regex, and per group the binary cast
      * a labelled node carried — null where a group is plain bytes. The match is the regex arm's;
      * the casts are applied to the groups it binds.
@@ -65,6 +72,11 @@ public sealed interface CompiledMatch {
         public boolean anyCast() {
             return anyCast;
         }
+
+        @Override
+        public String[] groupNames() {
+            return regex.groupNames();
+        }
     }
 
     /**
@@ -73,7 +85,7 @@ public sealed interface CompiledMatch {
      * pattern's after its own group 0 dropped, a take's or a read's as one — after the whole sequence's
      * group 0.
      */
-    record Parts(CompiledPart[] parts, int groupCount) implements CompiledMatch {
+    record Parts(CompiledPart[] parts, int groupCount, String[] groupNames) implements CompiledMatch {
 
     }
 
@@ -191,6 +203,11 @@ public sealed interface CompiledMatch {
         public ByteMatcher matcher() {
             return matcher;
         }
+
+        @Override
+        public String[] groupNames() {
+            return pattern.groupNames().toArray(new String[0]);
+        }
     }
 
     /**
@@ -201,6 +218,17 @@ public sealed interface CompiledMatch {
                      byte[] containerStart,
                      byte[] containerEnd) implements CompiledMatch {
 
+        /**
+         * The split's three groups (see {@link stroom.shapeshifter.engine.match.MatchResult}): the
+         * segment with its delimiter, the raw field, and the field with escapes and container
+         * removed - which is the frame's content, so the segment lies outside it.
+         */
+        private static final String[] GROUPS = {"segment", "raw", "field"};
+
+        @Override
+        public String[] groupNames() {
+            return GROUPS;
+        }
     }
 
     /**
@@ -208,6 +236,10 @@ public sealed interface CompiledMatch {
      */
     record All() implements CompiledMatch {
 
+        @Override
+        public String[] groupNames() {
+            return new String[1];
+        }
     }
 
     /**
@@ -215,6 +247,10 @@ public sealed interface CompiledMatch {
      */
     record Source() implements CompiledMatch {
 
+        @Override
+        public String[] groupNames() {
+            return new String[1];
+        }
     }
 
     /**
@@ -222,5 +258,9 @@ public sealed interface CompiledMatch {
      */
     record Named() implements CompiledMatch {
 
+        @Override
+        public String[] groupNames() {
+            return new String[1];
+        }
     }
 }

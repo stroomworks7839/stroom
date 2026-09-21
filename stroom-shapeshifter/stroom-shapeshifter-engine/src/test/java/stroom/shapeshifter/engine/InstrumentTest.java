@@ -53,6 +53,10 @@ class InstrumentTest {
 
     }
 
+    private record Group(long frame, int index, String name, int contentOffset, int contentLength) {
+
+    }
+
     private record Verdict(long parent, String templateId, boolean allowed) {
 
     }
@@ -84,6 +88,7 @@ class InstrumentTest {
         private final List<Frame> frames = new ArrayList<>();
         private final List<Long> captureFrames = new ArrayList<>();
         private final List<Placed> placed = new ArrayList<>();
+        private final List<Group> groups = new ArrayList<>();
         private final List<Verdict> verdicts = new ArrayList<>();
         private final List<Wrote> wrote = new ArrayList<>();
         private final List<SaidIn> said = new ArrayList<>();
@@ -108,6 +113,14 @@ class InstrumentTest {
             captures.add(new Capture(name, value.asString(), matchIndex));
             captureFrames.add(frameId);
             placed.add(new Placed(frameId, name, contentOffset, contentLength));
+        }
+
+        @Override
+        public void onGroups(final long frameId, final String templateId, final int matchIndex,
+                             final String[] names, final int[] contentOffsets, final int[] contentLengths) {
+            for (int i = 0; i < names.length; i++) {
+                groups.add(new Group(frameId, i, names[i], contentOffsets[i], contentLengths[i]));
+            }
         }
 
         @Override
@@ -492,6 +505,76 @@ class InstrumentTest {
                 new Placed(1, "v", 4, 5),
                 new Placed(2, "w", 0, 2),
                 new Placed(3, "w", 0, 2));
+    }
+
+    @Test
+    void everyGroupOfAMatchIsReportedBoundOrNot() {
+        // The same run: the row's regex has two named groups and the word's none, and each match
+        // reports all of its groups - group 0 the whole content - whether or not a capture binds
+        // them, placed the way captures are (design 44 §2).
+        final Recorder recorder = new Recorder();
+        Shapeshifter.runWhole(Shapeshifter.compile(ProjectReader.read(PLACED)),
+                "abc=de fg\n".getBytes(StandardCharsets.UTF_8),
+                new XmlByteSink(new ByteArrayOutputStream()), recorder);
+        assertThat(recorder.groups).containsExactly(
+                new Group(1, 0, null, 0, 10),
+                new Group(1, 1, "k", 0, 3),
+                new Group(1, 2, "v", 4, 5),
+                new Group(2, 0, null, 0, 2),
+                new Group(3, 0, null, 0, 2));
+    }
+
+    @Test
+    void delimiterGroupsAreTheSegmentAndTheFieldTwice() {
+        // The split's three groups: the segment with its delimiter - outside the field that is
+        // the frame's content, so not placed - then the raw field and the field cleaned, both the
+        // whole content here.
+        final Recorder recorder = new Recorder();
+        Shapeshifter.runWhole(Shapeshifter.compile(ProjectReader.read(CONFIG)),
+                "alpha\nbeta\n".getBytes(StandardCharsets.UTF_8),
+                new XmlByteSink(new ByteArrayOutputStream()), recorder);
+        assertThat(recorder.groups).containsExactly(
+                new Group(1, 0, "segment", Instrument.NOT_A_SLICE, 0),
+                new Group(1, 1, "raw", 0, 5),
+                new Group(1, 2, "field", 0, 5),
+                new Group(2, 0, "segment", Instrument.NOT_A_SLICE, 0),
+                new Group(2, 1, "raw", 0, 4),
+                new Group(2, 2, "field", 0, 4));
+    }
+
+    @Test
+    void treeLabelsAndPartLabelsNameTheirGroups() {
+        // A pattern tree numbers its labels as parentheses; a match sequence numbers each part's
+        // after the parts before it. Either way the names ride with the groups.
+        final Recorder recorder = new Recorder();
+        Shapeshifter.runWhole(Shapeshifter.compile(ProjectReader.read("""
+                        {
+                          "name": "named", "version": 3,
+                          "source": {"buffer_size": 2000, "ignore_errors": true, "encoding": "utf-8"},
+                          "templates": [
+                            {"id": "00000000-0000-0000-0000-000000000001", "name": "tree",
+                             "match": {"pattern": {"sequence": [
+                               {"take_while": "[a-z]", "label": "key"}, {"tag": "="},
+                               {"take_while": "[0-9]", "label": "num"}, {"tag": ";"}]}},
+                             "body": []},
+                            {"id": "00000000-0000-0000-0000-000000000002", "name": "parts",
+                             "match": {"parts": [
+                               {"pattern": {"tag": "#"}},
+                               {"take": {"length": 2, "label": "code"}},
+                               {"pattern": {"regex": "(?<rest>[a-z]*)!"}}]},
+                             "body": []}
+                          ]
+                        }
+                        """)),
+                "ab=12;#xyq!".getBytes(StandardCharsets.UTF_8),
+                new XmlByteSink(new ByteArrayOutputStream()), recorder);
+        assertThat(recorder.groups).containsExactly(
+                new Group(1, 0, null, 0, 6),
+                new Group(1, 1, "key", 0, 2),
+                new Group(1, 2, "num", 3, 2),
+                new Group(2, 0, null, 0, 5),
+                new Group(2, 1, "code", 1, 2),
+                new Group(2, 2, "rest", 3, 1));
     }
 
     @Test

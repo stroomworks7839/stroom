@@ -50,6 +50,8 @@ public class ShapeshifterTrace {
     @JsonProperty
     private final List<Capture> captures;
     @JsonProperty
+    private final List<Group> groups;
+    @JsonProperty
     private final List<OutputSpan> outputs;
     @JsonProperty
     private final List<Attempt> attempts;
@@ -72,6 +74,7 @@ public class ShapeshifterTrace {
                              @JsonProperty("output") final String output,
                              @JsonProperty("frames") final List<Frame> frames,
                              @JsonProperty("captures") final List<Capture> captures,
+                             @JsonProperty("groups") final List<Group> groups,
                              @JsonProperty("outputs") final List<OutputSpan> outputs,
                              @JsonProperty("attempts") final List<Attempt> attempts,
                              @JsonProperty("guards") final List<Guard> guards,
@@ -85,6 +88,7 @@ public class ShapeshifterTrace {
         this.output = output;
         this.frames = frames;
         this.captures = captures;
+        this.groups = groups;
         this.outputs = outputs;
         this.attempts = attempts;
         this.guards = guards;
@@ -114,6 +118,10 @@ public class ShapeshifterTrace {
 
     public List<Capture> getCaptures() {
         return captures;
+    }
+
+    public List<Group> getGroups() {
+        return groups;
     }
 
     public List<OutputSpan> getOutputs() {
@@ -307,6 +315,59 @@ public class ShapeshifterTrace {
 
         public String getType() {
             return type;
+        }
+    }
+
+    /**
+     * One group of a frame's match, bound to a capture or not: its number, its name where the
+     * match names it, and where it lies in the frame's content in characters, or
+     * {@link #NOT_A_SLICE} for a group that did not take part or that the content does not hold.
+     */
+    @JsonInclude(Include.NON_NULL)
+    public static class Group {
+
+        @JsonProperty
+        private final long frameId;
+        @JsonProperty
+        private final int index;
+        @JsonProperty
+        private final String name;
+        @JsonProperty
+        private final int contentOffset;
+        @JsonProperty
+        private final int contentLength;
+
+        @JsonCreator
+        public Group(@JsonProperty("frameId") final long frameId,
+                     @JsonProperty("index") final int index,
+                     @JsonProperty("name") final String name,
+                     @JsonProperty("contentOffset") final int contentOffset,
+                     @JsonProperty("contentLength") final int contentLength) {
+            this.frameId = frameId;
+            this.index = index;
+            this.name = name;
+            this.contentOffset = contentOffset;
+            this.contentLength = contentLength;
+        }
+
+        public long getFrameId() {
+            return frameId;
+        }
+
+        public int getIndex() {
+            return index;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public int getContentOffset() {
+            return contentOffset;
+        }
+
+        public int getContentLength() {
+            return contentLength;
         }
     }
 

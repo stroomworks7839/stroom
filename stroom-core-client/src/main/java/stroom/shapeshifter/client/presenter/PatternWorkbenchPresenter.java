@@ -28,14 +28,16 @@ import com.gwtplatform.mvp.client.MyPresenterWidget;
 import com.gwtplatform.mvp.client.View;
 
 /**
- * The pattern workbench (design 18 §5.6): an in-place mode of the Design tab, not a dialog and
- * not full-screen. Its subject is a template's match; the match editor — the kind and its form — is
- * its body, and guard and limits sit beneath, mechanism-independent, belonging to the workbench itself.
- * There is no Apply or Cancel — every field commits as it changes, as everywhere else — so
- * closing, or retargeting to another template, never has anything to lose.
+ * The pattern workbench (design 18 §5.6, design 44): an in-place mode of the Design tab, not a
+ * dialog and not full-screen. Its subject is a template's match; the sample to try it against
+ * is on the left, the match editor — the kind and its form — on the right, and guard and limits
+ * sit beneath, mechanism-independent, belonging to the workbench itself. There is no Apply or
+ * Cancel — every field commits as it changes, as everywhere else — so closing, or retargeting to
+ * another template, never has anything to lose.
  */
 public class PatternWorkbenchPresenter extends MyPresenterWidget<PatternWorkbenchView> {
 
+    private final SamplePresenter sample;
     private final MatchEditorPresenter matchEditor;
     private final GuardAndLimitsPresenter guardAndLimits;
     private final ButtonView closeButton;
@@ -46,11 +48,16 @@ public class PatternWorkbenchPresenter extends MyPresenterWidget<PatternWorkbenc
     @Inject
     public PatternWorkbenchPresenter(final EventBus eventBus,
                                      final PatternWorkbenchView view,
+                                     final SamplePresenter sample,
                                      final MatchEditorPresenter matchEditor,
                                      final GuardAndLimitsPresenter guardAndLimits) {
         super(eventBus, view);
+        this.sample = sample;
         this.matchEditor = matchEditor;
         this.guardAndLimits = guardAndLimits;
+        matchEditor.setOnGroupSelect(sample::isolate);
+        matchEditor.setOnLabelSelect(sample::isolate);
+        view.setSample(sample.getView());
         view.setEditor(matchEditor.getView());
         view.setGuardAndLimits(guardAndLimits.getView());
         closeButton = view.addButton(SvgPresets.CLOSE.title("Close the workbench"));
@@ -68,6 +75,7 @@ public class PatternWorkbenchPresenter extends MyPresenterWidget<PatternWorkbenc
 
     public void setHost(final ProjectHost host) {
         this.host = host;
+        sample.setHost(host);
         matchEditor.setHost(host);
         guardAndLimits.setHost(host);
     }
@@ -83,6 +91,7 @@ public class PatternWorkbenchPresenter extends MyPresenterWidget<PatternWorkbenc
                 : template.name());
         matchEditor.setTemplate(id);
         guardAndLimits.setTemplate(id);
+        sample.setTemplate(id);
     }
 
     public interface PatternWorkbenchView extends View {
@@ -90,6 +99,8 @@ public class PatternWorkbenchPresenter extends MyPresenterWidget<PatternWorkbenc
         ButtonView addButton(stroom.svg.client.Preset preset);
 
         void setSubject(String name);
+
+        void setSample(View view);
 
         void setEditor(View view);
 

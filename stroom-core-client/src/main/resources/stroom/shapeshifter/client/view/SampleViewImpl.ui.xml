@@ -1,0 +1,22 @@
+<!DOCTYPE ui:UiBinder SYSTEM "http://dl.google.com/gwt/DTD/xhtml.ent">
+<ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
+             xmlns:g="urn:import:com.google.gwt.user.client.ui">
+    <g:ThinSplitLayoutPanel styleName="max default-min-sizes ss-smp">
+        <g:north size="160">
+            <g:FlowPanel styleName="max ss-smp-in">
+                <g:HTML styleName="ss-wb-h4">Sample <span class="ss-wb-h4-note">(the cursor's frame to start with; edit freely — this never runs the document)</span></g:HTML>
+                <g:TextArea ui:field="sample" styleName="ss-smp-text mono"/>
+            </g:FlowPanel>
+        </g:north>
+        <g:center>
+            <g:ScrollPanel styleName="max">
+                <g:FlowPanel styleName="ss-smp-out">
+                    <g:Label ui:field="summary" styleName="ss-wb-h4"/>
+                    <g:HTML ui:field="matches" styleName="ss-content-box ss-smp-matches mono"/>
+                    <g:HTML ui:field="table"/>
+                    <g:Label ui:field="nothing" styleName="ss-none"/>
+                </g:FlowPanel>
+            </g:ScrollPanel>
+        </g:center>
+    </g:ThinSplitLayoutPanel>
+</ui:UiBinder>

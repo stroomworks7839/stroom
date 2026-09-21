@@ -133,6 +133,32 @@ public interface Instrument {
     }
 
     /**
+     * The groups a match bound, in the frame it opened — every one the match has, bound to a
+     * capture or not, so an editor can show what a pattern's groups took without the author
+     * first declaring them (design 44 §2). Follows the frame's {@link #onMatch}; only a watched
+     * run pays for it.
+     *
+     * @param frameId        the frame the match opened
+     * @param templateId     which template
+     * @param matchIndex     which match this is for that template
+     * @param names          each group's name by number — a regex's named group, a tree's label,
+     *                       a part's label — or null; entry 0 is the whole match, which for a
+     *                       delimiter is the segment with its delimiter, outside the field that
+     *                       is the frame's content
+     * @param contentOffsets where each group lies in the frame's content, or
+     *                       {@link #NOT_A_SLICE} for a group that did not participate or that
+     *                       the content does not hold (a lookahead's, say)
+     * @param contentLengths each group's length, where placed
+     */
+    default void onGroups(final long frameId,
+                          final String templateId,
+                          final int matchIndex,
+                          final String[] names,
+                          final int[] contentOffsets,
+                          final int[] contentLengths) {
+    }
+
+    /**
      * A guard's verdict, as a level begins in a frame: every guarded template of the level is
      * reported once, held or refused, before any attempt is made (design 27 ruling 11 - guards
      * read once on the way in, so a template refused here is refused for the whole level).

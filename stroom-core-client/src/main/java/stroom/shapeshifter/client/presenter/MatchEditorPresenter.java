@@ -37,6 +37,7 @@ import com.gwtplatform.mvp.client.View;
 
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.function.IntConsumer;
 
 /**
  * The match editor (design 44 §1): the match's <b>kind</b> as one choice, and beneath it the
@@ -79,6 +80,16 @@ public class MatchEditorPresenter
         this.delimiterForm = delimiterForm;
         view.setUiHandlers(this);
         regexForm.setOnExplode(() -> convert(MatchKind.TREE));
+    }
+
+    /** Told the group the regex map isolates, 0 for none. */
+    public void setOnGroupSelect(final IntConsumer onGroupSelect) {
+        regexForm.setOnGroupSelect(onGroupSelect);
+    }
+
+    /** Told the label of the tree node selected, null for an unlabelled one or none. */
+    public void setOnLabelSelect(final Consumer<String> onLabelSelect) {
+        treeForm.setOnLabelSelect(onLabelSelect);
     }
 
     public void setHost(final ProjectHost host) {

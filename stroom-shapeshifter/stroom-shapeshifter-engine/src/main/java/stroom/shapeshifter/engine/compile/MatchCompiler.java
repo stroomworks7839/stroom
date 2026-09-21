@@ -241,7 +241,11 @@ final class MatchCompiler {
             }
         }
         names.labels(labels);
-        return new CompiledMatch.Parts(compiled.toArray(new CompiledMatch.CompiledPart[0]), groups);
+        final String[] groupNames = new String[groups + 1];
+        for (final Map.Entry<String, Integer> label : labels.entrySet()) {
+            groupNames[label.getValue()] = label.getKey();
+        }
+        return new CompiledMatch.Parts(compiled.toArray(new CompiledMatch.CompiledPart[0]), groups, groupNames);
     }
 
     /** The node as a tag with nothing else — bare, or labelled with no cast — else null. */

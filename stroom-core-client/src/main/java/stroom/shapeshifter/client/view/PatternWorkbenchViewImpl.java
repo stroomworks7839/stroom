@@ -39,6 +39,8 @@ public class PatternWorkbenchViewImpl extends ViewImpl implements PatternWorkben
     @UiField
     ButtonPanel buttons;
     @UiField
+    SimplePanel sample;
+    @UiField
     SimplePanel editor;
     @UiField
     SimplePanel guardAndLimits;
@@ -61,6 +63,11 @@ public class PatternWorkbenchViewImpl extends ViewImpl implements PatternWorkben
     @Override
     public void setSubject(final String name) {
         subject.setText(name);
+    }
+
+    @Override
+    public void setSample(final View view) {
+        sample.setWidget(view.asWidget());
     }
 
     @Override

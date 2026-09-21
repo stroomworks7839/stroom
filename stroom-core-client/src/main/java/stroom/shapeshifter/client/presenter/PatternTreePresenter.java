@@ -47,6 +47,7 @@ import edu.ycp.cs.dh.acegwt.client.ace.AceEditorMode;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * The pattern tree form (design 18 §10, design 43 §4): a nested node editor over the design 38
@@ -81,6 +82,7 @@ public class PatternTreePresenter
     private String templateId;
     private PatternNode root;
     private int[] selected = new int[0];
+    private Consumer<String> onLabelSelect;
     private ShapeshifterLibrary library;
     private boolean libraryRequested;
     private String committed;
@@ -162,6 +164,11 @@ public class PatternTreePresenter
         this.host = host;
     }
 
+    /** Told the label of the node selected, or null: the sample isolates it (design 44 §2). */
+    public void setOnLabelSelect(final Consumer<String> onLabelSelect) {
+        this.onLabelSelect = onLabelSelect;
+    }
+
     @Override
     public void setTemplate(final String id) {
         if (!id.equals(templateId)) {
@@ -196,10 +203,16 @@ public class PatternTreePresenter
     @Override
     public void onSelect(final String path) {
         selected = PatternNodes.path(path);
-        if (PatternNodes.get(root, selected) == null) {
+        final PatternNode node = PatternNodes.get(root, selected);
+        if (node == null) {
             selected = new int[0];
         }
         render();
+        if (onLabelSelect != null) {
+            onLabelSelect.accept(node instanceof PatternNode.Labelled labelled
+                    ? labelled.label()
+                    : null);
+        }
     }
 
     @Override

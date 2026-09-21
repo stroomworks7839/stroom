@@ -449,6 +449,85 @@
 }
 
 /* The workbench's right column: sections with quiet uppercase headings (mockup #wbRight). */
+/* The workbench's sample (design 44 §2): the text above, its matches and their groups below. */
+.ss-smp-in {
+    display: flex;
+    flex-direction: column;
+    padding: 8px 14px 6px;
+    box-sizing: border-box;
+}
+
+.ss-smp-text {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    resize: none;
+    font-size: 13px;
+    padding: 4px 8px;
+    border: 1px solid var(--control__border-color);
+    border-radius: 5px;
+    background-color: var(--control__background-color);
+    color: var(--text-color);
+    box-sizing: border-box;
+}
+
+.ss-smp-out {
+    padding: 8px 14px;
+}
+
+.ss-smp-matches {
+    padding: 6px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+}
+
+.ss-smp-table {
+    margin-top: 8px;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+
+.ss-smp-table td {
+    padding: 3px 8px 3px 0;
+    vertical-align: top;
+}
+
+.ss-smp-n {
+    color: var(--ss-muted);
+}
+
+.ss-smp-at {
+    color: var(--ss-muted);
+    font-family: var(--monospace-font-family);
+    white-space: nowrap;
+}
+
+.ss-smp-g {
+    display: inline-block;
+    margin: 0 10px 2px 0;
+    color: var(--hue);
+}
+
+.ss-smp-g--on {
+    outline: 1px solid var(--hue);
+    outline-offset: 2px;
+    border-radius: 2px;
+}
+
+.ss-smp-gname {
+    font-size: 11px;
+    margin-right: 4px;
+}
+
+.ss-smp-gval {
+    color: var(--text-color);
+    white-space: pre-wrap;
+}
+
+.ss-smp-gnone {
+    color: var(--ss-muted);
+}
+
 /* The match editor's kind row: one choice above the kind's form. */
 .ss-wb-kind {
     display: flex;

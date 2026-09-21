@@ -15,7 +15,14 @@
             <g:SimplePanel ui:field="guardAndLimits" styleName="max"/>
         </g:south>
         <g:center>
-            <g:SimplePanel ui:field="editor" styleName="max"/>
+            <g:ThinSplitLayoutPanel styleName="max default-min-sizes">
+                <g:west size="420">
+                    <g:SimplePanel ui:field="sample" styleName="max"/>
+                </g:west>
+                <g:center>
+                    <g:SimplePanel ui:field="editor" styleName="max"/>
+                </g:center>
+            </g:ThinSplitLayoutPanel>
         </g:center>
     </g:ThinSplitLayoutPanel>
 </ui:UiBinder>

@@ -161,7 +161,7 @@ class ShapeshifterResourceImpl implements ShapeshifterResource {
         } catch (final ConfigException e) {
             messages.add(message(Severity.FATAL, e.getMessage()));
             return new ShapeshifterTrace(false, sample, null, List.of(), List.of(), List.of(), List.of(), List.of(),
-                    List.of(), 0, List.of(), messages, 0);
+                    List.of(), List.of(), 0, List.of(), messages, 0);
         }
         final TraceRecorder recorder = new TraceRecorder();
         final ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -177,7 +177,7 @@ class ShapeshifterResourceImpl implements ShapeshifterResource {
         // The client holds strings: every offset crosses the wire in characters (TraceChars).
         final TraceChars chars = new TraceChars(recorder, input, out.toByteArray());
         return new ShapeshifterTrace(true, sample, out.toString(StandardCharsets.UTF_8), chars.frames(),
-                chars.captures(), chars.outputs(), chars.attempts(), chars.guards(), chars.instructions(),
+                chars.captures(), chars.groups(), chars.outputs(), chars.attempts(), chars.guards(), chars.instructions(),
                 recorder.attemptsSeen(),
                 timings(recorder), messages, runNanos);
     }

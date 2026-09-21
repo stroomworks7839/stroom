@@ -183,6 +183,14 @@ class ShapeshifterResourceEndpointsTest {
         assertThat(who.getContentOffset()).isEqualTo(0);
         assertThat(who.getContentLength()).isEqualTo(2);
         assertThat(trace.getCaptures().get(0).getContentLength()).isEqualTo(1);
+        // And every group of every match, bound or not, placed the same way: the first row's
+        // group 0 is its two characters, its named group 1 the one "é".
+        assertThat(trace.getGroups()).extracting(ShapeshifterTrace.Group::getFrameId).containsExactly(1L, 1L, 2L, 2L);
+        assertThat(trace.getGroups()).extracting(ShapeshifterTrace.Group::getName)
+                .containsExactly(null, "who", null, "who");
+        assertThat(trace.getGroups().get(0).getContentLength()).isEqualTo(2);
+        assertThat(trace.getGroups().get(1).getContentOffset()).isEqualTo(0);
+        assertThat(trace.getGroups().get(1).getContentLength()).isEqualTo(1);
         for (final ShapeshifterTrace.OutputSpan span : trace.getOutputs()) {
             assertThat(trace.getOutput().substring((int) span.getOffset(), (int) (span.getOffset() + span.getLength())))
                     .isNotEmpty();

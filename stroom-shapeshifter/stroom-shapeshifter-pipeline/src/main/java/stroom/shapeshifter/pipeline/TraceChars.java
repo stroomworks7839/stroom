@@ -153,6 +153,23 @@ final class TraceChars {
         return out;
     }
 
+    List<ShapeshifterTrace.Group> groups() {
+        final List<ShapeshifterTrace.Group> out = new ArrayList<>(recorder.groups().size());
+        for (final TraceRecorder.Group g : recorder.groups()) {
+            final boolean placed = g.contentOffset() != Instrument.NOT_A_SLICE;
+            final int[] chars = placed
+                    ? charsOf(g.frameId())
+                    : null;
+            final int from = placed
+                    ? at(chars, g.contentOffset())
+                    : ShapeshifterTrace.NOT_A_SLICE;
+            out.add(new ShapeshifterTrace.Group(g.frameId(), g.index(), g.name(), from, placed
+                    ? at(chars, g.contentOffset() + g.contentLength()) - from
+                    : 0));
+        }
+        return out;
+    }
+
     List<ShapeshifterTrace.OutputSpan> outputs() {
         final List<ShapeshifterTrace.OutputSpan> out = new ArrayList<>(recorder.outputs().size());
         for (final TraceRecorder.OutputSpan o : recorder.outputs()) {

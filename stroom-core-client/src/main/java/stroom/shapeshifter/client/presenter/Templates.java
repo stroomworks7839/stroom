@@ -25,6 +25,7 @@ import stroom.shapeshifter.config.MatchExpression.Length;
 import stroom.shapeshifter.config.MatchExpression.MatchPart;
 import stroom.shapeshifter.config.OutputNode;
 import stroom.shapeshifter.config.PatternNode;
+import stroom.shapeshifter.config.Project;
 import stroom.shapeshifter.config.Template;
 import stroom.shapeshifter.config.Template.MatchLimits;
 import stroom.shapeshifter.config.Template.ParamDecl;
@@ -94,6 +95,18 @@ public final class Templates {
     public static Template create(final String name, final String mode, final boolean consume) {
         return new Template(ProjectText.newId(), name, mode, consume, null, null, null,
                 new MatchExpression.Regex("", null, 0), null, null, null, null, false);
+    }
+
+    /**
+     * The project of one template a workbench sample is tried with (design 44 §2): the subject's
+     * match, encoding and consumption under the document's source settings, at the root with no
+     * guard, limits, declarations, captures or body — so every match is found and nothing else
+     * runs.
+     */
+    public static Project experiment(final Project project, final Template template) {
+        final Template bare = new Template(template.id(), template.name(), null, template.consume(), null, null,
+                null, template.match(), null, null, null, template.encoding(), template.ignoreErrors());
+        return new Project(project.name(), project.version(), project.source(), List.of(bare));
     }
 
     public static String kind(final MatchExpression match) {

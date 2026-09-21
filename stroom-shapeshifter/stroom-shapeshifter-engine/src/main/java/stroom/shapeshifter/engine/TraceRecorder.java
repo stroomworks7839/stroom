@@ -41,6 +41,7 @@ public final class TraceRecorder implements Instrument {
 
     private final List<Frame> frames = new ArrayList<>();
     private final List<Capture> captures = new ArrayList<>();
+    private final List<Group> groups = new ArrayList<>();
     private final List<OutputSpan> outputs = new ArrayList<>();
     private final List<Attempt> attempts = new ArrayList<>();
     private final List<Guard> guards = new ArrayList<>();
@@ -67,6 +68,11 @@ public final class TraceRecorder implements Instrument {
     /** A capture bound in a frame, with its value's doc-17 type as the variable pane badges it. */
     public record Capture(long frameId, String name, String value, String type, int matchIndex,
                           int contentOffset, int contentLength) {
+
+    }
+
+    /** One group of a match, placed in its frame's content, named where the match names it. */
+    public record Group(long frameId, int index, String name, int contentOffset, int contentLength) {
 
     }
 
@@ -131,6 +137,14 @@ public final class TraceRecorder implements Instrument {
                           final int contentLength) {
         captures.add(new Capture(frameId, name, value.asString(), typeOf(value), matchIndex, contentOffset,
                 contentLength));
+    }
+
+    @Override
+    public void onGroups(final long frameId, final String templateId, final int matchIndex, final String[] names,
+                         final int[] contentOffsets, final int[] contentLengths) {
+        for (int i = 0; i < names.length; i++) {
+            groups.add(new Group(frameId, i, names[i], contentOffsets[i], contentLengths[i]));
+        }
     }
 
     @Override
@@ -209,6 +223,10 @@ public final class TraceRecorder implements Instrument {
 
     public List<Capture> captures() {
         return Collections.unmodifiableList(captures);
+    }
+
+    public List<Group> groups() {
+        return Collections.unmodifiableList(groups);
     }
 
     public List<OutputSpan> outputs() {

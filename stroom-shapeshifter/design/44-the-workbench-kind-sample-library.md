@@ -51,29 +51,49 @@ place — so a draft that Cancel could discard would be a trap the moment the au
 away. Every field commits live, as everywhere else in the editor; regret is answered by
 global undo (design 18 Q10, ruled *yes, in B*, still unbuilt), not by a per-surface Cancel.
 
-## 2. The sample and the live matches
+## 2. The sample and the live matches — built 2026-09-21
 
 The half of design 18 §5.6 the workbench never got: regex101's left column. Design 43 §4.1
 listed it — "workbench: sample and live matches — renderer, needs a `match` endpoint (B)" —
-and phase B built the trace and the navigator instead, so today the only match feedback is
-indirect, through the content pane after a rerun of the whole project.
+and phase B built the trace and the navigator instead, so until today the only match feedback
+was indirect, through the content pane after a rerun of the whole project.
 
-**Engine and endpoint.** `POST /shapeshifter/v1/match` — `ShapeshifterMatchRequest(match
-text, sample, encoding)` → `ShapeshifterMatches`: every match's offset and length in the
-sample, each group's or label's offset, length and value, the compile error if there is one.
-Compiled exactly as a template's match is (`PatternCompiler` to a `BytePattern`), run over
-the sample's bytes, offsets converted to characters as `TraceChars` already does for the
-trace. Regex, tree and parts kinds; a part's take or read is a span too. Per-node spans for
-unlabelled tree nodes — click a node, see what it consumed — by compiling with a synthetic
-label per node path when the request asks for it; that is 2b, wanted only if 2a proves not
-enough.
+**No `match` endpoint: the trace already knows.** The draft of this section planned an
+endpoint that compiled a match and ran it over a sample, returning spans. Built instead: the
+run reports what it already has. `Instrument.onGroups` follows a frame's `onMatch` with every
+group of the match — bound to a capture or not — by number, name where the match names it (a
+regex's named group, a tree's label, a part's label; `CompiledMatch.groupNames()` says which),
+and its place in the frame's content, placed exactly as a capture is (a group the content does
+not hold, a lookahead's say, is `NOT_A_SLICE`). `TraceRecorder` keeps them, `TraceChars`
+converts them to characters, `ShapeshifterTrace.groups` carries them and `TraceModel.groups`
+reads them. One match loop, one conversion, one wire, and the navigator can show unbound
+groups too whenever a pane wants them. Only a watched run pays.
 
-**Client.** `SamplePresenter` on the workbench's left: an editable sample seeded from the
-cursor frame's content, falling back to the document's sample, and **its own text** — an
-experiment here never reruns the project. Beneath it the matches: outer spans outlined, group
-spans in their capture hues; clicking a group in the pattern map, or a node in the tree,
-isolates its spans; a table of matches (offset, groups) in the details band. Refreshed on the
-same debounce as `patternInfo`. Guard and limits stay under the form on the right.
+**The sample is an experiment on the document's own run path.** `SamplePresenter` sends
+`preview` a project of one template — the subject's match, encoding and consumption under the
+document's source settings, at the root, with no guard, limits, declarations, captures or body
+(`Templates.experiment`) — so every match is found and nothing else runs; the trace that comes
+back is read for that template's frames, their groups and the places it was tried. Regex, tree,
+parts and delimiter kinds; source, all and named have no pattern to try and the pane says so.
+The text is seeded from the cursor's frame, else the document's sample, when the workbench
+opens or retargets to another template; what the author has typed stays theirs across a
+retarget. Every keystroke reruns on a 400 ms debounce, one request in flight, the same text
+and match never sent twice.
+
+**What it shows.** The sample painted with `Marks`, as the content pane paints: each match an
+outlined span in the template's colour, each group inside it a span in its capture hue
+(`RegexPresenter.hue`, by group number, so the pattern map and the sample agree), a gap mark
+where the template was tried and did not match; a summary line — *3 matches · tried at 5
+places*; and a table, one row a match with its offset and length and every group's name and
+value, a dash for a group that took no part. **Isolation**: a group clicked in the regex map,
+or a labelled node selected in the tree, leaves only that group's spans painted.
+
+**Layout.** The workbench's centre is a west/centre split: the sample at 420 px on the left,
+the match editor on the right; guard and limits beneath both as before.
+
+**Not built: per-node spans for unlabelled tree nodes** (Q4). A labelled node is a group and
+gets a span for free; an unlabelled one would need the compiler to label it synthetically.
+Wanted only if labels prove not enough.
 
 ## 3. A library of parts, in the project
 
@@ -109,8 +129,7 @@ exercises it and `CombinatorTest`'s identical-plan pin extends to a `ref` into t
 
 ## 4. Order
 
-§1, then §2, then §3; nothing in §3 depends on §2, so they swap if the library is wanted
-sooner. Each phase gated as design 43's were — core-client compile and checkstyle, the
+§1 (built), then §2 (built), then §3. Each phase gated as design 43's were — core-client compile and checkstyle, the
 presenter tests, the engine and pipeline suites where touched, the GWT draft compile — and
 left in the working tree for review.
 
@@ -119,6 +138,7 @@ left in the working tree for review.
 | # | Question | Recommendation |
 |---|---|---|
 | Q1 | Tabs or a kind picker for the match editor? | **Ruled and built 2026-09-21: the picker** (§1). |
-| Q2 | Does the workbench's sample rerun the project? | **No** (§2): it is the author's experiment, seeded from the cursor's frame; the document's sample and the trace are the run. |
+| Q2 | Does the workbench's sample rerun the project? | **No, ruled and built 2026-09-21** (§2): it is the author's experiment, seeded from the cursor's frame; the document's sample and the trace are the run. |
 | Q3 | May a project pattern shadow a standard-library name? | **No** (§3): refused at read. |
 | Q4 | Per-node spans in the sample (2b)? | **Only if 2a is not enough**: labelled nodes are groups and get spans for free; the rest cost a second compile. |
+| Q5 | A `match` endpoint, or the trace? | **The trace, built 2026-09-21** (§2): the run reports its groups; the sample is a one-template `preview`. |
