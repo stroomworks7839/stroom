@@ -1831,6 +1831,9 @@ including the degeneracy trap (§8.3) that changes the scoring model and propose
 - Audit of slice 16: five findings, four fixed — design 02 §6.1; a JSON document is told by parsing its
   one value, not by its first bracket; `root` reaches a top-level array's items; a markup record's kind
   counts repeated siblings once and a `Name` only where the element repeats.
+- Slice 17, fixed-width (design 02 scenario 47, §6.1; design 03 §5): a positional regex that consumes
+  every character passes coverage and drops two columns; the transform's shortfall on a business rule
+  escalates to a target, and preservation catches the parser. No module code changed.
 - Design 03 written: the phases, at the owner's asking for one plan covering everything discussed and
   the formats never yet exercised — syslog, auditd, Windows security events, JSON, fixed-width,
   multi-line CSV. Slice 12 is phase A; phase B is a slice per format.

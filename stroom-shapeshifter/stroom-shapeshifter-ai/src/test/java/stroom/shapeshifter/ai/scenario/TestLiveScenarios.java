@@ -57,6 +57,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -96,6 +97,7 @@ class TestLiveScenarios {
     private static final String WINDOWS = Scenarios.resource("windows-security.xml");
     private static final String JSON_LINES = Scenarios.resource("records.jsonl");
     private static final String JSON_DOCUMENT = Scenarios.resource("records.json");
+    private static final String FIXED_WIDTH = Scenarios.resource("fixed-width.log");
     private static final String INSTRUCTIONS = """
             The feed is door-access records from a building's badge readers: who went where and what \
             they did, when. Events should name the person as the user and the reader's location as \
@@ -148,6 +150,20 @@ class TestLiveScenarios {
                 .map(setting -> setting.getType() == ScorerType.YIELD
                         ? new ScorerSetting(ScorerType.YIELD, setting.getWeight(), threshold, false,
                                 new YieldParameters(expected, basis))
+                        : setting)
+                .toList();
+    }
+
+    /**
+     * The scorers with one more business rule beside the standing one.
+     */
+    private static List<ScorerSetting> withRule(final List<ScorerSetting> scorers, final XPathAssertion rule) {
+        return scorers.stream()
+                .map(setting -> setting.getType() == ScorerType.BUSINESS_RULES
+                        ? new ScorerSetting(ScorerType.BUSINESS_RULES, setting.getWeight(), setting.getThreshold(),
+                                setting.isGate(), new BusinessRulesParameters(Stream.concat(
+                                        ((BusinessRulesParameters) setting.getParameters()).getAssertions().stream(),
+                                        Stream.of(rule)).toList(), true))
                         : setting)
                 .toList();
     }
@@ -296,6 +312,24 @@ class TestLiveScenarios {
                     .build();
             return List.of(scenarios.stage(advisor).run(doc,
                     new Input(1, "API-GATEWAY-DOC", "Raw Events", Map.of("Format", "JSON"), JSON_DOCUMENT)));
+        }));
+
+        // Fixed-width: nothing to split on, and a column dropped is caught by preservation, not coverage.
+        outcomes.add(run("13-fixed-width", advisor -> {
+            final Scenarios scenarios = new Scenarios();
+            final ShapeshifterAiDoc doc = doc("fixed-width", 0.9).copy()
+                    .instructions("A mainframe sign-on log in fixed-width columns with no delimiter: the time as "
+                                  + "yyyyMMddHHmmss, the user, the terminal, the action (LOGON or LOGOFF), the "
+                                  + "result (GRANTED or DENIED) and a reason, which may hold spaces. Each line is "
+                                  + "an Authenticate event stating its outcome and the reason; the terminal is the "
+                                  + "device.")
+                    .scorers(withRule(doc("fixed-width", 0.9).getScorers(), new XPathAssertion(
+                            "a sign-on decision states its outcome",
+                            "not(EventDetail/Authenticate) "
+                            + "or EventDetail/Authenticate/Outcome/Success[. = 'true' or . = 'false']")))
+                    .build();
+            return List.of(scenarios.stage(advisor).run(doc,
+                    new Input(1, "MAINFRAME-SIGNON", "Raw Events", Map.of(), FIXED_WIDTH)));
         }));
 
         LOGGER.info("Live scenarios against {}, {}:\n{}", System.getenv(LiveAdvisor.MODEL), PLAN_UNDER_TEST,
