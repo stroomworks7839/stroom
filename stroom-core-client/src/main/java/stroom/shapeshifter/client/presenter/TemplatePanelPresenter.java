@@ -353,7 +353,7 @@ public class TemplatePanelPresenter
                 final List<Template> templates = new ArrayList<>(project.templates());
                 templates.removeIf(t -> t.id().equals(existing.id()));
                 selected = null;
-                host.replace(new Project(project.name(), project.version(), project.source(), templates));
+                host.replace(project.withTemplates(templates));
             }
         });
     }
@@ -376,7 +376,7 @@ public class TemplatePanelPresenter
         final Template moved = templates.get(index);
         templates.set(index, templates.get(to));
         templates.set(to, moved);
-        host.replace(new Project(project.name(), project.version(), project.source(), templates));
+        host.replace(project.withTemplates(templates));
     }
 
     public interface TemplatePanelView extends View, HasUiHandlers<TemplatePanelUiHandlers> {

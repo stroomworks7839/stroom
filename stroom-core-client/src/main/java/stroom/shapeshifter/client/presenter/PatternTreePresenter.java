@@ -458,7 +458,8 @@ public class PatternTreePresenter
         printed = text;
         restFactory
                 .create(RESOURCE)
-                .method(res -> res.print(new ShapeshifterPatternRequest(text, false, false)))
+                .method(res -> res.print(new ShapeshifterPatternRequest(text, false, false,
+                        ProjectText.printPatterns(host.getProject()))))
                 .onSuccess(result -> {
                     if (text.equals(printed)) {
                         getView().setRegex(result.getText());

@@ -156,7 +156,7 @@ public final class Ds3Migration {
         final List<Template> all = new ArrayList<>();
         all.add(envelope(declarations(withModes)));
         all.addAll(withModes);
-        return new Project("", 3, source, all);
+        return new Project("", 3, source, all, null);
     }
 
     /**

@@ -177,7 +177,8 @@ class ShapeshifterResourceImpl implements ShapeshifterResource {
         // The client holds strings: every offset crosses the wire in characters (TraceChars).
         final TraceChars chars = new TraceChars(recorder, input, out.toByteArray());
         return new ShapeshifterTrace(true, sample, out.toString(StandardCharsets.UTF_8), chars.frames(),
-                chars.captures(), chars.groups(), chars.outputs(), chars.attempts(), chars.guards(), chars.instructions(),
+                chars.captures(), chars.groups(), chars.outputs(), chars.attempts(), chars.guards(),
+                chars.instructions(),
                 recorder.attemptsSeen(),
                 timings(recorder), messages, runNanos);
     }
@@ -219,7 +220,10 @@ class ShapeshifterResourceImpl implements ShapeshifterResource {
     @Override
     public ShapeshifterText print(final ShapeshifterPatternRequest request) {
         final PatternNode tree = ProjectJson.readPatternNode(JsonText.parse(request.getPattern()));
-        return new ShapeshifterText(PatternPrint.print(tree, flags(request)));
+        final Map<String, PatternNode> patterns = request.getPatterns() == null
+                ? Map.of()
+                : ProjectJson.readPatterns(JsonText.parse(request.getPatterns()));
+        return new ShapeshifterText(PatternPrint.print(tree, flags(request), patterns));
     }
 
     private static RegexFlags flags(final ShapeshifterPatternRequest request) {

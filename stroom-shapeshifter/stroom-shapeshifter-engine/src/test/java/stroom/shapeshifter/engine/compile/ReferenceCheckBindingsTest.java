@@ -152,7 +152,7 @@ class ReferenceCheckBindingsTest {
                         "doc", List.of(), OutputNode.ApplyDirective.DEFAULT_MAX_DEPTH, false,
                         null))),
                 null, false);
-        return new Project("t", 5, Project.SourceConfig.defaults(), List.of(source, line));
+        return new Project("t", 5, Project.SourceConfig.defaults(), List.of(source, line), null);
     }
 
     /** The binder writes the name; the instruction after it reads the same name back. */
@@ -179,7 +179,7 @@ class ReferenceCheckBindingsTest {
                         "doc", List.of(), OutputNode.ApplyDirective.DEFAULT_MAX_DEPTH, false,
                         null))),
                 null, false);
-        return new Project("t", 5, Project.SourceConfig.defaults(), List.of(source, line));
+        return new Project("t", 5, Project.SourceConfig.defaults(), List.of(source, line), null);
     }
 
     @TestFactory

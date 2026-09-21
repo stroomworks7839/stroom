@@ -99,14 +99,14 @@ public final class Templates {
 
     /**
      * The project of one template a workbench sample is tried with (design 44 §2): the subject's
-     * match, encoding and consumption under the document's source settings, at the root with no
-     * guard, limits, declarations, captures or body — so every match is found and nothing else
-     * runs.
+     * match, encoding and consumption under the document's source settings and with its pattern
+     * library, at the root with no guard, limits, declarations, captures or body — so every match
+     * is found and nothing else runs.
      */
     public static Project experiment(final Project project, final Template template) {
         final Template bare = new Template(template.id(), template.name(), null, template.consume(), null, null,
                 null, template.match(), null, null, null, template.encoding(), template.ignoreErrors());
-        return new Project(project.name(), project.version(), project.source(), List.of(bare));
+        return project.withTemplates(List.of(bare));
     }
 
     public static String kind(final MatchExpression match) {

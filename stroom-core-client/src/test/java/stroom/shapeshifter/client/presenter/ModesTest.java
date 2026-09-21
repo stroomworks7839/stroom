@@ -55,7 +55,7 @@ class ModesTest {
                     new Choose(List.of(new WhenBranch(new Condition.IsLast(), List.of(
                             new Element("e", null, false, List.of(apply("fields")))))), List.of()))),
             template("kv", "fields", List.of()),
-            template("r", "route", List.of())));
+            template("r", "route", List.of())), null);
 
     @Test
     void modesAreTheTemplatesAndTheSitesInFirstAppearanceOrder() {
@@ -63,7 +63,8 @@ class ModesTest {
         assertThat(Modes.templateCount(PROJECT, "fields")).isEqualTo(1);
         assertThat(Modes.applySiteCount(PROJECT, "fields")).isEqualTo(2);
         assertThat(Modes.applySiteCount(PROJECT, "route")).isEqualTo(1);
-        final Project orphan = new Project("p", 5, null, List.of(template("root", null, List.of(apply("gone")))));
+        final Project orphan = new Project("p", 5, null, List.of(template("root", null, List.of(apply("gone")))),
+                null);
         assertThat(Modes.of(orphan)).containsExactly("gone");
         assertThat(Modes.templateCount(orphan, "gone")).isZero();
     }
@@ -85,7 +86,7 @@ class ModesTest {
     @Test
     void removingAnEmptyModeTurnsItsSitesIntoRootDispatches() {
         final Project orphan = new Project("p", 5, null, List.of(
-                template("root", null, List.of(new If(new Condition.IsFirst(), List.of(apply("gone")))))));
+                template("root", null, List.of(new If(new Condition.IsFirst(), List.of(apply("gone")))))), null);
         final Project removed = Modes.removeSites(orphan, "gone");
         assertThat(Modes.of(removed)).isEmpty();
         final If i = (If) removed.templates().get(0).body().get(0);

@@ -110,7 +110,8 @@ public class SourceConfigPresenter
                     getView().getDispatch(),
                     getView().isStrictValues(),
                     getView().getMaxSequenceEntries());
-            host.replace(new Project(getView().getName(), getView().getVersion(), source, project.templates()));
+            host.replace(new Project(getView().getName(), getView().getVersion(), source, project.templates(),
+                    project.patterns()));
         } catch (final ConfigException | NumberFormatException e) {
             getView().setError(e.getMessage());
             return;

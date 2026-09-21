@@ -62,12 +62,34 @@ final class PatternCompiler {
     private PatternCompiler() {
     }
 
-    static Compiled compile(final PatternNode root, final Encoding encoding, final String templateName) {
+    /**
+     * A project pattern may not take a standard-library name (design 44 §3, Q3): a {@code ref}
+     * would then mean two things, and the standard entries would stop being what their
+     * documentation says. Checked once per project, used or not.
+     */
+    static void refuseShadowing(final Map<String, PatternNode> patterns) {
+        for (final String name : patterns.keySet()) {
+            if (STANDARD.get(name) != null) {
+                throw new ConfigException("Pattern '" + name + "' in the project's library has the standard "
+                                          + "library's name; give it another");
+            }
+        }
+    }
+
+    /**
+     * @param patterns the project's own library (design 44 §3): what a {@code ref} in the tree
+     *                 names before the standard library is tried
+     */
+    static Compiled compile(final PatternNode root,
+                            final Encoding encoding,
+                            final String templateName,
+                            final Map<String, PatternNode> patterns) {
         final PatternCompiler compiler = new PatternCompiler();
+        final MatcherLibrary library = compiler.library(root, patterns);
         final Matcher matcher = compiler.lower(root);
         final BytePattern pattern;
         try {
-            pattern = STANDARD.compile(matcher, PatternKey.flags(RegexFlags.none()), RegexEncodings.forMatch(encoding));
+            pattern = library.compile(matcher, PatternKey.flags(RegexFlags.none()), RegexEncodings.forMatch(encoding));
         } catch (final PatternCompileException | IllegalArgumentException e) {
             throw new ConfigException("Template '" + templateName + "' has a pattern that does not compile: "
                                       + e.getMessage(), e);
@@ -83,6 +105,61 @@ final class PatternCompiler {
             casts[group] = compiler.castsByLabel.get(name);
         }
         return new Compiled(pattern, labels, casts);
+    }
+
+    /**
+     * The library this tree compiles against: the standard one alone when the tree names
+     * nothing of the project's, else the standard one with the project parts the tree reaches —
+     * only those, lowered here, so that their labels' casts are this compile's and a label in a
+     * part the tree never names cannot collide with one of its own.
+     */
+    private MatcherLibrary library(final PatternNode root, final Map<String, PatternNode> patterns) {
+        if (patterns.isEmpty()) {
+            return STANDARD;
+        }
+        final Map<String, PatternNode> reached = new LinkedHashMap<>();
+        reach(root, patterns, reached);
+        if (reached.isEmpty()) {
+            return STANDARD;
+        }
+        final MatcherLibrary library = Matchers.standardLibrary();
+        for (final Map.Entry<String, PatternNode> part : reached.entrySet()) {
+            library.define(part.getKey(), lower(part.getValue()));
+        }
+        return library;
+    }
+
+    /** The project parts a tree names, directly or through one another; a cycle is left to the library to report. */
+    private static void reach(final PatternNode node,
+                              final Map<String, PatternNode> patterns,
+                              final Map<String, PatternNode> reached) {
+        switch (node) {
+            case final PatternNode.Ref ref -> {
+                final PatternNode part = patterns.get(ref.name());
+                if (part != null && !reached.containsKey(ref.name())) {
+                    reached.put(ref.name(), part);
+                    reach(part, patterns, reached);
+                }
+            }
+            case final PatternNode.Sequence sequence ->
+                    sequence.items().forEach(item -> reach(item, patterns, reached));
+            case final PatternNode.Choice choice -> choice.alternatives().forEach(a -> reach(a, patterns, reached));
+            case final PatternNode.Optional optional -> reach(optional.body(), patterns, reached);
+            case final PatternNode.Repeat repeat -> reach(repeat.body(), patterns, reached);
+            case final PatternNode.Peek peek -> reach(peek.body(), patterns, reached);
+            case final PatternNode.Not not -> reach(not.body(), patterns, reached);
+            case final PatternNode.Labelled labelled -> reach(labelled.body(), patterns, reached);
+            case final PatternNode.Tag ignored -> {
+            }
+            case final PatternNode.TakeWhile ignored -> {
+            }
+            case final PatternNode.TakeUntil ignored -> {
+            }
+            case final PatternNode.Take ignored -> {
+            }
+            case final PatternNode.Regex ignored -> {
+            }
+        }
     }
 
     private Matcher lower(final PatternNode node) {

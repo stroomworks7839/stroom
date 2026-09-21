@@ -72,7 +72,7 @@ class ProjectTextTest {
                                         List.of(new Declaration.Entry("a", "b"))))),
                 List.of(new CaptureBinding("k", new CaptureSource.Group(1), null),
                         new CaptureBinding("v", new CaptureSource.Label("v"), Cast.INTEGER)));
-        final Project project = new Project("p", ProjectText.CURRENT_VERSION, null, List.of(edited));
+        final Project project = new Project("p", ProjectText.CURRENT_VERSION, null, List.of(edited), null);
         final Project again = ProjectText.parse(ProjectText.print(project));
         assertThat(again).isEqualTo(project);
         assertThat(again.templates().get(0).id()).isEqualTo(created.id());
@@ -83,7 +83,7 @@ class ProjectTextTest {
         // New Template, name typed, OK: a blank regex and nothing else yet, into an empty document.
         final Template blank = Templates.withIdentity(Templates.create("", null, true), "first", null, true,
                 List.of(), null, false);
-        final Project project = new Project("p", ProjectText.CURRENT_VERSION, null, List.of(blank));
+        final Project project = new Project("p", ProjectText.CURRENT_VERSION, null, List.of(blank), null);
         final Project again = ProjectText.parse(ProjectText.print(project));
         assertThat(again).isEqualTo(project);
     }

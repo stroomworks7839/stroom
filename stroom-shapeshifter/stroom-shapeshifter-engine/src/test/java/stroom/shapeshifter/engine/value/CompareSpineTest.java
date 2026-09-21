@@ -181,7 +181,7 @@ class CompareSpineTest {
         final stroom.shapeshifter.config.Project project =
                 new stroom.shapeshifter.config.Project("t", 5,
                         stroom.shapeshifter.config.Project.SourceConfig.defaults(),
-                        java.util.List.of(guarded));
+                        java.util.List.of(guarded), null);
         final stroom.shapeshifter.engine.graph.CompiledProject compiled =
                 stroom.shapeshifter.engine.Shapeshifter.compile(project);
         return stroom.shapeshifter.engine.exec.Conditions.evaluate(

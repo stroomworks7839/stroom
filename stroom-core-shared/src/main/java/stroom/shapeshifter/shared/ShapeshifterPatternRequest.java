@@ -23,7 +23,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
  * A pattern for the engine to look at: a regex for {@code patternInfo} and {@code explode}, or
- * a pattern tree in its wire form for {@code print}, under the flags the template sets.
+ * a pattern tree in its wire form for {@code print}, under the flags the template sets — and,
+ * for {@code print}, the project's own pattern library in its wire form (design 44 §3), so a
+ * {@code ref} to one of its parts prints as that part; null when the project has none.
  */
 @JsonInclude(Include.NON_NULL)
 public class ShapeshifterPatternRequest {
@@ -34,14 +36,22 @@ public class ShapeshifterPatternRequest {
     private final boolean caseInsensitive;
     @JsonProperty
     private final boolean dotAll;
+    @JsonProperty
+    private final String patterns;
+
+    public ShapeshifterPatternRequest(final String pattern, final boolean caseInsensitive, final boolean dotAll) {
+        this(pattern, caseInsensitive, dotAll, null);
+    }
 
     @JsonCreator
     public ShapeshifterPatternRequest(@JsonProperty("pattern") final String pattern,
                                       @JsonProperty("caseInsensitive") final boolean caseInsensitive,
-                                      @JsonProperty("dotAll") final boolean dotAll) {
+                                      @JsonProperty("dotAll") final boolean dotAll,
+                                      @JsonProperty("patterns") final String patterns) {
         this.pattern = pattern;
         this.caseInsensitive = caseInsensitive;
         this.dotAll = dotAll;
+        this.patterns = patterns;
     }
 
     public String getPattern() {
@@ -54,5 +64,9 @@ public class ShapeshifterPatternRequest {
 
     public boolean isDotAll() {
         return dotAll;
+    }
+
+    public String getPatterns() {
+        return patterns;
     }
 }

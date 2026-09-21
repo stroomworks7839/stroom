@@ -22,6 +22,8 @@ import stroom.shapeshifter.regex.comb.Matcher;
 import stroom.shapeshifter.regex.comb.MatcherLibrary;
 import stroom.shapeshifter.regex.comb.Matchers;
 
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -44,10 +46,21 @@ public final class PatternPrint {
     private PatternPrint() {
     }
 
-    /** The regex, under the flags the template compiles it with. */
+    /** The regex, under the flags the template compiles it with, naming nothing of a project's. */
     public static String print(final PatternNode node, final RegexFlags flags) {
+        return print(node, flags, Map.of());
+    }
+
+    /**
+     * The regex, under the flags the template compiles it with; a {@code ref} prints as its
+     * definition — the project's (design 44 §3) before the standard library's — and so loses
+     * its name, which is why the rendering is a view and the tree the store.
+     */
+    public static String print(final PatternNode node,
+                               final RegexFlags flags,
+                               final Map<String, PatternNode> patterns) {
         final StringBuilder out = new StringBuilder();
-        new Printer(flags == null ? RegexFlags.none() : flags).print(node, out, Context.TOP);
+        new Printer(flags == null ? RegexFlags.none() : flags, patterns).print(node, out, Context.TOP);
         return out.toString();
     }
 
@@ -77,9 +90,12 @@ public final class PatternPrint {
     private static final class Printer {
 
         private final RegexFlags outer;
+        private final Map<String, PatternNode> patterns;
+        private final Deque<String> printing = new ArrayDeque<>();
 
-        Printer(final RegexFlags outer) {
+        Printer(final RegexFlags outer, final Map<String, PatternNode> patterns) {
             this.outer = outer;
+            this.patterns = patterns;
         }
 
         void print(final PatternNode node, final StringBuilder out, final Context context) {
@@ -109,6 +125,20 @@ public final class PatternPrint {
                     }
                 }
                 case final PatternNode.Ref ref -> {
+                    final PatternNode part = patterns.get(ref.name());
+                    if (part != null) {
+                        if (printing.contains(ref.name())) {
+                            throw new IllegalArgumentException("Pattern '" + ref.name() + "' refers to itself via "
+                                                               + String.join(" -> ", printing) + " -> " + ref.name());
+                        }
+                        printing.addLast(ref.name());
+                        try {
+                            print(part, out, context);
+                        } finally {
+                            printing.removeLast();
+                        }
+                        break;
+                    }
                     final Matcher definition = Matchers.standardLibrary().get(ref.name());
                     if (definition == null) {
                         throw new IllegalArgumentException("Unknown library pattern: " + ref.name());

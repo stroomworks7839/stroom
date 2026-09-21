@@ -278,7 +278,7 @@ public class MatchEditorPresenter
         restFactory
                 .create(RESOURCE)
                 .method(res -> res.print(new ShapeshifterPatternRequest(ProjectText.printPatternNode(node),
-                        false, false)))
+                        false, false, ProjectText.printPatterns(host.getProject()))))
                 .onSuccess(result -> then.accept(result.getText()))
                 .onFailure(otherwise)
                 .taskMonitorFactory(this)

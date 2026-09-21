@@ -16,10 +16,14 @@
 
 package stroom.shapeshifter.config;
 
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
- * A whole configuration: where the data comes from, and the templates that shape it.
+ * A whole configuration: where the data comes from, the templates that shape it, and the
+ * patterns they share.
  *
  * <p>This is the authoring and serialisation model, not the execution model. It is a plain tree
  * of records with no behaviour and no framework annotations — binding lives in
@@ -35,15 +39,34 @@ import java.util.List;
  *                  strict from version 4
  * @param source    settings for the input as a whole
  * @param templates the templates, in the order they are tried
+ * @param patterns  the project's own library of pattern parts, by name, in the order defined
+ *                  (design 44 §3): what a {@code ref} node names before the standard library
+ *                  is tried, so a part written once is composed anywhere
  */
 public record Project(String name,
                       int version,
                       SourceConfig source,
-                      List<Template> templates) {
+                      List<Template> templates,
+                      Map<String, PatternNode> patterns) {
 
     public Project {
         source = source == null ? SourceConfig.defaults() : source;
         templates = templates == null ? List.of() : List.copyOf(templates);
+        patterns = patterns == null
+                ? Map.of()
+                : Collections.unmodifiableMap(new LinkedHashMap<>(patterns));
+    }
+
+    public Project withSource(final SourceConfig source) {
+        return new Project(name, version, source, templates, patterns);
+    }
+
+    public Project withTemplates(final List<Template> templates) {
+        return new Project(name, version, source, templates, patterns);
+    }
+
+    public Project withPatterns(final Map<String, PatternNode> patterns) {
+        return new Project(name, version, source, templates, patterns);
     }
 
     /**

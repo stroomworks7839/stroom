@@ -113,10 +113,10 @@ public interface ProjectHost {
         for (int i = 0; i < templates.size(); i++) {
             if (templates.get(i).id().equals(template.id())) {
                 templates.set(i, template);
-                return new Project(project.name(), project.version(), project.source(), templates);
+                return project.withTemplates(templates);
             }
         }
         templates.add(template);
-        return new Project(project.name(), project.version(), project.source(), templates);
+        return project.withTemplates(templates);
     }
 }

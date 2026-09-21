@@ -193,7 +193,7 @@ class EveryVariantTest {
                 "every variant",
                 3,
                 new SourceConfig(1024, true, "windows-1252", Dispatch.LEXER, true, 4096),
-                templates);
+                templates, null);
     }
 
     /** A template carrying every part of a template, and every capture source. */

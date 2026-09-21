@@ -119,7 +119,7 @@ public final class Modes {
             templates.add(new Template(t.id(), t.name(), mode, t.consume(), t.guard(), t.param(), t.declarations(),
                     t.match(), t.matchLimits(), t.captures(), body, t.encoding(), t.ignoreErrors()));
         }
-        return new Project(project.name(), project.version(), project.source(), templates);
+        return project.withTemplates(templates);
     }
 
     /**
@@ -138,7 +138,7 @@ public final class Modes {
                     t.declarations(), t.match(), t.matchLimits(), t.captures(), body, t.encoding(),
                     t.ignoreErrors()));
         }
-        return new Project(project.name(), project.version(), project.source(), templates);
+        return project.withTemplates(templates);
     }
 
     /**

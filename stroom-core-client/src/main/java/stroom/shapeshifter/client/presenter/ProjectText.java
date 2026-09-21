@@ -47,7 +47,7 @@ public final class ProjectText {
     public static Project empty(final String name) {
         return new Project(name == null
                 ? "project"
-                : name, CURRENT_VERSION, null, null);
+                : name, CURRENT_VERSION, null, null, null);
     }
 
     public static String print(final Project project) {
@@ -68,6 +68,13 @@ public final class ProjectText {
 
     public static String printPatternNode(final PatternNode node) {
         return JsonText.printPretty(ProjectJson.writePatternNode(node));
+    }
+
+    /** The project's pattern library as {@code print} wants it beside a tree, or null for none. */
+    public static String printPatterns(final Project project) {
+        return project == null || project.patterns().isEmpty()
+                ? null
+                : JsonText.printPretty(ProjectJson.writePatterns(project.patterns()));
     }
 
     /**

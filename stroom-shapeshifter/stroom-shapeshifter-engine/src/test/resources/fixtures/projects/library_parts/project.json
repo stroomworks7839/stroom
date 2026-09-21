@@ -1,0 +1,135 @@
+{
+ "name": "library_parts",
+ "version": 1,
+ "source": {
+  "buffer_size": 20000,
+  "ignore_errors": true,
+  "encoding": "auto"
+ },
+ "templates": [
+  {
+   "id": "00000000-0000-0000-0000-000000000001",
+   "name": "line",
+   "match": {
+    "pattern": {
+     "sequence": [
+      {
+       "ref": "TIMESTAMP",
+       "label": "time"
+      },
+      {
+       "tag": " host="
+      },
+      {
+       "ref": "WORD",
+       "label": "host"
+      },
+      {
+       "tag": " severity="
+      },
+      {
+       "take_while": "\\p{L}",
+       "label": "severity"
+      },
+      {
+       "tag": " msg="
+      },
+      {
+       "take_until": " pid=",
+       "label": "msg"
+      },
+      {
+       "ref": "FIELD"
+      },
+      {
+       "take_while": "\\p{Nd}",
+       "label": "pid"
+      },
+      {
+       "take_through": "\n"
+      }
+     ]
+    }
+   },
+   "match_limits": {
+    "min_match": 0,
+    "max_match": -1
+   },
+   "body": [
+    {
+     "value-of": {
+      "parts": [
+       {
+        "text": "<event time=\""
+       },
+       {
+        "capture": {
+         "label": "time"
+        }
+       },
+       {
+        "text": "\" host=\""
+       },
+       {
+        "capture": {
+         "label": "host"
+        }
+       },
+       {
+        "text": "\" severity=\""
+       },
+       {
+        "capture": {
+         "label": "severity"
+        }
+       },
+       {
+        "text": "\" pid=\""
+       },
+       {
+        "capture": {
+         "label": "pid"
+        }
+       },
+       {
+        "text": "\">"
+       },
+       {
+        "capture": {
+         "label": "msg"
+        }
+       },
+       {
+        "text": "</event>\n"
+       }
+      ]
+     }
+    }
+   ]
+  }
+ ],
+ "patterns": {
+  "TIMESTAMP": {
+   "regex": "[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z"
+  },
+  "WORD": {
+   "take_while": "\\S"
+  },
+  "FIELD": {
+   "sequence": [
+    {
+     "tag": " "
+    },
+    {
+     "ref": "KEY"
+    },
+    {
+     "tag": "="
+    }
+   ]
+  },
+  "KEY": {
+   "take_while": "[a-z]"
+  }
+ }
+}

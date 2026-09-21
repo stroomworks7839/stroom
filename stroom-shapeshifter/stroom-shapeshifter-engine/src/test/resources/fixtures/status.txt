@@ -59,6 +59,7 @@ projects/ausearch                             PASS
 projects/avro_users                           PASS      an Avro object container, parsed with no library (design 38)
 projects/identity_transform                   PASS
 projects/json_to_xml                          PASS
+projects/library_parts                        PASS      the text-steps line composed of parts the project defines once and refs (design 44 §3)
 projects/parquet_cities                       SKIPPED   Parquet decoding deferred (D33); its configuration names a match kind design 38 retired, so it is not read
 projects/progressive_embedded_codec           PASS
 projects/progressive_len_records              PASS

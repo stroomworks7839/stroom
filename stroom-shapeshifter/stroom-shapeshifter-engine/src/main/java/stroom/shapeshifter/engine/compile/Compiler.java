@@ -131,7 +131,8 @@ public final class Compiler {
                 names.declare(declaration);
             }
         }
-        final MatchCompiler matches = new MatchCompiler();
+        PatternCompiler.refuseShadowing(project.patterns());
+        final MatchCompiler matches = new MatchCompiler(project.patterns());
         final List<CompiledTemplate> templates = new ArrayList<>(project.templates().size());
         final List<Message> warnings = new ArrayList<>();
 

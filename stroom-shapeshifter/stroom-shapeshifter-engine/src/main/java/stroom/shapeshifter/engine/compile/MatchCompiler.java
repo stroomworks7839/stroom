@@ -49,6 +49,12 @@ import java.util.Map;
 final class MatchCompiler {
 
     private final Map<PatternKey, BytePattern> patterns = new HashMap<>();
+    private final Map<String, PatternNode> library;
+
+    /** @param library the project's own pattern parts (design 44 §3), what a tree's {@code ref} names first */
+    MatchCompiler(final Map<String, PatternNode> library) {
+        this.library = library;
+    }
 
     /**
      * Every pattern interned so far, keyed by text, flags and encoding.
@@ -142,7 +148,7 @@ final class MatchCompiler {
         return switch (template.match()) {
             case final MatchExpression.Pattern pattern -> {
                 final PatternCompiler.Compiled compiled = PatternCompiler.compile(pattern.node(), matchEncoding,
-                        template.name());
+                        template.name(), library);
                 names.labels(compiled.labels());
                 yield new CompiledMatch.Pattern(compiled.pattern(), compiled.casts());
             }
@@ -207,7 +213,7 @@ final class MatchCompiler {
                         continue;
                     }
                     final PatternCompiler.Compiled one = PatternCompiler.compile(pattern.node(), matchEncoding,
-                            template.name());
+                            template.name(), library);
                     final int offset = groups;
                     for (final Map.Entry<String, Integer> label : one.labels().entrySet()) {
                         if (labels.put(label.getKey(), offset + label.getValue()) != null) {

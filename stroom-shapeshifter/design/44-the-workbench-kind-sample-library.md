@@ -103,33 +103,54 @@ leaf, `sequence(ref("IP_ADDRESS"), tag(" "), ref("NAME"))`. What is missing is *
 project's own library as not built because no fixture or real file had needed one. The
 owner's question is that need.
 
+### 3a. The model, the engine and the wire — built 2026-09-21
+
 **Model** (config module): `Project.patterns`, an ordered map of name to `PatternNode`, on
-the wire as `"patterns": {"HOSTNAME": {…}}`; reader, printer and round trip beside the rest.
-`ref` resolves a project name first. **A project name may not be a standard-library name**:
-refused at read, not shadowed, so a `ref` never means two things and the standard entries
-stay what the documentation says they are. Unknown names and cycles are `ConfigException`s
-at compile time, as an unknown name is now.
+the wire as `"patterns": {"HOSTNAME": {…}}`, written only when there is one; `readPatterns`
+and `writePatterns` exchanged on their own like a pattern node is. A blank name is refused
+at read. `Project` gained `withSource`, `withTemplates` and `withPatterns`, and every place
+the client rebuilt a project by hand uses them, so nothing can drop the library on the way.
 
-**Engine**: `PatternCompiler` and `PatternPrint` take a `MatcherLibrary` layered on the
-standard one — the shape design 38 §4 names — in place of the static one; the `library`
-endpoint returns project entries marked as such beside the standard ones; one fixture project
-exercises it and `CombinatorTest`'s identical-plan pin extends to a `ref` into the project.
+**Engine.** `MatchCompiler` carries the project's parts to `PatternCompiler`, which compiles
+a tree against the standard library alone when the tree names none of them, and otherwise
+against a library of the standard entries plus **the parts the tree reaches** — directly or
+through one another — lowered by the same compiler instance, so a labelled node inside a part
+carries its cast into the naming template's plan, and a label in a part the tree never names
+cannot collide with one of its own. **A project name may not be a standard-library name**:
+`refuseShadowing` runs once per project, used or not, so a `ref` never means two things and
+the standard entries stay what the documentation says. The config module cannot check this —
+it does not know the library — so it is the compiler's refusal, not the reader's (Q3 amended).
+An unknown name and a cycle are the regex library's own refusals, wrapped as the template's
+`ConfigException` as before. `PatternPrint` takes the parts too and prints a project `ref` as
+its definition, the project's before the standard library's, refusing a cycle by name.
 
-**Client**:
+**Wire.** `ShapeshifterPatternRequest.patterns` — the library in its wire form, null for
+none — so `print` can render a tree that names a part; both client callers send it. The
+`library` endpoint is unchanged: the client holds the project, so it holds the parts.
+
+**Pinned.** `ProjectLibraryTest`: a `ref` matches as the part inlined would, parts reach one
+another with the standard library beneath, shadowing, an unknown name and a cycle are refused
+with their names, the library round-trips in order and is absent when empty, and the printer
+resolves and refuses. `library_parts` in the fixture corpus: the text-steps line composed of
+four parts, byte-identical output to `progressive_text_steps`. The print endpoint pinned with
+and without the library.
+
+### 3b. The client — planned
 
 - A **Patterns** section in the nav panel beneath the templates — design 18 §5.9's library
   pane, now editable: rows of name · kind · *used by n*; add, rename and delete with the
   item-manager icons; delete refused while referenced; rename follows every `ref`.
 - Selecting a row opens the workbench on it. The workbench becomes subject-agnostic, as
   design 18 §5.9 already said it was: a template's match or a library pattern; guard and
-  limits, which belong to a template, hidden for a pattern.
+  limits, which belong to a template, hidden for a pattern. The sample tries a pattern as a
+  one-template experiment whose match is the pattern, with the library beside it.
 - The `ref` picker lists the project's patterns above the standard ones.
 - **Extract to library** on any tree node: names it, moves it to `patterns`, leaves a `ref`
   in its place — composing in one gesture. Its inverse, **inline**, on a `ref`.
 
 ## 4. Order
 
-§1 (built), then §2 (built), then §3. Each phase gated as design 43's were — core-client compile and checkstyle, the
+§1 (built), then §2 (built), then §3a (built) and §3b. Each phase gated as design 43's were — core-client compile and checkstyle, the
 presenter tests, the engine and pipeline suites where touched, the GWT draft compile — and
 left in the working tree for review.
 
@@ -139,6 +160,6 @@ left in the working tree for review.
 |---|---|---|
 | Q1 | Tabs or a kind picker for the match editor? | **Ruled and built 2026-09-21: the picker** (§1). |
 | Q2 | Does the workbench's sample rerun the project? | **No, ruled and built 2026-09-21** (§2): it is the author's experiment, seeded from the cursor's frame; the document's sample and the trace are the run. |
-| Q3 | May a project pattern shadow a standard-library name? | **No** (§3): refused at read. |
+| Q3 | May a project pattern shadow a standard-library name? | **No, built 2026-09-21** (§3a): refused by the compiler, once per project — the config module does not know the library, so the reader cannot. |
 | Q4 | Per-node spans in the sample (2b)? | **Only if 2a is not enough**: labelled nodes are groups and get spans for free; the rest cost a second compile. |
 | Q5 | A `match` endpoint, or the trace? | **The trace, built 2026-09-21** (§2): the run reports its groups; the sample is a one-template `preview`. |

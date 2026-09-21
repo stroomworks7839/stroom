@@ -30,7 +30,9 @@ import stroom.shapeshifter.config.Template;
 import stroom.shapeshifter.config.Template.MatchLimits;
 import stroom.shapeshifter.config.Template.ParamDecl;
 
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -49,12 +51,13 @@ public final class ProjectJson {
         if (node == null || node.isNull()) {
             throw new ConfigException("Expected an object for 'project'");
         }
-        JsonFields.checkFields(node, "project", "name", "version", "source", "templates");
+        JsonFields.checkFields(node, "project", "name", "version", "source", "templates", "patterns");
         return new Project(
                 JsonFields.text(node, "name", "project"),
                 JsonFields.integer(node, "version", "project"),
                 node.has("source") ? readSource(node.get("source")) : SourceConfig.defaults(),
-                JsonFields.list(node.get("templates"), "templates", ProjectJson::readTemplate));
+                JsonFields.list(node.get("templates"), "templates", ProjectJson::readTemplate),
+                readPatterns(JsonFields.optional(node, "patterns")));
     }
 
     /** Write a whole configuration. */
@@ -64,6 +67,38 @@ public final class ProjectJson {
         node.put("version", project.version());
         node.put("source", writeSource(project.source()));
         node.put("templates", JsonFields.array(project.templates(), ProjectJson::writeTemplate));
+        if (!project.patterns().isEmpty()) {
+            node.put("patterns", writePatterns(project.patterns()));
+        }
+        return node;
+    }
+
+    /**
+     * The project's pattern library (design 44 §3): an object of name to pattern node, in the
+     * order written. Absent or null is an empty library; a blank name is refused.
+     */
+    public static Map<String, PatternNode> readPatterns(final JsonValue node) {
+        final Map<String, PatternNode> patterns = new LinkedHashMap<>();
+        if (node == null || node.isNull()) {
+            return patterns;
+        }
+        if (!node.isObject()) {
+            throw new ConfigException("Expected an object of name to pattern for 'patterns'");
+        }
+        for (final Map.Entry<String, JsonValue> entry : ((JsonObject) node).entries()) {
+            if (entry.getKey().isBlank()) {
+                throw new ConfigException("A pattern in 'patterns' has a blank name");
+            }
+            patterns.put(entry.getKey(), readPatternNode(entry.getValue()));
+        }
+        return patterns;
+    }
+
+    public static JsonObject writePatterns(final Map<String, PatternNode> patterns) {
+        final JsonObject node = new JsonObject();
+        for (final Map.Entry<String, PatternNode> entry : patterns.entrySet()) {
+            node.put(entry.getKey(), writePatternNode(entry.getValue()));
+        }
         return node;
     }
 

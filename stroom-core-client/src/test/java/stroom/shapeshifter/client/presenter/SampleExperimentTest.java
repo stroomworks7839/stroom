@@ -43,7 +43,7 @@ class SampleExperimentTest {
                 List.of(new CaptureBinding("k", new CaptureBinding.CaptureSource.Group(1), null))),
                 new MatchLimits(1, 3, null)),
                 List.of(new OutputNode.Text("x")));
-        final Project project = new Project("p", 3, null, List.of(rich));
+        final Project project = new Project("p", 3, null, List.of(rich), null);
 
         final Project experiment = Templates.experiment(project, rich);
 

@@ -44,7 +44,8 @@ so when a phase of the port makes one work the build breaks until the line is pr
   a cheap match and twenty-one structural writes per record, where the corpus's other
   structured fixtures spend their time matching — `progressive_text_steps` for the pattern
   tree over text — tags, take-whiles, a take-until and a regex node, which the four binary
-  `progressive_*` fixtures never reach — and `log_sessions` for design/16 and /17 —
+  `progressive_*` fixtures never reach — `library_parts` for the same line composed of parts
+  the project defines once and names with `ref` (design 44 §3), the output byte-identical — and `log_sessions` for design/16 and /17 —
   iteration, grouping, keys, folds and value computation over delimited log lines. That last
   shape matters on its own: the catalogue in `stroom-shapeshifter-xmlbench` proves the same
   features against Saxon, but only over well-formed XML where no field is ever absent, and

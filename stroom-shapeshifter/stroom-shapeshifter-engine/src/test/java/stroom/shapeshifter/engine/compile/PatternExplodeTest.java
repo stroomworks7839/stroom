@@ -140,7 +140,8 @@ class PatternExplodeTest {
         final BytePattern written = BytePattern.compile(regex.pattern(), PatternKey.flags(regex.flags()),
                 RegexEncodings.forMatch(regex.encoding()));
         final PatternNode tree = PatternExplode.explode(regex.pattern(), regex.flags());
-        final BytePattern exploded = PatternCompiler.compile(tree, regex.encoding(), regex.where()).pattern();
+        final BytePattern exploded = PatternCompiler.compile(tree, regex.encoding(), regex.where(), Map.of())
+                .pattern();
         assertThat(planOf(exploded)).as("%s explodes as %s", regex.pattern(), tree).isEqualTo(planOf(written));
         assertThat(exploded.groupCount()).isEqualTo(written.groupCount());
         // And back: the tree printed as a regex (design 43 §5) is the same plan again, with the
@@ -189,8 +190,8 @@ class PatternExplodeTest {
                 new PatternNode.Tag(" pid"),
                 new PatternNode.Tag("="),
                 PID));
-        final BytePattern fast = PatternCompiler.compile(fused, Encoding.UTF_8, "t").pattern();
-        final BytePattern slow = PatternCompiler.compile(unfused, Encoding.UTF_8, "t").pattern();
+        final BytePattern fast = PatternCompiler.compile(fused, Encoding.UTF_8, "t", Map.of()).pattern();
+        final BytePattern slow = PatternCompiler.compile(unfused, Encoding.UTF_8, "t", Map.of()).pattern();
         assertThat(fast.tier()).as("no lookahead, no backtracker").isLessThan(slow.tier());
         assertThat(fast.pattern()).doesNotContain("(?=");
         final byte[] input = "hello world pid=42".getBytes(java.nio.charset.StandardCharsets.UTF_8);
@@ -210,7 +211,7 @@ class PatternExplodeTest {
         final String json = ProjectReader.write(new Project("t", 5, Project.SourceConfig.defaults(), List.of(
                 new Template(java.util.UUID.randomUUID().toString(), "t", null, false, null, List.of(), List.of(),
                         new MatchExpression.Pattern(tree), Template.MatchLimits.unlimited(), List.of(), List.of(),
-                        null, false))));
+                        null, false)), null));
         assertThat(ProjectReader.read(json).templates().getFirst().match())
                 .isEqualTo(new MatchExpression.Pattern(tree));
         assertThat(tree).isInstanceOf(PatternNode.Sequence.class);

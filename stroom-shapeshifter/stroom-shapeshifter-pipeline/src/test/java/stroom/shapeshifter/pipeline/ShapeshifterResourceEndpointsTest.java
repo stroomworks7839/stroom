@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * The editor's four questions (design 43 §5), answered by the resource over the engine — with
@@ -104,6 +105,18 @@ class ShapeshifterResourceEndpointsTest {
         assertThat(tree.getText()).contains("\"sequence\"").contains("\"label\": \"level\"");
         final ShapeshifterText printed = resource.print(new ShapeshifterPatternRequest(tree.getText(), false, false));
         assertThat(printed.getText()).isEqualTo("^(?<level>ERROR|WARN) +(?<msg>.*)$");
+    }
+
+    @Test
+    void printResolvesARefAgainstTheProjectsPatternsWhenTheyAreSent() {
+        // The tree names a part of the project's; sent with the library it prints as the part,
+        // and without it the name is unknown (design 44 §3).
+        final String tree = "{\"sequence\": [{\"ref\": \"KEY\", \"label\": \"k\"}, {\"tag\": \"=\"}]}";
+        final String patterns = "{\"KEY\": {\"take_while\": \"[a-z]\"}}";
+        assertThat(resource.print(new ShapeshifterPatternRequest(tree, false, false, patterns)).getText())
+                .isEqualTo("(?<k>[a-z]+)=");
+        assertThatThrownBy(() -> resource.print(new ShapeshifterPatternRequest(tree, false, false)))
+                .hasMessageContaining("KEY");
     }
 
     @Test
