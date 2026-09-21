@@ -88,7 +88,7 @@ public class PatternNodeEditViewImpl extends ViewImpl implements PatternNodeEdit
         cast.setNonSelectString("none");
         cast.setDisplayValueFunction(BinaryCast::label);
         cast.addItems(BinaryCast.values());
-        showKind(Kind.TAG);
+        showKind(Kind.REGEX);
     }
 
     @Override

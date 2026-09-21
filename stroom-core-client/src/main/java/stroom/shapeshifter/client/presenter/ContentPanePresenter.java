@@ -182,7 +182,7 @@ public class ContentPanePresenter extends MyPresenterWidget<ContentPaneView> imp
         final List<Capture> captures = trace.captures(frameId);
         for (int i = 0; i < captures.size(); i++) {
             final Capture capture = captures.get(i);
-            final String colour = RegexTabPresenter.hue(i);
+            final String colour = RegexPresenter.hue(i);
             if (capture.getContentOffset() >= 0) {
                 final Frame frame = trace.frame(frameId);
                 marks.add(new Mark(Kind.CAPTURE, frameId, i, null, base + capture.getContentOffset(),

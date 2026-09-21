@@ -29,8 +29,8 @@ import com.gwtplatform.mvp.client.View;
 
 /**
  * The pattern workbench (design 18 §5.6): an in-place mode of the Design tab, not a dialog and
- * not full-screen. Its subject is a template's match; the match editor's tabs are its body, and
- * guard and limits sit beneath them, mechanism-independent, belonging to the workbench itself.
+ * not full-screen. Its subject is a template's match; the match editor — the kind and its form — is
+ * its body, and guard and limits sit beneath, mechanism-independent, belonging to the workbench itself.
  * There is no Apply or Cancel — every field commits as it changes, as everywhere else — so
  * closing, or retargeting to another template, never has anything to lose.
  */

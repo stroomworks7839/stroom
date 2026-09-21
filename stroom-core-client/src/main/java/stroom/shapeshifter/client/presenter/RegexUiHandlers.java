@@ -18,8 +18,16 @@ package stroom.shapeshifter.client.presenter;
 
 import com.gwtplatform.mvp.client.UiHandlers;
 
-public interface OtherMatchUiHandlers extends UiHandlers {
+public interface RegexUiHandlers extends UiHandlers {
 
-    /** A kind was picked, or a delimiter field left. */
+    /** The pattern text or a flag changed; the presenter commits on a debounce. */
     void onChange();
+
+    void onExplode();
+
+    /** A group's name was edited and left: bind the group to a declaration of that name, or unbind it. */
+    void onGroupName(int index, String name);
+
+    /** A group was clicked in the pattern map or its row: isolate it. */
+    void onGroupSelect(int index);
 }

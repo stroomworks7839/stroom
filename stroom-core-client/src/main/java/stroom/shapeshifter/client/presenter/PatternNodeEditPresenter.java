@@ -45,16 +45,16 @@ import java.util.List;
  */
 public class PatternNodeEditPresenter extends MyPresenterWidget<PatternNodeEditView> {
 
-    /** The node kinds, spelt as the wire format spells them. */
+    /** The node kinds, spelt as the wire format spells them; a regex first, since a tree is mostly built of them. */
     public enum Kind {
+        REGEX("regex"),
+        REF("ref"),
         TAG("tag"),
         TAKE_WHILE("take_while"),
         TAKE_UNTIL("take_until"),
         TAKE_THROUGH("take_through"),
         TAKE("take"),
         ANY("any"),
-        REGEX("regex"),
-        REF("ref"),
         SEQUENCE("sequence"),
         CHOICE("choice"),
         OPTIONAL("optional"),
@@ -120,7 +120,7 @@ public class PatternNodeEditPresenter extends MyPresenterWidget<PatternNodeEditV
                 : List.of(body);
         if (node == null) {
             v.setKind(body == null
-                    ? Kind.TAG
+                    ? Kind.REGEX
                     : Kind.OPTIONAL);
             v.setChildrenNote(body == null
                     ? null

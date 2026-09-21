@@ -17,7 +17,7 @@
 package stroom.shapeshifter.client.presenter;
 
 import stroom.dispatch.client.RestFactory;
-import stroom.shapeshifter.client.presenter.RegexTabPresenter.RegexTabView;
+import stroom.shapeshifter.client.presenter.RegexPresenter.RegexView;
 import stroom.shapeshifter.config.CaptureBinding;
 import stroom.shapeshifter.config.CaptureBinding.CaptureSource;
 import stroom.shapeshifter.config.Declaration;
@@ -43,17 +43,17 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The regex tab (design 18 §5.6): the pattern, committed live on a debounce, rendered twice —
+ * The regex form (design 18 §5.6): the pattern, committed live on a debounce, rendered twice —
  * the editable text and beneath it the <b>pattern map</b>, each capture group's span in its
  * hue; the <b>groups panel</b>, one row per group, which is the capture-declaration editor —
  * typing a name beside {@code $2} declares it and binds the group to it, blanking it unbinds;
  * and what the engine says, the error as you type and the plan it would run. Every fact about
  * the pattern — validity, groups, their spans and names — is the engine's ({@code patternInfo});
- * the tab never reads the pattern itself.
+ * the form never reads the pattern itself.
  */
-public class RegexTabPresenter
-        extends MyPresenterWidget<RegexTabView>
-        implements RegexTabUiHandlers, MatchEditorPresenter.MatchTab {
+public class RegexPresenter
+        extends MyPresenterWidget<RegexView>
+        implements RegexUiHandlers, MatchEditorPresenter.MatchForm {
 
     private static final ShapeshifterResource RESOURCE = GWT.create(ShapeshifterResource.class);
 
@@ -68,7 +68,7 @@ public class RegexTabPresenter
     private int selectedGroup;
 
     @Inject
-    public RegexTabPresenter(final EventBus eventBus, final RegexTabView view, final RestFactory restFactory) {
+    public RegexPresenter(final EventBus eventBus, final RegexView view, final RestFactory restFactory) {
         super(eventBus, view);
         this.restFactory = restFactory;
         this.commit = new DelayedUpdate(300, this::commit);
@@ -324,7 +324,7 @@ public class RegexTabPresenter
                 .appendHtmlConstant("</span>");
     }
 
-    public interface RegexTabView extends View, HasUiHandlers<RegexTabUiHandlers> {
+    public interface RegexView extends View, HasUiHandlers<RegexUiHandlers> {
 
         void setEnabled(boolean enabled);
 

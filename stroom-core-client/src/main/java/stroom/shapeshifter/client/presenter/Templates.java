@@ -97,22 +97,7 @@ public final class Templates {
     }
 
     public static String kind(final MatchExpression match) {
-        if (match instanceof MatchExpression.Regex) {
-            return "regex";
-        } else if (match instanceof MatchExpression.Pattern) {
-            return "tree";
-        } else if (match instanceof MatchExpression.Parts) {
-            return "parts";
-        } else if (match instanceof MatchExpression.Delimiter) {
-            return "delimiter";
-        } else if (match instanceof MatchExpression.Source) {
-            return "source";
-        } else if (match instanceof MatchExpression.All) {
-            return "all";
-        } else if (match instanceof MatchExpression.Named) {
-            return "named";
-        }
-        return "?";
+        return MatchKind.of(match).spelling();
     }
 
     public static String describe(final MatchExpression match) {

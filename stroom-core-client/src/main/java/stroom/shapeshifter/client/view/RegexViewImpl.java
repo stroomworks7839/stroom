@@ -17,8 +17,8 @@
 package stroom.shapeshifter.client.view;
 
 import stroom.shapeshifter.client.presenter.GroupRowData;
-import stroom.shapeshifter.client.presenter.RegexTabPresenter.RegexTabView;
-import stroom.shapeshifter.client.presenter.RegexTabUiHandlers;
+import stroom.shapeshifter.client.presenter.RegexPresenter.RegexView;
+import stroom.shapeshifter.client.presenter.RegexUiHandlers;
 import stroom.widget.tickbox.client.view.CustomCheckBox;
 
 import com.google.gwt.dom.client.Element;
@@ -40,9 +40,9 @@ import com.gwtplatform.mvp.client.ViewWithUiHandlers;
 
 import java.util.List;
 
-public class RegexTabViewImpl
-        extends ViewWithUiHandlers<RegexTabUiHandlers>
-        implements RegexTabView, GroupRow.Listener {
+public class RegexViewImpl
+        extends ViewWithUiHandlers<RegexUiHandlers>
+        implements RegexView, GroupRow.Listener {
 
     private static final String GROUP = "data-group";
 
@@ -71,7 +71,7 @@ public class RegexTabViewImpl
     Label explain;
 
     @Inject
-    public RegexTabViewImpl(final Binder binder) {
+    public RegexViewImpl(final Binder binder) {
         widget = binder.createAndBindUi(this);
         setError(null);
         setExplain(null);
@@ -231,7 +231,7 @@ public class RegexTabViewImpl
                 : text);
     }
 
-    public interface Binder extends UiBinder<Widget, RegexTabViewImpl> {
+    public interface Binder extends UiBinder<Widget, RegexViewImpl> {
 
     }
 }

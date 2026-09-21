@@ -49,7 +49,7 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * The pattern tree tab (design 18 §10, design 43 §4): a nested node editor over the design 38
+ * The pattern tree form (design 18 §10, design 43 §4): a nested node editor over the design 38
  * vocabulary. The tree is rendered as nested rows — click selects, double-click edits — and
  * a toolbar over it acts on the selection: add a child, add after, wrap, edit, remove, unwrap,
  * up and down. Every action is a rewrite through {@link PatternNodes} and lands on the host
@@ -60,7 +60,7 @@ import java.util.List;
  */
 public class PatternTreePresenter
         extends MyPresenterWidget<PatternTreeView>
-        implements PatternTreeUiHandlers, MatchEditorPresenter.MatchTab {
+        implements PatternTreeUiHandlers, MatchEditorPresenter.MatchForm {
 
     private static final ShapeshifterResource RESOURCE = GWT.create(ShapeshifterResource.class);
 

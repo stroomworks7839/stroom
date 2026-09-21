@@ -16,34 +16,25 @@
 
 package stroom.shapeshifter.client.view;
 
-import stroom.item.client.SelectionBox;
-import stroom.shapeshifter.client.presenter.OtherMatchPresenter.Kind;
-import stroom.shapeshifter.client.presenter.OtherMatchPresenter.OtherMatchView;
-import stroom.shapeshifter.client.presenter.OtherMatchUiHandlers;
+import stroom.shapeshifter.client.presenter.DelimiterPresenter.DelimiterView;
+import stroom.shapeshifter.client.presenter.DelimiterUiHandlers;
 
 import com.google.gwt.event.logical.shared.ValueChangeEvent;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
 import com.google.gwt.uibinder.client.UiHandler;
-import com.google.gwt.user.client.ui.FlowPanel;
 import com.google.gwt.user.client.ui.Label;
-import com.google.gwt.user.client.ui.SimplePanel;
 import com.google.gwt.user.client.ui.TextBox;
 import com.google.gwt.user.client.ui.Widget;
 import com.google.inject.Inject;
-import com.gwtplatform.mvp.client.View;
 import com.gwtplatform.mvp.client.ViewWithUiHandlers;
 
-public class OtherMatchViewImpl
-        extends ViewWithUiHandlers<OtherMatchUiHandlers>
-        implements OtherMatchView {
+public class DelimiterViewImpl
+        extends ViewWithUiHandlers<DelimiterUiHandlers>
+        implements DelimiterView {
 
     private final Widget widget;
 
-    @UiField
-    SelectionBox<Kind> kind;
-    @UiField
-    FlowPanel delimiterFields;
     @UiField
     TextBox delimiter;
     @UiField
@@ -54,27 +45,16 @@ public class OtherMatchViewImpl
     TextBox containerEnd;
     @UiField
     Label error;
-    @UiField
-    SimplePanel editor;
 
     @Inject
-    public OtherMatchViewImpl(final Binder binder) {
+    public DelimiterViewImpl(final Binder binder) {
         widget = binder.createAndBindUi(this);
-        kind.setDisplayValueFunction(Kind::spelling);
-        kind.addItems(Kind.values());
         setError(null);
-        showKind(Kind.OTHER);
     }
 
     @Override
     public Widget asWidget() {
         return widget;
-    }
-
-    @UiHandler("kind")
-    void onKind(final ValueChangeEvent<Kind> e) {
-        showKind(e.getValue());
-        changed();
     }
 
     @UiHandler("delimiter")
@@ -103,28 +83,12 @@ public class OtherMatchViewImpl
         }
     }
 
-    private void showKind(final Kind value) {
-        delimiterFields.setVisible(value == Kind.DELIMITER);
-    }
-
     @Override
     public void setEnabled(final boolean enabled) {
-        kind.setEnabled(enabled);
         delimiter.setEnabled(enabled);
         escape.setEnabled(enabled);
         containerStart.setEnabled(enabled);
         containerEnd.setEnabled(enabled);
-    }
-
-    @Override
-    public Kind getKind() {
-        return kind.getValue();
-    }
-
-    @Override
-    public void setKind(final Kind value) {
-        kind.setValue(value, false);
-        showKind(value);
     }
 
     @Override
@@ -171,12 +135,7 @@ public class OtherMatchViewImpl
         error.setVisible(text != null);
     }
 
-    @Override
-    public void setEditor(final View view) {
-        editor.setWidget(view.asWidget());
-    }
-
-    public interface Binder extends UiBinder<Widget, OtherMatchViewImpl> {
+    public interface Binder extends UiBinder<Widget, DelimiterViewImpl> {
 
     }
 }

@@ -182,7 +182,7 @@ public class BodyPresenter
 
     /** The hue a top-level card's output is painted in, by its position - the same rule the output pane uses. */
     public static String cardHue(final int index) {
-        return RegexTabPresenter.hue(index);
+        return RegexPresenter.hue(index);
     }
 
     private void apply(final List<OutputNode> next) {

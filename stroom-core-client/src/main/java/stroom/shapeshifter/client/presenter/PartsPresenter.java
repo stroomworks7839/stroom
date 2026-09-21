@@ -43,14 +43,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The parts tab (design 39): the match sequence as rows — pattern, take, seek, read — with a
+ * The parts form (design 39): the match sequence as rows — pattern, take, seek, read — with a
  * toolbar acting on the selected row: add after, edit, remove, up, down; each a rewrite landing
  * on the host as a replacement match. The wire form stays editable to the right, as on the
- * tree tab. A sequence needs at least one part, so the last cannot be removed.
+ * tree form. A sequence needs at least one part, so the last cannot be removed.
  */
 public class PartsPresenter
         extends MyPresenterWidget<PartsView>
-        implements PartsUiHandlers, MatchEditorPresenter.MatchTab {
+        implements PartsUiHandlers, MatchEditorPresenter.MatchForm {
 
     private final PartEditPresenter partEditor;
     private final EditorPresenter editor;
@@ -256,7 +256,7 @@ public class PartsPresenter
         try {
             match = ProjectText.parseMatch(editor.getText());
             if (!(match instanceof MatchExpression.Parts)) {
-                throw new ConfigException("The parts tab edits a match sequence: {\"parts\": [...]}");
+                throw new ConfigException("The parts form edits a match sequence: {\"parts\": [...]}");
             }
         } catch (final ConfigException e) {
             getView().setError(e.getMessage());

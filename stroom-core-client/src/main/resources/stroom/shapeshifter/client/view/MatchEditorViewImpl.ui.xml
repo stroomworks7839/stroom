@@ -1,0 +1,16 @@
+<!DOCTYPE ui:UiBinder SYSTEM "http://dl.google.com/gwt/DTD/xhtml.ent">
+<ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
+             xmlns:g="urn:import:com.google.gwt.user.client.ui"
+             xmlns:l="urn:import:stroom.item.client">
+    <g:DockLayoutPanel unit="PX" styleName="max">
+        <g:north size="38">
+            <g:FlowPanel styleName="ss-wb-kind">
+                <g:Label styleName="ss-lim-label" text="Match kind"/>
+                <l:SelectionBox ui:field="kind" title="How this template finds its matches: regex, pattern tree and parts convert between one another; the rest replace"/>
+            </g:FlowPanel>
+        </g:north>
+        <g:center>
+            <g:SimplePanel ui:field="body" styleName="max"/>
+        </g:center>
+    </g:DockLayoutPanel>
+</ui:UiBinder>

@@ -42,7 +42,7 @@ import java.util.Set;
 /**
  * Guard and limits (design 18 §5.6): mechanism-independent — the engine's dispatch order is
  * mode → guard → match → limits whatever the match kind — so they belong to the workbench, not
- * to any tab. The guard is clause rows (variable · operator · value) joined by <i>and</i>, the
+ * to any kind of match. The guard is clause rows (variable · operator · value) joined by <i>and</i>, the
  * names in scope offered; a guard the rows cannot express is edited as its wire form. Limits
  * are three fields with their semantics stated inline. Everything commits as a field is left.
  * The live verdict against the current frame waits for the trace (phase B).
