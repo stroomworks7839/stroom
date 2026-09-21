@@ -18,10 +18,8 @@ package stroom.shapeshifter.client.presenter;
 
 import com.gwtplatform.mvp.client.UiHandlers;
 
-public interface ModeEditorUiHandlers extends UiHandlers {
+public interface TemplateEditUiHandlers extends UiHandlers {
 
-    /** A mode's name was edited and left. */
-    void onRename(String from, String to);
-
-    void onRemove(String mode);
+    /** The author wants a mode the list does not have. */
+    void onNewMode();
 }

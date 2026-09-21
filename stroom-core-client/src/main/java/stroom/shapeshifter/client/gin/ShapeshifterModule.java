@@ -32,16 +32,18 @@ import stroom.shapeshifter.client.presenter.ContentPanePresenter.ContentPaneView
 import stroom.shapeshifter.client.presenter.DeclarationEditPresenter;
 import stroom.shapeshifter.client.presenter.DeclarationEditPresenter.DeclarationEditView;
 import stroom.shapeshifter.client.presenter.DeclarationsPresenter;
+import stroom.shapeshifter.client.presenter.DelimiterPresenter;
+import stroom.shapeshifter.client.presenter.DelimiterPresenter.DelimiterView;
 import stroom.shapeshifter.client.presenter.GuardAndLimitsPresenter;
 import stroom.shapeshifter.client.presenter.GuardAndLimitsPresenter.GuardAndLimitsView;
 import stroom.shapeshifter.client.presenter.InstructionEditPresenter;
 import stroom.shapeshifter.client.presenter.InstructionEditPresenter.InstructionEditView;
 import stroom.shapeshifter.client.presenter.MatchEditorPresenter;
+import stroom.shapeshifter.client.presenter.MatchEditorPresenter.MatchEditorView;
 import stroom.shapeshifter.client.presenter.MessagesPresenter;
 import stroom.shapeshifter.client.presenter.ModeEditorPresenter;
-import stroom.shapeshifter.client.presenter.ModeEditorPresenter.ModeEditorView;
-import stroom.shapeshifter.client.presenter.OtherMatchPresenter;
-import stroom.shapeshifter.client.presenter.OtherMatchPresenter.OtherMatchView;
+import stroom.shapeshifter.client.presenter.ModeNamePresenter;
+import stroom.shapeshifter.client.presenter.ModeNamePresenter.ModeNameView;
 import stroom.shapeshifter.client.presenter.OutputPanePresenter;
 import stroom.shapeshifter.client.presenter.OutputPanePresenter.OutputPaneView;
 import stroom.shapeshifter.client.presenter.PartEditPresenter;
@@ -54,8 +56,8 @@ import stroom.shapeshifter.client.presenter.PatternTreePresenter;
 import stroom.shapeshifter.client.presenter.PatternTreePresenter.PatternTreeView;
 import stroom.shapeshifter.client.presenter.PatternWorkbenchPresenter;
 import stroom.shapeshifter.client.presenter.PatternWorkbenchPresenter.PatternWorkbenchView;
-import stroom.shapeshifter.client.presenter.RegexTabPresenter;
-import stroom.shapeshifter.client.presenter.RegexTabPresenter.RegexTabView;
+import stroom.shapeshifter.client.presenter.RegexPresenter;
+import stroom.shapeshifter.client.presenter.RegexPresenter.RegexView;
 import stroom.shapeshifter.client.presenter.ShapeshifterDesignPresenter;
 import stroom.shapeshifter.client.presenter.ShapeshifterDesignPresenter.ShapeshifterDesignView;
 import stroom.shapeshifter.client.presenter.ShapeshifterPresenter;
@@ -75,17 +77,18 @@ import stroom.shapeshifter.client.view.CaptureEditViewImpl;
 import stroom.shapeshifter.client.view.ConditionEditViewImpl;
 import stroom.shapeshifter.client.view.ContentPaneViewImpl;
 import stroom.shapeshifter.client.view.DeclarationEditViewImpl;
+import stroom.shapeshifter.client.view.DelimiterViewImpl;
 import stroom.shapeshifter.client.view.GuardAndLimitsViewImpl;
 import stroom.shapeshifter.client.view.InstructionEditViewImpl;
-import stroom.shapeshifter.client.view.ModeEditorViewImpl;
-import stroom.shapeshifter.client.view.OtherMatchViewImpl;
+import stroom.shapeshifter.client.view.MatchEditorViewImpl;
+import stroom.shapeshifter.client.view.ModeNameViewImpl;
 import stroom.shapeshifter.client.view.OutputPaneViewImpl;
 import stroom.shapeshifter.client.view.PartEditViewImpl;
 import stroom.shapeshifter.client.view.PartsViewImpl;
 import stroom.shapeshifter.client.view.PatternNodeEditViewImpl;
 import stroom.shapeshifter.client.view.PatternTreeViewImpl;
 import stroom.shapeshifter.client.view.PatternWorkbenchViewImpl;
-import stroom.shapeshifter.client.view.RegexTabViewImpl;
+import stroom.shapeshifter.client.view.RegexViewImpl;
 import stroom.shapeshifter.client.view.ShapeshifterDesignViewImpl;
 import stroom.shapeshifter.client.view.SourceConfigViewImpl;
 import stroom.shapeshifter.client.view.TemplateEditViewImpl;
@@ -100,8 +103,8 @@ public class ShapeshifterModule extends PluginModule {
         bindPlugin(ShapeshifterPlugin.class);
         bind(ShapeshifterPresenter.class);
 
-        // The Design tab's presenter tree (design 43 §4). Grids and the tabbed match editor use
-        // the shared PagerView and LinkTabPanelView; the forms have views of their own.
+        // The Design tab's presenter tree (design 43 §4). Grids use the shared PagerView; the
+        // forms have views of their own.
         bindPresenterWidget(ShapeshifterDesignPresenter.class,
                 ShapeshifterDesignView.class,
                 ShapeshifterDesignViewImpl.class);
@@ -132,16 +135,18 @@ public class ShapeshifterModule extends PluginModule {
         bindPresenterWidget(TemplateStripPresenter.class,
                 TemplateStripView.class,
                 TemplateStripViewImpl.class);
-        bind(MatchEditorPresenter.class);
+        bindPresenterWidget(MatchEditorPresenter.class,
+                MatchEditorView.class,
+                MatchEditorViewImpl.class);
         bindPresenterWidget(GuardAndLimitsPresenter.class,
                 GuardAndLimitsView.class,
                 GuardAndLimitsViewImpl.class);
-        bindPresenterWidget(RegexTabPresenter.class,
-                RegexTabView.class,
-                RegexTabViewImpl.class);
-        bindPresenterWidget(OtherMatchPresenter.class,
-                OtherMatchView.class,
-                OtherMatchViewImpl.class);
+        bindPresenterWidget(RegexPresenter.class,
+                RegexView.class,
+                RegexViewImpl.class);
+        bindPresenterWidget(DelimiterPresenter.class,
+                DelimiterView.class,
+                DelimiterViewImpl.class);
         bindPresenterWidget(PartsPresenter.class,
                 PartsView.class,
                 PartsViewImpl.class);
@@ -172,8 +177,9 @@ public class ShapeshifterModule extends PluginModule {
         bindPresenterWidget(ConditionEditPresenter.class,
                 ConditionEditView.class,
                 ConditionEditViewImpl.class);
-        bindPresenterWidget(ModeEditorPresenter.class,
-                ModeEditorView.class,
-                ModeEditorViewImpl.class);
+        bind(ModeEditorPresenter.class);
+        bindPresenterWidget(ModeNamePresenter.class,
+                ModeNameView.class,
+                ModeNameViewImpl.class);
     }
 }

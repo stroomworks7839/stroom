@@ -32,6 +32,7 @@ import com.google.gwt.user.client.ui.Widget;
 import com.google.inject.Inject;
 import com.gwtplatform.mvp.client.ViewWithUiHandlers;
 
+import java.util.List;
 import java.util.Locale;
 
 public class SourceConfigViewImpl
@@ -49,7 +50,7 @@ public class SourceConfigViewImpl
     @UiField
     CustomCheckBox ignoreErrors;
     @UiField
-    TextBox encoding;
+    SelectionBox<String> encoding;
     @UiField
     SelectionBox<String> dispatch;
     @UiField
@@ -182,14 +183,27 @@ public class SourceConfigViewImpl
 
     @Override
     public String getEncoding() {
-        return encoding.getText();
+        final String value = encoding.getValue();
+        return value == null
+                ? ""
+                : value;
     }
 
     @Override
     public void setEncoding(final String value) {
-        encoding.setText(value == null
-                ? ""
-                : value);
+        encoding.setValue(value == null || value.isEmpty()
+                ? "auto"
+                : value, false);
+    }
+
+    @Override
+    public void setEncodings(final List<String> values) {
+        // The engine's list has "auto", which is what a blank source encoding means, so there
+        // is no non-select item: one row says it.
+        final String current = encoding.getValue();
+        encoding.clear();
+        encoding.addItems(values);
+        encoding.setValue(current, false);
     }
 
     @Override

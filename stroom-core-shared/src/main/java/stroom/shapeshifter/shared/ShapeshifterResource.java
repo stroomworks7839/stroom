@@ -33,6 +33,8 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import org.fusesource.restygwt.client.DirectRestService;
 
+import java.util.List;
+
 @Tag(name = "Shapeshifter")
 @Path("/shapeshifter" + ResourcePaths.V1)
 @Produces(MediaType.APPLICATION_JSON)
@@ -95,6 +97,13 @@ public interface ShapeshifterResource extends RestResource, DirectRestService, F
             summary = "The standard library a pattern tree's ref names, each entry as the regex it means",
             operationId = "shapeshifterLibrary")
     ShapeshifterLibrary library();
+
+    @GET
+    @Path("/encodings")
+    @Operation(
+            summary = "The encodings the engine can match in, by canonical label, for the source and template forms",
+            operationId = "shapeshifterEncodings")
+    List<String> encodings();
 
     @POST
     @Path("/print")

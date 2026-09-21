@@ -18,19 +18,25 @@ package stroom.shapeshifter.client.view;
 
 import stroom.item.client.SelectionBox;
 import stroom.shapeshifter.client.presenter.TemplateEditPresenter.TemplateEditView;
+import stroom.shapeshifter.client.presenter.TemplateEditUiHandlers;
+import stroom.widget.button.client.Button;
 import stroom.widget.tickbox.client.view.CustomCheckBox;
 
+import com.google.gwt.event.dom.client.ClickEvent;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
+import com.google.gwt.uibinder.client.UiHandler;
 import com.google.gwt.user.client.ui.TextArea;
 import com.google.gwt.user.client.ui.TextBox;
 import com.google.gwt.user.client.ui.Widget;
 import com.google.inject.Inject;
-import com.gwtplatform.mvp.client.ViewImpl;
+import com.gwtplatform.mvp.client.ViewWithUiHandlers;
 
-import java.util.Set;
+import java.util.List;
 
-public class TemplateEditViewImpl extends ViewImpl implements TemplateEditView {
+public class TemplateEditViewImpl
+        extends ViewWithUiHandlers<TemplateEditUiHandlers>
+        implements TemplateEditView {
 
     private final Widget widget;
 
@@ -39,20 +45,30 @@ public class TemplateEditViewImpl extends ViewImpl implements TemplateEditView {
     @UiField
     SelectionBox<String> mode;
     @UiField
+    Button newMode;
+    @UiField
     CustomCheckBox consume;
     @UiField
     ColourPalette colour;
     @UiField
     TextArea params;
     @UiField
-    TextBox encoding;
+    SelectionBox<String> encoding;
     @UiField
     CustomCheckBox ignoreErrors;
 
     @Inject
     public TemplateEditViewImpl(final Binder binder) {
         widget = binder.createAndBindUi(this);
-        mode.setAllowTextEntry(true);
+        mode.setNonSelectString("root");
+        encoding.setNonSelectString("inherit");
+    }
+
+    @UiHandler("newMode")
+    void onNewMode(final ClickEvent e) {
+        if (getUiHandlers() != null) {
+            getUiHandlers().onNewMode();
+        }
     }
 
     @Override
@@ -77,8 +93,10 @@ public class TemplateEditViewImpl extends ViewImpl implements TemplateEditView {
 
     @Override
     public String getMode() {
-        // With text entry allowed the text is the value: a pick writes it, and typing replaces it.
-        return mode.getText();
+        final String value = mode.getValue();
+        return value == null
+                ? ""
+                : value;
     }
 
     @Override
@@ -89,9 +107,12 @@ public class TemplateEditViewImpl extends ViewImpl implements TemplateEditView {
     }
 
     @Override
-    public void setModes(final Set<String> values) {
+    public void setModes(final List<String> values) {
+        final String current = mode.getValue();
         mode.clear();
+        mode.setNonSelectString("root");
         mode.addItems(values);
+        mode.setValue(current, false);
     }
 
     @Override
@@ -110,8 +131,8 @@ public class TemplateEditViewImpl extends ViewImpl implements TemplateEditView {
     }
 
     @Override
-    public void setColour(final String value) {
-        colour.setValue(value);
+    public void setColour(final String override, final String auto) {
+        colour.setValue(override, auto);
     }
 
     @Override
@@ -126,12 +147,26 @@ public class TemplateEditViewImpl extends ViewImpl implements TemplateEditView {
 
     @Override
     public String getEncoding() {
-        return encoding.getText();
+        final String value = encoding.getValue();
+        return value == null
+                ? ""
+                : value;
     }
 
     @Override
     public void setEncoding(final String value) {
-        encoding.setText(value);
+        encoding.setValue(value == null || value.isEmpty()
+                ? null
+                : value, false);
+    }
+
+    @Override
+    public void setEncodings(final List<String> values) {
+        final String current = encoding.getValue();
+        encoding.clear();
+        encoding.setNonSelectString("inherit");
+        encoding.addItems(values);
+        encoding.setValue(current, false);
     }
 
     @Override

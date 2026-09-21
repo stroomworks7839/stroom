@@ -4,6 +4,7 @@
              xmlns:form="urn:import:stroom.widget.form.client"
              xmlns:tickbox="urn:import:stroom.widget.tickbox.client.view"
              xmlns:ss="urn:import:stroom.shapeshifter.client.view"
+             xmlns:b="urn:import:stroom.widget.button.client"
              xmlns:l="urn:import:stroom.item.client">
     <g:ScrollPanel styleName="max">
     <g:FlowPanel styleName="form dock-container-vertical">
@@ -15,8 +16,11 @@
             <ss:ColourPalette ui:field="colour"/>
         </form:FormGroup>
         <form:FormGroup identity="shapeshifterTemplateMode" label="Mode"
-                        helpText="The mode this template is dispatched in: pick one, or type a new one. Blank is the root. Order within a mode is dispatch priority; rename and remove modes with the panel's Modes button.">
-            <l:SelectionBox ui:field="mode" addStyleNames="w-100"/>
+                        helpText="The mode this template is dispatched in, or the root. New makes a mode here and now. Order within a mode is dispatch priority; rename and remove modes with the panel's Modes button.">
+            <g:FlowPanel styleName="ss-field-row">
+                <l:SelectionBox ui:field="mode" addStyleNames="ss-field-row-main"/>
+                <b:Button ui:field="newMode" text="New..." addStyleNames="allow-focus Button--contained-primary" title="Create a mode and pick it"/>
+            </g:FlowPanel>
         </form:FormGroup>
         <form:FormGroup identity="shapeshifterTemplateConsume" label="Consume"
                         helpText="Whether a match consumes its bytes, so the next template starts after it.">
@@ -27,8 +31,8 @@
             <g:TextArea ui:field="params" addStyleNames="w-100 shapeshifter-entries" visibleLines="3"/>
         </form:FormGroup>
         <form:FormGroup identity="shapeshifterTemplateEncoding" label="Encoding"
-                        helpText="This template's encoding where it differs from the project's; blank inherits.">
-            <g:TextBox ui:field="encoding"/>
+                        helpText="This template's encoding where it differs from what encloses it; inherit takes the enclosing one.">
+            <l:SelectionBox ui:field="encoding"/>
         </form:FormGroup>
         <form:FormGroup identity="shapeshifterTemplateIgnoreErrors" label="Ignore errors"
                         helpText="Errors raised while this template runs are reported and do not stop the run.">

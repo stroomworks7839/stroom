@@ -449,6 +449,19 @@
 }
 
 /* The workbench's right column: sections with quiet uppercase headings (mockup #wbRight). */
+/* The match editor's kind row: one choice above the kind's form. */
+.ss-wb-kind {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 14px 5px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.ss-wb-kind .SelectionBox {
+    min-width: 160px;
+}
+
 .ss-wb-right {
     min-width: 0;
 }
@@ -647,12 +660,36 @@
     font-size: 11.5px;
 }
 
-/* The colour palette in the template dialog. */
+/* A field with a button beside it, in a form group. */
+.ss-field-row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.ss-field-row-main {
+    flex: 1 1 auto;
+}
+
+/* The colour palette in the template dialog: the auto tick, then the swatches. */
 .ss-palette {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+}
+
+.ss-palette-swatches {
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
     align-items: center;
+}
+
+/* Auto: the swatches are shown, greyed, and take no clicks; the one auto resolves to stays marked. */
+.ss-palette-swatches-off {
+    opacity: .35;
+    pointer-events: none;
 }
 
 .ss-pal-swatch {
@@ -670,19 +707,6 @@
 
 .ss-pal-swatch-sel {
     border-color: var(--text-color);
-}
-
-.ss-pal-swatch--auto {
-    width: auto;
-    padding: 0 6px;
-    font-size: 11px;
-    line-height: 18px;
-    color: var(--ss-muted);
-    border: 1px dashed var(--ss-muted);
-}
-
-.ss-mode-name {
-    width: 180px;
 }
 
 /* The parts tab's rows. */

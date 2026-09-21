@@ -16,7 +16,9 @@
 
 package stroom.shapeshifter.client.presenter;
 
-/** One row of the mode editor: a mode and what holds it in existence. */
+import java.util.Objects;
+
+/** One row of the mode editor: a mode and what holds it in existence - or nothing yet, while it waits. */
 public final class ModeRowData {
 
     private final String name;
@@ -39,5 +41,24 @@ public final class ModeRowData {
 
     public int getApplySites() {
         return applySites;
+    }
+
+    /** Declared this session and not yet given to a template: nothing in the project holds it. */
+    public boolean isWaiting() {
+        return templates == 0 && applySites == 0;
+    }
+
+    @Override
+    public boolean equals(final Object o) {
+        if (!(o instanceof ModeRowData)) {
+            return false;
+        }
+        final ModeRowData that = (ModeRowData) o;
+        return templates == that.templates && applySites == that.applySites && name.equals(that.name);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(name, templates, applySites);
     }
 }

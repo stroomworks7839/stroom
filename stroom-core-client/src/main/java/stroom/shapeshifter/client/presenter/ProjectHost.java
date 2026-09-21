@@ -42,6 +42,21 @@ public interface ProjectHost {
     /** Choose a template's colour, or null for the palette's; presentation, so the run is never stale for it. */
     void setColour(String templateId, String colour);
 
+    // ---- modes (design 18 §5.6) ----
+
+    /**
+     * The project's modes, then those declared this session and not yet given to a template. A
+     * mode exists only through its templates and apply sites, so a declared mode is editor state:
+     * offered wherever a mode is picked, listed by the mode editor, gone once a template takes it
+     * or the author forgets it.
+     */
+    List<String> modes();
+
+    void declareMode(String mode);
+
+    /** Forget a declared mode no template has taken; a mode the project holds is not the editor's to forget. */
+    void forgetMode(String mode);
+
     // ---- the run and the trace (design 18 §5; phase B) ----
 
     /** The sample the project runs over, or null while none has been supplied (design 18 Q2). */

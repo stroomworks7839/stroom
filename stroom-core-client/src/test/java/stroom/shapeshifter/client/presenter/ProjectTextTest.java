@@ -79,6 +79,16 @@ class ProjectTextTest {
     }
 
     @Test
+    void templateAsTheDialogFirstWritesItPrints() {
+        // New Template, name typed, OK: a blank regex and nothing else yet, into an empty document.
+        final Template blank = Templates.withIdentity(Templates.create("", null, true), "first", null, true,
+                List.of(), null, false);
+        final Project project = new Project("p", ProjectText.CURRENT_VERSION, null, List.of(blank));
+        final Project again = ProjectText.parse(ProjectText.print(project));
+        assertThat(again).isEqualTo(project);
+    }
+
+    @Test
     void matchAndPatternNodeHaveTheirOwnTextForms() {
         final PatternNode.Sequence node = new PatternNode.Sequence(List.of(
                 new PatternNode.Tag("GET "),

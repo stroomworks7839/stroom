@@ -16,8 +16,8 @@
                 <g:TextBox ui:field="version"/>
             </form:FormGroup>
             <form:FormGroup identity="shapeshifterEncoding" label="Encoding"
-                            helpText="auto sniffs once before compiling; UTF-8 is the default. A byte-order mark contradicting a declared encoding is a run message.">
-                <g:TextBox ui:field="encoding"/>
+                            helpText="auto sniffs the byte-order mark once before compiling and takes UTF-8 without one. A byte-order mark contradicting a declared encoding is a run message.">
+                <l:SelectionBox ui:field="encoding"/>
             </form:FormGroup>
             <form:FormGroup identity="shapeshifterDispatch" label="Dispatch"
                             helpText="How templates are chosen among the candidates in a mode. Blank takes the version's default.">

@@ -43,9 +43,11 @@ import com.gwtplatform.mvp.client.View;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * The Design tab's root (design 43 §4): owns the {@link Project}, the selection, and the one
@@ -87,6 +89,7 @@ public class ShapeshifterDesignPresenter
 
     private Project project;
     private final Map<String, String> colours = new HashMap<>();
+    private final Set<String> declaredModes = new LinkedHashSet<>();
     private String sourceError;
     private boolean readOnly = true;
     private boolean workbenchOpen;
@@ -304,6 +307,7 @@ public class ShapeshifterDesignPresenter
         this.sourceError = sourceError;
         if (project != null) {
             this.project = project;
+            declaredModes.removeAll(Modes.of(project));
         }
         if (colours != null) {
             this.colours.clear();
@@ -394,9 +398,34 @@ public class ShapeshifterDesignPresenter
             return;
         }
         project = next;
+        declaredModes.removeAll(Modes.of(next));
         refresh();
         ValueChangeEvent.fire(this, next);
         check();
+    }
+
+    // ---- modes ----
+
+    @Override
+    public List<String> modes() {
+        // Disjoint by construction: a project arriving by either door prunes what it holds.
+        final List<String> modes = project == null
+                ? new ArrayList<>()
+                : new ArrayList<>(Modes.of(project));
+        modes.addAll(declaredModes);
+        return modes;
+    }
+
+    @Override
+    public void declareMode(final String mode) {
+        if (mode != null && !mode.isEmpty() && !modes().contains(mode)) {
+            declaredModes.add(mode);
+        }
+    }
+
+    @Override
+    public void forgetMode(final String mode) {
+        declaredModes.remove(mode);
     }
 
     private void refresh() {

@@ -36,6 +36,7 @@ import stroom.shapeshifter.engine.Shapeshifter;
 import stroom.shapeshifter.engine.TraceRecorder;
 import stroom.shapeshifter.engine.graph.CompiledProject;
 import stroom.shapeshifter.engine.output.XmlByteSink;
+import stroom.shapeshifter.engine.text.Encoding;
 import stroom.shapeshifter.shared.ShapeshifterDoc;
 import stroom.shapeshifter.shared.ShapeshifterLibrary;
 import stroom.shapeshifter.shared.ShapeshifterMessage;
@@ -198,6 +199,20 @@ class ShapeshifterResourceImpl implements ShapeshifterResource {
             entries.add(new ShapeshifterLibrary.Entry(entry.getKey(), entry.getValue()));
         }
         return new ShapeshifterLibrary(entries);
+    }
+
+    @AutoLogged(OperationType.UNLOGGED)
+    @Override
+    public List<String> encodings() {
+        // The engine's vocabulary, in its order, less what this build has no charset for - the
+        // compiler refuses those by name, so the forms should not offer them.
+        final List<String> labels = new ArrayList<>();
+        for (final Encoding encoding : Encoding.values()) {
+            if (encoding.isAvailable()) {
+                labels.add(encoding.label());
+            }
+        }
+        return labels;
     }
 
     @AutoLogged(OperationType.UNLOGGED)

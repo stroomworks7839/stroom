@@ -23,6 +23,7 @@ import stroom.shapeshifter.config.Template;
 import stroom.shapeshifter.shared.ShapeshifterTrace.Timing;
 import stroom.svg.client.Preset;
 import stroom.svg.client.SvgPresets;
+import stroom.svg.shared.SvgImage;
 import stroom.widget.button.client.ButtonView;
 import stroom.widget.util.client.MouseUtil;
 
@@ -78,7 +79,7 @@ public class TemplatePanelPresenter
         removeButton = view.addButton(SvgPresets.DELETE.title("Remove template"));
         upButton = view.addButton(SvgPresets.UP.title("Move up: earlier in dispatch order"));
         downButton = view.addButton(SvgPresets.DOWN.title("Move down: later in dispatch order"));
-        modesButton = view.addButton(SvgPresets.PROPERTIES.title("Modes: rename or remove"));
+        modesButton = view.addButton(SvgPresets.enabled(SvgImage.TAGS, "Modes: add, rename or remove"));
         enableButtons();
     }
 
@@ -198,12 +199,16 @@ public class TemplatePanelPresenter
             for (final String mode : modes) {
                 for (final Template template : project.templates()) {
                     if (Objects.equals(template.mode(), mode)) {
-                        rows.add(new TemplateRowData(template.id(), template.name(), template.mode(),
-                                host.colour(template.id()), count(trace, template), zero(trace, template),
-                                Profile.share(trace, template.id()), Profile.cost(trace, template.id()),
-                                Profile.describe(trace, template.id()), trace == null
-                                        ? 0
-                                        : trace.worstOfTemplate(template.id())));
+                        // The profile is a run's reading (design 18 §5.8): before one, the row has a
+                        // kind and no heat.
+                        rows.add(trace == null
+                                ? new TemplateRowData(template.id(), template.name(), template.mode(),
+                                        host.colour(template.id()), count(null, template), false)
+                                : new TemplateRowData(template.id(), template.name(), template.mode(),
+                                        host.colour(template.id()), count(trace, template), zero(trace, template),
+                                        Profile.share(trace, template.id()), Profile.cost(trace, template.id()),
+                                        Profile.describe(trace, template.id()),
+                                        trace.worstOfTemplate(template.id())));
                         survives |= template.id().equals(selected);
                     }
                 }
@@ -285,7 +290,7 @@ public class TemplatePanelPresenter
             return;
         }
         final Template current = host.template(selected);
-        editPresenter.read(host.getProject(), Templates.create("", current == null
+        editPresenter.read(host, Templates.create("", current == null
                 ? null
                 : current.mode(), true), null);
         editPresenter.show("New Template", e -> {
@@ -309,7 +314,7 @@ public class TemplatePanelPresenter
         if (existing == null || host.isReadOnly()) {
             return;
         }
-        editPresenter.read(host.getProject(), existing, overrideOf(existing.id()));
+        editPresenter.read(host, existing, overrideOf(existing.id()));
         editPresenter.show("Edit Template", e -> {
             if (e.isOk()) {
                 final Template template = editPresenter.write();

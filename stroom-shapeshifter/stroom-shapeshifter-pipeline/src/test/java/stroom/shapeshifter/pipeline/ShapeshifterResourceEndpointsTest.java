@@ -16,6 +16,7 @@
 
 package stroom.shapeshifter.pipeline;
 
+import stroom.shapeshifter.engine.text.Encoding;
 import stroom.shapeshifter.shared.ShapeshifterLibrary;
 import stroom.shapeshifter.shared.ShapeshifterMessage;
 import stroom.shapeshifter.shared.ShapeshifterPatternInfo;
@@ -27,6 +28,7 @@ import stroom.shapeshifter.shared.ShapeshifterValidation;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -102,6 +104,16 @@ class ShapeshifterResourceEndpointsTest {
         assertThat(tree.getText()).contains("\"sequence\"").contains("\"label\": \"level\"");
         final ShapeshifterText printed = resource.print(new ShapeshifterPatternRequest(tree.getText(), false, false));
         assertThat(printed.getText()).isEqualTo("^(?<level>ERROR|WARN) +(?<msg>.*)$");
+    }
+
+    @Test
+    void encodingsAreTheEnginesLabelsInItsOrderLessTheUnavailable() {
+        final List<String> labels = resource.encodings();
+        assertThat(labels).startsWith("utf-8", "utf-16le", "utf-16be").contains("raw", "auto");
+        for (final String label : labels) {
+            assertThat(Encoding.fromLabel(label)).isNotNull();
+            assertThat(Encoding.fromLabel(label).isAvailable()).isTrue();
+        }
     }
 
     @Test

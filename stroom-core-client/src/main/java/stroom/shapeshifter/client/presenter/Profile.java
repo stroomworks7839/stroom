@@ -23,7 +23,8 @@ import java.util.List;
 /**
  * The run's timing as the editor shows it (design 18 §5.8): every run profiles, and the display
  * leads with shares, ratios and heat, keeping absolutes as detail - single-run timing under
- * instrumentation is a diagnostic, not a benchmark.
+ * instrumentation is a diagnostic, not a benchmark. Every reading is of a run: callers ask once
+ * there is a trace, and say "before a run" themselves.
  */
 public final class Profile {
 
