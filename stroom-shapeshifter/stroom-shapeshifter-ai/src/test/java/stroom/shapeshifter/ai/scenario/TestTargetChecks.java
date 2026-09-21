@@ -162,5 +162,10 @@ class TestTargetChecks {
         final OutputRecords nested = OutputRecords.parse(
                 "<log><entries><entry><who>a</who></entry><entry><who>b</who></entry></entries></log>").orElseThrow();
         assertThat(TargetChecks.recordElement(nested, "entries")).isPresent();
+        // Only an element's own children count: one Event holding repeated structured Data two levels down is
+        // a record.
+        final OutputRecords event = OutputRecords.parse("<Events><Event><System><Id>1</Id></System><EventData>"
+                + "<Data><Text>a</Text></Data><Data><Text>b</Text></Data></EventData></Event></Events>").orElseThrow();
+        assertThat(TargetChecks.recordElement(event, "Event")).isEmpty();
     }
 }

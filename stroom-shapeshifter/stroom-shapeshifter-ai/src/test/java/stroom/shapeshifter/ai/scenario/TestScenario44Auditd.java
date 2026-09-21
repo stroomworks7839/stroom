@@ -43,14 +43,12 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * Design 02 §5, scenario 44 (design 03 §3): Linux audit records, where one event is the run of consecutive
- * lines sharing a serial and nothing else marks the boundary. A split of one record per line consumes every
- * character and is caught by yield against the input's own structure — the document says a record is
- * several lines — before any target is proposed; the split that joins by serial passes; targets are proposed
- * for whole events; and a parser that drops the EXECVE's quoted arguments is caught by preservation, the
- * target having the command and its arguments.
- */
+/// Design 02 §5, scenario 44 (design 03 §3): Linux audit records, where one event is the run of consecutive
+/// lines sharing a serial and nothing else marks the boundary. A split of one record per line consumes every
+/// character and is caught by yield against the input's own structure — the document says a record is
+/// several lines — before any target is proposed; the split that joins by serial passes; targets are proposed
+/// for whole events; and a parser that drops the EXECVE's quoted arguments is caught by preservation, the
+/// target having the command and its arguments.
 class TestScenario44Auditd {
 
     private static final String BY_EVENT = Scenarios.resource("auditd.ds3.xml");

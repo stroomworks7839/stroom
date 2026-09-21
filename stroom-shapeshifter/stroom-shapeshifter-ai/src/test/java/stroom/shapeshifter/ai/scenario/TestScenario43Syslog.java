@@ -42,12 +42,10 @@ import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * Design 02 §5, scenario 43 (design 03 §3): syslog in both forms — RFC 3164 and RFC 5424 — from two senders on
- * one feed. Under the default key that is one shape, so one variant must take both forms, and a splitter that
- * handles one is sent back naming the lines it dropped; with the signature in the key the two forms are two
- * shapes, each learned from its own stream and bound by its own rule.
- */
+/// Design 02 §5, scenario 43 (design 03 §3): syslog in both forms — RFC 3164 and RFC 5424 — from two senders on
+/// one feed. Under the default key that is one shape, so one variant must take both forms, and a splitter that
+/// handles one is sent back naming the lines it dropped; with the signature in the key the two forms are two
+/// shapes, each learned from its own stream and bound by its own rule.
 class TestScenario43Syslog {
 
     private static final String BOTH_FORMS = Scenarios.resource("syslog.ds3.xml");

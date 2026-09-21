@@ -93,6 +93,7 @@ class TestLiveScenarios {
     private static final String NESTED_XML = Scenarios.resource("nested-audit.xml");
     private static final String SYSLOG = Scenarios.resource("syslog.log");
     private static final String AUDITD = Scenarios.resource("auditd.log");
+    private static final String WINDOWS = Scenarios.resource("windows-security.xml");
     private static final String INSTRUCTIONS = """
             The feed is door-access records from a building's badge readers: who went where and what \
             they did, when. Events should name the person as the user and the reader's location as \
@@ -255,6 +256,19 @@ class TestLiveScenarios {
                     .build();
             return List.of(scenarios.stage(advisor).run(doc,
                     new Input(1, "LINUX-AUDITD", "Raw Events", Map.of(), AUDITD)));
+        }));
+
+        outcomes.add(run("10-windows-security", advisor -> {
+            final Scenarios scenarios = new Scenarios();
+            final ShapeshifterAiDoc doc = doc("windows-security", 0.9).copy()
+                    .instructions("Windows Security event log exported as XML: each Event is one record; the "
+                                  + "EventID says what happened — 4624 a logon, 4634 a logoff, 4688 a process "
+                                  + "created — and the EventData's named Data carry the user, the client "
+                                  + "address and the process. The computer is the device. Map to typed events, "
+                                  + "not to Data elements.")
+                    .build();
+            return List.of(scenarios.stage(advisor).run(doc,
+                    new Input(1, "WINDOWS-SECURITY", "Raw Events", Map.of("Format", "XML"), WINDOWS)));
         }));
 
         LOGGER.info("Live scenarios against {}, {}:\n{}", System.getenv(LiveAdvisor.MODEL), PLAN_UNDER_TEST,

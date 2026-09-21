@@ -225,7 +225,9 @@ public final class Dialogue {
             final Transition at = step.transitionOn(judged.outcome());
             if (at != null) {
                 return at.abandons()
-                        ? Visit.abandon(spent + ": " + at.format(), judged.feedback())
+                        ? Visit.abandon("Step '" + step.effectiveId() + "' abandons the attempt on "
+                                        + judged.outcome().getDisplayValue() + ", as the plan says: " + at.format(),
+                                judged.feedback())
                         : Visit.take(at, judged.feedback());
             }
             feedback = judged.feedback();
@@ -432,13 +434,18 @@ public final class Dialogue {
             final Optional<StepRunner.Configured> configured = runner.configured();
             final Visit visit;
             if (configured.isEmpty()) {
-                // Nothing is asked for a run-only element, so a second candidate could only repeat the first.
-                visit = candidates(step, walk, (candidate, feedback) -> {
-                    final Judged judged = judge(over, checks, runner, null, input, runner.run(null, input),
-                            walk, last);
-                    walk.learn(index, judged.learned());
-                    return judged;
-                }, runner.elementType() + " failed on its input", 1);
+                // Nothing is asked for a run-only element, so it is run once and judged; what a transition
+                // carried here is left for the next question asked.
+                final Judged judged = judge(over, checks, runner, null, input, runner.run(null, input), walk, last);
+                walk.learn(index, judged.learned());
+                final Transition at = step.transitionOn(judged.outcome());
+                if (judged.outcome() == StepOutcome.PASSED) {
+                    visit = Visit.next();
+                } else if (at != null && !at.abandons()) {
+                    visit = Visit.take(at, judged.feedback());
+                } else {
+                    visit = Visit.abandon(runner.elementType() + " failed on its input", judged.feedback());
+                }
             } else {
                 // A parser is held to the split's records; a transform over XML input is told the record element.
                 final boolean carriesSplit = runner.parser() || (walk.split != null && walk.split.element() != null);

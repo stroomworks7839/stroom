@@ -29,6 +29,7 @@ import jakarta.inject.Inject;
 import tools.jackson.databind.JsonNode;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 
 public class ShapeshifterAiSerialiser implements DocumentSerialiser2<ShapeshifterAiDoc> {
 
@@ -50,8 +51,13 @@ public class ShapeshifterAiSerialiser implements DocumentSerialiser2<Shapeshifte
         final ShapeshifterAiDoc document = delegate.read(importExportDocument);
         // A document saved when the plan was called the dialogue (before A37) reads as it was written. The
         // shared class cannot carry the old name — its JSON is generated for the client too — so it is
-        // honoured here, on the way in only.
-        final JsonNode json = JsonUtil.getMapper().readTree(importExportDocument.getExtAssetData(META));
+        // honoured here, on the way in only, and only where the old name occurs at all.
+        final byte[] meta = importExportDocument.getExtAssetData(META);
+        if (document == null || meta == null
+            || !new String(meta, StandardCharsets.UTF_8).contains('"' + LEGACY_PLAN + '"')) {
+            return document;
+        }
+        final JsonNode json = JsonUtil.getMapper().readTree(meta);
         final JsonNode legacy = json.get(LEGACY_PLAN);
         if (legacy == null || legacy.isNull() || json.get(PLAN) != null) {
             return document;

@@ -260,5 +260,19 @@ class TestScenariosPlan {
         refused.verifyExhausted();
         assertThat(abandoned.decision()).isInstanceOf(GivenUp.class);
         assertThat(((GivenUp) abandoned.decision()).reason()).contains("on a pass of step 'parser'");
+
+        // An at-once abandon names the outcome and the step, not candidates that were never spent. A fresh
+        // stage: the shape above was given up, and a given-up shape asks nothing (scenario 11).
+        final Scenarios fresh = new Scenarios();
+        final Script prose = fresh.script(FOUR_FIELDS, XSLT)
+                .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter")
+                .expect(QuestionMatcher.configuration("DSParser")).reply("not a configuration");
+        final StageRun atOnce = fresh.stage(prose).run(doc(LearningPlan.of(PlanExample.DIRECT).withSteps(
+                List.of(PlanStep.parse("CHAIN"), PlanStep.parse("CONFIGURE on refused abandon")))),
+                stream(3, CsvLines.lines(6)));
+        prose.verifyExhausted();
+        assertThat(((GivenUp) atOnce.decision()).reason())
+                .contains("Step 'configure' abandons the attempt on refused")
+                .doesNotContain("after 5 attempts");
     }
 }

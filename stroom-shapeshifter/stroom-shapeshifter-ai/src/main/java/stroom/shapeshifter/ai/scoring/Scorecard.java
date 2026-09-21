@@ -75,18 +75,22 @@ public final class Scorecard {
                 .toList(), List.copyOf(scorers.values()));
     }
 
-    /// The outcome of a verdict (A37): passed, or the shortfall of the first scorer that did not meet its
-    /// threshold — the compile gate's as {@code COMPILE_FAILED}.
+    /// The outcome of a verdict (A37): passed, or the shortfall that decided it — a failed gate before any
+    /// other scorer that did not meet its threshold, in the document's order within each; the compile
+    /// gate's as {@code COMPILE_FAILED}.
     public static StepOutcome outcome(final Verdict verdict) {
-        for (final Judgement judgement : verdict.judgements()) {
-            if (!judgement.metThreshold()) {
-                final Check check = Check.of(judgement.setting().getType());
-                return check == null
-                        ? StepOutcome.COMPILE_FAILED
-                        : check.shortfall();
-            }
+        final Judgement decisive = verdict.judgements().stream()
+                .filter(Judgement::failedGate)
+                .findFirst()
+                .or(() -> verdict.judgements().stream().filter(judgement -> !judgement.metThreshold()).findFirst())
+                .orElse(null);
+        if (decisive == null) {
+            return StepOutcome.PASSED;
         }
-        return StepOutcome.PASSED;
+        final Check check = Check.of(decisive.setting().getType());
+        return check == null
+                ? StepOutcome.COMPILE_FAILED
+                : check.shortfall();
     }
 
     public Verdict judge(final Attempted step) {

@@ -58,6 +58,14 @@ class TestShapeshifterAiSerialiser {
     }
 
     @Test
+    void aDocumentWithoutItsMetaReadsAsTheDelegateReadsIt() throws IOException {
+        final ImportExportDocument written = serialiser.write(
+                ShapeshifterAiDoc.builder().uuid("d").name("door").build());
+        written.removeExtAsset("meta");
+        assertThat(serialiser.read(written)).isNull();
+    }
+
+    @Test
     void aDocumentSavedWithAPresetReadsAsThatExamplesSteps() throws IOException {
         // Before A34 the section carried a preset in place of steps.
         final ImportExportDocument written = serialiser.write(

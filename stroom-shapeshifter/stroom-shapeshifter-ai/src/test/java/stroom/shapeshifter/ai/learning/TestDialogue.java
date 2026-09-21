@@ -30,6 +30,9 @@ import stroom.shapeshifter.ai.scenario.Scenarios;
 import stroom.shapeshifter.ai.scoring.CompileScorer;
 import stroom.shapeshifter.ai.scoring.Scorecard;
 import stroom.shapeshifter.ai.transformation.XsltStep;
+import stroom.shapeshifter.shared.LearningPlan;
+import stroom.shapeshifter.shared.PlanExample;
+import stroom.shapeshifter.shared.PlanStep;
 import stroom.shapeshifter.shared.ScorerSetting;
 import stroom.shapeshifter.shared.ScorerType;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
@@ -346,6 +349,52 @@ class TestDialogue {
         assertThat(abandoned.reason()).isEqualTo("XMLParser failed on its input");
         assertThat(abandoned.diagnostics()).extracting(StoredError::getMessage).containsExactly("not XML");
         assertThat(model.questions()).hasSize(1);
+    }
+
+    @Test
+    void feedbackCarriedToARunOnlyElementReachesTheNextQuestionAsked() {
+        // A goto lands on a CONFIGURE step whose element takes no configuration: nothing is asked there, so
+        // what the transition carried is kept for the transform, which is asked next.
+        final StepRunner passThrough = new StepRunner() {
+            @Override
+            public String elementType() {
+                return "XMLParser";
+            }
+
+            @Override
+            public String elementId() {
+                return "xmlParser";
+            }
+
+            @Override
+            public Optional<Configured> configured() {
+                return Optional.empty();
+            }
+
+            @Override
+            public boolean parser() {
+                return true;
+            }
+
+            @Override
+            public StepResult run(final String configuration, final String input) {
+                return new StepResult("<records xmlns=\"records:2\"><record/></records>", List.of());
+            }
+        };
+        final CannedAdvisor model = new CannedAdvisor("XMLParser, XSLTFilter", "not a stylesheet",
+                Scenarios.fenced(XSLT));
+        final ShapeshifterAiDoc doc = policy().copy().plan(LearningPlan.of(PlanExample.DIRECT).withSteps(List.of(
+                PlanStep.parse("CHAIN"), PlanStep.parse("CONFIGURE parser"),
+                PlanStep.parse("CONFIGURE transform on refused goto parser")))).build();
+        final Dialogue dialogue = new Dialogue(model, List.of(passThrough, new XsltStep()),
+                new Scorecard(List.of(), List.of()), Clock.systemUTC());
+
+        final Outcome outcome = dialogue.run(doc, SAMPLE);
+
+        assertThat(outcome).describedAs(outcome.toString()).isInstanceOf(Learned.class);
+        assertThat(model.questions()).hasSize(3);
+        assertThat(model.questions().get(2).feedback()).extracting(StoredError::getMessage)
+                .anyMatch(message -> message.contains("was not a single XSLT document"));
     }
 
     private static Golden golden(final String stem) {

@@ -1812,6 +1812,13 @@ including the degeneracy trap (§8.3) that changes the scoring model and propose
   lines, so a lines or bytes basis now judges the transform record for record (§8.4).
 - Audit of slices 13–14 and the day's fixes: ten findings fixed — design 02 §6.1. 154 module tests, 14
   shared, 2 Tier 2; checkstyle clean; GWT draft compiled.
+- Slice 15, Windows security events (design 02 scenario 45, §6.1; design 03 §5): the degeneracy trap in
+  the wild, refused; and a finding — kinds of XML record are told apart by structure, and Windows events
+  of different `EventID`s share one, so the target step saw one kind. A kind by a discriminating value is
+  owed (§10.1's "one representative per kind, chosen by signature" is not enough for such logs).
+- Audit of slice 15 and the range since upstream: nine findings, eight fixed — design 02 §6.1; among them
+  a failed gate now decides a candidate's outcome ahead of any other shortfall, and feedback carried to a
+  run-only element reaches the next question asked.
 - Design 03 written: the phases, at the owner's asking for one plan covering everything discussed and
   the formats never yet exercised — syslog, auditd, Windows security events, JSON, fixed-width,
   multi-line CSV. Slice 12 is phase A; phase B is a slice per format.

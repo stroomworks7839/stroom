@@ -73,7 +73,7 @@ otherwise.
 |---|---|---|
 | Syslog | 13, 2026-09-21 | Fixture, golden, two splitters, stylesheet; scenario 43 in both keyings green; live row `08-syslog` awaiting the 2026-10-01 run. Finding: a `<PRI>` prefix must not read as markup (`YieldScorer`) |
 | auditd | 14, 2026-09-21 | Fixture, golden, three splitters, stylesheet; scenario 44 green; live row `09-auditd`. Findings: a multi-line record is stated through the expected yield per line; a lines basis must judge the transform record for record; DS3 group expressions anchor with `^` |
-| Windows security events | 15 | — |
+| Windows security events | 15, 2026-09-21 | Fixture, golden, two stylesheets; scenario 45 green; live row `10-windows-security`. Finding: kinds of XML record are told apart by structure, and events of different `EventID`s share one — a kind by a discriminating value (`EventID`, `Data/@Name`) is owed before the target step can see them |
 | JSON | 16 | — |
 | Fixed-width | 17 | — |
 | CSV with embedded newlines | 18 | — |

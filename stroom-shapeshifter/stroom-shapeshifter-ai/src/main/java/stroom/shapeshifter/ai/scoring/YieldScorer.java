@@ -56,16 +56,19 @@ public final class YieldScorer implements Scorer {
         // The basis describes raw input. A step whose input is already records — a transform after the
         // parser — is judged record for record, one out per one in, whatever the document's basis; only a
         // basis of records applies the document's ratio there (a transform that filters, scenario 7).
-        final boolean recordsIn = isXml(step.input()) && Records.isDocument(step.input());
+        final int parsed = isXml(step.input())
+                ? Records.parsed(step.input())
+                : -1;
+        final boolean recordsIn = parsed >= 0;
         final double units = switch (yield.getBasis()) {
             case RECORDS -> recordsIn
-                    ? Records.count(step.input())
+                    ? parsed
                     : -1;
             case LINES -> recordsIn
-                    ? Records.count(step.input())
+                    ? parsed
                     : step.input().lines().filter(line -> !line.isBlank()).count();
             case BYTES -> recordsIn
-                    ? Records.count(step.input())
+                    ? parsed
                     : step.input().length();
         };
         if (units < 0) {

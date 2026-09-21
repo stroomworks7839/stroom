@@ -43,17 +43,9 @@ public final class Records {
     }
 
     /**
-     * Whether the text is one well-formed document: records, however few, rather than text that happens to
-     * begin with a bracket.
-     */
-    public static boolean isDocument(final String xml) {
-        return parsed(xml) >= 0;
-    }
-
-    /**
      * @return The records the document holds, or -1 where it is not a document.
      */
-    private static int parsed(final String xml) {
+    public static int parsed(final String xml) {
         final Counter counter = new Counter();
         try {
             final XMLReader reader = SAXParserFactoryFactory.newInstance().newSAXParser().getXMLReader();
