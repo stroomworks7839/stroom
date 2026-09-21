@@ -21,6 +21,7 @@ import stroom.docstore.api.Serialiser2;
 import stroom.docstore.api.Serialiser2Factory;
 import stroom.importexport.api.ImportExportDocument;
 import stroom.shapeshifter.shared.LearningPlan;
+import stroom.shapeshifter.shared.PlanExample;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 import stroom.util.json.JsonUtil;
 
@@ -35,6 +36,7 @@ public class ShapeshifterAiSerialiser implements DocumentSerialiser2<Shapeshifte
     private static final String META = "meta";
     private static final String PLAN = "plan";
     private static final String LEGACY_PLAN = "dialogue";
+    private static final String LEGACY_PRESET = "preset";
 
     private final Serialiser2<ShapeshifterAiDoc> delegate;
 
@@ -51,10 +53,16 @@ public class ShapeshifterAiSerialiser implements DocumentSerialiser2<Shapeshifte
         // honoured here, on the way in only.
         final JsonNode json = JsonUtil.getMapper().readTree(importExportDocument.getExtAssetData(META));
         final JsonNode legacy = json.get(LEGACY_PLAN);
-        if (legacy != null && !legacy.isNull() && json.get(PLAN) == null) {
-            return document.copy().plan(JsonUtil.getMapper().treeToValue(legacy, LearningPlan.class)).build();
+        if (legacy == null || legacy.isNull() || json.get(PLAN) != null) {
+            return document;
         }
-        return document;
+        LearningPlan plan = JsonUtil.getMapper().treeToValue(legacy, LearningPlan.class);
+        // Before A34 the section carried a preset in place of steps; a document that chose one gets its steps.
+        final JsonNode preset = legacy.get(LEGACY_PRESET);
+        if (preset != null && !preset.isNull() && (legacy.get("steps") == null || legacy.get("steps").isNull())) {
+            plan = plan.withSteps(PlanExample.valueOf(preset.asText()).steps());
+        }
+        return document.copy().plan(plan).build();
     }
 
     @Override

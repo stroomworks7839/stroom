@@ -4,7 +4,7 @@
 Shapeshifter Intelligence and Shapeshifter Engine. This design keeps only Intelligence, drops the
 Engine entirely, and re-targets the whole mechanism at Stroom's existing Data Splitter and XSLT.*
 
-*Every decision the design rests on is a numbered ruling, A1–A37; §13 lists them with their status
+*Every decision the design rests on is a numbered ruling, A1–A38; §13 lists them with their status
 and §14 records when each arrived. Two were ruled against the recommendation — promotion is
 automatic (A9), and AI writes extraction configs as well as transforms (A8) — and the sections below
 say what each of those obliges in return.*
@@ -721,7 +721,7 @@ required-field list and the model prompt.
 |---|---|---|
 | Compile | Does it compile or schema-validate as a config at all | Saxon; `data-splitter-v3.0` via `SchemaFilter` |
 | Input coverage *(extraction)* | Proportion of input characters consumed rather than discarded; the lines not consumed named in the diagnostic (A36) | Parser position; see A11 |
-| Yield | Output records per input record or byte, against an expected ratio | `RecordCount`, `RecordCountFilter` |
+| Yield | Output records per input record, line or byte, against an expected ratio; a step whose input is already records is judged one record out per one in unless the basis is records | `RecordCount`, `RecordCountFilter` |
 | Schema conformance | Proportion of records validating, **per record** | `SchemaFilterSplit` wrapping `SchemaFilter` |
 | Extraction quality *(anti-degeneracy)* | Typed-element ratio, `Unknown` rate, required-field coverage | XPath over the captured `SAXEventRecorder` tree |
 | Business rules | Configured XPath assertions over the record | The same tree; `<xsl:message>` severities from the transform |
@@ -1215,6 +1215,18 @@ Samples are size-capped in all cases. Combined with A13, the default posture is 
 in-deployment endpoint; the override exists for the cases where literal values carry the
 parsing clue, such as delimiters, keywords and field markers.*
 
+**Ruling A38** (2026-09-21, the shape of redaction; the build deferred)**.** *A redacted sample keeps the
+feed's vocabulary and classes its values: punctuation and whitespace stay; a token that recurs across the
+sample's records — field names, keywords, labels, month names — is vocabulary and stays; a token that
+varies per record is classed, letters to* `a` *and digits to* `9`*, length kept, the recurrence threshold a
+document setting. Redaction applies to every text the model sees — the sample, the parser's real output
+carried into the transform question, the record a target is asked about, the lines feedback quotes — and
+to every comparison against something the model wrote: targets are events over classed values, so
+preservation and fidelity redact the real output before holding it to them. It is measured as a harness
+dimension beside the plan. The owner deferred building it: it is a second variable on an unproven
+capability and would make the transforms harder to read; the live runs send fixture data only. It must be
+built before a real feed is pointed at a model outside the deployment (design 03, phase G).*
+
 A17 governs what reaches the *model*. The regression stream of A18 is a separate exposure: it is a
 persistent copy of real, unredacted log samples living outside the source stream's lifecycle, because
 a regression set of redacted inputs would test nothing. It therefore inherits the feed's
@@ -1630,6 +1642,7 @@ with the criterion that ends it, adds the input formats the feature must be show
 | A35 | The split question is asked of XML input too, as A31 said: the reply names the element that is one record, judged by occurrence, not-the-root, not-a-container and wholeness; the transform is told each such element is one record; markup input is learned from whole, not from a line prefix | **Ruled, 2026-09-18** — the owner's, on the coherence audit: build it rather than amend A31 |
 | A36 | Input coverage is the share of the input's characters consumed; lines are counted and named in the diagnostic but do not set the score | **Ruled, 2026-09-18** — the owner's; on a seven-line sample a header was a seventh by lines and a sixteenth by characters, and the live runs found that deciding promotions (02 §6.3) |
 | A37 | The plan is a graph over typed question kinds and typed outcomes: each step names its checks and its transitions — `on <outcome> goto <step>` at once, `on spent goto <step>` when its candidates are gone — with self re-ask the default; `CONFIGURE` may take a role, parser or transform; each transition taken at most once per attempt; the rule-6 routing is a transition in the examples, not code | **Ruled, 2026-09-21** — the owner's, on four questions put with recommendations: graph over typed outcomes (not a list with an outcome guard); checks declared per step from a closed list; the parser–transform routing in the graph; designed and specified now, built as slice 12 ahead of the A26 tables |
+| A38 | Redaction keeps the feed's vocabulary and classes its values; applies to every text the model sees and every comparison against what it wrote; measured as a harness dimension | **Ruled, 2026-09-21** — the owner's, on three questions with recommendations; the build deferred by the owner until the formats are proven, and owed before phase G |
 
 Where a row says *revised*, *restated* or *settled* 2026-09-17, the change was put to the owner as a
 recommendation with alternatives and taken by them that day: the text is the editor's, the decision
@@ -1789,6 +1802,16 @@ including the degeneracy trap (§8.3) that changes the scoring model and propose
   after a step's first unit rather than the whole step, and an explicit id shadowing a default one
   passing validation — design 02 §6.1. 145 module tests, 14 shared, 2 Tier 2; checkstyle clean; GWT
   draft compiled.
+- Slice 13, phase B's first format: syslog in both forms on one feed (design 02 scenario 43, §6.1; design
+  03 §5). The yield scorer's markup sniff mistook a `<PRI>` prefix for XML; fixed.
+- A38 ruled, the owner's, on three questions with recommendations — what redaction keeps, where it
+  applies, how it is measured (§11.1) — and the build deferred by the owner: formats first, redaction
+  before a real feed meets an external model.
+- Slice 14, auditd (design 02 scenario 44, §6.1; design 03 §5): a multi-line record with no separator,
+  the boundary a shared serial. The expected yield per line is how a document says a record is several
+  lines, so a lines or bytes basis now judges the transform record for record (§8.4).
+- Audit of slices 13–14 and the day's fixes: ten findings fixed — design 02 §6.1. 154 module tests, 14
+  shared, 2 Tier 2; checkstyle clean; GWT draft compiled.
 - Design 03 written: the phases, at the owner's asking for one plan covering everything discussed and
   the formats never yet exercised — syslog, auditd, Windows security events, JSON, fixed-width,
   multi-line CSV. Slice 12 is phase A; phase B is a slice per format.

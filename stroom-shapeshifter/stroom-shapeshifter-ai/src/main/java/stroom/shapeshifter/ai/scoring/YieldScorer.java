@@ -16,6 +16,7 @@
 
 package stroom.shapeshifter.ai.scoring;
 
+import stroom.shapeshifter.ai.stage.ShapeSignature;
 import stroom.shapeshifter.shared.ScorerParameters;
 import stroom.shapeshifter.shared.ScorerType;
 import stroom.shapeshifter.shared.YieldBasis;
@@ -52,12 +53,20 @@ public final class YieldScorer implements Scorer {
             return Optional.empty();
         }
         final int records = Records.count(output);
+        // The basis describes raw input. A step whose input is already records — a transform after the
+        // parser — is judged record for record, one out per one in, whatever the document's basis; only a
+        // basis of records applies the document's ratio there (a transform that filters, scenario 7).
+        final boolean recordsIn = isXml(step.input()) && Records.isDocument(step.input());
         final double units = switch (yield.getBasis()) {
-            case RECORDS -> isXml(step.input())
+            case RECORDS -> recordsIn
                     ? Records.count(step.input())
                     : -1;
-            case LINES -> step.input().lines().filter(line -> !line.isBlank()).count();
-            case BYTES -> step.input().length();
+            case LINES -> recordsIn
+                    ? Records.count(step.input())
+                    : step.input().lines().filter(line -> !line.isBlank()).count();
+            case BYTES -> recordsIn
+                    ? Records.count(step.input())
+                    : step.input().length();
         };
         if (units < 0) {
             return Optional.empty();
@@ -65,20 +74,30 @@ public final class YieldScorer implements Scorer {
         final double actual = units == 0
                 ? 0.0
                 : records / units;
-        final double expected = yield.getExpectedRatio();
+        final double expected = recordsIn && yield.getBasis() != YieldBasis.RECORDS
+                ? 1.0
+                : yield.getExpectedRatio();
         final double value = actual == expected
                 ? 1.0
                 : Math.min(actual, expected) / Math.max(actual, expected);
         final List<StoredError> diagnostics = value < 1.0
                 ? List.of(new StoredError(Severity.WARNING, null, YIELD,
-                records + " record(s) from " + (long) units + " input " + unitName(yield.getBasis())
+                records + " record(s) from " + (long) units + " input " + unitName(recordsIn
+                        ? YieldBasis.RECORDS
+                        : yield.getBasis())
                 + " is " + actual + " per unit against an expected " + expected))
                 : List.of();
         return Optional.of(new Score(type(), value, diagnostics));
     }
 
+    /**
+     * Whether text looks like markup. A leading {@code <} is not enough: syslog's priority prefix, {@code <38>},
+     * begins a text line, and reading it as XML counted a syslog stream as no records. Text that looks like
+     * markup but holds no document — fragments, or a line beginning with a bracketed word — is text too, which
+     * the caller settles by counting.
+     */
     private static boolean isXml(final String text) {
-        return text != null && text.stripLeading().startsWith("<");
+        return text != null && ShapeSignature.isMarkup(text);
     }
 
     private static String unitName(final YieldBasis basis) {

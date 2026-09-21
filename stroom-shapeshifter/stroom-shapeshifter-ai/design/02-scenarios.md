@@ -184,7 +184,7 @@ Ordered by what each needs built; each one is unlocked by the machinery the prev
 | 41 | **Escalation: a target only when the feed needs one** (A37) | the *escalating* example's steps, as 5 otherwise; two runs over the CSV feed | first: as 1; second: chain, DS3, then the degenerate transform twice, then a target, then DS3 and XSLT right | the first run is learned by chain and two configurations, no split or target asked, `on passed goto end` ending the plan — direct's cost; in the second the transform step spends its two candidates on `quality-short`, `on spent goto target` fires, one target per kind is proposed, the parser is re-asked against the targets, the transform is asked with them and promoted; the transcript names each step by id — `chain, parser, first, first, target, again, transform` — and each candidate's outcome | outcome kinds; `on passed`, `on spent`, `end`; roles on `CONFIGURE`; the interpreter |
 | 42 | **A shortfall at the transform sends the parser back** (A37, design 01 §10.1 rule 6) | the target-first example's steps; as 35, but the parser step's checks set to `coverage,yield` so preservation is not judged there, and the transform's to `fidelity` so the stream-level scorers do not fail it first on the fields it cannot find | a splitter keeping two fields of four; the stylesheet, which cannot find `logon` or `office`; then a full splitter and the stylesheet again | the parser passes; the transform's fidelity check finds the values absent from its *input* and reports `preservation-short`; `on preservation-short goto parser` fires at once, the parser is re-asked naming the values the records lack, then the transform, and the shape is promoted; where the parser keeps two fields again, the second `preservation-short` at the transform would take the jump a second time and the attempt is abandoned naming the transition and the step | transitions at once; once-per-transition; outcome attribution in the interpreter's judge |
 | 43 | **Syslog: two forms in one feed** (design 03 §3) | fixture `syslog.log`: RFC 3164 and RFC 5424 lines from two senders; `System` header; golden `syslog.events.xml`; first with the default key, then with the signature in it | as 1, the DS3 handling both forms; then, under the signature key, two attempts | with the default key one shape, one rule, one variant that emits every line as a record — a DS3 that handles only 3164 fails coverage and is re-asked naming the 5424 lines; with the signature in the key two shapes, two attempts, two rules, each learned from its own representative | the fixture and golden; `Format` in the chain question |
-| 44 | **auditd: a record is several lines** (A31, A35, design 03 §3) | fixture `auditd.log`: events of 2–4 records sharing `msg=audit(ts:serial)`; the target-first plan | a line-per-record split, then one that joins by serial; targets; DS3 and XSLT | the first split scores full coverage and fails wholeness and yield against the input's structure — re-asked before any target; targets are proposed per whole event; a parser dropping `a0`–`a3` is caught by preservation, the target having decoded them | wholeness on multi-line records; the fixture and golden |
+| 44 | **auditd: a record is several lines** (A31, A35, design 03 §3) | fixture `auditd.log`: interpreted audit records, no separators, events of 2–4 lines sharing `msg=audit(time:serial)`; the target-first plan; yield per line expected 0.35, threshold 0.6 — the document's way of saying a record is several lines | a line-per-record split, then one that joins by serial; targets; a parser that drops the EXECVE's quoted arguments, then the full one; XSLT | the first split consumes every character and is refused on yield alone — 1.0 per line against 0.35 — before any target is asked; the split by serial passes; targets are proposed for whole events, every line of the record sharing one serial; the parser without the arguments passes coverage and is caught by preservation naming `/etc/hosts`; the full parser and the stylesheet promote and the output equals the golden | yield against the input's structure; a lines basis judging the transform record for record; the fixture and golden |
 | 45 | **Windows security events: `Data[@Name]` to typed fields** (A16, A35, design 03 §3) | fixture `windows-security.xml`: `Event` elements with `System` and `EventData/Data[@Name]`, `EventID` 4624, 4634, 4688; scorers Schema conformance (gate), Extraction quality (gate), Event classification | split names `Event`; an XSLT that copies each `Data` to a `Data`; then one mapping `EventID` to the branch and the named fields to typed elements | the container `EventData` is refused as the record; the first transform validates and fails extraction quality on the typed ratio; the second is promoted with three `TypeId`s classified; the record element reaches the stage's count (phase C) or the scenario states the provisional outcome as 37 does | the fixture and golden; classification scorer |
 | 46 | **JSON: lines and an array** (A31, design 03 §3; scenario 2's promise) | fixtures `records.jsonl` and `records.json`; `Format: JSON`; allowed elements include `JSONParser`; the target-first plan | chain `JSONParser -> XSLTFilter`; the split names the array for the document, one line per record for the lines; targets; XSLT | no configuration question for the parser; the split guard `json` beside `text` and `xml`; the transform is asked with the parser's real XML; both learned to the floor | the `JSONParser` step runner; the `json` guard; the fixture and golden |
 | 47 | **Fixed-width: nothing to split on** (A11, A36, design 03 §3) | fixture `fixed-width.log`: six columns by position; the escalating plan | a positional regex capturing four columns, then six; XSLT | coverage is 1.0 with four columns — every character is consumed — and the loss is caught by preservation once the plan escalates to a target, or by conformance on the missing field before it; the six-column parser is promoted | the fixture and golden; the escalating plan on a real shortfall |
@@ -788,6 +788,51 @@ which is what wholeness measured; `Templates.VERSION` is 2, since `SPLIT_XML` jo
 document saved with the plan under its old name `dialogue` reads as it was written; `recordElement`
 evaluates its XPath once; the new methods' javadoc is markdown. Regression tests for each.
 
+The thirteenth slice, 2026-09-21, opens phase B (design 03 §3) with **syslog** (scenario 43). The fixture,
+`syslog.log`, is twenty sshd authentication lines from two gateways on one feed — one sending RFC 3164,
+the BSD form with a month and day and no year, the other RFC 5424 with a version and an ISO timestamp —
+with a golden `syslog.events.xml` of Authenticate logons naming the user, the client address and the
+gateway. Two splitters: `syslog.ds3.xml` takes both forms, two regexes in one group, each sub-parsing the
+message; `syslog-3164-only.ds3.xml` takes the BSD form and drops the rest with `<all/>`, scenario 4's
+idiom. The stylesheet composes the BSD form's timestamp with the year the instructions supply. Under the
+default key the feed is one shape: the one-form splitter scores coverage short over the learning prefix
+and is re-asked naming lines 2, 4, 6 …; the two-form splitter promotes, and the output equals the golden.
+With the signature in the key each form is a stream of its own shape: the first learned with the BSD
+splitter, the second finds that variant dropping every line under the bound-variant trial and learns
+from its own representative, and two rules result. The live harness gains row `08-syslog`. One finding,
+the first of the format phase: syslog's priority prefix, `<38>`, begins with the character a naive
+markup sniff looks for, and `YieldScorer` read a syslog stream as XML — zero input records, yield zero,
+no split could pass. It now asks `ShapeSignature.isMarkup`, which wants an element, a declaration or a
+comment after the bracket, as `OutputRecords` already did. 147 tests in the module.
+
+The fourteenth slice, 2026-09-21, is **auditd** (scenario 44): `auditd.log`, eight interpreted audit events
+of two to four lines each — logins and execve calls — with no separator, the boundary being only that
+consecutive lines share a `msg=audit(time:serial)`. Three Data Splitter configurations: `auditd-split.ds3.xml`
+answers the split question — one regex whose lookahead carries the serial as a back-reference, the run as
+one field; `auditd.ds3.xml` parses each line of the run into a data of its type with its `key=value` pairs
+and those inside a quoted `msg='…'`; `auditd-no-args.ds3.xml` the same but matching and dropping the
+EXECVE's quoted arguments. `auditd.xsl` makes an Authenticate event of a login and a Process event of an
+execve, the time from the epoch seconds. Two things the slice settled. A feed whose record spans several
+lines says so through yield: the document's expected yield per line — 0.35 here — is what refuses a split
+of one record per line, which coverage and wholeness both pass; so `YieldScorer` now judges a step whose
+input is already records record for record whatever the document's basis, since a lines basis was made
+for the raw input and would have judged the transform by lines of XML. And Data Splitter tries a group's
+expressions in order at the current position — one that matches later than the start is an error, one that
+does not match is skipped — so a `key=value` grammar anchors each expression with `^`. The live harness
+gains row `09-auditd`. 148 tests in the module.
+
+Audited the same day (code review, high) with slice 12's later fixes: ten findings, all fixed. A document
+saved with a pre-A34 *preset* and no steps read as direct — the serialiser now gives it the example's steps;
+the yield scorer's new markup test treated text that merely looks like markup, and a document of *no*
+records, alike as text — now a document is a document however few its records (`Records.isDocument`), and
+fragments or `<word>`-led lines are text, in the sample cut too; a single occurrence with a repeated *leaf*
+child — one `<record>` of several `<data>` — was refused as a container, and now only a repeated child with
+structure of its own makes one; feedback a transition carried was dropped when the step it named was
+skipped by its guard, and now reaches the next question asked; the settled boundary is typed
+(`Boundary`: a configuration or an element) rather than sniffed from a leading bracket in two places; step
+ids and `goto` names are matched without regard to case; new files carry this year's header, new methods
+their javadoc. Regression tests for each. 154 tests in the module.
+
 ## 7. Decisions taken
 
 Ruled 2026-09-17, each as recommended:
@@ -849,3 +894,6 @@ Ruled 2026-09-21, the owner's, on four questions put with recommendations:
 - **A phased plan** exists from today as design 03: phases A–G with exit criteria, the six formats
   of §3 as scenarios 43–48 (phase B, after slice 12), and the rulings owed with the phase each falls
   due in.
+- **Redaction deferred** (A38): the owner ruled how it works — vocabulary kept, values classed; every text
+  the model sees and every comparison against what it wrote; a harness dimension — and deferred the build
+  until the formats are proven. Phase B runs raw; it is owed before phase G's real feed.

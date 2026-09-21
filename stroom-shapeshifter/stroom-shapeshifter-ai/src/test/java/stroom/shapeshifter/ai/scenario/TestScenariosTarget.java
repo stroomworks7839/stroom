@@ -391,7 +391,7 @@ class TestScenariosTarget {
         assertThat(split.documentType()).isNull();
         assertThat(((TargetFor) asked.get(3)).record()).contains("<entry id=\"e1\">");
         final Configuration transform = (Configuration) asked.get(4);
-        assertThat(transform.split()).isEqualTo("entry");
+        assertThat(transform.split().element()).isEqualTo("entry");
         assertThat(transform.targets().get(0).event()).isPresent();
     }
 

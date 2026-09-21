@@ -24,8 +24,10 @@ import stroom.shapeshifter.shared.LearningPlan;
 import stroom.shapeshifter.shared.PlanExample;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 import stroom.shapeshifter.shared.Template;
+import stroom.util.json.JsonUtil;
 
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.node.ObjectNode;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -53,5 +55,24 @@ class TestShapeshifterAiSerialiser {
         final ShapeshifterAiDoc read = serialiser.read(written);
         assertThat(read.getPlan()).isEqualTo(plan);
         assertThat(serialiser.read(serialiser.write(doc)).getPlan()).isEqualTo(plan);
+    }
+
+    @Test
+    void aDocumentSavedWithAPresetReadsAsThatExamplesSteps() throws IOException {
+        // Before A34 the section carried a preset in place of steps.
+        final ImportExportDocument written = serialiser.write(
+                ShapeshifterAiDoc.builder().uuid("d").name("door").build());
+        final ObjectNode json = (ObjectNode) JsonUtil.getMapper().readTree(written.getExtAssetData("meta"));
+        json.remove("plan");
+        final ObjectNode legacy = json.putObject("dialogue");
+        legacy.put("preset", "TARGET_FIRST");
+        legacy.putObject("templates").put("CHAIN", "Pick");
+        written.removeExtAsset("meta");
+        written.addExtAsset(new ByteArrayImportExportAsset("meta", DocDataType.JSON,
+                JsonUtil.getMapper().writeValueAsBytes(json)));
+
+        final LearningPlan read = serialiser.read(written).getPlan();
+        assertThat(read.getSteps()).isEqualTo(PlanExample.TARGET_FIRST.steps());
+        assertThat(read.getTemplates()).containsEntry(Template.CHAIN, "Pick");
     }
 }

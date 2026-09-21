@@ -153,5 +153,14 @@ class TestTargetChecks {
         assertThat(TargetChecks.elementsNamed(document, "item").get(0)).contains("1a");
         assertThat(TargetChecks.recordElement(document, "item")).isEmpty();
         assertThat(TargetChecks.recordElement(document, "log")).isPresent();
+        // One record whose repeated children are fields is a record, not a container of them; one whose
+        // repeated child has structure of its own is the container.
+        final OutputRecords one = OutputRecords.parse(
+                "<records><record><data name=\"a\" value=\"1\"/><data name=\"b\" value=\"2\"/></record></records>")
+                .orElseThrow();
+        assertThat(TargetChecks.recordElement(one, "record")).isEmpty();
+        final OutputRecords nested = OutputRecords.parse(
+                "<log><entries><entry><who>a</who></entry><entry><who>b</who></entry></entries></log>").orElseThrow();
+        assertThat(TargetChecks.recordElement(nested, "entries")).isPresent();
     }
 }

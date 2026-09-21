@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2026 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -73,14 +73,17 @@ public class LearningPlan {
         return new LearningPlan(example.steps(), null, null);
     }
 
+    /// @return The steps in the order they are first entered.
     public List<PlanStep> getSteps() {
         return steps;
     }
 
+    /// @return Only the templates this document overrides, by template.
     public Map<Template, String> getTemplates() {
         return templates;
     }
 
+    /// @return The built-in text's version this document was last saved against, or null until saved.
     public Integer getBuiltInVersion() {
         return builtInVersion;
     }
@@ -150,14 +153,17 @@ public class LearningPlan {
         return problems;
     }
 
+    /// This plan with other steps.
     public LearningPlan withSteps(final List<PlanStep> steps) {
         return new LearningPlan(steps, templates, builtInVersion);
     }
 
+    /// This plan with other template overrides.
     public LearningPlan withTemplates(final Map<Template, String> templates) {
         return new LearningPlan(steps, templates, builtInVersion);
     }
 
+    /// This plan stamped with the built-in text's version it is saved against.
     public LearningPlan withBuiltInVersion(final int version) {
         return new LearningPlan(steps, templates, version);
     }

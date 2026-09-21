@@ -140,10 +140,9 @@ public final class Dialogue {
             final PlanStep step = steps.get(at);
             final Visit visit = enter(step, allowed, walk);
             switch (visit.kind()) {
-                case NEXT -> {
-                    walk.carried = List.of();
-                    at++;
-                }
+                // What a transition carried is spent by the next question asked, so a step the guard
+                // skips passes it on rather than dropping it.
+                case NEXT -> at++;
                 case ABANDON -> {
                     return abandoned(visit.reason(), visit.feedback(), walk.transcript);
                 }
@@ -311,7 +310,7 @@ public final class Dialogue {
                         return new Judged(StepOutcome.WHOLENESS_SHORT, List.of(shortfall.get()), null);
                     }
                 }
-                walk.cut(reply, records);
+                walk.cut(Boundary.ofElement(reply), records);
                 return Judged.passed();
             }, spent));
         }
@@ -343,7 +342,7 @@ public final class Dialogue {
                     return new Judged(StepOutcome.WHOLENESS_SHORT, List.of(partial.get()), null);
                 }
             }
-            walk.cut(configuration.get(), records);
+            walk.cut(Boundary.ofConfiguration(configuration.get()), records);
             return Judged.passed();
         }, spent));
     }
@@ -442,8 +441,8 @@ public final class Dialogue {
                 }, runner.elementType() + " failed on its input", 1);
             } else {
                 // A parser is held to the split's records; a transform over XML input is told the record element.
-                final boolean carriesSplit = runner.parser() || (walk.split != null && !walk.split.startsWith("<"));
-                final String split = carriesSplit
+                final boolean carriesSplit = runner.parser() || (walk.split != null && walk.split.element() != null);
+                final Boundary split = carriesSplit
                         ? walk.split
                         : null;
                 visit = candidates(step, walk, (candidate, feedback) -> {
@@ -660,7 +659,7 @@ public final class Dialogue {
         private List<StoredError> carried = List.of();
         private List<String> chain;
         private boolean raw;
-        private String split;
+        private Boundary split;
         private List<String> records;
         private List<Target> targets = List.of();
         private LearnedStep[] learned = new LearnedStep[0];
@@ -693,7 +692,7 @@ public final class Dialogue {
             return runners.get(chain.get(0));
         }
 
-        private void cut(final String split, final List<String> records) {
+        private void cut(final Boundary split, final List<String> records) {
             this.split = split;
             this.records = records;
         }

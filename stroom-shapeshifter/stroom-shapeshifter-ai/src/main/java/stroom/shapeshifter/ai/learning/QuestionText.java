@@ -203,16 +203,16 @@ public final class QuestionText {
      * The settled boundary as the configuration question carries it: a parser's configuration to cut the
      * same records, or the element that is one record where the input is XML (A35).
      */
-    private static String split(final String split) {
+    private static String split(final Boundary split) {
         if (split == null) {
             return "";
         }
-        if (split.stripLeading().startsWith("<")) {
+        if (split.configuration() != null) {
             return "\nThe record boundary is settled; this configuration cuts one record per unit, and yours must "
-                   + "cut the same records while extracting every field:\n" + fenced(split) + "\n";
+                   + "cut the same records while extracting every field:\n" + fenced(split.configuration()) + "\n";
         }
-        return "\nThe record boundary is settled: each <" + split + "> element is one record. Produce one event "
-               + "per <" + split + ">, and nothing for the elements around them.\n";
+        return "\nThe record boundary is settled: each <" + split.element() + "> element is one record. Produce one "
+               + "event per <" + split.element() + ">, and nothing for the elements around them.\n";
     }
 
     private static String targets(final List<Target> targets, final boolean extraction) {

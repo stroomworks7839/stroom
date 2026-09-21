@@ -636,7 +636,13 @@ public final class Stage {
         }
         int keep = (int) Math.ceil(lines.size() * (1.0 - policy.getHeldOutFraction()));
         keep = Math.max(1, Math.min(keep, lines.size()));
-        // The size limit bounds what the model is shown, by whole lines; one line is always shown.
+        return wholeLines(lines, keep, limit);
+    }
+
+    /**
+     * The first {@code keep} lines, as many of them as the size limit allows; one line is always shown.
+     */
+    private static String wholeLines(final List<String> lines, final int keep, final int limit) {
         int length = lines.get(0).length();
         int within = 1;
         while (within < keep && length + 1 + lines.get(within).length() <= limit) {
@@ -649,13 +655,16 @@ public final class Stage {
     /**
      * A document over the sample size limit, cut at a record boundary: the root's start tag, as many of its
      * children as fit — at least one — and its end tag, so that what the model is shown is still a document.
-     * A document that does not parse cannot be cut anywhere and is shown whole; the split question will
-     * find it wanting.
+     * What looks like markup but is not one document — fragments, or text beginning with a bracketed word —
+     * is cut by whole lines, as text is; the split question will find it what it is.
      */
     private static String wholeChildren(final String data, final int limit) {
         final Optional<OutputRecords> document = OutputRecords.parse(data);
         if (document.isEmpty() || document.get().records().isEmpty()) {
-            return data;
+            final List<String> lines = data.lines().filter(line -> !line.isBlank()).toList();
+            return lines.isEmpty()
+                    ? ""
+                    : wholeLines(lines, lines.size(), limit);
         }
         final String rootName = document.get().root().getNodeName().toString();
         final int open = data.indexOf('<' + rootName);

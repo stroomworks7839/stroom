@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2026 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -206,6 +206,33 @@ class TestScenariosPlan {
         assertThat(run.decision()).isInstanceOf(GivenUp.class);
         assertThat(((GivenUp) run.decision()).reason())
                 .contains("'on preservation-short goto parser' from step 'transform' a second time");
+    }
+
+    @Test
+    void feedbackCarriedByATransitionReachesTheNextQuestionAskedWhenTheStepItNamesIsSkipped() {
+        // 'goto split' over raw text where the split step is guarded 'when xml': the step is skipped, and the
+        // preservation shortfall the jump carried reaches the parser, which is what is asked next. The targets
+        // are asked before the split so that the parser is the first question after it.
+        final Scenarios scenarios = new Scenarios();
+        final Script script = scenarios.script(FOUR_FIELDS, XSLT)
+                .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter")
+                .expect(QuestionMatcher.configuration("DSParser").withoutFeedback()).reply(Scenarios.fenced(TWO_FIELDS))
+                .expect(QuestionMatcher.configuration("XSLTFilter").withoutFeedback()).reply(Scenarios.fenced(XSLT))
+                .expect(QuestionMatcher.configuration("DSParser")
+                        .withFeedbackMentioning("the records carry no value for [logon, office]"))
+                .reply(Scenarios.fenced(FOUR_FIELDS))
+                .expect(QuestionMatcher.configuration("XSLTFilter")).reply(Scenarios.fenced(XSLT));
+        final StageRun run = scenarios.stage(script).run(
+                doc(LearningPlan.of(PlanExample.TARGET_FIRST).withSteps(List.of(
+                PlanStep.parse("CHAIN"),
+                PlanStep.parse("TARGET kinds 3"),
+                PlanStep.parse("SPLIT when xml"),
+                PlanStep.parse("CONFIGURE parser checks coverage,yield"),
+                PlanStep.parse("CONFIGURE transform checks fidelity on preservation-short goto split")))),
+                stream(1, CsvLines.lines(6)));
+        assertThat(run.decision()).describedAs(run.decision().toString()).isInstanceOf(Promoted.class);
+        script.verifyExhausted();
+        assertThat(script.asked()).noneMatch(Split.class::isInstance);
     }
 
     @Test

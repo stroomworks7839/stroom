@@ -25,6 +25,9 @@ import stroom.shapeshifter.shared.StepOutcome;
  */
 public record Exchange(Question question, String reply, String step, int candidate, StepOutcome outcome) {
 
+    /**
+     * A turn not yet placed in a plan: as an advisor is given its transcript.
+     */
     public Exchange(final Question question, final String reply) {
         this(question, reply, null, 0, null);
     }

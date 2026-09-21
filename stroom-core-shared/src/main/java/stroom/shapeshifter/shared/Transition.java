@@ -52,15 +52,18 @@ public class Transition {
     public Transition(@JsonProperty("on") final StepOutcome on,
                       @JsonProperty("goTo") final String goTo) {
         this.on = on;
+        // A step's name is matched without regard to case, as the step's own id is kept.
         this.goTo = goTo == null || goTo.trim().isEmpty()
                 ? null
-                : goTo.trim();
+                : goTo.trim().toLowerCase();
     }
 
+    /// @return The outcome this fires on, or null where it fires when the candidates are spent.
     public StepOutcome getOn() {
         return on;
     }
 
+    /// @return The id of the step to go to, or null where the attempt is abandoned.
     public String getGoTo() {
         return goTo;
     }

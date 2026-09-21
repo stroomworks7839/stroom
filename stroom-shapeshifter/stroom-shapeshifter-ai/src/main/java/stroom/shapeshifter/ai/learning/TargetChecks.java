@@ -115,9 +115,10 @@ public final class TargetChecks {
         }
         final List<XdmNode> found = occurrences(document, name);
         if (found.size() == 1) {
-            // One occurrence holding a repeated child is the records' container, not a record.
+            // One occurrence holding a repeated child that has structure of its own is the records' container,
+            // not a record. A repeated child that is a leaf — a field, as <data> in a one-record sample — is not.
             final Map<String, Long> children = new LinkedHashMap<>();
-            document.evaluate(found.get(0), "*")
+            document.evaluate(found.get(0), "*[*]")
                     .forEach(child -> children.merge(((XdmNode) child).getNodeName().getLocalName(), 1L, Long::sum));
             final Optional<Map.Entry<String, Long>> repeated = children.entrySet().stream()
                     .filter(entry -> entry.getValue() > 1)

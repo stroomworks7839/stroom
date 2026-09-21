@@ -83,9 +83,10 @@ public sealed interface Question {
      * @param sample                The input sample and headers the whole attempt is about.
      * @param input                 What this element will actually be given to process.
      * @param previousConfiguration The configuration this question is asking to improve on, or null.
-     * @param split                 The record boundary already settled (A31), as the configuration that
-     *                              cuts it, for the parser that must extract within it; null where the
-     *                              element is not a parser or the dialogue has no split.
+     * @param split                 The record boundary already settled (A31, A35): the configuration that
+     *                              cuts it, for the parser that must extract within it, or the element
+     *                              that is one record, for a transform over XML; null where the plan has
+     *                              no split or it does not concern this element.
      * @param targets               What each kind of record must become (A31): the parser's records must
      *                              carry every value these need, the transform must produce exactly
      *                              these. Empty where the dialogue has no targets.
@@ -95,7 +96,7 @@ public sealed interface Question {
                          Sample sample,
                          String input,
                          String previousConfiguration,
-                         String split,
+                         Boundary split,
                          List<Target> targets,
                          List<StoredError> feedback) implements Question {
 

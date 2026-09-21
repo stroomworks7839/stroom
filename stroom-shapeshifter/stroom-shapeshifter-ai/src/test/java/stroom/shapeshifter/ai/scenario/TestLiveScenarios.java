@@ -91,6 +91,8 @@ class TestLiveScenarios {
     private static final Golden REGEX = Scenarios.corpus("004_simple_regex");
     private static final Golden MULTI_LINE = Scenarios.corpus("003_multiline_regex");
     private static final String NESTED_XML = Scenarios.resource("nested-audit.xml");
+    private static final String SYSLOG = Scenarios.resource("syslog.log");
+    private static final String AUDITD = Scenarios.resource("auditd.log");
     private static final String INSTRUCTIONS = """
             The feed is door-access records from a building's badge readers: who went where and what \
             they did, when. Events should name the person as the user and the reader's location as \
@@ -129,6 +131,22 @@ class TestLiveScenarios {
                                         + "or EventDetail/Authenticate/User/Id[normalize-space(.) != '']")),
                                         true))))
                 .build();
+    }
+
+    /**
+     * The scorers with the yield setting replaced: a feed whose record spans several lines says so by its
+     * expected yield per line (design 02 scenario 44).
+     */
+    private static List<ScorerSetting> withYield(final List<ScorerSetting> scorers,
+                                                 final YieldBasis basis,
+                                                 final double expected,
+                                                 final double threshold) {
+        return scorers.stream()
+                .map(setting -> setting.getType() == ScorerType.YIELD
+                        ? new ScorerSetting(ScorerType.YIELD, setting.getWeight(), threshold, false,
+                                new YieldParameters(expected, basis))
+                        : setting)
+                .toList();
     }
 
     private static Input stream(final long id, final String data) {
@@ -209,6 +227,34 @@ class TestLiveScenarios {
                     .build();
             return List.of(scenarios.stage(advisor).run(doc,
                     new Input(1, "DOCVAULT-AUDIT", "Raw Events", Map.of("Format", "XML"), NESTED_XML)));
+        }));
+
+        // Phase B (design 03 §3): syslog in both forms on one feed, two senders.
+        outcomes.add(run("08-syslog", advisor -> {
+            final Scenarios scenarios = new Scenarios();
+            final ShapeshifterAiDoc doc = doc("syslog", 0.9).copy()
+                    .instructions("Syslog from two SSH gateways on one feed: one sends RFC 3164 (BSD) lines, the "
+                                  + "other RFC 5424. Every line is one record and the message is sshd's "
+                                  + "authentication line. Events should be Authenticate logons naming the user, "
+                                  + "the client IP address and the gateway as the device; the BSD form carries no "
+                                  + "year, and the year is 2026.")
+                    .build();
+            return List.of(scenarios.stage(advisor).run(doc,
+                    new Input(1, "GATEWAY-SSH", "Raw Events", Map.of("Format", "syslog"), SYSLOG)));
+        }));
+
+        outcomes.add(run("09-auditd", advisor -> {
+            final Scenarios scenarios = new Scenarios();
+            final ShapeshifterAiDoc doc = doc("auditd", 0.9).copy()
+                    .instructions("Linux audit records, interpreted, one line per record, no separators: an event "
+                                  + "is the run of consecutive lines sharing one msg=audit(time:serial). Logins "
+                                  + "(USER_LOGIN) are Authenticate events naming the user and the client address; "
+                                  + "an execve (SYSCALL with EXECVE) is a Process event whose command and arguments "
+                                  + "are the EXECVE's a0, a1… The time is seconds since the epoch.")
+                    .scorers(withYield(doc("auditd", 0.9).getScorers(), YieldBasis.LINES, 0.35, 0.6))
+                    .build();
+            return List.of(scenarios.stage(advisor).run(doc,
+                    new Input(1, "LINUX-AUDITD", "Raw Events", Map.of(), AUDITD)));
         }));
 
         LOGGER.info("Live scenarios against {}, {}:\n{}", System.getenv(LiveAdvisor.MODEL), PLAN_UNDER_TEST,

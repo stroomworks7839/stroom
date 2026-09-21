@@ -93,6 +93,14 @@ class TestShapeSignature {
     }
 
     @Test
+    void textThatLooksLikeMarkupButIsNotADocumentIsCutByWholeLines() {
+        final String chat = "<alice> hello there everyone\n<bob> hi alice\n<carol> morning all\n";
+        assertThat(ShapeSignature.isMarkup(chat)).isTrue();
+        assertThat(Stage.learningPrefix(chat, ShapeshifterAiDoc.builder().uuid("d").sampleSizeLimit(45).build()))
+                .isEqualTo("<alice> hello there everyone\n<bob> hi alice\n");
+    }
+
+    @Test
     void textOverTheSampleSizeLimitIsCutByWholeLines() {
         final String lines = "one,1\ntwo,2\nthree,3\nfour,4\n";
         final ShapeshifterAiDoc doc = ShapeshifterAiDoc.builder().uuid("d").heldOutFraction(0.0).sampleSizeLimit(14)

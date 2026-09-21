@@ -23,12 +23,12 @@ fixed-width. Design 01 §2.1 said the corpus lacks them; nothing since has added
 | Phase | Delivers | Closes (design 01 §12 / design 02 §5) | Exit criterion |
 |---|---|---|---|
 | **A. The plan mechanism** | A37: outcomes and checks as closed lists; `PlanStep` with id, role, checks, transitions; `Dialogue` as an interpreter; the *escalating* example; the renames of §12 item 23; the Learning tab's grammar; `SHAPESHIFTER_LIVE_PLAN` | item 23; scenarios 39–42 | every scenario green in both tiers; the 2026-10-01 live run over feeds 06 and 07 with all three plans, transcripts under `build/live-runs`, findings in design 02 §6.3 |
-| **B. Format breadth** | one fixture, golden event set, scripted scenario and live row per format of §3; the `JSONParser` runner (scenario 2); redaction (A17) built, since real-shaped samples are now going to a model; the coverage floor and yield bases set per format from what the goldens score | scenarios 2, 43–48; A17; thresholds' first values (design 01 §2.1) | each of the six learned scripted; at least four of the six learned live to the floor with the default plan or the escalating one; redaction on, with the loss it costs measured and written in §6.3 |
+| **B. Format breadth** | one fixture, golden event set, scripted scenario and live row per format of §3; the `JSONParser` runner (scenario 2); the coverage floor and yield bases set per format from what the goldens score | scenarios 2, 43–48; thresholds' first values (design 01 §2.1) | each of the six learned scripted; at least four of the six learned live to the floor with the default plan or the escalating one |
 | **C. Durable state** | the A26 module and tables; the A35 record element on the rule and in the stage's count and yield; A28's attempt and turn tables, the deferred worker, the Supervisor view and its resource; A18's check reading targets as goldens | items 8, 9, 15, 20's remainder; scenarios 13, 20, 30, 31 | scenarios 20, 30 and 31 green in Tier 2 against MySQL; an attempt paused, answered by a person and resumed |
 | **D. Pipeline integration** | §12 items 1 and 2 in `stroom-pipeline`, proposed on their own merits; the fragment run once per stream with per-element capture in a child task; the reprocessing mode that reads bindings (item 7); input spans (item 21); the restricted XSLT function library (item 10); content-pack checks (item 11); replay unit derived and checked (item 18) | items 1, 2, 7, 10, 11, 18, 21; scenarios 18, 19, 38 | scenarios 18 and 19 without the interim glue design 02 §6.1 records; scenario 38's read-back by span; one real feed learned end to end on a running node |
 | **E. Safety at volume** | error mode (A24) and its status strip; the A27 processor gate; rate limiting across documents and the spend breaker; the A23 review job, its audit stream and the `Critique` kind; the regression stream as a real stream with retention | items 6's remainder, 12, 14, 16; scenarios 23, 24, 32 | scenarios 23, 24 and 32 green; a soak: a replayed real feed at volume under a deliberately bad model endpoint, with error mode entered, the gate holding tasks, and spend capped |
 | **F. Operator surfaces** | the plan editor (item 24); the stage pane in the stepper (A30, item 19); Approve and Reject on the Routing tab (item 13's remainder); the ledger view grouped by shape | items 13, 19, 24; scenario 33 | GWT compiled; scenario 33; a person learns, reviews and approves a feed from the UI alone, no REST calls by hand |
-| **G. Real-scale trial** | one real feed with an existing, thousand-line stylesheet as the incumbent, replayed through the feature; thresholds and A6 set from its evidence; the rulings of §4 given from what it shows | A6, A16, A19; the thresholds design 01 §2.1 left open | the promotion gate holds on real data — no promotion a person reviewing the transcript would have refused; the review-mode target page judged readable by an operator who did not build it |
+| **G. Real-scale trial** | redaction (A38) built and measured as a harness dimension first, since a real feed is now going to a model; then one real feed with an existing, thousand-line stylesheet as the incumbent, replayed through the feature; thresholds and A6 set from its evidence; the rulings of §4 given from what it shows | A38; A6, A16, A19; the thresholds design 01 §2.1 left open | the promotion gate holds on real data — no promotion a person reviewing the transcript would have refused; the review-mode target page judged readable by an operator who did not build it |
 
 Phases A and B are the proof that the mechanism works and works across formats; C to F make it a
 product; G is what decides whether it is switched on. C and D are independent of each other and may
@@ -67,10 +67,22 @@ otherwise.
 | A23–A28, A30 | Proposed, the owner's | Each on the phase that builds it: C for A26 and A28, E for A23, A24 and A27, F for A30 |
 | Thresholds (floor, coverage, yield, relearn) | Open, design 01 §2.1 | First values in phase B from the goldens; settled in phase G |
 
-## 5. How a slice is cut from this
+## 5. Where phase B stands
+
+| Format | Slice | State |
+|---|---|---|
+| Syslog | 13, 2026-09-21 | Fixture, golden, two splitters, stylesheet; scenario 43 in both keyings green; live row `08-syslog` awaiting the 2026-10-01 run. Finding: a `<PRI>` prefix must not read as markup (`YieldScorer`) |
+| auditd | 14, 2026-09-21 | Fixture, golden, three splitters, stylesheet; scenario 44 green; live row `09-auditd`. Findings: a multi-line record is stated through the expected yield per line; a lines basis must judge the transform record for record; DS3 group expressions anchor with `^` |
+| Windows security events | 15 | — |
+| JSON | 16 | — |
+| Fixed-width | 17 | — |
+| CSV with embedded newlines | 18 | — |
+| Redaction (A17, A38) | deferred to G | Ruled 2026-09-21 how it works; the owner deferred the build — formats first, redaction before a real feed meets an external model |
+
+## 6. How a slice is cut from this
 
 A slice is the smallest piece of a phase that leaves every scenario green and design 02 §6.1 able to
 say what it did. Slice 12 is the whole of phase A. Phase B is six slices, one per format, each
-carrying its fixture, golden, scenario and live row; redaction goes with the first of them. The phases
+carrying its fixture, golden, scenario and live row; redaction (A38) waits for phase G. The phases
 after B are cut when B's exit criterion is met, because what B finds — which formats the model
 handles, at what cost, with which plan — is what decides how much of C to F is worth building first.

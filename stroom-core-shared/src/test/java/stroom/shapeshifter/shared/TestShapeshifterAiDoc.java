@@ -88,6 +88,13 @@ class TestShapeshifterAiDoc {
                 PlanStep.parse("CHAIN"), PlanStep.parse("CONFIGURE on refused goto nowhere on spent abandon")))
                 .problems())
                 .containsExactly("'on refused goto nowhere' in step 'configure' names no step");
+        // A step's name is matched without regard to case, as everything else on the line is.
+        assertThat(LearningPlan.of(PlanExample.DIRECT).withSteps(List.of(
+                PlanStep.parse("CHAIN"),
+                PlanStep.parse("First: CONFIGURE parser on spent goto Target on passed goto END"),
+                PlanStep.parse("TARGET"), PlanStep.parse("CONFIGURE transform"))).problems()).isEmpty();
+        assertThat(PlanStep.parse("First: CONFIGURE parser on spent goto Target").format())
+                .isEqualTo("first: CONFIGURE parser on spent goto target");
         // An id given on purpose that shadows another step's default name is a collision too.
         assertThat(LearningPlan.of(PlanExample.DIRECT).withSteps(List.of(
                 PlanStep.parse("CHAIN"), PlanStep.parse("target: CONFIGURE parser"), PlanStep.parse("TARGET"),

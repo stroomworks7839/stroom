@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2026 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,8 @@
  */
 
 package stroom.shapeshifter.shared;
+
+import stroom.docref.HasDisplayValue;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -86,9 +88,10 @@ public class PlanStep {
         if (kinds != null && kinds < 1) {
             throw new IllegalArgumentException("'kinds' must be at least 1, in step " + kind.name());
         }
+        // Names are matched without regard to case, as kinds, roles, checks and outcomes are read.
         this.id = id == null || id.trim().isEmpty()
                 ? null
-                : id.trim();
+                : id.trim().toLowerCase();
         this.role = role;
         this.when = when == null
                 ? StepGuard.ALWAYS
@@ -103,6 +106,7 @@ public class PlanStep {
                 : Collections.unmodifiableList(new ArrayList<>(transitions));
     }
 
+    /// A step with no id, role, checks or transitions: the form the A34 list had.
     public PlanStep(final QuestionKind kind,
                     final StepGuard when,
                     final Integer candidates,
@@ -110,26 +114,32 @@ public class PlanStep {
         this(null, kind, null, when, candidates, kinds, null, null);
     }
 
+    /// A step of a kind alone, asked always, with the document's limits.
     public static PlanStep of(final QuestionKind kind) {
         return new PlanStep(kind, StepGuard.ALWAYS, null, null);
     }
 
+    /// A step of a kind under a guard, with the document's limits.
     public static PlanStep of(final QuestionKind kind, final StepGuard when) {
         return new PlanStep(kind, when, null, null);
     }
 
+    /// @return The id as written, or null where the step goes by [#effectiveId()].
     public String getId() {
         return id;
     }
 
+    /// @return The question this step asks.
     public QuestionKind getKind() {
         return kind;
     }
 
+    /// @return Which elements a `CONFIGURE` step configures, or null for every element in chain order.
     public ConfigureRole getRole() {
         return role;
     }
 
+    /// @return When the step is asked: always, for raw text, or for input that is already records.
     public StepGuard getWhen() {
         return when;
     }
@@ -144,10 +154,12 @@ public class PlanStep {
         return kinds;
     }
 
+    /// @return The checks that judge this step, empty for the kind's own.
     public List<Check> getChecks() {
         return checks;
     }
 
+    /// @return Where the step goes on each outcome, in the order written.
     public List<Transition> getTransitions() {
         return transitions;
     }
@@ -323,19 +335,9 @@ public class PlanStep {
                                            + line + "'");
     }
 
-    private static String words(final Check[] values) {
+    private static String words(final HasDisplayValue... values) {
         final StringBuilder text = new StringBuilder();
-        for (final Check value : values) {
-            text.append(text.length() == 0
-                    ? ""
-                    : ", ").append(value.getDisplayValue());
-        }
-        return text.toString();
-    }
-
-    private static String words(final StepOutcome[] values) {
-        final StringBuilder text = new StringBuilder();
-        for (final StepOutcome value : values) {
+        for (final HasDisplayValue value : values) {
             text.append(text.length() == 0
                     ? ""
                     : ", ").append(value.getDisplayValue());
