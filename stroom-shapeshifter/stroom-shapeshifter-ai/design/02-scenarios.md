@@ -188,7 +188,7 @@ Ordered by what each needs built; each one is unlocked by the machinery the prev
 | 45 | **Windows security events: `Data[@Name]` to typed fields** (A16, A35, design 03 §3) | fixture `windows-security.xml`: fifteen `Event` elements in the Windows namespace under an `Events` root, each a `System` block and `EventData/Data[@Name]`, `EventID` 4624, 4634 and 4688; the target-first plan; scorers Schema conformance (gate), Extraction quality (gate, `EventSource/User/Id` required) | chain `XSLTFilter`; split `EventData`, then `Event`; a stylesheet that copies each named `Data` to a `Data` under `Unknown`; then one mapping the `EventID` to Authenticate or Process and the named fields to typed elements | `EventData` — most of an event but not its System block — is refused on wholeness; `Event` is accepted; the degenerate transform validates and is refused on extraction quality alone, the typed ratio and the `Unknown` rate in the re-ask; the typed one is promoted outright, the `Event`s being the root's children, and the output equals the golden with all three `TypeId`s; one target stood for the three kinds of event, since kinds of XML record are told apart by structure and these share one — a finding for phase B | the fixture and golden; a kind of record for XML that structure cannot tell apart is owed |
 | 46 | **JSON: lines and an array** (A31, design 03 §3; scenario 2's promise) | fixtures `records.jsonl` and `records.json`, twelve logins and logouts with a nested `client`; `Format: JSON`; allowed elements include `JSONParser`; the target-first plan; scorers Yield (records), Schema conformance (gate), Extraction quality (gate, `EventSource/User/Id` required), Business rules | chain `JSONParser -> XSLTFilter`; for the lines the split is skipped — every top-level value is a record, `root` — and the transform is asked over two targets; for the document the split names `client`, then `events`; XSLT | no configuration question for the parser; the split guard `json` beside `text` and `xml`; the split of the document refuses a key that is no array's and takes the array; a login and a logout are two kinds, told apart by their keys, and two targets are asked; the transform is asked with the parser's real XML in the XSL/json vocabulary; the lines are promoted outright; the document is learned whole, counts as one record at the stage and binds provisionally as the nested XML of scenario 37 does — yield by records is not asked of it until the count is by the array's items (design 03 §5) | the `JSONParser` step runner; the `json` guard and `SPLIT_JSON` template; the array split; the fixtures, stylesheet and golden |
 | 47 | **Fixed-width: nothing to split on** (A11, A36, design 03 §3) | fixture `fixed-width.log`: thirty sign-on lines of six columns by position and no delimiter — time, user, terminal, action, result and a reason that holds spaces; the escalating plan; scorers Yield (records), Schema conformance (gate), Extraction quality (gate), Business rules with "a sign-on decision states its outcome" | chain `DSParser -> XSLTFilter`; a positional regex capturing four columns and matching the rest of the line; a stylesheet over the four, twice; then, against two targets, the four-column regex again and the six-column one; XSLT | coverage is 1.0 with four columns — every character is consumed — and never speaks; the four-column transform cannot state an outcome and the rule refuses it, twice, so the plan escalates to a target; two kinds of line, a reason of two words and of one, and a target for each; asked again against them the four-column parser is caught by preservation — the records carry no value for `PASSWORD OK`, for `REVOKED` — and the six-column one passes; promoted outright, the output the golden | the fixture, two splitters, two stylesheets and the golden; the escalating plan on a real shortfall |
-| 48 | **CSV with embedded newlines** (A36, design 03 §3) | fixture `csv-multiline.csv`: quoted fields spanning lines, escaped quotes; the target-first plan | a line-based DS3, then one honouring the quoting; targets; XSLT | the line split cuts a record in two, scores well on coverage and fails wholeness; the quoting split passes; the golden holds the field with the newline intact | the fixture and golden; the worked example teaching DS3 quoting |
+| 48 | **CSV with embedded newlines** (A36, design 03 §3) | fixture `csv-multiline.csv`: twenty headerless records of a document store's audit — time, user, workstation, action, document, note — the note quoted where it holds a comma, a doubled quote or a line break, six spanning two lines; the target-first plan; Yield by lines, expected 0.77 | a line-based DS3, then one regex over the stream honouring the quoting, the record as one field; targets; a six-field DS3 of the same regex; XSLT | the line split cuts a record in two: it consumes every character, so coverage says nothing, and loses none, so wholeness — a character share — says nothing either; yield against the lines a record takes refuses it, before any target is asked; the quoting split passes; targets are whole records, one spanning lines; promoted outright, the golden holding the note with its line break intact and its doubled quotes as one | the fixture, two splitters, stylesheet and golden; the DS3 rules teaching a quoted field |
 
 Scenarios 3, 15, 16 and 17 exist today as unit tests of one component; they become scenarios so
 that the catalogue is the one place the behaviour is stated.
@@ -898,6 +898,52 @@ it is promoted outright, its output the golden. Nothing in the module needed to 
 plan, preservation and the positional regex were already there, and the slice is the fixture, the
 scenario and live row `13-fixed-width`, whose document carries the outcome rule. 166 tests in the
 module.
+
+Audited the same day, the range since upstream (the owner's code review): six findings, all fixed. A
+plan could say `CHAIN on refused goto end` and be held, and a refused chain then left the interpreter
+with no chain and a null to dereference rather than an abandoned attempt — `CHAIN` takes no transition,
+checked with the other constraints. A run-only element consulted `on <outcome> goto` but not `on spent
+goto`, though its one run is its only candidate — both are consulted, from `CONFIGURE` and from the JSON
+split alike. A split that consumed every line and emitted no records was judged wholeness-short whatever
+checks the step named — it is refused, as a reply that is no split. A step id arriving as JSON was
+trimmed and lower-cased but not checked, so `my step` saved by the API could not be read back by the
+Learning tab — one pattern serves both forms. Markup that is not one document — a fragment per line, no
+root — was learned whole, unheld-out, because its first character said markup — a document is one that
+parses, and anything else is lines. A run-only element that could not read its input was reported as
+compile-failed, a gate it has no configuration to fail — run-failed, so `on run-failed` routes. 169
+tests in the module, 15 shared; GWT draft compiled.
+
+The eighteenth slice, 2026-09-21, is **CSV with embedded newlines** (scenario 48), the last format of
+phase B: `csv-multiline.csv`, twenty headerless records of a document store's audit whose note is quoted
+where it holds a comma, a doubled quote or a line break, six of them spanning two lines;
+`csv-multiline-split.ds3.xml`, one regex over the stream matching a record from its start with
+`"(?:[^"]|"")*"` for the quoted field and emitting it whole; `csv-multiline.ds3.xml`, the same regex
+into six fields; the stylesheet, which unquotes the note and makes a View or Delete on a Document; and
+the golden, the line break intact. The catalogue expected the line split to fail *wholeness*, and it
+does not: wholeness is a character share (A36's tuning), and a split of one record per line loses no
+characters of a quoted record, only its boundary. What refuses it is yield against the lines a record
+takes, which the document states as 0.77 per line and the line split scores 1.0 against — the same road
+auditd took in slice 14 — before any target is asked. The DS3 rules now say how a quoted field is
+matched, in the split's and the parser's text alike. One thing arranged rather than solved: the learning
+prefix is cut by lines, so a quoted record can be cut in two at the sample's end; the fixture's six
+two-line records are placed so that the four-fifths cut lands on a boundary, and cutting the prefix at
+the settled boundary is owed (design 03 §5). Live row `14-csv-multiline`. 170 tests in the module.
+Phase B's scripted half is complete: six formats, six scenarios green.
+
+Audited the same day, the working tree and the range (the owner's code review): seven findings, six
+fixed and one kept by decision. The stage counted a stream of markup that is not one document — a
+fragment per line — as bringing no records, the failed parse clamped to zero, so such a shape bound
+provisionally and stayed so; it brings its lines, as the yield scorer counts them. The DS3 rules' text
+changed without the built-in version rising — 4 now. The Learning tab threw on an empty steps box on
+every change, since dirtiness is computed on each; an empty box keeps the saved steps, and the store
+refuses a plan without CHAIN and CONFIGURE on save. A JSON document over the sample size limit was sent
+whole — cut by lines beyond the limit until the cut by the array's items. Two transitions on one outcome,
+or two on spent, were held with the first silently winning — refused. A byte order mark made XML or
+JSON read as text to every classification — stripped where the stream is read, and ignored by the
+classifications. Kept: an XML document with a DOCTYPE is not one document to the module, since the
+hardened reader every parse here uses refuses it, and that refusal is deliberate (XXE); such a feed
+needs the declaration removed before the stage, and the module treats it as text until then. 173
+tests in the module.
 
 Audited the same day (code review, high): nine findings, eight fixed and one found not to hold. The
 serialiser threw where a document had no meta asset and parsed every document's JSON twice — it now

@@ -628,17 +628,22 @@ public final class Stage {
      */
     static String learningPrefix(final String data, final ShapeshifterAiDoc policy) {
         final int limit = policy.getSampleSizeLimit();
-        if (ShapeSignature.isMarkup(data)) {
+        // Markup that is one document is learned whole; markup that is not — a fragment per line, no root —
+        // is lines, held out and cut like any text.
+        if (ShapeSignature.isMarkup(data) && Records.parsed(data) >= 0) {
             return data.length() <= limit
                     ? data
                     : wholeChildren(data, limit);
         }
-        if (isJsonDocument(data)) {
-            // A prefix of a JSON document is not a document either. It is learned whole; a cut at the array's
-            // items, as wholeChildren makes for XML, is owed (design 03 §5).
-            return data;
-        }
         final List<String> lines = data.lines().filter(line -> !line.isBlank()).toList();
+        if (isJsonDocument(data)) {
+            // A prefix of a JSON document is not a document either. It is learned whole within the size limit,
+            // and cut by lines beyond it — a cut at the array's items, as wholeChildren makes for XML, is owed
+            // (design 03 §5).
+            return data.length() <= limit
+                    ? data
+                    : wholeLines(lines, lines.size(), limit);
+        }
         if (lines.isEmpty()) {
             // A blank stream has nothing to learn from; the compile gate and coverage will say so.
             return "";
@@ -662,13 +667,31 @@ public final class Stage {
     }
 
     /**
+     * How many records a stream brought, the evidence a judgement rests on (A14): a document's root's
+     * children; the lines of markup that is not one document — a fragment per line — as the yield scorer
+     * counts them; one for a JSON document, however many lines it is printed over, until a count by its
+     * array's items (design 03 §5); the non-blank lines of text.
+     */
+    static int recordsBrought(final String input) {
+        if (ShapeSignature.isMarkup(input)) {
+            final int parsed = Records.parsed(input);
+            if (parsed >= 0) {
+                return parsed;
+            }
+        } else if (isJsonDocument(input)) {
+            return 1;
+        }
+        return (int) input.lines().filter(line -> !line.isBlank()).count();
+    }
+
+    /**
      * Whether text is one JSON document spanning lines — one object or array, and nothing after it, whose
      * first line does not close it — rather than JSON lines, each a value of its own, which are cut like any
      * text. A bracket is not enough: a log whose lines open with {@code [Mon Sep 21 ...]} is text, so the
      * value is parsed.
      */
     static boolean isJsonDocument(final String data) {
-        final String trimmed = data.stripLeading();
+        final String trimmed = ShapeSignature.withoutBom(data).stripLeading();
         if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) {
             return false;
         }
@@ -797,21 +820,10 @@ public final class Stage {
                     : attempted.get(attempted.size() - 1).result().output();
             final int records = attempted.isEmpty()
                     ? 0
-                    : units(attempted.get(0).input());
+                    : recordsBrought(attempted.get(0).input());
             return new Judged(output, verdicts, candidateScore(verdicts), records);
         }
 
-        private static int units(final String input) {
-            if (ShapeSignature.isMarkup(input)) {
-                return Records.count(input);
-            }
-            if (isJsonDocument(input)) {
-                // One value, however many lines it is printed over; a count by its array's items is owed
-                // (design 03 §5).
-                return 1;
-            }
-            return (int) input.lines().filter(line -> !line.isBlank()).count();
-        }
 
         boolean clearsFloor(final ShapeshifterAiDoc doc) {
             return !verdicts.isEmpty()

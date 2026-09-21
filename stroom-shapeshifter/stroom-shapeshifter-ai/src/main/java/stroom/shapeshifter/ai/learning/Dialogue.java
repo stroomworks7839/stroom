@@ -240,6 +240,23 @@ public final class Dialogue {
     }
 
     /**
+     * Where a step goes when a run-only element — one asked nothing, so with one candidate, its run — has
+     * failed: the transition on its outcome, else the one on spent, since its candidates are gone; else the
+     * attempt is abandoned with the reason.
+     */
+    private static Visit runOnly(final PlanStep step, final Judged judged, final String reason) {
+        final Transition at = step.transitionOn(judged.outcome());
+        if (at != null && !at.abandons()) {
+            return Visit.take(at, judged.feedback());
+        }
+        final Transition when = step.transitionOnSpent();
+        if (at == null && when != null && !when.abandons()) {
+            return Visit.take(when, judged.feedback());
+        }
+        return Visit.abandon(reason, judged.feedback());
+    }
+
+    /**
      * Where a step goes once every unit of its work has passed: the next line, unless it says
      * {@code on passed}. A step of several units — a CONFIGURE over the whole chain, a TARGET over several
      * kinds — passes as a whole, not at its first unit.
@@ -331,7 +348,7 @@ public final class Dialogue {
             }
             final StepResult result = first.run(configuration.get(), walk.sample.text());
             if (!result.passed()) {
-                return Judged.failed(result);
+                return Judged.failed(result, true);
             }
             final Verdict verdict = over.judge(Attempted.of(first, walk.sample.text(), result));
             if (!verdict.passed()) {
@@ -339,8 +356,8 @@ public final class Dialogue {
             }
             final List<String> records = recordTexts(result.output());
             if (records.isEmpty()) {
-                return new Judged(StepOutcome.WHOLENESS_SHORT, refusal("The split produced no records; each record "
-                        + "should be emitted whole, as one data value"), null);
+                return Judged.refused("The split produced no records; each record should be emitted whole, as one "
+                                      + "data value");
             }
             if (checks.contains(Check.WHOLENESS)) {
                 final Optional<StoredError> partial = TargetChecks.wholeness(walk.sample.text(), records);
@@ -368,7 +385,8 @@ public final class Dialogue {
                 ? OutputRecords.parse(parsed.output())
                 : Optional.empty();
         if (document.isEmpty()) {
-            return Visit.abandon(first.elementType() + " cannot read the sample as JSON", parsed.diagnostics());
+            return runOnly(step, Judged.failed(parsed, false),
+                    first.elementType() + " cannot read the sample as JSON");
         }
         return candidates(step, walk, (candidate, feedback) -> {
             final String reply = ask(walk, step, candidate,
@@ -489,14 +507,9 @@ public final class Dialogue {
                 // carried here is left for the next question asked.
                 final Judged judged = judge(over, checks, runner, null, input, runner.run(null, input), walk, last);
                 walk.learn(index, judged.learned());
-                final Transition at = step.transitionOn(judged.outcome());
-                if (judged.outcome() == StepOutcome.PASSED) {
-                    visit = Visit.next();
-                } else if (at != null && !at.abandons()) {
-                    visit = Visit.take(at, judged.feedback());
-                } else {
-                    visit = Visit.abandon(runner.elementType() + " failed on its input", judged.feedback());
-                }
+                visit = judged.outcome() == StepOutcome.PASSED
+                        ? Visit.next()
+                        : runOnly(step, judged, runner.elementType() + " failed on its input");
             } else {
                 // A parser is held to the split's records; a transform over XML input is told the record element.
                 final boolean carriesSplit = runner.parser()
@@ -543,7 +556,7 @@ public final class Dialogue {
                          final Walk walk,
                          final boolean last) {
         if (!result.passed()) {
-            return Judged.failed(result);
+            return Judged.failed(result, runner.configured().isPresent());
         }
         final Verdict verdict = over.judge(Attempted.of(runner, input, result));
         if (!verdict.passed()) {
@@ -681,11 +694,12 @@ public final class Dialogue {
         }
 
         /**
-         * A step that did not pass the gate of §8.1: nothing ran where it left no output, which is the compile
-         * gate; it ran and raised errors otherwise.
+         * A step that did not pass the gate of §8.1: a configuration that did not compile where the element
+         * takes one and left no output; a run that failed otherwise — a run-only element has nothing to
+         * compile.
          */
-        static Judged failed(final StepResult result) {
-            return new Judged(result.output() == null
+        static Judged failed(final StepResult result, final boolean configured) {
+            return new Judged(result.output() == null && configured
                     ? StepOutcome.COMPILE_FAILED
                     : StepOutcome.RUN_FAILED, result.diagnostics(), null);
         }

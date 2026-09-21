@@ -44,6 +44,8 @@ import java.util.Objects;
 public class PlanStep {
 
     public static final int DEFAULT_KINDS = 3;
+    /// A step id: a letter, then letters, digits, hyphens or underscores; matched without regard to case.
+    public static final String ID = "[A-Za-z][A-Za-z0-9_-]*";
     private static final String WHEN = "when";
     private static final String CANDIDATES = "candidates";
     private static final String KINDS = "kinds";
@@ -92,6 +94,10 @@ public class PlanStep {
         this.id = id == null || id.trim().isEmpty()
                 ? null
                 : id.trim().toLowerCase();
+        if (this.id != null && !this.id.matches(ID)) {
+            throw new IllegalArgumentException("'" + id + "' is not a step id; an id is a word, in step "
+                                               + kind.name());
+        }
         this.role = role;
         this.when = when == null
                 ? StepGuard.ALWAYS
@@ -241,7 +247,7 @@ public class PlanStep {
         String id = null;
         if (words[0].endsWith(":")) {
             id = words[0].substring(0, words[0].length() - 1);
-            if (id.isEmpty() || !id.matches("[A-Za-z][A-Za-z0-9_-]*")) {
+            if (id.isEmpty() || !id.matches(ID)) {
                 throw new IllegalArgumentException("'" + words[0] + "' is not a step id; an id is a word, then a "
                                                    + "colon, in step '" + trimmed + "'");
             }

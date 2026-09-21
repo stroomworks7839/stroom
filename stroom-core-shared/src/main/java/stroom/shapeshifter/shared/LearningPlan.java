@@ -26,9 +26,11 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 /// The learning plan (A33, A34, A37; design 01 §10.2): the graph of questions, checks and transitions the
 /// Shapeshifter AI document holds, and the templates it overrides. An attempt follows the plan; what it
@@ -98,9 +100,10 @@ public class LearningPlan {
         return null;
     }
 
-    /// What is wrong with the steps, structurally: CHAIN first and once, CONFIGURE last, SPLIT and TARGET at
-    /// most once each, every id unique and every `goto` naming a step or `end`. Empty where the steps are a plan the
-    /// stage can hold. The templates' variables are the server's to check, since it holds the built-in text.
+    /// What is wrong with the steps, structurally: CHAIN first, once and without transitions, CONFIGURE last,
+    /// SPLIT and TARGET at most once each, every id unique and every `goto` naming a step or `end`. Empty where
+    /// the steps are a plan the stage can hold. The templates' variables are the server's to check, since it
+    /// holds the built-in text.
     public List<String> problems() {
         final List<String> problems = new ArrayList<>();
         if (steps.isEmpty()) {
@@ -142,6 +145,21 @@ public class LearningPlan {
             }
         }
         for (final PlanStep step : steps) {
+            final Set<String> fired = new HashSet<>();
+            for (final Transition transition : step.getTransitions()) {
+                final String on = transition.onSpent()
+                        ? Transition.SPENT
+                        : transition.getOn().getDisplayValue();
+                if (!fired.add(on)) {
+                    problems.add("Step '" + step.effectiveId() + "' says 'on " + on + "' twice; the first would "
+                                 + "be taken and the second never");
+                }
+            }
+            if (step.getKind() == QuestionKind.CHAIN && !step.getTransitions().isEmpty()) {
+                // No later step can run without a chain: a refused chain is re-asked, and one whose candidates
+                // are spent abandons.
+                problems.add("CHAIN takes no transition; nothing can run until the chain is settled");
+            }
             for (final Transition transition : step.getTransitions()) {
                 if (!transition.abandons() && !ids.containsKey(transition.getGoTo())
                     && !Transition.END.equals(transition.getGoTo())) {

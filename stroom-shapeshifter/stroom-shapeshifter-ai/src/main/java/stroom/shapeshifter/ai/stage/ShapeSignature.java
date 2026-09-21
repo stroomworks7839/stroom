@@ -64,6 +64,7 @@ public final class ShapeSignature {
      * which is text.
      */
     private static final Pattern MARKUP = Pattern.compile("^\\s*<(\\?|!|[A-Za-z_])");
+    private static final char BOM = '\uFEFF';
     /**
      * The attribute that names a value in the XSL/json vocabulary: always a field's name, by construction.
      */
@@ -83,7 +84,17 @@ public final class ShapeSignature {
     }
 
     public static boolean isMarkup(final String data) {
-        return MARKUP.matcher(data).find();
+        return MARKUP.matcher(withoutBom(data)).find();
+    }
+
+    /**
+     * The text without a leading byte order mark, which is not content and would otherwise make markup or
+     * JSON read as text; the stage strips it from a stream once, and the tests that classify text call this.
+     */
+    public static String withoutBom(final String data) {
+        return !data.isEmpty() && data.charAt(0) == BOM
+                ? data.substring(1)
+                : data;
     }
 
     public static String textSkeleton(final String data) {

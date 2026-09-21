@@ -146,6 +146,51 @@ class TestShapeSignature {
     }
 
     @Test
+    void markupThatIsNotOneDocumentIsHeldOutLikeText() {
+        // One fragment per line and no root: markup by its first character, but not a document, so the
+        // held-out fraction applies as it does to any text — the model must not see what it is judged on.
+        final String fragments = "<Event id=\"1\"/>\n<Event id=\"2\"/>\n<Event id=\"3\"/>\n<Event id=\"4\"/>\n";
+        final ShapeshifterAiDoc doc = ShapeshifterAiDoc.builder().uuid("d").heldOutFraction(0.5).sampleSizeLimit(1000)
+                .build();
+        assertThat(Stage.learningPrefix(fragments, doc)).isEqualTo("<Event id=\"1\"/>\n<Event id=\"2\"/>\n");
+        final ShapeshifterAiDoc small = ShapeshifterAiDoc.builder().uuid("d").heldOutFraction(0.5).sampleSizeLimit(20)
+                .build();
+        assertThat(Stage.learningPrefix(fragments, small)).isEqualTo("<Event id=\"1\"/>\n");
+    }
+
+    @Test
+    void aStreamBringsItsRecordsAsTheYieldScorerCountsThem() {
+        // A document brings its root's children; fragments with no root bring their lines, not zero, or the
+        // shape would bind provisionally and stay so; a JSON document is one value; text is its lines.
+        assertThat(Stage.recordsBrought(THREE_RECORDS)).isEqualTo(3);
+        assertThat(Stage.recordsBrought("<Event id=\"1\"/>\n<Event id=\"2\"/>\n<Event id=\"3\"/>\n")).isEqualTo(3);
+        assertThat(Stage.recordsBrought("{\n  \"events\": [\n    {\"a\": 1},\n    {\"a\": 2}\n  ]\n}\n")).isEqualTo(1);
+        assertThat(Stage.recordsBrought("{\"a\": 1}\n{\"a\": 2}\n")).isEqualTo(2);
+        assertThat(Stage.recordsBrought("one\n\ntwo\n")).isEqualTo(2);
+    }
+
+    @Test
+    void aByteOrderMarkIsNotContent() {
+        // Read as text, a BOM would make XML and JSON look like a line of text to every classification.
+        assertThat(ShapeSignature.isMarkup("\uFEFF<records/>")).isTrue();
+        assertThat(ShapeSignature.of("\uFEFF" + ONE_RECORD)).isEqualTo(ShapeSignature.of(ONE_RECORD));
+        assertThat(Stage.isJsonDocument("\uFEFF{\n  \"a\": 1\n}\n")).isTrue();
+        assertThat(ShapeSignature.withoutBom("\uFEFFx")).isEqualTo("x");
+        assertThat(ShapeSignature.withoutBom("")).isEmpty();
+    }
+
+    @Test
+    void aJsonDocumentOverTheSampleSizeLimitIsCutByLines() {
+        final String document = "{\n  \"events\": [\n    {\"a\": 1},\n    {\"a\": 2},\n    {\"a\": 3}\n  ]\n}\n";
+        assertThat(Stage.learningPrefix(document, ShapeshifterAiDoc.builder().uuid("d").sampleSizeLimit(1000).build()))
+                .describedAs("within the limit, whole").isEqualTo(document);
+        final String cut = Stage.learningPrefix(document, ShapeshifterAiDoc.builder().uuid("d").sampleSizeLimit(30)
+                .build());
+        assertThat(cut.length()).isLessThanOrEqualTo(31);
+        assertThat(cut).startsWith("{\n  \"events\": [\n");
+    }
+
+    @Test
     void textOverTheSampleSizeLimitIsCutByWholeLines() {
         final String lines = "one,1\ntwo,2\nthree,3\nfour,4\n";
         final ShapeshifterAiDoc doc = ShapeshifterAiDoc.builder().uuid("d").heldOutFraction(0.0).sampleSizeLimit(14)

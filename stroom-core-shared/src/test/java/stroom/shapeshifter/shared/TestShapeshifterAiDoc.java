@@ -65,6 +65,33 @@ class TestShapeshifterAiDoc {
                 .containsExactly("SPLIT may appear once, not 2 times");
         assertThat(LearningPlan.of(PlanExample.DIRECT).withSteps(List.of()).problems())
                 .containsExactly("The plan has no steps");
+        // A transition out of CHAIN would leave the plan with no chain to run: refused at the door, not at a
+        // null chain in the interpreter.
+        assertThat(LearningPlan.of(PlanExample.DIRECT).withSteps(List.of(
+                PlanStep.parse("CHAIN on refused goto end"), PlanStep.of(QuestionKind.CONFIGURE))).problems())
+                .containsExactly("CHAIN takes no transition; nothing can run until the chain is settled");
+        // Two transitions on one outcome, or two on spent, contradict each other: refused rather than the
+        // first silently winning.
+        assertThat(LearningPlan.of(PlanExample.DIRECT).withSteps(List.of(
+                PlanStep.parse("CHAIN"), PlanStep.parse("CONFIGURE on spent goto end on spent abandon"))).problems())
+                .containsExactly("Step 'configure' says 'on spent' twice; the first would be taken and the second "
+                                 + "never");
+        assertThat(LearningPlan.of(PlanExample.DIRECT).withSteps(List.of(
+                PlanStep.parse("CHAIN"),
+                PlanStep.parse("CONFIGURE on refused goto end on refused abandon on spent abandon"))).problems())
+                .containsExactly("Step 'configure' says 'on refused' twice; the first would be taken and the "
+                                 + "second never");
+    }
+
+    @Test
+    void anIdIsAWordHoweverItArrives() {
+        // The line form checks the id; the JSON form must too, or a saved id the line form cannot read back
+        // breaks the Learning tab's round trip.
+        assertThatThrownBy(() -> new PlanStep("my step", QuestionKind.CONFIGURE, null, null, null, null, null, null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("'my step' is not a step id");
+        assertThat(new PlanStep(" Again ", QuestionKind.CONFIGURE, null, null, null, null, null, null).getId())
+                .isEqualTo("again");
     }
 
     @Test

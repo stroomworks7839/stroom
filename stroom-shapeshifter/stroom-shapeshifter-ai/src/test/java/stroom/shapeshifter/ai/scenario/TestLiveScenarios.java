@@ -98,6 +98,7 @@ class TestLiveScenarios {
     private static final String JSON_LINES = Scenarios.resource("records.jsonl");
     private static final String JSON_DOCUMENT = Scenarios.resource("records.json");
     private static final String FIXED_WIDTH = Scenarios.resource("fixed-width.log");
+    private static final String CSV_MULTILINE = Scenarios.resource("csv-multiline.csv");
     private static final String INSTRUCTIONS = """
             The feed is door-access records from a building's badge readers: who went where and what \
             they did, when. Events should name the person as the user and the reader's location as \
@@ -330,6 +331,23 @@ class TestLiveScenarios {
                     .build();
             return List.of(scenarios.stage(advisor).run(doc,
                     new Input(1, "MAINFRAME-SIGNON", "Raw Events", Map.of(), FIXED_WIDTH)));
+        }));
+
+        // CSV with a quoted last field that holds commas, doubled quotes and line breaks: a record may span
+        // lines, which the expected yield per line states.
+        outcomes.add(run("14-csv-multiline", advisor -> {
+            final Scenarios scenarios = new Scenarios();
+            final ShapeshifterAiDoc doc = doc("csv-multiline", 0.9).copy()
+                    .instructions("A document store's audit export as CSV without a header: time, user, "
+                                  + "workstation, action (VIEW or DELETE), document and a note. The note is "
+                                  + "quoted where it holds a comma, a quote (doubled) or a line break, so a "
+                                  + "record may span lines. Each record is one View or Delete event on a "
+                                  + "Document, its note the outcome's description; the workstation is the "
+                                  + "device.")
+                    .scorers(withYield(doc("csv-multiline", 0.9).getScorers(), YieldBasis.LINES, 0.77, 0.9))
+                    .build();
+            return List.of(scenarios.stage(advisor).run(doc,
+                    new Input(1, "DOCUMENT-STORE", "Raw Events", Map.of("Format", "CSV"), CSV_MULTILINE)));
         }));
 
         LOGGER.info("Live scenarios against {}, {}:\n{}", System.getenv(LiveAdvisor.MODEL), PLAN_UNDER_TEST,

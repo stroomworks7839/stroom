@@ -145,6 +145,33 @@ class TestScenariosPlan {
         assertThat(run.transcript().get(3).candidate()).isEqualTo(2);
     }
 
+    @Test
+    void aSplitThatEmitsNoRecordsIsRefusedWhateverChecksTheStepNames() {
+        // A splitter that consumes every line and emits nothing passes coverage and is no split at all: it is
+        // refused as a reply, not judged short on a check the step left out.
+        final String consumesAll = Structure.LINE_SPLIT.replace("<data name=\"record\" value=\"$1\"/>", "");
+        final Scenarios scenarios = new Scenarios();
+        final Script script = scenarios.script(FOUR_FIELDS, XSLT)
+                .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter")
+                .expect(QuestionMatcher.split().withoutFeedback()).reply(Scenarios.fenced(consumesAll))
+                .expect(QuestionMatcher.split().withFeedbackMentioning("The split produced no records"))
+                .reply(Scenarios.fenced(Structure.LINE_SPLIT))
+                .expect(QuestionMatcher.configuration("DSParser")).reply(Scenarios.fenced(FOUR_FIELDS))
+                .expect(QuestionMatcher.configuration("XSLTFilter")).reply(Scenarios.fenced(XSLT));
+        final LearningPlan plan = LearningPlan.of(PlanExample.TARGET_FIRST).withSteps(List.of(
+                PlanStep.parse("CHAIN"),
+                PlanStep.parse("SPLIT checks coverage on wholeness-short abandon"),
+                PlanStep.parse("TARGET kinds 3"),
+                PlanStep.parse("CONFIGURE parser"),
+                PlanStep.parse("CONFIGURE transform")));
+
+        final StageRun run = scenarios.stage(script).run(doc(plan), stream(1, CsvLines.lines(6)));
+
+        script.verifyExhausted();
+        assertThat(run.decision()).describedAs(run.decision().toString()).isInstanceOf(Promoted.class);
+        assertThat(run.transcript().get(1).outcome()).isEqualTo(StepOutcome.REFUSED);
+    }
+
     /**
      * Target-first, with preservation not judged at the parser so that the transform meets the gap: the
      * transform's checks are fidelity alone, so the stream-level scorers do not fail it first on the fields

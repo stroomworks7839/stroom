@@ -68,6 +68,7 @@ import stroom.shapeshifter.ai.stage.Ledger;
 import stroom.shapeshifter.ai.stage.Outputs;
 import stroom.shapeshifter.ai.stage.RegressionSet;
 import stroom.shapeshifter.ai.stage.Reprocessing;
+import stroom.shapeshifter.ai.stage.ShapeSignature;
 import stroom.shapeshifter.ai.stage.Shapes;
 import stroom.shapeshifter.ai.stage.Stage;
 import stroom.shapeshifter.ai.stage.StageRun;
@@ -253,7 +254,9 @@ public class ShapeshifterAiParser extends AbstractParser {
             for (int n = reader.read(buffer); n >= 0; n = reader.read(buffer)) {
                 text.append(buffer, 0, n);
             }
-            return text.toString();
+            // A byte order mark is not content: read as text it would make XML or JSON look like a line of
+            // text to every classification downstream.
+            return ShapeSignature.withoutBom(text.toString());
         } catch (final IOException e) {
             throw new UncheckedIOException(e);
         }

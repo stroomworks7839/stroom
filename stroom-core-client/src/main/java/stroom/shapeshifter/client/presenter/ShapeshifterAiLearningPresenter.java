@@ -152,10 +152,11 @@ public class ShapeshifterAiLearningPresenter
                     parsed.add(PlanStep.parse(line));
                 }
             }
-            if (parsed.isEmpty()) {
-                throw new IllegalArgumentException("a plan needs at least CHAIN and CONFIGURE");
+            // An empty box — cleared to be retyped — keeps the saved steps; the store refuses a plan without
+            // CHAIN and CONFIGURE on save, so nothing is lost by not shouting here on every change.
+            if (!parsed.isEmpty()) {
+                steps = parsed;
             }
-            steps = parsed;
         } catch (final IllegalArgumentException e) {
             AlertEvent.fireError(this, "The plan's steps were not saved: " + e.getMessage(), null);
         }

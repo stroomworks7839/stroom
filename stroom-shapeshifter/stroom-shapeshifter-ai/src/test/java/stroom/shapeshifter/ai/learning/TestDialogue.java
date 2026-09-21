@@ -352,6 +352,63 @@ class TestDialogue {
     }
 
     @Test
+    void aRunOnlyElementThatFailsIsARunFailureAndItsStepMayRouteOnSpent() {
+        // No configuration was asked for, so nothing failed to compile: the outcome is run-failed, and the one
+        // run is the step's only candidate, so 'on spent' is where the plan says to go from it.
+        final StepRunner failing = new StepRunner() {
+            @Override
+            public String elementType() {
+                return "XMLParser";
+            }
+
+            @Override
+            public String elementId() {
+                return "xmlParser";
+            }
+
+            @Override
+            public Optional<Configured> configured() {
+                return Optional.empty();
+            }
+
+            @Override
+            public boolean parser() {
+                return true;
+            }
+
+            @Override
+            public StepResult run(final String configuration, final String input) {
+                return new StepResult(null, List.of(new StoredError(
+                        Severity.FATAL_ERROR, null, new ElementId(elementId()), "not XML")));
+            }
+        };
+        for (final String transition : List.of("on run-failed goto end", "on spent goto end")) {
+            final CannedAdvisor model = new CannedAdvisor("XMLParser, XSLTFilter");
+            final ShapeshifterAiDoc doc = policy().copy().plan(LearningPlan.of(PlanExample.DIRECT).withSteps(List.of(
+                    PlanStep.parse("CHAIN"), PlanStep.parse("CONFIGURE parser " + transition),
+                    PlanStep.parse("CONFIGURE transform")))).build();
+            final Dialogue dialogue = new Dialogue(model, List.of(failing, new XsltStep()),
+                    new Scorecard(List.of(), List.of()), Clock.systemUTC());
+
+            final Outcome outcome = dialogue.run(doc, SAMPLE);
+
+            // The transition fired: the plan ended at 'end', where the unconfigured elements are found out,
+            // rather than abandoning at the parser.
+            assertThat(outcome).describedAs(transition).isInstanceOf(Abandoned.class);
+            assertThat(((Abandoned) outcome).reason()).describedAs(transition)
+                    .contains("was never configured; the plan ended without a CONFIGURE step");
+        }
+        final CannedAdvisor model = new CannedAdvisor("XMLParser, XSLTFilter");
+        final ShapeshifterAiDoc doc = policy().copy().plan(LearningPlan.of(PlanExample.DIRECT).withSteps(List.of(
+                PlanStep.parse("CHAIN"), PlanStep.parse("CONFIGURE parser on compile-failed goto end"),
+                PlanStep.parse("CONFIGURE transform")))).build();
+        final Outcome outcome = new Dialogue(model, List.of(failing, new XsltStep()),
+                new Scorecard(List.of(), List.of()), Clock.systemUTC()).run(doc, SAMPLE);
+        assertThat(((Abandoned) outcome).reason()).describedAs("nothing was compiled, so compile-failed is not it")
+                .isEqualTo("XMLParser failed on its input");
+    }
+
+    @Test
     void feedbackCarriedToARunOnlyElementReachesTheNextQuestionAsked() {
         // A goto lands on a CONFIGURE step whose element takes no configuration: nothing is asked there, so
         // what the transition carried is kept for the transform, which is asked next.

@@ -1118,8 +1118,11 @@ it is in:
   abandons the attempt naming it, since which elements the chain has is not known until the chain
   question is answered.
 
-  Constraints, checked on save and again before the model is asked: `CHAIN` first and once; ids
-  unique and none `end`; every `goto` names a step or `end`; `SPLIT` and `TARGET` at most once each;
+  A run-only element — a `JSONParser`, asked nothing — has one candidate, its run, so on failure its
+  step takes `on run-failed goto` or else `on spent goto`, and abandons otherwise.
+
+  Constraints, checked on save and again before the model is asked: `CHAIN` first, once and with no
+  transition, since nothing can run until the chain is settled; ids unique and none `end`; every `goto` names a step or `end`; `SPLIT` and `TARGET` at most once each;
   the last step a `CONFIGURE`. A target asked before any split is proposed from the sample's lines (raw text) or the
   root's children (XML) or the parser's records (JSON); a split asked of XML input asks for the element
   that is one record (A35), and of JSON for the key of the array whose items are records, or `root`
@@ -1834,6 +1837,18 @@ including the degeneracy trap (§8.3) that changes the scoring model and propose
 - Slice 17, fixed-width (design 02 scenario 47, §6.1; design 03 §5): a positional regex that consumes
   every character passes coverage and drops two columns; the transform's shortfall on a business rule
   escalates to a target, and preservation catches the parser. No module code changed.
+- Audit of slices 12–17 (the owner's code review): six findings fixed — design 02 §6.1; `CHAIN` takes no
+  transition; a run-only element's failure is `run-failed` and its step may route on spent; a split
+  that emits nothing is refused; a step id is checked however it arrives; markup that is not one
+  document is held out like text.
+- Slice 18, CSV with embedded newlines (design 02 scenario 48, §6.1; design 03 §5), the last scripted
+  format of phase B: a line split of a quoted multi-line record is refused by yield against the lines a
+  record takes, not by wholeness, which is a character share and loses nothing to it; the DS3 rules
+  teach the quoted field.
+- Audit of slice 18 and the range (the owner's code review): six findings fixed, one kept — design 02
+  §6.1; markup that is not one document brings its lines to the stage's count; a JSON document is cut
+  at the size limit; one transition per outcome; a byte order mark is stripped; the built-in templates
+  are version 4.
 - Design 03 written: the phases, at the owner's asking for one plan covering everything discussed and
   the formats never yet exercised — syslog, auditd, Windows security events, JSON, fixed-width,
   multi-line CSV. Slice 12 is phase A; phase B is a slice per format.

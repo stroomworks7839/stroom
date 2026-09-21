@@ -42,7 +42,7 @@ public final class Templates {
     /**
      * Raised when the built-in text changes in a way a stored run should be told apart from.
      */
-    public static final int VERSION = 3;
+    public static final int VERSION = 4;
 
     private static final Map<Template, String> BUILT_IN = new EnumMap<>(Template.class);
 
@@ -153,7 +153,9 @@ public final class Templates {
             ```
 
             For records of several lines, split on what separates records — a blank line, a line that begins a \
-            record — and capture the whole record as the one field. Do not use ignoreErrors.""");
+            record — and capture the whole record as the one field. Where a field is quoted and may hold the \
+            delimiter, doubled quotes or line breaks, do not split on lines: match each record with one <regex> \
+            over the stream, in which "(?:[^"]|"")*" matches one quoted field. Do not use ignoreErrors.""");
         BUILT_IN.put(Template.EXTRACTION_RULES, """
             The root element is <dataSplitter xmlns="data-splitter:3" \
             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" \
@@ -186,9 +188,12 @@ public final class Templates {
             ```
 
             Where the input has more than one kind of line, put one <regex> per kind inside the same group. \
-            Do not use ignoreErrors. Every line of the input should be consumed by a match that emits a record; \
-            a line the configuration quietly drops counts against it. A header line is a record too — emit it \
-            as one, with its fields as data; the transform will drop it.""");
+            Where a field is quoted and may hold the delimiter, doubled quotes or line breaks, use a <regex> \
+            over the stream in place of the <split>, matching each record from its start, with \
+            "(?:[^"]|"")*" for a quoted field. Do not use ignoreErrors. Every line of the input should be \
+            consumed by a match that emits a record; a line the configuration quietly drops counts against it. \
+            A header line is a record too — emit it as one, with its fields as data; the transform will drop \
+            it.""");
         BUILT_IN.put(Template.TRANSFORMATION_RULES, """
             The stylesheet reads records:2 (use xpath-default-namespace="records:2") and writes event-logging:3 \
             events: <Events xmlns="event-logging:3" xsi:schemaLocation="event-logging:3 \
