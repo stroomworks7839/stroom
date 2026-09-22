@@ -55,6 +55,10 @@ public final class FragmentRunner {
 
     private static final String SOURCE = "Source";
 
+    /// Elements that shape the stream into records without changing what any record says: run by the
+    /// pipeline, passed over here (§12 item 25).
+    private static final Set<String> SHAPING = Set.of("SplitFilter");
+
     private final PipelineStore pipelineStore;
     private final PipelineStackLoader pipelineStackLoader;
     private final TextConverterStore textConverterStore;
@@ -114,6 +118,14 @@ public final class FragmentRunner {
             }
             final StepRunner runner = runners.get(element.getType());
             if (runner == null) {
+                if (SHAPING.contains(element.getType())) {
+                    // An element that shapes the stream without changing what is in it: the `SplitFilter`
+                    // the fragment carries so that the pipeline gives its transform one record at a time
+                    // (§12 item 25). Scoring still runs the chain over the whole document — the counts and
+                    // the yield are per record either way — and running it per record, as the pipeline
+                    // does, is what item 25 still owes.
+                    continue;
+                }
                 throw new IllegalStateException("No runner for element type " + element.getType()
                                                 + " in fragment " + fragment.getName());
             }

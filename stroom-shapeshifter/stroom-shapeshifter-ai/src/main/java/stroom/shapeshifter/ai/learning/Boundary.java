@@ -26,7 +26,10 @@ import stroom.shapeshifter.shared.RecordBoundary;
 /// @param configuration The Data Splitter configuration that cuts the records, or null.
 /// @param element       The element that is one record, or null.
 /// @param array         The key of the array whose items are records, or [#ROOT], or null.
-public record Boundary(String configuration, String element, String array) {
+/// @param depth         How deep in the document the transform receives one record sits, where it is
+///                      known: what the fragment's `SplitFilter` is set to split at (§12 item 25). Null
+///                      for raw text, whose parser cuts the records itself.
+public record Boundary(String configuration, String element, String array, Integer depth) {
 
     /// The JSON boundary where every top-level value is one record, as JSON lines are.
     public static final String ROOT = "root";
@@ -40,27 +43,37 @@ public record Boundary(String configuration, String element, String array) {
 
     /// The boundary of raw text: a configuration that cuts it.
     public static Boundary ofConfiguration(final String configuration) {
-        return new Boundary(configuration, null, null);
+        return new Boundary(configuration, null, null, null);
     }
 
     /// The boundary of input that is already XML: the element that is one record.
     public static Boundary ofElement(final String element) {
-        return new Boundary(null, element, null);
+        return new Boundary(null, element, null, null);
+    }
+
+    /// The boundary of input that is already XML, with how deep one record sits.
+    public static Boundary ofElement(final String element, final Integer depth) {
+        return new Boundary(null, element, null, depth);
     }
 
     /// The boundary of JSON: the key of the array whose items are records, or [#ROOT].
     public static Boundary ofArray(final String array) {
-        return new Boundary(null, null, array);
+        return new Boundary(null, null, array, null);
+    }
+
+    /// The boundary of JSON, with how deep one record sits.
+    public static Boundary ofArray(final String array, final Integer depth) {
+        return new Boundary(null, null, array, depth);
     }
 
     /// The boundary as a rule carries it (A35): the element or the array; null for raw text, whose parser
     /// configuration cuts the records and needs no count beside it.
     public RecordBoundary shared() {
         if (element != null) {
-            return RecordBoundary.ofElement(element);
+            return RecordBoundary.ofElement(element).atDepth(depth);
         }
         return array != null
-                ? RecordBoundary.ofArray(array)
+                ? RecordBoundary.ofArray(array).atDepth(depth)
                 : null;
     }
 }

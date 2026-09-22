@@ -31,6 +31,7 @@ import net.sf.saxon.s9api.XdmValue;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.OptionalInt;
 
 /**
  * A step's XML output as records — the children of its root, which is what both {@code records:2} and
@@ -149,6 +150,29 @@ public final class OutputRecords {
         }
         return nodes(root, "descendant::*[local-name() = '" + named + "']"
                            + "[not(ancestor::*[local-name() = '" + named + "'])]");
+    }
+
+    /// How deep in this document one record sits: the number of elements above it, which is what a
+    /// `SplitFilter` is set to split at (§12 item 25). One for the children of a root; three for the items
+    /// of an array under a key, since the JSON parser wraps its output in a records root. Read rather than
+    /// assumed, because a boundary is a name and the name says nothing about where it sits. Empty where
+    /// the boundary names nothing here.
+    public OptionalInt depthOf(final RecordBoundary boundary) {
+        return recordsBy(boundary).stream()
+                .findFirst()
+                .map(OutputRecords::ancestors)
+                .map(OptionalInt::of)
+                .orElseGet(OptionalInt::empty);
+    }
+
+    private static int ancestors(final XdmNode node) {
+        int depth = 0;
+        for (XdmNode above = node.getParent(); above != null; above = above.getParent()) {
+            if (above.getNodeKind() == XdmNodeKind.ELEMENT) {
+                depth++;
+            }
+        }
+        return depth;
     }
 
     private List<XdmNode> nodes(final XdmNode from, final String xpath) {

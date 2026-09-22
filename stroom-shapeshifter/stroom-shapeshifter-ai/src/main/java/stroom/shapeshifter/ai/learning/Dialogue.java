@@ -31,6 +31,7 @@ import stroom.shapeshifter.shared.Check;
 import stroom.shapeshifter.shared.ConfigureRole;
 import stroom.shapeshifter.shared.LearningPlan;
 import stroom.shapeshifter.shared.PlanStep;
+import stroom.shapeshifter.shared.RecordBoundary;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 import stroom.shapeshifter.shared.StepGuard;
 import stroom.shapeshifter.shared.StepOutcome;
@@ -47,6 +48,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -381,7 +383,8 @@ public final class Dialogue {
                         return new Judged(StepOutcome.WHOLENESS_SHORT, List.of(shortfall.get()), null);
                     }
                 }
-                walk.cut(Boundary.ofElement(reply), records);
+                walk.cut(Boundary.ofElement(reply, depthOf(document.get(), RecordBoundary.ofElement(reply))),
+                        records);
                 return Judged.passed();
             }, spent));
         }
@@ -463,9 +466,10 @@ public final class Dialogue {
                     return new Judged(StepOutcome.WHOLENESS_SHORT, List.of(partial.get()), null);
                 }
             }
-            walk.cut(Boundary.ofArray(Boundary.ROOT.equalsIgnoreCase(reply)
+            final String key = Boundary.ROOT.equalsIgnoreCase(reply)
                     ? Boundary.ROOT
-                    : reply), records);
+                    : reply;
+            walk.cut(Boundary.ofArray(key, depthOf(document.get(), RecordBoundary.ofArray(key))), records);
             return Judged.passed();
         }, spent);
     }
@@ -694,6 +698,17 @@ public final class Dialogue {
                                        final List<StoredError> diagnostics,
                                        final List<Exchange> transcript) {
         return new Abandoned(reason, List.copyOf(diagnostics), List.copyOf(transcript));
+    }
+
+    /// How deep in the document the transform will receive one record sits (§12 item 25): what the
+    /// fragment's `SplitFilter` is set to split at, read from the document the split was settled against
+    /// rather than assumed, since the items of an array under a key sit deeper than the children of a
+    /// root. Null where the boundary names nothing here, which the writer reads as the usual depth.
+    private static Integer depthOf(final OutputRecords document, final RecordBoundary boundary) {
+        final OptionalInt depth = document.depthOf(boundary);
+        return depth.isPresent()
+                ? depth.getAsInt()
+                : null;
     }
 
     private String ask(final Walk walk, final PlanStep step, final int candidate, final Question question) {

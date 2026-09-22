@@ -16,11 +16,14 @@
 
 package stroom.shapeshifter.ai.scenario;
 
+import stroom.pipeline.shared.data.PipelineData;
+import stroom.pipeline.shared.data.PipelineElement;
 import stroom.shapeshifter.ai.learning.Exchange;
 import stroom.shapeshifter.ai.learning.InputKind;
 import stroom.shapeshifter.ai.learning.Question.Configuration;
 import stroom.shapeshifter.ai.learning.Question.Split;
 import stroom.shapeshifter.ai.learning.Question.TargetFor;
+import stroom.shapeshifter.ai.stage.Decision.Bound;
 import stroom.shapeshifter.ai.stage.Decision.Promoted;
 import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.StageRun;
@@ -43,6 +46,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
 /// Design 02 §5, scenario 46 (design 03 §3): JSON, as lines and as one document with an array of records. The
 /// chain is a JSONParser, which takes no configuration, so no configuration question is asked for it; the
@@ -162,5 +166,37 @@ class TestScenario46Json {
         assertThat(transform.split().array()).isEqualTo("events");
         final List<Exchange> turns = run.transcript();
         assertThat(turns.get(1).question()).isInstanceOf(Split.class);
+
+        // §12 item 25: the fragment that will run this in a pipeline splits at the array's items, so the
+        // stylesheet sees one record and memory is bounded by the record and not by the stream. The depth
+        // is read from the parsed document, not assumed: the items of an array under a key sit one deeper
+        // than the children of a root.
+        assertThat(((Promoted) run.decision()).rule().getRecordBoundary().splitDepth()).hasValue(3);
+        assertThat(((Promoted) run.decision()).rule().getRecordBoundary().getDepth())
+                .describedAs("the parser wraps its output in a records root, so an item of an array under "
+                             + "a key sits three elements down — which is why the depth is read from the "
+                             + "document the split was settled against and not assumed")
+                .isEqualTo(3);
+        final PipelineData fragment = scenarios.stores.pipelines
+                .readDocument(((Promoted) run.decision()).rule().getPipeline())
+                .getPipelineData();
+        assertThat(fragment.getElements().getAdd()).extracting(PipelineElement::getType)
+                .containsExactly("Source", "JSONParser", "SplitFilter", "XSLTFilter");
+        assertThat(fragment.getProperties().getAdd())
+                .filteredOn(property -> "splitFilter".equals(property.getElement()))
+                .extracting(property -> property.getName(), property -> property.getValue().getInteger())
+                .containsExactly(tuple("splitDepth", 3), tuple("splitCount", 1));
+
+        // And the fragment that now carries a filter is still a fragment this stage can run: the next
+        // stream of the shape is served by it, with no model call. The filter is the pipeline's to run —
+        // the runner passes over it, and running the chain per record as the pipeline does is what item
+        // 25 still owes — but a fragment it refused to run would break every bound markup feed on its
+        // second stream.
+        final Script silent = Script.of();
+        final StageRun served = scenarios.stage(silent).run(run.doc(), stream(2, DOCUMENT));
+
+        assertThat(silent.asked()).isEmpty();
+        assertThat(served.decision()).describedAs(served.decision().toString()).isInstanceOf(Bound.class);
+        assertThat(served.output()).isEqualTo(EVENTS);
     }
 }

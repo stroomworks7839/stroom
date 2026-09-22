@@ -1609,6 +1609,48 @@ they belong with phase F's other interactions, whose exit criterion is a person 
 the UI alone. And the regression set is still one node's memory: a stream per rule is phase E's.
 212 tests in the module, 22 against MySQL, 4 in Tier 2, and the GWT UI compiles.
 
+The thirtieth slice, 2026-09-22, opens **phase D** with §12 item 25: **the learned boundary as a
+`SplitFilter` in the written fragment**. Stroom's own shape for markup is parser, then split, then
+transform — the filter cuts the parsed stream into one document per record, so the stylesheet sees one
+record as a person writing one is shown one, memory is bounded by the record rather than the stream, and
+an error is isolated to the record that raised it. What this feature wrote was `JSONParser → XSLTFilter`
+or `XSLTFilter` alone, with the stylesheet iterating the whole parsed document: right at fixture size,
+wrong at stream size.
+
+The filter goes in front of the first element that is not a parser — after the parser where there is
+one, straight after the source where the input is already markup — and only where the rule carries a
+record boundary. Raw text keeps none: the Data Splitter *is* the splitter, and a chain that cuts with a
+configuration has no boundary of this kind.
+
+The depth is **read, not assumed**. A boundary is a name, and how deep the records it names sit depends
+on the document: the children of a root are one down, but an item of an array under a key turns out to
+be *three*, because the parser wraps its output in a records root. So the dialogue records the depth
+when the split is settled, against the document it settled it against, and the boundary carries it to
+the rule and on to the filter — and into the rule's row, since a rule read back without it would write a
+fragment that splits in the wrong place and `equals` ignores the depth, so nothing else would notice.
+
+The audit of slice 30 (the owner's code review) found three, all fixed, and the first of them was a
+break this slice had just made. **The written fragment carried an element the fragment runner refused to
+run.** The runner walks the fragment's elements and asks for a runner per type; there is none for a
+`SplitFilter`, so it threw — meaning any JSON or XML shape would learn and bind on its first stream and
+blow up on its *second*, which is when a bound rule is served. No scenario caught it because the
+serve-again scenarios are all CSV, where there is no boundary and no filter. The runner now passes over
+an element that shapes the stream without changing what any record says, and a JSON shape serving its
+second stream is a scenario — one that throws against the code as this slice first wrote it.
+
+The depth was also never persisted: the rules' columns are the name and nothing else, so every rule read
+back from the durable store reported no depth. And the fallback was wrong in its own terms — a boundary
+with no depth was written with a filter at the usual depth of one, which for JSON splits at the single
+top-level map and for nested XML at its one wrapper: one document for the whole stream, bounding
+nothing. No depth now means no filter, exactly as it was before item 25, until the rule is learned again.
+
+**What item 25 still owes**, and what the next slice is: the fragment runner and the scorers run the
+chain *per record*, as the pipeline now will, and the transform question shows the model one record's
+document rather than the whole. Today the fragment splits and the scoring passes over the filter, so
+what is scored is one document where what runs is many — the counts and the yield are per record either
+way, which is why the scores hold, but the two must meet, and the meeting changes what the model is
+asked. 219 tests in the module, 24 against MySQL, 4 in Tier 2.
+
 ## 7. Decisions taken
 
 Ruled 2026-09-17, each as recommended:

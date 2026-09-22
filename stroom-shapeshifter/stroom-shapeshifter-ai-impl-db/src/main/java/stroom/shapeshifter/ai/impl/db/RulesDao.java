@@ -165,6 +165,7 @@ public class RulesDao implements Rules {
                     .set(SHAPESHIFTER_RULE.SCORE, rule.getScore())
                     .set(SHAPESHIFTER_RULE.BOUNDARY_ELEMENT, element(rule))
                     .set(SHAPESHIFTER_RULE.BOUNDARY_ARRAY, array(rule))
+                    .set(SHAPESHIFTER_RULE.BOUNDARY_DEPTH, depth(rule))
                     .where(SHAPESHIFTER_RULE.DOC_UUID.eq(docUuid))
                     .and(SHAPESHIFTER_RULE.RULE_UUID.eq(rule.getUuid()))
                     .execute();
@@ -226,6 +227,7 @@ public class RulesDao implements Rules {
                 .set(SHAPESHIFTER_RULE.SCORE, stored.getScore())
                 .set(SHAPESHIFTER_RULE.BOUNDARY_ELEMENT, element(stored))
                 .set(SHAPESHIFTER_RULE.BOUNDARY_ARRAY, array(stored))
+                .set(SHAPESHIFTER_RULE.BOUNDARY_DEPTH, depth(stored))
                 .execute();
         return stored;
     }
@@ -245,6 +247,7 @@ public class RulesDao implements Rules {
         final String pipelineUuid = record.get(SHAPESHIFTER_RULE.PIPELINE_UUID);
         final String boundaryElement = record.get(SHAPESHIFTER_RULE.BOUNDARY_ELEMENT);
         final String boundaryArray = record.get(SHAPESHIFTER_RULE.BOUNDARY_ARRAY);
+        final Integer boundaryDepth = record.get(SHAPESHIFTER_RULE.BOUNDARY_DEPTH);
         return RoutingRule.builder()
                 .uuid(record.get(SHAPESHIFTER_RULE.RULE_UUID))
                 .expression(expression == null
@@ -260,9 +263,9 @@ public class RulesDao implements Rules {
                 .promotedTimeMs(record.get(SHAPESHIFTER_RULE.PROMOTED_TIME_MS))
                 .score(record.get(SHAPESHIFTER_RULE.SCORE))
                 .recordBoundary(boundaryElement != null
-                        ? RecordBoundary.ofElement(boundaryElement)
+                        ? RecordBoundary.ofElement(boundaryElement).atDepth(boundaryDepth)
                         : boundaryArray != null
-                                ? RecordBoundary.ofArray(boundaryArray)
+                                ? RecordBoundary.ofArray(boundaryArray).atDepth(boundaryDepth)
                                 : null)
                 .build();
     }
@@ -301,5 +304,14 @@ public class RulesDao implements Rules {
         return rule.getRecordBoundary() == null
                 ? null
                 : rule.getRecordBoundary().getArray();
+    }
+
+    /// How deep the records the boundary names sit, which is part of the boundary and not derivable from
+    /// it: a rule read back without it would write a fragment that splits in the wrong place (§12 item
+    /// 25).
+    private static Integer depth(final RoutingRule rule) {
+        return rule.getRecordBoundary() == null
+                ? null
+                : rule.getRecordBoundary().getDepth();
     }
 }

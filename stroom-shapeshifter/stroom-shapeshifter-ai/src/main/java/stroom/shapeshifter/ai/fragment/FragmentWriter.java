@@ -31,6 +31,7 @@ import stroom.pipeline.textconverter.TextConverterStore;
 import stroom.pipeline.xslt.XsltStore;
 import stroom.shapeshifter.ai.learning.LearnedStep;
 import stroom.shapeshifter.ai.learning.StepRunner.Configured;
+import stroom.shapeshifter.shared.RecordBoundary;
 import stroom.util.shared.DocPath;
 
 import jakarta.inject.Inject;
@@ -39,6 +40,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.Set;
 
 /**
@@ -53,6 +55,10 @@ import java.util.Set;
 public final class FragmentWriter {
 
     private static final String SOURCE = "Source";
+    private static final String SPLIT = "splitFilter";
+    private static final String SPLIT_FILTER = "SplitFilter";
+    private static final String SPLIT_DEPTH = "splitDepth";
+    private static final String SPLIT_COUNT = "splitCount";
     private static final Set<String> WRITABLE = Set.of(TextConverterDoc.TYPE, XsltDoc.TYPE);
 
     private final ContentCreator creator;
@@ -77,7 +83,10 @@ public final class FragmentWriter {
      * @param chain  The learned steps in chain order.
      * @return The fragment's DocRef, for the routing table.
      */
-    public DocRef write(final DocPath folder, final String name, final List<LearnedStep> chain) {
+    public DocRef write(final DocPath folder,
+                        final String name,
+                        final List<LearnedStep> chain,
+                        final RecordBoundary boundary) {
         // Checked for the whole chain before anything is created: a step whose document this writer
         // cannot write must not leave the earlier steps' documents behind.
         chain.stream()
@@ -92,8 +101,30 @@ public final class FragmentWriter {
         final PipelineDataBuilder builder = new PipelineDataBuilder()
                 .addElement(new PipelineElement(SOURCE, SOURCE));
         String previous = SOURCE;
+        // No depth, no filter: a boundary from a rule learned before the depth was recorded cannot say
+        // where to split, and a guessed depth splits nothing (see RecordBoundary#splitDepth).
+        final OptionalInt depth = boundary == null
+                ? OptionalInt.empty()
+                : boundary.splitDepth();
+        boolean split = false;
         final Map<String, Integer> idsUsed = new HashMap<>();
         for (final LearnedStep step : chain) {
+            // Stroom's own shape for markup is parser, then split, then transform (§12 item 25): the
+            // filter cuts the parsed stream into one document per record, so the stylesheet sees one
+            // record as a person writing one is shown one, memory is bounded by the record rather than
+            // the stream, and an error is isolated to the record that raised it. It goes in front of the
+            // first element that is not a parser — after the parser where there is one, and straight
+            // after the source where the input is already markup. Raw text needs none: the Data Splitter
+            // *is* the splitter, and a chain that cuts with a configuration has no boundary of this kind.
+            if (!split && !step.runner().parser() && depth.isPresent()) {
+                builder.addElement(new PipelineElement(SPLIT, SPLIT_FILTER));
+                builder.addLink(previous, SPLIT);
+                builder.addProperty(new PipelineProperty(SPLIT, SPLIT_DEPTH,
+                        new PipelinePropertyValue(depth.getAsInt())));
+                builder.addProperty(new PipelineProperty(SPLIT, SPLIT_COUNT, new PipelinePropertyValue(1)));
+                previous = SPLIT;
+                split = true;
+            }
             final String elementId = uniqueId(step.runner().elementId(), idsUsed);
             builder.addElement(new PipelineElement(elementId, step.elementType()));
             builder.addLink(previous, elementId);

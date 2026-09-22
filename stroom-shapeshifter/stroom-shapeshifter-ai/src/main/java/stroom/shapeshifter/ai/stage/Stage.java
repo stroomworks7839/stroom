@@ -1046,7 +1046,7 @@ public final class Stage {
 
     private DocRef write(final ShapeshifterAiDoc doc, final Shape shape, final Learned learned) {
         return writer.write(DocPath.fromParts(FOLDER, doc.getName()), shape.slug() + "-" + clock.millis(),
-                learned.chain());
+                learned.chain(), learned.boundary());
     }
 
     /**

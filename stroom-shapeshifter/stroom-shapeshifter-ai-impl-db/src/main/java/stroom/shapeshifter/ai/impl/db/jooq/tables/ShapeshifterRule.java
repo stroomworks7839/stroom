@@ -144,6 +144,11 @@ public class ShapeshifterRule extends TableImpl<ShapeshifterRuleRecord> {
      */
     public final TableField<ShapeshifterRuleRecord, String> BOUNDARY_ARRAY = createField(DSL.name("boundary_array"), SQLDataType.VARCHAR(255), this, "");
 
+    /**
+     * The column <code>stroom.shapeshifter_rule.boundary_depth</code>.
+     */
+    public final TableField<ShapeshifterRuleRecord, Integer> BOUNDARY_DEPTH = createField(DSL.name("boundary_depth"), SQLDataType.INTEGER, this, "");
+
     private ShapeshifterRule(Name alias, Table<ShapeshifterRuleRecord> aliased) {
         this(alias, aliased, (Field<?>[]) null, null);
     }

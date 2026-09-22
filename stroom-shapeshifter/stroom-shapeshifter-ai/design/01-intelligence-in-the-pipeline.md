@@ -2026,6 +2026,16 @@ including the degeneracy trap (§8.3) that changes the scoring model and propose
   `shapeshifter_turn`, the `Attempts` seam and its DAO, and the stage recording an attempt and every
   turn of it. Not the rendered prompt, which waits for redaction (A38); not yet the claim on the shape,
   which waits for the dialogue to be resumable (A45).
+- Audit of slice 30 (the owner's code review): three findings, all fixed — design 02 §6.1. The written
+  fragment carried a `SplitFilter` the fragment runner refused to run, so a bound JSON or XML shape would
+  have thrown on its second stream; the depth was never persisted, so every rule read back from its row
+  lost it; and a boundary with no depth was written with a filter at a depth that splits nothing.
+- Slice 30, the first of phase D (§12 item 25; design 02 §6.1): the written fragment gains a
+  `SplitFilter` in front of its transform, set from the record boundary the split settled, so that the
+  stylesheet sees one record and memory is bounded by the record rather than the stream. The depth is
+  read from the document the split was settled against rather than assumed — an item of an array under a
+  key sits three elements down, not two. Owed with it: the scorers and the fragment runner running the
+  chain per record, and the transform question showing one record.
 - Audit of slice 29 (the owner's code review): fourteen findings, all fixed — design 02 §6.1. The
   Supervisor's approve, reject, amend and re-learn were held to `VIEW` rather than `EDIT`, so a
   read-only user could bind rules and spend tokens; the page count was of every attempt rather than of

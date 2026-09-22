@@ -50,6 +50,32 @@ class TestRulesDao {
     }
 
     @Test
+    void aBoundaryKeepsWhereItsRecordsSit() {
+        // §12 item 25: the fragment a rule binds splits at a depth, and the depth is part of the boundary
+        // rather than derivable from it. A rule read back without it would write a fragment that splits in
+        // the wrong place, and equals ignores the depth, so nothing else would notice.
+        final String doc = "doc-" + System.nanoTime();
+        rules.append(doc, RoutingRule.builder()
+                .uuid("rule-1")
+                .recordBoundary(RecordBoundary.ofArray("events").atDepth(3))
+                .build());
+        rules.append(doc, RoutingRule.builder()
+                .uuid("rule-2")
+                .recordBoundary(RecordBoundary.ofElement("Event"))
+                .build());
+
+        final List<RoutingRule> read = rules.forDocument(doc);
+
+        assertThat(read.get(0).getRecordBoundary().getArray()).isEqualTo("events");
+        assertThat(read.get(0).getRecordBoundary().splitDepth())
+                .describedAs("where its records sit, kept with their name").hasValue(3);
+        assertThat(read.get(1).getRecordBoundary().splitDepth())
+                .describedAs("a rule stored before the depth was recorded has none, and is written "
+                             + "without a filter until it is learned again")
+                .isEmpty();
+    }
+
+    @Test
     void aRuleSurvivesTheRoundTripWholeAndInItsOrder() {
         final RoutingRule learned = RoutingRule.builder()
                 .expression(ExpressionOperator.builder()

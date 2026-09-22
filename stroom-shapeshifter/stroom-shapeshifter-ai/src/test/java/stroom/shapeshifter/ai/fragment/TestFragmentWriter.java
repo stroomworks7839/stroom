@@ -26,10 +26,12 @@ import stroom.pipeline.shared.data.PipelineElement;
 import stroom.pipeline.shared.data.PipelineLink;
 import stroom.pipeline.shared.data.PipelineProperty;
 import stroom.shapeshifter.ai.extraction.DataSplitterStep;
+import stroom.shapeshifter.ai.extraction.JsonStep;
 import stroom.shapeshifter.ai.learning.LearnedStep;
 import stroom.shapeshifter.ai.learning.StepResult;
 import stroom.shapeshifter.ai.scoring.Verdict;
 import stroom.shapeshifter.ai.transformation.XsltStep;
+import stroom.shapeshifter.shared.RecordBoundary;
 import stroom.util.shared.DocPath;
 
 import org.junit.jupiter.api.Test;
@@ -54,6 +56,104 @@ class TestFragmentWriter {
             "<xsl:stylesheet xmlns:xsl=\"http://www.w3.org/1999/XSL/Transform\" version=\"2.0\"/>";
 
     @Test
+    void aBoundaryPutsASplitFilterInFrontOfTheTransform() {
+        // §12 item 25: stroom's own shape for markup is parser, then split, then transform. The filter
+        // cuts the parsed stream into one document per record, so the stylesheet sees one record as a
+        // person writing one is shown one, memory is bounded by the record rather than the stream, and an
+        // error is isolated to the record that raised it.
+        final ContentStores stores = new ContentStores();
+        final FragmentWriter writer = stores.writer();
+        final List<LearnedStep> chain = List.of(
+                new LearnedStep(new JsonStep(), null, new StepResult("<map/>", List.of()), UNSCORED),
+                new LearnedStep(new XsltStep(), XSLT, new StepResult("<Events/>", List.of()), UNSCORED));
+
+        final DocRef fragment = writer.write(FOLDER, "json-v1", chain,
+                RecordBoundary.ofArray("events").atDepth(2));
+
+        final PipelineData data = stores.pipelines.readDocument(fragment).getPipelineData();
+        assertThat(data.getElements().getAdd())
+                .extracting(PipelineElement::getId, PipelineElement::getType)
+                .containsExactly(
+                        tuple("Source", "Source"),
+                        tuple("jsonParser", "JSONParser"),
+                        tuple("splitFilter", "SplitFilter"),
+                        tuple("xsltFilter", "XSLTFilter"));
+        assertThat(data.getLinks().getAdd())
+                .extracting(PipelineLink::getFrom, PipelineLink::getTo)
+                .describedAs("after the parser and in front of the transform")
+                .containsExactly(
+                        tuple("Source", "jsonParser"),
+                        tuple("jsonParser", "splitFilter"),
+                        tuple("splitFilter", "xsltFilter"));
+        assertThat(data.getProperties().getAdd())
+                .filteredOn(property -> "splitFilter".equals(property.getElement()))
+                .extracting(property -> property.getName(), property -> property.getValue().getInteger())
+                .describedAs("split where the records are, one at a time")
+                .containsExactly(tuple("splitDepth", 2), tuple("splitCount", 1));
+    }
+
+    @Test
+    void markupWithNoParserIsSplitStraightAfterTheSource() {
+        // Input that is already XML has no parser to put the filter behind: the records are the source's
+        // own, and the transform is shown them one at a time just the same.
+        final ContentStores stores = new ContentStores();
+        final FragmentWriter writer = stores.writer();
+        final List<LearnedStep> chain = List.of(
+                new LearnedStep(new XsltStep(), XSLT, new StepResult("<Events/>", List.of()), UNSCORED));
+
+        final DocRef fragment = writer.write(FOLDER, "xml-v1", chain,
+                RecordBoundary.ofElement("Event").atDepth(1));
+
+        final PipelineData data = stores.pipelines.readDocument(fragment).getPipelineData();
+        assertThat(data.getLinks().getAdd())
+                .extracting(PipelineLink::getFrom, PipelineLink::getTo)
+                .containsExactly(
+                        tuple("Source", "splitFilter"),
+                        tuple("splitFilter", "xsltFilter"));
+        assertThat(data.getProperties().getAdd())
+                .filteredOn(property -> "splitFilter".equals(property.getElement()))
+                .extracting(property -> property.getValue().getInteger())
+                .containsExactly(1, 1);
+    }
+
+    @Test
+    void aBoundaryThatDoesNotKnowWhereItSitsIsWrittenWithoutAFilter() {
+        // A rule learned before the depth was recorded cannot say where to split, and a guess is worse
+        // than nothing: the usual depth of one splits a JSON document at its single top-level map, which
+        // is one document for the whole stream and bounds nothing. It is written as it was before item
+        // 25, until it is learned again.
+        final ContentStores stores = new ContentStores();
+        final FragmentWriter writer = stores.writer();
+        final List<LearnedStep> chain = List.of(
+                new LearnedStep(new JsonStep(), null, new StepResult("<map/>", List.of()), UNSCORED),
+                new LearnedStep(new XsltStep(), XSLT, new StepResult("<Events/>", List.of()), UNSCORED));
+
+        final DocRef fragment = writer.write(FOLDER, "json-v0", chain, RecordBoundary.ofArray("events"));
+
+        assertThat(stores.pipelines.readDocument(fragment).getPipelineData().getElements().getAdd())
+                .extracting(PipelineElement::getType)
+                .containsExactly("Source", "JSONParser", "XSLTFilter");
+    }
+
+    @Test
+    void rawTextHasNoSplitFilterBecauseTheDataSplitterIsOne() {
+        // §12 item 25: for raw text the Data Splitter *is* the splitter, and a chain that cuts with a
+        // configuration carries no boundary of this kind.
+        final ContentStores stores = new ContentStores();
+        final FragmentWriter writer = stores.writer();
+        final List<LearnedStep> chain = List.of(
+                new LearnedStep(new DataSplitterStep(null), DS3, new StepResult("<records/>", List.of()),
+                        UNSCORED),
+                new LearnedStep(new XsltStep(), XSLT, new StepResult("<Events/>", List.of()), UNSCORED));
+
+        final DocRef fragment = writer.write(FOLDER, "csv-v1", chain, null);
+
+        assertThat(stores.pipelines.readDocument(fragment).getPipelineData().getElements().getAdd())
+                .extracting(PipelineElement::getType)
+                .doesNotContain("SplitFilter");
+    }
+
+    @Test
     void writesTheDocumentsAndAFragmentThatReferencesThem() {
         final ContentStores stores = new ContentStores();
         final FragmentWriter writer = stores.writer();
@@ -61,7 +161,7 @@ class TestFragmentWriter {
                 new LearnedStep(new DataSplitterStep(null), DS3, new StepResult("<records/>", List.of()), UNSCORED),
                 new LearnedStep(new XsltStep(), XSLT, new StepResult("<Events/>", List.of()), UNSCORED));
 
-        final DocRef fragment = writer.write(FOLDER, "csv-logon-v1", chain);
+        final DocRef fragment = writer.write(FOLDER, "csv-logon-v1", chain, null);
 
         assertThat(fragment.getType()).isEqualTo(PipelineDoc.TYPE);
         assertThat(fragment.getName()).isEqualTo("csv-logon-v1");
@@ -105,7 +205,7 @@ class TestFragmentWriter {
                 new LearnedStep(new XsltStep(), XSLT, new StepResult("<a/>", List.of()), UNSCORED),
                 new LearnedStep(new XsltStep(), XSLT, new StepResult("<b/>", List.of()), UNSCORED));
 
-        final DocRef fragment = writer.write(FOLDER, "two-pass", chain);
+        final DocRef fragment = writer.write(FOLDER, "two-pass", chain, null);
         final PipelineData data = stores.pipelines.readDocument(fragment).getPipelineData();
 
         assertThat(data.getElements().getAdd()).extracting(PipelineElement::getId)
@@ -125,8 +225,8 @@ class TestFragmentWriter {
         final List<LearnedStep> chain = List.of(
                 new LearnedStep(new XsltStep(), XSLT, new StepResult("<Events/>", List.of()), UNSCORED));
 
-        final DocRef first = writer.write(FOLDER, "v1", chain);
-        final DocRef second = writer.write(FOLDER, "v2", chain);
+        final DocRef first = writer.write(FOLDER, "v1", chain, null);
+        final DocRef second = writer.write(FOLDER, "v2", chain, null);
 
         assertThat(second.getUuid()).isNotEqualTo(first.getUuid());
         assertThat(stores.pipelines.list()).hasSize(2);
