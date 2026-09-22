@@ -1066,6 +1066,28 @@ block-style. The claim that a one-record sample with a repeated structured grand
 container did not hold — the check looks at an element's own children — and a test now says so. 158
 tests in the module.
 
+The twentieth slice, 2026-09-22, is **the rules as rows** (A41), the first of phase C and the one that
+had to come before the tables: `Rules`, a seam beside `Shapes`, `Ledger`, `Outputs`, `Reprocessing` and
+`RegressionSet` — the document's rules in router order, appended, replaced, removed by uuid — with
+`InMemoryRules` behind it until the A26 module lands. The routing table is gone from
+`ShapeshifterAiDoc`: the stage reads the rules for the document it is learning for and writes one row
+at a time at binding, promotion, retraction, rebinding, drafting, approval and rejection; `approve` and
+`reject` no longer return a document; and the supervisor element's `writeDocument` is gone, so learning
+never touches the document at all. What that buys is what A41 asked for: two nodes promoting two shapes
+of one document write two rows instead of racing to rewrite one document, and the operator editing the
+Learning tab no longer shares an optimistic lock with the machine.
+
+The document's dependencies are now its model alone — an exported document carries its configuration
+and none of what it learned, as a processor filter's state is not part of the pipeline it runs — and the
+store no longer names or numbers rules. The Routing tab fetches the rules for the document through
+`GET /shapeshifterAi/v1/{uuid}/rules` and saves them with the document through `PUT …/rules`, which
+checks each fragment is a fragment (A20) as the store used to on save; a row-level Routing tab, each
+action its own call, is owed with the operator surfaces of phase F. The scenario tests read the rules
+from the seam rather than from the document they got back, which is also how they now seed a reserved,
+pinned or draft rule. One test had to be told that rules outlive a stage: two runs against one feed in
+one scenario now bind what the first promoted, which is what a cluster would do. 177 tests in the
+module, 15 shared, 2 in the app; GWT compiled.
+
 ## 7. Decisions taken
 
 Ruled 2026-09-17, each as recommended:
