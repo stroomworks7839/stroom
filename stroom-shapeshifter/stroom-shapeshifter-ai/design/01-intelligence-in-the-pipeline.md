@@ -2006,6 +2006,11 @@ including the degeneracy trap (§8.3) that changes the scoring model and propose
   the goldens and run 7 — yield per line where a record spans lines is what decided outcomes,
   coverage never did. A20–A22 ruled as built, the owner's; A39 and A40 ruled, the owner's, from run
   7: the escalating example splits every input, and a parser refused on yield goes back to the split.
+- Audit of slice 21 and the branch (the owner's code review): fifteen findings, all fixed — design 02
+  §6.1; the module's config was not in `AppConfig`, so the build failed on it; a JSON stream over the
+  sample limit was cut into something that would not parse; the array key went into an XPath unguarded;
+  `remove` left a hole in the rules' order; the ledger could replay a stream twice; a shape id longer
+  than its column is keyed by hash.
 - Slice 21, the tables (A26; design 02 §6.1): `stroom-shapeshifter-ai-impl-db` with the five tables and
   the DAOs behind `Rules`, `Shapes` and `Ledger`; the node reads its runtime state from rows and a
   harness without a database from `InMemoryStateModule`; eight tests against MySQL. Owed for phase C's

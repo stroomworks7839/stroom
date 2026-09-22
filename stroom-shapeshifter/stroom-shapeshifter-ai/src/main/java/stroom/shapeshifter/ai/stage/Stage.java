@@ -62,7 +62,9 @@ import net.sf.saxon.s9api.XdmNode;
 
 import java.io.IOException;
 import java.time.Clock;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -637,12 +639,12 @@ public final class Stage {
         }
         final List<String> lines = data.lines().filter(line -> !line.isBlank()).toList();
         if (isJsonDocument(data)) {
-            // A prefix of a JSON document is not a document either. It is learned whole within the size limit,
-            // and cut by lines beyond it — a cut at the array's items, as wholeChildren makes for XML, is owed
-            // (design 03 §5).
+            // A prefix of a JSON document is not a document either: cut by lines it would not parse, and the
+            // split question would abandon the attempt on a sample the parser cannot read. Over the limit it
+            // is cut at its widest array's items and closed again, as wholeChildren closes an XML root.
             return data.length() <= limit
                     ? data
-                    : wholeLines(lines, lines.size(), limit);
+                    : wholeItems(data, limit);
         }
         if (lines.isEmpty()) {
             // A blank stream has nothing to learn from; the compile gate and coverage will say so.
@@ -728,6 +730,102 @@ public final class Stage {
         } catch (final IOException e) {
             return false;
         }
+    }
+
+    /**
+     * A JSON document over the sample size limit, cut at the items of its widest array — the one a split will
+     * name — and closed again, so that what the model is shown is still one JSON document. Where no array can
+     * be cut that way, the whole document is shown: a sample the parser cannot read is worse than a long one,
+     * and the budget of A5 is what stops a runaway.
+     */
+    private static String wholeItems(final String data, final int limit) {
+        final String trimmed = ShapeSignature.withoutBom(data).stripLeading();
+        final Optional<int[]> widest = widestArray(trimmed);
+        if (widest.isEmpty()) {
+            return data;
+        }
+        final int open = widest.get()[0];
+        final int close = widest.get()[1];
+        final String before = trimmed.substring(0, open + 1);
+        final String after = trimmed.substring(close);
+        final List<String> items = items(trimmed.substring(open + 1, close));
+        final int room = limit - before.length() - after.length();
+        final StringBuilder kept = new StringBuilder();
+        for (final String item : items) {
+            final int cost = kept.isEmpty()
+                    ? item.length()
+                    : item.length() + 1;
+            if (!kept.isEmpty() && kept.length() + cost > room) {
+                break;
+            }
+            if (!kept.isEmpty()) {
+                kept.append(',');
+            }
+            kept.append(item);
+        }
+        return before + kept + after;
+    }
+
+    /**
+     * The widest array in a JSON document — the outermost one holding the most — as the offsets of its
+     * brackets, ignoring brackets inside strings.
+     */
+    private static Optional<int[]> widestArray(final String json) {
+        int[] widest = null;
+        final Deque<Integer> opens = new ArrayDeque<>();
+        boolean inString = false;
+        boolean escaped = false;
+        for (int i = 0; i < json.length(); i++) {
+            final char c = json.charAt(i);
+            if (escaped) {
+                escaped = false;
+            } else if (c == '\\' && inString) {
+                escaped = true;
+            } else if (c == '"') {
+                inString = !inString;
+            } else if (!inString && c == '[') {
+                opens.push(i);
+            } else if (!inString && c == ']' && !opens.isEmpty()) {
+                final int open = opens.pop();
+                if (widest == null || i - open > widest[1] - widest[0]) {
+                    widest = new int[]{open, i};
+                }
+            }
+        }
+        return Optional.ofNullable(widest);
+    }
+
+    /**
+     * An array's items as text, split at the commas between them rather than those inside them.
+     */
+    private static List<String> items(final String inside) {
+        final List<String> items = new ArrayList<>();
+        int depth = 0;
+        int from = 0;
+        boolean inString = false;
+        boolean escaped = false;
+        for (int i = 0; i < inside.length(); i++) {
+            final char c = inside.charAt(i);
+            if (escaped) {
+                escaped = false;
+            } else if (c == '\\' && inString) {
+                escaped = true;
+            } else if (c == '"') {
+                inString = !inString;
+            } else if (!inString && (c == '{' || c == '[')) {
+                depth++;
+            } else if (!inString && (c == '}' || c == ']')) {
+                depth--;
+            } else if (!inString && c == ',' && depth == 0) {
+                items.add(inside.substring(from, i).strip());
+                from = i + 1;
+            }
+        }
+        final String last = inside.substring(from).strip();
+        if (!last.isEmpty()) {
+            items.add(last);
+        }
+        return items;
     }
 
     /**

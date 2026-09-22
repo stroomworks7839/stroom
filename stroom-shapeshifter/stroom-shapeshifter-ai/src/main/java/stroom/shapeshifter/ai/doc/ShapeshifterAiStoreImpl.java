@@ -16,6 +16,7 @@
 
 package stroom.shapeshifter.ai.doc;
 
+import stroom.docref.DocRef;
 import stroom.docstore.api.AbstractDocumentStore;
 import stroom.docstore.api.DependencyRemapFunction;
 import stroom.docstore.api.StoreFactory;
@@ -35,6 +36,8 @@ public class ShapeshifterAiStoreImpl
         extends AbstractDocumentStore<ShapeshifterAiDoc>
         implements ShapeshifterAiStore {
 
+    private final ShapeshifterAiSerialiser serialiser;
+
     @Inject
     public ShapeshifterAiStoreImpl(final StoreFactory storeFactory,
                                       final SecurityContext securityContext,
@@ -45,6 +48,19 @@ public class ShapeshifterAiStoreImpl
                 ShapeshifterAiDoc.TYPE,
                 ShapeshifterAiDoc::builder,
                 ShapeshifterAiDoc::copy);
+        this.serialiser = serialiser;
+    }
+
+    /**
+     * A document that learned before A41 carried its rules, and they are rows now: reading it here — a read
+     * of what this node holds, not an import's look at what a pack would change — is where they are put
+     * where they belong (design 02 §6.1).
+     */
+    @Override
+    public ShapeshifterAiDoc readDocument(final DocRef docRef) {
+        final ShapeshifterAiDoc document = super.readDocument(docRef);
+        serialiser.migrateRules(document);
+        return document;
     }
 
     /**

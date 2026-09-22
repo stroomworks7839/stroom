@@ -139,6 +139,23 @@ class TestRulesDao {
                 .hasSize(1);
     }
 
+    @Test
+    void removingARuleClosesThePositionBehindIt() {
+        // insert and move read a position as a place in a list, as the in-memory rules do, so a hole would
+        // put an appended rule above the last one and make a move a no-op.
+        final String a = rules.append(DOC, named("a")).getUuid();
+        final String b = rules.append(DOC, named("b")).getUuid();
+        final String c = rules.append(DOC, named("c")).getUuid();
+
+        rules.remove(DOC, a);
+
+        final RoutingRule appended = rules.insert(DOC, named("appended"), rules.forDocument(DOC).size());
+        assertThat(uuids()).containsExactly(b, c, appended.getUuid());
+        rules.move(DOC, b, rules.forDocument(DOC).size() - 1);
+        assertThat(uuids()).describedAs("and a move to the end is not a no-op")
+                .containsExactly(c, appended.getUuid(), b);
+    }
+
     private List<String> uuids() {
         return rules.forDocument(DOC).stream().map(RoutingRule::getUuid).toList();
     }

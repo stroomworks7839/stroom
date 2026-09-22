@@ -73,6 +73,19 @@ class TestYieldScorer {
         assertThat(scorer.score(records, new Attempted("XSLTFilter", false, nested,
                 new StepResult(two, List.of()), RecordBoundary.ofElement("entry"))).orElseThrow().value())
                 .isEqualTo(1.0);
+        // The output is counted by the boundary too, or the two ends disagree: a parser's XML of one map
+        // holding three items is three records to the stage and would be one here. Three JSON lines in,
+        // three records out, one per line.
+        final String parsed = "<map xmlns=\"http://www.w3.org/2013/XSL/json\"><array key=\"events\">"
+                              + "<map/><map/><map/></array></map>";
+        final Attempted json = new Attempted("JSONParser", true, "{\"a\":1}\n{\"a\":2}\n{\"a\":3}\n",
+                new StepResult(parsed, List.of()), RecordBoundary.ofArray("events"));
+        final YieldParameters perLine = new YieldParameters(1.0, YieldBasis.LINES);
+        assertThat(scorer.score(perLine, json).orElseThrow().value()).isEqualTo(1.0);
+        assertThat(scorer.score(perLine, new Attempted(json.elementType(), true, json.input(), json.result()))
+                .orElseThrow().value())
+                .describedAs("with no boundary the root's one child is all the output it sees")
+                .isEqualTo(1.0 / 3);
     }
 
     @Test

@@ -39,6 +39,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class ShapeshifterAiSerialiser implements DocumentSerialiser2<ShapeshifterAiDoc> {
 
@@ -54,6 +57,10 @@ public class ShapeshifterAiSerialiser implements DocumentSerialiser2<Shapeshifte
 
     private final Serialiser2<ShapeshifterAiDoc> delegate;
     private final Provider<Rules> rulesProvider;
+    /// The documents this node has already had the chance to migrate, so that a read is a read.
+    private final Set<String> migrated = ConcurrentHashMap.newKeySet();
+    /// What a read found, for the store to migrate: a document read but never opened keeps nothing else.
+    private final Map<String, List<RoutingRule>> carried = new ConcurrentHashMap<>();
 
     @Inject
     ShapeshifterAiSerialiser(final Serialiser2Factory serialiser2Factory, final Provider<Rules> rulesProvider) {
@@ -81,10 +88,13 @@ public class ShapeshifterAiSerialiser implements DocumentSerialiser2<Shapeshifte
         return List.copyOf(read);
     }
 
+    /// A read is a read: what it finds of a pre-A41 document's rules is remembered for the store to put
+    /// where it belongs, and nothing is written here. An import's confirmation screen reads to show what
+    /// would change, and must not write while showing it.
     @Override
     public ShapeshifterAiDoc read(final ImportExportDocument importExportDocument) throws IOException {
         final ShapeshifterAiDoc document = delegate.read(importExportDocument);
-        migrateRules(document, importExportDocument);
+        rememberLegacyRules(document, importExportDocument);
         // A document saved when the plan was called the dialogue (before A37) reads as it was written. The
         // shared class cannot carry the old name — its JSON is generated for the client too — so it is
         // honoured here, on the way in only, and only where the old name occurs at all.
@@ -115,19 +125,32 @@ public class ShapeshifterAiSerialiser implements DocumentSerialiser2<Shapeshifte
     }
 
     /**
-     * A document that learned before A41 carried its rules; they are rows now, so the first read of such a
-     * document puts them where they belong — once, and only where the document has some and the rows have
-     * none, so a table an operator has since edited is not overwritten by the document's old copy. Every
-     * other read costs one {@code contains} over bytes already in hand. The A26 module will do this as a
-     * migration of its own, over every document, rather than on the read of each.
+     * What a read found of a pre-A41 document's rules, kept until the store asks for it: every other read
+     * costs one {@code contains} over bytes already in hand.
      */
-    private void migrateRules(final ShapeshifterAiDoc document, final ImportExportDocument importExportDocument)
-            throws IOException {
-        if (document == null || document.getUuid() == null) {
+    private void rememberLegacyRules(final ShapeshifterAiDoc document,
+                                     final ImportExportDocument importExportDocument) throws IOException {
+        if (document == null || document.getUuid() == null || migrated.contains(document.getUuid())) {
             return;
         }
         final List<RoutingRule> legacy = legacyRules(importExportDocument);
-        if (legacy.isEmpty()) {
+        if (!legacy.isEmpty()) {
+            carried.put(document.getUuid(), legacy);
+        }
+    }
+
+    /**
+     * A document that learned before A41 carried its rules; they are rows now, so the store's first read of
+     * such a document puts them where they belong — once per node, and only where the rows have none, so a
+     * table an operator has since emptied is theirs and not the old document's to refill. The A26 module
+     * will do this as a migration of its own, over every document, rather than on the read of each.
+     */
+    public void migrateRules(final ShapeshifterAiDoc document) {
+        if (document == null || document.getUuid() == null) {
+            return;
+        }
+        final List<RoutingRule> legacy = carried.remove(document.getUuid());
+        if (legacy == null || !migrated.add(document.getUuid())) {
             return;
         }
         final Rules rules = rulesProvider.get();

@@ -110,6 +110,8 @@ class TestShapeshifterAiSerialiser {
                 JsonUtil.getMapper().writeValueAsBytes(json)));
 
         final ShapeshifterAiDoc read = serialiser.read(written);
+        assertThat(rules.forDocument("d")).describedAs("a read is a read: nothing is written by it").isEmpty();
+        serialiser.migrateRules(read);
 
         assertThat(read.getUuid()).isEqualTo("d");
         assertThat(rules.forDocument("d")).extracting(RoutingRule::getUuid)
@@ -117,10 +119,13 @@ class TestShapeshifterAiSerialiser {
                 .containsExactly("rule-1", "rule-2");
         assertThat(rules.forDocument("d").get(0).getScore()).isEqualTo(0.97);
 
-        // Read again: the rows are not doubled, and a table an operator has since edited is not overwritten.
+        // Read again: the rows are not doubled, and a table an operator has since emptied is not refilled.
         rules.remove("d", "rule-2");
-        serialiser.read(written);
+        serialiser.migrateRules(serialiser.read(written));
         assertThat(rules.forDocument("d")).extracting(RoutingRule::getUuid).containsExactly("rule-1");
+        rules.remove("d", "rule-1");
+        serialiser.migrateRules(serialiser.read(written));
+        assertThat(rules.forDocument("d")).describedAs("emptied on purpose, and left empty").isEmpty();
     }
 
     @Test

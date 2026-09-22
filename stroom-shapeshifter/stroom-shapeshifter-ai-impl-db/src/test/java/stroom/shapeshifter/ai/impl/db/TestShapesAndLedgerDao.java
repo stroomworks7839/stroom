@@ -95,4 +95,29 @@ class TestShapesAndLedgerDao {
                 .isEmpty();
         assertThat(ledger.release(DOC, "another-shape")).containsExactly(3L);
     }
+
+    @Test
+    void aStreamSentinelledTwiceIsReplayedOnce() {
+        ledger.sentinelled(DOC, SHAPE, 1L, "Unknown shape");
+        ledger.sentinelled(DOC, SHAPE, 1L, "Unknown shape, again");
+
+        assertThat(ledger.release(DOC, SHAPE)).containsExactly(1L);
+    }
+
+    @Test
+    void aShapeIdLongerThanAColumnIsStillOneShape() {
+        // A learning key may name a sender-supplied header, so an id has no bound; rows are found by its
+        // hash and the id is kept as written.
+        final String long1 = SHAPE + "|RemoteFile=" + "a".repeat(2000);
+        final String long2 = SHAPE + "|RemoteFile=" + "b".repeat(2000);
+
+        shapes.giveUp(DOC, long1, "too long to lose");
+        ledger.sentinelled(DOC, long1, 7L, "Unknown shape");
+
+        assertThat(shapes.reasonGivenUp(DOC, long1)).contains("too long to lose");
+        assertThat(shapes.reasonGivenUp(DOC, long2)).describedAs("a different long id is a different shape")
+                .isEmpty();
+        assertThat(ledger.release(DOC, long1)).containsExactly(7L);
+        shapes.reset(DOC, long1);
+    }
 }

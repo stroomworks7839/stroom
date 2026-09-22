@@ -125,6 +125,14 @@ public final class OutputRecords {
      * nothing here.
      */
     public List<XdmNode> recordsBy(final RecordBoundary boundary) {
+        final String named = boundary.isArray()
+                ? boundary.getArray()
+                : boundary.getElement();
+        if (named == null || !named.matches("[\\w.:-]+")) {
+            // A boundary is a name. One that is not cannot be put in a predicate safely, and a stream is not
+            // failed for it: it names nothing here, and the caller falls back to the root's children.
+            return List.of();
+        }
         if (boundary.isArray()) {
             if (RecordBoundary.ROOT.equalsIgnoreCase(boundary.getArray())) {
                 if (records.size() == 1) {
@@ -136,13 +144,11 @@ public final class OutputRecords {
                 }
                 return records;
             }
-            final String key = boundary.getArray().replace("'", "");
-            return nodes(root, "(descendant::*[local-name() = 'array'][@key = '" + key + "']"
-                               + "[not(ancestor::*[local-name() = 'array'][@key = '" + key + "'])])[1]/*");
+            return nodes(root, "(descendant::*[local-name() = 'array'][@key = '" + named + "']"
+                               + "[not(ancestor::*[local-name() = 'array'][@key = '" + named + "'])])[1]/*");
         }
-        final String local = boundary.getElement().replace("'", "");
-        return nodes(root, "descendant::*[local-name() = '" + local + "']"
-                           + "[not(ancestor::*[local-name() = '" + local + "'])]");
+        return nodes(root, "descendant::*[local-name() = '" + named + "']"
+                           + "[not(ancestor::*[local-name() = '" + named + "'])]");
     }
 
     private List<XdmNode> nodes(final XdmNode from, final String xpath) {

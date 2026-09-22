@@ -89,115 +89,129 @@ public class ShapeshifterShapeRecord extends UpdatableRecordImpl<ShapeshifterSha
     }
 
     /**
+     * Setter for <code>stroom.shapeshifter_shape.shape_hash</code>.
+     */
+    public void setShapeHash(String value) {
+        set(5, value);
+    }
+
+    /**
+     * Getter for <code>stroom.shapeshifter_shape.shape_hash</code>.
+     */
+    public String getShapeHash() {
+        return (String) get(5);
+    }
+
+    /**
      * Setter for <code>stroom.shapeshifter_shape.shape_id</code>.
      */
     public void setShapeId(String value) {
-        set(5, value);
+        set(6, value);
     }
 
     /**
      * Getter for <code>stroom.shapeshifter_shape.shape_id</code>.
      */
     public String getShapeId() {
-        return (String) get(5);
+        return (String) get(6);
     }
 
     /**
      * Setter for <code>stroom.shapeshifter_shape.given_up_reason</code>.
      */
     public void setGivenUpReason(String value) {
-        set(6, value);
+        set(7, value);
     }
 
     /**
      * Getter for <code>stroom.shapeshifter_shape.given_up_reason</code>.
      */
     public String getGivenUpReason() {
-        return (String) get(6);
+        return (String) get(7);
     }
 
     /**
      * Setter for <code>stroom.shapeshifter_shape.relearn_reason</code>.
      */
     public void setRelearnReason(String value) {
-        set(7, value);
+        set(8, value);
     }
 
     /**
      * Getter for <code>stroom.shapeshifter_shape.relearn_reason</code>.
      */
     public String getRelearnReason() {
-        return (String) get(7);
+        return (String) get(8);
     }
 
     /**
      * Setter for <code>stroom.shapeshifter_shape.awaiting_rule_uuid</code>.
      */
     public void setAwaitingRuleUuid(String value) {
-        set(8, value);
+        set(9, value);
     }
 
     /**
      * Getter for <code>stroom.shapeshifter_shape.awaiting_rule_uuid</code>.
      */
     public String getAwaitingRuleUuid() {
-        return (String) get(8);
+        return (String) get(9);
     }
 
     /**
      * Setter for <code>stroom.shapeshifter_shape.rolling_score</code>.
      */
     public void setRollingScore(Double value) {
-        set(9, value);
+        set(10, value);
     }
 
     /**
      * Getter for <code>stroom.shapeshifter_shape.rolling_score</code>.
      */
     public Double getRollingScore() {
-        return (Double) get(9);
+        return (Double) get(10);
     }
 
     /**
      * Setter for <code>stroom.shapeshifter_shape.rolling_records</code>.
      */
     public void setRollingRecords(Integer value) {
-        set(10, value);
+        set(11, value);
     }
 
     /**
      * Getter for <code>stroom.shapeshifter_shape.rolling_records</code>.
      */
     public Integer getRollingRecords() {
-        return (Integer) get(10);
+        return (Integer) get(11);
     }
 
     /**
      * Setter for <code>stroom.shapeshifter_shape.lease_node</code>.
      */
     public void setLeaseNode(String value) {
-        set(11, value);
+        set(12, value);
     }
 
     /**
      * Getter for <code>stroom.shapeshifter_shape.lease_node</code>.
      */
     public String getLeaseNode() {
-        return (String) get(11);
+        return (String) get(12);
     }
 
     /**
      * Setter for <code>stroom.shapeshifter_shape.lease_expiry_ms</code>.
      */
     public void setLeaseExpiryMs(Long value) {
-        set(12, value);
+        set(13, value);
     }
 
     /**
      * Getter for <code>stroom.shapeshifter_shape.lease_expiry_ms</code>.
      */
     public Long getLeaseExpiryMs() {
-        return (Long) get(12);
+        return (Long) get(13);
     }
 
     // -------------------------------------------------------------------------
@@ -223,7 +237,7 @@ public class ShapeshifterShapeRecord extends UpdatableRecordImpl<ShapeshifterSha
     /**
      * Create a detached, initialised ShapeshifterShapeRecord
      */
-    public ShapeshifterShapeRecord(Long id, Integer version, Long createTimeMs, Long updateTimeMs, String docUuid, String shapeId, String givenUpReason, String relearnReason, String awaitingRuleUuid, Double rollingScore, Integer rollingRecords, String leaseNode, Long leaseExpiryMs) {
+    public ShapeshifterShapeRecord(Long id, Integer version, Long createTimeMs, Long updateTimeMs, String docUuid, String shapeHash, String shapeId, String givenUpReason, String relearnReason, String awaitingRuleUuid, Double rollingScore, Integer rollingRecords, String leaseNode, Long leaseExpiryMs) {
         super(ShapeshifterShape.SHAPESHIFTER_SHAPE);
 
         setId(id);
@@ -231,6 +245,7 @@ public class ShapeshifterShapeRecord extends UpdatableRecordImpl<ShapeshifterSha
         setCreateTimeMs(createTimeMs);
         setUpdateTimeMs(updateTimeMs);
         setDocUuid(docUuid);
+        setShapeHash(shapeHash);
         setShapeId(shapeId);
         setGivenUpReason(givenUpReason);
         setRelearnReason(relearnReason);

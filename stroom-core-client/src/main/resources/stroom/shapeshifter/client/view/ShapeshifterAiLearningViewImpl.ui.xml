@@ -37,6 +37,7 @@
             <g:FlowPanel>
                 <l:SelectionBox ui:field="planExample"/>
                 <g:TextArea ui:field="planSteps" width="400px" height="110px"/>
+                <g:Label ui:field="planProblem" visible="false"/>
             </g:FlowPanel>
         </form:FormGroup>
         <form:FormGroup identity="shapeshifterAiTemplate"

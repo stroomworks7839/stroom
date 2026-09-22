@@ -81,7 +81,8 @@ public class RulesDao implements Rules {
 
     @Override
     public RoutingRule insert(final String docUuid, final RoutingRule rule, final int at) {
-        return JooqUtil.contextResult(connProvider, context -> {
+        // One transaction: a shove that commits without its insert would leave a hole and no rule.
+        return JooqUtil.transactionResult(connProvider, context -> {
             final int last = nextOrder(context, docUuid);
             final int order = Math.max(0, Math.min(at, last));
             // The rules at and below the position move down, so that the one being inserted is the one the
@@ -97,7 +98,8 @@ public class RulesDao implements Rules {
 
     @Override
     public void move(final String docUuid, final String ruleUuid, final int to) {
-        JooqUtil.context(connProvider, context -> {
+        // One transaction: a close-up that commits without the move would leave two rules in one position.
+        JooqUtil.transaction(connProvider, context -> {
             final Integer from = context.select(SHAPESHIFTER_RULE.SORT_ORDER)
                     .from(SHAPESHIFTER_RULE)
                     .where(SHAPESHIFTER_RULE.DOC_UUID.eq(docUuid))
@@ -137,10 +139,18 @@ public class RulesDao implements Rules {
     }
 
     /// A rule the document does not have is appended rather than lost: a promotion must not be dropped
-    /// because its row was pruned between the run and the write.
+    /// because its row was pruned between the run and the write. Two writers of one rule — a supervisor
+    /// rebinding it while an operator edits its selector — are serialised on the row, the second seeing what
+    /// the first wrote rather than both succeeding blind.
     @Override
     public void replace(final String docUuid, final RoutingRule rule) {
-        JooqUtil.context(connProvider, context -> {
+        JooqUtil.transaction(connProvider, context -> {
+            context.select(SHAPESHIFTER_RULE.ID)
+                    .from(SHAPESHIFTER_RULE)
+                    .where(SHAPESHIFTER_RULE.DOC_UUID.eq(docUuid))
+                    .and(SHAPESHIFTER_RULE.RULE_UUID.eq(rule.getUuid()))
+                    .forUpdate()
+                    .fetchOptional();
             final int updated = context.update(SHAPESHIFTER_RULE)
                     .set(SHAPESHIFTER_RULE.VERSION, SHAPESHIFTER_RULE.VERSION.plus(1))
                     .set(SHAPESHIFTER_RULE.UPDATE_TIME_MS, System.currentTimeMillis())
@@ -164,13 +174,30 @@ public class RulesDao implements Rules {
         });
     }
 
+    /// The rules below close up behind the one removed, so that positions stay dense: `insert` and `move`
+    /// read a position as a place in a list, as [stroom.shapeshifter.ai.state.InMemoryRules] does, and a hole
+    /// would put an appended rule above the last one.
     @Override
     public void remove(final String docUuid, final String ruleUuid) {
-        JooqUtil.context(connProvider, context -> context
-                .deleteFrom(SHAPESHIFTER_RULE)
-                .where(SHAPESHIFTER_RULE.DOC_UUID.eq(docUuid))
-                .and(SHAPESHIFTER_RULE.RULE_UUID.eq(ruleUuid))
-                .execute());
+        JooqUtil.transaction(connProvider, context -> {
+            final Integer order = context.select(SHAPESHIFTER_RULE.SORT_ORDER)
+                    .from(SHAPESHIFTER_RULE)
+                    .where(SHAPESHIFTER_RULE.DOC_UUID.eq(docUuid))
+                    .and(SHAPESHIFTER_RULE.RULE_UUID.eq(ruleUuid))
+                    .fetchOne(SHAPESHIFTER_RULE.SORT_ORDER);
+            if (order == null) {
+                return;
+            }
+            context.deleteFrom(SHAPESHIFTER_RULE)
+                    .where(SHAPESHIFTER_RULE.DOC_UUID.eq(docUuid))
+                    .and(SHAPESHIFTER_RULE.RULE_UUID.eq(ruleUuid))
+                    .execute();
+            context.update(SHAPESHIFTER_RULE)
+                    .set(SHAPESHIFTER_RULE.SORT_ORDER, SHAPESHIFTER_RULE.SORT_ORDER.minus(1))
+                    .where(SHAPESHIFTER_RULE.DOC_UUID.eq(docUuid))
+                    .and(SHAPESHIFTER_RULE.SORT_ORDER.gt(order))
+                    .execute();
+        });
     }
 
     private static RoutingRule write(final DSLContext context,

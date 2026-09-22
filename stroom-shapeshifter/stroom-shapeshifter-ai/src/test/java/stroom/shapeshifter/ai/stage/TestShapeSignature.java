@@ -180,14 +180,34 @@ class TestShapeSignature {
     }
 
     @Test
-    void aJsonDocumentOverTheSampleSizeLimitIsCutByLines() {
-        final String document = "{\n  \"events\": [\n    {\"a\": 1},\n    {\"a\": 2},\n    {\"a\": 3}\n  ]\n}\n";
-        assertThat(Stage.learningPrefix(document, ShapeshifterAiDoc.builder().uuid("d").sampleSizeLimit(1000).build()))
-                .describedAs("within the limit, whole").isEqualTo(document);
-        final String cut = Stage.learningPrefix(document, ShapeshifterAiDoc.builder().uuid("d").sampleSizeLimit(30)
-                .build());
-        assertThat(cut.length()).isLessThanOrEqualTo(31);
-        assertThat(cut).startsWith("{\n  \"events\": [\n");
+    void aJsonDocumentOverTheSampleSizeLimitIsCutAtItsArraysItems() {
+        // Cut by lines it would not parse, and the split question would abandon the attempt on a sample the
+        // parser cannot read — which is every JSON feed over the limit.
+        final StringBuilder document = new StringBuilder("{\n  \"source\": \"api\",\n  \"events\": [\n");
+        for (int i = 0; i < 40; i++) {
+            document.append("    {\"time\": \"2026-09-22T09:00:0").append(i % 10)
+                    .append("Z\", \"user\": \"user").append(i).append("\"}")
+                    .append(i < 39
+                            ? ",\n"
+                            : "\n");
+        }
+        document.append("  ]\n}\n");
+        final String whole = document.toString();
+        assertThat(Stage.learningPrefix(whole, ShapeshifterAiDoc.builder().uuid("d").sampleSizeLimit(10_000).build()))
+                .describedAs("within the limit, whole").isEqualTo(whole);
+
+        final String cut = Stage.learningPrefix(whole,
+                ShapeshifterAiDoc.builder().uuid("d").sampleSizeLimit(500).build());
+
+        assertThat(cut.length()).isLessThanOrEqualTo(500);
+        assertThat(cut).describedAs("still one document").startsWith("{").endsWith("}\n");
+        assertThat(Stage.isJsonDocument(cut)).describedAs("and still one value the parser can read").isTrue();
+        assertThat(cut).contains("\"source\": \"api\"").contains("\"events\": [").contains("user0");
+        assertThat(cut).describedAs("cut at an item, not mid-item").doesNotContain("user39");
+        // A document with no array to cut is shown whole rather than truncated into nonsense.
+        final String noArray = "{\n  \"a\": \"" + "x".repeat(200) + "\"\n}\n";
+        assertThat(Stage.learningPrefix(noArray, ShapeshifterAiDoc.builder().uuid("d").sampleSizeLimit(50).build()))
+                .isEqualTo(noArray);
     }
 
     @Test

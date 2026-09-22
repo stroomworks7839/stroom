@@ -52,7 +52,9 @@ public final class YieldScorer implements Scorer {
         if (output == null || !isXml(output)) {
             return Optional.empty();
         }
-        final int records = Records.count(output);
+        // Counted by the boundary at both ends, or the two disagree: a parser's output of one map holding
+        // twelve items is twelve records to the stage and would be one here.
+        final int records = Math.max(0, Records.parsed(output, step.boundary()));
         // The basis describes raw input. A step whose input is already records — a transform after the
         // parser — is judged record for record, one out per one in, whatever the document's basis; only a
         // basis of records applies the document's ratio there (a transform that filters, scenario 7).

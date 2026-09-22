@@ -394,8 +394,12 @@ public final class Dialogue {
             final String reply = ask(walk, step, candidate,
                     new Split(walk.sample, first.elementType(), null, InputKind.JSON, feedback)).strip()
                     .replaceAll("^[\"']|[\"']$", "");
-            if (!reply.matches("[^\\s<>]+")) {
-                return Judged.refused("The reply was not an array's key, nor the word " + Boundary.ROOT);
+            // A key is a name, not an XPath fragment: what the model sends goes into a predicate, so
+            // anything that could close one is refused here rather than thrown by Saxon later.
+            if (!reply.matches("[\\w.:-]+")) {
+                return Judged.refused("The reply was not an array's key, nor the word " + Boundary.ROOT
+                                      + ". A key is a word: letters, digits, dots, colons, hyphens or "
+                                      + "underscores");
             }
             final List<String> records;
             if (Boundary.ROOT.equalsIgnoreCase(reply)) {

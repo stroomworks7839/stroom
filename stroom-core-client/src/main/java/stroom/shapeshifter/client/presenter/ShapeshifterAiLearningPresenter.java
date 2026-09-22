@@ -158,8 +158,12 @@ public class ShapeshifterAiLearningPresenter
                 steps = parsed;
             }
         } catch (final IllegalArgumentException e) {
-            AlertEvent.fireError(this, "The plan's steps were not saved: " + e.getMessage(), null);
+            // onWrite runs on every dirty check, so a modal here would follow every keystroke elsewhere on
+            // the tab. The fault is shown beside the steps, and the store refuses the plan on save anyway.
+            getView().setPlanProblem(e.getMessage());
+            return new LearningPlan(steps, view.getTemplateOverrides(), plan.getBuiltInVersion());
         }
+        getView().setPlanProblem(null);
         return new LearningPlan(steps, view.getTemplateOverrides(), plan.getBuiltInVersion());
     }
 
@@ -217,6 +221,8 @@ public class ShapeshifterAiLearningPresenter
         String getPlanSteps();
 
         void setPlanSteps(String steps);
+
+        void setPlanProblem(String problem);
 
         Map<Template, String> getTemplateOverrides();
 

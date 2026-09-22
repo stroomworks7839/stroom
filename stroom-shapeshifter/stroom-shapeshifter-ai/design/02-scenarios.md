@@ -1141,6 +1141,41 @@ ledger releases once. What is owed to finish phase C's exit criterion: the Tier-
 30 and 31 against the tables needs the `CoreTestModule` harness, and is the next slice's, with the lease
 (A42) and the cluster-wide spend (A44) that the shape and spend tables are now ready for.
 
+Audited the same day (the owner's code review), fifteen findings over the branch, all fixed. The one
+that mattered most was mine and simple: the module's config was not reachable from `AppConfig`, so
+`./gradlew build` failed on the presence test and an operator could never have pointed the tables at
+another database — a `ShapeshifterAiConfig` now carries the DB config under `shapeshifterAi`, and the
+expected YAML is regenerated. I had run the touched modules, not the build.
+
+Two in the learning path. A JSON stream over the sample size limit was cut by lines, which makes JSON
+that will not parse, so the split abandoned the attempt: every real feed over 8 KB failed, and nothing
+caught it because the fixtures are 2.9 KB. It is now cut at the items of its widest array and closed
+again, as a long XML document is cut at the root's children — the cut design 03 §5 had owed since slice
+16, now load-bearing. And the array key the model replies with goes into an XPath predicate: the reply
+was validated as anything without spaces or angle brackets, so `a]|//x[` reached Saxon, which threw
+where nothing catches — one bad reply failed the stream instead of refusing a candidate. A key is a
+word now, at the reply and again in `recordsBy`, which names nothing rather than building a predicate
+it cannot quote.
+
+Four in the tables. `remove` left a hole in `sort_order` while `insert` and `move` read it as a place in
+a list, so after a delete an appended rule landed above the last one and a move to the end did nothing;
+the rules below now close up. `insert` and `move` ran their statements outside a transaction, unlike
+`scored` and `release`, so a shove that committed without its insert would leave a hole and no rule.
+`replace` bumped a version it never compared, so a supervisor rebinding a rule and an operator editing
+its selector both succeeded and one was lost; they are serialised on the row. The ledger had no
+uniqueness, so a stream sentinelled twice would be replayed twice — the thing its own javadoc warns
+against. And `shape_id varchar(500)` could not hold what a learning key naming a sender-supplied header
+produces: rows are keyed on the id's hash now, with the id beside it for a person reading the row.
+
+The rest: yield counted the output by the root's children while counting the input by the boundary, so
+a parser's XML of one map holding twelve items scored one record in twelve lines; a `read` wrote to the
+database, which made an import's confirmation screen write rules for a pack the operator then cancelled
+— a read is a read now, and the store's `readDocument` does the migration; the Routing tab's copy
+dropped the record boundary, which is not history but how a bound stream is counted; the Learning tab's
+modal fired on every dirty check, and the fault is shown beside the steps; a boxed `Integer` was
+compared by reference; and the rule dialog turned a catch-all's null selector into an empty `AND`, which
+the grid and the draft-pairing both read differently. 186 tests in the module, 11 against MySQL.
+
 ## 7. Decisions taken
 
 Ruled 2026-09-17, each as recommended:

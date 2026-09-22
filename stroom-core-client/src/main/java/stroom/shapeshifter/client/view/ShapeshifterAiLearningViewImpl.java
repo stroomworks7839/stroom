@@ -75,6 +75,8 @@ public class ShapeshifterAiLearningViewImpl
     Button resetTemplate;
     @UiField
     Label templateStatus;
+    @UiField
+    Label planProblem;
     /**
      * This document's changed texts, by template; and the built-ins the node serves, shown where the
      * document has not changed one.
@@ -161,6 +163,16 @@ public class ShapeshifterAiLearningViewImpl
         this.instructions.setValue(instructions);
     }
 
+    /// What is wrong with the steps as typed, beside them: `onWrite` runs on every dirty check, so a
+    /// fault here must not be a modal.
+    @Override
+    public void setPlanProblem(final String problem) {
+        planProblem.setText(problem == null
+                ? ""
+                : problem);
+        planProblem.setVisible(problem != null);
+    }
+
     @Override
     public String getPlanSteps() {
         return planSteps.getValue();
@@ -211,7 +223,7 @@ public class ShapeshifterAiLearningViewImpl
                         : "The built-in text has not been fetched");
         if (builtInVersion != null) {
             status.append("; built-in version ").append(builtInVersion);
-            if (savedAgainstVersion != null && savedAgainstVersion != builtInVersion) {
+            if (savedAgainstVersion != null && !savedAgainstVersion.equals(builtInVersion)) {
                 status.append(", this document last saved against ").append(savedAgainstVersion);
             }
         }

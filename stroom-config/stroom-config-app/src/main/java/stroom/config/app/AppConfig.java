@@ -59,6 +59,7 @@ import stroom.receive.rules.impl.StroomReceiptPolicyConfig;
 import stroom.search.elastic.ElasticConfig;
 import stroom.search.impl.SearchConfig;
 import stroom.search.solr.SolrConfig;
+import stroom.shapeshifter.ai.impl.db.ShapeshifterAiConfig;
 import stroom.storedquery.impl.StoredQueryConfig;
 import stroom.ui.config.shared.UiConfig;
 import stroom.util.io.StroomPathConfig;
@@ -134,6 +135,7 @@ public class AppConfig extends AbstractConfig implements IsStroomConfig {
     public static final String PROP_NAME_S3 = "s3";
     public static final String PROP_NAME_SEARCH = "search";
     public static final String PROP_NAME_SECURITY = "security";
+    public static final String PROP_NAME_SHAPESHIFTER_AI = "shapeshifterAi";
     public static final String PROP_NAME_SESSION_COOKIE = "sessionCookie";
     public static final String PROP_NAME_SESSION = "session";
     public static final String PROP_NAME_SOLR = "solr";
@@ -188,6 +190,7 @@ public class AppConfig extends AbstractConfig implements IsStroomConfig {
     private final S3Config s3Config;
     private final SearchConfig searchConfig;
     private final SecurityConfig securityConfig;
+    private final ShapeshifterAiConfig shapeshifterAiConfig;
     private final SessionCookieConfig sessionCookieConfig;
     private final SessionConfig sessionConfig;
     private final SolrConfig solrConfig;
@@ -247,6 +250,7 @@ public class AppConfig extends AbstractConfig implements IsStroomConfig {
         this.s3Config = new S3Config();
         this.searchConfig = new SearchConfig();
         this.securityConfig = new SecurityConfig();
+        this.shapeshifterAiConfig = new ShapeshifterAiConfig();
         this.sessionCookieConfig = new SessionCookieConfig();
         this.sessionConfig = new SessionConfig();
         this.solrConfig = new SolrConfig();
@@ -305,6 +309,7 @@ public class AppConfig extends AbstractConfig implements IsStroomConfig {
                      @JsonProperty(PROP_NAME_S3) final S3Config s3Config,
                      @JsonProperty(PROP_NAME_SEARCH) final SearchConfig searchConfig,
                      @JsonProperty(PROP_NAME_SECURITY) final SecurityConfig securityConfig,
+                     @JsonProperty(PROP_NAME_SHAPESHIFTER_AI) final ShapeshifterAiConfig shapeshifterAiConfig,
                      @JsonProperty(PROP_NAME_SESSION_COOKIE) final SessionCookieConfig sessionCookieConfig,
                      @JsonProperty(PROP_NAME_SESSION) final SessionConfig sessionConfig,
                      @JsonProperty(PROP_NAME_SOLR) final SolrConfig solrConfig,
@@ -360,6 +365,7 @@ public class AppConfig extends AbstractConfig implements IsStroomConfig {
         this.s3Config = s3Config;
         this.searchConfig = searchConfig;
         this.securityConfig = securityConfig;
+        this.shapeshifterAiConfig = shapeshifterAiConfig;
         this.sessionCookieConfig = sessionCookieConfig;
         this.sessionConfig = sessionConfig;
         this.solrConfig = solrConfig;
@@ -615,6 +621,13 @@ public class AppConfig extends AbstractConfig implements IsStroomConfig {
     @JsonProperty(PROP_NAME_SOLR)
     public SolrConfig getSolrConfig() {
         return solrConfig;
+    }
+
+    @JsonProperty(PROP_NAME_SHAPESHIFTER_AI)
+    @JsonPropertyDescription("Configuration for Shapeshifter AI, which learns a feed's extraction and "
+                             + "transformation and routes streams to what it learned.")
+    public ShapeshifterAiConfig getShapeshifterAiConfig() {
+        return shapeshifterAiConfig;
     }
 
     @JsonProperty(PROP_NAME_SECURITY)

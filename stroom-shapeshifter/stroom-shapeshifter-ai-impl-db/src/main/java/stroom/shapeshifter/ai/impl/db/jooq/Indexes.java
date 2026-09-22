@@ -23,7 +23,6 @@ public class Indexes {
     // INDEX definitions
     // -------------------------------------------------------------------------
 
-    public static final Index SHAPESHIFTER_LEDGER_SHAPESHIFTER_LEDGER_DOC_UUID_SHAPE_ID = Internal.createIndex(DSL.name("shapeshifter_ledger_doc_uuid_shape_id"), ShapeshifterLedger.SHAPESHIFTER_LEDGER, new OrderField[] { ShapeshifterLedger.SHAPESHIFTER_LEDGER.DOC_UUID, ShapeshifterLedger.SHAPESHIFTER_LEDGER.SHAPE_ID }, false);
     public static final Index SHAPESHIFTER_LEDGER_SHAPESHIFTER_LEDGER_INPUT_META_ID = Internal.createIndex(DSL.name("shapeshifter_ledger_input_meta_id"), ShapeshifterLedger.SHAPESHIFTER_LEDGER, new OrderField[] { ShapeshifterLedger.SHAPESHIFTER_LEDGER.INPUT_META_ID }, false);
     public static final Index SHAPESHIFTER_RULE_SHAPESHIFTER_RULE_DOC_UUID_SORT_ORDER = Internal.createIndex(DSL.name("shapeshifter_rule_doc_uuid_sort_order"), ShapeshifterRule.SHAPESHIFTER_RULE, new OrderField[] { ShapeshifterRule.SHAPESHIFTER_RULE.DOC_UUID, ShapeshifterRule.SHAPESHIFTER_RULE.SORT_ORDER }, false);
 }

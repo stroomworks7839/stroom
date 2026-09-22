@@ -44,9 +44,12 @@ public class LedgerDao implements Ledger {
                 .insertInto(SHAPESHIFTER_LEDGER)
                 .set(SHAPESHIFTER_LEDGER.CREATE_TIME_MS, System.currentTimeMillis())
                 .set(SHAPESHIFTER_LEDGER.DOC_UUID, docUuid)
+                .set(SHAPESHIFTER_LEDGER.SHAPE_HASH, ShapesDao.hash(shape))
                 .set(SHAPESHIFTER_LEDGER.SHAPE_ID, shape)
                 .set(SHAPESHIFTER_LEDGER.INPUT_META_ID, inputId)
                 .set(SHAPESHIFTER_LEDGER.REASON, reason)
+                // A stream sentinelled twice for one shape is one row: it must not be replayed twice.
+                .onDuplicateKeyIgnore()
                 .execute());
     }
 
@@ -59,14 +62,14 @@ public class LedgerDao implements Ledger {
                     .select(SHAPESHIFTER_LEDGER.INPUT_META_ID)
                     .from(SHAPESHIFTER_LEDGER)
                     .where(SHAPESHIFTER_LEDGER.DOC_UUID.eq(docUuid))
-                    .and(SHAPESHIFTER_LEDGER.SHAPE_ID.eq(shape))
+                    .and(SHAPESHIFTER_LEDGER.SHAPE_HASH.eq(ShapesDao.hash(shape)))
                     .orderBy(SHAPESHIFTER_LEDGER.ID)
                     .forUpdate()
                     .fetch(SHAPESHIFTER_LEDGER.INPUT_META_ID);
             if (!inputs.isEmpty()) {
                 context.deleteFrom(SHAPESHIFTER_LEDGER)
                         .where(SHAPESHIFTER_LEDGER.DOC_UUID.eq(docUuid))
-                        .and(SHAPESHIFTER_LEDGER.SHAPE_ID.eq(shape))
+                        .and(SHAPESHIFTER_LEDGER.SHAPE_HASH.eq(ShapesDao.hash(shape)))
                         .execute();
             }
             return List.copyOf(inputs);

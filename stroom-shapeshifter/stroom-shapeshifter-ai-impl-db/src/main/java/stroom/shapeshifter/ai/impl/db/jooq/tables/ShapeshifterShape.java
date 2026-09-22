@@ -78,9 +78,14 @@ public class ShapeshifterShape extends TableImpl<ShapeshifterShapeRecord> {
     public final TableField<ShapeshifterShapeRecord, String> DOC_UUID = createField(DSL.name("doc_uuid"), SQLDataType.VARCHAR(255).nullable(false), this, "");
 
     /**
+     * The column <code>stroom.shapeshifter_shape.shape_hash</code>.
+     */
+    public final TableField<ShapeshifterShapeRecord, String> SHAPE_HASH = createField(DSL.name("shape_hash"), SQLDataType.VARCHAR(64).nullable(false), this, "");
+
+    /**
      * The column <code>stroom.shapeshifter_shape.shape_id</code>.
      */
-    public final TableField<ShapeshifterShapeRecord, String> SHAPE_ID = createField(DSL.name("shape_id"), SQLDataType.VARCHAR(500).nullable(false), this, "");
+    public final TableField<ShapeshifterShapeRecord, String> SHAPE_ID = createField(DSL.name("shape_id"), SQLDataType.CLOB.nullable(false), this, "");
 
     /**
      * The column <code>stroom.shapeshifter_shape.given_up_reason</code>.
@@ -163,7 +168,7 @@ public class ShapeshifterShape extends TableImpl<ShapeshifterShapeRecord> {
 
     @Override
     public List<UniqueKey<ShapeshifterShapeRecord>> getUniqueKeys() {
-        return Arrays.asList(Keys.KEY_SHAPESHIFTER_SHAPE_SHAPESHIFTER_SHAPE_DOC_UUID_SHAPE_ID);
+        return Arrays.asList(Keys.KEY_SHAPESHIFTER_SHAPE_SHAPESHIFTER_SHAPE_DOC_UUID_SHAPE_HASH);
     }
 
     @Override

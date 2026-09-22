@@ -69,8 +69,13 @@ public class RoutingRulePresenter extends MyPresenterWidget<RoutingRuleView> {
     }
 
     public RoutingRule write() {
+        // A selector with no terms is the catch-all's null, not an empty AND: the grid says "(all streams)"
+        // of one and the stage pairs a draft with its rule by it.
+        final ExpressionOperator edited = editExpressionPresenter.write();
         return original.copy()
-                .expression(editExpressionPresenter.write())
+                .expression(edited == null || edited.getChildren() == null || edited.getChildren().isEmpty()
+                        ? null
+                        : edited)
                 .pipeline(fragmentPresenter.getSelectedEntityReference())
                 .pinned(getView().isPinned())
                 .build();

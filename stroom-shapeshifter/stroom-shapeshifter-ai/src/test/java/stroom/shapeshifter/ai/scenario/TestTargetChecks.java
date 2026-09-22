@@ -22,6 +22,7 @@ import stroom.shapeshifter.ai.learning.TargetChecks;
 import stroom.shapeshifter.ai.scoring.OutputRecords;
 import stroom.shapeshifter.ai.scoring.Scorecard;
 import stroom.shapeshifter.shared.ExtractionQualityParameters;
+import stroom.shapeshifter.shared.RecordBoundary;
 import stroom.shapeshifter.shared.SchemaConformanceParameters;
 import stroom.shapeshifter.shared.ScorerSetting;
 import stroom.shapeshifter.shared.ScorerType;
@@ -167,6 +168,18 @@ class TestTargetChecks {
         final OutputRecords event = OutputRecords.parse("<Events><Event><System><Id>1</Id></System><EventData>"
                 + "<Data><Text>a</Text></Data><Data><Text>b</Text></Data></EventData></Event></Events>").orElseThrow();
         assertThat(TargetChecks.recordElement(event, "Event")).isEmpty();
+    }
+
+    @Test
+    void aBoundaryThatIsNotANameNamesNothingRatherThanBreakingTheXPath() {
+        // What the model replies goes into a predicate: a reply that could close one must not reach Saxon,
+        // and a boundary from elsewhere that is not a name names nothing here.
+        final OutputRecords document = OutputRecords.parse("<log><item/><item/></log>").orElseThrow();
+
+        assertThat(document.recordsBy(RecordBoundary.ofElement("item"))).hasSize(2);
+        assertThat(document.recordsBy(RecordBoundary.ofElement("a']|//*[local-name()='item"))).isEmpty();
+        assertThat(document.recordsBy(RecordBoundary.ofArray("a]|//x["))).isEmpty();
+        assertThat(document.recordsBy(RecordBoundary.ofArray("events"))).isEmpty();
     }
 
     @Test

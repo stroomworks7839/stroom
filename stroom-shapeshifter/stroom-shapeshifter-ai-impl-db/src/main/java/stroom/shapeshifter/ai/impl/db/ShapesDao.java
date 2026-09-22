@@ -23,6 +23,10 @@ import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.jooq.DSLContext;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
 import java.util.Optional;
 import java.util.OptionalDouble;
 
@@ -55,7 +59,7 @@ public class ShapesDao implements Shapes {
                     .set(SHAPESHIFTER_SHAPE.VERSION, SHAPESHIFTER_SHAPE.VERSION.plus(1))
                     .set(SHAPESHIFTER_SHAPE.UPDATE_TIME_MS, System.currentTimeMillis())
                     .where(SHAPESHIFTER_SHAPE.DOC_UUID.eq(docUuid))
-                    .and(SHAPESHIFTER_SHAPE.SHAPE_ID.eq(shape))
+                    .and(SHAPESHIFTER_SHAPE.SHAPE_HASH.eq(hash(shape)))
                     .execute();
         });
     }
@@ -74,7 +78,7 @@ public class ShapesDao implements Shapes {
                     .select(SHAPESHIFTER_SHAPE.ROLLING_SCORE, SHAPESHIFTER_SHAPE.ROLLING_RECORDS)
                     .from(SHAPESHIFTER_SHAPE)
                     .where(SHAPESHIFTER_SHAPE.DOC_UUID.eq(docUuid))
-                    .and(SHAPESHIFTER_SHAPE.SHAPE_ID.eq(shape))
+                    .and(SHAPESHIFTER_SHAPE.SHAPE_HASH.eq(hash(shape)))
                     .forUpdate()
                     .fetchOne();
             final double was = current.get(SHAPESHIFTER_SHAPE.ROLLING_SCORE) == null
@@ -91,7 +95,7 @@ public class ShapesDao implements Shapes {
                     .set(SHAPESHIFTER_SHAPE.VERSION, SHAPESHIFTER_SHAPE.VERSION.plus(1))
                     .set(SHAPESHIFTER_SHAPE.UPDATE_TIME_MS, System.currentTimeMillis())
                     .where(SHAPESHIFTER_SHAPE.DOC_UUID.eq(docUuid))
-                    .and(SHAPESHIFTER_SHAPE.SHAPE_ID.eq(shape))
+                    .and(SHAPESHIFTER_SHAPE.SHAPE_HASH.eq(hash(shape)))
                     .execute();
             return held >= memory
                     ? OptionalDouble.of(now)
@@ -142,7 +146,7 @@ public class ShapesDao implements Shapes {
                     .set(SHAPESHIFTER_SHAPE.VERSION, SHAPESHIFTER_SHAPE.VERSION.plus(1))
                     .set(SHAPESHIFTER_SHAPE.UPDATE_TIME_MS, System.currentTimeMillis())
                     .where(SHAPESHIFTER_SHAPE.DOC_UUID.eq(docUuid))
-                    .and(SHAPESHIFTER_SHAPE.SHAPE_ID.eq(shape))
+                    .and(SHAPESHIFTER_SHAPE.SHAPE_HASH.eq(hash(shape)))
                     .execute();
         });
     }
@@ -154,7 +158,7 @@ public class ShapesDao implements Shapes {
                 .select(column)
                 .from(SHAPESHIFTER_SHAPE)
                 .where(SHAPESHIFTER_SHAPE.DOC_UUID.eq(docUuid))
-                .and(SHAPESHIFTER_SHAPE.SHAPE_ID.eq(shape))
+                .and(SHAPESHIFTER_SHAPE.SHAPE_HASH.eq(hash(shape)))
                 .fetchOptional(column)
                 .filter(value -> value != null));
     }
@@ -170,9 +174,21 @@ public class ShapesDao implements Shapes {
                     .set(SHAPESHIFTER_SHAPE.VERSION, SHAPESHIFTER_SHAPE.VERSION.plus(1))
                     .set(SHAPESHIFTER_SHAPE.UPDATE_TIME_MS, System.currentTimeMillis())
                     .where(SHAPESHIFTER_SHAPE.DOC_UUID.eq(docUuid))
-                    .and(SHAPESHIFTER_SHAPE.SHAPE_ID.eq(shape))
+                    .and(SHAPESHIFTER_SHAPE.SHAPE_HASH.eq(hash(shape)))
                     .execute();
         });
+    }
+
+    /// A shape's id is as long as its learning key makes it — a key may name a sender-supplied header — so
+    /// rows are found by its hash, and the id is kept beside it for a person reading the row.
+    static String hash(final String shape) {
+        try {
+            final byte[] digest = MessageDigest.getInstance("SHA-256")
+                    .digest(shape.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(digest);
+        } catch (final NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     /// The row for a shape, made where this node is the first to mention it. Two nodes meeting a new shape
@@ -184,6 +200,7 @@ public class ShapesDao implements Shapes {
                 .set(SHAPESHIFTER_SHAPE.CREATE_TIME_MS, now)
                 .set(SHAPESHIFTER_SHAPE.UPDATE_TIME_MS, now)
                 .set(SHAPESHIFTER_SHAPE.DOC_UUID, docUuid)
+                .set(SHAPESHIFTER_SHAPE.SHAPE_HASH, hash(shape))
                 .set(SHAPESHIFTER_SHAPE.SHAPE_ID, shape)
                 .onDuplicateKeyIgnore()
                 .execute();

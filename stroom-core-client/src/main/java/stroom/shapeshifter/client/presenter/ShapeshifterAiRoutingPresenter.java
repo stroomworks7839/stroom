@@ -227,6 +227,8 @@ public class ShapeshifterAiRoutingPresenter
                         .expression(existing.getExpression())
                         .pipeline(existing.getPipeline())
                         .pinned(existing.isPinned())
+                        // Not history: the stage counts a bound stream's records by it (A35).
+                        .recordBoundary(existing.getRecordBoundary())
                         .build();
                 final int index = selectedIndex() + 1;
                 apply(resource -> resource.addRule(docUuid, index, copy), null);

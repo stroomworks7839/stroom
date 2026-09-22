@@ -61,45 +61,59 @@ public class ShapeshifterLedgerRecord extends UpdatableRecordImpl<ShapeshifterLe
     }
 
     /**
+     * Setter for <code>stroom.shapeshifter_ledger.shape_hash</code>.
+     */
+    public void setShapeHash(String value) {
+        set(3, value);
+    }
+
+    /**
+     * Getter for <code>stroom.shapeshifter_ledger.shape_hash</code>.
+     */
+    public String getShapeHash() {
+        return (String) get(3);
+    }
+
+    /**
      * Setter for <code>stroom.shapeshifter_ledger.shape_id</code>.
      */
     public void setShapeId(String value) {
-        set(3, value);
+        set(4, value);
     }
 
     /**
      * Getter for <code>stroom.shapeshifter_ledger.shape_id</code>.
      */
     public String getShapeId() {
-        return (String) get(3);
+        return (String) get(4);
     }
 
     /**
      * Setter for <code>stroom.shapeshifter_ledger.input_meta_id</code>.
      */
     public void setInputMetaId(Long value) {
-        set(4, value);
+        set(5, value);
     }
 
     /**
      * Getter for <code>stroom.shapeshifter_ledger.input_meta_id</code>.
      */
     public Long getInputMetaId() {
-        return (Long) get(4);
+        return (Long) get(5);
     }
 
     /**
      * Setter for <code>stroom.shapeshifter_ledger.reason</code>.
      */
     public void setReason(String value) {
-        set(5, value);
+        set(6, value);
     }
 
     /**
      * Getter for <code>stroom.shapeshifter_ledger.reason</code>.
      */
     public String getReason() {
-        return (String) get(5);
+        return (String) get(6);
     }
 
     // -------------------------------------------------------------------------
@@ -125,12 +139,13 @@ public class ShapeshifterLedgerRecord extends UpdatableRecordImpl<ShapeshifterLe
     /**
      * Create a detached, initialised ShapeshifterLedgerRecord
      */
-    public ShapeshifterLedgerRecord(Long id, Long createTimeMs, String docUuid, String shapeId, Long inputMetaId, String reason) {
+    public ShapeshifterLedgerRecord(Long id, Long createTimeMs, String docUuid, String shapeHash, String shapeId, Long inputMetaId, String reason) {
         super(ShapeshifterLedger.SHAPESHIFTER_LEDGER);
 
         setId(id);
         setCreateTimeMs(createTimeMs);
         setDocUuid(docUuid);
+        setShapeHash(shapeHash);
         setShapeId(shapeId);
         setInputMetaId(inputMetaId);
         setReason(reason);

@@ -28,7 +28,10 @@ CREATE TABLE IF NOT EXISTS shapeshifter_shape (
     create_time_ms        bigint NOT NULL,
     update_time_ms        bigint NOT NULL,
     doc_uuid              varchar(255) NOT NULL,
-    shape_id              varchar(500) NOT NULL,
+    -- The hash of the shape's id, since a learning key may name a sender-supplied header and the id it
+    -- makes has no bound; shape_id carries it as written, for a person reading the row
+    shape_hash            varchar(64) NOT NULL,
+    shape_id              longtext NOT NULL,
     given_up_reason       longtext DEFAULT NULL,
     relearn_reason        longtext DEFAULT NULL,
     awaiting_rule_uuid    varchar(255) DEFAULT NULL,
@@ -37,7 +40,7 @@ CREATE TABLE IF NOT EXISTS shapeshifter_shape (
     lease_node            varchar(255) DEFAULT NULL,
     lease_expiry_ms       bigint DEFAULT NULL,
     PRIMARY KEY           (id),
-    UNIQUE KEY            shapeshifter_shape_doc_uuid_shape_id (doc_uuid, shape_id)
+    UNIQUE KEY            shapeshifter_shape_doc_uuid_shape_hash (doc_uuid, shape_hash)
 ) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
 
 --
@@ -48,11 +51,13 @@ CREATE TABLE IF NOT EXISTS shapeshifter_ledger (
     id                    bigint NOT NULL AUTO_INCREMENT,
     create_time_ms        bigint NOT NULL,
     doc_uuid              varchar(255) NOT NULL,
-    shape_id              varchar(500) NOT NULL,
+    shape_hash            varchar(64) NOT NULL,
+    shape_id              longtext NOT NULL,
     input_meta_id         bigint NOT NULL,
     reason                longtext NOT NULL,
     PRIMARY KEY           (id),
-    KEY                   shapeshifter_ledger_doc_uuid_shape_id (doc_uuid, shape_id),
+    -- One row per stream per shape: a stream sentinelled twice must not be replayed twice on release
+    UNIQUE KEY            shapeshifter_ledger_doc_shape_input (doc_uuid, shape_hash, input_meta_id),
     KEY                   shapeshifter_ledger_input_meta_id (input_meta_id)
 ) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
 
