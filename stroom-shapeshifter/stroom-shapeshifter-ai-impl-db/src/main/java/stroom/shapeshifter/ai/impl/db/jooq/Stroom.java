@@ -12,11 +12,13 @@ import org.jooq.Table;
 import org.jooq.impl.DSL;
 import org.jooq.impl.SchemaImpl;
 
+import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterAttempt;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterFeedState;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterLedger;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterRule;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterShape;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterSpend;
+import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterTurn;
 
 
 /**
@@ -31,6 +33,11 @@ public class Stroom extends SchemaImpl {
      * The reference instance of <code>stroom</code>
      */
     public static final Stroom STROOM = new Stroom();
+
+    /**
+     * The table <code>stroom.shapeshifter_attempt</code>.
+     */
+    public final ShapeshifterAttempt SHAPESHIFTER_ATTEMPT = ShapeshifterAttempt.SHAPESHIFTER_ATTEMPT;
 
     /**
      * The table <code>stroom.shapeshifter_feed_state</code>.
@@ -58,6 +65,11 @@ public class Stroom extends SchemaImpl {
     public final ShapeshifterSpend SHAPESHIFTER_SPEND = ShapeshifterSpend.SHAPESHIFTER_SPEND;
 
     /**
+     * The table <code>stroom.shapeshifter_turn</code>.
+     */
+    public final ShapeshifterTurn SHAPESHIFTER_TURN = ShapeshifterTurn.SHAPESHIFTER_TURN;
+
+    /**
      * No further instances allowed
      */
     private Stroom() {
@@ -73,11 +85,13 @@ public class Stroom extends SchemaImpl {
     @Override
     public final List<Table<?>> getTables() {
         return Arrays.asList(
+            ShapeshifterAttempt.SHAPESHIFTER_ATTEMPT,
             ShapeshifterFeedState.SHAPESHIFTER_FEED_STATE,
             ShapeshifterLedger.SHAPESHIFTER_LEDGER,
             ShapeshifterRule.SHAPESHIFTER_RULE,
             ShapeshifterShape.SHAPESHIFTER_SHAPE,
-            ShapeshifterSpend.SHAPESHIFTER_SPEND
+            ShapeshifterSpend.SHAPESHIFTER_SPEND,
+            ShapeshifterTurn.SHAPESHIFTER_TURN
         );
     }
 }

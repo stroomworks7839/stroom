@@ -16,6 +16,7 @@
 
 package stroom.shapeshifter.ai.state;
 
+import stroom.shapeshifter.ai.stage.Attempts;
 import stroom.shapeshifter.ai.stage.Ledger;
 import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.ai.stage.Shapes;
@@ -32,6 +33,7 @@ public class InMemoryStateModule extends AbstractModule {
     @Override
     protected void configure() {
         super.configure();
+        bind(Attempts.class).to(InMemoryAttempts.class).in(Scopes.SINGLETON);
         bind(Rules.class).to(InMemoryRules.class).in(Scopes.SINGLETON);
         bind(Shapes.class).to(InMemoryShapes.class).in(Scopes.SINGLETON);
         bind(Ledger.class).to(InMemoryLedger.class).in(Scopes.SINGLETON);

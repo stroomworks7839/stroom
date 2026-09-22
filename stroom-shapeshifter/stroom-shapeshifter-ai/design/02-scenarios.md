@@ -1245,6 +1245,30 @@ before selecting `FOR UPDATE`, which on the steady path leaves a shared lock the
 two nodes recording spend for one document at once would deadlock on that upgrade, which is the very
 thing the table is for. The row is looked for before it is made. 189 tests in the module.
 
+The twenty-fourth slice, 2026-09-22, is **the attempt as a record** (A28), the first of the four that
+A28 needs. `shapeshifter_attempt` and `shapeshifter_turn` join the A26 module: one row per attempt —
+which document, which shape, which stream raised it, which node took it, both modes, its status, what
+it came to and the rule it wrote — and one per turn, with the question, the answer, who answered it and
+what the answer scored. An `Attempts` seam, a DAO and an in-memory twin as every other seam has. The
+stage opens an attempt when it commits to learning a shape, writes a turn for every exchange of the
+transcript, and closes it with the decision's own words; an attempt whose node, model or database threw
+is closed `ERROR` rather than vanishing. Nothing about how the dialogue runs has changed: this slice is
+the record, and the resuming is the next one's.
+
+Two things it does not do, for reasons worth stating. It does not store the rendered prompt, only a
+line saying what the turn asked — the kind, what it was about, and how much the step had been told —
+because the prompt carries the stream's own text, which may not be stored until A17's redaction is
+built (A38), and which `stroom-ai` audits in any case. And the attempt is not yet the claim on the
+shape that A45 makes it: the shape row's lease still holds that, and the attempt row carries the expiry
+column that will take it over when the dialogue can be resumed. A node that does not win the lease
+opens no attempt, since it learned nothing.
+
+Ten tests against MySQL now, including that an attempt and its turns read back whole and in order, that
+a shape id longer than any column is still one attempt, and that the newest attempt of a document comes
+first — which is what the Supervisor view lists. In the module: every attempt is recorded with its
+turns and what it came to, an attempt that bound nothing says so, and a node that lost the lease
+records none. 191 tests in the module.
+
 ## 7. Decisions taken
 
 Ruled 2026-09-17, each as recommended:

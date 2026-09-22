@@ -20,6 +20,8 @@ import stroom.meta.shared.MetaFields;
 import stroom.query.api.ExpressionOperator;
 import stroom.query.api.ExpressionTerm.Condition;
 import stroom.shapeshifter.ai.extraction.ExtractionCorpus.Golden;
+import stroom.shapeshifter.ai.stage.Attempts.Recorded;
+import stroom.shapeshifter.ai.stage.Attempts.Turn;
 import stroom.shapeshifter.ai.stage.Decision.Bound;
 import stroom.shapeshifter.ai.stage.Decision.Promoted;
 import stroom.shapeshifter.ai.stage.Decision.Provisional;
@@ -30,13 +32,16 @@ import stroom.shapeshifter.ai.stage.Shape;
 import stroom.shapeshifter.ai.stage.ShapeSignature;
 import stroom.shapeshifter.ai.stage.Stage;
 import stroom.shapeshifter.ai.stage.StageRun;
+import stroom.shapeshifter.shared.AttemptStatus;
 import stroom.shapeshifter.shared.LearningMode;
 import stroom.shapeshifter.shared.PlanExample;
+import stroom.shapeshifter.shared.QuestionKind;
 import stroom.shapeshifter.shared.RoutingFields;
 import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ScorerSetting;
 import stroom.shapeshifter.shared.ScorerType;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
+import stroom.shapeshifter.shared.StepOutcome;
 import stroom.shapeshifter.shared.YieldBasis;
 import stroom.shapeshifter.shared.YieldParameters;
 
@@ -45,6 +50,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -353,5 +359,63 @@ class TestScenariosBindingBeforeLearning {
         final StageRun run = learnShapeX(scenarios, keyedOnFormat());
 
         assertThat(run.decision()).describedAs(run.decision().toString()).isInstanceOf(Promoted.class);
+    }
+
+    @Test
+    void everyAttemptIsRecordedWithItsTurnsAndWhatItCameTo() {
+        // A28: the record outlives the node that made it, and is the same record whichever mode produced
+        // it. What it does not carry is the rendered prompt, which holds the stream's own text and waits
+        // for redaction (A17, A38).
+        final Scenarios scenarios = new Scenarios();
+
+        final StageRun learned = learnShapeX(scenarios, keyedOnFormat());
+
+        final List<Recorded> recorded = scenarios.attempts.forDocument("doc-1", 10);
+        assertThat(recorded).hasSize(1);
+        final Recorded attempt = recorded.get(0);
+        assertThat(attempt.status()).isEqualTo(AttemptStatus.PROMOTED);
+        assertThat(attempt.ruleUuid()).isEqualTo(((Promoted) learned.decision()).rule().getUuid());
+        assertThat(attempt.score()).isEqualTo(((Promoted) learned.decision()).score());
+        assertThat(attempt.attempt().shape()).isEqualTo(shapeX());
+        assertThat(attempt.attempt().feed()).isEqualTo("DOOR-ACCESS");
+        assertThat(attempt.attempt().node()).isEqualTo("node-1");
+        assertThat(attempt.turns()).hasSameSizeAs(learned.transcript());
+        assertThat(attempt.turns()).extracting(Turn::number)
+                .describedAs("every turn of the dialogue, in order, including those the structure answered")
+                .isEqualTo(IntStream.rangeClosed(1, learned.transcript().size()).boxed().toList());
+        assertThat(attempt.turns().get(0).kind()).isEqualTo(QuestionKind.CHAIN);
+        assertThat(attempt.turns().get(0).question())
+                .describedAs("what was asked, without the stream's own text in it")
+                .contains("Chain").contains("DSParser")
+                .doesNotContain("jim,warehouse");
+        assertThat(attempt.turns().get(0).answer()).isEqualTo("DSParser -> XSLTFilter");
+        assertThat(attempt.turns()).allSatisfy(turn ->
+                assertThat(turn.answeredBy()).describedAs("nothing but the model answers a turn yet")
+                        .isNotNull());
+        assertThat(attempt.turns()).extracting(Turn::outcome).containsOnly(StepOutcome.PASSED);
+    }
+
+    @Test
+    void anAttemptThatBoundNothingSaysSoAndOneThatIsLeasedAwaySaysNothing() {
+        final Scenarios scenarios = new Scenarios();
+        // Nothing to learn with: the attempt is opened, abandoned and recorded as abandoned.
+        final ShapeshifterAiDoc nothingRunnable = keyedOnFormat().copy()
+                .allowedElements(List.of("JSONParser"))
+                .build();
+
+        scenarios.stage(Script.of()).run(nothingRunnable, stream("CSV"));
+
+        final List<Recorded> recorded = scenarios.attempts.forDocument("doc-1", 10);
+        assertThat(recorded).hasSize(1);
+        assertThat(recorded.get(0).status()).isEqualTo(AttemptStatus.ABANDONED);
+        assertThat(recorded.get(0).ruleUuid()).isNull();
+
+        // A node that does not win the lease opens no attempt: it did not learn anything.
+        scenarios.shapes.lease("doc-1", shapeX(), "node-2", Scenarios.NOW.toEpochMilli(), Long.MAX_VALUE);
+        scenarios.stage(Script.of()).run(keyedOnFormat(), stream("CSV"));
+
+        assertThat(scenarios.attempts.forDocument("doc-1", 10))
+                .describedAs("one attempt, the abandoned one: the loser recorded none")
+                .hasSize(1);
     }
 }

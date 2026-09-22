@@ -33,6 +33,7 @@ import stroom.shapeshifter.ai.scoring.Scorer;
 import stroom.shapeshifter.ai.scoring.YieldScorer;
 import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.ai.stage.Stage;
+import stroom.shapeshifter.ai.state.InMemoryAttempts;
 import stroom.shapeshifter.ai.state.InMemoryLedger;
 import stroom.shapeshifter.ai.state.InMemoryOutputs;
 import stroom.shapeshifter.ai.state.InMemoryRegressionSet;
@@ -67,6 +68,7 @@ public final class Scenarios {
     private static final NodeFixture NODE = new NodeFixture();
 
     public final ContentStores stores = new ContentStores();
+    public final InMemoryAttempts attempts = new InMemoryAttempts();
     public final InMemoryRules rules = new InMemoryRules();
     public final InMemorySpend spend = new InMemorySpend();
     public final InMemoryShapes shapes = new InMemoryShapes();
@@ -124,6 +126,7 @@ public final class Scenarios {
                 stores.writer(),
                 new FragmentRunner(stores.pipelines, stores.stackLoader, stores.textConverters, stores.xslts,
                         runners),
+                attempts,
                 rules,
                 shapes,
                 spend,

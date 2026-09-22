@@ -4,21 +4,27 @@
 package stroom.shapeshifter.ai.impl.db.jooq;
 
 
+import org.jooq.ForeignKey;
 import org.jooq.TableField;
 import org.jooq.UniqueKey;
 import org.jooq.impl.DSL;
 import org.jooq.impl.Internal;
+import org.jooq.impl.QOM.ForeignKeyRule;
 
+import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterAttempt;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterFeedState;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterLedger;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterRule;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterShape;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterSpend;
+import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterTurn;
+import stroom.shapeshifter.ai.impl.db.jooq.tables.records.ShapeshifterAttemptRecord;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.records.ShapeshifterFeedStateRecord;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.records.ShapeshifterLedgerRecord;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.records.ShapeshifterRuleRecord;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.records.ShapeshifterShapeRecord;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.records.ShapeshifterSpendRecord;
+import stroom.shapeshifter.ai.impl.db.jooq.tables.records.ShapeshifterTurnRecord;
 
 
 /**
@@ -32,6 +38,7 @@ public class Keys {
     // UNIQUE and PRIMARY KEY definitions
     // -------------------------------------------------------------------------
 
+    public static final UniqueKey<ShapeshifterAttemptRecord> KEY_SHAPESHIFTER_ATTEMPT_PRIMARY = Internal.createUniqueKey(ShapeshifterAttempt.SHAPESHIFTER_ATTEMPT, DSL.name("KEY_shapeshifter_attempt_PRIMARY"), new TableField[] { ShapeshifterAttempt.SHAPESHIFTER_ATTEMPT.ID }, true);
     public static final UniqueKey<ShapeshifterFeedStateRecord> KEY_SHAPESHIFTER_FEED_STATE_PRIMARY = Internal.createUniqueKey(ShapeshifterFeedState.SHAPESHIFTER_FEED_STATE, DSL.name("KEY_shapeshifter_feed_state_PRIMARY"), new TableField[] { ShapeshifterFeedState.SHAPESHIFTER_FEED_STATE.ID }, true);
     public static final UniqueKey<ShapeshifterFeedStateRecord> KEY_SHAPESHIFTER_FEED_STATE_SHAPESHIFTER_FEED_STATE_DOC_UUID_FEED_NAME = Internal.createUniqueKey(ShapeshifterFeedState.SHAPESHIFTER_FEED_STATE, DSL.name("KEY_shapeshifter_feed_state_shapeshifter_feed_state_doc_uuid_feed_name"), new TableField[] { ShapeshifterFeedState.SHAPESHIFTER_FEED_STATE.DOC_UUID, ShapeshifterFeedState.SHAPESHIFTER_FEED_STATE.FEED_NAME }, true);
     public static final UniqueKey<ShapeshifterLedgerRecord> KEY_SHAPESHIFTER_LEDGER_PRIMARY = Internal.createUniqueKey(ShapeshifterLedger.SHAPESHIFTER_LEDGER, DSL.name("KEY_shapeshifter_ledger_PRIMARY"), new TableField[] { ShapeshifterLedger.SHAPESHIFTER_LEDGER.ID }, true);
@@ -42,4 +49,12 @@ public class Keys {
     public static final UniqueKey<ShapeshifterShapeRecord> KEY_SHAPESHIFTER_SHAPE_SHAPESHIFTER_SHAPE_DOC_UUID_SHAPE_HASH = Internal.createUniqueKey(ShapeshifterShape.SHAPESHIFTER_SHAPE, DSL.name("KEY_shapeshifter_shape_shapeshifter_shape_doc_uuid_shape_hash"), new TableField[] { ShapeshifterShape.SHAPESHIFTER_SHAPE.DOC_UUID, ShapeshifterShape.SHAPESHIFTER_SHAPE.SHAPE_HASH }, true);
     public static final UniqueKey<ShapeshifterSpendRecord> KEY_SHAPESHIFTER_SPEND_PRIMARY = Internal.createUniqueKey(ShapeshifterSpend.SHAPESHIFTER_SPEND, DSL.name("KEY_shapeshifter_spend_PRIMARY"), new TableField[] { ShapeshifterSpend.SHAPESHIFTER_SPEND.ID }, true);
     public static final UniqueKey<ShapeshifterSpendRecord> KEY_SHAPESHIFTER_SPEND_SHAPESHIFTER_SPEND_DOC_UUID = Internal.createUniqueKey(ShapeshifterSpend.SHAPESHIFTER_SPEND, DSL.name("KEY_shapeshifter_spend_shapeshifter_spend_doc_uuid"), new TableField[] { ShapeshifterSpend.SHAPESHIFTER_SPEND.DOC_UUID }, true);
+    public static final UniqueKey<ShapeshifterTurnRecord> KEY_SHAPESHIFTER_TURN_PRIMARY = Internal.createUniqueKey(ShapeshifterTurn.SHAPESHIFTER_TURN, DSL.name("KEY_shapeshifter_turn_PRIMARY"), new TableField[] { ShapeshifterTurn.SHAPESHIFTER_TURN.ID }, true);
+    public static final UniqueKey<ShapeshifterTurnRecord> KEY_SHAPESHIFTER_TURN_SHAPESHIFTER_TURN_ATTEMPT_TURN = Internal.createUniqueKey(ShapeshifterTurn.SHAPESHIFTER_TURN, DSL.name("KEY_shapeshifter_turn_shapeshifter_turn_attempt_turn"), new TableField[] { ShapeshifterTurn.SHAPESHIFTER_TURN.FK_ATTEMPT_ID, ShapeshifterTurn.SHAPESHIFTER_TURN.TURN_NUMBER }, true);
+
+    // -------------------------------------------------------------------------
+    // FOREIGN KEY definitions
+    // -------------------------------------------------------------------------
+
+    public static final ForeignKey<ShapeshifterTurnRecord, ShapeshifterAttemptRecord> SHAPESHIFTER_TURN_ATTEMPT_FK = Internal.createForeignKey(ShapeshifterTurn.SHAPESHIFTER_TURN, DSL.name("shapeshifter_turn_attempt_fk"), new TableField[] { ShapeshifterTurn.SHAPESHIFTER_TURN.FK_ATTEMPT_ID }, Keys.KEY_SHAPESHIFTER_ATTEMPT_PRIMARY, new TableField[] { ShapeshifterAttempt.SHAPESHIFTER_ATTEMPT.ID }, true, ForeignKeyRule.NO_ACTION, ForeignKeyRule.NO_ACTION);
 }

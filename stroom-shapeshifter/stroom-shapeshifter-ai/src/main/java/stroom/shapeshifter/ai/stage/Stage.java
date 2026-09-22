@@ -28,6 +28,11 @@ import stroom.shapeshifter.ai.learning.LearnedStep;
 import stroom.shapeshifter.ai.learning.Outcome;
 import stroom.shapeshifter.ai.learning.Outcome.Abandoned;
 import stroom.shapeshifter.ai.learning.Outcome.Learned;
+import stroom.shapeshifter.ai.learning.Question;
+import stroom.shapeshifter.ai.learning.Question.Chain;
+import stroom.shapeshifter.ai.learning.Question.Configuration;
+import stroom.shapeshifter.ai.learning.Question.Split;
+import stroom.shapeshifter.ai.learning.Question.TargetFor;
 import stroom.shapeshifter.ai.learning.Sample;
 import stroom.shapeshifter.ai.learning.StepRunner;
 import stroom.shapeshifter.ai.learning.Target;
@@ -47,8 +52,10 @@ import stroom.shapeshifter.ai.stage.Decision.Rebound;
 import stroom.shapeshifter.ai.stage.Decision.Retracted;
 import stroom.shapeshifter.ai.stage.Decision.Sentinel;
 import stroom.shapeshifter.ai.stage.RegressionSet.Accepted;
+import stroom.shapeshifter.shared.AttemptStatus;
 import stroom.shapeshifter.shared.LearningMode;
 import stroom.shapeshifter.shared.PromotionMode;
+import stroom.shapeshifter.shared.QuestionKind;
 import stroom.shapeshifter.shared.RecordBoundary;
 import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
@@ -72,6 +79,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 /**
  * One supervised stage over one stream, as design 02 §4 spells it out: route, learn, judge, write,
@@ -109,6 +117,7 @@ public final class Stage {
     private final List<Scorer> scorers;
     private final FragmentWriter writer;
     private final FragmentRunner fragmentRunner;
+    private final Attempts attempts;
     private final Rules rules;
     private final Shapes shapes;
     private final Spend spend;
@@ -126,6 +135,7 @@ public final class Stage {
                  final List<Scorer> scorers,
                  final FragmentWriter writer,
                  final FragmentRunner fragmentRunner,
+                 final Attempts attempts,
                  final Rules rules,
                  final Shapes shapes,
                  final Spend spend,
@@ -141,6 +151,7 @@ public final class Stage {
         this.scorers = List.copyOf(scorers);
         this.writer = writer;
         this.fragmentRunner = fragmentRunner;
+        this.attempts = attempts;
         this.rules = rules;
         this.shapes = shapes;
         this.spend = spend;
@@ -230,13 +241,125 @@ public final class Stage {
                                                + "what it learns");
         }
         try {
-            return learnAndBind(doc, shape, input, attributes, scorecard, selector);
+            return recording(doc, shape, input,
+                    () -> learnAndBind(doc, shape, input, attributes, scorecard, selector));
         } finally {
             // Held until the rule is written, not merely while the model is asked: a second node that took
             // it in between would find no rule for the shape, learn it again, and append a second rule for
             // one selector, leaving its fragment orphaned behind the first.
             shapes.releaseLease(doc.getUuid(), shape.id(), node);
         }
+    }
+
+    /**
+     * One attempt, recorded (A28): a row when this node commits to learning a shape, a turn for every
+     * question as the transcript has them, and what it came to. The record outlives the node that made it,
+     * which is what lets a person read back what was said and — once the dialogue can be resumed (A45) —
+     * what lets another node pick the attempt up.
+     */
+    private StageRun recording(final ShapeshifterAiDoc doc,
+                               final Shape shape,
+                               final Input input,
+                               final Supplier<StageRun> attempt) {
+        final long attemptId = attempts.opened(new Attempts.Attempt(doc.getUuid(), shape.id(), input.feed(),
+                input.type(), input.id(), node, doc.getExecutionMode(), doc.getPromotionMode(),
+                clock.millis() + doc.getAttemptBudgetMs() + LEASE_GRACE_MS));
+        final long before = advisors.of(doc).tokensUsed();
+        final StageRun run;
+        try {
+            run = attempt.get();
+        } catch (final RuntimeException e) {
+            // The model, the node or the database failed: the attempt says so rather than vanishing.
+            attempts.closed(attemptId, AttemptStatus.ERROR, e.getClass().getSimpleName() + ": " + e.getMessage(),
+                    null, null, Math.max(0L, advisors.of(doc).tokensUsed() - before));
+            throw e;
+        }
+        int number = 0;
+        for (final Exchange exchange : run.transcript()) {
+            number++;
+            attempts.turn(attemptId, new Attempts.Turn(number, exchange.step(), exchange.candidate(),
+                    kindOf(exchange.question()), describe(exchange.question()),
+                    exchange.reply(), answeredBy(doc), exchange.outcome()));
+        }
+        attempts.closed(attemptId, statusOf(run.decision()), reason(run.decision()), ruleOf(run.decision()),
+                scoreOf(run.decision()), Math.max(0L, advisors.of(doc).tokensUsed() - before));
+        return run;
+    }
+
+    /**
+     * Where an attempt stands, from what it decided (A28).
+     */
+    private static AttemptStatus statusOf(final Decision decision) {
+        return switch (decision) {
+            case Promoted ignored -> AttemptStatus.PROMOTED;
+            case Rebound ignored -> AttemptStatus.PROMOTED;
+            case Provisional ignored -> AttemptStatus.PROVISIONAL;
+            case Drafted ignored -> AttemptStatus.AWAITING_REVIEW;
+            default -> AttemptStatus.ABANDONED;
+        };
+    }
+
+    private static String reason(final Decision decision) {
+        return decision.toString();
+    }
+
+    private static String ruleOf(final Decision decision) {
+        return switch (decision) {
+            case Promoted promoted -> promoted.rule().getUuid();
+            case Provisional provisional -> provisional.rule().getUuid();
+            case Drafted drafted -> drafted.rule().getUuid();
+            case Rebound rebound -> rebound.rule().getUuid();
+            default -> null;
+        };
+    }
+
+    private static Double scoreOf(final Decision decision) {
+        return switch (decision) {
+            case Promoted promoted -> promoted.score();
+            case Provisional provisional -> provisional.score();
+            case Drafted drafted -> drafted.score();
+            case Rebound rebound -> rebound.score();
+            default -> null;
+        };
+    }
+
+    private static QuestionKind kindOf(final Question question) {
+        return switch (question) {
+            case Chain ignored -> QuestionKind.CHAIN;
+            case Split ignored -> QuestionKind.SPLIT;
+            case TargetFor ignored -> QuestionKind.TARGET;
+            case Configuration ignored -> QuestionKind.CONFIGURE;
+        };
+    }
+
+    /**
+     * What a turn asked, in a line: the kind, what it was about, and how much the step had been told when
+     * it was asked. Not the rendered prompt — that carries the stream's own text, which may not be stored
+     * until it is redacted (A17, A38), and which the raw exchange is audited with by `stroom-ai` in any
+     * case. The rendered prompt joins the record when redaction is built.
+     */
+    private static String describe(final Question question) {
+        final String about = switch (question) {
+            case Chain chain -> "choose from " + chain.allowedElements();
+            case Split split -> "what one record is, for " + split.elementType();
+            case TargetFor target -> "what record " + target.kind() + " of " + target.total() + " becomes";
+            case Configuration configuration -> configuration.elementType() + " "
+                                                + configuration.documentType();
+        };
+        return kindOf(question).getDisplayValue() + ": " + about
+               + (question.feedback().isEmpty()
+                ? ""
+                : ", after " + question.feedback().size() + " shortfall(s)");
+    }
+
+    /**
+     * Who answered a turn: the model this document names, since nothing else answers one yet — a person
+     * answering instead is A28's, in a later slice, and writes their own name here.
+     */
+    private static String answeredBy(final ShapeshifterAiDoc doc) {
+        return doc.getModel() == null
+                ? "model"
+                : doc.getModel().getName();
     }
 
     private StageRun learnAndBind(final ShapeshifterAiDoc doc,
@@ -386,7 +509,8 @@ public final class Stage {
             return emit(doc, new Bound(incumbent), shape, input, incumbent, served, List.of());
         }
         try {
-            return relearnUnderLease(doc, shape, incumbent, input, attributes, scorecard, served, marked);
+            return recording(doc, shape, input,
+                    () -> relearnUnderLease(doc, shape, incumbent, input, attributes, scorecard, served, marked));
         } finally {
             shapes.releaseLease(doc.getUuid(), shape.id(), node);
         }

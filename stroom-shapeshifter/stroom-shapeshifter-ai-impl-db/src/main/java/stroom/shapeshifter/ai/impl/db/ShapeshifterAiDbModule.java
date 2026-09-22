@@ -18,6 +18,7 @@ package stroom.shapeshifter.ai.impl.db;
 
 import stroom.db.util.AbstractFlyWayDbModule;
 import stroom.db.util.DataSourceProxy;
+import stroom.shapeshifter.ai.stage.Attempts;
 import stroom.shapeshifter.ai.stage.Ledger;
 import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.ai.stage.Shapes;
@@ -38,6 +39,7 @@ public class ShapeshifterAiDbModule
     @Override
     protected void configure() {
         super.configure();
+        bind(Attempts.class).to(AttemptsDao.class);
         bind(Rules.class).to(RulesDao.class);
         bind(Shapes.class).to(ShapesDao.class);
         bind(Ledger.class).to(LedgerDao.class);

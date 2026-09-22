@@ -1607,9 +1607,10 @@ the order they arrived. Items marked *built* already exist in `stroom-shapeshift
    2026-09-18 as `Stage.approve` and `Stage.reject` — design 02 §6.1.*
 14. **The AI review job** (A23): sampling of emitted records under an hourly budget, the audit
    stream of findings, the rolling score per shape, the relearn trigger and the `Critique` question.
-15. **Durable attempts and the Supervisor view** (A28): `shapeshifter_attempt` and
-   `shapeshifter_turn` in the A26 module; `Dialogue` recast as a persisted state machine that stops
-   at each question and resumes on any answerer; the job that advances attempts awaiting the model —
+15. **Durable attempts and the Supervisor view** (A28, A45): `shapeshifter_attempt` and
+   `shapeshifter_turn` in the A26 module, the attempt row carrying the claim on its shape that
+   `shapeshifter_shape`'s lease columns hold until then (A45); `Dialogue` recast as a persisted state
+   machine that stops at each question and resumes on any answerer; the job that advances attempts awaiting the model —
    which is deferred mode's worker; the cross-document Supervisor view with its list, detail, per-turn
    *answer instead* and *edit and re-run*, and per-attempt approve, reject, retract, widen and
    re-learn; and the REST resource behind it. Sequenced after item 8, which it extends, and before
@@ -1792,6 +1793,7 @@ with the criterion that ends it, adds the input formats the feature must be show
 | A42 | The learning lease is per `(doc, shape)`; a node that does not win it sentinels the stream and returns rather than waiting, and the winner's promotion releases the backlog | **Ruled, 2026-09-22** — the owner's: waiting holds a processing thread for minutes, and nothing is held (§5.2) is as true of concurrency as of quarantine |
 | A43 | One learner per shape: variants are not learned in parallel and merged; a shape improves by relearning against the regression set | **Ruled, 2026-09-22** — the owner's: two learned documents cannot be merged, and racing them doubles spend for what the gate decides anyway |
 | A44 | The per-document rate limit and the spend breaker are cluster-wide counters in the A26 module, not per-node limiters | **Ruled, 2026-09-22** — the owner's: a budget divided by node count is not a budget |
+| A45 | The attempt row is the learning lease: one open attempt per `(doc, shape)` is what "one learner" means, and a paused attempt is still learning, so `shapeshifter_shape`'s lease columns give way to the attempt's own claim. A node takes a shape by opening an attempt for it and gives it up by closing one; an attempt whose expiry passes without a heartbeat is abandoned by the worker, which frees the shape | **Ruled, 2026-09-22** — the owner's, on the recommendation: once attempts are durable (A28) two rows would otherwise say who is learning, and a parked attempt would have to hold a lease no thread is behind |
 
 Where a row says *revised*, *restated* or *settled* 2026-09-17, the change was put to the owner as a
 recommendation with alternatives and taken by them that day: the text is the editor's, the decision
@@ -2006,6 +2008,13 @@ including the degeneracy trap (§8.3) that changes the scoring model and propose
   the goldens and run 7 — yield per line where a record spans lines is what decided outcomes,
   coverage never did. A20–A22 ruled as built, the owner's; A39 and A40 ruled, the owner's, from run
   7: the escalating example splits every input, and a parser refused on yield goes back to the split.
+- Slice 24, the attempt as a record (A28; design 02 §6.1): `shapeshifter_attempt` and
+  `shapeshifter_turn`, the `Attempts` seam and its DAO, and the stage recording an attempt and every
+  turn of it. Not the rendered prompt, which waits for redaction (A38); not yet the claim on the shape,
+  which waits for the dialogue to be resumable (A45).
+- A45 ruled, the owner's, 2026-09-22, on the recommendation: the attempt row is the lease. Until A28's
+  attempts exist the shape row's lease columns are it (slice 23); when they do, one open attempt per
+  shape is what one learner means, and a paused attempt is still learning.
 - Audit of slice 23 (the owner's code review): seven findings, all fixed — design 02 §6.1. The lease
   was released when the dialogue ended rather than when the rule was written, so two nodes could bind
   one selector; its expiry was judged against a different clock from the one that set it, so every

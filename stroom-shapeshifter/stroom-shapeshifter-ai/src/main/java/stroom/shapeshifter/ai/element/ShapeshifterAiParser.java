@@ -58,6 +58,7 @@ import stroom.shapeshifter.ai.scoring.ExtractionQualityScorer;
 import stroom.shapeshifter.ai.scoring.InputCoverageScorer;
 import stroom.shapeshifter.ai.scoring.SchemaConformanceScorer;
 import stroom.shapeshifter.ai.scoring.YieldScorer;
+import stroom.shapeshifter.ai.stage.Attempts;
 import stroom.shapeshifter.ai.stage.Bindings;
 import stroom.shapeshifter.ai.stage.Decision;
 import stroom.shapeshifter.ai.stage.Decision.Drafted;
@@ -173,6 +174,7 @@ public class ShapeshifterAiParser extends AbstractParser {
                                 final FragmentWriter fragmentWriter,
                                 final Advisors advisors,
                                 final NodeInfo nodeInfo,
+                                final Attempts attempts,
                                 final Rules rules,
                                 final Shapes shapes,
                                 final Spend spend,
@@ -201,6 +203,7 @@ public class ShapeshifterAiParser extends AbstractParser {
                         new ExtractionQualityScorer(), new BusinessRulesScorer()),
                 fragmentWriter,
                 new FragmentRunner(pipelineStore, pipelineStackLoader, textConverterStore, xsltStore, runners),
+                attempts,
                 rules,
                 shapes,
                 spend,

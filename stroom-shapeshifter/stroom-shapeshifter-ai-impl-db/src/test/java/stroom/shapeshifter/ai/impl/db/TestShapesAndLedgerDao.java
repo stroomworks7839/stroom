@@ -16,7 +16,15 @@
 
 package stroom.shapeshifter.ai.impl.db;
 
+import stroom.shapeshifter.ai.stage.Attempts.Attempt;
+import stroom.shapeshifter.ai.stage.Attempts.Recorded;
+import stroom.shapeshifter.ai.stage.Attempts.Turn;
 import stroom.shapeshifter.ai.stage.Spend.Spent;
+import stroom.shapeshifter.shared.AttemptStatus;
+import stroom.shapeshifter.shared.ExecutionMode;
+import stroom.shapeshifter.shared.PromotionMode;
+import stroom.shapeshifter.shared.QuestionKind;
+import stroom.shapeshifter.shared.StepOutcome;
 
 import com.google.inject.Guice;
 import jakarta.inject.Inject;
@@ -40,6 +48,8 @@ class TestShapesAndLedgerDao {
     private LedgerDao ledger;
     @Inject
     private SpendDao spend;
+    @Inject
+    private AttemptsDao attempts;
 
     @BeforeEach
     void setUp() {
@@ -192,6 +202,45 @@ class TestShapesAndLedgerDao {
         final Spent afresh = spend.spent(DOC, 0L);
         assertThat(afresh.tokens()).isZero();
         assertThat(spend.record(DOC, 100L, 1, 0L).tokens()).isEqualTo(100L);
+    }
+
+    @Test
+    void anAttemptAndItsTurnsAreRowsThatOutliveTheNode() {
+        // A28: what was asked and answered survives the node that asked it, and the turns are readable in
+        // the order they were put.
+        final long id = attempts.opened(new Attempt(DOC, SHAPE, "DOOR-ACCESS", "Raw Events", 42L, "node-1",
+                ExecutionMode.INLINE, PromotionMode.AUTOMATIC, now() + 60_000L));
+        attempts.turn(id, new Turn(1, "chain", 1, QuestionKind.CHAIN, "CHAIN: choose from [DSParser]",
+                "DSParser -> XSLTFilter", "local-model", StepOutcome.PASSED));
+        attempts.turn(id, new Turn(2, "configure", 2, QuestionKind.CONFIGURE, "CONFIGURE: DSParser",
+                "<dataSplitter/>", "local-model", StepOutcome.COVERAGE_SHORT));
+
+        attempts.closed(id, AttemptStatus.PROMOTED, "Promoted 0.97", "rule-1", 0.97, 1_234L);
+
+        final Recorded read = attempts.byId(id).orElseThrow();
+        assertThat(read.status()).isEqualTo(AttemptStatus.PROMOTED);
+        assertThat(read.decision()).isEqualTo("Promoted 0.97");
+        assertThat(read.ruleUuid()).isEqualTo("rule-1");
+        assertThat(read.score()).isEqualTo(0.97);
+        assertThat(read.tokensSpent()).isEqualTo(1_234L);
+        assertThat(read.attempt().shape()).isEqualTo(SHAPE);
+        assertThat(read.attempt().inputId()).isEqualTo(42L);
+        assertThat(read.attempt().executionMode()).isEqualTo(ExecutionMode.INLINE);
+        assertThat(read.attempt().expiryMs())
+                .describedAs("a claim that has ended holds nothing (A45)").isZero();
+        assertThat(read.turns()).extracting(Turn::number).containsExactly(1, 2);
+        assertThat(read.turns().get(1).candidate()).isEqualTo(2);
+        assertThat(read.turns().get(1).outcome()).isEqualTo(StepOutcome.COVERAGE_SHORT);
+        assertThat(read.turns().get(0).answeredBy()).isEqualTo("local-model");
+
+        // A shape with an id longer than any column is still one attempt, found by its hash.
+        final String long1 = SHAPE + "|RemoteFile=" + "a".repeat(2000);
+        final long longId = attempts.opened(new Attempt(DOC, long1, null, null, null, "node-1",
+                ExecutionMode.DEFERRED, PromotionMode.REVIEW, now()));
+        assertThat(attempts.byId(longId).orElseThrow().attempt().shape()).isEqualTo(long1);
+        assertThat(attempts.forDocument(DOC, 10)).extracting(Recorded::id)
+                .describedAs("newest first, for the Supervisor view")
+                .startsWith(longId, id);
     }
 
     private static long now() {

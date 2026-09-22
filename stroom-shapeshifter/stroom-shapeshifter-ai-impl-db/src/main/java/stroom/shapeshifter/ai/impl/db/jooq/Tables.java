@@ -4,11 +4,13 @@
 package stroom.shapeshifter.ai.impl.db.jooq;
 
 
+import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterAttempt;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterFeedState;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterLedger;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterRule;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterShape;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterSpend;
+import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterTurn;
 
 
 /**
@@ -16,6 +18,11 @@ import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterSpend;
  */
 @SuppressWarnings({ "all", "unchecked", "rawtypes", "this-escape" })
 public class Tables {
+
+    /**
+     * The table <code>stroom.shapeshifter_attempt</code>.
+     */
+    public static final ShapeshifterAttempt SHAPESHIFTER_ATTEMPT = ShapeshifterAttempt.SHAPESHIFTER_ATTEMPT;
 
     /**
      * The table <code>stroom.shapeshifter_feed_state</code>.
@@ -41,4 +48,9 @@ public class Tables {
      * The table <code>stroom.shapeshifter_spend</code>.
      */
     public static final ShapeshifterSpend SHAPESHIFTER_SPEND = ShapeshifterSpend.SHAPESHIFTER_SPEND;
+
+    /**
+     * The table <code>stroom.shapeshifter_turn</code>.
+     */
+    public static final ShapeshifterTurn SHAPESHIFTER_TURN = ShapeshifterTurn.SHAPESHIFTER_TURN;
 }
