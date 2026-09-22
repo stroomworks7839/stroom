@@ -155,7 +155,8 @@ class TestScenario30DeferredWorkerInAPipeline extends AbstractProcessIntegration
         assertThat(rules.forDocument(doc.getUuid())).isEmpty();
         final Recorded parked = attempts.forDocument(doc.getUuid(), 10).get(0);
         assertThat(parked.status()).isEqualTo(AttemptStatus.AWAITING_MODEL);
-        assertThat(parked.turns()).describedAs("parked at its first question, having asked none").isEmpty();
+        assertThat(parked.turns()).describedAs("the question it stopped at, asked of nobody").hasSize(1);
+        assertThat(parked.turns().get(0).answer()).isNull();
         assertThat(parked.attempt().inputId())
                 .describedAs("naming the stream it was raised on, which is how the job finds it again")
                 .isEqualTo(raw.getId());

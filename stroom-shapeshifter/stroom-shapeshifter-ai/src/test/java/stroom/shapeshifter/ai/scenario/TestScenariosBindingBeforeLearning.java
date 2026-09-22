@@ -501,7 +501,10 @@ class TestScenariosBindingBeforeLearning {
         assertThat(((Sentinel) parked.decision()).reason()).contains("Awaiting the model");
         final Recorded waiting = scenarios.attempts.forDocument("doc-1", 10).get(0);
         assertThat(waiting.status()).isEqualTo(AttemptStatus.AWAITING_MODEL);
-        assertThat(waiting.turns()).describedAs("the chain it was answered").hasSize(1);
+        assertThat(waiting.turns()).describedAs("the chain it was answered, and the question it stopped at")
+                .hasSize(2);
+        assertThat(waiting.turns().get(1).answer())
+                .describedAs("which nobody has answered, so a person can (A28)").isNull();
         assertThat(scenarios.rules.forDocument("doc-1")).isEmpty();
 
         // While it waits it holds the shape: another stream of it learns nothing beside it.

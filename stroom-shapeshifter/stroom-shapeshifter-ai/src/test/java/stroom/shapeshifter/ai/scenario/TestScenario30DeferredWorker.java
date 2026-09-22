@@ -103,7 +103,10 @@ class TestScenario30DeferredWorker {
         assertThat(run.output()).isNull();
         final Recorded parked = scenarios.attempts.forDocument(DOC, 10).get(0);
         assertThat(parked.status()).isEqualTo(AttemptStatus.AWAITING_MODEL);
-        assertThat(parked.turns()).describedAs("zero questions asked").isEmpty();
+        assertThat(parked.turns()).describedAs("nothing answered, and the question it stopped at recorded")
+                .hasSize(1);
+        assertThat(parked.turns().get(0).answer()).isNull();
+        assertThat(parked.turns().get(0).answeredBy()).isNull();
         assertThat(parked.attempt().executionMode()).isEqualTo(ExecutionMode.DEFERRED);
         assertThat(scenarios.ledger.rows()).hasSize(1);
 
@@ -122,6 +125,8 @@ class TestScenario30DeferredWorker {
         final Recorded finished = scenarios.attempts.byId(parked.id()).orElseThrow();
         assertThat(finished.status()).isEqualTo(AttemptStatus.PROMOTED);
         assertThat(finished.turns()).describedAs("every turn of it, asked by the worker").isNotEmpty();
+        assertThat(finished.turns()).allSatisfy(turn ->
+                assertThat(turn.answer()).describedAs("and every one answered now").isNotNull());
         assertThat(scenarios.rules.forDocument(DOC)).hasSize(1);
 
         // And the promotion releases what waited on the shape (A12).

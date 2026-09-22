@@ -123,6 +123,88 @@ public class AttemptsDao implements Attempts {
     }
 
     @Override
+    public void amended(final long attemptId, final int turnNumber, final String answer,
+                        final String answeredBy) {
+        JooqUtil.transaction(connProvider, context -> {
+            // What came after this turn is a consequence of the answer that has changed, and the walk will
+            // derive it again.
+            context.deleteFrom(SHAPESHIFTER_TURN)
+                    .where(SHAPESHIFTER_TURN.FK_ATTEMPT_ID.eq(attemptId))
+                    .and(SHAPESHIFTER_TURN.TURN_NUMBER.gt(turnNumber))
+                    .execute();
+            final int amended = context.update(SHAPESHIFTER_TURN)
+                    .set(SHAPESHIFTER_TURN.ANSWER, answer)
+                    .set(SHAPESHIFTER_TURN.ANSWERED_BY, answeredBy)
+                    .setNull(SHAPESHIFTER_TURN.OUTCOME)
+                    .where(SHAPESHIFTER_TURN.FK_ATTEMPT_ID.eq(attemptId))
+                    .and(SHAPESHIFTER_TURN.TURN_NUMBER.eq(turnNumber))
+                    .execute();
+            if (amended == 0) {
+                throw new IllegalArgumentException("Attempt " + attemptId + " has no turn " + turnNumber);
+            }
+        });
+    }
+
+    /// One open attempt per shape is what one learner means (A45), whether it is opened for the first
+    /// time or opened again: the claim is taken back under the same unique key, and the database refuses
+    /// it where another attempt has the shape.
+    @Override
+    public boolean reopened(final long attemptId, final long nowMs, final long expiryMs) {
+        final long now = System.currentTimeMillis();
+        return JooqUtil.transactionResult(connProvider, context -> {
+            final Record row = context
+                    .select(SHAPESHIFTER_ATTEMPT.STATUS,
+                            SHAPESHIFTER_ATTEMPT.EXPIRY_MS,
+                            SHAPESHIFTER_ATTEMPT.DOC_UUID,
+                            SHAPESHIFTER_ATTEMPT.SHAPE_HASH)
+                    .from(SHAPESHIFTER_ATTEMPT)
+                    .where(SHAPESHIFTER_ATTEMPT.ID.eq(attemptId))
+                    .fetchOne();
+            if (row == null) {
+                return false;
+            }
+            final Long expiry = row.get(SHAPESHIFTER_ATTEMPT.EXPIRY_MS);
+            // A node is walking it at this moment: its answers are that walk's to give.
+            if (AttemptStatus.IN_PROGRESS.name().equals(row.get(SHAPESHIFTER_ATTEMPT.STATUS))
+                && expiry != null
+                && expiry > nowMs) {
+                return false;
+            }
+            // Whatever else holds this shape and has lapsed holds nothing (A45), the same release that
+            // opening an attempt performs: an attempt whose node died must not block the shape from ever
+            // being run again.
+            context.update(SHAPESHIFTER_ATTEMPT)
+                    .setNull(SHAPESHIFTER_ATTEMPT.CLAIM_KEY)
+                    .set(SHAPESHIFTER_ATTEMPT.STATUS, AttemptStatus.ABANDONED.name())
+                    .set(SHAPESHIFTER_ATTEMPT.DECISION, "Lapsed: the node learning it stopped")
+                    .set(SHAPESHIFTER_ATTEMPT.UPDATE_TIME_MS, now)
+                    .where(SHAPESHIFTER_ATTEMPT.DOC_UUID.eq(row.get(SHAPESHIFTER_ATTEMPT.DOC_UUID)))
+                    .and(SHAPESHIFTER_ATTEMPT.CLAIM_KEY.eq(row.get(SHAPESHIFTER_ATTEMPT.SHAPE_HASH)))
+                    .and(SHAPESHIFTER_ATTEMPT.EXPIRY_MS.le(nowMs))
+                    .and(SHAPESHIFTER_ATTEMPT.ID.ne(attemptId))
+                    .execute();
+            try {
+                // Its claim taken back, and pushed out: an attempt a person has just answered must not be
+                // swept away by the next stream of its shape before the worker reaches it.
+                return context.update(SHAPESHIFTER_ATTEMPT)
+                        .set(SHAPESHIFTER_ATTEMPT.STATUS, AttemptStatus.AWAITING_MODEL.name())
+                        .set(SHAPESHIFTER_ATTEMPT.CLAIM_KEY, SHAPESHIFTER_ATTEMPT.SHAPE_HASH)
+                        .set(SHAPESHIFTER_ATTEMPT.EXPIRY_MS, expiryMs)
+                        .setNull(SHAPESHIFTER_ATTEMPT.DECISION)
+                        .setNull(SHAPESHIFTER_ATTEMPT.RULE_UUID)
+                        .setNull(SHAPESHIFTER_ATTEMPT.SCORE)
+                        .set(SHAPESHIFTER_ATTEMPT.VERSION, SHAPESHIFTER_ATTEMPT.VERSION.plus(1))
+                        .set(SHAPESHIFTER_ATTEMPT.UPDATE_TIME_MS, now)
+                        .where(SHAPESHIFTER_ATTEMPT.ID.eq(attemptId))
+                        .execute() > 0;
+            } catch (final IntegrityConstraintViolationException e) {
+                // Another attempt holds the shape: a person is told rather than two learning it at once.
+                return false;
+            }
+        });
+    }
+
+    @Override
     public void heartbeat(final long attemptId, final long expiryMs) {
         JooqUtil.context(connProvider, context -> context
                 .update(SHAPESHIFTER_ATTEMPT)

@@ -105,18 +105,45 @@ public final class RecordedAdvisor implements Advisor {
 
 
     /// Raised where an attempt has reached a question nobody present can answer: it stops here, and the
-    /// worker or a person takes it up (A28).
+    /// worker or a person takes it up (A28). Where in the walk it stopped is filled in by the dialogue,
+    /// which alone knows it, so that the turn can be recorded unanswered and a person can answer it.
     public static final class AwaitingAnswer extends RuntimeException {
 
         private final transient Question question;
+        private final String stepId;
+        private final int candidate;
+        private final int number;
 
         AwaitingAnswer(final Question question) {
+            this(question, null, 1, 0);
+        }
+
+        public AwaitingAnswer(final Question question, final String stepId, final int candidate,
+                              final int number) {
             super("The attempt awaits an answer to its next question");
             this.question = question;
+            this.stepId = stepId;
+            this.candidate = candidate;
+            this.number = number;
         }
 
         public Question question() {
             return question;
+        }
+
+        /// The step whose question it stopped at.
+        public String stepId() {
+            return stepId;
+        }
+
+        /// Which candidate of that step.
+        public int candidate() {
+            return candidate;
+        }
+
+        /// The turn it would have been, by its number in the transcript.
+        public int number() {
+            return number;
         }
     }
 }

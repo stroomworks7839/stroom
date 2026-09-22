@@ -87,6 +87,22 @@ public interface Attempts {
     void closed(long attemptId, AttemptStatus status, String decision, String ruleUuid, Double score,
                 long tokensSpent);
 
+    /// A person's answer in place of a turn's (A28): *answer instead*, for the question an attempt
+    /// stopped at, and *edit and re-run from here*, for one it had already been answered. The turns after
+    /// it are discarded — what they were is a consequence of an answer that has changed, and the walk
+    /// will derive them again — and this turn's outcome with them, since it has not been judged yet.
+    void amended(long attemptId, int turnNumber, String answer, String answeredBy);
+
+    /// Open an attempt again, so that it may be run from a turn a person has changed (A28). It takes its
+    /// shape back and its claim is pushed out, as opening one does (A45), whether it had finished, was
+    /// parked, or was being walked by a node that has since stopped.
+    ///
+    /// @return Whether it was opened. False where another attempt holds the shape now, and false where a
+    /// node is walking this one at this moment: its answers are that walk's to give, and a person's would
+    /// be overwritten by the next turn it records. Either way the person is told rather than the answer
+    /// being lost.
+    boolean reopened(long attemptId, long nowMs, long expiryMs);
+
     /// What a person decided about the draft an attempt wrote (A25, A28): the attempt that is awaiting
     /// review for this rule is closed with their decision, so that an approved draft stops reading as
     /// though it were still waiting.
@@ -118,7 +134,10 @@ public interface Attempts {
 
     }
 
-    /// @param answeredBy The model a document names, or the person who answered instead (A28).
+    /// @param answer     What was answered, or null for a turn an attempt stopped at and nobody has
+    ///                    answered yet (A28).
+    /// @param answeredBy The model a document names, or the person who answered instead (A28); null
+    ///                   while nobody has answered.
     /// @param outcome    What the answer scored, once it was judged; null while it is being asked.
     record Turn(int number,
                 String stepId,

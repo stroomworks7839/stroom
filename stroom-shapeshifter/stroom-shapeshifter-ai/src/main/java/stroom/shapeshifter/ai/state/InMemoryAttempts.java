@@ -161,6 +161,73 @@ public final class InMemoryAttempts implements Attempts {
     }
 
     @Override
+    public synchronized void amended(final long attemptId, final int turnNumber, final String answer,
+                                     final String answeredBy) {
+        final List<Turn> written = turns.computeIfAbsent(attemptId, key -> new ArrayList<>());
+        // Found before anything is destroyed: a turn number that names nothing must leave the transcript
+        // as it was, as it does in the table, where the two writes are one transaction.
+        final int at = indexOf(written, turnNumber);
+        if (at < 0) {
+            throw new IllegalArgumentException("Attempt " + attemptId + " has no turn " + turnNumber);
+        }
+        final Turn was = written.get(at);
+        written.set(at, new Turn(was.number(), was.stepId(), was.candidate(), was.kind(), was.question(),
+                answer, answeredBy, null));
+        // What came after this turn is a consequence of the answer that has changed, and the walk will
+        // derive it again.
+        written.removeIf(turn -> turn.number() > turnNumber);
+    }
+
+    private static int indexOf(final List<Turn> written, final int turnNumber) {
+        for (int i = 0; i < written.size(); i++) {
+            if (written.get(i).number() == turnNumber) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    /// One open attempt per shape is what one learner means (A45), whether it is opened for the first
+    /// time or opened again.
+    @Override
+    public synchronized boolean reopened(final long attemptId, final long nowMs, final long expiryMs) {
+        final Recorded was = attempts.get(attemptId);
+        if (was == null) {
+            return false;
+        }
+        // A node is walking it at this moment: its answers are that walk's to give.
+        if (was.status() == AttemptStatus.IN_PROGRESS && was.attempt().expiryMs() > nowMs) {
+            return false;
+        }
+        // Whatever else holds this shape and has lapsed holds nothing (A45), or an attempt whose node
+        // died would block the shape from ever being run again.
+        lapsed(was.attempt().docUuid(), was.attempt().shape(), attemptId, nowMs);
+        if (open(was.attempt().docUuid(), was.attempt().shape(), nowMs)
+                .filter(other -> other.id() != attemptId)
+                .isPresent()) {
+            return false;
+        }
+        attempts.put(attemptId, new Recorded(was.id(), claim(was, expiryMs), AttemptStatus.AWAITING_MODEL,
+                null, null, null, was.tokensSpent(), was.createTimeMs(), System.currentTimeMillis(),
+                List.of()));
+        return true;
+    }
+
+    /// Every other attempt on this shape whose claim has passed, abandoned: the same release that opening
+    /// an attempt performs (A45).
+    private void lapsed(final String docUuid, final String shape, final long except, final long nowMs) {
+        attempts.values().stream()
+                .filter(attempt -> attempt.id() != except
+                                   && attempt.attempt().docUuid().equals(docUuid)
+                                   && attempt.attempt().shape().equals(shape)
+                                   && OPEN.contains(attempt.status())
+                                   && attempt.attempt().expiryMs() <= nowMs)
+                .toList()
+                .forEach(attempt -> closed(attempt.id(), AttemptStatus.ABANDONED,
+                        "Lapsed: the node learning it stopped", null, null, 0L));
+    }
+
+    @Override
     public synchronized List<Recorded> awaiting(final int limit) {
         return attempts.values().stream()
                 .filter(attempt -> attempt.status() == AttemptStatus.AWAITING_MODEL)

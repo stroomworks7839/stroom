@@ -248,6 +248,50 @@ public final class Stage {
     }
 
     /**
+     * A person's answer in place of a turn's (A28): *answer instead*, for the question an attempt stopped
+     * at, and *edit and re-run from here*, for one it had already been answered. Either way the attempt
+     * is left waiting, for the worker to carry on from what it has now been told — the answer is written
+     * and nothing is run here, since a person's request must not wait on a model.
+     * <p>
+     * The turns after the one answered are discarded: what they were is a consequence of an answer that
+     * has changed, and re-walking derives them again (A45). An attempt that had finished is opened again
+     * and takes its shape back, which fails where another attempt holds the shape — and an attempt a node
+     * is walking right now is refused, since its answers are that walk's to give and a person's answer
+     * would be overwritten by the turn it is about to record.
+     *
+     * @param answeredBy Who answered: recorded against the turn, and not overwritten when the attempt is
+     *                   re-walked (A28).
+     */
+    public void amend(final ShapeshifterAiDoc doc,
+                      final long attemptId,
+                      final int turnNumber,
+                      final String answer,
+                      final String answeredBy) {
+        final Recorded recorded = attempts.byId(attemptId)
+                .orElseThrow(() -> new IllegalArgumentException("No attempt " + attemptId));
+        if (!doc.getUuid().equals(recorded.attempt().docUuid())) {
+            throw new IllegalArgumentException("Attempt " + attemptId + " belongs to document "
+                                               + recorded.attempt().docUuid() + ", not " + doc.getUuid());
+        }
+        // Before anything is changed: an attempt is not opened again for a turn it has not got, or a
+        // person who mistyped a number would reopen a finished attempt, wipe what it came to and be told
+        // their request failed.
+        if (recorded.turns().stream().noneMatch(turn -> turn.number() == turnNumber)) {
+            throw new IllegalArgumentException("Attempt " + attemptId + " has no turn " + turnNumber);
+        }
+        if (!attempts.reopened(attemptId, clock.millis(), claimUntil(doc))) {
+            throw new IllegalStateException("Attempt " + attemptId + " cannot be run again: it is being "
+                                            + "carried on now, or another attempt is learning shape "
+                                            + recorded.attempt().shape());
+        }
+        attempts.amended(attemptId, turnNumber, answer, answeredBy);
+        // A person re-running an attempt is saying the shape is not settled: whatever this attempt
+        // concluded about it — given up, marked, a draft awaiting someone — is undone, or the re-run would
+        // be refused by the state its own first run left behind (A28).
+        shapes.reset(doc.getUuid(), recorded.attempt().shape());
+    }
+
+    /**
      * Why an attempt that stopped is not to be carried on, if it is not: the shape's state as it stands
      * now, read exactly as {@link #run} reads it for a stream. Empty where the attempt may go on.
      */
@@ -395,6 +439,12 @@ public final class Stage {
             // The attempt has reached a question nobody present can answer: it stops here, keeps its claim
             // on the shape, and waits for the worker or a person (A28, A45). The stream is sentinelled, as
             // an unknown shape's is, and released when the attempt finishes.
+            // The question it stopped at is recorded unanswered (A28), so that a person can see what is
+            // being waited for and answer it instead, and so that the replay has something to check its
+            // re-walk against when they do.
+            record(() -> attempts.turn(attemptId, new Attempts.Turn(awaiting.number(), awaiting.stepId(),
+                    awaiting.candidate(), Question.kindOf(awaiting.question()),
+                    awaiting.question().summary(), null, null, null)));
             record(() -> attempts.parked(attemptId, AttemptStatus.AWAITING_MODEL, claimUntil(doc),
                     Math.max(0L, advisor.tokensUsed() - before)));
             return waiting.apply("Awaiting the model: attempt " + attemptId + " stopped at "

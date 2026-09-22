@@ -1457,6 +1457,61 @@ pipeline of the stream in front of the stage rather than each output's own, whic
 how to do and `Outputs` does not; it is the same approximation as before, and worth closing when
 `Outputs` becomes rows. 204 tests in the module, 16 against MySQL, 4 in Tier 2.
 
+The twenty-eighth slice, 2026-09-22, is **a person answering a turn** (A28), which closes scenario 31
+and with it phase C's exit criterion. *Answer instead* and *edit and re-run from here* turn out to be
+one operation over the machinery slice 25 built: write an answer against a turn, drop the turns after it
+— what they were is a consequence of an answer that has changed, and re-walking derives them again —
+and leave the attempt waiting for the worker. Nothing runs when a person clicks: their request must not
+wait on a model, and the attempt is picked up as any other waiting attempt is.
+
+For that to be answerable, an attempt that stops must say what it stopped at. It now records the
+question as a turn with no answer and no answerer — which is also what a person needs to see in the
+Supervisor view, and what the replay compares its re-walk against once they have answered. The dialogue
+is what knows where a walk stopped, so it fills in the step, the candidate and the number as the
+`AwaitingAnswer` passes through it; `answered_by` becomes nullable, since nobody has.
+
+An attempt that had finished is opened again and takes its shape back under the same unique key that
+admits one open attempt per shape (A45), so re-running an attempt whose shape another is now learning is
+refused and the person is told. Re-running also resets the shape: a person saying "run this again with
+my answer" is saying the shape is not settled, and without that the re-run would be refused by the
+give-up its own first run wrote.
+
+The scenario itself: the model spends its one candidate on a splitter that drops the fields the event
+needs, the attempt is given up, a person puts the right configuration in place of the model's, and the
+attempt runs again — everything before their turn replayed from the record, their answer given where the
+model's was, and only the transform asked. The transcript says who answered each turn, model and person
+alike. 209 tests in the module, 20 against MySQL, 4 in Tier 2.
+
+The audit of slice 28 (the owner's code review) found six, all in the new pair of operations and all
+fixed. `amend` opened the attempt again *before* it checked that the turn a person named exists, and
+nothing undid that: a mistyped or stale turn number would turn a promoted attempt into an open one with
+its outcome wiped, tell the person their request had failed, and leave the deferred worker to pick it
+up. The check comes first now, from the record already read.
+
+An attempt a node is walking *at this moment* was quietly amended underneath it. Reopening treated any
+open attempt as nothing to do, so the answer was written, the walk's next turn overwrote it with the
+model's, and nothing ever carried the person's answer on — the worker only picks up what is awaiting.
+Reopening now refuses an attempt whose claim is live and whose walk is running, and takes one whose
+walk has stopped.
+
+The claim was read too strictly in one direction and too loosely in the other. Reopening did not release
+a lapsed claim, so an attempt held by a node that had died blocked its shape from ever being run again —
+"another attempt is learning this shape", for ever, until some unrelated stream arrived and swept it.
+And where the attempt being reopened was itself parked, its claim was not pushed out, so the next stream
+of that shape could sweep away the very answer a person had just given. Both are the release that
+opening a new attempt has always performed; reopening performs it too.
+
+The last two were the twins disagreeing: the in-memory `amended` deleted the turns after the one named
+before finding out that the turn did not exist, where the table's two writes are one transaction and
+roll back; and `amend` took the document on trust, so the wrong document's attempt budget was used and
+another document's shape row was reset. Both now do what the other did.
+
+**Phase C's exit criterion.** Scenarios 20, 30 and 31 are green, 20 and 30 in Tier 2 against MySQL, and
+an attempt paused, answered by a person and resumed is what scenario 31 is. Scenario 31 has no Tier-2
+run of its own: it needs no node machinery the other two have not already proved — the same worker, the
+same tables — and what it adds is the Supervisor view's to drive, which is where its REST resource
+belongs.
+
 ## 7. Decisions taken
 
 Ruled 2026-09-17, each as recommended:

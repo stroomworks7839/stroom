@@ -2026,6 +2026,17 @@ including the degeneracy trap (§8.3) that changes the scoring model and propose
   `shapeshifter_turn`, the `Attempts` seam and its DAO, and the stage recording an attempt and every
   turn of it. Not the rendered prompt, which waits for redaction (A38); not yet the claim on the shape,
   which waits for the dialogue to be resumable (A45).
+- Audit of slice 28 (the owner's code review): six findings, all fixed — design 02 §6.1. `amend` opened
+  an attempt again before checking the turn a person named exists, and nothing undid that; an attempt a
+  node was walking was amended underneath it and the answer lost; reopening neither released a lapsed
+  claim — so a dead node blocked its shape for ever — nor pushed out the claim of the attempt it
+  reopened; and the in-memory store destroyed turns the table would have rolled back. `amend` also took
+  the document on trust.
+- Slice 28, a person answering a turn (A28; design 02 §6.1): *answer instead* and *edit and re-run from
+  here* as one operation — write the answer, drop what followed, leave the attempt waiting for the worker
+  — with the question an attempt stops at recorded unanswered so that there is something to answer and
+  something for the replay to check. An attempt that had finished is opened again and takes its shape
+  back, refused where another attempt holds it. Closes scenario 31, and with it phase C's exit criterion.
 - Audit of slices 26 and 27 (my own; design 02 §6.1): `resume` never asked what the shape had become
   while its attempt waited — reserved, drafted, given up, learning turned off — and would have carried an
   attempt on into a rule an operator had just decided against; it now reads the shape's state exactly as

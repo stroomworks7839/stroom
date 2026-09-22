@@ -699,7 +699,15 @@ public final class Dialogue {
     private String ask(final Walk walk, final PlanStep step, final int candidate, final Question question) {
         budget.check(clock.millis(), advisor.tokensUsed());
         heartbeat.run();
-        final String reply = advisor.ask(List.copyOf(walk.transcript), question);
+        final String reply;
+        try {
+            reply = advisor.ask(List.copyOf(walk.transcript), question);
+        } catch (final RecordedAdvisor.AwaitingAnswer awaiting) {
+            // Where the walk stopped is the dialogue's to say: the advisor knows only the question, and a
+            // turn recorded unanswered (A28) needs the step, the candidate and the number it would be.
+            throw new RecordedAdvisor.AwaitingAnswer(question, step.effectiveId(), candidate,
+                    walk.transcript.size() + 1);
+        }
         final Exchange exchange = new Exchange(question, reply, step.effectiveId(), candidate, null);
         walk.transcript.add(exchange);
         onTurn.accept(walk.transcript.size(), exchange);

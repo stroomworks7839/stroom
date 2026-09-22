@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.OptionalDouble;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /// The shape state of A26 and the ledger of §5.2 as rows.
 class TestShapesAndLedgerDao {
@@ -289,6 +290,117 @@ class TestShapesAndLedgerDao {
         assertThat(attempts.open(DOC, shape, now())).isEmpty();
         assertThat(attempts.opened(new Attempt(DOC, shape, "F", "T", 5L, "node-3",
                 ExecutionMode.INLINE, PromotionMode.AUTOMATIC, now() + 60_000L), now())).isPresent();
+    }
+
+    @Test
+    void aPersonsAnswerReplacesATurnsAndWhatFollowedItGoes() {
+        // A28: *answer instead* and *edit and re-run from here*. What came after the turn answered is a
+        // consequence of an answer that has changed, and the walk derives it again.
+        final String shape = SHAPE + "-amend";
+        final long id = attempts.opened(new Attempt(DOC, shape, "F", "T", 1L, "node-1",
+                ExecutionMode.DEFERRED, PromotionMode.AUTOMATIC, now() + 60_000L), now()).orElseThrow();
+        attempts.turn(id, new Turn(1, "chain", 1, QuestionKind.CHAIN, "Chain: choose from [DSParser]",
+                "DSParser", "local-model", StepOutcome.PASSED));
+        attempts.turn(id, new Turn(2, "configure", 1, QuestionKind.CONFIGURE, "Configure: DSParser",
+                "<dataSplitter/>", "local-model", StepOutcome.COVERAGE_SHORT));
+        attempts.turn(id, new Turn(3, "configure", 2, QuestionKind.CONFIGURE, "Configure: DSParser",
+                "<dataSplitter/>", "local-model", StepOutcome.COVERAGE_SHORT));
+        attempts.closed(id, AttemptStatus.ABANDONED, "No passing configuration", null, null, 10L);
+
+        // Opened again, it takes its shape back.
+        assertThat(attempts.reopened(id, now(), now() + 60_000L)).isTrue();
+        assertThat(attempts.byId(id).orElseThrow().status()).isEqualTo(AttemptStatus.AWAITING_MODEL);
+        assertThat(attempts.byId(id).orElseThrow().decision())
+                .describedAs("what it came to before is not what it has come to now").isNull();
+        assertThat(attempts.opened(new Attempt(DOC, shape, "F", "T", 2L, "node-2",
+                ExecutionMode.INLINE, PromotionMode.AUTOMATIC, now() + 60_000L), now()))
+                .describedAs("and holds it against another").isEmpty();
+        assertThat(attempts.reopened(id, now(), now() + 60_000L))
+                .describedAs("opening an open attempt again is nothing to do").isTrue();
+
+        attempts.amended(id, 2, "<dataSplitter>better</dataSplitter>", "an.operator");
+
+        final Recorded read = attempts.byId(id).orElseThrow();
+        assertThat(read.turns()).extracting(Turn::number).containsExactly(1, 2);
+        assertThat(read.turns().get(1).answer()).isEqualTo("<dataSplitter>better</dataSplitter>");
+        assertThat(read.turns().get(1).answeredBy()).isEqualTo("an.operator");
+        assertThat(read.turns().get(1).outcome())
+                .describedAs("unjudged: it has not been run yet").isNull();
+        assertThat(read.turns().get(0).answeredBy())
+                .describedAs("the turns before it are as they were").isEqualTo("local-model");
+        assertThat(attempts.awaiting(10)).extracting(Recorded::id).contains(id);
+
+        assertThatThrownBy(() -> attempts.amended(id, 9, "anything", "an.operator"))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThat(attempts.byId(id).orElseThrow().turns())
+                .describedAs("a turn number that names nothing leaves the transcript as it was")
+                .hasSize(2);
+        attempts.closed(id, AttemptStatus.ABANDONED, "done with", null, null, 0L);
+    }
+
+    @Test
+    void anAttemptIsOpenedAgainDespiteAClaimNobodyIsBehind() {
+        // A45: an attempt whose node died holds its shape until something releases it. Opening one again
+        // releases it, as opening a new one does, or a person could never re-run a shape a dead node had
+        // been learning. And the claim of the attempt reopened is pushed out, or the next stream of the
+        // shape would sweep away the very answer they had just given.
+        final String shape = SHAPE + "-lapsed";
+        final long dead = attempts.opened(new Attempt(DOC, shape, "F", "T", 1L, "node-dead",
+                ExecutionMode.INLINE, PromotionMode.AUTOMATIC, now() - 1), now() - 2).orElseThrow();
+        attempts.closed(dead, AttemptStatus.PROMOTED, "Promoted", "rule-x", 1.0, 0L);
+        final long mine = attempts.opened(new Attempt(DOC, shape, "F", "T", 2L, "node-1",
+                ExecutionMode.INLINE, PromotionMode.AUTOMATIC, now() - 1), now() - 2).orElseThrow();
+        attempts.turn(mine, new Turn(1, "chain", 1, QuestionKind.CHAIN, "Chain: choose from [DSParser]",
+                "DSParser", "local-model", StepOutcome.PASSED));
+        attempts.parked(mine, AttemptStatus.AWAITING_MODEL, now() - 1, 0L);
+        // A third attempt takes the shape and its node dies holding it.
+        final long stopped = attempts.opened(new Attempt(DOC, shape, "F", "T", 3L, "node-dead",
+                ExecutionMode.INLINE, PromotionMode.AUTOMATIC, now() - 1), now()).orElseThrow();
+
+        assertThat(attempts.reopened(mine, now(), now() + 60_000L))
+                .describedAs("the lapsed claim is released, as opening a new attempt would release it")
+                .isTrue();
+
+        assertThat(attempts.byId(stopped).orElseThrow().status()).isEqualTo(AttemptStatus.ABANDONED);
+        final Recorded reopened = attempts.byId(mine).orElseThrow();
+        assertThat(reopened.status()).isEqualTo(AttemptStatus.AWAITING_MODEL);
+        assertThat(reopened.attempt().expiryMs()).isGreaterThan(now());
+        assertThat(attempts.open(DOC, shape, now()).orElseThrow().id()).isEqualTo(mine);
+        attempts.closed(mine, AttemptStatus.ABANDONED, "done with", null, null, 0L);
+    }
+
+    @Test
+    void anAttemptBeingWalkedNowIsNotOpenedAgain() {
+        final String shape = SHAPE + "-walking";
+        final long id = attempts.opened(new Attempt(DOC, shape, "F", "T", 1L, "node-1",
+                ExecutionMode.INLINE, PromotionMode.AUTOMATIC, now() + 60_000L), now()).orElseThrow();
+
+        assertThat(attempts.reopened(id, now(), now() + 60_000L))
+                .describedAs("its answers are that walk's to give").isFalse();
+
+        attempts.heartbeat(id, now() - 1);
+        assertThat(attempts.reopened(id, now(), now() + 60_000L))
+                .describedAs("the walk stopped without finishing, and a person may answer it").isTrue();
+        assertThat(attempts.byId(id).orElseThrow().status()).isEqualTo(AttemptStatus.AWAITING_MODEL);
+        attempts.closed(id, AttemptStatus.ABANDONED, "done with", null, null, 0L);
+    }
+
+    @Test
+    void anAttemptCannotBeOpenedAgainWhileAnotherHoldsItsShape() {
+        final String shape = SHAPE + "-contended";
+        final long mine = attempts.opened(new Attempt(DOC, shape, "F", "T", 1L, "node-1",
+                ExecutionMode.INLINE, PromotionMode.AUTOMATIC, now() + 60_000L), now()).orElseThrow();
+        attempts.closed(mine, AttemptStatus.PROMOTED, "Promoted 1.0", "rule-9", 1.0, 0L);
+        final long theirs = attempts.opened(new Attempt(DOC, shape, "F", "T", 2L, "node-2",
+                ExecutionMode.INLINE, PromotionMode.AUTOMATIC, now() + 60_000L), now()).orElseThrow();
+
+        assertThat(attempts.reopened(mine, now(), now() + 60_000L))
+                .describedAs("a person is told rather than two attempts learning one shape").isFalse();
+        assertThat(attempts.byId(mine).orElseThrow().status()).isEqualTo(AttemptStatus.PROMOTED);
+        attempts.closed(theirs, AttemptStatus.ABANDONED, "done with", null, null, 0L);
+        assertThat(attempts.reopened(mine, now(), now() + 60_000L))
+                .describedAs("and may run again once the shape is free").isTrue();
+        attempts.closed(mine, AttemptStatus.ABANDONED, "done with", null, null, 0L);
     }
 
     private static long now() {

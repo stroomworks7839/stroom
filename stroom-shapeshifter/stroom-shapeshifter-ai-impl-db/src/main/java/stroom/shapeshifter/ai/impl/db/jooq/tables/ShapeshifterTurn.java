@@ -101,7 +101,7 @@ public class ShapeshifterTurn extends TableImpl<ShapeshifterTurnRecord> {
     /**
      * The column <code>stroom.shapeshifter_turn.answered_by</code>.
      */
-    public final TableField<ShapeshifterTurnRecord, String> ANSWERED_BY = createField(DSL.name("answered_by"), SQLDataType.VARCHAR(255).nullable(false), this, "");
+    public final TableField<ShapeshifterTurnRecord, String> ANSWERED_BY = createField(DSL.name("answered_by"), SQLDataType.VARCHAR(255), this, "");
 
     /**
      * The column <code>stroom.shapeshifter_turn.outcome</code>.
