@@ -69,8 +69,8 @@ otherwise.
 | A19 no `ignoreErrors` | Proposed; enforced at the compile gate | Phase G, with A16 |
 | A6 signature normalisation | Open | Phase G; the syslog fixture in phase B is the rehearsal |
 | A23–A28, A30 | Proposed, the owner's | Each on the phase that builds it: C for A26 and A28, E for A23, A24 and A27, F for A30 |
-| A41–A44 | Ruled 2026-09-22 (design 01 §11.4): rules as rows, lease per shape, one learner, cluster-wide spend | Built in C: the rules as rows in slices 20–21, the lease and the spend counter in slice 23; the spend's policy with A24 in phase E |
-| A45 | Ruled 2026-09-22 (design 01 §13): the attempt row is the lease, once attempts are durable | Built with A28, in C |
+| A41–A44 | Ruled 2026-09-22 (design 01 §11.4): rules as rows, lease per shape, one learner, cluster-wide spend | Built in C: the rules as rows in slices 20–21, the lease and the spend counter in slice 23, the lease becoming the attempt's claim (A45) in the audit of slice 25; the spend's policy with A24 in phase E |
+| A45 | Ruled 2026-09-22 (design 01 §13): the attempt row is the lease, once attempts are durable | Built with A28, in C: the claim in slice 25, and the shape's lease columns dropped in its audit |
 | Thresholds (floor, coverage, yield, relearn) | First values recorded, design 01 §2.2, from the goldens and run 7; coverage never decided a phase B outcome, yield per line did | Settled in phase G from real feeds |
 
 ## 5. Where phase B stands

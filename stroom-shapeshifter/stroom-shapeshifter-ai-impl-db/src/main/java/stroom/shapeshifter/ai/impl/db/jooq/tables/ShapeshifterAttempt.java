@@ -149,6 +149,11 @@ public class ShapeshifterAttempt extends TableImpl<ShapeshifterAttemptRecord> {
      */
     public final TableField<ShapeshifterAttemptRecord, Long> EXPIRY_MS = createField(DSL.name("expiry_ms"), SQLDataType.BIGINT, this, "");
 
+    /**
+     * The column <code>stroom.shapeshifter_attempt.claim_key</code>.
+     */
+    public final TableField<ShapeshifterAttemptRecord, String> CLAIM_KEY = createField(DSL.name("claim_key"), SQLDataType.VARCHAR(64), this, "");
+
     private ShapeshifterAttempt(Name alias, Table<ShapeshifterAttemptRecord> aliased) {
         this(alias, aliased, (Field<?>[]) null, null);
     }
@@ -198,6 +203,11 @@ public class ShapeshifterAttempt extends TableImpl<ShapeshifterAttemptRecord> {
     @Override
     public UniqueKey<ShapeshifterAttemptRecord> getPrimaryKey() {
         return Keys.KEY_SHAPESHIFTER_ATTEMPT_PRIMARY;
+    }
+
+    @Override
+    public List<UniqueKey<ShapeshifterAttemptRecord>> getUniqueKeys() {
+        return Arrays.asList(Keys.KEY_SHAPESHIFTER_ATTEMPT_SHAPESHIFTER_ATTEMPT_CLAIM);
     }
 
     @Override

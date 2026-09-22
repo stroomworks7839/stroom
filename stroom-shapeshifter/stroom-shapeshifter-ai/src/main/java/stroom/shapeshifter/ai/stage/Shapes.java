@@ -65,26 +65,4 @@ public interface Shapes {
      * rolling score starts afresh.
      */
     void reset(String docUuid, String shape);
-
-    /**
-     * Take the learning lease for a shape (A42): one learner at a time, across the cluster. A node that
-     * does not win it does not wait — waiting would hold a processing thread for minutes, and at hundreds
-     * of threads a shape's first minute would stall the cluster — it sentinels its stream and returns, and
-     * the winner's promotion releases the backlog.
-     *
-     * @param node    Which node is asking, so that a lease can be read back and reported.
-     * @param nowMs   What the caller's clock says now, against which a lease's expiry is judged: the two
-     *                must come from one clock, or a stage whose clock is fixed — a test's — takes leases
-     *                that are expired on arrival and excludes nobody.
-     * @param untilMs When the lease expires if the holder neither finishes nor extends it, which is how a
-     *                node that died mid-attempt lets the next one in. Taking it again extends it, which is
-     *                the heartbeat the dialogue performs between questions.
-     * @return Whether this node now holds it.
-     */
-    boolean lease(String docUuid, String shape, String node, long nowMs, long untilMs);
-
-    /**
-     * Give the lease back, whatever the attempt came to.
-     */
-    void releaseLease(String docUuid, String shape, String node);
 }

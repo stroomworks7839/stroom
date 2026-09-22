@@ -16,6 +16,7 @@
 
 package stroom.shapeshifter.ai.learning;
 
+import stroom.shapeshifter.shared.QuestionKind;
 import stroom.util.shared.StoredError;
 
 import java.util.List;
@@ -32,6 +33,39 @@ public sealed interface Question {
      * first asking of each question carries why the incumbent fell short.
      */
     List<StoredError> feedback();
+
+    /// Which kind of question this is: what a recorded turn names it (A28). Static, because two of these
+    /// records carry a `kind` of their own and a question's kind is not theirs.
+    static QuestionKind kindOf(final Question question) {
+        return switch (question) {
+            case Chain ignored -> QuestionKind.CHAIN;
+            case Split ignored -> QuestionKind.SPLIT;
+            case TargetFor ignored -> QuestionKind.TARGET;
+            case Configuration ignored -> QuestionKind.CONFIGURE;
+        };
+    }
+
+    /// This question in one line: the kind, what it was about, and how much the step had been told when
+    /// it was asked. This is what a turn records as the question asked (A28), which a person reads and a
+    /// resumed attempt compares its re-walk against (A45) — everything in it is re-derived by walking the
+    /// same plan over the same sample, so two walks that have reached the same place write the same line.
+    ///
+    /// Not the rendered prompt: that carries the stream's own text, which may not be stored until it is
+    /// redacted (A17, A38), and which the raw exchange is audited with by `stroom-ai` in any case. The
+    /// rendered prompt joins the record when redaction is built.
+    default String summary() {
+        final String about = switch (this) {
+            case Chain chain -> "choose from " + chain.allowedElements();
+            case Split split -> "what one record is, for " + split.elementType();
+            case TargetFor target -> "what record " + target.kind() + " of " + target.total() + " becomes";
+            case Configuration configuration -> configuration.elementType() + " "
+                                                + configuration.documentType();
+        };
+        return kindOf(this).getDisplayValue() + ": " + about
+               + (feedback().isEmpty()
+                ? ""
+                : ", after " + feedback().size() + " shortfall(s)");
+    }
 
     /**
      * Which chain of elements fits the sample, chosen from the document's allowed elements (A21 step 1).

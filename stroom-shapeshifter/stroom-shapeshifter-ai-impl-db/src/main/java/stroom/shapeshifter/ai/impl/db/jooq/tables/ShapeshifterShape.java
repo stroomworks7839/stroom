@@ -112,16 +112,6 @@ public class ShapeshifterShape extends TableImpl<ShapeshifterShapeRecord> {
      */
     public final TableField<ShapeshifterShapeRecord, Integer> ROLLING_RECORDS = createField(DSL.name("rolling_records"), SQLDataType.INTEGER.nullable(false).defaultValue(DSL.inline("0", SQLDataType.INTEGER)), this, "");
 
-    /**
-     * The column <code>stroom.shapeshifter_shape.lease_node</code>.
-     */
-    public final TableField<ShapeshifterShapeRecord, String> LEASE_NODE = createField(DSL.name("lease_node"), SQLDataType.VARCHAR(255), this, "");
-
-    /**
-     * The column <code>stroom.shapeshifter_shape.lease_expiry_ms</code>.
-     */
-    public final TableField<ShapeshifterShapeRecord, Long> LEASE_EXPIRY_MS = createField(DSL.name("lease_expiry_ms"), SQLDataType.BIGINT, this, "");
-
     private ShapeshifterShape(Name alias, Table<ShapeshifterShapeRecord> aliased) {
         this(alias, aliased, (Field<?>[]) null, null);
     }

@@ -356,7 +356,8 @@ to report. The second stream is bound with the script never consulted. Five thin
   when a document in `AUTOMATIC` mode would ask; the test node binds the scenario's `Script` through an
   `AdvisorHolder`. Wiring `stroom-ai` in is design 01 §12 item 6.
 - **Two tasks learning the same shape at once race on the document write**; the loser's
-  `DataChangedException` fails its stream rather than overwriting. The learning lease of A26 is the fix.
+  `DataChangedException` fails its stream rather than overwriting. The attempt's claim on its shape
+  (A45) is the fix, and the rules leaving the document for rows of their own (A41) removes the write.
 - **A stream of several parts** is served part by part, but the output stream's attributes are one set:
   the first part's bindings stand for the stream and a later part bound differently is reported as a
   warning, since the attributes cannot say so and an as-processed reprocess of it would be misled.
@@ -1306,8 +1307,8 @@ that is to stop and wait. Everything those answers produced is re-derived on the
 boundary, the records, the targets, each element's configuration and its output, because all of it
 follows from the sample and the answers, both of which are kept. What the model said is a record; what
 running produced is a consequence, cheaper to re-derive than to store and the stream's own text besides
-(A38). A replayed answer is judged exactly as it was judged the first time, so an attempt that reaches
-the same question has reached the same state — the replay is its own check.
+(A38). A replayed answer is judged exactly as it was judged the first time; that the walk has reached
+the same place is checked rather than assumed — see the audit below.
 
 A45 is built with it: the claim on a shape moves from the shape row to the attempt. One open attempt
 per `(doc, shape)` is what one learner means; a parked attempt still holds it, since it is still
@@ -1320,6 +1321,45 @@ wall clock, exactly as the lease was before the last audit, and every scenario's
 arrival. This time a test found it rather than a review — the scenario that says a waiting attempt
 holds its shape failed, because it did not. The seam takes the caller's *now*, as the lease does.
 195 tests in the module, 17 against MySQL.
+
+The audit of slice 25 (the owner's code review) found eleven, all fixed, and the first of them was a
+sentence in the paragraph above. "The replay is its own check" was written of code that checked
+nothing: `RecordedAdvisor` handed out its answers in order, to whatever was asked. A document edited
+while its attempt waited — one more allowed element, a changed instruction — puts different questions,
+and the answers kept would have been given to them, judged, configured and possibly bound. Every
+question now carries a one-line `summary()` of itself, which is what a turn has always recorded, and a
+replayed answer is given only to the question whose summary matches the one it answered. A walk that
+asks anything else has diverged: the attempt is refused with `ReplayDiverged` and recorded as an
+error, rather than carried on from a mixture of two walks. Everything in that line is re-derived by
+walking the same plan over the same sample, so two walks that have reached the same place write the
+same line, and the check costs nothing.
+
+`resume` itself took no notice of who held the attempt or what it was about: it would carry on one that
+another node was learning, one that had finished, and one whose stream was of another shape entirely.
+It now takes the claim before it walks — `claimed`, which succeeds only for the holder or for an
+attempt that has lapsed — compares the stream's shape with the attempt's, and sentinels or refuses
+rather than learning beside another node.
+
+The deeper finding was two mechanisms for one rule. The shape's lease (A42, slice 23) and the attempt's
+claim (A45, slice 25) both said who was learning a shape, and the stage took both: `run` leased the
+shape, `recording` opened the attempt, `resume` opened neither and leaked the lease on every path.
+Two rows that must agree are a bug waiting for a schedule, which is exactly what A45 was ruled to
+prevent, so the lease is gone — the seam, both implementations, its tests, and the columns, dropped in
+`V07_13_00_004`. What is left is one claim, and it is the database that holds the rule: `claim_key`
+carries the shape's hash while an attempt is open and nothing once it has closed, under a unique key on
+`(doc_uuid, claim_key)`, so two nodes meeting a new shape are decided by the key and not by what each
+read. The heartbeat, the lapse and the release all move to the attempt row with it.
+
+The rest were of a kind: a parked attempt's tokens overwrote what it had spent before rather than
+adding to it, so a resumed attempt's cost was only its last leg, and its A5 token budget started again
+each time it woke — `Dialogue.alreadySpent` carries it across. A replayed turn was rewritten with the
+model's name over whoever had answered it, which would have made a person's answer the model's in the
+record. A draft awaiting review was counted as still holding its shape, though it holds a rule instead
+and a person's decision is what moves it. `parked` would raise a finished attempt back into life. And
+the in-memory twins had drifted from the tables in three places — the newest open attempt, the claim
+cleared on close, a stream sentinelled twice for one shape being one row — each now as the DAO has it,
+since a scenario that passes over a twin that lies proves nothing. 197 tests in the module, 16 against
+MySQL.
 
 ## 7. Decisions taken
 

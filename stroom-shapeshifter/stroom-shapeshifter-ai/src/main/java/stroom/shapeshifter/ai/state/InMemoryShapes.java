@@ -91,34 +91,10 @@ public final class InMemoryShapes implements Shapes {
                 .findFirst();
     }
 
-    @Override
-    public synchronized boolean lease(final String docUuid,
-                                      final String shape,
-                                      final String node,
-                                      final long nowMs,
-                                      final long untilMs) {
-        final Row row = row(docUuid, shape);
-        if (row.leaseNode != null && !row.leaseNode.equals(node) && row.leaseUntilMs > nowMs) {
-            return false;
-        }
-        row.leaseNode = node;
-        row.leaseUntilMs = untilMs;
-        return true;
-    }
-
-    @Override
-    public synchronized void releaseLease(final String docUuid, final String shape, final String node) {
-        final Row row = row(docUuid, shape);
-        if (node.equals(row.leaseNode)) {
-            row.leaseNode = null;
-            row.leaseUntilMs = 0L;
-        }
-    }
-
-    @Override
     /// What was learned is forgotten; who is learning is not. A promotion resets the shape while the
-    /// attempt that promoted it still holds its lease, so the lease outlives the reset here as it does in
-    /// the row (A42).
+    /// attempt that promoted it is still open, and the attempt's row is what holds the shape (A45), so a
+    /// reset here takes nothing from it.
+    @Override
     public synchronized void reset(final String docUuid, final String shape) {
         final Row row = row(docUuid, shape);
         row.givenUp = null;
@@ -145,9 +121,6 @@ public final class InMemoryShapes implements Shapes {
     }
 
     private static final class Row {
-
-        private String leaseNode;
-        private long leaseUntilMs;
 
         private String givenUp;
         private String relearn;

@@ -28,6 +28,7 @@ import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.jooq.DSLContext;
 import org.jooq.Record;
+import org.jooq.exception.IntegrityConstraintViolationException;
 
 import java.util.List;
 import java.util.Map;
@@ -44,9 +45,11 @@ import static stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterTurn.SHAPES
 @Singleton
 public class AttemptsDao implements Attempts {
 
-    /// The states in which an attempt still holds its shape (A45).
+    /// The states in which an attempt is still learning, and so still holds its shape (A45). A draft
+    /// awaiting review is not one of them: it has written its rule, and the rule is what the router and
+    /// the shape's own row answer with until a person decides.
     private static final List<String> OPEN = List.of(AttemptStatus.IN_PROGRESS.name(),
-            AttemptStatus.AWAITING_MODEL.name(), AttemptStatus.AWAITING_REVIEW.name());
+            AttemptStatus.AWAITING_MODEL.name());
 
     private final ShapeshifterAiDbConnProvider connProvider;
 
@@ -61,18 +64,55 @@ public class AttemptsDao implements Attempts {
     @Override
     public Optional<Long> opened(final Attempt attempt, final long nowMs) {
         final long now = System.currentTimeMillis();
+        final String claim = ShapesDao.hash(attempt.shape());
         return JooqUtil.transactionResult(connProvider, context -> {
-            final boolean held = context.fetchExists(context.selectFrom(SHAPESHIFTER_ATTEMPT)
+            // An attempt that has lapsed holds nothing: its claim is released before this one asks for it,
+            // which is how a node that died lets the next in.
+            context.update(SHAPESHIFTER_ATTEMPT)
+                    .setNull(SHAPESHIFTER_ATTEMPT.CLAIM_KEY)
+                    .set(SHAPESHIFTER_ATTEMPT.STATUS, AttemptStatus.ABANDONED.name())
+                    .set(SHAPESHIFTER_ATTEMPT.DECISION, "Lapsed: the node learning it stopped")
+                    .set(SHAPESHIFTER_ATTEMPT.UPDATE_TIME_MS, now)
                     .where(SHAPESHIFTER_ATTEMPT.DOC_UUID.eq(attempt.docUuid()))
-                    .and(SHAPESHIFTER_ATTEMPT.SHAPE_HASH.eq(ShapesDao.hash(attempt.shape())))
-                    .and(SHAPESHIFTER_ATTEMPT.STATUS.in(OPEN))
-                    .and(SHAPESHIFTER_ATTEMPT.EXPIRY_MS.gt(nowMs))
-                    .forUpdate());
-            if (held) {
+                    .and(SHAPESHIFTER_ATTEMPT.CLAIM_KEY.eq(claim))
+                    .and(SHAPESHIFTER_ATTEMPT.EXPIRY_MS.le(nowMs))
+                    .execute();
+            try {
+                // The unique key on (doc_uuid, claim_key) is what admits one open attempt per shape: two
+                // nodes meeting a new shape at once are decided by the database, not by what each read.
+                return Optional.of(insert(context, attempt, now, claim));
+            } catch (final IntegrityConstraintViolationException e) {
                 return Optional.empty();
             }
-            return Optional.of(insert(context, attempt, now));
         });
+    }
+
+    @Override
+    public boolean claimed(final long attemptId, final String node, final long nowMs, final long expiryMs) {
+        return JooqUtil.contextResult(connProvider, context -> context
+                .update(SHAPESHIFTER_ATTEMPT)
+                .set(SHAPESHIFTER_ATTEMPT.NODE_NAME, node)
+                .set(SHAPESHIFTER_ATTEMPT.STATUS, AttemptStatus.IN_PROGRESS.name())
+                .set(SHAPESHIFTER_ATTEMPT.EXPIRY_MS, expiryMs)
+                .set(SHAPESHIFTER_ATTEMPT.VERSION, SHAPESHIFTER_ATTEMPT.VERSION.plus(1))
+                .set(SHAPESHIFTER_ATTEMPT.UPDATE_TIME_MS, System.currentTimeMillis())
+                .where(SHAPESHIFTER_ATTEMPT.ID.eq(attemptId))
+                .and(SHAPESHIFTER_ATTEMPT.STATUS.in(OPEN))
+                // Either it is this node's already, or it has lapsed and is anyone's.
+                .and(SHAPESHIFTER_ATTEMPT.NODE_NAME.eq(node)
+                        .or(SHAPESHIFTER_ATTEMPT.EXPIRY_MS.le(nowMs)))
+                .execute()) > 0;
+    }
+
+    @Override
+    public void heartbeat(final long attemptId, final long expiryMs) {
+        JooqUtil.context(connProvider, context -> context
+                .update(SHAPESHIFTER_ATTEMPT)
+                .set(SHAPESHIFTER_ATTEMPT.EXPIRY_MS, expiryMs)
+                .set(SHAPESHIFTER_ATTEMPT.UPDATE_TIME_MS, System.currentTimeMillis())
+                .where(SHAPESHIFTER_ATTEMPT.ID.eq(attemptId))
+                .and(SHAPESHIFTER_ATTEMPT.STATUS.in(OPEN))
+                .execute());
     }
 
     @Override
@@ -85,6 +125,7 @@ public class AttemptsDao implements Attempts {
                         .and(SHAPESHIFTER_ATTEMPT.STATUS.in(OPEN))
                         .and(SHAPESHIFTER_ATTEMPT.EXPIRY_MS.gt(nowMs))
                         .orderBy(SHAPESHIFTER_ATTEMPT.ID.desc())
+                        .limit(1)
                         .fetchOptional())
                 .map(record -> recorded(record, turns(record.get(SHAPESHIFTER_ATTEMPT.ID))));
     }
@@ -92,20 +133,28 @@ public class AttemptsDao implements Attempts {
     /// A parked attempt keeps its shape: it is still learning, and its expiry is pushed out by the same
     /// heartbeat that would have extended it (A45).
     @Override
-    public void parked(final long attemptId, final AttemptStatus status, final long expiryMs) {
+    public void parked(final long attemptId,
+                       final AttemptStatus status,
+                       final long expiryMs,
+                       final long tokensSpent) {
         JooqUtil.context(connProvider, context -> context
                 .update(SHAPESHIFTER_ATTEMPT)
                 .set(SHAPESHIFTER_ATTEMPT.STATUS, status.name())
                 .set(SHAPESHIFTER_ATTEMPT.EXPIRY_MS, expiryMs)
+                .set(SHAPESHIFTER_ATTEMPT.TOKENS_SPENT, SHAPESHIFTER_ATTEMPT.TOKENS_SPENT.plus(tokensSpent))
                 .set(SHAPESHIFTER_ATTEMPT.VERSION, SHAPESHIFTER_ATTEMPT.VERSION.plus(1))
                 .set(SHAPESHIFTER_ATTEMPT.UPDATE_TIME_MS, System.currentTimeMillis())
                 .where(SHAPESHIFTER_ATTEMPT.ID.eq(attemptId))
+                // A finished attempt is not parked back into life: it holds no shape and asks nothing.
+                .and(SHAPESHIFTER_ATTEMPT.STATUS.in(OPEN))
                 .execute());
     }
 
-    private static long insert(final DSLContext context, final Attempt attempt, final long now) {
+    private static long insert(final DSLContext context, final Attempt attempt, final long now,
+                               final String claim) {
         return context
                 .insertInto(SHAPESHIFTER_ATTEMPT)
+                .set(SHAPESHIFTER_ATTEMPT.CLAIM_KEY, claim)
                 .set(SHAPESHIFTER_ATTEMPT.VERSION, 1)
                 .set(SHAPESHIFTER_ATTEMPT.CREATE_TIME_MS, now)
                 .set(SHAPESHIFTER_ATTEMPT.UPDATE_TIME_MS, now)
@@ -164,11 +213,12 @@ public class AttemptsDao implements Attempts {
                 .set(SHAPESHIFTER_ATTEMPT.DECISION, decision)
                 .set(SHAPESHIFTER_ATTEMPT.RULE_UUID, ruleUuid)
                 .set(SHAPESHIFTER_ATTEMPT.SCORE, score)
-                .set(SHAPESHIFTER_ATTEMPT.TOKENS_SPENT, tokensSpent)
+                .set(SHAPESHIFTER_ATTEMPT.TOKENS_SPENT, SHAPESHIFTER_ATTEMPT.TOKENS_SPENT.plus(tokensSpent))
                 .set(SHAPESHIFTER_ATTEMPT.VERSION, SHAPESHIFTER_ATTEMPT.VERSION.plus(1))
                 .set(SHAPESHIFTER_ATTEMPT.UPDATE_TIME_MS, System.currentTimeMillis())
-                // A claim that has ended holds nothing (A45).
+                // A claim that has ended holds nothing (A45), and frees the shape for the next attempt.
                 .setNull(SHAPESHIFTER_ATTEMPT.EXPIRY_MS)
+                .setNull(SHAPESHIFTER_ATTEMPT.CLAIM_KEY)
                 .where(SHAPESHIFTER_ATTEMPT.ID.eq(attemptId))
                 .execute());
     }

@@ -133,48 +133,6 @@ public class ShapesDao implements Shapes {
                 .fetchOptional(SHAPESHIFTER_SHAPE.SHAPE_ID));
     }
 
-    /// One conditional update: the row is the single point of truth for who is learning what, so two nodes
-    /// racing for a new shape are decided by the database and not by either of them (A42). A lease whose
-    /// expiry has passed is free — that is how a node that died mid-attempt lets the next one in — and the
-    /// holder may take it again, which is the heartbeat.
-    @Override
-    public boolean lease(final String docUuid,
-                         final String shape,
-                         final String node,
-                         final long nowMs,
-                         final long untilMs) {
-        return JooqUtil.transactionResult(connProvider, context -> {
-            row(context, docUuid, shape);
-            final int taken = context.update(SHAPESHIFTER_SHAPE)
-                    .set(SHAPESHIFTER_SHAPE.LEASE_NODE, node)
-                    .set(SHAPESHIFTER_SHAPE.LEASE_EXPIRY_MS, untilMs)
-                    .set(SHAPESHIFTER_SHAPE.VERSION, SHAPESHIFTER_SHAPE.VERSION.plus(1))
-                    .set(SHAPESHIFTER_SHAPE.UPDATE_TIME_MS, System.currentTimeMillis())
-                    .where(SHAPESHIFTER_SHAPE.DOC_UUID.eq(docUuid))
-                    .and(SHAPESHIFTER_SHAPE.SHAPE_HASH.eq(hash(shape)))
-                    .and(SHAPESHIFTER_SHAPE.LEASE_NODE.isNull()
-                            .or(SHAPESHIFTER_SHAPE.LEASE_NODE.eq(node))
-                            .or(SHAPESHIFTER_SHAPE.LEASE_EXPIRY_MS.isNull())
-                            .or(SHAPESHIFTER_SHAPE.LEASE_EXPIRY_MS.le(nowMs)))
-                    .execute();
-            return taken > 0;
-        });
-    }
-
-    @Override
-    public void releaseLease(final String docUuid, final String shape, final String node) {
-        JooqUtil.context(connProvider, context -> context
-                .update(SHAPESHIFTER_SHAPE)
-                .setNull(SHAPESHIFTER_SHAPE.LEASE_NODE)
-                .setNull(SHAPESHIFTER_SHAPE.LEASE_EXPIRY_MS)
-                .set(SHAPESHIFTER_SHAPE.VERSION, SHAPESHIFTER_SHAPE.VERSION.plus(1))
-                .set(SHAPESHIFTER_SHAPE.UPDATE_TIME_MS, System.currentTimeMillis())
-                .where(SHAPESHIFTER_SHAPE.DOC_UUID.eq(docUuid))
-                .and(SHAPESHIFTER_SHAPE.SHAPE_HASH.eq(hash(shape)))
-                .and(SHAPESHIFTER_SHAPE.LEASE_NODE.eq(node))
-                .execute());
-    }
-
     @Override
     public void reset(final String docUuid, final String shape) {
         JooqUtil.context(connProvider, context -> {

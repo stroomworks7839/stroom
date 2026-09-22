@@ -19,6 +19,7 @@ package stroom.shapeshifter.ai.learning;
 import stroom.shapeshifter.ai.stage.Attempts.Turn;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 /// An advisor that answers from what an attempt was already answered (A28): the turns a previous run
@@ -32,11 +33,15 @@ import java.util.List;
 /// said is a record; what running produced is a consequence, and consequences are cheaper to re-derive
 /// than to store, being the stream's own text besides (A38).
 ///
-/// A replayed answer is not re-scored by hand: the walk judges it exactly as it judged it the first time,
-/// so a resumed attempt that reaches the same question has reached the same state.
+/// A replayed answer is not re-scored by hand: the walk judges it exactly as it judged it the first time.
+/// That the walk has reached the same place is checked rather than assumed — every replayed answer is
+/// given only to the question the record says it answered, and a walk that asks anything else has
+/// diverged and is refused (see [ReplayDiverged]). An attempt that resumes therefore either reaches the
+/// state it stopped in or says it could not, and never binds a configuration learned from a mixture of
+/// two walks.
 public final class RecordedAdvisor implements Advisor {
 
-    private final List<String> answers = new ArrayList<>();
+    private final List<Turn> answered = new ArrayList<>();
     private final Advisor then;
     private int next;
 
@@ -46,9 +51,9 @@ public final class RecordedAdvisor implements Advisor {
     ///              [#awaiting()] for one that is to stop and wait for the worker.
     public RecordedAdvisor(final List<Turn> turns, final Advisor then) {
         turns.stream()
-                .sorted((a, b) -> Integer.compare(a.number(), b.number()))
+                .sorted(Comparator.comparingInt(Turn::number))
                 .filter(turn -> turn.answer() != null)
-                .forEach(turn -> answers.add(turn.answer()));
+                .forEach(answered::add);
         this.then = then;
     }
 
@@ -62,13 +67,18 @@ public final class RecordedAdvisor implements Advisor {
 
     /// How many answers the record holds: the turns a resumed attempt will not ask again.
     public int recorded() {
-        return answers.size();
+        return answered.size();
     }
 
     @Override
     public String ask(final List<Exchange> transcript, final Question question) {
-        if (next < answers.size()) {
-            return answers.get(next++);
+        if (next < answered.size()) {
+            final Turn turn = answered.get(next++);
+            // The summary names the kind of question and what it is about, so one comparison covers both.
+            if (!question.summary().equals(turn.question())) {
+                throw new ReplayDiverged(turn, question);
+            }
+            return turn.answer();
         }
         return then.ask(transcript, question);
     }
@@ -77,6 +87,22 @@ public final class RecordedAdvisor implements Advisor {
     public long tokensUsed() {
         // What the record cost was charged when it was first asked; this advisor charges for what it adds.
         return then.tokensUsed();
+    }
+
+
+    // --------------------------------------------------------------------------------
+
+
+    /// Raised where a resumed walk asks something other than what the record says it asked at that turn
+    /// (A45): the plan, the document or the sample has changed under the attempt, so the answers kept are
+    /// not answers to the questions now being put. The attempt is refused rather than carried on, since an
+    /// answer given to the wrong question would be judged, configured and possibly bound.
+    public static final class ReplayDiverged extends RuntimeException {
+
+        ReplayDiverged(final Turn turn, final Question question) {
+            super("The attempt cannot be resumed: turn " + turn.number() + " answered '" + turn.question()
+                  + "' but the attempt now asks '" + question.summary() + "'");
+        }
     }
 
 

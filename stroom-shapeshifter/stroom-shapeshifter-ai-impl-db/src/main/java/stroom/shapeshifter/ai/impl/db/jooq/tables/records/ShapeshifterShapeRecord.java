@@ -186,34 +186,6 @@ public class ShapeshifterShapeRecord extends UpdatableRecordImpl<ShapeshifterSha
         return (Integer) get(11);
     }
 
-    /**
-     * Setter for <code>stroom.shapeshifter_shape.lease_node</code>.
-     */
-    public void setLeaseNode(String value) {
-        set(12, value);
-    }
-
-    /**
-     * Getter for <code>stroom.shapeshifter_shape.lease_node</code>.
-     */
-    public String getLeaseNode() {
-        return (String) get(12);
-    }
-
-    /**
-     * Setter for <code>stroom.shapeshifter_shape.lease_expiry_ms</code>.
-     */
-    public void setLeaseExpiryMs(Long value) {
-        set(13, value);
-    }
-
-    /**
-     * Getter for <code>stroom.shapeshifter_shape.lease_expiry_ms</code>.
-     */
-    public Long getLeaseExpiryMs() {
-        return (Long) get(13);
-    }
-
     // -------------------------------------------------------------------------
     // Primary key information
     // -------------------------------------------------------------------------
@@ -237,7 +209,7 @@ public class ShapeshifterShapeRecord extends UpdatableRecordImpl<ShapeshifterSha
     /**
      * Create a detached, initialised ShapeshifterShapeRecord
      */
-    public ShapeshifterShapeRecord(Long id, Integer version, Long createTimeMs, Long updateTimeMs, String docUuid, String shapeHash, String shapeId, String givenUpReason, String relearnReason, String awaitingRuleUuid, Double rollingScore, Integer rollingRecords, String leaseNode, Long leaseExpiryMs) {
+    public ShapeshifterShapeRecord(Long id, Integer version, Long createTimeMs, Long updateTimeMs, String docUuid, String shapeHash, String shapeId, String givenUpReason, String relearnReason, String awaitingRuleUuid, Double rollingScore, Integer rollingRecords) {
         super(ShapeshifterShape.SHAPESHIFTER_SHAPE);
 
         setId(id);
@@ -252,8 +224,6 @@ public class ShapeshifterShapeRecord extends UpdatableRecordImpl<ShapeshifterSha
         setAwaitingRuleUuid(awaitingRuleUuid);
         setRollingScore(rollingScore);
         setRollingRecords(rollingRecords);
-        setLeaseNode(leaseNode);
-        setLeaseExpiryMs(leaseExpiryMs);
         resetTouchedOnNotNull();
     }
 }

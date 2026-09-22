@@ -1375,9 +1375,10 @@ does not win it does not wait: it writes its ledger row, sentinels the stream as
 would be, and returns. The winner's promotion releases the backlog as A12 releases any other — a
 reprocess filter over the inputs the ledger names.* Waiting would hold a processing thread for
 minutes; at hundreds of threads a shape's first minute would stall the cluster. Nothing is held (§5.2)
-is as true of concurrency as of quarantine. The lease is a conditional update on the shape row —
-node and expiry, heartbeat to extend, expiry reclaims after a crash — so the row is the single point of
-truth for who is learning what.
+is as true of concurrency as of quarantine. The lease is one conditional write — holder and expiry,
+heartbeat to extend, expiry reclaims after a crash — so that one row is the single point of truth for
+who is learning what. A45 says which row: the attempt's, not the shape's (built 2026-09-22, and the
+shape's lease columns dropped with it).
 
 **Ruling A43 (the owner's, 2026-09-22).** *One learner per shape: variants are not learned in parallel
 and merged.* Two learned variants cannot be merged — they are XSLT and Data Splitter documents, not
@@ -1396,7 +1397,7 @@ tables in a `stroom-shapeshifter-ai-impl-db` module, one row per thing the desig
 
 | Table | One row per | Holds |
 |---|---|---|
-| `shapeshifter_shape` | `(doc, learning-key value)` — feed and type by default, the signature where the key includes it | status — unknown, learning, provisional, bound, awaiting review, given up — with reason and the attempt that set it; the `uuid` of the routing rule for the shape, draft or active; the learning lease of §11.1 (node, expiry); the rolling per-record score of §5 and the rolling AI-review score of A23 |
+| `shapeshifter_shape` | `(doc, learning-key value)` — feed and type by default, the signature where the key includes it | status — unknown, learning, provisional, bound, awaiting review, given up — with reason and the attempt that set it; the `uuid` of the routing rule for the shape, draft or active; the rolling per-record score of §5 and the rolling AI-review score of A23 |
 | `shapeshifter_ledger` | sentinelled input | the shape, the input stream's meta id, the record range where the shape was one of several, when and why |
 | `shapeshifter_feed_state` | `(doc, feed)` | the failure streak and error-mode state of A24: since when, why, last reset and by whom |
 | `shapeshifter_rule` | learned routing rule (A41) | the document, the selector's terms as the learning key wrote them, the fragment's doc ref, `uuid`, state (draft, provisional, active, retracted), score, promoted time, the record boundary of A35, and the order among the document's rules |
@@ -1590,8 +1591,8 @@ the order they arrived. Items marked *built* already exist in `stroom-shapeshift
    `Outputs` and `Reprocessing` seams the tables will implement, and the `Stage`'s use of them, are
    built 2026-09-18 with in-memory implementations; the module is not.* A41 adds the rules themselves
    as rows and takes the routing table off the document, which makes `Rules` a seam beside the others
-   and removes the supervisor's `writeDocument` altogether; A42 adds the lease to the shape row and the
-   loser's sentinel to the stage; A44 adds the spend table. Caches over the rule and shape rows, keyed
+   and removes the supervisor's `writeDocument` altogether; A42 adds the claim — the attempt's own row
+   (A45) — and the loser's sentinel to the stage; A44 adds the spend table. Caches over the rule and shape rows, keyed
    by document and invalidated by `EntityEvent`, are what keep the hot path free of the database.
 9. **A regression stream per rule** (A18), appended at promotion and re-scored by the
    promotion gate; retention a document setting capped by the source feed's retention (A18).
@@ -1795,7 +1796,7 @@ with the criterion that ends it, adds the input formats the feature must be show
 | A39 | The escalating example asks the split of every input: what one record is costs one question and is what the count, the target and yield rest on | **Ruled, 2026-09-22** — the owner's, on run 7 and slice 19, over the recommendation of JSON alone: the split is always asked |
 | A40 | A parser refused on yield — a multi-line record it cut per line — goes back to the split question (`CONFIGURE parser on yield-short goto split`) rather than being re-asked blind | **Ruled, 2026-09-22** — the owner's, from run 7's auditd under escalating |
 | A41 | The document holds only what a person authors; nothing learned is written to it — the routing table becomes rows, one per rule, and the supervisor never writes the document | **Ruled, 2026-09-22** — the owner's, on how the feature survives hundreds of nodes: a whole-document rewrite per promotion loses rules and collides with the operator's own edits (§11.4) |
-| A42 | The learning lease is per `(doc, shape)`; a node that does not win it sentinels the stream and returns rather than waiting, and the winner's promotion releases the backlog | **Ruled, 2026-09-22** — the owner's: waiting holds a processing thread for minutes, and nothing is held (§5.2) is as true of concurrency as of quarantine |
+| A42 | The learning lease is per `(doc, shape)`; a node that does not win it sentinels the stream and returns rather than waiting, and the winner's promotion releases the backlog | **Ruled, 2026-09-22** — the owner's: waiting holds a processing thread for minutes, and nothing is held (§5.2) is as true of concurrency as of quarantine. **Built 2026-09-22**, as the attempt's claim (A45): the shape's lease columns were dropped in the audit of slice 25, two rows saying who is learning being the drift A45 was ruled to prevent |
 | A43 | One learner per shape: variants are not learned in parallel and merged; a shape improves by relearning against the regression set | **Ruled, 2026-09-22** — the owner's: two learned documents cannot be merged, and racing them doubles spend for what the gate decides anyway |
 | A44 | The per-document rate limit and the spend breaker are cluster-wide counters in the A26 module, not per-node limiters | **Ruled, 2026-09-22** — the owner's: a budget divided by node count is not a budget |
 | A45 | The attempt row is the learning lease: one open attempt per `(doc, shape)` is what "one learner" means, and a paused attempt is still learning, so `shapeshifter_shape`'s lease columns give way to the attempt's own claim. A node takes a shape by opening an attempt for it and gives it up by closing one; an attempt whose expiry passes without a heartbeat is abandoned by the worker, which frees the shape | **Ruled, 2026-09-22** — the owner's, on the recommendation: once attempts are durable (A28) two rows would otherwise say who is learning, and a parked attempt would have to hold a lease no thread is behind |
@@ -2025,6 +2026,17 @@ including the degeneracy trap (§8.3) that changes the scoring model and propose
   `shapeshifter_turn`, the `Attempts` seam and its DAO, and the stage recording an attempt and every
   turn of it. Not the rendered prompt, which waits for redaction (A38); not yet the claim on the shape,
   which waits for the dialogue to be resumable (A45).
+- Audit of slice 25 (the owner's code review): eleven findings, all fixed — design 02 §6.1. The replay
+  checked nothing, so a document edited while its attempt waited would have had the answers it kept
+  given to different questions; every question now writes the one-line summary a turn records, and a
+  replayed answer is given only to the question whose summary matches. `resume` took no notice of who
+  held the attempt, whether it had finished, or what shape the stream was. And the shape's lease (A42)
+  and the attempt's claim (A45) both said who was learning: the lease is gone — seam, implementations
+  and columns — which is what A45 was ruled for, and the claim is held by a unique key on
+  `(doc_uuid, claim_key)`. A parked attempt's tokens overwrote rather than added, and its A5 budget
+  started again on every resume; a replayed turn was rewritten with the model's name over the person's;
+  a draft awaiting review was counted as still holding its shape; and the in-memory twins had drifted
+  from the tables in three places.
 - A45 ruled, the owner's, 2026-09-22, on the recommendation: the attempt row is the lease. Until A28's
   attempts exist the shape row's lease columns are it (slice 23); when they do, one open attempt per
   shape is what one learner means, and a paused attempt is still learning.

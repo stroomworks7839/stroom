@@ -284,6 +284,20 @@ public class ShapeshifterAttemptRecord extends UpdatableRecordImpl<ShapeshifterA
         return (Long) get(18);
     }
 
+    /**
+     * Setter for <code>stroom.shapeshifter_attempt.claim_key</code>.
+     */
+    public void setClaimKey(String value) {
+        set(19, value);
+    }
+
+    /**
+     * Getter for <code>stroom.shapeshifter_attempt.claim_key</code>.
+     */
+    public String getClaimKey() {
+        return (String) get(19);
+    }
+
     // -------------------------------------------------------------------------
     // Primary key information
     // -------------------------------------------------------------------------
@@ -307,7 +321,7 @@ public class ShapeshifterAttemptRecord extends UpdatableRecordImpl<ShapeshifterA
     /**
      * Create a detached, initialised ShapeshifterAttemptRecord
      */
-    public ShapeshifterAttemptRecord(Long id, Integer version, Long createTimeMs, Long updateTimeMs, String docUuid, String shapeHash, String shapeId, String feedName, String typeName, Long inputMetaId, String nodeName, String executionMode, String promotionMode, String status, String decision, String ruleUuid, Double score, Long tokensSpent, Long expiryMs) {
+    public ShapeshifterAttemptRecord(Long id, Integer version, Long createTimeMs, Long updateTimeMs, String docUuid, String shapeHash, String shapeId, String feedName, String typeName, Long inputMetaId, String nodeName, String executionMode, String promotionMode, String status, String decision, String ruleUuid, Double score, Long tokensSpent, Long expiryMs, String claimKey) {
         super(ShapeshifterAttempt.SHAPESHIFTER_ATTEMPT);
 
         setId(id);
@@ -329,6 +343,7 @@ public class ShapeshifterAttemptRecord extends UpdatableRecordImpl<ShapeshifterA
         setScore(score);
         setTokensSpent(tokensSpent);
         setExpiryMs(expiryMs);
+        setClaimKey(claimKey);
         resetTouchedOnNotNull();
     }
 }

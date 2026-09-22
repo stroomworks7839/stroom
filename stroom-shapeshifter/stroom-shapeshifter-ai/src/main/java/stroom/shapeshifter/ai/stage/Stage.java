@@ -86,6 +86,8 @@ import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.UUID;
 import java.util.function.Function;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 /**
  * One supervised stage over one stream, as design 02 §4 spells it out: route, learn, judge, write,
@@ -108,9 +110,10 @@ public final class Stage {
 
     private static final String FOLDER = "Shapeshifter";
     /**
-     * Added to the attempt budget for the lease's expiry: an attempt that runs to its budget still holds it.
+     * Added to the attempt budget for the claim's expiry: an attempt that runs to its budget still holds
+     * the shape it is learning.
      */
-    private static final long LEASE_GRACE_MS = 30_000L;
+    private static final long CLAIM_GRACE_MS = 30_000L;
     /**
      * The window a document's spend is counted over (A44). A24 will make it a setting, with the budget it
      * is measured against; until then it is an hour, which is long enough to see a feed burning spend and
@@ -173,14 +176,11 @@ public final class Stage {
     }
 
     /**
-     * Take the learning lease for a shape, or extend one this node already holds (A42). The expiry is
-     * judged against the same clock that sets it, so a stage whose clock is fixed — a test's — excludes
-     * as a node's does.
+     * When a claim taken now lapses if nothing extends it (A45): long enough for an attempt that runs to
+     * its whole budget still to hold the shape it is learning.
      */
-    private boolean lease(final ShapeshifterAiDoc doc, final Shape shape) {
-        final long now = clock.millis();
-        return shapes.lease(doc.getUuid(), shape.id(), node, now,
-                now + doc.getAttemptBudgetMs() + LEASE_GRACE_MS);
+    private long claimUntil(final ShapeshifterAiDoc doc) {
+        return clock.millis() + doc.getAttemptBudgetMs() + CLAIM_GRACE_MS;
     }
 
     /**
@@ -199,10 +199,29 @@ public final class Stage {
                 .orElseThrow(() -> new IllegalArgumentException("No attempt " + attemptId));
         final Map<String, Object> attributes = input.routingAttributes(ShapeSignature.of(input.data()));
         final Shape shape = Shape.of(doc.getLearningKey(), attributes);
+        // The replay only re-derives what the attempt saw if it is walked over the same sample: a stream
+        // of another shape would be answered from a record of questions never asked about it.
+        if (!shape.id().equals(recorded.attempt().shape())) {
+            throw new IllegalArgumentException("Attempt " + attemptId + " was learning shape "
+                                               + recorded.attempt().shape() + ", and this stream is shape "
+                                               + shape.id());
+        }
+        // Carrying it on is taking it (A45): an attempt that has finished is not resumed, and one another
+        // node has taken since is that node's until its claim lapses.
+        if (!attempts.claimed(attemptId, node, clock.millis(), claimUntil(doc))) {
+            return sentinel(doc, shape, input, "Attempt " + attemptId + " is not this node's to carry on: it "
+                                               + "has finished, or another node holds it");
+        }
         final Scorecard scorecard = new Scorecard(doc.getScorers(), scorers);
         final ExpressionOperator selector = RoutingRule.learnedSelector(doc.getLearningKey(), attributes);
         final RecordedAdvisor replay = new RecordedAdvisor(recorded.turns(), answerer);
-        return carrying(doc, shape, input, attemptId, replay,
+        // Who answered each turn the first time, by its number: a replayed turn is rewritten as it is
+        // re-walked, and it must not come back saying the model answered what a person answered (A28).
+        final Map<Integer, String> answeredBefore = recorded.turns().stream()
+                .filter(turn -> turn.answeredBy() != null)
+                .collect(Collectors.toMap(Attempts.Turn::number, Attempts.Turn::answeredBy,
+                        (first, second) -> first));
+        return carrying(doc, shape, input, attemptId, recorded.tokensSpent(), answeredBefore, replay,
                 recorder -> learnAndBind(doc, shape, input, attributes, scorecard, selector, recorder));
     }
 
@@ -264,22 +283,16 @@ public final class Stage {
                     "Shapeshifter AI is disabled for this document and no bound variant fits");
         }
 
-        // One learner per shape across the cluster (A42, A43). A node that does not win the lease does not
-        // wait — that would hold this thread for the length of an attempt — it sentinels and returns, and
-        // the winner's promotion releases the backlog as A12 releases any other.
-        if (!lease(doc, shape)) {
-            return sentinel(doc, shape, input, "Another node is learning this shape; this stream waits for "
-                                               + "what it learns");
-        }
-        try {
-            return recording(doc, shape, input,
-                    recorder -> learnAndBind(doc, shape, input, attributes, scorecard, selector, recorder));
-        } finally {
-            // Held until the rule is written, not merely while the model is asked: a second node that took
-            // it in between would find no rule for the shape, learn it again, and append a second rule for
-            // one selector, leaving its fragment orphaned behind the first.
-            shapes.releaseLease(doc.getUuid(), shape.id(), node);
-        }
+        // One learner per shape across the cluster (A42, A43, A45): the attempt's own row is the claim,
+        // held until the rule is written and not merely while the model is asked — a second node that took
+        // the shape in between would find no rule for it, learn it again, and append a second rule for one
+        // selector, leaving its fragment orphaned behind the first. A node that does not take the shape
+        // does not wait, which would hold this thread for the length of an attempt: it sentinels and
+        // returns, and the winner's promotion releases the backlog as A12 releases any other.
+        return recording(doc, shape, input,
+                () -> sentinel(doc, shape, input, "Another node is learning this shape; this stream waits "
+                                                  + "for what it learns"),
+                recorder -> learnAndBind(doc, shape, input, attributes, scorecard, selector, recorder));
     }
 
     /**
@@ -291,20 +304,20 @@ public final class Stage {
     private StageRun recording(final ShapeshifterAiDoc doc,
                                final Shape shape,
                                final Input input,
+                               final Supplier<StageRun> taken,
                                final Function<Recorder, StageRun> attempt) {
         // One advisor for the attempt, since the node's makes a new one per call and each counts its own
         // tokens: asking twice would read two fresh counters and record nothing spent.
         final Advisor advisor = advisors.of(doc);
         final Optional<Long> opened = attempts.opened(new Attempts.Attempt(doc.getUuid(), shape.id(),
                 input.feed(), input.type(), input.id(), node, doc.getExecutionMode(), doc.getPromotionMode(),
-                clock.millis() + doc.getAttemptBudgetMs() + LEASE_GRACE_MS), clock.millis());
+                claimUntil(doc)), clock.millis());
         if (opened.isEmpty()) {
             // Another attempt holds this shape (A45): it is still learning, parked or not, and this stream
-            // waits for what it learns rather than learning the same thing beside it.
-            return sentinel(doc, shape, input, "Another node is learning this shape; this stream waits for "
-                                               + "what it learns");
+            // takes what that attempt comes to rather than learning the same thing beside it.
+            return taken.get();
         }
-        return carrying(doc, shape, input, opened.get(), advisor, attempt);
+        return carrying(doc, shape, input, opened.get(), 0L, Map.of(), advisor, attempt);
     }
 
     /**
@@ -315,10 +328,13 @@ public final class Stage {
                               final Shape shape,
                               final Input input,
                               final long attemptId,
+                              final long alreadySpent,
+                              final Map<Integer, String> answeredBefore,
                               final Advisor advisor,
                               final Function<Recorder, StageRun> attempt) {
         final long before = advisor.tokensUsed();
-        final Recorder recorder = new Recorder(advisor, attemptId, answeredBy(doc));
+        final Recorder recorder = new Recorder(doc, advisor, attemptId, alreadySpent, answeredBefore,
+                answeredBy(doc));
         final StageRun run;
         try {
             run = attempt.apply(recorder);
@@ -326,10 +342,10 @@ public final class Stage {
             // The attempt has reached a question nobody present can answer: it stops here, keeps its claim
             // on the shape, and waits for the worker or a person (A28, A45). The stream is sentinelled, as
             // an unknown shape's is, and released when the attempt finishes.
-            record(() -> attempts.parked(attemptId, AttemptStatus.AWAITING_MODEL,
-                    clock.millis() + doc.getAttemptBudgetMs() + LEASE_GRACE_MS));
+            record(() -> attempts.parked(attemptId, AttemptStatus.AWAITING_MODEL, claimUntil(doc),
+                    Math.max(0L, advisor.tokensUsed() - before)));
             return sentinel(doc, shape, input, "Awaiting the model: attempt " + attemptId + " stopped at "
-                                               + describe(awaiting.question()));
+                                               + awaiting.question().summary());
         } catch (final RuntimeException e) {
             // The model, the node or the database failed: the attempt says so, with the turns it had got
             // to, rather than vanishing. Nothing here may throw over the failure that brought us.
@@ -362,13 +378,24 @@ public final class Stage {
      */
     private final class Recorder {
 
+        private final ShapeshifterAiDoc doc;
         private final Advisor advisor;
         private final long attemptId;
+        private final long alreadySpent;
+        private final Map<Integer, String> answeredBefore;
         private final String answeredBy;
 
-        private Recorder(final Advisor advisor, final long attemptId, final String answeredBy) {
+        private Recorder(final ShapeshifterAiDoc doc,
+                         final Advisor advisor,
+                         final long attemptId,
+                         final long alreadySpent,
+                         final Map<Integer, String> answeredBefore,
+                         final String answeredBy) {
+            this.doc = doc;
             this.advisor = advisor;
             this.attemptId = attemptId;
+            this.alreadySpent = alreadySpent;
+            this.answeredBefore = Map.copyOf(answeredBefore);
             this.answeredBy = answeredBy;
         }
 
@@ -376,10 +403,22 @@ public final class Stage {
             return advisor;
         }
 
+        /// What this attempt had spent before it was last parked (A5): its budget is the whole of it.
+        private long alreadySpent() {
+            return alreadySpent;
+        }
+
+        /// The claim pushed out, before every question: an attempt held up by one slow model call would
+        /// otherwise run past its expiry and have its shape learned again by another node (A45).
+        private void heartbeat() {
+            record(() -> attempts.heartbeat(attemptId, claimUntil(doc)));
+        }
+
         private void turn(final int number, final Exchange exchange) {
             record(() -> attempts.turn(attemptId, new Attempts.Turn(number, exchange.step(),
-                    exchange.candidate(), kindOf(exchange.question()), describe(exchange.question()),
-                    exchange.reply(), answeredBy, exchange.outcome())));
+                    exchange.candidate(), Question.kindOf(exchange.question()), exchange.question().summary(),
+                    exchange.reply(), answeredBefore.getOrDefault(number, answeredBy),
+                    exchange.outcome())));
         }
     }
 
@@ -435,35 +474,6 @@ public final class Stage {
             case Rebound rebound -> rebound.score();
             default -> null;
         };
-    }
-
-    private static QuestionKind kindOf(final Question question) {
-        return switch (question) {
-            case Chain ignored -> QuestionKind.CHAIN;
-            case Split ignored -> QuestionKind.SPLIT;
-            case TargetFor ignored -> QuestionKind.TARGET;
-            case Configuration ignored -> QuestionKind.CONFIGURE;
-        };
-    }
-
-    /**
-     * What a turn asked, in a line: the kind, what it was about, and how much the step had been told when
-     * it was asked. Not the rendered prompt — that carries the stream's own text, which may not be stored
-     * until it is redacted (A17, A38), and which the raw exchange is audited with by `stroom-ai` in any
-     * case. The rendered prompt joins the record when redaction is built.
-     */
-    private static String describe(final Question question) {
-        final String about = switch (question) {
-            case Chain chain -> "choose from " + chain.allowedElements();
-            case Split split -> "what one record is, for " + split.elementType();
-            case TargetFor target -> "what record " + target.kind() + " of " + target.total() + " becomes";
-            case Configuration configuration -> configuration.elementType() + " "
-                                                + configuration.documentType();
-        };
-        return kindOf(question).getDisplayValue() + ": " + about
-               + (question.feedback().isEmpty()
-                ? ""
-                : ", after " + question.feedback().size() + " shortfall(s)");
     }
 
     /**
@@ -623,21 +633,15 @@ public final class Stage {
                              final Scorecard scorecard,
                              final Judged served,
                              final String marked) {
-        if (!lease(doc, shape)) {
-            // Another node is relearning this shape; the incumbent serves this stream, as it serves every
-            // other until the relearning settles (A42).
-            return emit(doc, new Bound(incumbent), shape, input, incumbent, served, List.of());
-        }
-        try {
-            return recording(doc, shape, input, recorder ->
-                    relearnUnderLease(doc, shape, incumbent, input, attributes, scorecard, served, marked,
-                            recorder));
-        } finally {
-            shapes.releaseLease(doc.getUuid(), shape.id(), node);
-        }
+        // Another node relearning this shape holds it (A45); the incumbent serves this stream, as it
+        // serves every other until the relearning settles.
+        return recording(doc, shape, input,
+                () -> emit(doc, new Bound(incumbent), shape, input, incumbent, served, List.of()),
+                recorder -> relearnUnderClaim(doc, shape, incumbent, input, attributes, scorecard, served,
+                        marked, recorder));
     }
 
-    private StageRun relearnUnderLease(final ShapeshifterAiDoc doc,
+    private StageRun relearnUnderClaim(final ShapeshifterAiDoc doc,
                                        final Shape shape,
                                        final RoutingRule incumbent,
                                        final Input input,
@@ -780,11 +784,12 @@ public final class Stage {
                           final List<StoredError> opening,
                           final Recorder recorder) {
         final Advisor advisor = recorder.advisor();
-        // The lease is extended before every question: an attempt held up by one slow call would otherwise
-        // run past its expiry and be learned again by another node (A42). Every turn is recorded as it is
-        // answered and again as it is judged, so an attempt still running shows what it had got to (A28).
+        // The attempt's claim is pushed out before every question (A45), and every turn is recorded as it
+        // is answered and again as it is judged, so an attempt still running shows what it had got to
+        // (A28).
         final Dialogue dialogue = new Dialogue(advisor, runners, scorecard, clock,
-                () -> lease(doc, Shape.of(doc.getLearningKey(), attributes)), recorder::turn);
+                recorder::heartbeat, recorder::turn)
+                .alreadySpent(recorder.alreadySpent());
         final Sample sample = Sample.of(learningPrefix(input.data(), doc), doc.getLearningKey(), attributes);
         final long before = advisor.tokensUsed();
         final List<Exchange> asked = new ArrayList<>();

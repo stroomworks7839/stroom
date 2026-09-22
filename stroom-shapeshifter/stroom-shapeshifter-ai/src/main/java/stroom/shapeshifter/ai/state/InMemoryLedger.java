@@ -35,7 +35,13 @@ public final class InMemoryLedger implements Ledger {
                                          final String shape,
                                          final long inputId,
                                          final String reason) {
-        rows.add(new Row(docUuid, shape, inputId, reason));
+        // A stream sentinelled twice for one shape is one row, as the table has it: it must not be
+        // replayed twice when the shape settles.
+        if (rows.stream().noneMatch(row -> row.docUuid().equals(docUuid)
+                                           && row.shape().equals(shape)
+                                           && row.inputId() == inputId)) {
+            rows.add(new Row(docUuid, shape, inputId, reason));
+        }
     }
 
     @Override

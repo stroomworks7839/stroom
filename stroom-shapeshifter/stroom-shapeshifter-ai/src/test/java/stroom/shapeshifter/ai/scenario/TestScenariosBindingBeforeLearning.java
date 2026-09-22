@@ -25,6 +25,7 @@ import stroom.shapeshifter.ai.learning.Advisors;
 import stroom.shapeshifter.ai.learning.Exchange;
 import stroom.shapeshifter.ai.learning.Question;
 import stroom.shapeshifter.ai.learning.RecordedAdvisor;
+import stroom.shapeshifter.ai.stage.Attempts.Attempt;
 import stroom.shapeshifter.ai.stage.Attempts.Recorded;
 import stroom.shapeshifter.ai.stage.Attempts.Turn;
 import stroom.shapeshifter.ai.stage.Decision.Bound;
@@ -38,8 +39,10 @@ import stroom.shapeshifter.ai.stage.ShapeSignature;
 import stroom.shapeshifter.ai.stage.Stage;
 import stroom.shapeshifter.ai.stage.StageRun;
 import stroom.shapeshifter.shared.AttemptStatus;
+import stroom.shapeshifter.shared.ExecutionMode;
 import stroom.shapeshifter.shared.LearningMode;
 import stroom.shapeshifter.shared.PlanExample;
+import stroom.shapeshifter.shared.PromotionMode;
 import stroom.shapeshifter.shared.QuestionKind;
 import stroom.shapeshifter.shared.RoutingFields;
 import stroom.shapeshifter.shared.RoutingRule;
@@ -94,6 +97,14 @@ class TestScenariosBindingBeforeLearning {
     }
 
     /// The shape a CSV stream of this feed and type makes, under the document's learning key.
+    /// Another node already learning this shape, as the claim of A45 has it: the row that a stage meeting
+    /// the shape finds instead of taking it.
+    private static long heldByAnotherNode(final Scenarios scenarios, final long untilMs) {
+        return scenarios.attempts.opened(new Attempt("doc-1", shapeX(), "DOOR-ACCESS", "Raw Events", 99L,
+                        "node-2", ExecutionMode.INLINE, PromotionMode.AUTOMATIC, untilMs),
+                Scenarios.NOW.toEpochMilli()).orElseThrow();
+    }
+
     private static String shapeX() {
         return Shape.of(keyedOnFormat().getLearningKey(),
                 stream("CSV").routingAttributes(ShapeSignature.of(CSV.input()))).id();
@@ -258,12 +269,12 @@ class TestScenariosBindingBeforeLearning {
 
     @Test
     void aSecondNodeMeetingTheSameShapeSentinelsRatherThanWaiting() {
-        // A42: one learner per shape across the cluster. The loser does not wait — that would hold a
-        // processing thread for the length of an attempt, and at hundreds of threads a shape's first
-        // minute would stall the cluster — it writes its ledger row and returns, and the winner's
-        // promotion releases the backlog as A12 releases any other.
+        // A42, A45: one learner per shape across the cluster, and the open attempt is what says so. The
+        // loser does not wait — that would hold a processing thread for the length of an attempt, and at
+        // hundreds of threads a shape's first minute would stall the cluster — it writes its ledger row
+        // and returns, and the winner's promotion releases the backlog as A12 releases any other.
         final Scenarios scenarios = new Scenarios();
-        scenarios.shapes.lease("doc-1", shapeX(), "node-2", Scenarios.NOW.toEpochMilli(), Long.MAX_VALUE);
+        final long held = heldByAnotherNode(scenarios, Long.MAX_VALUE);
 
         final Script silent = Script.of();
         scenarios.node = "node-1";
@@ -276,8 +287,8 @@ class TestScenariosBindingBeforeLearning {
         assertThat(scenarios.ledger.rows()).hasSize(1);
         assertThat(scenarios.rules.forDocument("doc-1")).isEmpty();
 
-        // The lease given back, the next stream of the shape learns, and the ledger's backlog is released.
-        scenarios.shapes.releaseLease("doc-1", shapeX(), "node-2");
+        // That attempt over, the next stream of the shape learns, and the ledger's backlog is released.
+        scenarios.attempts.closed(held, AttemptStatus.ABANDONED, "The other node gave up", null, null, 0L);
         final StageRun learned = learnShapeX(scenarios, keyedOnFormat());
 
         assertThat(learned.decision()).describedAs(learned.decision().toString()).isInstanceOf(Promoted.class);
@@ -355,12 +366,11 @@ class TestScenariosBindingBeforeLearning {
     }
 
     @Test
-    void aLeaseThatHasExpiredIsFreeForTheNextNode() {
-        // The holder died mid-attempt: its lease runs out and the next node in learns, rather than the
-        // shape being stuck until someone notices.
+    void aClaimThatHasLapsedIsFreeForTheNextNode() {
+        // The holder died mid-attempt: its claim runs out and the next node in learns, rather than the
+        // shape being stuck until someone notices (A45).
         final Scenarios scenarios = new Scenarios();
-        scenarios.shapes.lease("doc-1", shapeX(), "node-2", Scenarios.NOW.toEpochMilli(),
-                Scenarios.NOW.toEpochMilli() - 1);
+        heldByAnotherNode(scenarios, Scenarios.NOW.toEpochMilli() - 1);
 
         final StageRun run = learnShapeX(scenarios, keyedOnFormat());
 
@@ -402,7 +412,7 @@ class TestScenariosBindingBeforeLearning {
     }
 
     @Test
-    void anAttemptThatBoundNothingSaysSoAndOneThatIsLeasedAwaySaysNothing() {
+    void anAttemptThatBoundNothingSaysSoAndOneWhoseShapeIsTakenOpensNone() {
         final Scenarios scenarios = new Scenarios();
         // Nothing to learn with: the attempt is opened, abandoned and recorded as abandoned.
         final ShapeshifterAiDoc nothingRunnable = keyedOnFormat().copy()
@@ -416,13 +426,13 @@ class TestScenariosBindingBeforeLearning {
         assertThat(recorded.get(0).status()).isEqualTo(AttemptStatus.ABANDONED);
         assertThat(recorded.get(0).ruleUuid()).isNull();
 
-        // A node that does not win the lease opens no attempt: it did not learn anything.
-        scenarios.shapes.lease("doc-1", shapeX(), "node-2", Scenarios.NOW.toEpochMilli(), Long.MAX_VALUE);
+        // A node that does not take the shape opens no attempt of its own: it did not learn anything.
+        heldByAnotherNode(scenarios, Long.MAX_VALUE);
         scenarios.stage(Script.of()).run(keyedOnFormat(), stream("CSV"));
 
         assertThat(scenarios.attempts.forDocument("doc-1", 10))
-                .describedAs("one attempt, the abandoned one: the loser recorded none")
-                .hasSize(1);
+                .describedAs("two: the abandoned one and the other node's, and none for the loser")
+                .hasSize(2);
     }
 
     @Test
@@ -517,6 +527,77 @@ class TestScenariosBindingBeforeLearning {
         assertThat(finished.status()).isEqualTo(AttemptStatus.PROMOTED);
         assertThat(finished.turns()).describedAs("every turn, the replayed ones and the new")
                 .hasSize(resumed.transcript().size());
+        assertThat(finished.turns().get(0).answeredBy())
+                .describedAs("a replayed turn keeps whoever answered it the first time")
+                .isEqualTo(waiting.turns().get(0).answeredBy());
+    }
+
+    @Test
+    void anAttemptIsOnlyCarriedOnByWhoeverHoldsItAndOnlyOverItsOwnShape() {
+        // A45: carrying an attempt on is taking its shape. Resuming one that another node holds, or one
+        // that has finished, would learn beside the node that is learning; resuming over a stream of
+        // another shape would answer questions never asked about it from a record of questions about
+        // something else.
+        final Scenarios scenarios = new Scenarios();
+        final ShapeshifterAiDoc doc = keyedOnFormat();
+        final Script started = scenarios.script(CSV.configuration(), XSLT)
+                .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter");
+        scenarios.stage(new StoppingAdvisor(started, 1)).run(doc, stream("CSV"));
+        final Recorded waiting = scenarios.attempts.forDocument("doc-1", 10).get(0);
+
+        // Another node's, while its claim holds.
+        final Script elsewhere = Script.of();
+        scenarios.node = "node-3";
+        final StageRun refused = scenarios.stage(Script.of()).resume(doc, waiting.id(), stream("CSV"), elsewhere);
+
+        assertThat(refused.decision()).describedAs(refused.decision().toString()).isInstanceOf(Sentinel.class);
+        assertThat(((Sentinel) refused.decision()).reason()).contains("not this node's to carry on");
+        assertThat(elsewhere.asked()).isEmpty();
+        assertThat(scenarios.rules.forDocument("doc-1")).isEmpty();
+
+        // Another shape's stream, whoever asks.
+        scenarios.node = "node-1";
+        final Stage stage = scenarios.stage(Script.of());
+        assertThatThrownBy(() -> stage.resume(doc, waiting.id(), stream("JSON"), Script.of()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("was learning shape");
+
+        // Finished, and not carried on either.
+        scenarios.attempts.closed(waiting.id(), AttemptStatus.ABANDONED, "Given up", null, null, 0L);
+        assertThat(stage.resume(doc, waiting.id(), stream("CSV"), Script.of()).decision())
+                .isInstanceOf(Sentinel.class);
+    }
+
+    @Test
+    void aReplayThatNoLongerFitsTheRecordIsRefusedRatherThanMisfed() {
+        // A45: the replay is a check, not an assumption. A document edited while its attempt waited puts
+        // different questions, and answering those from the record would judge, configure and possibly
+        // bind an answer given to something else.
+        final Scenarios scenarios = new Scenarios();
+        final ShapeshifterAiDoc doc = keyedOnFormat();
+        final Script started = scenarios.script(CSV.configuration(), XSLT)
+                .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter");
+        scenarios.stage(new StoppingAdvisor(started, 1)).run(doc, stream("CSV"));
+        final Recorded waiting = scenarios.attempts.forDocument("doc-1", 10).get(0);
+
+        // The document now allows an element it did not when the chain was chosen, so the chain question
+        // is a different question.
+        final ShapeshifterAiDoc edited = doc.copy()
+                .allowedElements(List.of("DSParser", "XSLTFilter", "JSONParser"))
+                .build();
+        final Script carrying = Script.of();
+        final Stage stage = scenarios.stage(Script.of());
+
+        assertThatThrownBy(() -> stage.resume(edited, waiting.id(), stream("CSV"), carrying))
+                .isInstanceOf(RecordedAdvisor.ReplayDiverged.class)
+                .hasMessageContaining("cannot be resumed");
+
+        assertThat(carrying.asked()).describedAs("nothing was asked beyond the record either").isEmpty();
+        assertThat(scenarios.rules.forDocument("doc-1")).isEmpty();
+        final Recorded refused = scenarios.attempts.byId(waiting.id()).orElseThrow();
+        assertThat(refused.status()).describedAs("and the attempt says why it could not go on")
+                .isEqualTo(AttemptStatus.ERROR);
+        assertThat(refused.decision()).contains("ReplayDiverged");
     }
 
 

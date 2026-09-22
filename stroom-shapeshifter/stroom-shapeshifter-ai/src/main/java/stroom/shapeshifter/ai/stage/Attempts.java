@@ -50,15 +50,28 @@ public interface Attempts {
     Optional<Recorded> open(String docUuid, String shape, long nowMs);
 
     /// Park an attempt until whoever will answer its next question does (A28): it keeps its claim on the
-    /// shape, since it is still learning, and its expiry is pushed out by the same heartbeat.
-    void parked(long attemptId, AttemptStatus status, long expiryMs);
+    /// shape, since it is still learning, and its expiry is pushed out by the same heartbeat. What it has
+    /// spent so far is added to what it had spent before, since a resumed attempt's cost is the whole of
+    /// it and not its last leg.
+    void parked(long attemptId, AttemptStatus status, long expiryMs, long tokensSpent);
+
+    /// Take up an attempt that stopped, as this node, extending its claim (A45).
+    ///
+    /// @return Whether this node may carry it on: false where it has finished, or where another node has
+    /// taken it since.
+    boolean claimed(long attemptId, String node, long nowMs, long expiryMs);
+
+    /// Push a running attempt's claim out, as the dialogue asks each question (A45): the heartbeat that
+    /// keeps a slow model call from costing a node the shape it is learning.
+    void heartbeat(long attemptId, long expiryMs);
 
     /// Write a turn of an attempt, by its number: as it is answered, and again when it is judged. An
     /// attempt still running — or one whose node died — then shows what it had got to, which is the
     /// transcript a person most needs.
     void turn(long attemptId, Turn turn);
 
-    /// What an attempt came to, and when it stopped.
+    /// What an attempt came to, and when it stopped. The tokens are added to what it had spent before it
+    /// was last parked, so a resumed attempt records the whole of its cost.
     void closed(long attemptId, AttemptStatus status, String decision, String ruleUuid, Double score,
                 long tokensSpent);
 

@@ -84,6 +84,7 @@ public final class Dialogue {
     private final Runnable heartbeat;
     private final BiConsumer<Integer, Exchange> onTurn;
     private Budget budget;
+    private long alreadySpent;
 
     public Dialogue(final Advisor advisor, final List<StepRunner> runners, final Scorecard scorecard) {
         this(advisor, runners, scorecard, Clock.systemUTC());
@@ -99,8 +100,8 @@ public final class Dialogue {
 
     /**
      * @param heartbeat Run before every question, for a caller holding something that expires while the
-     *                  dialogue runs — the learning lease of A42, which one slow model call would
-     *                  otherwise outlive.
+     *                  dialogue runs — the attempt's claim on its shape (A45), which one slow model call
+     *                  would otherwise outlive.
      */
     public Dialogue(final Advisor advisor,
                     final List<StepRunner> runners,
@@ -131,6 +132,17 @@ public final class Dialogue {
                 .collect(Collectors.toUnmodifiableMap(StepRunner::elementType, Function.identity()));
     }
 
+    /// What this attempt spent before it was parked (A5, A45): a resumed attempt's token budget counts
+    /// the whole of the attempt and not its last leg, or an attempt that stops and starts could spend its
+    /// budget over again each time. The wall-clock half of the budget is this leg's, since an attempt may
+    /// wait days for a person and the waiting is not the attempt taking too long.
+    ///
+    /// @return This dialogue, to be run.
+    public Dialogue alreadySpent(final long tokens) {
+        this.alreadySpent = tokens;
+        return this;
+    }
+
     public Outcome run(final ShapeshifterAiDoc policy, final Sample sample) {
         return run(policy, sample, List.of());
     }
@@ -141,7 +153,7 @@ public final class Dialogue {
      */
     public Outcome run(final ShapeshifterAiDoc policy, final Sample sample, final List<StoredError> opening) {
         final Walk walk = new Walk(policy, sample, opening);
-        budget = new Budget(policy, clock.millis(), advisor.tokensUsed());
+        budget = new Budget(policy, clock.millis(), advisor.tokensUsed() - alreadySpent);
         try {
             return follow(walk);
         } catch (final BudgetExhausted e) {

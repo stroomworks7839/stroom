@@ -136,47 +136,49 @@ class TestShapesAndLedgerDao {
     }
 
     @Test
-    void oneNodeLearnsAShapeAndTheOtherIsToldToGoAway() {
-        // A42: the row is the single point of truth for who is learning what, so the database decides the
-        // race and not either node.
-        final long until = System.currentTimeMillis() + 60_000L;
-
-        assertThat(shapes.lease(DOC, SHAPE, "node-1", now(), until)).isTrue();
-        assertThat(shapes.lease(DOC, SHAPE, "node-2", now(), until)).describedAs("one learner per shape").isFalse();
-        assertThat(shapes.lease(DOC, SHAPE, "node-1", now(), until + 60_000L))
-                .describedAs("the holder may take it again, which is the heartbeat").isTrue();
-        assertThat(shapes.lease(DOC, "another-shape", "node-2", now(), until))
-                .describedAs("a different shape is a different lease").isTrue();
-
-        shapes.releaseLease(DOC, SHAPE, "node-2");
-        assertThat(shapes.lease(DOC, SHAPE, "node-2", now(), until))
-                .describedAs("a node cannot release what it does not hold").isFalse();
-        shapes.releaseLease(DOC, SHAPE, "node-1");
-        assertThat(shapes.lease(DOC, SHAPE, "node-2", now(), until)).isTrue();
-        shapes.releaseLease(DOC, SHAPE, "node-2");
-        shapes.releaseLease(DOC, "another-shape", "node-2");
-    }
-
-    @Test
-    void aLeaseWhoseHolderDiedIsFreeWhenItExpires() {
-        assertThat(shapes.lease(DOC, SHAPE, "node-1", now(), now() - 1)).isTrue();
-
-        assertThat(shapes.lease(DOC, SHAPE, "node-2", now(), now() + 60_000L))
-                .describedAs("an expired lease is free: a node that died lets the next one in")
-                .isTrue();
-        shapes.releaseLease(DOC, SHAPE, "node-2");
-    }
-
-    @Test
-    void resettingAShapeLeavesTheLeaseAlone() {
+    void resettingAShapeLeavesTheAttemptLearningItAlone() {
         // Reset is about what was learned, not about who is learning: a promotion resets the shape while
-        // the attempt that promoted it still holds its lease, and must not hand it to another node.
-        assertThat(shapes.lease(DOC, SHAPE, "node-1", now(), now() + 60_000L)).isTrue();
+        // the attempt that promoted it is still open, and must not hand the shape to another node (A45).
+        final String shape = SHAPE + "-reset";
+        attempts.opened(new Attempt(DOC, shape, "F", "T", 1L, "node-1",
+                ExecutionMode.INLINE, PromotionMode.AUTOMATIC, now() + 60_000L), now()).orElseThrow();
 
-        shapes.reset(DOC, SHAPE);
+        shapes.reset(DOC, shape);
 
-        assertThat(shapes.lease(DOC, SHAPE, "node-2", now(), now() + 60_000L)).isFalse();
-        shapes.releaseLease(DOC, SHAPE, "node-1");
+        assertThat(attempts.opened(new Attempt(DOC, shape, "F", "T", 2L, "node-2",
+                ExecutionMode.INLINE, PromotionMode.AUTOMATIC, now() + 60_000L), now())).isEmpty();
+    }
+
+    @Test
+    void anAttemptIsCarriedOnByItsOwnNodeOrByWhoeverFindsItLapsed() {
+        // A45: taking an attempt up is taking its shape. The heartbeat is what keeps a slow model call
+        // from costing a node the shape it is learning.
+        final String shape = SHAPE + "-resume";
+        final long id = attempts.opened(new Attempt(DOC, shape, "F", "T", 1L, "node-1",
+                ExecutionMode.DEFERRED, PromotionMode.AUTOMATIC, now() + 60_000L), now()).orElseThrow();
+        attempts.parked(id, AttemptStatus.AWAITING_MODEL, now() + 60_000L, 500L);
+
+        assertThat(attempts.claimed(id, "node-2", now(), now() + 60_000L))
+                .describedAs("another node's live claim is not free to take").isFalse();
+        assertThat(attempts.claimed(id, "node-1", now(), now() + 120_000L))
+                .describedAs("its own node carries it on").isTrue();
+        assertThat(attempts.byId(id).orElseThrow().status()).isEqualTo(AttemptStatus.IN_PROGRESS);
+
+        attempts.heartbeat(id, now() - 1);
+        assertThat(attempts.open(DOC, shape, now())).describedAs("lapsed, and the shape is free").isEmpty();
+        assertThat(attempts.claimed(id, "node-2", now(), now() + 60_000L))
+                .describedAs("a node that died lets the next one in").isTrue();
+        assertThat(attempts.byId(id).orElseThrow().attempt().node()).isEqualTo("node-2");
+
+        // What it spent on each leg is added up, not overwritten, or a resumed attempt's cost is only its
+        // last leg's (A5).
+        attempts.closed(id, AttemptStatus.PROMOTED, "Promoted 1.0", "rule-3", 1.0, 700L);
+        assertThat(attempts.byId(id).orElseThrow().tokensSpent()).isEqualTo(1_200L);
+        assertThat(attempts.claimed(id, "node-2", now(), now() + 60_000L))
+                .describedAs("a finished attempt is not carried on").isFalse();
+        attempts.parked(id, AttemptStatus.AWAITING_MODEL, now() + 60_000L, 1L);
+        assertThat(attempts.byId(id).orElseThrow().status())
+                .describedAs("nor parked back into life").isEqualTo(AttemptStatus.PROMOTED);
     }
 
     @Test
@@ -257,21 +259,23 @@ class TestShapesAndLedgerDao {
         assertThat(attempts.open(DOC, shape, now()).orElseThrow().id()).isEqualTo(mine);
 
         // Parked awaiting the model, it keeps the shape.
-        attempts.parked(mine, AttemptStatus.AWAITING_MODEL, now() + 60_000L);
+        attempts.parked(mine, AttemptStatus.AWAITING_MODEL, now() + 60_000L, 0L);
         assertThat(attempts.open(DOC, shape, now())).isPresent();
         assertThat(attempts.opened(new Attempt(DOC, shape, "F", "T", 3L, "node-2",
                 ExecutionMode.INLINE, PromotionMode.AUTOMATIC, now() + 60_000L), now())).isEmpty();
 
         // Lapsed, and the next node in takes it.
-        attempts.parked(mine, AttemptStatus.AWAITING_MODEL, now() - 1);
+        attempts.parked(mine, AttemptStatus.AWAITING_MODEL, now() - 1, 0L);
         assertThat(attempts.open(DOC, shape, now())).isEmpty();
         final Long theirs = attempts.opened(new Attempt(DOC, shape, "F", "T", 4L, "node-2",
                 ExecutionMode.INLINE, PromotionMode.AUTOMATIC, now() + 60_000L), now()).orElseThrow();
         assertThat(theirs).isNotEqualTo(mine);
 
-        // Closed, it holds nothing.
+        // Closed, it holds nothing, and the shape is free for the attempt after it.
         attempts.closed(theirs, AttemptStatus.PROMOTED, "Promoted 1.0", "rule-2", 1.0, 0L);
         assertThat(attempts.open(DOC, shape, now())).isEmpty();
+        assertThat(attempts.opened(new Attempt(DOC, shape, "F", "T", 5L, "node-3",
+                ExecutionMode.INLINE, PromotionMode.AUTOMATIC, now() + 60_000L), now())).isPresent();
     }
 
     private static long now() {
