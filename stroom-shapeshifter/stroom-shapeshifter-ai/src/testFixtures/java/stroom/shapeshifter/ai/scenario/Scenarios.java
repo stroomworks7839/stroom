@@ -31,6 +31,7 @@ import stroom.shapeshifter.ai.scoring.ExtractionQualityScorer;
 import stroom.shapeshifter.ai.scoring.InputCoverageScorer;
 import stroom.shapeshifter.ai.scoring.Scorer;
 import stroom.shapeshifter.ai.scoring.YieldScorer;
+import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.ai.stage.Stage;
 import stroom.shapeshifter.ai.state.InMemoryLedger;
 import stroom.shapeshifter.ai.state.InMemoryOutputs;
@@ -109,6 +110,12 @@ public final class Scenarios {
     public String node = "node-1";
 
     public Stage stage(final Advisor advisor) {
+        return stage(advisor, rules);
+    }
+
+    /// A stage over a given rule store: for a scenario that watches when a rule is written — the moment a
+    /// second node must still be excluded (A42).
+    public Stage stage(final Advisor advisor, final Rules rules) {
         final List<StepRunner> runners = runners();
         return new Stage(
                 doc -> advisor,

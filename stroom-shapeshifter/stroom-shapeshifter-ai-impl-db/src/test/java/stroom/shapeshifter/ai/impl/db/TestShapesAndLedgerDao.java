@@ -131,27 +131,27 @@ class TestShapesAndLedgerDao {
         // race and not either node.
         final long until = System.currentTimeMillis() + 60_000L;
 
-        assertThat(shapes.lease(DOC, SHAPE, "node-1", until)).isTrue();
-        assertThat(shapes.lease(DOC, SHAPE, "node-2", until)).describedAs("one learner per shape").isFalse();
-        assertThat(shapes.lease(DOC, SHAPE, "node-1", until + 60_000L))
+        assertThat(shapes.lease(DOC, SHAPE, "node-1", now(), until)).isTrue();
+        assertThat(shapes.lease(DOC, SHAPE, "node-2", now(), until)).describedAs("one learner per shape").isFalse();
+        assertThat(shapes.lease(DOC, SHAPE, "node-1", now(), until + 60_000L))
                 .describedAs("the holder may take it again, which is the heartbeat").isTrue();
-        assertThat(shapes.lease(DOC, "another-shape", "node-2", until))
+        assertThat(shapes.lease(DOC, "another-shape", "node-2", now(), until))
                 .describedAs("a different shape is a different lease").isTrue();
 
         shapes.releaseLease(DOC, SHAPE, "node-2");
-        assertThat(shapes.lease(DOC, SHAPE, "node-2", until))
+        assertThat(shapes.lease(DOC, SHAPE, "node-2", now(), until))
                 .describedAs("a node cannot release what it does not hold").isFalse();
         shapes.releaseLease(DOC, SHAPE, "node-1");
-        assertThat(shapes.lease(DOC, SHAPE, "node-2", until)).isTrue();
+        assertThat(shapes.lease(DOC, SHAPE, "node-2", now(), until)).isTrue();
         shapes.releaseLease(DOC, SHAPE, "node-2");
         shapes.releaseLease(DOC, "another-shape", "node-2");
     }
 
     @Test
     void aLeaseWhoseHolderDiedIsFreeWhenItExpires() {
-        assertThat(shapes.lease(DOC, SHAPE, "node-1", System.currentTimeMillis() - 1)).isTrue();
+        assertThat(shapes.lease(DOC, SHAPE, "node-1", now(), now() - 1)).isTrue();
 
-        assertThat(shapes.lease(DOC, SHAPE, "node-2", System.currentTimeMillis() + 60_000L))
+        assertThat(shapes.lease(DOC, SHAPE, "node-2", now(), now() + 60_000L))
                 .describedAs("an expired lease is free: a node that died lets the next one in")
                 .isTrue();
         shapes.releaseLease(DOC, SHAPE, "node-2");
@@ -161,11 +161,11 @@ class TestShapesAndLedgerDao {
     void resettingAShapeLeavesTheLeaseAlone() {
         // Reset is about what was learned, not about who is learning: a promotion resets the shape while
         // the attempt that promoted it still holds its lease, and must not hand it to another node.
-        assertThat(shapes.lease(DOC, SHAPE, "node-1", System.currentTimeMillis() + 60_000L)).isTrue();
+        assertThat(shapes.lease(DOC, SHAPE, "node-1", now(), now() + 60_000L)).isTrue();
 
         shapes.reset(DOC, SHAPE);
 
-        assertThat(shapes.lease(DOC, SHAPE, "node-2", System.currentTimeMillis() + 60_000L)).isFalse();
+        assertThat(shapes.lease(DOC, SHAPE, "node-2", now(), now() + 60_000L)).isFalse();
         shapes.releaseLease(DOC, SHAPE, "node-1");
     }
 
@@ -192,5 +192,9 @@ class TestShapesAndLedgerDao {
         final Spent afresh = spend.spent(DOC, 0L);
         assertThat(afresh.tokens()).isZero();
         assertThat(spend.record(DOC, 100L, 1, 0L).tokens()).isEqualTo(100L);
+    }
+
+    private static long now() {
+        return System.currentTimeMillis();
     }
 }

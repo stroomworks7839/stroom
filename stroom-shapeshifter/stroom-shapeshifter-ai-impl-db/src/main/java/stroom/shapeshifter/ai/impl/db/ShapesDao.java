@@ -138,7 +138,11 @@ public class ShapesDao implements Shapes {
     /// expiry has passed is free — that is how a node that died mid-attempt lets the next one in — and the
     /// holder may take it again, which is the heartbeat.
     @Override
-    public boolean lease(final String docUuid, final String shape, final String node, final long untilMs) {
+    public boolean lease(final String docUuid,
+                         final String shape,
+                         final String node,
+                         final long nowMs,
+                         final long untilMs) {
         return JooqUtil.transactionResult(connProvider, context -> {
             row(context, docUuid, shape);
             final int taken = context.update(SHAPESHIFTER_SHAPE)
@@ -151,7 +155,7 @@ public class ShapesDao implements Shapes {
                     .and(SHAPESHIFTER_SHAPE.LEASE_NODE.isNull()
                             .or(SHAPESHIFTER_SHAPE.LEASE_NODE.eq(node))
                             .or(SHAPESHIFTER_SHAPE.LEASE_EXPIRY_MS.isNull())
-                            .or(SHAPESHIFTER_SHAPE.LEASE_EXPIRY_MS.le(System.currentTimeMillis())))
+                            .or(SHAPESHIFTER_SHAPE.LEASE_EXPIRY_MS.le(nowMs)))
                     .execute();
             return taken > 0;
         });
@@ -230,8 +234,17 @@ public class ShapesDao implements Shapes {
     }
 
     /// The row for a shape, made where this node is the first to mention it. Two nodes meeting a new shape
-    /// at once both insert; the unique key decides, and the loser reads what the winner wrote.
+    /// at once both insert; the unique key decides, and the loser reads what the winner wrote. The row is
+    /// looked for first, so that the steady path — the row exists — never leaves the shared lock an
+    /// `INSERT ... ON DUPLICATE KEY IGNORE` takes on a duplicate, which a following `FOR UPDATE` would have
+    /// to upgrade, and two nodes doing that at once deadlock.
     private static void row(final DSLContext context, final String docUuid, final String shape) {
+        final boolean exists = context.fetchExists(context.selectFrom(SHAPESHIFTER_SHAPE)
+                .where(SHAPESHIFTER_SHAPE.DOC_UUID.eq(docUuid))
+                .and(SHAPESHIFTER_SHAPE.SHAPE_HASH.eq(hash(shape))));
+        if (exists) {
+            return;
+        }
         final long now = System.currentTimeMillis();
         context.insertInto(SHAPESHIFTER_SHAPE)
                 .set(SHAPESHIFTER_SHAPE.VERSION, 1)

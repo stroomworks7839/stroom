@@ -23,6 +23,7 @@ import stroom.shapeshifter.ai.learning.Question;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 /**
  * The simulated model of design 02 §3: an ordered list of expected question and scripted reply. Each
@@ -46,9 +47,17 @@ public final class Script implements Advisor {
     }
 
     public Expecting expect(final QuestionMatcher matcher) {
-        return reply -> {
-            lines.add(new Line(matcher, reply));
-            return this;
+        return new Expecting() {
+            @Override
+            public Script reply(final String reply) {
+                return reply(() -> reply);
+            }
+
+            @Override
+            public Script reply(final Supplier<String> reply) {
+                lines.add(new Line(matcher, reply));
+                return Script.this;
+            }
         };
     }
 
@@ -80,7 +89,7 @@ public final class Script implements Advisor {
             throw new AssertionError("Question " + next + " did not match the script.\nExpected: "
                                      + line.matcher().describe() + "\nActual:   " + question);
         }
-        return line.reply();
+        return line.reply().get();
     }
 
     /**
@@ -111,9 +120,13 @@ public final class Script implements Advisor {
     public interface Expecting {
 
         Script reply(String reply);
+
+        /// A reply worked out when the question is asked rather than when the script is written: for a
+        /// scenario about what another node does while this attempt is still running.
+        Script reply(Supplier<String> reply);
     }
 
-    private record Line(QuestionMatcher matcher, String reply) {
+    private record Line(QuestionMatcher matcher, Supplier<String> reply) {
 
     }
 }

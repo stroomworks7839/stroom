@@ -154,12 +154,14 @@ public final class Stage {
     }
 
     /**
-     * How long a learning lease is held before it is free again (A42): the attempt's own wall-clock budget
-     * and a little more, so that a node still working keeps it and one that died lets the next in soon
-     * after it would have finished.
+     * Take the learning lease for a shape, or extend one this node already holds (A42). The expiry is
+     * judged against the same clock that sets it, so a stage whose clock is fixed — a test's — excludes
+     * as a node's does.
      */
-    private static long leaseMs(final ShapeshifterAiDoc doc) {
-        return doc.getAttemptBudgetMs() + LEASE_GRACE_MS;
+    private boolean lease(final ShapeshifterAiDoc doc, final Shape shape) {
+        final long now = clock.millis();
+        return shapes.lease(doc.getUuid(), shape.id(), node, now,
+                now + doc.getAttemptBudgetMs() + LEASE_GRACE_MS);
     }
 
     /**
@@ -223,17 +225,28 @@ public final class Stage {
         // One learner per shape across the cluster (A42, A43). A node that does not win the lease does not
         // wait — that would hold this thread for the length of an attempt — it sentinels and returns, and
         // the winner's promotion releases the backlog as A12 releases any other.
-        if (!shapes.lease(doc.getUuid(), shape.id(), node, clock.millis() + leaseMs(doc))) {
+        if (!lease(doc, shape)) {
             return sentinel(doc, shape, input, "Another node is learning this shape; this stream waits for "
                                                + "what it learns");
         }
-        final Outcome outcome;
         try {
-            // Learn on a prefix, judge on the whole stream.
-            outcome = learn(doc, input, attributes, scorecard);
+            return learnAndBind(doc, shape, input, attributes, scorecard, selector);
         } finally {
+            // Held until the rule is written, not merely while the model is asked: a second node that took
+            // it in between would find no rule for the shape, learn it again, and append a second rule for
+            // one selector, leaving its fragment orphaned behind the first.
             shapes.releaseLease(doc.getUuid(), shape.id(), node);
         }
+    }
+
+    private StageRun learnAndBind(final ShapeshifterAiDoc doc,
+                                  final Shape shape,
+                                  final Input input,
+                                  final Map<String, Object> attributes,
+                                  final Scorecard scorecard,
+                                  final ExpressionOperator selector) {
+        // Learn on a prefix, judge on the whole stream.
+        final Outcome outcome = learn(doc, input, attributes, scorecard);
         if (outcome instanceof final Abandoned abandoned) {
             return givenUp(doc, shape, input, abandoned.reason(), abandoned.reason(), abandoned.diagnostics(),
                     List.of(), outcome.transcript());
@@ -367,6 +380,26 @@ public final class Stage {
                              final Scorecard scorecard,
                              final Judged served,
                              final String marked) {
+        if (!lease(doc, shape)) {
+            // Another node is relearning this shape; the incumbent serves this stream, as it serves every
+            // other until the relearning settles (A42).
+            return emit(doc, new Bound(incumbent), shape, input, incumbent, served, List.of());
+        }
+        try {
+            return relearnUnderLease(doc, shape, incumbent, input, attributes, scorecard, served, marked);
+        } finally {
+            shapes.releaseLease(doc.getUuid(), shape.id(), node);
+        }
+    }
+
+    private StageRun relearnUnderLease(final ShapeshifterAiDoc doc,
+                                       final Shape shape,
+                                       final RoutingRule incumbent,
+                                       final Input input,
+                                       final Map<String, Object> attributes,
+                                       final Scorecard scorecard,
+                                       final Judged served,
+                                       final String marked) {
         shapes.reset(doc.getUuid(), shape.id());
         final List<StoredError> opening = new ArrayList<>();
         opening.add(new StoredError(Severity.ERROR, null, STAGE, "Relearning: " + marked
@@ -507,16 +540,25 @@ public final class Stage {
                           final Scorecard scorecard,
                           final List<StoredError> opening) {
         final Advisor advisor = advisors.of(doc);
-        final Dialogue dialogue = new Dialogue(advisor, runners, scorecard, clock);
+        // The lease is extended before every question: an attempt held up by one slow call would otherwise
+        // run past its expiry and be learned again by another node (A42).
+        final Dialogue dialogue = new Dialogue(advisor, runners, scorecard, clock,
+                () -> lease(doc, Shape.of(doc.getLearningKey(), attributes)));
         final Sample sample = Sample.of(learningPrefix(input.data(), doc), doc.getLearningKey(), attributes);
         final long before = advisor.tokensUsed();
-        final Outcome outcome = dialogue.run(doc, sample, opening);
-        // What the attempt cost, counted for the document across the cluster (A44), whether it learned
-        // anything or not: an attempt that abandons costs what it asked. The policy that reads the count —
-        // the rate limit and the spend breaker — is A24's, in phase E.
-        spend.record(doc.getUuid(), Math.max(0L, advisor.tokensUsed() - before), outcome.transcript().size(),
-                SPEND_WINDOW_MS);
-        return outcome;
+        final List<Exchange> asked = new ArrayList<>();
+        try {
+            final Outcome outcome = dialogue.run(doc, sample, opening);
+            asked.addAll(outcome.transcript());
+            return outcome;
+        } finally {
+            // What the attempt cost, counted for the document across the cluster (A44), whether it learned
+            // anything or not and whether it returned or threw: an attempt that abandons costs what it
+            // asked, and a model that fails after charging is the runaway A24's breaker exists to see. The
+            // policy that reads the count is A24's, in phase E.
+            spend.record(doc.getUuid(), Math.max(0L, advisor.tokensUsed() - before), asked.size(),
+                    SPEND_WINDOW_MS);
+        }
     }
 
     /**

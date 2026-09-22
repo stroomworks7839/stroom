@@ -80,6 +80,7 @@ public final class Dialogue {
     private final Map<String, StepRunner> runners;
     private final Scorecard scorecard;
     private final Clock clock;
+    private final Runnable heartbeat;
     private Budget budget;
 
     public Dialogue(final Advisor advisor, final List<StepRunner> runners, final Scorecard scorecard) {
@@ -90,9 +91,24 @@ public final class Dialogue {
                     final List<StepRunner> runners,
                     final Scorecard scorecard,
                     final Clock clock) {
+        this(advisor, runners, scorecard, clock, () -> {
+        });
+    }
+
+    /**
+     * @param heartbeat Run before every question, for a caller holding something that expires while the
+     *                  dialogue runs — the learning lease of A42, which one slow model call would
+     *                  otherwise outlive.
+     */
+    public Dialogue(final Advisor advisor,
+                    final List<StepRunner> runners,
+                    final Scorecard scorecard,
+                    final Clock clock,
+                    final Runnable heartbeat) {
         this.advisor = advisor;
         this.scorecard = scorecard;
         this.clock = clock;
+        this.heartbeat = heartbeat;
         this.runners = runners.stream()
                 .collect(Collectors.toUnmodifiableMap(StepRunner::elementType, Function.identity()));
     }
@@ -652,6 +668,7 @@ public final class Dialogue {
 
     private String ask(final Walk walk, final PlanStep step, final int candidate, final Question question) {
         budget.check(clock.millis(), advisor.tokensUsed());
+        heartbeat.run();
         final String reply = advisor.ask(List.copyOf(walk.transcript), question);
         walk.transcript.add(new Exchange(question, reply, step.effectiveId(), candidate, null));
         budget.check(clock.millis(), advisor.tokensUsed());

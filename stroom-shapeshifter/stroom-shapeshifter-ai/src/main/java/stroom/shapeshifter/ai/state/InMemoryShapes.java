@@ -95,9 +95,10 @@ public final class InMemoryShapes implements Shapes {
     public synchronized boolean lease(final String docUuid,
                                       final String shape,
                                       final String node,
+                                      final long nowMs,
                                       final long untilMs) {
         final Row row = row(docUuid, shape);
-        if (row.leaseNode != null && !row.leaseNode.equals(node) && row.leaseUntilMs > System.currentTimeMillis()) {
+        if (row.leaseNode != null && !row.leaseNode.equals(node) && row.leaseUntilMs > nowMs) {
             return false;
         }
         row.leaseNode = node;
@@ -115,8 +116,16 @@ public final class InMemoryShapes implements Shapes {
     }
 
     @Override
+    /// What was learned is forgotten; who is learning is not. A promotion resets the shape while the
+    /// attempt that promoted it still holds its lease, so the lease outlives the reset here as it does in
+    /// the row (A42).
     public synchronized void reset(final String docUuid, final String shape) {
-        rows.remove(key(docUuid, shape));
+        final Row row = row(docUuid, shape);
+        row.givenUp = null;
+        row.relearn = null;
+        row.draft = null;
+        row.score = 0.0;
+        row.records = 0;
     }
 
     public synchronized double rollingScore(final String docUuid, final String shape) {

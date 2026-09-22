@@ -42,13 +42,21 @@ public class SpendDao implements Spend {
     public Spent record(final String docUuid, final long tokens, final int calls, final long windowMs) {
         return JooqUtil.transactionResult(connProvider, context -> {
             final long now = System.currentTimeMillis();
-            context.insertInto(SHAPESHIFTER_SPEND)
-                    .set(SHAPESHIFTER_SPEND.VERSION, 1)
-                    .set(SHAPESHIFTER_SPEND.UPDATE_TIME_MS, now)
-                    .set(SHAPESHIFTER_SPEND.DOC_UUID, docUuid)
-                    .set(SHAPESHIFTER_SPEND.WINDOW_START_MS, now)
-                    .onDuplicateKeyIgnore()
-                    .execute();
+            // The row is looked for before it is made: an `INSERT ... ON DUPLICATE KEY IGNORE` that finds a
+            // duplicate leaves a shared lock the `FOR UPDATE` below would have to upgrade, and two nodes
+            // recording spend for one document at once would deadlock on that upgrade — which is the very
+            // thing this table is for.
+            final boolean exists = context.fetchExists(context.selectFrom(SHAPESHIFTER_SPEND)
+                    .where(SHAPESHIFTER_SPEND.DOC_UUID.eq(docUuid)));
+            if (!exists) {
+                context.insertInto(SHAPESHIFTER_SPEND)
+                        .set(SHAPESHIFTER_SPEND.VERSION, 1)
+                        .set(SHAPESHIFTER_SPEND.UPDATE_TIME_MS, now)
+                        .set(SHAPESHIFTER_SPEND.DOC_UUID, docUuid)
+                        .set(SHAPESHIFTER_SPEND.WINDOW_START_MS, now)
+                        .onDuplicateKeyIgnore()
+                        .execute();
+            }
             final Record3<Long, Long, Integer> current = context
                     .select(SHAPESHIFTER_SPEND.WINDOW_START_MS,
                             SHAPESHIFTER_SPEND.TOKENS_SPENT,

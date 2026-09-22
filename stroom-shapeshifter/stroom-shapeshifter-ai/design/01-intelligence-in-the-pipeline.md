@@ -2006,6 +2006,13 @@ including the degeneracy trap (§8.3) that changes the scoring model and propose
   the goldens and run 7 — yield per line where a record spans lines is what decided outcomes,
   coverage never did. A20–A22 ruled as built, the owner's; A39 and A40 ruled, the owner's, from run
   7: the escalating example splits every input, and a parser refused on yield goes back to the split.
+- Audit of slice 23 (the owner's code review): seven findings, all fixed — design 02 §6.1. The lease
+  was released when the dialogue ended rather than when the rule was written, so two nodes could bind
+  one selector; its expiry was judged against a different clock from the one that set it, so every
+  scenario's lease was expired on arrival; relearning took no lease at all; nothing heartbeat; the
+  in-memory shapes dropped the lease on reset where the row keeps it; spend was not counted when an
+  attempt threw; and both DAOs took a shared lock they then had to upgrade, which two nodes doing at
+  once would deadlock.
 - Slice 23, the lease and the spend counter (A42, A44; design 02 §6.1): one learner per shape across
   the cluster, taken before the dialogue and given back after, its loser sentinelling rather than
   waiting; what an attempt cost added to the document's window in one place. The policy that reads the

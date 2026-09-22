@@ -25,8 +25,10 @@ import stroom.shapeshifter.ai.stage.Decision.Promoted;
 import stroom.shapeshifter.ai.stage.Decision.Provisional;
 import stroom.shapeshifter.ai.stage.Decision.Sentinel;
 import stroom.shapeshifter.ai.stage.Input;
+import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.ai.stage.Shape;
 import stroom.shapeshifter.ai.stage.ShapeSignature;
+import stroom.shapeshifter.ai.stage.Stage;
 import stroom.shapeshifter.ai.stage.StageRun;
 import stroom.shapeshifter.shared.LearningMode;
 import stroom.shapeshifter.shared.PlanExample;
@@ -42,6 +44,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -248,7 +251,7 @@ class TestScenariosBindingBeforeLearning {
         // minute would stall the cluster — it writes its ledger row and returns, and the winner's
         // promotion releases the backlog as A12 releases any other.
         final Scenarios scenarios = new Scenarios();
-        scenarios.shapes.lease("doc-1", shapeX(), "node-2", Long.MAX_VALUE);
+        scenarios.shapes.lease("doc-1", shapeX(), "node-2", Scenarios.NOW.toEpochMilli(), Long.MAX_VALUE);
 
         final Script silent = Script.of();
         scenarios.node = "node-1";
@@ -272,11 +275,80 @@ class TestScenariosBindingBeforeLearning {
     }
 
     @Test
+    void twoStagesSharingTheStateAreOneLearner() {
+        // Not a lease planted by hand: two stages over one state, as two nodes are, each taking the lease
+        // for itself. The first holds it until its rule is written — a second node that took it in between
+        // would find no rule for the shape, learn it again, and append a second rule for one selector.
+        final Scenarios scenarios = new Scenarios();
+        final ShapeshifterAiDoc doc = keyedOnFormat();
+        final Script watching = Script.of();
+        scenarios.node = "node-2";
+        final Stage other = scenarios.stage(watching);
+        scenarios.node = "node-1";
+
+        final Script script = scenarios.script(CSV.configuration(), XSLT)
+                .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter")
+                .expect(QuestionMatcher.configuration("DSParser")).reply(Scenarios.fenced(CSV.configuration()))
+                .expect(QuestionMatcher.configuration("XSLTFilter")).reply(Scenarios.fenced(XSLT));
+        // The other node arrives at the moment the rule is written: the model has been asked and answered,
+        // so a lease released when the dialogue ended would be free, and it would learn the shape again.
+        final Rules watched = new Rules() {
+            @Override
+            public List<RoutingRule> forDocument(final String docUuid) {
+                return scenarios.rules.forDocument(docUuid);
+            }
+
+            @Override
+            public Optional<RoutingRule> byUuid(final String docUuid, final String ruleUuid) {
+                return scenarios.rules.byUuid(docUuid, ruleUuid);
+            }
+
+            @Override
+            public RoutingRule append(final String docUuid, final RoutingRule rule) {
+                final StageRun meanwhile = other.run(doc, stream("CSV"));
+                assertThat(meanwhile.decision()).describedAs(meanwhile.decision().toString())
+                        .isInstanceOf(Sentinel.class);
+                assertThat(watching.asked()).describedAs("it did not ask the model").isEmpty();
+                return scenarios.rules.append(docUuid, rule);
+            }
+
+            @Override
+            public RoutingRule insert(final String docUuid, final RoutingRule rule, final int at) {
+                return scenarios.rules.insert(docUuid, rule, at);
+            }
+
+            @Override
+            public void move(final String docUuid, final String ruleUuid, final int to) {
+                scenarios.rules.move(docUuid, ruleUuid, to);
+            }
+
+            @Override
+            public void replace(final String docUuid, final RoutingRule rule) {
+                scenarios.rules.replace(docUuid, rule);
+            }
+
+            @Override
+            public void remove(final String docUuid, final String ruleUuid) {
+                scenarios.rules.remove(docUuid, ruleUuid);
+            }
+        };
+
+        final StageRun run = scenarios.stage(script, watched).run(doc, stream("CSV"));
+
+        assertThat(run.decision()).describedAs(run.decision().toString()).isInstanceOf(Promoted.class);
+        assertThat(scenarios.rules.forDocument("doc-1"))
+                .describedAs("one selector, one rule: the loser did not write a second")
+                .hasSize(1);
+        assertThat(scenarios.stores.pipelines.list()).describedAs("and no orphaned fragment").hasSize(1);
+    }
+
+    @Test
     void aLeaseThatHasExpiredIsFreeForTheNextNode() {
         // The holder died mid-attempt: its lease runs out and the next node in learns, rather than the
         // shape being stuck until someone notices.
         final Scenarios scenarios = new Scenarios();
-        scenarios.shapes.lease("doc-1", shapeX(), "node-2", System.currentTimeMillis() - 1);
+        scenarios.shapes.lease("doc-1", shapeX(), "node-2", Scenarios.NOW.toEpochMilli(),
+                Scenarios.NOW.toEpochMilli() - 1);
 
         final StageRun run = learnShapeX(scenarios, keyedOnFormat());
 

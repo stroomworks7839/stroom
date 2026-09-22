@@ -1217,6 +1217,34 @@ afresh. Two scenarios in the module: a second node meeting a shape sentinels rat
 its stream is released by the winner's promotion; an expired lease lets the next node learn. 188 tests
 in the module, 15 against MySQL.
 
+Audited the same day (the owner's code review), seven findings, all fixed, and the first of them showed
+that the paragraph above said something the code did not do. The lease was released as soon as the
+dialogue ended, not when the rule was written, so between the two — the judgement over the whole
+stream, the fragment's documents, the rule's row — another node found no rule for the shape, won the
+lease and learned it again, and both appended a rule for one selector: the router serves the first and
+the second's fragment is orphaned. It is held now until `bind` or `givenUp` has run. The test that
+pinned the old claim had been written from the claim rather than against the code; the new one puts a
+second stage's run at the moment the rule is appended, and fails if the lease is released any earlier.
+
+The expiry was set from the stage's clock and judged against the wall clock, so a scenario whose clock
+is fixed — every scenario — took leases that were expired on arrival and excluded nobody; the two
+scenarios hid it by planting the competing lease by hand. The seam takes the caller's *now* as well as
+its *until* now, and the new scenario lets a second stage take its own. Relearning called the model
+without any lease at all, so two nodes could relearn one shape and, in review mode, each write a draft
+and overwrite the other's `awaitReview` — leaving a draft that every later stream sentinels on and that
+approval cannot resolve; it takes the lease too, and a node that does not win it serves the stream from
+the incumbent, which is what an incumbent is for. Nothing extended the lease during an attempt, though
+this section called re-taking it the heartbeat: the dialogue now heartbeats before every question, so a
+slow model call cannot cost a node its lease.
+
+`InMemoryShapes.reset` dropped the whole row and with it the lease, where the row keeps it, so the two
+implementations of one seam disagreed exactly where A42 matters. The spend was recorded after the
+dialogue returned rather than in a `finally`, so an attempt whose model call threw — the runaway A24's
+breaker exists to see — showed no spend at all. And both DAOs inserted with `ON DUPLICATE KEY IGNORE`
+before selecting `FOR UPDATE`, which on the steady path leaves a shared lock the select must upgrade:
+two nodes recording spend for one document at once would deadlock on that upgrade, which is the very
+thing the table is for. The row is looked for before it is made. 189 tests in the module.
+
 ## 7. Decisions taken
 
 Ruled 2026-09-17, each as recommended:
