@@ -30,7 +30,6 @@ import stroom.pipeline.factory.PipelineDataCache;
 import stroom.pipeline.factory.PipelineFactory;
 import stroom.pipeline.factory.PipelineProperty;
 import stroom.pipeline.factory.PipelinePropertyDocRef;
-import stroom.pipeline.factory.PipelineStackLoader;
 import stroom.pipeline.parser.AbstractParser;
 import stroom.pipeline.shared.PipelineDoc;
 import stroom.pipeline.shared.data.PipelineData;
@@ -43,8 +42,7 @@ import stroom.pipeline.state.FeedHolder;
 import stroom.pipeline.state.MetaData;
 import stroom.pipeline.state.MetaDataHolder;
 import stroom.pipeline.state.MetaHolder;
-import stroom.pipeline.textconverter.TextConverterStore;
-import stroom.pipeline.xslt.XsltStore;
+import stroom.pipeline.state.PipelineHolder;
 import stroom.shapeshifter.ai.doc.ShapeshifterAiStore;
 import stroom.shapeshifter.ai.extraction.DataSplitterCompiler;
 import stroom.shapeshifter.ai.extraction.DataSplitterStep;
@@ -149,6 +147,7 @@ public class ShapeshifterAiParser extends AbstractParser {
     private final MetaData metaData;
     private final FragmentOutput fragmentOutput;
     private final ErrorReceiverProxy errorReceiverProxy;
+    private final PipelineHolder pipelineHolder;
     private final Stage stage;
 
     private DocRef docRef;
@@ -158,9 +157,6 @@ public class ShapeshifterAiParser extends AbstractParser {
                                 final LocationFactoryProxy locationFactory,
                                 final ShapeshifterAiStore store,
                                 final PipelineStore pipelineStore,
-                                final PipelineStackLoader pipelineStackLoader,
-                                final TextConverterStore textConverterStore,
-                                final XsltStore xsltStore,
                                 final PipelineDataCache pipelineDataCache,
                                 final PipelineFactory pipelineFactory,
                                 final TaskContextFactory taskContextFactory,
@@ -169,19 +165,8 @@ public class ShapeshifterAiParser extends AbstractParser {
                                 final MetaDataHolder metaDataHolder,
                                 final MetaData metaData,
                                 final FragmentOutput fragmentOutput,
-                                final DataSplitterCompiler dataSplitterCompiler,
-                                final SchemaConformanceScorer schemaConformanceScorer,
-                                final FragmentWriter fragmentWriter,
-                                final Advisors advisors,
-                                final NodeInfo nodeInfo,
-                                final Attempts attempts,
-                                final Rules rules,
-                                final Shapes shapes,
-                                final Spend spend,
-                                final Ledger ledger,
-                                final Outputs outputs,
-                                final Reprocessing reprocessing,
-                                final RegressionSet regressionSet) {
+                                final PipelineHolder pipelineHolder,
+                                final StageFactory stageFactory) {
         super(errorReceiverProxy, locationFactory);
         this.errorReceiverProxy = errorReceiverProxy;
         this.store = store;
@@ -194,26 +179,8 @@ public class ShapeshifterAiParser extends AbstractParser {
         this.metaDataHolder = metaDataHolder;
         this.metaData = metaData;
         this.fragmentOutput = fragmentOutput;
-        final List<stroom.shapeshifter.ai.learning.StepRunner> runners = List.of(
-                new DataSplitterStep(dataSplitterCompiler), new JsonStep(), new XsltStep());
-        this.stage = new Stage(
-                advisors,
-                runners,
-                List.of(new CompileScorer(), new InputCoverageScorer(), new YieldScorer(), schemaConformanceScorer,
-                        new ExtractionQualityScorer(), new BusinessRulesScorer()),
-                fragmentWriter,
-                new FragmentRunner(pipelineStore, pipelineStackLoader, textConverterStore, xsltStore, runners),
-                attempts,
-                rules,
-                shapes,
-                spend,
-                ledger,
-                outputs,
-                reprocessing,
-                regressionSet,
-                Clock.systemUTC(),
-                ThreadLocalRandom.current().nextLong(),
-                nodeInfo.getThisNodeName());
+        this.pipelineHolder = pipelineHolder;
+        this.stage = stageFactory.create();
     }
 
     @PipelineProperty(description = "The Shapeshifter AI document that governs this stage.", displayPriority = 1)
@@ -251,7 +218,12 @@ public class ShapeshifterAiParser extends AbstractParser {
                         ? null
                         : meta.getTypeName(),
                 attributes,
-                read(inputSource));
+                read(inputSource),
+                // Which pipeline is processing it: what the ledger keeps, so that a stream sentinelled
+                // here is replayed here when its shape settles — wherever that happens (A12).
+                pipelineHolder.getPipeline() == null
+                        ? null
+                        : pipelineHolder.getPipeline().getUuid());
     }
 
     private static String read(final InputSource inputSource) {

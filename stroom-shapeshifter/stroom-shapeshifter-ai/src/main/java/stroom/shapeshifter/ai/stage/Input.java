@@ -30,12 +30,24 @@ import java.util.Map;
  * @param type       The stream type, e.g. {@code Raw Events}.
  * @param attributes The stream's attribute map — the receipt headers.
  * @param data       The stream's content.
+ * @param pipeline   The uuid of the pipeline processing it, where one is: what a stream sentinelled now
+ *                   is replayed through when its shape settles (A12), which the ledger keeps because the
+ *                   settling may happen in another task, on another node, or with nobody there at all.
+ *                   Null where nothing is processing it — a worker re-walking an attempt, a scenario.
  */
-public record Input(long id, String feed, String type, Map<String, String> attributes, String data) {
+public record Input(long id, String feed, String type, Map<String, String> attributes, String data,
+                    String pipeline) {
 
     public Input {
         attributes = Map.copyOf(attributes);
     }
+
+    /// A stream as a scenario has it: nothing is processing it.
+    public Input(final long id, final String feed, final String type, final Map<String, String> attributes,
+                 final String data) {
+        this(id, feed, type, attributes, data, null);
+    }
+
 
     /**
      * The map a routing selector is evaluated against: the meta fields, whichever routing headers the

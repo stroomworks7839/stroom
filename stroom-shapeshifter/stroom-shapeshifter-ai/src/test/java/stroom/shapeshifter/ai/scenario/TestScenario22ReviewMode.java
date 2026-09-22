@@ -60,7 +60,7 @@ class TestScenario22ReviewMode {
     private static final String SHAPE = "Feed=DOOR-ACCESS|Type=Raw Events";
 
     private static ShapeshifterAiDoc review() {
-        return ShapeshifterAiDoc.builder()
+        return Scenarios.document()
                 .uuid(DOC)
                 .name("door-access")
                 .learningMode(LearningMode.AUTOMATIC)

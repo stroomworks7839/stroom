@@ -32,15 +32,18 @@ public final class InMemoryReprocessing implements Reprocessing {
     private final List<Request> requests = new ArrayList<>();
 
     @Override
-    public synchronized void request(final String docUuid, final String reason, final List<Long> inputIds) {
-        requests.add(new Request(docUuid, reason, List.copyOf(inputIds)));
+    public synchronized void request(final String docUuid,
+                                     final String pipeline,
+                                     final String reason,
+                                     final List<Long> inputIds) {
+        requests.add(new Request(docUuid, pipeline, reason, List.copyOf(inputIds)));
     }
 
     public synchronized List<Request> requests() {
         return List.copyOf(requests);
     }
 
-    public record Request(String docUuid, String reason, List<Long> inputIds) {
+    public record Request(String docUuid, String pipeline, String reason, List<Long> inputIds) {
 
     }
 }

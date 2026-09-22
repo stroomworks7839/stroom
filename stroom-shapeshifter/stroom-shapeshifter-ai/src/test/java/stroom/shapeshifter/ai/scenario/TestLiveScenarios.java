@@ -118,7 +118,7 @@ class TestLiveScenarios {
      * business needs, and the floor at its default.
      */
     private static ShapeshifterAiDoc doc(final String name, final double coverageThreshold) {
-        final ShapeshifterAiDoc.Builder builder = ShapeshifterAiDoc.builder()
+        final ShapeshifterAiDoc.Builder builder = Scenarios.document()
                 .uuid("live-" + name)
                 .name(name)
                 .learningMode(LearningMode.AUTOMATIC)

@@ -65,11 +65,6 @@ public final class RecordedAdvisor implements Advisor {
         };
     }
 
-    /// How many answers the record holds: the turns a resumed attempt will not ask again.
-    public int recorded() {
-        return answered.size();
-    }
-
     @Override
     public String ask(final List<Exchange> transcript, final Question question) {
         if (next < answered.size()) {

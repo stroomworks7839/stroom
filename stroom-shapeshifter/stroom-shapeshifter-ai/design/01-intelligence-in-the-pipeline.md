@@ -2026,6 +2026,28 @@ including the degeneracy trap (§8.3) that changes the scoring model and propose
   `shapeshifter_turn`, the `Attempts` seam and its DAO, and the stage recording an attempt and every
   turn of it. Not the rendered prompt, which waits for redaction (A38); not yet the claim on the shape,
   which waits for the dialogue to be resumable (A45).
+- Audit of slices 26 and 27 (my own; design 02 §6.1): `resume` never asked what the shape had become
+  while its attempt waited — reserved, drafted, given up, learning turned off — and would have carried an
+  attempt on into a rule an operator had just decided against; it now reads the shape's state exactly as
+  `run` does and closes the attempt instead. The worker counted a refused attempt as carried on, and
+  `awaiting` stranded a parked attempt whose claim had lapsed. Three dead parameters, two dead accessors,
+  a doubled Javadoc and a doubled catch went with them.
+- Slice 27, the worker in a node (A5, A28; design 02 §6.1): `StageFactory` for the stage both the
+  element and the job run, `StreamInputs` and `StoreDocuments` behind the seams, and the *Shapeshifter AI
+  Deferred Learning* job; scenario 30 green in Tier 2. The stage is not a singleton — what it runs on
+  reports through the pipeline-scoped error receiver — so the job enters a pipeline scope of its own. The
+  reprocess request no longer takes the pipeline from the task it happens to be in: the ledger records
+  where each stream it names was being processed, and a release asks once per pipeline, which is also the
+  right answer for a document two pipelines use. Two breaks on this branch from slice 21 were found and
+  fixed: `TestConfigMapper`'s `AppConfig` subclass and the generated `ConfigProvidersModule`.
+- Slice 26, deferred mode and its worker (A5, A28; design 02 §6.1): a deferred document asks nothing in
+  the task — the attempt is opened, parked at its first question and the stream sentinelled — and
+  `DeferredWorker` carries it on outside it. The `Documents` and `Inputs` seams are what the worker needs
+  and the task was always handed. Resuming a relearn as though it were a first learn would have appended
+  a second rule for one selector, so what an attempt is doing is read from the rules as they stand, and
+  the shape's mark is spent when the relearning happens rather than when it is scheduled. Owed: the node
+  wiring — a stage factory, the stream and document stores behind the seams, the job itself, and
+  scenario 30 in Tier 2.
 - Audit of slice 25 (the owner's code review): eleven findings, all fixed — design 02 §6.1. The replay
   checked nothing, so a document edited while its attempt waited would have had the answers it kept
   given to different questions; every question now writes the one-line summary a turn records, and a

@@ -55,11 +55,23 @@ public interface Attempts {
     /// it and not its last leg.
     void parked(long attemptId, AttemptStatus status, long expiryMs, long tokensSpent);
 
-    /// Take up an attempt that stopped, as this node, extending its claim (A45).
+    /// Take up an attempt that stopped, as this node, and hold it while it runs (A45). An attempt parked
+    /// awaiting an answer is nobody's to carry — no thread is behind it — so whichever worker reaches it
+    /// first may take it; one that is running is its own node's until its claim lapses, which is how a
+    /// node that died mid-attempt lets the next one in.
     ///
-    /// @return Whether this node may carry it on: false where it has finished, or where another node has
-    /// taken it since.
+    /// @return Whether this node may carry it on: false where it has finished, and false where it is
+    /// running on another node that has not lapsed. An attempt already running on *this* node is taken
+    /// again, since that is what a node re-entering its own attempt does; what keeps two of this node's
+    /// own threads off one attempt is that the job cannot overlap itself, not this method.
     boolean claimed(long attemptId, String node, long nowMs, long expiryMs);
+
+    /// The attempts waiting for the model, oldest first: what deferred mode's worker advances (A5, A28).
+    /// Whether a parked attempt's claim has lapsed does not matter here — nobody is carrying it, so there
+    /// is nothing to take it from, and a worker that was down while it lapsed must still pick it up or
+    /// the shape waits for a stream that may never come. A parked attempt that *has* been taken over is
+    /// no longer awaiting: opening the attempt that took it closed this one.
+    List<Recorded> awaiting(int limit);
 
     /// Push a running attempt's claim out, as the dialogue asks each question (A45): the heartbeat that
     /// keeps a slow model call from costing a node the shape it is learning.

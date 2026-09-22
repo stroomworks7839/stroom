@@ -25,5 +25,8 @@ import java.util.List;
  */
 public interface Reprocessing {
 
-    void request(String docUuid, String reason, List<Long> inputIds);
+    /// @param pipeline The uuid of the pipeline to process them through again: the one that produced
+    ///                  what they became, since processing them through another would be processing
+    ///                  something else. Null where it is not known, which nothing can act on.
+    void request(String docUuid, String pipeline, String reason, List<Long> inputIds);
 }

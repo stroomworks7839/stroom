@@ -51,7 +51,7 @@ class TestScenario02HeaderNamesTheParser {
     private static final String EVENTS = Scenarios.resource("records.events.xml");
 
     private static ShapeshifterAiDoc doc() {
-        return ShapeshifterAiDoc.builder()
+        return Scenarios.document()
                 .uuid("doc-1")
                 .name("api-gateway")
                 .learningMode(LearningMode.AUTOMATIC)

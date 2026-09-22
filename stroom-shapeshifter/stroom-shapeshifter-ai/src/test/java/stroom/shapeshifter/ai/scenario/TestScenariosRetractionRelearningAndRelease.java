@@ -60,7 +60,7 @@ class TestScenariosRetractionRelearningAndRelease {
     private static final String SHAPE = "Feed=DOOR-ACCESS|Type=Raw Events";
 
     private static ShapeshifterAiDoc doc(final int minRecordsPerShape) {
-        return ShapeshifterAiDoc.builder()
+        return Scenarios.document()
                 .uuid(DOC)
                 .name("door-access")
                 .learningMode(LearningMode.AUTOMATIC)

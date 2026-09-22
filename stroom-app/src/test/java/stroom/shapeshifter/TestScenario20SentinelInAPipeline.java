@@ -42,6 +42,7 @@ import stroom.shapeshifter.ai.scenario.AdvisorHolder;
 import stroom.shapeshifter.ai.scenario.Scenarios;
 import stroom.shapeshifter.ai.scenario.Script;
 import stroom.shapeshifter.ai.stage.Ledger;
+import stroom.shapeshifter.ai.stage.Ledger.Released;
 import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.ai.stage.Shape;
 import stroom.shapeshifter.shared.LearningMode;
@@ -62,6 +63,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
 /// Design 02 §5, scenario 20, in tier 2 against a real database (design 03, phase C): a stream whose shape
 /// has no binding produces no output, an error stream naming the shape and the reason, and a row in the
@@ -132,7 +134,9 @@ class TestScenario20SentinelInAPipeline extends AbstractCoreIntegrationTest {
                 Map.of(MetaFields.FIELD_FEED, FEED, MetaFields.FIELD_TYPE, StreamTypeNames.RAW_EVENTS)).id();
         assertThat(ledger.release(doc.getUuid(), shape))
                 .describedAs("the ledger row is a row in the database, not a map in one node's heap")
-                .containsExactly(raw.getId());
+                .extracting(Released::inputId, Released::pipeline)
+                .describedAs("naming the stream and the pipeline that would replay it (A12)")
+                .containsExactly(tuple(raw.getId(), pipeline.getUuid()));
     }
 
     private DocRef document() {

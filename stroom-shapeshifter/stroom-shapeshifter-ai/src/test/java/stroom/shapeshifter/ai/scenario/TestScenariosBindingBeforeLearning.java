@@ -79,7 +79,7 @@ class TestScenariosBindingBeforeLearning {
      * the existing splitter happens to consume.
      */
     private static ShapeshifterAiDoc keyedOnFormat() {
-        return ShapeshifterAiDoc.builder()
+        return Scenarios.document()
                 .uuid("doc-1")
                 .name("door-access")
                 .learningMode(LearningMode.AUTOMATIC)
@@ -534,8 +534,9 @@ class TestScenariosBindingBeforeLearning {
 
     @Test
     void anAttemptIsOnlyCarriedOnByWhoeverHoldsItAndOnlyOverItsOwnShape() {
-        // A45: carrying an attempt on is taking its shape. Resuming one that another node holds, or one
-        // that has finished, would learn beside the node that is learning; resuming over a stream of
+        // A45: carrying an attempt on is taking its shape. A parked attempt is nobody's — no thread is
+        // behind it — so any node's worker may take it; one that is *running* on another node, or one
+        // that has finished, would learn beside the node that is learning. Resuming over a stream of
         // another shape would answer questions never asked about it from a record of questions about
         // something else.
         final Scenarios scenarios = new Scenarios();
@@ -545,7 +546,11 @@ class TestScenariosBindingBeforeLearning {
         scenarios.stage(new StoppingAdvisor(started, 1)).run(doc, stream("CSV"));
         final Recorded waiting = scenarios.attempts.forDocument("doc-1", 10).get(0);
 
-        // Another node's, while its claim holds.
+        // Running on another node, whose claim holds.
+        final long until = Scenarios.NOW.toEpochMilli() + 60_000L;
+        assertThat(scenarios.attempts.claimed(waiting.id(), "node-1", Scenarios.NOW.toEpochMilli(), until))
+                .describedAs("a parked attempt is anyone's to take, which is how the worker takes it")
+                .isTrue();
         final Script elsewhere = Script.of();
         scenarios.node = "node-3";
         final StageRun refused = scenarios.stage(Script.of()).resume(doc, waiting.id(), stream("CSV"), elsewhere);

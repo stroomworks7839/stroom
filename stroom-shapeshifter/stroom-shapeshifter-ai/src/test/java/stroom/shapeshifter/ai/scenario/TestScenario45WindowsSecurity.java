@@ -56,7 +56,7 @@ class TestScenario45WindowsSecurity {
     private static final String EVENTS = Scenarios.resource("windows-security.events.xml");
 
     private static ShapeshifterAiDoc doc() {
-        return ShapeshifterAiDoc.builder()
+        return Scenarios.document()
                 .uuid("doc-1")
                 .name("windows-security")
                 .learningMode(LearningMode.AUTOMATIC)

@@ -97,11 +97,29 @@ public class AttemptsDao implements Attempts {
                 .set(SHAPESHIFTER_ATTEMPT.VERSION, SHAPESHIFTER_ATTEMPT.VERSION.plus(1))
                 .set(SHAPESHIFTER_ATTEMPT.UPDATE_TIME_MS, System.currentTimeMillis())
                 .where(SHAPESHIFTER_ATTEMPT.ID.eq(attemptId))
-                .and(SHAPESHIFTER_ATTEMPT.STATUS.in(OPEN))
-                // Either it is this node's already, or it has lapsed and is anyone's.
-                .and(SHAPESHIFTER_ATTEMPT.NODE_NAME.eq(node)
-                        .or(SHAPESHIFTER_ATTEMPT.EXPIRY_MS.le(nowMs)))
+                // A parked attempt is nobody's to carry, since no thread is behind it; a running one is
+                // its own node's until it lapses.
+                .and(SHAPESHIFTER_ATTEMPT.STATUS.eq(AttemptStatus.AWAITING_MODEL.name())
+                        .or(SHAPESHIFTER_ATTEMPT.STATUS.eq(AttemptStatus.IN_PROGRESS.name())
+                                .and(SHAPESHIFTER_ATTEMPT.NODE_NAME.eq(node)
+                                        .or(SHAPESHIFTER_ATTEMPT.EXPIRY_MS.le(nowMs)))))
                 .execute()) > 0;
+    }
+
+    /// Oldest first: an attempt that has waited longest is advanced first, so a busy document cannot
+    /// starve one behind it.
+    @Override
+    public List<Recorded> awaiting(final int limit) {
+        return JooqUtil.contextResult(connProvider, context -> context
+                        .select()
+                        .from(SHAPESHIFTER_ATTEMPT)
+                        .where(SHAPESHIFTER_ATTEMPT.STATUS.eq(AttemptStatus.AWAITING_MODEL.name()))
+                        .orderBy(SHAPESHIFTER_ATTEMPT.ID)
+                        .limit(limit)
+                        .fetch())
+                .stream()
+                .map(record -> recorded(record, turns(record.get(SHAPESHIFTER_ATTEMPT.ID))))
+                .toList();
     }
 
     @Override

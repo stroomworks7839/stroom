@@ -91,8 +91,10 @@ public final class InMemoryAttempts implements Attempts {
         if (was == null || !OPEN.contains(was.status())) {
             return false;
         }
-        // Either it is this node's already, or it has lapsed and is anyone's.
-        if (!node.equals(was.attempt().node()) && was.attempt().expiryMs() > nowMs) {
+        // A parked attempt is nobody's to carry; a running one is its own node's until it lapses.
+        if (was.status() == AttemptStatus.IN_PROGRESS
+            && !node.equals(was.attempt().node())
+            && was.attempt().expiryMs() > nowMs) {
             return false;
         }
         final Attempt current = was.attempt();
@@ -156,6 +158,16 @@ public final class InMemoryAttempts implements Attempts {
                 .toList()
                 .forEach(attempt -> closed(attempt.id(), status, decision, attempt.ruleUuid(), attempt.score(),
                         0L));
+    }
+
+    @Override
+    public synchronized List<Recorded> awaiting(final int limit) {
+        return attempts.values().stream()
+                .filter(attempt -> attempt.status() == AttemptStatus.AWAITING_MODEL)
+                .sorted(Comparator.comparingLong(Recorded::id))
+                .limit(limit)
+                .map(this::withTurns)
+                .toList();
     }
 
     @Override

@@ -93,7 +93,7 @@ class TestScenariosScoring {
      * schema conformance as a gate, extraction quality as a gate requiring the user, and the business rule.
      */
     private static ShapeshifterAiDoc doc() {
-        return ShapeshifterAiDoc.builder()
+        return Scenarios.document()
                 .uuid(DOC)
                 .name("door-access")
                 .learningMode(LearningMode.AUTOMATIC)

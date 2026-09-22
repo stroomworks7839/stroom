@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2026 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,11 +20,11 @@ import stroom.data.shared.StreamTypeNames;
 import stroom.data.store.mock.MockStore;
 import stroom.docref.DocRef;
 import stroom.meta.mock.MockMetaService;
+import stroom.meta.shared.FindMetaCriteria;
 import stroom.meta.shared.Meta;
 import stroom.meta.shared.MetaFields;
 import stroom.pipeline.PipelineStore;
 import stroom.pipeline.errorhandler.ErrorReceiverProxy;
-import stroom.pipeline.shared.PipelineDoc;
 import stroom.pipeline.shared.data.PipelineData;
 import stroom.pipeline.shared.data.PipelineDataBuilder;
 import stroom.pipeline.shared.data.PipelineDataUtil;
@@ -37,6 +37,7 @@ import stroom.processor.shared.QueryData;
 import stroom.query.api.ExpressionOperator;
 import stroom.query.api.ExpressionTerm.Condition;
 import stroom.shapeshifter.ai.doc.ShapeshifterAiStore;
+import stroom.shapeshifter.ai.element.DeferredLearning;
 import stroom.shapeshifter.ai.element.ShapeshifterAiParser;
 import stroom.shapeshifter.ai.extraction.DataSplitterCompiler;
 import stroom.shapeshifter.ai.extraction.DataSplitterStep;
@@ -46,16 +47,19 @@ import stroom.shapeshifter.ai.scenario.QuestionMatcher;
 import stroom.shapeshifter.ai.scenario.Scenarios;
 import stroom.shapeshifter.ai.scenario.Script;
 import stroom.shapeshifter.ai.scenario.Structure;
-import stroom.shapeshifter.ai.stage.Bindings;
+import stroom.shapeshifter.ai.stage.Attempts;
+import stroom.shapeshifter.ai.stage.Attempts.Recorded;
+import stroom.shapeshifter.ai.stage.Ledger;
 import stroom.shapeshifter.ai.stage.Rules;
+import stroom.shapeshifter.ai.stage.Shape;
 import stroom.shapeshifter.ai.transformation.XsltStep;
+import stroom.shapeshifter.shared.AttemptStatus;
 import stroom.shapeshifter.shared.ExecutionMode;
 import stroom.shapeshifter.shared.LearningMode;
 import stroom.shapeshifter.shared.PlanExample;
 import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ScorerSetting;
 import stroom.shapeshifter.shared.ScorerType;
-import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 import stroom.shapeshifter.shared.YieldBasis;
 import stroom.shapeshifter.shared.YieldParameters;
 import stroom.test.AbstractProcessIntegrationTest;
@@ -78,18 +82,17 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Design 02 §5, scenario 18 (Tier 2): scenario 1 with the document, feed and streams as real content and
- * the supervisor element in a real pipeline, processed as a processor task. What Tier 1 cannot claim is
- * claimed here: the learned fragment runs as a pipeline, the element routes and emits, the output is a
- * stream whose attributes carry the bindings (design 01 §7.3 rule 3), and the fragment is a document in
- * the store.
+ * Design 02 §5, scenario 30 (Tier 2; A5, A28): deferred learning in a real pipeline. The processing task
+ * asks the model nothing — it parks an attempt and writes an error stream — and the node's job carries
+ * the attempt on afterwards, with no task in front of it, reading the stream back out of the store by
+ * the id the attempt kept. What Tier 1 cannot claim is claimed here: the worker's seams are the node's
+ * stores, the rule it writes is a row, and the fragment it wrote is a pipeline document.
  */
-class TestScenario18LearnsACsvFeedInAPipeline extends AbstractProcessIntegrationTest {
+class TestScenario30DeferredWorkerInAPipeline extends AbstractProcessIntegrationTest {
 
-    private static final String FEED = "DOOR-ACCESS";
+    private static final String FEED = "DOOR-ACCESS-DEFERRED";
     private static final Golden CSV = Scenarios.corpus("001_csv_with_header");
     private static final String XSLT = Scenarios.resource("csv-logon.xsl");
-    private static final String EXPECTED_EVENTS = Scenarios.resource("csv-logon.events.xml");
 
     @Inject
     private StoreCreationTool storeCreationTool;
@@ -102,6 +105,10 @@ class TestScenario18LearnsACsvFeedInAPipeline extends AbstractProcessIntegration
     @Inject
     private Rules rules;
     @Inject
+    private Ledger ledger;
+    @Inject
+    private Attempts attempts;
+    @Inject
     private PipelineStore pipelineStore;
     @Inject
     private MockMetaService metaService;
@@ -110,10 +117,12 @@ class TestScenario18LearnsACsvFeedInAPipeline extends AbstractProcessIntegration
     @Inject
     private AdvisorHolder advisor;
     @Inject
+    private DeferredLearning deferredLearning;
+    @Inject
     private Provider<DS3ParserFactory> parserFactories;
 
     @Test
-    void learnsInAPipelineThenBindsTheNextStream() {
+    void scenario30TheTaskParksAndTheJobLearns() {
         final DocRef feed = storeCreationTool.getOrCreateFeedDoc(FEED);
         final DocRef doc = document();
         final DocRef pipeline = pipeline(feed, doc);
@@ -128,69 +137,61 @@ class TestScenario18LearnsACsvFeedInAPipeline extends AbstractProcessIntegration
                         .build())
                 .priority(1)
                 .build());
-
-        // The first stream: the model is asked, as in scenario 1, and the stream is processed by what it
-        // taught.
+        // The script is set, and the task must not touch it: that is what deferred means.
         final Script script = script()
-                .expect(QuestionMatcher.chain()
-                        .withKey("Feed", FEED)
-                        .withKey("Type", StreamTypeNames.RAW_EVENTS))
-                .reply("DSParser -> XSLTFilter")
+                .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter")
                 .expect(QuestionMatcher.configuration("DSParser")).reply(Scenarios.fenced(CSV.configuration()))
                 .expect(QuestionMatcher.configuration("XSLTFilter")).reply(Scenarios.fenced(XSLT));
         advisor.set(script);
-        rawStream();
-        final ProcessorResult first = processOne();
+        final Meta raw = rawStream();
+
+        final ProcessorResult task = processOne();
+
+        assertThat(script.asked()).describedAs("no model call inside the processing task").isEmpty();
+        assertThat(task.getMarkerCount(Severity.ERROR, Severity.FATAL_ERROR))
+                .describedAs("the sentinel is an error stream, as an unknown shape's always is").isEqualTo(1);
+        assertThat(task.getWritten()).isZero();
+        assertThat(outputs()).isEmpty();
+        assertThat(rules.forDocument(doc.getUuid())).isEmpty();
+        final Recorded parked = attempts.forDocument(doc.getUuid(), 10).get(0);
+        assertThat(parked.status()).isEqualTo(AttemptStatus.AWAITING_MODEL);
+        assertThat(parked.turns()).describedAs("parked at its first question, having asked none").isEmpty();
+        assertThat(parked.attempt().inputId())
+                .describedAs("naming the stream it was raised on, which is how the job finds it again")
+                .isEqualTo(raw.getId());
+
+        // The job, with no task and no pipeline around it: it reads the document and the stream back out
+        // of the node's own stores and carries the attempt on.
+        deferredLearning.exec();
+
         script.verifyExhausted();
-
-        assertThat(first.getMarkerCount(Severity.ERROR, Severity.FATAL_ERROR)).isZero();
-        assertThat(first.getWritten()).isEqualTo(6);
-        // The rules are rows, not part of the document (A41): the supervisor wrote one and left the
-        // document alone.
-        assertThat(rules.forDocument(doc.getUuid())).hasSize(1);
+        final Recorded finished = attempts.byId(parked.id()).orElseThrow();
+        assertThat(finished.status()).describedAs(String.valueOf(finished.decision()))
+                .isEqualTo(AttemptStatus.PROMOTED);
+        assertThat(rules.forDocument(doc.getUuid())).describedAs("one rule, written by the job").hasSize(1);
         final RoutingRule rule = rules.forDocument(doc.getUuid()).get(0);
-        assertThat(shapeshifterAiStore.readDocument(doc))
-                .describedAs("the document the operator authored is untouched by learning")
-                .isEqualTo(shapeshifterAiStore.readDocument(doc));
-        assertThat(rule.isDraft()).isFalse();
-        assertThat(rule.isProvisional()).isFalse();
-        final PipelineDoc fragment = pipelineStore.readDocument(rule.getPipeline());
-        assertThat(fragment).describedAs("the fragment is a real pipeline document").isNotNull();
-        assertThat(fragment.getName()).startsWith(FEED + "-Raw-Events-");
-        assertThat(fragment.getPipelineData().getAddedElements())
-                .extracting(element -> element.getType())
-                .containsExactly("Source", "DSParser", "XSLTFilter");
+        assertThat(pipelineStore.readDocument(rule.getPipeline()))
+                .describedAs("and the fragment it learned is a pipeline document").isNotNull();
+        final String shape = Shape.of(List.of(MetaFields.FIELD_FEED, MetaFields.FIELD_TYPE),
+                Map.of(MetaFields.FIELD_FEED, FEED, MetaFields.FIELD_TYPE, StreamTypeNames.RAW_EVENTS)).id();
+        assertThat(ledger.release(doc.getUuid(), shape))
+                .describedAs("the promotion released the ledger, so what waited is asked for (A12)")
+                .isEmpty();
 
-        final Meta output = outputs().get(0);
-        assertThat(canonical(data(output))).isEqualTo(canonical(EXPECTED_EVENTS));
-        final Map<String, String> attributes = streamStore.getAttributes(output.getId());
-        assertThat(attributes)
-                .describedAs("design 01 §7.3 rule 3: the output carries what produced it")
-                .containsEntry(Bindings.DOC_ATTRIBUTE, doc.getUuid())
-                .containsEntry(Bindings.RULE_ATTRIBUTE, rule.getUuid())
-                .containsEntry(Bindings.FRAGMENT_ATTRIBUTE, rule.getPipeline().getUuid())
-                .containsEntry(Bindings.PROVISIONAL_ATTRIBUTE, "false");
-
-        // The second stream of the shape: bound by the rule, the model not consulted.
+        // The next stream of the shape is bound in the task, with no model call and no worker.
         final Script silent = Script.of();
         advisor.set(silent);
         rawStream();
-        final ProcessorResult second = processOne();
+        final ProcessorResult served = processOne();
 
         assertThat(silent.asked()).isEmpty();
-        assertThat(second.getMarkerCount(Severity.ERROR, Severity.FATAL_ERROR)).isZero();
-        assertThat(second.getWritten()).isEqualTo(6);
-        assertThat(outputs()).hasSize(2);
-        assertThat(canonical(data(outputs().get(1)))).isEqualTo(canonical(EXPECTED_EVENTS));
-        assertThat(rules.forDocument(doc.getUuid())).hasSize(1);
+        assertThat(served.getMarkerCount(Severity.ERROR, Severity.FATAL_ERROR)).isZero();
+        assertThat(served.getWritten()).isEqualTo(6);
+        assertThat(outputs()).hasSize(1);
+        assertThat(attempts.forDocument(doc.getUuid(), 10))
+                .describedAs("and opened no second attempt: the shape is known now").hasSize(1);
     }
 
-    /**
-     * The split and target questions are answered from the configurations the script will give, as the
-     * module's scenarios do; the script states only what the scenario is about. The structure's compiler
-     * is built when a question is asked, inside the processing pipeline's scope, so it reaches the node's
-     * parser factory the way the element does.
-     */
     private Script script() {
         final DataSplitterCompiler compiler = new DataSplitterCompiler(parserFactories, new ErrorReceiverProxy());
         return Script.of().structure(new Structure(
@@ -198,11 +199,12 @@ class TestScenario18LearnsACsvFeedInAPipeline extends AbstractProcessIntegration
     }
 
     private DocRef document() {
-        final DocRef docRef = shapeshifterAiStore.createDocument("door-access");
+        final DocRef docRef = shapeshifterAiStore.createDocument("door-access-deferred");
         shapeshifterAiStore.writeDocument(shapeshifterAiStore.readDocument(docRef)
                 .copy()
                 .learningMode(LearningMode.AUTOMATIC)
-                .executionMode(ExecutionMode.INLINE)
+                // What this scenario is about: nothing is asked in the task (A5).
+                .executionMode(ExecutionMode.DEFERRED)
                 .plan(PlanExample.TARGET_FIRST)
                 .allowedElements(List.of("DSParser", "XSLTFilter"))
                 .minRecordsPerShape(5)
@@ -216,11 +218,6 @@ class TestScenario18LearnsACsvFeedInAPipeline extends AbstractProcessIntegration
         return docRef;
     }
 
-    /**
-     * {@code Source → ShapeshifterAi → SchemaFilter → RecordOutputFilter → RecordCountFilter → XMLWriter →
-     * StreamAppender}: the supervised stage where a parser and its translation would be, and the standard
-     * tail of an event pipeline after it.
-     */
     private DocRef pipeline(final DocRef feed, final DocRef doc) {
         final PipelineData data = new PipelineDataBuilder()
                 .addElement(new PipelineElement("Source", "Source"))
@@ -244,19 +241,9 @@ class TestScenario18LearnsACsvFeedInAPipeline extends AbstractProcessIntegration
                 .addProperty(PipelineDataUtil.createProperty("streamAppender", "streamType", StreamTypeNames.EVENTS))
                 .addProperty(PipelineDataUtil.createProperty("streamAppender", "segmentOutput", true))
                 .build();
-        final DocRef pipelineRef = pipelineStore.createDocument("DOOR-ACCESS supervised");
+        final DocRef pipelineRef = pipelineStore.createDocument(FEED + " supervised");
         pipelineStore.writeDocument(pipelineStore.readDocument(pipelineRef).copy().pipelineData(data).build());
         return pipelineRef;
-    }
-
-    private void rawStream() {
-        try {
-            final Path file = Files.createTempFile(getCurrentTestDir(), "door-access", ".csv");
-            Files.writeString(file, CSV.input(), StandardCharsets.UTF_8);
-            storeCreationTool.loadEventData(FEED, file, null);
-        } catch (final IOException e) {
-            throw new UncheckedIOException(e);
-        }
     }
 
     private ProcessorResult processOne() {
@@ -265,21 +252,25 @@ class TestScenario18LearnsACsvFeedInAPipeline extends AbstractProcessIntegration
         return results.get(0);
     }
 
+    private Meta rawStream() {
+        try {
+            final Path file = Files.createTempFile(getCurrentTestDir(), "door-access", ".csv");
+            Files.writeString(file, CSV.input(), StandardCharsets.UTF_8);
+            storeCreationTool.loadEventData(FEED, file, null);
+        } catch (final IOException e) {
+            throw new UncheckedIOException(e);
+        }
+        return metaService.find(FindMetaCriteria.createWithType(StreamTypeNames.RAW_EVENTS))
+                .getValues()
+                .stream()
+                .max((a, b) -> Long.compare(a.getId(), b.getId()))
+                .orElseThrow();
+    }
+
     private List<Meta> outputs() {
         return metaService.getMetaMap().values().stream()
                 .filter(meta -> StreamTypeNames.EVENTS.equals(meta.getTypeName()))
                 .sorted((a, b) -> Long.compare(a.getId(), b.getId()))
                 .toList();
-    }
-
-    private String data(final Meta meta) {
-        return new String(streamStore.getFileData().get(meta.getId()).get(meta.getTypeName()), StandardCharsets.UTF_8);
-    }
-
-    /**
-     * The two serialisers indent differently and one writes a declaration; the events are the same.
-     */
-    private static String canonical(final String xml) {
-        return xml.replaceAll("<\\?xml[^>]*\\?>", "").replaceAll(">\\s+<", "><").strip();
     }
 }

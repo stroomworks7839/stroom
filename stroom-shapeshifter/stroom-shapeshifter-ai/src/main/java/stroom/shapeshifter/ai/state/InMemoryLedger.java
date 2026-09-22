@@ -17,6 +17,7 @@
 package stroom.shapeshifter.ai.state;
 
 import stroom.shapeshifter.ai.stage.Ledger;
+import stroom.shapeshifter.ai.stage.Ledger.Released;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -34,23 +35,24 @@ public final class InMemoryLedger implements Ledger {
     public synchronized void sentinelled(final String docUuid,
                                          final String shape,
                                          final long inputId,
+                                         final String pipeline,
                                          final String reason) {
         // A stream sentinelled twice for one shape is one row, as the table has it: it must not be
         // replayed twice when the shape settles.
         if (rows.stream().noneMatch(row -> row.docUuid().equals(docUuid)
                                            && row.shape().equals(shape)
                                            && row.inputId() == inputId)) {
-            rows.add(new Row(docUuid, shape, inputId, reason));
+            rows.add(new Row(docUuid, shape, inputId, pipeline, reason));
         }
     }
 
     @Override
-    public synchronized List<Long> release(final String docUuid, final String shape) {
-        final List<Long> released = new ArrayList<>();
+    public synchronized List<Released> release(final String docUuid, final String shape) {
+        final List<Released> released = new ArrayList<>();
         rows.removeIf(row -> {
             final boolean match = row.docUuid().equals(docUuid) && row.shape().equals(shape);
             if (match) {
-                released.add(row.inputId());
+                released.add(new Released(row.inputId(), row.pipeline()));
             }
             return match;
         });
@@ -65,7 +67,7 @@ public final class InMemoryLedger implements Ledger {
         return rows.isEmpty();
     }
 
-    public record Row(String docUuid, String shape, long inputId, String reason) {
+    public record Row(String docUuid, String shape, long inputId, String pipeline, String reason) {
 
     }
 }

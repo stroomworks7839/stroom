@@ -16,16 +16,21 @@
 
 package stroom.shapeshifter.ai.element;
 
+import stroom.job.api.ScheduledJobsBinder;
 import stroom.pipeline.factory.PipelineElementModule;
 import stroom.shapeshifter.ai.learning.Advisors;
+import stroom.shapeshifter.ai.stage.Documents;
+import stroom.shapeshifter.ai.stage.Inputs;
 import stroom.shapeshifter.ai.stage.Outputs;
 import stroom.shapeshifter.ai.stage.RegressionSet;
 import stroom.shapeshifter.ai.stage.Reprocessing;
 import stroom.shapeshifter.ai.state.InMemoryOutputs;
 import stroom.shapeshifter.ai.state.InMemoryRegressionSet;
+import stroom.util.RunnableWrapper;
 
 import com.google.inject.Scopes;
 import com.google.inject.multibindings.OptionalBinder;
+import jakarta.inject.Inject;
 
 /**
  * The supervisor element and what it runs over. The advisors are an optional binding whose default asks
@@ -42,13 +47,37 @@ public class ShapeshifterAiElementModule extends PipelineElementModule {
         // Rules, Shapes and Ledger are the tables of A26, bound by the impl-db module; what is still in
         // memory is bound here until its own table arrives.
         bind(Outputs.class).to(InMemoryOutputs.class).in(Scopes.SINGLETON);
-        bind(Reprocessing.class).to(PipelineReprocessing.class);
+        bind(Reprocessing.class).to(PipelineReprocessing.class).in(Scopes.SINGLETON);
         bind(RegressionSet.class).to(InMemoryRegressionSet.class).in(Scopes.SINGLETON);
+        // What deferred mode's worker needs and a processing task is handed: the document an attempt
+        // names, and the stream it was raised on (A5, A28).
+        bind(Documents.class).to(StoreDocuments.class).in(Scopes.SINGLETON);
+        bind(Inputs.class).to(StreamInputs.class).in(Scopes.SINGLETON);
+
+        ScheduledJobsBinder.create(binder())
+                .bindJobTo(DeferredLearningJob.class, builder -> builder
+                        .name("Shapeshifter AI Deferred Learning")
+                        .description("Carry on the Shapeshifter AI attempts that are waiting for the model: "
+                                     + "what a document in deferred execution mode parks rather than "
+                                     + "learning inside a processing task")
+                        .frequencySchedule("1m"));
     }
 
     @Override
     protected void configureElements() {
         bindElement(ShapeshifterAiParser.class);
         bindElement(FragmentOutputFilter.class);
+    }
+
+
+    // --------------------------------------------------------------------------------
+
+
+    private static class DeferredLearningJob extends RunnableWrapper {
+
+        @Inject
+        DeferredLearningJob(final DeferredLearning deferredLearning) {
+            super(deferredLearning::exec);
+        }
     }
 }

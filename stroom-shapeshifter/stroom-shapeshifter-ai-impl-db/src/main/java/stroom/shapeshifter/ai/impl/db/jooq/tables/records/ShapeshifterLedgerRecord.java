@@ -116,6 +116,20 @@ public class ShapeshifterLedgerRecord extends UpdatableRecordImpl<ShapeshifterLe
         return (String) get(6);
     }
 
+    /**
+     * Setter for <code>stroom.shapeshifter_ledger.pipeline_uuid</code>.
+     */
+    public void setPipelineUuid(String value) {
+        set(7, value);
+    }
+
+    /**
+     * Getter for <code>stroom.shapeshifter_ledger.pipeline_uuid</code>.
+     */
+    public String getPipelineUuid() {
+        return (String) get(7);
+    }
+
     // -------------------------------------------------------------------------
     // Primary key information
     // -------------------------------------------------------------------------
@@ -139,7 +153,7 @@ public class ShapeshifterLedgerRecord extends UpdatableRecordImpl<ShapeshifterLe
     /**
      * Create a detached, initialised ShapeshifterLedgerRecord
      */
-    public ShapeshifterLedgerRecord(Long id, Long createTimeMs, String docUuid, String shapeHash, String shapeId, Long inputMetaId, String reason) {
+    public ShapeshifterLedgerRecord(Long id, Long createTimeMs, String docUuid, String shapeHash, String shapeId, Long inputMetaId, String reason, String pipelineUuid) {
         super(ShapeshifterLedger.SHAPESHIFTER_LEDGER);
 
         setId(id);
@@ -149,6 +163,7 @@ public class ShapeshifterLedgerRecord extends UpdatableRecordImpl<ShapeshifterLe
         setShapeId(shapeId);
         setInputMetaId(inputMetaId);
         setReason(reason);
+        setPipelineUuid(pipelineUuid);
         resetTouchedOnNotNull();
     }
 }

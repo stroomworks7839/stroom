@@ -59,7 +59,7 @@ class TestScenario44Auditd {
     private static final String EVENTS = Scenarios.resource("auditd.events.xml");
 
     private static ShapeshifterAiDoc doc() {
-        return ShapeshifterAiDoc.builder()
+        return Scenarios.document()
                 .uuid("doc-1")
                 .name("linux-auditd")
                 .learningMode(LearningMode.AUTOMATIC)

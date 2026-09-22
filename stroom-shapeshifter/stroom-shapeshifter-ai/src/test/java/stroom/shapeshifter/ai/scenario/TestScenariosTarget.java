@@ -94,7 +94,7 @@ class TestScenariosTarget {
             "          <Id><xsl:value-of select=\"data[@name='who']/@value\"/></Id>");
 
     private static ShapeshifterAiDoc doc() {
-        return ShapeshifterAiDoc.builder()
+        return Scenarios.document()
                 .uuid(DOC)
                 .name("door-access")
                 .learningMode(LearningMode.AUTOMATIC)

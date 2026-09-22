@@ -32,9 +32,12 @@ import stroom.shapeshifter.ai.scoring.ExtractionQualityScorer;
 import stroom.shapeshifter.ai.scoring.InputCoverageScorer;
 import stroom.shapeshifter.ai.scoring.Scorer;
 import stroom.shapeshifter.ai.scoring.YieldScorer;
+import stroom.shapeshifter.ai.stage.DeferredWorker;
 import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.ai.stage.Stage;
 import stroom.shapeshifter.ai.state.InMemoryAttempts;
+import stroom.shapeshifter.ai.state.InMemoryDocuments;
+import stroom.shapeshifter.ai.state.InMemoryInputs;
 import stroom.shapeshifter.ai.state.InMemoryLedger;
 import stroom.shapeshifter.ai.state.InMemoryOutputs;
 import stroom.shapeshifter.ai.state.InMemoryRegressionSet;
@@ -43,6 +46,8 @@ import stroom.shapeshifter.ai.state.InMemoryRules;
 import stroom.shapeshifter.ai.state.InMemoryShapes;
 import stroom.shapeshifter.ai.state.InMemorySpend;
 import stroom.shapeshifter.ai.transformation.XsltStep;
+import stroom.shapeshifter.shared.ExecutionMode;
+import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -77,6 +82,16 @@ public final class Scenarios {
     public final InMemoryOutputs outputs = new InMemoryOutputs();
     public final InMemoryReprocessing reprocessing = new InMemoryReprocessing();
     public final InMemoryRegressionSet regressionSet = new InMemoryRegressionSet();
+    public final InMemoryDocuments documents = new InMemoryDocuments();
+    public final InMemoryInputs inputs = new InMemoryInputs();
+
+    /// A document as a scenario means it: **inline**, so that the stage learns in front of the test. The
+    /// document's own default is deferred (A5), which is right for a node — an LLM call in a processing
+    /// task holds a task slot — and wrong for a scenario about what learning does rather than about when
+    /// it happens. Scenario 30, which *is* about when, says deferred for itself.
+    public static ShapeshifterAiDoc.Builder document() {
+        return ShapeshifterAiDoc.builder().executionMode(ExecutionMode.INLINE);
+    }
 
     public List<StepRunner> runners() {
         return List.of(new DataSplitterStep(NODE.compiler()), new JsonStep(), new XsltStep());
@@ -144,6 +159,13 @@ public final class Scenarios {
                 Clock.fixed(NOW, ZoneOffset.UTC),
                 SEED,
                 node);
+    }
+
+    /// Deferred mode's worker over this scenario's state (A5, A28), answering with a given script: the
+    /// job that carries on the attempts a deferred document parks. The stage is one of this scenario's,
+    /// since a stage holds nothing of a stream between calls.
+    public DeferredWorker worker(final Advisor answerer) {
+        return new DeferredWorker(stage(answerer), attempts, documents, inputs, document -> answerer);
     }
 
     public static Golden corpus(final String stem) {

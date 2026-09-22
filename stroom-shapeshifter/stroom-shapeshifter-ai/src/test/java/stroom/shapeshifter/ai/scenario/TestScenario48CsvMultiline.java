@@ -55,7 +55,7 @@ class TestScenario48CsvMultiline {
     private static final String EVENTS = Scenarios.resource("csv-multiline.events.xml");
 
     private static ShapeshifterAiDoc doc() {
-        return ShapeshifterAiDoc.builder()
+        return Scenarios.document()
                 .uuid("doc-1")
                 .name("document-store-audit")
                 .learningMode(LearningMode.AUTOMATIC)

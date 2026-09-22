@@ -60,7 +60,7 @@ class TestScenariosPlan {
     private static final String DOC = "doc-1";
 
     private static ShapeshifterAiDoc doc(final LearningPlan plan) {
-        return ShapeshifterAiDoc.builder()
+        return Scenarios.document()
                 .uuid(DOC)
                 .name("door-access")
                 .learningMode(LearningMode.AUTOMATIC)

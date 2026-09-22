@@ -89,6 +89,11 @@ public class ShapeshifterLedger extends TableImpl<ShapeshifterLedgerRecord> {
      */
     public final TableField<ShapeshifterLedgerRecord, String> REASON = createField(DSL.name("reason"), SQLDataType.CLOB.nullable(false), this, "");
 
+    /**
+     * The column <code>stroom.shapeshifter_ledger.pipeline_uuid</code>.
+     */
+    public final TableField<ShapeshifterLedgerRecord, String> PIPELINE_UUID = createField(DSL.name("pipeline_uuid"), SQLDataType.VARCHAR(255), this, "");
+
     private ShapeshifterLedger(Name alias, Table<ShapeshifterLedgerRecord> aliased) {
         this(alias, aliased, (Field<?>[]) null, null);
     }

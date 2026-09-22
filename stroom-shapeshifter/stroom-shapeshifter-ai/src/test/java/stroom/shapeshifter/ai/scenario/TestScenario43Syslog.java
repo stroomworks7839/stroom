@@ -56,7 +56,7 @@ class TestScenario43Syslog {
     private static final String FEED = "GATEWAY-SSH";
 
     private static ShapeshifterAiDoc doc(final List<String> learningKey) {
-        final ShapeshifterAiDoc.Builder builder = ShapeshifterAiDoc.builder()
+        final ShapeshifterAiDoc.Builder builder = Scenarios.document()
                 .uuid("doc-1")
                 .name("gateway-ssh")
                 .learningMode(LearningMode.AUTOMATIC)

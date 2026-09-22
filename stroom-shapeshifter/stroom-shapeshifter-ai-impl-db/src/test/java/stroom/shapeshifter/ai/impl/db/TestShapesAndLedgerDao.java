@@ -19,6 +19,7 @@ package stroom.shapeshifter.ai.impl.db;
 import stroom.shapeshifter.ai.stage.Attempts.Attempt;
 import stroom.shapeshifter.ai.stage.Attempts.Recorded;
 import stroom.shapeshifter.ai.stage.Attempts.Turn;
+import stroom.shapeshifter.ai.stage.Ledger.Released;
 import stroom.shapeshifter.ai.stage.Spend.Spent;
 import stroom.shapeshifter.shared.AttemptStatus;
 import stroom.shapeshifter.shared.ExecutionMode;
@@ -96,26 +97,31 @@ class TestShapesAndLedgerDao {
     }
 
     @Test
-    void theLedgerNamesWhatToReplayAndReleasesItOnce() {
-        ledger.sentinelled(DOC, SHAPE, 1L, "Unknown shape");
-        ledger.sentinelled(DOC, SHAPE, 2L, "Unknown shape");
-        ledger.sentinelled(DOC, "another-shape", 3L, "Unknown shape");
+    void theLedgerNamesWhatToReplayAndWhereAndReleasesItOnce() {
+        ledger.sentinelled(DOC, SHAPE, 1L, "pipeline-1", "Unknown shape");
+        ledger.sentinelled(DOC, SHAPE, 2L, "pipeline-2", "Unknown shape");
+        ledger.sentinelled(DOC, "another-shape", 3L, null, "Unknown shape");
 
-        final List<Long> released = ledger.release(DOC, SHAPE);
+        final List<Released> released = ledger.release(DOC, SHAPE);
 
-        assertThat(released).describedAs("oldest first: the backlog is replayed in order").containsExactly(1L, 2L);
+        assertThat(released).extracting(Released::inputId)
+                .describedAs("oldest first: the backlog is replayed in order").containsExactly(1L, 2L);
+        assertThat(released).extracting(Released::pipeline)
+                .describedAs("and each through the pipeline that sentinelled it, which may not be this one")
+                .containsExactly("pipeline-1", "pipeline-2");
         assertThat(ledger.release(DOC, SHAPE))
                 .describedAs("a second release finds nothing: two nodes must not both replay it")
                 .isEmpty();
-        assertThat(ledger.release(DOC, "another-shape")).containsExactly(3L);
+        assertThat(ledger.release(DOC, "another-shape")).extracting(Released::pipeline)
+                .describedAs("a stream sentinelled by no pipeline names none").containsExactly((String) null);
     }
 
     @Test
     void aStreamSentinelledTwiceIsReplayedOnce() {
-        ledger.sentinelled(DOC, SHAPE, 1L, "Unknown shape");
-        ledger.sentinelled(DOC, SHAPE, 1L, "Unknown shape, again");
+        ledger.sentinelled(DOC, SHAPE, 1L, "pipeline-1", "Unknown shape");
+        ledger.sentinelled(DOC, SHAPE, 1L, "pipeline-1", "Unknown shape, again");
 
-        assertThat(ledger.release(DOC, SHAPE)).containsExactly(1L);
+        assertThat(ledger.release(DOC, SHAPE)).extracting(Released::inputId).containsExactly(1L);
     }
 
     @Test
@@ -126,12 +132,12 @@ class TestShapesAndLedgerDao {
         final String long2 = SHAPE + "|RemoteFile=" + "b".repeat(2000);
 
         shapes.giveUp(DOC, long1, "too long to lose");
-        ledger.sentinelled(DOC, long1, 7L, "Unknown shape");
+        ledger.sentinelled(DOC, long1, 7L, "pipeline-1", "Unknown shape");
 
         assertThat(shapes.reasonGivenUp(DOC, long1)).contains("too long to lose");
         assertThat(shapes.reasonGivenUp(DOC, long2)).describedAs("a different long id is a different shape")
                 .isEmpty();
-        assertThat(ledger.release(DOC, long1)).containsExactly(7L);
+        assertThat(ledger.release(DOC, long1)).extracting(Released::inputId).containsExactly(7L);
         shapes.reset(DOC, long1);
     }
 
@@ -158,27 +164,34 @@ class TestShapesAndLedgerDao {
                 ExecutionMode.DEFERRED, PromotionMode.AUTOMATIC, now() + 60_000L), now()).orElseThrow();
         attempts.parked(id, AttemptStatus.AWAITING_MODEL, now() + 60_000L, 500L);
 
-        assertThat(attempts.claimed(id, "node-2", now(), now() + 60_000L))
-                .describedAs("another node's live claim is not free to take").isFalse();
-        assertThat(attempts.claimed(id, "node-1", now(), now() + 120_000L))
-                .describedAs("its own node carries it on").isTrue();
+        assertThat(attempts.awaiting(10)).extracting(Recorded::id)
+                .describedAs("what deferred mode's worker advances").contains(id);
+        assertThat(attempts.claimed(id, "node-2", now(), now() + 120_000L))
+                .describedAs("a parked attempt is nobody's: any node's worker may take it").isTrue();
         assertThat(attempts.byId(id).orElseThrow().status()).isEqualTo(AttemptStatus.IN_PROGRESS);
+        assertThat(attempts.awaiting(10)).extracting(Recorded::id)
+                .describedAs("and is no longer waiting once taken").doesNotContain(id);
+        assertThat(attempts.claimed(id, "node-1", now(), now() + 120_000L))
+                .describedAs("but a running attempt is its own node's").isFalse();
+        assertThat(attempts.claimed(id, "node-2", now(), now() + 120_000L))
+                .describedAs("which carries it on").isTrue();
 
         attempts.heartbeat(id, now() - 1);
         assertThat(attempts.open(DOC, shape, now())).describedAs("lapsed, and the shape is free").isEmpty();
-        assertThat(attempts.claimed(id, "node-2", now(), now() + 60_000L))
+        assertThat(attempts.claimed(id, "node-1", now(), now() + 60_000L))
                 .describedAs("a node that died lets the next one in").isTrue();
-        assertThat(attempts.byId(id).orElseThrow().attempt().node()).isEqualTo("node-2");
+        assertThat(attempts.byId(id).orElseThrow().attempt().node()).isEqualTo("node-1");
 
         // What it spent on each leg is added up, not overwritten, or a resumed attempt's cost is only its
         // last leg's (A5).
         attempts.closed(id, AttemptStatus.PROMOTED, "Promoted 1.0", "rule-3", 1.0, 700L);
         assertThat(attempts.byId(id).orElseThrow().tokensSpent()).isEqualTo(1_200L);
-        assertThat(attempts.claimed(id, "node-2", now(), now() + 60_000L))
+        assertThat(attempts.claimed(id, "node-1", now(), now() + 60_000L))
                 .describedAs("a finished attempt is not carried on").isFalse();
         attempts.parked(id, AttemptStatus.AWAITING_MODEL, now() + 60_000L, 1L);
         assertThat(attempts.byId(id).orElseThrow().status())
                 .describedAs("nor parked back into life").isEqualTo(AttemptStatus.PROMOTED);
+        assertThat(attempts.awaiting(10)).extracting(Recorded::id).doesNotContain(id);
     }
 
     @Test

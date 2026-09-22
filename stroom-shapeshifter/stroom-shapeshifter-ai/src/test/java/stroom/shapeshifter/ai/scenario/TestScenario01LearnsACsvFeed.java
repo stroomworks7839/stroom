@@ -61,7 +61,7 @@ class TestScenario01LearnsACsvFeed {
     private static final String EXPECTED_EVENTS = Scenarios.resource("csv-logon.events.xml");
 
     private static ShapeshifterAiDoc policy() {
-        return ShapeshifterAiDoc.builder()
+        return Scenarios.document()
                 .uuid("policy-1")
                 .name("door-access")
                 .learningMode(LearningMode.AUTOMATIC)

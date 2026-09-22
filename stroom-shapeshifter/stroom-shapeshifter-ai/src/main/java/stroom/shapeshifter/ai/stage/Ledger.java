@@ -26,12 +26,24 @@ import java.util.List;
  */
 public interface Ledger {
 
-    void sentinelled(String docUuid, String shape, long inputId, String reason);
+    /// @param pipeline The uuid of the pipeline that was processing the input, where one was: a released
+    ///                 input is replayed through the pipeline that sentinelled it, which may be neither
+    ///                 the pipeline nor the node that releases it.
+    void sentinelled(String docUuid, String shape, long inputId, String pipeline, String reason);
 
     /**
      * Take the shape's inputs off the ledger.
      *
-     * @return The ids of the inputs that were on it, oldest first.
+     * @return The inputs that were on it, oldest first, each with the pipeline that sentinelled it.
      */
-    List<Long> release(String docUuid, String shape);
+    List<Released> release(String docUuid, String shape);
+
+
+    // --------------------------------------------------------------------------------
+
+
+    /// One input taken off the ledger, and where it was being processed when it was put there.
+    record Released(long inputId, String pipeline) {
+
+    }
 }

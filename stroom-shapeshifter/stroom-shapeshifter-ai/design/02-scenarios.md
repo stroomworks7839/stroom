@@ -1361,6 +1361,102 @@ cleared on close, a stream sentinelled twice for one shape being one row — eac
 since a scenario that passes over a twin that lies proves nothing. 197 tests in the module, 16 against
 MySQL.
 
+The twenty-sixth slice, 2026-09-22, is **deferred mode and its worker** (A5, A28), which closes scenario
+30. Until now every document learned in the task whatever its mode, and deferred is the *default* mode —
+an LLM call inside a processing task holds a task slot and a volume handle for as long as the model
+takes, which is the whole reason A5 exists. A deferred document now asks nothing in the task: the stage
+opens the attempt, parks it at its first question and sentinels the stream, and `DeferredWorker` carries
+it on outside the task, at whatever pace the model answers. What it promotes releases the shape's ledger
+as any other promotion does, so the streams that waited are reprocessed (A12).
+
+The worker needs two things the stage was always handed: the document, and the stream the attempt was
+raised on. Both become seams — `Documents` and `Inputs` — with in-memory implementations for the
+harness, because the sample is not copied into the attempt: a stream's own text may not be stored until
+redaction is built (A38), and a stream is already kept where streams are kept. An attempt whose stream
+has been aged off, or whose document has been deleted, is abandoned with the reason rather than left
+waiting for ever, since the shape it holds is a shape nothing else may learn. One attempt's failure is
+its own — a pass that stopped at the first bad attempt would never reach the good ones behind it.
+
+Writing the relearn case found a real fault. An attempt is resumed by re-walking the dialogue, and
+`resume` walked every attempt as though it were learning an unknown shape: a *relearn* (A29) carried on
+by the worker appended a second rule for one selector instead of rebinding the incumbent, leaving the
+first rule's fragment orphaned behind it — exactly what the claim exists to prevent, arrived at from the
+other side. What an attempt is doing is not stored either, and need not be: it is read from the rules as
+they stand, and a shape a rule already binds is being relearned. With that, the shape's mark moves too —
+it is spent when the relearning has happened rather than when it was scheduled, or an attempt that parks
+would find the shape changed under it and its re-walk would ask a different question. While it waits,
+the shape's other streams are served by the incumbent, as they are served throughout a relearning, and
+the stream in front of the stage is `Kept` rather than sentinelled: a bound shape's stream does not
+belong on the ledger.
+
+A parked attempt is nobody's — no thread is behind it — so any node's worker may take it up; a *running*
+attempt is its own node's until its claim lapses (A45). That is one line of the claim rule, and it is
+what lets the job be a cluster job rather than a node's own business.
+
+Every scenario document now says `INLINE` for itself, through one fixture: the catalogue's scenarios are
+about what learning does, not about when it happens, and scenario 30 is the one that is about when.
+202 tests in the module, 16 against MySQL, 3 in Tier 2.
+
+The twenty-seventh slice, 2026-09-22, is **the worker in a node**: what slice 26 owed. `StageFactory`
+builds the stage that both the supervisor element and the job run — one list of runners and scorers, not
+two — `StreamInputs` reads a stream back out of the store by the id the attempt kept, `StoreDocuments`
+reads the document, and *Shapeshifter AI Deferred Learning* is a scheduled job that carries a bounded
+batch on as the processing user, once a minute by default and editable in Jobs like any other. Scenario
+30 is now green in Tier 2 as well: the processing task asks nothing and writes its error stream, the job
+runs with no task in front of it, and the next stream of the shape is bound by what the job learned.
+
+Two things had to give first. A stage cannot be a singleton: the Data Splitter compiler and the schema
+scorer report through the pipeline-scoped `ErrorReceiverProxy`, so the job enters a pipeline scope of
+its own — no pipeline in it, but a candidate configuration is compiled and run there exactly as it is in
+a task.
+
+And the reprocess request had to stop guessing its pipeline. It took the pipeline from the task it was
+running in, which is no answer at all for a job outside one, and was already the wrong answer for a
+document used by two pipelines — a release names streams that several pipelines may have sentinelled,
+and a stream replayed through a pipeline that never saw it produces something nobody asked for. The
+ledger now records where each stream it names was being processed; a release hands back rows rather than
+ids, and the stage asks once per pipeline. A stream sentinelled by no pipeline — the harness, the worker
+itself — is released and nothing is asked for it.
+
+The wiring found two things already broken on this branch, both from slice 21 and both invisible to the
+module's own tests: `TestConfigMapper`'s `AppConfig` subclass never gained the Shapeshifter AI config
+that was added to `AppConfig`, so `stroom-config-global-impl` did not compile, and
+`ConfigProvidersModule` — generated — had not been regenerated, so the config had no provider. Both are
+fixed, the second by running its generator. 202 tests in the module, 16 against MySQL, 4 in Tier 2.
+
+**Still owed.** The batch size is a constant in the job rather than a configuration property: the
+feature's `ShapeshifterAiConfig` lives in the impl-db module, which the module the job lives in cannot
+depend on, so giving an operator that dial means moving the config class first — worth doing when there
+is a second thing to put in it.
+
+The audit of slices 26 and 27 (my own, 2026-09-22) found one thing that mattered and several small ones.
+**`resume` never asked what the shape had become while its attempt waited.** An attempt may wait hours;
+in that time an operator may reserve the selector or turn learning off, a person may have a draft of the
+shape in front of them, or it may have been given up — and the worker would carry the attempt on
+regardless, appending a rule for a selector an operator had just decided binds nothing. The shape's
+state is now read exactly as `run` reads it for a stream, and an attempt the shape no longer wants is
+closed with the reason rather than carried on.
+
+The worker counted a refused attempt as one it had carried on: an attempt another node had taken, or one
+the shape no longer wanted, came back as a sentinel and was counted as progress. And `awaiting` hid a
+parked attempt whose claim had lapsed, which is the wrong reading of the claim: nobody is behind a
+parked attempt, so there is nothing to take it from, and a worker that was down while the claim lapsed
+must still pick it up or the shape waits for a stream that may never come. The expiry now says who may
+carry an attempt, not whether it is still wanted.
+
+The rest were housekeeping: three constructor parameters left behind in the element when the stage moved
+to its factory, two accessors nothing calls, a doubled Javadoc block and a doubled catch.
+
+Three things are noted rather than changed. `claimed` lets a node take an attempt it is already running,
+which is what a node re-entering its own attempt must do; what keeps two of a node's own threads off one
+attempt is that a scheduled job cannot overlap itself, and that is now said where the method is. The
+worker's promotion records an output binding for an output nobody wrote, since the worker emits no
+stream — an artefact of the in-memory `Outputs`, which is a meta search over output attributes in a node
+once its table arrives, where the phantom cannot exist. And a retraction still replays through the
+pipeline of the stream in front of the stage rather than each output's own, which the ledger now knows
+how to do and `Outputs` does not; it is the same approximation as before, and worth closing when
+`Outputs` becomes rows. 204 tests in the module, 16 against MySQL, 4 in Tier 2.
+
 ## 7. Decisions taken
 
 Ruled 2026-09-17, each as recommended:

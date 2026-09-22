@@ -59,7 +59,7 @@ class TestScenario47FixedWidth {
     private static final String EVENTS = Scenarios.resource("fixed-width.events.xml");
 
     private static ShapeshifterAiDoc doc() {
-        return ShapeshifterAiDoc.builder()
+        return Scenarios.document()
                 .uuid("doc-1")
                 .name("mainframe-sign-on")
                 .learningMode(LearningMode.AUTOMATIC)
