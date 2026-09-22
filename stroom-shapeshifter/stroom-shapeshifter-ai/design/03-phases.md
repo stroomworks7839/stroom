@@ -17,7 +17,9 @@ been run against seven feeds, all cut from the `TestDS3` corpus and one XML fixt
 Formats exercised so far: CSV (headed, unheaded, quoted), a regex line feed, one multi-line block
 (corpus 003), nested XML — and, since slices 13–18 (2026-09-21), syslog, auditd, Windows security
 events, JSON, fixed-width and CSV with embedded newlines, each scripted and green (§5). Not yet
-exercised live: any of the six; that is the 2026-10-01 run, and phase B's exit criterion.
+exercised live before run 7 (2026-09-21 to 22, design 02 §6.3), which learned five of the six under
+each plan and every one under one or the other — phase B's exit criterion met — and found the JSON
+document count promoting a one-event transform, which §5 marks urgent.
 
 ## 2. The phases
 
@@ -75,7 +77,7 @@ otherwise.
 | Syslog | 13, 2026-09-21 | Fixture, golden, two splitters, stylesheet; scenario 43 in both keyings green; live row `08-syslog` awaiting the 2026-10-01 run. Finding: a `<PRI>` prefix must not read as markup (`YieldScorer`) |
 | auditd | 14, 2026-09-21 | Fixture, golden, three splitters, stylesheet; scenario 44 green; live row `09-auditd`. Findings: a multi-line record is stated through the expected yield per line; a lines basis must judge the transform record for record; DS3 group expressions anchor with `^` |
 | Windows security events | 15, 2026-09-21 | Fixture, golden, two stylesheets; scenario 45 green; live row `10-windows-security`. Finding: kinds of XML record are told apart by structure, and events of different `EventID`s share one — met in part by slice 16, where a markup record's kind carries its naming attributes (`Data/@Name`) and the three kinds are three targets; a kind by a discriminating value (`EventID`) is still owed |
-| JSON | 16, 2026-09-21 | Fixtures, golden, stylesheet; the `JSONParser` runner, the `json` guard, the array split (`root` reaches a top-level array's items); scenarios 2 and 46 green; live rows `11-json-lines` and `12-json-document`. Owed: a JSON document is learned whole and counts as one record at the stage, so it binds provisionally — the sample cut at the array's items and the stream's count by them, as `wholeChildren` and `Records.count` do for XML |
+| JSON | 16, 2026-09-21 | Fixtures, golden, stylesheet; the `JSONParser` runner, the `json` guard, the array split (`root` reaches a top-level array's items); scenarios 2 and 46 green; live rows `11-json-lines` and `12-json-document`. **Run 7 (design 02 §6.3): the lines promoted under both plans; the document was given up on yield under target-first and promoted at 1.000 under escalating with one event from twelve — a wrong promotion. Urgent.** Owed: a JSON document is learned whole and counts as one record at the stage, so it binds provisionally — the sample cut at the array's items and the stream's count by them, as `wholeChildren` and `Records.count` do for XML |
 | Fixed-width | 17, 2026-09-21 | Fixture, golden, two splitters, two stylesheets; scenario 47 green under the escalating plan; live row `13-fixed-width`. No code changed: coverage at 1.0 says nothing, the rule on the outcome escalates, preservation catches the dropped columns |
 | CSV with embedded newlines | 18, 2026-09-21 | Fixture, golden, two splitters, stylesheet; scenario 48 green; live row `14-csv-multiline`; the DS3 rules teach a quoted field. Finding: the line split is refused by yield per line, not wholeness, which is a character share. Owed: the learning prefix is cut by lines and can cut a multi-line text record at the sample's end — cut it at the settled boundary once a split is learned |
 | Redaction (A17, A38) | deferred to G | Ruled 2026-09-21 how it works; the owner deferred the build — formats first, redaction before a real feed meets an external model |

@@ -681,6 +681,59 @@ The next live run, when the
 key allows, should be 06 and 07 in both shapes with the chain steer and header rule in, and — if 06
 repeats — the split question told that a record may end the stream without its terminator.
 
+**Run 7**, 2026-09-21 to 22, is phase B's live run (design 03 §2): the six formats of slices 13–18 and
+the JSON pair, rows 08–14, on sonnet-5, under target-first and then escalating, five candidates a step,
+the harness restricted to those rows (`SHAPESHIFTER_LIVE_ROWS`). Archived as
+`build/live-runs/sonnet-5-run7-{target_first,escalating}`. Score · questions · tokens · seconds:
+
+| Run | 7 target-first | 7 escalating |
+|---|---|---|
+| 08 syslog | 1.000 · 7 q · 56k · 131 s | 1.000 · 4 q · 38k · 98 s |
+| 09 auditd | 0.997 · 11 q · 181k · 274 s | **given up** · 6 q · 114k · 543 s |
+| 10 Windows security | 0.997 · 13 q · 415k · 849 s | 1.000 · 2 q · 28k · 165 s |
+| 11 JSON lines | 0.999 · 9 q · 80k · 180 s | 0.938 · 6 q · 83k · 311 s |
+| 12 JSON document | **given up** · 10 q · 215k · 883 s | **1.000, wrongly** · 6 q · 144k · 1727 s |
+| 13 fixed-width | 1.000 · 8 q · 68k · 71 s | 1.000 · 4 q · 30k · 52 s |
+| 14 CSV, embedded newlines | 1.000 · 15 q · 258k · 166 s | 1.000 · 4 q · 30k · 64 s |
+
+Phase B's exit criterion — at least four of the six formats learned live to the floor with the default
+plan or the escalating one — is met by either plan alone: five of six under target-first, five of six
+under escalating, and every format under one or the other. The positional regex, the quoted-field
+regex, the syslog and auditd splits and the Windows `Data[@Name]` mapping were all written by the model
+from the rules and the instructions. What the run found:
+
+- *The JSON document is the run's one real failure, and it is ours.* Under target-first the transform
+  was refused five times on yield alone — "12 records from 1 input record is 12.0 per unit against an
+  expected 1.0" — because the parser's XML has one root child, the map holding the array, and the stage
+  counts a JSON document as one record (scenario 46 dropped the yield scorer for this case; the live
+  row carried the default). Under escalating the same wall stood, and on its last candidate the model
+  did what the scorer asked: a stylesheet that emits *one* event from the array's first item, with a
+  comment saying the document is one record so one event is produced. Yield 1.0, every gate passed,
+  **promoted at 1.000** with eleven of twelve events dropped — the promotion a person reviewing the
+  transcript would have refused, which is phase G's exit criterion failing in rehearsal. The one target
+  had been proposed for the whole document, since with no split step the root's one child was the
+  record, so fidelity was satisfied by the one event. Everything follows from one miscount: a JSON
+  document's records are its array's items, at the split, the target, the stage's count and yield.
+  Owed in design 03 §5 since slice 16; now urgent, and the strongest evidence yet that a scorer wrong
+  about the unit steers the model to a degenerate output the gate then admits (A16's concern, from the
+  other side).
+- *auditd under escalating*: with no split step the parser must cut and extract at once, and the model's
+  line-per-record parser scored yield 0.35 against the 0.6 the document asks (0.35 per line stated),
+  then its two attempts to join lines by serial left content unmatched. Target-first learned the same
+  feed in eleven questions. A multi-line record wants the split question asked on its own.
+- *Windows security under escalating*: promoted in two questions and 28k tokens against thirteen and
+  415k under target-first — the target-first dialogue re-asked the split and the transform several
+  times on the way to the same result. On a feed that is already XML with one obvious record element,
+  the split and target steps cost more than they found.
+- *Cost*: target-first spent 1.27M tokens over the seven rows, escalating 0.47M, for the same five
+  promotions each; the escalating plan's savings are on the clean feeds (13, 14, 08), where the direct
+  route passed first time and no target was ever asked.
+
+Where it stands: the formats are learned; the plan that suits a feed is the one whose first question is
+the feed's hard part — the split for multi-line text, the transform for XML — which is the case for the
+plan as a per-document setting (A32) rather than one default. The JSON document count is the next
+thing to build, before anything else is measured against it.
+
 The ninth slice, 2026-09-18, is the node's advisor (design 01 §12 item 6). `Advisors` gives a stage its
 advisor per document — the document names the model and the instructions — and `ModelAdvisors`, the
 node's default, answers with `ModelAdvisor` over `stroom-ai`'s chat model for the document's model: the

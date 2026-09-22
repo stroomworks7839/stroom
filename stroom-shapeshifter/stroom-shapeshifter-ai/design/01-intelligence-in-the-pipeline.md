@@ -1849,6 +1849,11 @@ including the degeneracy trap (§8.3) that changes the scoring model and propose
   §6.1; markup that is not one document brings its lines to the stage's count; a JSON document is cut
   at the size limit; one transition per outcome; a byte order mark is stripped; the built-in templates
   are version 4.
+- Run 7, phase B's live run (design 02 §6.3): rows 08–14 on sonnet-5 under target-first and
+  escalating; five of six formats learned to the floor under each, all six under one or the other —
+  phase B's exit criterion met. The JSON document, counted as one record, was given up on yield under
+  one plan and promoted at 1.000 with one event from twelve under the other: the count by the array's
+  items (design 03 §5) is urgent.
 - Design 03 written: the phases, at the owner's asking for one plan covering everything discussed and
   the formats never yet exercised — syslog, auditd, Windows security events, JSON, fixed-width,
   multi-line CSV. Slice 12 is phase A; phase B is a slice per format.

@@ -57,6 +57,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -84,6 +85,14 @@ class TestLiveScenarios {
      * document's when unset.
      */
     private static final String PLAN = "SHAPESHIFTER_LIVE_PLAN";
+    /**
+     * Which rows to run, as a regular expression over the row names ({@code 0[89]|1[0-4]} for the phase B
+     * formats); every row when unset. A row not run is not in the report.
+     */
+    private static final String ROWS = "SHAPESHIFTER_LIVE_ROWS";
+    private static final Pattern ROWS_UNDER_TEST = Pattern.compile(Optional.ofNullable(System.getenv(ROWS))
+            .filter(rows -> !rows.isBlank())
+            .orElse(".*"));
     private static final PlanExample PLAN_UNDER_TEST = Optional.ofNullable(System.getenv(PLAN))
             .map(PlanExample::valueOf)
             .orElse(PlanExample.DIRECT);
@@ -179,29 +188,29 @@ class TestLiveScenarios {
         final List<Outcome> outcomes = new ArrayList<>();
 
         // Scenario 1: the corpus's CSV with its header line, the default key.
-        outcomes.add(run("01-csv-with-header", advisor -> {
+        run("01-csv-with-header", advisor -> {
             final Scenarios scenarios = new Scenarios();
             return List.of(scenarios.stage(advisor)
                     .run(doc("csv-with-header", 0.8), stream(1, CSV.input())));
-        }));
+        }).ifPresent(outcomes::add);
 
         // A headerless CSV against the full scorer set: does a first candidate mean something, or does
         // it fall into the degeneracy trap and get steered out of it?
-        outcomes.add(run("02-csv-meaning", advisor -> {
+        run("02-csv-meaning", advisor -> {
             final Scenarios scenarios = new Scenarios();
             return List.of(scenarios.stage(advisor)
                     .run(doc("csv-meaning", 0.9), stream(1, CsvLines.lines(7))));
-        }));
+        }).ifPresent(outcomes::add);
 
         // Two record kinds in one stream, coverage at 0.9: the splitter must take both.
-        outcomes.add(run("03-two-record-kinds", advisor -> {
+        run("03-two-record-kinds", advisor -> {
             final Scenarios scenarios = new Scenarios();
             return List.of(scenarios.stage(advisor).run(doc("two-kinds", 0.9),
                     stream(1, CsvLines.lines(20, "user", 3))));
-        }));
+        }).ifPresent(outcomes::add);
 
         // Scenario 27 live: learn the plain feed, watch the score fall when alarms appear, relearn.
-        outcomes.add(run("04-relearn", advisor -> {
+        run("04-relearn", advisor -> {
             final Scenarios scenarios = new Scenarios();
             final ShapeshifterAiDoc doc = doc("relearn", 0.9).copy().relearnThreshold(0.8).build();
             final List<StageRun> runs = new ArrayList<>();
@@ -211,10 +220,10 @@ class TestLiveScenarios {
             runs.add(scenarios.stage(advisor)
                     .run(runs.get(1).doc(), stream(3, CsvLines.lines(20, "user", 3))));
             return runs;
-        }));
+        }).ifPresent(outcomes::add);
 
         // A different text shape from the corpus: "123 [abc] This is some text".
-        outcomes.add(run("05-regex-corpus", advisor -> {
+        run("05-regex-corpus", advisor -> {
             final Scenarios scenarios = new Scenarios();
             final ShapeshifterAiDoc doc = doc("regex", 0.9).copy()
                     .instructions("Lines of a number, a bracketed type and free text: a system's own log.")
@@ -222,11 +231,11 @@ class TestLiveScenarios {
                     .build();
             return List.of(scenarios.stage(advisor).run(doc,
                     new Input(1, "SYSLOG-LIKE", "Raw Events", Map.of(), REGEX.input())));
-        }));
+        }).ifPresent(outcomes::add);
 
         // The feeds A31 was designed for (design 02 §6.3): records of several lines, where a splitter can lose
         // fields before the model sees them; and nested XML, where the record is already a tree.
-        outcomes.add(run("06-multiline-audit", advisor -> {
+        run("06-multiline-audit", advisor -> {
             final Scenarios scenarios = new Scenarios();
             final ShapeshifterAiDoc doc = doc("multiline-audit", 0.9).copy()
                     .instructions("Linux audit records: blocks separated by a line of four dashes, a block of "
@@ -236,8 +245,8 @@ class TestLiveScenarios {
                     .build();
             return List.of(scenarios.stage(advisor).run(doc,
                     new Input(1, "LINUX-AUDIT", "Raw Events", Map.of(), MULTI_LINE.input())));
-        }));
-        outcomes.add(run("07-nested-xml", advisor -> {
+        }).ifPresent(outcomes::add);
+        run("07-nested-xml", advisor -> {
             final Scenarios scenarios = new Scenarios();
             final ShapeshifterAiDoc doc = doc("nested-xml", 0.9).copy()
                     .instructions("An application's audit log as XML, one entry per thing a person did. Events "
@@ -247,10 +256,10 @@ class TestLiveScenarios {
                     .build();
             return List.of(scenarios.stage(advisor).run(doc,
                     new Input(1, "DOCVAULT-AUDIT", "Raw Events", Map.of("Format", "XML"), NESTED_XML)));
-        }));
+        }).ifPresent(outcomes::add);
 
         // Phase B (design 03 §3): syslog in both forms on one feed, two senders.
-        outcomes.add(run("08-syslog", advisor -> {
+        run("08-syslog", advisor -> {
             final Scenarios scenarios = new Scenarios();
             final ShapeshifterAiDoc doc = doc("syslog", 0.9).copy()
                     .instructions("Syslog from two SSH gateways on one feed: one sends RFC 3164 (BSD) lines, the "
@@ -261,9 +270,9 @@ class TestLiveScenarios {
                     .build();
             return List.of(scenarios.stage(advisor).run(doc,
                     new Input(1, "GATEWAY-SSH", "Raw Events", Map.of("Format", "syslog"), SYSLOG)));
-        }));
+        }).ifPresent(outcomes::add);
 
-        outcomes.add(run("09-auditd", advisor -> {
+        run("09-auditd", advisor -> {
             final Scenarios scenarios = new Scenarios();
             final ShapeshifterAiDoc doc = doc("auditd", 0.9).copy()
                     .instructions("Linux audit records, interpreted, one line per record, no separators: an event "
@@ -275,9 +284,9 @@ class TestLiveScenarios {
                     .build();
             return List.of(scenarios.stage(advisor).run(doc,
                     new Input(1, "LINUX-AUDITD", "Raw Events", Map.of(), AUDITD)));
-        }));
+        }).ifPresent(outcomes::add);
 
-        outcomes.add(run("10-windows-security", advisor -> {
+        run("10-windows-security", advisor -> {
             final Scenarios scenarios = new Scenarios();
             final ShapeshifterAiDoc doc = doc("windows-security", 0.9).copy()
                     .instructions("Windows Security event log exported as XML: each Event is one record; the "
@@ -288,10 +297,10 @@ class TestLiveScenarios {
                     .build();
             return List.of(scenarios.stage(advisor).run(doc,
                     new Input(1, "WINDOWS-SECURITY", "Raw Events", Map.of("Format", "XML"), WINDOWS)));
-        }));
+        }).ifPresent(outcomes::add);
 
         // JSON in both shapes: the chain may choose the JSONParser, which takes no configuration.
-        outcomes.add(run("11-json-lines", advisor -> {
+        run("11-json-lines", advisor -> {
             final Scenarios scenarios = new Scenarios();
             final ShapeshifterAiDoc doc = doc("json-lines", 0.9).copy()
                     .allowedElements(List.of("DSParser", "JSONParser", "XSLTFilter"))
@@ -301,8 +310,8 @@ class TestLiveScenarios {
                     .build();
             return List.of(scenarios.stage(advisor).run(doc,
                     new Input(1, "API-GATEWAY", "Raw Events", Map.of("Format", "JSON"), JSON_LINES)));
-        }));
-        outcomes.add(run("12-json-document", advisor -> {
+        }).ifPresent(outcomes::add);
+        run("12-json-document", advisor -> {
             final Scenarios scenarios = new Scenarios();
             final ShapeshifterAiDoc doc = doc("json-document", 0.9).copy()
                     .allowedElements(List.of("DSParser", "JSONParser", "XSLTFilter"))
@@ -313,10 +322,10 @@ class TestLiveScenarios {
                     .build();
             return List.of(scenarios.stage(advisor).run(doc,
                     new Input(1, "API-GATEWAY-DOC", "Raw Events", Map.of("Format", "JSON"), JSON_DOCUMENT)));
-        }));
+        }).ifPresent(outcomes::add);
 
         // Fixed-width: nothing to split on, and a column dropped is caught by preservation, not coverage.
-        outcomes.add(run("13-fixed-width", advisor -> {
+        run("13-fixed-width", advisor -> {
             final Scenarios scenarios = new Scenarios();
             final ShapeshifterAiDoc doc = doc("fixed-width", 0.9).copy()
                     .instructions("A mainframe sign-on log in fixed-width columns with no delimiter: the time as "
@@ -331,11 +340,11 @@ class TestLiveScenarios {
                     .build();
             return List.of(scenarios.stage(advisor).run(doc,
                     new Input(1, "MAINFRAME-SIGNON", "Raw Events", Map.of(), FIXED_WIDTH)));
-        }));
+        }).ifPresent(outcomes::add);
 
         // CSV with a quoted last field that holds commas, doubled quotes and line breaks: a record may span
         // lines, which the expected yield per line states.
-        outcomes.add(run("14-csv-multiline", advisor -> {
+        run("14-csv-multiline", advisor -> {
             final Scenarios scenarios = new Scenarios();
             final ShapeshifterAiDoc doc = doc("csv-multiline", 0.9).copy()
                     .instructions("A document store's audit export as CSV without a header: time, user, "
@@ -348,7 +357,7 @@ class TestLiveScenarios {
                     .build();
             return List.of(scenarios.stage(advisor).run(doc,
                     new Input(1, "DOCUMENT-STORE", "Raw Events", Map.of("Format", "CSV"), CSV_MULTILINE)));
-        }));
+        }).ifPresent(outcomes::add);
 
         LOGGER.info("Live scenarios against {}, {}:\n{}", System.getenv(LiveAdvisor.MODEL), PLAN_UNDER_TEST,
                 AsciiTable.builder(outcomes)
@@ -364,7 +373,11 @@ class TestLiveScenarios {
         assertThat(outcomes).describedAs("the harness ran every scenario").hasSize(7);
     }
 
-    private Outcome run(final String name, final Function<LiveAdvisor, List<StageRun>> scenario) {
+    private Optional<Outcome> run(final String name, final Function<LiveAdvisor, List<StageRun>> scenario) {
+        if (!ROWS_UNDER_TEST.matcher(name).find()) {
+            LOGGER.info("Live run {} not selected by {}", name, ROWS);
+            return Optional.empty();
+        }
         // The advisor speaks for a document like the scenarios': the same instructions and scorer demands.
         final LiveAdvisor advisor = LiveAdvisor.fromEnvironment(doc(name, 0.9)).orElseThrow();
         List<StageRun> runs = List.of();
@@ -378,7 +391,7 @@ class TestLiveScenarios {
         }
         final Outcome outcome = new Outcome(name, runs, advisor.turns(), advisor.tokens(), advisor.millis(), failure);
         transcript(outcome);
-        return outcome;
+        return Optional.of(outcome);
     }
 
     private void transcript(final Outcome outcome) {
