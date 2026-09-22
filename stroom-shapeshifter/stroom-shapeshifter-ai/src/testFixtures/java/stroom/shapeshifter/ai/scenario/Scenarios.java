@@ -38,6 +38,7 @@ import stroom.shapeshifter.ai.state.InMemoryRegressionSet;
 import stroom.shapeshifter.ai.state.InMemoryReprocessing;
 import stroom.shapeshifter.ai.state.InMemoryRules;
 import stroom.shapeshifter.ai.state.InMemoryShapes;
+import stroom.shapeshifter.ai.state.InMemorySpend;
 import stroom.shapeshifter.ai.transformation.XsltStep;
 
 import java.io.IOException;
@@ -66,6 +67,7 @@ public final class Scenarios {
 
     public final ContentStores stores = new ContentStores();
     public final InMemoryRules rules = new InMemoryRules();
+    public final InMemorySpend spend = new InMemorySpend();
     public final InMemoryShapes shapes = new InMemoryShapes();
     public final InMemoryLedger ledger = new InMemoryLedger();
     public final InMemoryOutputs outputs = new InMemoryOutputs();
@@ -102,6 +104,10 @@ public final class Scenarios {
         return Script.of().structure(Structure.ofJson(runners(), arrayKey, stylesheet));
     }
 
+    /// The node a stage says it is, for the learning lease of A42: one scenario is one node unless it says
+    /// otherwise, and a scenario about two nodes meeting a shape gives each its own name.
+    public String node = "node-1";
+
     public Stage stage(final Advisor advisor) {
         final List<StepRunner> runners = runners();
         return new Stage(
@@ -113,12 +119,14 @@ public final class Scenarios {
                         runners),
                 rules,
                 shapes,
+                spend,
                 ledger,
                 outputs,
                 reprocessing,
                 regressionSet,
                 Clock.fixed(NOW, ZoneOffset.UTC),
-                SEED);
+                SEED,
+                node);
     }
 
     public static Golden corpus(final String stem) {

@@ -20,6 +20,7 @@ import stroom.docref.DocRef;
 import stroom.query.api.ExpressionOperator;
 import stroom.shapeshifter.ai.fragment.FragmentRunner;
 import stroom.shapeshifter.ai.fragment.FragmentWriter;
+import stroom.shapeshifter.ai.learning.Advisor;
 import stroom.shapeshifter.ai.learning.Advisors;
 import stroom.shapeshifter.ai.learning.Dialogue;
 import stroom.shapeshifter.ai.learning.Exchange;
@@ -90,6 +91,16 @@ import java.util.UUID;
 public final class Stage {
 
     private static final String FOLDER = "Shapeshifter";
+    /**
+     * Added to the attempt budget for the lease's expiry: an attempt that runs to its budget still holds it.
+     */
+    private static final long LEASE_GRACE_MS = 30_000L;
+    /**
+     * The window a document's spend is counted over (A44). A24 will make it a setting, with the budget it
+     * is measured against; until then it is an hour, which is long enough to see a feed burning spend and
+     * short enough that yesterday's does not hide it.
+     */
+    private static final long SPEND_WINDOW_MS = 3_600_000L;
     private static final JsonFactory JSON = new JsonFactory();
     private static final ElementId STAGE = new ElementId("Stage");
 
@@ -100,6 +111,7 @@ public final class Stage {
     private final FragmentRunner fragmentRunner;
     private final Rules rules;
     private final Shapes shapes;
+    private final Spend spend;
     private final Ledger ledger;
     private final Outputs outputs;
     private final Reprocessing reprocessing;
@@ -107,6 +119,7 @@ public final class Stage {
     private final Router router = new Router();
     private final Clock clock;
     private final long seed;
+    private final String node;
 
     public Stage(final Advisors advisors,
                  final List<StepRunner> runners,
@@ -115,12 +128,14 @@ public final class Stage {
                  final FragmentRunner fragmentRunner,
                  final Rules rules,
                  final Shapes shapes,
+                 final Spend spend,
                  final Ledger ledger,
                  final Outputs outputs,
                  final Reprocessing reprocessing,
                  final RegressionSet regressionSet,
                  final Clock clock,
-                 final long seed) {
+                 final long seed,
+                 final String node) {
         this.advisors = advisors;
         this.runners = List.copyOf(runners);
         this.scorers = List.copyOf(scorers);
@@ -128,12 +143,23 @@ public final class Stage {
         this.fragmentRunner = fragmentRunner;
         this.rules = rules;
         this.shapes = shapes;
+        this.spend = spend;
         this.ledger = ledger;
         this.outputs = outputs;
         this.reprocessing = reprocessing;
         this.regressionSet = regressionSet;
         this.clock = clock;
         this.seed = seed;
+        this.node = node;
+    }
+
+    /**
+     * How long a learning lease is held before it is free again (A42): the attempt's own wall-clock budget
+     * and a little more, so that a node still working keeps it and one that died lets the next in soon
+     * after it would have finished.
+     */
+    private static long leaseMs(final ShapeshifterAiDoc doc) {
+        return doc.getAttemptBudgetMs() + LEASE_GRACE_MS;
     }
 
     /**
@@ -194,8 +220,20 @@ public final class Stage {
                     "Shapeshifter AI is disabled for this document and no bound variant fits");
         }
 
-        // Learn on a prefix, judge on the whole stream.
-        final Outcome outcome = learn(doc, input, attributes, scorecard);
+        // One learner per shape across the cluster (A42, A43). A node that does not win the lease does not
+        // wait — that would hold this thread for the length of an attempt — it sentinels and returns, and
+        // the winner's promotion releases the backlog as A12 releases any other.
+        if (!shapes.lease(doc.getUuid(), shape.id(), node, clock.millis() + leaseMs(doc))) {
+            return sentinel(doc, shape, input, "Another node is learning this shape; this stream waits for "
+                                               + "what it learns");
+        }
+        final Outcome outcome;
+        try {
+            // Learn on a prefix, judge on the whole stream.
+            outcome = learn(doc, input, attributes, scorecard);
+        } finally {
+            shapes.releaseLease(doc.getUuid(), shape.id(), node);
+        }
         if (outcome instanceof final Abandoned abandoned) {
             return givenUp(doc, shape, input, abandoned.reason(), abandoned.reason(), abandoned.diagnostics(),
                     List.of(), outcome.transcript());
@@ -468,9 +506,17 @@ public final class Stage {
                           final Map<String, Object> attributes,
                           final Scorecard scorecard,
                           final List<StoredError> opening) {
-        final Dialogue dialogue = new Dialogue(advisors.of(doc), runners, scorecard, clock);
+        final Advisor advisor = advisors.of(doc);
+        final Dialogue dialogue = new Dialogue(advisor, runners, scorecard, clock);
         final Sample sample = Sample.of(learningPrefix(input.data(), doc), doc.getLearningKey(), attributes);
-        return dialogue.run(doc, sample, opening);
+        final long before = advisor.tokensUsed();
+        final Outcome outcome = dialogue.run(doc, sample, opening);
+        // What the attempt cost, counted for the document across the cluster (A44), whether it learned
+        // anything or not: an attempt that abandons costs what it asked. The policy that reads the count —
+        // the rate limit and the spend breaker — is A24's, in phase E.
+        spend.record(doc.getUuid(), Math.max(0L, advisor.tokensUsed() - before), outcome.transcript().size(),
+                SPEND_WINDOW_MS);
+        return outcome;
     }
 
     /**

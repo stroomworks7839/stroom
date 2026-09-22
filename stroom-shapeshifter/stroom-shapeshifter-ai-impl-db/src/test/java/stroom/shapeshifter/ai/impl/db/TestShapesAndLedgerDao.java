@@ -16,6 +16,8 @@
 
 package stroom.shapeshifter.ai.impl.db;
 
+import stroom.shapeshifter.ai.stage.Spend.Spent;
+
 import com.google.inject.Guice;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
@@ -36,6 +38,8 @@ class TestShapesAndLedgerDao {
     private ShapesDao shapes;
     @Inject
     private LedgerDao ledger;
+    @Inject
+    private SpendDao spend;
 
     @BeforeEach
     void setUp() {
@@ -119,5 +123,74 @@ class TestShapesAndLedgerDao {
                 .isEmpty();
         assertThat(ledger.release(DOC, long1)).containsExactly(7L);
         shapes.reset(DOC, long1);
+    }
+
+    @Test
+    void oneNodeLearnsAShapeAndTheOtherIsToldToGoAway() {
+        // A42: the row is the single point of truth for who is learning what, so the database decides the
+        // race and not either node.
+        final long until = System.currentTimeMillis() + 60_000L;
+
+        assertThat(shapes.lease(DOC, SHAPE, "node-1", until)).isTrue();
+        assertThat(shapes.lease(DOC, SHAPE, "node-2", until)).describedAs("one learner per shape").isFalse();
+        assertThat(shapes.lease(DOC, SHAPE, "node-1", until + 60_000L))
+                .describedAs("the holder may take it again, which is the heartbeat").isTrue();
+        assertThat(shapes.lease(DOC, "another-shape", "node-2", until))
+                .describedAs("a different shape is a different lease").isTrue();
+
+        shapes.releaseLease(DOC, SHAPE, "node-2");
+        assertThat(shapes.lease(DOC, SHAPE, "node-2", until))
+                .describedAs("a node cannot release what it does not hold").isFalse();
+        shapes.releaseLease(DOC, SHAPE, "node-1");
+        assertThat(shapes.lease(DOC, SHAPE, "node-2", until)).isTrue();
+        shapes.releaseLease(DOC, SHAPE, "node-2");
+        shapes.releaseLease(DOC, "another-shape", "node-2");
+    }
+
+    @Test
+    void aLeaseWhoseHolderDiedIsFreeWhenItExpires() {
+        assertThat(shapes.lease(DOC, SHAPE, "node-1", System.currentTimeMillis() - 1)).isTrue();
+
+        assertThat(shapes.lease(DOC, SHAPE, "node-2", System.currentTimeMillis() + 60_000L))
+                .describedAs("an expired lease is free: a node that died lets the next one in")
+                .isTrue();
+        shapes.releaseLease(DOC, SHAPE, "node-2");
+    }
+
+    @Test
+    void resettingAShapeLeavesTheLeaseAlone() {
+        // Reset is about what was learned, not about who is learning: a promotion resets the shape while
+        // the attempt that promoted it still holds its lease, and must not hand it to another node.
+        assertThat(shapes.lease(DOC, SHAPE, "node-1", System.currentTimeMillis() + 60_000L)).isTrue();
+
+        shapes.reset(DOC, SHAPE);
+
+        assertThat(shapes.lease(DOC, SHAPE, "node-2", System.currentTimeMillis() + 60_000L)).isFalse();
+        shapes.releaseLease(DOC, SHAPE, "node-1");
+    }
+
+    @Test
+    void whatEveryNodeSpendsIsCountedInOnePlace() {
+        // A44: a budget divided by node count is not a budget, and a feed burning spend on one node is
+        // invisible to the others.
+        final long window = 60_000L;
+        assertThat(spend.spent(DOC, window).tokens()).isZero();
+
+        final Spent afterOne = spend.record(DOC, 1_500L, 3, window);
+        final Spent afterTwo = spend.record(DOC, 2_500L, 4, window);
+
+        assertThat(afterOne.tokens()).isEqualTo(1_500L);
+        assertThat(afterTwo.tokens()).describedAs("the second node adds to the first's count")
+                .isEqualTo(4_000L);
+        assertThat(afterTwo.calls()).isEqualTo(7);
+        assertThat(afterTwo.windowStartMs()).isEqualTo(afterOne.windowStartMs());
+        assertThat(spend.spent(DOC, window).tokens()).isEqualTo(4_000L);
+        assertThat(spend.spent("another-document", window).tokens())
+                .describedAs("one document's spend is its own").isZero();
+
+        // A window that has run out starts the count again: what matters is what was spent lately.
+        final Spent afresh = spend.spent(DOC, 0L);
+        assertThat(afresh.tokens()).isZero();
+        assertThat(spend.record(DOC, 100L, 1, 0L).tokens()).isEqualTo(100L);
     }
 }

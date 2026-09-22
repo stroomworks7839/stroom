@@ -92,6 +92,29 @@ public final class InMemoryShapes implements Shapes {
     }
 
     @Override
+    public synchronized boolean lease(final String docUuid,
+                                      final String shape,
+                                      final String node,
+                                      final long untilMs) {
+        final Row row = row(docUuid, shape);
+        if (row.leaseNode != null && !row.leaseNode.equals(node) && row.leaseUntilMs > System.currentTimeMillis()) {
+            return false;
+        }
+        row.leaseNode = node;
+        row.leaseUntilMs = untilMs;
+        return true;
+    }
+
+    @Override
+    public synchronized void releaseLease(final String docUuid, final String shape, final String node) {
+        final Row row = row(docUuid, shape);
+        if (node.equals(row.leaseNode)) {
+            row.leaseNode = null;
+            row.leaseUntilMs = 0L;
+        }
+    }
+
+    @Override
     public synchronized void reset(final String docUuid, final String shape) {
         rows.remove(key(docUuid, shape));
     }
@@ -113,6 +136,9 @@ public final class InMemoryShapes implements Shapes {
     }
 
     private static final class Row {
+
+        private String leaseNode;
+        private long leaseUntilMs;
 
         private String givenUp;
         private String relearn;

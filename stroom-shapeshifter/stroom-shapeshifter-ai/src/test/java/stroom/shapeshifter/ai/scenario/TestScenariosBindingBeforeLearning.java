@@ -25,6 +25,8 @@ import stroom.shapeshifter.ai.stage.Decision.Promoted;
 import stroom.shapeshifter.ai.stage.Decision.Provisional;
 import stroom.shapeshifter.ai.stage.Decision.Sentinel;
 import stroom.shapeshifter.ai.stage.Input;
+import stroom.shapeshifter.ai.stage.Shape;
+import stroom.shapeshifter.ai.stage.ShapeSignature;
 import stroom.shapeshifter.ai.stage.StageRun;
 import stroom.shapeshifter.shared.LearningMode;
 import stroom.shapeshifter.shared.PlanExample;
@@ -74,6 +76,12 @@ class TestScenariosBindingBeforeLearning {
                         new ScorerSetting(ScorerType.YIELD, 1.0, 0.5, false,
                                 new YieldParameters(1.0, YieldBasis.RECORDS))))
                 .build();
+    }
+
+    /// The shape a CSV stream of this feed and type makes, under the document's learning key.
+    private static String shapeX() {
+        return Shape.of(keyedOnFormat().getLearningKey(),
+                stream("CSV").routingAttributes(ShapeSignature.of(CSV.input()))).id();
     }
 
     private static Input stream(final String format) {
@@ -231,5 +239,47 @@ class TestScenariosBindingBeforeLearning {
                 .startsWith("Awaiting review: draft rule " + draft.getUuid());
         assertThat(silent.asked()).isEmpty();
         assertThat(run.output()).isNull();
+    }
+
+    @Test
+    void aSecondNodeMeetingTheSameShapeSentinelsRatherThanWaiting() {
+        // A42: one learner per shape across the cluster. The loser does not wait — that would hold a
+        // processing thread for the length of an attempt, and at hundreds of threads a shape's first
+        // minute would stall the cluster — it writes its ledger row and returns, and the winner's
+        // promotion releases the backlog as A12 releases any other.
+        final Scenarios scenarios = new Scenarios();
+        scenarios.shapes.lease("doc-1", shapeX(), "node-2", Long.MAX_VALUE);
+
+        final Script silent = Script.of();
+        scenarios.node = "node-1";
+        final StageRun run = scenarios.stage(silent).run(keyedOnFormat(), stream("CSV"));
+
+        assertThat(run.decision()).isInstanceOf(Sentinel.class);
+        assertThat(((Sentinel) run.decision()).reason()).contains("Another node is learning this shape");
+        assertThat(silent.asked()).describedAs("the model is asked once for a shape, not once per node")
+                .isEmpty();
+        assertThat(scenarios.ledger.rows()).hasSize(1);
+        assertThat(scenarios.rules.forDocument("doc-1")).isEmpty();
+
+        // The lease given back, the next stream of the shape learns, and the ledger's backlog is released.
+        scenarios.shapes.releaseLease("doc-1", shapeX(), "node-2");
+        final StageRun learned = learnShapeX(scenarios, keyedOnFormat());
+
+        assertThat(learned.decision()).describedAs(learned.decision().toString()).isInstanceOf(Promoted.class);
+        assertThat(scenarios.reprocessing.requests()).hasSize(1);
+        assertThat(scenarios.reprocessing.requests().get(0).inputIds()).containsExactly(1L);
+        assertThat(scenarios.ledger.isEmpty()).isTrue();
+    }
+
+    @Test
+    void aLeaseThatHasExpiredIsFreeForTheNextNode() {
+        // The holder died mid-attempt: its lease runs out and the next node in learns, rather than the
+        // shape being stuck until someone notices.
+        final Scenarios scenarios = new Scenarios();
+        scenarios.shapes.lease("doc-1", shapeX(), "node-2", System.currentTimeMillis() - 1);
+
+        final StageRun run = learnShapeX(scenarios, keyedOnFormat());
+
+        assertThat(run.decision()).describedAs(run.decision().toString()).isInstanceOf(Promoted.class);
     }
 }

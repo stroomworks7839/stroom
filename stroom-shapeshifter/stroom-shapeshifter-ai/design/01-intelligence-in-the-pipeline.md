@@ -2006,6 +2006,10 @@ including the degeneracy trap (§8.3) that changes the scoring model and propose
   the goldens and run 7 — yield per line where a record spans lines is what decided outcomes,
   coverage never did. A20–A22 ruled as built, the owner's; A39 and A40 ruled, the owner's, from run
   7: the escalating example splits every input, and a parser refused on yield goes back to the split.
+- Slice 23, the lease and the spend counter (A42, A44; design 02 §6.1): one learner per shape across
+  the cluster, taken before the dialogue and given back after, its loser sentinelling rather than
+  waiting; what an attempt cost added to the document's window in one place. The policy that reads the
+  count is A24's, in phase E.
 - Slice 22, scenario 20 against the tables (design 02 §6.1; design 03 §2): tier 2 had been running
   under the mock-service harness, which has no database, so `TestScenario20SentinelInAPipeline` runs
   under the node's own wiring and asserts the seams it tests with are the DAOs. Phase C still owes

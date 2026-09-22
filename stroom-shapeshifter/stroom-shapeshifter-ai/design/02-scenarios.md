@@ -1192,6 +1192,31 @@ tables, the dialogue as a state machine that stops at a question and resumes on 
 worker that advances one awaiting the model — and the lease (A42) and cluster-wide spend (A44), whose
 columns the shape and spend tables already carry.
 
+The twenty-third slice, 2026-09-22, is **the lease and the spend counter** (A42, A44), which make those
+two rulings real rather than designed. The lease is a conditional update on the shape row: one learner
+per shape across the cluster, taken before the dialogue and given back in a `finally`, its expiry the
+attempt's own budget and a little more, so a node still working keeps it and one that died lets the
+next in soon after it would have finished. A node that does not win it does not wait — that would hold
+a processing thread for the length of an attempt, and at hundreds of threads a shape's first minute
+would stall the cluster — it sentinels its stream, and the winner's promotion releases the backlog as
+A12 releases any other. The stage learns which node it is from `NodeInfo`.
+
+The spend is a `Spend` seam and a row per document: what an attempt cost — the tokens the model charged
+and the questions put to it — added to the document's window inside a transaction, so that two nodes
+finishing at once do not each add to the same old total. It is counted whether the attempt learned
+anything or not, since an attempt that abandons costs what it asked. The window is an hour for now; the
+policy that reads the count — the per-document rate limit and the spend breaker that opens error mode —
+is A24's, and is built with it in phase E, which is why this slice adds a counter and no refusal.
+
+Five tests against MySQL: one node learns a shape and the other is told to go away, the holder may take
+its own lease again, a different shape is a different lease, a node cannot release what it does not
+hold, an expired lease is free, resetting a shape leaves the lease alone — that last because a
+promotion resets the shape while the attempt that promoted it still holds its lease — and every node's
+spend is counted in one place, one document's being its own and a window that has run out starting
+afresh. Two scenarios in the module: a second node meeting a shape sentinels rather than waiting, and
+its stream is released by the winner's promotion; an expired lease lets the next node learn. 188 tests
+in the module, 15 against MySQL.
+
 ## 7. Decisions taken
 
 Ruled 2026-09-17, each as recommended:

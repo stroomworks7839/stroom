@@ -21,6 +21,7 @@ import stroom.db.util.DataSourceProxy;
 import stroom.shapeshifter.ai.stage.Ledger;
 import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.ai.stage.Shapes;
+import stroom.shapeshifter.ai.stage.Spend;
 
 import java.util.List;
 import javax.sql.DataSource;
@@ -40,6 +41,7 @@ public class ShapeshifterAiDbModule
         bind(Rules.class).to(RulesDao.class);
         bind(Shapes.class).to(ShapesDao.class);
         bind(Ledger.class).to(LedgerDao.class);
+        bind(Spend.class).to(SpendDao.class);
     }
 
     @Override

@@ -19,6 +19,7 @@ package stroom.shapeshifter.ai.element;
 import stroom.docref.DocRef;
 import stroom.meta.api.AttributeMap;
 import stroom.meta.shared.Meta;
+import stroom.node.api.NodeInfo;
 import stroom.pipeline.LocationFactoryProxy;
 import stroom.pipeline.PipelineStore;
 import stroom.pipeline.errorhandler.ErrorReceiverProxy;
@@ -71,6 +72,7 @@ import stroom.shapeshifter.ai.stage.Reprocessing;
 import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.ai.stage.ShapeSignature;
 import stroom.shapeshifter.ai.stage.Shapes;
+import stroom.shapeshifter.ai.stage.Spend;
 import stroom.shapeshifter.ai.stage.Stage;
 import stroom.shapeshifter.ai.stage.StageRun;
 import stroom.shapeshifter.ai.transformation.XsltStep;
@@ -170,8 +172,10 @@ public class ShapeshifterAiParser extends AbstractParser {
                                 final SchemaConformanceScorer schemaConformanceScorer,
                                 final FragmentWriter fragmentWriter,
                                 final Advisors advisors,
+                                final NodeInfo nodeInfo,
                                 final Rules rules,
                                 final Shapes shapes,
+                                final Spend spend,
                                 final Ledger ledger,
                                 final Outputs outputs,
                                 final Reprocessing reprocessing,
@@ -199,12 +203,14 @@ public class ShapeshifterAiParser extends AbstractParser {
                 new FragmentRunner(pipelineStore, pipelineStackLoader, textConverterStore, xsltStore, runners),
                 rules,
                 shapes,
+                spend,
                 ledger,
                 outputs,
                 reprocessing,
                 regressionSet,
                 Clock.systemUTC(),
-                ThreadLocalRandom.current().nextLong());
+                ThreadLocalRandom.current().nextLong(),
+                nodeInfo.getThisNodeName());
     }
 
     @PipelineProperty(description = "The Shapeshifter AI document that governs this stage.", displayPriority = 1)
