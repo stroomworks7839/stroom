@@ -21,10 +21,7 @@ import stroom.shapeshifter.engine.output.XmlByteSink;
 
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
-import org.xml.sax.Attributes;
-import org.xml.sax.ContentHandler;
 import org.xml.sax.InputSource;
-import org.xml.sax.Locator;
 import org.xml.sax.XMLReader;
 
 import java.io.ByteArrayInputStream;
@@ -35,7 +32,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -52,7 +48,6 @@ class XmlByteSinkDs3GoldenTest {
 
     private static final Path LEGACY = Paths.get(
             "..", "stroom-shapeshifter-engine", "src", "test", "resources", "fixtures", "legacy");
-    private static final String DECLARATION = "<?xml version=\"1.1\" encoding=\"UTF-8\"?>\n";
 
     @TestFactory
     Stream<DynamicTest> legacyGoldens() throws IOException {
@@ -78,7 +73,7 @@ class XmlByteSinkDs3GoldenTest {
 
         final ByteArrayOutputStream out = new ByteArrayOutputStream();
         final XMLReader ds3 = Ds3Oracle.parser(config);
-        ds3.setContentHandler(new SinkHandler(new XmlByteSink(out)));
+        ds3.setContentHandler(new SaxToSink(new XmlByteSink(out)));
         ds3.setErrorHandler(Ds3Oracle.errorHandler("DS3Parser", new LoggingErrorReceiver()));
         ds3.parse(new InputSource(new InputStreamReader(new ByteArrayInputStream(input), StandardCharsets.UTF_8)));
 
@@ -98,82 +93,5 @@ class XmlByteSinkDs3GoldenTest {
             }
         }
         return expected.equals(actual) ? null : "identical lines, different bytes (line endings or final newline)";
-    }
-
-    /**
-     * SAX events onto the sink, the way phase 3's migration will drive it: prefix mappings arrive
-     * before the element they belong to and are held until it opens; DS3's {@code xmlns}
-     * attributes are the same declarations again and are dropped.
-     */
-    private static final class SinkHandler implements ContentHandler {
-
-        private final XmlByteSink sink;
-        private final List<String[]> pendingNamespaces = new ArrayList<>();
-
-        private SinkHandler(final XmlByteSink sink) {
-            this.sink = sink;
-        }
-
-        @Override
-        public void startDocument() {
-            sink.write(DECLARATION);
-        }
-
-        @Override
-        public void startPrefixMapping(final String prefix, final String uri) {
-            pendingNamespaces.add(new String[]{prefix, uri});
-        }
-
-        @Override
-        public void startElement(final String uri, final String localName, final String qName, final Attributes atts) {
-            sink.startElement(qName);
-            for (final String[] ns : pendingNamespaces) {
-                sink.namespace(ns[0], ns[1]);
-            }
-            pendingNamespaces.clear();
-            for (int i = 0; i < atts.getLength(); i++) {
-                final String name = atts.getQName(i);
-                if (name.equals("xmlns") || name.startsWith("xmlns:")) {
-                    continue;
-                }
-                sink.startAttribute(name);
-                sink.write(atts.getValue(i));
-                sink.endAttribute();
-            }
-        }
-
-        @Override
-        public void endElement(final String uri, final String localName, final String qName) {
-            sink.endElement();
-        }
-
-        @Override
-        public void characters(final char[] ch, final int start, final int length) {
-            sink.write(new String(ch, start, length));
-        }
-
-        @Override
-        public void setDocumentLocator(final Locator locator) {
-        }
-
-        @Override
-        public void endDocument() {
-        }
-
-        @Override
-        public void endPrefixMapping(final String prefix) {
-        }
-
-        @Override
-        public void ignorableWhitespace(final char[] ch, final int start, final int length) {
-        }
-
-        @Override
-        public void processingInstruction(final String target, final String data) {
-        }
-
-        @Override
-        public void skippedEntity(final String name) {
-        }
     }
 }

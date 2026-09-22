@@ -1,8 +1,9 @@
 # Benchmark results — the engine and the XML head-to-head
 
 One JSON file per JMH run, written automatically by the `jmh` Gradle task of
-`stroom-shapeshifter-engine` (suffix `-engine`) or `stroom-shapeshifter-xmlbench` (suffix
-`-xml`), and named `<date>-<time>-<commit>-<suffix>.json`. A `-compile-rows` or
+`stroom-shapeshifter-engine` (suffix `-engine`), `stroom-shapeshifter-xmlbench` (suffix `-xml`)
+or `stroom-shapeshifter-pipeline` (suffix `-ds3`), and named
+`<date>-<time>-<commit>-<suffix>.json`. A `-compile-rows` or
 `-run-rows-f<forks>` suffix is a targeted probe instead: chosen rows of `EngineBenchmark` at the
 named commit, run by `engine-probe-rows.sh` with the gc profiler and that many forks, filed by
 hand — a subset for a decision, not the gate.
@@ -15,9 +16,10 @@ cannot be compared with the next one, and comparing runs is the entire point:
 the same binary, which was only visible because the earlier numbers could be re-read.
 
 ```
-# the engine suite, or the XML head-to-head
+# the engine suite, the XML head-to-head, or the DS3 head-to-head
 ./gradlew :stroom-shapeshifter:stroom-shapeshifter-engine:jmh
 ./gradlew :stroom-shapeshifter:stroom-shapeshifter-xmlbench:jmh
+./gradlew :stroom-shapeshifter:stroom-shapeshifter-pipeline:jmh
 
 # render one run, or compare two
 ../../tools/render-benchmark.py design/benchmarks/<file>.json
@@ -33,6 +35,7 @@ The comparison form marks any difference whose error bars overlap as **indisting
 | `EngineBenchmark` | Whole fixture configurations over their own inputs, repeated to a fixed volume (D22), plus `compile` | Throughput on real configurations, with pairs chosen to isolate questions — `win_sec`/`win_sec_xml` A/B dispatch cost, `apache_httpd` the heaviest bodies, `progressive` the step interpreter alone; the *before* for [10-engine-compilation.md](../10-engine-compilation.md)'s optimisation work |
 | `XmlBaselineBenchmark` | The events workload at 10k/100k/1M records | The XML head-to-head's decomposition: SAX floor, Saxon identity, Saxon proper, shapeshifter ([13](../13-xml-xslt-benchmark.md)) |
 | `CaseCatalogueBenchmark` | Seven catalogue cases amplified to ~10k/~100k units | Per-capability-family A/B, Saxon vs shapeshifter, parity-licensed by `CaseAmplifierTest` |
+| `Ds3HeadToHeadBenchmark` | Six legacy fixtures, the migrated config on both engines, into one serialiser | Shapeshifter against the engine it replaces ([45](../45-the-ds3-head-to-head.md)); the `sink` row is the floor they share, and `@Setup` fails the run unless the two agree byte for byte |
 
 Runs are machine-specific. Compare files from the same machine, or not at all.
 

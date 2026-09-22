@@ -37,12 +37,17 @@ import java.io.StringReader;
  * config is fed to {@link ConfigFilter} by a plain parser, compiled, and instantiated. This is the
  * oracle the legacy goldens came from, driven live.
  */
-final class Ds3Oracle {
+public final class Ds3Oracle {
 
     private Ds3Oracle() {
     }
 
-    static XMLReader parser(final String configXml) throws Exception {
+    /**
+     * The config compiled once, which is what a Stroom pipeline holds: {@link #parser} then makes
+     * the per-stream instance. Split so the benchmark can pay for the compile in its setup and
+     * measure the parse, as it does for the engine's {@code Shapeshifter.compile}.
+     */
+    public static RootFactory factory(final String configXml) throws Exception {
         final RootFactory factory = new RootFactory();
         final ConfigFilter filter = new ConfigFilter(factory);
         final XMLReader configReader = SAXParserFactoryFactory.newInstance().newSAXParser().getXMLReader();
@@ -51,11 +56,20 @@ final class Ds3Oracle {
         configReader.parse(new InputSource(new StringReader(configXml)));
         filter.endProcessing();
         factory.compile();
+        return factory;
+    }
+
+    /** A parser over a compiled config, with its own variables: one stream's worth. */
+    public static XMLReader parser(final RootFactory factory) {
         return new DS3Parser(factory.newInstance(new VarMap()), RootFactory.MIN_BUFFER_SIZE, factory.getBufferSize());
     }
 
+    public static XMLReader parser(final String configXml) throws Exception {
+        return parser(factory(configXml));
+    }
+
     /** The pipeline's error handler, which DS3 casts to and this parser recognises. */
-    static ErrorHandler errorHandler(final String elementId, final LoggingErrorReceiver receiver) {
+    public static ErrorHandler errorHandler(final String elementId, final LoggingErrorReceiver receiver) {
         return new ErrorHandlerAdaptor(new ElementId(elementId), new DefaultLocationFactory(), receiver);
     }
 }
