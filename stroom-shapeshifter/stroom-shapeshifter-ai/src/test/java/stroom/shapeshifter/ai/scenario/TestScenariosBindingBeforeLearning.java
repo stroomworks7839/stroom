@@ -113,7 +113,7 @@ class TestScenariosBindingBeforeLearning {
         assertThat(bound.getExpression().toString()).contains("Format = CSV-v2");
         assertThat(run.shape().id()).isEqualTo("Feed=DOOR-ACCESS|Type=Raw Events|Format=CSV-v2");
         assertThat(run.output()).isEqualTo(EXPECTED_EVENTS);
-        assertThat(run.doc().getRoutingTable()).hasSize(2);
+        assertThat(scenarios.rules.forDocument("doc-1")).hasSize(2);
         assertThat(scenarios.stores.pipelines.list()).hasSize(1);
         assertThat(scenarios.regressionSet.accepted(bound.getUuid()))
                 .describedAs("held out by construction: promoted, so accepted")
@@ -149,7 +149,8 @@ class TestScenariosBindingBeforeLearning {
                         .addTerm(MetaFields.FIELD_FEED, Condition.EQUALS, "DOOR-ACCESS")
                         .build())
                 .build();
-        final ShapeshifterAiDoc doc = keyedOnFormat().copy().routingTable(List.of(reserved)).build();
+        final ShapeshifterAiDoc doc = keyedOnFormat();
+        scenarios.rules.append("doc-1", reserved);
 
         final Script silent = Script.of();
         final StageRun run = scenarios.stage(silent).run(doc, stream("CSV"));
@@ -157,7 +158,7 @@ class TestScenariosBindingBeforeLearning {
         assertThat(run.decision()).isInstanceOf(Sentinel.class);
         assertThat(((Sentinel) run.decision()).reason()).startsWith("Reserved: rule 1");
         assertThat(silent.asked()).isEmpty();
-        assertThat(run.doc().getRoutingTable()).containsExactly(reserved);
+        assertThat(scenarios.rules.forDocument("doc-1")).containsExactly(reserved);
         assertThat(scenarios.stores.pipelines.list()).isEmpty();
     }
 
@@ -204,7 +205,7 @@ class TestScenariosBindingBeforeLearning {
         assertThat(promoted.getUuid()).isEqualTo(provisional.rule().getUuid());
         assertThat(promoted.isProvisional()).isFalse();
         assertThat(promoted.getPromotedTimeMs()).isEqualTo(Scenarios.NOW.toEpochMilli());
-        assertThat(second.doc().getRoutingTable()).containsExactly(promoted);
+        assertThat(scenarios.rules.forDocument("doc-1")).containsExactly(promoted);
         assertThat(scenarios.regressionSet.accepted(promoted.getUuid())).hasSize(1);
 
         // And a third stream is simply bound.
@@ -220,10 +221,10 @@ class TestScenariosBindingBeforeLearning {
         final StageRun learned = learnShapeX(scenarios, keyedOnFormat());
         final RoutingRule live = ((Promoted) learned.decision()).rule();
         final RoutingRule draft = live.copy().draft(true).build();
-        final ShapeshifterAiDoc doc = learned.doc().copy().routingTable(List.of(draft)).build();
+        scenarios.rules.replace("doc-1", draft);
 
         final Script silent = Script.of();
-        final StageRun run = scenarios.stage(silent).run(doc, stream("CSV"));
+        final StageRun run = scenarios.stage(silent).run(learned.doc(), stream("CSV"));
 
         assertThat(run.decision()).isInstanceOf(Sentinel.class);
         assertThat(((Sentinel) run.decision()).reason())

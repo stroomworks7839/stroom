@@ -295,7 +295,7 @@ class TestScenariosScoring {
         assertThat(((GivenUp) run.decision()).reason()).contains("No passing configuration for XSLTFilter after 3");
         assertThat(feedback(script.scripted().get(4)))
                 .anyMatch(message -> message.contains("against an expected 1.0"));
-        assertThat(run.doc().getRoutingTable()).isEmpty();
+        assertThat(scenarios.rules.forDocument(DOC)).isEmpty();
         assertThat(scenarios.stores.pipelines.list()).isEmpty();
         assertThat(scenarios.shapes.reasonGivenUp(DOC, SHAPE)).isPresent();
         assertThat(scenarios.ledger.rows()).extracting(row -> row.inputId()).containsExactly(1L);
@@ -328,7 +328,7 @@ class TestScenariosScoring {
         assertThat(run.decision()).isInstanceOf(GivenUp.class);
         assertThat(((GivenUp) run.decision()).reason()).isEqualTo("Below the promotion floor");
         assertThat(scenarios.shapes.reasonGivenUp(DOC, SHAPE).orElseThrow()).contains("against a floor of 0.95");
-        assertThat(run.doc().getRoutingTable()).isEmpty();
+        assertThat(scenarios.rules.forDocument(DOC)).isEmpty();
         assertThat(scenarios.stores.pipelines.list()).describedAs("nothing written below the floor").isEmpty();
     }
 }

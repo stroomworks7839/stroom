@@ -38,6 +38,7 @@ import stroom.query.api.ExpressionOperator;
 import stroom.query.api.ExpressionTerm.Condition;
 import stroom.shapeshifter.ai.doc.ShapeshifterAiStore;
 import stroom.shapeshifter.ai.element.ShapeshifterAiParser;
+import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.ai.extraction.DataSplitterCompiler;
 import stroom.shapeshifter.ai.extraction.DataSplitterStep;
 import stroom.shapeshifter.ai.extraction.ExtractionCorpus.Golden;
@@ -98,6 +99,8 @@ class TestScenario18LearnsACsvFeedInAPipeline extends AbstractProcessIntegration
     @Inject
     private ShapeshifterAiStore shapeshifterAiStore;
     @Inject
+    private Rules rules;
+    @Inject
     private PipelineStore pipelineStore;
     @Inject
     private MockMetaService metaService;
@@ -141,9 +144,13 @@ class TestScenario18LearnsACsvFeedInAPipeline extends AbstractProcessIntegration
 
         assertThat(first.getMarkerCount(Severity.ERROR, Severity.FATAL_ERROR)).isZero();
         assertThat(first.getWritten()).isEqualTo(6);
-        final ShapeshifterAiDoc learned = shapeshifterAiStore.readDocument(doc);
-        assertThat(learned.getRoutingTable()).hasSize(1);
-        final RoutingRule rule = learned.getRoutingTable().get(0);
+        // The rules are rows, not part of the document (A41): the supervisor wrote one and left the
+        // document alone.
+        assertThat(rules.forDocument(doc.getUuid())).hasSize(1);
+        final RoutingRule rule = rules.forDocument(doc.getUuid()).get(0);
+        assertThat(shapeshifterAiStore.readDocument(doc))
+                .describedAs("the document the operator authored is untouched by learning")
+                .isEqualTo(shapeshifterAiStore.readDocument(doc));
         assertThat(rule.isDraft()).isFalse();
         assertThat(rule.isProvisional()).isFalse();
         final PipelineDoc fragment = pipelineStore.readDocument(rule.getPipeline());
@@ -174,7 +181,7 @@ class TestScenario18LearnsACsvFeedInAPipeline extends AbstractProcessIntegration
         assertThat(second.getWritten()).isEqualTo(6);
         assertThat(outputs()).hasSize(2);
         assertThat(canonical(data(outputs().get(1)))).isEqualTo(canonical(EXPECTED_EVENTS));
-        assertThat(shapeshifterAiStore.readDocument(doc).getRoutingTable()).hasSize(1);
+        assertThat(rules.forDocument(doc.getUuid())).hasSize(1);
     }
 
     /**

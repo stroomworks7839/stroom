@@ -81,7 +81,6 @@ import java.util.Objects;
         "regressionCap",
         "regressionRetentionDays",
         "scorers",
-        "routingTable"
 })
 @JsonInclude(Include.NON_NULL)
 public class ShapeshifterAiDoc extends AbstractDoc {
@@ -242,12 +241,6 @@ public class ShapeshifterAiDoc extends AbstractDoc {
      */
     @JsonProperty
     private final List<ScorerSetting> scorers;
-    /**
-     * Selector to promoted variant, a pipeline fragment (A20). §3; the one part the supervisor rewrites,
-     * §7.3 rule 2.
-     */
-    @JsonProperty
-    private final List<RoutingRule> routingTable;
 
     @JsonCreator
     public ShapeshifterAiDoc(
@@ -279,8 +272,7 @@ public class ShapeshifterAiDoc extends AbstractDoc {
             @JsonProperty("minRecordsPerShape") final Integer minRecordsPerShape,
             @JsonProperty("regressionCap") final Integer regressionCap,
             @JsonProperty("regressionRetentionDays") final Integer regressionRetentionDays,
-            @JsonProperty("scorers") final List<ScorerSetting> scorers,
-            @JsonProperty("routingTable") final List<RoutingRule> routingTable) {
+            @JsonProperty("scorers") final List<ScorerSetting> scorers) {
         super(TYPE, uuid, name, version, createTimeMs, updateTimeMs, createUser, updateUser);
         this.description = description;
         this.executionMode = Objects.requireNonNullElse(executionMode, DEFAULT_EXECUTION_MODE);
@@ -308,7 +300,6 @@ public class ShapeshifterAiDoc extends AbstractDoc {
         this.regressionCap = Objects.requireNonNullElse(regressionCap, DEFAULT_REGRESSION_CAP);
         this.regressionRetentionDays = regressionRetentionDays;
         this.scorers = copyOrEmpty(scorers);
-        this.routingTable = copyOrEmpty(routingTable);
     }
 
     /**
@@ -416,10 +407,6 @@ public class ShapeshifterAiDoc extends AbstractDoc {
         return scorers;
     }
 
-    public List<RoutingRule> getRoutingTable() {
-        return routingTable;
-    }
-
     @Override
     public boolean equals(final Object o) {
         if (this == o) {
@@ -453,8 +440,7 @@ public class ShapeshifterAiDoc extends AbstractDoc {
                Objects.equals(tokenBudget, that.tokenBudget) &&
                sampleRedaction == that.sampleRedaction &&
                Objects.equals(regressionRetentionDays, that.regressionRetentionDays) &&
-               Objects.equals(scorers, that.scorers) &&
-               Objects.equals(routingTable, that.routingTable);
+               Objects.equals(scorers, that.scorers);
     }
 
     @Override
@@ -481,8 +467,7 @@ public class ShapeshifterAiDoc extends AbstractDoc {
                 minRecordsPerShape,
                 regressionCap,
                 regressionRetentionDays,
-                scorers,
-                routingTable);
+                scorers);
     }
 
     @Override
@@ -509,7 +494,6 @@ public class ShapeshifterAiDoc extends AbstractDoc {
                ", regressionCap=" + regressionCap +
                ", regressionRetentionDays=" + regressionRetentionDays +
                ", scorers=" + scorers +
-               ", routingTable=" + routingTable +
                '}';
     }
 
@@ -549,7 +533,6 @@ public class ShapeshifterAiDoc extends AbstractDoc {
         private int regressionCap = DEFAULT_REGRESSION_CAP;
         private Integer regressionRetentionDays;
         private List<ScorerSetting> scorers = Collections.emptyList();
-        private List<RoutingRule> routingTable = Collections.emptyList();
 
         private Builder() {
         }
@@ -578,7 +561,6 @@ public class ShapeshifterAiDoc extends AbstractDoc {
             this.regressionCap = doc.regressionCap;
             this.regressionRetentionDays = doc.regressionRetentionDays;
             this.scorers = doc.scorers;
-            this.routingTable = doc.routingTable;
         }
 
         public Builder description(final String description) {
@@ -699,11 +681,6 @@ public class ShapeshifterAiDoc extends AbstractDoc {
             return self();
         }
 
-        public Builder routingTable(final List<RoutingRule> routingTable) {
-            this.routingTable = routingTable;
-            return self();
-        }
-
         @Override
         protected Builder self() {
             return this;
@@ -739,8 +716,7 @@ public class ShapeshifterAiDoc extends AbstractDoc {
                     minRecordsPerShape,
                     regressionCap,
                     regressionRetentionDays,
-                    scorers,
-                    routingTable);
+                    scorers);
         }
     }
 }

@@ -62,7 +62,6 @@ class TestShapeshifterAiStoreImpl {
         assertThat(doc.getSampleRedaction()).isEqualTo(SampleRedaction.REDACTED);
         assertThat(doc.getModel()).isNull();
         assertThat(doc.getScorers()).isEmpty();
-        assertThat(doc.getRoutingTable()).isEmpty();
     }
 
     @Test
@@ -75,28 +74,16 @@ class TestShapeshifterAiStoreImpl {
 
         assertThat(read).isEqualTo(written);
         assertThat(read.getScorers()).containsExactlyElementsOf(ShapeshifterAiFixture.SCORERS);
-        assertThat(read.getRoutingTable())
-                .describedAs("rules keep their order; the table resolves most-specific-first by position")
-                .containsExactly(ShapeshifterAiFixture.BOUND_RULE, ShapeshifterAiFixture.UNBOUND_RULE);
         assertThat(read.getScorers().get(2).getParameters())
                 .describedAs("polymorphic parameters survive the store")
                 .isEqualTo(ShapeshifterAiFixture.SCORERS.get(2).getParameters());
     }
 
     @Test
-    void saveNamesEveryRuleAndRefusesAKeyASelectorCannotMatch() {
-        // A26: a rule the client saves without a uuid is given one, and keeps it; A29: the learning key is
-        // validated where the editor cannot validate it.
+    void saveRefusesAKeyASelectorCannotMatch() {
+        // A29: the learning key is validated where the editor cannot validate it. Rules are no longer part
+        // of the document (A41), so the store has nothing to say about them.
         final DocRef docRef = store.createDocument("syslog-ai");
-        final RoutingRule unnamed = ShapeshifterAiFixture.UNBOUND_RULE.copy().uuid(null).build();
-        store.writeDocument(store.readDocument(docRef).copy().routingTable(List.of(unnamed)).build());
-
-        final RoutingRule named = store.readDocument(docRef).getRoutingTable().get(0);
-        assertThat(named.getUuid()).isNotNull();
-        assertThat(named.copy().uuid(null).build()).isEqualTo(unnamed);
-        store.writeDocument(store.readDocument(docRef));
-        assertThat(store.readDocument(docRef).getRoutingTable().get(0).getUuid()).isEqualTo(named.getUuid());
-
         assertThatThrownBy(() -> store.writeDocument(store.readDocument(docRef).copy()
                 .learningKey(List.of(MetaFields.FIELD_FEED, "X-Sender-Token"))
                 .build()))
@@ -164,10 +151,6 @@ class TestShapeshifterAiStoreImpl {
 
         final ShapeshifterAiDoc read = store.readDocument(docRef);
         assertThat(read.getModel()).isEqualTo(importedModel);
-        assertThat(read.getRoutingTable().get(0))
-                .describedAs("only the fragment reference changes; selector and history are untouched")
-                .isEqualTo(ShapeshifterAiFixture.BOUND_RULE.copy().pipeline(importedFragment).build());
-        assertThat(read.getRoutingTable().get(1)).isEqualTo(ShapeshifterAiFixture.UNBOUND_RULE);
         assertThat(read.getScorers()).isEqualTo(ShapeshifterAiFixture.SCORERS);
     }
 }

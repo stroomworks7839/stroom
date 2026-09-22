@@ -17,6 +17,7 @@
 package stroom.shapeshifter.client.presenter;
 
 import stroom.alert.client.event.ConfirmEvent;
+import stroom.dispatch.client.RestFactory;
 import stroom.docref.DocRef;
 import stroom.entity.client.presenter.DocPresenter;
 import stroom.query.client.ExpressionTreePresenter;
@@ -24,6 +25,7 @@ import stroom.shapeshifter.client.presenter.RoutingRuleListPresenter.RoutingRow;
 import stroom.shapeshifter.client.presenter.ShapeshifterAiRoutingPresenter.ShapeshifterAiRoutingView;
 import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
+import stroom.shapeshifter.shared.ShapeshifterAiResource;
 import stroom.svg.client.SvgPresets;
 import stroom.widget.button.client.ButtonView;
 import stroom.widget.popup.client.event.ShowPopupEvent;
@@ -31,6 +33,7 @@ import stroom.widget.popup.client.presenter.PopupSize;
 import stroom.widget.popup.client.presenter.PopupType;
 import stroom.widget.util.client.MultiSelectEvent;
 
+import com.google.gwt.core.client.GWT;
 import com.google.gwt.dom.client.Style.BorderStyle;
 import com.google.gwt.event.dom.client.ClickEvent;
 import com.google.inject.Inject;
@@ -55,7 +58,11 @@ public class ShapeshifterAiRoutingPresenter
     private final RoutingRuleListPresenter listPresenter;
     private final ExpressionTreePresenter expressionPresenter;
     private final Provider<RoutingRulePresenter> editRulePresenterProvider;
+    private static final ShapeshifterAiResource RESOURCE = GWT.create(ShapeshifterAiResource.class);
+
+    private final RestFactory restFactory;
     private final List<RoutingRule> rules = new ArrayList<>();
+    private String docUuid;
 
     private final ButtonView addButton;
     private final ButtonView editButton;
@@ -69,8 +76,10 @@ public class ShapeshifterAiRoutingPresenter
                                              final ShapeshifterAiRoutingView view,
                                              final RoutingRuleListPresenter listPresenter,
                                              final ExpressionTreePresenter expressionPresenter,
-                                             final Provider<RoutingRulePresenter> editRulePresenterProvider) {
+                                             final Provider<RoutingRulePresenter> editRulePresenterProvider,
+                                             final RestFactory restFactory) {
         super(eventBus, view);
+        this.restFactory = restFactory;
         this.listPresenter = listPresenter;
         this.expressionPresenter = expressionPresenter;
         this.editRulePresenterProvider = editRulePresenterProvider;
@@ -103,17 +112,49 @@ public class ShapeshifterAiRoutingPresenter
         super.onBind();
     }
 
+    /**
+     * The rules are rows, not part of the document (A41), so they are fetched for the document rather than
+     * read from it; a document that has learned nothing has none.
+     */
     @Override
     protected void onRead(final DocRef docRef, final ShapeshifterAiDoc doc, final boolean readOnly) {
+        docUuid = docRef.getUuid();
         rules.clear();
-        rules.addAll(doc.getRoutingTable());
         listPresenter.getSelectionModel().clear();
         update();
+        restFactory
+                .create(RESOURCE)
+                .method(resource -> resource.rules(docRef.getUuid()))
+                .onSuccess(fetched -> {
+                    rules.clear();
+                    rules.addAll(fetched);
+                    update();
+                })
+                .taskMonitorFactory(this)
+                .exec();
     }
 
+    /**
+     * Saving the document saves the tab's rules too, in their order, since that is the one Save button a
+     * person sees; the document itself is returned unchanged, holding only what they authored. A row-level
+     * Routing tab — each action its own call — is owed with the operator surfaces of phase F.
+     */
     @Override
     protected ShapeshifterAiDoc onWrite(final ShapeshifterAiDoc doc) {
-        return doc.copy().routingTable(new ArrayList<>(rules)).build();
+        if (docUuid != null) {
+            final List<RoutingRule> saving = new ArrayList<>(rules);
+            restFactory
+                    .create(RESOURCE)
+                    .method(resource -> resource.updateRules(docUuid, saving))
+                    .onSuccess(saved -> {
+                        rules.clear();
+                        rules.addAll(saved);
+                        update();
+                    })
+                    .taskMonitorFactory(this)
+                    .exec();
+        }
+        return doc;
     }
 
     /**

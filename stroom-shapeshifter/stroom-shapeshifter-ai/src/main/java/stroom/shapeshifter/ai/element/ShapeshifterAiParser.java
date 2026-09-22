@@ -68,6 +68,7 @@ import stroom.shapeshifter.ai.stage.Ledger;
 import stroom.shapeshifter.ai.stage.Outputs;
 import stroom.shapeshifter.ai.stage.RegressionSet;
 import stroom.shapeshifter.ai.stage.Reprocessing;
+import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.ai.stage.ShapeSignature;
 import stroom.shapeshifter.ai.stage.Shapes;
 import stroom.shapeshifter.ai.stage.Stage;
@@ -169,6 +170,7 @@ public class ShapeshifterAiParser extends AbstractParser {
                                 final SchemaConformanceScorer schemaConformanceScorer,
                                 final FragmentWriter fragmentWriter,
                                 final Advisors advisors,
+                                final Rules rules,
                                 final Shapes shapes,
                                 final Ledger ledger,
                                 final Outputs outputs,
@@ -195,6 +197,7 @@ public class ShapeshifterAiParser extends AbstractParser {
                         new ExtractionQualityScorer(), new BusinessRulesScorer()),
                 fragmentWriter,
                 new FragmentRunner(pipelineStore, pipelineStackLoader, textConverterStore, xsltStore, runners),
+                rules,
                 shapes,
                 ledger,
                 outputs,
@@ -301,9 +304,9 @@ public class ShapeshifterAiParser extends AbstractParser {
 
     /**
      * Reads the stream, lets the stage decide, and either runs the bound fragment into this element's
-     * targets or logs the refusal. The document is written back when the stage changed its routing
-     * table; two tasks learning the same shape at once will race on that write until the learning lease
-     * of A26 exists, and the loser fails on its stream rather than overwriting.
+     * targets or logs the refusal. The document is never written: it holds only what a person authors,
+     * and what the stage learns is rows (A41). Two tasks learning the same shape at once still race
+     * until the lease of A42 exists, but they race on rows and not on one document.
      */
     private final class SupervisorReader extends stroom.pipeline.xml.converter.AbstractParser {
 
@@ -315,9 +318,6 @@ public class ShapeshifterAiParser extends AbstractParser {
             }
             final Input input = input(inputSource);
             final StageRun run = stage.run(doc, input);
-            if (!run.doc().equals(doc)) {
-                store.writeDocument(run.doc());
-            }
             final Bindings bindings = run.bindings();
             if (bindings == null) {
                 errorReceiverProxy.log(Severity.ERROR, null, getElementId(),

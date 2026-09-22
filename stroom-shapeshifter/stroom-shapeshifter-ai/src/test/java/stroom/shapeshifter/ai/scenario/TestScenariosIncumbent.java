@@ -162,7 +162,7 @@ class TestScenariosIncumbent {
     void scenario8ACandidateBetterOnTheSampleButWorseOnTheStreamIsNotPromoted() {
         final Scenarios scenarios = new Scenarios();
         final StageRun marked = incumbentMarked(scenarios, "user");
-        final RoutingRule v1 = marked.doc().getRoutingTable().get(0);
+        final RoutingRule v1 = scenarios.rules.forDocument(DOC).get(0);
 
         // v2 names the user for everyone but user6 — the one record in the held-out fifth of a seven-line
         // stream — and, like v1, has no device: it passes every threshold on the six records it is shown
@@ -176,7 +176,7 @@ class TestScenariosIncumbent {
         final Kept kept = (Kept) run.decision();
         assertThat(kept.incumbent()).isEqualTo(v1);
         assertThat(kept.reason()).contains("against the incumbent's").contains("on this stream");
-        assertThat(run.doc().getRoutingTable()).containsExactly(v1);
+        assertThat(scenarios.rules.forDocument(DOC)).containsExactly(v1);
         assertThat(scenarios.stores.pipelines.list()).describedAs("v2's documents were not written").hasSize(1);
         assertThat(scenarios.stores.xslts.list()).hasSize(1);
         assertThat(run.transcript()).describedAs("chain, split, target, parser, transform").hasSize(5);
@@ -190,7 +190,7 @@ class TestScenariosIncumbent {
         // have been promoted on A15 alone — and scores far below v1's recorded score on the accepted stream.
         final Scenarios scenarios = new Scenarios();
         final StageRun marked = incumbentMarked(scenarios, "user");
-        final RoutingRule v1 = marked.doc().getRoutingTable().get(0);
+        final RoutingRule v1 = scenarios.rules.forDocument(DOC).get(0);
         assertThat(scenarios.regressionSet.accepted(v1.getUuid())).hasSize(1);
 
         final String v2 = userOnlyWhen(XSLT, "starts-with(data[@name='who']/@value, 'staff')");
@@ -200,7 +200,7 @@ class TestScenariosIncumbent {
 
         assertThat(run.decision()).isInstanceOf(Kept.class);
         assertThat(((Kept) run.decision()).reason()).contains("accepted on an earlier stream");
-        assertThat(run.doc().getRoutingTable()).containsExactly(v1);
+        assertThat(scenarios.rules.forDocument(DOC)).containsExactly(v1);
         assertThat(scenarios.stores.xslts.list()).hasSize(1);
     }
 
@@ -208,7 +208,7 @@ class TestScenariosIncumbent {
     void scenario9ABetterCandidateReplacesTheIncumbent() {
         final Scenarios scenarios = new Scenarios();
         final StageRun marked = incumbentMarked(scenarios, "user");
-        final RoutingRule v1 = marked.doc().getRoutingTable().get(0);
+        final RoutingRule v1 = scenarios.rules.forDocument(DOC).get(0);
 
         final Script relearn = learning(scenarios, XSLT);
         final StageRun run = scenarios.stage(relearn).run(marked.doc(), stream(3, CsvLines.lines(7, "user", 0)));
@@ -223,7 +223,7 @@ class TestScenariosIncumbent {
         assertThat(v2.getPipeline()).isNotEqualTo(v1.getPipeline());
         assertThat(v2.getScore()).isEqualTo(1.0);
         assertThat(v2.getPromotedTimeMs()).isEqualTo(Scenarios.NOW.toEpochMilli());
-        assertThat(run.doc().getRoutingTable()).containsExactly(v2);
+        assertThat(scenarios.rules.forDocument(DOC)).containsExactly(v2);
         // v1's documents are untouched: new siblings, never edits (design 01 §7.3 rule 1).
         assertThat(scenarios.stores.pipelines.list()).hasSize(2);
         assertThat(scenarios.stores.xslts.list()).hasSize(2);
@@ -237,13 +237,13 @@ class TestScenariosIncumbent {
         final Script script = learning(scenarios, V1);
         final StageRun learned = scenarios.stage(script).run(doc(), stream(1, CsvLines.lines(7)));
         final RoutingRule pinned = ((Promoted) learned.decision()).rule().copy().pinned(true).build();
-        final ShapeshifterAiDoc doc = learned.doc().copy().routingTable(List.of(pinned)).build();
+        scenarios.rules.replace(DOC, pinned);
 
         final Script silent = Script.of();
         for (long id = 2; id <= 4; id++) {
-            final StageRun run = scenarios.stage(silent).run(doc, stream(id, CsvLines.lines(7)));
+            final StageRun run = scenarios.stage(silent).run(learned.doc(), stream(id, CsvLines.lines(7)));
             assertThat(run.decision()).isInstanceOf(Bound.class);
-            assertThat(run.doc().getRoutingTable()).containsExactly(pinned);
+            assertThat(scenarios.rules.forDocument(DOC)).containsExactly(pinned);
         }
         assertThat(silent.asked()).isEmpty();
         assertThat(scenarios.shapes.relearnReason(DOC, SHAPE)).describedAs("never even scored against").isEmpty();

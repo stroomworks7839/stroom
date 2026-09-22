@@ -113,7 +113,7 @@ class TestScenario22ReviewMode {
         assertThat(draft.isDraft()).isTrue();
         assertThat(draft.getPromotedTimeMs()).isNull();
         assertThat(draft.getUuid()).isNotNull();
-        assertThat(first.doc().getRoutingTable()).containsExactly(draft);
+        assertThat(scenarios.rules.forDocument(DOC)).containsExactly(draft);
         assertThat(first.output()).describedAs("nothing is produced under a draft").isNull();
         assertThat(first.bindings()).isNull();
         assertThat(scenarios.stores.pipelines.list()).describedAs("the fragment is written all the same").hasSize(1);
@@ -138,12 +138,13 @@ class TestScenario22ReviewMode {
     void aDraftWaitsAndApprovePromotesIt() {
         final Scenarios scenarios = new Scenarios();
         final StageRun waiting = drafted(scenarios);
-        final RoutingRule draft = waiting.doc().getRoutingTable().get(0);
+        final RoutingRule draft = scenarios.rules.forDocument(DOC).get(0);
 
-        final ShapeshifterAiDoc approved = scenarios.stage(Script.of()).approve(waiting.doc(), draft.getUuid());
+        scenarios.stage(Script.of()).approve(waiting.doc(), draft.getUuid());
 
-        assertThat(approved.getRoutingTable()).hasSize(1);
-        final RoutingRule live = approved.getRoutingTable().get(0);
+        // The document is untouched: what approval changed is rows (A41).
+        assertThat(scenarios.rules.forDocument(DOC)).hasSize(1);
+        final RoutingRule live = scenarios.rules.forDocument(DOC).get(0);
         assertThat(live.getUuid()).isEqualTo(draft.getUuid());
         assertThat(live.isDraft()).isFalse();
         assertThat(live.getPromotedTimeMs()).isEqualTo(Scenarios.NOW.toEpochMilli());
@@ -157,7 +158,7 @@ class TestScenario22ReviewMode {
         assertThat(scenarios.regressionSet.accepted(live.getUuid())).hasSize(1);
 
         final Script silent = Script.of();
-        final StageRun third = scenarios.stage(silent).run(approved, stream(3, lines(7, 0)));
+        final StageRun third = scenarios.stage(silent).run(waiting.doc(), stream(3, lines(7, 0)));
         assertThat(third.decision()).isInstanceOf(Bound.class);
         assertThat(events(third.output())).isEqualTo(7);
         assertThat(silent.asked()).isEmpty();
@@ -167,12 +168,11 @@ class TestScenario22ReviewMode {
     void rejectDiscardsTheDraftAndGivesTheShapeUp() {
         final Scenarios scenarios = new Scenarios();
         final StageRun waiting = drafted(scenarios);
-        final RoutingRule draft = waiting.doc().getRoutingTable().get(0);
+        final RoutingRule draft = scenarios.rules.forDocument(DOC).get(0);
 
-        final ShapeshifterAiDoc rejected = scenarios.stage(Script.of())
-                .reject(waiting.doc(), draft.getUuid(), "the wrong parser");
+        scenarios.stage(Script.of()).reject(waiting.doc(), draft.getUuid(), "the wrong parser");
 
-        assertThat(rejected.getRoutingTable()).isEmpty();
+        assertThat(scenarios.rules.forDocument(DOC)).isEmpty();
         assertThat(scenarios.regressionSet.accepted(draft.getUuid())).isEmpty();
         assertThat(scenarios.shapes.reasonGivenUp(DOC, SHAPE)).contains("Rejected: the wrong parser");
         assertThat(scenarios.ledger.rows()).describedAs("the ledger keeps what it had").hasSize(2);
@@ -180,7 +180,7 @@ class TestScenario22ReviewMode {
 
         // The model is not asked again: the shape is given up until an operator says otherwise.
         final Script silent = Script.of();
-        final StageRun third = scenarios.stage(silent).run(rejected, stream(3, lines(7, 0)));
+        final StageRun third = scenarios.stage(silent).run(waiting.doc(), stream(3, lines(7, 0)));
         assertThat(third.decision()).isInstanceOf(Sentinel.class);
         assertThat(((Sentinel) third.decision()).reason()).contains("Rejected: the wrong parser");
         assertThat(silent.asked()).isEmpty();
@@ -191,13 +191,13 @@ class TestScenario22ReviewMode {
     void onlyADraftCanBeApprovedOrRejected() {
         final Scenarios scenarios = new Scenarios();
         final StageRun waiting = drafted(scenarios);
-        final RoutingRule draft = waiting.doc().getRoutingTable().get(0);
-        final ShapeshifterAiDoc approved = scenarios.stage(Script.of()).approve(waiting.doc(), draft.getUuid());
+        final RoutingRule draft = scenarios.rules.forDocument(DOC).get(0);
+        scenarios.stage(Script.of()).approve(waiting.doc(), draft.getUuid());
 
-        assertThatThrownBy(() -> scenarios.stage(Script.of()).approve(approved, draft.getUuid()))
+        assertThatThrownBy(() -> scenarios.stage(Script.of()).approve(waiting.doc(), draft.getUuid()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("not a draft");
-        assertThatThrownBy(() -> scenarios.stage(Script.of()).reject(approved, "no-such-rule", "whatever"))
+        assertThatThrownBy(() -> scenarios.stage(Script.of()).reject(waiting.doc(), "no-such-rule", "whatever"))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -205,9 +205,9 @@ class TestScenario22ReviewMode {
     void aRelearnedCandidateIsADraftBehindTheIncumbentUntilApproved() {
         final Scenarios scenarios = new Scenarios();
         final StageRun waiting = drafted(scenarios);
-        final ShapeshifterAiDoc bound = scenarios.stage(Script.of())
-                .approve(waiting.doc(), waiting.doc().getRoutingTable().get(0).getUuid());
-        final RoutingRule incumbent = bound.getRoutingTable().get(0);
+        scenarios.stage(Script.of()).approve(waiting.doc(), scenarios.rules.forDocument(DOC).get(0).getUuid());
+        final ShapeshifterAiDoc bound = waiting.doc();
+        final RoutingRule incumbent = scenarios.rules.forDocument(DOC).get(0);
         final String withAlarms = lines(20, 3);
 
         // The score falls and the shape is marked, as in scenario 27.
@@ -224,7 +224,7 @@ class TestScenario22ReviewMode {
         final RoutingRule draft = ((Drafted) relearned.decision()).rule();
         assertThat(draft.getExpression()).isEqualTo(incumbent.getExpression());
         assertThat(draft.getUuid()).isNotEqualTo(incumbent.getUuid());
-        assertThat(relearned.doc().getRoutingTable()).containsExactly(incumbent, draft);
+        assertThat(scenarios.rules.forDocument(DOC)).containsExactly(incumbent, draft);
         assertThat(events(relearned.output())).describedAs("the incumbent served").isEqualTo(14);
         assertThat(relearned.bindings().fragment()).isEqualTo(incumbent.getPipeline());
         assertThat(scenarios.ledger.isEmpty()).describedAs("nothing was refused").isTrue();
@@ -233,14 +233,14 @@ class TestScenario22ReviewMode {
         final StageRun meanwhile = scenarios.stage(silent).run(relearned.doc(), stream(5, withAlarms));
         assertThat(meanwhile.decision()).isInstanceOf(Bound.class);
         assertThat(((Bound) meanwhile.decision()).rule()).isEqualTo(incumbent);
-        assertThat(meanwhile.doc().getRoutingTable()).hasSize(2);
+        assertThat(scenarios.rules.forDocument(DOC)).hasSize(2);
         assertThat(silent.asked()).isEmpty();
 
         // Approve rebinds the incumbent to the draft's fragment: one rule, the incumbent's uuid, the
         // draft's fragment, and a regression set that carries both histories.
-        final ShapeshifterAiDoc approved = scenarios.stage(Script.of()).approve(relearned.doc(), draft.getUuid());
-        assertThat(approved.getRoutingTable()).hasSize(1);
-        final RoutingRule rebound = approved.getRoutingTable().get(0);
+        scenarios.stage(Script.of()).approve(relearned.doc(), draft.getUuid());
+        assertThat(scenarios.rules.forDocument(DOC)).hasSize(1);
+        final RoutingRule rebound = scenarios.rules.forDocument(DOC).get(0);
         assertThat(rebound.getUuid()).isEqualTo(incumbent.getUuid());
         assertThat(rebound.getPipeline()).isEqualTo(draft.getPipeline());
         assertThat(rebound.isDraft()).isFalse();
@@ -248,7 +248,7 @@ class TestScenario22ReviewMode {
         assertThat(scenarios.regressionSet.accepted(draft.getUuid())).isEmpty();
         assertThat(scenarios.reprocessing.requests()).describedAs("the shape's ledger was already empty").hasSize(1);
 
-        final StageRun after = scenarios.stage(silent).run(approved, stream(6, withAlarms));
+        final StageRun after = scenarios.stage(silent).run(bound, stream(6, withAlarms));
         assertThat(events(after.output())).isEqualTo(20);
     }
 
@@ -256,24 +256,24 @@ class TestScenario22ReviewMode {
     void rejectingARelearnedDraftLeavesTheIncumbentServing() {
         final Scenarios scenarios = new Scenarios();
         final StageRun waiting = drafted(scenarios);
-        final ShapeshifterAiDoc bound = scenarios.stage(Script.of())
-                .approve(waiting.doc(), waiting.doc().getRoutingTable().get(0).getUuid());
-        final RoutingRule incumbent = bound.getRoutingTable().get(0);
+        scenarios.stage(Script.of()).approve(waiting.doc(), scenarios.rules.forDocument(DOC).get(0).getUuid());
+        final ShapeshifterAiDoc bound = waiting.doc();
+        final RoutingRule incumbent = scenarios.rules.forDocument(DOC).get(0);
         final String withAlarms = lines(20, 3);
         scenarios.stage(Script.of()).run(bound, stream(3, withAlarms));
         final StageRun relearned = scenarios.stage(learning(scenarios, FOUR_FIELDS_AND_ALARMS))
                 .run(bound, stream(4, withAlarms));
         final RoutingRule draft = ((Drafted) relearned.decision()).rule();
 
-        final ShapeshifterAiDoc rejected = scenarios.stage(Script.of()).reject(relearned.doc(), draft.getUuid(), "no");
+        scenarios.stage(Script.of()).reject(relearned.doc(), draft.getUuid(), "no");
 
         // The incumbent serves on; the rejection is recorded against the shape, and the same falling
         // score does not mark it or produce the same draft again until an operator says otherwise.
-        assertThat(rejected.getRoutingTable()).containsExactly(incumbent);
+        assertThat(scenarios.rules.forDocument(DOC)).containsExactly(incumbent);
         assertThat(scenarios.shapes.reasonGivenUp(DOC, SHAPE)).contains("Rejected: no");
         final Script silent = Script.of();
         for (long id = 5; id <= 7; id++) {
-            final StageRun after = scenarios.stage(silent).run(rejected, stream(id, withAlarms));
+            final StageRun after = scenarios.stage(silent).run(bound, stream(id, withAlarms));
             assertThat(after.decision()).isInstanceOf(Bound.class);
             assertThat(events(after.output())).isEqualTo(14);
         }
@@ -292,9 +292,9 @@ class TestScenario22ReviewMode {
         final RoutingRule draft = ((Drafted) first.decision()).rule();
         assertThat(draft.isProvisional()).isTrue();
 
-        final ShapeshifterAiDoc approved = scenarios.stage(Script.of()).approve(first.doc(), draft.getUuid());
+        scenarios.stage(Script.of()).approve(first.doc(), draft.getUuid());
 
-        final RoutingRule live = approved.getRoutingTable().get(0);
+        final RoutingRule live = scenarios.rules.forDocument(DOC).get(0);
         assertThat(live.isProvisional()).isFalse();
         assertThat(live.getPromotedTimeMs()).isEqualTo(Scenarios.NOW.toEpochMilli());
         assertThat(scenarios.regressionSet.accepted(live.getUuid())).hasSize(1);
@@ -304,17 +304,17 @@ class TestScenario22ReviewMode {
     void aPinnedIncumbentRefusesApprovalOfADraftInItsPlace() {
         final Scenarios scenarios = new Scenarios();
         final StageRun waiting = drafted(scenarios);
-        final ShapeshifterAiDoc bound = scenarios.stage(Script.of())
-                .approve(waiting.doc(), waiting.doc().getRoutingTable().get(0).getUuid());
+        scenarios.stage(Script.of()).approve(waiting.doc(), scenarios.rules.forDocument(DOC).get(0).getUuid());
+        final ShapeshifterAiDoc bound = waiting.doc();
         final String withAlarms = lines(20, 3);
         scenarios.stage(Script.of()).run(bound, stream(3, withAlarms));
         final StageRun relearned = scenarios.stage(learning(scenarios, FOUR_FIELDS_AND_ALARMS))
                 .run(bound, stream(4, withAlarms));
         final RoutingRule draft = ((Drafted) relearned.decision()).rule();
-        final RoutingRule pinned = relearned.doc().getRoutingTable().get(0).copy().pinned(true).build();
-        final ShapeshifterAiDoc doc = relearned.doc().copy().routingTable(List.of(pinned, draft)).build();
+        final RoutingRule pinned = scenarios.rules.forDocument(DOC).get(0).copy().pinned(true).build();
+        scenarios.rules.replace(DOC, pinned);
 
-        assertThatThrownBy(() -> scenarios.stage(Script.of()).approve(doc, draft.getUuid()))
+        assertThatThrownBy(() -> scenarios.stage(Script.of()).approve(relearned.doc(), draft.getUuid()))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("pinned");
     }

@@ -88,7 +88,6 @@ final class ShapeshifterAiFixture {
         return doc.copy()
                 .model(MODEL)
                 .instructions("Prefer named fields.")
-                .scorers(SCORERS)
-                .routingTable(List.of(BOUND_RULE, UNBOUND_RULE));
+                .scorers(SCORERS);
     }
 }

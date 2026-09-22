@@ -116,7 +116,7 @@ class TestScenario43Syslog {
         assertThat(run.output()).isEqualTo(EVENTS);
         // One shape — feed and type — so one rule, and one variant that handles both forms.
         assertThat(run.shape().id()).isEqualTo("Feed=" + FEED + "|Type=Raw Events");
-        assertThat(run.doc().getRoutingTable()).hasSize(1);
+        assertThat(scenarios.rules.forDocument("doc-1")).hasSize(1);
         // The two forms are two kinds of record, so two targets were proposed and both configurations carried them.
         assertThat(script.asked()).filteredOn(TargetFor.class::isInstance).hasSize(2);
         assertThat(script.scripted()).hasSize(4);
@@ -145,8 +145,8 @@ class TestScenario43Syslog {
         rfc5424.verifyExhausted();
         assertThat(second.decision()).isInstanceOf(Promoted.class);
         assertThat(second.shape().id()).isNotEqualTo(first.shape().id());
-        assertThat(second.doc().getRoutingTable()).hasSize(2);
-        assertThat(second.doc().getRoutingTable()).allMatch(rule ->
+        assertThat(scenarios.rules.forDocument("doc-1")).hasSize(2);
+        assertThat(scenarios.rules.forDocument("doc-1")).allMatch(rule ->
                 rule.getExpression().toString().contains(RoutingRule.SHAPE_SIGNATURE_FIELD));
         assertThat(((TargetFor) rfc5424.asked().get(2)).record()).startsWith("<86>1 ");
     }

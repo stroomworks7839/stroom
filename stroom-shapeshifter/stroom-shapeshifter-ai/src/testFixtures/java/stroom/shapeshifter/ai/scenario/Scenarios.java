@@ -36,6 +36,7 @@ import stroom.shapeshifter.ai.state.InMemoryLedger;
 import stroom.shapeshifter.ai.state.InMemoryOutputs;
 import stroom.shapeshifter.ai.state.InMemoryRegressionSet;
 import stroom.shapeshifter.ai.state.InMemoryReprocessing;
+import stroom.shapeshifter.ai.state.InMemoryRules;
 import stroom.shapeshifter.ai.state.InMemoryShapes;
 import stroom.shapeshifter.ai.transformation.XsltStep;
 
@@ -64,6 +65,7 @@ public final class Scenarios {
     private static final NodeFixture NODE = new NodeFixture();
 
     public final ContentStores stores = new ContentStores();
+    public final InMemoryRules rules = new InMemoryRules();
     public final InMemoryShapes shapes = new InMemoryShapes();
     public final InMemoryLedger ledger = new InMemoryLedger();
     public final InMemoryOutputs outputs = new InMemoryOutputs();
@@ -109,6 +111,7 @@ public final class Scenarios {
                 stores.writer(),
                 new FragmentRunner(stores.pipelines, stores.stackLoader, stores.textConverters, stores.xslts,
                         runners),
+                rules,
                 shapes,
                 ledger,
                 outputs,

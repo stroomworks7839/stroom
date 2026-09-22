@@ -143,8 +143,8 @@ class TestScenario01LearnsACsvFeed {
 
         // The routing table gained exactly the learned rule (A22, A29): the default learning key, Feed AND
         // Type, and nothing wider — the signature is not in the key, so it is not in the rule.
-        assertThat(run.doc().getRoutingTable()).hasSize(1);
-        final RoutingRule rule = run.doc().getRoutingTable().get(0);
+        assertThat(scenarios.rules.forDocument("policy-1")).hasSize(1);
+        final RoutingRule rule = scenarios.rules.forDocument("policy-1").get(0);
         assertThat(rule).isEqualTo(promoted.rule());
         assertThat(rule.getExpression())
                 .isEqualTo(RoutingRule.learnedSelector(RoutingFields.DEFAULT_LEARNING_KEY,
@@ -186,7 +186,7 @@ class TestScenario01LearnsACsvFeed {
         assertThat(((Sentinel) run.decision()).reason()).contains(RoutingFields.SYSTEM);
         assertThat(silent.asked()).isEmpty();
         assertThat(scenarios.stores.pipelines.list()).isEmpty();
-        assertThat(run.doc().getRoutingTable()).isEmpty();
+        assertThat(scenarios.rules.forDocument("policy-1")).isEmpty();
     }
 
     @Test

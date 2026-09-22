@@ -32,6 +32,8 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import org.fusesource.restygwt.client.DirectRestService;
 
+import java.util.List;
+
 @Tag(name = "Shapeshifter AI")
 @Path("/shapeshifterAi" + ResourcePaths.V1)
 @Produces(MediaType.APPLICATION_JSON)
@@ -61,4 +63,20 @@ public interface ShapeshifterAiResource
     ShapeshifterAiDoc update(
             @PathParam("uuid") String uuid,
             @Parameter(description = "doc", required = true) ShapeshifterAiDoc doc);
+
+    @GET
+    @Path("/{uuid}/rules")
+    @Operation(
+            summary = "The document's routing rules, which are rows and not part of the document (A41)",
+            operationId = "fetchShapeshifterAiRules")
+    List<RoutingRule> rules(@PathParam("uuid") String uuid);
+
+    @PUT
+    @Path("/{uuid}/rules")
+    @Operation(
+            summary = "Replace the document's routing rules with these, in this order",
+            operationId = "updateShapeshifterAiRules")
+    List<RoutingRule> updateRules(
+            @PathParam("uuid") String uuid,
+            @Parameter(description = "rules", required = true) List<RoutingRule> rules);
 }

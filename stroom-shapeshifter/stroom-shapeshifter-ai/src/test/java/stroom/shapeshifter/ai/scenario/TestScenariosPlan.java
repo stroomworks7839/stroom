@@ -281,10 +281,13 @@ class TestScenariosPlan {
         assertThat(run.decision()).isInstanceOf(Promoted.class);
         assertThat(steps(run)).containsExactly("chain", "configure", "configure");
 
-        final Script refused = scenarios.script(FOUR_FIELDS, XSLT)
+        // Its own scenarios: rules are rows now (A41) and outlive a stage, so a second run against the same
+        // feed would bind what the first promoted instead of learning.
+        final Scenarios afresh = new Scenarios();
+        final Script refused = afresh.script(FOUR_FIELDS, XSLT)
                 .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter")
                 .expect(QuestionMatcher.configuration("DSParser")).reply(Scenarios.fenced(FOUR_FIELDS));
-        final StageRun abandoned = scenarios.stage(refused).run(doc(LearningPlan.of(PlanExample.DIRECT).withSteps(
+        final StageRun abandoned = afresh.stage(refused).run(doc(LearningPlan.of(PlanExample.DIRECT).withSteps(
                 List.of(PlanStep.parse("CHAIN"), PlanStep.parse("CONFIGURE parser on passed abandon"),
                         PlanStep.parse("CONFIGURE transform")))), stream(2, CsvLines.lines(6)));
         refused.verifyExhausted();

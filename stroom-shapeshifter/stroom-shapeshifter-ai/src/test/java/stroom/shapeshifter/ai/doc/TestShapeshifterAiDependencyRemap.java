@@ -47,19 +47,21 @@ class TestShapeshifterAiDependencyRemap {
     }
 
     @Test
-    void declaresTheModelAndEveryBoundFragmentAsDependencies() {
+    void declaresTheModelAndNothingElseAsADependency() {
+        // Since A41 the fragments are named by rows, not by the document, so an exported document depends
+        // on its model alone — as a processor filter's state is not part of the pipeline it runs.
         final DependencyRemapper remapper = new DependencyRemapper();
 
         function.remap(doc(), remapper);
 
-        assertThat(remapper.getDependencies())
-                .describedAs("rules with nothing promoted contribute nothing")
-                .containsExactlyInAnyOrder(ShapeshifterAiFixture.MODEL, ShapeshifterAiFixture.FRAGMENT);
+        assertThat(remapper.getDependencies()).containsExactly(ShapeshifterAiFixture.MODEL);
         assertThat(remapper.isChanged()).isFalse();
     }
 
     @Test
-    void rewritesTheModelAndTheFragmentsAndNothingElse() {
+    void rewritesTheModelAndNothingElse() {
+        // Since A41 the document names no fragment: the rules are rows, and an exported document carries
+        // its configuration and none of what it learned.
         final DocRef importedModel = ShapeshifterAiFixture.MODEL.copy().uuid("model-2").build();
         final DocRef importedFragment = ShapeshifterAiFixture.FRAGMENT.copy().uuid("fragment-2").build();
         final DependencyRemapper remapper = new DependencyRemapper(Map.of(
@@ -71,14 +73,8 @@ class TestShapeshifterAiDependencyRemap {
 
         assertThat(remapper.isChanged()).isTrue();
         assertThat(remapped.getModel()).isEqualTo(importedModel);
-        assertThat(remapped.getRoutingTable())
-                .describedAs("the selector and history of a rule are untouched; unbound rules pass through")
-                .containsExactly(
-                        ShapeshifterAiFixture.BOUND_RULE.copy().pipeline(importedFragment).build(),
-                        ShapeshifterAiFixture.UNBOUND_RULE,
-                        RoutingRule.builder().build());
-        assertThat(remapped.copy().model(original.getModel()).routingTable(original.getRoutingTable()).build())
-                .describedAs("every field other than the model and routing table is untouched")
+        assertThat(remapped.copy().model(original.getModel()).build())
+                .describedAs("every field other than the model is untouched")
                 .isEqualTo(original);
     }
 
@@ -99,10 +95,6 @@ class TestShapeshifterAiDependencyRemap {
                         .uuid("policy-1")
                         .name("syslog-ai")
                         .build())
-                .routingTable(List.of(
-                        ShapeshifterAiFixture.BOUND_RULE,
-                        ShapeshifterAiFixture.UNBOUND_RULE,
-                        RoutingRule.builder().build()))
                 .build();
     }
 }

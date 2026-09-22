@@ -22,10 +22,12 @@ import stroom.shapeshifter.ai.stage.Ledger;
 import stroom.shapeshifter.ai.stage.Outputs;
 import stroom.shapeshifter.ai.stage.RegressionSet;
 import stroom.shapeshifter.ai.stage.Reprocessing;
+import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.ai.stage.Shapes;
 import stroom.shapeshifter.ai.state.InMemoryLedger;
 import stroom.shapeshifter.ai.state.InMemoryOutputs;
 import stroom.shapeshifter.ai.state.InMemoryRegressionSet;
+import stroom.shapeshifter.ai.state.InMemoryRules;
 import stroom.shapeshifter.ai.state.InMemoryShapes;
 
 import com.google.inject.Scopes;
@@ -43,6 +45,7 @@ public class ShapeshifterAiElementModule extends PipelineElementModule {
     protected void configure() {
         super.configure();
         OptionalBinder.newOptionalBinder(binder(), Advisors.class).setDefault().to(ModelAdvisors.class);
+        bind(Rules.class).to(InMemoryRules.class).in(Scopes.SINGLETON);
         bind(Shapes.class).to(InMemoryShapes.class).in(Scopes.SINGLETON);
         bind(Ledger.class).to(InMemoryLedger.class).in(Scopes.SINGLETON);
         bind(Outputs.class).to(InMemoryOutputs.class).in(Scopes.SINGLETON);

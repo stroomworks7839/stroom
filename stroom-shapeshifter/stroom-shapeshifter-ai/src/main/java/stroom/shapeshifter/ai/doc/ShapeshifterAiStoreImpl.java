@@ -18,13 +18,11 @@ package stroom.shapeshifter.ai.doc;
 
 import stroom.docstore.api.AbstractDocumentStore;
 import stroom.docstore.api.DependencyRemapFunction;
-import stroom.docstore.api.DependencyRemapper;
 import stroom.docstore.api.StoreFactory;
 import stroom.security.api.SecurityContext;
 import stroom.shapeshifter.ai.fragment.FragmentCheck;
 import stroom.shapeshifter.ai.learning.Templates;
 import stroom.shapeshifter.shared.RoutingFields;
-import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 
 import jakarta.inject.Inject;
@@ -33,7 +31,6 @@ import jakarta.inject.Singleton;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import java.util.UUID;
 
 @Singleton
 public class ShapeshifterAiStoreImpl
@@ -65,11 +62,6 @@ public class ShapeshifterAiStoreImpl
      */
     @Override
     public ShapeshifterAiDoc writeDocument(final ShapeshifterAiDoc document) {
-        document.getRoutingTable().stream()
-                .map(RoutingRule::getPipeline)
-                .filter(Objects::nonNull)
-                .distinct()
-                .forEach(fragmentCheck::check);
         final List<String> unknown = document.getLearningKey().stream()
                 .filter(field -> !RoutingFields.NAMES.contains(field))
                 .toList();
@@ -88,24 +80,17 @@ public class ShapeshifterAiStoreImpl
             throw new IllegalArgumentException("The plan cannot be held: " + String.join("; ", problems));
         }
         return super.writeDocument(document.copy()
-                .routingTable(document.getRoutingTable().stream().map(ShapeshifterAiStoreImpl::identified).toList())
                 .plan(document.getPlan().withBuiltInVersion(Templates.VERSION))
                 .build());
     }
 
-    private static RoutingRule identified(final RoutingRule rule) {
-        return rule.getUuid() == null
-                ? rule.copy().uuid(UUID.randomUUID().toString()).build()
-                : rule;
-    }
-
     /**
-     * A Shapeshifter AI document depends on its model document and on every fragment in its routing table. Declaring
-     * them
-     * here is what makes a content-pack import re-point them at the imported copies, what lets a copied
-     * document follow its dependencies, and what draws the edges in the explorer's dependency view; the
-     * inherited null would silently disable all three. A fragment's own dependencies — the configuration
-     * documents its elements reference — are the pipeline store's to declare.
+     * A Shapeshifter AI document depends on its model document, and on nothing else: since A41 the routing
+     * table is rows and the fragments are named by them, not by the document, so an exported document
+     * carries its configuration and none of what it learned — as a processor filter's state is not part of
+     * the pipeline it runs. Declaring the model here is what makes a content-pack import re-point it at the
+     * imported copy, what lets a copied document follow it, and what draws the edge in the explorer's
+     * dependency view; the inherited null would silently disable all three.
      */
     @Override
     protected DependencyRemapFunction<ShapeshifterAiDoc> getDependencyRemapFunction() {
@@ -114,17 +99,7 @@ public class ShapeshifterAiStoreImpl
             if (doc.getModel() != null) {
                 builder.model(remapper.remap(doc.getModel()));
             }
-            builder.routingTable(doc.getRoutingTable()
-                    .stream()
-                    .map(rule -> remap(rule, remapper))
-                    .toList());
             return builder.build();
         };
-    }
-
-    private static RoutingRule remap(final RoutingRule rule, final DependencyRemapper remapper) {
-        return rule.getPipeline() == null
-                ? rule
-                : rule.copy().pipeline(remapper.remap(rule.getPipeline())).build();
     }
 }

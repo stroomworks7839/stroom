@@ -38,6 +38,7 @@ import stroom.query.api.ExpressionOperator;
 import stroom.query.api.ExpressionTerm.Condition;
 import stroom.shapeshifter.ai.doc.ShapeshifterAiStore;
 import stroom.shapeshifter.ai.element.ShapeshifterAiParser;
+import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.ai.extraction.DataSplitterCompiler;
 import stroom.shapeshifter.ai.extraction.DataSplitterStep;
 import stroom.shapeshifter.ai.extraction.ExtractionCorpus.Golden;
@@ -101,6 +102,8 @@ class TestScenario19DegenerateTransformInAPipeline extends AbstractProcessIntegr
     @Inject
     private ShapeshifterAiStore shapeshifterAiStore;
     @Inject
+    private Rules rules;
+    @Inject
     private PipelineStore pipelineStore;
     @Inject
     private MockMetaService metaService;
@@ -148,9 +151,8 @@ class TestScenario19DegenerateTransformInAPipeline extends AbstractProcessIntegr
                 .noneMatch(error -> error.getMessage().startsWith("Schema conformance"));
         assertThat(result.getMarkerCount(Severity.ERROR, Severity.FATAL_ERROR)).isZero();
         assertThat(result.getWritten()).isEqualTo(6);
-        final ShapeshifterAiDoc learned = shapeshifterAiStore.readDocument(doc);
-        assertThat(learned.getRoutingTable()).hasSize(1);
-        final RoutingRule rule = learned.getRoutingTable().get(0);
+        assertThat(rules.forDocument(doc.getUuid())).hasSize(1);
+        final RoutingRule rule = rules.forDocument(doc.getUuid()).get(0);
         final Meta output = outputs().get(0);
         assertThat(canonical(data(output))).isEqualTo(canonical(EXPECTED_EVENTS));
         assertThat(streamStore.getAttributes(output.getId())).containsEntry(Bindings.RULE_ATTRIBUTE, rule.getUuid());

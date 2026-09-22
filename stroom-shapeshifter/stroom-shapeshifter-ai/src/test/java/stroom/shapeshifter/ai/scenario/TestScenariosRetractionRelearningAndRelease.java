@@ -138,7 +138,7 @@ class TestScenariosRetractionRelearningAndRelease {
         final Retracted retracted = (Retracted) third.decision();
         assertThat(retracted.rule()).isEqualTo(provisional);
         assertThat(retracted.score()).isLessThan(doc.getPromotionFloor());
-        assertThat(third.doc().getRoutingTable()).describedAs("the shape is unknown again").isEmpty();
+        assertThat(scenarios.rules.forDocument(DOC)).describedAs("the shape is unknown again").isEmpty();
         assertThat(third.output()).isNull();
         assertThat(third.bindings()).isNull();
         assertThat(scenarios.shapes.reasonGivenUp(DOC, SHAPE)).describedAs("unknown, not given up").isEmpty();
@@ -221,7 +221,7 @@ class TestScenariosRetractionRelearningAndRelease {
         assertThat(rebound.rule().getPipeline()).isNotEqualTo(incumbent.getPipeline());
         assertThat(rebound.rule().getPromotedTimeMs()).isEqualTo(Scenarios.NOW.toEpochMilli());
         assertThat(rebound.score()).isEqualTo(1.0);
-        assertThat(third.doc().getRoutingTable()).containsExactly(rebound.rule());
+        assertThat(scenarios.rules.forDocument(DOC)).containsExactly(rebound.rule());
         assertThat(events(third.output())).describedAs("the incumbent served this stream").isEqualTo(14);
         assertThat(third.bindings().fragment()).isEqualTo(incumbent.getPipeline());
         assertThat(scenarios.regressionSet.accepted(incumbent.getUuid())).hasSize(2);
@@ -244,14 +244,14 @@ class TestScenariosRetractionRelearningAndRelease {
         final Script script = learning(scenarios, FOUR_FIELDS);
         final StageRun first = scenarios.stage(script).run(doc(10), stream(1, lines(6, 0)));
         final RoutingRule pinned = ((Provisional) first.decision()).rule().copy().pinned(true).build();
-        final ShapeshifterAiDoc doc = first.doc().copy().routingTable(List.of(pinned)).build();
+        scenarios.rules.replace(DOC, pinned);
 
         final Script silent = Script.of();
-        final StageRun run = scenarios.stage(silent).run(doc,
+        final StageRun run = scenarios.stage(silent).run(first.doc(),
                 stream(2, lines(10, 0).replace(",logon\n", ",logon,badge\n")));
 
         assertThat(run.decision()).isInstanceOf(Bound.class);
-        assertThat(run.doc().getRoutingTable()).containsExactly(pinned);
+        assertThat(scenarios.rules.forDocument(DOC)).containsExactly(pinned);
         assertThat(scenarios.reprocessing.requests()).isEmpty();
         assertThat(scenarios.ledger.isEmpty()).isTrue();
         assertThat(silent.asked()).isEmpty();

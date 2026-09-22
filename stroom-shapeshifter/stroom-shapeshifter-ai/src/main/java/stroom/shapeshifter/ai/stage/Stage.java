@@ -96,6 +96,7 @@ public final class Stage {
     private final List<Scorer> scorers;
     private final FragmentWriter writer;
     private final FragmentRunner fragmentRunner;
+    private final Rules rules;
     private final Shapes shapes;
     private final Ledger ledger;
     private final Outputs outputs;
@@ -110,6 +111,7 @@ public final class Stage {
                  final List<Scorer> scorers,
                  final FragmentWriter writer,
                  final FragmentRunner fragmentRunner,
+                 final Rules rules,
                  final Shapes shapes,
                  final Ledger ledger,
                  final Outputs outputs,
@@ -122,6 +124,7 @@ public final class Stage {
         this.scorers = List.copyOf(scorers);
         this.writer = writer;
         this.fragmentRunner = fragmentRunner;
+        this.rules = rules;
         this.shapes = shapes;
         this.ledger = ledger;
         this.outputs = outputs;
@@ -138,13 +141,14 @@ public final class Stage {
         final Map<String, Object> attributes = input.routingAttributes(ShapeSignature.of(input.data()));
         final Shape shape = Shape.of(doc.getLearningKey(), attributes);
         final Scorecard scorecard = new Scorecard(doc.getScorers(), scorers);
-        final Optional<RoutingRule> matched = router.route(doc.getRoutingTable(), attributes);
+        final List<RoutingRule> table = rules.forDocument(doc.getUuid());
+        final Optional<RoutingRule> matched = router.route(table, attributes);
 
         if (matched.isPresent()) {
             final RoutingRule rule = matched.get();
             if (rule.isReserved()) {
                 // An operator has decided this selector is not to be learned (design 01 §3).
-                return sentinel(doc, shape, input, "Reserved: rule " + (doc.getRoutingTable().indexOf(rule) + 1)
+                return sentinel(doc, shape, input, "Reserved: rule " + (table.indexOf(rule) + 1)
                                                    + " matches and binds nothing");
             }
             if (rule.isDraft()) {
@@ -278,8 +282,8 @@ public final class Stage {
         regressionSet.accept(promoted.getUuid(), List.of(new Accepted(input.data(), judged.score())),
                 doc.getRegressionCap());
         shapes.reset(doc.getUuid(), shape.id());
-        return emit(replace(doc, rule, promoted), new Promoted(promoted, judged.score()), shape, input, promoted,
-                judged, List.of());
+        rules.replace(doc.getUuid(), promoted);
+        return emit(doc, new Promoted(promoted, judged.score()), shape, input, promoted, judged, List.of());
     }
 
     /**
@@ -295,15 +299,14 @@ public final class Stage {
         final String reason = "Provisional rule " + rule.getUuid() + " scored " + judged.score()
                               + " against a floor of " + doc.getPromotionFloor() + " on " + judged.records()
                               + " records and is retracted";
-        final List<RoutingRule> table = new ArrayList<>(doc.getRoutingTable());
-        table.remove(rule);
+        rules.remove(doc.getUuid(), rule.getUuid());
         shapes.reset(doc.getUuid(), shape.id());
         final List<Long> produced = outputs.boundBy(rule.getUuid());
         if (!produced.isEmpty()) {
             reprocessing.request(doc.getUuid(), reason, produced);
         }
         ledger.sentinelled(doc.getUuid(), shape.id(), input.id(), reason);
-        return new StageRun(doc.copy().routingTable(table).build(), new Retracted(rule, judged.score(), reason),
+        return new StageRun(doc, new Retracted(rule, judged.score(), reason),
                 shape, null, null, judged.verdicts(), List.of());
     }
 
@@ -368,12 +371,11 @@ public final class Stage {
                     .score(candidate.score())
                     .recordBoundary(learned.boundary())
                     .build();
-            final List<RoutingRule> table = new ArrayList<>(doc.getRoutingTable());
-            table.add(draft);
+            rules.append(doc.getUuid(), draft);
             regressionSet.accept(draft.getUuid(), List.of(new Accepted(input.data(), candidate.score(),
                     learned.targets())), doc.getRegressionCap());
             shapes.awaitReview(doc.getUuid(), shape.id(), draft.getUuid());
-            return emit(doc.copy().routingTable(table).build(), new Drafted(draft, candidate.score()), shape, input,
+            return emit(doc, new Drafted(draft, candidate.score()), shape, input,
                     incumbent, served, learned.transcript());
         }
         final RoutingRule rebound = incumbent.copy()
@@ -384,7 +386,8 @@ public final class Stage {
                 .build();
         regressionSet.accept(rebound.getUuid(), List.of(new Accepted(input.data(), candidate.score(),
                 learned.targets())), doc.getRegressionCap());
-        return emit(replace(doc, incumbent, rebound), new Rebound(incumbent, rebound, candidate.score()), shape,
+        rules.replace(doc.getUuid(), rebound);
+        return emit(doc, new Rebound(incumbent, rebound, candidate.score()), shape,
                 input, incumbent, served, learned.transcript());
     }
 
@@ -421,8 +424,7 @@ public final class Stage {
                 .build();
         // Appended, not prepended (design 02 §4): learned rules are exclusive by key, so order among them
         // is moot, and an operator's more specific rule above them keeps its precedence.
-        final List<RoutingRule> table = new ArrayList<>(doc.getRoutingTable());
-        table.add(rule);
+        rules.append(doc.getUuid(), rule);
         if (!provisional || draft) {
             // A draft's records go in now, under its uuid, however few: they are what it was judged on
             // whether or not it is approved — and a person approving it on too few is the A14 exception
@@ -436,7 +438,7 @@ public final class Stage {
             ledger.sentinelled(doc.getUuid(), shape.id(), input.id(), "Awaiting review: draft rule " + rule.getUuid()
                                                                       + " binds " + fragment.getName()
                                                                       + " for shape " + shape.id());
-            return new StageRun(doc.copy().routingTable(table).build(), new Drafted(rule, judged.score()), shape, null,
+            return new StageRun(doc, new Drafted(rule, judged.score()), shape, null,
                     null, judged.verdicts(), transcript);
         }
         final List<Long> released = ledger.release(doc.getUuid(), shape.id());
@@ -449,7 +451,7 @@ public final class Stage {
         final Decision decision = provisional
                 ? new Provisional(rule, judged.score(), judged.records(), doc.getMinRecordsPerShape())
                 : new Promoted(rule, judged.score());
-        return emit(doc.copy().routingTable(table).build(), decision, shape, input, rule, judged, transcript);
+        return emit(doc, decision, shape, input, rule, judged, transcript);
     }
 
     private Outcome learn(final ShapeshifterAiDoc doc,
@@ -475,31 +477,31 @@ public final class Stage {
      * and its history; otherwise the draft itself goes live. Either way the shape's ledger is released as
      * a reprocess request (A12).
      *
-     * @return The document with its routing table rewritten; the caller saves it.
      */
-    public ShapeshifterAiDoc approve(final ShapeshifterAiDoc doc, final String ruleUuid) {
-        final RoutingRule draft = draft(doc, ruleUuid);
+    public void approve(final ShapeshifterAiDoc doc, final String ruleUuid) {
+        final List<RoutingRule> table = rules.forDocument(doc.getUuid());
+        final RoutingRule draft = draft(doc, table, ruleUuid);
         final String shape = shapeAwaiting(doc, draft);
-        final List<RoutingRule> table = new ArrayList<>(doc.getRoutingTable());
-        final Optional<RoutingRule> incumbent = incumbentOf(doc, draft);
+        final Optional<RoutingRule> incumbent = incumbentOf(table, draft);
         if (incumbent.isPresent()) {
             if (incumbent.get().isPinned()) {
                 // Design 01 §7.3 rule 2: a pin exempts a rule from rebinding until it is unpinned.
                 throw new IllegalStateException("Rule " + incumbent.get().getUuid() + " is pinned; unpin it before "
                                                 + "approving draft " + ruleUuid + " in its place");
             }
-            table.set(table.indexOf(incumbent.get()), incumbent.get().copy()
+            rules.replace(doc.getUuid(), incumbent.get().copy()
                     .pipeline(draft.getPipeline())
                     .provisional(false)
                     .promotedTimeMs(clock.millis())
                     .score(draft.getScore())
+                    .recordBoundary(draft.getRecordBoundary())
                     .build());
-            table.remove(draft);
+            rules.remove(doc.getUuid(), draft.getUuid());
             regressionSet.accept(incumbent.get().getUuid(), regressionSet.accepted(draft.getUuid()),
                     doc.getRegressionCap());
             regressionSet.discard(draft.getUuid());
         } else {
-            table.set(table.indexOf(draft), draft.copy()
+            rules.replace(doc.getUuid(), draft.copy()
                     .draft(false)
                     .provisional(false)
                     .promotedTimeMs(clock.millis())
@@ -510,7 +512,6 @@ public final class Stage {
         if (!released.isEmpty()) {
             reprocessing.request(doc.getUuid(), "Draft rule " + ruleUuid + " approved for shape " + shape, released);
         }
-        return doc.copy().routingTable(table).build();
     }
 
     /**
@@ -519,21 +520,20 @@ public final class Stage {
      * operator says otherwise: a shape with no rule is sentinelled, and a relearned shape's incumbent
      * carries on serving without being scored against or relearned.
      *
-     * @return The document with its routing table rewritten; the caller saves it.
      */
-    public ShapeshifterAiDoc reject(final ShapeshifterAiDoc doc, final String ruleUuid, final String reason) {
-        final RoutingRule draft = draft(doc, ruleUuid);
+    public void reject(final ShapeshifterAiDoc doc, final String ruleUuid, final String reason) {
+        final RoutingRule draft = draft(doc, rules.forDocument(doc.getUuid()), ruleUuid);
         final String shape = shapeAwaiting(doc, draft);
-        final List<RoutingRule> table = new ArrayList<>(doc.getRoutingTable());
-        table.remove(draft);
+        rules.remove(doc.getUuid(), draft.getUuid());
         regressionSet.discard(draft.getUuid());
         shapes.reset(doc.getUuid(), shape);
         shapes.giveUp(doc.getUuid(), shape, "Rejected: " + reason);
-        return doc.copy().routingTable(table).build();
     }
 
-    private static RoutingRule draft(final ShapeshifterAiDoc doc, final String ruleUuid) {
-        return doc.getRoutingTable().stream()
+    private static RoutingRule draft(final ShapeshifterAiDoc doc,
+                                     final List<RoutingRule> table,
+                                     final String ruleUuid) {
+        return table.stream()
                 .filter(rule -> ruleUuid.equals(rule.getUuid()))
                 .findFirst()
                 .filter(RoutingRule::isDraft)
@@ -550,8 +550,8 @@ public final class Stage {
     /**
      * The active rule a draft would replace: one that binds the same selector.
      */
-    private static Optional<RoutingRule> incumbentOf(final ShapeshifterAiDoc doc, final RoutingRule draft) {
-        return doc.getRoutingTable().stream()
+    private static Optional<RoutingRule> incumbentOf(final List<RoutingRule> table, final RoutingRule draft) {
+        return table.stream()
                 .filter(rule -> !rule.isDraft() && !rule.isReserved()
                                 && Objects.equals(rule.getExpression(), draft.getExpression()))
                 .findFirst();
@@ -562,21 +562,13 @@ public final class Stage {
                 learned.chain());
     }
 
-    private static ShapeshifterAiDoc replace(final ShapeshifterAiDoc doc,
-                                             final RoutingRule was,
-                                             final RoutingRule now) {
-        final List<RoutingRule> table = new ArrayList<>(doc.getRoutingTable());
-        table.set(table.indexOf(was), now);
-        return doc.copy().routingTable(table).build();
-    }
-
     /**
      * The fragments bound for this feed and type, in table order, each once: what an unknown shape is
      * tried against before the model is asked.
      */
-    private static List<RoutingRule> compatibleVariants(final ShapeshifterAiDoc doc, final Input input) {
+    private List<RoutingRule> compatibleVariants(final ShapeshifterAiDoc doc, final Input input) {
         final List<RoutingRule> variants = new ArrayList<>();
-        for (final RoutingRule rule : doc.getRoutingTable()) {
+        for (final RoutingRule rule : rules.forDocument(doc.getUuid())) {
             if (!rule.isReserved() && !rule.isDraft()
                 && Router.compatible(rule, input.feed(), input.type())
                 && variants.stream().noneMatch(v -> v.getPipeline().getUuid().equals(rule.getPipeline().getUuid()))) {

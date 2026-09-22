@@ -47,7 +47,6 @@ class TestShapeshifterAiDoc {
 
         assertThat(read).isEqualTo(doc);
         assertThat(read.getScorers()).containsExactlyElementsOf(doc.getScorers());
-        assertThat(read.getRoutingTable()).containsExactlyElementsOf(doc.getRoutingTable());
         assertThat(read.getPlan().getSteps()).extracting(PlanStep::format)
                 .containsExactly("CHAIN", "TARGET when text kinds 1", "CONFIGURE candidates 2");
     }
@@ -194,7 +193,7 @@ class TestShapeshifterAiDoc {
         final ShapeshifterAiDoc doc = new ShapeshifterAiDoc(
                 "uuid", "name", "1", null, null, null, null,
                 null, null, null, null, null, null, null, null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null);
 
         assertThat(doc.getExecutionMode()).isEqualTo(ExecutionMode.DEFERRED);
         assertThat(doc.getLearningMode()).isEqualTo(LearningMode.DISABLED);
@@ -219,7 +218,6 @@ class TestShapeshifterAiDoc {
         assertThat(doc.getRegressionCap()).isEqualTo(100);
         assertThat(doc.getRegressionRetentionDays()).isNull();
         assertThat(doc.getScorers()).isEmpty();
-        assertThat(doc.getRoutingTable()).isEmpty();
     }
 
     @Test
@@ -230,7 +228,7 @@ class TestShapeshifterAiDoc {
         final ShapeshifterAiDoc created = new ShapeshifterAiDoc(
                 "uuid", "name", null, null, null, null, null,
                 null, null, null, null, null, null, null, null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null);
 
         assertThat(built).isEqualTo(created);
     }
@@ -365,28 +363,6 @@ class TestShapeshifterAiDoc {
                                 new ErrorLoadParameters(Severity.WARNING)),
                         new ScorerSetting(ScorerType.EVENT_CLASSIFICATION, 1.0, 0.8, false,
                                 new EventClassificationParameters(List.of("logon", "logoff")))))
-                .routingTable(List.of(
-                        RoutingRule.builder()
-                                .recordBoundary(RecordBoundary.ofArray("events"))
-                                .uuid("rule-1")
-                                .expression(RoutingRule.learnedSelector(
-                                        List.of(MetaFields.FIELD_FEED, MetaFields.FIELD_TYPE,
-                                                RoutingRule.SHAPE_SIGNATURE_FIELD),
-                                        stream))
-                                .pipeline(fragment)
-                                .pinned(true)
-                                .promotedTimeMs(3L)
-                                .score(0.97)
-                                .build(),
-                        RoutingRule.builder()
-                                .uuid("rule-2")
-                                .expression(RoutingRule.learnedSelector(RoutingFields.DEFAULT_LEARNING_KEY, stream))
-                                .pipeline(fragment)
-                                .draft(true)
-                                .provisional(true)
-                                .build(),
-                        RoutingRule.builder()
-                                .build()))
                 .build();
     }
 }
