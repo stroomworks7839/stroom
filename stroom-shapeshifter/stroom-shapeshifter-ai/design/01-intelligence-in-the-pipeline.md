@@ -1349,14 +1349,58 @@ row work, not stream work, and Stroom's modules do it the same way each time: a
 `stroom-<x>-impl-db` module with a Flyway migration, jOOQ-generated classes and a connection
 provider of its own, the DAO implemented over them in the impl module.
 
-**Proposed ruling A26.** *The stage's runtime state is three tables in a
-`stroom-shapeshifter-ai-impl-db` module, one row per thing the design names:*
+**The cluster this must survive.** Stroom processes millions of streams across hundreds of nodes,
+hundreds of threads each. Two paths fall out of that, and only one is hot. *Serving* a bound shape
+costs a signature, a routing lookup, a state check and the fragment run — the work Stroom would do
+anyway — and must cost **no database round trip per stream**: the rules and shape state are cached per
+node behind `LoadingStroomCache` and invalidated cluster-wide by `EntityEvent` on promotion, as the
+docstore's own caches are. *Learning* is rare and slow, and is where every lock, row and model call
+belongs; A27's processor dependency keeps streams from being created at all while a feed is in error
+mode or its shape is learning. The bottleneck at that scale is the model, not MySQL: hundreds of nodes
+learning at once meet the provider's rate limit long before the database notices, which is why A44
+makes the limits cluster facts rather than per-node ones.
+
+**Ruling A41 (the owner's, 2026-09-22).** *The document holds only what a person authors — the model,
+instructions, learning key, plan, templates, scorers, thresholds, modes and allowed elements. Nothing
+learned is written to it: the routing table becomes rows, one per rule, and the supervisor never
+writes the document at all.* Two nodes promoting two shapes of one document is otherwise a whole-
+document read-modify-write race that silently loses a rule, and machine writes otherwise share an
+optimistic lock with the operator editing the Learning tab. The Routing tab reads the rules through a
+resource; the router reads them from the cache. A document with ten thousand shapes is then a table,
+not a growing blob. Exporting a document no longer carries its learned rules, which is right: learned
+state is environment-specific, as processor filters are, and the fragments are documents of their own.
+
+**Ruling A42 (the owner's, 2026-09-22).** *The learning lease is per `(doc, shape)`, and a node that
+does not win it does not wait: it writes its ledger row, sentinels the stream as an unknown shape's
+would be, and returns. The winner's promotion releases the backlog as A12 releases any other — a
+reprocess filter over the inputs the ledger names.* Waiting would hold a processing thread for
+minutes; at hundreds of threads a shape's first minute would stall the cluster. Nothing is held (§5.2)
+is as true of concurrency as of quarantine. The lease is a conditional update on the shape row —
+node and expiry, heartbeat to extend, expiry reclaims after a crash — so the row is the single point of
+truth for who is learning what.
+
+**Ruling A43 (the owner's, 2026-09-22).** *One learner per shape: variants are not learned in parallel
+and merged.* Two learned variants cannot be merged — they are XSLT and Data Splitter documents, not
+data — and racing them would double the spend for what the gate decides anyway. A shape improves by
+relearning when its rolling score falls (§5), against the regression set that stops a new variant
+regressing (A18). Candidates competing *within* one attempt, under one lease, stay open as a plan-
+grammar question (A37).
+
+**Ruling A44 (the owner's, 2026-09-22).** *The per-document rate limit and the spend breaker are
+cluster-wide counters in the A26 module — a token bucket row per document, updated atomically — not
+per-node limiters.* A budget divided by node count is not a budget, and a feed burning spend on one
+node is invisible to the others.
+
+**Proposed ruling A26** *(revised 2026-09-22 by A41 and A44)*. *The stage's runtime state is five
+tables in a `stroom-shapeshifter-ai-impl-db` module, one row per thing the design names:*
 
 | Table | One row per | Holds |
 |---|---|---|
 | `shapeshifter_shape` | `(doc, learning-key value)` — feed and type by default, the signature where the key includes it | status — unknown, learning, provisional, bound, awaiting review, given up — with reason and the attempt that set it; the `uuid` of the routing rule for the shape, draft or active; the learning lease of §11.1 (node, expiry); the rolling per-record score of §5 and the rolling AI-review score of A23 |
 | `shapeshifter_ledger` | sentinelled input | the shape, the input stream's meta id, the record range where the shape was one of several, when and why |
 | `shapeshifter_feed_state` | `(doc, feed)` | the failure streak and error-mode state of A24: since when, why, last reset and by whom |
+| `shapeshifter_rule` | learned routing rule (A41) | the document, the selector's terms as the learning key wrote them, the fragment's doc ref, `uuid`, state (draft, provisional, active, retracted), score, promoted time, the record boundary of A35, and the order among the document's rules |
+| `shapeshifter_spend` | `(doc)` | the cluster-wide token bucket of A44: budget, spent, window, and the breaker's state |
 
 *The given-up check is one indexed lookup; a sentinel is one ledger insert; release selects the
 ledger's meta ids, creates a reprocess filter for them through `ProcessorFilterService`, deletes the
@@ -1536,7 +1580,7 @@ the order they arrived. Items marked *built* already exist in `stroom-shapeshift
    *The `Bindings` record on every `StageRun` and the `Outputs` seam are built 2026-09-18, and the
    element writes them to the output stream's attributes through `MetaData`; the reprocessing mode
    that reads them is not built.*
-8. **The runtime-state schema** (A26): a `stroom-shapeshifter-ai-impl-db` module in the pattern of
+8. **The runtime-state schema** (A26, A41–A44): a `stroom-shapeshifter-ai-impl-db` module in the pattern of
    `stroom-ai-impl-db` — Flyway migration, jOOQ codegen, its own connection provider — holding the
    three tables of §11.4; the DAO in the impl module; the error stream
    text for a given-up and for a draft shape; release as the creation of a reprocess filter for the
@@ -1544,7 +1588,11 @@ the order they arrived. Items marked *built* already exist in `stroom-shapeshift
    record element the XML split settles (A35), carried onto the rule and into the stage's record count
    and yield basis (§10.1). *The `Shapes`, `Ledger`,
    `Outputs` and `Reprocessing` seams the tables will implement, and the `Stage`'s use of them, are
-   built 2026-09-18 with in-memory implementations; the module is not.*
+   built 2026-09-18 with in-memory implementations; the module is not.* A41 adds the rules themselves
+   as rows and takes the routing table off the document, which makes `Rules` a seam beside the others
+   and removes the supervisor's `writeDocument` altogether; A42 adds the lease to the shape row and the
+   loser's sentinel to the stage; A44 adds the spend table. Caches over the rule and shape rows, keyed
+   by document and invalidated by `EntityEvent`, are what keep the hot path free of the database.
 9. **A regression stream per rule** (A18), appended at promotion and re-scored by the
    promotion gate; retention a document setting capped by the source feed's retention (A18).
 10. **A restricted XSLT function library** for AI-authored transforms (§11).
@@ -1740,6 +1788,10 @@ with the criterion that ends it, adds the input formats the feature must be show
 | A38 | Redaction keeps the feed's vocabulary and classes its values; applies to every text the model sees and every comparison against what it wrote; measured as a harness dimension | **Ruled, 2026-09-21** — the owner's, on three questions with recommendations; the build deferred by the owner until the formats are proven, and owed before phase G |
 | A39 | The escalating example asks the split of every input: what one record is costs one question and is what the count, the target and yield rest on | **Ruled, 2026-09-22** — the owner's, on run 7 and slice 19, over the recommendation of JSON alone: the split is always asked |
 | A40 | A parser refused on yield — a multi-line record it cut per line — goes back to the split question (`CONFIGURE parser on yield-short goto split`) rather than being re-asked blind | **Ruled, 2026-09-22** — the owner's, from run 7's auditd under escalating |
+| A41 | The document holds only what a person authors; nothing learned is written to it — the routing table becomes rows, one per rule, and the supervisor never writes the document | **Ruled, 2026-09-22** — the owner's, on how the feature survives hundreds of nodes: a whole-document rewrite per promotion loses rules and collides with the operator's own edits (§11.4) |
+| A42 | The learning lease is per `(doc, shape)`; a node that does not win it sentinels the stream and returns rather than waiting, and the winner's promotion releases the backlog | **Ruled, 2026-09-22** — the owner's: waiting holds a processing thread for minutes, and nothing is held (§5.2) is as true of concurrency as of quarantine |
+| A43 | One learner per shape: variants are not learned in parallel and merged; a shape improves by relearning against the regression set | **Ruled, 2026-09-22** — the owner's: two learned documents cannot be merged, and racing them doubles spend for what the gate decides anyway |
+| A44 | The per-document rate limit and the spend breaker are cluster-wide counters in the A26 module, not per-node limiters | **Ruled, 2026-09-22** — the owner's: a budget divided by node count is not a budget |
 
 Where a row says *revised*, *restated* or *settled* 2026-09-17, the change was put to the owner as a
 recommendation with alternatives and taken by them that day: the text is the editor's, the decision
@@ -1954,6 +2006,11 @@ including the degeneracy trap (§8.3) that changes the scoring model and propose
   the goldens and run 7 — yield per line where a record spans lines is what decided outcomes,
   coverage never did. A20–A22 ruled as built, the owner's; A39 and A40 ruled, the owner's, from run
   7: the escalating example splits every input, and a parser refused on yield goes back to the split.
+- A41–A44 ruled, the owner's, 2026-09-22, on how the feature survives a cluster of hundreds of nodes:
+  the document holds only what a person authors and the routing table becomes rows; the learning lease
+  is per shape and its losers sentinel rather than wait; one learner per shape, no merging of variants;
+  the rate limit and spend breaker are cluster-wide counters. §11.4 carries the reasoning and the
+  revised table list.
 - A developer's observation, 2026-09-22, that the feature "sounds like a skill" (§12 items 27, 28):
   the built-in templates are a skill in all but format and should be exported as one, from the same
   source; the control layer is deliberately not agentic, and an `AGENT` plan belongs in the plan
