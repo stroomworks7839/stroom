@@ -17,6 +17,7 @@
 package stroom.shapeshifter.ai.scoring;
 
 import stroom.shapeshifter.ai.stage.ShapeSignature;
+import stroom.shapeshifter.shared.RecordBoundary;
 
 import net.sf.saxon.s9api.Processor;
 import net.sf.saxon.s9api.SaxonApiException;
@@ -114,6 +115,38 @@ public final class OutputRecords {
 
     public List<XdmNode> records() {
         return records;
+    }
+
+    /**
+     * The records a boundary names in this document (A35): the outermost elements of the element's local
+     * name — one inside another is part of that record — or the items of the outermost array with the key,
+     * or for {@link RecordBoundary#ROOT} the root's records, where the root holds one keyless array — a
+     * top-level JSON array, as the parser wraps it — that array's items. Empty where the boundary names
+     * nothing here.
+     */
+    public List<XdmNode> recordsBy(final RecordBoundary boundary) {
+        if (boundary.isArray()) {
+            if (RecordBoundary.ROOT.equalsIgnoreCase(boundary.getArray())) {
+                if (records.size() == 1) {
+                    final List<XdmNode> items = nodes(records.get(0),
+                            "self::*[local-name() = 'array'][not(@key)]/*");
+                    if (!items.isEmpty()) {
+                        return items;
+                    }
+                }
+                return records;
+            }
+            final String key = boundary.getArray().replace("'", "");
+            return nodes(root, "(descendant::*[local-name() = 'array'][@key = '" + key + "']"
+                               + "[not(ancestor::*[local-name() = 'array'][@key = '" + key + "'])])[1]/*");
+        }
+        final String local = boundary.getElement().replace("'", "");
+        return nodes(root, "descendant::*[local-name() = '" + local + "']"
+                           + "[not(ancestor::*[local-name() = '" + local + "'])]");
+    }
+
+    private List<XdmNode> nodes(final XdmNode from, final String xpath) {
+        return evaluate(from, xpath).stream().map(item -> (XdmNode) item).toList();
     }
 
     public XdmNode root() {

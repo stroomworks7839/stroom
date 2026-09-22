@@ -318,7 +318,6 @@ class TestLiveScenarios {
                     .instructions("An API gateway's audit log as one JSON document: an object whose events array "
                                   + "holds the records, logins and logouts naming the user, the host and the "
                                   + "client. Each is an Authenticate event; the host is the device.")
-                    .minRecordsPerShape(1)
                     .build();
             return List.of(scenarios.stage(advisor).run(doc,
                     new Input(1, "API-GATEWAY-DOC", "Raw Events", Map.of("Format", "JSON"), JSON_DOCUMENT)));
@@ -370,7 +369,7 @@ class TestLiveScenarios {
                         .withColumn(Column.of("Failure", (Outcome o) -> o.failure()))
                         .build());
         Files.writeString(OUT.resolve("report.md"), report(outcomes), StandardCharsets.UTF_8);
-        assertThat(outcomes).describedAs("the harness ran every scenario").hasSize(7);
+        assertThat(outcomes).describedAs("the harness ran the selected scenarios").isNotEmpty();
     }
 
     private Optional<Outcome> run(final String name, final Function<LiveAdvisor, List<StageRun>> scenario) {

@@ -17,6 +17,7 @@
 package stroom.shapeshifter.ai.scoring;
 
 import stroom.shapeshifter.ai.learning.StepResult;
+import stroom.shapeshifter.shared.RecordBoundary;
 import stroom.shapeshifter.shared.YieldBasis;
 import stroom.shapeshifter.shared.YieldParameters;
 
@@ -49,6 +50,29 @@ class TestYieldScorer {
         // A parser that produced an empty document leaves the transform with nothing: judged, and found wanting.
         assertThat(scored(YieldBasis.RECORDS, 1.0, "<records xmlns=\"records:2\"/>")).isEqualTo(0.0);
         assertThat(scored(YieldBasis.LINES, 0.35, "<records xmlns=\"records:2\"/>")).isEqualTo(0.0);
+    }
+
+    @Test
+    void aRecordsInputIsCountedByTheBoundaryWhereOneWasSettled() {
+        // The parser's XML of a JSON document has one root child, the map holding the array: by the array the
+        // split named, the input is three records, and three events is one per record (A35).
+        final String document = "<map xmlns=\"http://www.w3.org/2013/XSL/json\"><string key=\"source\">x</string>"
+                                + "<array key=\"events\"><map/><map/><map/></array></map>";
+        final String three = "<Events xmlns=\"event-logging:3\"><Event/><Event/><Event/></Events>";
+        final YieldScorer scorer = new YieldScorer();
+        final YieldParameters records = new YieldParameters(1.0, YieldBasis.RECORDS);
+        assertThat(scorer.score(records, new Attempted("XSLTFilter", false, document,
+                new StepResult(three, List.of()), RecordBoundary.ofArray("events"))).orElseThrow().value())
+                .isEqualTo(1.0);
+        assertThat(scorer.score(records, new Attempted("XSLTFilter", false, document,
+                new StepResult(three, List.of()))).orElseThrow().value())
+                .describedAs("with no boundary the root's two children are the count").isEqualTo(2.0 / 3);
+        // An element boundary over nested XML: two entries under one container.
+        final String nested = "<log><entries><entry/><entry/></entries></log>";
+        final String two = "<Events xmlns=\"event-logging:3\"><Event/><Event/></Events>";
+        assertThat(scorer.score(records, new Attempted("XSLTFilter", false, nested,
+                new StepResult(two, List.of()), RecordBoundary.ofElement("entry"))).orElseThrow().value())
+                .isEqualTo(1.0);
     }
 
     @Test

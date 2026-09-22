@@ -16,6 +16,7 @@
 
 package stroom.shapeshifter.ai.scoring;
 
+import stroom.shapeshifter.shared.RecordBoundary;
 import stroom.util.xml.SAXParserFactoryFactory;
 
 import org.xml.sax.Attributes;
@@ -26,6 +27,7 @@ import org.xml.sax.helpers.DefaultHandler;
 
 import java.io.IOException;
 import java.io.StringReader;
+import java.util.Optional;
 import javax.xml.parsers.ParserConfigurationException;
 
 /**
@@ -40,6 +42,26 @@ public final class Records {
 
     public static int count(final String xml) {
         return Math.max(0, parsed(xml));
+    }
+
+    /**
+     * The records a document holds by a boundary (A35) — the elements of the name, or the array's items —
+     * or, with no boundary or one that names nothing here, the root's children.
+     *
+     * @return The count, or -1 where the text is not a document.
+     */
+    public static int parsed(final String xml, final RecordBoundary boundary) {
+        if (boundary == null) {
+            return parsed(xml);
+        }
+        final Optional<OutputRecords> document = OutputRecords.parse(xml);
+        if (document.isEmpty()) {
+            return parsed(xml);
+        }
+        final int by = document.get().recordsBy(boundary).size();
+        return by > 0
+                ? by
+                : document.get().records().size();
     }
 
     /**

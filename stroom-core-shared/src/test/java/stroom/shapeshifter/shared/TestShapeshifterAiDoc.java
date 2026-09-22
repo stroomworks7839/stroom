@@ -101,7 +101,8 @@ class TestShapeshifterAiDoc {
             assertThat(LearningPlan.of(example).problems()).describedAs(example.name()).isEmpty();
         }
         assertThat(LearningPlan.of(PlanExample.ESCALATING).getSteps()).extracting(PlanStep::effectiveId)
-                .containsExactly("chain", "parser", "first", "target", "again", "transform");
+                .containsExactly("chain", "split", "parser", "first", "target", "again", "transform");
+        assertThat(LearningPlan.of(PlanExample.ESCALATING).step("split").getWhen()).isEqualTo(StepGuard.JSON);
         assertThat(LearningPlan.of(PlanExample.ESCALATING).step("first").getTransitions())
                 .extracting(Transition::format).containsExactly("on passed goto end", "on spent goto target");
         assertThat(LearningPlan.of(PlanExample.DIRECT).withSteps(List.of(
@@ -364,6 +365,7 @@ class TestShapeshifterAiDoc {
                                 new EventClassificationParameters(List.of("logon", "logoff")))))
                 .routingTable(List.of(
                         RoutingRule.builder()
+                                .recordBoundary(RecordBoundary.ofArray("events"))
                                 .uuid("rule-1")
                                 .expression(RoutingRule.learnedSelector(
                                         List.of(MetaFields.FIELD_FEED, MetaFields.FIELD_TYPE,

@@ -33,6 +33,7 @@ import stroom.shapeshifter.shared.LearningMode;
 import stroom.shapeshifter.shared.LearningPlan;
 import stroom.shapeshifter.shared.PlanExample;
 import stroom.shapeshifter.shared.PlanStep;
+import stroom.shapeshifter.shared.RecordBoundary;
 import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.SchemaConformanceParameters;
 import stroom.shapeshifter.shared.ScorerSetting;
@@ -378,12 +379,13 @@ class TestScenariosTarget {
                 new Input(1, "DOCVAULT", "Raw Events", Map.of("Format", "XML"), NESTED_XML));
 
         script.verifyExhausted();
-        // The dialogue learned the shape whole; the stage then counted the stream's records as the root's
-        // children — one <entries> — and bound provisionally for want of evidence. The record element the split
-        // settled does not yet reach the stage's judging or the rule (design 01 §10.1, owed with the A26 tables).
-        assertThat(run.decision()).isInstanceOf(Provisional.class);
-        assertThat(((Provisional) run.decision()).records()).isEqualTo(1);
-        assertThat(((Provisional) run.decision()).score()).isEqualTo(1.0);
+        // The dialogue learned the shape whole; the record element the split settled reaches the stage's
+        // count (A35) — three entries, not the root's one <entries> — so the stream meets the two records the
+        // document asks and is promoted, and the rule carries the element for the streams it will serve.
+        assertThat(run.decision()).describedAs(run.decision().toString()).isInstanceOf(Promoted.class);
+        assertThat(((Promoted) run.decision()).score()).isEqualTo(1.0);
+        assertThat(((Promoted) run.decision()).rule().getRecordBoundary())
+                .isEqualTo(RecordBoundary.ofElement("entry"));
         final List<Question> asked = script.asked();
         // Chain, split, split again, one target (all three entries are one kind), the transform.
         assertThat(asked).hasSize(5);

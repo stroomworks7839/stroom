@@ -1022,13 +1022,13 @@ is already XML — the first element is not a parser — the split question asks
 record (A35, built after the coherence audit found the build taking the root's children instead): the
 reply is an element's local name, judged by whether such elements occur, are not the root, are not a
 container holding a repeated child, and between their occurrences hold the document whole. The
-transform question is then told that each such element is one record. What that leaves owed: the
-record element the dialogue settled does not yet reach the *stage's* judging or the rule it binds, so
-the stream's record count — the A14 evidence — and a yield basis of *records* still take the root's
-children; a nested document with one container is judged as one record and bound provisionally. The
-element belongs on the routing rule, which the A26 tables are the place to give it (§12 item 8); until
-then a document over nested XML should count yield by bytes or lines, and design 02 scenario 37's XML
-variant states the provisional outcome as it stands. Third, input that is already markup is not cut to
+transform question is then told that each such element is one record. Since slice 19 (2026-09-22) the
+boundary the dialogue settled — the element for XML, the array's key for JSON, `root` for top-level
+values — is carried by the learned outcome and written on the routing rule (`recordBoundary`), and the
+stage counts a stream's records by it — the A14 evidence — and the yield scorer counts a records input by
+it, on the learning stream and on every stream the rule then serves; a rule from before it, or one for
+raw text, has none and the root's children are the count as before. Run 7 (02 §6.3) forced it: a JSON
+document counted as one record had a one-event transform promoted at 1.000. Third, input that is already markup is not cut to
 a learning prefix — a prefix of a document is not a document — but learned from whole, within the
 document's sample size limit. And since A37 the routing of rule 6 is not code but a transition the
 document's plan declares — `on preservation-short goto parser` — with the examples declaring it
@@ -1136,6 +1136,7 @@ it is in:
 
   ```
   CHAIN
+  SPLIT when json
   CONFIGURE parser
   first:  CONFIGURE transform candidates 2 on passed goto end on spent goto target
   TARGET kinds 3
@@ -1144,7 +1145,10 @@ it is in:
   ```
 
   The direct transform's pass ends the plan; only its exhaustion reaches the target. The re-asked
-  parser needs no `checks`: once targets exist, preservation is a `CONFIGURE parser` step's own.
+  parser needs no `checks`: once targets exist, preservation is a `CONFIGURE parser` step's own. The
+  split is asked of JSON alone — one cheap question — because a JSON document's records are the items
+  of an array only the split can name; without it the document is one record to the count, the target
+  and yield alike, and run 7 (02 §6.3) promoted a one-event transform on that count.
 
 - *Templates* — override-only: the text of any of `SYSTEM`, `CHAIN`, `SPLIT`, `SPLIT_XML`, `SPLIT_JSON`, `TARGET`,
   `CONFIGURATION`, `SPLIT_RULES`, `EXTRACTION_RULES`, `TRANSFORMATION_RULES`, with `${variable}` slots
@@ -1645,7 +1649,7 @@ with the criterion that ends it, adds the input formats the feature must be show
 | A32 | The dialogue's shape — direct (A21) or target-first (A31) — is a setting on the Shapeshifter AI document beside the model it is used with, default direct; models trained differently want different dialogues, and the two are measured against each other on the same feeds rather than one chosen in code | **Ruled, 2026-09-18** — the owner's, after design 02 §6.3; **superseded by A34** the same day: the setting became the document's own step list, and the measuring it asked for stands |
 | A33 | The plan is data on the document (§10.2): an ordered step list of the four typed question kinds with `always/text/xml` guards and per-step limits, and override-only templates with block variables over versioned built-in text; the kinds, their reply grammars and their judges stay in code; no expressions or loops | **Ruled, 2026-09-18** — the owner's, on four questions put with recommendations: section on the document (not a separate type), ordered list with simple guards, override-only, built now as slice 11 |
 | A34 | No presets: the document owns its step list, and "direct" and "target-first" are examples the Learning tab loads into it, nothing more; the plan is the ordered list, each step re-asked on its own shortfall — not problem-triggered steps | **Ruled, 2026-09-18** — the owner's, on the coherence audit finding the preset had survived A33 as a mode in all but name; supersedes the setting of A32. A37 takes the list to a graph; no presets stands |
-| A35 | The split question is asked of XML input too, as A31 said: the reply names the element that is one record, judged by occurrence, not-the-root, not-a-container and wholeness; the transform is told each such element is one record; markup input is learned from whole, not from a line prefix | **Ruled, 2026-09-18** — the owner's, on the coherence audit: build it rather than amend A31 |
+| A35 | The split question is asked of XML input too, as A31 said: the reply names the element that is one record, judged by occurrence, not-the-root, not-a-container and wholeness; the transform is told each such element is one record; markup input is learned from whole, not from a line prefix | **Ruled, 2026-09-18** — the owner's, on the coherence audit: build it rather than amend A31. The boundary on the rule and in the stage's count and yield built in slice 19, 2026-09-22, ahead of the A26 tables, on run 7's evidence |
 | A36 | Input coverage is the share of the input's characters consumed; lines are counted and named in the diagnostic but do not set the score | **Ruled, 2026-09-18** — the owner's; on a seven-line sample a header was a seventh by lines and a sixteenth by characters, and the live runs found that deciding promotions (02 §6.3) |
 | A37 | The plan is a graph over typed question kinds and typed outcomes: each step names its checks and its transitions — `on <outcome> goto <step>` at once, `on spent goto <step>` when its candidates are gone — with self re-ask the default; `CONFIGURE` may take a role, parser or transform; each transition taken at most once per attempt; the rule-6 routing is a transition in the examples, not code | **Ruled, 2026-09-21** — the owner's, on four questions put with recommendations: graph over typed outcomes (not a list with an outcome guard); checks declared per step from a closed list; the parser–transform routing in the graph; designed and specified now, built as slice 12 ahead of the A26 tables |
 | A38 | Redaction keeps the feed's vocabulary and classes its values; applies to every text the model sees and every comparison against what it wrote; measured as a harness dimension | **Ruled, 2026-09-21** — the owner's, on three questions with recommendations; the build deferred by the owner until the formats are proven, and owed before phase G |
@@ -1854,6 +1858,11 @@ including the degeneracy trap (§8.3) that changes the scoring model and propose
   phase B's exit criterion met. The JSON document, counted as one record, was given up on yield under
   one plan and promoted at 1.000 with one event from twelve under the other: the count by the array's
   items (design 03 §5) is urgent.
+- Slice 19, the record boundary on the rule and in the stage's count and yield (A35; design 02 §6.1;
+  design 03 §5): `RecordBoundary` — the element, or the JSON array's key — carried from the split
+  through the learned outcome onto the routing rule, counted by the stage and the yield scorer on the
+  learning stream and every served stream; the escalating example gains `SPLIT when json` (§10.2). Run
+  8 (02 §6.3): the JSON document promoted under both plans, 0.999 and 1.000, all twelve events.
 - Design 03 written: the phases, at the owner's asking for one plan covering everything discussed and
   the formats never yet exercised — syslog, auditd, Windows security events, JSON, fixed-width,
   multi-line CSV. Slice 12 is phase A; phase B is a slice per format.

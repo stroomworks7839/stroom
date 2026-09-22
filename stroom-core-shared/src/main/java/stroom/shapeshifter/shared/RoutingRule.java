@@ -99,6 +99,13 @@ public class RoutingRule {
     private final Long promotedTimeMs;
     @JsonProperty
     private final Double score;
+    /**
+     * What one record is in the stream, as the variant was learned (A35): the stage counts a stream's
+     * records and judges yield by it. Null for raw text, whose parser cuts the records, and for rules
+     * written before it was carried, which count the root's children as before.
+     */
+    @JsonProperty
+    private final RecordBoundary recordBoundary;
 
     @JsonCreator
     public RoutingRule(@JsonProperty("uuid") final String uuid,
@@ -108,7 +115,8 @@ public class RoutingRule {
                        @JsonProperty("draft") final Boolean draft,
                        @JsonProperty("provisional") final Boolean provisional,
                        @JsonProperty("promotedTimeMs") final Long promotedTimeMs,
-                       @JsonProperty("score") final Double score) {
+                       @JsonProperty("score") final Double score,
+                       @JsonProperty("recordBoundary") final RecordBoundary recordBoundary) {
         this.uuid = uuid;
         this.expression = expression;
         this.pipeline = pipeline;
@@ -117,11 +125,12 @@ public class RoutingRule {
         this.provisional = Objects.requireNonNullElse(provisional, false);
         this.promotedTimeMs = promotedTimeMs;
         this.score = score;
+        this.recordBoundary = recordBoundary;
     }
 
     @SerialisationTestConstructor
     private RoutingRule() {
-        this(null, null, null, null, null, null, null, null);
+        this(null, null, null, null, null, null, null, null, null);
     }
 
     /**
@@ -211,6 +220,10 @@ public class RoutingRule {
         return score;
     }
 
+    public RecordBoundary getRecordBoundary() {
+        return recordBoundary;
+    }
+
     @Override
     public boolean equals(final Object o) {
         if (this == o) {
@@ -227,12 +240,14 @@ public class RoutingRule {
                Objects.equals(expression, that.expression) &&
                Objects.equals(pipeline, that.pipeline) &&
                Objects.equals(promotedTimeMs, that.promotedTimeMs) &&
-               Objects.equals(score, that.score);
+               Objects.equals(score, that.score) &&
+               Objects.equals(recordBoundary, that.recordBoundary);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(uuid, expression, pipeline, pinned, draft, provisional, promotedTimeMs, score);
+        return Objects.hash(uuid, expression, pipeline, pinned, draft, provisional, promotedTimeMs, score,
+                recordBoundary);
     }
 
     @Override
@@ -246,6 +261,7 @@ public class RoutingRule {
                ", provisional=" + provisional +
                ", promotedTimeMs=" + promotedTimeMs +
                ", score=" + score +
+               ", recordBoundary=" + recordBoundary +
                '}';
     }
 
@@ -271,6 +287,7 @@ public class RoutingRule {
         private boolean provisional;
         private Long promotedTimeMs;
         private Double score;
+        private RecordBoundary recordBoundary;
 
         private Builder() {
         }
@@ -284,6 +301,7 @@ public class RoutingRule {
             this.provisional = rule.provisional;
             this.promotedTimeMs = rule.promotedTimeMs;
             this.score = rule.score;
+            this.recordBoundary = rule.recordBoundary;
         }
 
         public Builder uuid(final String uuid) {
@@ -326,8 +344,14 @@ public class RoutingRule {
             return this;
         }
 
+        public Builder recordBoundary(final RecordBoundary recordBoundary) {
+            this.recordBoundary = recordBoundary;
+            return this;
+        }
+
         public RoutingRule build() {
-            return new RoutingRule(uuid, expression, pipeline, pinned, draft, provisional, promotedTimeMs, score);
+            return new RoutingRule(uuid, expression, pipeline, pinned, draft, provisional, promotedTimeMs, score,
+                    recordBoundary);
         }
     }
 }

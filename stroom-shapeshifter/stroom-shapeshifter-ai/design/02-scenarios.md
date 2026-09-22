@@ -734,6 +734,18 @@ the feed's hard part — the split for multi-line text, the transform for XML �
 plan as a per-document setting (A32) rather than one default. The JSON document count is the next
 thing to build, before anything else is measured against it.
 
+**Run 8**, 2026-09-22, is row 12 alone under both plans after slice 19 built the count (§6.1):
+
+| Run | 7 target-first | 8 target-first | 7 escalating | 8 escalating |
+|---|---|---|---|---|
+| 12 JSON document | given up · 10 q · 215k · 883 s | 0.999 · 7 q · 60k · 106 s | 1.000 with one event · 6 q · 144k · 1727 s | 1.000 · 4 q · 53k · 322 s |
+
+Under target-first the split named `events` and the transform's twelve events were a yield of one per
+record; under escalating the new `SPLIT when json` step took one turn of 3k tokens, and the promoted
+stylesheet applies templates over `//array[@key='events']/map` — every item, not the first. The
+harness's own assertion that it ran seven rows, true of run 7 by coincidence, now says at least the
+selected ones. Archived as `build/live-runs/sonnet-5-run8-json-*`.
+
 The ninth slice, 2026-09-18, is the node's advisor (design 01 §12 item 6). `Advisors` gives a stage its
 advisor per document — the document names the model and the instructions — and `ModelAdvisors`, the
 node's default, answers with `ModelAdvisor` over `stroom-ai`'s chat model for the document's model: the
@@ -982,6 +994,22 @@ prefix is cut by lines, so a quoted record can be cut in two at the sample's end
 two-line records are placed so that the four-fifths cut lands on a boundary, and cutting the prefix at
 the settled boundary is owed (design 03 §5). Live row `14-csv-multiline`. 170 tests in the module.
 Phase B's scripted half is complete: six formats, six scenarios green.
+
+The nineteenth slice, 2026-09-22, is **the record boundary on the rule and in the stage's count and
+yield** (A35), pulled forward from phase C on run 7's evidence (§6.3). `RecordBoundary`, shared: the
+element that is one record in XML, or the key of the JSON array whose items are records, `root` for
+top-level values; a routing rule carries the one its variant was learned with, null for raw text and for
+rules from before. The dialogue's learned outcome carries the split's boundary; `Attempted` carries it to
+the scorers, so the yield scorer counts a records input by it — `OutputRecords.recordsBy`, which the
+target checks now read through too — and the stage counts the records a stream brought by it, on the
+parser's XML for JSON and on the input for XML, on the learning stream and, through the fragment runner,
+on every stream the rule serves, at binding, promotion, retraction, relearning and the regression set.
+The escalating example gains `SPLIT when json`, one cheap question without which a JSON document is one
+record to that plan (design 01 §10.2; whether XML should have the same is the owner's). Scenario 46's
+document case is promoted with yield judged and the rule carrying `array events`; scenario 37's nested
+XML is promoted rather than provisional, its rule carrying `element entry`; and run 7's trap is a test —
+a transform emitting one event from the first item is "1 record from 12 input records", refused. Run 8
+(§6.3) confirmed it live under both plans. 175 tests in the module, 15 shared.
 
 Audited the same day, the working tree and the range (the owner's code review): seven findings, six
 fixed and one kept by decision. The stage counted a stream of markup that is not one document — a

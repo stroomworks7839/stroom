@@ -16,6 +16,8 @@
 
 package stroom.shapeshifter.ai.learning;
 
+import stroom.shapeshifter.shared.RecordBoundary;
+
 /// The record boundary a plan settles (A31, A35): for raw text the parser configuration that cuts one
 /// record per unit and emits it whole; for input that is already XML the local name of the element that is
 /// one record; for JSON the key of the array whose items are records, or [#ROOT] where each top-level value
@@ -49,5 +51,16 @@ public record Boundary(String configuration, String element, String array) {
     /// The boundary of JSON: the key of the array whose items are records, or [#ROOT].
     public static Boundary ofArray(final String array) {
         return new Boundary(null, null, array);
+    }
+
+    /// The boundary as a rule carries it (A35): the element or the array; null for raw text, whose parser
+    /// configuration cuts the records and needs no count beside it.
+    public RecordBoundary shared() {
+        if (element != null) {
+            return RecordBoundary.ofElement(element);
+        }
+        return array != null
+                ? RecordBoundary.ofArray(array)
+                : null;
     }
 }

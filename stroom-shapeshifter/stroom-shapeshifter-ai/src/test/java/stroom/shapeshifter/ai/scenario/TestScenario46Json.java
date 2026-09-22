@@ -22,13 +22,13 @@ import stroom.shapeshifter.ai.learning.Question.Configuration;
 import stroom.shapeshifter.ai.learning.Question.Split;
 import stroom.shapeshifter.ai.learning.Question.TargetFor;
 import stroom.shapeshifter.ai.stage.Decision.Promoted;
-import stroom.shapeshifter.ai.stage.Decision.Provisional;
 import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.StageRun;
 import stroom.shapeshifter.shared.BusinessRulesParameters;
 import stroom.shapeshifter.shared.ExtractionQualityParameters;
 import stroom.shapeshifter.shared.LearningMode;
 import stroom.shapeshifter.shared.PlanExample;
+import stroom.shapeshifter.shared.RecordBoundary;
 import stroom.shapeshifter.shared.SchemaConformanceParameters;
 import stroom.shapeshifter.shared.ScorerSetting;
 import stroom.shapeshifter.shared.ScorerType;
@@ -112,6 +112,30 @@ class TestScenario46Json {
     }
 
     @Test
+    void aOneEventTransformOverTheDocumentIsShortOnYieldNotPromoted() {
+        // Run 7 (design 02 §6.3): counted as one record, a transform emitting one event from the array's first
+        // item scored a yield of one per record and was promoted. By the array's items it is one in twelve.
+        final String oneEvent = XSLT.replace("select=\"//map[string/@key = 'time']\"",
+                "select=\"(//map[string/@key = 'time'])[1]\"");
+        assertThat(oneEvent).describedAs("the stylesheet's loop was narrowed to the first item").isNotEqualTo(XSLT);
+        final Scenarios scenarios = new Scenarios();
+        final Script script = scenarios.jsonScript("events", XSLT)
+                .expect(QuestionMatcher.chain()).reply("JSONParser -> XSLTFilter")
+                .expect(QuestionMatcher.split().withoutFeedback()).reply("events")
+                .expect(QuestionMatcher.configuration("XSLTFilter").withoutFeedback()).reply(Scenarios.fenced(oneEvent))
+                .expect(QuestionMatcher.configuration("XSLTFilter")
+                        .withFeedbackMentioning("Yield scored")
+                        .withFeedbackMentioning("1 record(s) from 12 input record(s)"))
+                .reply(Scenarios.fenced(XSLT));
+
+        final StageRun run = scenarios.stage(script).run(doc(), stream(1, DOCUMENT));
+
+        script.verifyExhausted();
+        assertThat(run.decision()).describedAs(run.decision().toString()).isInstanceOf(Promoted.class);
+        assertThat(run.output()).isEqualTo(EVENTS);
+    }
+
+    @Test
     void scenario46ADocumentsRecordsAreTheItemsOfAnArray() {
         final Scenarios scenarios = new Scenarios();
         final Script script = scenarios.jsonScript("events", XSLT)
@@ -122,21 +146,16 @@ class TestScenario46Json {
                 .reply("events")
                 .expect(QuestionMatcher.configuration("XSLTFilter").withTargets(2)).reply(Scenarios.fenced(XSLT));
 
-        // Yield by records would count the root's one child against twelve events, as it would for nested XML
-        // (scenario 37), so it is not asked here until the record boundary reaches the count (design 01 §10.1).
-        final ShapeshifterAiDoc doc = doc().copy()
-                .scorers(doc().getScorers().stream()
-                        .filter(setting -> setting.getType() != ScorerType.YIELD)
-                        .toList())
-                .build();
-        final StageRun run = scenarios.stage(script).run(doc, stream(1, DOCUMENT));
+        final StageRun run = scenarios.stage(script).run(doc(), stream(1, DOCUMENT));
 
         script.verifyExhausted();
-        // Learned whole; the stage then counts the document as one value, however many lines it is printed
-        // over, and binds provisionally for want of evidence, as the nested XML of scenario 37 does (design 01
-        // §10.1); the count by the array's items is owed (design 03 §5).
-        assertThat(run.decision()).describedAs(run.decision().toString()).isInstanceOf(Provisional.class);
-        assertThat(((Provisional) run.decision()).records()).isEqualTo(1);
+        // Learned whole; the array the split named reaches the stage's count and the yield scorer (A35): the
+        // document brings twelve records, not the root's one map, so twelve events is a yield of one per
+        // record and the stream is promoted outright — where run 7 (design 02 §6.3) had one record, and a
+        // one-event transform promoted on it. The rule carries the array for the streams it will serve.
+        assertThat(run.decision()).describedAs(run.decision().toString()).isInstanceOf(Promoted.class);
+        assertThat(((Promoted) run.decision()).score()).isEqualTo(1.0);
+        assertThat(((Promoted) run.decision()).rule().getRecordBoundary()).isEqualTo(RecordBoundary.ofArray("events"));
         assertThat(run.output()).isEqualTo(EVENTS);
         final Configuration transform = (Configuration) script.asked().get(script.asked().size() - 1);
         assertThat(transform.targets()).describedAs(transform.targets().toString()).hasSize(2);

@@ -16,6 +16,7 @@
 
 package stroom.shapeshifter.ai.learning;
 
+import stroom.shapeshifter.shared.RecordBoundary;
 import stroom.util.shared.StoredError;
 
 import java.util.List;
@@ -34,11 +35,14 @@ public sealed interface Outcome {
      * @param output  What the last step produced over the sample: the translation, for a transform stage.
      * @param targets What each kind of record was to become (A31), as validated; empty under the direct
      *                dialogue. They go onto the regression set at promotion as its goldens.
+     * @param boundary What one record is, as the split settled it (A35), for the rule to carry and the stage
+     *                 to count by; null where the input is raw text or no split was asked.
      */
     record Learned(List<LearnedStep> chain,
                    String output,
                    List<Target> targets,
-                   List<Exchange> transcript) implements Outcome {
+                   List<Exchange> transcript,
+                   RecordBoundary boundary) implements Outcome {
 
     }
 

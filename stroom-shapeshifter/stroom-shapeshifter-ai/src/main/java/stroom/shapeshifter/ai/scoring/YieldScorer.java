@@ -57,7 +57,7 @@ public final class YieldScorer implements Scorer {
         // parser — is judged record for record, one out per one in, whatever the document's basis; only a
         // basis of records applies the document's ratio there (a transform that filters, scenario 7).
         final int parsed = isXml(step.input())
-                ? Records.parsed(step.input())
+                ? Records.parsed(step.input(), step.boundary())
                 : -1;
         final boolean recordsIn = parsed >= 0;
         final double units = switch (yield.getBasis()) {

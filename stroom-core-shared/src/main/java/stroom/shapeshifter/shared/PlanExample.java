@@ -38,6 +38,9 @@ public enum PlanExample implements HasDisplayValue {
             PlanStep.parse("CONFIGURE transform on preservation-short goto parser"))),
     ESCALATING("Escalating", List.of(
             PlanStep.parse("CHAIN"),
+            // JSON's records are the items of an array only the split can name: without it a document is
+            // one record, to the count, the target and yield alike (design 02 §6.3, run 7).
+            PlanStep.parse("SPLIT when json"),
             PlanStep.parse("CONFIGURE parser"),
             PlanStep.parse("first: CONFIGURE transform candidates 2 on passed goto end on spent goto target"),
             PlanStep.parse("TARGET kinds 3"),

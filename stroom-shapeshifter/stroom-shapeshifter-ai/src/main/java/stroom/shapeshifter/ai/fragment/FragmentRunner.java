@@ -33,6 +33,7 @@ import stroom.pipeline.textconverter.TextConverterStore;
 import stroom.pipeline.xslt.XsltStore;
 import stroom.shapeshifter.ai.learning.StepRunner;
 import stroom.shapeshifter.ai.scoring.Attempted;
+import stroom.shapeshifter.shared.RecordBoundary;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -80,6 +81,14 @@ public final class FragmentRunner {
      * that failed, dropped to the error stream, and the scorers count what got through (design 01 §5).
      */
     public List<Attempted> run(final DocRef fragment, final String input) {
+        return run(fragment, input, null);
+    }
+
+    /**
+     * @param boundary What one record is in the stream (A35), as the rule carries it, for the scorers that
+     *                 count records; null where none was settled.
+     */
+    public List<Attempted> run(final DocRef fragment, final String input, final RecordBoundary boundary) {
         final PipelineDataMerger merged = merge(fragment);
         final Map<String, PipelineElement> elements = merged.getElements();
         final Map<String, String> next = merged.getLinks().values().stream()
@@ -111,7 +120,7 @@ public final class FragmentRunner {
             final String configuration = runner.configured()
                     .map(configured -> configuration(merged, fragment, elementId, configured.propertyName()))
                     .orElse(null);
-            final Attempted step = Attempted.of(runner, current, runner.run(configuration, current));
+            final Attempted step = Attempted.of(runner, current, runner.run(configuration, current), boundary);
             steps.add(step);
             if (step.result().output() == null) {
                 break;

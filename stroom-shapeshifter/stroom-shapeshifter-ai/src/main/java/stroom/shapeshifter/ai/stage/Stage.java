@@ -48,6 +48,7 @@ import stroom.shapeshifter.ai.stage.Decision.Sentinel;
 import stroom.shapeshifter.ai.stage.RegressionSet.Accepted;
 import stroom.shapeshifter.shared.LearningMode;
 import stroom.shapeshifter.shared.PromotionMode;
+import stroom.shapeshifter.shared.RecordBoundary;
 import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 import stroom.util.shared.DocPath;
@@ -174,10 +175,11 @@ public final class Stage {
 
         // Before any call, the variants already bound for this feed and type are tried (design 01 §6):
         // a splitter written for one shape will often consume its neighbour, and that costs no question.
-        for (final DocRef variant : compatibleVariants(doc, input)) {
-            final Judged judged = judge(scorecard, variant, input.data());
+        for (final RoutingRule variant : compatibleVariants(doc, input)) {
+            final Judged judged = judge(scorecard, variant.getPipeline(), input.data(), variant.getRecordBoundary());
             if (judged.clearsFloor(doc)) {
-                return bind(doc, shape, input, selector, variant, judged, List.of(), List.of());
+                return bind(doc, shape, input, selector, variant.getPipeline(), judged, List.of(), List.of(),
+                        variant.getRecordBoundary());
             }
         }
 
@@ -196,7 +198,7 @@ public final class Stage {
 
         // The candidate over the whole stream: the held-out judgement of A14/A15 where there are enough
         // records for one, and the floor a provisional binding must clear where there are not.
-        final Judged judged = Judged.of(rerun(learned.chain(), input.data()), scorecard);
+        final Judged judged = Judged.of(rerun(learned.chain(), input.data(), learned.boundary()), scorecard);
         if (!judged.clearsFloor(doc)) {
             return givenUp(doc, shape, input, "Below the promotion floor",
                     "Candidate scored " + judged.score() + " against a floor of " + doc.getPromotionFloor(),
@@ -204,7 +206,8 @@ public final class Stage {
                     judged.verdicts(), learned.transcript());
         }
         final DocRef fragment = write(doc, shape, learned);
-        return bind(doc, shape, input, selector, fragment, judged, learned.targets(), learned.transcript());
+        return bind(doc, shape, input, selector, fragment, judged, learned.targets(), learned.transcript(),
+                learned.boundary());
     }
 
     /**
@@ -221,7 +224,7 @@ public final class Stage {
                            final Input input,
                            final Map<String, Object> attributes,
                            final Scorecard scorecard) {
-        final Judged judged = judge(scorecard, rule.getPipeline(), input.data());
+        final Judged judged = judge(scorecard, rule.getPipeline(), input.data(), rule.getRecordBoundary());
         final boolean enough = judged.records() >= doc.getMinRecordsPerShape();
         if (rule.isPinned()) {
             return emit(doc, new Bound(rule), shape, input, rule, judged, List.of());
@@ -333,7 +336,7 @@ public final class Stage {
                     served, outcome.transcript());
         }
         final Learned learned = (Learned) outcome;
-        final Judged candidate = Judged.of(rerun(learned.chain(), input.data()), scorecard);
+        final Judged candidate = Judged.of(rerun(learned.chain(), input.data(), learned.boundary()), scorecard);
         if (!candidate.clearsFloor(doc)) {
             return emit(doc, new Kept(incumbent, "Candidate scored " + candidate.score() + " against a floor of "
                                                  + doc.getPromotionFloor()), shape, input, incumbent, served,
@@ -345,7 +348,8 @@ public final class Stage {
                     served, learned.transcript());
         }
         for (final Accepted accepted : regressionSet.accepted(incumbent.getUuid())) {
-            final double onRecord = Judged.of(rerun(learned.chain(), accepted.input()), scorecard).score();
+            final double onRecord = Judged.of(rerun(learned.chain(), accepted.input(), learned.boundary()), scorecard)
+                    .score();
             if (onRecord < accepted.score()) {
                 return emit(doc, new Kept(incumbent, "Candidate scored " + onRecord + " against " + accepted.score()
                                                      + " accepted on an earlier stream"), shape, input, incumbent,
@@ -362,6 +366,7 @@ public final class Stage {
                     .pipeline(fragment)
                     .draft(true)
                     .score(candidate.score())
+                    .recordBoundary(learned.boundary())
                     .build();
             final List<RoutingRule> table = new ArrayList<>(doc.getRoutingTable());
             table.add(draft);
@@ -375,6 +380,7 @@ public final class Stage {
                 .pipeline(fragment)
                 .promotedTimeMs(clock.millis())
                 .score(candidate.score())
+                .recordBoundary(learned.boundary())
                 .build();
         regressionSet.accept(rebound.getUuid(), List.of(new Accepted(input.data(), candidate.score(),
                 learned.targets())), doc.getRegressionCap());
@@ -397,7 +403,8 @@ public final class Stage {
                           final DocRef fragment,
                           final Judged judged,
                           final List<Target> targets,
-                          final List<Exchange> transcript) {
+                          final List<Exchange> transcript,
+                          final RecordBoundary boundary) {
         final boolean provisional = judged.records() < doc.getMinRecordsPerShape();
         final boolean draft = doc.getPromotionMode() == PromotionMode.REVIEW;
         final RoutingRule rule = RoutingRule.builder()
@@ -410,6 +417,7 @@ public final class Stage {
                         ? null
                         : clock.millis())
                 .score(judged.score())
+                .recordBoundary(boundary)
                 .build();
         // Appended, not prepended (design 02 §4): learned rules are exclusive by key, so order among them
         // is moot, and an operator's more specific rule above them keeps its precedence.
@@ -566,13 +574,13 @@ public final class Stage {
      * The fragments bound for this feed and type, in table order, each once: what an unknown shape is
      * tried against before the model is asked.
      */
-    private static List<DocRef> compatibleVariants(final ShapeshifterAiDoc doc, final Input input) {
-        final List<DocRef> variants = new ArrayList<>();
+    private static List<RoutingRule> compatibleVariants(final ShapeshifterAiDoc doc, final Input input) {
+        final List<RoutingRule> variants = new ArrayList<>();
         for (final RoutingRule rule : doc.getRoutingTable()) {
             if (!rule.isReserved() && !rule.isDraft()
                 && Router.compatible(rule, input.feed(), input.type())
-                && variants.stream().noneMatch(v -> v.getUuid().equals(rule.getPipeline().getUuid()))) {
-                variants.add(rule.getPipeline());
+                && variants.stream().noneMatch(v -> v.getPipeline().getUuid().equals(rule.getPipeline().getUuid()))) {
+                variants.add(rule);
             }
         }
         return variants;
@@ -667,10 +675,32 @@ public final class Stage {
     }
 
     /**
-     * How many records a stream brought, the evidence a judgement rests on (A14): a document's root's
-     * children; the lines of markup that is not one document — a fragment per line — as the yield scorer
-     * counts them; one for a JSON document, however many lines it is printed over, until a count by its
-     * array's items (design 03 §5); the non-blank lines of text.
+     * How many records a stream brought, the evidence a judgement rests on (A14), counted on the input so
+     * that a variant that drops records is judged, not excused. Where a boundary was settled (A35) it is
+     * counted by that — the elements of the name in XML input, the array's items in the XML the parser
+     * makes of JSON; otherwise as {@link #recordsBrought(String)} counts the input alone.
+     */
+    static int recordsBrought(final Attempted first) {
+        final RecordBoundary boundary = first.boundary();
+        if (boundary != null) {
+            // The parser's output is the document a JSON boundary applies to; XML input is its own.
+            final String document = first.parser()
+                    ? first.result().output()
+                    : first.input();
+            final int by = document == null
+                    ? -1
+                    : Records.parsed(document, boundary);
+            if (by >= 0) {
+                return by;
+            }
+        }
+        return recordsBrought(first.input());
+    }
+
+    /**
+     * How many records a stream brought where no boundary was settled: a document's root's children; the
+     * lines of markup that is not one document — a fragment per line — as the yield scorer counts them; one
+     * for a JSON document, however many lines it is printed over; the non-blank lines of text.
      */
     static int recordsBrought(final String input) {
         if (ShapeSignature.isMarkup(input)) {
@@ -768,12 +798,14 @@ public final class Stage {
      * The chain over an input, step by step. A step that produced nothing leaves the rest unrun; one that
      * produced output with errors is followed, as {@link FragmentRunner} follows it.
      */
-    private static List<Attempted> rerun(final List<LearnedStep> chain, final String input) {
+    private static List<Attempted> rerun(final List<LearnedStep> chain,
+                                         final String input,
+                                         final RecordBoundary boundary) {
         final List<Attempted> attempted = new ArrayList<>();
         String current = input;
         for (final LearnedStep step : chain) {
             final Attempted attempt = Attempted.of(step.runner(), current,
-                    step.runner().run(step.configuration(), current));
+                    step.runner().run(step.configuration(), current), boundary);
             attempted.add(attempt);
             if (attempt.result().output() == null) {
                 break;
@@ -799,17 +831,21 @@ public final class Stage {
                 : score;
     }
 
-    private Judged judge(final Scorecard scorecard, final DocRef fragment, final String input) {
-        return Judged.of(fragmentRunner.run(fragment, input), scorecard);
+    private Judged judge(final Scorecard scorecard,
+                         final DocRef fragment,
+                         final String input,
+                         final RecordBoundary boundary) {
+        return Judged.of(fragmentRunner.run(fragment, input, boundary), scorecard);
     }
 
     /**
      * A variant's run over a whole stream, scored: what promotion, provisional binding, retraction and
      * relearning all decide on.
      *
-     * @param records How many records the stream brought — its lines where it is text, its records where
-     *                it is already XML, one where it is a JSON document. The evidence the judgement rests on
-     *                (A14), counted on the input so that a variant that drops records is judged, not excused.
+     * @param records How many records the stream brought — its lines where it is text, its records by the
+     *                boundary where one was settled, else the root's children of markup. The evidence the
+     *                judgement rests on (A14), counted on the input so that a variant that drops records is
+     *                judged, not excused.
      */
     private record Judged(String output, List<Verdict> verdicts, double score, int records) {
 
@@ -820,7 +856,7 @@ public final class Stage {
                     : attempted.get(attempted.size() - 1).result().output();
             final int records = attempted.isEmpty()
                     ? 0
-                    : recordsBrought(attempted.get(0).input());
+                    : recordsBrought(attempted.get(0));
             return new Judged(output, verdicts, candidateScore(verdicts), records);
         }
 

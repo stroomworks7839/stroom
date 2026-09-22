@@ -21,6 +21,7 @@ import stroom.shapeshifter.ai.scoring.OutputRecords;
 import stroom.shapeshifter.ai.scoring.Scorecard;
 import stroom.shapeshifter.ai.scoring.Verdict;
 import stroom.shapeshifter.ai.stage.ShapeSignature;
+import stroom.shapeshifter.shared.RecordBoundary;
 import stroom.util.shared.ElementId;
 import stroom.util.shared.Severity;
 import stroom.util.shared.StoredError;
@@ -91,37 +92,22 @@ public final class TargetChecks {
     /// one record (A35). Only the outermost occurrences count: an element of the name inside another is part
     /// of that record, not a record of its own.
     public static List<String> elementsNamed(final OutputRecords document, final String name) {
-        return occurrences(document, name).stream().map(XdmNode::toString).toList();
+        return document.recordsBy(RecordBoundary.ofElement(name)).stream().map(XdmNode::toString).toList();
     }
 
     /// The records of JSON where every top-level value is one ([Boundary#ROOT]): the root map's children —
     /// or, where the document is one top-level array, that array's items, since the parser wraps such a
     /// document in a keyless array under the root map, which no key could name.
     public static List<String> rootRecords(final OutputRecords document) {
-        final List<XdmNode> children = document.records();
-        if (children.size() == 1) {
-            final List<String> items = document.evaluate(children.get(0),
-                            "self::*[local-name() = 'array'][not(@key)]/*")
-                    .stream()
-                    .map(Object::toString)
-                    .toList();
-            if (!items.isEmpty()) {
-                return items;
-            }
-        }
-        return children.stream().map(Object::toString).toList();
+        return document.recordsBy(RecordBoundary.ofArray(RecordBoundary.ROOT)).stream()
+                .map(XdmNode::toString)
+                .toList();
     }
 
     /// The items of the JSON array with this key, in the XSL/json vocabulary the parser produces, each as its
     /// text — the records where that array holds them (A31). The outermost such array counts.
     public static List<String> arrayItems(final OutputRecords document, final String key) {
-        final String wanted = key.replace("'", "");
-        return document.evaluate(document.root(), "(descendant::*[local-name() = 'array'][@key = '" + wanted + "']"
-                                                  + "[not(ancestor::*[local-name() = 'array'][@key = '" + wanted
-                                                  + "'])])[1]/*")
-                .stream()
-                .map(Object::toString)
-                .toList();
+        return document.recordsBy(RecordBoundary.ofArray(key)).stream().map(XdmNode::toString).toList();
     }
 
     /// The text a markup record carries: its element and attribute values, for wholeness against the document.
@@ -132,12 +118,7 @@ public final class TargetChecks {
     }
 
     private static List<XdmNode> occurrences(final OutputRecords document, final String name) {
-        final String local = name.replace("'", "");
-        return document.evaluate(document.root(), "descendant::*[local-name() = '" + local + "']"
-                                                  + "[not(ancestor::*[local-name() = '" + local + "'])]")
-                .stream()
-                .map(item -> (XdmNode) item)
-                .toList();
+        return document.recordsBy(RecordBoundary.ofElement(name));
     }
 
     /// Whether an element that occurs is one record: it must not be the root, must not be a container of a

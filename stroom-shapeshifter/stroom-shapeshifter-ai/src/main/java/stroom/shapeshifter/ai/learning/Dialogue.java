@@ -167,7 +167,9 @@ public final class Dialogue {
             }
         }
         return new Learned(List.of(walk.learned), walk.learned[walk.learned.length - 1].result().output(),
-                walk.targets, List.copyOf(walk.transcript));
+                walk.targets, List.copyOf(walk.transcript), walk.split == null
+                ? null
+                : walk.split.shared());
     }
 
     private static int indexOf(final List<PlanStep> steps, final String id) {
@@ -558,7 +560,9 @@ public final class Dialogue {
         if (!result.passed()) {
             return Judged.failed(result, runner.configured().isPresent());
         }
-        final Verdict verdict = over.judge(Attempted.of(runner, input, result));
+        final Verdict verdict = over.judge(Attempted.of(runner, input, result, walk.split == null
+                ? null
+                : walk.split.shared()));
         if (!verdict.passed()) {
             return new Judged(Scorecard.outcome(verdict), verdict.feedback(), null);
         }
