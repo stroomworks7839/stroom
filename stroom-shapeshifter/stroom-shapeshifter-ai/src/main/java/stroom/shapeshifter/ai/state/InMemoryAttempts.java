@@ -24,24 +24,57 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
 /// The attempts of A28 in memory, for a harness with no database. One node's record is not the cluster's,
 /// and it does not outlive the node, which is why the tables exist.
 public final class InMemoryAttempts implements Attempts {
 
+    /// The states in which an attempt still holds its shape (A45).
+    private static final Set<AttemptStatus> OPEN = Set.of(AttemptStatus.IN_PROGRESS,
+            AttemptStatus.AWAITING_MODEL, AttemptStatus.AWAITING_REVIEW);
+
     private final Map<Long, Recorded> attempts = new LinkedHashMap<>();
     private final Map<Long, List<Turn>> turns = new LinkedHashMap<>();
     private final AtomicLong nextId = new AtomicLong(1);
 
+    /// One open attempt per shape is what one learner means (A45); an attempt whose expiry has passed has
+    /// lapsed, and the next node takes the shape.
     @Override
-    public synchronized long opened(final Attempt attempt) {
-        final long id = nextId.getAndIncrement();
+    public synchronized Optional<Long> opened(final Attempt attempt, final long nowMs) {
         final long now = System.currentTimeMillis();
+        if (open(attempt.docUuid(), attempt.shape(), nowMs).isPresent()) {
+            return Optional.empty();
+        }
+        final long id = nextId.getAndIncrement();
         attempts.put(id, new Recorded(id, attempt, AttemptStatus.IN_PROGRESS, null, null, null, 0L, now, now,
                 List.of()));
         turns.put(id, new ArrayList<>());
-        return id;
+        return Optional.of(id);
+    }
+
+    @Override
+    public synchronized Optional<Recorded> open(final String docUuid, final String shape, final long nowMs) {
+        return attempts.values().stream()
+                .filter(attempt -> attempt.attempt().docUuid().equals(docUuid)
+                                   && attempt.attempt().shape().equals(shape)
+                                   && OPEN.contains(attempt.status())
+                                   && attempt.attempt().expiryMs() > nowMs)
+                .map(this::withTurns)
+                .findFirst();
+    }
+
+    @Override
+    public synchronized void parked(final long attemptId, final AttemptStatus status, final long expiryMs) {
+        final Recorded was = attempts.get(attemptId);
+        if (was != null) {
+            final Attempt claim = new Attempt(was.attempt().docUuid(), was.attempt().shape(),
+                    was.attempt().feed(), was.attempt().type(), was.attempt().inputId(), was.attempt().node(),
+                    was.attempt().executionMode(), was.attempt().promotionMode(), expiryMs);
+            attempts.put(attemptId, new Recorded(was.id(), claim, status, was.decision(), was.ruleUuid(),
+                    was.score(), was.tokensSpent(), was.createTimeMs(), System.currentTimeMillis(), List.of()));
+        }
     }
 
     /// By number: a turn written as it is asked and again when it is judged is one turn.

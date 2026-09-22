@@ -24,6 +24,7 @@ import stroom.shapeshifter.ai.learning.Advisor;
 import stroom.shapeshifter.ai.learning.Advisors;
 import stroom.shapeshifter.ai.learning.Exchange;
 import stroom.shapeshifter.ai.learning.Question;
+import stroom.shapeshifter.ai.learning.RecordedAdvisor;
 import stroom.shapeshifter.ai.stage.Attempts.Recorded;
 import stroom.shapeshifter.ai.stage.Attempts.Turn;
 import stroom.shapeshifter.ai.stage.Decision.Bound;
@@ -469,6 +470,79 @@ class TestScenariosBindingBeforeLearning {
                 .isEqualTo(AttemptStatus.ERROR);
         assertThat(attempt.decision()).contains("the model fell over");
         assertThat(attempt.turns()).describedAs("with the turns it had got to").isNotEmpty();
+    }
+
+
+    @Test
+    void anAttemptThatStopsAtAQuestionIsCarriedOnFromWhatItWasAnswered() {
+        // A28 and A45: an attempt parked at a question keeps its claim on the shape, and the answers it
+        // already has are not asked again. The dialogue keeps no state of its own — it is re-walked with
+        // those answers, which re-derives what they produced.
+        final Scenarios scenarios = new Scenarios();
+        final ShapeshifterAiDoc doc = keyedOnFormat();
+        // The chain is answered; the parser question is not, so the attempt stops there.
+        final Script started = scenarios.script(CSV.configuration(), XSLT)
+                .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter");
+
+        final StageRun parked = scenarios.stage(new StoppingAdvisor(started, 1))
+                .run(doc, stream("CSV"));
+
+        assertThat(parked.decision()).describedAs(parked.decision().toString()).isInstanceOf(Sentinel.class);
+        assertThat(((Sentinel) parked.decision()).reason()).contains("Awaiting the model");
+        final Recorded waiting = scenarios.attempts.forDocument("doc-1", 10).get(0);
+        assertThat(waiting.status()).isEqualTo(AttemptStatus.AWAITING_MODEL);
+        assertThat(waiting.turns()).describedAs("the chain it was answered").hasSize(1);
+        assertThat(scenarios.rules.forDocument("doc-1")).isEmpty();
+
+        // While it waits it holds the shape: another stream of it learns nothing beside it.
+        final Script other = Script.of();
+        assertThat(scenarios.stage(other).run(doc, stream("CSV")).decision()).isInstanceOf(Sentinel.class);
+        assertThat(other.asked()).isEmpty();
+
+        // The worker carries it on. The chain is answered from the record, so the model is asked only what
+        // the attempt had not reached.
+        final Script carrying = scenarios.script(CSV.configuration(), XSLT)
+                .expect(QuestionMatcher.configuration("DSParser")).reply(Scenarios.fenced(CSV.configuration()))
+                .expect(QuestionMatcher.configuration("XSLTFilter")).reply(Scenarios.fenced(XSLT));
+
+        final StageRun resumed = scenarios.stage(Script.of())
+                .resume(doc, waiting.id(), stream("CSV"), carrying);
+
+        carrying.verifyExhausted();
+        assertThat(resumed.decision()).describedAs(resumed.decision().toString()).isInstanceOf(Promoted.class);
+        assertThat(carrying.asked()).describedAs("the chain was not asked again")
+                .noneMatch(Question.Chain.class::isInstance);
+        assertThat(scenarios.rules.forDocument("doc-1")).hasSize(1);
+        final Recorded finished = scenarios.attempts.byId(waiting.id()).orElseThrow();
+        assertThat(finished.status()).isEqualTo(AttemptStatus.PROMOTED);
+        assertThat(finished.turns()).describedAs("every turn, the replayed ones and the new")
+                .hasSize(resumed.transcript().size());
+    }
+
+
+    // --------------------------------------------------------------------------------
+
+
+    /// An advisor that answers so many questions and then stops, as a deferred attempt does when its
+    /// budget says to wait for the worker (A5, A28).
+    private static final class StoppingAdvisor implements Advisor {
+
+        private final Advisor delegate;
+        private final int answers;
+        private int asked;
+
+        private StoppingAdvisor(final Advisor delegate, final int answers) {
+            this.delegate = delegate;
+            this.answers = answers;
+        }
+
+        @Override
+        public String ask(final List<Exchange> transcript, final Question question) {
+            if (asked++ >= answers) {
+                return RecordedAdvisor.awaiting().ask(transcript, question);
+            }
+            return delegate.ask(transcript, question);
+        }
     }
 
 

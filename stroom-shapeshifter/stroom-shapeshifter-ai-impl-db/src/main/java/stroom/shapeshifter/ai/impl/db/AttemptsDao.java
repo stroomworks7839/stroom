@@ -26,6 +26,7 @@ import stroom.shapeshifter.shared.StepOutcome;
 
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import org.jooq.DSLContext;
 import org.jooq.Record;
 
 import java.util.List;
@@ -43,6 +44,10 @@ import static stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterTurn.SHAPES
 @Singleton
 public class AttemptsDao implements Attempts {
 
+    /// The states in which an attempt still holds its shape (A45).
+    private static final List<String> OPEN = List.of(AttemptStatus.IN_PROGRESS.name(),
+            AttemptStatus.AWAITING_MODEL.name(), AttemptStatus.AWAITING_REVIEW.name());
+
     private final ShapeshifterAiDbConnProvider connProvider;
 
     @Inject
@@ -50,10 +55,56 @@ public class AttemptsDao implements Attempts {
         this.connProvider = connProvider;
     }
 
+    /// One open attempt per shape is what one learner means (A45). The look and the insert are one
+    /// transaction over the shape's rows, so two nodes meeting a new shape at once do not both take it;
+    /// an attempt whose expiry has passed has lapsed, and the next node in takes the shape.
     @Override
-    public long opened(final Attempt attempt) {
+    public Optional<Long> opened(final Attempt attempt, final long nowMs) {
         final long now = System.currentTimeMillis();
+        return JooqUtil.transactionResult(connProvider, context -> {
+            final boolean held = context.fetchExists(context.selectFrom(SHAPESHIFTER_ATTEMPT)
+                    .where(SHAPESHIFTER_ATTEMPT.DOC_UUID.eq(attempt.docUuid()))
+                    .and(SHAPESHIFTER_ATTEMPT.SHAPE_HASH.eq(ShapesDao.hash(attempt.shape())))
+                    .and(SHAPESHIFTER_ATTEMPT.STATUS.in(OPEN))
+                    .and(SHAPESHIFTER_ATTEMPT.EXPIRY_MS.gt(nowMs))
+                    .forUpdate());
+            if (held) {
+                return Optional.empty();
+            }
+            return Optional.of(insert(context, attempt, now));
+        });
+    }
+
+    @Override
+    public Optional<Recorded> open(final String docUuid, final String shape, final long nowMs) {
         return JooqUtil.contextResult(connProvider, context -> context
+                        .select()
+                        .from(SHAPESHIFTER_ATTEMPT)
+                        .where(SHAPESHIFTER_ATTEMPT.DOC_UUID.eq(docUuid))
+                        .and(SHAPESHIFTER_ATTEMPT.SHAPE_HASH.eq(ShapesDao.hash(shape)))
+                        .and(SHAPESHIFTER_ATTEMPT.STATUS.in(OPEN))
+                        .and(SHAPESHIFTER_ATTEMPT.EXPIRY_MS.gt(nowMs))
+                        .orderBy(SHAPESHIFTER_ATTEMPT.ID.desc())
+                        .fetchOptional())
+                .map(record -> recorded(record, turns(record.get(SHAPESHIFTER_ATTEMPT.ID))));
+    }
+
+    /// A parked attempt keeps its shape: it is still learning, and its expiry is pushed out by the same
+    /// heartbeat that would have extended it (A45).
+    @Override
+    public void parked(final long attemptId, final AttemptStatus status, final long expiryMs) {
+        JooqUtil.context(connProvider, context -> context
+                .update(SHAPESHIFTER_ATTEMPT)
+                .set(SHAPESHIFTER_ATTEMPT.STATUS, status.name())
+                .set(SHAPESHIFTER_ATTEMPT.EXPIRY_MS, expiryMs)
+                .set(SHAPESHIFTER_ATTEMPT.VERSION, SHAPESHIFTER_ATTEMPT.VERSION.plus(1))
+                .set(SHAPESHIFTER_ATTEMPT.UPDATE_TIME_MS, System.currentTimeMillis())
+                .where(SHAPESHIFTER_ATTEMPT.ID.eq(attemptId))
+                .execute());
+    }
+
+    private static long insert(final DSLContext context, final Attempt attempt, final long now) {
+        return context
                 .insertInto(SHAPESHIFTER_ATTEMPT)
                 .set(SHAPESHIFTER_ATTEMPT.VERSION, 1)
                 .set(SHAPESHIFTER_ATTEMPT.CREATE_TIME_MS, now)
@@ -70,7 +121,7 @@ public class AttemptsDao implements Attempts {
                 .set(SHAPESHIFTER_ATTEMPT.STATUS, AttemptStatus.IN_PROGRESS.name())
                 .set(SHAPESHIFTER_ATTEMPT.EXPIRY_MS, attempt.expiryMs())
                 .returning(SHAPESHIFTER_ATTEMPT.ID)
-                .fetchOne(SHAPESHIFTER_ATTEMPT.ID));
+                .fetchOne(SHAPESHIFTER_ATTEMPT.ID);
     }
 
     /// By number: a turn written as it is asked and again when it is judged is one row, so an attempt

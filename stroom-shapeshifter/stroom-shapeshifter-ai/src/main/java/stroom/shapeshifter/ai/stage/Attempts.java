@@ -34,9 +34,24 @@ import java.util.Optional;
 /// This is the record; the resuming is slice 25's.
 public interface Attempts {
 
-    /// Open an attempt for a shape. The row is the claim on it once the dialogue can be resumed (A45);
-    /// until then the shape's lease holds the claim and this records what happened.
-    long opened(Attempt attempt);
+    /// Open an attempt for a shape. The row is the claim on the shape (A45): one open attempt per
+    /// `(doc, shape)` is what one learner means, and an attempt parked awaiting the model or a person is
+    /// still learning.
+    ///
+    /// @param nowMs What the caller's clock says now, against which a claim's expiry is judged: the two
+    ///              must come from one clock, or a stage whose clock is fixed — a test's — opens attempts
+    ///              that have lapsed on arrival and claims nothing, as the lease of A42 once did.
+    /// @return The attempt's id, or empty where another is open for the shape and has not lapsed — the
+    /// caller has not taken the shape and must not learn it.
+    Optional<Long> opened(Attempt attempt, long nowMs);
+
+    /// The attempt open for a shape, if one is: what a node meeting the shape finds instead of taking it,
+    /// and what the worker picks up.
+    Optional<Recorded> open(String docUuid, String shape, long nowMs);
+
+    /// Park an attempt until whoever will answer its next question does (A28): it keeps its claim on the
+    /// shape, since it is still learning, and its expiry is pushed out by the same heartbeat.
+    void parked(long attemptId, AttemptStatus status, long expiryMs);
 
     /// Write a turn of an attempt, by its number: as it is answered, and again when it is judged. An
     /// attempt still running — or one whose node died — then shows what it had got to, which is the

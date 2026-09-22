@@ -1298,6 +1298,29 @@ recorded as abandoned, which the decision's words distinguish but the status doe
 deserves a status of its own is for the Supervisor view slice, since A28's list of statuses is the
 owner's. 194 tests in the module, 16 against MySQL.
 
+The twenty-fifth slice, 2026-09-22, is **the attempt resumed** (A28), and the shape of it is the point.
+The dialogue is not recast as a state machine that saves its workings: it is re-walked from the start
+with the answers it was given. `RecordedAdvisor` answers from the attempt's turns in the order they
+were put and then hands on — to the model, for a worker carrying an attempt forward; to nobody, for one
+that is to stop and wait. Everything those answers produced is re-derived on the way: the chain, the
+boundary, the records, the targets, each element's configuration and its output, because all of it
+follows from the sample and the answers, both of which are kept. What the model said is a record; what
+running produced is a consequence, cheaper to re-derive than to store and the stream's own text besides
+(A38). A replayed answer is judged exactly as it was judged the first time, so an attempt that reaches
+the same question has reached the same state — the replay is its own check.
+
+A45 is built with it: the claim on a shape moves from the shape row to the attempt. One open attempt
+per `(doc, shape)` is what one learner means; a parked attempt still holds it, since it is still
+learning; one whose expiry passes has lapsed and the next node takes the shape. A stage that reaches a
+question nobody present can answer parks the attempt `AWAITING_MODEL`, sentinels its stream and
+returns, which is deferred mode's shape without the worker that will drive it (slice 26).
+
+The clock caught it again: the claim's expiry was set from the stage's clock and judged against the
+wall clock, exactly as the lease was before the last audit, and every scenario's claim was lapsed on
+arrival. This time a test found it rather than a review — the scenario that says a waiting attempt
+holds its shape failed, because it did not. The seam takes the caller's *now*, as the lease does.
+195 tests in the module, 17 against MySQL.
+
 ## 7. Decisions taken
 
 Ruled 2026-09-17, each as recommended:

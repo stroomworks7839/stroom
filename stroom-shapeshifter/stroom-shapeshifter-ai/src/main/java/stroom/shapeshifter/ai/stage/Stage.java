@@ -33,6 +33,8 @@ import stroom.shapeshifter.ai.learning.Question.Chain;
 import stroom.shapeshifter.ai.learning.Question.Configuration;
 import stroom.shapeshifter.ai.learning.Question.Split;
 import stroom.shapeshifter.ai.learning.Question.TargetFor;
+import stroom.shapeshifter.ai.learning.RecordedAdvisor;
+import stroom.shapeshifter.ai.learning.RecordedAdvisor.AwaitingAnswer;
 import stroom.shapeshifter.ai.learning.Sample;
 import stroom.shapeshifter.ai.learning.StepRunner;
 import stroom.shapeshifter.ai.learning.Target;
@@ -42,6 +44,7 @@ import stroom.shapeshifter.ai.scoring.Records;
 import stroom.shapeshifter.ai.scoring.Scorecard;
 import stroom.shapeshifter.ai.scoring.Scorer;
 import stroom.shapeshifter.ai.scoring.Verdict;
+import stroom.shapeshifter.ai.stage.Attempts.Recorded;
 import stroom.shapeshifter.ai.stage.Decision.Bound;
 import stroom.shapeshifter.ai.stage.Decision.Drafted;
 import stroom.shapeshifter.ai.stage.Decision.GivenUp;
@@ -181,6 +184,29 @@ public final class Stage {
     }
 
     /**
+     * Carry on an attempt that stopped at a question, with the answers it has been given (A28): the
+     * dialogue is re-walked from the start over the same sample, answered from the record until the record
+     * runs out, which re-derives everything those answers produced — the chain, the boundary, the records,
+     * the targets, each element's configuration and output — because all of it follows from the sample and
+     * the answers. What is asked beyond the record is asked of {@code answerer}: the model, for the worker
+     * advancing a deferred attempt; nothing, for one that is to stop again.
+     *
+     * @param input The stream the attempt was raised on, which the attempt's row names.
+     */
+    public StageRun resume(final ShapeshifterAiDoc doc, final long attemptId, final Input input,
+                           final Advisor answerer) {
+        final Recorded recorded = attempts.byId(attemptId)
+                .orElseThrow(() -> new IllegalArgumentException("No attempt " + attemptId));
+        final Map<String, Object> attributes = input.routingAttributes(ShapeSignature.of(input.data()));
+        final Shape shape = Shape.of(doc.getLearningKey(), attributes);
+        final Scorecard scorecard = new Scorecard(doc.getScorers(), scorers);
+        final ExpressionOperator selector = RoutingRule.learnedSelector(doc.getLearningKey(), attributes);
+        final RecordedAdvisor replay = new RecordedAdvisor(recorded.turns(), answerer);
+        return carrying(doc, shape, input, attemptId, replay,
+                recorder -> learnAndBind(doc, shape, input, attributes, scorecard, selector, recorder));
+    }
+
+    /**
      * Route, learn, judge, write, emit — design 02 §4 — over one stream.
      */
     public StageRun run(final ShapeshifterAiDoc doc, final Input input) {
@@ -269,14 +295,41 @@ public final class Stage {
         // One advisor for the attempt, since the node's makes a new one per call and each counts its own
         // tokens: asking twice would read two fresh counters and record nothing spent.
         final Advisor advisor = advisors.of(doc);
-        final long attemptId = attempts.opened(new Attempts.Attempt(doc.getUuid(), shape.id(), input.feed(),
-                input.type(), input.id(), node, doc.getExecutionMode(), doc.getPromotionMode(),
-                clock.millis() + doc.getAttemptBudgetMs() + LEASE_GRACE_MS));
+        final Optional<Long> opened = attempts.opened(new Attempts.Attempt(doc.getUuid(), shape.id(),
+                input.feed(), input.type(), input.id(), node, doc.getExecutionMode(), doc.getPromotionMode(),
+                clock.millis() + doc.getAttemptBudgetMs() + LEASE_GRACE_MS), clock.millis());
+        if (opened.isEmpty()) {
+            // Another attempt holds this shape (A45): it is still learning, parked or not, and this stream
+            // waits for what it learns rather than learning the same thing beside it.
+            return sentinel(doc, shape, input, "Another node is learning this shape; this stream waits for "
+                                               + "what it learns");
+        }
+        return carrying(doc, shape, input, opened.get(), advisor, attempt);
+    }
+
+    /**
+     * One attempt, carried to whatever it comes to and recorded as it goes (A28): whether this node opened
+     * it or picked it up where another stopped.
+     */
+    private StageRun carrying(final ShapeshifterAiDoc doc,
+                              final Shape shape,
+                              final Input input,
+                              final long attemptId,
+                              final Advisor advisor,
+                              final Function<Recorder, StageRun> attempt) {
         final long before = advisor.tokensUsed();
         final Recorder recorder = new Recorder(advisor, attemptId, answeredBy(doc));
         final StageRun run;
         try {
             run = attempt.apply(recorder);
+        } catch (final AwaitingAnswer awaiting) {
+            // The attempt has reached a question nobody present can answer: it stops here, keeps its claim
+            // on the shape, and waits for the worker or a person (A28, A45). The stream is sentinelled, as
+            // an unknown shape's is, and released when the attempt finishes.
+            record(() -> attempts.parked(attemptId, AttemptStatus.AWAITING_MODEL,
+                    clock.millis() + doc.getAttemptBudgetMs() + LEASE_GRACE_MS));
+            return sentinel(doc, shape, input, "Awaiting the model: attempt " + attemptId + " stopped at "
+                                               + describe(awaiting.question()));
         } catch (final RuntimeException e) {
             // The model, the node or the database failed: the attempt says so, with the turns it had got
             // to, rather than vanishing. Nothing here may throw over the failure that brought us.

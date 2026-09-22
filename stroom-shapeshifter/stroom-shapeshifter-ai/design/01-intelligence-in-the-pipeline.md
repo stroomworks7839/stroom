@@ -1608,9 +1608,14 @@ the order they arrived. Items marked *built* already exist in `stroom-shapeshift
 14. **The AI review job** (A23): sampling of emitted records under an hourly budget, the audit
    stream of findings, the rolling score per shape, the relearn trigger and the `Critique` question.
 15. **Durable attempts and the Supervisor view** (A28, A45): `shapeshifter_attempt` and
-   `shapeshifter_turn` in the A26 module, the attempt row carrying the claim on its shape that
-   `shapeshifter_shape`'s lease columns hold until then (A45); `Dialogue` recast as a persisted state
-   machine that stops at each question and resumes on any answerer; the job that advances attempts awaiting the model —
+   `shapeshifter_turn` in the A26 module, the attempt row carrying the claim on its shape (A45); the
+   dialogue **resumable by replay** rather than by saved workings — an attempt stops at a question,
+   and is carried on by re-walking it with the answers it was given, which re-derives everything those
+   answers produced, because the chain, the boundary, the records, the targets and each element's
+   configuration and output all follow from the sample and the answers. What the model said is a
+   record; what running produced is a consequence, cheaper to re-derive than to store and the stream's
+   own text besides (A38). A replayed answer is judged exactly as it was judged the first time, so an
+   attempt that reaches the same question has reached the same state; the job that advances attempts awaiting the model —
    which is deferred mode's worker; the cross-document Supervisor view with its list, detail, per-turn
    *answer instead* and *edit and re-run*, and per-attempt approve, reject, retract, widen and
    re-learn; and the REST resource behind it. Sequenced after item 8, which it extends, and before
@@ -2008,6 +2013,9 @@ including the degeneracy trap (§8.3) that changes the scoring model and propose
   the goldens and run 7 — yield per line where a record spans lines is what decided outcomes,
   coverage never did. A20–A22 ruled as built, the owner's; A39 and A40 ruled, the owner's, from run
   7: the escalating example splits every input, and a parser refused on yield goes back to the split.
+- Slice 25, the attempt resumed (A28, A45; design 02 §6.1): the claim moved from the shape row to the
+  attempt, a parked attempt keeping it; `RecordedAdvisor` answering from the turns and then from
+  whoever will; `Stage.resume`; the dialogue resumable by replay rather than by saved state.
 - Audit of slice 24, before the resuming is built on it: eight findings, all fixed — design 02 §6.1;
   the tokens an attempt spent were always zero, since the node makes an advisor per call and the
   recording read a different one from the dialogue; a record that failed could fail a bound stream; a

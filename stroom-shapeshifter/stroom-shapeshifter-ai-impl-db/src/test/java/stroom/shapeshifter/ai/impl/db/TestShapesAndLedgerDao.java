@@ -209,7 +209,7 @@ class TestShapesAndLedgerDao {
         // A28: what was asked and answered survives the node that asked it, and the turns are readable in
         // the order they were put.
         final long id = attempts.opened(new Attempt(DOC, SHAPE, "DOOR-ACCESS", "Raw Events", 42L, "node-1",
-                ExecutionMode.INLINE, PromotionMode.AUTOMATIC, now() + 60_000L));
+                ExecutionMode.INLINE, PromotionMode.AUTOMATIC, now() + 60_000L), now()).orElseThrow();
         attempts.turn(id, new Turn(1, "chain", 1, QuestionKind.CHAIN, "CHAIN: choose from [DSParser]",
                 "DSParser -> XSLTFilter", "local-model", StepOutcome.PASSED));
         attempts.turn(id, new Turn(2, "configure", 2, QuestionKind.CONFIGURE, "CONFIGURE: DSParser",
@@ -236,11 +236,42 @@ class TestShapesAndLedgerDao {
         // A shape with an id longer than any column is still one attempt, found by its hash.
         final String long1 = SHAPE + "|RemoteFile=" + "a".repeat(2000);
         final long longId = attempts.opened(new Attempt(DOC, long1, null, null, null, "node-1",
-                ExecutionMode.DEFERRED, PromotionMode.REVIEW, now()));
+                ExecutionMode.DEFERRED, PromotionMode.REVIEW, now()), now()).orElseThrow();
         assertThat(attempts.byId(longId).orElseThrow().attempt().shape()).isEqualTo(long1);
         assertThat(attempts.forDocument(DOC, 10)).extracting(Recorded::id)
                 .describedAs("newest first, for the Supervisor view")
                 .startsWith(longId, id);
+    }
+
+    @Test
+    void oneOpenAttemptPerShapeIsWhatOneLearnerMeans() {
+        // A45: the attempt row is the claim. A parked attempt is still learning, and one whose expiry has
+        // passed has lapsed, so the next node takes the shape.
+        final String shape = SHAPE + "-claim";
+        final long mine = attempts.opened(new Attempt(DOC, shape, "F", "T", 1L, "node-1",
+                ExecutionMode.INLINE, PromotionMode.AUTOMATIC, now() + 60_000L), now()).orElseThrow();
+
+        assertThat(attempts.opened(new Attempt(DOC, shape, "F", "T", 2L, "node-2",
+                ExecutionMode.INLINE, PromotionMode.AUTOMATIC, now() + 60_000L), now()))
+                .describedAs("one learner per shape").isEmpty();
+        assertThat(attempts.open(DOC, shape, now()).orElseThrow().id()).isEqualTo(mine);
+
+        // Parked awaiting the model, it keeps the shape.
+        attempts.parked(mine, AttemptStatus.AWAITING_MODEL, now() + 60_000L);
+        assertThat(attempts.open(DOC, shape, now())).isPresent();
+        assertThat(attempts.opened(new Attempt(DOC, shape, "F", "T", 3L, "node-2",
+                ExecutionMode.INLINE, PromotionMode.AUTOMATIC, now() + 60_000L), now())).isEmpty();
+
+        // Lapsed, and the next node in takes it.
+        attempts.parked(mine, AttemptStatus.AWAITING_MODEL, now() - 1);
+        assertThat(attempts.open(DOC, shape, now())).isEmpty();
+        final Long theirs = attempts.opened(new Attempt(DOC, shape, "F", "T", 4L, "node-2",
+                ExecutionMode.INLINE, PromotionMode.AUTOMATIC, now() + 60_000L), now()).orElseThrow();
+        assertThat(theirs).isNotEqualTo(mine);
+
+        // Closed, it holds nothing.
+        attempts.closed(theirs, AttemptStatus.PROMOTED, "Promoted 1.0", "rule-2", 1.0, 0L);
+        assertThat(attempts.open(DOC, shape, now())).isEmpty();
     }
 
     private static long now() {
