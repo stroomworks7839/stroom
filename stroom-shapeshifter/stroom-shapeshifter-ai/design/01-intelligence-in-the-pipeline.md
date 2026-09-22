@@ -2026,6 +2026,21 @@ including the degeneracy trap (§8.3) that changes the scoring model and propose
   `shapeshifter_turn`, the `Attempts` seam and its DAO, and the stage recording an attempt and every
   turn of it. Not the rendered prompt, which waits for redaction (A38); not yet the claim on the shape,
   which waits for the dialogue to be resumable (A45).
+- Audit of slice 29 (the owner's code review): fourteen findings, all fixed — design 02 §6.1. The
+  Supervisor's approve, reject, amend and re-learn were held to `VIEW` rather than `EDIT`, so a
+  read-only user could bind rules and spend tokens; the page count was of every attempt rather than of
+  the documents the asker may see; and a retraction replayed every generation of a rebound rule, since a
+  rule keeps its uuid and the output rows are now durable. The caches fired `UPDATE`, which would have
+  re-indexed a document nobody edited, and handed out the rows' own mutable list. The prune job could
+  never catch up and did not prune the output rows the per-stream write creates.
+- Slice 29, the rest of phase C (design 02 §6.1): the routing table and shape state cached in front of
+  the rows and cleared cluster-wide by what writes them; `ShapeshifterAiConfig` moved into the feature's
+  module so it can hold more than a database, and holding the cache sizes, the worker's batch and the
+  attempt retention; `Outputs` as a table rather than the meta search §12 item 8 imagined, since stroom
+  can only query registered meta fields — and carrying the pipeline, which closes the retraction
+  approximation; a prune job for finished attempts and their turns; the Supervisor resource and its
+  screen (A28); and A18's targets as goldens built as a signal rather than a gate, because §7.4 rules
+  the stored output score-not-lower and not byte-equal.
 - Audit of slice 28 (the owner's code review): six findings, all fixed — design 02 §6.1. `amend` opened
   an attempt again before checking the turn a person named exists, and nothing undid that; an attempt a
   node was walking was amended underneath it and the answer lost; reopening neither released a lapsed

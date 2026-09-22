@@ -17,9 +17,12 @@
 package stroom.shapeshifter.ai.state;
 
 import stroom.shapeshifter.ai.stage.Attempts;
+import stroom.shapeshifter.shared.AttemptCriteria;
 import stroom.shapeshifter.shared.AttemptStatus;
+import stroom.util.shared.PageRequest;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -235,6 +238,55 @@ public final class InMemoryAttempts implements Attempts {
                 .limit(limit)
                 .map(this::withTurns)
                 .toList();
+    }
+
+    @Override
+    public synchronized int prune(final long finishedBeforeMs) {
+        final List<Long> old = attempts.values().stream()
+                .filter(attempt -> !OPEN.contains(attempt.status())
+                                   && attempt.status() != AttemptStatus.AWAITING_REVIEW
+                                   && attempt.updateTimeMs() < finishedBeforeMs)
+                .map(Recorded::id)
+                .toList();
+        old.forEach(id -> {
+            attempts.remove(id);
+            turns.remove(id);
+        });
+        return old.size();
+    }
+
+    @Override
+    public synchronized Page found(final AttemptCriteria criteria, final Collection<String> docUuids) {
+        final List<Recorded> matching = attempts.values().stream()
+                .filter(attempt -> docUuids.contains(attempt.attempt().docUuid()))
+                .filter(attempt -> matches(attempt, criteria))
+                .sorted((a, b) -> Long.compare(b.id(), a.id()))
+                .toList();
+        // Null offsets and lengths are what a request that says nothing about paging carries, and are
+        // the caller's to survive rather than to be unboxed into.
+        final PageRequest paging = criteria.getPageRequest();
+        final long offset = paging == null || paging.getOffset() == null
+                ? 0L
+                : paging.getOffset();
+        final int length = paging == null || paging.getLength() == null
+                ? matching.size()
+                : paging.getLength();
+        // Without their turns, as the rows answer: a page of transcripts is a page nobody reads, and a
+        // twin that hands them over hides the difference from every scenario.
+        return new Page(matching.stream()
+                .skip(offset)
+                .limit(length)
+                .toList(), matching.size());
+    }
+
+    private static boolean matches(final Recorded attempt, final AttemptCriteria criteria) {
+        final Attempt was = attempt.attempt();
+        return (criteria.getDocUuid() == null || criteria.getDocUuid().equals(was.docUuid()))
+               && (criteria.getFeed() == null || criteria.getFeed().equals(was.feed()))
+               && (criteria.getShape() == null || criteria.getShape().equals(was.shape()))
+               && (criteria.getExecutionMode() == null || criteria.getExecutionMode() == was.executionMode())
+               && (criteria.getPromotionMode() == null || criteria.getPromotionMode() == was.promotionMode())
+               && (criteria.getStatuses().isEmpty() || criteria.getStatuses().contains(attempt.status()));
     }
 
     @Override

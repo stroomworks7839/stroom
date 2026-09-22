@@ -22,6 +22,8 @@ ext.moduleName = 'stroom.shapeshifter.ai'
 
 dependencies {
     implementation project(':stroom-ai:stroom-ai-api')
+    implementation project(':stroom-cache:stroom-cache-api')
+    implementation project(':stroom-config:stroom-config-common')
     implementation project(':stroom-core-shared')
     implementation project(':stroom-data:stroom-data-store-api')
     implementation project(':stroom-docref')
@@ -45,6 +47,7 @@ dependencies {
     implementation libs.guice
     implementation libs.jackson.databind
     implementation libs.jakarta.inject
+    implementation libs.jakarta.validation.api
     implementation libs.langchain4j
     implementation libs.restygwt
     implementation libs.saxon.he
@@ -87,6 +90,7 @@ dependencies {
     testImplementation project(':stroom-meta:stroom-meta-api')
     testImplementation project(':stroom-query:stroom-query-api')
     testImplementation project(':stroom-security:stroom-security-mock')
+    testImplementation project(':stroom-cache:stroom-cache-impl')
     testImplementation project(':stroom-test-common')
 
     testImplementation libs.langchain4j

@@ -59,7 +59,7 @@ import stroom.receive.rules.impl.StroomReceiptPolicyConfig;
 import stroom.search.elastic.ElasticConfig;
 import stroom.search.impl.SearchConfig;
 import stroom.search.solr.SolrConfig;
-import stroom.shapeshifter.ai.impl.db.ShapeshifterAiConfig;
+import stroom.shapeshifter.ai.ShapeshifterAiConfig;
 import stroom.storedquery.impl.StoredQueryConfig;
 import stroom.ui.config.shared.UiConfig;
 import stroom.util.io.StroomPathConfig;

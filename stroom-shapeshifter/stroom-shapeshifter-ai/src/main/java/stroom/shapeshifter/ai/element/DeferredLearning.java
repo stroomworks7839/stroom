@@ -17,6 +17,7 @@
 package stroom.shapeshifter.ai.element;
 
 import stroom.security.api.SecurityContext;
+import stroom.shapeshifter.ai.ShapeshifterAiConfig;
 import stroom.shapeshifter.ai.learning.Advisors;
 import stroom.shapeshifter.ai.stage.Attempts;
 import stroom.shapeshifter.ai.stage.DeferredWorker;
@@ -47,10 +48,6 @@ public class DeferredLearning {
 
     private static final LambdaLogger LOGGER = LambdaLoggerFactory.getLogger(DeferredLearning.class);
 
-    /// How many attempts one pass carries on. One attempt is one dialogue — minutes of model time at
-    /// worst — so a pass is bounded and the schedule decides the rate.
-    private static final int BATCH = 10;
-
     private final Provider<StageFactory> stageFactory;
     private final PipelineScopeRunnable pipelineScope;
     private final Attempts attempts;
@@ -58,6 +55,7 @@ public class DeferredLearning {
     private final Inputs inputs;
     private final Advisors advisors;
     private final SecurityContext securityContext;
+    private final Provider<ShapeshifterAiConfig> configProvider;
 
     @Inject
     public DeferredLearning(final Provider<StageFactory> stageFactory,
@@ -66,7 +64,8 @@ public class DeferredLearning {
                             final Documents documents,
                             final Inputs inputs,
                             final Advisors advisors,
-                            final SecurityContext securityContext) {
+                            final SecurityContext securityContext,
+                            final Provider<ShapeshifterAiConfig> configProvider) {
         this.stageFactory = stageFactory;
         this.pipelineScope = pipelineScope;
         this.attempts = attempts;
@@ -74,6 +73,7 @@ public class DeferredLearning {
         this.inputs = inputs;
         this.advisors = advisors;
         this.securityContext = securityContext;
+        this.configProvider = configProvider;
     }
 
     public void exec() {
@@ -83,7 +83,7 @@ public class DeferredLearning {
             // configuration is compiled and run here exactly as it is in a task.
             final DeferredWorker worker = new DeferredWorker(stageFactory.get().create(), attempts, documents,
                     inputs, advisors);
-            final int carried = worker.advance(BATCH);
+            final int carried = worker.advance(configProvider.get().getDeferredLearningBatchSize());
             if (carried > 0) {
                 LOGGER.info(() -> LogUtil.message("Carried on {} attempt(s) awaiting the model", carried));
             }

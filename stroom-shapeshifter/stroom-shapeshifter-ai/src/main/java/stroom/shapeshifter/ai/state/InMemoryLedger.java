@@ -17,7 +17,7 @@
 package stroom.shapeshifter.ai.state;
 
 import stroom.shapeshifter.ai.stage.Ledger;
-import stroom.shapeshifter.ai.stage.Ledger.Released;
+import stroom.shapeshifter.ai.stage.Replayable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -47,12 +47,12 @@ public final class InMemoryLedger implements Ledger {
     }
 
     @Override
-    public synchronized List<Released> release(final String docUuid, final String shape) {
-        final List<Released> released = new ArrayList<>();
+    public synchronized List<Replayable> release(final String docUuid, final String shape) {
+        final List<Replayable> released = new ArrayList<>();
         rows.removeIf(row -> {
             final boolean match = row.docUuid().equals(docUuid) && row.shape().equals(shape);
             if (match) {
-                released.add(new Released(row.inputId(), row.pipeline()));
+                released.add(new Replayable(row.inputId(), row.pipeline()));
             }
             return match;
         });

@@ -16,12 +16,14 @@
 
 package stroom.shapeshifter.ai.stage;
 
+import stroom.shapeshifter.shared.AttemptCriteria;
 import stroom.shapeshifter.shared.AttemptStatus;
 import stroom.shapeshifter.shared.ExecutionMode;
 import stroom.shapeshifter.shared.PromotionMode;
 import stroom.shapeshifter.shared.QuestionKind;
 import stroom.shapeshifter.shared.StepOutcome;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -108,11 +110,30 @@ public interface Attempts {
     /// though it were still waiting.
     void decided(String docUuid, String ruleUuid, AttemptStatus status, String decision);
 
+    /// Remove the record of attempts that finished before a given time, and their turns with them (A28,
+    /// design 01 §12 item 8): one row per attempt and one per turn is the fastest-growing thing this
+    /// feature writes, and a record kept for ever is a record nobody reads.
+    ///
+    /// An attempt that is still learning or still waiting is never removed, however old it is: age is not
+    /// what says an attempt is over.
+    ///
+    /// @return How many attempts were removed.
+    int prune(long finishedBeforeMs);
+
     /// One attempt, whole, with its turns in order.
     Optional<Recorded> byId(long attemptId);
 
     /// The attempts of a document, newest first, for the Supervisor view of A28.
     List<Recorded> forDocument(String docUuid, int limit);
+
+    /// Attempts across every document, newest first (A28): what the Supervisor view lists, narrowed by
+    /// whatever a person looking for one would know. Without their turns, which the detail reads.
+    ///
+    /// @param docUuids The documents to look in: those the person asking may see, so that the count they
+    ///                 are given and the pages they turn are of what they may read and not of what
+    ///                 exists. Empty means none, and answers with nothing.
+    /// @return The page the criteria asked for, and how many attempts match it in all.
+    Page found(AttemptCriteria criteria, Collection<String> docUuids);
 
 
     // --------------------------------------------------------------------------------
@@ -147,6 +168,11 @@ public interface Attempts {
                 String answer,
                 String answeredBy,
                 StepOutcome outcome) {
+
+    }
+
+    /// A page of attempts, and how many there are to page through.
+    record Page(List<Recorded> attempts, long total) {
 
     }
 

@@ -11,6 +11,7 @@ import org.jooq.impl.Internal;
 
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterAttempt;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterLedger;
+import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterOutput;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterRule;
 
 
@@ -28,5 +29,6 @@ public class Indexes {
     public static final Index SHAPESHIFTER_ATTEMPT_SHAPESHIFTER_ATTEMPT_DOC_SHAPE = Internal.createIndex(DSL.name("shapeshifter_attempt_doc_shape"), ShapeshifterAttempt.SHAPESHIFTER_ATTEMPT, new OrderField[] { ShapeshifterAttempt.SHAPESHIFTER_ATTEMPT.DOC_UUID, ShapeshifterAttempt.SHAPESHIFTER_ATTEMPT.SHAPE_HASH }, false);
     public static final Index SHAPESHIFTER_ATTEMPT_SHAPESHIFTER_ATTEMPT_STATUS = Internal.createIndex(DSL.name("shapeshifter_attempt_status"), ShapeshifterAttempt.SHAPESHIFTER_ATTEMPT, new OrderField[] { ShapeshifterAttempt.SHAPESHIFTER_ATTEMPT.STATUS }, false);
     public static final Index SHAPESHIFTER_LEDGER_SHAPESHIFTER_LEDGER_INPUT_META_ID = Internal.createIndex(DSL.name("shapeshifter_ledger_input_meta_id"), ShapeshifterLedger.SHAPESHIFTER_LEDGER, new OrderField[] { ShapeshifterLedger.SHAPESHIFTER_LEDGER.INPUT_META_ID }, false);
+    public static final Index SHAPESHIFTER_OUTPUT_SHAPESHIFTER_OUTPUT_DOC_UUID = Internal.createIndex(DSL.name("shapeshifter_output_doc_uuid"), ShapeshifterOutput.SHAPESHIFTER_OUTPUT, new OrderField[] { ShapeshifterOutput.SHAPESHIFTER_OUTPUT.DOC_UUID }, false);
     public static final Index SHAPESHIFTER_RULE_SHAPESHIFTER_RULE_DOC_UUID_SORT_ORDER = Internal.createIndex(DSL.name("shapeshifter_rule_doc_uuid_sort_order"), ShapeshifterRule.SHAPESHIFTER_RULE, new OrderField[] { ShapeshifterRule.SHAPESHIFTER_RULE.DOC_UUID, ShapeshifterRule.SHAPESHIFTER_RULE.SORT_ORDER }, false);
 }

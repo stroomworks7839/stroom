@@ -16,7 +16,10 @@
 
 package stroom.shapeshifter.ai.impl.db;
 
+import stroom.cache.api.CacheManager;
+import stroom.cache.impl.CacheManagerImpl;
 import stroom.test.common.util.db.DbTestModule;
+import stroom.util.entityevent.EntityEventBus;
 
 import com.google.inject.AbstractModule;
 
@@ -29,5 +32,19 @@ public class TestModule extends AbstractModule {
         super.configure();
         install(new DbTestModule());
         install(new ShapeshifterAiDbModule());
+        // The caches the module binds in front of the rows need somewhere to live and something to tell,
+        // and these tests are about the rows: a real cache manager, and a bus nothing is listening on.
+        bind(CacheManager.class).toInstance(new CacheManagerImpl());
+        bind(EntityEventBus.class).toInstance(new EntityEventBus() {
+            @Override
+            public void fire(final stroom.util.entityevent.EntityEvent event) {
+                // Nothing else is running: there is no other node to tell.
+            }
+
+            @Override
+            public void fire(final stroom.util.entityevent.EntityEventBatch events) {
+                // As above.
+            }
+        });
     }
 }

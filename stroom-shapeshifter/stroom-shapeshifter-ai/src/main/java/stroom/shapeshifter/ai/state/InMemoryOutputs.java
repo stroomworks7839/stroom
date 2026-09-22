@@ -18,6 +18,7 @@ package stroom.shapeshifter.ai.state;
 
 import stroom.shapeshifter.ai.stage.Bindings;
 import stroom.shapeshifter.ai.stage.Outputs;
+import stroom.shapeshifter.ai.stage.Replayable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -32,23 +33,36 @@ public final class InMemoryOutputs implements Outputs {
     private final List<Emitted> emitted = new ArrayList<>();
 
     @Override
-    public synchronized void emitted(final long inputId, final Bindings bindings) {
-        emitted.add(new Emitted(inputId, bindings));
+    public synchronized void emitted(final long inputId, final String pipeline, final Bindings bindings) {
+        // One row per input per rule, as the table has it: a stream processed twice under one rule is one
+        // thing to replay.
+        emitted.removeIf(output -> output.inputId() == inputId
+                                   && output.bindings().ruleUuid().equals(bindings.ruleUuid()));
+        emitted.add(new Emitted(inputId, pipeline, bindings));
     }
 
     @Override
-    public synchronized List<Long> boundBy(final String ruleUuid) {
+    public synchronized List<Replayable> boundBy(final String ruleUuid, final String fragmentUuid) {
         return emitted.stream()
                 .filter(output -> output.bindings().ruleUuid().equals(ruleUuid))
-                .map(Emitted::inputId)
+                .filter(output -> fragmentUuid == null
+                                  || fragmentUuid.equals(output.bindings().fragment().getUuid()))
+                .map(output -> new Replayable(output.inputId(), output.pipeline()))
                 .toList();
+    }
+
+    @Override
+    public synchronized int prune(final long producedBeforeMs) {
+        // Nothing in memory is old: a node's own list lasts as long as the node does, and what a node
+        // holds is bounded by that.
+        return 0;
     }
 
     public synchronized List<Emitted> emitted() {
         return List.copyOf(emitted);
     }
 
-    public record Emitted(long inputId, Bindings bindings) {
+    public record Emitted(long inputId, String pipeline, Bindings bindings) {
 
     }
 }

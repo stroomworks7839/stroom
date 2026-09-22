@@ -18,11 +18,21 @@ package stroom.shapeshifter.ai.impl.db;
 
 import stroom.db.util.AbstractFlyWayDbModule;
 import stroom.db.util.DataSourceProxy;
+import stroom.shapeshifter.ai.ShapeshifterAiDbConfig;
+import stroom.shapeshifter.ai.cache.CachedRules;
+import stroom.shapeshifter.ai.cache.CachedShapes;
+import stroom.shapeshifter.ai.cache.Rows;
 import stroom.shapeshifter.ai.stage.Attempts;
 import stroom.shapeshifter.ai.stage.Ledger;
+import stroom.shapeshifter.ai.stage.Outputs;
 import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.ai.stage.Shapes;
 import stroom.shapeshifter.ai.stage.Spend;
+import stroom.util.entityevent.EntityEvent;
+import stroom.util.guice.GuiceUtil;
+import stroom.util.shared.Clearable;
+
+import com.google.inject.Scopes;
 
 import java.util.List;
 import javax.sql.DataSource;
@@ -40,10 +50,23 @@ public class ShapeshifterAiDbModule
     protected void configure() {
         super.configure();
         bind(Attempts.class).to(AttemptsDao.class);
-        bind(Rules.class).to(RulesDao.class);
-        bind(Shapes.class).to(ShapesDao.class);
         bind(Ledger.class).to(LedgerDao.class);
         bind(Spend.class).to(SpendDao.class);
+        bind(Outputs.class).to(OutputsDao.class);
+        // The two the hot path reads for every stream are bound as the rows behind a cache, and the cache
+        // is what everything else asks for (design 01 §12 item 8): a routing table read from the database
+        // once per stream per node is the first thing to give at volume. Nothing but the cache asks the
+        // database, and what writes through it tells every node to let go of its copy.
+        bind(Rules.class).annotatedWith(Rows.class).to(RulesDao.class);
+        bind(Shapes.class).annotatedWith(Rows.class).to(ShapesDao.class);
+        bind(Rules.class).to(CachedRules.class).in(Scopes.SINGLETON);
+        bind(Shapes.class).to(CachedShapes.class).in(Scopes.SINGLETON);
+        GuiceUtil.buildMultiBinder(binder(), EntityEvent.Handler.class)
+                .addBinding(CachedRules.class)
+                .addBinding(CachedShapes.class);
+        GuiceUtil.buildMultiBinder(binder(), Clearable.class)
+                .addBinding(CachedRules.class)
+                .addBinding(CachedShapes.class);
     }
 
     @Override

@@ -161,6 +161,14 @@ class TestScenario30DeferredWorkerInAPipeline extends AbstractProcessIntegration
                 .describedAs("naming the stream it was raised on, which is how the job finds it again")
                 .isEqualTo(raw.getId());
 
+        // A second stream of the same shape while the attempt waits: sentinelled behind it, and on the
+        // ledger with it — scenario 13's two streams, which the promotion must release together.
+        final Meta second = rawStream();
+        processOne();
+        assertThat(attempts.forDocument(doc.getUuid(), 10)).describedAs("one attempt for one shape")
+                .hasSize(1);
+        assertThat(second.getId()).isNotEqualTo(raw.getId());
+
         // The job, with no task and no pipeline around it: it reads the document and the stream back out
         // of the node's own stores and carries the attempt on.
         deferredLearning.exec();
@@ -178,6 +186,10 @@ class TestScenario30DeferredWorkerInAPipeline extends AbstractProcessIntegration
         assertThat(ledger.release(doc.getUuid(), shape))
                 .describedAs("the promotion released the ledger, so what waited is asked for (A12)")
                 .isEmpty();
+        // Scenario 13's substance in a node: *both* streams waited on this shape and one promotion
+        // released them together. That the release then becomes a reprocess filter is what this harness
+        // cannot show — it binds a mock ProcessorFilterService whose reprocess does nothing — and is
+        // owed against the DB-backed processor service (design 02 §6.1).
 
         // The next stream of the shape is bound in the task, with no model call and no worker.
         final Script silent = Script.of();

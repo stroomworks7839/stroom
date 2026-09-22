@@ -33,6 +33,8 @@ import stroom.processor.shared.CreateProcessFilterRequest;
 import stroom.processor.shared.QueryData;
 import stroom.query.api.ExpressionOperator;
 import stroom.query.api.ExpressionTerm.Condition;
+import stroom.shapeshifter.ai.cache.CachedRules;
+import stroom.shapeshifter.ai.cache.Rows;
 import stroom.shapeshifter.ai.doc.ShapeshifterAiStore;
 import stroom.shapeshifter.ai.element.ShapeshifterAiParser;
 import stroom.shapeshifter.ai.extraction.ExtractionCorpus.Golden;
@@ -42,7 +44,7 @@ import stroom.shapeshifter.ai.scenario.AdvisorHolder;
 import stroom.shapeshifter.ai.scenario.Scenarios;
 import stroom.shapeshifter.ai.scenario.Script;
 import stroom.shapeshifter.ai.stage.Ledger;
-import stroom.shapeshifter.ai.stage.Ledger.Released;
+import stroom.shapeshifter.ai.stage.Replayable;
 import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.ai.stage.Shape;
 import stroom.shapeshifter.shared.LearningMode;
@@ -91,13 +93,18 @@ class TestScenario20SentinelInAPipeline extends AbstractCoreIntegrationTest {
     @Inject
     private Rules rules;
     @Inject
+    @Rows
+    private Rules ruleRows;
+    @Inject
     private Ledger ledger;
 
     @Test
     void scenario20TheSentinelIsAnErrorStreamAndTheLedgerIsARow() {
-        // This harness is the node's own wiring, so the seams are the tables of A26 and not one node's heap.
+        // This harness is the node's own wiring, so the seams are the tables of A26 and not one node's
+        // heap — the routing table behind the cache a node reads it through (design 01 §12 item 8).
         assertThat(ledger).isInstanceOf(LedgerDao.class);
-        assertThat(rules).isInstanceOf(RulesDao.class);
+        assertThat(rules).isInstanceOf(CachedRules.class);
+        assertThat(ruleRows).isInstanceOf(RulesDao.class);
         final DocRef feed = storeCreationTool.getOrCreateFeedDoc(FEED);
         final DocRef doc = document();
         final DocRef pipeline = pipeline(feed, doc);
@@ -134,7 +141,7 @@ class TestScenario20SentinelInAPipeline extends AbstractCoreIntegrationTest {
                 Map.of(MetaFields.FIELD_FEED, FEED, MetaFields.FIELD_TYPE, StreamTypeNames.RAW_EVENTS)).id();
         assertThat(ledger.release(doc.getUuid(), shape))
                 .describedAs("the ledger row is a row in the database, not a map in one node's heap")
-                .extracting(Released::inputId, Released::pipeline)
+                .extracting(Replayable::inputId, Replayable::pipeline)
                 .describedAs("naming the stream and the pipeline that would replay it (A12)")
                 .containsExactly(tuple(raw.getId(), pipeline.getUuid()));
     }

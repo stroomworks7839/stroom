@@ -23,6 +23,7 @@ import stroom.shapeshifter.ai.stage.Decision.GivenUp;
 import stroom.shapeshifter.ai.stage.Decision.Promoted;
 import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.StageRun;
+import stroom.shapeshifter.shared.AttemptCriteria;
 import stroom.shapeshifter.shared.AttemptStatus;
 import stroom.shapeshifter.shared.BusinessRulesParameters;
 import stroom.shapeshifter.shared.ExecutionMode;
@@ -262,6 +263,36 @@ class TestScenario31APersonAnswersATurn {
 
     // --------------------------------------------------------------------------------
 
+
+    @Test
+    void theRecordOfWhatIsOverIsPrunedAndTheListDoesNotCarryTranscripts() {
+        // Design 01 §12 item 8, and A28's list/detail split: what a node keeps is bounded, and a page of
+        // attempts is not a page of transcripts. The twins must agree, or a scenario passing over the
+        // in-memory one proves nothing about the rows.
+        final Scenarios scenarios = new Scenarios();
+        final ShapeshifterAiDoc doc = scenarios.documents.put(doc());
+        scenarios.inputs.put(stream(1L));
+        final Script script = scenarios.script(FOUR_FIELDS, XSLT)
+                .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter")
+                .expect(QuestionMatcher.configuration("DSParser")).reply(Scenarios.fenced(TWO_FIELDS));
+        scenarios.stage(script).run(doc, stream(1L));
+        final Recorded abandoned = scenarios.attempts.forDocument(DOC, 10).get(0);
+        assertThat(abandoned.turns()).isNotEmpty();
+
+        assertThat(scenarios.attempts.found(new AttemptCriteria(), List.of(DOC)).attempts())
+                .describedAs("the list has the attempt")
+                .extracting(Recorded::id).containsExactly(abandoned.id());
+        assertThat(scenarios.attempts.found(new AttemptCriteria(), List.of(DOC)).attempts().get(0).turns())
+                .describedAs("and not its transcript, which the detail reads").isEmpty();
+        assertThat(scenarios.attempts.found(new AttemptCriteria(), List.of()).total())
+                .describedAs("a document nobody may see is not counted").isZero();
+
+        assertThat(scenarios.attempts.prune(Scenarios.NOW.toEpochMilli() - 1))
+                .describedAs("nothing is old enough yet").isZero();
+        assertThat(scenarios.attempts.prune(System.currentTimeMillis() + 60_000L)).isEqualTo(1);
+        assertThat(scenarios.attempts.byId(abandoned.id())).isEmpty();
+        assertThat(scenarios.attempts.forDocument(DOC, 10)).isEmpty();
+    }
 
     private static String shape() {
         return "Feed=DOOR-ACCESS|Type=Raw Events";

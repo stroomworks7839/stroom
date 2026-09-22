@@ -1512,6 +1512,103 @@ run of its own: it needs no node machinery the other two have not already proved
 same tables — and what it adds is the Supervisor view's to drive, which is where its REST resource
 belongs.
 
+The twenty-ninth slice, 2026-09-22, is **the rest of phase C**: the six things the phase delivers that
+its exit criterion did not cover.
+
+**The hot path came off the database.** Every stream of every shape read the routing table and three
+shape-state columns from MySQL — a query per stream per node, which at hundreds of threads a node is the
+first thing to give. `CachedRules` and `CachedShapes` sit in front of the rows; what writes them clears
+this node's copy at once and fires an entity event that clears every other node's, because the node that
+learns a rule is rarely the only node routing against it. The expiry in the configuration is a backstop,
+not the mechanism. The rolling scores are deliberately *not* cached: they are counted across the cluster
+(A44's reasoning applied to A23's scores), every served stream adds to them, and a node's own copy would
+be wrong the moment another node served a stream.
+
+**The feature got its own settings.** `ShapeshifterAiConfig` moved from the database module to the
+feature's, which is what lets it hold anything but a database: the cache sizes, the worker's batch size —
+a constant since slice 27, and owed — and how long a finished attempt's record is kept. The database
+module depends on the feature's and not the other way about, so the config could not live where it was
+and be read by the code that needs it.
+
+**`Outputs` became rows, and the design's guess about how was wrong.** §12 item 8 has it as "a meta
+search over the output stream's attributes"; stroom can only query the meta fields it registers, and a
+custom stream attribute is not one of them. Registering five Shapeshifter fields in stroom's core meta
+field list, where every meta query in the product would see them, is a worse price than a table, so
+`shapeshifter_output` is a table like its neighbours — and it carries the pipeline, which closes the
+approximation the slice-27 audit left open: a retraction now replays each output through the pipeline
+that produced it rather than through whichever pipeline happens to be running. The bindings stay on the
+output stream's attributes as well, where a person reads them.
+
+**A prune job**, since one row per attempt and one per turn is the fastest-growing thing this feature
+writes. An attempt still learning, still waiting for the model, or waiting for a person is never pruned
+however old it is: age is not what says an attempt is over.
+
+**The Supervisor** (A28) is a screen of its own beside Jobs, not a tab on a document, because what a
+person wants is every attempt every document has made. `SupervisorResource` finds them across documents,
+narrowed by document, feed, shape, mode or what they came to, and opens one to its dialogue turn by
+turn; behind it are *answer instead*, *edit and re-run*, approve, reject and re-learn. A person sees the
+attempts of the documents they may see: a transcript carries what the model was told about a feed's
+data, so it is read by the document's permission and not by one of its own. The GWT screen lists the
+attempts and shows the selected one's turns.
+
+**A18's targets as goldens** was built and then unbuilt as a gate. The check is real — the score is a
+number over a whole record and two different events can reach it, so a candidate that scores the same
+while writing something else is worth catching — but §7.4 rules the stored output *score-not-lower, not
+byte-equal*, because a better variant legitimately produces different output. Scenario 9, which is
+exactly "a better candidate replaces the incumbent", failed the moment the gate existed, which is the
+design telling the code it was wrong. It is a signal now, said out loud where a person can act on it.
+
+The audit of slice 29 (the owner's code review) found fourteen, all fixed, and three of them were the
+kind that a demonstration would never show.
+
+**The Supervisor's actions were held to the wrong permission.** Approving a draft binds a rule,
+rejecting one gives a shape up, and re-running an attempt spends a model's tokens — all edits of a
+document's routing, and all reachable by anyone who could merely *view* the document, because every
+action went through the same read check. They are held to `EDIT` now, as editing the routing table by
+hand always was.
+
+**The page count was of what exists, not of what the asker may see.** Filtering happened after the
+query, so a person who may see one document of ten was told how many attempts the other nine had made,
+and their pages came back short with no way to reach the end. The documents a person may see now go
+*into* the query, which makes the count theirs and the paging work. And "no such attempt" answered
+differently from "not yours to see", which disclosed existence and served a 404 as a 500; they answer
+the same way, as the method always claimed they did.
+
+**A retraction replayed every generation of a rebound rule.** A rule keeps its uuid when it is rebound
+(§7.3 rule 3) and the output rows are durable now, so `boundBy(rule)` reached back to everything that
+rule had ever produced, under bindings that were correct when they ran. It is `boundBy(rule, fragment)`:
+a retraction is of the binding in front of us. The in-memory `Outputs` lost this on restart, which is
+why it had never been seen.
+
+The caches fired `EntityAction.UPDATE`, which means *the document changed* — so every rule learned and
+every shape marked would have re-indexed a document nobody had edited, on every node, and dropped its
+name caches with it. `CLEAR_CACHE` is the action for a cache, and both already handled it on receipt.
+The cached routing table was also the rows' own mutable list, handed to every routing thread on the
+node: one caller sorting what it was given would have corrupted routing for every stream until the next
+invalidation.
+
+The prune job could never catch up — one bounded batch a night against a cluster making more attempts
+than that in a day — so it takes batches until one comes back short. It prunes the output rows too,
+which is the answer to the per-stream write that making `Outputs` durable introduced: what a retraction
+can still reach is what a node is told to keep, and the alternative to a bounded table was an unbounded
+one. Paging on both seams unboxed a `PageRequest`'s nullable offset and length, which a POST with
+`{"pageRequest":{"offset":0}}` turns into a 500; the project's own `JooqUtil` helpers null-check, and
+this code had reimplemented them without the guard. The Supervisor's request bodies were not
+null-checked. `deferredLearningBatchSize` had no minimum, and zero silently stops all deferred learning.
+The in-memory `found` handed back transcripts the rows do not, so no scenario could catch a regression
+in the list/detail split. The turns pane had no ordering guard and no failure path, so clicking down a
+list could leave one attempt's transcript under another's row. And `prune` had no test in either
+implementation — including the rule that an attempt awaiting review is never pruned, however old.
+215 tests in the module, 23 against MySQL.
+
+**What phase C does not close.** Scenario 13's Tier-2 claim — that the release *creates a filter* — is
+still owed: the Tier-2 harness binds a mock `ProcessorFilterService` whose `reprocess` does nothing, so
+asserting a real filter needs an integration test against the DB-backed processor service. The
+Supervisor's per-turn and per-attempt *actions* are REST-complete and tested but have no buttons yet;
+they belong with phase F's other interactions, whose exit criterion is a person doing all of this from
+the UI alone. And the regression set is still one node's memory: a stream per rule is phase E's.
+212 tests in the module, 22 against MySQL, 4 in Tier 2, and the GWT UI compiles.
+
 ## 7. Decisions taken
 
 Ruled 2026-09-17, each as recommended:

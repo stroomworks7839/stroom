@@ -18,6 +18,7 @@ package stroom.shapeshifter.ai.impl.db;
 
 import stroom.db.util.JooqUtil;
 import stroom.shapeshifter.ai.stage.Attempts;
+import stroom.shapeshifter.shared.AttemptCriteria;
 import stroom.shapeshifter.shared.AttemptStatus;
 import stroom.shapeshifter.shared.ExecutionMode;
 import stroom.shapeshifter.shared.PromotionMode;
@@ -26,10 +27,13 @@ import stroom.shapeshifter.shared.StepOutcome;
 
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import org.jooq.Condition;
 import org.jooq.DSLContext;
 import org.jooq.Record;
 import org.jooq.exception.IntegrityConstraintViolationException;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -50,6 +54,19 @@ public class AttemptsDao implements Attempts {
     /// the shape's own row answer with until a person decides.
     private static final List<String> OPEN = List.of(AttemptStatus.IN_PROGRESS.name(),
             AttemptStatus.AWAITING_MODEL.name());
+
+    /// The states an attempt is never pruned in, however old: it is still learning, still waiting for
+    /// the model, or waiting for a person to decide, and none of those is over.
+    private static final List<String> KEPT = List.of(AttemptStatus.IN_PROGRESS.name(),
+            AttemptStatus.AWAITING_MODEL.name(), AttemptStatus.AWAITING_REVIEW.name());
+
+    /// The most attempts one page may ask for, whatever it asks for: a view that asked for everything
+    /// would read every attempt every document has ever made.
+    private static final int PAGE_LIMIT = 1000;
+
+    /// How many attempts one pass removes: a delete of every old row at once would hold locks across the
+    /// table, and the job runs again.
+    private static final int PRUNE_BATCH = 1000;
 
     private final ShapeshifterAiDbConnProvider connProvider;
 
@@ -340,6 +357,31 @@ public class AttemptsDao implements Attempts {
                 .execute());
     }
 
+    /// Their turns first, then the attempts: the turn rows point at the attempt rows, and a delete in the
+    /// other order is a delete the foreign key refuses. In one transaction, so a pruned attempt never
+    /// reads as an attempt with no turns.
+    @Override
+    public int prune(final long finishedBeforeMs) {
+        return JooqUtil.transactionResult(connProvider, context -> {
+            final List<Long> old = context
+                    .select(SHAPESHIFTER_ATTEMPT.ID)
+                    .from(SHAPESHIFTER_ATTEMPT)
+                    .where(SHAPESHIFTER_ATTEMPT.STATUS.notIn(KEPT))
+                    .and(SHAPESHIFTER_ATTEMPT.UPDATE_TIME_MS.lt(finishedBeforeMs))
+                    .limit(PRUNE_BATCH)
+                    .fetch(SHAPESHIFTER_ATTEMPT.ID);
+            if (old.isEmpty()) {
+                return 0;
+            }
+            context.deleteFrom(SHAPESHIFTER_TURN)
+                    .where(SHAPESHIFTER_TURN.FK_ATTEMPT_ID.in(old))
+                    .execute();
+            return context.deleteFrom(SHAPESHIFTER_ATTEMPT)
+                    .where(SHAPESHIFTER_ATTEMPT.ID.in(old))
+                    .execute();
+        });
+    }
+
     @Override
     public Optional<Recorded> byId(final long attemptId) {
         return JooqUtil.contextResult(connProvider, context -> context
@@ -375,6 +417,62 @@ public class AttemptsDao implements Attempts {
             return rows.stream()
                     .map(row -> recorded(row, byAttempt.getOrDefault(row.get(SHAPESHIFTER_ATTEMPT.ID), List.of())))
                     .toList();
+        });
+    }
+
+    /// Across every document, newest first (A28): what the Supervisor view lists. Without their turns —
+    /// a page of transcripts is a page nobody reads — which the detail reads for one attempt.
+    @Override
+    public Page found(final AttemptCriteria criteria, final Collection<String> docUuids) {
+        if (docUuids.isEmpty()) {
+            // Nothing this person may see: not every attempt, and not a count of them either.
+            return new Page(List.of(), 0L);
+        }
+        final List<Condition> conditions = new ArrayList<>();
+        conditions.add(SHAPESHIFTER_ATTEMPT.DOC_UUID.in(docUuids));
+        if (criteria.getDocUuid() != null) {
+            conditions.add(SHAPESHIFTER_ATTEMPT.DOC_UUID.eq(criteria.getDocUuid()));
+        }
+        if (criteria.getFeed() != null) {
+            conditions.add(SHAPESHIFTER_ATTEMPT.FEED_NAME.eq(criteria.getFeed()));
+        }
+        if (criteria.getShape() != null) {
+            // By hash, as every other lookup of a shape is: the id has no bound.
+            conditions.add(SHAPESHIFTER_ATTEMPT.SHAPE_HASH.eq(ShapesDao.hash(criteria.getShape())));
+        }
+        if (criteria.getExecutionMode() != null) {
+            conditions.add(SHAPESHIFTER_ATTEMPT.EXECUTION_MODE.eq(criteria.getExecutionMode().name()));
+        }
+        if (criteria.getPromotionMode() != null) {
+            conditions.add(SHAPESHIFTER_ATTEMPT.PROMOTION_MODE.eq(criteria.getPromotionMode().name()));
+        }
+        if (!criteria.getStatuses().isEmpty()) {
+            conditions.add(SHAPESHIFTER_ATTEMPT.STATUS.in(criteria.getStatuses().stream()
+                    .map(AttemptStatus::name)
+                    .toList()));
+        }
+        // A request that says nothing about paging carries nulls, which are the caller's to survive.
+        final int offset = JooqUtil.getOffset(criteria.getPageRequest());
+        final int length = Math.min(JooqUtil.getLimit(criteria.getPageRequest(), false, PAGE_LIMIT),
+                PAGE_LIMIT);
+        return JooqUtil.contextResult(connProvider, context -> {
+            final List<Recorded> page = context
+                    .select()
+                    .from(SHAPESHIFTER_ATTEMPT)
+                    .where(conditions)
+                    .orderBy(SHAPESHIFTER_ATTEMPT.ID.desc())
+                    .limit(offset, length)
+                    .fetch()
+                    .stream()
+                    .map(record -> recorded(record, List.of()))
+                    .toList();
+            final long total = context
+                    .selectCount()
+                    .from(SHAPESHIFTER_ATTEMPT)
+                    .where(conditions)
+                    .fetchOptional(0, Long.class)
+                    .orElse(0L);
+            return new Page(page, total);
         });
     }
 

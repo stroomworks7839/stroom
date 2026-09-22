@@ -21,13 +21,13 @@
             <name>org.jooq.meta.mysql.MySQLDatabase</name>
             <inputSchema>__INPUT_SCHEMA__</inputSchema>
             <outputSchema>stroom</outputSchema>
-            <includes>shapeshifter_shape|shapeshifter_ledger|shapeshifter_feed_state|shapeshifter_rule|shapeshifter_spend|shapeshifter_attempt|shapeshifter_turn</includes>
+            <includes>shapeshifter_shape|shapeshifter_ledger|shapeshifter_feed_state|shapeshifter_rule|shapeshifter_spend|shapeshifter_attempt|shapeshifter_turn|shapeshifter_output</includes>
             <excludes>shapeshifter_ai_schema_history</excludes>
             <recordVersionFields>version</recordVersionFields>
             <forcedTypes>
                 <forcedType>
                     <name>BOOLEAN</name>
-                    <includeExpression>.*\.shapeshifter_rule\.(pinned|draft|provisional)</includeExpression>
+                    <includeExpression>.*\.(shapeshifter_rule\.(pinned|draft|provisional)|shapeshifter_output\.provisional)</includeExpression>
                     <!-- see https://github.com/jOOQ/jOOQ/issues/9405 -->
                     <includeTypes>(?i:tinyint)(\(1\))?</includeTypes>
                 </forcedType>

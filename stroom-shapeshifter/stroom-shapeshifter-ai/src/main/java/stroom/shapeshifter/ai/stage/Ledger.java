@@ -36,14 +36,5 @@ public interface Ledger {
      *
      * @return The inputs that were on it, oldest first, each with the pipeline that sentinelled it.
      */
-    List<Released> release(String docUuid, String shape);
-
-
-    // --------------------------------------------------------------------------------
-
-
-    /// One input taken off the ledger, and where it was being processed when it was put there.
-    record Released(long inputId, String pipeline) {
-
-    }
+    List<Replayable> release(String docUuid, String shape);
 }

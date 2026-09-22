@@ -39,6 +39,9 @@ public class ShapeshifterAiModule extends AbstractModule {
                 .bind(ShapeshifterAiDoc.TYPE, ShapeshifterAiStore.class, ShapeshifterAiStoreImpl.class);
 
         RestResourcesBinder.create(binder())
-                .bind(ShapeshifterAiResourceImpl.class);
+                .bind(ShapeshifterAiResourceImpl.class)
+                // The Supervisor is a view of every document's attempts (A28), not a tab on one, so its
+                // resource sits beside the document's rather than inside it.
+                .bind(SupervisorResourceImpl.class);
     }
 }

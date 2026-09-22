@@ -25,10 +25,25 @@ import java.util.List;
  */
 public interface Outputs {
 
-    void emitted(long inputId, Bindings bindings);
+    /// One output, as it is emitted: which input it was made from, which pipeline was running, and what
+    /// bound it (design 01 §7.3 rule 3).
+    void emitted(long inputId, String pipeline, Bindings bindings);
 
     /**
-     * @return The ids of the inputs whose output the rule produced, oldest first.
+     * What one binding produced: the inputs whose output this rule made *with this fragment*, oldest
+     * first, each with the pipeline that made it — what a retraction asks to be processed again (§6).
+     * <p>
+     * By fragment as well as rule, because a rule keeps its uuid when it is rebound (§7.3 rule 3): a
+     * retraction is of the binding in front of us, and the streams an earlier generation of the same
+     * rule produced were produced correctly by what was then bound.
      */
-    List<Long> boundBy(String ruleUuid);
+    List<Replayable> boundBy(String ruleUuid, String fragmentUuid);
+
+    /**
+     * Forget what was produced before a given time (design 01 §12 item 8): a row per output stream is a
+     * row per stream, so what a retraction can still reach is what a node is told to keep.
+     *
+     * @return How many were forgotten.
+     */
+    int prune(long producedBeforeMs);
 }

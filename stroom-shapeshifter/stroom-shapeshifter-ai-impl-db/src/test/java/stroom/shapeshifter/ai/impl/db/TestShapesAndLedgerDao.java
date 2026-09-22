@@ -16,16 +16,22 @@
 
 package stroom.shapeshifter.ai.impl.db;
 
+import stroom.docref.DocRef;
+import stroom.pipeline.shared.PipelineDoc;
 import stroom.shapeshifter.ai.stage.Attempts.Attempt;
+import stroom.shapeshifter.ai.stage.Attempts.Page;
 import stroom.shapeshifter.ai.stage.Attempts.Recorded;
 import stroom.shapeshifter.ai.stage.Attempts.Turn;
-import stroom.shapeshifter.ai.stage.Ledger.Released;
+import stroom.shapeshifter.ai.stage.Bindings;
+import stroom.shapeshifter.ai.stage.Replayable;
 import stroom.shapeshifter.ai.stage.Spend.Spent;
+import stroom.shapeshifter.shared.AttemptCriteria;
 import stroom.shapeshifter.shared.AttemptStatus;
 import stroom.shapeshifter.shared.ExecutionMode;
 import stroom.shapeshifter.shared.PromotionMode;
 import stroom.shapeshifter.shared.QuestionKind;
 import stroom.shapeshifter.shared.StepOutcome;
+import stroom.util.shared.PageRequest;
 
 import com.google.inject.Guice;
 import jakarta.inject.Inject;
@@ -37,6 +43,7 @@ import java.util.OptionalDouble;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 
 /// The shape state of A26 and the ledger of §5.2 as rows.
 class TestShapesAndLedgerDao {
@@ -52,6 +59,8 @@ class TestShapesAndLedgerDao {
     private SpendDao spend;
     @Inject
     private AttemptsDao attempts;
+    @Inject
+    private OutputsDao outputs;
 
     @BeforeEach
     void setUp() {
@@ -103,17 +112,17 @@ class TestShapesAndLedgerDao {
         ledger.sentinelled(DOC, SHAPE, 2L, "pipeline-2", "Unknown shape");
         ledger.sentinelled(DOC, "another-shape", 3L, null, "Unknown shape");
 
-        final List<Released> released = ledger.release(DOC, SHAPE);
+        final List<Replayable> released = ledger.release(DOC, SHAPE);
 
-        assertThat(released).extracting(Released::inputId)
+        assertThat(released).extracting(Replayable::inputId)
                 .describedAs("oldest first: the backlog is replayed in order").containsExactly(1L, 2L);
-        assertThat(released).extracting(Released::pipeline)
+        assertThat(released).extracting(Replayable::pipeline)
                 .describedAs("and each through the pipeline that sentinelled it, which may not be this one")
                 .containsExactly("pipeline-1", "pipeline-2");
         assertThat(ledger.release(DOC, SHAPE))
                 .describedAs("a second release finds nothing: two nodes must not both replay it")
                 .isEmpty();
-        assertThat(ledger.release(DOC, "another-shape")).extracting(Released::pipeline)
+        assertThat(ledger.release(DOC, "another-shape")).extracting(Replayable::pipeline)
                 .describedAs("a stream sentinelled by no pipeline names none").containsExactly((String) null);
     }
 
@@ -122,7 +131,7 @@ class TestShapesAndLedgerDao {
         ledger.sentinelled(DOC, SHAPE, 1L, "pipeline-1", "Unknown shape");
         ledger.sentinelled(DOC, SHAPE, 1L, "pipeline-1", "Unknown shape, again");
 
-        assertThat(ledger.release(DOC, SHAPE)).extracting(Released::inputId).containsExactly(1L);
+        assertThat(ledger.release(DOC, SHAPE)).extracting(Replayable::inputId).containsExactly(1L);
     }
 
     @Test
@@ -138,7 +147,7 @@ class TestShapesAndLedgerDao {
         assertThat(shapes.reasonGivenUp(DOC, long1)).contains("too long to lose");
         assertThat(shapes.reasonGivenUp(DOC, long2)).describedAs("a different long id is a different shape")
                 .isEmpty();
-        assertThat(ledger.release(DOC, long1)).extracting(Released::inputId).containsExactly(7L);
+        assertThat(ledger.release(DOC, long1)).extracting(Replayable::inputId).containsExactly(7L);
         shapes.reset(DOC, long1);
     }
 
@@ -401,6 +410,140 @@ class TestShapesAndLedgerDao {
         assertThat(attempts.reopened(mine, now(), now() + 60_000L))
                 .describedAs("and may run again once the shape is free").isTrue();
         attempts.closed(mine, AttemptStatus.ABANDONED, "done with", null, null, 0L);
+    }
+
+    @Test
+    void whatARuleProducedIsFoundWhereverItWasProduced() {
+        // Design 01 §7.3 rule 3: retracting a rule means finding the inputs whose outputs it produced,
+        // and the node that retracts is rarely the node that produced them. The bindings are on the
+        // output stream's attributes too, where a person reads them, but a custom stream attribute is not
+        // a field stroom can query.
+        final DocRef fragment = PipelineDoc.buildDocRef().uuid("fragment-1").name("door-v1").build();
+        outputs.emitted(1L, "pipeline-1", new Bindings(DOC, "rule-1", fragment, false, 0.97));
+        outputs.emitted(2L, "pipeline-2", new Bindings(DOC, "rule-1", fragment, false, 0.98));
+        outputs.emitted(3L, null, new Bindings(DOC, "rule-2", fragment, true, 0.5));
+
+        assertThat(outputs.boundBy("rule-1", "fragment-1"))
+                .extracting(Replayable::inputId, Replayable::pipeline)
+                .describedAs("each through the pipeline that produced it, which may not be this one")
+                .containsExactly(tuple(1L, "pipeline-1"), tuple(2L, "pipeline-2"));
+        assertThat(outputs.boundBy("rule-2", "fragment-1")).extracting(Replayable::pipeline)
+                .describedAs("a stream no pipeline produced names none").containsExactly((String) null);
+        assertThat(outputs.boundBy("rule-3", "fragment-1")).isEmpty();
+
+        // A rule keeps its uuid when it is rebound (§7.3 rule 3), so what an earlier generation produced
+        // is not what a retraction of this one asks for.
+        final DocRef rebound = PipelineDoc.buildDocRef().uuid("fragment-2").name("door-v2").build();
+        outputs.emitted(4L, "pipeline-1", new Bindings(DOC, "rule-1", rebound, false, 0.99));
+        assertThat(outputs.boundBy("rule-1", "fragment-2")).extracting(Replayable::inputId)
+                .describedAs("only what this binding produced").containsExactly(4L);
+        assertThat(outputs.boundBy("rule-1", "fragment-1")).extracting(Replayable::inputId)
+                .describedAs("and the generation before it is left alone").containsExactly(1L, 2L);
+
+        // A stream processed twice under one rule is one thing to replay, and the later run is what its
+        // output is.
+        outputs.emitted(1L, "pipeline-3", new Bindings(DOC, "rule-1", fragment, false, 0.99));
+        assertThat(outputs.boundBy("rule-1", "fragment-1"))
+                .extracting(Replayable::inputId, Replayable::pipeline)
+                .containsExactly(tuple(1L, "pipeline-3"), tuple(2L, "pipeline-2"));
+
+        // Kept for as long as a node is told to keep them, and no longer: a row per output stream is a
+        // row per stream (design 01 §12 item 8).
+        assertThat(outputs.prune(now() - 60_000L)).describedAs("nothing old enough yet").isZero();
+        assertThat(outputs.prune(now() + 60_000L)).isGreaterThanOrEqualTo(3);
+        assertThat(outputs.boundBy("rule-1", "fragment-1")).isEmpty();
+    }
+
+    @Test
+    void theSupervisorSeesEveryDocumentsAttemptsNarrowedByWhatAPersonKnows() {
+        // A28: the Supervisor is a view of every document's attempts, not a tab on one, filtered by the
+        // things a person looking for an attempt would know.
+        final String doc = "doc-" + System.nanoTime();
+        final String other = "doc-" + System.nanoTime() + "-other";
+        final long first = attempts.opened(new Attempt(doc, SHAPE, "DOOR-ACCESS", "Raw Events", 1L, "node-1",
+                ExecutionMode.INLINE, PromotionMode.AUTOMATIC, now() + 60_000L), now()).orElseThrow();
+        attempts.closed(first, AttemptStatus.PROMOTED, "Promoted 1.0", "rule-1", 1.0, 10L);
+        final long second = attempts.opened(new Attempt(doc, SHAPE + "-b", "OTHER-FEED", "Raw Events", 2L,
+                "node-2", ExecutionMode.DEFERRED, PromotionMode.REVIEW, now() + 60_000L), now()).orElseThrow();
+        final long elsewhere = attempts.opened(new Attempt(other, SHAPE, "DOOR-ACCESS", "Raw Events", 3L,
+                "node-1", ExecutionMode.INLINE, PromotionMode.AUTOMATIC, now() + 60_000L), now())
+                .orElseThrow();
+
+        assertThat(attempts.found(new AttemptCriteria(), List.of(doc, other)).attempts())
+                .extracting(Recorded::id)
+                .describedAs("every document the person may see, newest first")
+                .contains(elsewhere, second, first);
+        assertThat(attempts.found(new AttemptCriteria(), List.of(other)).attempts())
+                .extracting(Recorded::id)
+                .describedAs("and only those: an attempt of a document they may not see is not theirs to "
+                             + "know about")
+                .doesNotContain(first, second);
+        assertThat(attempts.found(new AttemptCriteria(), List.of()).total())
+                .describedAs("nor counted, or the count says how many exist elsewhere").isZero();
+        assertThat(found(new AttemptCriteria(null, null, doc, null, null, null, null, null)))
+                .containsExactly(second, first);
+        assertThat(found(new AttemptCriteria(null, null, doc, "OTHER-FEED", null, null, null, null)))
+                .containsExactly(second);
+        assertThat(found(new AttemptCriteria(null, null, doc, null, SHAPE, null, null, null)))
+                .describedAs("by shape, whose id has no bound and is matched by its hash")
+                .containsExactly(first);
+        assertThat(found(new AttemptCriteria(null, null, doc, null, null, ExecutionMode.DEFERRED, null, null)))
+                .containsExactly(second);
+        assertThat(found(new AttemptCriteria(null, null, doc, null, null, null, PromotionMode.REVIEW, null)))
+                .containsExactly(second);
+        assertThat(found(new AttemptCriteria(null, null, doc, null, null, null, null,
+                List.of(AttemptStatus.PROMOTED))))
+                .describedAs("and by what it came to").containsExactly(first);
+
+        // A page, and how many there are to page through.
+        final Page page = attempts.found(new AttemptCriteria(new PageRequest(0, 1), null, doc, null, null,
+                null, null, null), List.of(doc, other));
+        assertThat(page.attempts()).hasSize(1);
+        assertThat(page.total()).isEqualTo(2);
+        assertThat(page.attempts().get(0).turns())
+                .describedAs("without their turns: a page of transcripts is a page nobody reads").isEmpty();
+        attempts.closed(second, AttemptStatus.ABANDONED, "done with", null, null, 0L);
+        attempts.closed(elsewhere, AttemptStatus.ABANDONED, "done with", null, null, 0L);
+    }
+
+    private List<Long> found(final AttemptCriteria criteria) {
+        return attempts.found(criteria, List.of(criteria.getDocUuid())).attempts().stream()
+                .map(Recorded::id)
+                .toList();
+    }
+
+    @Test
+    void whatIsOverIsPrunedAndWhatIsNotIsKept() {
+        // Design 01 §12 item 8: one row per attempt and one per turn is the fastest-growing thing this
+        // feature writes. An attempt still learning, still waiting for the model, or waiting for a person
+        // to decide is never pruned however old it is: age is not what says an attempt is over.
+        final String doc = "doc-" + System.nanoTime() + "-prune";
+        final long finished = attempts.opened(new Attempt(doc, SHAPE + "-a", "F", "T", 1L, "node-1",
+                ExecutionMode.INLINE, PromotionMode.AUTOMATIC, now() + 60_000L), now()).orElseThrow();
+        attempts.turn(finished, new Turn(1, "chain", 1, QuestionKind.CHAIN, "Chain: choose", "DSParser",
+                "local-model", StepOutcome.PASSED));
+        attempts.closed(finished, AttemptStatus.PROMOTED, "Promoted", "rule-1", 1.0, 0L);
+        final long waiting = attempts.opened(new Attempt(doc, SHAPE + "-b", "F", "T", 2L, "node-1",
+                ExecutionMode.DEFERRED, PromotionMode.AUTOMATIC, now() + 60_000L), now()).orElseThrow();
+        attempts.parked(waiting, AttemptStatus.AWAITING_MODEL, now() + 60_000L, 0L);
+        final long reviewing = attempts.opened(new Attempt(doc, SHAPE + "-c", "F", "T", 3L, "node-1",
+                ExecutionMode.INLINE, PromotionMode.REVIEW, now() + 60_000L), now()).orElseThrow();
+        attempts.closed(reviewing, AttemptStatus.AWAITING_REVIEW, "Drafted", "rule-2", 0.9, 0L);
+        final long learning = attempts.opened(new Attempt(doc, SHAPE + "-d", "F", "T", 4L, "node-1",
+                ExecutionMode.INLINE, PromotionMode.AUTOMATIC, now() + 60_000L), now()).orElseThrow();
+
+        assertThat(attempts.prune(now() - 60_000L)).describedAs("nothing is old enough yet").isZero();
+        final int pruned = attempts.prune(now() + 60_000L);
+
+        assertThat(pruned).isGreaterThanOrEqualTo(1);
+        assertThat(attempts.byId(finished)).describedAs("the finished one is gone").isEmpty();
+        assertThat(attempts.byId(waiting)).describedAs("the one waiting for the model is not").isPresent();
+        assertThat(attempts.byId(reviewing)).describedAs("nor the one waiting for a person").isPresent();
+        assertThat(attempts.byId(learning)).describedAs("nor the one still learning").isPresent();
+
+        attempts.closed(waiting, AttemptStatus.ABANDONED, "done with", null, null, 0L);
+        attempts.closed(reviewing, AttemptStatus.ABANDONED, "done with", null, null, 0L);
+        attempts.closed(learning, AttemptStatus.ABANDONED, "done with", null, null, 0L);
     }
 
     private static long now() {

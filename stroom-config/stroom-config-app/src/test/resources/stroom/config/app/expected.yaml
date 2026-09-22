@@ -1263,6 +1263,7 @@ appConfig:
     sameSite: "STRICT"
     secure: true
   shapeshifterAi:
+    attemptRetention: "P90D"
     db:
       connection:
         jdbcDriverClassName: null
@@ -1279,6 +1280,19 @@ appConfig:
         minimumIdle: 10
         prepStmtCacheSize: 25
         prepStmtCacheSqlLimit: 256
+    deferredLearningBatchSize: 10
+    ruleCache:
+      expireAfterAccess: "PT10M"
+      expireAfterWrite: null
+      maximumSize: 1000
+      refreshAfterWrite: null
+      statisticsMode: "INTERNAL"
+    shapeCache:
+      expireAfterAccess: "PT10M"
+      expireAfterWrite: null
+      maximumSize: 10000
+      refreshAfterWrite: null
+      statisticsMode: "INTERNAL"
   solr:
     indexCache:
       expireAfterAccess: null

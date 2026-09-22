@@ -34,6 +34,7 @@ import stroom.shapeshifter.ai.learning.RecordedAdvisor.AwaitingAnswer;
 import stroom.shapeshifter.ai.learning.Sample;
 import stroom.shapeshifter.ai.learning.StepRunner;
 import stroom.shapeshifter.ai.learning.Target;
+import stroom.shapeshifter.ai.learning.TargetChecks;
 import stroom.shapeshifter.ai.scoring.Attempted;
 import stroom.shapeshifter.ai.scoring.OutputRecords;
 import stroom.shapeshifter.ai.scoring.Records;
@@ -50,7 +51,6 @@ import stroom.shapeshifter.ai.stage.Decision.Provisional;
 import stroom.shapeshifter.ai.stage.Decision.Rebound;
 import stroom.shapeshifter.ai.stage.Decision.Retracted;
 import stroom.shapeshifter.ai.stage.Decision.Sentinel;
-import stroom.shapeshifter.ai.stage.Ledger.Released;
 import stroom.shapeshifter.ai.stage.RegressionSet.Accepted;
 import stroom.shapeshifter.shared.AttemptStatus;
 import stroom.shapeshifter.shared.ExecutionMode;
@@ -289,6 +289,17 @@ public final class Stage {
         // concluded about it — given up, marked, a draft awaiting someone — is undone, or the re-run would
         // be refused by the state its own first run left behind (A28).
         shapes.reset(doc.getUuid(), recorded.attempt().shape());
+    }
+
+    /**
+     * Send a shape back to be learned afresh (A28): what a person does to an attempt they are reading
+     * when the rule it wrote is not the rule they want and no particular turn is to blame. The next
+     * stream of the shape relearns it, with the incumbent serving until the relearning settles (A29).
+     *
+     * @param reason Why, in the words a person gave: the model opens its next attempt with it.
+     */
+    public void relearn(final ShapeshifterAiDoc doc, final String shape, final String reason) {
+        shapes.markForRelearning(doc.getUuid(), shape, reason);
     }
 
     /**
@@ -710,12 +721,13 @@ public final class Stage {
                               + " records and is retracted";
         rules.remove(doc.getUuid(), rule.getUuid());
         shapes.reset(doc.getUuid(), shape.id());
-        final List<Long> produced = outputs.boundBy(rule.getUuid());
-        if (!produced.isEmpty()) {
-            // Through the pipeline this stream is in: what the retracted rule produced elsewhere is that
-            // pipeline's to replay, and a retraction is judged on the stream in front of the stage.
-            reprocessing.request(doc.getUuid(), input.pipeline(), reason, produced);
-        }
+        // Each through the pipeline that produced it, which the rows remember: a retraction reaches
+        // outputs this stream's pipeline never made. By the fragment as well as the rule, since a rule
+        // keeps its uuid when it is rebound (§7.3 rule 3): what an earlier generation of this rule
+        // produced was produced correctly by what was bound then, and is not what is being retracted.
+        replay(doc, outputs.boundBy(rule.getUuid(), rule.getPipeline() == null
+                        ? null
+                        : rule.getPipeline().getUuid()), reason);
         ledger.sentinelled(doc.getUuid(), shape.id(), input.id(), input.pipeline(), reason);
         return new StageRun(doc, new Retracted(rule, judged.score(), reason),
                 shape, null, null, judged.verdicts(), List.of());
@@ -784,13 +796,25 @@ public final class Stage {
                     served, learned.transcript());
         }
         for (final Accepted accepted : regressionSet.accepted(incumbent.getUuid())) {
-            final double onRecord = Judged.of(rerun(learned.chain(), accepted.input(), learned.boundary()), scorecard)
-                    .score();
-            if (onRecord < accepted.score()) {
-                return emit(doc, new Kept(incumbent, "Candidate scored " + onRecord + " against " + accepted.score()
-                                                     + " accepted on an earlier stream"), shape, input, incumbent,
-                        served, learned.transcript());
+            final Judged onRecord = Judged.of(rerun(learned.chain(), accepted.input(), learned.boundary()),
+                    scorecard);
+            if (onRecord.score() < accepted.score()) {
+                return emit(doc, new Kept(incumbent, "Candidate scored " + onRecord.score() + " against "
+                                                     + accepted.score() + " accepted on an earlier stream"),
+                        shape, input, incumbent, served, learned.transcript());
             }
+            // A18 with the targets as goldens (A31, §12 item 20), and *not* as a gate: §7.4 is explicit
+            // that a better variant legitimately produces different output, so what a record was accepted
+            // as becoming is a signal and not a bar. The score is a number over the whole record and two
+            // different events can reach it, so a candidate that scores the same while writing something
+            // else is worth saying out loud — to the person reading the attempt, not to the gate.
+            fidelity(onRecord.output(), accepted.targets()).ifPresent(changed ->
+                    LOGGER.info(() -> LogUtil.message(
+                            "Shapeshifter AI document {}: the candidate for rule {} scores {} on a record "
+                            + "accepted at {}, and writes something other than what that record was "
+                            + "accepted as becoming: {}",
+                            doc.getUuid(), incumbent.getUuid(), onRecord.score(), accepted.score(),
+                            changed.getMessage())));
         }
         final DocRef fragment = write(doc, shape, learned);
         if (doc.getPromotionMode() == PromotionMode.REVIEW) {
@@ -965,7 +989,7 @@ public final class Stage {
      * pipeline that never saw it would produce something nobody asked for. A stream sentinelled by no
      * pipeline at all — a harness, a worker — is released and nothing is asked for it.
      */
-    private void replay(final ShapeshifterAiDoc doc, final List<Released> released, final String reason) {
+    private void replay(final ShapeshifterAiDoc doc, final List<Replayable> released, final String reason) {
         // A map rather than a grouping collector: a stream sentinelled by no pipeline has a null key, and
         // it is asked for like any other. What can be done about a request that names no pipeline is the
         // implementation's business, not this stage's.
@@ -1053,7 +1077,7 @@ public final class Stage {
                           final List<Exchange> transcript) {
         final Bindings bindings = new Bindings(doc.getUuid(), rule.getUuid(), rule.getPipeline(), rule.isProvisional(),
                 judged.score());
-        outputs.emitted(input.id(), bindings);
+        outputs.emitted(input.id(), input.pipeline(), bindings);
         return new StageRun(doc, decision, shape, bindings, judged.output(), judged.verdicts(), transcript);
     }
 
@@ -1364,6 +1388,18 @@ public final class Stage {
             current = attempt.result().output();
         }
         return attempted;
+    }
+
+    /**
+     * What a candidate's events lose against the goldens a record was accepted on (A18, A31), if
+     * anything: empty where the attempt had no targets — every record accepted before A31 — and empty
+     * where the candidate wrote nothing at all, which the score has already caught.
+     */
+    private static Optional<StoredError> fidelity(final String events, final List<Target> targets) {
+        if (targets.isEmpty() || events == null || events.isBlank()) {
+            return Optional.empty();
+        }
+        return TargetChecks.fidelity(events, targets).stream().findFirst();
     }
 
     /**

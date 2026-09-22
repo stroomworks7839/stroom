@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package stroom.shapeshifter.ai.impl.db;
+package stroom.shapeshifter.ai;
 
 import stroom.config.common.AbstractDbConfig;
 import stroom.config.common.ConnectionConfig;

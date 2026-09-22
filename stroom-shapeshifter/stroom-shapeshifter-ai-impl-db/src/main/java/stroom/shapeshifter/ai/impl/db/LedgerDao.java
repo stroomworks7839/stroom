@@ -18,7 +18,7 @@ package stroom.shapeshifter.ai.impl.db;
 
 import stroom.db.util.JooqUtil;
 import stroom.shapeshifter.ai.stage.Ledger;
-import stroom.shapeshifter.ai.stage.Ledger.Released;
+import stroom.shapeshifter.ai.stage.Replayable;
 
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
@@ -62,16 +62,16 @@ public class LedgerDao implements Ledger {
     /// Read then delete in one transaction: two nodes promoting the same shape must not both release the
     /// same inputs, or the backlog is reprocessed twice.
     @Override
-    public List<Released> release(final String docUuid, final String shape) {
+    public List<Replayable> release(final String docUuid, final String shape) {
         return JooqUtil.transactionResult(connProvider, context -> {
-            final List<Released> inputs = context
+            final List<Replayable> inputs = context
                     .select(SHAPESHIFTER_LEDGER.INPUT_META_ID, SHAPESHIFTER_LEDGER.PIPELINE_UUID)
                     .from(SHAPESHIFTER_LEDGER)
                     .where(SHAPESHIFTER_LEDGER.DOC_UUID.eq(docUuid))
                     .and(SHAPESHIFTER_LEDGER.SHAPE_HASH.eq(ShapesDao.hash(shape)))
                     .orderBy(SHAPESHIFTER_LEDGER.ID)
                     .forUpdate()
-                    .fetch(row -> new Released(row.get(SHAPESHIFTER_LEDGER.INPUT_META_ID),
+                    .fetch(row -> new Replayable(row.get(SHAPESHIFTER_LEDGER.INPUT_META_ID),
                             row.get(SHAPESHIFTER_LEDGER.PIPELINE_UUID)));
             if (!inputs.isEmpty()) {
                 context.deleteFrom(SHAPESHIFTER_LEDGER)

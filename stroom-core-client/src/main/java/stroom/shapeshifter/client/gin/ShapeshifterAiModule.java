@@ -17,6 +17,7 @@
 package stroom.shapeshifter.client.gin;
 
 import stroom.core.client.gin.PluginModule;
+import stroom.monitoring.client.ShapeshifterAiSupervisorPlugin;
 import stroom.shapeshifter.client.ShapeshifterAiPlugin;
 import stroom.shapeshifter.client.presenter.RoutingRulePresenter;
 import stroom.shapeshifter.client.presenter.RoutingRulePresenter.RoutingRuleView;
@@ -33,6 +34,10 @@ import stroom.shapeshifter.client.presenter.ShapeshifterAiScoringPresenter;
 import stroom.shapeshifter.client.presenter.ShapeshifterAiScoringPresenter.ShapeshifterAiScoringView;
 import stroom.shapeshifter.client.presenter.ShapeshifterAiSettingsPresenter;
 import stroom.shapeshifter.client.presenter.ShapeshifterAiSettingsPresenter.ShapeshifterAiSettingsView;
+import stroom.shapeshifter.client.presenter.SupervisorListPresenter;
+import stroom.shapeshifter.client.presenter.SupervisorPresenter;
+import stroom.shapeshifter.client.presenter.SupervisorPresenter.SupervisorView;
+import stroom.shapeshifter.client.presenter.SupervisorTurnsPresenter;
 import stroom.shapeshifter.client.presenter.XPathAssertionPresenter;
 import stroom.shapeshifter.client.presenter.XPathAssertionPresenter.XPathAssertionView;
 import stroom.shapeshifter.client.view.RoutingRuleViewImpl;
@@ -42,6 +47,7 @@ import stroom.shapeshifter.client.view.ShapeshifterAiPromotionViewImpl;
 import stroom.shapeshifter.client.view.ShapeshifterAiRoutingViewImpl;
 import stroom.shapeshifter.client.view.ShapeshifterAiScoringViewImpl;
 import stroom.shapeshifter.client.view.ShapeshifterAiSettingsViewImpl;
+import stroom.shapeshifter.client.view.SupervisorViewImpl;
 import stroom.shapeshifter.client.view.XPathAssertionViewImpl;
 
 public class ShapeshifterAiModule extends PluginModule {
@@ -50,6 +56,13 @@ public class ShapeshifterAiModule extends PluginModule {
     protected void configure() {
         bindPlugin(ShapeshifterAiPlugin.class);
         bind(ShapeshifterAiPresenter.class);
+        // The Supervisor of A28 is a screen of its own, and its plugin puts it in the monitoring menu.
+        bindPlugin(ShapeshifterAiSupervisorPlugin.class);
+        bindPresenterWidget(SupervisorPresenter.class,
+                SupervisorView.class,
+                SupervisorViewImpl.class);
+        bind(SupervisorListPresenter.class);
+        bind(SupervisorTurnsPresenter.class);
         bindPresenterWidget(ShapeshifterAiSettingsPresenter.class,
                 ShapeshifterAiSettingsView.class,
                 ShapeshifterAiSettingsViewImpl.class);
