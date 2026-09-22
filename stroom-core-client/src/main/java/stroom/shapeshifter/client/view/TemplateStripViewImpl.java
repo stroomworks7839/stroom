@@ -16,10 +16,13 @@
 
 package stroom.shapeshifter.client.view;
 
+import stroom.item.client.SelectionBox;
+import stroom.shapeshifter.client.presenter.MatchRole;
 import stroom.shapeshifter.client.presenter.TemplateStripPresenter.TemplateStripView;
 import stroom.shapeshifter.client.presenter.TemplateStripUiHandlers;
 
 import com.google.gwt.event.dom.client.ClickEvent;
+import com.google.gwt.event.logical.shared.ValueChangeEvent;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
 import com.google.gwt.uibinder.client.UiHandler;
@@ -50,6 +53,14 @@ public class TemplateStripViewImpl
     @UiField
     Label mode;
     @UiField
+    FlowPanel guardLine;
+    @UiField
+    FlowPanel roleLine;
+    @UiField
+    SelectionBox<MatchRole> role;
+    @UiField
+    Label roleNote;
+    @UiField
     Label note;
     @UiField
     FlowPanel matchLine;
@@ -73,6 +84,8 @@ public class TemplateStripViewImpl
     @Inject
     public TemplateStripViewImpl(final Binder binder) {
         widget = binder.createAndBindUi(this);
+        role.setDisplayValueFunction(MatchRole::label);
+        role.addItems(MatchRole.values());
     }
 
     @Override
@@ -88,6 +101,13 @@ public class TemplateStripViewImpl
     @UiHandler("name")
     void onName(final ClickEvent e) {
         editIdentity();
+    }
+
+    @UiHandler("role")
+    void onRole(final ValueChangeEvent<MatchRole> e) {
+        if (getUiHandlers() != null && e.getValue() != null) {
+            getUiHandlers().onRole(e.getValue());
+        }
     }
 
     @UiHandler("matchChip")
@@ -127,6 +147,20 @@ public class TemplateStripViewImpl
     }
 
     @Override
+    public void setRole(final boolean visible, final MatchRole value, final boolean enabled, final String note,
+                        final boolean problem) {
+        roleLine.setVisible(visible);
+        // Never fires: the strip is set again after every edit, and a picker that answered its
+        // own refresh would write the project back with each one.
+        role.setValue(value, false);
+        role.setEnabled(enabled);
+        roleNote.setText(note);
+        roleNote.setStyleName("ss-role-note " + (problem
+                ? "ss-wb-err"
+                : "ss-det-desc"));
+    }
+
+    @Override
     public void setMatch(final String kind, final String summary, final String guardAndLimits) {
         matchKind.setText(kind);
         matchSummary.setText(summary);
@@ -137,6 +171,7 @@ public class TemplateStripViewImpl
     @Override
     public void setMatchVisible(final boolean visible) {
         matchLine.setVisible(visible);
+        guardLine.setVisible(visible);
     }
 
     @Override

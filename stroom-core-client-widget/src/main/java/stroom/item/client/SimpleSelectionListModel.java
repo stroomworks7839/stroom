@@ -122,6 +122,11 @@ public class SimpleSelectionListModel<T> implements SelectionListModel<T, Simple
     }
 
     @Override
+    public SimpleSelectionItemWrapper<T> nonSelectItem() {
+        return nonSelectItem;
+    }
+
+    @Override
     public SimpleSelectionItemWrapper<T> wrap(final T item) {
         if (item == null) {
             if (nonSelectItem != null) {

@@ -5,7 +5,7 @@
              xmlns:tickbox="urn:import:stroom.widget.tickbox.client.view"
              xmlns:l="urn:import:stroom.item.client">
     <g:ScrollPanel styleName="max">
-        <g:FlowPanel styleName="form dock-container-vertical">
+        <g:FlowPanel styleName="form-padding form">
             <form:FormGroup identity="shapeshifterNodeKind" label="Kind"
                             helpText="tag, take_while, take_until, take_through, take, any, regex and ref consume bytes; sequence, choice, optional, repeat, peek and not compose other nodes.">
                 <g:FlowPanel>

@@ -20,14 +20,15 @@ import com.gwtplatform.mvp.client.UiHandlers;
 
 public interface BreadcrumbUiHandlers extends UiHandlers {
 
-    /** Back (-1) or forward (1) through where the user has been. */
-    void onHistory(int delta);
 
     void onSegment(long frameId);
 
     void onSibling(long frameId, int delta);
 
     void onStep(int delta);
+
+    /** Step to an end of what is being stepped: 0 the first, -1 the last. */
+    void onStepTo(int which);
 
     void onHover(Hot hot);
 }

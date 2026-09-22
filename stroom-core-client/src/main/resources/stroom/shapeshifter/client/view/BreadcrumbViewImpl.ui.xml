@@ -1,21 +1,24 @@
 <!DOCTYPE ui:UiBinder SYSTEM "http://dl.google.com/gwt/DTD/xhtml.ent">
 <ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
              xmlns:g="urn:import:com.google.gwt.user.client.ui"
-             xmlns:b="urn:import:stroom.widget.button.client">
+             xmlns:i="urn:import:stroom.widget.button.client">
     <g:FlowPanel styleName="max ss-crumb">
-        <g:FlowPanel styleName="ss-crumb-hist">
-            <g:Anchor ui:field="back" text="◀" styleName="ss-crumb-arrow ss-crumb-arrow--hist" title="Back (Alt+←)"/>
-            <g:Anchor ui:field="forward" text="▶" styleName="ss-crumb-arrow ss-crumb-arrow--hist" title="Forward (Alt+→)"/>
-        </g:FlowPanel>
+        <!-- The crumb reads left to right as the cursor's ancestry, which is what a breadcrumb is
+             for, so it keeps the left edge. The stepper is pushed to the far right (design 44
+             §5e), where Stroom's own paging and stepping controls sit, with what it steps and
+             the cursor's place in it immediately to its left. -->
         <g:FlowPanel ui:field="segments" styleName="ss-crumb-segs"/>
         <g:Label ui:field="state" styleName="ss-crumb-state"/>
         <g:Label styleName="ss-spacer"/>
         <g:FlowPanel ui:field="stepper" styleName="ss-crumb-step">
             <g:Label ui:field="stepperLabel" styleName="ss-crumb-lbl"/>
-            <g:Anchor ui:field="stepPrev" text="◀" styleName="ss-crumb-arrow"/>
             <g:Label ui:field="stepperIndex" styleName="ss-crumb-idx"/>
-            <g:Anchor ui:field="stepNext" text="▶" styleName="ss-crumb-arrow"/>
+            <g:FlowPanel styleName="button-container icon-colour__green ss-crumb-steps">
+                <i:SvgButton ui:field="stepFirst"/>
+                <i:SvgButton ui:field="stepPrev"/>
+                <i:SvgButton ui:field="stepNext"/>
+                <i:SvgButton ui:field="stepLast"/>
+            </g:FlowPanel>
         </g:FlowPanel>
-        <b:ButtonPanel ui:field="buttons"/>
     </g:FlowPanel>
 </ui:UiBinder>

@@ -24,20 +24,30 @@ import stroom.shapeshifter.config.MatchExpression;
  * is the picker's.
  */
 public enum MatchKind {
-    REGEX("regex", "regex"),
-    TREE("tree", "pattern tree"),
-    PARTS("parts", "parts"),
-    DELIMITER("delimiter", "delimiter"),
-    SOURCE("source", "source"),
-    ALL("all", "all"),
-    NAMED("named", "named");
+    REGEX("regex", "regex", "one expression, matched by the engine"),
+    TREE("tree", "pattern tree", "composition: sequences, choices and repeats over parts, "
+                                 + "and refs to the library"),
+    PARTS("parts", "framed sequence", "patterns interleaved with take, seek and read - for "
+                                      + "length-prefixed and binary formats, where a field says "
+                                      + "how long the next one is"),
+    DELIMITER("delimiter", "delimiter", "a separator, with an escape and a container: the CSV case"),
+    SOURCE("source", "source", "the document itself, matched once"),
+    ALL("all", "all", "everything handed to this template"),
+    NAMED("named", "named", "invoked by name only");
 
     private final String spelling;
     private final String label;
+    private final String note;
 
-    MatchKind(final String spelling, final String label) {
+    MatchKind(final String spelling, final String label, final String note) {
         this.spelling = spelling;
         this.label = label;
+        this.note = note;
+    }
+
+    /** What the kind is, in a line: the picker's title and the note beside it. */
+    public String note() {
+        return note;
     }
 
     public String spelling() {
@@ -46,6 +56,11 @@ public enum MatchKind {
 
     public String label() {
         return label;
+    }
+
+    /** Whether this kind holds a pattern: the three that convert between one another. */
+    public boolean holdsPattern() {
+        return this == REGEX || this == TREE || this == PARTS;
     }
 
     public static MatchKind of(final MatchExpression match) {

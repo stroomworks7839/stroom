@@ -58,6 +58,18 @@ class TraceModelTest {
     }
 
     @Test
+    void theDocumentsChildrenAreTheMatchesAStepperStepsWithNothingSelected() {
+        // What the crumb's stepper falls back to (design 44 §5c): the top-level matches, in the
+        // order found, whatever template each is of - so a run with any match has a stepper.
+        final TraceModel model = model();
+        assertThat(model.children(TraceModel.ROOT)).extracting(Frame::getId).containsExactly(1L, 2L);
+        assertThat(model.matches("row")).extracting(Frame::getId).containsExactly(1L, 2L);
+        assertThat(model.matches("field")).extracting(Frame::getId).containsExactly(3L);
+        assertThat(model.matches("nowhere")).as("a template that matched nothing").isEmpty();
+        assertThat(model.frame(TraceModel.ROOT)).as("the document is no frame of its own").isNull();
+    }
+
+    @Test
     void theDocumentIsFrameZeroAndItsContentIsTheInput() {
         final TraceModel model = model();
         assertThat(model.has(TraceModel.ROOT)).isTrue();

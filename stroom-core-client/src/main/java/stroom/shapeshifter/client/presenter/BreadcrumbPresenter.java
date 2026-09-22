@@ -18,9 +18,6 @@ package stroom.shapeshifter.client.presenter;
 
 import stroom.shapeshifter.client.presenter.BreadcrumbPresenter.BreadcrumbView;
 import stroom.shapeshifter.shared.ShapeshifterTrace.Frame;
-import stroom.svg.client.Preset;
-import stroom.svg.client.SvgPresets;
-import stroom.widget.button.client.ButtonView;
 
 import com.google.inject.Inject;
 import com.google.web.bindery.event.shared.EventBus;
@@ -39,28 +36,18 @@ import java.util.List;
  */
 public class BreadcrumbPresenter extends MyPresenterWidget<BreadcrumbView> implements BreadcrumbUiHandlers {
 
-    private final ButtonView sampleButton;
-    private final ButtonView runButton;
     private ProjectHost host;
-    private Runnable onSample;
+    private String templateId;
 
     @Inject
     public BreadcrumbPresenter(final EventBus eventBus, final BreadcrumbView view) {
         super(eventBus, view);
         view.setUiHandlers(this);
-        sampleButton = view.addButton(SvgPresets.EDIT.title("Paste a sample to run over"));
-        runButton = view.addButton(SvgPresets.RUN.title("Run the project over the sample"));
     }
 
     @Override
     protected void onBind() {
         super.onBind();
-        registerHandler(sampleButton.addClickHandler(event -> {
-            if (onSample != null) {
-                onSample.run();
-            }
-        }));
-        registerHandler(runButton.addClickHandler(event -> host.run()));
     }
 
     public void setHost(final ProjectHost host) {
@@ -68,26 +55,28 @@ public class BreadcrumbPresenter extends MyPresenterWidget<BreadcrumbView> imple
         refresh();
     }
 
-    /** What the sample button does: opens the input pane's sample editor. */
-    public void setOnSample(final Runnable onSample) {
-        this.onSample = onSample;
+    /**
+     * The template the panel has selected: what the whole-input stepper steps through while
+     * the cursor is the document and so is in no match of its own (design 18 §5.3).
+     */
+    public void setTemplate(final String templateId) {
+        this.templateId = templateId;
+        refresh();
     }
 
     public void refresh() {
         final TraceModel trace = host == null
                 ? null
                 : host.trace();
-        getView().setHistory(host != null && host.canGoBack(), host != null && host.canGoForward());
-        runButton.setEnabled(host != null && host.getSample() != null && host.getProject() != null);
-        sampleButton.setEnabled(host != null && host.getProject() != null);
+
         if (trace == null) {
             getView().setSegments(List.of());
             getView().setStepper(null, 0, 0);
             getView().setState(host != null && host.isStale()
                     ? "running…"
-                    : host != null && host.getSample() != null
+                    : host != null && host.getSampleSource() != null
                             ? "The last run failed — Run to try again."
-                            : "No run yet — paste a sample and run, or step a record through a pipeline.");
+                            : "No run yet — choose the sample data in the panel.");
             return;
         }
         final long cursor = host.cursor();
@@ -102,17 +91,61 @@ public class BreadcrumbPresenter extends MyPresenterWidget<BreadcrumbView> imple
         }
         getView().setSegments(segments);
         final Frame frame = trace.frame(cursor);
-        if (frame == null) {
-            getView().setStepper(null, 0, 0);
+        final Stepping stepping = steppable(trace, frame);
+        if (stepping.frames.isEmpty()) {
+            // Shown all the same, with its buttons dead: a control that comes and goes reads as
+            // one that is not there, and a run that matched nothing is worth saying plainly.
+            getView().setStepper(stepping.label, 0, 0);
         } else {
-            final List<Frame> matches = trace.matches(frame.getTemplateId());
-            getView().setStepper(frame.getTemplateName(), matches.indexOf(frame) + 1, matches.size());
+            // Where the cursor is in no match of its own - the document - the stepper reads
+            // 0 of n and its forward arrow is the way in to the first, which is what stepping
+            // the matches means before any has been chosen.
+            getView().setStepper(stepping.label, frame == null
+                    ? 0
+                    : stepping.frames.indexOf(frame) + 1, stepping.frames.size());
         }
         getView().setState(host.isStale()
                 ? "stale — the definition has moved on; running…"
-                : trace.isCompiled()
-                        ? null
-                        : "the project did not compile — see the messages");
+                : !trace.isCompiled()
+                        ? "the project did not compile — see the messages"
+                        : trace.matchedNothing()
+                                ? "ran, and nothing matched — no template applied to the document"
+                                : null);
+    }
+
+    /**
+     * What the stepper steps (design 18 §5.3's whole-input scope): the matches of the cursor's
+     * own template, or - the cursor being the document - of the template the panel has selected.
+     * Where that template matched nothing, and where nothing is selected, there is still
+     * something worth stepping and it is the matches themselves: the document's children, in the
+     * order they were found, whatever template each is of. So a run with any match at all has a
+     * stepper, which is the point of it being the one always-visible stepping control.
+     */
+    private Stepping steppable(final TraceModel trace, final Frame frame) {
+        final String stepping = frame != null
+                ? frame.getTemplateId()
+                : templateId;
+        if (stepping != null) {
+            final List<Frame> matches = trace.matches(stepping);
+            if (!matches.isEmpty()) {
+                return new Stepping("matches of " + matches.get(0).getTemplateName(), matches);
+            }
+        }
+        return frame == null
+                ? new Stepping("matches", trace.children(TraceModel.ROOT))
+                : new Stepping("matches", List.of());
+    }
+
+    /** What the stepper steps, and what it is called: the two cannot disagree. */
+    private static final class Stepping {
+
+        private final String label;
+        private final List<Frame> frames;
+
+        private Stepping(final String label, final List<Frame> frames) {
+            this.label = label;
+            this.frames = frames;
+        }
     }
 
     private static int siblingIndex(final TraceModel trace, final Frame frame) {
@@ -125,15 +158,6 @@ public class BreadcrumbPresenter extends MyPresenterWidget<BreadcrumbView> imple
         return frame == null
                 ? 0
                 : trace.children(frame.getParentId()).size();
-    }
-
-    @Override
-    public void onHistory(final int delta) {
-        if (delta < 0) {
-            host.goBack();
-        } else {
-            host.goForward();
-        }
     }
 
     @Override
@@ -178,16 +202,31 @@ public class BreadcrumbPresenter extends MyPresenterWidget<BreadcrumbView> imple
     @Override
     public void onStep(final int delta) {
         final TraceModel trace = host.trace();
-        final Frame frame = trace == null
-                ? null
-                : trace.frame(host.cursor());
-        if (frame == null) {
+        if (trace == null) {
             return;
         }
-        final List<Frame> matches = trace.matches(frame.getTemplateId());
-        final int at = matches.indexOf(frame) + delta;
+        final Frame frame = trace.frame(host.cursor());
+        final List<Frame> matches = steppable(trace, frame).frames;
+        // From the document, forward is the first match; there is nothing before it.
+        final int at = frame == null
+                ? delta - 1
+                : matches.indexOf(frame) + delta;
         if (at >= 0 && at < matches.size()) {
             host.setCursor(matches.get(at).getId());
+        }
+    }
+
+    @Override
+    public void onStepTo(final int which) {
+        final TraceModel trace = host.trace();
+        if (trace == null) {
+            return;
+        }
+        final List<Frame> matches = steppable(trace, trace.frame(host.cursor())).frames;
+        if (!matches.isEmpty()) {
+            host.setCursor((which == 0
+                    ? matches.get(0)
+                    : matches.get(matches.size() - 1)).getId());
         }
     }
 
@@ -240,15 +279,10 @@ public class BreadcrumbPresenter extends MyPresenterWidget<BreadcrumbView> imple
 
     public interface BreadcrumbView extends View, HasUiHandlers<BreadcrumbUiHandlers> {
 
-        ButtonView addButton(Preset preset);
-
         void setSegments(List<Segment> segments);
 
-        /** The whole-input stepper: the template's name and the cursor's place among its matches; null hides it. */
-        void setStepper(String templateName, int index, int count);
-
-        /** Back and forward at the head: which of them can go. */
-        void setHistory(boolean back, boolean forward);
+        /** The whole-input stepper: what it steps, and the cursor's place in it; null hides it. */
+        void setStepper(String label, int index, int count);
 
         /** Light the segment of a frame, or none for -1. */
         void setHot(long frameId);

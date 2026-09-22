@@ -34,6 +34,18 @@ import static org.assertj.core.api.Assertions.assertThat;
 class SampleExperimentTest {
 
     @Test
+    void newTemplatesDoNotSkipTheirData() {
+        // D36's eater, which the dialog calls "skip data": its matches are not counted, bind
+        // nothing and write nothing, so a template made as one is invisible to the navigator.
+        // It is a deliberate choice, never a default.
+        assertThat(Templates.create("t", null, false).consume()).isFalse();
+        final Template skipper = Templates.create("skip", null, true);
+        final Project project = new Project("p", 3, null, List.of(skipper), null);
+        assertThat(Templates.experiment(project, skipper).templates().get(0).consume())
+                .as("nor is the sample's experiment, whatever the subject is").isFalse();
+    }
+
+    @Test
     void theExperimentKeepsTheMatchAndDropsEverythingThatWouldRunOrHold() {
         final Template rich = Templates.withBody(Templates.withLimits(Templates.withCaptures(
                 Templates.withDeclarations(
@@ -52,7 +64,8 @@ class SampleExperimentTest {
         final Template bare = experiment.templates().get(0);
         assertThat(bare.id()).isEqualTo(rich.id());
         assertThat(bare.match()).isEqualTo(rich.match());
-        assertThat(bare.consume()).isFalse();
+        assertThat(bare.consume()).as("never skipping: skipped bytes open no frame, and frames "
+                                      + "are all the sample has").isFalse();
         assertThat(bare.mode()).as("at the root, whatever mode it had").isNull();
         assertThat(bare.guard()).isNull();
         assertThat(bare.matchLimits()).as("no limits: every match").isEqualTo(new MatchLimits(0, -1, null));

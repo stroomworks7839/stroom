@@ -7,7 +7,7 @@
              xmlns:b="urn:import:stroom.widget.button.client"
              xmlns:l="urn:import:stroom.item.client">
     <g:ScrollPanel styleName="max">
-    <g:FlowPanel styleName="form dock-container-vertical">
+    <g:FlowPanel styleName="form-padding form">
         <form:FormGroup identity="shapeshifterTemplateName" label="Name">
             <g:TextBox ui:field="name" addStyleNames="w-100"/>
         </form:FormGroup>
@@ -21,10 +21,6 @@
                 <l:SelectionBox ui:field="mode" addStyleNames="ss-field-row-main"/>
                 <b:Button ui:field="newMode" text="New..." addStyleNames="allow-focus Button--contained-primary" title="Create a mode and pick it"/>
             </g:FlowPanel>
-        </form:FormGroup>
-        <form:FormGroup identity="shapeshifterTemplateConsume" label="Consume"
-                        helpText="Whether a match consumes its bytes, so the next template starts after it.">
-            <tickbox:CustomCheckBox ui:field="consume"/>
         </form:FormGroup>
         <form:FormGroup identity="shapeshifterTemplateParams" label="Params"
                         helpText="Parameters a call-template or apply-templates can pass, one per line as name, or name = default.">

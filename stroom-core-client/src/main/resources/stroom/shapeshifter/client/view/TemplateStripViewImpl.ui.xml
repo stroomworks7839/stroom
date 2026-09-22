@@ -1,12 +1,13 @@
 <!DOCTYPE ui:UiBinder SYSTEM "http://dl.google.com/gwt/DTD/xhtml.ent">
 <ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
-             xmlns:g="urn:import:com.google.gwt.user.client.ui">
+             xmlns:g="urn:import:com.google.gwt.user.client.ui"
+             xmlns:l="urn:import:stroom.item.client">
     <g:ThinSplitLayoutPanel ui:field="layout" styleName="max default-min-sizes ss-strip">
         <g:north size="30">
             <g:FlowPanel styleName="ss-strip-head">
                 <g:Label ui:field="title" styleName="ss-panel-title ss-strip-ptitle"/>
-                <g:Label ui:field="chip" styleName="ss-chip ss-chip--editable" title="Edit name, mode and consume…"/>
-                <g:Label ui:field="name" styleName="ss-strip-name" title="Edit name, mode and consume…"/>
+                <g:Label ui:field="chip" styleName="ss-chip ss-chip--editable" title="Edit the template's name, colour, mode, params and encoding…"/>
+                <g:Label ui:field="name" styleName="ss-strip-name" title="Edit the template's name, colour, mode, params and encoding…"/>
                 <g:Label ui:field="mode" styleName="ss-strip-mode"/>
                 <g:Label ui:field="note" styleName="ss-strip-note"/>
             </g:FlowPanel>
@@ -34,6 +35,19 @@
                                 <g:Label styleName="ss-match-wb" text="✎ workbench"/>
                             </g:FlowPanel>
                         </g:FocusPanel>
+                    </g:FlowPanel>
+                    <!-- Between the match and the body, because that is where it acts: the match
+                         is found either way, and skipping decides what becomes of it (design 44 §5d). -->
+                    <g:FlowPanel ui:field="roleLine" styleName="ss-strip-line">
+                        <g:Label styleName="ss-strip-k" text="match is"/>
+                        <l:SelectionBox ui:field="role" addStyleNames="ss-strip-role"
+                                        title="What this match is for. Both roles advance the cursor and run the body; only a record counts, captures and opens a frame to step."/>
+                        <g:Label ui:field="roleNote" styleName="ss-det-desc ss-role-note"/>
+                    </g:FlowPanel>
+                    <!-- Guard and limits off the match row, so the match can have the width
+                         (design 44 §5h). -->
+                    <g:FlowPanel ui:field="guardLine" styleName="ss-strip-line">
+                        <g:Label styleName="ss-strip-k" text="guard"/>
                         <g:Label ui:field="guardLimits" styleName="ss-none ss-clickable"
                                  title="Guard and limits — edited in the workbench"/>
                     </g:FlowPanel>

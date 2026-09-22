@@ -47,8 +47,6 @@ public class TemplateEditViewImpl
     @UiField
     Button newMode;
     @UiField
-    CustomCheckBox consume;
-    @UiField
     ColourPalette colour;
     @UiField
     TextArea params;
@@ -113,16 +111,6 @@ public class TemplateEditViewImpl
         mode.setNonSelectString("root");
         mode.addItems(values);
         mode.setValue(current, false);
-    }
-
-    @Override
-    public boolean isConsume() {
-        return consume.getValue();
-    }
-
-    @Override
-    public void setConsume(final boolean value) {
-        consume.setValue(value);
     }
 
     @Override

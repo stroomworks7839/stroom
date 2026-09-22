@@ -2,16 +2,6 @@
 <ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
              xmlns:g="urn:import:com.google.gwt.user.client.ui">
     <g:FlowPanel styleName="max ss-panel ss-content">
-        <g:FlowPanel ui:field="editor" styleName="max ss-sample">
-            <g:Label styleName="ss-panel-title" text="Sample"/>
-            <g:Label styleName="ss-hint"
-                     text="Paste some input to run the project over. Every edit runs it again; Ctrl+Enter runs now."/>
-            <g:TextArea ui:field="sample" styleName="ss-sample-text mono"/>
-            <g:FlowPanel styleName="ss-sample-buttons">
-                <g:Button ui:field="run" text="Run"/>
-                <g:Button ui:field="cancel" text="Cancel"/>
-            </g:FlowPanel>
-        </g:FlowPanel>
         <g:FlowPanel ui:field="reader" styleName="max ss-reader">
             <g:Label ui:field="note" styleName="ss-note"/>
             <g:ScrollPanel styleName="ss-panel-body">

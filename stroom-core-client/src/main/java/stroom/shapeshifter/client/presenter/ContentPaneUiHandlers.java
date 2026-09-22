@@ -20,10 +20,6 @@ import com.gwtplatform.mvp.client.UiHandlers;
 
 public interface ContentPaneUiHandlers extends UiHandlers {
 
-    void onRun(String sample);
-
-    void onCancel();
-
     void onDescend(long frameId);
 
     /** The pointer is over a marked element, or over nothing. */

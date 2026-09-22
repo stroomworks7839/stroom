@@ -187,6 +187,11 @@ public final class TraceModel {
         return byId.get(id);
     }
 
+    /** Whether the run matched anything at all: no frames means no template applied, anywhere. */
+    public boolean matchedNothing() {
+        return byId.isEmpty();
+    }
+
     public boolean has(final long id) {
         return id == ROOT || byId.containsKey(id);
     }
@@ -238,6 +243,20 @@ public final class TraceModel {
     /** The attempts made while this frame's body dispatched, in order. */
     public List<Attempt> attempts(final long frameId) {
         return attempts.getOrDefault(frameId, List.of());
+    }
+
+    /**
+     * The first frame whose body tried a template, or -1: where the template was dispatched,
+     * whether or not it matched there. What the workbench's sample is seeded from, since a
+     * template is tried against its parent's content, not against what it matched.
+     */
+    public long firstTriedIn(final String templateId) {
+        for (final Attempt attempt : list(trace.getAttempts())) {
+            if (attempt.getTemplateId().equals(templateId)) {
+                return attempt.getParentFrameId();
+            }
+        }
+        return -1;
     }
 
     /** The guard's verdict for a template as this frame's body dispatched, or null when it was not read there. */

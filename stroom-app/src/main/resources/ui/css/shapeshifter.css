@@ -90,17 +90,6 @@
     opacity: 0.7;
 }
 
-.shapeshifter-structure-pane {
-    padding: 6px 10px;
-}
-
-.shapeshifter-regex-row {
-    display: flex;
-    gap: 8px;
-    align-items: baseline;
-    padding-bottom: 6px;
-}
-
 .shapeshifter-kind {
     font-size: 0.85em;
     text-transform: uppercase;
@@ -133,12 +122,18 @@
     padding: 0 3px;
 }
 
-.shapeshifter-tree--editable .shapeshifter-node > .shapeshifter-node-text {
-    cursor: pointer;
+/* Whose a library entry is: the project's parts are named beside the standard ones. */
+.ss-lib-whose {
+    color: var(--ss-muted);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    padding-left: 8px;
 }
 
-.shapeshifter-library-title {
-    padding-top: 10px;
+/* A form's toolbar sits above its sections rather than floating over the first one. */
+.ss-wb-toolbar {
+    border-bottom: 1px solid var(--border-color);
 }
 
 .shapeshifter-library {
@@ -161,14 +156,6 @@
 }
 
 /* Hover and selection beat the label tint: declared after it on purpose. */
-.shapeshifter-tree--editable .shapeshifter-node > .shapeshifter-node-text:hover {
-    background-color: var(--row__background-color--hovered);
-}
-
-.shapeshifter-node--selected > .shapeshifter-node-text {
-    background-color: var(--row__background-color--selected);
-}
-
 .shapeshifter-parts {
     margin: 0;
     padding-left: 20px;
@@ -381,20 +368,38 @@
 
 .ss-strip-k {
     color: var(--ss-muted);
-    min-width: 44px;
+    /* One column for match, match is, guard and body, so every control starts at the same x
+       and the body's cards line up under them. */
+    width: 64px;
+    flex: none;
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: .05em;
     font-weight: 600;
 }
 
+/* The role line, between the match and the body: the picker, then what the role means. */
+.ss-strip-role {
+    flex: none;
+    min-width: 132px;
+}
+
+.ss-role-note {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding-top: 0;
+    min-height: 0;
+}
+
+/* A text input's dimensions exactly — Stroom's control tokens, not numbers of our own — and
+   the row's full width, since a pattern is the longest thing on the strip. */
 .ss-match-chip {
-    border: 1px solid var(--control__border-color);
-    border-radius: 5px;
+    border: solid 1px var(--control__border-color);
+    border-radius: .25rem;
     background-color: var(--control__background-color);
-    padding: 4px 10px;
+    padding: var(--input__padding--vertical) var(--input__padding--horizontal);
     cursor: pointer;
-    max-width: 100%;
+    flex: 1;
     min-width: 0;
     overflow: hidden;
     outline: none;
@@ -423,7 +428,8 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    max-width: 480px;
+    flex: 1;
+    min-width: 0;
 }
 
 .ss-match-wb {
@@ -433,7 +439,7 @@
 }
 
 .ss-strip-content {
-    padding: 0 4px;
+    padding: 0;
 }
 
 /* The pattern workbench: a title row over the match editor's tabs. */
@@ -449,6 +455,68 @@
 }
 
 /* The workbench's right column: sections with quiet uppercase headings (mockup #wbRight). */
+/* The sample page's head: where the data comes from, and nothing else - the words and the
+   picker on one line, whatever width the page has. */
+.ss-smp-head {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.ss-smp-head > .ss-lim-label {
+    flex: none;
+    white-space: nowrap;
+}
+
+.ss-smp-head .SelectionBox {
+    flex: none;
+    width: 220px;
+}
+
+/* The pattern tree as Stroom draws an expression (design 44 §4): boxes the layout places over
+   a canvas of bracket connectors. The box itself wears the expression editor's own classes, so
+   the two trees are one idiom; these are the container and the words inside. */
+.ss-tree-panel {
+    position: relative;
+    min-height: 60px;
+}
+
+.ss-tree-boxes {
+    position: relative;
+    top: 0;
+    left: 0;
+}
+
+.ss-tree-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+.ss-node-label {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-family: var(--monospace-font-family);
+    font-size: 12px;
+}
+
+/* A combinator is the shape of the composition rather than what it matches: its word, plain. */
+.ss-node-label--container {
+    font-family: inherit;
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: .05em;
+}
+
+/* A capture: the node the body reads by name. */
+.ss-node-label--labelled {
+    font-weight: 600;
+}
+
 /* The workbench's sample (design 44 §2): the text above, its matches and their groups below. */
 .ss-smp-in {
     display: flex;
@@ -645,6 +713,14 @@
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: .05em;
+}
+
+/* In a stacked field row - the limits, the delimiter's four - the labels share a column so the
+   inputs line up under one another; a longer word takes the space it needs and the row still
+   reads. The inline labels elsewhere (the match kind, the regex's advance) are not in these
+   rows and keep their natural width. */
+.ss-step-row > .ss-lim-label {
+    min-width: 72px;
 }
 
 .ss-lim-in {
@@ -970,8 +1046,7 @@
     visibility: hidden;
 }
 
-.ss-crumb-seg:hover .ss-crumb-arrow,
-.ss-crumb-step .ss-crumb-arrow {
+.ss-crumb-seg:hover .ss-crumb-arrow {
     visibility: visible;
 }
 
@@ -992,12 +1067,24 @@
     text-overflow: ellipsis;
 }
 
+/* The whole-input stepper, at the far end of the crumb: what it steps and where in it the
+   cursor is, then Stroom's step buttons hard right, where Stroom puts its own. */
 .ss-crumb-step {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    padding: 0 10px;
+    flex: none;
+    gap: 6px;
+    padding-left: 10px;
+    margin-left: 6px;
     border-left: 1px solid var(--border-color);
+}
+
+.ss-crumb-steps {
+    margin: 0;
+}
+
+.ss-crumb-step .ss-crumb-idx {
+    font-family: var(--monospace-font-family);
 }
 
 /* The sample editor: the content pane's front door. */
@@ -1034,6 +1121,15 @@
 .ss-reader {
     display: flex;
     flex-direction: column;
+}
+
+/* The input and the output are data, and read as data: the surface a code editor has rather
+   than the page's (2026-09-22). The variables beside them are a reading of the data, not the
+   data, and keep the page's. */
+.ss-content,
+.ss-out,
+.ss-smp-matches {
+    background-color: var(--control__background-color);
 }
 
 .ss-content-box {
@@ -1278,19 +1374,6 @@
 }
 
 /* Back and forward at the crumb's head: where was I, beside where am I (design 18 §5.3). */
-.ss-crumb-hist {
-    display: inline-flex;
-    gap: 2px;
-    margin-right: 6px;
-    padding-right: 8px;
-    border-right: 1px solid var(--border-color);
-}
-
-.ss-crumb-arrow--hist {
-    visibility: visible;
-    font-size: 13px;
-}
-
 /* A message's severity on what it was said in (design 18 §5.8): a match span in the content, a
    template's row - as stepping colours its pipeline tree. */
 .ss-m.ss-flag--warning {

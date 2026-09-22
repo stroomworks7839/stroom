@@ -40,6 +40,7 @@ import com.gwtplatform.mvp.client.View;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Supplier;
 
 /**
  * The workbench's sample (design 44 §2, design 18 §5.6): text to try the match against, seeded
@@ -85,7 +86,7 @@ public class SamplePresenter
 
     /** Shown for a template, and again after every edit of it: the match may have changed. */
     public void setTemplate(final String id) {
-        subject(id, host.template(id), host.colour(id));
+        subject(id, host.template(id), host.colour(id), id);
     }
 
     /**
@@ -95,23 +96,30 @@ public class SamplePresenter
     public void setPattern(final String name) {
         final String key = Patterns.rowId(name);
         if (!key.equals(subjectKey)) {
-            experiment = Templates.withMatch(Templates.create(name, null, true),
+            experiment = Templates.withMatch(Templates.create(name, null, false),
                     new MatchExpression.Pattern(new PatternNode.Ref(name)));
         }
-        subject(key, experiment, Templates.colour(0));
+        subject(key, experiment, Templates.colour(0), null);
     }
 
-    private void subject(final String key, final Template template, final String colour) {
-        if (!Objects.equals(key, subjectKey)) {
+    private void subject(final String key, final Template template, final String colour, final String templateId) {
+        final boolean changed = !Objects.equals(key, subjectKey);
+        if (changed) {
             subjectKey = key;
             isolatedGroup = 0;
             isolatedLabel = null;
-            // A new subject gets the cursor's frame as its sample unless the author has typed
-            // one; what was typed is the experiment, and follows the author to the next subject.
-            final String current = getView().getSample();
+        }
+        final String current = getView().getSample();
+        // A new subject is seeded from the run, and so is an empty box - the first run after the
+        // workbench opened has data the opening did not. What the author typed is the
+        // experiment: it is left alone, and follows them to the next subject.
+        if (changed || current.isEmpty()) {
             if (current.isEmpty() || current.equals(seed)) {
-                seed = seedText();
-                getView().setSample(seed);
+                final String next = seedText(templateId);
+                if (!next.equals(current)) {
+                    seed = next;
+                    getView().setSample(next);
+                }
             }
         }
         experiment = template;
@@ -119,9 +127,49 @@ public class SamplePresenter
         run();
     }
 
-    /** The cursor's frame's content, the document's sample, or nothing. */
-    private String seedText() {
+    /**
+     * What the subject is tried against: the content of a frame that dispatched it — the
+     * parent's, not what the subject itself matched, which is the answer rather than the
+     * question. The cursor's frame when the subject was tried there, else where it first
+     * matched, else where it was first tried at all (a template that never matches is exactly
+     * the one worth experimenting with); failing all of it, the cursor's content, then the
+     * document's sample.
+     */
+    private String seedText(final String templateId) {
         final TraceModel trace = host.trace();
+        if (trace != null && templateId != null) {
+            for (final Attempt attempt : trace.attempts(host.cursor())) {
+                if (attempt.getTemplateId().equals(templateId)) {
+                    return contentOr(trace, host.cursor(), null);
+                }
+            }
+            final List<Frame> matches = trace.matches(templateId);
+            if (!matches.isEmpty()) {
+                return contentOr(trace, matches.get(0).getParentId(), () -> fallback(trace));
+            }
+            final long tried = trace.firstTriedIn(templateId);
+            if (tried >= 0) {
+                return contentOr(trace, tried, () -> fallback(trace));
+            }
+        }
+        return fallback(trace);
+    }
+
+    /** A frame's content, or what the supplier says when it has none. */
+    private String contentOr(final TraceModel trace, final long frameId, final Supplier<String> otherwise) {
+        final String content = trace.has(frameId)
+                ? trace.content(frameId)
+                : null;
+        if (content != null && !content.isEmpty()) {
+            return content;
+        }
+        return otherwise == null
+                ? fallback(trace)
+                : otherwise.get();
+    }
+
+    /** The cursor's content - the whole input at the document - then a pasted sample. */
+    private String fallback(final TraceModel trace) {
         if (trace != null && trace.has(host.cursor())) {
             final String content = trace.content(host.cursor());
             if (content != null && !content.isEmpty()) {

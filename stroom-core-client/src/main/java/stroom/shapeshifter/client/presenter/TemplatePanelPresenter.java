@@ -45,11 +45,13 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * The template panel (design 18 §5.6, 43 §4.1): the project itself as the topmost row, then
- * the templates grouped by mode in project order — which is dispatch order, so up and down
- * are semantics — each row a swatch, a name and, once there is a trace, its match count and
- * heat. Managed through the toolbar over the list, acting on the selection; the selection is
- * published as a value change of the selected template's id, null for the project.
+ * The project panel (design 18 §5.6, 43 §4.1): the sample the project runs over at the head —
+ * nothing else here means anything without it — then the project itself, then the templates
+ * grouped by mode in project order, which is dispatch order, so up and down are semantics, and
+ * last the pattern library's parts. A template's row is a swatch, a name and, once there is a
+ * trace, its match count and heat. Managed through the toolbar over the list, acting on the
+ * selection; the selection is published as a value change of the row's id — a template's, a
+ * part's, the sample's, or null for the project — and the root shows what that row is.
  */
 public class TemplatePanelPresenter
         extends MyPresenterWidget<TemplatePanelView>
@@ -192,12 +194,18 @@ public class TemplatePanelPresenter
     public void refresh() {
         final Project project = host.getProject();
         final List<TemplateRowData> rows = new ArrayList<>();
+        // What the project runs over, first: nothing else here means anything without it
+        // (design 18 §5.7, design 44 §5a).
+        rows.add(new TemplateRowData(SampleSource.rowId(), "Sample data", "data", "transparent",
+                host.getSampleSource() == null
+                        ? "none"
+                        : host.getSampleSource().getLabel(), host.getSampleSource() == null));
         rows.add(new TemplateRowData(null, project == null
                 ? "project"
-                : project.name(), null, "transparent", host.trace() == null
+                : project.name(), "document", "transparent", host.trace() == null
                 ? "doc"
                 : Profile.runTotal(host.trace()), false));
-        boolean survives = selected == null;
+        boolean survives = selected == null || SampleSource.isRow(selected);
         if (project != null) {
             // Grouped by mode - the root group first, then modes as they first appear - and in
             // project order within a group, which is the order dispatch tries them in.
@@ -262,9 +270,15 @@ public class TemplatePanelPresenter
         if (timing == null || timing.getAttempts() == 0) {
             return "not tried";
         }
-        return timing.getMatched() > 0
-                ? String.valueOf(timing.getMatched())
-                : "0 · tried " + timing.getAttempts();
+        if (timing.getMatched() == 0) {
+            return "0 · tried " + timing.getAttempts();
+        }
+        // A skipping template's wins are not matches: they move the cursor past bytes and are
+        // gone (D36's eater), opening no frame, binding nothing and writing nothing. Saying
+        // "11" would promise all three.
+        return template.consume()
+                ? timing.getMatched() + " skipped"
+                : String.valueOf(timing.getMatched());
     }
 
     private static boolean zero(final TraceModel trace, final Template template) {
@@ -278,9 +292,10 @@ public class TemplatePanelPresenter
         final boolean editable = host != null && !host.isReadOnly();
         final boolean template = selected != null && host != null && host.template(selected) != null;
         final boolean pattern = selectedPattern() != null;
-        addButton.setEnabled(editable);
-        modesButton.setEnabled(host != null && host.getProject() != null);
-        patternButton.setEnabled(editable && host.getProject() != null);
+        final boolean data = SampleSource.isRow(selected);
+        addButton.setEnabled(editable && !data);
+        modesButton.setEnabled(host != null && host.getProject() != null && !data);
+        patternButton.setEnabled(editable && host.getProject() != null && !data);
         editButton.setEnabled(editable && (template || pattern));
         removeButton.setEnabled(editable && (template || pattern));
         final int index = template
@@ -317,9 +332,11 @@ public class TemplatePanelPresenter
             return;
         }
         final Template current = host.template(selected);
+        // Not a skipping template: an ordinary one, whose matches count, bind and write (D36's
+        // eater is a deliberate choice, made with the tick in the dialog).
         editPresenter.read(host, Templates.create("", current == null
                 ? null
-                : current.mode(), true), null);
+                : current.mode(), false), null);
         editPresenter.show("New Template", e -> {
             if (e.isOk()) {
                 final Template template = editPresenter.write();

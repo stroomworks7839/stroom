@@ -16,16 +16,14 @@
 
 package stroom.shapeshifter.client.view;
 
+import stroom.shapeshifter.client.presenter.PatternItem;
 import stroom.shapeshifter.client.presenter.PatternTreePresenter.PatternTreeView;
 import stroom.shapeshifter.client.presenter.PatternTreeUiHandlers;
 import stroom.svg.client.Preset;
 import stroom.widget.button.client.ButtonPanel;
 import stroom.widget.button.client.ButtonView;
+import stroom.widget.htree.client.treelayout.util.DefaultTreeForTreeLayout;
 
-import com.google.gwt.dom.client.Element;
-import com.google.gwt.dom.client.NativeEvent;
-import com.google.gwt.event.dom.client.ClickEvent;
-import com.google.gwt.event.dom.client.DoubleClickEvent;
 import com.google.gwt.safehtml.shared.SafeHtml;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
@@ -34,61 +32,52 @@ import com.google.gwt.user.client.ui.Label;
 import com.google.gwt.user.client.ui.SimplePanel;
 import com.google.gwt.user.client.ui.Widget;
 import com.google.inject.Inject;
-import com.gwtplatform.mvp.client.View;
 import com.gwtplatform.mvp.client.ViewWithUiHandlers;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class PatternTreeViewImpl
         extends ViewWithUiHandlers<PatternTreeUiHandlers>
         implements PatternTreeView {
 
-    private static final String PATH = "data-path";
-
     private final Widget widget;
+    private final PatternTreePanel treePanel = new PatternTreePanel();
 
     @UiField
     ButtonPanel buttonPanel;
+    @UiField
+    HTML heading;
     @UiField
     Label regex;
     @UiField
     Label error;
     @UiField
-    HTML tree;
+    SimplePanel tree;
     @UiField
     HTML library;
-    @UiField
-    SimplePanel editor;
 
     @Inject
     public PatternTreeViewImpl(final Binder binder) {
         widget = binder.createAndBindUi(this);
         setError(null);
-        tree.addDomHandler(event -> {
-            final String path = pathOf(event.getNativeEvent());
-            if (path != null && getUiHandlers() != null) {
-                getUiHandlers().onSelect(path);
+        tree.setWidget(treePanel);
+        treePanel.setListener(new PatternItemRenderer.Listener() {
+            @Override
+            public void onSelect(final String path) {
+                if (getUiHandlers() != null) {
+                    getUiHandlers().onSelect(path);
+                }
             }
-        }, ClickEvent.getType());
-        tree.addDomHandler(event -> {
-            final String path = pathOf(event.getNativeEvent());
-            if (path != null && getUiHandlers() != null) {
-                getUiHandlers().onOpen(path);
-            }
-        }, DoubleClickEvent.getType());
-    }
 
-    /** The path of the innermost node row the event landed in, or null outside every row. */
-    private String pathOf(final NativeEvent event) {
-        if (!Element.is(event.getEventTarget())) {
-            return null;
-        }
-        Element element = Element.as(event.getEventTarget());
-        while (element != null && element != tree.getElement()) {
-            if (element.hasAttribute(PATH)) {
-                return element.getAttribute(PATH);
+            @Override
+            public void onOpen(final String path) {
+                if (getUiHandlers() != null) {
+                    getUiHandlers().onOpen(path);
+                }
             }
-            element = element.getParentElement();
-        }
-        return null;
+        });
     }
 
     @Override
@@ -101,9 +90,33 @@ public class PatternTreeViewImpl
         return buttonPanel.addButton(preset);
     }
 
+    /**
+     * The nodes in the order the presenter walked them, the root first: a parent is always laid
+     * out before the children that name it, so one pass builds the layout's tree.
+     */
     @Override
-    public void setTree(final SafeHtml html) {
-        tree.setHTML(html);
+    public void setTree(final List<PatternItem> items, final String selected) {
+        final DefaultTreeForTreeLayout<PatternItem> layout = items.isEmpty()
+                ? null
+                : new DefaultTreeForTreeLayout<>(items.get(0));
+        final Map<String, PatternItem> byPath = new HashMap<>();
+        for (final PatternItem item : items) {
+            byPath.put(item.getPath(), item);
+            final PatternItem parent = item.getParentPath() == null
+                    ? null
+                    : byPath.get(item.getParentPath());
+            if (parent != null) {
+                layout.addChild(parent, item);
+            }
+        }
+        treePanel.setSelected(selected);
+        treePanel.setTree(layout);
+        treePanel.refresh();
+    }
+
+    @Override
+    public void setHeading(final SafeHtml html) {
+        heading.setHTML(html);
     }
 
     @Override
@@ -124,11 +137,6 @@ public class PatternTreeViewImpl
                 ? ""
                 : text);
         error.setVisible(text != null);
-    }
-
-    @Override
-    public void setEditor(final View view) {
-        editor.setWidget(view.asWidget());
     }
 
     public interface Binder extends UiBinder<Widget, PatternTreeViewImpl> {

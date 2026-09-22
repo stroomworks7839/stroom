@@ -2,26 +2,24 @@
 <ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
              xmlns:g="urn:import:com.google.gwt.user.client.ui"
              xmlns:b="urn:import:stroom.widget.button.client">
-    <g:ThinSplitLayoutPanel styleName="max default-min-sizes shapeshifter-structure">
-        <g:west size="420">
-            <g:FlowPanel styleName="max dock-container-vertical">
-                <b:ButtonPanel ui:field="buttonPanel" addStyleNames="dock-min"/>
-                <g:ScrollPanel styleName="dock-max">
-                    <g:FlowPanel styleName="shapeshifter-structure-pane">
-                        <g:FlowPanel styleName="shapeshifter-regex-row">
-                            <g:Label styleName="shapeshifter-kind" text="as regex"/>
-                            <g:Label ui:field="regex" styleName="shapeshifter-pattern-text"/>
-                        </g:FlowPanel>
-                        <g:Label ui:field="error" styleName="shapeshifter-error"/>
-                        <g:HTML ui:field="tree"/>
-                        <g:Label styleName="shapeshifter-kind shapeshifter-library-title" text="standard library"/>
-                        <g:HTML ui:field="library"/>
-                    </g:FlowPanel>
-                </g:ScrollPanel>
+    <g:FlowPanel styleName="max dock-container-vertical">
+        <b:ButtonPanel ui:field="buttonPanel" addStyleNames="dock-min ss-wb-toolbar"/>
+        <g:ScrollPanel styleName="dock-max">
+            <g:FlowPanel styleName="ss-wb-right">
+                <g:FlowPanel styleName="ss-wb-sec">
+                    <g:HTML ui:field="heading" styleName="ss-wb-h4"/>
+                    <g:SimplePanel ui:field="tree"/>
+                    <g:Label ui:field="error" styleName="ss-wb-err"/>
+                </g:FlowPanel>
+                <g:FlowPanel styleName="ss-wb-sec">
+                    <g:HTML styleName="ss-wb-h4">As regex <span class="ss-wb-h4-note">(what the tree means, printed by the engine; a ref prints as its definition)</span></g:HTML>
+                    <g:Label ui:field="regex" styleName="ss-wb-lint ss-explain mono"/>
+                </g:FlowPanel>
+                <g:FlowPanel styleName="ss-wb-sec">
+                    <g:HTML styleName="ss-wb-h4">Library <span class="ss-wb-h4-note">(what a ref may name: the project&apos;s parts, then the standard entries)</span></g:HTML>
+                    <g:HTML ui:field="library"/>
+                </g:FlowPanel>
             </g:FlowPanel>
-        </g:west>
-        <g:center>
-            <g:SimplePanel ui:field="editor" styleName="max"/>
-        </g:center>
-    </g:ThinSplitLayoutPanel>
+        </g:ScrollPanel>
+    </g:FlowPanel>
 </ui:UiBinder>

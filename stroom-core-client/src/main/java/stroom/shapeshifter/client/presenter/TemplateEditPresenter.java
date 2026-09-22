@@ -39,8 +39,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * A template's identity — name, colour, mode, whether it consumes — the same fields whether
- * creating or editing (design 18 §5.6: mode has exactly one home). Colour is presentation and
+ * A template's identity — name, colour, mode, params, encoding — the same fields whether
+ * creating or editing (design 18 §5.6: mode has exactly one home). What the match is <i>for</i>
+ * is not identity and is not here: the strip owns it (design 44 §5f), and it is carried through
+ * untouched by an edit. Colour is presentation and
  * lives beside the project in the document, not in it. A blank mode is the root: the templates
  * the document itself dispatches to. The encodings offered are the engine's, fetched once.
  */
@@ -81,7 +83,6 @@ public class TemplateEditPresenter
         getView().setMode(template.mode() == null
                 ? ""
                 : template.mode());
-        getView().setConsume(template.consume());
         getView().setEncoding(template.encoding() == null
                 ? ""
                 : template.encoding());
@@ -125,7 +126,7 @@ public class TemplateEditPresenter
         final String encoding = getView().getEncoding().trim();
         return Templates.withIdentity(template, name, mode.isEmpty()
                 ? null
-                : mode, getView().isConsume(), params, encoding.isEmpty()
+                : mode, template.consume(), params, encoding.isEmpty()
                 ? null
                 : encoding, getView().isIgnoreErrors());
     }
@@ -177,10 +178,6 @@ public class TemplateEditPresenter
 
         /** The modes to pick from: the project's and the declared, in the host's order. */
         void setModes(List<String> modes);
-
-        boolean isConsume();
-
-        void setConsume(boolean consume);
 
         String getColour();
 

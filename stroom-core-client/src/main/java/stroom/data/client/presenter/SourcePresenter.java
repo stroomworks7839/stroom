@@ -92,6 +92,7 @@ public class SourcePresenter extends MyPresenterWidget<SourceView> implements
     private Count<Long> exactCharCount = null;
 
     private ClassificationUiHandlers classificationUiHandlers;
+    private Consumer<SourceLocation> onLocationChange;
 
     @Inject
     public SourcePresenter(final EventBus eventBus,
@@ -409,6 +410,16 @@ public class SourcePresenter extends MyPresenterWidget<SourceView> implements
         }
     }
 
+    /**
+     * Told the record this view is showing, each time it fetches one: the meta, the part and the
+     * segment it settled on, which may not be what was asked for. Shapeshifter's sample page
+     * uses it - the record you are looking at is the sample it runs over - and nothing else has
+     * to know that the view moved.
+     */
+    public void setOnLocationChange(final Consumer<SourceLocation> onLocationChange) {
+        this.onLocationChange = onLocationChange;
+    }
+
     public void setSteppingSource(final boolean isSteppingSource) {
         this.isSteppingSource = isSteppingSource;
         // Allowing hex view while stepping is fiddly so not doing it for now. The hex view has totally
@@ -452,6 +463,9 @@ public class SourcePresenter extends MyPresenterWidget<SourceView> implements
         if (result instanceof FetchDataResult) {
             final FetchDataResult fetchDataResult = (FetchDataResult) result;
             receivedSourceLocation = result.getSourceLocation();
+            if (onLocationChange != null && receivedSourceLocation != null) {
+                onLocationChange.accept(receivedSourceLocation);
+            }
 
             if (receivedSourceLocation != null
                     && lastResult != null

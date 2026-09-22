@@ -36,6 +36,7 @@ import com.google.gwt.event.logical.shared.ValueChangeEvent;
 import com.google.gwt.event.logical.shared.ValueChangeHandler;
 import com.google.gwt.event.shared.HandlerRegistration;
 import com.google.gwt.event.shared.LegacyHandlerWrapper;
+import com.google.gwt.user.client.History;
 import com.google.inject.Inject;
 import com.google.web.bindery.event.shared.EventBus;
 import com.gwtplatform.mvp.client.MyPresenterWidget;
@@ -48,6 +49,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Consumer;
 
 /**
  * The Design tab's root (design 43 §4): owns the {@link Project}, the selection, and the one
@@ -65,7 +67,7 @@ import java.util.Set;
  * Selecting a frame selects its template, so the strip shows the definition the cursor is an
  * instance of.
  *
- * <p>The run (phase B): a sample is pasted into the input pane's empty state (design 18 Q2's
+ * <p>The run (phase B): a sample is chosen in the crumb's sample chooser (design 18 Q2's
  * first door), and every edit runs the project over it again on a short debounce (Q6), so the
  * trace is never far behind the definition; between the edit and the answer it is stale.
  */
@@ -79,6 +81,13 @@ public class ShapeshifterDesignPresenter
     private final TemplatePanelPresenter templatePanel;
     private final TemplateStripPresenter strip;
     private final PatternWorkbenchPresenter workbench;
+    private final SampleSourcePresenter samplePage;
+    /**
+     * Told whether a run is possible, whenever that changes: Run lives in the document's own
+     * toolbar (design 44 §5a), where it is present whichever tab is showing, because running is
+     * the document's verb and the Source tab edits the same project.
+     */
+    private Consumer<Boolean> onCanRunChange;
     private final MessagesPresenter messages;
     private final BreadcrumbPresenter crumb;
     private final ContentPanePresenter input;
@@ -93,9 +102,10 @@ public class ShapeshifterDesignPresenter
     private String sourceError;
     private boolean readOnly = true;
     private boolean workbenchOpen;
+    private boolean samplePageOpen;
     private List<ShapeshifterMessage> lastMessages;
 
-    private String sample;
+    private SampleSource sampleSource;
     private TraceModel trace;
     private long cursor = TraceModel.ROOT;
     private boolean stale;
@@ -109,6 +119,8 @@ public class ShapeshifterDesignPresenter
     private final List<NavState> history = new ArrayList<>();
     private int historyAt = -1;
     private boolean walking;
+    /** The browser token this tab's states are pushed under; see {@link #record()}. */
+    private int historyToken;
 
     @Inject
     public ShapeshifterDesignPresenter(final EventBus eventBus,
@@ -117,6 +129,7 @@ public class ShapeshifterDesignPresenter
                                        final TemplatePanelPresenter templatePanel,
                                        final TemplateStripPresenter strip,
                                        final PatternWorkbenchPresenter workbench,
+                                       final SampleSourcePresenter samplePage,
                                        final MessagesPresenter messages,
                                        final BreadcrumbPresenter crumb,
                                        final ContentPanePresenter input,
@@ -127,6 +140,7 @@ public class ShapeshifterDesignPresenter
         this.templatePanel = templatePanel;
         this.strip = strip;
         this.workbench = workbench;
+        this.samplePage = samplePage;
         this.messages = messages;
         this.crumb = crumb;
         this.input = input;
@@ -138,9 +152,9 @@ public class ShapeshifterDesignPresenter
         strip.setHost(this);
         strip.setListener(this);
         workbench.setHost(this);
+        samplePage.setHost(this);
         workbench.setOnClose(this::closeWorkbench);
         crumb.setHost(this);
-        crumb.setOnSample(input::editSample);
         messages.setOnGoTo(this::setCursor);
         input.setHost(this);
         variables.setHost(this);
@@ -148,6 +162,7 @@ public class ShapeshifterDesignPresenter
         view.setTemplatePanel(templatePanel.getView());
         view.setStrip(strip.getView());
         view.setWorkbench(workbench.getView());
+        view.setSamplePage(samplePage.getView());
         view.setMessages(messages.getView());
         view.setCrumb(crumb.getView());
         view.setInput(input.getView());
@@ -163,9 +178,24 @@ public class ShapeshifterDesignPresenter
             record();
         }));
         getView().setKeyHandler(this::onKey);
+        registerHandler(History.addValueChangeHandler(event -> onHistory(event.getValue())));
     }
 
     // ---- where I was ----
+
+    /**
+     * The browser's own back and forward walk this tab's navigation states (design 18 §5.3:
+     * "the state a GWT implementation hands to the platform's own place history rather than
+     * inventing a second one").
+     *
+     * <p>Stroom's content tabs already own the history, as a counter over a list they keep
+     * themselves ({@code ContentTabPanePresenter}); this is the same trick beside it. The token
+     * is prefixed, so the tab pane's {@code Integer.parseInt} of it throws and the press is
+     * ignored there, and this handler ignores the tab pane's numeric ones. Nothing survives a
+     * reload, and nothing should: the states name frames of a run, and the data a run is over is
+     * never the document's (Q2), so a restored cursor would point at what is no longer there.
+     */
+    private static final String HISTORY_PREFIX = "ss";
 
     private void record() {
         if (walking) {
@@ -180,7 +210,37 @@ public class ShapeshifterDesignPresenter
         }
         history.add(state);
         historyAt = history.size() - 1;
+        historyToken++;
+        try {
+            History.newItem(HISTORY_PREFIX + historyToken, false);
+        } catch (final RuntimeException e) {
+            // A history the browser would not take is not worth failing a navigation over.
+        }
         crumb.refresh();
+    }
+
+    /** The browser moved: walk by as many states as the token moved, when this tab is the one showing. */
+    private void onHistory(final String token) {
+        if (walking || token == null || !token.startsWith(HISTORY_PREFIX) || !isShowing()) {
+            return;
+        }
+        final int was = historyToken;
+        final int now;
+        try {
+            now = Integer.parseInt(token.substring(HISTORY_PREFIX.length()));
+        } catch (final NumberFormatException e) {
+            return;
+        }
+        historyToken = now;
+        final int to = historyAt + (now - was);
+        if (to >= 0 && to < history.size() && to != historyAt) {
+            walk(to);
+        }
+    }
+
+    /** Whether this tab is the one on screen: a press elsewhere must not move a cursor nobody sees. */
+    private boolean isShowing() {
+        return getWidget() != null && getWidget().isAttached() && getWidget().isVisible();
     }
 
     @Override
@@ -196,14 +256,15 @@ public class ShapeshifterDesignPresenter
     @Override
     public void goBack() {
         if (canGoBack()) {
-            walk(historyAt - 1);
+            // Through the browser, so that its own back button and these keys are one history.
+            History.back();
         }
     }
 
     @Override
     public void goForward() {
         if (canGoForward()) {
-            walk(historyAt + 1);
+            History.forward();
         }
     }
 
@@ -224,16 +285,23 @@ public class ShapeshifterDesignPresenter
     }
 
     /**
-     * The tab's keys (design 18 §5.3, §5.7): Ctrl+Enter runs; Alt+←/→ walk the history, the
-     * convention every browser has taught; Alt+Shift+←/→ step the cursor's template across the
-     * whole input, Ctrl+Alt+←/→ among its siblings, Alt+↑ to the parent, Alt+↓ to the first
-     * child. A card with focus keeps its own Alt+arrows (they stop there).
+     * The tab's keys (design 18 §5.3, §5.7): Ctrl+Enter runs; Alt+←/→ walk the history - the
+     * browser's, now, so the keys and its own back button are one thing; Alt+Shift+←/→ step the
+     * cursor's template across the whole input, Ctrl+Alt+←/→ among its siblings, Alt+↑ to the
+     * parent, Alt+↓ to the first child. A card with focus keeps its own Alt+arrows (they stop
+     * there).
      */
     private void onKey(final KeyDownEvent event) {
         final int key = event.getNativeKeyCode();
         if (key == KeyCodes.KEY_ENTER && event.isControlKeyDown()) {
             event.preventDefault();
-            run();
+            runAndShow();
+            return;
+        }
+        if (key == KeyCodes.KEY_ESCAPE && workbenchOpen) {
+            // The workbench's other door (design 18 §5.6): a final flush, not a decision.
+            event.preventDefault();
+            closeWorkbench();
             return;
         }
         if (!event.isAltKeyDown() || trace == null) {
@@ -326,7 +394,7 @@ public class ShapeshifterDesignPresenter
 
     /** The engine's opinion of the project: a run when there is a sample, a validation otherwise. */
     private void check() {
-        if (sample != null) {
+        if (sampleSource != null) {
             stale = true;
             refreshTrace();
             rerun.update();
@@ -428,7 +496,24 @@ public class ShapeshifterDesignPresenter
         declaredModes.remove(mode);
     }
 
+    public void setOnCanRunChange(final Consumer<Boolean> onCanRunChange) {
+        this.onCanRunChange = onCanRunChange;
+        announceCanRun();
+    }
+
+    /** Whether Run would do anything: there is a project, and data to run it over. */
+    public boolean canRun() {
+        return project != null && sampleSource != null;
+    }
+
+    private void announceCanRun() {
+        if (onCanRunChange != null) {
+            onCanRunChange.accept(canRun());
+        }
+    }
+
     private void refresh() {
+        announceCanRun();
         templatePanel.refresh();
         onSelect(templatePanel.getSelectedTemplateId());
     }
@@ -437,15 +522,21 @@ public class ShapeshifterDesignPresenter
 
     @Override
     public String getSample() {
-        return sample;
+        return sampleSource == null
+                ? null
+                : sampleSource.getText();
     }
 
     @Override
-    public void setSample(final String sample) {
-        this.sample = sample == null || sample.isEmpty()
-                ? null
-                : sample;
-        if (this.sample == null) {
+    public SampleSource getSampleSource() {
+        return sampleSource;
+    }
+
+    @Override
+    public void setSampleSource(final SampleSource source) {
+        this.sampleSource = source;
+        announceCanRun();
+        if (source == null) {
             trace = null;
             cursor = TraceModel.ROOT;
             stale = false;
@@ -456,9 +547,21 @@ public class ShapeshifterDesignPresenter
         }
     }
 
+    /**
+     * Run, and show the run: pressing Run - or Ctrl+Enter - while the sample page is open leaves
+     * it, because what was asked for is the result rather than the picker. Choosing a sample
+     * does not, so several can be tried without the page being pulled away.
+     */
+    public void runAndShow() {
+        if (samplePageOpen) {
+            templatePanel.select(null);
+        }
+        run();
+    }
+
     @Override
     public void run() {
-        if (project == null || sample == null) {
+        if (project == null || sampleSource == null) {
             return;
         }
         if (running) {
@@ -469,7 +572,8 @@ public class ShapeshifterDesignPresenter
         running = true;
         stale = true;
         crumb.refresh();
-        final ShapeshifterPreviewRequest request = new ShapeshifterPreviewRequest(ProjectText.print(project), sample);
+        final ShapeshifterPreviewRequest request = new ShapeshifterPreviewRequest(ProjectText.print(project),
+                sampleSource.getText(), sampleSource.getLocation());
         restFactory
                 .create(RESOURCE)
                 .method(res -> res.preview(request))
@@ -518,6 +622,37 @@ public class ShapeshifterDesignPresenter
         return cursor;
     }
 
+    /**
+     * Move the cursor to what a panel row stands for: a template's first match, or the document.
+     * Answers whether it moved. Nothing happens where there is no run to move within, or where
+     * the cursor is already inside a match of that template - descending into one selects its
+     * row, and that must not throw the cursor back to the first.
+     */
+    private boolean goTo(final String templateId) {
+        if (trace == null) {
+            return false;
+        }
+        if (templateId == null) {
+            if (cursor == TraceModel.ROOT) {
+                return false;
+            }
+            cursor = TraceModel.ROOT;
+            trace.setCursor(cursor);
+            return true;
+        }
+        final ShapeshifterTrace.Frame at = trace.frame(cursor);
+        if (at != null && templateId.equals(at.getTemplateId())) {
+            return false;
+        }
+        final List<ShapeshifterTrace.Frame> matches = trace.matches(templateId);
+        if (matches.isEmpty()) {
+            return false;
+        }
+        cursor = matches.get(0).getId();
+        trace.setCursor(cursor);
+        return true;
+    }
+
     @Override
     public void setCursor(final long frameId) {
         if (trace == null || !trace.has(frameId)) {
@@ -564,6 +699,20 @@ public class ShapeshifterDesignPresenter
     }
 
     private void onSelect(final String rowId) {
+        if (SampleSource.isRow(rowId)) {
+            // The sample is a page beside the templates (design 44 §5a), not a frame to navigate.
+            closeWorkbench();
+            samplePageOpen = true;
+            samplePage.refresh();
+            getView().showSamplePage(true);
+            strip.setTemplate(null);
+            crumb.setTemplate(null);
+            return;
+        }
+        if (samplePageOpen) {
+            samplePageOpen = false;
+            getView().showSamplePage(false);
+        }
         final String pattern = Patterns.nameOf(rowId);
         if (pattern != null && project != null && project.patterns().containsKey(pattern)) {
             // A part of the library has no frame and no strip: selecting it is opening the
@@ -577,7 +726,16 @@ public class ShapeshifterDesignPresenter
         final String id = template(rowId) == null
                 ? null
                 : rowId;
+        // Selecting a template is navigating to it (design 18 §5.3: "the crumb rewrites around a
+        // different frame"): the cursor moves to its first match, so the crumb, the input, the
+        // variables and the output all show it - and the stepper has something to step. A
+        // template with no matches leaves the cursor where it is; the strip says it matched none.
+        final boolean moved = goTo(id);
         strip.setTemplate(id);
+        crumb.setTemplate(id);
+        if (moved) {
+            refreshTrace();
+        }
         if (workbenchOpen) {
             // The workbench follows the selection (design 18 §5.6: retargeted in place); the
             // document has no match to edit, so selecting it closes the workbench.
@@ -607,6 +765,7 @@ public class ShapeshifterDesignPresenter
     private void closeWorkbench() {
         if (workbenchOpen) {
             workbenchOpen = false;
+            workbench.closed();
             getView().showWorkbench(false);
             if (Patterns.nameOf(templatePanel.getSelectedTemplateId()) != null) {
                 // A part is only ever looked at in the workbench: closing it is leaving the part.
@@ -651,6 +810,11 @@ public class ShapeshifterDesignPresenter
         void setStrip(View view);
 
         void setWorkbench(View view);
+
+        /** The sample's page, shown in place of everything right of the panel. */
+        void setSamplePage(View view);
+
+        void showSamplePage(boolean open);
 
         /** The workbench in place of the crumb, input, variables and strip; or those back. */
         void showWorkbench(boolean open);

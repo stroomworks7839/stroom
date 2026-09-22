@@ -65,6 +65,7 @@ public class GuardAndLimitsPresenter
     }
 
     public void setTemplate(final String id) {
+        final boolean sameTemplate = id.equals(templateId);
         this.templateId = id;
         final Template template = host.template(id);
         if (template == null) {
@@ -74,7 +75,13 @@ public class GuardAndLimitsPresenter
         getView().setNames(namesInScope(template));
         final List<GuardClause> clauses = GuardClause.read(template.guard());
         if (clauses != null) {
-            getView().setClauses(clauses);
+            // The rows are rebuilt only when the model disagrees with them: a commit of the
+            // rows' own state - the blur before a click on ✕, say - must not replace the widgets
+            // under the pointer, and a row added and not yet filled is not in the model to
+            // rebuild from.
+            if (!sameTemplate || getView().isWireForm() || !clauses.equals(filled(getView().getClauses()))) {
+                getView().setClauses(clauses);
+            }
         } else {
             getView().setGuardJson(JsonText.printPretty(ProjectJson.writeCondition(template.guard())));
         }
@@ -135,6 +142,8 @@ public class GuardAndLimitsPresenter
             return;
         }
         clauses.remove(index);
+        // The row goes whether or not the guard changes: a row never filled was never in it.
+        getView().setClauses(clauses);
         commitClauses(clauses);
     }
 
@@ -146,19 +155,24 @@ public class GuardAndLimitsPresenter
         getView().setClauses(clauses);
     }
 
-    private void commitClauses(final List<GuardClause> clauses) {
-        final Template template = host.template(templateId);
-        if (template == null || host.isReadOnly()) {
-            return;
-        }
-        // A row just added and not yet touched is not a clause: it is skipped, not refused, and
-        // an unchanged guard is not written back - which would rebuild the rows and lose it.
+    private static List<GuardClause> filled(final List<GuardClause> clauses) {
         final List<GuardClause> filled = new ArrayList<>();
         for (final GuardClause clause : clauses) {
             if (!clause.isBlank()) {
                 filled.add(clause);
             }
         }
+        return filled;
+    }
+
+    private void commitClauses(final List<GuardClause> clauses) {
+        final Template template = host.template(templateId);
+        if (template == null || host.isReadOnly()) {
+            return;
+        }
+        // A row just added and not yet touched is not a clause: it is skipped, not refused, and
+        // an unchanged guard is not written back.
+        final List<GuardClause> filled = filled(clauses);
         final Condition guard;
         try {
             guard = GuardClause.write(filled);
@@ -238,6 +252,9 @@ public class GuardAndLimitsPresenter
 
         /** The rows as they stand, an empty list when the wire form is showing. */
         List<GuardClause> getClauses();
+
+        /** Whether the guard is showing as its wire form rather than rows. */
+        boolean isWireForm();
 
         /** Show the guard as its wire form; the rows go. */
         void setGuardJson(String json);

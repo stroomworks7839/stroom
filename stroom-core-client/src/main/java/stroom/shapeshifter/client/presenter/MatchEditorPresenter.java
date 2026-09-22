@@ -35,6 +35,7 @@ import com.gwtplatform.mvp.client.HasUiHandlers;
 import com.gwtplatform.mvp.client.MyPresenterWidget;
 import com.gwtplatform.mvp.client.View;
 
+import java.util.EnumMap;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.IntConsumer;
@@ -61,6 +62,15 @@ public class MatchEditorPresenter
     private final DelimiterPresenter delimiterForm;
 
     private ProjectHost host;
+    /**
+     * What each kind last held for this subject (design 44 §1): the picker is a choice among
+     * kinds, and moving through one to reach another - a regex to a source and back - should
+     * not cost the author what they had typed. Kept for the workbench session only: cleared
+     * when the workbench closes or retargets, since a kept regex is this template's, not the
+     * next one's. What the document holds is still only the current kind; the rest is a draft.
+     */
+    private final EnumMap<MatchKind, MatchExpression> kept = new EnumMap<>(MatchKind.class);
+
     private String templateId;
     private MatchKind shown;
 
@@ -104,18 +114,25 @@ public class MatchEditorPresenter
     public void setPattern(final String name) {
         this.templateId = null;
         shown = null;
+        kept.clear();
         getView().showKind(false);
         getView().setBody(treeForm.getView());
         treeForm.setPattern(name);
     }
 
     public void setTemplate(final String id) {
+        if (!id.equals(templateId)) {
+            kept.clear();
+        }
         this.templateId = id;
         final Template template = host.template(id);
         if (template == null) {
             return;
         }
         final MatchKind kind = MatchKind.of(template.match());
+        // Every reading of the subject refreshes the draft of the kind it is in, so what a
+        // kind holds is what it last held here, edits and all.
+        kept.put(kind, template.match());
         getView().showKind(true);
         getView().setEnabled(!host.isReadOnly());
         getView().setKind(kind);
@@ -185,72 +202,54 @@ public class MatchEditorPresenter
         convert(kind);
     }
 
-    /** Re-express the template's match as a kind, through the engine where needed. */
+    /**
+     * Re-express the template's match as a kind, through the engine where needed. A kind that
+     * holds no pattern — source, all, named, delimiter — arrives blank, in either direction:
+     * choosing a kind is saying what the match is, and what the old kind held is gone whichever
+     * way round the choice goes. The one refusal left is a match that does hold a pattern the
+     * new kind cannot carry: a sequence of several parts, whose framing verbs no single pattern
+     * expresses.
+     */
     private void convert(final MatchKind kind) {
         final Template template = host.template(templateId);
         if (template == null || host.isReadOnly()) {
             return;
         }
         final MatchExpression match = template.match();
+        final PatternNode node = Templates.singlePattern(match);
+        if (node == null && Templates.holdsPattern(match) && kind.holdsPattern()) {
+            refuse(kind, match);
+            return;
+        }
+        if (node == null || !kind.holdsPattern()) {
+            // Nothing to carry into the kind: what it last held this session, else blank.
+            kept.put(MatchKind.of(match), match);
+            replace(template, kept.getOrDefault(kind, Templates.blank(kind)));
+            return;
+        }
         switch (kind) {
             case TREE:
                 if (match instanceof MatchExpression.Regex regex) {
-                    explode(regex, node -> replace(template, new MatchExpression.Pattern(node)),
+                    explode(regex, exploded -> replace(template, new MatchExpression.Pattern(exploded)),
                             error -> failed(kind, match, error));
-                } else if (singlePattern(match) != null) {
-                    replace(template, new MatchExpression.Pattern(singlePattern(match)));
                 } else {
-                    refuse(kind, match);
+                    replace(template, new MatchExpression.Pattern(node));
                 }
                 break;
             case REGEX:
-                final PatternNode node = match instanceof MatchExpression.Pattern pattern
-                        ? pattern.node()
-                        : singlePattern(match);
                 if (node instanceof PatternNode.Regex regex) {
                     replace(template, new MatchExpression.Regex(regex.pattern(), regex.flags(), 0));
-                } else if (node != null) {
+                } else {
                     print(node, text -> replace(template, new MatchExpression.Regex(text, null, 0)),
                             error -> failed(kind, match, error));
-                } else {
-                    refuse(kind, match);
                 }
                 break;
             case PARTS:
-                if (match instanceof MatchExpression.Regex regex) {
-                    replace(template, new MatchExpression.Parts(List.of(
-                            new MatchPart.Pattern(new PatternNode.Regex(regex.pattern(), regex.flags())))));
-                } else if (match instanceof MatchExpression.Pattern pattern) {
-                    replace(template, new MatchExpression.Parts(List.of(new MatchPart.Pattern(pattern.node()))));
-                } else {
-                    refuse(kind, match);
-                }
-                break;
-            case DELIMITER:
-                replace(template, DelimiterPresenter.DEFAULT);
-                break;
-            case SOURCE:
-                replace(template, new MatchExpression.Source());
-                break;
-            case ALL:
-                replace(template, new MatchExpression.All());
-                break;
-            case NAMED:
-                replace(template, new MatchExpression.Named());
+                replace(template, new MatchExpression.Parts(List.of(new MatchPart.Pattern(node))));
                 break;
             default:
                 break;
         }
-    }
-
-    /** The one pattern of a one-part sequence, or null. */
-    private static PatternNode singlePattern(final MatchExpression match) {
-        if (match instanceof MatchExpression.Parts parts
-            && parts.parts().size() == 1
-            && parts.parts().get(0) instanceof MatchPart.Pattern pattern) {
-            return pattern.node();
-        }
-        return null;
     }
 
     private void replace(final Template template, final MatchExpression match) {
@@ -259,9 +258,9 @@ public class MatchEditorPresenter
 
     private void refuse(final MatchKind kind, final MatchExpression match) {
         getView().setKind(MatchKind.of(match));
-        AlertEvent.fireWarn(this, "A " + Templates.kind(match) + " match cannot be re-expressed as a "
-                                  + kind.label() + "; edit it as its own kind, or in the Source tab.",
-                null);
+        AlertEvent.fireWarn(this, "A match of several parts cannot be re-expressed as a " + kind.label()
+                                  + ": its takes, seeks and reads are not a single pattern. Reduce it to one "
+                                  + "pattern part first, or edit it in the Source tab.", null);
     }
 
     /** The engine would not convert: the match is as it was, so the picker says so again. */
@@ -293,6 +292,11 @@ public class MatchEditorPresenter
                 .onFailure(otherwise)
                 .taskMonitorFactory(this)
                 .exec();
+    }
+
+    /** The workbench closed: the drafts of the kinds not chosen go with it. */
+    public void forget() {
+        kept.clear();
     }
 
     /** One kind's form: shown for a template, refreshed after every edit of it. */

@@ -38,6 +38,16 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class GuardClauseTest {
 
     @Test
+    void clausesAreValuesSoRowsAndModelCanBeCompared() {
+        // The guard form rebuilds its rows only when the model disagrees with them.
+        assertThat(new GuardClause("x", Op.EQ, "1", null)).isEqualTo(new GuardClause("x", Op.EQ, "1", null))
+                .hasSameHashCodeAs(new GuardClause("x", Op.EQ, "1", null));
+        assertThat(new GuardClause("x", Op.EQ, "1", null)).isNotEqualTo(new GuardClause("x", Op.NE, "1", null));
+        assertThat(GuardClause.read(GuardClause.write(List.of(new GuardClause("x", Op.EQ, "1", null)))))
+                .containsExactly(new GuardClause("x", Op.EQ, "1", null));
+    }
+
+    @Test
     void rowsReadAndWriteTheCommonGuard() {
         final Condition guard = new Condition.And(List.of(
                 new Compare(Compare.Op.GE,

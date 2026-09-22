@@ -94,6 +94,7 @@ public class TemplateStripPresenter
             getView().setHeader("document", null, project == null
                     ? ""
                     : project.name(), "", "the root frame: every template descends from here");
+            getView().setRole(false, MatchRole.RECORD, false, "", false);
             getView().setMatchVisible(false);
             getView().setDetailsVisible(false);
             sourceConfig.refresh();
@@ -107,6 +108,8 @@ public class TemplateStripPresenter
         getView().setMatch(Templates.kind(template.match()), Templates.describe(template.match()),
                 guardSummary(template.guard()) + guardVerdict(template) + " · "
                 + limitsSummary(template.matchLimits()));
+        getView().setRole(true, MatchRole.of(template.consume()), !host.isReadOnly(), roleNote(template),
+                template.consume() && !template.captures().isEmpty());
         getView().setMatchVisible(true);
         bodyPresenter.setTemplate(id);
         getView().setContent(bodyPresenter.getView());
@@ -146,6 +149,37 @@ public class TemplateStripPresenter
         if (listener != null && templateId != null) {
             listener.editIdentity();
         }
+    }
+
+    /**
+     * What the picked role means, said beside the picker — {@link MatchRole#note()}, except where
+     * the role and the captures contradict each other. Captures are not merely ignored by an
+     * advance-only match but refused at compile time, so the author is told at the moment they
+     * cause it rather than at the next run.
+     */
+    private String roleNote(final Template template) {
+        final int captures = template.captures().size();
+        if (template.consume() && captures > 0) {
+            return "this template binds " + captures + (captures == 1
+                    ? " capture"
+                    : " captures") + ", and an advance-only match has no index to bind at:"
+                   + " the project will not compile until they go or the role does";
+        }
+        return MatchRole.of(template.consume()).note();
+    }
+
+    /**
+     * The role is the one identity field the strip writes itself: it is a single bit, it changes
+     * whether this template records anything at all, and it is the answer when a template matches
+     * and the navigator shows nothing (design 44 §5d, §5f).
+     */
+    @Override
+    public void onRole(final MatchRole role) {
+        final Template template = host.template(templateId);
+        if (template == null || host.isReadOnly() || template.consume() == role.consume()) {
+            return;
+        }
+        host.replace(host.withTemplate(Templates.withRole(template, role.consume())));
     }
 
     @Override
@@ -254,6 +288,9 @@ public class TemplateStripPresenter
 
         /** The identity line: the pane title, the swatch colour (null for none), name, mode, note. */
         void setHeader(String title, String colour, String name, String mode, String note);
+
+        /** The role line before the body: shown for a template, the picked role, with its note. */
+        void setRole(boolean visible, MatchRole value, boolean enabled, String note, boolean problem);
 
         void setMatch(String kind, String summary, String guardAndLimits);
 

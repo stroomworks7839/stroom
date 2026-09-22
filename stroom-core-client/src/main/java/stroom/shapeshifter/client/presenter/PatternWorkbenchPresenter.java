@@ -19,6 +19,7 @@ package stroom.shapeshifter.client.presenter;
 import stroom.shapeshifter.client.presenter.PatternWorkbenchPresenter.PatternWorkbenchView;
 import stroom.shapeshifter.config.Template;
 import stroom.svg.client.SvgPresets;
+import stroom.svg.shared.SvgImage;
 import stroom.widget.button.client.ButtonView;
 import stroom.widget.util.client.MouseUtil;
 
@@ -60,7 +61,9 @@ public class PatternWorkbenchPresenter extends MyPresenterWidget<PatternWorkbenc
         view.setSample(sample.getView());
         view.setEditor(matchEditor.getView());
         view.setGuardAndLimits(guardAndLimits.getView());
-        closeButton = view.addButton(SvgPresets.CLOSE.title("Close the workbench"));
+        // Enabled from the start: closing has nothing to decide (design 18 §5.6 - every field
+        // has already committed), and SvgPresets.CLOSE is a disabled preset.
+        closeButton = view.addButton(SvgPresets.enabled(SvgImage.CLOSE, "Close the workbench (Escape)"));
     }
 
     @Override
@@ -71,6 +74,11 @@ public class PatternWorkbenchPresenter extends MyPresenterWidget<PatternWorkbenc
                 onClose.run();
             }
         }));
+    }
+
+    /** Closed: the match editor's drafts of the kinds not chosen go with the session. */
+    public void closed() {
+        matchEditor.forget();
     }
 
     public void setHost(final ProjectHost host) {

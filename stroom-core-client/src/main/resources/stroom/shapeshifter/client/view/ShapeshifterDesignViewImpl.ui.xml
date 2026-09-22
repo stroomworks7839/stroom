@@ -15,6 +15,9 @@
             <g:SimplePanel ui:field="templatePanel" styleName="max"/>
         </g:west>
         <g:center>
+            <!-- Everything right of the panel: the navigator's rows, or a page shown in their
+                 place - the sample's (design 44 §5a). -->
+            <g:SimpleLayoutPanel ui:field="centre">
             <g:ThinSplitLayoutPanel ui:field="rows" vSplits="0.5" styleName="max default-min-sizes">
                 <g:north size="300">
                     <g:ThinSplitLayoutPanel ui:field="topRow" hSplits="0.38" styleName="max default-min-sizes">
@@ -40,6 +43,7 @@
                     </g:ThinSplitLayoutPanel>
                 </g:center>
             </g:ThinSplitLayoutPanel>
+            </g:SimpleLayoutPanel>
         </g:center>
     </g:ThinSplitLayoutPanel>
 </ui:UiBinder>

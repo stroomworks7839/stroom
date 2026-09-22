@@ -45,6 +45,8 @@ public class MatchEditorViewImpl
     @UiField
     FlowPanel kindRow;
     @UiField
+    Label note;
+    @UiField
     SelectionBox<MatchKind> kind;
     @UiField
     SimplePanel body;
@@ -76,6 +78,9 @@ public class MatchEditorViewImpl
     @Override
     public void setKind(final MatchKind value) {
         kind.setValue(value, false);
+        note.setText(value == null
+                ? ""
+                : value.note());
     }
 
     @Override

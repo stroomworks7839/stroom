@@ -16,10 +16,14 @@
 
 package stroom.shapeshifter.pipeline;
 
+import stroom.data.store.api.DataService;
 import stroom.docref.DocRef;
 import stroom.docstore.api.DocumentResourceHelper;
 import stroom.event.logging.rs.api.AutoLogged;
 import stroom.event.logging.rs.api.AutoLogged.OperationType;
+import stroom.pipeline.shared.AbstractFetchDataResult;
+import stroom.pipeline.shared.FetchDataRequest;
+import stroom.pipeline.shared.FetchDataResult;
 import stroom.shapeshifter.config.ConfigException;
 import stroom.shapeshifter.config.PatternNode;
 import stroom.shapeshifter.config.Project;
@@ -64,14 +68,17 @@ class ShapeshifterResourceImpl implements ShapeshifterResource {
     private final Provider<ShapeshifterStore> storeProvider;
     private final Provider<DocumentResourceHelper> documentResourceHelperProvider;
     private final Provider<StroomFunctionLibrary> functionLibraryProvider;
+    private final Provider<DataService> dataServiceProvider;
 
     @Inject
     ShapeshifterResourceImpl(final Provider<ShapeshifterStore> storeProvider,
                              final Provider<DocumentResourceHelper> documentResourceHelperProvider,
-                             final Provider<StroomFunctionLibrary> functionLibraryProvider) {
+                             final Provider<StroomFunctionLibrary> functionLibraryProvider,
+                             final Provider<DataService> dataServiceProvider) {
         this.storeProvider = storeProvider;
         this.documentResourceHelperProvider = documentResourceHelperProvider;
         this.functionLibraryProvider = functionLibraryProvider;
+        this.dataServiceProvider = dataServiceProvider;
     }
 
     @Override
@@ -150,9 +157,16 @@ class ShapeshifterResourceImpl implements ShapeshifterResource {
     @Override
     public ShapeshifterTrace preview(final ShapeshifterPreviewRequest request) {
         final List<ShapeshifterMessage> messages = new ArrayList<>();
-        final String sample = request.getSample() == null
-                ? ""
-                : request.getSample();
+        final String sample;
+        try {
+            sample = sampleOf(request);
+        } catch (final RuntimeException e) {
+            // The record could not be read - gone, or not this caller's to see. The editor shows
+            // it as a message rather than an error page, since the project may still be sound.
+            return new ShapeshifterTrace(false, "", null, List.of(), List.of(), List.of(), List.of(), List.of(),
+                    List.of(), List.of(), 0, List.of(),
+                    List.of(message(Severity.FATAL, "The sample could not be read: " + e.getMessage())), 0);
+        }
         final CompiledProject compiled;
         try {
             final Project project = ProjectReader.read(request.getProject());
@@ -181,6 +195,29 @@ class ShapeshifterResourceImpl implements ShapeshifterResource {
                 chars.instructions(),
                 recorder.attemptsSeen(),
                 timings(recorder), messages, runNanos);
+    }
+
+    /**
+     * The text to run over: what the caller sent, or the record it named, read from the stream
+     * store under the caller's own permissions (design 18 Q2 - the document never holds data,
+     * so the editor asks for it by location every run).
+     */
+    private String sampleOf(final ShapeshifterPreviewRequest request) {
+        if (request.getSample() != null) {
+            return request.getSample();
+        }
+        if (request.getSourceLocation() == null) {
+            return "";
+        }
+        final FetchDataRequest fetch = new FetchDataRequest(request.getSourceLocation());
+        fetch.setDisplayMode(FetchDataRequest.DisplayMode.TEXT);
+        final AbstractFetchDataResult result = dataServiceProvider.get().fetch(fetch);
+        if (result instanceof final FetchDataResult data) {
+            return data.getData() == null
+                    ? ""
+                    : data.getData();
+        }
+        throw new IllegalStateException("The record holds no text to run over");
     }
 
     private static List<ShapeshifterTrace.Timing> timings(final TraceRecorder recorder) {

@@ -18,14 +18,11 @@ package stroom.shapeshifter.client.presenter;
 
 import com.gwtplatform.mvp.client.UiHandlers;
 
-public interface TemplateStripUiHandlers extends UiHandlers {
+public interface SampleSourceUiHandlers extends UiHandlers {
 
-    /** The header's chip or name was clicked: edit the template's identity. */
-    void onEditIdentity();
+    /** The author chose where the sample comes from. */
+    void onKind(SampleSourcePresenter.Kind kind);
 
-    /** The match's role was picked: it makes a record, or only advances the cursor. */
-    void onRole(MatchRole role);
-
-    /** The match chip, or the guard and limits summary, was clicked: open the workbench. */
-    void onOpenWorkbench();
+    /** The paste box was left. */
+    void onPasted();
 }

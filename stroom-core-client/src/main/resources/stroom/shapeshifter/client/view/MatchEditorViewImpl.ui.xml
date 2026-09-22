@@ -6,7 +6,8 @@
         <g:north size="38">
             <g:FlowPanel ui:field="kindRow" styleName="ss-wb-kind">
                 <g:Label styleName="ss-lim-label" text="Match kind"/>
-                <l:SelectionBox ui:field="kind" title="How this template finds its matches: regex, pattern tree and parts convert between one another; the rest replace"/>
+                <l:SelectionBox ui:field="kind" title="How this template finds its matches. Regex, pattern tree and the framed sequence carry their pattern between them; the rest start blank and keep what they held for the session"/>
+                <g:Label ui:field="note" styleName="ss-det-desc"/>
             </g:FlowPanel>
         </g:north>
         <g:center>

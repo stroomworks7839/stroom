@@ -220,8 +220,14 @@ public class BaseSelectionBox<T, I extends SelectionItem>
 
         String newText = "";
         String newHTML = "";
-        if (value != null) {
-            final SelectionItem selectionItem = model.wrap(value);
+        // A null value shows as the non-select item where the model has one, so what the list
+        // offered for "none" is what the box reads back once it is chosen.
+        final SelectionItem selectionItem = value != null
+                ? model.wrap(value)
+                : model == null
+                        ? null
+                        : model.nonSelectItem();
+        if (selectionItem != null) {
             newText = selectionItem.getLabel();
             newHTML = selectionItem.getRenderedLabel().asString();
         }

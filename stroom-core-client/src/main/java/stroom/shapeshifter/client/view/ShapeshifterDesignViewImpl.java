@@ -23,6 +23,7 @@ import com.google.gwt.event.dom.client.KeyDownHandler;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
 import com.google.gwt.user.client.ui.Label;
+import com.google.gwt.user.client.ui.SimpleLayoutPanel;
 import com.google.gwt.user.client.ui.SimplePanel;
 import com.google.gwt.user.client.ui.ThinSplitLayoutPanel;
 import com.google.gwt.user.client.ui.Widget;
@@ -43,6 +44,8 @@ public class ShapeshifterDesignViewImpl extends ViewImpl implements Shapeshifter
     @UiField
     SimplePanel messages;
     @UiField
+    SimpleLayoutPanel centre;
+    @UiField
     ThinSplitLayoutPanel rows;
     @UiField
     ThinSplitLayoutPanel topRow;
@@ -61,6 +64,7 @@ public class ShapeshifterDesignViewImpl extends ViewImpl implements Shapeshifter
 
     private Widget stripWidget;
     private Widget workbenchWidget;
+    private Widget samplePageWidget;
 
     @Inject
     public ShapeshifterDesignViewImpl(final Binder binder) {
@@ -113,6 +117,21 @@ public class ShapeshifterDesignViewImpl extends ViewImpl implements Shapeshifter
     @Override
     public void setWorkbench(final View view) {
         workbenchWidget = view.asWidget();
+    }
+
+    @Override
+    public void setSamplePage(final View view) {
+        samplePageWidget = view.asWidget();
+    }
+
+    @Override
+    public void showSamplePage(final boolean open) {
+        // The whole of the area right of the panel, as the workbench takes the rows above the
+        // output (design 44 §5a): the sample is a page of the project, not a dialog over it.
+        centre.setWidget(open
+                ? samplePageWidget
+                : rows);
+        centre.onResize();
     }
 
     @Override

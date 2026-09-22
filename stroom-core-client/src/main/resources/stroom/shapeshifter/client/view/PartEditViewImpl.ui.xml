@@ -5,7 +5,7 @@
              xmlns:tickbox="urn:import:stroom.widget.tickbox.client.view"
              xmlns:l="urn:import:stroom.item.client">
     <g:ScrollPanel styleName="max">
-        <g:FlowPanel styleName="form dock-container-vertical">
+        <g:FlowPanel styleName="form-padding form">
             <form:FormGroup identity="shapeshifterPartKind" label="Kind"
                             helpText="pattern matches a tree at the cursor; take consumes a length; seek moves the cursor by a length, or to an offset; read casts the bytes at the cursor.">
                 <l:SelectionBox ui:field="kind" addStyleNames="w-100"/>

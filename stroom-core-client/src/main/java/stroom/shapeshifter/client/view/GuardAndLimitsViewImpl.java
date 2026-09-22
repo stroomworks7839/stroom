@@ -135,6 +135,11 @@ public class GuardAndLimitsViewImpl
     }
 
     @Override
+    public boolean isWireForm() {
+        return clauses.isWireForm();
+    }
+
+    @Override
     public void setGuardJson(final String json) {
         clauses.setJson(json);
     }

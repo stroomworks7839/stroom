@@ -43,6 +43,11 @@ public interface SelectionListModel<T, I extends SelectionItem> {
 
     I wrap(T item);
 
+    /** The item that stands for no selection, or null where the list offers none. */
+    default I nonSelectItem() {
+        return null;
+    }
+
     T unwrap(I selectionItem);
 
     boolean isEmptyItem(I selectionItem);

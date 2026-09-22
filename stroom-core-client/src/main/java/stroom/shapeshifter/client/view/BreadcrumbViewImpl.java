@@ -20,9 +20,8 @@ import stroom.shapeshifter.client.presenter.BreadcrumbPresenter.BreadcrumbView;
 import stroom.shapeshifter.client.presenter.BreadcrumbPresenter.Segment;
 import stroom.shapeshifter.client.presenter.BreadcrumbUiHandlers;
 import stroom.shapeshifter.client.presenter.Hot;
-import stroom.svg.client.Preset;
-import stroom.widget.button.client.ButtonPanel;
-import stroom.widget.button.client.ButtonView;
+import stroom.svg.shared.SvgImage;
+import stroom.widget.button.client.InlineSvgButton;
 
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
@@ -48,25 +47,23 @@ public class BreadcrumbViewImpl extends ViewWithUiHandlers<BreadcrumbUiHandlers>
     private final Widget widget;
 
     @UiField
-    Anchor back;
-    @UiField
-    Anchor forward;
-    @UiField
     FlowPanel segments;
     @UiField
     FlowPanel stepper;
     @UiField
     Label stepperLabel;
     @UiField
-    Anchor stepPrev;
+    InlineSvgButton stepFirst;
+    @UiField
+    InlineSvgButton stepPrev;
+    @UiField
+    InlineSvgButton stepNext;
+    @UiField
+    InlineSvgButton stepLast;
     @UiField
     Label stepperIndex;
     @UiField
-    Anchor stepNext;
-    @UiField
     Label state;
-    @UiField
-    ButtonPanel buttons;
 
     private final Map<Long, Anchor> names = new HashMap<>();
     private Anchor lit;
@@ -74,20 +71,24 @@ public class BreadcrumbViewImpl extends ViewWithUiHandlers<BreadcrumbUiHandlers>
     @Inject
     public BreadcrumbViewImpl(final Binder binder) {
         widget = binder.createAndBindUi(this);
-        back.addClickHandler(event -> getUiHandlers().onHistory(-1));
-        forward.addClickHandler(event -> getUiHandlers().onHistory(1));
+        // The stepping tab's own buttons and titles, for the same gesture over matches.
+        stepFirst.setSvg(SvgImage.FAST_BACKWARD);
+        stepFirst.setTitle("First match");
+        stepPrev.setSvg(SvgImage.STEP_BACKWARD);
+        stepPrev.setTitle("Previous match (Alt+Shift+←)");
+        stepNext.setSvg(SvgImage.STEP_FORWARD);
+        stepNext.setTitle("Next match (Alt+Shift+→)");
+        stepLast.setSvg(SvgImage.FAST_FORWARD);
+        stepLast.setTitle("Last match");
+        stepFirst.addClickHandler(event -> getUiHandlers().onStepTo(0));
         stepPrev.addClickHandler(event -> getUiHandlers().onStep(-1));
         stepNext.addClickHandler(event -> getUiHandlers().onStep(1));
+        stepLast.addClickHandler(event -> getUiHandlers().onStepTo(-1));
     }
 
     @Override
     public Widget asWidget() {
         return widget;
-    }
-
-    @Override
-    public ButtonView addButton(final Preset preset) {
-        return buttons.addButton(preset);
     }
 
     @Override
@@ -142,20 +143,21 @@ public class BreadcrumbViewImpl extends ViewWithUiHandlers<BreadcrumbUiHandlers>
     }
 
     @Override
-    public void setStepper(final String templateName, final int index, final int count) {
-        stepper.setVisible(templateName != null);
-        if (templateName != null) {
-            stepperLabel.setText("matches of " + templateName);
-            stepperIndex.setText(index + "/" + count);
-            stepPrev.setStyleName("ss-crumb-arrow--off", index <= 1);
-            stepNext.setStyleName("ss-crumb-arrow--off", index >= count);
+    public void setStepper(final String label, final int index, final int count) {
+        stepper.setVisible(label != null);
+        if (label != null) {
+            stepperLabel.setText(label);
+            stepperIndex.setText((index == 0
+                    ? "–"
+                    : String.valueOf(index)) + "/" + count);
+            stepperIndex.setTitle(count == 0
+                    ? "Nothing matched"
+                    : "Which match the cursor is on, of how many");
+            stepFirst.setEnabled(index > 1);
+            stepPrev.setEnabled(index > 1);
+            stepNext.setEnabled(index < count);
+            stepLast.setEnabled(index < count);
         }
-    }
-
-    @Override
-    public void setHistory(final boolean canBack, final boolean canForward) {
-        back.setStyleName("ss-crumb-arrow--off", !canBack);
-        forward.setStyleName("ss-crumb-arrow--off", !canForward);
     }
 
     @Override

@@ -27,7 +27,10 @@ import stroom.security.client.presenter.DocumentUserPermissionsTabProvider;
 import stroom.shapeshifter.config.ConfigException;
 import stroom.shapeshifter.config.Project;
 import stroom.shapeshifter.shared.ShapeshifterDoc;
+import stroom.svg.client.SvgPresets;
 import stroom.util.client.DelayedUpdate;
+import stroom.widget.button.client.ButtonPanel;
+import stroom.widget.button.client.ButtonView;
 import stroom.widget.tab.client.presenter.TabData;
 import stroom.widget.tab.client.presenter.TabDataImpl;
 
@@ -60,8 +63,31 @@ public class ShapeshifterPresenter extends DocTabPresenter<LinkTabPanelView, Sha
     private Project project;
     private String sourceError;
     private ShapeshifterDesignPresenter design;
+    /**
+     * Run, in the document's own toolbar beside Save: present whichever tab is showing, because
+     * the project it runs is the one both Design and Source edit (design 44 §5a). Assigned by
+     * {@link #createToolbar()}, which the base constructor calls before this class's own
+     * initialisers run - so the field must not have one.
+     */
+    private ButtonView runButton;
     private EditorPresenter source;
     private boolean syncing;
+
+    @Override
+    protected ButtonPanel createToolbar() {
+        final ButtonPanel toolbar = super.createToolbar();
+        runButton = toolbar.addButton(SvgPresets.RUN.title("Run the project over the sample data"));
+        runButton.setEnabled(false);
+        registerHandler(runButton.addClickHandler(event -> {
+            if (design != null) {
+                // Selecting the Design tab first: Run is in the document's toolbar, so it can be
+                // pressed from the Source tab, and the run is only visible on Design.
+                selectTab(DESIGN);
+                design.runAndShow();
+            }
+        }));
+        return toolbar;
+    }
 
     @Inject
     public ShapeshifterPresenter(final EventBus eventBus,
@@ -79,6 +105,7 @@ public class ShapeshifterPresenter extends DocTabPresenter<LinkTabPanelView, Sha
             public ShapeshifterDesignPresenter createPresenter() {
                 design = designPresenterProvider.get();
                 registerHandler(design.addValueChangeHandler(event -> onDesignEdit(event.getValue())));
+                design.setOnCanRunChange(runButton::setEnabled);
                 return design;
             }
 

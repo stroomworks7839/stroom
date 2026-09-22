@@ -87,6 +87,12 @@ public final class Templates {
                 t.match(), t.matchLimits(), t.captures(), t.body(), encoding, ignoreErrors);
     }
 
+    /** What the template's matches are for: a record, or only the cursor's advance (§5f). */
+    public static Template withRole(final Template t, final boolean consume) {
+        return new Template(t.id(), t.name(), t.mode(), consume, t.guard(), t.param(), t.declarations(),
+                t.match(), t.matchLimits(), t.captures(), t.body(), t.encoding(), t.ignoreErrors());
+    }
+
     public static Template withBody(final Template t, final List<OutputNode> body) {
         return new Template(t.id(), t.name(), t.mode(), t.consume(), t.guard(), t.param(), t.declarations(),
                 t.match(), t.matchLimits(), t.captures(), body, t.encoding(), t.ignoreErrors());
@@ -126,14 +132,69 @@ public final class Templates {
 
     /**
      * The project of one template a workbench sample is tried with (design 44 §2): the subject's
-     * match, encoding and consumption under the document's source settings and with its pattern
-     * library, at the root with no guard, limits, declarations, captures or body — so every match
-     * is found and nothing else runs.
+     * match and encoding under the document's source settings and with its pattern library, at
+     * the root with no guard, limits, declarations, captures or body — so every match is found
+     * and nothing else runs.
      */
     public static Project experiment(final Project project, final Template template) {
-        final Template bare = new Template(template.id(), template.name(), null, template.consume(), null, null,
+        // Never a skipping template, whatever the subject is: skipped bytes open no frame (D36),
+        // and the sample is nothing but the frames a match opens.
+        final Template bare = new Template(template.id(), template.name(), null, false, null, null,
                 null, template.match(), null, null, null, template.encoding(), template.ignoreErrors());
         return project.withTemplates(List.of(bare));
+    }
+
+    /**
+     * The match a kind starts as when there is nothing to carry into it (design 44 §1): the
+     * picker says what kind this match <i>is</i>, so choosing one always arrives at that kind —
+     * an empty pattern, a newline delimiter, or the kinds that hold nothing at all.
+     */
+    public static MatchExpression blank(final MatchKind kind) {
+        switch (kind) {
+            case REGEX:
+                return new MatchExpression.Regex("", null, 0);
+            case TREE:
+                return new MatchExpression.Pattern(new PatternNode.Regex("", null));
+            case PARTS:
+                return new MatchExpression.Parts(List.of(
+                        new MatchPart.Pattern(new PatternNode.Regex("", null))));
+            case DELIMITER:
+                return new MatchExpression.Delimiter("\n", null, null, null);
+            case SOURCE:
+                return new MatchExpression.Source();
+            case ALL:
+                return new MatchExpression.All();
+            default:
+                return new MatchExpression.Named();
+        }
+    }
+
+    /**
+     * The one pattern a match holds, or null: a tree's node, a one-part sequence's, and a
+     * regex's as a leaf. Null means either that the match holds no pattern at all — source,
+     * all, named, delimiter — or that it holds more than one, which {@link #holdsPattern} tells
+     * apart.
+     */
+    public static PatternNode singlePattern(final MatchExpression match) {
+        if (match instanceof MatchExpression.Pattern pattern) {
+            return pattern.node();
+        }
+        if (match instanceof MatchExpression.Regex regex) {
+            return new PatternNode.Regex(regex.pattern(), regex.flags());
+        }
+        if (match instanceof MatchExpression.Parts parts
+            && parts.parts().size() == 1
+            && parts.parts().get(0) instanceof MatchPart.Pattern pattern) {
+            return pattern.node();
+        }
+        return null;
+    }
+
+    /** Whether the match is one of the pattern kinds, whatever it holds: what a conversion could lose. */
+    public static boolean holdsPattern(final MatchExpression match) {
+        return match instanceof MatchExpression.Regex
+               || match instanceof MatchExpression.Pattern
+               || match instanceof MatchExpression.Parts;
     }
 
     public static String kind(final MatchExpression match) {

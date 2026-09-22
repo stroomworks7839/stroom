@@ -2,20 +2,16 @@
 <ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
              xmlns:g="urn:import:com.google.gwt.user.client.ui"
              xmlns:b="urn:import:stroom.widget.button.client">
-    <g:ThinSplitLayoutPanel styleName="max default-min-sizes shapeshifter-structure">
-        <g:west size="420">
-            <g:FlowPanel styleName="max dock-container-vertical">
-                <b:ButtonPanel ui:field="buttonPanel" addStyleNames="dock-min"/>
-                <g:ScrollPanel styleName="dock-max">
-                    <g:FlowPanel styleName="shapeshifter-structure-pane">
-                        <g:Label ui:field="error" styleName="shapeshifter-error"/>
-                        <g:HTML ui:field="parts"/>
-                    </g:FlowPanel>
-                </g:ScrollPanel>
+    <g:FlowPanel styleName="max dock-container-vertical">
+        <b:ButtonPanel ui:field="buttonPanel" addStyleNames="dock-min ss-wb-toolbar"/>
+        <g:ScrollPanel styleName="dock-max">
+            <g:FlowPanel styleName="ss-wb-right">
+                <g:FlowPanel styleName="ss-wb-sec">
+                    <g:HTML styleName="ss-wb-h4">Framed sequence <span class="ss-wb-h4-note">(run in order, nothing backtracking across parts; a take or a seek may be as long as a label matched earlier says)</span></g:HTML>
+                    <g:HTML ui:field="parts"/>
+                    <g:Label ui:field="error" styleName="ss-wb-err"/>
+                </g:FlowPanel>
             </g:FlowPanel>
-        </g:west>
-        <g:center>
-            <g:SimplePanel ui:field="editor" styleName="max"/>
-        </g:center>
-    </g:ThinSplitLayoutPanel>
+        </g:ScrollPanel>
+    </g:FlowPanel>
 </ui:UiBinder>

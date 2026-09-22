@@ -19,9 +19,7 @@ package stroom.shapeshifter.client.presenter;
 import stroom.alert.client.event.AlertEvent;
 import stroom.alert.client.event.ConfirmEvent;
 import stroom.dispatch.client.RestFactory;
-import stroom.editor.client.presenter.EditorPresenter;
 import stroom.shapeshifter.client.presenter.PatternTreePresenter.PatternTreeView;
-import stroom.shapeshifter.config.ConfigException;
 import stroom.shapeshifter.config.MatchExpression;
 import stroom.shapeshifter.config.PatternNode;
 import stroom.shapeshifter.config.Project;
@@ -32,7 +30,6 @@ import stroom.shapeshifter.shared.ShapeshifterResource;
 import stroom.svg.client.Preset;
 import stroom.svg.client.SvgPresets;
 import stroom.svg.shared.SvgImage;
-import stroom.util.client.DelayedUpdate;
 import stroom.widget.button.client.ButtonView;
 import stroom.widget.util.client.MouseUtil;
 
@@ -40,16 +37,15 @@ import com.google.gwt.core.client.GWT;
 import com.google.gwt.safehtml.shared.SafeHtml;
 import com.google.gwt.safehtml.shared.SafeHtmlBuilder;
 import com.google.inject.Inject;
-import com.google.inject.Provider;
 import com.google.web.bindery.event.shared.EventBus;
 import com.gwtplatform.mvp.client.HasUiHandlers;
 import com.gwtplatform.mvp.client.MyPresenterWidget;
 import com.gwtplatform.mvp.client.View;
-import edu.ycp.cs.dh.acegwt.client.ace.AceEditorMode;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 
 /**
@@ -60,8 +56,9 @@ import java.util.function.Consumer;
  * action is a rewrite through {@link PatternNodes} and lands on the host as a replacement of
  * the {@link Subject}: a template's match, or a part of the library. Beside the tree: the
  * regex the tree means, printed live by the engine ({@code print}), and what a {@code ref}
- * can name — the project's parts, then the standard library — read-only. The wire form stays
- * editable in the pane to the right, for pasting and for what the rows do not yet surface.
+ * can name — the project's parts, then the standard library — read-only. Every node kind the
+ * vocabulary has is reachable from the rows, so there is no wire form here: the Source tab is
+ * the document's, and the tree is edited as a tree.
  */
 public class PatternTreePresenter
         extends MyPresenterWidget<PatternTreeView>
@@ -71,8 +68,6 @@ public class PatternTreePresenter
 
     private final RestFactory restFactory;
     private final PatternNodeEditPresenter nodeEditor;
-    private final EditorPresenter editor;
-    private final DelayedUpdate commit;
     private final ButtonView addChildButton;
     private final ButtonView addAfterButton;
     private final ButtonView wrapButton;
@@ -92,7 +87,6 @@ public class PatternTreePresenter
     private Consumer<String> onLabelSelect;
     private ShapeshifterLibrary library;
     private boolean libraryRequested;
-    private String committed;
     private String printed;
 
     @Inject
@@ -100,18 +94,12 @@ public class PatternTreePresenter
                                 final PatternTreeView view,
                                 final RestFactory restFactory,
                                 final PatternNodeEditPresenter nodeEditor,
-                                final NamePresenter namePrompt,
-                                final Provider<EditorPresenter> editorProvider) {
+                                final NamePresenter namePrompt) {
         super(eventBus, view);
         this.restFactory = restFactory;
         this.nodeEditor = nodeEditor;
         this.namePrompt = namePrompt;
-        this.editor = editorProvider.get();
-        this.commit = new DelayedUpdate(400, this::commit);
-        editor.setMode(AceEditorMode.JSON);
-        editor.getFormatAction().setAvailable(false);
         view.setUiHandlers(this);
-        view.setEditor(editor.getView());
         addChildButton = view.addButton(SvgPresets.ADD.title("Add a child to the selected node"));
         addAfterButton = view.addButton(SvgPresets.ADD_BELOW.title("Add a node after the selected one"));
         wrapButton = view.addButton(SvgPresets.OPERATOR.title("Wrap the selected node in a container"));
@@ -130,7 +118,6 @@ public class PatternTreePresenter
     @Override
     protected void onBind() {
         super.onBind();
-        registerHandler(editor.addValueChangeHandler(event -> commit.update()));
         registerHandler(addChildButton.addClickHandler(e -> {
             if (MouseUtil.isPrimary(e)) {
                 onAddChild();
@@ -223,6 +210,12 @@ public class PatternTreePresenter
                         ? project
                         : Templates.replace(project, Templates.withMatch(template, new MatchExpression.Pattern(node)));
             }
+
+            @Override
+            public SafeHtml heading() {
+                return headingOf("Pattern tree", "composition: a sequence, a choice or a repeat over parts, "
+                                               + "and refs to the library");
+            }
         });
     }
 
@@ -250,12 +243,27 @@ public class PatternTreePresenter
             public Project with(final Project project, final PatternNode node) {
                 return Patterns.define(project, name, node);
             }
+
+            @Override
+            public SafeHtml heading() {
+                return headingOf("Pattern part " + name, "defined once here; any template's tree names it with "
+                                                       + "ref, and so may another part");
+            }
         });
+    }
+
+    /** The section heading over the tree, as the other forms of the workbench head theirs. */
+    private static SafeHtml headingOf(final String title, final String note) {
+        return new SafeHtmlBuilder()
+                .appendEscaped(title)
+                .appendHtmlConstant(" <span class=\"ss-wb-h4-note\">(")
+                .appendEscaped(note)
+                .appendHtmlConstant(")</span>")
+                .toSafeHtml();
     }
 
     private void setSubject(final Subject next) {
         if (subject == null || !next.key().equals(subject.key())) {
-            commit.reset();
             selected = new int[0];
         }
         this.subject = next;
@@ -263,17 +271,13 @@ public class PatternTreePresenter
         if (node == null) {
             return;
         }
-        editor.setReadOnly(host.isReadOnly());
         root = node;
         if (PatternNodes.get(root, selected) == null) {
             selected = new int[0];
         }
-        final String text = ProjectText.printPatternNode(root);
-        if (!text.equals(committed)) {
-            committed = text;
-            editor.setText(text);
-        }
+        getView().setHeading(next.heading());
         getView().setError(null);
+        showLibrary();
         render();
         printRegex();
         if (!libraryRequested) {
@@ -480,8 +484,6 @@ public class PatternTreePresenter
             return;
         }
         selected = select;
-        committed = ProjectText.printPatternNode(next);
-        editor.setText(committed);
         host.replace(subject.with(base, next));
     }
 
@@ -519,59 +521,27 @@ public class PatternTreePresenter
         }
     }
 
-    // ---- the wire-form editor ----
-
-    private void commit() {
-        if (subject == null || subject.node() == null || host.isReadOnly()) {
-            return;
-        }
-        final PatternNode node;
-        try {
-            node = ProjectText.parsePatternNode(editor.getText());
-        } catch (final ConfigException e) {
-            getView().setError(e.getMessage());
-            return;
-        }
-        getView().setError(null);
-        if (node.equals(root)) {
-            return;
-        }
-        committed = ProjectText.printPatternNode(node);
-        host.replace(subject.with(host.getProject(), node));
-    }
-
     // ---- rendering ----
 
     private void render() {
-        final SafeHtmlBuilder sb = new SafeHtmlBuilder();
-        sb.appendHtmlConstant("<ul class=\"shapeshifter-tree shapeshifter-tree--editable\">");
-        renderNode(sb, root, new int[0]);
-        sb.appendHtmlConstant("</ul>");
-        getView().setTree(sb.toSafeHtml());
+        final List<PatternItem> items = new ArrayList<>();
+        collect(items, root, new int[0], null);
+        getView().setTree(items, PatternNodes.path(selected));
         enableButtons();
     }
 
-    private void renderNode(final SafeHtmlBuilder sb, final PatternNode node, final int[] path) {
-        final StringBuilder classes = new StringBuilder("shapeshifter-node");
-        if (node instanceof PatternNode.Labelled) {
-            classes.append(" shapeshifter-node--labelled");
-        }
-        if (Arrays.equals(path, selected)) {
-            classes.append(" shapeshifter-node--selected");
-        }
-        sb.appendHtmlConstant("<li class=\"" + classes + "\" data-path=\"" + PatternNodes.path(path) + "\">");
-        sb.appendHtmlConstant("<span class=\"shapeshifter-node-text\">")
-                .appendEscaped(Templates.describe(node))
-                .appendHtmlConstant("</span>");
+    /** The tree flattened parents-first, which is the order the layout needs to build itself. */
+    private void collect(final List<PatternItem> items,
+                         final PatternNode node,
+                         final int[] path,
+                         final String parentPath) {
+        final String here = PatternNodes.path(path);
         final List<PatternNode> children = PatternNodes.children(node);
-        if (!children.isEmpty()) {
-            sb.appendHtmlConstant("<ul>");
-            for (int i = 0; i < children.size(); i++) {
-                renderNode(sb, children.get(i), PatternNodes.child(path, i));
-            }
-            sb.appendHtmlConstant("</ul>");
+        items.add(new PatternItem(here, parentPath, Templates.describe(node), !children.isEmpty(),
+                node instanceof PatternNode.Labelled));
+        for (int i = 0; i < children.size(); i++) {
+            collect(items, children.get(i), PatternNodes.child(path, i), here);
         }
-        sb.appendHtmlConstant("</li>");
     }
 
     private void printRegex() {
@@ -598,6 +568,33 @@ public class PatternTreePresenter
                 .exec();
     }
 
+    /** What a ref may name: the project's own parts first (design 44 §3), then the standard entries. */
+    private void showLibrary() {
+        final SafeHtmlBuilder sb = new SafeHtmlBuilder();
+        sb.appendHtmlConstant("<table class=\"shapeshifter-library\">");
+        final Project project = host.getProject();
+        if (project != null) {
+            for (final Map.Entry<String, PatternNode> part : project.patterns().entrySet()) {
+                sb.appendHtmlConstant("<tr><td class=\"shapeshifter-library-name\">")
+                        .appendEscaped(part.getKey())
+                        .appendHtmlConstant("</td><td class=\"shapeshifter-pattern-text\">")
+                        .appendEscaped(Templates.describe(part.getValue()))
+                        .appendHtmlConstant("</td><td class=\"ss-lib-whose\">project</td></tr>");
+            }
+        }
+        if (library != null) {
+            for (final ShapeshifterLibrary.Entry entry : library.getEntries()) {
+                sb.appendHtmlConstant("<tr><td class=\"shapeshifter-library-name\">")
+                        .appendEscaped(entry.getName())
+                        .appendHtmlConstant("</td><td class=\"shapeshifter-pattern-text\">")
+                        .appendEscaped(entry.getRegex())
+                        .appendHtmlConstant("</td><td class=\"ss-lib-whose\"></td></tr>");
+            }
+        }
+        sb.appendHtmlConstant("</table>");
+        getView().setLibrary(sb.toSafeHtml());
+    }
+
     private void loadLibrary() {
         libraryRequested = true;
         restFactory
@@ -605,17 +602,7 @@ public class PatternTreePresenter
                 .method(ShapeshifterResource::library)
                 .onSuccess(result -> {
                     library = result;
-                    final SafeHtmlBuilder sb = new SafeHtmlBuilder();
-                    sb.appendHtmlConstant("<table class=\"shapeshifter-library\">");
-                    for (final ShapeshifterLibrary.Entry entry : result.getEntries()) {
-                        sb.appendHtmlConstant("<tr><td class=\"shapeshifter-library-name\">")
-                                .appendEscaped(entry.getName())
-                                .appendHtmlConstant("</td><td class=\"shapeshifter-pattern-text\">")
-                                .appendEscaped(entry.getRegex())
-                                .appendHtmlConstant("</td></tr>");
-                    }
-                    sb.appendHtmlConstant("</table>");
-                    getView().setLibrary(sb.toSafeHtml());
+                    showLibrary();
                 })
                 .onFailure(error -> {
                     libraryRequested = false;
@@ -642,13 +629,20 @@ public class PatternTreePresenter
 
         /** The project with this subject's tree replaced. */
         Project with(Project project, PatternNode node);
+
+        /** What to say over the tree. */
+        SafeHtml heading();
     }
 
     public interface PatternTreeView extends View, HasUiHandlers<PatternTreeUiHandlers> {
 
         ButtonView addButton(Preset preset);
 
-        void setTree(SafeHtml html);
+        /** What is being edited, over the tree: a template's match, or a part of the library. */
+        void setHeading(SafeHtml html);
+
+        /** The nodes parents-first, and the path of the selected one. */
+        void setTree(List<PatternItem> items, String selected);
 
         /** The regex the tree means, as the engine prints it. */
         void setRegex(String regex);
@@ -656,7 +650,5 @@ public class PatternTreePresenter
         void setLibrary(SafeHtml html);
 
         void setError(String error);
-
-        void setEditor(View view);
     }
 }

@@ -58,11 +58,17 @@ public interface ProjectHost {
 
     // ---- the run and the trace (design 18 §5; phase B) ----
 
-    /** The sample the project runs over, or null while none has been supplied (design 18 Q2). */
+    /**
+     * The sample's text where the editor holds it - a pasted one - or null: a sample read from a
+     * record is the server's to fetch, and the client sees it only as the trace's input.
+     */
     String getSample();
 
+    /** Where it came from - a record to read, or text pasted - or null for none (design 44 §5). */
+    SampleSource getSampleSource();
+
     /** Supply a sample and run. */
-    void setSample(String sample);
+    void setSampleSource(SampleSource source);
 
     /** Run the project over the sample now; the trace arrives asynchronously. */
     void run();

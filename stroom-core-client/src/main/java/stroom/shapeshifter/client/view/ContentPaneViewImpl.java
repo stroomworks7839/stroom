@@ -48,14 +48,6 @@ public class ContentPaneViewImpl extends ViewWithUiHandlers<ContentPaneUiHandler
     private final Widget widget;
 
     @UiField
-    FlowPanel editor;
-    @UiField
-    TextArea sample;
-    @UiField
-    Button run;
-    @UiField
-    Button cancel;
-    @UiField
     FlowPanel reader;
     @UiField
     Label note;
@@ -70,16 +62,6 @@ public class ContentPaneViewImpl extends ViewWithUiHandlers<ContentPaneUiHandler
     public ContentPaneViewImpl(final Binder binder) {
         widget = binder.createAndBindUi(this);
         content.getElement().setTabIndex(-1);
-        run.addClickHandler(event -> getUiHandlers().onRun(sample.getValue()));
-        cancel.addClickHandler(event -> getUiHandlers().onCancel());
-        sample.addKeyDownHandler(event -> {
-            if (event.getNativeKeyCode() == KeyCodes.KEY_ENTER && event.isControlKeyDown()) {
-                // Runs here, with the text as typed; not again at the tab's root.
-                event.preventDefault();
-                event.stopPropagation();
-                getUiHandlers().onRun(sample.getValue());
-            }
-        });
         content.addClickHandler(event -> {
             final EventTarget target = event.getNativeEvent().getEventTarget();
             if (Element.is(target)) {
@@ -109,14 +91,6 @@ public class ContentPaneViewImpl extends ViewWithUiHandlers<ContentPaneUiHandler
     @Override
     public Widget asWidget() {
         return widget;
-    }
-
-    @Override
-    public void showEditor(final String text, final boolean cancellable) {
-        sample.setValue(text);
-        cancel.setVisible(cancellable);
-        show(editor);
-        sample.setFocus(true);
     }
 
     @Override
@@ -158,7 +132,6 @@ public class ContentPaneViewImpl extends ViewWithUiHandlers<ContentPaneUiHandler
     }
 
     private void show(final Widget which) {
-        editor.setVisible(which == editor);
         reader.setVisible(which == reader);
         empty.setVisible(which == empty);
     }

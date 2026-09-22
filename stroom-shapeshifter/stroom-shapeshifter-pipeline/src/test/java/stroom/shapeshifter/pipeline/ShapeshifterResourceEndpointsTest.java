@@ -52,8 +52,11 @@ class ShapeshifterResourceEndpointsTest {
                "body": [{"value-of": {"parts": [{"capture": {"var_id": "who", "group": 0}}]}}]}]}
             """;
 
+    /** The record store the preview reads a SourceLocation from; these tests all send text. */
     private final ShapeshifterResourceImpl resource = new ShapeshifterResourceImpl(
-            null, null, () -> new StroomFunctionLibrary(Set.of()));
+            null, null, () -> new StroomFunctionLibrary(Set.of()), () -> {
+        throw new IllegalStateException("no stream store here");
+    });
 
     @Test
     void goodProjectValidatesAndComesBackCanonical() {

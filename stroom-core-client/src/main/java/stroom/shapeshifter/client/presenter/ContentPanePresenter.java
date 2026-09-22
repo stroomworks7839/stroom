@@ -42,8 +42,9 @@ import java.util.TreeSet;
  * happening deeper. Content a match holds that is not a slice of this frame's — a value from a
  * variable — is listed under the text, since it has no place in it.
  *
- * <p>Before a run, and whenever asked for, the pane is the sample's editor (design 18 Q2's first
- * door): a box to paste into and a Run.
+ * <p>Without data the pane is an empty state pointing at the one door there is (design 18 §5.7,
+ * design 44 §5): the crumb's sample chooser, a stream or text pasted. The pane itself never
+ * edits the sample - it shows the cursor's content and nothing else.
  */
 public class ContentPanePresenter extends MyPresenterWidget<ContentPaneView> implements ContentPaneUiHandlers {
 
@@ -51,7 +52,6 @@ public class ContentPanePresenter extends MyPresenterWidget<ContentPaneView> imp
     private static final int RENDER_CAP = 200_000;
 
     private ProjectHost host;
-    private boolean editing;
 
     @Inject
     public ContentPanePresenter(final EventBus eventBus, final ContentPaneView view) {
@@ -61,30 +61,6 @@ public class ContentPanePresenter extends MyPresenterWidget<ContentPaneView> imp
 
     public void setHost(final ProjectHost host) {
         this.host = host;
-        refresh();
-    }
-
-    /** Show the sample editor, with the sample as it stands. */
-    public void editSample() {
-        editing = true;
-        final String sample = host == null
-                ? null
-                : host.getSample();
-        getView().showEditor(sample == null
-                ? ""
-                : sample, sample != null);
-    }
-
-    @Override
-    public void onRun(final String sample) {
-        editing = false;
-        host.setSample(sample);
-        refresh();
-    }
-
-    @Override
-    public void onCancel() {
-        editing = false;
         refresh();
     }
 
@@ -103,19 +79,19 @@ public class ContentPanePresenter extends MyPresenterWidget<ContentPaneView> imp
     }
 
     public void refresh() {
-        if (host == null || editing) {
+        if (host == null) {
             return;
         }
         final TraceModel trace = host.trace();
-        if (host.getSample() == null) {
-            editing = true;
-            getView().showEditor("", false);
+        if (host.getSampleSource() == null) {
+            getView().showEmpty("No data yet — choose a sample on the crumb above: a stream, "
+                                + "or text pasted. Nothing is kept with the document.");
             return;
         }
         if (trace == null) {
             getView().showEmpty(host.isStale()
                     ? "running…"
-                    : "The last run failed — Run to try again.");
+                    : "The last run failed — Run on the crumb to try again.");
             return;
         }
         final long cursor = host.cursor();
@@ -240,9 +216,6 @@ public class ContentPanePresenter extends MyPresenterWidget<ContentPaneView> imp
     }
 
     public interface ContentPaneView extends View, HasUiHandlers<ContentPaneUiHandlers> {
-
-        /** The sample editor; with a sample to go back to, a Cancel. */
-        void showEditor(String sample, boolean cancellable);
 
         void setHot(Hot hot);
 

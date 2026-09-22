@@ -28,6 +28,7 @@ import stroom.shapeshifter.config.json.ProjectJson;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 
 /**
  * One row of the guard editor — <i>variable · operator · value</i> (design 18 §5.6) — and the
@@ -111,6 +112,20 @@ public final class GuardClause {
     /** The typed reading of the variable before a comparison, or null for the text it is. */
     public Cast getAs() {
         return as;
+    }
+
+    @Override
+    public boolean equals(final Object other) {
+        return other instanceof GuardClause that
+               && variable.equals(that.variable)
+               && op == that.op
+               && value.equals(that.value)
+               && as == that.as;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(variable, op, value, as);
     }
 
     /** An untouched new row: an operator that wants a variable and a value, and neither given. */
