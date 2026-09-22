@@ -20,7 +20,6 @@ import stroom.docstore.api.AbstractDocumentStore;
 import stroom.docstore.api.DependencyRemapFunction;
 import stroom.docstore.api.StoreFactory;
 import stroom.security.api.SecurityContext;
-import stroom.shapeshifter.ai.fragment.FragmentCheck;
 import stroom.shapeshifter.ai.learning.Templates;
 import stroom.shapeshifter.shared.RoutingFields;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
@@ -30,35 +29,29 @@ import jakarta.inject.Singleton;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 
 @Singleton
 public class ShapeshifterAiStoreImpl
         extends AbstractDocumentStore<ShapeshifterAiDoc>
         implements ShapeshifterAiStore {
 
-    private final FragmentCheck fragmentCheck;
-
     @Inject
     public ShapeshifterAiStoreImpl(final StoreFactory storeFactory,
                                       final SecurityContext securityContext,
-                                      final ShapeshifterAiSerialiser serialiser,
-                                      final FragmentCheck fragmentCheck) {
+                                      final ShapeshifterAiSerialiser serialiser) {
         super(storeFactory,
                 securityContext,
                 serialiser,
                 ShapeshifterAiDoc.TYPE,
                 ShapeshifterAiDoc::builder,
                 ShapeshifterAiDoc::copy);
-        this.fragmentCheck = fragmentCheck;
     }
 
     /**
-     * What the editor cannot check is checked on save, with the fault named, rather than at run time by
-     * the supervisor: a rule may point only at a fragment (A20) — the picker cannot tell a fragment from a
-     * full pipeline — and the learning key may name only fields a selector can be written against (A29).
-     * A rule saved without a {@code uuid} is given one here, so that the runtime state of A26 can name
-     * every rule stably; the client never generates one.
+     * What the editor cannot check is checked on save, with the fault named, rather than at run time by the
+     * supervisor: the learning key may name only fields a selector can be written against (A29), and the
+     * plan must be one the stage can hold (A33). The rules are rows since A41, so the resource checks
+     * their fragments (A20) where this once did.
      */
     @Override
     public ShapeshifterAiDoc writeDocument(final ShapeshifterAiDoc document) {

@@ -26,6 +26,8 @@ import stroom.pipeline.shared.PipelineDoc;
 import stroom.query.api.ExpressionOperator;
 import stroom.query.api.ExpressionTerm.Condition;
 import stroom.security.mock.MockSecurityContext;
+import stroom.shapeshifter.ai.stage.Rules;
+import stroom.shapeshifter.ai.state.InMemoryRules;
 import stroom.shapeshifter.shared.BusinessRulesParameters;
 import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ScorerSetting;
@@ -74,14 +76,16 @@ final class ShapeshifterAiFixture {
     }
 
     static ShapeshifterAiStoreImpl store() {
+        return store(new InMemoryRules());
+    }
+
+    /// The store over a given rule store, for the tests that watch what a read puts there (A41).
+    static ShapeshifterAiStoreImpl store(final Rules rules) {
         final MockSecurityContext securityContext = new MockSecurityContext();
-        // These tests are about the store; every fragment is taken at its word. The check has its own test.
         return new ShapeshifterAiStoreImpl(
                 new StoreFactoryImpl(new MemoryPersistence(), null, securityContext, null, () -> null),
                 securityContext,
-                new ShapeshifterAiSerialiser(new Serialiser2FactoryImpl()),
-                pipeline -> {
-                });
+                new ShapeshifterAiSerialiser(new Serialiser2FactoryImpl(), () -> rules));
     }
 
     static ShapeshifterAiDoc.Builder configured(final ShapeshifterAiDoc doc) {

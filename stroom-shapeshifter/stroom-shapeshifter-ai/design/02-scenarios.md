@@ -1088,6 +1088,28 @@ pinned or draft rule. One test had to be told that rules outlive a stage: two ru
 one scenario now bind what the first promoted, which is what a cluster would do. 177 tests in the
 module, 15 shared, 2 in the app; GWT compiled.
 
+Audited the same day (the owner's code review): seven findings, six fixed and one accepted. Two were
+the slice's own and serious. The whole-table `PUT` applied neither the operator's order nor their
+position — an existing rule was replaced in place and a new one appended — so *Move up* did nothing and
+a rule added at the top, "the operator has just decided it is the most specific", landed *behind* every
+learned rule, where the router's first match never reaches it: their precedence was inverted. And the
+two new endpoints went straight to the seam, so any authenticated user could read or rewrite any
+document's rules by uuid, pointing a rule at a pipeline of their choosing to run on that feed's data.
+The answer to both is the row-level Routing tab that was owed to phase F, brought forward: `POST
+/rules?at=`, `PUT /rules/{uuid}`, `PUT /rules/{uuid}/position?to=`, `DELETE /rules/{uuid}`, each
+checking `VIEW` or `EDIT` on the document and each answering with the table as the server now holds it.
+That also closes the third finding — the tab saved the snapshot it fetched on open, on every document
+save, so a rule promoted meanwhile was deleted as absent — since the tab no longer saves a table at
+all: one action, one call, and the answer re-renders the list, so a rule promoted while it was open
+appears rather than being overwritten. A document that learned before A41 lost every rule on upgrade,
+the serialiser migrating `dialogue` but not `routingTable`; the first read of such a document now puts
+its rules where they belong, once, and only where the rows have none, at the cost of one `contains`
+over bytes already in hand on every other read — the A26 module will do it as a migration of its own.
+A preset this build does not know now leaves the document openable, with the default plan's steps,
+rather than unopenable and so unrepairable. The store's dead fragment check and stale javadoc are gone.
+Accepted: `InMemoryRules` is a node-local map until slice 21 gives it tables — which slice 20 made
+observable by putting it behind the UI, and is what phase C exists to fix. 185 tests in the module.
+
 ## 7. Decisions taken
 
 Ruled 2026-09-17, each as recommended:

@@ -16,8 +16,11 @@
 
 package stroom.shapeshifter.ai.doc;
 
+import stroom.docref.DocRef;
 import stroom.docstore.api.DocumentResourceHelper;
 import stroom.event.logging.rs.api.AutoLogged;
+import stroom.security.api.SecurityContext;
+import stroom.security.shared.DocumentPermission;
 import stroom.shapeshifter.ai.fragment.FragmentCheck;
 import stroom.shapeshifter.ai.learning.Templates;
 import stroom.shapeshifter.ai.stage.Rules;
@@ -26,14 +29,13 @@ import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 import stroom.shapeshifter.shared.ShapeshifterAiResource;
 import stroom.util.shared.EntityServiceException;
+import stroom.util.shared.PermissionException;
 
 import jakarta.inject.Inject;
 import jakarta.inject.Provider;
 
 import java.util.List;
-import java.util.Objects;
-import java.util.Set;
-import java.util.stream.Collectors;
+import java.util.function.Function;
 
 @AutoLogged
 public class ShapeshifterAiResourceImpl implements ShapeshifterAiResource {
@@ -42,16 +44,19 @@ public class ShapeshifterAiResourceImpl implements ShapeshifterAiResource {
     private final Provider<DocumentResourceHelper> documentResourceHelperProvider;
     private final Provider<Rules> rulesProvider;
     private final Provider<FragmentCheck> fragmentCheckProvider;
+    private final Provider<SecurityContext> securityContextProvider;
 
     @Inject
     ShapeshifterAiResourceImpl(final Provider<ShapeshifterAiStore> storeProvider,
                                   final Provider<DocumentResourceHelper> documentResourceHelperProvider,
                                   final Provider<Rules> rulesProvider,
-                                  final Provider<FragmentCheck> fragmentCheckProvider) {
+                                  final Provider<FragmentCheck> fragmentCheckProvider,
+                                  final Provider<SecurityContext> securityContextProvider) {
         this.storeProvider = storeProvider;
         this.documentResourceHelperProvider = documentResourceHelperProvider;
         this.rulesProvider = rulesProvider;
         this.fragmentCheckProvider = fragmentCheckProvider;
+        this.securityContextProvider = securityContextProvider;
     }
 
     @Override
@@ -74,42 +79,90 @@ public class ShapeshifterAiResourceImpl implements ShapeshifterAiResource {
         return documentResourceHelperProvider.get().update(storeProvider.get(), doc);
     }
 
+    /**
+     * The document's rules are rows (A41), so they are asked for by document rather than read from it.
+     * Reading them is reading the document: a person who may not view the document may not see what it
+     * learned, since a rule names the feed it binds and the fragment that runs on it.
+     */
     @Override
     public List<RoutingRule> rules(final String uuid) {
-        return rulesProvider.get().forDocument(uuid);
+        return permitted(uuid, DocumentPermission.VIEW, rules -> rules.forDocument(uuid));
     }
 
     /**
-     * The rules an operator edited on the Routing tab: what they sent becomes the document's table, in
-     * their order. A rule may point only at a fragment (A20), which the picker cannot tell from a full
-     * pipeline, so it is checked here as it was checked on save when the table was part of the document.
-     * Rules the operator removed go; those they added are given a uuid.
+     * An operator's rule goes where they put it — the top, by default, since they have just decided it is
+     * the more specific — and the router takes the first match, so the position is the decision. A rule may
+     * point only at a fragment (A20), which the picker cannot tell from a full pipeline, so it is checked
+     * here as it was checked on save when the table was part of the document.
      */
     @Override
-    public List<RoutingRule> updateRules(final String uuid, final List<RoutingRule> rules) {
-        final FragmentCheck check = fragmentCheckProvider.get();
-        rules.stream()
-                .map(RoutingRule::getPipeline)
-                .filter(Objects::nonNull)
-                .distinct()
-                .forEach(check::check);
-        final Rules store = rulesProvider.get();
-        final Set<String> keeping = rules.stream()
-                .map(RoutingRule::getUuid)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toSet());
-        store.forDocument(uuid).stream()
-                .map(RoutingRule::getUuid)
-                .filter(had -> !keeping.contains(had))
-                .toList()
-                .forEach(gone -> store.remove(uuid, gone));
-        for (final RoutingRule rule : rules) {
-            if (rule.getUuid() == null) {
-                store.append(uuid, rule);
-            } else {
-                store.replace(uuid, rule);
+    public List<RoutingRule> addRule(final String uuid, final Integer at, final RoutingRule rule) {
+        return permitted(uuid, DocumentPermission.EDIT, rules -> {
+            checkFragment(rule);
+            rules.insert(uuid, rule, at == null
+                    ? rules.forDocument(uuid).size()
+                    : at);
+            return rules.forDocument(uuid);
+        });
+    }
+
+    @Override
+    public List<RoutingRule> updateRule(final String uuid, final String ruleUuid, final RoutingRule rule) {
+        return permitted(uuid, DocumentPermission.EDIT, rules -> {
+            if (!ruleUuid.equals(rule.getUuid())) {
+                throw new EntityServiceException("The rule UUID must match the update UUID");
             }
+            known(rules, uuid, ruleUuid);
+            checkFragment(rule);
+            rules.replace(uuid, rule);
+            return rules.forDocument(uuid);
+        });
+    }
+
+    @Override
+    public List<RoutingRule> moveRule(final String uuid, final String ruleUuid, final int to) {
+        return permitted(uuid, DocumentPermission.EDIT, rules -> {
+            known(rules, uuid, ruleUuid);
+            rules.move(uuid, ruleUuid, to);
+            return rules.forDocument(uuid);
+        });
+    }
+
+    @Override
+    public List<RoutingRule> deleteRule(final String uuid, final String ruleUuid) {
+        return permitted(uuid, DocumentPermission.EDIT, rules -> {
+            known(rules, uuid, ruleUuid);
+            rules.remove(uuid, ruleUuid);
+            return rules.forDocument(uuid);
+        });
+    }
+
+    /**
+     * Every rule call answers with the document's whole table as it now stands, so that a client showing it
+     * is showing what the server has rather than what it last sent — a rule promoted while a person had the
+     * tab open is theirs to see, not theirs to overwrite.
+     */
+    private List<RoutingRule> permitted(final String uuid,
+                                        final DocumentPermission permission,
+                                        final Function<Rules, List<RoutingRule>> work) {
+        final SecurityContext securityContext = securityContextProvider.get();
+        final DocRef docRef = ShapeshifterAiDoc.buildDocRef().uuid(uuid).build();
+        if (!securityContext.hasDocumentPermission(docRef, permission)) {
+            throw new PermissionException(securityContext.getUserRef(),
+                    "You do not have permission to " + permission.getDisplayValue() + " " + docRef);
         }
-        return store.forDocument(uuid);
+        return work.apply(rulesProvider.get());
+    }
+
+    private void checkFragment(final RoutingRule rule) {
+        if (rule.getPipeline() != null) {
+            fragmentCheckProvider.get().check(rule.getPipeline());
+        }
+    }
+
+    private static void known(final Rules rules, final String uuid, final String ruleUuid) {
+        if (rules.byUuid(uuid, ruleUuid).isEmpty()) {
+            throw new EntityServiceException("Rule " + ruleUuid + " is not a rule of this document");
+        }
     }
 }

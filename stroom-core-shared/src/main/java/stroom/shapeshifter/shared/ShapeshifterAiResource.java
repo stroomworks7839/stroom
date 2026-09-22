@@ -24,11 +24,14 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
 import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import org.fusesource.restygwt.client.DirectRestService;
 
@@ -71,12 +74,42 @@ public interface ShapeshifterAiResource
             operationId = "fetchShapeshifterAiRules")
     List<RoutingRule> rules(@PathParam("uuid") String uuid);
 
-    @PUT
+    @POST
     @Path("/{uuid}/rules")
     @Operation(
-            summary = "Replace the document's routing rules with these, in this order",
-            operationId = "updateShapeshifterAiRules")
-    List<RoutingRule> updateRules(
+            summary = "Add a rule at a position in the document's table; every call answers with the table",
+            operationId = "addShapeshifterAiRule")
+    List<RoutingRule> addRule(
             @PathParam("uuid") String uuid,
-            @Parameter(description = "rules", required = true) List<RoutingRule> rules);
+            @QueryParam("at") Integer at,
+            @Parameter(description = "rule", required = true) RoutingRule rule);
+
+    @PUT
+    @Path("/{uuid}/rules/{ruleUuid}")
+    @Operation(
+            summary = "Replace one rule, keeping its position",
+            operationId = "updateShapeshifterAiRule")
+    List<RoutingRule> updateRule(
+            @PathParam("uuid") String uuid,
+            @PathParam("ruleUuid") String ruleUuid,
+            @Parameter(description = "rule", required = true) RoutingRule rule);
+
+    @PUT
+    @Path("/{uuid}/rules/{ruleUuid}/position")
+    @Operation(
+            summary = "Move one rule to a position, the others closing behind it",
+            operationId = "moveShapeshifterAiRule")
+    List<RoutingRule> moveRule(
+            @PathParam("uuid") String uuid,
+            @PathParam("ruleUuid") String ruleUuid,
+            @QueryParam("to") int to);
+
+    @DELETE
+    @Path("/{uuid}/rules/{ruleUuid}")
+    @Operation(
+            summary = "Remove one rule",
+            operationId = "deleteShapeshifterAiRule")
+    List<RoutingRule> deleteRule(
+            @PathParam("uuid") String uuid,
+            @PathParam("ruleUuid") String ruleUuid);
 }

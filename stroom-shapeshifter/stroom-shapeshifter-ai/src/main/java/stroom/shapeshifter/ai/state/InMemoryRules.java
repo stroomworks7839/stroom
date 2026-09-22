@@ -54,6 +54,27 @@ public final class InMemoryRules implements Rules {
     }
 
     @Override
+    public synchronized RoutingRule insert(final String docUuid, final RoutingRule rule, final int at) {
+        final RoutingRule stored = rule.getUuid() == null
+                ? rule.copy().uuid(UUID.randomUUID().toString()).build()
+                : rule;
+        final List<RoutingRule> rules = rules(docUuid);
+        rules.add(Math.max(0, Math.min(at, rules.size())), stored);
+        return stored;
+    }
+
+    @Override
+    public synchronized void move(final String docUuid, final String ruleUuid, final int to) {
+        final List<RoutingRule> rules = rules(docUuid);
+        for (int i = 0; i < rules.size(); i++) {
+            if (rules.get(i).getUuid().equals(ruleUuid)) {
+                rules.add(Math.max(0, Math.min(to, rules.size() - 1)), rules.remove(i));
+                return;
+            }
+        }
+    }
+
+    @Override
     public synchronized void replace(final String docUuid, final RoutingRule rule) {
         final List<RoutingRule> rules = rules(docUuid);
         for (int i = 0; i < rules.size(); i++) {

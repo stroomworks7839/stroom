@@ -45,6 +45,7 @@ import com.gwtplatform.mvp.client.View;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 /**
  * The Routing tab: the document's routing table (design §3, §7.3 rule 2) as an ordered list, with the
@@ -135,26 +136,41 @@ public class ShapeshifterAiRoutingPresenter
     }
 
     /**
-     * Saving the document saves the tab's rules too, in their order, since that is the one Save button a
-     * person sees; the document itself is returned unchanged, holding only what they authored. A row-level
-     * Routing tab — each action its own call — is owed with the operator surfaces of phase F.
+     * The rules are rows and each action saved itself (A41), so the document's Save has nothing of theirs to
+     * carry: it returns what it was given.
      */
     @Override
     protected ShapeshifterAiDoc onWrite(final ShapeshifterAiDoc doc) {
-        if (docUuid != null) {
-            final List<RoutingRule> saving = new ArrayList<>(rules);
-            restFactory
-                    .create(RESOURCE)
-                    .method(resource -> resource.updateRules(docUuid, saving))
-                    .onSuccess(saved -> {
-                        rules.clear();
-                        rules.addAll(saved);
-                        update();
-                    })
-                    .taskMonitorFactory(this)
-                    .exec();
-        }
         return doc;
+    }
+
+    /**
+     * One action, one call, answered with the table as the server now holds it: a rule promoted while this
+     * tab was open shows up rather than being overwritten by what the tab last read.
+     */
+    private void apply(final Function<ShapeshifterAiResource, List<RoutingRule>> call, final String keepSelected) {
+        if (docUuid == null) {
+            return;
+        }
+        restFactory
+                .create(RESOURCE)
+                .method(call::apply)
+                .onSuccess(saved -> {
+                    rules.clear();
+                    rules.addAll(saved);
+                    update();
+                    if (keepSelected != null) {
+                        for (int i = 0; i < rules.size(); i++) {
+                            if (keepSelected.equals(rules.get(i).getUuid())) {
+                                select(i);
+                                return;
+                            }
+                        }
+                    }
+                    listPresenter.getSelectionModel().clear();
+                })
+                .taskMonitorFactory(this)
+                .exec();
     }
 
     /**
@@ -177,13 +193,10 @@ public class ShapeshifterAiRoutingPresenter
 
     private void onAdd(final ClickEvent event) {
         if (!isReadOnly()) {
-            // A new rule goes to the top: the operator has just decided it is the most specific.
-            showRule(RoutingRule.builder().build(), rule -> {
-                rules.add(0, rule);
-                update();
-                select(0);
-                onChange();
-            });
+            // A new rule goes to the top: the operator has just decided it is the most specific, and the
+            // router takes the first match.
+            showRule(RoutingRule.builder().build(),
+                    rule -> apply(resource -> resource.addRule(docUuid, 0, rule), null));
         }
     }
 
@@ -197,13 +210,9 @@ public class ShapeshifterAiRoutingPresenter
     }
 
     private void edit(final RoutingRule existing) {
-        final int index = selectedIndex();
         showRule(existing, rule -> {
-            rules.set(index, rule);
-            update();
-            select(index);
             if (!existing.equals(rule)) {
-                onChange();
+                apply(resource -> resource.updateRule(docUuid, existing.getUuid(), rule), existing.getUuid());
             }
         });
     }
@@ -220,10 +229,7 @@ public class ShapeshifterAiRoutingPresenter
                         .pinned(existing.isPinned())
                         .build();
                 final int index = selectedIndex() + 1;
-                rules.add(index, copy);
-                update();
-                select(index);
-                onChange();
+                apply(resource -> resource.addRule(docUuid, index, copy), null);
             }
         }
     }
@@ -232,12 +238,10 @@ public class ShapeshifterAiRoutingPresenter
         if (!isReadOnly()) {
             final int index = selectedIndex();
             if (index >= 0) {
+                final String ruleUuid = rules.get(index).getUuid();
                 ConfirmEvent.fire(this, "Are you sure you want to delete the selected rule?", ok -> {
                     if (ok) {
-                        rules.remove(index);
-                        listPresenter.getSelectionModel().clear();
-                        update();
-                        onChange();
+                        apply(resource -> resource.deleteRule(docUuid, ruleUuid), null);
                     }
                 });
             }
@@ -250,11 +254,8 @@ public class ShapeshifterAiRoutingPresenter
             if (index >= 0) {
                 final int target = index + by;
                 if (target >= 0 && target < rules.size()) {
-                    final RoutingRule existing = rules.remove(index);
-                    rules.add(target, existing);
-                    update();
-                    select(target);
-                    onChange();
+                    final String ruleUuid = rules.get(index).getUuid();
+                    apply(resource -> resource.moveRule(docUuid, ruleUuid, target), ruleUuid);
                 }
             }
         }

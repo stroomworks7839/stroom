@@ -44,6 +44,16 @@ public interface Rules {
     /// @return The rule as stored, with its uuid.
     RoutingRule append(String docUuid, RoutingRule rule);
 
+    /// Put a rule at this position in the document's table, giving it a uuid where it has none; a position
+    /// past the end appends. An operator's rule goes above the learned ones, and the router takes the first
+    /// match, so where a rule sits is what decides whose rule wins.
+    ///
+    /// @return The rule as stored, with its uuid.
+    RoutingRule insert(String docUuid, RoutingRule rule, int at);
+
+    /// Move a rule to this position, the others closing behind it.
+    void move(String docUuid, String ruleUuid, int to);
+
     /// Replace the rule of the same uuid, keeping its position; a rule the document does not have is
     /// appended, since a promotion must not be lost because its row was pruned.
     void replace(String docUuid, RoutingRule rule);
