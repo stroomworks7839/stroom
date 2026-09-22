@@ -1176,6 +1176,22 @@ modal fired on every dirty check, and the fault is shown beside the steps; a box
 compared by reference; and the rule dialog turned a catch-all's null selector into an empty `AND`, which
 the grid and the draft-pairing both read differently. 186 tests in the module, 11 against MySQL.
 
+The twenty-second slice, 2026-09-22, is **scenario 20 against the tables**, the first of phase C's exit
+criterion. Tier 2 had been running under the mock-service harness, which has no database, so what it
+proved about the ledger it proved about a map in one node's heap.
+`TestScenario20SentinelInAPipeline` extends `AbstractCoreIntegrationTest` instead — the node's own
+wiring, `DbConnectionsModule` and all — and asserts what it is testing with: the injected `Ledger` is a
+`LedgerDao`, the injected `Rules` a `RulesDao`. A stream of an unknown shape under a document with
+learning off produces no output stream, one `ERROR` naming the shape, no rule, and one row in
+`shapeshifter_ledger` naming the input's meta id, which `release` then hands back — the replay A12
+promises, from a row that survives the node. Scenarios 18 and 19 stay under the mock harness, where
+they are about the pipeline rather than the tables, and are quick.
+
+What phase C still owes: scenarios 30 and 31, which need A28's durable attempts — the attempt and turn
+tables, the dialogue as a state machine that stops at a question and resumes on any answerer, and the
+worker that advances one awaiting the model — and the lease (A42) and cluster-wide spend (A44), whose
+columns the shape and spend tables already carry.
+
 ## 7. Decisions taken
 
 Ruled 2026-09-17, each as recommended:
