@@ -4,7 +4,7 @@
 Shapeshifter Intelligence and Shapeshifter Engine. This design keeps only Intelligence, drops the
 Engine entirely, and re-targets the whole mechanism at Stroom's existing Data Splitter and XSLT.*
 
-*Every decision the design rests on is a numbered ruling, A1–A38; §13 lists them with their status
+*Every decision the design rests on is a numbered ruling, A1–A46; §13 lists them with their status
 and §14 records when each arrived. Two were ruled against the recommendation — promotion is
 automatic (A9), and AI writes extraction configs as well as transforms (A8) — and the sections below
 say what each of those obliges in return.*
@@ -1392,6 +1392,94 @@ cluster-wide counters in the A26 module — a token bucket row per document, upd
 per-node limiters.* A budget divided by node count is not a budget, and a feed burning spend on one
 node is invisible to the others.
 
+**Proposed ruling A46 (the owner's, 2026-09-22, from the live run of item 25).** *A supervisor may put
+a message of their own into the learning at any point — to hint the model, to correct it, or to supply a
+configuration themselves — and may ask for an improvement of a rule that is already serving, whether or
+not it is failing. The message is a turn like any other: authored by a person, recorded against the
+attempt (A28), and carried into every question after it. An improvement is a relearning that begins from
+what the incumbent wrote rather than from nothing, and it runs as a bound-variant trial: the incumbent
+keeps serving (A29) and a candidate takes over only through the ordinary gate (A15, A18, §7.4).*
+
+**Why it is not a human gate.** Nothing waits for a person and nothing asks for one: A9 stands, and an
+intervention is asynchronous — it becomes the next attempt for that shape, taken by the deferred worker
+(A5, A28), while the incumbent goes on serving every stream in the meantime. A supervisor who never
+opens the view changes nothing about how the feature behaves.
+
+**What already exists, and what is missing.** A person can replace the answer to a turn and have the
+walk re-derive from it (`amend`, A28/A45) — which is already how they force a change, since replacing a
+configuration turn's answer means writing the stylesheet themselves. They can send a shape back to be
+learned afresh with a reason in their own words, and the model opens the next attempt with it
+(`relearn`). They can approve, reject and retract (A25, §7.3). Two things are missing, and they are
+exactly what the run of 2026-09-22 showed the need for. First, a message that is *not* an answer to a
+question: the run's blind re-asks and its `records:2` confusion were both cases where a sentence from a
+person — *"this feed's XML is its own, not a parser's"* — would have been worth more than another
+candidate. Second, a way in for a rule that is **not failing**: a rule serving at 0.93 is above every
+threshold, nothing is wrong, and there is no door marked "make this better".
+
+**How a person finds those rules.** Not by an alert, which would be a gate by another name. The
+Supervisor view (§11.6) gains a filter over rules that are serving: by rolling score, ordered by the
+traffic each carries, so "good but not perfect" is a query someone runs when they have time rather than
+a queue that fills up. The same row offers *improve*, which is `relearn` with the incumbent's
+configuration and the person's message carried into the attempt.
+
+**Its three decisions, ruled 2026-09-22 on the recommendations.**
+
+1. *What a hint attaches to.* Recommended: the **shape**, not the turn. A hint is a `GUIDANCE` row per
+   `(doc, shape)`, and whatever question is asked next carries every hint standing at that moment,
+   recording on its turn which ones it carried. Nothing has to be timed, nothing is refused for arriving
+   at the wrong moment, and a hint outlives the attempt that first used it — which is right, because
+   what a person knows is about the feed, not about turn 7 of attempt 412. It also survives drift: the
+   relearning of A29, months later, carries it too. The plan's grammar (A37) is untouched — a hint is
+   an input a question carries, never a question kind.
+2. *Whether a person's own configuration must pass the gate.* **Ruled: it is judged like any other
+   candidate, and a person may promote one the scorers refused — except on compile and schema
+   conformance, which are not negotiable.** The proxy scorers (§8) — yield, extraction quality, business
+   rules, input coverage and the floor itself — measure what is hard to measure, and a person who knows
+   the feed may be right where they are wrong; the override and its author are recorded in the ledger,
+   the rule is marked authored rather than learned, and A18's regression set catches the mistake if it
+   was one. Compile and schema conformance are different in kind: a configuration that does not compile
+   cannot run, and output that does not validate breaks every consumer downstream of the stream rather
+   than merely scoring badly. There is no button for those.
+3. *One-off against standing.* **Ruled: the view offers to copy a hint up into the document's
+   `instructions`, and never does it silently.** A hint lives on the shape; where it reads as generally
+   true — *"this system's timestamps are local, not UTC"* — one click promotes it to the document, which
+   is what an operator authors (A41). Copying it automatically would edit their document behind them and
+   let an aside about one odd feed steer every other shape the document learns.
+
+**"Mid process" is only one state of three, and it is the cheap one.** The question of when a hint can
+arrive answers itself once the states are named. *A rule is serving* — the ordinary case, and no attempt
+exists: a hint is guidance for the next attempt, and the stream in flight goes on through the loaded
+fragment, untouched. *An attempt is parked* (`AWAITING_MODEL`, `AWAITING_REVIEW`) — the deferred case,
+and the only one that is genuinely mid-process: the attempt is a durable record between turns, not a
+live thread, so a hint is appended and the worker's next turn carries it. *An attempt is being walked
+right now* — inline, inside a processing task, bounded by its budget and over in seconds: nothing can
+join it, as A28 already says, and the hint stands for the next attempt instead. So a hint never
+interrupts anything, and never needs to: the loaded transform keeps serving in all three.
+
+**An improvement does not wait for traffic.** The records a rule was promoted on are kept per rule
+(A18), with the score each achieved, so an improvement attempt has both a sample to learn from and the
+bar to beat without a stream arriving: the candidate is asked over those records and must not score
+lower on any of them (§7.4). A feed that ships once a day can still be improved at eleven in the
+morning.
+
+**What it does not become.** Not a chat beside the dialogue: the questions stay typed and the answers
+stay grammared (A21, A37), because that is what makes a transcript re-walkable (A45) and a run
+reproducible. A hint is data the questions carry, not a conversation the plan has to follow.
+
+**Ruling A47 (the owner's, 2026-09-22, from the audit of item 25).** *The configuration question shows
+one record of each kind the split found — but only where the plan has not yet settled its targets. Where
+it has, the targets already show a record of each kind beside the event it must become, and repeating
+them in the question is budget spent saying the same thing twice.*
+
+The audit's open point, and the live run's evidence for it. Under target-first the model sees every kind
+twice over — once as a record, once as the event it becomes — and row 07 promoted at 0.999 knowing its
+stream held two shapes. Under the escalating plan the transform is asked *before* any target exists, so
+the model saw one login, was told by A46's carried counts that seven more records of another shape
+followed, and had nothing to go on but that sentence. Saying a second kind exists is not the same as
+showing it. The records shown are capped by the kinds the split found, and the first of each, in the
+order the stream carries them; the counts stay as they are, since how many records follow is worth
+saying whether or not their shapes are shown.
+
 **Proposed ruling A26** *(revised 2026-09-22 by A41 and A44)*. *The stage's runtime state is five
 tables in a `stroom-shapeshifter-ai-impl-db` module, one row per thing the design names:*
 
@@ -1482,6 +1570,13 @@ and interaction the design names is recorded there. The view also carries a per-
 strip: feeds in error mode with reason and reset (A24), and provisional rules by age and records
 seen, which a person may approve (§6). The raw exchange with the model is additionally
 logged through `stroom-ai`'s audit as §10 requires.*
+
+**What A46 adds to the view** (the owner's, 2026-09-22). Two things the list above does not carry: a
+*message* a person writes into an attempt, which is neither an answer to a turn nor a decision about
+one, and a way in for a rule that is serving well enough that nothing has flagged it. The view gains a
+filter over serving rules by rolling score, ordered by the traffic each carries, with *improve* beside
+*re-learn* on the row; and *hint* on an attempt, which lands as a `GUIDANCE` turn the questions after it
+carry. §12 item 29 is the build.
 
 ### 11.7 The stepper
 
@@ -1702,7 +1797,9 @@ the order they arrived. Items marked *built* already exist in `stroom-shapeshift
    the scorers run the chain as the pipeline will, per record; and the `SplitFilter` the schema
    conformance scorer already uses internally becomes the fragment's own. For raw text the Data
    Splitter is the splitter and nothing changes. Phase D, with item 4, since it changes what the
-   fragment is.
+   fragment is. **Built 2026-09-22** over three slices and audited; what it left is A47: the question
+   shows the first record, and where the plan has no targets yet it should show one of each kind the
+   split found.
 26. **Markup without a root** (the owner's question, 2026-09-22). A stream of XML fragments — one
    `<Event>…</Event>` per line, no root — is not a document, and today the stage treats it as text:
    held out by lines, its chain `XSLTFilter` alone, its split unanswerable and its transform run over
@@ -1740,6 +1837,29 @@ the order they arrived. Items marked *built* already exist in `stroom-shapeshift
    same transcript — is one more row in the plan comparison, and would say what the closed questions
    cost and what they buy. Phase G, with the real feed; not before phase C, since what makes it
    answerable at all is the durable attempt.
+29. **A supervisor's message, and improving a rule that is already good** (A46; the owner's, from the
+   live run of item 25, 2026-09-22). Two additions to what a person may do, both over machinery that
+   exists. *A message*: a `GUIDANCE` row per `(doc, shape)` — a hint, a correction, a fact about the
+   feed the sample does not show — carrying its text, its author and when it was given. Every question
+   the dialogue asks carries the guidance standing at that moment and records on its turn which rows it
+   carried, so a re-walk (A45) replays what was actually used rather than what has since been added. A
+   hint therefore needs no timing: it attaches to the shape, not to a turn, and applies to the attempt
+   in flight if one is parked and to the next one otherwise. It is neither an answer nor a question,
+   and the plan's grammar (A37) is untouched.
+   *An improvement*: `Stage.improve(doc, ruleUuid, message, by)` beside `relearn`, which opens the
+   next attempt for that shape from the incumbent's configuration rather than from nothing — the model
+   is shown what is serving, what it scores and what the person wants better — and runs it as a
+   bound-variant trial, the incumbent serving every stream until the gate (A15, A18, §7.4) says the
+   candidate is better. Its sample is the regression set: the records the rule was promoted on and the
+   score each achieved (A18), so an improvement runs when a person asks for it rather than when the
+   feed next ships. The way in is the Supervisor view (§11.6): a filter over serving rules by
+   rolling score, ordered by traffic, and *improve* and *hint* on the row; and *hint* on an attempt in
+   flight, which lands as a turn and re-walks. Phase F, with the view's other interactions, since it
+   is an operator surface over parts already built — except the `GUIDANCE` turn kind and the message
+   on `shapeshifter_shape`'s relearning reason, which are a migration and belong with the first slice
+   that touches those tables. Item 29 assumes A46's three open decisions are settled first: how a hint
+   enters, whether a person may promote over the gate's refusal, and whether a hint is copied into the
+   document's `instructions`.
 
 Items 1 and 2 are changes to `stroom-pipeline` that benefit the stepper too, and should be proposed
 on that basis rather than as private to this feature.
@@ -1800,6 +1920,8 @@ with the criterion that ends it, adds the input formats the feature must be show
 | A43 | One learner per shape: variants are not learned in parallel and merged; a shape improves by relearning against the regression set | **Ruled, 2026-09-22** — the owner's: two learned documents cannot be merged, and racing them doubles spend for what the gate decides anyway |
 | A44 | The per-document rate limit and the spend breaker are cluster-wide counters in the A26 module, not per-node limiters | **Ruled, 2026-09-22** — the owner's: a budget divided by node count is not a budget |
 | A45 | The attempt row is the learning lease: one open attempt per `(doc, shape)` is what "one learner" means, and a paused attempt is still learning, so `shapeshifter_shape`'s lease columns give way to the attempt's own claim. A node takes a shape by opening an attempt for it and gives it up by closing one; an attempt whose expiry passes without a heartbeat is abandoned by the worker, which frees the shape | **Ruled, 2026-09-22** — the owner's, on the recommendation: once attempts are durable (A28) two rows would otherwise say who is learning, and a parked attempt would have to hold a lease no thread is behind |
+| A46 | A supervisor may put a message of their own into the learning at any point — hint, correction or a configuration they write themselves — and may ask for an improvement of a rule that is already serving, not only one that is failing. A hint is a recorded turn carried into every question after it; an improvement is a relearning from the incumbent's configuration, run as a bound-variant trial with the incumbent still serving | **Proposed, 2026-09-22** — the owner's, from the live run of item 25; its three decisions **ruled the same day** on the recommendations: a hint attaches to the shape and whatever question comes next carries it; a person may promote a configuration the scorers refused, recorded as an override and marked authored, but never one that fails to compile or writes schema-invalid events; and a hint is offered for the document's `instructions`, never copied there silently. Built in phase F (§12 item 29) |
+| A47 | The configuration question shows one record of each kind the split found, but only where the plan has not yet settled its targets — where it has, the targets already show a record of each kind beside the event it must become | **Ruled, 2026-09-22** — the owner's, on the recommendation, closing the audit of item 25: under the escalating plan the transform is asked before any target exists, so a stream of two shapes showed the model one and a sentence about the other. Cheap, and next |
 
 Where a row says *revised*, *restated* or *settled* 2026-09-17, the change was put to the owner as a
 recommendation with alternatives and taken by them that day: the text is the editor's, the decision
@@ -2026,6 +2148,25 @@ including the degeneracy trap (§8.3) that changes the scoring model and propose
   `shapeshifter_turn`, the `Attempts` seam and its DAO, and the stage recording an attempt and every
   turn of it. Not the rendered prompt, which waits for redaction (A38); not yet the claim on the shape,
   which waits for the dialogue to be resumable (A45).
+- A46's three decisions ruled, all on the recommendation, and A47 with them. A hint attaches to the
+  shape rather than to a turn, so it needs no timing: whatever question comes next carries every hint
+  standing then and records which it carried, and "mid process" turns out to be one state of three —
+  a parked attempt, which is a record between turns and not a thread. An improvement's sample is the
+  regression set (A18), so it runs when a person asks rather than when the feed next ships. A person may
+  promote a configuration the proxy scorers refused, recorded as an override and marked authored, but
+  never one that fails to compile or writes schema-invalid events: those are the contract downstream
+  rather than a measure of quality. A hint is offered for the document's `instructions`, never copied
+  there silently. A47 closes the audit's open point: the question shows one record of each kind, but
+  only where the plan has not settled its targets — where it has, the targets already show them.
+- A46 proposed, the owner's, from what the live run showed: a supervisor may put a message of their
+  own into the learning — a hint, a correction, a configuration they write themselves — and may ask for
+  an improvement of a rule that is already serving, not only one that is failing. A hint is a recorded
+  turn carried into every question after it; an improvement is a relearning from the incumbent's
+  configuration, run as a bound-variant trial with the incumbent still serving, so nothing waits for a
+  person and A9 stands. §12 gains item 29 and §11.6 the way in: a filter over serving rules by rolling
+  score, since a rule at 0.93 is above every threshold and nothing would otherwise ask. Three decisions
+  open, recommendations given: how a hint enters, whether a person may promote a configuration the gate
+  refused, and whether a hint is copied up into the document's `instructions`.
 - The live run of item 25 (design 02 §6.4): `claude-sonnet-5`, the four rows that carry a record
   boundary, both plans, against the same rows before the item. Shown one record, the model's first
   stylesheet for JSON lines was right on every scorer where the whole-stream framing had settled at
