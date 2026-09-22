@@ -1110,6 +1110,37 @@ rather than unopenable and so unrepairable. The store's dead fragment check and 
 Accepted: `InMemoryRules` is a node-local map until slice 21 gives it tables — which slice 20 made
 observable by putting it behind the UI, and is what phase C exists to fix. 185 tests in the module.
 
+The twenty-first slice, 2026-09-22, is **the tables** (A26): `stroom-shapeshifter-ai-impl-db`, in the
+pattern of `stroom-ai-impl-db` — a Flyway migration, jOOQ codegen against a temporary database, its own
+connection provider and config — holding the five tables A41–A44 settled on. `shapeshifter_rule` is one
+row per rule with a `sort_order`, since the router takes the first match and an operator may move a rule
+above the learned ones; the selector is the JSON of its expression, read and written whole because
+nothing queries into it. `shapeshifter_shape` is one row per `(doc, shape)` with what the stage knows —
+given up, marked, awaiting review — its rolling score, and the lease columns A42 will use.
+`shapeshifter_ledger` is one row per sentinelled input. `shapeshifter_feed_state` and
+`shapeshifter_spend` are written now and used when A24 and A44 are built.
+
+`RulesDao`, `ShapesDao` and `LedgerDao` implement the seams the stage has used since slice 8. A
+promotion is one insert and a rebinding one update, so two nodes promoting two shapes of one document do
+not contend; an insert at a position moves the rules below it down in one statement; a rolling score is
+folded inside a transaction on the row, so two nodes serving the same shape do not each read the old
+mean and write over the other's; and the ledger's release reads and deletes under `for update`, so two
+nodes promoting the same shape cannot both replay the same backlog. A shape row is made with
+`onDuplicateKeyIgnore`: two nodes meeting a new shape at once both insert, the unique key decides, and
+the loser reads what the winner wrote.
+
+The node now takes its rules, shapes and ledger from the tables — `DbConnectionsModule` installs the
+module, and the element module no longer binds the in-memory ones — while a harness without a database
+installs `InMemoryStateModule` instead, which is what the mock-service tests of `stroom-app` do. Eight
+tests run against MySQL 8.4 in the module's own source set: a rule survives the round trip whole and in
+its order, an operator's rule sits where they put it, a rule moves and the others close behind it, a
+replace keeps a rule's place and a promotion whose row was pruned goes back in, one document's rules are
+its own, a shape remembers why it was given up, the rolling score is of what it has done lately, and the
+ledger releases once. What is owed to finish phase C's exit criterion: the Tier-2 scenarios of design 02
+§2 run under the mock-service harness, so they exercise the stage against memory; running scenarios 20,
+30 and 31 against the tables needs the `CoreTestModule` harness, and is the next slice's, with the lease
+(A42) and the cluster-wide spend (A44) that the shape and spend tables are now ready for.
+
 ## 7. Decisions taken
 
 Ruled 2026-09-17, each as recommended:
