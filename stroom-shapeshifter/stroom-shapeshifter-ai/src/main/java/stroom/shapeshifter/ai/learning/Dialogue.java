@@ -48,6 +48,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -81,6 +82,7 @@ public final class Dialogue {
     private final Scorecard scorecard;
     private final Clock clock;
     private final Runnable heartbeat;
+    private final BiConsumer<Integer, Exchange> onTurn;
     private Budget budget;
 
     public Dialogue(final Advisor advisor, final List<StepRunner> runners, final Scorecard scorecard) {
@@ -105,10 +107,26 @@ public final class Dialogue {
                     final Scorecard scorecard,
                     final Clock clock,
                     final Runnable heartbeat) {
+        this(advisor, runners, scorecard, clock, heartbeat, (number, exchange) -> {
+        });
+    }
+
+    /**
+     * @param onTurn Given every turn as it is answered and again as it is judged, by its number in the
+     *               transcript: for a caller recording the attempt as it happens (A28), so that one still
+     *               running — or one whose node died — shows what it had got to.
+     */
+    public Dialogue(final Advisor advisor,
+                    final List<StepRunner> runners,
+                    final Scorecard scorecard,
+                    final Clock clock,
+                    final Runnable heartbeat,
+                    final BiConsumer<Integer, Exchange> onTurn) {
         this.advisor = advisor;
         this.scorecard = scorecard;
         this.clock = clock;
         this.heartbeat = heartbeat;
+        this.onTurn = onTurn;
         this.runners = runners.stream()
                 .collect(Collectors.toUnmodifiableMap(StepRunner::elementType, Function.identity()));
     }
@@ -670,7 +688,9 @@ public final class Dialogue {
         budget.check(clock.millis(), advisor.tokensUsed());
         heartbeat.run();
         final String reply = advisor.ask(List.copyOf(walk.transcript), question);
-        walk.transcript.add(new Exchange(question, reply, step.effectiveId(), candidate, null));
+        final Exchange exchange = new Exchange(question, reply, step.effectiveId(), candidate, null);
+        walk.transcript.add(exchange);
+        onTurn.accept(walk.transcript.size(), exchange);
         budget.check(clock.millis(), advisor.tokensUsed());
         return reply;
     }
@@ -679,16 +699,17 @@ public final class Dialogue {
      * Records how a candidate ended on every turn it took (A28): the turns of this step and candidate
      * not yet judged.
      */
-    private static void judge(final List<Exchange> transcript,
-                              final PlanStep step,
-                              final int candidate,
-                              final StepOutcome outcome) {
+    private void judge(final List<Exchange> transcript,
+                       final PlanStep step,
+                       final int candidate,
+                       final StepOutcome outcome) {
         for (int i = transcript.size() - 1; i >= 0; i--) {
             final Exchange turn = transcript.get(i);
             if (turn.outcome() != null || !step.effectiveId().equals(turn.step()) || turn.candidate() != candidate) {
                 return;
             }
             transcript.set(i, turn.judged(outcome));
+            onTurn.accept(i + 1, transcript.get(i));
         }
     }
 

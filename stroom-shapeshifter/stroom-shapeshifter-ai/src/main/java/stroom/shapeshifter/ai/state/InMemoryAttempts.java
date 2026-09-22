@@ -44,9 +44,17 @@ public final class InMemoryAttempts implements Attempts {
         return id;
     }
 
+    /// By number: a turn written as it is asked and again when it is judged is one turn.
     @Override
     public synchronized void turn(final long attemptId, final Turn turn) {
-        turns.computeIfAbsent(attemptId, key -> new ArrayList<>()).add(turn);
+        final List<Turn> written = turns.computeIfAbsent(attemptId, key -> new ArrayList<>());
+        for (int i = 0; i < written.size(); i++) {
+            if (written.get(i).number() == turn.number()) {
+                written.set(i, turn);
+                return;
+            }
+        }
+        written.add(turn);
     }
 
     @Override
@@ -61,6 +69,20 @@ public final class InMemoryAttempts implements Attempts {
             attempts.put(attemptId, new Recorded(was.id(), was.attempt(), status, decision, ruleUuid, score,
                     tokensSpent, was.createTimeMs(), System.currentTimeMillis(), List.of()));
         }
+    }
+
+    @Override
+    public synchronized void decided(final String docUuid,
+                                     final String ruleUuid,
+                                     final AttemptStatus status,
+                                     final String decision) {
+        attempts.values().stream()
+                .filter(attempt -> attempt.attempt().docUuid().equals(docUuid)
+                                   && ruleUuid.equals(attempt.ruleUuid())
+                                   && attempt.status() == AttemptStatus.AWAITING_REVIEW)
+                .toList()
+                .forEach(attempt -> closed(attempt.id(), status, decision, attempt.ruleUuid(), attempt.score(),
+                        attempt.tokensSpent()));
     }
 
     @Override

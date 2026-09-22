@@ -59,6 +59,9 @@ import stroom.shapeshifter.shared.QuestionKind;
 import stroom.shapeshifter.shared.RecordBoundary;
 import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
+import stroom.util.logging.LambdaLogger;
+import stroom.util.logging.LambdaLoggerFactory;
+import stroom.util.logging.LogUtil;
 import stroom.util.shared.DocPath;
 import stroom.util.shared.ElementId;
 import stroom.util.shared.Severity;
@@ -79,7 +82,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.UUID;
-import java.util.function.Supplier;
+import java.util.function.Function;
 
 /**
  * One supervised stage over one stream, as design 02 §4 spells it out: route, learn, judge, write,
@@ -97,6 +100,8 @@ import java.util.function.Supplier;
  * makes it the promotion or {@link #reject} discards it.
  */
 public final class Stage {
+
+    private static final LambdaLogger LOGGER = LambdaLoggerFactory.getLogger(Stage.class);
 
     private static final String FOLDER = "Shapeshifter";
     /**
@@ -242,7 +247,7 @@ public final class Stage {
         }
         try {
             return recording(doc, shape, input,
-                    () -> learnAndBind(doc, shape, input, attributes, scorecard, selector));
+                    recorder -> learnAndBind(doc, shape, input, attributes, scorecard, selector, recorder));
         } finally {
             // Held until the rule is written, not merely while the model is asked: a second node that took
             // it in between would find no rule for the shape, learn it again, and append a second rule for
@@ -260,30 +265,69 @@ public final class Stage {
     private StageRun recording(final ShapeshifterAiDoc doc,
                                final Shape shape,
                                final Input input,
-                               final Supplier<StageRun> attempt) {
+                               final Function<Recorder, StageRun> attempt) {
+        // One advisor for the attempt, since the node's makes a new one per call and each counts its own
+        // tokens: asking twice would read two fresh counters and record nothing spent.
+        final Advisor advisor = advisors.of(doc);
         final long attemptId = attempts.opened(new Attempts.Attempt(doc.getUuid(), shape.id(), input.feed(),
                 input.type(), input.id(), node, doc.getExecutionMode(), doc.getPromotionMode(),
                 clock.millis() + doc.getAttemptBudgetMs() + LEASE_GRACE_MS));
-        final long before = advisors.of(doc).tokensUsed();
+        final long before = advisor.tokensUsed();
+        final Recorder recorder = new Recorder(advisor, attemptId, answeredBy(doc));
         final StageRun run;
         try {
-            run = attempt.get();
+            run = attempt.apply(recorder);
         } catch (final RuntimeException e) {
-            // The model, the node or the database failed: the attempt says so rather than vanishing.
-            attempts.closed(attemptId, AttemptStatus.ERROR, e.getClass().getSimpleName() + ": " + e.getMessage(),
-                    null, null, Math.max(0L, advisors.of(doc).tokensUsed() - before));
+            // The model, the node or the database failed: the attempt says so, with the turns it had got
+            // to, rather than vanishing. Nothing here may throw over the failure that brought us.
+            record(() -> attempts.closed(attemptId, AttemptStatus.ERROR,
+                    e.getClass().getSimpleName() + ": " + e.getMessage(), null, null,
+                    Math.max(0L, advisor.tokensUsed() - before)));
             throw e;
         }
-        int number = 0;
-        for (final Exchange exchange : run.transcript()) {
-            number++;
-            attempts.turn(attemptId, new Attempts.Turn(number, exchange.step(), exchange.candidate(),
-                    kindOf(exchange.question()), describe(exchange.question()),
-                    exchange.reply(), answeredBy(doc), exchange.outcome()));
-        }
-        attempts.closed(attemptId, statusOf(run.decision()), reason(run.decision()), ruleOf(run.decision()),
-                scoreOf(run.decision()), Math.max(0L, advisors.of(doc).tokensUsed() - before));
+        // The run is done and its rule is written: the record of it must not be what fails the stream.
+        record(() -> attempts.closed(attemptId, statusOf(run.decision()), reason(run.decision()),
+                ruleOf(run.decision()), scoreOf(run.decision()), Math.max(0L, advisor.tokensUsed() - before)));
         return run;
+    }
+
+    /**
+     * Bookkeeping, which may not fail what it is a record of: an attempt is written after the fragment, the
+     * rule and the output are, so a database that refuses the row must not undo a stream that succeeded.
+     */
+    private static void record(final Runnable write) {
+        try {
+            write.run();
+        } catch (final RuntimeException e) {
+            LOGGER.error(() -> LogUtil.message("The attempt could not be recorded: {}", e.getMessage()), e);
+        }
+    }
+
+    /**
+     * What an attempt writes as it goes: the advisor it is asking, so the tokens it charges are counted
+     * once, and a turn for every exchange as it is answered and again as it is judged (A28).
+     */
+    private final class Recorder {
+
+        private final Advisor advisor;
+        private final long attemptId;
+        private final String answeredBy;
+
+        private Recorder(final Advisor advisor, final long attemptId, final String answeredBy) {
+            this.advisor = advisor;
+            this.attemptId = attemptId;
+            this.answeredBy = answeredBy;
+        }
+
+        private Advisor advisor() {
+            return advisor;
+        }
+
+        private void turn(final int number, final Exchange exchange) {
+            record(() -> attempts.turn(attemptId, new Attempts.Turn(number, exchange.step(),
+                    exchange.candidate(), kindOf(exchange.question()), describe(exchange.question()),
+                    exchange.reply(), answeredBy, exchange.outcome())));
+        }
     }
 
     /**
@@ -299,8 +343,25 @@ public final class Stage {
         };
     }
 
+    /**
+     * What an attempt came to, in the words the decision itself uses — and only those: a decision's
+     * diagnostics quote the stream's own text, which may not be stored until it is redacted (A17, A38),
+     * which is the same reason a turn records what it asked rather than the prompt it sent.
+     */
     private static String reason(final Decision decision) {
-        return decision.toString();
+        return switch (decision) {
+            case Promoted promoted -> "Promoted " + promoted.score();
+            case Rebound rebound -> "Rebound " + rebound.score();
+            case Provisional provisional -> "Provisional " + provisional.score() + " on "
+                                            + provisional.records() + " of " + provisional.required()
+                                            + " records";
+            case Drafted drafted -> "Awaiting review, scored " + drafted.score();
+            case Kept kept -> "Kept the incumbent: " + kept.reason();
+            case GivenUp givenUp -> givenUp.reason();
+            case Retracted retracted -> retracted.reason();
+            case Sentinel sentinel -> sentinel.reason();
+            default -> decision.getClass().getSimpleName();
+        };
     }
 
     private static String ruleOf(final Decision decision) {
@@ -357,8 +418,13 @@ public final class Stage {
      * answering instead is A28's, in a later slice, and writes their own name here.
      */
     private static String answeredBy(final ShapeshifterAiDoc doc) {
-        return doc.getModel() == null
-                ? "model"
+        // A DocRef may carry no name — a document stored as type and uuid alone — and the column may not be
+        // null, so the uuid stands in: a record that cannot be written is worse than one that names a uuid.
+        if (doc.getModel() == null) {
+            return "model";
+        }
+        return doc.getModel().getName() == null
+                ? doc.getModel().getUuid()
                 : doc.getModel().getName();
     }
 
@@ -367,9 +433,10 @@ public final class Stage {
                                   final Input input,
                                   final Map<String, Object> attributes,
                                   final Scorecard scorecard,
-                                  final ExpressionOperator selector) {
+                                  final ExpressionOperator selector,
+                                  final Recorder recorder) {
         // Learn on a prefix, judge on the whole stream.
-        final Outcome outcome = learn(doc, input, attributes, scorecard);
+        final Outcome outcome = learn(doc, input, attributes, scorecard, List.of(), recorder);
         if (outcome instanceof final Abandoned abandoned) {
             return givenUp(doc, shape, input, abandoned.reason(), abandoned.reason(), abandoned.diagnostics(),
                     List.of(), outcome.transcript());
@@ -509,8 +576,9 @@ public final class Stage {
             return emit(doc, new Bound(incumbent), shape, input, incumbent, served, List.of());
         }
         try {
-            return recording(doc, shape, input,
-                    () -> relearnUnderLease(doc, shape, incumbent, input, attributes, scorecard, served, marked));
+            return recording(doc, shape, input, recorder ->
+                    relearnUnderLease(doc, shape, incumbent, input, attributes, scorecard, served, marked,
+                            recorder));
         } finally {
             shapes.releaseLease(doc.getUuid(), shape.id(), node);
         }
@@ -523,14 +591,15 @@ public final class Stage {
                                        final Map<String, Object> attributes,
                                        final Scorecard scorecard,
                                        final Judged served,
-                                       final String marked) {
+                                       final String marked,
+                                       final Recorder recorder) {
         shapes.reset(doc.getUuid(), shape.id());
         final List<StoredError> opening = new ArrayList<>();
         opening.add(new StoredError(Severity.ERROR, null, STAGE, "Relearning: " + marked
                                                                  + ". The bound fragment scored " + served.score()
                                                                  + " on this stream"));
         served.verdicts().forEach(verdict -> opening.addAll(verdict.feedback()));
-        final Outcome outcome = learn(doc, input, attributes, scorecard, opening);
+        final Outcome outcome = learn(doc, input, attributes, scorecard, opening, recorder);
         if (outcome instanceof final Abandoned abandoned) {
             return emit(doc, new Kept(incumbent, "No candidate: " + abandoned.reason()), shape, input, incumbent,
                     served, outcome.transcript());
@@ -654,20 +723,15 @@ public final class Stage {
     private Outcome learn(final ShapeshifterAiDoc doc,
                           final Input input,
                           final Map<String, Object> attributes,
-                          final Scorecard scorecard) {
-        return learn(doc, input, attributes, scorecard, List.of());
-    }
-
-    private Outcome learn(final ShapeshifterAiDoc doc,
-                          final Input input,
-                          final Map<String, Object> attributes,
                           final Scorecard scorecard,
-                          final List<StoredError> opening) {
-        final Advisor advisor = advisors.of(doc);
+                          final List<StoredError> opening,
+                          final Recorder recorder) {
+        final Advisor advisor = recorder.advisor();
         // The lease is extended before every question: an attempt held up by one slow call would otherwise
-        // run past its expiry and be learned again by another node (A42).
+        // run past its expiry and be learned again by another node (A42). Every turn is recorded as it is
+        // answered and again as it is judged, so an attempt still running shows what it had got to (A28).
         final Dialogue dialogue = new Dialogue(advisor, runners, scorecard, clock,
-                () -> lease(doc, Shape.of(doc.getLearningKey(), attributes)));
+                () -> lease(doc, Shape.of(doc.getLearningKey(), attributes)), recorder::turn);
         final Sample sample = Sample.of(learningPrefix(input.data(), doc), doc.getLearningKey(), attributes);
         final long before = advisor.tokensUsed();
         final List<Exchange> asked = new ArrayList<>();
@@ -722,6 +786,8 @@ public final class Stage {
                     .build());
         }
         shapes.reset(doc.getUuid(), shape);
+        // The attempt that wrote the draft is no longer awaiting review (A28).
+        record(() -> attempts.decided(doc.getUuid(), ruleUuid, AttemptStatus.PROMOTED, "Approved"));
         final List<Long> released = ledger.release(doc.getUuid(), shape);
         if (!released.isEmpty()) {
             reprocessing.request(doc.getUuid(), "Draft rule " + ruleUuid + " approved for shape " + shape, released);
@@ -742,6 +808,7 @@ public final class Stage {
         regressionSet.discard(draft.getUuid());
         shapes.reset(doc.getUuid(), shape);
         shapes.giveUp(doc.getUuid(), shape, "Rejected: " + reason);
+        record(() -> attempts.decided(doc.getUuid(), ruleUuid, AttemptStatus.REJECTED, "Rejected: " + reason));
     }
 
     private static RoutingRule draft(final ShapeshifterAiDoc doc,

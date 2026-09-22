@@ -29,7 +29,9 @@ import jakarta.inject.Singleton;
 import org.jooq.Record;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterAttempt.SHAPESHIFTER_ATTEMPT;
 import static stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterTurn.SHAPESHIFTER_TURN;
@@ -71,6 +73,8 @@ public class AttemptsDao implements Attempts {
                 .fetchOne(SHAPESHIFTER_ATTEMPT.ID));
     }
 
+    /// By number: a turn written as it is asked and again when it is judged is one row, so an attempt
+    /// still running shows what it had got to.
     @Override
     public void turn(final long attemptId, final Turn turn) {
         JooqUtil.context(connProvider, context -> context
@@ -82,6 +86,12 @@ public class AttemptsDao implements Attempts {
                 .set(SHAPESHIFTER_TURN.CANDIDATE, turn.candidate())
                 .set(SHAPESHIFTER_TURN.QUESTION_KIND, turn.kind().name())
                 .set(SHAPESHIFTER_TURN.QUESTION, turn.question())
+                .set(SHAPESHIFTER_TURN.ANSWER, turn.answer())
+                .set(SHAPESHIFTER_TURN.ANSWERED_BY, turn.answeredBy())
+                .set(SHAPESHIFTER_TURN.OUTCOME, turn.outcome() == null
+                        ? null
+                        : turn.outcome().name())
+                .onDuplicateKeyUpdate()
                 .set(SHAPESHIFTER_TURN.ANSWER, turn.answer())
                 .set(SHAPESHIFTER_TURN.ANSWERED_BY, turn.answeredBy())
                 .set(SHAPESHIFTER_TURN.OUTCOME, turn.outcome() == null
@@ -113,6 +123,23 @@ public class AttemptsDao implements Attempts {
     }
 
     @Override
+    public void decided(final String docUuid,
+                        final String ruleUuid,
+                        final AttemptStatus status,
+                        final String decision) {
+        JooqUtil.context(connProvider, context -> context
+                .update(SHAPESHIFTER_ATTEMPT)
+                .set(SHAPESHIFTER_ATTEMPT.STATUS, status.name())
+                .set(SHAPESHIFTER_ATTEMPT.DECISION, decision)
+                .set(SHAPESHIFTER_ATTEMPT.VERSION, SHAPESHIFTER_ATTEMPT.VERSION.plus(1))
+                .set(SHAPESHIFTER_ATTEMPT.UPDATE_TIME_MS, System.currentTimeMillis())
+                .where(SHAPESHIFTER_ATTEMPT.DOC_UUID.eq(docUuid))
+                .and(SHAPESHIFTER_ATTEMPT.RULE_UUID.eq(ruleUuid))
+                .and(SHAPESHIFTER_ATTEMPT.STATUS.eq(AttemptStatus.AWAITING_REVIEW.name()))
+                .execute());
+    }
+
+    @Override
     public Optional<Recorded> byId(final long attemptId) {
         return JooqUtil.contextResult(connProvider, context -> context
                         .select()
@@ -124,16 +151,30 @@ public class AttemptsDao implements Attempts {
 
     @Override
     public List<Recorded> forDocument(final String docUuid, final int limit) {
-        return JooqUtil.contextResult(connProvider, context -> context
-                        .select()
-                        .from(SHAPESHIFTER_ATTEMPT)
-                        .where(SHAPESHIFTER_ATTEMPT.DOC_UUID.eq(docUuid))
-                        .orderBy(SHAPESHIFTER_ATTEMPT.ID.desc())
-                        .limit(limit)
-                        .fetch())
-                .stream()
-                .map(record -> recorded(record, turns(record.get(SHAPESHIFTER_ATTEMPT.ID))))
-                .toList();
+        return JooqUtil.contextResult(connProvider, context -> {
+            final List<? extends Record> rows = context
+                    .select()
+                    .from(SHAPESHIFTER_ATTEMPT)
+                    .where(SHAPESHIFTER_ATTEMPT.DOC_UUID.eq(docUuid))
+                    .orderBy(SHAPESHIFTER_ATTEMPT.ID.desc())
+                    .limit(limit)
+                    .fetch();
+            final List<Long> ids = rows.stream().map(row -> row.get(SHAPESHIFTER_ATTEMPT.ID)).toList();
+            // One query for every attempt's turns, not one each: the Supervisor view pages these.
+            final Map<Long, List<Turn>> byAttempt = ids.isEmpty()
+                    ? Map.of()
+                    : context.select()
+                            .from(SHAPESHIFTER_TURN)
+                            .where(SHAPESHIFTER_TURN.FK_ATTEMPT_ID.in(ids))
+                            .orderBy(SHAPESHIFTER_TURN.FK_ATTEMPT_ID, SHAPESHIFTER_TURN.TURN_NUMBER)
+                            .fetch()
+                            .stream()
+                            .collect(Collectors.groupingBy(row -> row.get(SHAPESHIFTER_TURN.FK_ATTEMPT_ID),
+                                    Collectors.mapping(AttemptsDao::turn, Collectors.toList())));
+            return rows.stream()
+                    .map(row -> recorded(row, byAttempt.getOrDefault(row.get(SHAPESHIFTER_ATTEMPT.ID), List.of())))
+                    .toList();
+        });
     }
 
     private List<Turn> turns(final long attemptId) {

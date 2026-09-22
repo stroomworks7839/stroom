@@ -24,6 +24,7 @@ import stroom.shapeshifter.ai.extraction.NodeFixture;
 import stroom.shapeshifter.ai.fragment.ContentStores;
 import stroom.shapeshifter.ai.fragment.FragmentRunner;
 import stroom.shapeshifter.ai.learning.Advisor;
+import stroom.shapeshifter.ai.learning.Advisors;
 import stroom.shapeshifter.ai.learning.StepRunner;
 import stroom.shapeshifter.ai.scoring.BusinessRulesScorer;
 import stroom.shapeshifter.ai.scoring.CompileScorer;
@@ -118,9 +119,15 @@ public final class Scenarios {
     /// A stage over a given rule store: for a scenario that watches when a rule is written — the moment a
     /// second node must still be excluded (A42).
     public Stage stage(final Advisor advisor, final Rules rules) {
+        return stage(document -> advisor, rules);
+    }
+
+    /// A stage over given advisors: for a scenario about a node that makes a new advisor per call, each
+    /// counting its own tokens, as the node's own does (A28).
+    public Stage stage(final Advisors advisors, final Rules rules) {
         final List<StepRunner> runners = runners();
         return new Stage(
-                doc -> advisor,
+                advisors,
                 runners,
                 scorers(),
                 stores.writer(),

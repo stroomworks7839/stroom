@@ -2008,6 +2008,11 @@ including the degeneracy trap (§8.3) that changes the scoring model and propose
   the goldens and run 7 — yield per line where a record spans lines is what decided outcomes,
   coverage never did. A20–A22 ruled as built, the owner's; A39 and A40 ruled, the owner's, from run
   7: the escalating example splits every input, and a parser refused on yield goes back to the split.
+- Audit of slice 24, before the resuming is built on it: eight findings, all fixed — design 02 §6.1;
+  the tokens an attempt spent were always zero, since the node makes an advisor per call and the
+  recording read a different one from the dialogue; a record that failed could fail a bound stream; a
+  turn was written only at the end; a decision's `toString` carried the stream's own text; approval
+  and rejection left an attempt awaiting review for ever.
 - Slice 24, the attempt as a record (A28; design 02 §6.1): `shapeshifter_attempt` and
   `shapeshifter_turn`, the `Attempts` seam and its DAO, and the stage recording an attempt and every
   turn of it. Not the rendered prompt, which waits for redaction (A38); not yet the claim on the shape,

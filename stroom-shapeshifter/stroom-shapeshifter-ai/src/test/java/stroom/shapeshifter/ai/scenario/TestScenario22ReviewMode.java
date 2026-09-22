@@ -16,6 +16,7 @@
 
 package stroom.shapeshifter.ai.scenario;
 
+import stroom.shapeshifter.ai.stage.Attempts.Recorded;
 import stroom.shapeshifter.ai.stage.Decision.Bound;
 import stroom.shapeshifter.ai.stage.Decision.Drafted;
 import stroom.shapeshifter.ai.stage.Decision.Sentinel;
@@ -24,6 +25,7 @@ import stroom.shapeshifter.ai.stage.StageRun;
 import stroom.shapeshifter.ai.state.InMemoryLedger;
 import stroom.shapeshifter.ai.state.InMemoryReprocessing;
 import stroom.shapeshifter.ai.state.InMemoryReprocessing.Request;
+import stroom.shapeshifter.shared.AttemptStatus;
 import stroom.shapeshifter.shared.LearningMode;
 import stroom.shapeshifter.shared.PlanExample;
 import stroom.shapeshifter.shared.PromotionMode;
@@ -317,5 +319,32 @@ class TestScenario22ReviewMode {
         assertThatThrownBy(() -> scenarios.stage(Script.of()).approve(relearned.doc(), draft.getUuid()))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("pinned");
+    }
+
+    @Test
+    void approvingOrRejectingADraftEndsItsAttempt() {
+        // A28: an attempt that wrote a draft is awaiting review, and stops being so when a person decides.
+        final Scenarios scenarios = new Scenarios();
+        final StageRun waiting = drafted(scenarios);
+        final RoutingRule draft = scenarios.rules.forDocument(DOC).get(0);
+        assertThat(scenarios.attempts.forDocument(DOC, 10).get(0).status())
+                .isEqualTo(AttemptStatus.AWAITING_REVIEW);
+
+        scenarios.stage(Script.of()).approve(waiting.doc(), draft.getUuid());
+
+        final Recorded approved = scenarios.attempts.forDocument(DOC, 10).get(0);
+        assertThat(approved.status()).isEqualTo(AttemptStatus.PROMOTED);
+        assertThat(approved.decision()).isEqualTo("Approved");
+
+        // And a rejected one says who refused it and why.
+        final Scenarios other = new Scenarios();
+        final StageRun second = drafted(other);
+        final RoutingRule rejectable = other.rules.forDocument(DOC).get(0);
+
+        other.stage(Script.of()).reject(second.doc(), rejectable.getUuid(), "the wrong parser");
+
+        final Recorded rejected = other.attempts.forDocument(DOC, 10).get(0);
+        assertThat(rejected.status()).isEqualTo(AttemptStatus.REJECTED);
+        assertThat(rejected.decision()).contains("the wrong parser");
     }
 }

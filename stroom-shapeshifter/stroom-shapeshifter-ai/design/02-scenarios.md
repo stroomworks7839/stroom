@@ -1269,6 +1269,35 @@ first — which is what the Supervisor view lists. In the module: every attempt 
 turns and what it came to, an attempt that bound nothing says so, and a node that lost the lease
 records none. 191 tests in the module.
 
+Audited the same day, at the owner's asking, before the resuming is built on these tables: eight
+findings, all fixed. The worst was invisible to every test: the node makes a new advisor for each call,
+each counting its own tokens, so an attempt that asked one and read another recorded nothing spent —
+every row said zero, and the harness could not tell because its advisor is one shared object. One
+advisor is now resolved per attempt and passed to the dialogue, which is what `learn` already did and
+what the recording did not. The same re-resolution inside the catch block could throw over the failure
+that brought it there, leaving the attempt stuck at `IN_PROGRESS` — the state that block exists to
+prevent.
+
+Two were about what a record may cost. The turns and the closing row were written after the rule was
+bound and the output emitted, so a record that failed would fail a stream that had succeeded — a
+document whose model reference carries no name would have done exactly that, against a column that may
+not be null. Bookkeeping is now guarded: it logs what it cannot write, and never throws over the work
+it describes. And this section's own claim that "a turn is inserted as it is answered" was not true —
+they were written in a loop at the end, so an attempt still running showed none and one that threw lost
+every question it had asked. The dialogue now reports each turn as it is answered and again as it is
+judged, and the row is written by number, so an attempt that fell over keeps the transcript a person
+most needs.
+
+The rest: a decision was recorded as its own `toString`, which for a shortfall carries the scorers'
+diagnostics and so the stream's own text — the very thing the turn's description withholds until
+redaction exists (A38); it is the decision's own words now. An attempt that wrote a draft stayed
+`AWAITING_REVIEW` for ever, since approval and rejection said nothing to the record, and `REJECTED` was
+written by nothing at all. `forDocument` asked for each attempt's turns in its own query, which the
+Supervisor view would have done a hundred times a page. And a relearn where the incumbent won is
+recorded as abandoned, which the decision's words distinguish but the status does not — whether that
+deserves a status of its own is for the Supervisor view slice, since A28's list of statuses is the
+owner's. 194 tests in the module, 16 against MySQL.
+
 ## 7. Decisions taken
 
 Ruled 2026-09-17, each as recommended:

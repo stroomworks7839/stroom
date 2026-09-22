@@ -38,12 +38,19 @@ public interface Attempts {
     /// until then the shape's lease holds the claim and this records what happened.
     long opened(Attempt attempt);
 
-    /// Add a turn to an attempt, as it is asked and answered.
+    /// Write a turn of an attempt, by its number: as it is answered, and again when it is judged. An
+    /// attempt still running — or one whose node died — then shows what it had got to, which is the
+    /// transcript a person most needs.
     void turn(long attemptId, Turn turn);
 
     /// What an attempt came to, and when it stopped.
     void closed(long attemptId, AttemptStatus status, String decision, String ruleUuid, Double score,
                 long tokensSpent);
+
+    /// What a person decided about the draft an attempt wrote (A25, A28): the attempt that is awaiting
+    /// review for this rule is closed with their decision, so that an approved draft stops reading as
+    /// though it were still waiting.
+    void decided(String docUuid, String ruleUuid, AttemptStatus status, String decision);
 
     /// One attempt, whole, with its turns in order.
     Optional<Recorded> byId(long attemptId);

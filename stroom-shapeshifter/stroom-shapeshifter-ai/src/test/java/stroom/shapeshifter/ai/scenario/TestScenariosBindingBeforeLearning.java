@@ -20,6 +20,10 @@ import stroom.meta.shared.MetaFields;
 import stroom.query.api.ExpressionOperator;
 import stroom.query.api.ExpressionTerm.Condition;
 import stroom.shapeshifter.ai.extraction.ExtractionCorpus.Golden;
+import stroom.shapeshifter.ai.learning.Advisor;
+import stroom.shapeshifter.ai.learning.Advisors;
+import stroom.shapeshifter.ai.learning.Exchange;
+import stroom.shapeshifter.ai.learning.Question;
 import stroom.shapeshifter.ai.stage.Attempts.Recorded;
 import stroom.shapeshifter.ai.stage.Attempts.Turn;
 import stroom.shapeshifter.ai.stage.Decision.Bound;
@@ -53,6 +57,7 @@ import java.util.Optional;
 import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Design 02 §5, scenarios 14, 25, 26 and 29, and the draft-rule sentinel of 22: what the stage does
@@ -417,5 +422,78 @@ class TestScenariosBindingBeforeLearning {
         assertThat(scenarios.attempts.forDocument("doc-1", 10))
                 .describedAs("one attempt, the abandoned one: the loser recorded none")
                 .hasSize(1);
+    }
+
+    @Test
+    void whatAnAttemptSpentIsCountedFromOneAdvisor() {
+        // The node's Advisors makes a new advisor per call, each counting its own tokens, so an attempt
+        // that asked one and read another would record nothing spent — which is what it did.
+        final Scenarios scenarios = new Scenarios();
+        final Script script = scenarios.script(CSV.configuration(), XSLT)
+                .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter")
+                .expect(QuestionMatcher.configuration("DSParser")).reply(Scenarios.fenced(CSV.configuration()))
+                .expect(QuestionMatcher.configuration("XSLTFilter")).reply(Scenarios.fenced(XSLT));
+        // A fresh advisor per call, as the node's does, each charging as it is asked.
+        final Advisors fresh = document -> new CountingAdvisor(script);
+
+        final StageRun run = scenarios.stage(fresh, scenarios.rules).run(keyedOnFormat(), stream("CSV"));
+
+        assertThat(run.decision()).describedAs(run.decision().toString()).isInstanceOf(Promoted.class);
+        assertThat(scenarios.attempts.forDocument("doc-1", 10).get(0).tokensSpent())
+                .describedAs("the attempt asked one advisor, so its charges are the attempt's")
+                .isGreaterThan(0L);
+    }
+
+    @Test
+    void aTurnIsRecordedAsItIsAskedNotOnlyWhenTheAttemptEnds() {
+        // The transcript a person most needs is the one from an attempt that did not finish.
+        final Scenarios scenarios = new Scenarios();
+        final Script script = scenarios.script(CSV.configuration(), XSLT)
+                .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter")
+                .expect(QuestionMatcher.configuration("DSParser")).reply(() -> {
+                    // Mid-attempt: the chain question is already a row, answered and judged.
+                    final Recorded far = scenarios.attempts.forDocument("doc-1", 10).get(0);
+                    assertThat(far.status()).isEqualTo(AttemptStatus.IN_PROGRESS);
+                    assertThat(far.turns()).isNotEmpty();
+                    assertThat(far.turns().get(0).kind()).isEqualTo(QuestionKind.CHAIN);
+                    assertThat(far.turns().get(0).answer()).isEqualTo("DSParser -> XSLTFilter");
+                    assertThat(far.turns().get(0).outcome()).isEqualTo(StepOutcome.PASSED);
+                    throw new IllegalStateException("the model fell over");
+                });
+
+        assertThatThrownBy(() -> scenarios.stage(script).run(keyedOnFormat(), stream("CSV")))
+                .isInstanceOf(IllegalStateException.class);
+
+        final Recorded attempt = scenarios.attempts.forDocument("doc-1", 10).get(0);
+        assertThat(attempt.status()).describedAs("an attempt that threw says so rather than vanishing")
+                .isEqualTo(AttemptStatus.ERROR);
+        assertThat(attempt.decision()).contains("the model fell over");
+        assertThat(attempt.turns()).describedAs("with the turns it had got to").isNotEmpty();
+    }
+
+
+    // --------------------------------------------------------------------------------
+
+
+    /// An advisor that charges for what it is asked, as the node's does.
+    private static final class CountingAdvisor implements Advisor {
+
+        private final Advisor delegate;
+        private long tokens;
+
+        private CountingAdvisor(final Advisor delegate) {
+            this.delegate = delegate;
+        }
+
+        @Override
+        public String ask(final List<Exchange> transcript, final Question question) {
+            tokens += 100;
+            return delegate.ask(transcript, question);
+        }
+
+        @Override
+        public long tokensUsed() {
+            return tokens;
+        }
     }
 }
