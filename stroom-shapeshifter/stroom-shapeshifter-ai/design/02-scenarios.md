@@ -1644,12 +1644,33 @@ with no depth was written with a filter at the usual depth of one, which for JSO
 top-level map and for nested XML at its one wrapper: one document for the whole stream, bounding
 nothing. No depth now means no filter, exactly as it was before item 25, until the rule is learned again.
 
-**What item 25 still owes**, and what the next slice is: the fragment runner and the scorers run the
-chain *per record*, as the pipeline now will, and the transform question shows the model one record's
-document rather than the whole. Today the fragment splits and the scoring passes over the filter, so
-what is scored is one document where what runs is many — the counts and the yield are per record either
-way, which is why the scores hold, but the two must meet, and the meeting changes what the model is
-asked. 219 tests in the module, 24 against MySQL, 4 in Tier 2.
+The thirty-first slice, 2026-09-22, is the half item 25 owed: **the chain is run the way the fragment
+will run it**. From the first element that is not a parser, the chain is run one record at a time — in
+the promotion gate and in the bound fragment alike — because that is how the pipeline will run it.
+
+The cutting is stroom's own `SplitFilter`, driven rather than copied, so that the documents the transform
+is given here are the documents it will be given there. What it writes for each record is joined back
+into one document for the scorers and the goldens, which is not something a pipeline does — there each
+record's output goes downstream on its own and the writer segments them — but the events are the same
+events in the same order, and one document is what the scorers read.
+
+**The point of it, in one scenario.** A stylesheet that reaches into the document's envelope for a value
+— the source name at the top of a JSON document, say — is *perfect* over the whole document: every event
+names its user, every check passes, and nothing in the dialogue objects, because the dialogue puts its
+questions over the whole document too. The filter replicates the structure above a record but not the
+envelope's other contents, so run as the pipeline will run it, every event names nobody. Scored the old
+way that candidate is `Promoted`; scored this way it is refused at the floor. The scenario asserts the
+refusal, and promotes the same candidate when the per-record run is taken out — which is the whole
+argument for the slice.
+
+The fixtures did not change, which is the other half of the evidence: a correct stylesheet writes the
+same events either way. What did change is that four scenarios compare the events rather than the
+spacing between them, since joining the pieces re-serialises them.
+
+**What item 25 still owes:** the transform question shows the model the whole document, where the
+pipeline will give it one record. A model shown one record writes for one record — which is what a
+person writing a Stroom stylesheet is shown — and that is a change to what is asked, so it wants a live
+run to judge rather than a scripted one. 223 tests in the module, 24 against MySQL, 4 in Tier 2.
 
 ## 7. Decisions taken
 

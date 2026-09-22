@@ -2026,6 +2026,12 @@ including the degeneracy trap (§8.3) that changes the scoring model and propose
   `shapeshifter_turn`, the `Attempts` seam and its DAO, and the stage recording an attempt and every
   turn of it. Not the rendered prompt, which waits for redaction (A38); not yet the claim on the shape,
   which waits for the dialogue to be resumable (A45).
+- Slice 31, the rest of §12 item 25 (design 02 §6.1): the chain is run one record at a time from the
+  first element that is not a parser, in the promotion gate and in the bound fragment, because that is
+  how the pipeline runs it — the cutting driven by stroom's own `SplitFilter` rather than copied from it.
+  A stylesheet that reaches into the document's envelope is perfect over the whole document and writes
+  nameless events per record: scored the old way it was promoted, and it is now refused. Still owed: the
+  transform question showing the model one record, which changes what is asked and wants a live run.
 - Audit of slice 30 (the owner's code review): three findings, all fixed — design 02 §6.1. The written
   fragment carried a `SplitFilter` the fragment runner refused to run, so a bound JSON or XML shape would
   have thrown on its second stream; the depth was never persisted, so every rule read back from its row

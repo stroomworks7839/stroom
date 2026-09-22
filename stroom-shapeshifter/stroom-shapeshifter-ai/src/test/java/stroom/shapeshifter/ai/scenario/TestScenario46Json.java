@@ -24,6 +24,7 @@ import stroom.shapeshifter.ai.learning.Question.Configuration;
 import stroom.shapeshifter.ai.learning.Question.Split;
 import stroom.shapeshifter.ai.learning.Question.TargetFor;
 import stroom.shapeshifter.ai.stage.Decision.Bound;
+import stroom.shapeshifter.ai.stage.Decision.GivenUp;
 import stroom.shapeshifter.ai.stage.Decision.Promoted;
 import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.StageRun;
@@ -100,7 +101,7 @@ class TestScenario46Json {
 
         assertThat(run.decision()).describedAs(run.decision().toString()).isInstanceOf(Promoted.class);
         script.verifyExhausted();
-        assertThat(run.output()).isEqualTo(EVENTS);
+        assertThat(Scenarios.canonical(run.output())).isEqualTo(Scenarios.canonical(EVENTS));
         // Chain, split, two targets — a login and a logout, told apart by their keys — and the transform; nothing
         // for the parser, which takes no configuration.
         assertThat(script.asked()).hasSize(5);
@@ -136,7 +137,40 @@ class TestScenario46Json {
 
         script.verifyExhausted();
         assertThat(run.decision()).describedAs(run.decision().toString()).isInstanceOf(Promoted.class);
-        assertThat(run.output()).isEqualTo(EVENTS);
+        assertThat(Scenarios.canonical(run.output())).isEqualTo(Scenarios.canonical(EVENTS));
+    }
+
+    @Test
+    void aTransformThatReachesOutsideItsRecordIsCaughtBecauseThePipelineWillNotGiveItThat() {
+        // §12 item 25, and the mistake it exists to catch: a stylesheet that reaches into the document's
+        // envelope for a value. Over the whole document the envelope is there, every event names its user
+        // and the candidate is perfect; the filter the fragment carries replicates the structure above a
+        // record but not the envelope's other contents, so run as the pipeline will run it every event
+        // names nobody and the document's own business rule refuses it. Scored over the whole document
+        // this would have been promoted and then produced nameless events for ever.
+        final Scenarios scenarios = new Scenarios();
+        final String readsTheEnvelope = XSLT.replace(
+                "select=\"string[@key = 'user']\"",
+                "select=\"//string[@key = 'source']\"");
+        // The targets come from this stylesheet run over the whole document, as the dialogue runs it, so
+        // it answers every question the dialogue puts: what it does not survive is the promotion gate,
+        // which runs the chain the way the fragment will.
+        final Script script = scenarios.jsonScript("events", readsTheEnvelope)
+                .expect(QuestionMatcher.chain()).reply("JSONParser -> XSLTFilter")
+                .expect(QuestionMatcher.split()).reply("events")
+                .expect(QuestionMatcher.configuration("XSLTFilter"))
+                .reply(Scenarios.fenced(readsTheEnvelope));
+
+        final StageRun run = scenarios.stage(script).run(doc().copy().maxAttempts(1).build(),
+                stream(1, DOCUMENT));
+
+        script.verifyExhausted();
+        assertThat(run.decision()).describedAs(run.decision().toString()).isInstanceOf(GivenUp.class);
+        assertThat(((GivenUp) run.decision()).reason())
+                .describedAs("the gate, not the dialogue: the candidate answered every question the "
+                             + "dialogue put, over the whole document, as the dialogue puts them")
+                .isEqualTo("Below the promotion floor");
+        assertThat(scenarios.rules.forDocument("doc-1")).describedAs("and nothing was bound").isEmpty();
     }
 
     @Test
@@ -160,7 +194,7 @@ class TestScenario46Json {
         assertThat(run.decision()).describedAs(run.decision().toString()).isInstanceOf(Promoted.class);
         assertThat(((Promoted) run.decision()).score()).isEqualTo(1.0);
         assertThat(((Promoted) run.decision()).rule().getRecordBoundary()).isEqualTo(RecordBoundary.ofArray("events"));
-        assertThat(run.output()).isEqualTo(EVENTS);
+        assertThat(Scenarios.canonical(run.output())).isEqualTo(Scenarios.canonical(EVENTS));
         final Configuration transform = (Configuration) script.asked().get(script.asked().size() - 1);
         assertThat(transform.targets()).describedAs(transform.targets().toString()).hasSize(2);
         assertThat(transform.split().array()).isEqualTo("events");
@@ -197,6 +231,6 @@ class TestScenario46Json {
 
         assertThat(silent.asked()).isEmpty();
         assertThat(served.decision()).describedAs(served.decision().toString()).isInstanceOf(Bound.class);
-        assertThat(served.output()).isEqualTo(EVENTS);
+        assertThat(Scenarios.canonical(served.output())).isEqualTo(Scenarios.canonical(EVENTS));
     }
 }

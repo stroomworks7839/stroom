@@ -31,6 +31,8 @@ import stroom.pipeline.shared.data.PipelineLink;
 import stroom.pipeline.shared.data.PipelineProperty;
 import stroom.pipeline.textconverter.TextConverterStore;
 import stroom.pipeline.xslt.XsltStore;
+import stroom.shapeshifter.ai.extraction.PerRecord;
+import stroom.shapeshifter.ai.learning.StepResult;
 import stroom.shapeshifter.ai.learning.StepRunner;
 import stroom.shapeshifter.ai.scoring.Attempted;
 import stroom.shapeshifter.shared.RecordBoundary;
@@ -39,6 +41,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalInt;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -104,6 +107,13 @@ public final class FragmentRunner {
 
         final List<Attempted> steps = new ArrayList<>();
         final Set<String> visited = new HashSet<>();
+        // From the filter on, the chain runs one record at a time, because that is how the pipeline will
+        // run it (§12 item 25): a stylesheet that reads the whole document behaves differently when it is
+        // given one record, and what is scored has to be what will run.
+        final OptionalInt depth = boundary == null
+                ? OptionalInt.empty()
+                : boundary.splitDepth();
+        boolean split = false;
         String current = input;
         for (String id = next.get(SOURCE); id != null; id = next.get(id)) {
             final String elementId = id;
@@ -119,11 +129,11 @@ public final class FragmentRunner {
             final StepRunner runner = runners.get(element.getType());
             if (runner == null) {
                 if (SHAPING.contains(element.getType())) {
-                    // An element that shapes the stream without changing what is in it: the `SplitFilter`
-                    // the fragment carries so that the pipeline gives its transform one record at a time
-                    // (§12 item 25). Scoring still runs the chain over the whole document — the counts and
-                    // the yield are per record either way — and running it per record, as the pipeline
-                    // does, is what item 25 still owes.
+                    // The `SplitFilter` the fragment carries so that the pipeline gives its transform one
+                    // record at a time (§12 item 25). There is no runner for it because it changes
+                    // nothing about any record: what it changes is how many documents the elements after
+                    // it are given, and that is what happens from here.
+                    split = true;
                     continue;
                 }
                 throw new IllegalStateException("No runner for element type " + element.getType()
@@ -132,7 +142,10 @@ public final class FragmentRunner {
             final String configuration = runner.configured()
                     .map(configured -> configuration(merged, fragment, elementId, configured.propertyName()))
                     .orElse(null);
-            final Attempted step = Attempted.of(runner, current, runner.run(configuration, current), boundary);
+            final StepResult result = split && depth.isPresent()
+                    ? PerRecord.run(runner, configuration, current, depth.getAsInt())
+                    : runner.run(configuration, current);
+            final Attempted step = Attempted.of(runner, current, result, boundary);
             steps.add(step);
             if (step.result().output() == null) {
                 break;

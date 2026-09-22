@@ -101,7 +101,7 @@ class TestScenario45WindowsSecurity {
 
         assertThat(run.decision()).describedAs(run.decision().toString()).isInstanceOf(Promoted.class);
         script.verifyExhausted();
-        assertThat(run.output()).isEqualTo(EVENTS);
+        assertThat(Scenarios.canonical(run.output())).isEqualTo(Scenarios.canonical(EVENTS));
         // The records are the root's children, so the stream's count is the events': promoted outright.
         assertThat(((Promoted) run.decision()).score()).isEqualTo(1.0);
         final List<Exchange> turns = run.transcript();

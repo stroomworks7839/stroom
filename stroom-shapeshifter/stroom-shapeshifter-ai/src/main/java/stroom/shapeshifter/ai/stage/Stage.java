@@ -18,6 +18,7 @@ package stroom.shapeshifter.ai.stage;
 
 import stroom.docref.DocRef;
 import stroom.query.api.ExpressionOperator;
+import stroom.shapeshifter.ai.extraction.PerRecord;
 import stroom.shapeshifter.ai.fragment.FragmentRunner;
 import stroom.shapeshifter.ai.fragment.FragmentWriter;
 import stroom.shapeshifter.ai.learning.Advisor;
@@ -32,6 +33,7 @@ import stroom.shapeshifter.ai.learning.Question;
 import stroom.shapeshifter.ai.learning.RecordedAdvisor;
 import stroom.shapeshifter.ai.learning.RecordedAdvisor.AwaitingAnswer;
 import stroom.shapeshifter.ai.learning.Sample;
+import stroom.shapeshifter.ai.learning.StepResult;
 import stroom.shapeshifter.ai.learning.StepRunner;
 import stroom.shapeshifter.ai.learning.Target;
 import stroom.shapeshifter.ai.learning.TargetChecks;
@@ -82,6 +84,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalDouble;
+import java.util.OptionalInt;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -1377,10 +1380,19 @@ public final class Stage {
                                          final String input,
                                          final RecordBoundary boundary) {
         final List<Attempted> attempted = new ArrayList<>();
+        // What the fragment's SplitFilter will give the transform (§12 item 25): from the first element
+        // that is not a parser, the chain is run one record at a time, because that is how it will run.
+        final OptionalInt depth = boundary == null
+                ? OptionalInt.empty()
+                : boundary.splitDepth();
+        boolean split = false;
         String current = input;
         for (final LearnedStep step : chain) {
-            final Attempted attempt = Attempted.of(step.runner(), current,
-                    step.runner().run(step.configuration(), current), boundary);
+            split = split || (!step.runner().parser() && depth.isPresent());
+            final StepResult result = split
+                    ? PerRecord.run(step.runner(), step.configuration(), current, depth.getAsInt())
+                    : step.runner().run(step.configuration(), current);
+            final Attempted attempt = Attempted.of(step.runner(), current, result, boundary);
             attempted.add(attempt);
             if (attempt.result().output() == null) {
                 break;

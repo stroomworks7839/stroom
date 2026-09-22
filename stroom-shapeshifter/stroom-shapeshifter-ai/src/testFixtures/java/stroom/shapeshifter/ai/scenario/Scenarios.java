@@ -57,6 +57,8 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * What every scenario shares: the corpus, the reply resources, the step runners and scorers, the
@@ -194,6 +196,21 @@ public final class Scenarios {
         } catch (final IOException e) {
             throw new UncheckedIOException(e);
         }
+    }
+
+    /// The same events however they are spaced: a transform run one record at a time writes the same
+    /// events as one run over the whole document (§12 item 25), and what lies between them is the
+    /// serialiser's business and not the scenario's.
+    public static String canonical(final String xml) {
+        if (xml == null) {
+            return null;
+        }
+        // The declaration goes, the space between elements goes, and the space inside a start tag — which
+        // is where a stylesheet's own line breaks put its attributes — becomes one space.
+        final String tagsNormalised = Pattern.compile("<[^>]*>")
+                .matcher(xml)
+                .replaceAll(match -> Matcher.quoteReplacement(match.group().replaceAll("\\s+", " ")));
+        return tagsNormalised.replaceAll("<\\?xml[^>]*\\?>", "").replaceAll(">\\s+<", "><").strip();
     }
 
     /**
