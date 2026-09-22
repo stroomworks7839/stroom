@@ -17,6 +17,7 @@
 package stroom.shapeshifter.ai.transformation;
 
 import stroom.shapeshifter.ai.learning.StepResult;
+import stroom.shapeshifter.ai.learning.StepRunner;
 import stroom.util.shared.Severity;
 import stroom.util.shared.StoredError;
 
@@ -37,6 +38,42 @@ import static org.assertj.core.api.Assertions.assertThat;
 class TestXsltStep {
 
     private static final String INPUT = "<in>x</in>";
+
+    @Test
+    void aPreparedStylesheetIsCompiledOnceAndRunOverRecordAfterRecord() {
+        // §12 item 25: the fragment gives its transform one record at a time, so a candidate is run once
+        // per record of the stream. Compiling is the expensive half and does not depend on the input, so
+        // it is paid for the candidate and not for every record of it.
+        final String stylesheet = """
+                <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform" version="2.0">
+                  <xsl:template match="/"><out><xsl:value-of select="in"/></out></xsl:template>
+                </xsl:stylesheet>""";
+
+        final StepRunner.Prepared prepared = new XsltStep().prepare(stylesheet);
+
+        assertThat(prepared.run("<in>one</in>").output()).contains("<out>one</out>");
+        assertThat(prepared.run("<in>two</in>").output())
+                .describedAs("the same compiled stylesheet, another record")
+                .contains("<out>two</out>");
+        assertThat(prepared.run("<in>three</in>").diagnostics())
+                .describedAs("and one record's run tells another nothing")
+                .isEmpty();
+    }
+
+    @Test
+    void aStylesheetThatWillNotCompileFailsOnceForEveryRecordItWouldHaveHad() {
+        // A stylesheet that will not compile fails the same way however many records it is given, and it
+        // says so once rather than once per record.
+        final StepRunner.Prepared prepared = new XsltStep().prepare("<xsl:stylesheet");
+
+        final StepResult first = prepared.run("<in>one</in>");
+        final StepResult second = prepared.run("<in>two</in>");
+
+        assertThat(first.output()).isNull();
+        assertThat(first.diagnostics()).isNotEmpty();
+        assertThat(second.diagnostics()).describedAs("the same failure, not a second one")
+                .isEqualTo(first.diagnostics());
+    }
 
     @Test
     void transformsTheInput() {

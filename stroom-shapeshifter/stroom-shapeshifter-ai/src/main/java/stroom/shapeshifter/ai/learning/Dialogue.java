@@ -17,6 +17,8 @@
 
 package stroom.shapeshifter.ai.learning;
 
+import stroom.shapeshifter.ai.extraction.PerRecord;
+import stroom.shapeshifter.ai.extraction.RecordSplit;
 import stroom.shapeshifter.ai.learning.Outcome.Abandoned;
 import stroom.shapeshifter.ai.learning.Outcome.Learned;
 import stroom.shapeshifter.ai.learning.Question.Chain;
@@ -556,12 +558,38 @@ public final class Dialogue {
                     ? walk.sample.text()
                     : walk.learned[index - 1].result().output();
             final boolean last = index == walk.chain.size() - 1;
+            // What the fragment's SplitFilter will give this element (§12 item 25): from the first
+            // element that is not a parser, one record at a time. It is shown one record because that is
+            // what it will be given — a person writing a Stroom stylesheet is shown one — and it is run
+            // over every record because that is how it will run.
+            // The first element after the parser is given the parser's records; every element after that
+            // is given what the one before it wrote for each record, which is one record deep. A fragment
+            // carries one SplitFilter, not one per element.
+            final OptionalInt depth = runner.parser() || walk.split == null
+                    ? OptionalInt.empty()
+                    : depth(walk.split).stream()
+                            .map(settled -> index == firstTransform(walk)
+                                    ? settled
+                                    : PerRecord.WRITTEN)
+                            .findFirst();
+            final List<String> perRecord = depth.isPresent()
+                    ? RecordSplit.split(input, depth.getAsInt())
+                    : List.of();
+            final boolean oneAtATime = !perRecord.isEmpty();
+            final String shown = oneAtATime
+                    ? perRecord.get(0)
+                    : input;
             final Optional<StepRunner.Configured> configured = runner.configured();
             final Visit visit;
             if (configured.isEmpty()) {
                 // Nothing is asked for a run-only element, so it is run once and judged; what a transition
                 // carried here is left for the next question asked.
-                final Judged judged = judge(over, checks, runner, null, input, runner.run(null, input), walk, last);
+                // Per record too where the split has settled: a run-only element after the filter is
+                // given one record at a time exactly as a configured one is, and the gate runs it so.
+                final StepResult ran = oneAtATime
+                        ? PerRecord.run(runner, null, input, perRecord)
+                        : runner.run(null, input);
+                final Judged judged = judge(over, checks, runner, null, input, ran, walk, last);
                 walk.learn(index, judged.learned());
                 visit = judged.outcome() == StepOutcome.PASSED
                         ? Visit.next()
@@ -575,16 +603,19 @@ public final class Dialogue {
                         : null;
                 visit = candidates(step, walk, (candidate, feedback) -> {
                     final String reply = ask(walk, step, candidate, new Configuration(runner.elementType(),
-                            configured.get().documentType(), walk.sample, input, walk.previous[index], split,
-                            walk.targets, feedback));
+                            configured.get().documentType(), walk.sample, shown, walk.previous[index], split,
+                            walk.targets, oneAtATime, carried(walk, oneAtATime), feedback));
                     final Optional<String> configuration = ConfigurationReply.configuration(reply);
                     if (configuration.isEmpty()) {
                         return Judged.refused("The reply was not a single " + configured.get().documentType()
                                               + " document");
                     }
                     walk.previous[index] = configuration.get();
-                    final Judged judged = judge(over, checks, runner, configuration.get(), input,
-                            runner.run(configuration.get(), input), walk, last);
+                    final StepResult result = oneAtATime
+                            ? PerRecord.run(runner, configuration.get(), input, perRecord)
+                            : runner.run(configuration.get(), input);
+                    final Judged judged = judge(over, checks, runner, configuration.get(), input, result,
+                            walk, last);
                     walk.learn(index, judged.learned());
                     return judged;
                 }, "No passing configuration for " + runner.elementType() + " after "
@@ -698,6 +729,37 @@ public final class Dialogue {
                                        final List<StoredError> diagnostics,
                                        final List<Exchange> transcript) {
         return new Abandoned(reason, List.copyOf(diagnostics), List.copyOf(transcript));
+    }
+
+    /// How many records the stream holds and how many kinds they are of, for an element that is shown
+    /// one of them (§12 item 25): one record is one record's worth of evidence, and the configuration
+    /// written for it is run over every record of the stream, so what it is not being shown is said
+    /// rather than left for it to discover.
+    private static Question.Records carried(final Walk walk, final boolean oneAtATime) {
+        if (!oneAtATime || walk.records == null || walk.records.isEmpty()) {
+            return Question.Records.UNKNOWN;
+        }
+        return new Question.Records(walk.records.size(),
+                TargetChecks.representatives(walk.records, walk.records.size()).size());
+    }
+
+    /// Where the first element that is not a parser sits in the chain: the one the fragment's filter
+    /// stands in front of.
+    private int firstTransform(final Walk walk) {
+        for (int i = 0; i < walk.chain.size(); i++) {
+            final StepRunner runner = runners.get(walk.chain.get(i));
+            if (runner != null && !runner.parser()) {
+                return i;
+            }
+        }
+        return walk.chain.size();
+    }
+
+    /// The depth a settled boundary carries, where it has one.
+    private static OptionalInt depth(final Boundary split) {
+        return split.depth() == null
+                ? OptionalInt.empty()
+                : OptionalInt.of(split.depth());
     }
 
     /// How deep in the document the transform will receive one record sits (§12 item 25): what the

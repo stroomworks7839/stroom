@@ -1667,10 +1667,147 @@ The fixtures did not change, which is the other half of the evidence: a correct 
 same events either way. What did change is that four scenarios compare the events rather than the
 spacing between them, since joining the pieces re-serialises them.
 
-**What item 25 still owes:** the transform question shows the model the whole document, where the
-pipeline will give it one record. A model shown one record writes for one record — which is what a
-person writing a Stroom stylesheet is shown — and that is a change to what is asked, so it wants a live
-run to judge rather than a scripted one. 223 tests in the module, 24 against MySQL, 4 in Tier 2.
+The thirty-second slice, 2026-09-22, finishes item 25: **the transform is shown one record**, because
+one record is what it will be given. The dialogue puts the question over a single record's document, cut
+exactly as the fragment's filter will cut it, runs every candidate over every record, and says so in
+words: *the input below is one record; this configuration is run once for each record of the stream;
+produce the one event for the record you are given, and do not look outside it — there is nothing
+outside it to look at.*
+
+Two scenarios had to be rewritten, and both because they had been stating something that is no longer
+true.
+
+**Run 7's trap cannot be written any more.** A transform that emitted one event from the array's first
+item was promoted at a yield of one per record when the document counted as one record; slice 19 made
+the count the array's items, so it read as one in twelve and was re-asked. Shown one record and run over
+every record, "the first item" *is* the record it was given, and the same stylesheet writes twelve
+events. A whole class of degeneracy stops being expressible when the transform cannot see past its own
+record. The scenario now says that, and a second one keeps what the yield scorer is still for: a
+transform can still write nothing at all for the record it was given, and is still re-asked for it.
+
+**And the envelope-reading stylesheet is caught earlier.** The scenario of slice 31 had it refused at the
+promotion gate, because the dialogue asked its questions over the whole document and only the gate ran
+per record. Now the dialogue runs per record too, so the candidate is refused at the step that wrote it,
+with the shortfall in front of the model that can fix it. That is the better place: feedback about a
+record is feedback the next candidate can act on.
+
+225 tests in the module, 24 against MySQL, 4 in Tier 2. **Item 25 is complete**, and what it changed
+about the prompt is the one thing here a scripted scenario cannot judge: whether a model shown one
+record writes better stylesheets than one shown the whole document. That is a live run, and it is next.
+
+The audit of the three slices together (the owner's code review) found eight, all fixed, and the first
+would have undone the item for the streams most likely to meet it.
+
+**A stream carrying one record was run as though it carried none.** The fallback asked for two records
+before it would run per record, so a JSON stream whose array holds a single item was learned from the
+whole of its envelope — and then written with a `SplitFilter`, because a single record is enough to
+settle a depth. The model would be shown the envelope, reach into it for the source name, pass every
+check in the dialogue and at the gate, and name nobody in production: exactly the failure the slice's own
+scenario exists to catch, walking past it. "One record" and "no records" are now different answers:
+`RecordSplit` reports what it actually found at the depth, and only a document with nothing there is run
+whole. A document with an empty envelope is not a record, and a stream with one record is run as the one
+record it is.
+
+**A chain with two elements after the split was run twice at the parser's depth.** A repeated element is
+a legal chain, and the second transform was being handed the *joined* document and re-split where the
+parser's records had been — inside an `<Event>` rather than on a record boundary. A fragment carries one
+`SplitFilter`, not one per element: what follows the first per-record element is given what that element
+wrote for each record, which is one record deep (`PerRecord.WRITTEN`). Fixed in all three places that run
+a chain — the dialogue, the gate and the bound fragment — which is the point of them agreeing.
+
+**Ten thousand records raising the same error said it ten thousand times.** Diagnostics were concatenated
+across records and rendered whole into the next prompt. They are now told once each and capped at twenty:
+a step that has gone wrong in twenty different ways has gone wrong, and a re-ask that repeats one sentence
+ten thousand times says no more than one copy of it and costs a budget (A44) to send.
+
+**Running per record compiled per record.** This was the thing owed after slice 31 and it is now paid on
+the learning path: `StepRunner.prepare` is the seam for a configuration compiled once and run many times,
+`XsltStep` overrides it to build its `Templates` once and a `Transformer` per record, and `PerRecord`
+prepares once per candidate. A stylesheet that will not compile now fails once rather than once per
+record. The default still compiles per input, which is right for an element that compiles nothing. What
+remains owed is the *bound* path going through stroom's own `XsltPool`, as the schema scorer already goes
+through `SchemaPool`.
+
+**The one record shown is one record's worth of evidence, and the question now says so.** Under the
+escalating plan the transform is asked before there are any targets, so a stream mixing logins and
+logouts would show the model a login, tell it nothing of the rest, and spend both candidates on a
+question it could not have answered. The question now carries how many records the stream holds and how
+many shapes they are of — *"handle every shape it may be given, not only this one"*. Showing one record
+*per kind* would be better still, and is not done here: what is fixed is that the variety is no longer
+hidden.
+
+Three smaller ones with it: the input was split twice per candidate, once to show a record and once
+inside every attempt, so the cut list is now made once and passed in; the run-only branch ran over the
+whole document while the gate ran it per record — unreachable today, since the only run-only runner is a
+parser, and no longer waiting for the first one that is not; and the "this is one record" wording sat
+behind the branch that describes the boundary, which is a fact about the split rather than about the
+input in front of the model, so it is now said whether or not there is a boundary to describe.
+
+234 tests in the module after the audit, 24 against MySQL, 4 in Tier 2. Each fix that could be held by a
+test is: a one-record document split as one record, a two-transform chain run at the right depth for each,
+a shortfall every record shares told once, and a configuration prepared once and run once per record —
+the last against a counting runner, since compiling once and compiling ten thousand times produce the same
+answer and differ only in what they cost.
+
+### 6.4 What the one-record run found
+
+Item 25 changed what the model is shown, and no scripted scenario can say whether that makes it write
+better stylesheets. The run of 2026-09-22 asked: `claude-sonnet-5`, the four rows that carry a record
+boundary — the two JSON shapes, the Windows export and the nested XML — under both plans, against the
+runs of 2026-09-21/22 on the same model and rows. The CSV rows have no boundary and nothing about them
+changed, so they were not run. Both runs are archived under `build/live-runs/sonnet-5-run9-one-record-*`.
+
+| Row | TARGET_FIRST before | TARGET_FIRST after | ESCALATING before | ESCALATING after |
+|---|---|---|---|---|
+| 07 nested XML | — | 0.999 · 9 q · 73k | — | **given up** · 14 q · 209k |
+| 10 Windows | 0.997 · 13 q · 415k | **1.000** · 13 q · 341k | 1.000 · 2 q · 28k | 0.995 · 11 q · 247k |
+| 11 JSON lines | 0.999 · 9 q · 80k | 0.938 · 6 q · 46k | 0.938 · 6 q · 83k | **1.000** · 3 q · 28k |
+| 12 JSON document | given up · 10 q · 215k (run 7); 0.999 · 7 q · 60k (run 8) | 0.999 · 6 q · 50k | 1.000 · 6 q · 144k; 1.000 · 4 q · 53k (run 8) | 1.000 · 4 q · 36k |
+
+**The best result is the one the item was built for.** Row 11 under the escalating plan: chain, split,
+one configuration question, promoted at 1.000 with every scorer at 1.000 — where the same row shown the
+whole stream took two candidates and settled at 0.938, its extraction quality 0.75. Shown one record,
+the first stylesheet was right. Row 12 is the same story more cheaply than before in both plans, and
+row 10 under target-first scored higher on fewer tokens, because a configuration prompt now carries one
+`<Event>` rather than the whole export.
+
+**The cost is a question, and sometimes an answer.** Row 10 under the escalating plan promoted at 1.000
+in *two* questions before item 25: chain, then a transform written over the whole document, accepted.
+The boundary has to be settled before one record can be shown, so the split question now comes first,
+and this run's first two candidates failed — eleven questions and 247k tokens for 0.995. That trade is
+the item: the two-question candidate was judged on a document it will never be given, and being right
+about the sample is what item 25 exists to stop counting as being right.
+
+**Told not to look outside its record, the model looks anyway.** Row 12's promoted stylesheet selects
+`//json:array[@key='events']/json:map` — a path anchored at the document root — after being told *"do
+not look outside it — there is nothing outside it to look at."* It works only because the filter
+replicates a record's ancestors, so that path finds the one map in the record's own document. What
+protects the result is the structure the split preserves, not the sentence.
+
+Two defects, both found by reading the transcripts rather than the table, and both now fixed:
+
+- **A re-ask that said nothing.** Row 07 spent five attempts and gave up; four of them carried
+  *"Your previous configuration was…"* and no shortfall at all. The cause is item 25's own: what the
+  transform wrote for each record is read back to make one document, and `RecordJoin` returned null for
+  anything that would not parse — silently. A stylesheet whose templates match nothing writes the
+  input's text and no elements, which Saxon performs without complaint, so the step produced nothing and
+  had nothing to say about it. It now says which: nothing written for any record, or written and not
+  readable back. Before item 25 that same stylesheet's text output reached the scorers and they reported
+  it; the silence was new, and it cost the row.
+- **A prompt that stated something untrue.** The transformation rules say the stylesheet reads
+  `records:2`, which is right whenever a parser precedes it and wrong for a stream that is already XML,
+  where the transform is handed the feed's own markup. The model believed it, set
+  `xpath-default-namespace="records:2"`, and matched nothing — seven attempts across two rows. The
+  configuration question now says, next to the input and only where it is true, that this is the
+  stream's own markup and not `records:2`. The rules template is unchanged, since it describes the usual
+  case and is the owner's to edit (A33).
+
+Neither defect is visible in a table of scores: row 07's target-first run shows 0.999 because the model
+corrected the namespace by itself on its second try. That is the argument for reading transcripts.
+
+Not measured: one record *per kind* rather than the first (the audit's open point), any model but
+`claude-sonnet-5`, and whether row 11's target-first drop from 0.999 to 0.938 is more than the target
+stage negotiating two fewer targets in this run. 238 tests in the module after the two fixes.
 
 ## 7. Decisions taken
 

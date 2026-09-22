@@ -51,6 +51,18 @@ public interface StepRunner {
     StepResult run(String configuration, String input);
 
     /**
+     * The same configuration, ready to be run many times: the fragment gives its transform one record at
+     * a time (§12 item 25), so a candidate is run once per record of the stream, and whatever compiling
+     * a configuration costs must be paid once for the candidate and not once for every record of it.
+     * <p>
+     * The default pays it every time, which is right for an element that compiles nothing; a runner that
+     * compiles — a stylesheet, a splitter — overrides it and compiles once.
+     */
+    default Prepared prepare(final String configuration) {
+        return input -> run(configuration, input);
+    }
+
+    /**
      * Whether the element parses raw input into records — the extraction position of design 01 §4 —
      * rather than transforming records into records.
      */
@@ -64,5 +76,16 @@ public interface StepRunner {
      */
     record Configured(String documentType, String propertyName) {
 
+    }
+
+
+    // --------------------------------------------------------------------------------
+
+
+    /// One configuration, compiled, to be run over one input after another.
+    @FunctionalInterface
+    interface Prepared {
+
+        StepResult run(String input);
     }
 }

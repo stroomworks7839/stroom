@@ -111,6 +111,15 @@ public sealed interface Question {
 
     }
 
+    /// How many records the stream holds and how many kinds they are of, as the split found them.
+    ///
+    /// @param kinds How many shapes of record the stream carries, by the discrimination the split uses:
+    ///              one where every record is alike, more where a feed reports several things.
+    record Records(int total, int kinds) {
+
+        public static final Records UNKNOWN = new Records(0, 0);
+    }
+
     /**
      * The configuration document for one element of the chain (A21 step 2). Carries the real input that
      * element will receive — the sample for the first element, the previous element's output after that —
@@ -128,6 +137,14 @@ public sealed interface Question {
      * @param targets               What each kind of record must become (A31): the parser's records must
      *                              carry every value these need, the transform must produce exactly
      *                              these. Empty where the dialogue has no targets.
+     * @param oneRecord             Whether the input shown is one record rather than the whole stream:
+     *                              the fragment's `SplitFilter` gives this element one record at a time
+     *                              (§12 item 25), so it is asked for a configuration that handles one,
+     *                              and told so, as a person writing a Stroom stylesheet is shown one.
+     * @param records               How many records the stream holds, and how many kinds they are of,
+     *                              where the input is one of them: one record shown is one record's
+     *                              worth of evidence, and a configuration written for it is run over all
+     *                              of them, so what it is not being shown is said rather than hidden.
      */
     record Configuration(String elementType,
                          String documentType,
@@ -136,6 +153,8 @@ public sealed interface Question {
                          String previousConfiguration,
                          Boundary split,
                          List<Target> targets,
+                         boolean oneRecord,
+                         Records records,
                          List<StoredError> feedback) implements Question {
 
         public Configuration {

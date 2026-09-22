@@ -86,28 +86,54 @@ public final class XsltStep implements StepRunner {
 
     @Override
     public StepResult run(final String configuration, final String input) {
-        final Diagnostics diagnostics = new Diagnostics();
+        return prepare(configuration).run(input);
+    }
+
+    /// The stylesheet compiled once, to be run over one record after another (§12 item 25): compiling is
+    /// the expensive half and it does not depend on the input, so a candidate is compiled for the
+    /// candidate and not for every record of the stream it is judged on.
+    ///
+    /// A stylesheet that will not compile fails once, here, and every record it would have been given
+    /// reports that one failure rather than its own copy of it.
+    @Override
+    public Prepared prepare(final String configuration) {
+        final Diagnostics compiling = new Diagnostics();
         final TransformerFactoryImpl factory = new TransformerFactoryImpl();
-        factory.setErrorListener(diagnostics);
+        factory.setErrorListener(compiling);
         confine(factory);
-        final StringWriter output = new StringWriter();
+        final Templates templates;
         try {
-            final Templates templates = factory.newTemplates(ConfinedXml.source(configuration));
-            final Transformer transformer = templates.newTransformer();
-            transformer.setErrorListener(diagnostics);
-            ((TransformerImpl) transformer).getUnderlyingXsltTransformer().setMessageListener(diagnostics::message);
-            transformer.setURIResolver(REFUSING_URI_RESOLVER);
-            transformer.setOutputProperty(OutputKeys.INDENT, "yes");
-            transformer.transform(ConfinedXml.source(input), new StreamResult(output));
+            templates = factory.newTemplates(ConfinedXml.source(configuration));
         } catch (final TransformerException e) {
-            // Saxon reports through the listener before throwing, so this is only the rare fault nobody
-            // has yet recorded.
-            if (diagnostics.errors.stream().noneMatch(error -> error.getSeverity() == Severity.FATAL_ERROR)) {
-                diagnostics.record(Severity.FATAL_ERROR, e);
+            if (compiling.errors.stream().noneMatch(error -> error.getSeverity() == Severity.FATAL_ERROR)) {
+                compiling.record(Severity.FATAL_ERROR, e);
             }
-            return new StepResult(null, List.copyOf(diagnostics.errors));
+            final List<StoredError> failed = List.copyOf(compiling.errors);
+            return input -> new StepResult(null, failed);
         }
-        return new StepResult(output.toString(), List.copyOf(diagnostics.errors));
+        final List<StoredError> compiled = List.copyOf(compiling.errors);
+        return input -> {
+            final Diagnostics diagnostics = new Diagnostics();
+            diagnostics.errors.addAll(compiled);
+            final StringWriter output = new StringWriter();
+            try {
+                final Transformer transformer = templates.newTransformer();
+                transformer.setErrorListener(diagnostics);
+                ((TransformerImpl) transformer).getUnderlyingXsltTransformer()
+                        .setMessageListener(diagnostics::message);
+                transformer.setURIResolver(REFUSING_URI_RESOLVER);
+                transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+                transformer.transform(ConfinedXml.source(input), new StreamResult(output));
+            } catch (final TransformerException e) {
+                // Saxon reports through the listener before throwing, so this is only the rare fault
+                // nobody has yet recorded.
+                if (diagnostics.errors.stream().noneMatch(error -> error.getSeverity() == Severity.FATAL_ERROR)) {
+                    diagnostics.record(Severity.FATAL_ERROR, e);
+                }
+                return new StepResult(null, List.copyOf(diagnostics.errors));
+            }
+            return new StepResult(output.toString(), List.copyOf(diagnostics.errors));
+        };
     }
 
     /**

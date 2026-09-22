@@ -114,6 +114,7 @@ public final class FragmentRunner {
                 ? OptionalInt.empty()
                 : boundary.splitDepth();
         boolean split = false;
+        boolean ran = false;
         String current = input;
         for (String id = next.get(SOURCE); id != null; id = next.get(id)) {
             final String elementId = id;
@@ -142,8 +143,14 @@ public final class FragmentRunner {
             final String configuration = runner.configured()
                     .map(configured -> configuration(merged, fragment, elementId, configured.propertyName()))
                     .orElse(null);
+            final boolean first = split && !ran && depth.isPresent();
+            ran = ran || first;
+            // As above: one SplitFilter in a fragment, so what follows the first per-record element is
+            // given what that element wrote for each record.
             final StepResult result = split && depth.isPresent()
-                    ? PerRecord.run(runner, configuration, current, depth.getAsInt())
+                    ? PerRecord.run(runner, configuration, current, first
+                            ? depth.getAsInt()
+                            : PerRecord.WRITTEN)
                     : runner.run(configuration, current);
             final Attempted step = Attempted.of(runner, current, result, boundary);
             steps.add(step);

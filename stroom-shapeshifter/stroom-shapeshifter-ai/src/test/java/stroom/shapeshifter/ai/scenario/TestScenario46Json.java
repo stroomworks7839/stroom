@@ -117,20 +117,45 @@ class TestScenario46Json {
     }
 
     @Test
-    void aOneEventTransformOverTheDocumentIsShortOnYieldNotPromoted() {
-        // Run 7 (design 02 §6.3): counted as one record, a transform emitting one event from the array's first
-        // item scored a yield of one per record and was promoted. By the array's items it is one in twelve.
-        final String oneEvent = XSLT.replace("select=\"//map[string/@key = 'time']\"",
+    void theOneEventTransformOfRunSevenCannotBeWrittenOnceTheTransformSeesOneRecord() {
+        // Run 7 (design 02 §6.3): counted as one record, a transform emitting one event from the array's
+        // first item scored a yield of one per record and was promoted. Slice 19 made the count the
+        // array's items, so it read as one in twelve and was re-asked. Item 25 dissolves the trap
+        // altogether: the transform is shown one record and run over every record, so "the first item"
+        // *is* the record it was given, and the same stylesheet writes twelve events. A whole class of
+        // degeneracy stops being expressible when the transform can no longer see past its own record.
+        final String firstItem = XSLT.replace("select=\"//map[string/@key = 'time']\"",
                 "select=\"(//map[string/@key = 'time'])[1]\"");
-        assertThat(oneEvent).describedAs("the stylesheet's loop was narrowed to the first item").isNotEqualTo(XSLT);
+        assertThat(firstItem).describedAs("the stylesheet's loop was narrowed to the first item")
+                .isNotEqualTo(XSLT);
         final Scenarios scenarios = new Scenarios();
         final Script script = scenarios.jsonScript("events", XSLT)
                 .expect(QuestionMatcher.chain()).reply("JSONParser -> XSLTFilter")
                 .expect(QuestionMatcher.split().withoutFeedback()).reply("events")
-                .expect(QuestionMatcher.configuration("XSLTFilter").withoutFeedback()).reply(Scenarios.fenced(oneEvent))
-                .expect(QuestionMatcher.configuration("XSLTFilter")
-                        .withFeedbackMentioning("Yield scored")
-                        .withFeedbackMentioning("1 record(s) from 12 input record(s)"))
+                .expect(QuestionMatcher.configuration("XSLTFilter").withoutFeedback())
+                .reply(Scenarios.fenced(firstItem));
+
+        final StageRun run = scenarios.stage(script).run(doc(), stream(1, DOCUMENT));
+
+        script.verifyExhausted();
+        assertThat(run.decision()).describedAs(run.decision().toString()).isInstanceOf(Promoted.class);
+        assertThat(Scenarios.canonical(run.output())).describedAs("twelve events, not one")
+                .isEqualTo(Scenarios.canonical(EVENTS));
+    }
+
+    @Test
+    void aTransformThatWritesNothingForItsRecordIsStillShortOnYield() {
+        // What the yield scorer is still for: a transform run one record at a time can no longer emit one
+        // event and ignore the rest, but it can still write nothing at all for the record it was given.
+        final String nothing = XSLT.replace("select=\"//map[string/@key = 'time']\"",
+                "select=\"(//map[string/@key = 'time'])[2]\"");
+        final Scenarios scenarios = new Scenarios();
+        final Script script = scenarios.jsonScript("events", XSLT)
+                .expect(QuestionMatcher.chain()).reply("JSONParser -> XSLTFilter")
+                .expect(QuestionMatcher.split().withoutFeedback()).reply("events")
+                .expect(QuestionMatcher.configuration("XSLTFilter").withoutFeedback())
+                .reply(Scenarios.fenced(nothing))
+                .expect(QuestionMatcher.configuration("XSLTFilter").withFeedbackMentioning("Yield scored"))
                 .reply(Scenarios.fenced(XSLT));
 
         final StageRun run = scenarios.stage(script).run(doc(), stream(1, DOCUMENT));
@@ -167,9 +192,10 @@ class TestScenario46Json {
         script.verifyExhausted();
         assertThat(run.decision()).describedAs(run.decision().toString()).isInstanceOf(GivenUp.class);
         assertThat(((GivenUp) run.decision()).reason())
-                .describedAs("the gate, not the dialogue: the candidate answered every question the "
-                             + "dialogue put, over the whole document, as the dialogue puts them")
-                .isEqualTo("Below the promotion floor");
+                .describedAs("caught where it is written rather than at the gate: the dialogue shows the "
+                             + "transform one record and runs it over every record, so the envelope is "
+                             + "missing the first time the candidate is judged")
+                .isEqualTo("No passing configuration for XSLTFilter after 1 attempts");
         assertThat(scenarios.rules.forDocument("doc-1")).describedAs("and nothing was bound").isEmpty();
     }
 

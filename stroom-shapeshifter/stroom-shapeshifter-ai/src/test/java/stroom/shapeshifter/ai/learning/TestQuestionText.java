@@ -73,7 +73,7 @@ class TestQuestionText {
         final StoredError shortfall = new StoredError(Severity.ERROR, null, new ElementId("Scorecard"),
                 "Input coverage scored 0.6 against a threshold of 0.9");
         final String text = WORDS.render(new Configuration("DSParser", "TextConverter", SAMPLE, "a,b,c\n",
-                "<dataSplitter/>", null, List.of(), List.of(shortfall)));
+                "<dataSplitter/>", null, List.of(), false, Question.Records.UNKNOWN, List.of(shortfall)));
 
         assertThat(text)
                 .contains("Write the TextConverter document for the DSParser element")
@@ -87,9 +87,54 @@ class TestQuestionText {
     }
 
     @Test
+    void aTransformShownOneRecordIsToldThatIsAllItWillEverGet() {
+        // §12 item 25: the fragment gives this element one record at a time, so it is asked for a
+        // configuration that handles one — and told so, because a stylesheet written for the whole
+        // stream is written for something that will never arrive.
+        final String text = WORDS.render(new Configuration("XSLTFilter", "XSLT", SAMPLE,
+                "<records xmlns=\"records:2\"><record/></records>", null,
+                Boundary.ofArray("events", 3), List.of(), true, new Question.Records(12, 2), List.of()));
+
+        assertThat(text)
+                .contains("The input below is **one record**")
+                .contains("run once for each record")
+                .contains("do not look outside it")
+                .describedAs("and what one record does not show: how many follow, and that they differ")
+                .contains("12 records of 2 different shapes")
+                .contains("handle every shape it may be given")
+                .describedAs("and not the whole-stream wording it replaces")
+                .doesNotContain("nothing for the values around them");
+    }
+
+    @Test
+    void markupThatIsNotRecordsTwoIsSaidToBeTheStreamsOwn() {
+        // The transformation rules describe the usual case and state records:2, but a chain with no
+        // parser hands the transform the feed's XML as it arrived. A stylesheet that sets
+        // xpath-default-namespace="records:2" over it matches nothing and writes no elements, failing
+        // without Saxon raising anything — which the live run of 2026-09-22 spent seven attempts on.
+        final String text = WORDS.render(new Configuration("XSLTFilter", "XSLT", SAMPLE,
+                "<auditLog application=\"DocVault\"><entry id=\"a1\"/></auditLog>", null,
+                Boundary.ofElement("entry", 1), List.of(), true, new Question.Records(8, 2), List.of()));
+
+        assertThat(text)
+                .contains("This input is the stream's own markup and not records:2")
+                .contains("do not set xpath-default-namespace to records:2");
+    }
+
+    @Test
+    void aParsersRecordsAreNotContradicted() {
+        final String text = WORDS.render(new Configuration("XSLTFilter", "XSLT", SAMPLE,
+                "<records xmlns=\"records:2\"><record/></records>", null,
+                Boundary.ofArray("events", 3), List.of(), true, new Question.Records(12, 2), List.of()));
+
+        assertThat(text).doesNotContain("the stream's own markup");
+    }
+
+    @Test
     void theTransformQuestionCarriesTheSchemasFailureModesAndTheDegeneracyTrap() {
         final String text = WORDS.render(new Configuration("XSLTFilter", "XSLT", SAMPLE,
-                "<records xmlns=\"records:2\"/>", null, null, List.of(), List.of()));
+                "<records xmlns=\"records:2\"/>", null, null, List.of(), false, Question.Records.UNKNOWN,
+                List.of()));
 
         assertThat(text)
                 .contains("event-logging:3")

@@ -49,11 +49,16 @@ public final class RecordSplit {
 
     /// @param document The parsed document, as the element before the filter produced it.
     /// @param depth    The element depth the records sit at, as the rule's boundary carries it.
-    /// @return One document per record, in order. A document with no records at that depth splits into
-    /// nothing, and the caller runs the chain over the whole of it as it did before.
+    /// @return One document per record, in order — and *empty* where nothing sits at that depth. The
+    /// filter emits the structure above the records whether it found any or not, so a document with
+    /// nothing at the depth comes back as one empty envelope; that is not a record, and handing it on as
+    /// one would run the chain over an empty document. A stream with exactly one record comes back as one
+    /// document, and is run as the one record it is: "one record" and "no records" must not be the same
+    /// answer, or a stream carrying a single record would be learned from the whole of its envelope and
+    /// then run without it.
     public static List<String> split(final String document, final int depth) {
         final List<String> records = new ArrayList<>();
-        final Capture capture = new Capture(records);
+        final Capture capture = new Capture(records, depth);
         final SplitFilter split = new SplitFilter();
         split.setSplitDepth(depth);
         split.setSplitCount(1);
@@ -85,11 +90,15 @@ public final class RecordSplit {
     private static final class Capture extends AbstractXMLFilter {
 
         private final List<String> records;
+        private final int depth;
         private TransformerHandler handler;
         private StringWriter writing;
+        private int open;
+        private boolean cut;
 
-        private Capture(final List<String> records) {
+        private Capture(final List<String> records, final int depth) {
             this.records = records;
+            this.depth = depth;
         }
 
         @Override
@@ -97,12 +106,18 @@ public final class RecordSplit {
             writing = new StringWriter();
             handler = newHandler(writing);
             handler.startDocument();
+            open = 0;
+            cut = false;
         }
 
         @Override
         public void endDocument() throws SAXException {
             handler.endDocument();
-            records.add(writing.toString());
+            // Only where something was actually found at the depth: the filter gives back the structure
+            // above the records whether there were any or not, and an empty envelope is not a record.
+            if (cut) {
+                records.add(writing.toString());
+            }
             handler = null;
             writing = null;
         }
@@ -120,12 +135,15 @@ public final class RecordSplit {
         @Override
         public void startElement(final String uri, final String localName, final String qName,
                                  final Attributes atts) throws SAXException {
+            open++;
+            cut = cut || open == depth + 1;
             handler.startElement(uri, localName, qName, atts);
         }
 
         @Override
         public void endElement(final String uri, final String localName, final String qName)
                 throws SAXException {
+            open--;
             handler.endElement(uri, localName, qName);
         }
 

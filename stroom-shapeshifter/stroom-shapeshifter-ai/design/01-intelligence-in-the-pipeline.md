@@ -2026,6 +2026,37 @@ including the degeneracy trap (§8.3) that changes the scoring model and propose
   `shapeshifter_turn`, the `Attempts` seam and its DAO, and the stage recording an attempt and every
   turn of it. Not the rendered prompt, which waits for redaction (A38); not yet the claim on the shape,
   which waits for the dialogue to be resumable (A45).
+- The live run of item 25 (design 02 §6.4): `claude-sonnet-5`, the four rows that carry a record
+  boundary, both plans, against the same rows before the item. Shown one record, the model's first
+  stylesheet for JSON lines was right on every scorer where the whole-stream framing had settled at
+  0.938; the JSON document and the Windows export cost fewer tokens for the same or a better score. The
+  cost is a question: the boundary must be settled before one record can be shown, so a row that had
+  promoted in two questions over the whole document now takes the split question first — which is the
+  trade the item makes, since the two-question candidate was judged on a document it will never be
+  given. Two defects found by reading the transcripts and fixed: a per-record run whose pieces would not
+  read back produced nothing and said nothing, so four re-asks on one row were blind; and the
+  transformation rules state the stylesheet reads `records:2`, which is untrue for a stream that is
+  already XML, where the transform is handed the feed's own markup — the configuration question now says
+  so beside the input, the rules template being the owner's to edit (A33). Not measured: one record per
+  kind, and any other model.
+- Audit of §12 item 25, over all three of its slices (the owner's code review): eight findings, all
+  fixed — design 02 §6.1. A stream carrying a single record was run as though it carried none, so the
+  one case where a document's envelope is smallest and most tempting was learned from the envelope and
+  then written with a filter that removes it; a chain with two elements after the split re-split the
+  events document where the parser's records had been, when a fragment carries one `SplitFilter` and
+  never one per element; a shortfall every record shared was told once per record and rendered whole
+  into the next prompt; and running per record compiled the stylesheet per record, which
+  `StepRunner.prepare` now pays once per candidate. With them: the one record shown now says how many
+  records the stream holds and how many shapes they are of, so a stream that reports several things
+  does not hide the rest behind the first; the input is cut once rather than twice per candidate; a
+  run-only element after the filter is run per record as the gate runs it; and "this is one record" is
+  said as a fact about the input rather than through the branch that describes the boundary. Still owed
+  on the bound path: `XsltPool`, as the schema scorer already goes through `SchemaPool`.
+- Slice 32, the last of §12 item 25 (design 02 §6.1): the transform question shows the model one
+  record's document, cut as the fragment's filter will cut it, runs every candidate over every record,
+  and tells it plainly that one record is all it will ever be given. Run 7's degenerate transform stops
+  being expressible — "the first item" is the record it was given — and a stylesheet that reaches outside
+  its record is now refused at the step that wrote it rather than at the gate. **Item 25 complete.**
 - Slice 31, the rest of §12 item 25 (design 02 §6.1): the chain is run one record at a time from the
   first element that is not a parser, in the promotion gate and in the bound fragment, because that is
   how the pipeline runs it — the cutting driven by stroom's own `SplitFilter` rather than copied from it.

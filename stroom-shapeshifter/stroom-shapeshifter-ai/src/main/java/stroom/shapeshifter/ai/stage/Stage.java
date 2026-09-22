@@ -1388,9 +1388,15 @@ public final class Stage {
         boolean split = false;
         String current = input;
         for (final LearnedStep step : chain) {
-            split = split || (!step.runner().parser() && depth.isPresent());
+            final boolean first = !split && !step.runner().parser() && depth.isPresent();
+            split = split || first;
+            // The first element after the parser is given the parser's records; every element after that
+            // is given what the one before it wrote for each record, which is one record deep. A fragment
+            // carries one SplitFilter, not one per element.
             final StepResult result = split
-                    ? PerRecord.run(step.runner(), step.configuration(), current, depth.getAsInt())
+                    ? PerRecord.run(step.runner(), step.configuration(), current, first
+                            ? depth.getAsInt()
+                            : PerRecord.WRITTEN)
                     : step.runner().run(step.configuration(), current);
             final Attempted attempt = Attempted.of(step.runner(), current, result, boundary);
             attempted.add(attempt);

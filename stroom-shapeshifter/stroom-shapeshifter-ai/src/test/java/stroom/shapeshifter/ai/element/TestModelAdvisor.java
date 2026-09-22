@@ -19,6 +19,7 @@ package stroom.shapeshifter.ai.element;
 import stroom.docref.DocRef;
 import stroom.event.logging.api.DocumentEventLog;
 import stroom.shapeshifter.ai.learning.Exchange;
+import stroom.shapeshifter.ai.learning.Question;
 import stroom.shapeshifter.ai.learning.Question.Chain;
 import stroom.shapeshifter.ai.learning.Question.Configuration;
 import stroom.shapeshifter.ai.learning.QuestionText;
@@ -88,7 +89,7 @@ class TestModelAdvisor {
         final Chain chain = new Chain(SAMPLE, List.of("DSParser", "XSLTFilter"), List.of());
         final String first = advisor.ask(List.of(), chain);
         final Configuration configuration = new Configuration("DSParser", "TextConverter", SAMPLE, "a,b\n", null,
-                null, List.of(), List.of());
+                null, List.of(), false, Question.Records.UNKNOWN, List.of());
         final String second = advisor.ask(List.of(new Exchange(chain, first)), configuration);
 
         assertThat(first).isEqualTo("DSParser -> XSLTFilter");

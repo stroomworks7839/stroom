@@ -68,19 +68,34 @@ class TestRecordSplit {
     }
 
     @Test
-    void nothingAtThatDepthLeavesTheOuterStructureAndNoRecords() {
-        // What the filter itself does, and worth knowing rather than guessing: a depth nothing sits at
-        // still emits the structure above it, once, with nothing in it. A caller that took that for the
-        // stream would have thrown the records away, so the rule is that fewer than two documents is not
-        // a split worth having and the chain runs over the whole.
-        final List<String> split = RecordSplit.split(RECORDS, 9);
-
-        assertThat(split).hasSize(1);
-        assertThat(split.get(0)).describedAs("the root, and nothing under it")
-                .doesNotContain("<record>").doesNotContain("<data");
+    void nothingAtThatDepthIsNoRecordsAtAll() {
+        // The filter itself emits the structure above the records whether it found any or not, so a depth
+        // nothing sits at comes back as one empty envelope. That is not a record: handing it on as one
+        // would run the chain over an empty document, and taking it for "one record" would make a stream
+        // that carries a single record indistinguishable from one that carries none.
+        assertThat(RecordSplit.split(RECORDS, 9)).isEmpty();
 
         assertThat(RecordSplit.split("this is not xml", 1))
                 .describedAs("and what will not parse is not this to complain about")
                 .isEmpty();
+    }
+
+    @Test
+    void oneRecordIsOneRecordAndNotTheWholeDocument() {
+        // The case that defeats the whole of item 25 if it is confused with "no records": a stream
+        // carrying a single record is still run one record at a time, and that record is still stripped
+        // of everything around it — which is exactly what the pipeline will give the transform.
+        final String one = """
+                <records xmlns="records:2">
+                  <envelope>keep me out of it</envelope>
+                  <record><data name="a" value="1"/></record>
+                </records>""";
+
+        final List<String> split = RecordSplit.split(one, 1);
+
+        assertThat(split).hasSize(2);
+        assertThat(split.get(1)).contains("value=\"1\"")
+                .describedAs("a record's own document has nothing of its neighbours in it")
+                .doesNotContain("keep me out of it");
     }
 }

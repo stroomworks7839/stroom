@@ -19,6 +19,7 @@ package stroom.shapeshifter.ai.learning;
 
 import stroom.shapeshifter.ai.learning.Question.Chain;
 import stroom.shapeshifter.ai.learning.Question.Configuration;
+import stroom.shapeshifter.ai.learning.Question.Records;
 import stroom.shapeshifter.ai.learning.Question.Split;
 import stroom.shapeshifter.ai.learning.Question.TargetFor;
 import stroom.shapeshifter.shared.BusinessRulesParameters;
@@ -49,6 +50,9 @@ import java.util.stream.Collectors;
  * measures the prompt the node will use.
  */
 public final class QuestionText {
+
+    /// The namespace a parser puts its records in, which the transformation rules describe.
+    private static final String RECORDS = "records:2";
 
     /**
      * What each allowed element does, in one line, so the chain question is answered from a vocabulary
@@ -191,8 +195,8 @@ public final class QuestionText {
         variables.put("rules", templates.text(extraction
                 ? Template.EXTRACTION_RULES
                 : Template.TRANSFORMATION_RULES));
-        variables.put("input", shown(question.input()));
-        variables.put("split", split(question.split()));
+        variables.put("input", shown(question.input()) + ownMarkup(extraction, question.input()));
+        variables.put("split", split(question.split(), question.oneRecord(), question.records()));
         variables.put("targets", targets(question.targets(), extraction));
         variables.put("previous", question.previousConfiguration() == null
                 ? ""
@@ -205,7 +209,18 @@ public final class QuestionText {
      * The settled boundary as the configuration question carries it: a parser's configuration to cut the
      * same records, or the element that is one record where the input is XML (A35).
      */
-    private static String split(final Boundary split) {
+    private static String split(final Boundary split, final boolean oneRecord, final Records records) {
+        if (oneRecord) {
+            // What it will actually be given (§12 item 25): one record, once per record. A stylesheet
+            // written for the whole stream — counting its siblings, reaching into the document around it
+            // — is written for something that will never arrive. Said before the boundary is described,
+            // and whether or not there is a boundary to describe, because it is a fact about the input
+            // in front of the model rather than about the split that produced it.
+            return "\nThe input below is **one record**: this configuration is run once for each record of "
+                   + "the stream, with one record in front of it each time, exactly as shown. Produce the "
+                   + "one event for the record you are given, and do not look outside it — there is "
+                   + "nothing outside it to look at.\n" + carried(records);
+        }
         if (split == null) {
             return "";
         }
@@ -224,6 +239,20 @@ public final class QuestionText {
         }
         return "\nThe record boundary is settled: each <" + split.element() + "> element is one record. Produce one "
                + "event per <" + split.element() + ">, and nothing for the elements around them.\n";
+    }
+
+    /// What the one record shown does not show: how many records there are, and whether they are all
+    /// alike. A configuration written from one record is run over every record, and a stream that reports
+    /// several things carries several shapes of record.
+    private static String carried(final Records records) {
+        if (records == null || records.total() == 0) {
+            return "";
+        }
+        return records.kinds() > 1
+                ? "The stream holds " + records.total() + " records of " + records.kinds() + " different "
+                  + "shapes, and this is one of them: handle every shape it may be given, not only this "
+                  + "one.\n"
+                : "The stream holds " + records.total() + " records, all of this shape.\n";
     }
 
     private static String targets(final List<Target> targets, final boolean extraction) {
@@ -274,6 +303,20 @@ public final class QuestionText {
      * The input as far as a question should carry it; a long stream is cut with a note, since the model
      * learns from a sample, not the whole.
      */
+    /// Where a transform is given the stream's own markup rather than a parser's records, said next to
+    /// the input rather than left to the transformation rules, which describe the usual case and state
+    /// `records:2`. A chain with no parser hands the element the feed's XML as it arrived; a stylesheet
+    /// that sets `xpath-default-namespace="records:2"` over it matches nothing, writes the input's text
+    /// and no elements, and fails without Saxon raising anything. The live run of 2026-09-22 lost five
+    /// attempts to exactly that on one row and two on another.
+    private static String ownMarkup(final boolean extraction, final String input) {
+        if (extraction || input == null || !input.stripLeading().startsWith("<") || input.contains(RECORDS)) {
+            return "";
+        }
+        return "\nThis input is the stream's own markup and not " + RECORDS + ": match the elements as they "
+               + "are named above, and do not set xpath-default-namespace to " + RECORDS + ".\n";
+    }
+
     private static String shown(final String input) {
         if (input == null) {
             return "(nothing)";
