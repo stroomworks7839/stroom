@@ -2006,6 +2006,15 @@ including the degeneracy trap (§8.3) that changes the scoring model and propose
   the goldens and run 7 — yield per line where a record spans lines is what decided outcomes,
   coverage never did. A20–A22 ruled as built, the owner's; A39 and A40 ruled, the owner's, from run
   7: the escalating example splits every input, and a parser refused on yield goes back to the split.
+- Slice 21, the tables (A26; design 02 §6.1): `stroom-shapeshifter-ai-impl-db` with the five tables and
+  the DAOs behind `Rules`, `Shapes` and `Ledger`; the node reads its runtime state from rows and a
+  harness without a database from `InMemoryStateModule`; eight tests against MySQL. Owed for phase C's
+  exit: scenarios 20, 30 and 31 against the tables, the lease (A42), the cluster-wide spend (A44).
+- Slice 20, the rules as rows (A41; design 02 §6.1): the `Rules` seam, the routing table off the
+  document, the supervisor's `writeDocument` gone, the Routing tab reading and writing through a
+  resource one action at a time, the document's only dependency its model. Audited the same day: the
+  operator's precedence was inverted by a whole-table save and the new endpoints checked no permission
+  — both answered by the row-level API.
 - A41–A44 ruled, the owner's, 2026-09-22, on how the feature survives a cluster of hundreds of nodes:
   the document holds only what a person authors and the routing table becomes rows; the learning lease
   is per shape and its losers sentinel rather than wait; one learner per shape, no merging of variants;
