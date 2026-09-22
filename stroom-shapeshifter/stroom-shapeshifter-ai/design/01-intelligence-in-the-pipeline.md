@@ -1663,6 +1663,29 @@ the order they arrived. Items marked *built* already exist in `stroom-shapeshift
    the split's `root` names every top-level value a record (design 02 scenario 46). Design 02 scenario
    49 states the XML case; phase D, since the fragment gains an element.
 
+27. **The built-in templates exported as a skill** (a developer's observation, 2026-09-22: "this
+   sounds like a skill"). What `Templates` holds is, in all but format, what an agent skill is —
+   packaged, versioned domain instruction with worked examples, loaded when the task arises: the Data
+   Splitter grammar and its strict shape, the two worked splitters, the quoted-field regex, the header
+   read into a `var`, the event schema's rules and failure modes, the degeneracy trap, the split
+   question per kind of input. It is already versioned (§10.2), already overridable per document,
+   already tested by running its examples. The step owed is to make the same text available outside
+   this feature — as a skill artefact a person writing a Data Splitter configuration or a Stroom
+   stylesheet by hand can load — generated from the built-ins so that there is one source: what the
+   live runs teach the feature, they teach the developer, and a finding raises one version. Cheap,
+   independent of the phases, and the place where this feature's knowledge stops being private to it.
+28. **An agentic plan, measured against the others** (the same observation, taken the other way). The
+   control here is deliberately not agentic: the interpreter walks a plan an operator can read (A37),
+   asks one closed question a step, runs the candidate itself, scores it with gates outside the model
+   (§8), routes on typed outcomes, and leaves a transcript a person can answer instead of (A28). Run 7
+   is the argument for that shape — given a scorer wrong about the unit, the model optimised to it and
+   the gate admitted a one-event transform (design 02 §6.3). But A32 says a dialogue is a setting to
+   be measured, not an opinion to be held: an `AGENT` plan — the model given the skill text of item 27
+   and run-and-score as tools, inside the same budget, behind the same promotion gate and writing the
+   same transcript — is one more row in the plan comparison, and would say what the closed questions
+   cost and what they buy. Phase G, with the real feed; not before phase C, since what makes it
+   answerable at all is the durable attempt.
+
 Items 1 and 2 are changes to `stroom-pipeline` that benefit the stepper too, and should be proposed
 on that basis rather than as private to this feature.
 
@@ -1931,6 +1954,10 @@ including the degeneracy trap (§8.3) that changes the scoring model and propose
   the goldens and run 7 — yield per line where a record spans lines is what decided outcomes,
   coverage never did. A20–A22 ruled as built, the owner's; A39 and A40 ruled, the owner's, from run
   7: the escalating example splits every input, and a parser refused on yield goes back to the split.
+- A developer's observation, 2026-09-22, that the feature "sounds like a skill" (§12 items 27, 28):
+  the built-in templates are a skill in all but format and should be exported as one, from the same
+  source; the control layer is deliberately not agentic, and an `AGENT` plan belongs in the plan
+  comparison (A32) rather than in an argument.
 - The owner's questions on the split, 2026-09-22 (§12 items 25, 26): the extraction rules now teach
   the header read into a `var` and every record's data named from it (`$heading$1`), Stroom's idiom,
   in place of "a header line is a record too" (built-in templates version 5); the learned boundary is
