@@ -135,4 +135,35 @@ class TestScenario44Auditd {
         assertThat(turns.stream().filter(turn -> turn.question() instanceof Configuration).findFirst().orElseThrow()
                 .outcome()).isEqualTo(StepOutcome.PRESERVATION_SHORT);
     }
+
+    @Test
+    void underTheEscalatingPlanAParserThatCutsPerLineGoesBackToTheSplit() {
+        // Run 7 (design 02 §6.3): with no split step the escalating plan's parser had to cut and extract at
+        // once and gave up. Now the split is asked first (A39), and a parser refused on yield — one record
+        // per line against the 0.35 the document states — goes back to the split rather than being re-asked
+        // blind (A40); the split holds, and the parser asked again is held to it.
+        final Scenarios scenarios = new Scenarios();
+        final Script script = scenarios.script(BY_EVENT, XSLT)
+                .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter")
+                .expect(QuestionMatcher.split().withoutFeedback()).reply(Scenarios.fenced(BY_SERIAL))
+                .expect(QuestionMatcher.configuration("DSParser").withoutFeedback())
+                .reply(Scenarios.fenced(Structure.LINE_SPLIT))
+                .expect(QuestionMatcher.split().withFeedbackMentioning("Yield scored"))
+                .reply(Scenarios.fenced(BY_SERIAL))
+                .expect(QuestionMatcher.configuration("DSParser")).reply(Scenarios.fenced(BY_EVENT))
+                .expect(QuestionMatcher.configuration("XSLTFilter").withoutFeedback()).reply(Scenarios.fenced(XSLT));
+
+        final StageRun run = scenarios.stage(script).run(doc().copy().plan(PlanExample.ESCALATING).build(),
+                stream(1, LOG));
+
+        assertThat(run.decision()).describedAs(run.decision().toString()).isInstanceOf(Promoted.class);
+        script.verifyExhausted();
+        assertThat(run.output()).isEqualTo(EVENTS);
+        assertThat(run.transcript().stream().map(Exchange::step))
+                .containsExactly("chain", "split", "parser", "split", "parser", "first");
+        assertThat(run.transcript().stream().map(Exchange::outcome))
+                .containsExactly(StepOutcome.PASSED, StepOutcome.PASSED, StepOutcome.YIELD_SHORT, StepOutcome.PASSED,
+                        StepOutcome.PASSED, StepOutcome.PASSED);
+        assertThat(script.asked()).noneMatch(TargetFor.class::isInstance);
+    }
 }

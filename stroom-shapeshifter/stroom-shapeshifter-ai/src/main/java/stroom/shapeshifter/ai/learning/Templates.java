@@ -42,7 +42,7 @@ public final class Templates {
     /**
      * Raised when the built-in text changes in a way a stored run should be told apart from.
      */
-    public static final int VERSION = 4;
+    public static final int VERSION = 5;
 
     private static final Map<Template, String> BUILT_IN = new EnumMap<>(Template.class);
 
@@ -191,9 +191,33 @@ public final class Templates {
             Where a field is quoted and may hold the delimiter, doubled quotes or line breaks, use a <regex> \
             over the stream in place of the <split>, matching each record from its start, with \
             "(?:[^"]|"")*" for a quoted field. Do not use ignoreErrors. Every line of the input should be \
-            consumed by a match that emits a record; a line the configuration quietly drops counts against it. \
-            A header line is a record too — emit it as one, with its fields as data; the transform will drop \
-            it.""");
+            consumed by a match that emits a record; a line the configuration quietly drops counts against it.
+
+            Where the first line is a header naming the fields, read it into a variable and name every \
+            record's data from it, so that the names travel with each record and a reordered column still \
+            lands in the right field; the header is then not a record. A worked example for a file whose \
+            first line is "time,user,place,action":
+
+            ```xml
+            <?xml version="1.0" encoding="UTF-8"?>
+            <dataSplitter xmlns="data-splitter:3" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" \
+            xsi:schemaLocation="data-splitter:3 file://data-splitter-v3.0.xsd" version="3.0">
+              <split delimiter="\\n" maxMatch="1">
+                <group>
+                  <split delimiter=",">
+                    <var id="heading"/>
+                  </split>
+                </group>
+              </split>
+              <split delimiter="\\n">
+                <group value="$1">
+                  <split delimiter=",">
+                    <data name="$heading$1" value="$1"/>
+                  </split>
+                </group>
+              </split>
+            </dataSplitter>
+            ```""");
         BUILT_IN.put(Template.TRANSFORMATION_RULES, """
             The stylesheet reads records:2 (use xpath-default-namespace="records:2") and writes event-logging:3 \
             events: <Events xmlns="event-logging:3" xsi:schemaLocation="event-logging:3 \

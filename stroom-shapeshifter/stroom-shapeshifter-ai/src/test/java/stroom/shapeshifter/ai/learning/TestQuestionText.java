@@ -16,9 +16,12 @@
 
 package stroom.shapeshifter.ai.learning;
 
+import stroom.shapeshifter.ai.extraction.DataSplitterStep;
+import stroom.shapeshifter.ai.extraction.NodeFixture;
 import stroom.shapeshifter.ai.learning.Question.Chain;
 import stroom.shapeshifter.ai.learning.Question.Configuration;
 import stroom.shapeshifter.ai.learning.Question.Split;
+import stroom.shapeshifter.ai.scoring.Records;
 import stroom.shapeshifter.shared.BusinessRulesParameters;
 import stroom.shapeshifter.shared.ExtractionQualityParameters;
 import stroom.shapeshifter.shared.LearningPlan;
@@ -34,8 +37,12 @@ import stroom.util.shared.StoredError;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -161,5 +168,37 @@ class TestQuestionText {
         final Sample tricky = new Sample("price=${amount}\n", Map.of());
         assertThat(WORDS.render(new Chain(tricky, List.of("DSParser", "XSLTFilter"), List.of())))
                 .contains("price=${amount}");
+    }
+
+    @Test
+    void theWorkedExamplesInTheExtractionRulesRunAndTheHeaderOneNamesFieldsFromTheHeader() {
+        // The rules are the words the live runs taught; a worked example that does not run teaches the
+        // model to fail. The second reads the header into a variable and names every record's data from
+        // it, Stroom's idiom, so that the names travel with the record and the header is not one.
+        final String rules = Templates.builtIn(Template.EXTRACTION_RULES);
+        final List<String> examples = new ArrayList<>();
+        final Matcher fenced = Pattern.compile("```xml\\n(.*?)```", Pattern.DOTALL).matcher(rules);
+        while (fenced.find()) {
+            examples.add(fenced.group(1));
+        }
+        assertThat(examples).hasSize(2);
+        final DataSplitterStep splitter = new DataSplitterStep(new NodeFixture().compiler());
+        final String headed = "time,user,place,action\n2026-09-22T09:00:00Z,alice,lobby,logon\n"
+                              + "2026-09-22T09:01:00Z,bob,lobby,logoff\n";
+        final StepResult plain = splitter.run(examples.get(0), headed.lines().skip(1)
+                .collect(Collectors.joining("\n", "", "\n")));
+        assertThat(plain.passed()).describedAs(plain.diagnostics().toString()).isTrue();
+        assertThat(Records.count(plain.output())).isEqualTo(2);
+        final StepResult withHeader = splitter.run(examples.get(1), headed);
+        assertThat(withHeader.passed()).describedAs(withHeader.diagnostics().toString()).isTrue();
+        assertThat(Records.count(withHeader.output())).describedAs("the header is not a record").isEqualTo(2);
+        assertThat(withHeader.output())
+                .contains("<data name=\"user\" value=\"alice\"/>")
+                .contains("<data name=\"action\" value=\"logoff\"/>");
+        // The same example over the columns reordered still names each field rightly.
+        final StepResult reordered = splitter.run(examples.get(1),
+                "user,time,action,place\nalice,2026-09-22T09:00:00Z,logon,lobby\n");
+        assertThat(reordered.output()).contains("<data name=\"user\" value=\"alice\"/>")
+                .contains("<data name=\"place\" value=\"lobby\"/>");
     }
 }

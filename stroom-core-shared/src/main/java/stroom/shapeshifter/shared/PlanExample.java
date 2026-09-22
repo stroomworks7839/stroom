@@ -25,7 +25,8 @@ import java.util.List;
 /// the chain and then each element's configuration (A21), and is what a new document starts with.
 /// `TARGET_FIRST` first settles the record boundary, then asks what one record of each kind should become,
 /// and holds every configuration to those events (A31), a value the records lack sending the parser back.
-/// `ESCALATING` starts direct and asks for a target only when the transform stays short.
+/// `ESCALATING` settles the split, then goes direct and asks for a target only when the transform stays
+/// short (A39, A40).
 public enum PlanExample implements HasDisplayValue {
     DIRECT("Direct", List.of(
             PlanStep.parse("CHAIN"),
@@ -38,10 +39,11 @@ public enum PlanExample implements HasDisplayValue {
             PlanStep.parse("CONFIGURE transform on preservation-short goto parser"))),
     ESCALATING("Escalating", List.of(
             PlanStep.parse("CHAIN"),
-            // JSON's records are the items of an array only the split can name: without it a document is
-            // one record, to the count, the target and yield alike (design 02 §6.3, run 7).
-            PlanStep.parse("SPLIT when json"),
-            PlanStep.parse("CONFIGURE parser"),
+            // The split is asked of every input (A39): what one record is costs one question and is what
+            // the count, the target and yield rest on; a parser refused on yield — a multi-line record it
+            // cut per line — goes back to it rather than trying again blind (A40).
+            PlanStep.parse("SPLIT"),
+            PlanStep.parse("CONFIGURE parser on yield-short goto split"),
             PlanStep.parse("first: CONFIGURE transform candidates 2 on passed goto end on spent goto target"),
             PlanStep.parse("TARGET kinds 3"),
             PlanStep.parse("again: CONFIGURE parser"),

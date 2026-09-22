@@ -112,6 +112,38 @@ checked in. The compile gate of §8.1 and the schema scorer of §8.2 both depend
 installed, which makes content-pack availability a deployment prerequisite of the feature rather
 than an incidental detail.
 
+### 2.2 First values, from phase B
+
+Phase B (design 03; slices 13–18, 2026-09-21) added the formats §2.1 said the corpus lacked, each with
+a fixture of twelve to forty records, a hand-written golden and a scripted scenario, and run 7 (02
+§6.3) learned them live. The thresholds below are the values those scenarios state and the live run
+was judged by: the first values design 03 §4 owed, set from the goldens, and to be settled in phase G
+from real feeds. Where a row says *default*, the document's default applies: promotion floor 0.9,
+minimum records per shape 10 (the scenarios use 5, their fixtures being small), relearn threshold 0.8,
+held-out fraction 0.2, sample size limit 8,192 characters, five candidates a step.
+
+| Format | Coverage (not a gate) | Yield (not a gate) | Extraction quality (gate) | Business rule | Run 7 score |
+|---|---|---|---|---|---|
+| Syslog, RFC 3164 and 5424 | 0.9 | records, 1.0 per record, threshold 0.5 | 0.7; `EventSource/User/Id` | interactive events name the user | 1.000 |
+| auditd, `key=value`, multi-line | 0.9 | **lines, 0.35 per line, threshold 0.6** — a record is about three lines; a split of one record per line scores a third of it | 0.7; `EventSource/User/Id` | logons name the user | 0.997 |
+| Windows security events, XML | — (XML input; no parser) | records, 1.0 per record, threshold 0.5 | 0.7; `EventSource/User/Id` | logons name the user | 0.997 |
+| JSON, lines and a document | — (the parser is run only) | records, 1.0 per record, threshold 0.5 — by the array's items since slice 19 | 0.7; `EventSource/User/Id` | logons name the user | 0.999 / 0.999 (run 8) |
+| Fixed-width, six columns | 0.9 — full for any regex that matches the line, so it never decides | records, 1.0 per record, threshold 0.5 | 0.7; `EventSource/User/Id` | **a sign-on decision states its outcome** — what the four-column transform cannot meet | 1.000 |
+| CSV, quoted field over lines | 0.9 | **lines, 0.77 per line, threshold 0.9** — twenty records over twenty-six lines; a line split scores 0.77 | 0.7; `EventSource/User/Id` | — | 1.000 |
+
+What the values say. Coverage at 0.9 never decided a phase B outcome: every parser the model wrote
+consumed the whole input, and the two ways to lose records — a dropped column, a record cut in two —
+lose no characters. What decided them was yield stated *per line* where a record spans lines, and
+preservation against targets where a column was dropped. So the setting that matters per format is
+the yield basis and its expected ratio, which an operator can read off the feed (records over lines
+of a sample) and which the document's instructions should say in words as well. The extraction
+quality threshold of 0.7 with one required path was met by every promoted transform at 0.99 or
+better, so it discriminated the degenerate stylesheet (0.5 on Windows, scenario 45) from the real
+ones with room to spare; whether 0.7 is too low for a real feed is phase G's question. The promotion
+floor of 0.9 was never the deciding gate either — scores were 0.997–1.000 or given up outright — and
+the thresholds design 03 §4 leaves open remain open: these are the values to start a new document
+from, not the values a real feed will keep.
+
 ---
 
 ## 3. The shape
@@ -1136,8 +1168,8 @@ it is in:
 
   ```
   CHAIN
-  SPLIT when json
-  CONFIGURE parser
+  SPLIT
+  CONFIGURE parser on yield-short goto split
   first:  CONFIGURE transform candidates 2 on passed goto end on spent goto target
   TARGET kinds 3
   again:  CONFIGURE parser
@@ -1146,15 +1178,16 @@ it is in:
 
   The direct transform's pass ends the plan; only its exhaustion reaches the target. The re-asked
   parser needs no `checks`: once targets exist, preservation is a `CONFIGURE parser` step's own. The
-  split is asked of JSON alone — one cheap question — because a JSON document's records are the items
-  of an array only the split can name; without it the document is one record to the count, the target
-  and yield alike, and run 7 (02 §6.3) promoted a one-event transform on that count.
+  split is asked of every input (A39): what one record is costs one question and is what the count,
+  the target and yield rest on — run 7 (02 §6.3) promoted a one-event transform over a JSON document
+  counted as one record for want of it. A parser refused on yield — a multi-line record it cut per
+  line, as auditd's was in run 7 — goes back to the split rather than trying again blind (A40).
 
 - *Templates* — override-only: the text of any of `SYSTEM`, `CHAIN`, `SPLIT`, `SPLIT_XML`, `SPLIT_JSON`, `TARGET`,
   `CONFIGURATION`, `SPLIT_RULES`, `EXTRACTION_RULES`, `TRANSFORMATION_RULES`, with `${variable}` slots
   bound from the attempt. A definition names only what it changes; everything else follows the built-in
-  text — the words the live runs taught: the worked Data Splitter example, the enumeration and namespace
-  hints, "a header line is a record too" — of the version the document was saved against, so a finding
+  text — the words the live runs taught: the worked Data Splitter examples, the enumeration and namespace
+  hints, the header read into a `var` — of the version the document was saved against, so a finding
   added to the defaults reaches every document that did not override that template. Variables render *blocks*, not bare values — `${feedback}` is the whole "what
   fell short" list or nothing, `${previous}` the previous configuration fenced with its lead-in or
   nothing — so a template needs no conditionals. Each template has the variables it may use; one that
@@ -1600,6 +1633,35 @@ the order they arrived. Items marked *built* already exist in `stroom-shapeshift
    been proven by the scenarios and by a live run over a graph that escalates (the run planned for
    2026-10-01), so that the editor is built over a mechanism that has been seen to work rather than
    over a grammar that may still move. A GWT draft compile is the check of its `.ui.xml` bindings.
+25. **The learned boundary as a `SplitFilter` in the written fragment** (A35; the owner's question,
+   2026-09-22). Stroom's own shape for XML and JSON is parser, then `SplitFilter`, then the transform:
+   the filter cuts the parsed stream into one document per record at a depth and count, so the
+   stylesheet sees one record, memory is bounded by the record and not the stream, and an error is
+   isolated to the record that raised it. The fragment this feature writes is `JSONParser →
+   XSLTFilter` or `XSLTFilter` alone, and the stylesheet the model writes iterates the whole parsed
+   document — right at fixture size, wrong at stream size. The record boundary the split settles is
+   exactly the filter's setting in disguise: the element's depth for XML, the array's items for JSON.
+   So the written fragment gains a `SplitFilter` between the parser (or the source) and the
+   transform, set from the rule's `recordBoundary`; the transform question shows the model one
+   record's document, as a person writing a Stroom stylesheet is shown one; the fragment runner and
+   the scorers run the chain as the pipeline will, per record; and the `SplitFilter` the schema
+   conformance scorer already uses internally becomes the fragment's own. For raw text the Data
+   Splitter is the splitter and nothing changes. Phase D, with item 4, since it changes what the
+   fragment is.
+26. **Markup without a root** (the owner's question, 2026-09-22). A stream of XML fragments — one
+   `<Event>…</Event>` per line, no root — is not a document, and today the stage treats it as text:
+   held out by lines, its chain `XSLTFilter` alone, its split unanswerable and its transform run over
+   text it cannot parse, so the attempt is abandoned. Stroom's answer is the `XMLFragmentParser`, a
+   parser whose TextConverter holds the wrapper document — a root with `&fragment;` as its content —
+   so the fragments become one document with the root's children as records. The feature needs the
+   same as a step runner, run only with a built-in wrapper (`<records>` holding the fragments) unless
+   the document names a wrapper of its own, allowed by name beside `DSParser` and `JSONParser`; the
+   walk's kind then follows the parser's *output* — a run-only parser whose output is records XML gets
+   the XML split question (the element), one whose output is the XSL/json vocabulary gets the JSON one
+   (the array) — rather than "run-only means JSON" as it reads today. JSON records without a root —
+   JSON lines, or objects concatenated — are already handled: the parser wraps them in a root map, and
+   the split's `root` names every top-level value a record (design 02 scenario 46). Design 02 scenario
+   49 states the XML case; phase D, since the fragment gains an element.
 
 Items 1 and 2 are changes to `stroom-pipeline` that benefit the stepper too, and should be proposed
 on that basis rather than as private to this feature.
@@ -1634,9 +1696,9 @@ with the criterion that ends it, adds the input formats the feature must be show
 | A17 | Redacted samples by default, raw by override — per feed as first ruled, per document since opt-in became per document (§11) | **Ruled**; scope restated 2026-09-17 |
 | A18 | Per-rule regression stream; promotion must not regress on any previously-accepted record; retention a document setting capped by the feed's | **Ruled** 2026-09-14; retention settled 2026-09-17 |
 | A19 | Generated extraction configurations may not set `ignoreErrors`; rejected at the compile gate | **Proposed, §9.1** — arises from the degeneracy probe and is owed a ruling |
-| A20 | A variant is a pipeline fragment — a Pipeline document with no destination — not a list of element/document pairs | **Proposed, §3** — arises from building the Shapeshifter AI document and is owed a ruling |
-| A21 | An attempt is a dialogue: chain first, then one configuration per element in chain order, each with the real output of the elements before it; feedback to the failing step; a `Critique` question and a closing promotion turn; the document carries the allowed-element list | **Proposed, §10** — depends on A20 and is owed a ruling |
-| A22 | A routing selector is an expression over stream metadata and the attribute map, with the shape signature as a field; rules are ordered and first match binds | **Proposed, §3** — arises from asking what selects a branch, and is owed a ruling; A29 makes the learned rule's terms a document setting |
+| A20 | A variant is a pipeline fragment — a Pipeline document with no destination — not a list of element/document pairs | **Ruled, 2026-09-22** — the owner's, as built since slice 3: the fragment writer, runner and content creator, the rule's `pipeline` |
+| A21 | An attempt is a dialogue: chain first, then one configuration per element in chain order, each with the real output of the elements before it; feedback to the failing step; a `Critique` question and a closing promotion turn; the document carries the allowed-element list | **Ruled, 2026-09-22** — the owner's, as built: the *direct* plan, generalised by A31, A34 and A37 into the plan as data; the `Critique` kind deferred with A23 (phase E) |
+| A22 | A routing selector is an expression over stream metadata and the attribute map, with the shape signature as a field; rules are ordered and first match binds | **Ruled, 2026-09-22** — the owner's, as built since slice 4, narrowed by A29 to the document's learning key |
 | A23 | An AI review scorer samples single records asynchronously; advisory and a relearn trigger, never a gate; its critique feeds the next candidate | **Proposed, §8.4** — the owner's, 2026-09-17 |
 | A24 | The circuit breaker's open state is an error mode per document and feed: fatal error streams, no model calls, operator reset with optional half-open retry | **Proposed, §11.2** — the owner's, 2026-09-17 |
 | A25 | Promotion mode per document, automatic or review; a reviewed rule is a draft the router skips, its shape erroring into the ledger until Approve promotes it and reprocesses | **Proposed, §11.3** — the owner's, 2026-09-17; an option beside A9, not a revision of it |
@@ -1653,6 +1715,8 @@ with the criterion that ends it, adds the input formats the feature must be show
 | A36 | Input coverage is the share of the input's characters consumed; lines are counted and named in the diagnostic but do not set the score | **Ruled, 2026-09-18** — the owner's; on a seven-line sample a header was a seventh by lines and a sixteenth by characters, and the live runs found that deciding promotions (02 §6.3) |
 | A37 | The plan is a graph over typed question kinds and typed outcomes: each step names its checks and its transitions — `on <outcome> goto <step>` at once, `on spent goto <step>` when its candidates are gone — with self re-ask the default; `CONFIGURE` may take a role, parser or transform; each transition taken at most once per attempt; the rule-6 routing is a transition in the examples, not code | **Ruled, 2026-09-21** — the owner's, on four questions put with recommendations: graph over typed outcomes (not a list with an outcome guard); checks declared per step from a closed list; the parser–transform routing in the graph; designed and specified now, built as slice 12 ahead of the A26 tables |
 | A38 | Redaction keeps the feed's vocabulary and classes its values; applies to every text the model sees and every comparison against what it wrote; measured as a harness dimension | **Ruled, 2026-09-21** — the owner's, on three questions with recommendations; the build deferred by the owner until the formats are proven, and owed before phase G |
+| A39 | The escalating example asks the split of every input: what one record is costs one question and is what the count, the target and yield rest on | **Ruled, 2026-09-22** — the owner's, on run 7 and slice 19, over the recommendation of JSON alone: the split is always asked |
+| A40 | A parser refused on yield — a multi-line record it cut per line — goes back to the split question (`CONFIGURE parser on yield-short goto split`) rather than being re-asked blind | **Ruled, 2026-09-22** — the owner's, from run 7's auditd under escalating |
 
 Where a row says *revised*, *restated* or *settled* 2026-09-17, the change was put to the owner as a
 recommendation with alternatives and taken by them that day: the text is the editor's, the decision
@@ -1863,6 +1927,16 @@ including the degeneracy trap (§8.3) that changes the scoring model and propose
   through the learned outcome onto the routing rule, counted by the stage and the yield scorer on the
   learning stream and every served stream; the escalating example gains `SPLIT when json` (§10.2). Run
   8 (02 §6.3): the JSON document promoted under both plans, 0.999 and 1.000, all twelve events.
+- Phase B closed out, 2026-09-22: §2.2 records the first values of the thresholds per format, from
+  the goldens and run 7 — yield per line where a record spans lines is what decided outcomes,
+  coverage never did. A20–A22 ruled as built, the owner's; A39 and A40 ruled, the owner's, from run
+  7: the escalating example splits every input, and a parser refused on yield goes back to the split.
+- The owner's questions on the split, 2026-09-22 (§12 items 25, 26): the extraction rules now teach
+  the header read into a `var` and every record's data named from it (`$heading$1`), Stroom's idiom,
+  in place of "a header line is a record too" (built-in templates version 5); the learned boundary is
+  to become a `SplitFilter` in the written fragment (phase D); XML fragments without a root want the
+  `XMLFragmentParser` as a run-only step (scenario 49, phase D); JSON records without a root are the
+  parser's root map and the split's `root`, already handled.
 - Design 03 written: the phases, at the owner's asking for one plan covering everything discussed and
   the formats never yet exercised — syslog, auditd, Windows security events, JSON, fixed-width,
   multi-line CSV. Slice 12 is phase A; phase B is a slice per format.

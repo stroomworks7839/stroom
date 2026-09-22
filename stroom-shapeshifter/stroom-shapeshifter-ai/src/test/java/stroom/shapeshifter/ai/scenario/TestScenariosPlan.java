@@ -110,10 +110,11 @@ class TestScenariosPlan {
 
         script.verifyExhausted();
         assertThat(run.decision()).isInstanceOf(Promoted.class);
-        // Direct's cost: three questions, no split and no target.
-        assertThat(script.asked()).hasSize(3);
-        assertThat(script.asked()).noneMatch(question -> question instanceof Split || question instanceof TargetFor);
-        assertThat(steps(run)).containsExactly("chain", "parser", "first");
+        // Direct's cost plus the split (A39): four questions, no target.
+        assertThat(script.asked()).hasSize(4);
+        assertThat(script.asked()).noneMatch(TargetFor.class::isInstance);
+        assertThat(script.asked().get(1)).isInstanceOf(Split.class);
+        assertThat(steps(run)).containsExactly("chain", "split", "parser", "first");
         assertThat(outcomes(run)).containsOnly(StepOutcome.PASSED);
     }
 
@@ -138,11 +139,13 @@ class TestScenariosPlan {
         script.verifyExhausted();
         assertThat(run.decision()).isInstanceOf(Promoted.class);
         assertThat(script.asked()).filteredOn(TargetFor.class::isInstance).hasSize(1);
-        assertThat(script.asked()).noneMatch(Split.class::isInstance);
-        assertThat(steps(run)).containsExactly("chain", "parser", "first", "first", "target", "again", "transform");
-        assertThat(outcomes(run)).containsExactly(StepOutcome.PASSED, StepOutcome.PASSED, StepOutcome.QUALITY_SHORT,
-                StepOutcome.QUALITY_SHORT, StepOutcome.PASSED, StepOutcome.PASSED, StepOutcome.PASSED);
-        assertThat(run.transcript().get(3).candidate()).isEqualTo(2);
+        assertThat(script.asked()).filteredOn(Split.class::isInstance).hasSize(1);
+        assertThat(steps(run)).containsExactly("chain", "split", "parser", "first", "first", "target", "again",
+                "transform");
+        assertThat(outcomes(run)).containsExactly(StepOutcome.PASSED, StepOutcome.PASSED, StepOutcome.PASSED,
+                StepOutcome.QUALITY_SHORT, StepOutcome.QUALITY_SHORT, StepOutcome.PASSED, StepOutcome.PASSED,
+                StepOutcome.PASSED);
+        assertThat(run.transcript().get(4).candidate()).isEqualTo(2);
     }
 
     @Test

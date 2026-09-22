@@ -116,23 +116,24 @@ class TestScenario47FixedWidth {
         assertThat(run.decision()).describedAs(run.decision().toString()).isInstanceOf(Promoted.class);
         script.verifyExhausted();
         assertThat(run.output()).isEqualTo(EVENTS);
-        assertThat(script.asked()).noneMatch(Split.class::isInstance);
+        // The split is asked of every input (A39): one record per line here, answered by the structure.
+        assertThat(script.asked()).filteredOn(Split.class::isInstance).hasSize(1);
         // Two kinds of line — a reason of two words and of one — and a target for each.
         assertThat(script.asked()).filteredOn(TargetFor.class::isInstance).hasSize(2);
         final List<Exchange> turns = run.transcript();
         assertThat(turns.stream().map(Exchange::step))
-                .containsExactly("chain", "parser", "first", "first", "target", "target", "again", "again",
+                .containsExactly("chain", "split", "parser", "first", "first", "target", "target", "again", "again",
                         "transform");
         assertThat(turns.stream().map(Exchange::outcome)).containsExactly(
-                StepOutcome.PASSED, StepOutcome.PASSED, StepOutcome.RULES_SHORT, StepOutcome.RULES_SHORT,
-                StepOutcome.PASSED, StepOutcome.PASSED, StepOutcome.PRESERVATION_SHORT, StepOutcome.PASSED,
-                StepOutcome.PASSED);
+                StepOutcome.PASSED, StepOutcome.PASSED, StepOutcome.PASSED, StepOutcome.RULES_SHORT,
+                StepOutcome.RULES_SHORT, StepOutcome.PASSED, StepOutcome.PASSED, StepOutcome.PRESERVATION_SHORT,
+                StepOutcome.PASSED, StepOutcome.PASSED);
         // Coverage never spoke: the four-column parser consumed every character of every line.
         assertThat(turns.stream().flatMap(turn -> turn.question().feedback().stream()))
                 .extracting(error -> error.getMessage())
                 .noneMatch(message -> message.startsWith("Input coverage")
                                       || message.startsWith("The split consumed"));
-        final Configuration parserAgain = (Configuration) turns.get(7).question();
+        final Configuration parserAgain = (Configuration) turns.get(8).question();
         assertThat(parserAgain.feedback()).extracting(error -> error.getMessage())
                 .anyMatch(message -> message.contains("Record kind 1: the records carry no value for "
                                                       + "[PASSWORD OK]"))

@@ -102,7 +102,9 @@ class TestShapeshifterAiDoc {
         }
         assertThat(LearningPlan.of(PlanExample.ESCALATING).getSteps()).extracting(PlanStep::effectiveId)
                 .containsExactly("chain", "split", "parser", "first", "target", "again", "transform");
-        assertThat(LearningPlan.of(PlanExample.ESCALATING).step("split").getWhen()).isEqualTo(StepGuard.JSON);
+        assertThat(LearningPlan.of(PlanExample.ESCALATING).step("split").getWhen()).isEqualTo(StepGuard.ALWAYS);
+        assertThat(LearningPlan.of(PlanExample.ESCALATING).step("parser").getTransitions())
+                .extracting(Transition::format).containsExactly("on yield-short goto split");
         assertThat(LearningPlan.of(PlanExample.ESCALATING).step("first").getTransitions())
                 .extracting(Transition::format).containsExactly("on passed goto end", "on spent goto target");
         assertThat(LearningPlan.of(PlanExample.DIRECT).withSteps(List.of(
