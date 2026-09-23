@@ -203,6 +203,32 @@ public class SupervisorResourceImpl implements SupervisorResource {
         return new ImproveOutcome(StepDetails.describe(decision));
     }
 
+    /// Take a rule that is serving back out of the table (A28, design 01 §11.6).
+    ///
+    /// The reason is asked for rather than assumed: it goes on the request to process again everything
+    /// the rule produced, so a stream asked for a week later says what asked for it.
+    ///
+    /// Answers how many streams were asked for again, which is the one consequence the person cannot
+    /// see for themselves.
+    ///
+    /// Held to EDIT, as approving a draft is: it changes the document's routing and puts a backlog
+    /// through the pipeline.
+    @Override
+    public Integer retract(final String docUuid, final String ruleUuid, final RejectRequest request) {
+        if (request == null || NullSafe.isBlankString(request.getReason())) {
+            throw new IllegalArgumentException("A retraction says why: the reason is carried on every "
+                                               + "stream it asks to be processed again");
+        }
+        if (!may(docUuid, DocumentPermission.EDIT)) {
+            throw new PermissionException(securityContextProvider.get().getUserRef(),
+                    "You do not have permission to change the rules of this document");
+        }
+        final String by = securityContextProvider.get().getUserIdentityForAudit();
+        final ShapeshifterAiDoc doc = document(docUuid);
+        return pipelineScopeProvider.get().scopeResult(() ->
+                stageFactoryProvider.get().create().retract(doc, ruleUuid, request.getReason(), by));
+    }
+
     /// What has been said about a shape (A46), oldest first.
     @Override
     public List<SupervisorGuidance> guidance(final String docUuid, final String shapeId) {

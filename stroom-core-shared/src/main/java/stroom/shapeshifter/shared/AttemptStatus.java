@@ -38,6 +38,10 @@ public enum AttemptStatus implements HasDisplayValue {
     PROMOTED("Promoted"),
     /// A person refused what it wrote (A25).
     REJECTED("Rejected"),
+    /// What it bound has been taken back out of the table, by a person or by the gate (design 01 §6,
+    /// §11.6). The shape is unknown again rather than given up: the rule was wrong, not the shape, so
+    /// the next stream of it is learned afresh.
+    RETRACTED("Retracted"),
     /// It ran out of candidates, budget or sense, and wrote nothing.
     ABANDONED("Abandoned"),
     /// Something outside the dialogue failed: the model, the node, the database.

@@ -108,6 +108,16 @@ public interface SupervisorResource extends RestResource, DirectRestService {
                            @PathParam("ruleUuid") String ruleUuid,
                            ImproveRequest request);
 
+    @POST
+    @Path("/serving/{docUuid}/{ruleUuid}/retract")
+    @Operation(
+            summary = "Take a rule that is serving back out of the table, and ask for what it produced "
+                      + "to be processed again",
+            operationId = "retractShapeshifterAiRule")
+    Integer retract(@PathParam("docUuid") String docUuid,
+                    @PathParam("ruleUuid") String ruleUuid,
+                    RejectRequest request);
+
     @GET
     @Path("/guidance/{docUuid}")
     @Operation(

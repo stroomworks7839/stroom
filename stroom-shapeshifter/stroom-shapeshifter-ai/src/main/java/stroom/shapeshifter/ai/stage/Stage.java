@@ -1424,6 +1424,67 @@ public final class Stage {
                 inputIds));
     }
 
+    /// Take a rule that is serving out of the table, by hand (A28, design 01 §11.6).
+    ///
+    /// The automatic retraction of §6 is what a provisional rule gets when it fails the gate; this is the
+    /// same act for a reason no gate can see — a person has read what the rule is producing and decided
+    /// it should not be. What follows is identical, and deliberately so: the rule goes, the shape is
+    /// unknown again, and everything the rule produced is asked to be processed again *as it would be
+    /// now* (A12), because what it produced was produced by a binding that has been withdrawn.
+    ///
+    /// Not `remove`, which the Routing tab offers and which is exactly what it says: a rule taken out of
+    /// a table. Removing a learned rule leaves the shape thinking it is bound and leaves the streams it
+    /// produced standing as though they were right. Retracting says they were not.
+    ///
+    /// Not `reject` either, which is A25's decision about a draft that never served anything, and which
+    /// gives the shape up so it is not learned again. A retracted shape *is* learned again: the next
+    /// stream of it starts afresh, which is the point — the rule was wrong, the shape is not.
+    ///
+    /// @param reason Why, in the person's words. It goes on the reprocess request and on the attempt, so
+    ///               that a stream asked for again a week later says what asked for it.
+    /// @param by     Who retracted it, since this overrides what the gate decided.
+    /// @return How many streams were asked to be processed again, which is the one consequence a person
+    /// retracting a rule cannot see for themselves and the one worth telling them.
+    public int retract(final ShapeshifterAiDoc doc, final String ruleUuid, final String reason, final String by) {
+        final RoutingRule rule = rules.forDocument(doc.getUuid()).stream()
+                .filter(candidate -> ruleUuid.equals(candidate.getUuid()))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Rule " + ruleUuid + " is not a rule of this document"));
+        if (rule.isDraft()) {
+            // A draft has served nothing, so there is nothing to take back. Deciding it is Approve or
+            // Reject (A25), and saying so beats retracting something that was never bound.
+            throw new IllegalArgumentException("Rule " + ruleUuid + " is a draft awaiting review: approve "
+                                               + "or reject it rather than retracting it");
+        }
+        if (rule.isReserved()) {
+            throw new IllegalArgumentException("Rule " + ruleUuid + " binds nothing, so nothing is serving "
+                                               + "to be taken back; remove it instead");
+        }
+        if (rule.isPinned()) {
+            // §7.3 rule 2: a pin freezes a rule — served, never promoted, retracted or relearned.
+            throw new IllegalStateException("Rule " + ruleUuid + " is pinned; unpin it before retracting it");
+        }
+        final String said = "Retracted by " + by + ": " + reason;
+        rules.remove(doc.getUuid(), rule.getUuid());
+        regressionSet.discard(rule.getUuid());
+        if (!NullSafe.isBlankString(rule.getShapeId())) {
+            // The shape is unknown again rather than given up: the rule was wrong, not the shape, and the
+            // next stream of it learns afresh. A rule with no shape came from none, and there is nothing
+            // to forget.
+            shapes.reset(doc.getUuid(), rule.getShapeId());
+        }
+        // Each through the pipeline that produced it, which the rows remember, and by the fragment as
+        // well as the rule: a rule keeps its uuid when it is rebound (§7.3 rule 3), and what an earlier
+        // generation produced was produced correctly by what was bound then.
+        final List<Replayable> produced = outputs.boundBy(rule.getUuid(), rule.getPipeline() == null
+                ? null
+                : rule.getPipeline().getUuid());
+        replay(doc, produced, said);
+        record(() -> attempts.decided(doc.getUuid(), ruleUuid, AttemptStatus.RETRACTED, said));
+        return produced.size();
+    }
+
     /**
      * Reject a draft (A25): the rule goes, with its records; its documents stay, as every document does.
      * The shape is given up with the reason, so the model is not asked the same question again until an

@@ -2844,6 +2844,49 @@ pretty-printed.
 slice reached into.
 
 
+The forty-ninth slice, 2026-09-23, is the rest of design 03 §7's eighth (A28, design 01 §11.6): **what
+a person may do to an attempt and to a rule**, which the Supervisor had listed and could not do.
+
+**Answering a turn instead, and editing one and running the attempt again from there**, are one act with
+one button, because the difference between them is only whether there is an answer there already: a
+person editing turn 7 of a finished attempt is doing exactly what a person answering turn 7 of a parked
+one is. `Stage.amend` had been built since slice 8 and had no caller; what was missing was somewhere to
+type. An editor and not a prompt box, because an answer is usually a configuration — a Data Splitter
+document, a stylesheet — and a single-line box cannot hold one, let alone show a person what they are
+editing. Nothing runs when it is written: the attempt is left waiting for the worker to carry on from
+what it has now been told, because a person's request must not wait on a model.
+
+**Retracting** is the act the gate already had and a person did not. The automatic retraction of §6 is
+what a provisional rule gets when it fails; this is the same act for a reason no gate can see — somebody
+has read what the rule is producing and decided it should not be — and what follows is deliberately
+identical: the rule goes, the shape is unknown again, and everything the rule produced is asked to be
+processed again as it would be now (A12).
+
+It is neither of the two things that look like it, and saying which is most of the work. `remove`, on
+the Routing tab, is exactly what it says: a rule taken out of a table, leaving the shape thinking it is
+bound and the streams it produced standing as though they were right. `reject` is A25's decision about a
+draft that served nothing, and gives the shape up so it is not learned again. **A retracted shape is
+learned again** — the rule was wrong, the shape is not — and that is what makes retracting safe to offer
+for a rule that is merely wrong rather than a shape that cannot be learned. It refuses a draft (decide
+it), a reserved rule (nothing is serving) and a pinned one (§7.3 rule 2), and it answers with how many
+streams it asked for again, which is the one consequence the person pressing it cannot see for
+themselves.
+
+**Widening a selector turned out to be built.** §7 listed it as owed with no endpoint; widening is
+editing a rule's expression, and the Routing tab's Edit has done that since the tab existed. What was
+actually owed was the Supervisor's own acts.
+
+291 tests in the module, 33 against MySQL, 21 in Tier 2.
+
+**Noted, not acted on.** `Stage` crossed checkstyle's 2,000-line file length with this slice — a warning
+rather than an error, and the only hand-written file in these modules to do so. The operator's decisions
+on a rule (`approve`, `reject`, `retract`) are the natural thing to lift out, since they are not stage
+*runs* at all: they route nothing, learn nothing and judge nothing. They are not lifted here, because
+they read and write almost everything the stage holds, so the split is of one object's state rather than
+along a seam — and a refactor of the feature's heart, made casually and immediately before a review, is
+worse than a warning.
+
+
 ## 7. Decisions taken
 
 Ruled 2026-09-17, each as recommended:

@@ -26,6 +26,7 @@ import stroom.dispatch.client.RestErrorHandler;
 import stroom.dispatch.client.RestFactory;
 import stroom.docref.DocRef;
 import stroom.shapeshifter.shared.ImproveRequest;
+import stroom.shapeshifter.shared.RejectRequest;
 import stroom.shapeshifter.shared.ServingCriteria;
 import stroom.shapeshifter.shared.ServingRule;
 import stroom.shapeshifter.shared.SupervisorResource;
@@ -72,6 +73,7 @@ public class SupervisorServingPresenter extends MyPresenterWidget<PagerView> {
     private final MultiSelectionModel<ServingRule> selectionModel;
     private final ButtonView improveButton;
     private final ButtonView hintButton;
+    private final ButtonView retractButton;
     private final ButtonView filterButton;
     private Double below;
 
@@ -94,6 +96,9 @@ public class SupervisorServingPresenter extends MyPresenterWidget<PagerView> {
                 "Ask for this rule to be made better, from what it already does"));
         hintButton = view.addButton(SvgPresets.EDIT.title(
                 "What has been said about this shape, and say something else"));
+        retractButton = view.addButton(SvgPresets.DISABLE.title(
+                "Take this rule back out of the table, and ask for what it produced to be processed "
+                + "again"));
         // The filter of A46: "good but not perfect" is the one thing worth narrowing by, since nothing
         // else in the feature will ever raise a rule that is merely good.
         filterButton = view.addButton(SvgPresets.FILTER.title(
@@ -127,6 +132,7 @@ public class SupervisorServingPresenter extends MyPresenterWidget<PagerView> {
         registerHandler(selectionModel.addSelectionHandler(event -> updateButtons()));
         registerHandler(improveButton.addClickHandler(event -> improve()));
         registerHandler(hintButton.addClickHandler(event -> hint()));
+        registerHandler(retractButton.addClickHandler(event -> retract()));
         registerHandler(filterButton.addClickHandler(event -> filter()));
     }
 
@@ -204,6 +210,52 @@ public class SupervisorServingPresenter extends MyPresenterWidget<PagerView> {
         }
     }
 
+    /// Take a rule back out of the table (A28): what it produced was produced by a binding that is
+    /// being withdrawn, so all of it is asked to be processed again as it would be now (A12).
+    ///
+    /// Confirmed and reasoned, because it is the most consequential thing on this screen: a backlog goes
+    /// through the pipeline and a feed stops being processed until its shape is learned again. The
+    /// reason is asked for rather than assumed — it travels with every stream it asks for.
+    private void retract() {
+        final ServingRule rule = selected();
+        if (rule == null) {
+            return;
+        }
+        if (rule.isPinned()) {
+            AlertEvent.fireWarn(this, "This rule is pinned, which keeps it serving exactly as it is. "
+                                      + "Unpin it on the document's Routing tab before retracting it.", null);
+            return;
+        }
+        PromptEvent.fire(this,
+                "Why is this rule being taken back? It goes out of the table, its shape is learned again "
+                + "from the next stream, and everything it has produced is asked to be processed again "
+                + "as it would be now. The reason travels with every one of those streams.", "",
+                reason -> {
+                    // Null is Cancel; empty is no reason, and this one is not offered without one.
+                    if (NullSafe.isBlankString(reason)) {
+                        return;
+                    }
+                    restFactory
+                            .create(SUPERVISOR_RESOURCE)
+                            .method(resource -> resource.retract(rule.getDoc().getUuid(),
+                                    rule.getRuleUuid(), new RejectRequest(reason)))
+                            .onSuccess(asked -> {
+                                // What a person cannot see for themselves: how much is now going
+                                // through the pipeline again because of what they just pressed.
+                                AlertEvent.fireInfo(this, asked == null || asked == 0
+                                        ? "The rule is out of the table. It had produced nothing, so "
+                                          + "nothing is being processed again."
+                                        : "The rule is out of the table, and " + asked + " stream"
+                                          + (asked == 1
+                                                  ? " it produced is"
+                                                  : "s it produced are")
+                                          + " asked to be processed again.", this::refresh);
+                            })
+                            .taskMonitorFactory(this)
+                            .exec();
+                });
+    }
+
     /// Narrow the list to what has been scoring below a figure, or clear it: A46's filter over serving
     /// rules by rolling score. An empty answer shows everything again.
     private void filter() {
@@ -264,6 +316,7 @@ public class SupervisorServingPresenter extends MyPresenterWidget<PagerView> {
         final boolean one = selected() != null;
         improveButton.setEnabled(one);
         hintButton.setEnabled(one);
+        retractButton.setEnabled(one);
     }
 
     private void initTableColumns() {

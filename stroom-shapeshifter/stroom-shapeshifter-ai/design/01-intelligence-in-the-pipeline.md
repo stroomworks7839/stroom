@@ -1572,6 +1572,11 @@ strip: feeds in error mode with reason and reset (A24), and provisional rules by
 seen, which a person may approve (§6). The raw exchange with the model is additionally
 logged through `stroom-ai`'s audit as §10 requires.*
 
+*Built out over 2026-09-23 (design 02 §6.1): the ledger grouped by shape, Approve, Reject and re-learn
+beside the attempt, answering a turn instead and editing one to run the attempt again from there, and
+retracting a rule that is serving — which is the gate's own retraction (§6) offered for a reason no gate
+can see, and which leaves the shape to be learned again rather than giving it up.*
+
 **What A46 adds to the view** (the owner's, 2026-09-22). Two things the list above does not carry: a
 *message* a person writes into an attempt, which is neither an answer to a turn nor a decision about
 one, and a way in for a rule that is serving well enough that nothing has flagged it. The view gains a

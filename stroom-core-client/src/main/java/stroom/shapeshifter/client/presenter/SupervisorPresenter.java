@@ -84,6 +84,13 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
         this.restFactory = restFactory;
 
         setInSlot(ATTEMPT_LIST, listPresenter);
+        // A turn answered reopens the attempt and takes its shape back (A28), so the row it was
+        // answered from is showing a status that is no longer true.
+        turnsPresenter.setOnAmended(amended -> {
+            listPresenter.getSelectionModel().clear();
+            updateButtons();
+            refresh();
+        });
         setInSlot(TURN_LIST, turnsPresenter);
         setInSlot(LEDGER, ledgerPresenter);
         setInSlot(SERVING, servingPresenter);
