@@ -182,6 +182,11 @@ public final class TraceModel {
         return trace.isCompiled();
     }
 
+    /** Whether the sample could be read at all; false is the sample's failure, not the project's. */
+    public boolean isSampleRead() {
+        return trace.isSampleRead();
+    }
+
     /** The frame, or null; the document is not a frame object, so null for {@link #ROOT} too. */
     public Frame frame(final long id) {
         return byId.get(id);

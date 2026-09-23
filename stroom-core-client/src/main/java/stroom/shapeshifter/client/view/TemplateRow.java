@@ -65,6 +65,9 @@ public class TemplateRow extends Composite {
         this.data = data;
         this.listener = listener;
         initWidget(BINDER.createAndBindUi(this));
+        // A section has no swatch, and must not reserve room for one: the chip is what pushed
+        // SETTINGS and DATA right of TEMPLATES, which is a plain label (design 44 §5m).
+        chip.setVisible(!data.isSection());
         chip.getElement().getStyle().setBackgroundColor(data.getColour());
         if ("transparent".equals(data.getColour())) {
             chip.addStyleName("ss-chip--outline");

@@ -163,7 +163,7 @@ class ShapeshifterResourceImpl implements ShapeshifterResource {
         } catch (final RuntimeException e) {
             // The record could not be read - gone, or not this caller's to see. The editor shows
             // it as a message rather than an error page, since the project may still be sound.
-            return new ShapeshifterTrace(false, "", null, List.of(), List.of(), List.of(), List.of(), List.of(),
+            return new ShapeshifterTrace(false, false, "", null, List.of(), List.of(), List.of(), List.of(), List.of(),
                     List.of(), List.of(), 0, List.of(),
                     List.of(message(Severity.FATAL, "The sample could not be read: " + e.getMessage())), 0);
         }
@@ -174,8 +174,8 @@ class ShapeshifterResourceImpl implements ShapeshifterResource {
             compiled = Shapeshifter.compile(project, functionLibraryProvider.get().registry());
         } catch (final ConfigException e) {
             messages.add(message(Severity.FATAL, e.getMessage()));
-            return new ShapeshifterTrace(false, sample, null, List.of(), List.of(), List.of(), List.of(), List.of(),
-                    List.of(), List.of(), 0, List.of(), messages, 0);
+            return new ShapeshifterTrace(false, true, sample, null, List.of(), List.of(), List.of(), List.of(),
+                    List.of(), List.of(), List.of(), 0, List.of(), messages, 0);
         }
         final TraceRecorder recorder = new TraceRecorder();
         final ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -190,7 +190,7 @@ class ShapeshifterResourceImpl implements ShapeshifterResource {
         }
         // The client holds strings: every offset crosses the wire in characters (TraceChars).
         final TraceChars chars = new TraceChars(recorder, input, out.toByteArray());
-        return new ShapeshifterTrace(true, sample, out.toString(StandardCharsets.UTF_8), chars.frames(),
+        return new ShapeshifterTrace(true, true, sample, out.toString(StandardCharsets.UTF_8), chars.frames(),
                 chars.captures(), chars.groups(), chars.outputs(), chars.attempts(), chars.guards(),
                 chars.instructions(),
                 recorder.attemptsSeen(),

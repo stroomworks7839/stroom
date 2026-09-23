@@ -256,6 +256,10 @@ public class BodyPresenter
                 if (edited != null) {
                     apply(Bodies.replace(body, nodePath, edited));
                     e.hide();
+                } else {
+                    // Nothing was written, so the dialog stays open — and its OK button has to come back
+                    // out of its busy state, or the alert leaves it spinning for good.
+                    e.reset();
                 }
             } else {
                 e.hide();
@@ -301,6 +305,18 @@ public class BodyPresenter
         }
     }
 
+    @Override
+    public void onDrop(final String fromPath, final String toListPath, final int index) {
+        if (host.isReadOnly()) {
+            return;
+        }
+        final List<OutputNode> next = Bodies.moveTo(body, Bodies.path(fromPath),
+                Bodies.path(toListPath), index);
+        if (next != body) {
+            apply(next);
+        }
+    }
+
     /** The add menu, grouped by category, for a list path and an index in it. */
     @Override
     public void onAdd(final String listPath, final int index, final int x, final int y) {
@@ -341,6 +357,10 @@ public class BodyPresenter
                 if (node != null) {
                     apply(Bodies.insert(body, list, index, node));
                     e.hide();
+                } else {
+                    // Nothing was written, so the dialog stays open — and its OK button has to come back
+                    // out of its busy state, or the alert leaves it spinning for good.
+                    e.reset();
                 }
             } else {
                 e.hide();
@@ -365,6 +385,10 @@ public class BodyPresenter
                     if (test != null) {
                         apply(Bodies.replace(body, nodePath, Bodies.withWhen(choose, branch, test)));
                         e.hide();
+                    } else {
+                        // Nothing was written, so the dialog stays open — and its OK button has to come back
+                        // out of its busy state, or the alert leaves it spinning for good.
+                        e.reset();
                     }
                 } else {
                     e.hide();
@@ -394,6 +418,10 @@ public class BodyPresenter
                     if (test != null) {
                         apply(Bodies.replace(body, nodePath, Bodies.addWhen(choose, test)));
                         e.hide();
+                    } else {
+                        // Nothing was written, so the dialog stays open — and its OK button has to come back
+                        // out of its busy state, or the alert leaves it spinning for good.
+                        e.reset();
                     }
                 } else {
                     e.hide();

@@ -19,6 +19,7 @@ package stroom.shapeshifter.client.presenter;
 import stroom.alert.client.event.AlertEvent;
 import stroom.alert.client.event.ConfirmEvent;
 import stroom.shapeshifter.client.presenter.TemplatePanelPresenter.TemplatePanelView;
+import stroom.shapeshifter.config.MatchExpression;
 import stroom.shapeshifter.config.PatternNode;
 import stroom.shapeshifter.config.Project;
 import stroom.shapeshifter.config.Template;
@@ -69,6 +70,9 @@ public class TemplatePanelPresenter
     private final ButtonView patternButton;
 
     private ProjectHost host;
+/** The panel's own rows, which are not templates and cannot collide with a template id. */
+    private static final String SETTINGS_ROW = "settings:";
+
     private String selected;
 
     @Inject
@@ -194,17 +198,15 @@ public class TemplatePanelPresenter
     public void refresh() {
         final Project project = host.getProject();
         final List<TemplateRowData> rows = new ArrayList<>();
-        // What the project runs over, first: nothing else here means anything without it
-        // (design 18 §5.7, design 44 §5a).
-        rows.add(new TemplateRowData(SampleSource.rowId(), "Sample data", "data", "transparent",
-                host.getSampleSource() == null
-                        ? "none"
-                        : host.getSampleSource().getLabel(), host.getSampleSource() == null));
-        rows.add(new TemplateRowData(null, project == null
-                ? "project"
-                : project.name(), "document", "transparent", host.trace() == null
-                ? "doc"
-                : Profile.runTotal(host.trace()), false));
+        // Three sections, in the order the run uses them: what the project is, what it runs
+        // over, and what it runs (design 44 §5m).
+        rows.add(TemplateRowData.section(SETTINGS_ROW, "Settings", null));
+        // The section says what is chosen, so the sample needs no row of its own
+        // (design 18 §5.7, design 44 §5a, §5m).
+        rows.add(TemplateRowData.section(SampleSource.rowId(), "Data", host.getSampleSource() == null
+                ? "none"
+                : host.getSampleSource().getLabel()));
+        rows.add(TemplateRowData.section(null, "Templates", null));
         boolean survives = selected == null || SampleSource.isRow(selected);
         if (project != null) {
             // Grouped by mode - the root group first, then modes as they first appear - and in
@@ -222,8 +224,29 @@ public class TemplatePanelPresenter
                 final String section = mode == null
                         ? "root"
                         : "mode: " + mode;
+                // The document template heads the root group and is fixed there: it is the
+                // outermost execution, and everything in that group is dispatched from its body.
+                final Template document = mode == null
+                        ? documentTemplate(project)
+                        : null;
+                if (document != null) {
+                    // The same furniture as every other row, heat bar included. The engine
+                    // records no timing for it — it is run, not matched — so the bar is empty
+                    // and the count is the one execution a stream gets; a row that is dimmed
+                    // and bar-less would read as a template that failed to match, which is the
+                    // opposite of what this one is (design 44 §5m).
+                    rows.add(trace == null
+                            ? new TemplateRowData(document.id(), "document", section, "transparent",
+                                    "source", false)
+                            : new TemplateRowData(document.id(), "document", section, "transparent",
+                                    "1", false, 0, 0, Profile.describe(trace, document.id()), 0));
+                    // It is a row like any other and its selection survives a refresh like any
+                    // other. Added outside the loop below, so it needs saying here: without it,
+                    // declaring a name on the document threw the author back to the settings.
+                    survives |= document.id().equals(selected);
+                }
                 for (final Template template : project.templates()) {
-                    if (Objects.equals(template.mode(), mode)) {
+                    if (Objects.equals(template.mode(), mode) && !isDocument(template)) {
                         // The profile is a run's reading (design 18 §5.8): before one, the row has a
                         // kind and no heat.
                         rows.add(trace == null
@@ -253,6 +276,32 @@ public class TemplatePanelPresenter
         }
         getView().setSelected(selected);
         enableButtons();
+    }
+
+    /** The row that stands for the project's settings. */
+    public static String settingsRowId() {
+        return SETTINGS_ROW;
+    }
+
+    public static boolean isSettingsRow(final String rowId) {
+        return SETTINGS_ROW.equals(rowId);
+    }
+
+    /** The document template — the one matching the source — or null (design 35 §4). */
+    static Template documentTemplate(final Project project) {
+        if (project == null) {
+            return null;
+        }
+        for (final Template template : project.templates()) {
+            if (isDocument(template)) {
+                return template;
+            }
+        }
+        return null;
+    }
+
+    private static boolean isDocument(final Template template) {
+        return template.match() instanceof MatchExpression.Source;
     }
 
     /**
@@ -293,12 +342,15 @@ public class TemplatePanelPresenter
         final boolean template = selected != null && host != null && host.template(selected) != null;
         final boolean pattern = selectedPattern() != null;
         final boolean data = SampleSource.isRow(selected);
+        // The document template is fixed: it cannot be removed, and it does not move among its
+        // siblings, because every project has exactly one and it is always the head of the root.
+        final boolean fixed = template && isDocument(host.template(selected));
         addButton.setEnabled(editable && !data);
         modesButton.setEnabled(host != null && host.getProject() != null && !data);
         patternButton.setEnabled(editable && host.getProject() != null && !data);
         editButton.setEnabled(editable && (template || pattern));
-        removeButton.setEnabled(editable && (template || pattern));
-        final int index = template
+        removeButton.setEnabled(editable && (template || pattern) && !fixed);
+        final int index = template && !fixed
                 ? indexOf(selected)
                 : -1;
         upButton.setEnabled(editable && index >= 0 && neighbour(index, -1) >= 0);
@@ -345,6 +397,10 @@ public class TemplatePanelPresenter
                     host.setColour(template.id(), editPresenter.getColour());
                     select(template.id(), true);
                     e.hide();
+                } else {
+                    // Nothing was written, so the dialog stays open — and its OK button has to come back
+                    // out of its busy state, or the alert leaves it spinning for good.
+                    e.reset();
                 }
             } else {
                 e.hide();
@@ -422,6 +478,10 @@ public class TemplatePanelPresenter
                     }
                     host.setColour(template.id(), editPresenter.getColour());
                     e.hide();
+                } else {
+                    // Nothing was written, so the dialog stays open — and its OK button has to come back
+                    // out of its busy state, or the alert leaves it spinning for good.
+                    e.reset();
                 }
             } else {
                 e.hide();

@@ -534,6 +534,269 @@ guard     no guard · no limits
 body      + instruction
 ```
 
+## 5i. Three from a sitting with it — built 2026-09-23
+
+**The guard row was short.** The match and role rows are as tall as the control in them; the
+guard row holds only text, so it sat shorter and broke the rhythm of a column that §5h had just
+straightened. `.ss-strip-line` now carries a `min-height` of one control —
+`calc(1.2em + 2 * var(--input__padding--vertical) + 2px)`, from the same tokens the controls use
+rather than a measured number — so all four rows are one height whatever is in them.
+
+**A newline delimiter read as a space.** The chip said `split on " "` for a `\n` delimiter,
+because `Templates.describe` quoted the delimiter raw and the browser collapsed the line break
+to a space. It is the wrong answer to the only question the chip exists to answer. It now escapes
+through `ControlEscapes`, the same helper the delimiter form round-trips through, so the chip
+reads `split on "\n"` and the editor has one spelling of a control character rather than two.
+
+**`apply-templates` demanded a select it should have defaulted.** The editor refused to write one
+without a select. It was right that something was missing but wrong about whose job it was: an
+omitted select means *this match's whole content*, which is the thing being dispatched when the
+author does not say otherwise, and which `BodyCompiler.isWholeParentContent` already recognises
+as its fast path. The model now says so — `ApplyDirective`'s compact constructor defaults a null
+select to `RefExpression.group(0)` — so the compiler, the reader, the migration and the editor
+all get the same answer, and the compiler is never handed the null it would have dereferenced.
+Defaulted in the owning record rather than in any of the readers, for the reason the pattern
+facts are: one place publishes what an omission means. The field stays, help text and all, and
+now says that blank is the whole content.
+
+**And the dialog stuck.** Dismissing that alert left the OK button spinning, because the
+hide-request handler called neither `hide()` nor `reset()` when nothing was written — the
+request was simply abandoned, and the dialog's buttons stay busy until one or the other answers
+it. Not specific to `apply-templates`: the same shape appears **fourteen times** across the body,
+captures, declarations, parts, pattern-tree and template-panel editors, so every validation
+failure in the editor left its dialog dead. `NamePresenter` had it right all along, passing
+`e::reset` as its alert's callback. All fourteen now reset.
+
+## 5j. The document remembers where the data was — ruled and built 2026-09-23
+
+Design 18 **Q2** (ruled 2026-08-28) says data is never the document's, and lists what that
+buys: no size cap, no staleness against a moved feed, and no *"exported config quietly carrying
+production data with it"*. It also names the price — *"the editor never being usable entirely on
+its own"* — and that price is what an author pays every time they reopen a project and have to
+find their stream again.
+
+**Q2 is amended, not overturned.** It stays true of **data**. It becomes false of **a reference
+to data**: `ShapeshifterDoc` now carries a `SourceLocation` beside the colours, which are the
+precedent — editor metadata that is not the project. The difference between the two is real and
+is what the conditions below are for: a colour means the same thing everywhere, and a stream id
+does not.
+
+Four conditions, each answering an objection rather than decorating one:
+
+1. **Stripped on export.** `StoreImpl.exportDocument` takes a `Function<D, D>` applied before
+   serialising — the seam `omitAuditFields` already uses — so `ShapeshifterStoreImpl` overrides
+   the export to null the field. Elsewhere the same id is a different stream, or none, and an
+   export that silently pointed at unrelated data would be worse than one that pointed at
+   nothing. The git repository exports through the same `ImportExportSerializer`, so this covers
+   version control too, and a project's history stops moving every time someone looks at a
+   different stream.
+2. **Written on an ordinary save, never on choosing.** `getSampleLocation()` is *read* when the
+   document is written and never pushed, so picking a stream does not mark the document dirty,
+   bump its version, or fire an entity event at anyone else holding it open. What is remembered
+   is where the author was when they last saved for a reason of their own — which is how
+   `colours` has always behaved.
+3. **The reference, not the bytes.** A pasted sample stays out: stripping it from export would
+   still leave real data in the database, in backups and inside a configuration artefact, which
+   is a data-classification question rather than an editor one. `getSampleLocation()` returns
+   null for a pasted sample, so pasting is remembered for the session and no longer.
+4. **Three failure modes on load, not one.** Gone is the easy one. *Not permitted* matters
+   because a stored id is readable by anyone who can read the document, whether or not they can
+   read that stream. *Moved* — the id resolving to a different stream after a restore or
+   re-import — cannot be detected at all, and is the reason condition 1 is not optional. A
+   restored sample is marked as remembered; the first run that fails on it clears it, says the
+   stream may have been deleted or may not be theirs to read, and leaves the author at the empty
+   state rather than on a sample that will never work. A sample chosen by hand drops the mark, so
+   an ordinary failed run still reports as an ordinary failed run.
+
+What remains, and is a judgement rather than a defect: the document is shared and "the sample I
+was working with" is personal, so two authors get last-write-wins. Condition 2 makes that no
+worse than any other field they both edit.
+
+**Condition 4 was built in the wrong place first, and the review caught it.** The recovery sat in
+the run's `onFailure`, where no transport error ever arrives: `preview` catches a failed record
+read and returns a *successful* answer carrying `compiled=false` and a FATAL message, because the
+project may be perfectly sound. So the one case the condition exists for — reopening a project
+whose remembered stream is gone — took `onSuccess`, kept the dead sample for ever, and told the
+author "the project did not compile" about a project that compiles.
+
+The fix is the rule the pattern facts already follow: **the side that knows publishes the fact**.
+`ShapeshifterTrace` carries `sampleRead` as its own field rather than folding a second meaning
+into `compiled`, so the editor asks instead of reading it out of a message. The crumb now
+distinguishes the two, and the recovery lives where the answer lands.
+
+## 5k. The mode a dispatch goes into is a choice — built 2026-09-23
+
+`apply-templates` asked for its mode as free text, with the project's modes offered as the
+field's *tooltip* — `setModes` set `field1.setTitle("Modes: …")` and nothing else. A mode is one
+of a known set, the template's own mode field has been a picker since §1's reasoning, and a typo
+here dispatches into a mode nothing declares. It is a `SelectionBox` now, with `root` as the
+non-select entry exactly as the template dialog spells it, and the mode no longer travels through
+the generic text fields at all.
+
+## 5l. Where the global variables already are — answered 2026-09-23
+
+Asked how to add a global variable, and whether the document should take instructions. Both
+already exist, and the editor simply never says so.
+
+Design 35 §4 is explicit: **there is one scope rule, not two scope kinds.** An author never marks
+anything global; a declaration's scope is where it is written, and a declaration written outside
+every other template lasts the run because nothing encloses it. That outermost place is the
+**document template** — the one whose match kind is `source`, which `ReferenceCheck` identifies
+as exactly that (`template.match() instanceof MatchExpression.Source`) and which the DS3
+migration creates for every imported configuration.
+
+Instructions on the document exist too, and are the same thing: `Run` splits the document
+template's body around its `apply-templates` — the prologue runs once at the start of the stream,
+the tail once at the end, and the loop over the input sits between them. A declaration there, set
+in the prologue and read in a tail, is the run-long accumulator the question was really about.
+
+So the answer today is: add a template, set its **match kind to `source`**, and put the
+declarations and the body on it. Nothing needs building.
+
+**What does need building is the signpost.** Nothing in the editor connects "source" to "this is
+the document, and this is where a run-long name lives". The panel's `document` row shows source
+*settings* only — buffer size, encoding, dispatch — so the run looks like it has no body at all,
+which is what prompted the question. Two cheap changes would close it, unbuilt and recorded here
+rather than done on a guess: `MatchKind.SOURCE`'s note should say what the kind is *for*, not
+only that it matches once; and the panel's document row should point at the source template when
+the project has one, and offer to create it when it does not.
+
+**A correction to the first draft of this section.** It said a declaration on a root-mode
+template has chunk lifetime, and left that unqualified. That is wrong, and the owner was right to
+challenge it. `Run.dispatchInput` reads
+`chunked = rootDispatch == CLASSIFY || rootDispatch == ANY`, and sets `body.chunkedRoot` only
+when the run is *also* not whole-buffer. The default root dispatch is `STRICT` for a v4+ project
+and `LAX` for a migrated one; both stream through the `InputWindow` without re-entering the
+root-mode templates, so **a root template's declarations last the whole run in the ordinary
+case**, which is what was agreed. Design 35 §4 does qualify its "sharp edge" with *"under a
+`classify` or `any` root"* — the qualification was dropped in the reading, not in the design.
+
+Nor is the narrow case silent. Under a chunked root an append is **refused**:
+`Body.guardAccumulation` raises a FATAL naming the cause — *"the input is read in pieces whose
+counters restart, so the accumulation would summarise only the last piece"* — and aborts the run.
+The one residue is the case that guard's own javadoc names as uncovered: a **list declared on a
+root template** under a `classify` or `any` root, where a grouping over it answers for the chunk
+and nothing warns. That is worth a compiler warning some day; it is not the trap this section
+first described, and it is not something the editor needs to shout about.
+
+## 5m. The panel has three sections — built 2026-09-23
+
+The panel listed a `data` group, a `document` group holding a row named after the project, then
+the templates by mode, under a pane title reading PROJECT. Two problems. The row called
+*document* held the project's **settings** — buffer size, encoding, dispatch — and none of the
+document's own content, so an author looking for run-scoped names or a root element found a form
+about reading bytes. And the pane title named the panel for the one thing in it that was not a
+section.
+
+The owner's shape, built:
+
+```
+SETTINGS    foo                   → the project: name, buffer, encoding, dispatch
+DATA        stream 820            → the sample data page
+TEMPLATES
+  root
+    document                      → the document template, fixed at the head
+    Header Line
+    Line
+  mode: Value
+    Value
+```
+
+A section says what it holds — the project's name, the chosen sample — so neither needs a row of
+its own beneath it; the sample's own row is gone. A section is also the only kind of row without
+a swatch, and the chip was what pushed SETTINGS and DATA right of TEMPLATES, so it is hidden for
+them and the three align.
+
+Making two of the three out of a row and one out of a label cost a little: the row's own children
+out-voted the heading, so SETTINGS and DATA came out in the rows' monospace while TEMPLATES was
+sans, and the value beside DATA inherited the heading's uppercase at a size larger than the
+heading itself — `stream 820` shouted as `STREAM 820`. The section styles the children it borrows:
+the name takes the heading's typeface, and the value drops back to normal case and weight. A
+heading is a heading whichever widget draws it.
+
+**The document template sits inside the `root` group, first and fixed.** It is the outermost
+execution and everything in that group is dispatched from its body, so it heads them rather than
+floating above the groups; and it does not move among its siblings, so the panel's up and down
+are dead on it.
+
+`SETTINGS` and `DATA` are destinations; `TEMPLATES` heads the list and is a label. They are
+therefore **rows that render as headings**, not headings that happen to be clickable — so
+selection, hover and the keyboard work on them exactly as on everything else in the list, and
+nothing needed a second interaction model. The pane title is gone: the sections name themselves.
+
+**Every project the editor holds has a document template**, not only a new one.
+`ShapeshifterPresenter` ensures it where the editor takes a project on — reading a document — so
+an older project gains it on open and the author never meets a row offering to create what should
+already be there. Not in `ProjectText.parse`, which was the first attempt and was wrong twice
+over: a parser that added a template stops round-tripping, so `parse(print(p))` no longer equalled
+`p`; and it put a document template back into the workbench's deliberately **one-template** sample
+experiment (§2), changing what the sample runs. The presenter tests caught both. A parser parses.
+
+Because it is always there the document template is **fixed**: remove is disabled on it, as up and
+down already were, and the strip's create link is gone — there is no state left for it to offer.
+
+**A new project starts with it too**, and the row is always there whether or
+not a project has one, because the run always has a document. `ProjectText.empty` — the one path
+a blank document takes in the UI — seeds a template whose match is the source and whose body is a
+single `apply-templates`. That adds no behaviour: `RootPlanner` reads a null directive as the null
+mode and the project's own dispatch, which is exactly what an empty directive says, so a project
+with this template and one without run identically. What it adds is the **place** — the author can
+see where the input loop sits, wrap a root element around it, and has somewhere to declare a
+run-scoped name. One factory, `Templates.document()`, because both routes to it — a new project
+and the panel's `+` — must produce the same thing. Where the project has one, the row *is* that template — the strip
+shows its declarations and its body, which is where run-scoped names and the root elements live
+(§5l). Its row carries the same furniture as every other: a heat bar, and text at full
+strength. The engine records no timing for it — it is *run*, not matched, so nothing
+dispatches it and nothing times it — which left the row dimmed and bar-less, reading as a
+template that had failed to match. That is the opposite of what this one is, so the row says
+`1`, the one execution a stream gets, and looks like the rows around it.
+
+**The document template no longer appears among the root templates.** `RootPlanner` filters it out
+of `roots` explicitly, so listing it there contradicted the engine; a DS3-migrated project used to
+show it twice over, once as `document` and once as an ordinary root row.
+
+Still open, and named rather than guessed at: `RootPlanner` takes `findFirst()`, so a **second**
+source template is silently ignored. That should be a compile refusal, and is not one yet.
+
+## 5n. What the panel sections say, and one that forgot itself — built 2026-09-23
+
+**A declaration on the document threw the author back to SETTINGS.** `refresh` keeps the selection
+by id across a rebuild, and a row records that it survived — but the document template is added
+outside the loop that does the recording, because it is pinned ahead of the rest of the root
+group. So editing it rebuilt the panel, found nothing claiming the selection, and fell back to the
+project. Fixed where the row is made.
+
+**SETTINGS no longer repeats the project's name.** The section *is* the project; DATA carries the
+chosen sample because there is a choice to report, and SETTINGS has no equivalent.
+
+One thing checked and left alone. Nesting is already restricted to the eight `Holder` kinds —
+`If`, `Choose`, `Switch`, `Variable`, `Element`, `Attribute`, `ForEach`, `ForEachGroup` — and the
+body pane offers a nested list only for those (`node instanceof Holder`). A variable among them
+looked wrong and is not: a variable's body *is* how it gets its value, as the fixtures show —
+`{"variable": {"name": "record_body", "body": [{"apply-templates": …}]}}` — and design 35 §4 makes
+that body an execution with its own scope, which is how `xsl:variable` nests in XSLT. A variable
+with no instructions inside it binds nothing.
+
+## 5o. Dragging a card — built 2026-09-23
+
+Instructions already reordered — `BodyCard` has had move actions and `Bodies.move` all along —
+but only a step at a time, and the prototype dragged. Now a card carries a **grip**, which appears
+with its other actions on hover; the card itself stays clickable to edit, and only the grip starts
+a drag. A card being dragged over shows a line on the half the pointer is in, so the drop lands
+before or after it, and a card refuses itself and its own descendants — a holder cannot be put
+inside what it contains, and the indicator says so by not appearing.
+
+`Bodies.moveTo` does the move, and it is one of those operations that is two lines and three
+traps. **Lifting the card renumbers the list it came from**, and the destination is addressed by
+number, so both the list to drop into and the place in it must be read in the numbering that will
+exist once the card is out — not the one on screen. The first cut adjusted the index but not the
+path, which dropped a card into a list that had shifted out from under it: into the wrong holder,
+or off the end of the body and into a null list. Two tests, written before the code was believed,
+caught it immediately. Containment is judged on the paths before any list is touched, because two
+sibling cards can be equal and searching for the moved one afterwards finds the wrong one.
+
+The GWT draft compile caught the last of it: `int[].clone()` is not emulated, `Arrays.copyOf` is.
+
 ## 6. Order
 
 §1, §2, §3a and §3b built 2026-09-21; §4, §5 and its parts the day after, from the first sitting with them. Each phase gated as design 43's were — core-client compile and checkstyle, the

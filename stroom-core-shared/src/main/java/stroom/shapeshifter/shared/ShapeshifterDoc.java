@@ -21,6 +21,7 @@ import stroom.docs.shared.Description;
 import stroom.docstore.shared.AbstractEmbeddableDoc;
 import stroom.docstore.shared.DocumentType;
 import stroom.docstore.shared.DocumentTypeRegistry;
+import stroom.pipeline.shared.SourceLocation;
 import stroom.util.shared.HasData;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -53,7 +54,8 @@ import java.util.Objects;
         "updateUser",
         "description",
         "data",
-        "colours"})
+        "colours",
+        "sample"})
 @JsonInclude(Include.NON_NULL)
 public class ShapeshifterDoc extends AbstractEmbeddableDoc implements HasData {
 
@@ -72,6 +74,16 @@ public class ShapeshifterDoc extends AbstractEmbeddableDoc implements HasData {
      */
     @JsonProperty
     private final Map<String, String> colours;
+    /**
+     * Editor metadata (design 44 §5j, amending design 18 Q2): where the author last took sample
+     * data from, so the editor reopens on it instead of making them find it again. A
+     * <b>reference</b>, never the bytes — Q2 stays true of data — and stripped on export, so an
+     * exported configuration carries no pointer into an environment where the same id is a
+     * different stream, or none. Written when the document is saved, never as a side effect of
+     * choosing a sample.
+     */
+    @JsonProperty
+    private final SourceLocation sample;
 
     @JsonCreator
     public ShapeshifterDoc(@JsonProperty("uuid") final String uuid,
@@ -84,6 +96,7 @@ public class ShapeshifterDoc extends AbstractEmbeddableDoc implements HasData {
                            @JsonProperty("description") final String description,
                            @JsonProperty("data") final String data,
                            @JsonProperty("colours") final Map<String, String> colours,
+                           @JsonProperty("sample") final SourceLocation sample,
                            @JsonProperty("embeddedIn") final DocRef embeddedIn) {
         super(TYPE, uuid, name, version, createTimeMs, updateTimeMs, createUser, updateUser, embeddedIn);
         this.description = description;
@@ -91,6 +104,7 @@ public class ShapeshifterDoc extends AbstractEmbeddableDoc implements HasData {
         this.colours = colours == null || colours.isEmpty()
                 ? null
                 : Collections.unmodifiableMap(new HashMap<>(colours));
+        this.sample = sample;
     }
 
     public static DocRef getDocRef(final String uuid) {
@@ -119,6 +133,11 @@ public class ShapeshifterDoc extends AbstractEmbeddableDoc implements HasData {
                 : colours;
     }
 
+    /** Where sample data was last taken from, or null; a reference the editor may fail to resolve. */
+    public SourceLocation getSample() {
+        return sample;
+    }
+
     @Override
     public boolean equals(final Object o) {
         if (this == o) {
@@ -133,12 +152,13 @@ public class ShapeshifterDoc extends AbstractEmbeddableDoc implements HasData {
         final ShapeshifterDoc that = (ShapeshifterDoc) o;
         return Objects.equals(description, that.description) &&
                Objects.equals(data, that.data) &&
-               Objects.equals(colours, that.colours);
+               Objects.equals(colours, that.colours) &&
+               Objects.equals(sample, that.sample);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(super.hashCode(), description, data, colours);
+        return Objects.hash(super.hashCode(), description, data, colours, sample);
     }
 
     public Builder copy() {
@@ -159,6 +179,7 @@ public class ShapeshifterDoc extends AbstractEmbeddableDoc implements HasData {
         private String description;
         private String data;
         private Map<String, String> colours;
+        private SourceLocation sample;
         private DocRef embeddedIn;
 
         public Builder() {
@@ -169,6 +190,7 @@ public class ShapeshifterDoc extends AbstractEmbeddableDoc implements HasData {
             this.description = doc.description;
             this.data = doc.data;
             this.colours = doc.colours;
+            this.sample = doc.sample;
             this.embeddedIn = doc.getEmbeddedIn();
         }
 
@@ -184,6 +206,11 @@ public class ShapeshifterDoc extends AbstractEmbeddableDoc implements HasData {
 
         public Builder colours(final Map<String, String> colours) {
             this.colours = colours;
+            return self();
+        }
+
+        public Builder sample(final SourceLocation sample) {
+            this.sample = sample;
             return self();
         }
 
@@ -209,6 +236,7 @@ public class ShapeshifterDoc extends AbstractEmbeddableDoc implements HasData {
                     description,
                     data,
                     colours,
+                    sample,
                     embeddedIn);
         }
     }

@@ -126,6 +126,24 @@ at the root level and is cleared per chunk"*. That is a real trap: `source` and 
 adjacent in a configuration and are not, and an accumulation meant to span the stream must be
 declared on the source.
 
+> **Read that qualifier: it is the whole of the edge.** The paragraph above has been misread at
+> least once, as "a root template's declarations have chunk lifetime", which is not what it says
+> and not what the engine does. `Run.dispatchInput` computes
+> `chunked = rootDispatch == CLASSIFY || rootDispatch == ANY` and then sets
+> `body.chunkedRoot(!wholeBuffer && chunked)`, so a root is read in pieces **only** under those
+> two dispatches, and **never** on a whole-buffer run. The default is `STRICT` for a v4+ project
+> and `LAX` for a migrated one (`Dispatch.effective`), and both stream through the `InputWindow`
+> without re-entering the root-mode templates. **In the ordinary case a root template's
+> declarations last the whole run**, and an author who puts a run-long accumulator on one is
+> right.
+>
+> Nor is the narrow case quiet. Under a chunked root an append is *refused*:
+> `Body.guardAccumulation` raises a FATAL naming the cause and aborts the run. What is left
+> unguarded is only what that guard's own javadoc admits — a **list declared on a root template**
+> under a `classify` or `any` root, where a grouping over it answers for the chunk and nothing
+> warns. That is the compiler warning this section asks for below, and it is the only part of
+> this edge an author can still fall off silently.
+
 *It also closes a hole that guard names and cannot catch.* Its comment ends: *"No refusal catches
 it, because nothing at the read site distinguishes a capture store from a per-record binding — it
 is named here rather than left for someone to find."* A declared lifetime is exactly that

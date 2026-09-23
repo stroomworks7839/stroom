@@ -23,6 +23,8 @@ import stroom.shapeshifter.config.Project;
 import stroom.shapeshifter.config.json.JsonText;
 import stroom.shapeshifter.config.json.ProjectJson;
 
+import java.util.List;
+
 /**
  * The client's edge onto the project text: the config module's own parser and printer over its
  * own mapping, so that a document printed here reads exactly as one the engine prints (design 43
@@ -43,11 +45,16 @@ public final class ProjectText {
         return ProjectJson.readProject(JsonText.parse(text));
     }
 
-    /** What a new document holds before anything is written to it: a named, empty project. */
+    /**
+     * What a new document holds before anything is written to it: a named project with its
+     * document template and nothing else. Not quite empty, because a project without a document
+     * template cannot open a root element and so cannot emit a well-formed document, and nothing
+     * would have said so (design 44 §5m).
+     */
     public static Project empty(final String name) {
-        return new Project(name == null
+        return Templates.ensureDocument(new Project(name == null
                 ? "project"
-                : name, CURRENT_VERSION, null, null, null);
+                : name, CURRENT_VERSION, null, null, null));
     }
 
     public static String print(final Project project) {

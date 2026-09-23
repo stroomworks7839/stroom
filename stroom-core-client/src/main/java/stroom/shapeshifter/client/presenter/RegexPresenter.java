@@ -282,7 +282,10 @@ public class RegexPresenter
 
     /** A capture's hue, shared by its chip, its row and its span in the map (design 18 §10). */
     static String hue(final int index) {
-        return "hsl(" + ((index - 1) * 47 % 360) + ", 62%, 58%)";
+        // floorMod, not %: a caller counting from zero would otherwise produce a negative hue,
+        // which Colours.safe rejects and paints transparent — one capture silently uncoloured
+        // rather than a visibly wrong colour, which is the hardest kind of bug to notice.
+        return "hsl(" + Math.floorMod((index - 1) * 47, 360) + ", 62%, 58%)";
     }
 
     /**

@@ -106,11 +106,13 @@ public class BreadcrumbPresenter extends MyPresenterWidget<BreadcrumbView> imple
         }
         getView().setState(host.isStale()
                 ? "stale — the definition has moved on; running…"
-                : !trace.isCompiled()
-                        ? "the project did not compile — see the messages"
-                        : trace.matchedNothing()
-                                ? "ran, and nothing matched — no template applied to the document"
-                                : null);
+                : !trace.isSampleRead()
+                        ? "the sample could not be read — see the messages"
+                        : !trace.isCompiled()
+                                ? "the project did not compile — see the messages"
+                                : trace.matchedNothing()
+                                        ? "ran, and nothing matched — no template applied to the document"
+                                        : null);
     }
 
     /**

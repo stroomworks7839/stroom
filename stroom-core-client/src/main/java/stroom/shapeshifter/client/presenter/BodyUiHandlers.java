@@ -32,6 +32,9 @@ public interface BodyUiHandlers extends UiHandlers {
 
     void onMove(String path, int by);
 
+    /** A card dragged from one place to another: dropped before {@code index} of a list. */
+    void onDrop(String fromPath, String toListPath, int index);
+
     /** The add line of a list, or a card's add-after: where the menu opens. */
     void onAdd(String listPath, int index, int x, int y);
 

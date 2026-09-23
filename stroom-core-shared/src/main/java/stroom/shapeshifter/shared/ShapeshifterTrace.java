@@ -41,6 +41,14 @@ public class ShapeshifterTrace {
 
     @JsonProperty
     private final boolean compiled;
+    /**
+     * Whether the sample could be read. False is not a failed project: the configuration may be
+     * perfectly sound and the stream simply gone, or not this caller's to see. Published as its
+     * own fact rather than folded into {@link #compiled}, so the editor can tell the author which
+     * of the two happened instead of reading it out of a message (design 44 §5j).
+     */
+    @JsonProperty
+    private final boolean sampleRead;
     @JsonProperty
     private final String input;
     @JsonProperty
@@ -70,6 +78,7 @@ public class ShapeshifterTrace {
 
     @JsonCreator
     public ShapeshifterTrace(@JsonProperty("compiled") final boolean compiled,
+                             @JsonProperty("sampleRead") final boolean sampleRead,
                              @JsonProperty("input") final String input,
                              @JsonProperty("output") final String output,
                              @JsonProperty("frames") final List<Frame> frames,
@@ -84,6 +93,7 @@ public class ShapeshifterTrace {
                              @JsonProperty("messages") final List<ShapeshifterMessage> messages,
                              @JsonProperty("runNanos") final long runNanos) {
         this.compiled = compiled;
+        this.sampleRead = sampleRead;
         this.input = input;
         this.output = output;
         this.frames = frames;
@@ -102,6 +112,11 @@ public class ShapeshifterTrace {
     /** Whether the project compiled; when it did not, only the messages are meaningful. */
     public boolean isCompiled() {
         return compiled;
+    }
+
+    /** Whether the sample could be read; false leaves every other field empty. */
+    public boolean isSampleRead() {
+        return sampleRead;
     }
 
     public String getInput() {

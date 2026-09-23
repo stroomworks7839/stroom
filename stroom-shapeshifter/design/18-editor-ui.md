@@ -956,7 +956,9 @@ Because nothing works without data, the empty states are designed, not accidenta
 
 - **No data yet**: the root frame's content variable is empty, every count reads `—`, and
   what the screen offers is the way to get data — pick a stream, or step a record through
-  the pipeline. **Data is never the document's** (Q2, ruled 2026-08-28): it arrives from
+  the pipeline. **Data is never the document's** (Q2, ruled 2026-08-28; amended 2026-09-23 by
+  design 44 §5j — the *reference* to a stream is the document's, stripped on export, so the
+  editor reopens where the author left it, but the data itself still is not): it arrives from
   the stepping pipeline or from ordinary processing, so the doc persists the project model
   and nothing else. That deletes a whole class of problem the earlier draft carried — a
   size cap, a "grab from stream" action, samples going stale against a feed that moved on,

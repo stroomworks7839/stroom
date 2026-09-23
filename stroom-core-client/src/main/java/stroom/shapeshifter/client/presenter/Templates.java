@@ -104,6 +104,45 @@ public final class Templates {
                 new MatchExpression.Regex("", null, 0), null, null, null, null, false);
     }
 
+    /**
+     * The document template a project starts with (design 44 §5m): the source match, and a body
+     * that is one {@code apply-templates}. Behaviourally that is what a project without one
+     * already does — `RootPlanner` reads a null directive as the null mode and the project's own
+     * dispatch, which is exactly what an empty directive says — so this adds no behaviour. What
+     * it adds is the place: the author can see where the input loop sits and wrap a root element
+     * around it, and has somewhere to declare a run-scoped name.
+     *
+     * <p>One factory because both routes to it — a new project, and the panel's + on the document
+     * row — must produce the same thing.
+     */
+    public static Template document() {
+        final OutputNode apply = new OutputNode.ApplyTemplates(new OutputNode.ApplyDirective(
+                null, null, null, OutputNode.ApplyDirective.DEFAULT_MAX_DEPTH, false, null));
+        return withBody(withMatch(create("document", null, false), new MatchExpression.Source()),
+                List.of(apply));
+    }
+
+    /**
+     * The project with its document template, adding one at the head where it has none. Every
+     * project the editor holds has one (design 44 §5m): the run always has a document, the row
+     * is always there, and an author should find the place for a root element and a run-scoped
+     * name already made rather than have to know to ask for it.
+     */
+    public static Project ensureDocument(final Project project) {
+        if (project == null) {
+            return null;
+        }
+        for (final Template template : project.templates()) {
+            if (template.match() instanceof MatchExpression.Source) {
+                return project;
+            }
+        }
+        final List<Template> templates = new ArrayList<>();
+        templates.add(document());
+        templates.addAll(project.templates());
+        return project.withTemplates(templates);
+    }
+
     /** The template with an id in a project, or null. */
     public static Template byId(final Project project, final String id) {
         if (project == null || id == null) {
@@ -216,7 +255,10 @@ public final class Templates {
             }
             return sb.toString();
         } else if (match instanceof MatchExpression.Delimiter delimiter) {
-            return "split on " + quote(delimiter.delimiter());
+            // Escaped, because a newline delimiter rendered raw is a line break the browser
+            // collapses to a space — which reads as "split on a space", the wrong answer to the
+            // question the chip is there to answer.
+            return "split on " + quote(ControlEscapes.escape(delimiter.delimiter()));
         }
         return kind(match);
     }

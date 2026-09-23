@@ -26,6 +26,12 @@
             <form:FormGroup ui:field="field3Group" identity="ssInstrF3" label="">
                 <g:TextBox ui:field="field3" addStyleNames="w-100"/>
             </form:FormGroup>
+            <!-- The mode a dispatch goes into is a choice among the project's modes, not free text
+                 (design 44 §5k): the same picker the template's own mode field uses. -->
+            <form:FormGroup ui:field="modeGroup" identity="ssInstrMode" label="Mode"
+                            helpText="The mode this dispatches into; the root is the templates the document itself dispatches to.">
+                <l:SelectionBox ui:field="mode" addStyleNames="w-100"/>
+            </form:FormGroup>
             <form:FormGroup ui:field="severityGroup" identity="ssInstrSeverity" label="Severity">
                 <l:SelectionBox ui:field="severity" addStyleNames="w-100"/>
             </form:FormGroup>

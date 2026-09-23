@@ -18,6 +18,7 @@ package stroom.shapeshifter.client.presenter;
 
 import stroom.alert.client.event.AlertEvent;
 import stroom.dispatch.client.RestFactory;
+import stroom.pipeline.shared.SourceLocation;
 import stroom.shapeshifter.client.presenter.ShapeshifterDesignPresenter.ShapeshifterDesignView;
 import stroom.shapeshifter.config.Project;
 import stroom.shapeshifter.config.Template;
@@ -106,6 +107,13 @@ public class ShapeshifterDesignPresenter
     private List<ShapeshifterMessage> lastMessages;
 
     private SampleSource sampleSource;
+    /**
+     * True while the sample on screen is the one the document remembered rather than one chosen
+     * this session. A remembered reference can be stale — the stream deleted, or not this user's
+     * to read — so the first run that fails clears it and says so, instead of leaving the author
+     * with a sample that will never work.
+     */
+    private boolean sampleRemembered;
     private TraceModel trace;
     private long cursor = TraceModel.ROOT;
     private boolean stale;
@@ -121,6 +129,8 @@ public class ShapeshifterDesignPresenter
     private boolean walking;
     /** The browser token this tab's states are pushed under; see {@link #record()}. */
     private int historyToken;
+    /** This navigator's token space: the prefix every token of its own carries. */
+    private final String historySpace = HISTORY_PREFIX + ++navigators + "-";
 
     @Inject
     public ShapeshifterDesignPresenter(final EventBus eventBus,
@@ -197,6 +207,13 @@ public class ShapeshifterDesignPresenter
      */
     private static final String HISTORY_PREFIX = "ss";
 
+    /**
+     * How many navigators this page has built, which gives each one its own token space. Two open
+     * projects both counting from one would read each other's tokens as their own and walk to
+     * whatever state the arithmetic landed on.
+     */
+    private static int navigators;
+
     private void record() {
         if (walking) {
             return;
@@ -212,7 +229,7 @@ public class ShapeshifterDesignPresenter
         historyAt = history.size() - 1;
         historyToken++;
         try {
-            History.newItem(HISTORY_PREFIX + historyToken, false);
+            History.newItem(historySpace + historyToken, false);
         } catch (final RuntimeException e) {
             // A history the browser would not take is not worth failing a navigation over.
         }
@@ -221,19 +238,23 @@ public class ShapeshifterDesignPresenter
 
     /** The browser moved: walk by as many states as the token moved, when this tab is the one showing. */
     private void onHistory(final String token) {
-        if (walking || token == null || !token.startsWith(HISTORY_PREFIX) || !isShowing()) {
+        if (walking || token == null || !token.startsWith(historySpace) || !isShowing()) {
             return;
         }
         final int was = historyToken;
         final int now;
         try {
-            now = Integer.parseInt(token.substring(HISTORY_PREFIX.length()));
+            now = Integer.parseInt(token.substring(historySpace.length()));
         } catch (final NumberFormatException e) {
             return;
         }
-        historyToken = now;
         final int to = historyAt + (now - was);
         if (to >= 0 && to < history.size() && to != historyAt) {
+            // Only a walk we actually take moves the counter. Assigning it first desynchronised
+            // this document from the token space for good: a token from another document's
+            // navigation is out of range here, was rejected, and yet left the offset wrong for
+            // every press afterwards.
+            historyToken = now;
             walk(to);
         }
     }
@@ -369,8 +390,8 @@ public class ShapeshifterDesignPresenter
      * The document as read, or as the Source tab last parsed it. A null project with a source
      * error keeps the previous project on screen, read-only, under the error.
      */
-    public void read(final Project project, final Map<String, String> colours, final String sourceError,
-                     final boolean readOnly) {
+    public void read(final Project project, final Map<String, String> colours, final SourceLocation sample,
+                     final String sourceError, final boolean readOnly) {
         this.readOnly = readOnly;
         this.sourceError = sourceError;
         if (project != null) {
@@ -381,6 +402,14 @@ public class ShapeshifterDesignPresenter
             this.colours.clear();
             this.colours.putAll(colours);
         }
+        // Restored only when the author has not already chosen one this session: a read can
+        // arrive from the Source tab mid-edit, and it must not pull the sample out from under
+        // them. The feed is unknown until something reads the stream, so the row says what the
+        // reference says.
+        if (sample != null && sampleSource == null) {
+            sampleSource = SampleSource.record(sample, null);
+            sampleRemembered = true;
+        }
         getView().setBanner(sourceError == null
                 ? null
                 : "The Source tab does not parse, so this tab shows the last good project read-only: " + sourceError);
@@ -390,6 +419,28 @@ public class ShapeshifterDesignPresenter
         } else {
             messages.setMessages(sourceError, lastMessages);
         }
+    }
+
+    /**
+     * Forget a sample the document remembered but the server could not read — deleted, or not
+     * this user's to read. Says so once and leaves the author at the empty state rather than on a
+     * sample that will never work. A sample chosen by hand this session is left alone: that is an
+     * ordinary unreadable stream, and the messages already say so.
+     *
+     * @return true when a remembered sample was forgotten, so the caller stops
+     */
+    private boolean forgetRememberedSample() {
+        if (!sampleRemembered) {
+            return false;
+        }
+        sampleRemembered = false;
+        sampleSource = null;
+        trace = null;
+        refresh();
+        AlertEvent.fireWarn(this, "The sample this project last used could not be read — the stream may "
+                                  + "have been deleted, or may not be yours to read. Choose sample data "
+                                  + "to run over.", null);
+        return true;
     }
 
     /** The engine's opinion of the project: a run when there is a sample, a validation otherwise. */
@@ -411,6 +462,17 @@ public class ShapeshifterDesignPresenter
     @Override
     public boolean isReadOnly() {
         return readOnly || sourceError != null;
+    }
+
+    /**
+     * The sample reference the document should remember: a stream's location, or null for a
+     * pasted sample, which is data and stays out of the document (design 44 §5j). Read when the
+     * document is written, never pushed, so choosing a sample does not make the document dirty.
+     */
+    public SourceLocation getSampleLocation() {
+        return sampleSource == null
+                ? null
+                : sampleSource.getLocation();
     }
 
     /** The colour overrides as they stand, for the document to keep: only for templates that still exist. */
@@ -535,6 +597,7 @@ public class ShapeshifterDesignPresenter
     @Override
     public void setSampleSource(final SampleSource source) {
         this.sampleSource = source;
+        this.sampleRemembered = false;
         announceCanRun();
         if (source == null) {
             trace = null;
@@ -579,6 +642,14 @@ public class ShapeshifterDesignPresenter
                 .method(res -> res.preview(request))
                 .onSuccess(result -> {
                     running = false;
+                    if (!result.isSampleRead() && forgetRememberedSample()) {
+                        // A sample that cannot be read comes back as a successful answer carrying
+                        // the fact (the project may be sound), so the recovery belongs here and
+                        // not in onFailure, where no transport error ever arrives.
+                        stale = false;
+                        refreshTrace();
+                        return;
+                    }
                     trace = new TraceModel(result);
                     trace.setCursor(cursor);
                     stale = false;

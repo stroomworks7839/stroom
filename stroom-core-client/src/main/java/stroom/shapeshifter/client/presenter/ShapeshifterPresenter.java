@@ -115,13 +115,20 @@ public class ShapeshifterPresenter extends DocTabPresenter<LinkTabPanelView, Sha
                                final ShapeshifterDoc document,
                                final boolean readOnly) {
                 readText(document.getData());
-                presenter.read(project, document.getColours(), sourceError, readOnly);
+                presenter.read(project, document.getColours(), document.getSample(), sourceError, readOnly);
             }
 
             @Override
             public ShapeshifterDoc onWrite(final ShapeshifterDesignPresenter presenter,
                                            final ShapeshifterDoc document) {
-                return document.copy().data(text).colours(presenter.getColours()).build();
+                // The sample rides an ordinary save (design 44 §5j): choosing one does not make
+                // the document dirty, so what is remembered is where the author was when they
+                // last saved for a reason of their own.
+                return document.copy()
+                        .data(text)
+                        .colours(presenter.getColours())
+                        .sample(presenter.getSampleLocation())
+                        .build();
             }
         });
         addTab(SOURCE, new AbstractTabProvider<ShapeshifterDoc, EditorPresenter>(eventBus) {
@@ -194,6 +201,11 @@ public class ShapeshifterPresenter extends DocTabPresenter<LinkTabPanelView, Sha
         text = read;
         parse();
         if (sourceError == null) {
+            // Reading a document is where the editor takes a project on, and so where it makes
+            // sure the project has its document template (design 44 §5m). Not in the parser: a
+            // parser that added a template would stop round-tripping, and would put one back
+            // into the workbench's deliberately one-template sample experiment.
+            project = Templates.ensureDocument(project);
             text = ProjectText.print(project);
         }
     }
@@ -238,7 +250,7 @@ public class ShapeshifterPresenter extends DocTabPresenter<LinkTabPanelView, Sha
             // under the banner; one that parses again replaces it.
             design.read(sourceError == null
                     ? project
-                    : null, null, sourceError, isReadOnly());
+                    : null, null, null, sourceError, isReadOnly());
         }
         if (had != (sourceError == null)) {
             onChange();

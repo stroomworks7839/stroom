@@ -94,6 +94,32 @@ class BodiesTest {
     }
 
     @Test
+    void draggingACardLandsItWhereTheIndicatorSaid() {
+        // Down the same list: lifting the card shifts what follows, so an index past the old
+        // position is one too many once it is out. Dropping "a" after the if means index 2,
+        // and it must land second, not third.
+        assertThat(Bodies.moveTo(BODY, Bodies.path("0"), Bodies.path(""), 2))
+                .containsExactly(BODY.get(1), A, BODY.get(2));
+        // Up the same list needs no adjustment.
+        assertThat(Bodies.moveTo(BODY, Bodies.path("1"), Bodies.path(""), 0))
+                .containsExactly(BODY.get(1), A, BODY.get(2));
+        // Into another list: out of the top level and into the if's body, before b.
+        final List<OutputNode> into = Bodies.moveTo(BODY, Bodies.path("0"), Bodies.path("1.0"), 0);
+        assertThat(into).hasSize(2);
+        assertThat(Bodies.list(into, Bodies.path("0.0"))).containsExactly(A, B);
+    }
+
+    @Test
+    void cardsCannotBeDroppedInsideThemselves() {
+        // The choose holds the element that would receive it. A holder inside what it contains
+        // is not a body any more, so the paths refuse it before any list is touched.
+        assertThat(Bodies.moveTo(BODY, Bodies.path("2"), Bodies.path("2.0"), 0)).isSameAs(BODY);
+        assertThat(Bodies.moveTo(BODY, Bodies.path("2"), Bodies.path("2.1.0.0"), 0)).isSameAs(BODY);
+        // Its neighbour is not inside it, so that one is allowed.
+        assertThat(Bodies.moveTo(BODY, Bodies.path("0"), Bodies.path("2.0"), 0)).isNotSameAs(BODY);
+    }
+
+    @Test
     void kindsAndSummariesReadFromTheWireForm() {
         assertThat(Instructions.kind(A)).isEqualTo("text");
         assertThat(Instructions.kind(BODY.get(1))).isEqualTo("if");

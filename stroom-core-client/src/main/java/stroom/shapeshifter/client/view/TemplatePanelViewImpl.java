@@ -68,6 +68,22 @@ public class TemplatePanelViewImpl
         rows.clear();
         String section = null;
         for (final TemplateRowData row : data) {
+            if (row.isSection()) {
+                // A section heading. SETTINGS and DATA are destinations and so are rows that
+                // render as headings; TEMPLATES heads the list and is a label (design 44 §5m).
+                section = null;
+                if (row.getId() == null) {
+                    final Label head = new Label(row.getName());
+                    head.setStyleName("ss-panel-section");
+                    list.add(head);
+                } else {
+                    final TemplateRow widget = new TemplateRow(row, this);
+                    widget.addStyleName("ss-panel-section ss-panel-section--link");
+                    rows.add(widget);
+                    list.add(widget);
+                }
+                continue;
+            }
             if (row.getSection() != null && !Objects.equals(section, row.getSection())) {
                 section = row.getSection();
                 final Label head = new Label(section);

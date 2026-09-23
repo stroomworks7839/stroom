@@ -22,6 +22,7 @@ import stroom.shapeshifter.config.Cast;
 import stroom.shapeshifter.config.ConfigException;
 import stroom.shapeshifter.config.Declaration;
 import stroom.shapeshifter.config.MatchExpression;
+import stroom.shapeshifter.config.OutputNode;
 import stroom.shapeshifter.config.PatternNode;
 import stroom.shapeshifter.config.Project;
 import stroom.shapeshifter.config.Template;
@@ -44,13 +45,25 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class ProjectTextTest {
 
     @Test
-    void emptyProjectPrintsAndReadsBack() {
+    void newProjectPrintsAndReadsBack() {
         final Project empty = ProjectText.empty("New doc");
         final Project again = ProjectText.parse(ProjectText.print(empty));
         assertThat(again).isEqualTo(empty);
         assertThat(again.name()).isEqualTo("New doc");
         assertThat(again.version()).isEqualTo(ProjectText.CURRENT_VERSION);
-        assertThat(again.templates()).isEmpty();
+    }
+
+    @Test
+    void newProjectsStartWithTheirDocumentTemplate() {
+        // Design 44 §5m: a project without one cannot open a root element, so it cannot emit a
+        // well-formed document — and nothing would say so. The body is the input loop, which is
+        // what an author wraps a root element around.
+        final Project empty = ProjectText.empty("New doc");
+        assertThat(empty.templates()).hasSize(1);
+        final Template document = empty.templates().getFirst();
+        assertThat(document.match()).isInstanceOf(MatchExpression.Source.class);
+        assertThat(document.mode()).isNull();
+        assertThat(document.body()).singleElement().isInstanceOf(OutputNode.ApplyTemplates.class);
     }
 
     @Test

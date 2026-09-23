@@ -26,6 +26,8 @@ import stroom.shapeshifter.config.OutputNode.Holder;
 import stroom.shapeshifter.config.OutputNode.Switch;
 
 import com.google.gwt.core.client.GWT;
+import com.google.gwt.dom.client.DataTransfer;
+import com.google.gwt.dom.client.Element;
 import com.google.gwt.event.dom.client.ClickEvent;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
@@ -69,8 +71,18 @@ public class BodyCard extends Composite {
     @UiField
     FlowPanel branches;
 
+    @UiField
+    Label grip;
+
     private final int[] path;
     private final BodyUiHandlers handlers;
+    /**
+     * The card being dragged, across every card on the page. The drag data would be the tidier
+     * home for it, but a drag within one page has one subject at a time and reading the data
+     * during dragover is not allowed by the browser — which is exactly when the drop indicator
+     * has to decide whether it may land here.
+     */
+    private static BodyCard dragging;
 
     public BodyCard(final int[] listPath, final int index, final OutputNode node, final int count,
                     final CardNote runNote, final BodyUiHandlers handlers, final boolean enabled,
@@ -89,6 +101,10 @@ public class BodyCard extends Composite {
         summary.setTitle(Instructions.describe(node));
         head.setTitle("Click to edit this " + kindName);
         actions.setVisible(enabled);
+        grip.setVisible(enabled);
+        if (enabled) {
+            makeDraggable();
+        }
         // The run's word on the card (design 18 §5.6): its swatch, what it wrote or dispatched,
         // and for a dispatch that matched, the first frame - a click on the note descends.
         swatch.setVisible(runNote != null && runNote.getColour() != null);
@@ -132,6 +148,68 @@ public class BodyCard extends Composite {
         } else {
             head.removeStyleName(Marks.HOT_CLASS);
         }
+    }
+
+    /**
+     * Dragging (design 44 §5o). The grip is what starts it — the card itself stays clickable to
+     * edit — and a card accepts a drop on its upper or lower half, landing the dragged card
+     * before or after it. A card refuses itself and its own descendants: a holder cannot be put
+     * inside what it contains, and the indicator says so by not appearing.
+     */
+    private void makeDraggable() {
+        grip.addMouseDownHandler(e -> head.getElement().setDraggable(Element.DRAGGABLE_TRUE));
+        grip.addMouseUpHandler(e -> head.getElement().setDraggable(Element.DRAGGABLE_FALSE));
+        head.addDragStartHandler(e -> {
+            dragging = this;
+            e.setData("text", Bodies.path(path));
+            e.getDataTransfer().setDropEffect(DataTransfer.DropEffect.MOVE);
+            head.addStyleName("ss-card--dragging");
+        });
+        head.addDragEndHandler(e -> {
+            dragging = null;
+            head.getElement().setDraggable(Element.DRAGGABLE_FALSE);
+            head.removeStyleName("ss-card--dragging");
+            clearIndicator();
+        });
+        head.addDragOverHandler(e -> {
+            if (!accepts()) {
+                return;
+            }
+            e.preventDefault();
+            clearIndicator();
+            head.addStyleName(after(e.getNativeEvent().getClientY())
+                    ? "ss-card--drop-after"
+                    : "ss-card--drop-before");
+        });
+        head.addDragLeaveHandler(e -> clearIndicator());
+        head.addDropHandler(e -> {
+            e.preventDefault();
+            if (!accepts()) {
+                return;
+            }
+            final int[] listPath = Bodies.parent(path);
+            final int at = path[path.length - 1] + (after(e.getNativeEvent().getClientY())
+                    ? 1
+                    : 0);
+            final String from = Bodies.path(dragging.path);
+            clearIndicator();
+            handlers.onDrop(from, Bodies.path(listPath), at);
+        });
+    }
+
+    /** Whether this card may take the drop: something is being dragged, and it is not this one. */
+    private boolean accepts() {
+        return dragging != null && dragging != this;
+    }
+
+    /** Which half of the card the pointer is in, and so which side of it the card lands. */
+    private boolean after(final int clientY) {
+        return clientY > head.getAbsoluteTop() + head.getOffsetHeight() / 2;
+    }
+
+    private void clearIndicator() {
+        head.removeStyleName("ss-card--drop-before");
+        head.removeStyleName("ss-card--drop-after");
     }
 
     @UiHandler("head")

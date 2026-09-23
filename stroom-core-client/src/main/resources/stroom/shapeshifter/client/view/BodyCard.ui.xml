@@ -4,6 +4,7 @@
     <g:FlowPanel styleName="ss-card-outer">
         <g:FocusPanel ui:field="head" styleName="ss-card">
             <g:FlowPanel styleName="ss-card-line">
+                <g:Label ui:field="grip" styleName="ss-grip" text="⠿" title="Drag to move this instruction"/>
                 <g:Label ui:field="swatch" styleName="ss-swatch ss-swatch--small"/>
                 <g:Label ui:field="kind" styleName="ss-card-kind"/>
                 <g:Label ui:field="summary" styleName="ss-card-lit"/>

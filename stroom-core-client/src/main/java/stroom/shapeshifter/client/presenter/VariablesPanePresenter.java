@@ -82,7 +82,7 @@ public class VariablesPanePresenter extends MyPresenterWidget<VariablesPaneView>
             for (int c = 0; c < captures.size(); c++) {
                 final Capture capture = captures.get(c);
                 rows.add(new Row(id, c, "$" + capture.getName(), capture.getType(), capture.getValue(),
-                        RegexPresenter.hue(c)));
+                        RegexPresenter.hue(c + 1)));
             }
             final boolean own = id == host.cursor();
             sections.add(new Section(id, own

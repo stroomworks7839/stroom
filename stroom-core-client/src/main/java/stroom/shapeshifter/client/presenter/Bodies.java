@@ -31,6 +31,7 @@ import stroom.shapeshifter.config.OutputNode.Variable;
 import stroom.shapeshifter.config.OutputNode.WhenBranch;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -175,6 +176,70 @@ public final class Bodies {
         }
         list.add(to, list.remove(from));
         return replaceList(body, listPath, list);
+    }
+
+    /**
+     * A card dragged to a place: lifted from where it was and put down before {@code index} of
+     * the list at {@code toListPath}. Refused when the destination is inside the card itself —
+     * a holder cannot contain the thing it is being moved into, and the paths say so before any
+     * list is touched.
+     *
+     * <p>Lifting shifts what follows it in the same list, so an index after the old position is
+     * one too many once the card is out. Judged on the paths rather than by searching afterwards,
+     * because two sibling cards can be equal and the wrong one would be found.
+     */
+    public static List<OutputNode> moveTo(final List<OutputNode> body, final int[] fromPath,
+                                          final int[] toListPath, final int index) {
+        if (isWithin(toListPath, fromPath)) {
+            return body;
+        }
+        final OutputNode node = get(body, fromPath);
+        if (node == null) {
+            return body;
+        }
+        final int[] fromList = parent(fromPath);
+        final int from = fromPath[fromPath.length - 1];
+        // Lifting the card renumbers everything after it in its own list, and the destination is
+        // addressed by number. So both the list to drop into and the place in it are read in the
+        // numbering that will exist once the card is out, not the one on screen. Missing this
+        // dropped a card into a list that had shifted out from under the path — into the wrong
+        // holder, or off the end of the body altogether.
+        final int[] to = shiftForRemoval(toListPath, fromList, from);
+        int at = index;
+        if (Arrays.equals(fromList, toListPath) && index > from) {
+            at--;
+        }
+        final List<OutputNode> lifted = remove(body, fromPath);
+        return insert(lifted, to, at, node);
+    }
+
+    /**
+     * A path as it reads once the node at {@code from} of {@code fromList} has been lifted out:
+     * a path that descends through that list past that position loses one.
+     */
+    private static int[] shiftForRemoval(final int[] path, final int[] fromList, final int from) {
+        if (path.length <= fromList.length || !isWithin(path, fromList)) {
+            return path;
+        }
+        // Arrays.copyOf, not clone: GWT emulates the one and not the other.
+        final int[] shifted = Arrays.copyOf(path, path.length);
+        if (shifted[fromList.length] > from) {
+            shifted[fromList.length]--;
+        }
+        return shifted;
+    }
+
+    /** Whether a path runs through a node — its own path, or any list inside it. */
+    private static boolean isWithin(final int[] path, final int[] nodePath) {
+        if (path.length < nodePath.length) {
+            return false;
+        }
+        for (int i = 0; i < nodePath.length; i++) {
+            if (path[i] != nodePath[i]) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /** The same holder over new branch bodies, in {@code bodies()} order; its head is kept. */

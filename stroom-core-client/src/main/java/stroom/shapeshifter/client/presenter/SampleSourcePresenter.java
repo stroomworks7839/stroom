@@ -183,7 +183,10 @@ public class SampleSourcePresenter
                 ? null
                 : row.getMeta().getFeedName());
         final SampleSource current = host.getSampleSource();
-        if (current == null || !Objects.equals(current.getLabel(), chosen.getLabel())) {
+        // The location, not the label: the label carries feed, id, part and record but not the
+        // child stream type, so switching to a record's Context would read as no change at all
+        // and the run would stay on the stream the viewer is no longer showing.
+        if (current == null || !Objects.equals(current.getLocation(), address)) {
             host.setSampleSource(chosen);
         }
     }

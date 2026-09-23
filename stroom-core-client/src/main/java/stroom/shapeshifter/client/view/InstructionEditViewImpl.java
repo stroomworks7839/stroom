@@ -82,6 +82,10 @@ public class InstructionEditViewImpl extends ViewImpl implements InstructionEdit
     @UiField
     TextArea multi;
     @UiField
+    FormGroup modeGroup;
+    @UiField
+    SelectionBox<String> mode;
+    @UiField
     FormGroup severityGroup;
     @UiField
     SelectionBox<Severity> severity;
@@ -165,10 +169,31 @@ public class InstructionEditViewImpl extends ViewImpl implements InstructionEdit
 
     @Override
     public void setModes(final List<String> modes) {
-        // The mode is a plain field; the modes are offered as the field's title.
-        field1.setTitle(modes.isEmpty()
+        final String current = mode.getValue();
+        mode.clear();
+        mode.setNonSelectString("root");
+        mode.addItems(modes);
+        mode.setValue(current, false);
+    }
+
+    @Override
+    public String getMode() {
+        final String value = mode.getValue();
+        return value == null
                 ? ""
-                : "Modes: " + String.join(", ", modes));
+                : value;
+    }
+
+    @Override
+    public void setMode(final String value) {
+        mode.setValue(value == null || value.isEmpty()
+                ? null
+                : value, false);
+    }
+
+    @Override
+    public void setModeVisible(final boolean visible) {
+        modeGroup.setVisible(visible);
     }
 
     @Override

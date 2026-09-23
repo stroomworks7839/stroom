@@ -29,8 +29,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ProfileTest {
 
     private static TraceModel trace() {
-        return new TraceModel(new ShapeshifterTrace(true, "", "", List.of(), List.of(), List.of(), List.of(), List.of(),
-                List.of(), List.of(), 0,
+        return new TraceModel(new ShapeshifterTrace(true, true, "", "", List.of(), List.of(), List.of(),
+                List.of(), List.of(), List.of(), List.of(), 0,
                 List.of(new Timing("cheap", 100, 50, 100_000), new Timing("dear", 10, 0, 300_000)),
                 List.of(), 500_000));
     }

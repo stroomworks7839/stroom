@@ -157,6 +157,10 @@ public class CapturesPresenter extends MyPresenterWidget<PagerView> {
                     host.replace(host.withTemplate(Templates.withCaptures(template, captures)));
                     selectionModel.setSelected(capture);
                     e.hide();
+                } else {
+                    // Nothing was written, so the dialog stays open — and its OK button has to come back
+                    // out of its busy state, or the alert leaves it spinning for good.
+                    e.reset();
                 }
             } else {
                 e.hide();
@@ -180,6 +184,10 @@ public class CapturesPresenter extends MyPresenterWidget<PagerView> {
                     host.replace(host.withTemplate(Templates.withCaptures(template, captures)));
                     selectionModel.setSelected(capture);
                     e.hide();
+                } else {
+                    // Nothing was written, so the dialog stays open — and its OK button has to come back
+                    // out of its busy state, or the alert leaves it spinning for good.
+                    e.reset();
                 }
             } else {
                 e.hide();

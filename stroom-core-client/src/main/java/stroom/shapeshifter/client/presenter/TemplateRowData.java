@@ -32,15 +32,34 @@ public final class TemplateRowData {
     private final int cost;
     private final String profile;
     private final int severity;
+    /**
+     * A section of the panel rather than a row in one — SETTINGS, DATA, TEMPLATES (design 44
+     * §5m). Two of the three are also a destination, so a section is a row that renders as a
+     * heading rather than a heading that happens to be clickable: selection, hover and the
+     * keyboard then work on it exactly as they do on everything else in the list.
+     */
+    private final boolean panelSection;
 
     public TemplateRowData(final String id, final String name, final String section, final String colour,
                            final String count, final boolean zero) {
         this(id, name, section, colour, count, zero, 0, 0, null, 0);
     }
 
+    /** A panel section: uppercase, a destination when it carries an id, and what it holds. */
+    public static TemplateRowData section(final String id, final String name, final String count) {
+        return new TemplateRowData(id, name, null, null, count, false, 0, 0, null, 0, true);
+    }
+
     public TemplateRowData(final String id, final String name, final String section, final String colour,
                            final String count, final boolean zero, final double share, final int cost,
                            final String profile, final int severity) {
+        this(id, name, section, colour, count, zero, share, cost, profile, severity, false);
+    }
+
+    private TemplateRowData(final String id, final String name, final String section, final String colour,
+                            final String count, final boolean zero, final double share, final int cost,
+                            final String profile, final int severity, final boolean isSection) {
+        this.panelSection = isSection;
         this.id = id;
         this.name = name;
         this.section = section;
@@ -51,6 +70,11 @@ public final class TemplateRowData {
         this.cost = cost;
         this.profile = profile;
         this.severity = severity;
+    }
+
+    /** Whether this is a panel section — a heading, and a destination when it has an id. */
+    public boolean isSection() {
+        return panelSection;
     }
 
     public String getId() {

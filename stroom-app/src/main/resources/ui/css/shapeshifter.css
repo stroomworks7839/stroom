@@ -353,6 +353,44 @@
     text-overflow: ellipsis;
 }
 
+/* A panel section: the list's own headings, two of which are destinations (design 44 §5m). */
+.ss-panel-section {
+    color: var(--ss-muted);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    font-weight: 600;
+    padding: 10px 10px 3px;
+}
+
+.ss-panel-section:first-child {
+    padding-top: 6px;
+}
+
+.ss-panel-section--link {
+    cursor: pointer;
+    /* A row, so it has a hover and a selection band: give them something to fill. */
+    padding-bottom: 5px;
+}
+
+/* A section built from a row carries the row's children, which would otherwise out-vote the
+   heading: the name is monospace and the value a size larger, shouted by the inherited
+   uppercase. A heading is a heading whichever widget draws it. */
+.ss-panel-section .ss-tpl-name {
+    font-family: inherit;
+}
+
+.ss-panel-section .ss-tpl-count {
+    font-size: 11px;
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: normal;
+}
+
+.ss-panel-section--link:hover {
+    color: var(--text-color);
+}
+
 .ss-strip-body {
     padding: 6px 0 10px;
 }
@@ -364,6 +402,9 @@
     padding: 4px 12px;
     font-size: 12.5px;
     min-width: 0;
+    /* The match and role rows are as tall as the control in them; the guard row holds only
+       text and would sit shorter. One control's height, so the four rows are one rhythm. */
+    min-height: calc(1.2em + 2 * var(--input__padding--vertical) + 2px);
 }
 
 .ss-strip-k {
@@ -891,6 +932,40 @@
 
 .ss-cards--nested {
     padding: 0 0 0 10px;
+}
+
+/* The grip: a drag handle that appears with the card's other actions, so a card is still
+   clicked to edit and only the grip starts a drag (design 44 §5o). */
+.ss-grip {
+    flex: none;
+    color: var(--ss-muted);
+    font-size: 13px;
+    line-height: 1;
+    cursor: grab;
+    opacity: 0;
+    padding-right: 2px;
+}
+
+.ss-card:hover .ss-grip,
+.ss-grip:active {
+    opacity: .7;
+}
+
+.ss-grip:active {
+    cursor: grabbing;
+}
+
+.ss-card--dragging {
+    opacity: .5;
+}
+
+/* Where it would land: a line on the edge it is going to, drawn inside so nothing reflows. */
+.ss-card--drop-before {
+    box-shadow: inset 0 2px 0 0 var(--focus-border);
+}
+
+.ss-card--drop-after {
+    box-shadow: inset 0 -2px 0 0 var(--focus-border);
 }
 
 .ss-card-outer {

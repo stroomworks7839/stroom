@@ -824,6 +824,12 @@ public sealed interface OutputNode permits OutputNode.Holder, OutputNode.Binding
         public static final int DEFAULT_MAX_DEPTH = 64;
 
         public ApplyDirective {
+            // An omitted select is this match's whole content — the thing being dispatched when
+            // the author does not say otherwise, and what the compiler's whole-parent-content
+            // fast path already recognises. Defaulted here rather than at any of the readers so
+            // there is one answer to what leaving it out means, and so the compiler is never
+            // handed a null it would dereference.
+            select = select == null ? RefExpression.group(0) : select;
             withParam = withParam == null ? List.of() : List.copyOf(withParam);
             if (maxDepth <= 0) {
                 throw new ConfigException("A max depth must be positive: " + maxDepth);

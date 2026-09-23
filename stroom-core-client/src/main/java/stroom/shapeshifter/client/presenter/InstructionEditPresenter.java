@@ -161,6 +161,7 @@ public class InstructionEditPresenter extends MyPresenterWidget<InstructionEditV
         v.setFlag(1, "", false, false);
         v.setMulti("", "", false);
         v.setSeverity(Severity.ERROR, false);
+        v.setMode(null);
         v.setDispatch(null, false);
         v.setConditionVisible(false);
         v.setWire("");
@@ -221,6 +222,7 @@ public class InstructionEditPresenter extends MyPresenterWidget<InstructionEditV
         v.setFlagVisible(1, false);
         v.setMultiVisible(false);
         v.setSeverityVisible(false);
+        v.setModeVisible(false);
         v.setDispatchVisible(false);
         v.setConditionVisible(false);
         v.setWireVisible(false);
@@ -253,8 +255,9 @@ public class InstructionEditPresenter extends MyPresenterWidget<InstructionEditV
                 field(0, "Message", "a declared name, or a function");
                 break;
             case "apply-templates":
-                field(0, "Select", "what is dispatched: a declared name, or a function");
-                field(1, "Mode", "blank dispatches into the root");
+                field(0, "Select", "what is dispatched: a declared name, or a function; "
+                                   + "blank is this match's whole content");
+                v.setModeVisible(true);
                 field(2, "Max depth", "how deep recursion goes before the engine calls it a runaway");
                 flag(0, "Ignore errors");
                 v.setDispatchVisible(true);
@@ -358,9 +361,7 @@ public class InstructionEditPresenter extends MyPresenterWidget<InstructionEditV
         } else if (node instanceof ApplyTemplates a) {
             final ApplyDirective d = a.directive();
             v.setField(0, Instructions.ref(d.select()));
-            v.setField(1, d.mode() == null
-                    ? ""
-                    : d.mode());
+            v.setMode(d.mode());
             v.setField(2, String.valueOf(d.maxDepth()));
             v.setFlag(0, d.ignoreErrors());
             v.setDispatch(d.dispatch());
@@ -463,7 +464,7 @@ public class InstructionEditPresenter extends MyPresenterWidget<InstructionEditV
                     return new EmitError(v.getSeverity(), ref(v.getField(0), "emit-error needs a message"));
                 case "apply-templates":
                     return new ApplyTemplates(new ApplyDirective(
-                            ref(v.getField(0), "apply-templates needs a select"), blankToNull(v.getField(1)),
+                            refOrNull(v.getField(0)), blankToNull(v.getMode()),
                             params(v.getMulti()), integer(v.getField(2), ApplyDirective.DEFAULT_MAX_DEPTH,
                                     "max depth"), v.getFlag(0), v.getDispatch()));
                 case "call-template":
@@ -565,6 +566,13 @@ public class InstructionEditPresenter extends MyPresenterWidget<InstructionEditV
         return params;
     }
 
+    /** A reference, or null for blank — where the model has its own answer for an omission. */
+    private static RefExpression refOrNull(final String text) {
+        return text == null || text.trim().isEmpty()
+                ? null
+                : ProjectJson.readRefOrName(text);
+    }
+
     private static RefExpression ref(final String text, final String message) {
         return ProjectJson.readRefOrName(required(text, message));
     }
@@ -630,6 +638,13 @@ public class InstructionEditPresenter extends MyPresenterWidget<InstructionEditV
         void setOnKind(java.util.function.Consumer<String> onKind);
 
         void setModes(List<String> modes);
+
+        /** The mode a dispatch goes into: blank is the root. */
+        String getMode();
+
+        void setMode(String mode);
+
+        void setModeVisible(boolean visible);
 
         /** A card whose reference has no field spelling: the wire form, and the kind fixed. */
         void setForced(boolean forced);

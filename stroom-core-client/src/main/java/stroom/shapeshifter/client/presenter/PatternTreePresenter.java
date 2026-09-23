@@ -391,6 +391,10 @@ public class PatternTreePresenter
                 if (edited != null) {
                     apply(PatternNodes.replace(root, path, edited), path);
                     e.hide();
+                } else {
+                    // Nothing was written, so the dialog stays open — and its OK button has to come back
+                    // out of its busy state, or the alert leaves it spinning for good.
+                    e.reset();
                 }
             } else {
                 e.hide();
@@ -466,6 +470,10 @@ public class PatternTreePresenter
                 if (node != null) {
                     then.accept(node);
                     e.hide();
+                } else {
+                    // Nothing was written, so the dialog stays open — and its OK button has to come back
+                    // out of its busy state, or the alert leaves it spinning for good.
+                    e.reset();
                 }
             } else {
                 e.hide();
