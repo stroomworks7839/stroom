@@ -101,9 +101,15 @@ public class ElementMonitor {
      * Capture this element's IO for the current record in the store's element-specific form: an XML
      * element's SAX output as replayable events, a reader/writer's as text. The {@code formatInput}/
      * {@code formatOutput}/{@code hasOutput} flags are computed exactly as the wire form always has.
+     *
+     * @param recordIndex Which record of this part is being captured, for an element whose step details
+     *                    differ per record (A30): an element that ran a chain of its own over the stream
+     *                    has one decision for the stream and a record's worth of work per record, and
+     *                    only the index says which record is being asked for.
      */
     public CapturedElementData getCapturedElementData(final LoggingErrorReceiver loggingErrorReceiver,
-                                                      final TextRange textRange) {
+                                                      final TextRange textRange,
+                                                      final long recordIndex) {
         CapturedData input = null;
         CapturedData output = null;
         boolean formatInput = false;
@@ -159,7 +165,7 @@ public class ElementMonitor {
         // What the element has to say about the step beyond its text (A30), asked of the element itself
         // because only it knows when the record it is about has been processed.
         final ElementStepDetails details = element instanceof final HasStepDetails hasStepDetails
-                ? hasStepDetails.getStepDetails()
+                ? hasStepDetails.getStepDetails(recordIndex)
                 : null;
 
         return new CapturedElementData(input, output, formatInput, formatOutput, hasOutput, false, indicators,

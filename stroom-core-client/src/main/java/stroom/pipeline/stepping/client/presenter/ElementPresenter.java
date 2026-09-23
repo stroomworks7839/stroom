@@ -86,6 +86,7 @@ public class ElementPresenter
     private String pipelineName;
     private boolean refreshRequired = true;
     private boolean loaded;
+    private boolean nested;
     private boolean dirty;
     private DocRef docRef;
     private Document document;
@@ -122,6 +123,18 @@ public class ElementPresenter
         this.restFactory = restFactory;
     }
 
+    /**
+     * Whether this is one of the elements another element ran inside itself (A30) rather than one of the
+     * pipeline's own.
+     * <p>
+     * A nested element has no code, no properties and no document behind it: it is a record of something
+     * that ran, not something a person can edit. Its panes are its input and its output, and asking for
+     * anything else would be asking about a pipeline that does not exist.
+     */
+    public void setNested(final boolean nested) {
+        this.nested = nested;
+    }
+
     public void load(final Consumer<Boolean> consumer) {
         if (!loaded) {
             loaded = true;
@@ -130,10 +143,12 @@ public class ElementPresenter
             // An element whose behaviour is a decision has no document to show as code, and shows what
             // it decided instead (A30). Asked here rather than when a step arrives, because the layout
             // below is built once and a pane it was not told about has nowhere to go.
-            stepDetailsPresenter = stepDetailsRegistry.get(element.getType());
+            stepDetailsPresenter = nested
+                    ? null
+                    : stepDetailsRegistry.get(element.getType());
             if (stepDetailsPresenter != null) {
                 getView().setCodeView(stepDetailsPresenter.getView());
-            } else if (pipelineModel.hasRole(element, PipelineElementType.ROLE_HAS_CODE)) {
+            } else if (!nested && pipelineModel.hasRole(element, PipelineElementType.ROLE_HAS_CODE)) {
                 getView().setCodeView(getCodePresenter(element).getView());
 
                 try {
@@ -163,8 +178,9 @@ public class ElementPresenter
             }
 
             // We only care about seeing input if the element mutates the input
-            // some how.
-            if (pipelineModel.hasRole(element, PipelineElementType.ROLE_MUTATOR)) {
+            // some how. A nested element always shows its input: what it was given is half of what it
+            // is there to show, and the chain only reads as a chain if each link shows both ends.
+            if (nested || pipelineModel.hasRole(element, PipelineElementType.ROLE_MUTATOR)) {
                 getView().setInputView(getInputView());
             }
 
@@ -488,7 +504,17 @@ public class ElementPresenter
         return element;
     }
 
+    /**
+     * A nested element has no code pane: there is no document behind it (see {@link #setNested}).
+     */
     public boolean hasCodePane() {
+        if (nested) {
+            return false;
+        }
+        return hasCodePaneForElement();
+    }
+
+    private boolean hasCodePaneForElement() {
         return NullSafe.test(
                 element,
                 elm -> pipelineModel.hasRole(elm, PipelineElementType.ROLE_HAS_CODE));

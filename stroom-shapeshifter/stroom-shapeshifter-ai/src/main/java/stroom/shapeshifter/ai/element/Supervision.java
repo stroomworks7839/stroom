@@ -26,6 +26,7 @@ import stroom.pipeline.factory.ElementRegistryFactory;
 import stroom.pipeline.factory.PipelineDataCache;
 import stroom.pipeline.shared.PipelineDoc;
 import stroom.pipeline.shared.data.PipelineElementType;
+import stroom.pipeline.shared.stepping.NestedElementData;
 import stroom.pipeline.state.FeedHolder;
 import stroom.pipeline.state.MetaData;
 import stroom.pipeline.state.MetaDataHolder;
@@ -33,6 +34,7 @@ import stroom.pipeline.state.MetaHolder;
 import stroom.pipeline.state.PipelineContext;
 import stroom.pipeline.state.PipelineHolder;
 import stroom.shapeshifter.ai.doc.ShapeshifterAiStore;
+import stroom.shapeshifter.ai.fragment.FragmentRunner.FragmentRecord;
 import stroom.shapeshifter.ai.fragment.ReplayUnits;
 import stroom.shapeshifter.ai.stage.Bindings;
 import stroom.shapeshifter.ai.stage.Input;
@@ -52,6 +54,7 @@ import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -87,6 +90,27 @@ public class Supervision {
     /// What each supervisor last decided, by element id, for the stage pane to show (A30). Replaced
     /// each time the element runs, because the capture asks for the record it has just processed.
     private final Map<String, ShapeshifterAiStepDetails> stepDetails = new HashMap<>();
+
+    /// What the fragment's own elements made of each record of the run this supervisor just made, by
+    /// element id (A30). Kept beside the decision rather than folded into it because the decision is the
+    /// stream's and this is each record's: a stage fed by the source decides once and then produces a
+    /// hundred records, each of which the capture asks about separately.
+    private final Map<String, List<FragmentRecord>> fragmentRecords = new HashMap<>();
+
+    /// Whether each supervisor was handed the whole stream rather than one record (A1), which is what
+    /// decides whether its chain's one run covered the record at the cursor or all of them.
+    private final Map<String, Boolean> givenWholeStream = new HashMap<>();
+
+    /// What separates the stage's name from the fragment element's in a nested element's id. A
+    /// character an element id cannot hold, so that a namespaced id can never be mistaken for one a
+    /// person gave an element of the pipeline.
+    private static final String NESTED_SEPARATOR = "/";
+
+    /// How much of a whole-stream chain's text is carried to each record of the stream it ran over.
+    /// Enough to show the shape of what the chain made — a few dozen records of most feeds — and small
+    /// enough that carrying it against every record of a long stream stays within what the step store
+    /// will hold. See [#carried].
+    private static final int WHOLE_STREAM_EXCERPT = 16 * 1024;
 
     @Inject
     public Supervision(final ShapeshifterAiStore store,
@@ -191,6 +215,23 @@ public class Supervision {
         // What the stage pane shows for this element, kept for the capture to ask (A30). Per element,
         // because a pipeline may hold two supervised stages and each has its own decision to explain.
         stepDetails.put(elementId.getId(), StepDetails.of(run, stepping));
+        // And what the fragment's own elements made of it, record by record, so that the chain the
+        // stage ran can be stepped beneath it. Only when stepping: nothing else asks, and holding a
+        // record's worth of text per record of a production stream would be a leak with no reader.
+        // Taken rather than read, so that a decision this run made without running a fragment at all —
+        // a reserved rule, a draft awaiting review, a shape given up — cannot be shown the chain of the
+        // run before it. The take happens whether or not this is a step, because a run that is not
+        // being stepped must still clear what the last step left.
+        final List<FragmentRecord> ran = stage.takeFragment();
+        fragmentRecords.put(elementId.getId(), stepping
+                ? ran
+                : List.of());
+        if (stepping) {
+            // A stage fed by a parser is handed one record and so is its chain; a stage fed by the
+            // source is handed the stream. Read once here rather than per record, since the capture
+            // asks for every record of the stream.
+            givenWholeStream.put(elementId.getId(), !fedByParser(elementId).orElse(false));
+        }
         final Bindings bindings = run.bindings();
         // What happened, or — for a step — what would have. A dry run's report is not a fault: a shape
         // nobody has taught yet is the ordinary state of the feed a person has opened the stepper on,
@@ -246,11 +287,93 @@ public class Supervision {
     /// parser above it refused, say — would otherwise be shown the record before it.
     public void startRecord(final ElementId elementId) {
         stepDetails.remove(elementId.getId());
+        fragmentRecords.remove(elementId.getId());
+        givenWholeStream.remove(elementId.getId());
     }
 
-    /// What this element last decided, as the stage pane shows it (A30), or null where it has not run.
-    public ShapeshifterAiStepDetails stepDetails(final ElementId elementId) {
-        return stepDetails.get(elementId.getId());
+    /// What this element last decided, as the stage pane shows it (A30), with the fragment's own
+    /// elements for the record being asked about — or null where it has not run.
+    ///
+    /// The decision is the stream's: a stage fed by the source routes once and then produces every
+    /// record of the stream, so every record shows the same shape, rule and verdicts. What each element
+    /// of the fragment was given and wrote is the record's, and that is what the index selects. A stage
+    /// fed by a parser is given one record at a time and runs the fragment over each, so its run holds
+    /// one record and the index finds it at zero.
+    ///
+    /// @param recordIndex Which record of this part the capture is asking about, counted from zero.
+    public ShapeshifterAiStepDetails stepDetails(final ElementId elementId, final long recordIndex) {
+        final ShapeshifterAiStepDetails details = stepDetails.get(elementId.getId());
+        if (details == null) {
+            return null;
+        }
+        final List<FragmentRecord> records = fragmentRecords.getOrDefault(elementId.getId(), List.of());
+        if (records.isEmpty()) {
+            return details;
+        }
+        // A run that kept fewer records than the stream has — a capped capture, or a fragment whose
+        // records are not one-to-one with the stage's — shows its last rather than nothing: a chain
+        // that is there is better read late than not at all, and an index past the end is not a fault
+        // of the person stepping.
+        final int index = (int) Math.max(0, Math.min(recordIndex, records.size() - 1L));
+        // One run over the whole stream is what a stage standing where a parser stands makes: the chain
+        // cuts the records itself and the stepper walks what came out of the far end, so every record of
+        // the stream shows the same one run. Said on the row rather than left to be noticed, because
+        // six records' worth of output under a cursor on the first reads as a fault otherwise.
+        final boolean wholeStream = records.size() == 1
+                                    && Boolean.TRUE.equals(givenWholeStream.get(elementId.getId()));
+        return details.withNested(under(elementId, records.get(index).elements(), wholeStream));
+    }
+
+    /// The fragment's elements named by the stage that ran them.
+    ///
+    /// A fragment may hold an `XSLTFilter` and so may the pipeline it is running inside, and a pipeline
+    /// may hold two supervised stages whose fragments were learned from the same chain of element types.
+    /// Their own names are what a person reads; the id is what the stepper tells them apart by, so it
+    /// carries the stage's.
+    private static List<NestedElementData> under(final ElementId elementId,
+                                                 final List<NestedElementData> elements,
+                                                 final boolean wholeStream) {
+        return elements.stream()
+                .map(element -> {
+                    final String input = carried(element.getInput(), wholeStream);
+                    final String output = carried(element.getOutput(), wholeStream);
+                    return new NestedElementData(
+                            elementId.getId() + NESTED_SEPARATOR + element.getId(),
+                            element.getName(),
+                            element.getType(),
+                            input,
+                            output,
+                            element.isFormatInput(),
+                            element.isFormatOutput(),
+                            wholeStream,
+                            cut(element.getInput(), input) || cut(element.getOutput(), output));
+                })
+                .toList();
+    }
+
+    /// What of an element's text is carried to the step, which for a chain run once over the whole
+    /// stream is the beginning of it and no more.
+    ///
+    /// These details are stored against **every record** of the stream, because that is how the step
+    /// store keys an element's capture, and a chain handed the stream has one run to show against all
+    /// of them. Carrying the whole of what that run read and wrote would therefore write the stream
+    /// into the store once per record of the stream — which for a large stream exhausts the store's own
+    /// limits outright and takes stepping with it.
+    ///
+    /// A chain that ran for this record alone is carried whole: its text is one record's, which is the
+    /// same size as any other element's and no more of a burden.
+    ///
+    /// What is lost is not lost: the fragment is a pipeline document, the stage pane links to it, and
+    /// it steps like any other. The excerpt is there to show the shape of what the chain made.
+    private static String carried(final String text, final boolean wholeStream) {
+        if (!wholeStream || text == null || text.length() <= WHOLE_STREAM_EXCERPT) {
+            return text;
+        }
+        return text.substring(0, WHOLE_STREAM_EXCERPT);
+    }
+
+    private static boolean cut(final String was, final String carried) {
+        return was != null && carried != null && carried.length() < was.length();
     }
 
     /// The stream as the [Stage] sees it: its meta id, feed, type, attributes and content.

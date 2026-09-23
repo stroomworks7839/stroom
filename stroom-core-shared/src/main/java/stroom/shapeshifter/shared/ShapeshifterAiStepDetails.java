@@ -18,6 +18,7 @@ package stroom.shapeshifter.shared;
 
 import stroom.docref.DocRef;
 import stroom.pipeline.shared.stepping.ElementStepDetails;
+import stroom.pipeline.shared.stepping.NestedElementData;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -66,6 +67,8 @@ public class ShapeshifterAiStepDetails extends ElementStepDetails {
     private final List<StageVerdict> verdicts;
     @JsonProperty
     private final List<SupervisorTurn> transcript;
+    @JsonProperty
+    private final List<NestedElementData> nested;
 
     @JsonCreator
     public ShapeshifterAiStepDetails(@JsonProperty("dryRun") final boolean dryRun,
@@ -80,7 +83,8 @@ public class ShapeshifterAiStepDetails extends ElementStepDetails {
                                      @JsonProperty("score") final Double score,
                                      @JsonProperty("recordBoundary") final String recordBoundary,
                                      @JsonProperty("verdicts") final List<StageVerdict> verdicts,
-                                     @JsonProperty("transcript") final List<SupervisorTurn> transcript) {
+                                     @JsonProperty("transcript") final List<SupervisorTurn> transcript,
+                                     @JsonProperty("nested") final List<NestedElementData> nested) {
         this.dryRun = dryRun;
         this.document = document;
         this.shapeId = shapeId;
@@ -94,6 +98,31 @@ public class ShapeshifterAiStepDetails extends ElementStepDetails {
         this.recordBoundary = recordBoundary;
         this.verdicts = verdicts;
         this.transcript = transcript;
+        this.nested = nested;
+    }
+
+    /**
+     * The fragment's own elements and what each made of the record at the cursor (A30): the chain the
+     * stage ran, opened up, so that a learned {@code DSParser → XSLTFilter} steps like any other pair.
+     * <p>
+     * Empty where nothing was bound and so nothing ran, and where the run came from a stand-in rather
+     * than from a pipeline.
+     */
+    @Override
+    public List<NestedElementData> getNested() {
+        return nested == null
+                ? List.of()
+                : nested;
+    }
+
+    /**
+     * The same details with the fragment's elements attached: what the record at the cursor made of
+     * each. Built per record, because the decision is the stream's and the elements' work is each
+     * record's.
+     */
+    public ShapeshifterAiStepDetails withNested(final List<NestedElementData> elements) {
+        return new ShapeshifterAiStepDetails(dryRun, document, shapeId, shape, decision, reason, ruleUuid,
+                fragment, provisional, score, recordBoundary, verdicts, transcript, elements);
     }
 
     /**

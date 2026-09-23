@@ -23,6 +23,7 @@ import stroom.pipeline.factory.ElementRegistryFactory;
 import stroom.pipeline.factory.PipelineDataCache;
 import stroom.pipeline.factory.PipelineFactory;
 import stroom.pipeline.factory.PipelineStackLoader;
+import stroom.pipeline.shared.stepping.NestedElementData;
 import stroom.pipeline.stepping.capture.HeadlessCapture;
 import stroom.pipeline.textconverter.TextConverterStore;
 import stroom.pipeline.xslt.XsltStore;
@@ -146,6 +147,50 @@ class TestFragmentRunnersAgree extends AbstractProcessIntegrationTest {
                 .describedAs("and the same events of the same stream")
                 .isEqualTo(canonical(last(stood)));
         assertThat(canonical(last(ran))).contains("<Event>");
+    }
+
+    /**
+     * The chain's capture is <b>taken</b> from the runner, not read: after one ask the runner is left
+     * holding nothing.
+     * <p>
+     * That is what keeps a stage that ran no chain from showing the last one that did. A stage decides
+     * many things without running a fragment at all — a reserved rule matches, a draft awaits review,
+     * the shape has been given up — and a caller that merely read the last capture would be handed the
+     * previous stream's chain and hang it in the stepping tree beneath a stage that says nothing was
+     * bound. The same shape of fault as serving a rejected candidate's events, met once already.
+     */
+    @Test
+    void theChainsCaptureIsTakenAndNotLeftBehind() {
+        final List<StepRunner> runners = List.of(new JsonStep(), new XsltStep());
+        final RecordBoundary boundary = RecordBoundary.ofArray("events").atDepth(3);
+        final List<LearnedStep> chain = List.of(
+                new LearnedStep(new JsonStep(), null, new StepResult("<map/>", List.of()), UNSCORED),
+                new LearnedStep(new XsltStep(), XSLT, new StepResult("<Events/>", List.of()), UNSCORED));
+
+        pipelineScopeRunnable.scopeRunnable(() -> {
+            final DocRef fragment = fragmentWriter.write(FOLDER, "taken-v1", chain, boundary);
+            final FragmentRunner runner = new PipelineFragmentRunner(pipelineStore, pipelineDataCache,
+                    elementRegistryFactory, pipelineFactoryProvider, headlessCaptureProvider,
+                    errorReceiverProvider, fragmentOutputProvider, taskContextFactory, runners);
+
+            assertThat(runner.takeRecords())
+                    .describedAs("nothing has run, so there is nothing to take")
+                    .isEmpty();
+
+            runner.run(fragment, DOCUMENT, boundary);
+
+            final List<FragmentRunner.FragmentRecord> taken = runner.takeRecords();
+            assertThat(taken).describedAs("what the chain's elements made of the stream").isNotEmpty();
+            assertThat(taken.get(0).elements())
+                    .extracting(NestedElementData::getType)
+                    .describedAs("the fragment as it was learned, and not the SplitFilter's scaffolding")
+                    .contains("JSONParser", "XSLTFilter");
+
+            assertThat(runner.takeRecords())
+                    .describedAs("and taken means taken: a second ask finds nothing, which is the truth "
+                                 + "for any decision made without running a chain at all")
+                    .isEmpty();
+        });
     }
 
     @Test

@@ -31,6 +31,11 @@ public interface HasStepDetails {
     /**
      * What this element did with the record just captured, or null where it has nothing to add. Called
      * once per record, immediately after the record was processed.
+     *
+     * @param recordIndex Which record of the current part has just been processed, counted from zero.
+     *                    An element that runs a chain of its own over the whole stream decides once and
+     *                    works record by record, and this is what tells it which record is being asked
+     *                    about; an element given one record at a time can ignore it.
      */
-    ElementStepDetails getStepDetails();
+    ElementStepDetails getStepDetails(long recordIndex);
 }

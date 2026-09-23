@@ -22,6 +22,7 @@ import stroom.pipeline.xml.event.EventList;
 import stroom.query.api.ExpressionOperator;
 import stroom.shapeshifter.ai.extraction.PerRecord;
 import stroom.shapeshifter.ai.fragment.FragmentRunner;
+import stroom.shapeshifter.ai.fragment.FragmentRunner.FragmentRecord;
 import stroom.shapeshifter.ai.fragment.FragmentWriter;
 import stroom.shapeshifter.ai.learning.Advisor;
 import stroom.shapeshifter.ai.learning.Advisors;
@@ -300,6 +301,20 @@ public final class Stage {
         // concluded about it — given up, marked, a draft awaiting someone — is undone, or the re-run would
         // be refused by the state its own first run left behind (A28).
         shapes.reset(doc.getUuid(), recorded.attempt().shape());
+    }
+
+    /// What each of the fragment's own elements made of the stream on the run this stage just made, a
+    /// list per record (A30, design 01 §11.7) — what the stepper shows beneath a supervised stage.
+    ///
+    /// **Taken**, not read, and taken immediately after the run it belongs to: the runner is left
+    /// holding nothing, so a later run that decided without running a fragment at all — a reserved rule,
+    /// a draft awaiting review, a shape given up — finds nothing here rather than the chain of the run
+    /// before it (see [FragmentRunner#takeRecords]).
+    ///
+    /// Empty where the fragment was walked by a stand-in rather than run as a pipeline, and where
+    /// nothing was bound and so nothing ran.
+    public List<FragmentRecord> takeFragment() {
+        return fragmentRunner.takeRecords();
     }
 
     /// Ask for a rule that is already serving to be made **better** (A46, §12 item 29).

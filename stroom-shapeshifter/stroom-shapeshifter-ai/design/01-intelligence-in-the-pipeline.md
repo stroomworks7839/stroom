@@ -1793,10 +1793,22 @@ the order they arrived. Items marked *built* already exist in `stroom-shapeshift
    and the fragment as a link; which elements show a pane is a registry the feature writes itself into,
    keyed by element type because the stepper's layout is built before any step has been taken. The pane
    is read-only: the actions A30 puts beside the evidence are the Routing tab's and the Supervisor
-   view's and arrive with them. **Owed**: stepping *into* the fragment, which is not a client change —
-   the fragment is a nested pipeline whose elements are not in the stepped pipeline's model, so it would
-   have to be built under the stepping controller with its ids namespaced and one record detector
-   driving (design 03 §7 slice 6c).*
+   view's and arrive with them. **Stepping into the fragment built 2026-09-23** (scenario 33): the
+   chain hangs in the tree beneath the stage, each element with what it was given and what it wrote for
+   the record at the cursor. Not by building the fragment under the stepping controller, as this note
+   guessed — that controller inserts a split at the parser's records whatever the pipeline does, and a
+   capture judging a configuration must not, so building it there would have made the stepper show
+   something other than what runs. The fragment goes on running under its own capture and hands what it
+   captured to the step through the `details` slot. The pipeline gained two general things for it:
+   `ElementStepDetails.getNested`, so the stepper draws a chain without knowing what kind of element ran
+   it, and a record index on `HasStepDetails`, because an element that runs a chain decides once for the
+   stream and works record by record. Where one run covered the whole stream — a chain for raw text
+   carries no `SplitFilter`, since the parser's own configuration cuts the records — the row says so and
+   the pane notes it, rather than cutting the element's output up to look per-record; and its text
+   is carried as an excerpt, because these details are stored against every record of a stream and
+   a whole-stream chain would otherwise write the stream into the step store once per record of it.
+   The capture is **taken** from the runner rather than read, so that a stage which ran no chain
+   cannot be hung with the last one that did.*
 20. **Learning against a target** (A31, §10.1): the *Split* question first for every kind of input,
    then the *Target* question; representative records per line kind by signature;
    the field-preservation and target-fidelity checks; feedback attributed to the step that lost the

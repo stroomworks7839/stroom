@@ -17,6 +17,7 @@
 package stroom.shapeshifter.ai.fragment;
 
 import stroom.docref.DocRef;
+import stroom.pipeline.shared.stepping.NestedElementData;
 import stroom.pipeline.xml.event.EventList;
 import stroom.shapeshifter.ai.scoring.Attempted;
 import stroom.shapeshifter.shared.RecordBoundary;
@@ -62,5 +63,39 @@ public interface FragmentRunner {
     /// each step wrote and has no downstream to play anything on to.
     default Optional<EventList> lastOutput() {
         return Optional.empty();
+    }
+
+    /// What each of the fragment's own elements was given and wrote on the run just made, a list per
+    /// record in record order (A30, design 01 §11.7).
+    ///
+    /// This is what lets a learned chain be stepped. A supervised stage looks, from the outside, like
+    /// one element that takes a stream and emits events; everything that decided the shape of them —
+    /// the parser's records, the transform's output — happens inside it and is invisible. The stepper
+    /// shows these beneath the stage, so that `DSParser → XSLTFilter` steps like any other pair.
+    ///
+    /// **Taken**, not read: the capture is handed over once and the runner is left holding nothing.
+    ///
+    /// That is the whole of the method's safety. A stage decides many things without running a fragment
+    /// at all — a reserved rule, a draft awaiting review, a shape given up, a shape nothing binds — and
+    /// a caller that merely *read* the last capture would be handed the previous stream's chain and
+    /// show it as this one's. Taking it means the second ask finds nothing, which is the truth.
+    ///
+    /// Empty from [StandInFragmentRunner], which walks the chain rather than running a pipeline and so
+    /// has no elements to name. Tier 1 asserts on what each step wrote; the stepper is Tier 2's.
+    default List<FragmentRecord> takeRecords() {
+        return List.of();
+    }
+
+
+    // --------------------------------------------------------------------------------
+
+
+    /// What the fragment's elements made of one record of the stream, in chain order.
+    ///
+    /// The ids are namespaced by the stage that ran them before they reach a person, because a fragment
+    /// may hold an `XSLTFilter` and so may the pipeline it is running inside; here they are the
+    /// fragment's own.
+    record FragmentRecord(List<NestedElementData> elements) {
+
     }
 }

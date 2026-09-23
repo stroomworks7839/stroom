@@ -205,8 +205,8 @@ public class ShapeshifterAiFilter extends AbstractXMLFilter implements HasStepDe
 
     /// What this stage decided about the record just captured, for the stepper's stage pane (A30).
     @Override
-    public ShapeshifterAiStepDetails getStepDetails() {
-        return supervision.stepDetails(getElementId());
+    public ShapeshifterAiStepDetails getStepDetails(final long recordIndex) {
+        return supervision.stepDetails(getElementId(), recordIndex);
     }
 
 }

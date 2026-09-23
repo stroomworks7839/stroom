@@ -177,7 +177,8 @@ public class HeadlessCapture implements PipelineCapture {
         if (records.size() < maxRecords) {
             final Map<String, ElementIo> byElement = new LinkedHashMap<>();
             for (final ElementMonitor monitor : monitors) {
-                final CapturedElementData captured = monitor.getCapturedElementData(logging, highlight);
+                final CapturedElementData captured =
+                        monitor.getCapturedElementData(logging, highlight, recordIndex);
                 final SharedElementData shared = CapturedElementDataMapper.toShared(captured);
                 // An entry for every element watched, whether or not it produced anything: a caller
                 // reading record by record must find the same elements in each.

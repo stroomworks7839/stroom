@@ -278,7 +278,8 @@ public class SteppingController implements PipelineCapture {
             // to store its IO under and nothing could ever read it back.
             final String fingerprint = fingerprints.getCumulativeFingerprint(monitor.getElementId().getId());
             if (fingerprint != null) {
-                CapturedElementData data = monitor.getCapturedElementData(errorReceiver, highlight);
+                CapturedElementData data = monitor.getCapturedElementData(errorReceiver, highlight,
+                        location.getRecordIndex());
                 // A counting element whose run started mid-stream with no count to restore produces
                 // plausible-but-wrong running counts (EventId 1 on record 500). The record is stored
                 // marked, so wherever it is later served from, the divergence is declared rather than

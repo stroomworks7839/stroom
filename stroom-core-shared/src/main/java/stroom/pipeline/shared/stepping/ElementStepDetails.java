@@ -18,10 +18,13 @@ package stroom.pipeline.shared.stepping;
 
 import stroom.shapeshifter.shared.ShapeshifterAiStepDetails;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+
+import java.util.List;
 
 /**
  * What one element has to say about a step, beyond the text it read and wrote (A30, design 01 §11.7).
@@ -44,4 +47,16 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 @JsonInclude(Include.NON_NULL)
 public abstract class ElementStepDetails {
 
+    /**
+     * The elements this one ran inside itself for the record being stepped, in the order it ran them, or
+     * empty where it ran none (A30, design 01 §11.7).
+     * <p>
+     * Declared here rather than on a subtype because the stepper draws them, and the stepper must not
+     * have to know what kind of element it is looking at to do so. Any element that is not one step but
+     * several can answer this and be expanded the same way.
+     */
+    @JsonIgnore
+    public List<NestedElementData> getNested() {
+        return List.of();
+    }
 }

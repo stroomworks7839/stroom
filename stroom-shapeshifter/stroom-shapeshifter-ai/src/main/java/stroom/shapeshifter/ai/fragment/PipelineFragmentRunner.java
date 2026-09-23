@@ -32,6 +32,7 @@ import stroom.pipeline.shared.data.PipelineDataBuilder;
 import stroom.pipeline.shared.data.PipelineElement;
 import stroom.pipeline.shared.data.PipelineElementType;
 import stroom.pipeline.shared.data.PipelineLink;
+import stroom.pipeline.shared.stepping.NestedElementData;
 import stroom.pipeline.stepping.capture.HeadlessCapture;
 import stroom.pipeline.xml.event.EventList;
 import stroom.pipeline.xml.event.simple.SimpleEventList;
@@ -116,6 +117,9 @@ public final class PipelineFragmentRunner implements FragmentRunner {
     private final Map<String, Boolean> parsers = new HashMap<>();
 
     private SimpleEventList lastOutput;
+    /// What the fragment's own elements made of the run just made, for a caller that must show it
+    /// (A30). Replaced by the next run, as [#lastOutput] is.
+    private List<FragmentRecord> lastRecords = List.of();
 
     @Inject
     public PipelineFragmentRunner(final PipelineStore pipelineStore,
@@ -158,6 +162,9 @@ public final class PipelineFragmentRunner implements FragmentRunner {
         // One capture per run: what this fragment did with this stream and nothing else.
         final HeadlessCapture capture = captureProvider.get();
         capture.setMaxRecords(MOST_RECORDS);
+        // Emptied before the run rather than after it, so that a run that throws leaves nothing of the
+        // run before it to be shown as though it were this one's.
+        lastRecords = List.of();
 
         // And one recorder per run, for the caller that means to play the tail's events on rather than
         // run the fragment again. Kept whatever the run came to, since a run that stopped has an empty
@@ -231,7 +238,82 @@ public final class PipelineFragmentRunner implements FragmentRunner {
             }
             current = output;
         }
+        lastRecords = recorded(capture, chain(fragment, elements, next));
         return steps;
+    }
+
+    /// Handed over and let go of: see [FragmentRunner#takeRecords]. A decision that runs no fragment
+    /// must not be given the chain of the one before it.
+    @Override
+    public List<FragmentRecord> takeRecords() {
+        final List<FragmentRecord> taken = lastRecords;
+        lastRecords = List.of();
+        return taken;
+    }
+
+    /// The fragment as a chain of elements a person would recognise: what the fragment itself holds,
+    /// in the order it runs them, and nothing this runner added. The parser spliced in front of a
+    /// parser-less chain and the filter added at the tail are this runner's scaffolding and are no part
+    /// of what was learned, so they are not shown — exactly as the walk that scores the chain reads the
+    /// fragment as the fragment has it.
+    ///
+    /// The shaping elements are kept, unlike in the scored walk: a `SplitFilter` is not a step anything
+    /// judges, but it is an element that ran and a person stepping the chain should see where the
+    /// records were cut.
+    private static List<PipelineElement> chain(final DocRef fragment,
+                                               final Map<String, PipelineElement> elements,
+                                               final Map<String, String> next) {
+        final List<PipelineElement> chain = new ArrayList<>();
+        final Set<String> seen = new HashSet<>();
+        for (String id = next.get(SOURCE); id != null && seen.add(id); id = next.get(id)) {
+            final PipelineElement element = elements.get(id);
+            if (element != null) {
+                chain.add(element);
+            }
+        }
+        return chain;
+    }
+
+    /// One entry per record the capture kept, holding what each element of the chain was given and
+    /// wrote for that record.
+    ///
+    /// An element that produced nothing for a record still has an entry, because a person stepping the
+    /// chain needs to see *which* element stopped and not merely that the chain did.
+    private static List<FragmentRecord> recorded(final HeadlessCapture capture,
+                                                 final List<PipelineElement> chain) {
+        final List<FragmentRecord> records = new ArrayList<>();
+        for (final HeadlessCapture.Record record : capture.getRecords()) {
+            final List<NestedElementData> elements = new ArrayList<>();
+            for (final PipelineElement element : chain) {
+                final HeadlessCapture.ElementIo io = record.byElement().get(element.getId());
+                elements.add(new NestedElementData(
+                        element.getId(),
+                        element.getId(),
+                        element.getType(),
+                        io == null
+                                ? null
+                                : io.input(),
+                        io == null
+                                ? null
+                                : io.output(),
+                        // Everything below the chain's parser is handed markup, which the stepper
+                        // pretty-prints as it does anywhere else. The first element is handed the text
+                        // the stage was given, and that is left as it arrived.
+                        !chain.isEmpty() && !element.equals(chain.get(0)),
+                        // Everything below a parser writes XML, and the stepper formats it as it does
+                        // anywhere else. The first element of a chain is given text and writes markup;
+                        // what it was given is left as it arrived.
+                        true,
+                        // Whether one run covered the whole stream, and so whether what it read and
+                        // wrote has to be cut down before it is carried, is not the runner's to say: it
+                        // depends on what the stage that called it was given. Set as the records are
+                        // handed out.
+                        false,
+                        false));
+            }
+            records.add(new FragmentRecord(List.copyOf(elements)));
+        }
+        return List.copyOf(records);
     }
 
     @Override

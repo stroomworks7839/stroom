@@ -81,7 +81,10 @@ public final class StepDetails {
                         ? null
                         : bindings.boundary().toString(),
                 verdicts(run.verdicts()),
-                transcript(run.transcript()));
+                transcript(run.transcript()),
+                // Attached per record by [Supervision], since the decision is the stream's and what each
+                // of the fragment's elements made of the input is each record's.
+                List.of());
     }
 
     private static DocRef document(final ShapeshifterAiDoc doc) {

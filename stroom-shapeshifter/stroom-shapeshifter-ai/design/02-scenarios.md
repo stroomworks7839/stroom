@@ -2758,7 +2758,90 @@ because asking twice spends a second model run.
 288 tests in the module, 33 against MySQL, 18 in Tier 2.
 
 
-288 tests in the module, 33 against MySQL, 18 in Tier 2.
+The forty-eighth slice, 2026-09-23, is design 03 §7's sixth-c, ruling A30 and §12 item 19: **stepping
+into the fragment** — scenario 33.
+
+A supervised stage looks, from outside, like one element with a stream going in and events coming out.
+Everything that decided the shape of them — the records the learned parser cut, what the learned
+transform made of each — happens inside it and is invisible in the one place a person already goes when
+a pipeline puzzles them. The chain now hangs in the stepping tree beneath the stage, each element with
+what it was given and what it wrote for the record at the cursor.
+
+**It is not built the way the phase note guessed.** That note said the fragment would have to run under
+the stepping controller rather than under its own capture, with its ids namespaced and one record
+detector driving. Reading the machinery said otherwise, and decisively: `PipelineCapture` has two
+implementations *because* they answer `captureSplitDepth` differently — stepping inserts a split at the
+parser's records whatever the pipeline does, and a capture that is judging a configuration must not,
+because "a split the pipeline does not have would give the transform one record where the pipeline gives
+it the whole stream, and the configuration would then be judged on the difference". The run being
+stepped is the run being served (the judged run is the served run, slice 6a). Building the fragment
+under the stepping controller would therefore have changed what the stepper shows from what actually
+runs — the one thing a stepper may never do.
+
+So the fragment goes on running exactly as it does when serving, and hands what its own capture already
+holds — per element, per record, input and output — to the step through the details slot slice 6a built.
+Nothing was needed in the store, the fingerprints or the step result: details are already serialised
+into the store with the element's own IO and read back under the element's own fingerprint, which is the
+right key, because the fragment's work *is* the stage's work. What the pipeline gained is one generic
+thing: `ElementStepDetails.getNested()`, so that the stepper can draw the chain without knowing what
+kind of element it is looking at, and `HasStepDetails.getStepDetails(recordIndex)`, because an element
+that runs a chain decides once and works record by record and nothing else could say which record was
+being asked about.
+
+**What the test taught, which no amount of reading would have.** A learned chain for raw CSV carries no
+`SplitFilter` — the boundary is cut by the parser's own configuration, so there is nothing for a filter
+to split on — which means the fragment's capture holds *one* record for the whole stream while the
+stepper walks six. The first version of the test asserted that stepping forward moved the chain's record
+on; it does not, and cannot. One run did all of it: the learned parser read the whole stream and the
+learned transform was handed the whole of what that produced, and the six records being stepped were cut
+from the far end afterwards. A fragment for JSON or XML *does* carry a split (§12 item 25) and does
+capture per record, so the behaviour varies by format rather than by position.
+
+The answer is to say so, not to fake it: each row carries `wholeStream`, and the pane logs a note where
+it is set. Cutting the element's output up for display would have shown a person something the element
+never produced, which is the same mistake as building the fragment under the stepping controller, made
+one level further out.
+
+The nested elements are in no pipeline, and everything that edits, filters or saves now asks first: no
+code pane, no properties, no document behind them, no step filters, no context menu. Their ids carry the
+stage's name, because a fragment may hold an `XSLTFilter` and so may the pipeline it is running inside.
+The tree is the stepper's own — `NestedPipelineTreeBuilder` over a copy of the model's child map — so a
+pipeline a person saves is still the one they drew.
+
+**Its audit found five**, and the first is the third appearance of one mistake. `Stage.lastFragment()`
+*read* what the fragment runner was holding, and a stage decides many things without running a fragment
+at all — a reserved rule matches, a draft awaits review, the shape has been given up. A stage pane that
+read the last capture would hang the previous stream's `DSParser → XSLTFilter` beneath a stage saying
+nothing was bound. This is the same fault as serving a rejected candidate's events (slice 6a) and as a
+re-walk stamping today's guidance onto yesterday's turns (slice 9a): **a reader meeting state that was
+not built for it**. The capture is now *taken* and not read — the runner is left holding nothing, so the
+second ask finds nothing, which is the truth.
+
+Writing the test for it found something worth keeping. The case cannot be reached through a stage
+standing where a parser stands: a stage that binds nothing emits nothing, so the pipeline produces no
+record, so there is nothing to step and no pane to be wrong. It bites where the stage stands where a
+filter stands and the records come from a parser above it. The contract is pinned where it lives, on the
+runner, and the test fails without the fix.
+
+The third was the one with teeth. These details are stored against **every record** of a stream, and a
+chain handed the stream has one run to show against all of them — so carrying what that run read and
+wrote in full writes the whole stream into the step store once per record of the stream. A 50 MB stream
+would have thrown on the first record against the store's own 100 MiB per-record cap; a 10 MB one would
+have exhausted the 2 GiB per-stream cap in a hundred records. A whole-stream chain's text is now carried
+as an excerpt and says it is one; a chain that ran for one record is carried whole, because its text is
+one record's and no more of a burden than any other element's. What the excerpt leaves out is not lost:
+the fragment is a pipeline document and steps like any other.
+
+Behind them: the tree read this step's answer while every pane read the *effective* one, so stepping off
+the end of a stream left the panes showing the last record found and the chain gone from beneath them;
+the migration's backfill hashed a blank shape id where `RulesDao` deliberately does not, which would
+have listed a rule as serving that `improve` then refuses — the button that lies, again; and
+`formatInput` was false for every nested element rather than for the first alone, so an `XSLTFilter`
+inside a fragment showed unformatted XML where the same element elsewhere in the stepper is
+pretty-printed.
+
+288 tests in the module, 33 against MySQL, 21 in Tier 2 — and the 1,155 of `stroom-pipeline`, which this
+slice reached into.
 
 
 ## 7. Decisions taken
