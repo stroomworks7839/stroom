@@ -1760,8 +1760,10 @@ the order they arrived. Items marked *built* already exist in `stroom-shapeshift
    relearn trigger and the Stage's use of any of it are not.*
 18. **Replay unit off the document** (A1 revised): remove `replayUnit` from `ShapeshifterAiDoc` and
    the Settings tab; derive it from the fragment at build time and check the allowed-element list
-   against the stage's position. Extends item 3. *Removed 2026-09-17; the derivation and the check
-   wait on the supervisor element.*
+   against the stage's position. Extends item 3. *Removed 2026-09-17; **the derivation and both checks
+   built 2026-09-23** — `ReplayUnit` and `ReplayUnits.ofElements`, a bound fragment held to what its
+   stage is given when a rule is saved, and the document's allowed elements held to where its
+   supervisor stands when the pipeline is built.*
 
 19. **The stage pane in the stepper** (A30, §11.7): the `details` slot on `SharedElementData` and its
    `ShapeshifterAiStepDetails` subtype built from `StageRun`; the presenter that replaces the code
@@ -2189,6 +2191,19 @@ including the degeneracy trap (§8.3) that changes the scoring model and propose
   learned as the records it carries, where it was previously read as text and abandoned. With it:
   an element may declare a configuration that is never asked for, and each parser declares what it
   consumes so that the split question follows the stream rather than a guess from the element's shape.
+- Audit of item 18 (the owner's code review): six findings, five fixed — design 02 §6.1 — and one
+  collision to rule on. The element types that parse were hardcoded in two places on a mistaken belief
+  that a resource cannot reach the element registry; both now ask the registry the fragment check asks.
+  "Cannot be read" was being answered as "fed by the source", which refused a transform-only document
+  for a fabricated reason. And the refusal named the element rather than the allowed-element list that
+  was at fault. **The collision**: a supervisor element declares the parser role and the pipeline editor
+  refuses a parser under a parser, so the `RECORD` position of A1 — and the `S1 → S2` pair of §3 —
+  cannot be drawn in the UI. Expressing it needs a transformation-stage element that is a filter rather
+  than a parser, which belongs to §12 item 4.
+- §12 item 18 built (design 02 §6.1): the replay unit derived from the chain rather than declared, and
+  the two checks A1 asks for — a rule's fragment must be replayable over what its stage is given, and a
+  document's allowed elements must match where its supervisor stands. Both refuse before a model is
+  asked.
 - Audit of item 7 (the owner's code review): nine findings, all fixed but one recorded — design 02
   §6.1. Four were the same oversight: an output is not described by its fragment alone, so the record
   boundary is now recorded with it, the pipeline is part of what a row is, and a produced time says

@@ -17,18 +17,24 @@
 package stroom.shapeshifter.ai.doc;
 
 import stroom.docref.DocRef;
+import stroom.pipeline.factory.ElementRegistry;
+import stroom.pipeline.factory.ElementRegistryFactory;
 import stroom.pipeline.shared.PipelineDoc;
+import stroom.pipeline.shared.data.PipelineElementType;
 import stroom.security.api.SecurityContext;
 import stroom.security.mock.MockSecurityContext;
 import stroom.security.shared.DocumentPermission;
 import stroom.shapeshifter.ai.fragment.FragmentCheck;
 import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.ai.state.InMemoryRules;
+import stroom.shapeshifter.shared.ReplayUnit;
 import stroom.shapeshifter.shared.RoutingRule;
+import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 import stroom.util.shared.EntityServiceException;
 import stroom.util.shared.PermissionException;
 
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 
 import java.util.List;
 
@@ -135,7 +141,8 @@ class TestShapeshifterAiRules {
             throw new EntityServiceException(pipeline.getName() + " is not a fragment");
         };
         final ShapeshifterAiResourceImpl resource = new ShapeshifterAiResourceImpl(
-                () -> null, () -> null, () -> rules, () -> refuses, MockSecurityContext::new);
+                () -> storeOf(List.of("DSParser", "XSLTFilter")), () -> null, () -> rules, () -> refuses,
+                () -> registry(), MockSecurityContext::new);
 
         assertThatThrownBy(() -> resource.addRule(DOC, 0, rule(null).copy().pipeline(FRAGMENT).build()))
                 .isInstanceOf(EntityServiceException.class)
@@ -143,11 +150,69 @@ class TestShapeshifterAiRules {
         assertThat(rules.forDocument(DOC)).isEmpty();
     }
 
+    @Test
+    void aFragmentMustBeReplayableOverWhatTheStageIsGiven() {
+        // A1, design 01 §4: a stage fed by a parser is given records and its chains must not parse; one
+        // fed by the source is given raw data and its chains must. The document's allowed elements are
+        // what a chain is chosen from, so they are what says which stage this is.
+        final ShapeshifterAiStore records = storeOf(List.of("XSLTFilter"));
+        final ShapeshifterAiResourceImpl resource = new ShapeshifterAiResourceImpl(
+                () -> records, () -> null, () -> rules, () -> pipeline -> ReplayUnit.STREAM,
+                () -> registry(), MockSecurityContext::new);
+
+        assertThatThrownBy(() -> resource.addRule(DOC, 0, rule(null)))
+                .isInstanceOf(EntityServiceException.class)
+                .hasMessageContaining("has a parser")
+                .hasMessageContaining("nothing left to parse");
+        assertThat(rules.forDocument(DOC)).describedAs("and nothing is bound").isEmpty();
+    }
+
+    @Test
+    void aStageFedByTheSourceRefusesAFragmentThatParsesNothing() {
+        final ShapeshifterAiStore stream = storeOf(List.of("DSParser", "XSLTFilter"));
+        final ShapeshifterAiResourceImpl resource = new ShapeshifterAiResourceImpl(
+                () -> stream, () -> null, () -> rules, () -> pipeline -> ReplayUnit.RECORD,
+                () -> registry(), MockSecurityContext::new);
+
+        assertThatThrownBy(() -> resource.addRule(DOC, 0, rule(null)))
+                .isInstanceOf(EntityServiceException.class)
+                .hasMessageContaining("has no parser")
+                .hasMessageContaining("something must parse it");
+    }
+
+    /// A registry that knows the element types these documents name, so that both sides of the unit
+    /// check are derived the same way they are in a node.
+    private static ElementRegistryFactory registry() {
+        final ElementRegistry registry = Mockito.mock(ElementRegistry.class);
+        Mockito.lenient().when(registry.getElementType(Mockito.anyString())).thenAnswer(call -> {
+            final String type = call.getArgument(0);
+            return new PipelineElementType(type, type, null,
+                    "DSParser".equals(type) || "JSONParser".equals(type)
+                            ? new String[]{PipelineElementType.ROLE_PARSER}
+                            : new String[]{PipelineElementType.ROLE_TARGET},
+                    null);
+        });
+        return () -> registry;
+    }
+
+    /// A store answering with a document whose allowed elements parse, so that a fragment which parses
+    /// is the right unit for its stage (A1). The rules here are about the table, not about the unit.
+    private static ShapeshifterAiStore storeOf(final List<String> allowedElements) {
+        final ShapeshifterAiStore store = Mockito.mock(ShapeshifterAiStore.class);
+        Mockito.lenient().when(store.readDocument(Mockito.any())).thenReturn(ShapeshifterAiDoc.builder()
+                .uuid(DOC)
+                .name("door-access")
+                .allowedElements(allowedElements)
+                .build());
+        return store;
+    }
+
     private ShapeshifterAiResourceImpl resource(final SecurityContext securityContext) {
-        final FragmentCheck takesItAtItsWord = pipeline -> {
-        };
-        return new ShapeshifterAiResourceImpl(() -> null, () -> null, () -> rules, () -> takesItAtItsWord,
-                () -> securityContext);
+        // Takes the fragment at its word, and says its chain parses, as the documents here allow.
+        final FragmentCheck takesItAtItsWord = pipeline -> ReplayUnit.STREAM;
+        final ShapeshifterAiStore store = storeOf(List.of("DSParser", "XSLTFilter"));
+        return new ShapeshifterAiResourceImpl(() -> store, () -> null, () -> rules, () -> takesItAtItsWord,
+                () -> registry(), () -> securityContext);
     }
 
     private static RoutingRule rule(final String uuid) {

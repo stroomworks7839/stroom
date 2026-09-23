@@ -2073,6 +2073,64 @@ was testing anything. What discriminates is watching the seam: a `FragmentRunner
 boundary it was asked to run under, injected through a new fixture hook, and an assertion that the
 depth it was given is the depth the row remembers.
 
+The thirty-ninth slice, 2026-09-23, is §12 item 18, the second of design 03 §7's ten: **the replay unit
+is derived and the stage's position is checked**.
+
+The unit came off the document in 2026-09-17 (A1 revised) and nothing has derived it since. It is
+decided by the chain and not by anyone's preference: a parser in it means the stream, because the bytes
+above a parser cannot be replayed from a record; no parser means one record, which is what the elements
+below a parser are given anyway. `ReplayUnit` is the enum, `ReplayUnits.ofElements` the derivation, and
+it is asked in the three places that have to agree — of a written fragment when a rule binds one, of a
+document's allowed elements, which say what its stage may learn, and of a stage's position in a
+pipeline, which says what it may host.
+
+Two checks follow, and both fail early rather than late:
+
+- **A rule's fragment must be replayable over what its stage is given.** `FragmentCheck` already
+  refused a pipeline that is not a fragment; it now returns the unit it derived, and the resource holds
+  that against what the document's allowed elements imply. A fragment that parses cannot be bound to a
+  stage fed by a parser — *"there is nothing left to parse"* — and one that does not cannot be bound to
+  a stage fed by the source — *"something must parse it"*.
+- **A document's allowed elements must match where its supervisor stands.** The element reads the
+  pipeline it is running in as the pipeline is built, walks up from itself to see whether anything above
+  it parses, and refuses a document that could only learn chains of the wrong kind. Before a model is
+  asked, not after: a document that cannot learn anything usable here should say so before it has spent
+  a call finding out.
+
+Where the pipeline cannot be read the check is skipped rather than failed — a check that cannot be made
+is not a check that failed — and a document with no allowed elements is left alone, since it constrains
+nothing.
+
+The audit of the slice found six, five fixed and one that is not a defect but a collision.
+
+**The element types that parse were a hardcoded list, in two places.** I wrote one because "the registry
+is a node's and this is a resource", which was simply wrong: `FragmentCheckImpl`, injected into that very
+resource, injects `ElementRegistryFactory`. Both places now ask the registry, as the fragment check
+does, so the three derivations the class exists to keep in agreement cannot disagree. The list would
+have missed `CombinedParser` and the supervisor element itself, both of which declare the parser role.
+
+**"Cannot be read" was being answered as "fed by the source".** The javadoc said a check that cannot be
+made is not a check that failed, and then returned false, which is not nothing — it is `STREAM`, and a
+transform-only document would have been refused for a fabricated reason. The walk now returns an
+`Optional` and the comparison is skipped when it is empty, as it is skipped when a document names no
+allowed elements at all.
+
+**And the message named the wrong thing.** `mismatch` switched on the stage and ignored the unit it was
+given, so the element's refusal read "element shapeshifterAi has no parser" when what has no parser is
+the document's allowed-element list. It switches on the subject now and the element names the list.
+
+**The collision, which is the owner's to rule on.** A supervisor element declares the parser role, and
+the pipeline editor refuses a parser under a parser (`StructureValidationUtil`). So a supervisor cannot
+be placed below a parser — or below another supervisor — in a pipeline built through the UI, which means
+the `RECORD` position of A1 is unreachable there and the extract-then-transform pair of §3 (`S1 → S2`)
+cannot be drawn. The check is still worth having: its `STREAM` branch catches a real operator error, a
+transform-only document on a stage that is handed raw bytes. But the other half describes a position the
+product cannot currently express, and making it expressible means a second element type for the
+transformation stage — a filter rather than a parser — which is §12 item 4's ground and not this slice's.
+
+254 tests in the module, including the pipeline walk: a supervisor under a parser, one under the source,
+an element that is not in the pipeline at all, and a pipeline that loops.
+
 ### 6.4 What the one-record run found
 
 Item 25 changed what the model is shown, and no scripted scenario can say whether that makes it write

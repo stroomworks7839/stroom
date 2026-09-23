@@ -25,6 +25,7 @@ import stroom.pipeline.PipelineStore;
 import stroom.pipeline.errorhandler.ErrorReceiverProxy;
 import stroom.pipeline.errorhandler.ProcessException;
 import stroom.pipeline.factory.ConfigurableElement;
+import stroom.pipeline.factory.ElementRegistryFactory;
 import stroom.pipeline.factory.Pipeline;
 import stroom.pipeline.factory.PipelineDataCache;
 import stroom.pipeline.factory.PipelineFactory;
@@ -47,8 +48,10 @@ import stroom.shapeshifter.ai.doc.ShapeshifterAiStore;
 import stroom.shapeshifter.ai.extraction.DataSplitterCompiler;
 import stroom.shapeshifter.ai.extraction.DataSplitterStep;
 import stroom.shapeshifter.ai.extraction.JsonStep;
+import stroom.shapeshifter.ai.extraction.XmlFragmentStep;
 import stroom.shapeshifter.ai.fragment.FragmentRunner;
 import stroom.shapeshifter.ai.fragment.FragmentWriter;
+import stroom.shapeshifter.ai.fragment.ReplayUnits;
 import stroom.shapeshifter.ai.learning.Advisors;
 import stroom.shapeshifter.ai.scoring.BusinessRulesScorer;
 import stroom.shapeshifter.ai.scoring.CompileScorer;
@@ -75,9 +78,11 @@ import stroom.shapeshifter.ai.stage.Spend;
 import stroom.shapeshifter.ai.stage.Stage;
 import stroom.shapeshifter.ai.stage.StageRun;
 import stroom.shapeshifter.ai.transformation.XsltStep;
+import stroom.shapeshifter.shared.ReplayUnit;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 import stroom.svg.shared.SvgImage;
 import stroom.task.api.TaskContextFactory;
+import stroom.util.shared.NullSafe;
 import stroom.util.shared.Severity;
 
 import jakarta.inject.Inject;
@@ -96,6 +101,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -137,6 +143,7 @@ public class ShapeshifterAiParser extends AbstractParser {
     private static final String OUTPUT_ELEMENT_ID = "shapeshifterAiOutput";
 
     private final ShapeshifterAiStore store;
+    private final ElementRegistryFactory elementRegistryFactory;
     private final PipelineStore pipelineStore;
     private final PipelineDataCache pipelineDataCache;
     private final PipelineFactory pipelineFactory;
@@ -157,6 +164,7 @@ public class ShapeshifterAiParser extends AbstractParser {
     public ShapeshifterAiParser(final ErrorReceiverProxy errorReceiverProxy,
                                 final LocationFactoryProxy locationFactory,
                                 final ShapeshifterAiStore store,
+                                final ElementRegistryFactory elementRegistryFactory,
                                 final PipelineStore pipelineStore,
                                 final PipelineDataCache pipelineDataCache,
                                 final PipelineFactory pipelineFactory,
@@ -171,6 +179,7 @@ public class ShapeshifterAiParser extends AbstractParser {
         super(errorReceiverProxy, locationFactory);
         this.errorReceiverProxy = errorReceiverProxy;
         this.store = store;
+        this.elementRegistryFactory = elementRegistryFactory;
         this.pipelineStore = pipelineStore;
         this.pipelineDataCache = pipelineDataCache;
         this.pipelineFactory = pipelineFactory;
@@ -213,7 +222,58 @@ public class ShapeshifterAiParser extends AbstractParser {
         if (docRef == null) {
             throw ProcessException.create("No Shapeshifter AI document is set on element " + getElementId());
         }
+        checkPosition();
         return new SupervisorReader();
+    }
+
+    /// What this stage may learn must match where it stands (A1, design 01 §4): a stage fed by the
+    /// source is given raw data and its chains must parse; a stage fed by a parser is given records and
+    /// its chains must not. The document's allowed elements are what a chain is chosen from, so they
+    /// are what has to agree, and the pipeline this element sits in is what says which position it is in.
+    ///
+    /// Checked as the pipeline is built rather than when a model is asked: a document that cannot learn
+    /// anything usable here should say so before it has spent a call finding out.
+    ///
+    /// Skipped where the answer is not knowable — the pipeline cannot be read, or the document names no
+    /// allowed elements and so constrains nothing. A check that cannot be made is not a check that
+    /// failed, and refusing on a guess would be worse than not looking.
+    private void checkPosition() {
+        final ShapeshifterAiDoc doc = store.readDocument(docRef);
+        if (doc == null || NullSafe.isEmptyCollection(doc.getAllowedElements())) {
+            return;
+        }
+        final Optional<Boolean> fedByParser = fedByParser();
+        if (fedByParser.isEmpty()) {
+            return;
+        }
+        final ReplayUnit allowed = ReplayUnits.ofElements(doc.getAllowedElements(), this::parses);
+        final ReplayUnit here = ReplayUnit.forStageFedByParser(fedByParser.get());
+        if (allowed != here) {
+            throw ProcessException.create(ReplayUnits.mismatch(allowed,
+                    "The allowed elements of Shapeshifter AI document " + doc.getName()));
+        }
+    }
+
+    /// Whether anything above this element in its pipeline parses, or empty where the pipeline it is
+    /// running in cannot be read.
+    private Optional<Boolean> fedByParser() {
+        final DocRef pipelineRef = pipelineHolder.getPipeline();
+        if (pipelineRef == null) {
+            return Optional.empty();
+        }
+        final PipelineDoc pipelineDoc = pipelineStore.readDocument(pipelineRef);
+        if (pipelineDoc == null) {
+            return Optional.empty();
+        }
+        return ReplayUnits.fedByParser(pipelineDataCache.get(pipelineDoc), getElementId().getId(),
+                this::parses);
+    }
+
+    /// Whether an element type parses, as the node's own element registry has it — the same question
+    /// `FragmentCheckImpl` asks of a fragment, asked the same way, because the two must agree.
+    private boolean parses(final String elementType) {
+        final PipelineElementType type = elementRegistryFactory.get().getElementType(elementType);
+        return type != null && type.hasRole(PipelineElementType.ROLE_PARSER);
     }
 
     /**

@@ -17,6 +17,7 @@
 package stroom.shapeshifter.ai.fragment;
 
 import stroom.docref.DocRef;
+import stroom.shapeshifter.shared.ReplayUnit;
 
 /**
  * Whether a pipeline document is a fragment in the sense of proposed ruling A20: a chain from
@@ -28,8 +29,11 @@ import stroom.docref.DocRef;
 public interface FragmentCheck {
 
     /**
+     * @return What the fragment can be replayed over (A1): {@code STREAM} where its chain parses,
+     * {@code RECORD} where it begins with a transform. The caller holds it against what the stage it is
+     * bound to may host.
      * @throws stroom.util.shared.EntityServiceException with a message naming the offending element, if
      *                                                   the pipeline is not a fragment.
      */
-    void check(DocRef pipeline);
+    ReplayUnit check(DocRef pipeline);
 }

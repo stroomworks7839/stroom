@@ -19,22 +19,29 @@ package stroom.shapeshifter.ai.doc;
 import stroom.docref.DocRef;
 import stroom.docstore.api.DocumentResourceHelper;
 import stroom.event.logging.rs.api.AutoLogged;
+import stroom.pipeline.factory.ElementRegistry;
+import stroom.pipeline.factory.ElementRegistryFactory;
+import stroom.pipeline.shared.data.PipelineElementType;
 import stroom.security.api.SecurityContext;
 import stroom.security.shared.DocumentPermission;
 import stroom.shapeshifter.ai.fragment.FragmentCheck;
+import stroom.shapeshifter.ai.fragment.ReplayUnits;
 import stroom.shapeshifter.ai.learning.Templates;
 import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.shared.BuiltInTemplates;
+import stroom.shapeshifter.shared.ReplayUnit;
 import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 import stroom.shapeshifter.shared.ShapeshifterAiResource;
 import stroom.util.shared.EntityServiceException;
+import stroom.util.shared.NullSafe;
 import stroom.util.shared.PermissionException;
 
 import jakarta.inject.Inject;
 import jakarta.inject.Provider;
 
 import java.util.List;
+import java.util.Set;
 import java.util.function.Function;
 
 @AutoLogged
@@ -44,6 +51,7 @@ public class ShapeshifterAiResourceImpl implements ShapeshifterAiResource {
     private final Provider<DocumentResourceHelper> documentResourceHelperProvider;
     private final Provider<Rules> rulesProvider;
     private final Provider<FragmentCheck> fragmentCheckProvider;
+    private final Provider<ElementRegistryFactory> elementRegistryFactoryProvider;
     private final Provider<SecurityContext> securityContextProvider;
 
     @Inject
@@ -51,11 +59,13 @@ public class ShapeshifterAiResourceImpl implements ShapeshifterAiResource {
                                   final Provider<DocumentResourceHelper> documentResourceHelperProvider,
                                   final Provider<Rules> rulesProvider,
                                   final Provider<FragmentCheck> fragmentCheckProvider,
+                                  final Provider<ElementRegistryFactory> elementRegistryFactoryProvider,
                                   final Provider<SecurityContext> securityContextProvider) {
         this.storeProvider = storeProvider;
         this.documentResourceHelperProvider = documentResourceHelperProvider;
         this.rulesProvider = rulesProvider;
         this.fragmentCheckProvider = fragmentCheckProvider;
+        this.elementRegistryFactoryProvider = elementRegistryFactoryProvider;
         this.securityContextProvider = securityContextProvider;
     }
 
@@ -98,7 +108,7 @@ public class ShapeshifterAiResourceImpl implements ShapeshifterAiResource {
     @Override
     public List<RoutingRule> addRule(final String uuid, final Integer at, final RoutingRule rule) {
         return permitted(uuid, DocumentPermission.EDIT, rules -> {
-            checkFragment(rule);
+            checkFragment(uuid, rule);
             rules.insert(uuid, rule, at == null
                     ? rules.forDocument(uuid).size()
                     : at);
@@ -113,7 +123,7 @@ public class ShapeshifterAiResourceImpl implements ShapeshifterAiResource {
                 throw new EntityServiceException("The rule UUID must match the update UUID");
             }
             known(rules, uuid, ruleUuid);
-            checkFragment(rule);
+            checkFragment(uuid, rule);
             rules.replace(uuid, rule);
             return rules.forDocument(uuid);
         });
@@ -154,9 +164,32 @@ public class ShapeshifterAiResourceImpl implements ShapeshifterAiResource {
         return work.apply(rulesProvider.get());
     }
 
-    private void checkFragment(final RoutingRule rule) {
-        if (rule.getPipeline() != null) {
-            fragmentCheckProvider.get().check(rule.getPipeline());
+    /// A rule's fragment must be a fragment (A20) and must be replayable over what this stage is given
+    /// (A1, §4): a document whose stage is fed by the source learns chains that parse, and one fed by a
+    /// parser learns chains that do not. The document's allowed elements are what say which, since they
+    /// are what a chain is chosen from.
+    ///
+    /// Both units are derived the same way, from the element registry, because a disagreement between
+    /// the two would refuse a rule that is perfectly good. A document naming no allowed elements
+    /// constrains nothing and is left alone.
+    private void checkFragment(final String uuid, final RoutingRule rule) {
+        if (rule.getPipeline() == null) {
+            return;
+        }
+        final ReplayUnit variant = fragmentCheckProvider.get().check(rule.getPipeline());
+        final ShapeshifterAiDoc doc = storeProvider.get().readDocument(
+                ShapeshifterAiDoc.buildDocRef().uuid(uuid).build());
+        if (doc == null || NullSafe.isEmptyCollection(doc.getAllowedElements())) {
+            return;
+        }
+        final ElementRegistry registry = elementRegistryFactoryProvider.get().get();
+        final ReplayUnit stage = ReplayUnits.ofElements(doc.getAllowedElements(), type -> {
+            final PipelineElementType elementType = registry.getElementType(type);
+            return elementType != null && elementType.hasRole(PipelineElementType.ROLE_PARSER);
+        });
+        if (variant != stage) {
+            throw new EntityServiceException(ReplayUnits.mismatch(variant,
+                    "Pipeline " + rule.getPipeline().getName()));
         }
     }
 

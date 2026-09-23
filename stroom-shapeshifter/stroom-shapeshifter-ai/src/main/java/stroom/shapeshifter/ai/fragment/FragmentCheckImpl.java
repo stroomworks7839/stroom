@@ -29,6 +29,7 @@ import stroom.pipeline.shared.data.PipelineElement;
 import stroom.pipeline.shared.data.PipelineElementType;
 import stroom.pipeline.shared.data.PipelineLayer;
 import stroom.security.api.SecurityContext;
+import stroom.shapeshifter.shared.ReplayUnit;
 import stroom.util.shared.EntityServiceException;
 
 import jakarta.inject.Inject;
@@ -62,7 +63,7 @@ public class FragmentCheckImpl implements FragmentCheck {
     }
 
     @Override
-    public void check(final DocRef pipeline) {
+    public ReplayUnit check(final DocRef pipeline) {
         if (!PipelineDoc.TYPE.equals(pipeline.getType())) {
             throw new EntityServiceException("A routing rule must route to a pipeline, not to '"
                                              + pipeline.getType() + "' " + pipeline.getName());
@@ -85,6 +86,13 @@ public class FragmentCheckImpl implements FragmentCheck {
                                              + " is not a fragment: element '" + element.getId() + "' ("
                                              + element.getType() + ") is a writer or destination");
         });
+        // What it can be replayed over follows from the chain itself (A1): the caller holds it against
+        // what the stage binding it may host.
+        return ReplayUnits.ofElements(elements.stream().map(PipelineElement::getType).toList(),
+                type -> {
+                    final PipelineElementType elementType = registry.getElementType(type);
+                    return elementType != null && elementType.hasRole(PipelineElementType.ROLE_PARSER);
+                });
     }
 
     /**
