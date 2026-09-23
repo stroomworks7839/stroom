@@ -68,6 +68,7 @@ import stroom.util.shared.DocPath;
 import stroom.util.shared.ElementId;
 import stroom.util.shared.Severity;
 import stroom.util.shared.StoredError;
+import stroom.util.shared.TextRange;
 
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
@@ -1124,7 +1125,7 @@ public final class Stage {
                           final List<Exchange> transcript) {
         final Bindings bindings = new Bindings(doc.getUuid(), rule.getUuid(), rule.getPipeline(),
                 rule.getRecordBoundary(), rule.isProvisional(), judged.score());
-        outputs.emitted(input.id(), input.pipeline(), bindings);
+        outputs.emitted(input.id(), input.pipeline(), bindings, judged.spans());
         return new StageRun(doc, decision, shape, bindings, judged.output(), judged.verdicts(), transcript);
     }
 
@@ -1507,7 +1508,8 @@ public final class Stage {
      *                judgement rests on (A14), counted on the input so that a variant that drops records is
      *                judged, not excused.
      */
-    private record Judged(String output, List<Verdict> verdicts, double score, int records) {
+    private record Judged(String output, List<Verdict> verdicts, double score, int records,
+                          List<TextRange> spans) {
 
         static Judged of(final List<Attempted> attempted, final Scorecard scorecard) {
             final List<Verdict> verdicts = attempted.stream().map(scorecard::judge).toList();
@@ -1517,7 +1519,12 @@ public final class Stage {
             final int records = attempted.isEmpty()
                     ? 0
                     : recordsBrought(attempted.get(0));
-            return new Judged(output, verdicts, candidateScore(verdicts), records);
+            // Where each record began and ended in the stream (§12 item 21), from the step that cut it:
+            // the parser knows, because its own locator told it, and nothing downstream does.
+            final List<TextRange> spans = attempted.isEmpty()
+                    ? List.of()
+                    : attempted.get(0).result().recordRanges();
+            return new Judged(output, verdicts, candidateScore(verdicts), records, spans);
         }
 
 

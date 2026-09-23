@@ -23,7 +23,9 @@ import stroom.shapeshifter.ai.stage.Bindings;
 import stroom.shapeshifter.ai.stage.Outputs;
 import stroom.shapeshifter.ai.stage.Replayable;
 import stroom.shapeshifter.shared.RecordBoundary;
+import stroom.util.shared.DefaultLocation;
 import stroom.util.shared.NullSafe;
+import stroom.util.shared.TextRange;
 
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
@@ -32,6 +34,9 @@ import org.jooq.impl.DSL;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 
 /// What each rule produced, as rows (design 01 §7.3 rule 3, A26): retracting a rule means finding the
@@ -46,6 +51,12 @@ public class OutputsDao implements Outputs {
     /// table, and the job runs again.
     private static final int PRUNE_BATCH = 1000;
 
+    /// How many records' spans one output keeps. A judgement is made on a sample and a fault is found
+    /// in a record, but a stream is a stream: past this, a record has no span rather than a wrong one.
+    private static final int MOST_SPANS = 100_000;
+
+    private static final Pattern SPAN = Pattern.compile("(\\d+):(\\d+)-(\\d+):(\\d+)");
+
     private final ShapeshifterAiDbConnProvider connProvider;
 
     @Inject
@@ -54,7 +65,27 @@ public class OutputsDao implements Outputs {
     }
 
     @Override
-    public void emitted(final long inputId, final String pipeline, final Bindings bindings) {
+    public Optional<TextRange> span(final long inputId, final String pipeline, final int recordIndex) {
+        if (recordIndex < 0) {
+            return Optional.empty();
+        }
+        return JooqUtil.contextResult(connProvider, context -> context
+                        .select(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.RECORD_SPANS)
+                        .from(ShapeshifterOutput.SHAPESHIFTER_OUTPUT)
+                        .where(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.INPUT_META_ID.eq(inputId))
+                        .and(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.PIPELINE_UUID.eq(ofPipeline(pipeline)))
+                        .orderBy(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.PRODUCE_TIME_MS.desc(),
+                                ShapeshifterOutput.SHAPESHIFTER_OUTPUT.ID.desc())
+                        .limit(1)
+                        .fetchOptional(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.RECORD_SPANS))
+                .flatMap(spans -> spanAt(spans, recordIndex));
+    }
+
+    @Override
+    public void emitted(final long inputId,
+                        final String pipeline,
+                        final Bindings bindings,
+                        final List<TextRange> spans) {
         final long now = System.currentTimeMillis();
         final RecordBoundary boundary = bindings.boundary();
         JooqUtil.context(connProvider, context -> context
@@ -75,6 +106,7 @@ public class OutputsDao implements Outputs {
                         RecordBoundary::getDepth))
                 .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.PROVISIONAL, bindings.provisional())
                 .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.SCORE, bindings.score())
+                .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.RECORD_SPANS, written(spans))
                 // A stream processed twice by one pipeline under one rule is one thing to replay; the
                 // later run is what its output is, so the row says the later one — including when it
                 // was produced, since the row keeps the id it was inserted with and the id cannot then
@@ -91,7 +123,47 @@ public class OutputsDao implements Outputs {
                         RecordBoundary::getDepth))
                 .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.PROVISIONAL, bindings.provisional())
                 .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.SCORE, bindings.score())
+                // The spans are left as they are where this run has none to offer: a run with no parser
+                // to ask — an as-processed reprocess, a chain that was given records — knows nothing
+                // about where the records began, and knowing nothing must not erase what was known. The
+                // stream being reprocessed is the one somebody is investigating.
+                .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.RECORD_SPANS, written(spans) == null
+                        ? ShapeshifterOutput.SHAPESHIFTER_OUTPUT.RECORD_SPANS
+                        : DSL.val(written(spans)))
                 .execute());
+    }
+
+    /// The spans as one column holds them: `line:column-line:column`, a record apiece, in the order the
+    /// parser cut them. Capped, because a stream of a million records is a million spans and what a node
+    /// keeps has to be bounded by something — past the cap a record has no span, which reads as "not
+    /// recorded" and never as a wrong one.
+    private static String written(final List<TextRange> spans) {
+        if (NullSafe.isEmptyCollection(spans)) {
+            return null;
+        }
+        return spans.stream()
+                .limit(MOST_SPANS)
+                .map(span -> span.getFrom().getLineNo() + ":" + span.getFrom().getColNo() + "-"
+                             + span.getTo().getLineNo() + ":" + span.getTo().getColNo())
+                .collect(Collectors.joining(","));
+    }
+
+    /// One record's span, read back out of the column.
+    private static Optional<TextRange> spanAt(final String spans, final int recordIndex) {
+        if (spans == null || spans.isEmpty()) {
+            return Optional.empty();
+        }
+        final String[] written = spans.split(",");
+        if (recordIndex >= written.length) {
+            return Optional.empty();
+        }
+        final Matcher matcher = SPAN.matcher(written[recordIndex]);
+        if (!matcher.matches()) {
+            return Optional.empty();
+        }
+        return Optional.of(new TextRange(
+                DefaultLocation.of(Integer.parseInt(matcher.group(1)), Integer.parseInt(matcher.group(2))),
+                DefaultLocation.of(Integer.parseInt(matcher.group(3)), Integer.parseInt(matcher.group(4)))));
     }
 
     /// An output of no pipeline is of no pipeline rather than of any: the empty string says so, and a

@@ -16,6 +16,8 @@
 
 package stroom.shapeshifter.ai.stage;
 
+import stroom.util.shared.TextRange;
+
 import java.util.List;
 import java.util.Optional;
 
@@ -28,7 +30,24 @@ public interface Outputs {
 
     /// One output, as it is emitted: which input it was made from, which pipeline was running, and what
     /// bound it (design 01 §7.3 rule 3).
-    void emitted(long inputId, String pipeline, Bindings bindings);
+    void emitted(long inputId, String pipeline, Bindings bindings, List<TextRange> spans);
+
+    /// The same, for an output whose records nobody can say the span of: a chain with no parser was
+    /// given records that already existed, and where they came from in some earlier stream is not this
+    /// stream's business.
+    default void emitted(final long inputId, final String pipeline, final Bindings bindings) {
+        emitted(inputId, pipeline, bindings, List.of());
+    }
+
+    /// Where one record of an input began and ended in it (§12 item 21, design 01 §10.1), so that a
+    /// fault found at an event — by a scorer, by a reviewer, by a person — can be relearned with the
+    /// record's own text in hand rather than by running the parser again over a stream that may be
+    /// thirty gigabytes.
+    ///
+    /// @param recordIndex Counted from zero, in the order the parser emitted them.
+    /// @return Empty where nothing was recorded for that record: an output with no parser to ask, a row
+    /// written before spans were kept, or a record past what was kept.
+    Optional<TextRange> span(long inputId, String pipeline, int recordIndex);
 
     /**
      * What one binding produced: the inputs whose output this rule made *with this fragment*, oldest

@@ -32,7 +32,9 @@ import stroom.shapeshifter.shared.PromotionMode;
 import stroom.shapeshifter.shared.QuestionKind;
 import stroom.shapeshifter.shared.RecordBoundary;
 import stroom.shapeshifter.shared.StepOutcome;
+import stroom.util.shared.DefaultLocation;
 import stroom.util.shared.PageRequest;
+import stroom.util.shared.TextRange;
 
 import com.google.inject.Guice;
 import jakarta.inject.Inject;
@@ -475,6 +477,30 @@ class TestShapesAndLedgerDao {
         assertThat(outputs.asProcessed(3L, "pipeline-1")).isEmpty();
         assertThat(outputs.asProcessed(99L, "pipeline-1"))
                 .describedAs("an input nothing remembers cannot be processed again as it was").isEmpty();
+
+        // Where each record began and ended in the stream it was cut from (§12 item 21), so that a
+        // fault found at an event is put to the model with the record that made it.
+        outputs.emitted(5L, "pipeline-1", new Bindings(DOC, "rule-1", fragment, null, false, 0.9),
+                List.of(new TextRange(DefaultLocation.of(2, 1), DefaultLocation.of(2, 40)),
+                        new TextRange(DefaultLocation.of(3, 1), DefaultLocation.of(4, 12))));
+        assertThat(outputs.span(5L, "pipeline-1", 0)).get()
+                .extracting(span -> span.getFrom().getLineNo(), span -> span.getTo().getColNo())
+                .containsExactly(2, 40);
+        assertThat(outputs.span(5L, "pipeline-1", 1)).get()
+                .describedAs("a record that spans two lines says both")
+                .extracting(span -> span.getFrom().getLineNo(), span -> span.getTo().getLineNo())
+                .containsExactly(3, 4);
+        assertThat(outputs.span(5L, "pipeline-1", 2))
+                .describedAs("a record past what was cut has no span").isEmpty();
+        assertThat(outputs.span(5L, "pipeline-9", 0))
+                .describedAs("and another pipeline's run is another output").isEmpty();
+        assertThat(outputs.span(1L, "pipeline-1", 0))
+                .describedAs("an output recorded with no spans has none to give").isEmpty();
+        // And a later run with nothing to say about the records — an as-processed reprocess, which has
+        // no parser to ask — leaves what was recorded where it is.
+        outputs.emitted(5L, "pipeline-1", new Bindings(DOC, "rule-1", fragment, null, false, 0.9));
+        assertThat(outputs.span(5L, "pipeline-1", 0))
+                .describedAs("knowing nothing does not erase what was known").isPresent();
 
         // Kept for as long as a node is told to keep them, and no longer: a row per output stream is a
         // row per stream (design 01 §12 item 8).

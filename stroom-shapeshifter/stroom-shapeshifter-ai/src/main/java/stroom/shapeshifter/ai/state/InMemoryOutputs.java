@@ -19,6 +19,7 @@ package stroom.shapeshifter.ai.state;
 import stroom.shapeshifter.ai.stage.Bindings;
 import stroom.shapeshifter.ai.stage.Outputs;
 import stroom.shapeshifter.ai.stage.Replayable;
+import stroom.util.shared.TextRange;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -35,13 +36,22 @@ public final class InMemoryOutputs implements Outputs {
     private final List<Emitted> emitted = new ArrayList<>();
 
     @Override
-    public synchronized void emitted(final long inputId, final String pipeline, final Bindings bindings) {
+    public synchronized void emitted(final long inputId,
+                                     final String pipeline,
+                                     final Bindings bindings,
+                                     final List<TextRange> spans) {
         // One row per input per rule per pipeline, as the table has it: a stream processed twice by one
         // pipeline under one rule is one thing to replay, and two pipelines are two outputs.
+        final List<TextRange> known = spans.isEmpty()
+                // A run with no parser to ask knows nothing about where the records began, and knowing
+                // nothing must not erase what was known: an as-processed reprocess of a stream keeps the
+                // spans the run that produced it recorded.
+                ? span(inputId, pipeline)
+                : List.copyOf(spans);
         emitted.removeIf(output -> output.inputId() == inputId
                                    && output.bindings().ruleUuid().equals(bindings.ruleUuid())
                                    && Objects.equals(output.pipeline(), pipeline));
-        emitted.add(new Emitted(inputId, pipeline, bindings));
+        emitted.add(new Emitted(inputId, pipeline, bindings, known));
     }
 
     @Override
@@ -52,6 +62,30 @@ public final class InMemoryOutputs implements Outputs {
                                   || fragmentUuid.equals(output.bindings().fragment().getUuid()))
                 .map(output -> new Replayable(output.inputId(), output.pipeline()))
                 .toList();
+    }
+
+    /// Every span recorded for this input on this pipeline, newest first, or empty where none was.
+    private List<TextRange> span(final long inputId, final String pipeline) {
+        return emitted.stream()
+                .filter(output -> output.inputId() == inputId)
+                .filter(output -> Objects.equals(output.pipeline(), pipeline))
+                .map(Emitted::spans)
+                .filter(spans -> !spans.isEmpty())
+                .reduce((first, last) -> last)
+                .orElseGet(List::of);
+    }
+
+    @Override
+    public synchronized Optional<TextRange> span(final long inputId,
+                                                 final String pipeline,
+                                                 final int recordIndex) {
+        return emitted.stream()
+                .filter(output -> output.inputId() == inputId)
+                .filter(output -> Objects.equals(output.pipeline(), pipeline))
+                .map(Emitted::spans)
+                .filter(spans -> recordIndex >= 0 && recordIndex < spans.size())
+                .map(spans -> spans.get(recordIndex))
+                .reduce((first, last) -> last);
     }
 
     @Override
@@ -78,7 +112,7 @@ public final class InMemoryOutputs implements Outputs {
         return List.copyOf(emitted);
     }
 
-    public record Emitted(long inputId, String pipeline, Bindings bindings) {
+    public record Emitted(long inputId, String pipeline, Bindings bindings, List<TextRange> spans) {
 
     }
 }

@@ -119,6 +119,11 @@ public class ShapeshifterOutput extends TableImpl<ShapeshifterOutputRecord> {
      */
     public final TableField<ShapeshifterOutputRecord, Long> PRODUCE_TIME_MS = createField(DSL.name("produce_time_ms"), SQLDataType.BIGINT.nullable(false).defaultValue(DSL.inline("0", SQLDataType.BIGINT)), this, "");
 
+    /**
+     * The column <code>stroom.shapeshifter_output.record_spans</code>.
+     */
+    public final TableField<ShapeshifterOutputRecord, String> RECORD_SPANS = createField(DSL.name("record_spans"), SQLDataType.CLOB(16777215), this, "");
+
     private ShapeshifterOutput(Name alias, Table<ShapeshifterOutputRecord> aliased) {
         this(alias, aliased, (Field<?>[]) null, null);
     }

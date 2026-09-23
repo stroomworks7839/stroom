@@ -1782,7 +1782,10 @@ the order they arrived. Items marked *built* already exist in `stroom-shapeshift
 21. **Input spans in the bindings** (§10.1): the record's start and end in the source, from the Data
    Splitter's locator, recorded with the bindings of §7.3 rule 3 per emitted record, and a way to read a
    record's raw text back from the store by span, so that a fault at any event can be relearned with its
-   input in hand. Extends item 7.
+   input in hand. Extends item 7. *Built 2026-09-23: the spans travel with the judgement to `Outputs`,
+   `Outputs.span` gives one back and `Inputs.textOf` reads the record out of the stream by it. A span is
+   a line and a column, since that is what the locator reports, so reading one reads the stream down to
+   that line rather than seeking to a byte.*
 22. **The plan as data** (A32–A34, §10.2): `LearningPlan` on the document — the document's
    own steps with guards and limits, override-only templates with variables, the built-ins' version;
    `PlanExample`, the two measured step lists the Learning tab loads from; the `Dialogue`
@@ -2193,6 +2196,10 @@ including the degeneracy trap (§8.3) that changes the scoring model and propose
   learned as the records it carries, where it was previously read as text and abandoned. With it:
   an element may declare a configuration that is never asked for, and each parser declares what it
   consumes so that the split question follows the stream rather than a guess from the element's shape.
+- §12 item 21 built (design 02 §6.1): each record's span in the stream it was cut from is kept with
+  the bindings, and a record's own text is read back from the stream by it — what lets a fault found at
+  an event be put to the model with the input that made it, without parsing the stream again. Scenario
+  38's read-back, which is one of phase D's exit criteria.
 - Audit of item 2's last slice (the owner's code review): five findings, all fixed — design 02 §6.1.
   The first was the drift the slice exists to prevent, and the agreement test had passed it: wrapping a
   parser dropped the record ranges input coverage (A11) is scored on, turning a gate off in silence. A

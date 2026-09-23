@@ -2196,6 +2196,40 @@ The agreement test compares diagnostics as well as output now, and three cases w
 could not see: a candidate that will not compile, input that will not parse, and a prepared candidate
 given record after record. 254 tests in the module, 14 in Tier 2.
 
+The forty-first slice, 2026-09-23, is §12 item 21 and the read-back of scenario 38: **a record's own
+text, from the stream it came from, by the span the parser recorded**.
+
+Design 01 §10.1 states the problem plainly: a stream may be thirty gigabytes and a fault found at its
+millionth event, and relearning against that event needs the event's *input*. The Data Splitter's
+locator already reports where each record began and ended — the extraction harness has read it for
+coverage since §9.1 — so the spans exist at the moment a stream is served and are thrown away.
+
+They are kept now. The parser step's spans travel with the judgement to `Outputs.emitted`, which keeps
+them beside the bindings that produced the output, and `Outputs.span(input, pipeline, record)` gives one
+back. `Inputs.textOf(input, span)` reads the record's text out of the stream: the stream is kept where
+every stream is kept, and keeping the record as well would be keeping real data twice, which A17 has not
+yet been built to make safe.
+
+Two limits, stated where they will be met. A span is a line and a column, because that is what the
+locator reports, so reading one still means reading the stream down to that line — cheaper than
+parsing it again, and not free; byte offsets would be better and the locator does not give them. And
+the spans of one output are kept as one list in one column rather than a row per record, because a
+stream of a million records is a million spans and a row apiece would make the history of a stream
+larger than the stream's history; the list is capped, and past the cap a record has no span, which reads
+as "not recorded" and never as a wrong one.
+
+My own audit of the slice, the owner's code review having been interrupted, found one defect and it was
+in the path most likely to meet it. **An as-processed reprocess erased the spans of the run it was
+auditing.** A reprocess runs the written fragment and so has no parser to ask; it recorded its output
+with no spans, and the row's spans were overwritten with nothing. The stream somebody reprocesses as it
+was processed is precisely the stream they are investigating, and the investigation would have destroyed
+its own evidence on the way in. Knowing nothing must not erase what was known: both stores now leave the
+spans where they are when a run has none to offer, and a scenario and a DAO case say so — the scenario
+fails against the code as it was.
+
+258 tests in the module and 24 against MySQL. What scenario 38 still wants beyond the read-back is a
+fault to be *reported* against an event — by a scorer, by a reviewer, by a person — which is the
+Supervisor's to do (A46, item 29): the reading back is the part phase D owed.
 ### 6.4 What the one-record run found
 
 Item 25 changed what the model is shown, and no scripted scenario can say whether that makes it write
