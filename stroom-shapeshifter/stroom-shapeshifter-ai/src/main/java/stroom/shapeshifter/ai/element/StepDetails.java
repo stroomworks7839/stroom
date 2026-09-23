@@ -92,9 +92,12 @@ public final class StepDetails {
                 .build();
     }
 
-    /// What was decided, in one line, in the terms design 02 §4 uses. Every decision has a line: a pane
-    /// that says nothing for the outcomes nobody thought about is worse than no pane.
-    private static String describe(final Decision decision) {
+    /// What was decided, in one line, in the terms design 02 §4 uses.
+    ///
+    /// **Every** decision has a line. A surface that says nothing for the outcomes nobody thought about
+    /// is worse than no surface, and the error stream and the stage pane say the same thing because
+    /// they say it from here — a second switch elsewhere is a second place to forget an outcome.
+    public static String describe(final Decision decision) {
         return switch (decision) {
             case Bound bound -> bound.rule() == null
                     ? "Served by the fragment that produced this input's output before"

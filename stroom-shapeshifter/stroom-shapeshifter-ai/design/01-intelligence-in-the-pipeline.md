@@ -1737,7 +1737,10 @@ the order they arrived. Items marked *built* already exist in `stroom-shapeshift
 13. **Review mode** (A25): `promotionMode` on the document, `draft` on a routing rule (authoritative; the
    shape's `awaiting review` status mirrors it), the router skipping drafts, Approve and Reject on the
    Routing tab, and rejection recorded against the shape. *All but the Routing tab's buttons built
-   2026-09-18 as `Stage.approve` and `Stage.reject` — design 02 §6.1.*
+   2026-09-18 as `Stage.approve` and `Stage.reject` — design 02 §6.1. **The buttons built 2026-09-23**:
+   two endpoints on the document's resource running the stage in a pipeline scope as the Supervisor's
+   own actions do, and two buttons enabled only where the selected rule is a draft. Approve asks first;
+   Reject asks why and refuses a blank, since the reason is all the shape carries afterwards.*
 14. **The AI review job** (A23): sampling of emitted records under an hourly budget, the audit
    stream of findings, the rolling score per shape, the relearn trigger and the `Critique` question.
    ***Deferred — §15.2.***
@@ -2236,6 +2239,12 @@ including the degeneracy trap (§8.3) that changes the scoring model and propose
   candidate rather than writing it, and captures what the element wrote; the module's runners remain
   Tier 1's, and a Tier 2 scenario per kind of element holds the two to the same answers. The four Tier 2
   scenarios now run their candidates through the real elements without a line changing in them.
+- **Approve and Reject on the Routing tab** (§12 item 13's remainder, design 02 §6.1): review mode has
+  been built in the stage since 2026-09-18 and had no buttons. It has them now, on the table that holds
+  the draft. The slice also found a regression the audit before it had introduced — a second description
+  of a decision, with a `default` that threw, called for outcomes it had never been called for, which
+  fataled every successful stream. Only Tier 2 saw it, because the module tier has no element; there is
+  one description now and a test that every outcome has a line.
 - Audit of the phase F slices (the owner's code review): five findings, all fixed — design 02 §6.1.
   Four were the dry run telling a person something other than what would happen: the pane prefixing
   *Would* onto a decision that was not hypothetical; a step the element had nothing to say about keeping

@@ -21,17 +21,21 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * Why a person rejected what an attempt drafted (A25, A28): the reason is the shape's, and the model is
- * not asked about that shape again until somebody says otherwise.
+ * Why a person rejected a draft (A25): the reason is the shape's, and the model is not asked about that
+ * shape again until somebody says otherwise.
+ * <p>
+ * The same rejection is offered in two places — on the document's Routing tab beside the draft, and in
+ * the Supervisor view beside the attempt that drafted it (A28) — because a person meets it in whichever
+ * they happen to be in. It is one act either way, and this is what it carries.
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class RejectAttemptRequest {
+public class RejectRequest {
 
     @JsonProperty
     private final String reason;
 
     @JsonCreator
-    public RejectAttemptRequest(@JsonProperty("reason") final String reason) {
+    public RejectRequest(@JsonProperty("reason") final String reason) {
         this.reason = reason;
     }
 

@@ -16,15 +16,28 @@
 
 package stroom.shapeshifter.ai.element;
 
+import stroom.docref.DocRef;
 import stroom.shapeshifter.ai.extraction.ExtractionCorpus.Golden;
 import stroom.shapeshifter.ai.scenario.QuestionMatcher;
 import stroom.shapeshifter.ai.scenario.Scenarios;
 import stroom.shapeshifter.ai.scenario.Script;
+import stroom.shapeshifter.ai.stage.Decision;
+import stroom.shapeshifter.ai.stage.Decision.Bound;
+import stroom.shapeshifter.ai.stage.Decision.Drafted;
+import stroom.shapeshifter.ai.stage.Decision.GivenUp;
+import stroom.shapeshifter.ai.stage.Decision.Kept;
+import stroom.shapeshifter.ai.stage.Decision.Promoted;
+import stroom.shapeshifter.ai.stage.Decision.Provisional;
+import stroom.shapeshifter.ai.stage.Decision.Rebound;
+import stroom.shapeshifter.ai.stage.Decision.Retracted;
+import stroom.shapeshifter.ai.stage.Decision.Sentinel;
+import stroom.shapeshifter.ai.stage.Decision.Would;
 import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.Stage;
 import stroom.shapeshifter.ai.stage.StageRun;
 import stroom.shapeshifter.shared.LearningMode;
 import stroom.shapeshifter.shared.QuestionKind;
+import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ScorerSetting;
 import stroom.shapeshifter.shared.ScorerType;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
@@ -120,6 +133,40 @@ class TestStepDetails {
         assertThat(details.getFragment()).isNull();
         assertThat(details.getVerdicts()).isEmpty();
         assertThat(details.getTranscript()).isEmpty();
+    }
+
+    /// Every decision gets a line, and this is the test that says so.
+    ///
+    /// It exists because the error stream once had a switch of its own with a `default` that threw, and
+    /// it was only ever called for a decision that bound nothing — until it was called for one that did,
+    /// and every successful stream fataled. One description now, exhaustive over a sealed type, so a new
+    /// outcome will not compile until it has one; the count below is what stops a new outcome being
+    /// added to that switch and forgotten here.
+    @Test
+    void everyDecisionSaysWhatItWas() {
+        final RoutingRule rule = RoutingRule.builder().uuid("rule-1")
+                .pipeline(DocRef.builder().type("Pipeline").uuid("f-1").name("door-v1").build())
+                .build();
+        final List<Decision> all = List.of(
+                new Bound(rule),
+                new Bound(null),
+                new Promoted(rule, 0.9),
+                new Provisional(rule, 0.9, 3, 5),
+                new Rebound(rule, rule, 0.95),
+                new Kept(rule, "the candidate was worse"),
+                new Drafted(rule, 0.9),
+                new Retracted(rule, 0.2, "it failed the gate"),
+                new GivenUp("nothing passed", List.of()),
+                new Sentinel("nothing binds this shape"),
+                new Would("learn a fragment for this shape", null));
+
+        assertThat(all).allSatisfy(decision -> assertThat(StepDetails.describe(decision))
+                .describedAs(decision.getClass().getSimpleName() + " says nothing for itself")
+                .isNotBlank());
+        assertThat(all.stream().map(decision -> decision.getClass()).distinct().count())
+                .describedAs("one of every kind of decision there is: a kind with no line is a surface "
+                             + "that goes blank where somebody most needs it to speak")
+                .isEqualTo(Decision.class.getPermittedSubclasses().length);
     }
 
     private Script script(final Scenarios scenarios) {

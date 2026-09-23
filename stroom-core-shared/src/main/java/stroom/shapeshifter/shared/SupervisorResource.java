@@ -76,7 +76,7 @@ public interface SupervisorResource extends RestResource, DirectRestService {
     @Path("/{id}/reject")
     @Operation(summary = "Reject what an attempt drafted, and give up on its shape",
             operationId = "rejectShapeshifterAiAttempt")
-    SupervisorAttempt reject(@PathParam("id") long id, RejectAttemptRequest request);
+    SupervisorAttempt reject(@PathParam("id") long id, RejectRequest request);
 
     @POST
     @Path("/{id}/relearn")

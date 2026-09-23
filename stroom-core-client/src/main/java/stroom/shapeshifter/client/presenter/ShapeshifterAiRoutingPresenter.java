@@ -17,16 +17,19 @@
 package stroom.shapeshifter.client.presenter;
 
 import stroom.alert.client.event.ConfirmEvent;
+import stroom.alert.client.event.PromptEvent;
 import stroom.dispatch.client.RestFactory;
 import stroom.docref.DocRef;
 import stroom.entity.client.presenter.DocPresenter;
 import stroom.query.client.ExpressionTreePresenter;
 import stroom.shapeshifter.client.presenter.RoutingRuleListPresenter.RoutingRow;
 import stroom.shapeshifter.client.presenter.ShapeshifterAiRoutingPresenter.ShapeshifterAiRoutingView;
+import stroom.shapeshifter.shared.RejectRequest;
 import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 import stroom.shapeshifter.shared.ShapeshifterAiResource;
 import stroom.svg.client.SvgPresets;
+import stroom.util.shared.NullSafe;
 import stroom.widget.button.client.ButtonView;
 import stroom.widget.popup.client.event.ShowPopupEvent;
 import stroom.widget.popup.client.presenter.PopupSize;
@@ -71,6 +74,8 @@ public class ShapeshifterAiRoutingPresenter
     private final ButtonView deleteButton;
     private final ButtonView moveUpButton;
     private final ButtonView moveDownButton;
+    private final ButtonView approveButton;
+    private final ButtonView rejectButton;
 
     @Inject
     public ShapeshifterAiRoutingPresenter(final EventBus eventBus,
@@ -97,6 +102,10 @@ public class ShapeshifterAiRoutingPresenter
         deleteButton = listPresenter.add(SvgPresets.DELETE.title("Delete selected rule"));
         moveUpButton = listPresenter.add(SvgPresets.UP.title("Move selected rule up"));
         moveDownButton = listPresenter.add(SvgPresets.DOWN.title("Move selected rule down"));
+        // Review mode's two decisions (A25, design 01 §11.3), where a person meets the draft: on the
+        // table that holds it, beside the fragment it binds and the shape it is for.
+        approveButton = listPresenter.add(SvgPresets.TICK.title("Approve the selected draft"));
+        rejectButton = listPresenter.add(SvgPresets.DISABLE.title("Reject the selected draft"));
         listPresenter.getView().asWidget().getElement().getStyle().setBorderStyle(BorderStyle.NONE);
         updateButtons();
     }
@@ -109,6 +118,8 @@ public class ShapeshifterAiRoutingPresenter
         registerHandler(deleteButton.addClickHandler(this::onDelete));
         registerHandler(moveUpButton.addClickHandler(event -> move(-1)));
         registerHandler(moveDownButton.addClickHandler(event -> move(1)));
+        registerHandler(approveButton.addClickHandler(this::onApprove));
+        registerHandler(rejectButton.addClickHandler(this::onReject));
         registerHandler(listPresenter.getSelectionModel().addSelectionHandler(this::onSelection));
         super.onBind();
     }
@@ -156,6 +167,10 @@ public class ShapeshifterAiRoutingPresenter
                 .create(RESOURCE)
                 .method(call::apply)
                 .onSuccess(saved -> {
+                    // Cleared before the table is rebuilt, not after. A selection is a *row*, and a row
+                    // is a position: once a rule has gone, the position a person selected is a different
+                    // rule or none at all, and the buttons are decided from whatever it now points at.
+                    listPresenter.getSelectionModel().clear();
                     rules.clear();
                     rules.addAll(saved);
                     update();
@@ -167,7 +182,6 @@ public class ShapeshifterAiRoutingPresenter
                             }
                         }
                     }
-                    listPresenter.getSelectionModel().clear();
                 })
                 .taskMonitorFactory(this)
                 .exec();
@@ -186,7 +200,9 @@ public class ShapeshifterAiRoutingPresenter
 
     private RoutingRule selected() {
         final int index = selectedIndex();
-        return index < 0
+        // And past the end is nothing, not a fault: a row outlives the table it was a row of, so a
+        // caller asking during a rebuild asks about a position that may no longer exist.
+        return index < 0 || index >= rules.size()
                 ? null
                 : rules.get(index);
     }
@@ -248,6 +264,50 @@ public class ShapeshifterAiRoutingPresenter
                 });
             }
         }
+    }
+
+    /// Approve a draft (A25): the promotion it was waiting for. Confirmed, because it puts a learned
+    /// transform in front of live data and releases every stream that waited for it.
+    private void onApprove(final ClickEvent event) {
+        final RoutingRule draft = selectedDraft();
+        if (draft != null) {
+            ConfirmEvent.fire(this,
+                    "Approve this draft? It binds "
+                    + NullSafe.getOrElse(draft.getPipeline(), DocRef::getName, "its fragment")
+                    + " for its shape, and every stream that waited for it is processed again.",
+                    ok -> {
+                        if (ok) {
+                            apply(resource -> resource.approveRule(docUuid, draft.getUuid()),
+                                    draft.getUuid());
+                        }
+                    });
+        }
+    }
+
+    /// Reject a draft (A25): the rule goes and the shape is given up with the reason, so the model is
+    /// not asked the same question again until somebody says otherwise. The reason is asked for rather
+    /// than assumed: it is what the person who finds the shape given up next month has to read.
+    private void onReject(final ClickEvent event) {
+        final RoutingRule draft = selectedDraft();
+        if (draft != null) {
+            PromptEvent.fire(this, "Why is this draft being rejected? Its shape is given up with the "
+                                   + "reason, and not learned again until somebody says otherwise.", "",
+                    reason -> {
+                        if (!NullSafe.isBlankString(reason)) {
+                            apply(resource -> resource.rejectRule(docUuid, draft.getUuid(),
+                                    new RejectRequest(reason)), null);
+                        }
+                    });
+        }
+    }
+
+    /// The selected rule where it is a draft awaiting review, and null otherwise: approving is not
+    /// something that can be done to a rule that is already live.
+    private RoutingRule selectedDraft() {
+        final RoutingRule rule = selected();
+        return !isReadOnly() && rule != null && rule.isDraft()
+                ? rule
+                : null;
     }
 
     private void move(final int by) {
@@ -312,6 +372,9 @@ public class ShapeshifterAiRoutingPresenter
         deleteButton.setEnabled(editable && selected);
         moveUpButton.setEnabled(editable && index > 0);
         moveDownButton.setEnabled(editable && index >= 0 && index < rules.size() - 1);
+        final boolean draft = selectedDraft() != null;
+        approveButton.setEnabled(draft);
+        rejectButton.setEnabled(draft);
     }
 
 

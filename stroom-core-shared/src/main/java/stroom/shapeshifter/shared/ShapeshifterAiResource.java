@@ -112,4 +112,23 @@ public interface ShapeshifterAiResource
     List<RoutingRule> deleteRule(
             @PathParam("uuid") String uuid,
             @PathParam("ruleUuid") String ruleUuid);
+
+    @POST
+    @Path("/{uuid}/rules/{ruleUuid}/approve")
+    @Operation(
+            summary = "Approve a draft rule, which is the promotion it was waiting for",
+            operationId = "approveShapeshifterAiRule")
+    List<RoutingRule> approveRule(
+            @PathParam("uuid") String uuid,
+            @PathParam("ruleUuid") String ruleUuid);
+
+    @POST
+    @Path("/{uuid}/rules/{ruleUuid}/reject")
+    @Operation(
+            summary = "Reject a draft rule, giving its shape up with the reason",
+            operationId = "rejectShapeshifterAiRule")
+    List<RoutingRule> rejectRule(
+            @PathParam("uuid") String uuid,
+            @PathParam("ruleUuid") String ruleUuid,
+            @Parameter(description = "reason", required = true) RejectRequest request);
 }

@@ -35,12 +35,6 @@ import stroom.pipeline.state.PipelineHolder;
 import stroom.shapeshifter.ai.doc.ShapeshifterAiStore;
 import stroom.shapeshifter.ai.fragment.ReplayUnits;
 import stroom.shapeshifter.ai.stage.Bindings;
-import stroom.shapeshifter.ai.stage.Decision;
-import stroom.shapeshifter.ai.stage.Decision.Drafted;
-import stroom.shapeshifter.ai.stage.Decision.GivenUp;
-import stroom.shapeshifter.ai.stage.Decision.Retracted;
-import stroom.shapeshifter.ai.stage.Decision.Sentinel;
-import stroom.shapeshifter.ai.stage.Decision.Would;
 import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.Stage;
 import stroom.shapeshifter.ai.stage.Stage.Served;
@@ -206,7 +200,7 @@ public class Supervision {
                         : bindings == null
                                 ? Severity.ERROR
                                 : Severity.INFO, null, elementId,
-                "Shape " + run.shape().id() + ": " + reason(run.decision()), null);
+                "Shape " + run.shape().id() + ": " + StepDetails.describe(run.decision()), null);
 
         // Recorded only where a fragment really was bound and really did run: a step leaves no trace of
         // having asked, and the bindings of a run nobody made do not belong on the stream.
@@ -329,16 +323,4 @@ public class Supervision {
         return type != null && type.hasRole(PipelineElementType.ROLE_PARSER);
     }
 
-    private static String reason(final Decision decision) {
-        return switch (decision) {
-            case Sentinel sentinel -> sentinel.reason();
-            case GivenUp givenUp -> "Shape given up: " + givenUp.reason();
-            case Retracted retracted -> retracted.reason();
-            case Drafted drafted -> "Awaiting review: draft rule " + drafted.rule().getUuid() + " binds "
-                                    + drafted.rule().getPipeline().getName();
-            // Stepping: what the stage would have done, which is all a dry run may say (A30).
-            case Would would -> would.said();
-            default -> throw new IllegalStateException("Decision " + decision + " bound nothing and refused nothing");
-        };
-    }
 }

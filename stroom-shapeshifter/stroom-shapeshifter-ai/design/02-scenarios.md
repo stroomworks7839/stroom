@@ -2520,6 +2520,55 @@ is made. One fix is not covered either: that a variant's output reaches the pane
 the stage to reporting the variant and carrying its output.
 
 
+The forty-fifth slice, 2026-09-23, is design 03 §7's seventh: **Approve and Reject on the Routing tab**
+(A25, §12 item 13's remainder).
+
+Review mode has been built in the stage since 2026-09-18 and has had no buttons: `Stage.approve` is the
+promotion a draft was waiting for — the rule goes live, or the incumbent is rebound to its fragment and
+keeps its history, and the shape's ledger is released as a reprocess request so that nothing which
+arrived while it waited is lost — and `Stage.reject` takes the rule with its records and gives the shape
+up with the reason. Both are now reachable from the table that holds the draft, which is where a person
+meets it.
+
+Two endpoints on the document's resource, running the stage in a pipeline scope as the Supervisor's own
+actions do; two buttons on the Routing tab, enabled only where the selected rule is a draft. Approve
+asks first, because it puts a learned transform in front of live data and releases every stream that
+waited. Reject asks *why*, and refuses a blank: the shape is given up with the reason, and the person
+who finds it given up next month has that reason and nothing else to go on.
+
+`RejectAttemptRequest` became `RejectRequest`. The same rejection is offered in two places now — beside
+the draft on the Routing tab, and beside the attempt that drafted it in the Supervisor view — and it is
+one act either way.
+
+**And the slice found a regression in the one before it**, which is worth recording because of where it
+was found. The supervision's `reason()` had a switch of its own with a `default` that threw, and that was
+harmless while it was only ever called for a decision that bound nothing. The audit of the previous slice
+made it log the decision unconditionally — including the ones that *did* bind — so every successful
+stream fataled at the supervisor. Only Tier 2 saw it: the module tier has no element.
+
+There is one description of a decision now, exhaustive over the sealed type with no default, read by the
+error stream and the stage pane alike, and a test holds one of every kind of decision to having a line
+— with the count checked against the permitted subclasses, so a new outcome cannot be added and
+forgotten. A second switch elsewhere was a second place to forget an outcome, and it was.
+
+The audit of this slice (the owner's code review) found four, all fixed, and the first was the same kind
+of mistake as the regression above: **a new reader of old state.** Enabling the buttons meant asking
+which rule is selected, which the toolbar had never asked before — it had only ever asked *whether*
+something was. A selection is a row and a row is a position, and the table is rebuilt from the server's
+answer after every action, so a rule that has just gone leaves the selection pointing at a different
+rule or past the end of the table altogether: approving a draft in the last position threw inside the
+REST callback, and deleting a middle row quietly enabled Approve against the wrong rule. The selection
+is cleared before the rebuild now rather than after it, and asking for a rule past the end answers
+nothing rather than throwing.
+
+Three smaller ones with it. The resource logged the decision *before* making it, in the one log somebody
+reads to find out who decided what — and the stage refuses a draft another operator has already decided,
+or one whose incumbent is pinned, so the line could record an approval that never happened. A draft's
+fragment can be cleared by hand on the Edit dialog, and the confirmation named it without checking. And
+Reject wore the Delete icon, three buttons along from Delete itself: one removes a row, the other gives a
+shape up for good, and only the tooltip said which was which.
+
+
 ## 7. Decisions taken
 
 Ruled 2026-09-17, each as recommended:

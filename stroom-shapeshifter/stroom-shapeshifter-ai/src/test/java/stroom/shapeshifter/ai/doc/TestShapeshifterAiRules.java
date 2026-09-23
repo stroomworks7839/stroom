@@ -24,15 +24,19 @@ import stroom.pipeline.shared.data.PipelineElementType;
 import stroom.security.api.SecurityContext;
 import stroom.security.mock.MockSecurityContext;
 import stroom.security.shared.DocumentPermission;
+import stroom.shapeshifter.ai.element.StageFactory;
 import stroom.shapeshifter.ai.fragment.FragmentCheck;
 import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.ai.state.InMemoryRules;
+import stroom.shapeshifter.shared.RejectRequest;
 import stroom.shapeshifter.shared.ReplayUnit;
 import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
+import stroom.util.pipeline.scope.PipelineScopeRunnable;
 import stroom.util.shared.EntityServiceException;
 import stroom.util.shared.PermissionException;
 
+import jakarta.inject.Provider;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
@@ -47,6 +51,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * match — so position is the thing these tests watch.
  */
 class TestShapeshifterAiRules {
+
+    /// Every case here is refused — no permission, an unknown rule, a fragment that does not fit, a
+    /// rejection with no reason — before anything could ask for a stage. A null says so: reaching one
+    /// would be a loud failure rather than a quiet pass.
+    private static final Provider<StageFactory> STAGE_NEVER_REACHED = () -> null;
+    private static final Provider<PipelineScopeRunnable> SCOPE_NEVER_ENTERED = () -> null;
 
     private static final String DOC = "doc-1";
     private static final DocRef FRAGMENT = new DocRef(PipelineDoc.TYPE, "fragment-1", "door-v1");
@@ -142,7 +152,7 @@ class TestShapeshifterAiRules {
         };
         final ShapeshifterAiResourceImpl resource = new ShapeshifterAiResourceImpl(
                 () -> storeOf(List.of("DSParser", "XSLTFilter")), () -> null, () -> rules, () -> refuses,
-                () -> registry(), MockSecurityContext::new);
+                () -> registry(), MockSecurityContext::new, STAGE_NEVER_REACHED, SCOPE_NEVER_ENTERED);
 
         assertThatThrownBy(() -> resource.addRule(DOC, 0, rule(null).copy().pipeline(FRAGMENT).build()))
                 .isInstanceOf(EntityServiceException.class)
@@ -158,7 +168,7 @@ class TestShapeshifterAiRules {
         final ShapeshifterAiStore records = storeOf(List.of("XSLTFilter"));
         final ShapeshifterAiResourceImpl resource = new ShapeshifterAiResourceImpl(
                 () -> records, () -> null, () -> rules, () -> pipeline -> ReplayUnit.STREAM,
-                () -> registry(), MockSecurityContext::new);
+                () -> registry(), MockSecurityContext::new, STAGE_NEVER_REACHED, SCOPE_NEVER_ENTERED);
 
         assertThatThrownBy(() -> resource.addRule(DOC, 0, rule(null)))
                 .isInstanceOf(EntityServiceException.class)
@@ -172,7 +182,7 @@ class TestShapeshifterAiRules {
         final ShapeshifterAiStore stream = storeOf(List.of("DSParser", "XSLTFilter"));
         final ShapeshifterAiResourceImpl resource = new ShapeshifterAiResourceImpl(
                 () -> stream, () -> null, () -> rules, () -> pipeline -> ReplayUnit.RECORD,
-                () -> registry(), MockSecurityContext::new);
+                () -> registry(), MockSecurityContext::new, STAGE_NEVER_REACHED, SCOPE_NEVER_ENTERED);
 
         assertThatThrownBy(() -> resource.addRule(DOC, 0, rule(null)))
                 .isInstanceOf(EntityServiceException.class)
@@ -207,12 +217,56 @@ class TestShapeshifterAiRules {
         return store;
     }
 
+    @Test
+    void aRejectionSaysWhy() {
+        final ShapeshifterAiResourceImpl resource = resource(new MockSecurityContext());
+        rules.append(DOC, rule("draft-1").copy().draft(true).build());
+
+        assertThatThrownBy(() -> resource.rejectRule(DOC, "draft-1", new RejectRequest("  ")))
+                .describedAs("the shape is given up with the reason, and a blank is not one: the person "
+                             + "who finds it given up next month has to be able to read why")
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("says why");
+        assertThatThrownBy(() -> resource.rejectRule(DOC, "draft-1", null))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThat(rules.forDocument(DOC))
+                .describedAs("and the draft is still there").hasSize(1);
+    }
+
+    @Test
+    void aDecisionIsOnlyForARuleOfThisDocument() {
+        final ShapeshifterAiResourceImpl resource = resource(new MockSecurityContext());
+
+        assertThatThrownBy(() -> resource.approveRule(DOC, "not-a-rule"))
+                .isInstanceOf(EntityServiceException.class)
+                .hasMessageContaining("not a rule of this document");
+        assertThatThrownBy(() -> resource.rejectRule(DOC, "not-a-rule", new RejectRequest("no good")))
+                .isInstanceOf(EntityServiceException.class)
+                .hasMessageContaining("not a rule of this document");
+    }
+
+    @Test
+    void aDecisionNeedsPermissionToEditTheDocument() {
+        final ShapeshifterAiResourceImpl resource = resource(new MockSecurityContext() {
+            @Override
+            public boolean hasDocumentPermission(final DocRef docRef, final DocumentPermission permission) {
+                return false;
+            }
+        });
+        rules.append(DOC, rule("draft-1").copy().draft(true).build());
+
+        assertThatThrownBy(() -> resource.approveRule(DOC, "draft-1"))
+                .isInstanceOf(PermissionException.class);
+        assertThatThrownBy(() -> resource.rejectRule(DOC, "draft-1", new RejectRequest("no good")))
+                .isInstanceOf(PermissionException.class);
+    }
+
     private ShapeshifterAiResourceImpl resource(final SecurityContext securityContext) {
         // Takes the fragment at its word, and says its chain parses, as the documents here allow.
         final FragmentCheck takesItAtItsWord = pipeline -> ReplayUnit.STREAM;
         final ShapeshifterAiStore store = storeOf(List.of("DSParser", "XSLTFilter"));
         return new ShapeshifterAiResourceImpl(() -> store, () -> null, () -> rules, () -> takesItAtItsWord,
-                () -> registry(), () -> securityContext);
+                () -> registry(), () -> securityContext, STAGE_NEVER_REACHED, SCOPE_NEVER_ENTERED);
     }
 
     private static RoutingRule rule(final String uuid) {

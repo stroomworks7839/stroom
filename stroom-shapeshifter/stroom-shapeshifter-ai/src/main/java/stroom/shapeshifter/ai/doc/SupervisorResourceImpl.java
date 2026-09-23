@@ -27,7 +27,7 @@ import stroom.shapeshifter.ai.stage.Attempts.Recorded;
 import stroom.shapeshifter.ai.stage.Attempts.Turn;
 import stroom.shapeshifter.shared.AmendTurnRequest;
 import stroom.shapeshifter.shared.AttemptCriteria;
-import stroom.shapeshifter.shared.RejectAttemptRequest;
+import stroom.shapeshifter.shared.RejectRequest;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 import stroom.shapeshifter.shared.SupervisorAttempt;
 import stroom.shapeshifter.shared.SupervisorResource;
@@ -113,7 +113,7 @@ public class SupervisorResourceImpl implements SupervisorResource {
     }
 
     @Override
-    public SupervisorAttempt reject(final long id, final RejectAttemptRequest request) {
+    public SupervisorAttempt reject(final long id, final RejectRequest request) {
         if (request == null || request.getReason() == null || request.getReason().isBlank()) {
             throw new IllegalArgumentException("A rejection says why: the shape is given up with the reason");
         }
