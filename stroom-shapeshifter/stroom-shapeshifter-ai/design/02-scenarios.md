@@ -1792,6 +1792,55 @@ what the one before it wrote; and a block javadoc that had come loose from `show
 
 242 tests in the module, 24 against MySQL, 4 in Tier 2.
 
+The thirty-fourth slice, 2026-09-23, is the first of the two changes to `stroom-pipeline` that phase D
+rests on (§12 item 1): **an element runs the configuration it was handed, without that being a stepping
+session and without the configuration having been written anywhere**.
+
+Stepping could always do this — a person edits a stylesheet in the stepper and the pipeline runs with
+their edit — but the only way to say so was to *be* a stepping session, because `PipelineFactory` read
+the code out of the stepping request while setting a property. Anything else had to fake a session or
+write the document first, and writing before scoring is what design §7.3 forbids: the supervisor must
+judge a candidate before anything is promoted.
+
+So the code travels in its own carrier, `InjectedCode` — a pipeline-scoped map of element id to
+configuration text, set by whoever is building the pipeline. Two details are what make it useful rather
+than a rename:
+
+- **It is applied to the element, not to a property.** The old path only reached an element while
+  setting a `DocRef` property, so an element that references nothing was never offered the code at all.
+  A candidate references nothing. The factory now applies the carrier as it builds each element.
+- **An element with no document runs the code as the whole of its configuration.** `XsltFilter` and the
+  three text-converter parsers built a transient document from injected code only where they had
+  already found one to copy; where they find none they now build one from the code rather than failing
+  with "no data splitter is configured". It is never pooled: it is nobody else's stylesheet.
+
+The stepper says what it wants the same way anything else does — `StreamCaptureDriver` and
+`ReprocessDriver` set the carrier from the step request — and `PipelineFactory.setProperty` is back to
+setting a property, with the `SteppingController` parameter gone from it.
+
+Two tests in `stroom-app`, one either way: a pipeline whose `XSLTFilter` references no XSLT at all
+transforms its input when the carrier holds a stylesheet, and passes the input through untouched when it
+does not. The second is what makes the first mean anything.
+
+This is a change to `stroom-pipeline` proper and should be proposed on its own merits, as §12 says of
+both items: the stepper is its other beneficiary, since a configuration override that does not imply a
+stepping session is what lets the stepper's own machinery be used outside it. Item 2, the headless
+capture-and-score harness, is the other half and is next.
+
+The audit of the slice, before that: the question it had to answer is whether stepping still honours a
+person's edit, since the old path was removed rather than added to, and nothing about it would throw if
+it had been missed — the edit would simply stop arriving. It does, and an existing test proves it:
+`TestFilteredStepAfterEdit` steps a stream with `code` set for an element and asserts on what the
+element then produced, and it passes with the code arriving through the carrier instead of the request.
+Ten stepping test classes run green beside it.
+
+Two findings, both fixed. `setProperty`'s `id` parameter was read only by the injection it no longer
+does, so it was a dead parameter on a public static method: removed, with its two call sites. And the
+`CombinedParser` reaches injected code only where its `type` property is set — the legacy configuration
+names the kind of converter by the document it references, and with no document there is nothing to name
+it by, so it parses as XML exactly as it did before. That is a real limit and is now said in the code
+rather than left to be discovered.
+
 ### 6.4 What the one-record run found
 
 Item 25 changed what the model is shown, and no scripted scenario can say whether that makes it write

@@ -37,7 +37,6 @@ import stroom.pipeline.shared.data.PipelineLink;
 import stroom.pipeline.shared.data.PipelineProperty;
 import stroom.pipeline.shared.data.PipelinePropertyValue;
 import stroom.pipeline.shared.data.PipelineReference;
-import stroom.pipeline.shared.stepping.PipelineStepRequest;
 import stroom.pipeline.shared.stepping.SteppingFilterSettings;
 import stroom.pipeline.source.SourceElement;
 import stroom.pipeline.stepping.capture.ElementMonitor;
@@ -71,16 +70,19 @@ public class PipelineFactory {
     private final ElementFactory elementFactory;
     private final ProcessorFactory processorFactory;
     private final ErrorReceiverProxy errorReceiverProxy;
+    private final InjectedCode injectedCode;
 
     @Inject
     public PipelineFactory(final ElementRegistryFactory pipelineElementRegistryFactory,
                            final ElementFactory elementFactory,
                            final ProcessorFactory processorFactory,
-                           final ErrorReceiverProxy errorReceiverProxy) {
+                           final ErrorReceiverProxy errorReceiverProxy,
+                           final InjectedCode injectedCode) {
         this.pipelineElementRegistryFactory = pipelineElementRegistryFactory;
         this.elementFactory = elementFactory;
         this.processorFactory = processorFactory;
         this.errorReceiverProxy = errorReceiverProxy;
+        this.injectedCode = injectedCode;
 
         if (processorFactory == null) {
             throw new NullPointerException("processorFactory is null");
@@ -323,8 +325,16 @@ public class PipelineFactory {
                     element.getId(),
                     element.getType(),
                     elementInstance,
-                    pipelineData,
-                    controller);
+                    pipelineData);
+
+            // Run this element with the code it was given rather than what it references, where something
+            // building the pipeline said so: the stepper with a person's edit, or a supervisor with a
+            // candidate it is judging. Applied to the element itself and not while setting a property, so
+            // that an element with no document to override still takes the code — which is what lets a
+            // candidate run before it has been written anywhere.
+            if (elementInstance instanceof final SupportsCodeInjection supportsCodeInjection) {
+                injectedCode.get(element.getId()).ifPresent(supportsCodeInjection::setInjectedCode);
+            }
 
             // Set the pipeline references on this instance.
             setPipelineReferences(pipelineElementRegistry, element.getId(), element.getType(), elementInstance,
@@ -352,27 +362,26 @@ public class PipelineFactory {
                                final String id,
                                final String elementType,
                                final Object elementInstance,
-                               final PipelineData pipelineData,
-                               final SteppingController controller) {
+                               final PipelineData pipelineData) {
         // Set the properties on this instance.
         for (final PipelineProperty property : pipelineData.getAddedProperties()) {
             if (property.getElement().equals(id)) {
-                setProperty(pipelineElementRegistry, id, elementType, elementInstance, property.getName(),
-                        property.getValue(), controller);
+                setProperty(pipelineElementRegistry, elementType, elementInstance, property.getName(),
+                        property.getValue());
             }
         }
     }
 
     /**
-     * Code for properties.
+     * Code for properties. Setting a property is only setting a property: what an element is to run with
+     * in place of the document it references travels separately, in {@link InjectedCode}, so that it does
+     * not depend on the element having the property at all.
      */
     public static void setProperty(final ElementRegistry pipelineElementRegistry,
-                                   final String id,
                                    final String elementType,
                                    final Object elementInstance,
                                    final String propertyName,
-                                   final PipelinePropertyValue value,
-                                   final SteppingController controller) {
+                                   final PipelinePropertyValue value) {
         // Some methods might be removed so ignore them if they don't exist.
         final Method method = pipelineElementRegistry.getMethod(elementType, propertyName);
 
@@ -394,25 +403,7 @@ public class PipelineFactory {
                         obj = value.getString();
                     } else if (DocRef.class.isAssignableFrom(paramType)) {
                         // Load an entity by id.
-                        final DocRef docRef = value.getEntity();
-                        if (docRef != null) {
-                            obj = docRef;
-
-                            // Modify properties of element instance if we are
-                            // stepping and have code to insert.
-                            if (controller != null) {
-                                final PipelineStepRequest request = controller.getRequest();
-                                if (request.getCode() != null && !request.getCode().isEmpty()) {
-                                    final String code = request.getCode().get(id);
-                                    if (code != null) {
-                                        if (elementInstance instanceof
-                                                final SupportsCodeInjection supportsCodeInjection) {
-                                            supportsCodeInjection.setInjectedCode(code);
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                        obj = value.getEntity();
                     } else {
                         throw new PipelineFactoryException("Unknown param type: " + paramType);
                     }

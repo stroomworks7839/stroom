@@ -33,6 +33,7 @@ import stroom.pipeline.factory.PipelineProperty;
 import stroom.pipeline.factory.PipelinePropertyDocRef;
 import stroom.pipeline.filter.PipelineDocFinder;
 import stroom.pipeline.shared.TextConverterDoc;
+import stroom.pipeline.shared.TextConverterDoc.TextConverterType;
 import stroom.pipeline.shared.data.PipelineElementType;
 import stroom.pipeline.shared.data.PipelineElementType.Category;
 import stroom.pipeline.state.FeedHolder;
@@ -48,6 +49,7 @@ import jakarta.inject.Provider;
 import org.xml.sax.SAXException;
 import org.xml.sax.XMLReader;
 
+import java.util.UUID;
 import java.util.function.Consumer;
 
 @ConfigurableElement(
@@ -112,7 +114,7 @@ public class DSParser extends AbstractParser implements SupportsCodeInjection {
         // TODO: We need to use the cached TextConverter service ideally but
         // before we do it needs to be aware cluster wide when TextConverter has
         // been updated.
-        TextConverterDoc tc = loadTextConverterDoc();
+        TextConverterDoc tc = configuration();
 
         // If we are in stepping mode and have made code changes then we want to
         // add them to the newly loaded text
@@ -197,6 +199,22 @@ public class DSParser extends AbstractParser implements SupportsCodeInjection {
             }
         }
         return null;
+    }
+
+    /// The configuration this parser is to run with: the document it references, or the code it was
+    /// given where it references nothing (§12 item 1). A candidate can then be run before it has been
+    /// written anywhere, which is what judging one before promoting it requires.
+    private TextConverterDoc configuration() {
+        if (injectedCode != null && findDoc(getFeedName(), getPipelineName(), message -> {
+        }) == null) {
+            return TextConverterDoc.builder()
+                    .uuid(UUID.randomUUID().toString())
+                    .name(getElementId().getId())
+                    .converterType(TextConverterType.DATA_SPLITTER)
+                    .data(injectedCode)
+                    .build();
+        }
+        return loadTextConverterDoc();
     }
 
     public TextConverterDoc loadTextConverterDoc() {

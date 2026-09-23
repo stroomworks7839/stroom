@@ -66,6 +66,7 @@ import org.xml.sax.SAXException;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.function.Consumer;
 import javax.xml.transform.ErrorListener;
 import javax.xml.transform.SourceLocator;
@@ -161,15 +162,23 @@ public class XsltFilter extends AbstractXMLFilter implements SupportsCodeInjecti
 
             XsltDoc xslt = loadXsltDoc();
 
+            // Run with the code this element was given rather than what it references (§12 item 1): a
+            // person's edit in the stepper, or a candidate a supervisor is judging. Where the element
+            // references nothing at all the code is the whole of it, which is what lets a candidate be
+            // run before it has been written anywhere. Never pooled: it is nobody else's stylesheet.
+            if (injectedCode != null) {
+                xslt = xslt == null
+                        ? XsltDoc.builder()
+                                .uuid(UUID.randomUUID().toString())
+                                .name(getElementId().getId())
+                                .data(injectedCode)
+                                .build()
+                        : xslt.copy().data(injectedCode).build();
+                usePool = false;
+            }
+
             // If we have found XSLT then get a template.
             if (xslt != null) {
-                // If we are in stepping mode and have made code changes then we
-                // want to add them to the newly loaded XSLT.
-
-                if (injectedCode != null) {
-                    xslt = xslt.copy().data(injectedCode).build();
-                    usePool = false;
-                }
 
                 // If no XSLT has been provided then don't try and get compiled
                 // XSLT for it.

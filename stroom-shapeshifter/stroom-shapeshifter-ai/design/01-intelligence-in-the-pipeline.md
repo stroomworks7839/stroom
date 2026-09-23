@@ -1641,6 +1641,12 @@ the order they arrived. Items marked *built* already exist in `stroom-shapeshift
    configuration-override carrier that does not imply stepping, supplied by both the stepper and the
    supervisor. Without this, running a candidate requires either faking a stepping session or writing
    it to the document store first — and writing before scoring is what §7 forbids.
+   *Built 2026-09-23 as `InjectedCode`, a pipeline-scoped map of element id to configuration text. The
+   factory applies it as it builds each element rather than while setting a property, so an element that
+   references no document takes the code just the same — which is the case a supervisor has, since a
+   candidate references nothing. `XsltFilter` and the three text-converter parsers build a transient
+   document from the code where they find none, and the stepper sets the carrier from the step request,
+   which is the only way it now reaches an element. Setting a property is again only setting a property.*
 2. **A headless capture-and-score harness.** The recorder substitution in `insertRecorder` and the
    mid-pipeline entry in `createFrom` are driven from `SteppingService`, outside the processing path.
    Extract the reusable core so an element can drive it, and so it can run a prefix of a fragment
@@ -2148,6 +2154,12 @@ including the degeneracy trap (§8.3) that changes the scoring model and propose
   `shapeshifter_turn`, the `Attempts` seam and its DAO, and the stage recording an attempt and every
   turn of it. Not the rendered prompt, which waits for redaction (A38); not yet the claim on the shape,
   which waits for the dialogue to be resumable (A45).
+- §12 item 1 built (design 02 §6.1): a pipeline runs an element with the configuration it was handed
+  rather than the document it references, without being a stepping session and without that
+  configuration having been written anywhere. `InjectedCode` carries it, the factory applies it as it
+  builds each element, and an element that references no document takes it just the same — which is the
+  case that matters, since a candidate references nothing and writing before scoring is what §7.3
+  forbids. The stepper now says what it wants the same way anyone else does.
 - Audit of A47 (the owner's code review): five findings, all fixed — design 02 §6.1. The question
   promised the model one record of each kind while the representatives are capped at three, so a feed of
   five shapes would have been told it had seen them all; where the cap bites the question now says how
