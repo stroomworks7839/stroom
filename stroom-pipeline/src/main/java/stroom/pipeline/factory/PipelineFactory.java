@@ -40,8 +40,8 @@ import stroom.pipeline.shared.data.PipelineReference;
 import stroom.pipeline.shared.stepping.SteppingFilterSettings;
 import stroom.pipeline.source.SourceElement;
 import stroom.pipeline.stepping.capture.ElementMonitor;
+import stroom.pipeline.stepping.capture.PipelineCapture;
 import stroom.pipeline.stepping.capture.Recorder;
-import stroom.pipeline.stepping.capture.SteppingController;
 import stroom.pipeline.stepping.capture.SteppingFilter;
 import stroom.pipeline.writer.OutputRecorder;
 import stroom.task.api.Terminator;
@@ -99,12 +99,12 @@ public class PipelineFactory {
 
     public Pipeline create(final PipelineData pipelineData,
                            final Terminator terminator,
-                           final SteppingController controller) {
+                           final PipelineCapture controller) {
         return create(pipelineData, terminator, controller, Set.of());
     }
 
     /**
-     * As {@link #create(PipelineData, Terminator, SteppingController)}, but the build stops after the named
+     * As {@link #create(PipelineData, Terminator, PipelineCapture)}, but the build stops after the named
      * elements: their children are not linked, so nothing below them runs or is captured.
      * <p>
      * This is the source-rooted counterpart of {@link MidPipelineScope#ELEMENT_ONLY}, and exists for the same
@@ -116,7 +116,7 @@ public class PipelineFactory {
      */
     public Pipeline create(final PipelineData pipelineData,
                            final Terminator terminator,
-                           final SteppingController controller,
+                           final PipelineCapture controller,
                            final Set<String> stopAfter) {
         // Instantiate and configure every element, and record the link graph.
         final Map<String, Element> elementInstances = new HashMap<>();
@@ -180,7 +180,7 @@ public class PipelineFactory {
      * ({@code ROLE_MUTATOR}/{@code ROLE_VALIDATOR}) is not one of the roles for which {@code link} inserts a
      * record detector, so a {@link SAXRecordDetector} is forced at the entry - upstream of the start
      * element's input recorder, mirroring the normal topology where the detector sits just above the first
-     * mutator - so each {@code endDocument} still drives {@link SteppingController#endRecord}.
+     * mutator - so each {@code endDocument} still drives {@link PipelineCapture#endRecord}.
      * <p>
      * The returned {@link MidPipeline#entry()} is the {@link org.xml.sax.ContentHandler} the caller fires
      * stored events into; element lifecycle ({@code startProcessing}/{@code startStream}/...) cascades from
@@ -188,14 +188,14 @@ public class PipelineFactory {
      */
     public MidPipeline createFrom(final PipelineData pipelineData,
                                   final Terminator terminator,
-                                  final SteppingController controller,
+                                  final PipelineCapture controller,
                                   final String startElementId) {
         return createFrom(pipelineData, terminator, controller, startElementId,
                 MidPipelineScope.ELEMENT_AND_DESCENDANTS);
     }
 
     /**
-     * As {@link #createFrom(PipelineData, Terminator, SteppingController, String)}, but with control over how
+     * As {@link #createFrom(PipelineData, Terminator, PipelineCapture, String)}, but with control over how
      * much of the pipeline below the start element is linked and run.
      *
      * @param scope {@link MidPipelineScope#ELEMENT_AND_DESCENDANTS} to run the start element and everything
@@ -204,7 +204,7 @@ public class PipelineFactory {
      */
     public MidPipeline createFrom(final PipelineData pipelineData,
                                   final Terminator terminator,
-                                  final SteppingController controller,
+                                  final PipelineCapture controller,
                                   final String startElementId,
                                   final MidPipelineScope scope) {
         if (controller == null) {
@@ -290,7 +290,7 @@ public class PipelineFactory {
      */
     private void buildElementInstances(final PipelineData pipelineData,
                                        final Terminator terminator,
-                                       final SteppingController controller,
+                                       final PipelineCapture controller,
                                        final Map<String, Element> elementInstances,
                                        final Map<Element, PipelineElementType> elementTypeMap,
                                        final Map<String, Set<String>> linkSets) {
@@ -462,7 +462,7 @@ public class PipelineFactory {
     private void link(final Map<String, Element> elementInstances,
                       final Map<Element, PipelineElementType> elementTypeMap,
                       final Map<String, Set<String>> linkSets,
-                      final SteppingController controller,
+                      final PipelineCapture controller,
                       final Element parentElement,
                       final ElementId parentElementId,
                       final int controllerSplitDepth) {
@@ -473,7 +473,7 @@ public class PipelineFactory {
     private void link(final Map<String, Element> elementInstances,
                       final Map<Element, PipelineElementType> elementTypeMap,
                       final Map<String, Set<String>> linkSets,
-                      final SteppingController controller,
+                      final PipelineCapture controller,
                       final Element parentElement,
                       final ElementId parentElementId,
                       final int controllerSplitDepth,
@@ -593,7 +593,7 @@ public class PipelineFactory {
                                            final Map<String, Element> elementInstances,
                                            final Map<Element, PipelineElementType> elementTypeMap,
                                            final Map<String, Set<String>> linkSets,
-                                           final SteppingController controller) {
+                                           final PipelineCapture controller) {
         List<Element> childElements = Collections.emptyList();
 
         final Set<String> toElementIdSet = linkSets.get(fromElementId);
@@ -647,14 +647,14 @@ public class PipelineFactory {
                                     final PipelineElementType elementType,
                                     final Fragment fragment,
                                     final boolean input,
-                                    final SteppingController controller,
+                                    final PipelineCapture controller,
                                     final int controllerSplitDepth) {
         Fragment result = fragment;
 
         // Get any filter settings that might be applied to XML output.
         SteppingFilterSettings steppingFilterSettings = null;
         if (!input) {
-            steppingFilterSettings = controller.getRequest().getStepFilterSettings(elementId.getId());
+            steppingFilterSettings = controller.getStepFilterSettings(elementId.getId());
         }
 
         if (input) {
@@ -784,7 +784,7 @@ public class PipelineFactory {
                             final PipelineElementType elementType,
                             final Element element,
                             final Fragment fragment,
-                            final SteppingController controller) {
+                            final PipelineCapture controller) {
         final ElementMonitor elementMonitor = new ElementMonitor(elementId, elementType, element);
         if (fragment.getIn() == fragment.getOut()) {
             // In some cases we replace the input and output elements with the
@@ -826,7 +826,7 @@ public class PipelineFactory {
     private Fragment insertRecordDetector(final PipelineElementType elementType,
                                           final Fragment fragment,
                                           final boolean input,
-                                          final SteppingController controller) {
+                                          final PipelineCapture controller) {
         Fragment result = fragment;
 
         if (!input) {

@@ -1651,6 +1651,13 @@ the order they arrived. Items marked *built* already exist in `stroom-shapeshift
    mid-pipeline entry in `createFrom` are driven from `SteppingService`, outside the processing path.
    Extract the reusable core so an element can drive it, and so it can run a prefix of a fragment
    (A21) and hand the captured output to the next question.
+   *The capture half built 2026-09-23: `PipelineCapture` is the seam the build wraps elements for —
+   register a monitor, drive a record detector, be told when a record ends — with `SteppingController`
+   as stepping's implementation and `HeadlessCapture` as the one for everything else, keeping each
+   element's input and output per record in memory and involving no session, request or store. The
+   factory no longer reads the stepping request at all: what filters an element's output is asked of the
+   capture. A prefix is already `stopAfter`, and running the chain against the scorers is the stage's
+   work, not the pipeline's.*
 3. **The new document type.** The `Doc` and `Resource` in `stroom-core-shared`; `DocumentTypeRegistry`
    — both the constant *and* the `put` in the static block; a `DocumentTypeGroup` and `SvgImage`; the
    store, serialiser and resource implementation; one `DocumentStoreBinder.create(...).bind(...)`,
@@ -2154,6 +2161,20 @@ including the degeneracy trap (§8.3) that changes the scoring model and propose
   `shapeshifter_turn`, the `Attempts` seam and its DAO, and the stage recording an attempt and every
   turn of it. Not the rendered prompt, which waits for redaction (A38); not yet the claim on the shape,
   which waits for the dialogue to be resumable (A45).
+- Audit of the capture seam (the owner's code review): six findings, all fixed — design 02 §6.1. Four
+  were the same mistake in different clothes, that a capture which is not a stepping session still has to
+  be as careful as one: indicators were never cleared, so one record's error would have been reported
+  against every record after it, and were then dropped rather than handed back; a record an element
+  wrote nothing for lost its place in the captured lists, which is exactly what a scorer pairing input
+  with output cannot have; records of a segmented source shared their numbers; and a null highlight
+  would have turned a recorder's failure into a crash. With them: a cap, since holding every record of a
+  real stream is an out-of-memory; and item 1's injected code no longer stands in for a name pattern
+  that has stopped resolving, which is a fault to be told about rather than a gap to fill.
+- §12 item 2's capture half built (design 02 §6.1): `PipelineCapture` extracted as the seam a pipeline
+  build captures through, `SteppingController` one implementation and the new `HeadlessCapture` the
+  other. A pipeline can now be run over an input with every element's input and output handed back per
+  record, with no stepping session, step request or durable store behind it — which, with item 1, is the
+  whole of what the supervisor does by hand today. The factory stops depending on the stepping request.
 - §12 item 1 built (design 02 §6.1): a pipeline runs an element with the configuration it was handed
   rather than the document it references, without being a stepping session and without that
   configuration having been written anywhere. `InjectedCode` carries it, the factory applies it as it

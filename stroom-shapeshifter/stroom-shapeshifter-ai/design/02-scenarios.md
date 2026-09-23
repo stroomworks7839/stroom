@@ -1841,6 +1841,74 @@ names the kind of converter by the document it references, and with no document 
 it by, so it parses as XML exactly as it did before. That is a real limit and is now said in the code
 rather than left to be discovered.
 
+The thirty-fifth slice, 2026-09-23, is the capture half of §12 item 2: **running a pipeline and reading
+what each element made of it, without being a stepping session**.
+
+Stepping already does this better than anything we would write: `PipelineFactory` wraps every steppable
+element with input and output recorders, a record detector says where one record ends, and a controller
+takes each element's IO at that boundary. The whole of it was reachable only by being a stepping
+session, because the factory took a `SteppingController` — a class that persists to the step data store,
+answers a person's step, and reads the step request for what to filter.
+
+So the seam is `PipelineCapture`: register a monitor, drive a record detector, be told when a record has
+finished, and say what filters an element's output. `SteppingController` implements it and is unchanged
+in what it does. `HeadlessCapture` is the other implementation — it keeps what it captured in memory,
+one entry per record, each element's input and output as text, rendered exactly as the stepper renders
+them for a person, so that what a supervisor judges is what a person would have read. It never
+terminates a parse and involves no session, no request and no store.
+
+The factory stops depending on the stepping request altogether: where it used to ask
+`controller.getRequest().getStepFilterSettings(id)` it now asks the capture, which answers null when
+nobody is stepping. That is the coupling item 2 named.
+
+One limit, stated where it will be met: an element whose recorder needs the source highlight to say what
+it read — the readers above the parser — gives back nothing unless something is tracking the record's
+position. Parsers, filters and writers capture regardless, and they are what a configuration is judged
+on.
+
+The test is the two items together, which is also the shape the supervisor will take: a candidate
+stylesheet that exists in no store is injected into an `XSLTFilter` that references nothing, a
+`SplitFilter` makes each `<record>` a record, and the capture hands back two records — `<out>alpha</out>`
+and `<out>beta</out>` — with each element's input beside its output. 1,155 tests in `stroom-pipeline`,
+135 in `stroom-app`'s pipeline and shapeshifter packages, including ten stepping classes, all green.
+
+The audit of the slice found six, all fixed, and four of them were the same mistake in different
+clothes: a capture that is not a stepping session still has to be as careful as one.
+
+**What an element said was reported against every record after it.** Indicators accumulate on the error
+receiver for the life of the receiver, and stepping clears them at each record boundary; this did not,
+so one record's fatal error would have been attached to every later record's capture — and then dropped
+anyway, since what was handed back held only input and output. Both halves fixed: indicators are cleared
+per record and carried on the captured IO, where a scorer can read them. The test says a complaint about
+the second of three records belongs to the second alone, and it fails against the code as it was.
+
+**A record that produced nothing lost its place.** The convenience accessors filtered out the records an
+element wrote nothing for, so a list of outputs could be shorter than the list of records and every
+position after the gap was wrong. A scorer pairing an input with an output has to be able to trust the
+position. Every record now carries an entry for every element watched, and the accessors return one
+entry per record with null where there was nothing. In the test's chain every element does capture
+something for every record, so this is a guarantee by construction rather than one the test demonstrates.
+
+**Records of a segmented source shared their numbers.** The detector restarts its record index at zero
+for each part, so a capture over a multi-part stream held several records numbered 0. A record now
+carries its own sequence across the whole capture as well as the detector's index.
+
+**A null highlight would have turned a recorder's failure into a crash.** Where nothing tracks the
+source position — the usual case here — the capture passed null, and the path that logs a recorder's
+failure dereferences it. Stepping substitutes a default range for exactly this reason, and so does this
+now.
+
+Two beyond the capture itself: it held every record with no cap, which for a class whose doc promises to
+run the whole stream is an out-of-memory waiting for a real feed — there is now a cap, the parse still
+runs to the end, and `isTruncated` says when more went past than was kept. And the injected-code path
+of item 1 treated "no document found" as "references nothing", which is also true of a name pattern that
+has stopped resolving: a person whose converter reference broke would have had the editor's pane
+silently used instead. It is now the code only where the element names no document at all.
+
+What remains of item 2 is the scoring half, which is the stage's work rather than the pipeline's: the
+module's `StepRunner` and `FragmentRunner` become callers of this, and the dialogue's questions are
+answered from captured output instead of from a headless stand-in.
+
 ### 6.4 What the one-record run found
 
 Item 25 changed what the model is shown, and no scripted scenario can say whether that makes it write

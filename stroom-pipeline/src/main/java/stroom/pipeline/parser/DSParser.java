@@ -42,6 +42,7 @@ import stroom.pipeline.textconverter.TextConverterStore;
 import stroom.pipeline.xml.converter.ParserFactory;
 import stroom.svg.shared.SvgImage;
 import stroom.util.io.PathCreator;
+import stroom.util.shared.NullSafe;
 import stroom.util.shared.Severity;
 
 import jakarta.inject.Inject;
@@ -203,10 +204,11 @@ public class DSParser extends AbstractParser implements SupportsCodeInjection {
 
     /// The configuration this parser is to run with: the document it references, or the code it was
     /// given where it references nothing (§12 item 1). A candidate can then be run before it has been
-    /// written anywhere, which is what judging one before promoting it requires.
+    /// written anywhere, which is what judging one before promoting it requires. It is the code only
+    /// where the element names no document at all: a name pattern that has stopped resolving is a fault
+    /// to be told about, not a gap for the editor's pane to fill silently.
     private TextConverterDoc configuration() {
-        if (injectedCode != null && findDoc(getFeedName(), getPipelineName(), message -> {
-        }) == null) {
+        if (injectedCode != null && textConverterRef == null && NullSafe.isBlankString(namePattern)) {
             return TextConverterDoc.builder()
                     .uuid(UUID.randomUUID().toString())
                     .name(getElementId().getId())
