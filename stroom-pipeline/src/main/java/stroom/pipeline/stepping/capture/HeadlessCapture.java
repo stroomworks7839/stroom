@@ -24,7 +24,6 @@ import stroom.pipeline.shared.SourceLocation;
 import stroom.pipeline.state.LocationHolder;
 import stroom.pipeline.stepping.store.CapturedElementData;
 import stroom.pipeline.stepping.store.CapturedElementDataMapper;
-import stroom.util.pipeline.scope.PipelineScoped;
 import stroom.util.shared.DataRange;
 import stroom.util.shared.DefaultLocation;
 import stroom.util.shared.Indicators;
@@ -58,11 +57,12 @@ import java.util.Set;
 /// - **It holds everything it captures.** There is no store behind it, so a capture is for a *sample*,
 ///   not for a production stream of a million records. [#setMaxRecords] caps it; past the cap the parse
 ///   runs on but nothing more is kept, and [#isTruncated] says so.
+/// - **One capture is one run.** It is handed to the build rather than looked up, so a caller that runs
+///   two pipelines takes two of these; nothing about it is scoped to the pipeline it captured.
 /// - **A reader's input needs a highlight.** An element whose recorder reports what it read by source
 ///   span — the readers above the parser, and so a parser's own input — gives back nothing unless
 ///   something is tracking the record's position in the source. Parsers, filters and writers capture
 ///   their output regardless, and that is what a configuration is judged on.
-@PipelineScoped
 public class HeadlessCapture implements PipelineCapture {
 
     /// Where a record is said to be when nothing is tracking the source position. Recorders that report
@@ -133,6 +133,14 @@ public class HeadlessCapture implements PipelineCapture {
         return monitors.stream()
                 .map(monitor -> monitor.getElementId().getId())
                 .collect(java.util.stream.Collectors.toUnmodifiableSet());
+    }
+
+    /// The pipeline's own shape and no more: where it splits, records are its records; where it does
+    /// not, the stream is one record. A configuration is judged on what the pipeline it will run in
+    /// gives it, so the capture must not insert a split that pipeline does not have.
+    @Override
+    public int captureSplitDepth(final int pipelineSplitDepth) {
+        return pipelineSplitDepth;
     }
 
     @Override

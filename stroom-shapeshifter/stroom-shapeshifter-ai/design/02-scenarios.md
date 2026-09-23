@@ -1909,6 +1909,65 @@ What remains of item 2 is the scoring half, which is the stage's work rather tha
 module's `StepRunner` and `FragmentRunner` become callers of this, and the dialogue's questions are
 answered from captured output instead of from a headless stand-in.
 
+The thirty-sixth slice, 2026-09-23, is the scoring half of §12 item 2: **a node judges and serves a
+fragment by running it as a pipeline**.
+
+`FragmentRunner` is now a seam with two implementations. `PipelineFragmentRunner` builds the fragment
+with the real factory, hands it a `HeadlessCapture`, processes the stream and reads each element's output
+back — the real elements, the real pools, the real filters, and whatever the fragment inherits from its
+parent. `StandInFragmentRunner` is the old one, walking the chain with the module's step runners, which
+needs no node and is what the Tier 1 scenarios run on. The node's `StageFactory` builds the first; the
+scenarios' fixture builds the second.
+
+Each element's *input* is taken as what the one before it wrote rather than from the capture, because
+the recorders above the parser report what they read by source span and a headless run has no span to
+give them. The first element's input is the stream itself, which is what input coverage needs (A11).
+What comes from the capture is what each element *wrote*, which is the thing a stand-in can be wrong
+about.
+
+**The test is the point of the slice.** A stand-in that has drifted from the thing it stands in for is
+worse than no stand-in: every scenario would still pass while the pipeline refused what they promoted.
+So a fragment written the way a promotion writes it — `JSONParser`, a `SplitFilter` at the settled
+depth, an `XSLTFilter` — is run both ways over the same JSON document and the events compared. They
+agree, first time, which is also the first independent check of item 25's per-record equivalence: the
+`SplitFilter` the fragment carries and the `RecordSplit` the module drives cut the same records, and the
+stylesheet writes the same twelve events either way.
+
+That also settles what was owed on the bound path: a rule served through the pipeline compiles its
+stylesheet through stroom's `XsltPool`, because it is `XsltFilter` doing it. There is no separate
+pooling to build.
+
+The audit of the slice found seven, all fixed, and one of them was the reason the agreement test existed.
+
+**The capture was splitting streams the pipeline does not split.** When a build is given a capture, the
+factory inserts a `SplitFilter` after the parser so that a person can step record by record — at the
+pipeline's own split depth where it has one, and at depth 1 where it has none. A fragment for raw text
+has none: the Data Splitter cuts the records and the transform is given the parsed document whole. So
+the judging run would have handed the transform one record at a time where the serving run hands it the
+whole stream, and judged the candidate on a difference it will never see — the same class of mistake as
+item 25, the other way round. A capture now says what it wants: stepping keeps its record-by-record
+split, and a capture that is judging takes the pipeline's own shape, splitting only where the pipeline
+does. The scenario is a CSV fragment whose stylesheet counts what it is given: both runners answer six,
+and against the code as it was the pipeline answered one, six times.
+
+**A candidate that would not compile killed the attempt.** Nothing installed an error receiver, so the
+first thing a failing element said was a `NullPointerException` from the proxy — and, since indicators
+are only collected when the ambient receiver records them, nothing that did survive would have reached
+the model. The run now installs a receiver of its own and puts the previous one back, and a stylesheet
+that will not compile comes back as a step that produced nothing and said why. Two more with it: what an
+element logs outside a record boundary — a refusal before any record, a complaint on the way out — is
+read from the receiver at the end rather than lost, and a pipeline that stops carries the reason on the
+step that stopped it, since the element that fails is often not the one that produced nothing.
+
+Three smaller ones: an element the fragment links to but does not define was skipped silently, leaving
+the next step scored against its grandparent's output, and now throws as the stand-in does; the capture
+was uncapped, where a judgement is made on a sample; and the stand-in's three stores stayed injected
+into `StageFactory` with nothing left to read them.
+
+What remains of item 2 is the dialogue's own runs: a candidate is still tried with the module's step
+runners while it is being written, and only the written fragment goes through the pipeline. The seam is
+the same shape, and the agreement test is what makes moving it safe.
+
 ### 6.4 What the one-record run found
 
 Item 25 changed what the model is shown, and no scripted scenario can say whether that makes it write

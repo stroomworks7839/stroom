@@ -133,9 +133,8 @@ public class PipelineFactory {
         // Get the split depth to use with the stepping controller.
         int controllerSplitDepth = 1;
         if (controller != null) {
-            controllerSplitDepth =
-                    getSplitDepth(elementInstances, elementTypeMap, linkSets, sourceElement.getElementId().getId());
-            controllerSplitDepth = Math.max(controllerSplitDepth, 1);
+            controllerSplitDepth = controller.captureSplitDepth(
+                    getSplitDepth(elementInstances, elementTypeMap, linkSets, sourceElement.getElementId().getId()));
         }
 
         // Link the instances.
@@ -229,7 +228,7 @@ public class PipelineFactory {
         if (sourceElement == null) {
             throw new PipelineFactoryException("The pipeline has no source element");
         }
-        final int controllerSplitDepth = Math.max(1,
+        final int controllerSplitDepth = controller.captureSplitDepth(
                 getSplitDepth(elementInstances, elementTypeMap, linkSets, sourceElement.getElementId().getId()));
 
         // Wrap the start element with input/output recorders and a monitor, exactly as link() would for a
@@ -720,21 +719,26 @@ public class PipelineFactory {
 
             } else if (out instanceof final AbstractParser parser) {
 
-                // Insert a split filter after the parser to split all XML into
-                // single records.
-                final SplitFilter splitFilter = elementFactory.getElementInstance(SplitFilter.class);
-                splitFilter.setSplitDepth(controllerSplitDepth);
-                // Always one record per split: a stepping pipeline exists to capture every record of the
-                // stream individually, and which of them answers a given step - including any step-size
-                // grouping - is decided later, when the store is read back.
-                splitFilter.setSplitCount(1);
-                parser.setTarget(splitFilter);
-
                 // Create SAX event recorder.
                 final SAXEventRecorder recorder = elementFactory.getElementInstance(SAXEventRecorder.class);
                 recorder.setElementId(elementId);
 
-                splitFilter.setTarget(recorder);
+                if (controllerSplitDepth > 0) {
+                    // Insert a split filter after the parser to split all XML into
+                    // single records.
+                    final SplitFilter splitFilter = elementFactory.getElementInstance(SplitFilter.class);
+                    splitFilter.setSplitDepth(controllerSplitDepth);
+                    // Always one record per split: a stepping pipeline exists to capture every record of
+                    // the stream individually, and which of them answers a given step - including any
+                    // step-size grouping - is decided later, when the store is read back.
+                    splitFilter.setSplitCount(1);
+                    parser.setTarget(splitFilter);
+                    splitFilter.setTarget(recorder);
+                } else {
+                    // The capture asked for no split of its own: what this parser produces goes on as the
+                    // pipeline produced it, so that what is captured is what would have run.
+                    parser.setTarget(recorder);
+                }
 
                 // Initialise stepping filter settings.
                 recorder.setSettings(steppingFilterSettings);

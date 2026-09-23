@@ -58,6 +58,20 @@ public interface PipelineCapture {
     /// Called when a record begins, to forget where in the source the last one was.
     void resetSourceLocation();
 
+    /// What depth the build should insert a split filter at, so that a record is captured on its own.
+    ///
+    /// Stepping steps record by record whatever the pipeline does, so a pipeline with no split of its
+    /// own is still given one at the parser's records. A capture that is judging a configuration must
+    /// not: a split the pipeline does not have would give the transform one record where the pipeline
+    /// gives it the whole stream, and the configuration would then be judged on the difference.
+    ///
+    /// @param pipelineSplitDepth The depth the pipeline's own `SplitFilter` splits at, or -1 where it
+    ///                           has none.
+    /// @return The depth to insert a split at; zero or less to insert none.
+    default int captureSplitDepth(final int pipelineSplitDepth) {
+        return Math.max(pipelineSplitDepth, 1);
+    }
+
     /// What the person stepping asked this element's output to be filtered by, where there is a person.
     ///
     /// @return Null where nothing filters this element, which is always so for a capture that is not a

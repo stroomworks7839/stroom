@@ -107,8 +107,9 @@ public final class PerRecord {
 
     /// What fell short, once each: a stylesheet that raises the same error for every record of a stream
     /// raises it ten thousand times, and ten thousand copies of one sentence is a re-ask that says no
-    /// more than one copy and costs a budget (A44) to send.
-    private static List<StoredError> told(final List<StoredError> diagnostics) {
+    /// more than one copy and costs a budget (A44) to send. Public because a run through the real
+    /// pipeline gathers its diagnostics record by record too, and the two must report alike.
+    public static List<StoredError> told(final List<StoredError> diagnostics) {
         final Map<String, StoredError> once = new LinkedHashMap<>();
         for (final StoredError error : diagnostics) {
             once.putIfAbsent(error.getSeverity() + "\u0000" + error.getElementId() + "\u0000"

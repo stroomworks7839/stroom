@@ -18,14 +18,15 @@ package stroom.shapeshifter.ai.element;
 
 import stroom.node.api.NodeInfo;
 import stroom.pipeline.PipelineStore;
-import stroom.pipeline.factory.PipelineStackLoader;
-import stroom.pipeline.textconverter.TextConverterStore;
-import stroom.pipeline.xslt.XsltStore;
+import stroom.pipeline.errorhandler.ErrorReceiverProxy;
+import stroom.pipeline.factory.PipelineDataCache;
+import stroom.pipeline.factory.PipelineFactory;
+import stroom.pipeline.stepping.capture.HeadlessCapture;
 import stroom.shapeshifter.ai.extraction.DataSplitterCompiler;
 import stroom.shapeshifter.ai.extraction.DataSplitterStep;
 import stroom.shapeshifter.ai.extraction.JsonStep;
-import stroom.shapeshifter.ai.fragment.FragmentRunner;
 import stroom.shapeshifter.ai.fragment.FragmentWriter;
+import stroom.shapeshifter.ai.fragment.PipelineFragmentRunner;
 import stroom.shapeshifter.ai.learning.Advisors;
 import stroom.shapeshifter.ai.learning.StepRunner;
 import stroom.shapeshifter.ai.scoring.BusinessRulesScorer;
@@ -45,8 +46,10 @@ import stroom.shapeshifter.ai.stage.Shapes;
 import stroom.shapeshifter.ai.stage.Spend;
 import stroom.shapeshifter.ai.stage.Stage;
 import stroom.shapeshifter.ai.transformation.XsltStep;
+import stroom.task.api.TaskContextFactory;
 
 import jakarta.inject.Inject;
+import jakarta.inject.Provider;
 
 import java.time.Clock;
 import java.util.List;
@@ -70,9 +73,11 @@ public class StageFactory {
     private final SchemaConformanceScorer schemaConformanceScorer;
     private final FragmentWriter fragmentWriter;
     private final PipelineStore pipelineStore;
-    private final PipelineStackLoader pipelineStackLoader;
-    private final TextConverterStore textConverterStore;
-    private final XsltStore xsltStore;
+    private final PipelineDataCache pipelineDataCache;
+    private final Provider<PipelineFactory> pipelineFactoryProvider;
+    private final Provider<HeadlessCapture> headlessCaptureProvider;
+    private final Provider<ErrorReceiverProxy> errorReceiverProvider;
+    private final TaskContextFactory taskContextFactory;
     private final NodeInfo nodeInfo;
     private final Attempts attempts;
     private final Rules rules;
@@ -89,9 +94,11 @@ public class StageFactory {
                         final SchemaConformanceScorer schemaConformanceScorer,
                         final FragmentWriter fragmentWriter,
                         final PipelineStore pipelineStore,
-                        final PipelineStackLoader pipelineStackLoader,
-                        final TextConverterStore textConverterStore,
-                        final XsltStore xsltStore,
+                        final PipelineDataCache pipelineDataCache,
+                        final Provider<PipelineFactory> pipelineFactoryProvider,
+                        final Provider<HeadlessCapture> headlessCaptureProvider,
+                        final Provider<ErrorReceiverProxy> errorReceiverProvider,
+                        final TaskContextFactory taskContextFactory,
                         final NodeInfo nodeInfo,
                         final Attempts attempts,
                         final Rules rules,
@@ -106,9 +113,11 @@ public class StageFactory {
         this.schemaConformanceScorer = schemaConformanceScorer;
         this.fragmentWriter = fragmentWriter;
         this.pipelineStore = pipelineStore;
-        this.pipelineStackLoader = pipelineStackLoader;
-        this.textConverterStore = textConverterStore;
-        this.xsltStore = xsltStore;
+        this.pipelineDataCache = pipelineDataCache;
+        this.pipelineFactoryProvider = pipelineFactoryProvider;
+        this.headlessCaptureProvider = headlessCaptureProvider;
+        this.errorReceiverProvider = errorReceiverProvider;
+        this.taskContextFactory = taskContextFactory;
         this.nodeInfo = nodeInfo;
         this.attempts = attempts;
         this.rules = rules;
@@ -132,7 +141,10 @@ public class StageFactory {
                 runners,
                 scorers,
                 fragmentWriter,
-                new FragmentRunner(pipelineStore, pipelineStackLoader, textConverterStore, xsltStore, runners),
+                // A node judges and serves through the real pipeline (§12 item 2): the stand-in the Tier 1
+                // scenarios run on is for a harness with no node under it.
+                new PipelineFragmentRunner(pipelineStore, pipelineDataCache, pipelineFactoryProvider,
+                        headlessCaptureProvider, errorReceiverProvider, taskContextFactory, runners),
                 attempts,
                 rules,
                 shapes,

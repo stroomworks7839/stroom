@@ -22,7 +22,7 @@ import stroom.shapeshifter.ai.extraction.ExtractionCorpus.Golden;
 import stroom.shapeshifter.ai.extraction.JsonStep;
 import stroom.shapeshifter.ai.extraction.NodeFixture;
 import stroom.shapeshifter.ai.fragment.ContentStores;
-import stroom.shapeshifter.ai.fragment.FragmentRunner;
+import stroom.shapeshifter.ai.fragment.StandInFragmentRunner;
 import stroom.shapeshifter.ai.learning.Advisor;
 import stroom.shapeshifter.ai.learning.Advisors;
 import stroom.shapeshifter.ai.learning.StepRunner;
@@ -148,7 +148,7 @@ public final class Scenarios {
                 runners,
                 scorers(),
                 stores.writer(),
-                new FragmentRunner(stores.pipelines, stores.stackLoader, stores.textConverters, stores.xslts,
+                new StandInFragmentRunner(stores.pipelines, stores.stackLoader, stores.textConverters, stores.xslts,
                         runners),
                 attempts,
                 rules,

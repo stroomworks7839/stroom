@@ -35,7 +35,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * A written fragment run the way the pipeline will run it (§12 item 25): from the `SplitFilter` on, one
  * record at a time — and only one filter, however many elements follow it.
  */
-class TestFragmentRunner {
+class TestStandInFragmentRunner {
 
     private static final DocPath FOLDER = DocPath.fromParts("Shapeshifter", "SYSLOG");
     private static final Verdict UNSCORED = new Verdict(List.of(), 1.0);
@@ -68,7 +68,7 @@ class TestFragmentRunner {
         final RecordBoundary boundary = RecordBoundary.ofElement("record").atDepth(2);
         final DocRef fragment = stores.writer().write(FOLDER, "two-pass", chain, boundary);
 
-        final List<Attempted> steps = new FragmentRunner(stores.pipelines, stores.stackLoader,
+        final List<Attempted> steps = new StandInFragmentRunner(stores.pipelines, stores.stackLoader,
                 stores.textConverters, stores.xslts, List.of(new XsltStep()))
                 .run(fragment, TWO_RECORDS, boundary);
 

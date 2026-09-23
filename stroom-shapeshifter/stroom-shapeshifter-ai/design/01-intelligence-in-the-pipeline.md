@@ -1657,7 +1657,10 @@ the order they arrived. Items marked *built* already exist in `stroom-shapeshift
    element's input and output per record in memory and involving no session, request or store. The
    factory no longer reads the stepping request at all: what filters an element's output is asked of the
    capture. A prefix is already `stopAfter`, and running the chain against the scorers is the stage's
-   work, not the pipeline's.*
+   work, not the pipeline's. The bound path built on it 2026-09-23: `FragmentRunner` is a seam, a node
+   runs the fragment as a pipeline (`PipelineFragmentRunner`) and Tier 1 keeps the stand-in, with a
+   Tier 2 scenario holding the two to the same events. What is left is the dialogue's own candidate
+   runs, which are still the stand-in's.*
 3. **The new document type.** The `Doc` and `Resource` in `stroom-core-shared`; `DocumentTypeRegistry`
    — both the constant *and* the `put` in the static block; a `DocumentTypeGroup` and `SvgImage`; the
    store, serialiser and resource implementation; one `DocumentStoreBinder.create(...).bind(...)`,
@@ -2161,6 +2164,20 @@ including the degeneracy trap (§8.3) that changes the scoring model and propose
   `shapeshifter_turn`, the `Attempts` seam and its DAO, and the stage recording an attempt and every
   turn of it. Not the rendered prompt, which waits for redaction (A38); not yet the claim on the shape,
   which waits for the dialogue to be resumable (A45).
+- Audit of the bound path (the owner's code review): seven findings, all fixed — design 02 §6.1. The
+  capture was splitting streams the pipeline does not split, so a text feed would have been judged one
+  record at a time and served whole; a capture now takes the pipeline's own shape and stepping keeps
+  its record-by-record split. A candidate that would not compile killed the attempt with a
+  NullPointerException, because nothing installed an error receiver — and nothing it did say would have
+  reached the model either. What an element logs outside a record boundary is no longer lost, a pipeline
+  that stops carries the reason on the step that stopped it, an undefined element throws rather than
+  being skipped, the capture is capped, and three dead dependencies are gone.
+- The bound path moved onto the real pipeline (design 02 §6.1): `FragmentRunner` split into a seam with
+  `PipelineFragmentRunner` for a node and `StandInFragmentRunner` for Tier 1, and a Tier 2 scenario that
+  runs one written fragment both ways over one stream and holds them to the same events. They agree,
+  which is also the first independent check of item 25: the fragment's `SplitFilter` and the module's
+  `RecordSplit` cut the same records. It settles the `XsltPool` debt too — a rule served through the
+  pipeline is compiled by `XsltFilter`, which pools.
 - Audit of the capture seam (the owner's code review): six findings, all fixed — design 02 §6.1. Four
   were the same mistake in different clothes, that a capture which is not a stepping session still has to
   be as careful as one: indicators were never cleared, so one record's error would have been reported
