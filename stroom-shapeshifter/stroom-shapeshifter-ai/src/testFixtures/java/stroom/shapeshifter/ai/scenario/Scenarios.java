@@ -20,6 +20,7 @@ import stroom.shapeshifter.ai.extraction.DataSplitterStep;
 import stroom.shapeshifter.ai.extraction.ExtractionCorpus;
 import stroom.shapeshifter.ai.extraction.ExtractionCorpus.Golden;
 import stroom.shapeshifter.ai.extraction.JsonStep;
+import stroom.shapeshifter.ai.extraction.XmlFragmentStep;
 import stroom.shapeshifter.ai.extraction.NodeFixture;
 import stroom.shapeshifter.ai.fragment.ContentStores;
 import stroom.shapeshifter.ai.fragment.StandInFragmentRunner;
@@ -96,7 +97,8 @@ public final class Scenarios {
     }
 
     public List<StepRunner> runners() {
-        return List.of(new DataSplitterStep(NODE.compiler()), new JsonStep(), new XsltStep());
+        return List.of(new DataSplitterStep(NODE.compiler()), new JsonStep(), new XmlFragmentStep(),
+                new XsltStep());
     }
 
     public List<Scorer> scorers() {

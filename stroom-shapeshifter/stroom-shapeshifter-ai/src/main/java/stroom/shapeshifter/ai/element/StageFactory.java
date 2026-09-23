@@ -25,6 +25,7 @@ import stroom.pipeline.stepping.capture.HeadlessCapture;
 import stroom.shapeshifter.ai.extraction.DataSplitterCompiler;
 import stroom.shapeshifter.ai.extraction.DataSplitterStep;
 import stroom.shapeshifter.ai.extraction.JsonStep;
+import stroom.shapeshifter.ai.extraction.XmlFragmentStep;
 import stroom.shapeshifter.ai.fragment.FragmentWriter;
 import stroom.shapeshifter.ai.fragment.PipelineFragmentRunner;
 import stroom.shapeshifter.ai.learning.Advisors;
@@ -132,7 +133,8 @@ public class StageFactory {
     /// A stage on this node, under the wall clock and a fresh seed for the held-out split (A14).
     public Stage create() {
         final List<StepRunner> runners = List.of(
-                new DataSplitterStep(dataSplitterCompiler), new JsonStep(), new XsltStep());
+                new DataSplitterStep(dataSplitterCompiler), new JsonStep(), new XmlFragmentStep(),
+                new XsltStep());
         final List<Scorer> scorers = List.of(
                 new CompileScorer(), new InputCoverageScorer(), new YieldScorer(), schemaConformanceScorer,
                 new ExtractionQualityScorer(), new BusinessRulesScorer());

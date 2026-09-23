@@ -363,7 +363,10 @@ public final class Dialogue {
             return passed(step, splitJson(step, walk, first, checks, spent));
         }
         if (walk.kind == InputKind.XML) {
-            final Optional<OutputRecords> document = OutputRecords.parse(walk.sample.text());
+            // Where a parser stands in front, the split is settled over what it writes rather than over
+            // the stream: a run of markup fragments is not a document until the parser has wrapped them
+            // (§12 item 26), and the elements to choose between are in the wrapped document.
+            final Optional<OutputRecords> document = OutputRecords.parse(markup(first, walk));
             if (document.isEmpty()) {
                 walk.cut(null, List.of(walk.sample.text()));
                 return passed(step, Visit.next());
@@ -586,8 +589,21 @@ public final class Dialogue {
                     ? TargetChecks.representatives(perRecord).stream().skip(1).toList()
                     : List.of();
             final Optional<StepRunner.Configured> configured = runner.configured();
+            final Optional<String> fixed = runner.fixedConfiguration();
             final Visit visit;
-            if (configured.isEmpty()) {
+            if (configured.isPresent() && fixed.isPresent()) {
+                // An element whose configuration is its own business (§12 item 26): run with it, judge
+                // it, learn it so that the fragment is written with the document a pipeline needs, and
+                // spend no candidate asking for something a model has no say in.
+                final StepResult ran = oneAtATime
+                        ? PerRecord.run(runner, fixed.get(), input, perRecord)
+                        : runner.run(fixed.get(), input);
+                final Judged judged = judge(over, checks, runner, fixed.get(), input, ran, walk, last);
+                walk.learn(index, judged.learned());
+                visit = judged.outcome() == StepOutcome.PASSED
+                        ? Visit.next()
+                        : runOnly(step, judged, runner.elementType() + " failed on its input");
+            } else if (configured.isEmpty()) {
                 // Nothing is asked for a run-only element, so it is run once and judged; what a transition
                 // carried here is left for the next question asked.
                 // Per record too where the split has settled: a run-only element after the filter is
@@ -752,6 +768,19 @@ public final class Dialogue {
                 TargetChecks.representatives(perRecord, perRecord.size()).size());
     }
 
+    /// The markup the split question is settled over: the stream itself where the chain starts with a
+    /// transform, and what the parser makes of the stream where one stands in front of it. A parser that
+    /// cannot read the stream leaves the question with nothing, which the caller reads as no split.
+    private static String markup(final StepRunner first, final Walk walk) {
+        if (!first.parser()) {
+            return walk.sample.text();
+        }
+        final StepResult parsed = first.run(first.fixedConfiguration().orElse(null), walk.sample.text());
+        return parsed.output() == null
+                ? walk.sample.text()
+                : parsed.output();
+    }
+
     /// Where the first element that is not a parser sits in the chain: the one the fragment's filter
     /// stands in front of.
     private int firstTransform(final Walk walk) {
@@ -908,18 +937,19 @@ public final class Dialogue {
 
         /**
          * The chain settled, or settled again: what was cut, aimed at and learned was over the old chain
-         * and is forgotten with it. The first element says what the input is: a parser with a configuration
-         * to write means raw text; a parser with none means JSON it turns into records; no parser means the
-         * input is already records — and the guards read accordingly.
+         * and is forgotten with it. The first element says what the input is — each parser declares what
+         * it consumes ({@link StepRunner#consumes()}) and a chain with no parser is given records — and
+         * the guards read accordingly.
          */
         private void chosen(final List<String> chain, final Map<String, StepRunner> runners) {
             this.chain = List.copyOf(chain);
             final StepRunner first = runners.get(chain.get(0));
-            kind = !first.parser()
-                    ? InputKind.XML
-                    : first.configured().isPresent()
-                            ? InputKind.TEXT
-                            : InputKind.JSON;
+            // What the first element is given says what the input is, and the element is what knows:
+            // raw text for a splitter, JSON for the JSON parser, markup for a fragment parser or for a
+            // chain that starts with a transform because the stream is already records (§12 item 26).
+            kind = first.parser()
+                    ? first.consumes()
+                    : InputKind.XML;
             split = null;
             records = null;
             targets = List.of();

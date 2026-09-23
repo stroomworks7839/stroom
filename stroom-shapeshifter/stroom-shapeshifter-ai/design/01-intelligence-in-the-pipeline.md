@@ -499,7 +499,7 @@ concurrency ceiling. A feed producing unfamiliar records at volume would convert
 into a queue blocked on an HTTP endpoint.
 
 The original draft ruled deferred learning the default on exactly that reasoning, and a later
-revision made inline the default where the model was on-premises (A13), on the grounds that the
+revision made inline the default where the model was close at hand (A13), on the grounds that the
 latency argument is weaker there. Ruled 2026-09-17: the mode does not depend on where the model is.
 Latency is the operator's to judge per document, and where the data goes is A17's concern, not this
 section's.
@@ -906,8 +906,10 @@ pipeline run does; the supervisor element will need the same discipline for ever
 
 `stroom-ai` is the right place to plug in and already does the hard parts: models are documents with
 per-document permissions, the API key resolves indirectly through the credentials service, the base
-URL is configurable so an on-premises OpenAI-compatible endpoint works — which ruling A13 makes the
-deployment — and `SsrfGuard` rejects metadata and wildcard addresses. There is even precedent for AI
+URL is configurable so any OpenAI-compatible endpoint works — which is what ruling A13 requires, the
+protocol rather than a place — and `SsrfGuard` rejects metadata and wildcard addresses. Nothing here
+knows which vendor answers: the node takes the `ChatModel` `stroom-ai` builds from the model document,
+and the live harness builds the same client against whatever base URL the environment names. There is even precedent for AI
 inside a pipeline, in the `stroom:ask-ai` XSLT function.
 
 What is missing matters, and this design must supply it:
@@ -1254,8 +1256,7 @@ whether the feature can be switched on at all.
 
 **Ruling A17.** *Samples are value-redacted by default — reduced to token classes — with raw samples
 permitted only by explicit per-document override. The model needs shape far more than it needs values.
-Samples are size-capped in all cases. Combined with A13, the default posture is redacted data to an
-in-deployment endpoint; the override exists for the cases where literal values carry the
+Samples are size-capped in all cases. The override exists for the cases where literal values carry the
 parsing clue, such as delimiters, keywords and field markers.*
 
 **Ruling A38** (2026-09-21, the shape of redaction; the build deferred)**.** *A redacted sample keeps the
@@ -1687,7 +1688,8 @@ the order they arrived. Items marked *built* already exist in `stroom-shapeshift
    `stroom-ai` rather than in it: `ModelAdvisor` takes the chat model `stroom-ai` builds for the
    document's model and puts the whole transcript to it, counts tokens, audits each call against the
    Shapeshifter AI document, and bypasses the response cache by not using it; the `Dialogue` enforces the
-   attempt's budgets (A5). Rate limiting across documents is not built — design 02 §6.1.*
+   attempt's budgets (A5). Rate limiting across documents is not built and is deferred — §15.2; the
+   spend breaker of A44 is kept.*
 7. **Output stream metadata for bindings** (§7.3 rule 3), and a reprocessing mode that honours it.
    *The `Bindings` record on every `StageRun` and the `Outputs` seam are built 2026-09-18, and the
    element writes them to the output stream's attributes through `MetaData`; the reprocessing mode
@@ -1707,18 +1709,26 @@ the order they arrived. Items marked *built* already exist in `stroom-shapeshift
    by document and invalidated by `EntityEvent`, are what keep the hot path free of the database.
 9. **A regression stream per rule** (A18), appended at promotion and re-scored by the
    promotion gate; retention a document setting capped by the source feed's retention (A18).
+   *The set, its in-memory implementation and its use at the gate are built; **the stream, its
+   retention and its classification are deferred — §15.1**, and there is nothing to retain until the
+   records are real.*
 10. **A restricted XSLT function library** for AI-authored transforms (§11).
+   ***Deferred — §15.1**, as a condition of deployment rather than a piece of work waiting its turn.*
 11. **Content-pack prerequisite checks** — the event and data-splitter schemas are downloaded content,
    not in-repo; the feature should refuse to start rather than silently score everything zero.
+   ***Deferred — §15.2.***
 12. **Error mode** (A24): per-(doc, feed) breaker state in `shapeshifter_feed_state` (A26), the fatal error stream
    written while open, a per-document status strip with reset in the Supervisor view, and the optional
-   half-open retry.
+   half-open retry. *`errorModeAfter` and its Settings tab are built, and so is the
+   `shapeshifter_feed_state` table; **the rest is deferred — §15.2**, since what the prototype needs —
+   that a failed attempt loses no data — is the sentinel and the ledger, which are built.*
 13. **Review mode** (A25): `promotionMode` on the document, `draft` on a routing rule (authoritative; the
    shape's `awaiting review` status mirrors it), the router skipping drafts, Approve and Reject on the
    Routing tab, and rejection recorded against the shape. *All but the Routing tab's buttons built
    2026-09-18 as `Stage.approve` and `Stage.reject` — design 02 §6.1.*
 14. **The AI review job** (A23): sampling of emitted records under an hourly budget, the audit
    stream of findings, the rolling score per shape, the relearn trigger and the `Critique` question.
+   ***Deferred — §15.2.***
 15. **Durable attempts and the Supervisor view** (A28, A45): `shapeshifter_attempt` and
    `shapeshifter_turn` in the A26 module, the attempt row carrying the claim on its shape (A45); the
    dialogue **resumable by replay** rather than by saved workings — an attempt stops at a question,
@@ -1736,7 +1746,7 @@ the order they arrived. Items marked *built* already exist in `stroom-shapeshift
    depends on, and task creation for a feed waiting while its recorded state under the document (A26) is
    `ERROR` or has a shape `AWAITING_REVIEW`, in `ProcessorTaskCreatorImpl.getMaxMetaId` beside feed
    dependencies. Sequenced last because it changes `stroom-processor`; the intended mechanism, not
-   an optimisation.
+   an optimisation. ***Deferred — §15.2**: the behaviour it replaces, error and reprocess, is correct.*
 
 17. **The learning key** (A29): `learningKey` and `relearnThreshold` on the document's Learning tab;
    `RoutingRule.learnedSelector` and `Sample` generalised from the fixed three terms to the key; the
@@ -1829,9 +1839,12 @@ the order they arrived. Items marked *built* already exist in `stroom-shapeshift
    (the array) — rather than "run-only means JSON" as it reads today. JSON records without a root —
    JSON lines, or objects concatenated — are already handled: the parser wraps them in a root map, and
    the split's `root` names every top-level value a record (design 02 scenario 46). Design 02 scenario
-   49 states the XML case; phase D, since the fragment gains an element.
+   49 states the XML case; phase D, since the fragment gains an element. *Built 2026-09-23 as
+   `XmlFragmentStep`, with `StepRunner.fixedConfiguration` for a configuration the model is not asked
+   for and `StepRunner.consumes` for which split question the stream calls for; the markup split is now
+   settled over what the parser wrote rather than over the stream.*
 
-27. **The built-in templates exported as a skill** (a developer's observation, 2026-09-22: "this
+27. ***Deferred — §15.3.*** **The built-in templates exported as a skill** (a developer's observation, 2026-09-22: "this
    sounds like a skill"). What `Templates` holds is, in all but format, what an agent skill is —
    packaged, versioned domain instruction with worked examples, loaded when the task arises: the Data
    Splitter grammar and its strict shape, the two worked splitters, the quoted-field regex, the header
@@ -1842,7 +1855,7 @@ the order they arrived. Items marked *built* already exist in `stroom-shapeshift
    stylesheet by hand can load — generated from the built-ins so that there is one source: what the
    live runs teach the feature, they teach the developer, and a finding raises one version. Cheap,
    independent of the phases, and the place where this feature's knowledge stops being private to it.
-28. **An agentic plan, measured against the others** (the same observation, taken the other way). The
+28. ***Deferred — §15.3.*** **An agentic plan, measured against the others** (the same observation, taken the other way). The
    control here is deliberately not agentic: the interpreter walks a plan an operator can read (A37),
    asks one closed question a step, runs the candidate itself, scores it with gates outside the model
    (§8), routes on typed outcomes, and leaves a transcript a person can answer instead of (A28). Run 7
@@ -1877,13 +1890,18 @@ the order they arrived. Items marked *built* already exist in `stroom-shapeshift
    enters, whether a person may promote over the gate's refusal, and whether a hint is copied into the
    document's `instructions`.
 
-Items 1 and 2 are changes to `stroom-pipeline` that benefit the stepper too, and should be proposed
-on that basis rather than as private to this feature.
+Items 1 and 2 are changes to `stroom-pipeline` that benefit the stepper too. They were built as part of
+this work rather than proposed separately, at the owner's direction (2026-09-23): while this is an MVP
+prototype, whatever cross-module change the feature needs is made here, and the detail is picked out of
+the cross-module changes in a later review phase. The same goes for anything else in `stroom-pipeline`
+or elsewhere that the remaining items need — the constraint is that such a change must leave what it
+touches working and tested, not that it must be avoided.
 
 `02-scenarios.md` orders this list by the scenario that forces each item, and is where the
 behaviour of the finished stage is stated as tests. `03-phases.md` groups it into phases A–G, each
 with the criterion that ends it, adds the input formats the feature must be shown to handle (design
-02 scenarios 43–48), and says where each ruling still owed falls due.
+02 scenarios 43–48), says where each ruling still owed falls due, and — since the work was scoped to a
+prototype (§15) — gives in its §7 the order the rest of the MVP is built in and why that order.
 
 ---
 
@@ -1903,21 +1921,21 @@ with the criterion that ends it, adds the input formats the feature must be show
 | A10 | Variant model generic over element types; DS3/XSLT/JSON/XML initially | **Ruled**; A20 proposes the unit that carries it |
 | A11 | Extraction scored on yield **and input coverage** | **Ruled**; coverage's measure settled by A36 |
 | A12 | Promotion automatically releases the matching quarantine | **Ruled**; restated 2026-09-17 — the quarantine is a ledger of inputs, release is a reprocess filter, nothing is held (§5.2) |
-| A13 | On-premises OpenAI-compatible endpoint | **Ruled** |
+| A13 | The model is reached as an OpenAI-compatible endpoint through langchain4j, whatever the model is and wherever it runs | **Ruled**; **restated 2026-09-23 by the owner**: the protocol is the ruling and where the endpoint runs is not. No vendor's client library, and no code that knows which vendor answered — `stroom-ai`'s `OpenAIModelDoc` and the `ChatModel` it builds are the whole of it. The live harness tests a vendor-neutral client against whatever endpoint the environment names |
 | A14 | Promotion measured on a held-out sample the model never saw | **Ruled** |
 | A15 | Absolute floor **and** no regression against the incumbent | **Ruled** |
 | A16 | Anti-degeneracy scorer; schema conformance is a gate, not a maximand | **Proposed, §8.3** — arises from the schema review and is owed a ruling |
-| A17 | Redacted samples by default, raw by override — per feed as first ruled, per document since opt-in became per document (§11) | **Ruled**; scope restated 2026-09-17 |
-| A18 | Per-rule regression stream; promotion must not regress on any previously-accepted record; retention a document setting capped by the feed's | **Ruled** 2026-09-14; retention settled 2026-09-17 |
+| A17 | Redacted samples by default, raw by override — per feed as first ruled, per document since opt-in became per document (§11) | **Ruled**; **build deferred to §15.1** as a condition of deployment; scope restated 2026-09-17 |
+| A18 | **The set is built; the stream is deferred — §15.1.** Per-rule regression stream; promotion must not regress on any previously-accepted record; retention a document setting capped by the feed's | **Ruled** 2026-09-14; retention settled 2026-09-17 |
 | A19 | Generated extraction configurations may not set `ignoreErrors`; rejected at the compile gate | **Proposed, §9.1** — arises from the degeneracy probe and is owed a ruling |
 | A20 | A variant is a pipeline fragment — a Pipeline document with no destination — not a list of element/document pairs | **Ruled, 2026-09-22** — the owner's, as built since slice 3: the fragment writer, runner and content creator, the rule's `pipeline` |
 | A21 | An attempt is a dialogue: chain first, then one configuration per element in chain order, each with the real output of the elements before it; feedback to the failing step; a `Critique` question and a closing promotion turn; the document carries the allowed-element list | **Ruled, 2026-09-22** — the owner's, as built: the *direct* plan, generalised by A31, A34 and A37 into the plan as data; the `Critique` kind deferred with A23 (phase E) |
 | A22 | A routing selector is an expression over stream metadata and the attribute map, with the shape signature as a field; rules are ordered and first match binds | **Ruled, 2026-09-22** — the owner's, as built since slice 4, narrowed by A29 to the document's learning key |
-| A23 | An AI review scorer samples single records asynchronously; advisory and a relearn trigger, never a gate; its critique feeds the next candidate | **Proposed, §8.4** — the owner's, 2026-09-17 |
-| A24 | The circuit breaker's open state is an error mode per document and feed: fatal error streams, no model calls, operator reset with optional half-open retry | **Proposed, §11.2** — the owner's, 2026-09-17 |
+| A23 | **Deferred — §15.2.** An AI review scorer samples single records asynchronously; advisory and a relearn trigger, never a gate; its critique feeds the next candidate | **Proposed, §8.4** — the owner's, 2026-09-17 |
+| A24 | **Partly built; the rest deferred — §15.2.** The circuit breaker's open state is an error mode per document and feed: fatal error streams, no model calls, operator reset with optional half-open retry | **Proposed, §11.2** — the owner's, 2026-09-17 |
 | A25 | Promotion mode per document, automatic or review; a reviewed rule is a draft the router skips, its shape erroring into the ledger until Approve promotes it and reprocesses | **Proposed, §11.3** — the owner's, 2026-09-17; an option beside A9, not a revision of it |
 | A26 | Runtime state — shape status (unknown, learning, provisional, bound, awaiting review, given up), lease and rolling scores, the ledger, feed error-mode state — is three tables in a `stroom-shapeshifter-ai-impl-db` module; routing rules get a `uuid`; a job prunes | **Proposed, §11.4** — the owner's, 2026-09-17 |
-| A27 | Processor filters may depend on a Shapeshifter AI document and create no tasks for a feed while its feed-state row is `ERROR` or a shape of it is `AWAITING_REVIEW`; per (doc, feed); the intended mechanism for waiting, sequenced last because it touches `stroom-processor` | **Proposed, §11.5** — the owner's, 2026-09-17 |
+| A27 | **Deferred — §15.2.** Processor filters may depend on a Shapeshifter AI document and create no tasks for a feed while its feed-state row is `ERROR` or a shape of it is `AWAITING_REVIEW`; per (doc, feed); the intended mechanism for waiting, sequenced last because it touches `stroom-processor` | **Proposed, §11.5** — the owner's, 2026-09-17 |
 | A28 | Every attempt is a durable, resumable record in its own tables; a cross-document Supervisor view lists all attempts in every mode, with pending ones decidable and any turn amendable; the job advancing attempts awaiting the model is deferred mode's worker | **Proposed, §11.6** — the owner's, 2026-09-17; makes A25 and deferred A5 usable |
 | A29 | The learning key — the fields a learned rule binds on and the chain question sees — is a document setting, default `Feed AND Type`, with attribute-map fields and the shape signature choosable; a shape is one value of the key; shown means bound; a bound shape whose rolling per-record score falls below the document's relearn threshold is relearned | **Ruled** 2026-09-17 — the owner's; replaces the fixed `Feed AND Type AND Shape Signature` of the first A22 decisions |
 | A30 | The supervisor element in the stepper shows a stage pane — shape, match path, decision, fragment and verdicts, transcript, actions — in place of a code pane, expands to its fragment's chain, and runs dry | **Proposed, §11.7** — the owner's, 2026-09-18 |
@@ -1928,7 +1946,7 @@ with the criterion that ends it, adds the input formats the feature must be show
 | A35 | The split question is asked of XML input too, as A31 said: the reply names the element that is one record, judged by occurrence, not-the-root, not-a-container and wholeness; the transform is told each such element is one record; markup input is learned from whole, not from a line prefix | **Ruled, 2026-09-18** — the owner's, on the coherence audit: build it rather than amend A31. The boundary on the rule and in the stage's count and yield built in slice 19, 2026-09-22, ahead of the A26 tables, on run 7's evidence |
 | A36 | Input coverage is the share of the input's characters consumed; lines are counted and named in the diagnostic but do not set the score | **Ruled, 2026-09-18** — the owner's; on a seven-line sample a header was a seventh by lines and a sixteenth by characters, and the live runs found that deciding promotions (02 §6.3) |
 | A37 | The plan is a graph over typed question kinds and typed outcomes: each step names its checks and its transitions — `on <outcome> goto <step>` at once, `on spent goto <step>` when its candidates are gone — with self re-ask the default; `CONFIGURE` may take a role, parser or transform; each transition taken at most once per attempt; the rule-6 routing is a transition in the examples, not code | **Ruled, 2026-09-21** — the owner's, on four questions put with recommendations: graph over typed outcomes (not a list with an outcome guard); checks declared per step from a closed list; the parser–transform routing in the graph; designed and specified now, built as slice 12 ahead of the A26 tables |
-| A38 | Redaction keeps the feed's vocabulary and classes its values; applies to every text the model sees and every comparison against what it wrote; measured as a harness dimension | **Ruled, 2026-09-21** — the owner's, on three questions with recommendations; the build deferred by the owner until the formats are proven, and owed before phase G |
+| A38 | **Deferred — §15.1.** Redaction keeps the feed's vocabulary and classes its values; applies to every text the model sees and every comparison against what it wrote; measured as a harness dimension | **Ruled, 2026-09-21** — the owner's, on three questions with recommendations; the build deferred by the owner until the formats are proven, and owed before phase G |
 | A39 | The escalating example asks the split of every input: what one record is costs one question and is what the count, the target and yield rest on | **Ruled, 2026-09-22** — the owner's, on run 7 and slice 19, over the recommendation of JSON alone: the split is always asked |
 | A40 | A parser refused on yield — a multi-line record it cut per line — goes back to the split question (`CONFIGURE parser on yield-short goto split`) rather than being re-asked blind | **Ruled, 2026-09-22** — the owner's, from run 7's auditd under escalating |
 | A41 | The document holds only what a person authors; nothing learned is written to it — the routing table becomes rows, one per rule, and the supervisor never writes the document | **Ruled, 2026-09-22** — the owner's, on how the feature survives hundreds of nodes: a whole-document rewrite per promotion loses rules and collides with the operator's own edits (§11.4) |
@@ -2164,6 +2182,33 @@ including the degeneracy trap (§8.3) that changes the scoring model and propose
   `shapeshifter_turn`, the `Attempts` seam and its DAO, and the stage recording an attempt and every
   turn of it. Not the rendered prompt, which waits for redaction (A38); not yet the claim on the shape,
   which waits for the dialogue to be resumable (A45).
+- §12 item 26 built (design 02 §6.1): a stream of markup fragments is wrapped into a document and
+  learned as the records it carries, where it was previously read as text and abandoned. With it:
+  an element may declare a configuration that is never asked for, and each parser declares what it
+  consumes so that the split question follows the stream rather than a guess from the element's shape.
+- The phases restructured for the MVP (design 03): phase D no longer carries the restricted XSLT
+  library or the content-pack checks, which are deferred; "where it stands" is brought up to the
+  thirty-seventh slice; and design 03 §7 gives the order the rest of the MVP is built in, ten slices
+  from here, with the reason for each. The principle it is ordered on: close the loop before dressing
+  it — every surface in phase F shows something the loop does, so the reprocessing that releases a
+  sentinelled stream (item 7) comes before any of them, and the plan editor, which edits the mechanism,
+  comes last.
+- **§15 Future work** added at the owner's direction: what is being built is an MVP prototype — the
+  process and the UI, on fixture data, in an environment that is not security sensitive — so the
+  controls written for a feature handling sensitive material are gathered there rather than built now.
+  Redaction (A17, A38), the restricted XSLT function library (item 10) and the regression stream's
+  retention are conditions of *deployment* and say so; error mode (A24), the processor gate (A27), the
+  AI review job (A23), cluster-wide rate limiting and the content-pack checks are operational safety at
+  volume; the agentic plan, the templates as a skill and the rulings that need real feeds are research.
+  The spend breaker stays, because a candidate loop against a metered endpoint costs real money while
+  nobody is watching. Nothing is rescinded: every ruling keeps its number and its section, and §15.4
+  says what the MVP keeps although it reads as safety.
+- Three decisions, the owner's: the next slice is item 26 (a stream of markup fragments is not a
+  document, and today is abandoned); the dialogue's candidate runs will follow the bound path's shape —
+  a node runs them through the real pipeline while Tier 1 keeps the stand-in, with an agreement test per
+  input shape as the guard; and cross-module changes are made as part of this work rather than proposed
+  upstream separately, since this is an MVP prototype and the cross-module detail will be reviewed as a
+  phase of its own later.
 - Audit of the bound path (the owner's code review): seven findings, all fixed — design 02 §6.1. The
   capture was splitting streams the pipeline does not split, so a text feed would have been judged one
   record at a time and served whole; a capture now takes the pipeline's own shape and stepping keeps
@@ -2385,3 +2430,69 @@ including the degeneracy trap (§8.3) that changes the scoring model and propose
 - Design 03 written: the phases, at the owner's asking for one plan covering everything discussed and
   the formats never yet exercised — syslog, auditd, Windows security events, JSON, fixed-width,
   multi-line CSV. Slice 12 is phase A; phase B is a slice per format.
+
+---
+
+## 15. Future work
+
+*Added 2026-09-23 at the owner's direction. What is being built is an **MVP prototype**: enough of the
+process and the UI to explore whether the capability is worth having, run against fixture data in an
+environment that is not security sensitive. The design was written for a feature that would one day
+handle an organisation's most sensitive material, so it carries controls that belong to that day rather
+than to this one. They are gathered here — rulings intact, nothing rescinded — so that the prototype is
+not slowed by them and nobody later reads their absence as an oversight.*
+
+**Nothing here is cancelled.** Each item keeps its ruling and its section; what changes is when it is
+built. Where an item is a condition of deployment rather than a piece of work, it says so.
+
+### 15.1 Conditions of deployment
+
+These are not "later work" in the ordinary sense: the prototype is only safe *because* it is a prototype,
+and each of these must exist before the feature meets real data or a real environment.
+
+| Owed | Ruling | Built already | Why it is safe to defer now, and what makes it due |
+|---|---|---|---|
+| **Redaction** | A17, A38 (§11.1) | Nothing — the rulings say how it works and no part of it is written | Samples reach the model unredacted. Safe while the only samples are fixtures in this repository. **Due before any real feed is pointed at any model** |
+| **The restricted XSLT function library** | §12 item 10 (§11.1) | The *learning-time* confinement in `XsltStep`: no `document()`, no `unparsed-text()`, no includes, no external entities, no extension functions, and no recovery from a refused fetch. A candidate cannot read the filesystem while it is being judged | What is missing is the *runtime* restriction, in `XsltPoolImpl` where `StroomXsltFunctionLibrary` is registered: a **promoted** stylesheet runs with the full `stroom:` library and can reach the network — `http-call`, `fetch-json`, `ask-ai`. Safe in a sandbox on fixture data with a person reading every promotion. **Due before the feature runs anywhere that matters** |
+| **The regression stream's retention and classification** | A18 (§11.1, §12 item 9) | The `RegressionSet` seam, its in-memory implementation and the gate that scores a candidate against every accepted record | What is missing is the stream itself — the set is in memory, so it has no retention to cap and no classification to inherit. It becomes real data the moment the records are real. **Due with redaction** |
+
+### 15.2 Operational safety at volume
+
+The prototype is one node, one person driving it, one feed at a time. These exist for a feature running
+unattended across a cluster. Where part of one is already built it stays and is marked below, because
+only what has not been written is worth deferring.
+
+| Owed | Ruling | Built already | What is deferred |
+|---|---|---|---|
+| **Error mode** | A24, §12 item 12, scenario 23 | `errorModeAfter` on the document and its Settings tab; the `shapeshifter_feed_state` table and its jOOQ, from the A26 slice | The stage reading the counter, the feed-state row being written, fatal error streams while open, the status strip and its reset, the half-open retry. What the prototype needs instead — that a failed attempt loses no data — is the sentinel and the ledger, which are built (§5.2) |
+| **The processor gate** | A27, §12 item 16, scenario 32 | Nothing; it changes `stroom-processor` | All of it. The behaviour it replaces — error and reprocess — is correct, merely wasteful |
+| **Rate limiting across documents** | §12 item 6's remainder | The spend breaker (A44): the cluster-wide token bucket, its table and seam, and the attempt budgets of A5. It stays, because a candidate loop against a metered endpoint is the one prototype risk that costs real money while nobody is watching | The request-rate limit across documents |
+| **The AI review job** | A23, §12 item 14, scenario 24 | Nothing | All of it: the sampling under an hourly budget, the audit stream, the `Critique` question kind and the relearn trigger. It costs money per record and nothing depends on it |
+| **Content-pack prerequisite checks** | §12 item 11 | Nothing; the schema scorer loads what it needs and reports what it cannot find | Refusing to start when the event and data-splitter schemas are absent. Robustness rather than capability |
+
+### 15.3 Research, and what waits for real evidence
+
+| Owed | Note |
+|---|---|
+| **The agentic plan** (§12 item 28) | The `AGENT` plan measured against the closed-question ones. A comparison to run once there is something worth comparing |
+| **The templates as a skill** (§12 item 27) | Exporting the built-in prompt templates so the same guidance is available outside the feature |
+| **Rulings that need real feeds** | A6 (signature normalisation), A16 (anti-degeneracy as a ruling rather than a built gate), A19 (no `ignoreErrors`), and the thresholds §2.1 left open. All of them are asking a question the fixtures cannot answer |
+| **The real-scale trial** | Design 03's phase G: one real feed with an existing stylesheet as the incumbent, replayed through the feature. It is the gate to real data, and §15.1 is its entry condition |
+
+### 15.4 What the MVP keeps, although it reads as safety
+
+Listed because the line is not obvious, and because removing any of these would remove the thing being
+explored rather than a control around it.
+
+- **The promotion gate** — the floor, no regression against the incumbent, the held-out sample (A14,
+  A15). This is the capability. Without it the prototype demonstrates nothing.
+- **The sentinel, the ledger and reprocessing** (§5.2) — without them a failed learn loses data, and a
+  prototype you cannot re-run is not one.
+- **The sample size cap** — one document setting, already built, and what stops a prompt and a bill
+  running away.
+- **The spend breaker** (A44), as above.
+- **The learning-time stylesheet confinement** in `XsltStep` (§11) — free, and it keeps a candidate from
+  reading the filesystem while it is being judged.
+- **Review mode** (A25) — it reads as a control, but it is one of the surfaces the prototype exists to
+  explore.
+- **Opt-in per document** (§11.1) — the unit of opt-in is the UX, not a guard.

@@ -19,6 +19,7 @@ package stroom.shapeshifter.ai.extraction;
 import stroom.pipeline.shared.TextConverterDoc;
 import stroom.shapeshifter.ai.extraction.Compilation.Compiled;
 import stroom.shapeshifter.ai.extraction.Compilation.Rejected;
+import stroom.shapeshifter.ai.learning.InputKind;
 import stroom.shapeshifter.ai.learning.StepResult;
 import stroom.shapeshifter.ai.learning.StepRunner;
 
@@ -57,6 +58,12 @@ public final class DataSplitterStep implements StepRunner {
     @Override
     public boolean parser() {
         return true;
+    }
+
+    /// Raw text, so the split question is the configuration that cuts it.
+    @Override
+    public InputKind consumes() {
+        return InputKind.TEXT;
     }
 
     @Override

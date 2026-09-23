@@ -17,6 +17,7 @@
 package stroom.shapeshifter.ai.extraction;
 
 import stroom.pipeline.xml.converter.json.JSONParserFactory;
+import stroom.shapeshifter.ai.learning.InputKind;
 import stroom.shapeshifter.ai.learning.StepResult;
 import stroom.shapeshifter.ai.learning.StepRunner;
 import stroom.util.shared.ElementId;
@@ -68,6 +69,12 @@ public final class JsonStep implements StepRunner {
     @Override
     public boolean parser() {
         return true;
+    }
+
+    /// JSON, so the split question is the array whose items are records (A31).
+    @Override
+    public InputKind consumes() {
+        return InputKind.JSON;
     }
 
     @Override

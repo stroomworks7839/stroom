@@ -1,6 +1,6 @@
 # Design 03 — Phases: what is built in what order, and what lets the next phase start
 
-*Written 2026-09-21. Design 01 §12 is the work list, in dependency order and marked built or not;
+*Written 2026-09-21, revised 2026-09-23 for the MVP scope of design 01 §15. Design 01 §12 is the work list, in dependency order and marked built or not;
 design 02 §6 is the same list ordered by the scenario that forces each item. Neither says what a phase
 is, when it is finished, or which input formats the feature has been shown to handle. This document
 does, and it is the one the slices are now cut from. A phase ends on its exit criterion — a test or a
@@ -8,18 +8,27 @@ run, not a judgement — and the next does not start until it has.*
 
 ## 1. Where it stands
 
-Slices 1–11 (design 02 §6.1) built the document type and its editor, the scorers, the `Stage` with its
-routing, learning, provisional binding, promotion, retraction, relearning, ledger and review mode, the
-supervisor element in a real pipeline, learning against a target, and the plan as data. Runtime state
-is in-memory seams; attempts are not durable; the pipeline integration is hand-glued; the model has
-been run against seven feeds, all cut from the `TestDS3` corpus and one XML fixture.
+**What is being built is an MVP prototype** (the owner, 2026-09-23): enough of the process and the UI to
+explore whether the capability is worth having, on fixture data, in an environment that is not security
+sensitive. Design 01 §15 gathers what that defers — redaction, the restricted XSLT function library, the
+safety controls for running unattended at volume — with the conditions under which each falls due. The
+phases below are read in that light: **A, B, C, D and F are the MVP**; E is deferred and G is the gate to
+real data.
 
-Formats exercised so far: CSV (headed, unheaded, quoted), a regex line feed, one multi-line block
-(corpus 003), nested XML — and, since slices 13–18 (2026-09-21), syslog, auditd, Windows security
-events, JSON, fixed-width and CSV with embedded newlines, each scripted and green (§5). Not yet
-exercised live before run 7 (2026-09-21 to 22, design 02 §6.3), which learned five of the six under
-each plan and every one under one or the other — phase B's exit criterion met — and found the JSON
-document count promoting a one-event transform, which §5 marks urgent.
+Slices 1–37 (design 02 §6.1) have built the document type and its editor, the scorers, the `Stage` with
+its routing, learning, provisional binding, promotion, retraction, relearning, ledger and review mode,
+the supervisor element in a real pipeline, learning against a target, the plan as data and then as a
+graph, the six formats of §3, the A26 tables and the A28 attempt with its deferred worker, and — in
+phase D — the two `stroom-pipeline` changes items 1 and 2 asked for, the learned boundary as a
+`SplitFilter` with the chain run one record at a time, and markup without a root.
+
+**Phases A, B and C are met.** Runtime state is rows in `stroom-shapeshifter-ai-impl-db`; attempts are
+durable and resumable; a bound rule is judged and served by running the fragment as a real pipeline,
+with a Tier 2 scenario holding the Tier 1 stand-in to the same events. The model has been run live
+against six formats under three plans, and once more (run 9, design 02 §6.4) to measure what showing it
+one record changed.
+
+**What is left of the MVP is the rest of D and the whole of F**, in the order §7 gives.
 
 ## 2. The phases
 
@@ -28,16 +37,20 @@ document count promoting a one-event transform, which §5 marks urgent.
 | **A. The plan mechanism** | A37: outcomes and checks as closed lists; `PlanStep` with id, role, checks, transitions; `Dialogue` as an interpreter; the *escalating* example; the renames of §12 item 23; the Learning tab's grammar; `SHAPESHIFTER_LIVE_PLAN` | item 23; scenarios 39–42 | every scenario green in both tiers; the 2026-10-01 live run over feeds 06 and 07 with all three plans, transcripts under `build/live-runs`, findings in design 02 §6.3 |
 | **B. Format breadth** | one fixture, golden event set, scripted scenario and live row per format of §3; the `JSONParser` runner (scenario 2); the coverage floor and yield bases set per format from what the goldens score | scenarios 2, 43–48; thresholds' first values (design 01 §2.1) | each of the six learned scripted; at least four of the six learned live to the floor with the default plan or the escalating one |
 | **C. Durable state** | the A26 module and tables as A41–A44 revise them — the learned rules as rows with the document holding only authored configuration (the `Rules` seam and the document's emptying built in slice 20, the five tables and their DAOs in slice 21, scenario 20 against them in slice 22, all 2026-09-22), the lease per shape with sentinelling losers, the cluster-wide spend counters, and the caches that keep the hot path off the database; the A35 record element on the rule and in the stage's count and yield (built early, slice 19, on run 7's evidence); A28's attempt and turn tables, the deferred worker (slice 26 in the module, slice 27 in a node with its job and Tier-2 scenario, both 2026-09-22), the Supervisor view and its resource; A18's check reading targets as goldens | items 8, 9, 15, 20's remainder; scenarios 13, 20, 30, 31 | **Met 2026-09-22**: scenarios 20 and 30 green in Tier 2 against MySQL, 31 in Tier 1 (slice 28), and an attempt paused, answered by a person and resumed. The phase's remaining deliverables — the caches, the prune job, `Outputs` as rows, the Supervisor and its resource, A18's targets — built in slice 29. Owed out of the phase: scenario 13's Tier-2 filter (the harness mocks the processor filter service), the Supervisor's buttons (with phase F's other interactions) and the regression set as a stream (phase E) |
-| **D. Pipeline integration** | §12 items 1 and 2 in `stroom-pipeline`, proposed on their own merits; the learned boundary as a `SplitFilter` in the written fragment and the transform asked per record (item 25); the `XMLFragmentParser` step for markup without a root (item 26, scenario 49); the fragment run once per stream with per-element capture in a child task; the reprocessing mode that reads bindings (item 7); input spans (item 21); the restricted XSLT function library (item 10); content-pack checks (item 11); replay unit derived and checked (item 18) | items 1, 2, 7, 10, 11, 18, 21; scenarios 18, 19, 38 | scenarios 18 and 19 without the interim glue design 02 §6.1 records; scenario 38's read-back by span; one real feed learned end to end on a running node |
-| **E. Safety at volume** | error mode (A24) and its status strip; the A27 processor gate; rate limiting across documents and the spend breaker; the A23 review job, its audit stream and the `Critique` kind; the regression stream as a real stream with retention | items 6's remainder, 12, 14, 16; scenarios 23, 24, 32 | scenarios 23, 24 and 32 green; a soak: a replayed real feed at volume under a deliberately bad model endpoint, with error mode entered, the gate holding tasks, and spend capped |
+| **D. Pipeline integration** | §12 items 1 and 2 in `stroom-pipeline`, built as part of this work (design 01 §12); the learned boundary as a `SplitFilter` in the written fragment and the transform asked per record (item 25); the `XMLFragmentParser` step for markup without a root (item 26, scenario 49); the fragment run as a pipeline for judging and for serving; the reprocessing mode that reads bindings (item 7); input spans (item 21); replay unit derived and checked (item 18) | items 1, 2, 7, 18, 21; scenarios 18, 19, 38 | scenarios 18 and 19 without the interim glue design 02 §6.1 records; scenario 38's read-back by span; one feed learned, promoted, released and reprocessed end to end on a running node |
+| **E. Safety at volume** *(deferred — design 01 §15.2)* | error mode (A24) beyond the document setting and the feed-state table that C already built; the A27 processor gate; rate limiting across documents beyond A44's spend breaker, which C built and which stays; the A23 review job, its audit stream and the `Critique` kind; the regression stream as a real stream with retention | items 12, 14, 16 and item 6's remainder; scenarios 23, 24, 32 | **Not part of the MVP.** The prototype is one node with a person driving it; what it needs instead — that a failed attempt loses no data — is the sentinel and the ledger, built in C |
 | **F. Operator surfaces** | the plan editor (item 24); the stage pane in the stepper (A30, item 19); Approve and Reject on the Routing tab (item 13's remainder); the ledger view grouped by shape; the supervisor's message and *improve* over a rule that is already serving (A46, item 29) | items 13, 19, 24, 29; scenario 33 | GWT compiled; scenario 33; a person learns, reviews and approves a feed from the UI alone, no REST calls by hand, and improves a rule that was already serving — the hint reaching the model and the incumbent serving throughout |
-| **G. Real-scale trial** | redaction (A38) built and measured as a harness dimension first, since a real feed is now going to a model; the `AGENT` plan measured against the others (§12 item 28); then one real feed with an existing, thousand-line stylesheet as the incumbent, replayed through the feature; thresholds and A6 set from its evidence; the rulings of §4 given from what it shows | A38; A6, A16, A19; the thresholds design 01 §2.1 left open | the promotion gate holds on real data — no promotion a person reviewing the transcript would have refused; the review-mode target page judged readable by an operator who did not build it |
+| **G. Real-scale trial** *(after the MVP)* | design 01 §15.1's conditions of deployment first — redaction (A38) built and measured as a harness dimension, the restricted XSLT function library (item 10), the regression stream's retention — then one real feed with an existing, thousand-line stylesheet as the incumbent, replayed through the feature; thresholds and A6 set from its evidence; the rulings of §4 given from what it shows | design 01 §15.1 and §15.3; A6, A16, A19; the thresholds design 01 §2.1 left open | the promotion gate holds on real data — no promotion a person reviewing the transcript would have refused; the review-mode target page judged readable by an operator who did not build it |
 
-Phases A and B are the proof that the mechanism works and works across formats; C to F make it a
-product; G is what decides whether it is switched on. C and D are independent of each other and may
-interleave; E depends on C; F depends on C and D; G depends on all of them but its fixture — the real
-feed and its stylesheet — should be sought during B, since finding one takes longer than building
-anything here.
+**The MVP is A, B, C, D and F.** Phases A and B are the proof that the mechanism works and works across
+formats; C and D make it real machinery rather than a harness; F is the UI without which there is
+nothing to explore. C and D are independent of each other and may interleave; F depends on C and D.
+
+**E is deferred and G comes after** (design 01 §15, added 2026-09-23 at the owner's direction). What is
+being built is a prototype on fixture data in an environment that is not security sensitive: E's
+controls are for a feature running unattended at volume, and G is the gate to real data, with §15.1's
+conditions of deployment as its entry. G's fixture — a real feed and its stylesheet — should still be
+sought early, since finding one takes longer than building anything here.
 
 ## 3. Formats, and what each one tests
 
@@ -65,10 +78,10 @@ otherwise.
 |---|---|---|
 | A20, A21, A22 | Ruled as built, 2026-09-22 (design 01 §13) | — |
 | A39, A40 | Ruled 2026-09-22 (design 01 §13): the escalating example splits every input; a parser refused on yield goes back to the split | Measured on the next live comparison of plans |
-| A16 anti-degeneracy | Proposed; built as a gate | Phase G, from real evidence; the Windows fixture in phase B is the rehearsal |
-| A19 no `ignoreErrors` | Proposed; enforced at the compile gate | Phase G, with A16 |
-| A6 signature normalisation | Open | Phase G; the syslog fixture in phase B is the rehearsal |
-| A23–A28, A30 | Proposed, the owner's | Each on the phase that builds it: C for A26 and A28, E for A23, A24 and A27, F for A30 |
+| A16 anti-degeneracy | Proposed; built as a gate | Phase G, from real evidence (design 01 §15.3); the Windows fixture in phase B is the rehearsal |
+| A19 no `ignoreErrors` | Proposed; enforced at the compile gate | Phase G, with A16 (design 01 §15.3) |
+| A6 signature normalisation | Open | Phase G (design 01 §15.3); the syslog fixture in phase B is the rehearsal |
+| A23–A28, A30 | Proposed, the owner's | C built A26 and A28; F builds A30 and A25's buttons. A23, A24 and A27 are deferred with phase E — design 01 §15.2 |
 | A41–A44 | Ruled 2026-09-22 (design 01 §11.4): rules as rows, lease per shape, one learner, cluster-wide spend | Built in C: the rules as rows in slices 20–21, the lease and the spend counter in slice 23, the lease becoming the attempt's claim (A45) in the audit of slice 25; the spend's policy with A24 in phase E |
 | A45 | Ruled 2026-09-22 (design 01 §13): the attempt row is the lease, once attempts are durable | Built with A28, in C: the claim in slice 25, and the shape's lease columns dropped in its audit |
 | A46 | Proposed 2026-09-22 (design 01 §13), the owner's, from the live run of item 25: a supervisor's message into the learning, and improving a rule that is already serving. Its three decisions ruled the same day | Phase F (§12 item 29), with the view's other interactions; the `GUIDANCE` rows and the override's ledger entry belong with the first slice that touches those tables |
@@ -85,7 +98,7 @@ otherwise.
 | JSON | 16, 2026-09-21 | Fixtures, golden, stylesheet; the `JSONParser` runner, the `json` guard, the array split (`root` reaches a top-level array's items); scenarios 2 and 46 green; live rows `11-json-lines` and `12-json-document`. Run 7 (design 02 §6.3): the lines promoted under both plans; the document was given up on yield under target-first and promoted at 1.000 under escalating with one event from twelve — a wrong promotion. **Slice 19, 2026-09-22: the boundary on the rule and in the stage's count and yield; run 8 promoted the document under both plans, all twelve events.** Still owed: the learning sample cut at the array's items, as `wholeChildren` does for XML |
 | Fixed-width | 17, 2026-09-21 | Fixture, golden, two splitters, two stylesheets; scenario 47 green under the escalating plan; live row `13-fixed-width`. No code changed: coverage at 1.0 says nothing, the rule on the outcome escalates, preservation catches the dropped columns |
 | CSV with embedded newlines | 18, 2026-09-21 | Fixture, golden, two splitters, stylesheet; scenario 48 green; live row `14-csv-multiline`; the DS3 rules teach a quoted field. Finding: the line split is refused by yield per line, not wholeness, which is a character share. Owed: the learning prefix is cut by lines and can cut a multi-line text record at the sample's end — cut it at the settled boundary once a split is learned |
-| Redaction (A17, A38) | deferred to G | Ruled 2026-09-21 how it works; the owner deferred the build — formats first, redaction before a real feed meets an external model |
+| Redaction (A17, A38) | deferred — design 01 §15.1 | Ruled 2026-09-21 how it works; the build was deferred the same day, and 2026-09-23 it became a condition of deployment rather than a phase: it is due before any real feed is pointed at any model, and the prototype's samples are this repository's fixtures |
 
 Phase B's exit criterion was met by run 7 (2026-09-21 to 22, design 02 §6.3): five of the six formats
 learned live to the floor under each of target-first and escalating, all six under one or the other;
@@ -96,7 +109,41 @@ questions A39 and A40, and the real feed to be sought for phase G.
 ## 6. How a slice is cut from this
 
 A slice is the smallest piece of a phase that leaves every scenario green and design 02 §6.1 able to
-say what it did. Slice 12 is the whole of phase A. Phase B is six slices, one per format, each
-carrying its fixture, golden, scenario and live row; redaction (A38) waits for phase G. The phases
-after B are cut when B's exit criterion is met, because what B finds — which formats the model
-handles, at what cost, with which plan — is what decides how much of C to F is worth building first.
+say what it did. Slice 12 was the whole of phase A; phase B was six slices, one per format, each
+carrying its fixture, golden, scenario and live row. Since C the rhythm has been one slice, one audit
+(the owner's code review), one commit — which has caught more than the scenarios did, and is why the
+audit is part of the slice rather than a phase of its own.
+
+What is left is cut from §7 rather than from a phase, because the remaining work is a sequence and not
+a set: each of the ten leaves the feature usable, and stopping after any of them leaves something that
+can be judged.
+
+## 7. Finishing the MVP: the order, and why
+
+*Added 2026-09-23, after design 01 §15 scoped the work to a prototype. The phases say what belongs
+together; this says what to build next and why that order and not another. The principle: **close the
+loop before dressing it**. Every surface in F shows something the loop does, so a surface built over a
+loop that does not close shows half a story — and the one thing an MVP has to do is let someone watch
+the whole thing happen.*
+
+| # | Slice | Phase | Why here |
+|---|---|---|---|
+| 1 | **The reprocessing mode that reads bindings** (item 7) | D | The loop's last missing link. A stream that arrives before its shape is learned is sentinelled and recorded in the ledger, and a promotion releases it — but nothing yet reprocesses what was released, so the payoff of "nothing is held" (§5.2) cannot be seen. Everything in F is more interesting once this works |
+| 2 | **Replay unit derived and checked** (item 18) | D | Small, and item 7 needs it: what is reprocessed is the fragment's replay unit, and today it is neither derived from the fragment nor checked against the stage's position |
+| 3 | **The dialogue's candidate runs on the real pipeline** (item 2's remainder) | D | The bound path already runs as a pipeline; a candidate is still tried with the module's step runners while it is being written. A node should judge with the thing that will run, Tier 1 keeping the stand-in, with an agreement test per input shape (the owner's decision, 2026-09-23). Third rather than first because the promotion gate already runs the pipeline, so a candidate the pipeline refuses is caught before it is promoted — this improves the *feedback*, not the safety |
+| 4 | **Input spans in the bindings** (item 21, scenario 38) | D | The evidence trail: a record's start and end in the source, so a fault at any event can be read back and relearned with its input in hand. It is also what the Supervisor view and the stepper pane show, so it comes before them and after the loop |
+| 5 | **Scenario 13's Tier 2 filter** | owed out of C | The processor-filter half of the ledger-and-release scenario, which the C harness mocked. Cheap once the reprocessing of slice 1 exists, and it is what proves the release end to end |
+| 6 | **The stage pane in the stepper** (A30, item 19) | F | The first surface, because it is where a person already goes when a pipeline puzzles them: shape, match, decision, fragment, verdicts, transcript, in the place they debug |
+| 7 | **Approve and Reject on the Routing tab** (item 13's remainder) | F | Review mode is built in the stage and has no buttons. Two buttons and a confirmation turn a built behaviour into a usable one |
+| 8 | **The Supervisor view's actions and the ledger view** (A28's remainder) | F | The cross-document table exists; what it lacks is the doing — answer instead, re-run from here, retract, widen, re-learn — and the ledger grouped by shape beside it |
+| 9 | **A supervisor's message, and improve** (A46, item 29) | F | The newest ruling, and the one that wants everything above it: a hint is a `GUIDANCE` row the next question carries, and *improve* is a relearning from the incumbent over the regression set. It is the first thing in the plan that makes the feature collaborative rather than automatic |
+| 10 | **The plan editor** (item 24) | F | Last, deliberately. It edits the mechanism itself, and by this point the mechanism has been driven through every other surface — so the editor is built over something proven rather than over a grammar that might still move |
+
+**What ends the MVP.** A person can drive the whole loop from the UI on a running node, against a feed
+of fixture data: an unknown shape is learned and bound, a stream that arrived too early is released and
+reprocessed, a rule is reviewed and approved, a rule that is serving is hinted at and improved, and a
+failed learn is visible as a sentinel with its reason. No REST calls by hand, and nothing in the loop
+that only a test can reach.
+
+**What it does not include**, and should not be confused for readiness: design 01 §15.1's conditions of
+deployment. The MVP ends with a prototype worth judging, not a feature worth switching on.

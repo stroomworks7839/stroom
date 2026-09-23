@@ -70,6 +70,28 @@ public interface StepRunner {
         return false;
     }
 
+    /// The configuration this element always runs with, where it is not the model's to write: the
+    /// wrapper a fragment parser needs is the element's own business, not a question worth a candidate
+    /// (§12 item 26). No question is asked for it and the document is written all the same, so that a
+    /// pipeline has what it needs to run the element.
+    ///
+    /// @return Empty for an element whose configuration is asked for, which is every element a model
+    /// actually writes.
+    default Optional<String> fixedConfiguration() {
+        return Optional.empty();
+    }
+
+    /// What kind of stream this element is given, which says which split question the input calls for
+    /// (A31, A35) — the element that is one record for markup, the array whose items are records for
+    /// JSON, a configuration that cuts it for raw text.
+    ///
+    /// Read only of the chain's first element, and only where it parses: what a later element is given
+    /// is what the one before it wrote. An element that does not parse is given records, which are
+    /// markup.
+    default InputKind consumes() {
+        return InputKind.XML;
+    }
+
     /**
      * @param documentType The document type consumed, e.g. {@code TextConverter}.
      * @param propertyName The element property that references the document, e.g. {@code textConverter}.

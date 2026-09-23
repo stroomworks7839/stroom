@@ -62,6 +62,8 @@ public final class QuestionText {
             "DSParser", "parses raw text into records:2 XML with a Stroom Data Splitter 3.0 configuration",
             "JSONParser", "parses JSON into records:2 XML, with no configuration",
             "XMLParser", "parses XML input as it is, with no configuration",
+            "XMLFragmentParser", "wraps a stream of XML fragments — one element per line, with no root — "
+                                 + "in a root so that they become one document, with no configuration",
             "XSLTFilter", "transforms XML records into event-logging:3 events with an XSLT 2.0 stylesheet");
 
     private static final int INPUT_SHOWN = 6000;
