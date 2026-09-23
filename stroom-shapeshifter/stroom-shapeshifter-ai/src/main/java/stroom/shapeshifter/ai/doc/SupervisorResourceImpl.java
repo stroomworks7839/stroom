@@ -68,6 +68,12 @@ import java.util.function.Consumer;
 @AutoLogged
 public class SupervisorResourceImpl implements SupervisorResource {
 
+    /// The most rows a page of the ledger or of the serving rules may ask for, whatever it asks for.
+    /// The attempts beside them have always clamped; these did not, so any person with VIEW on one
+    /// document could ask for the whole table in one request, and a negative length reached the database
+    /// as `LIMIT -1`.
+    private static final int PAGE_LIMIT = 1000;
+
     private final Provider<Attempts> attemptsProvider;
     private final Provider<ShapeshifterAiStore> storeProvider;
     private final Provider<StageFactory> stageFactoryProvider;
@@ -130,8 +136,8 @@ public class SupervisorResourceImpl implements SupervisorResource {
                 ? new PageRequest(0, 100)
                 : pageRequest;
         final Map<String, DocRef> readable = readable(docUuid);
-        final long offset = NullSafe.getOrElse(page.getOffset(), Integer::longValue, 0L);
-        final int length = NullSafe.getOrElse(page.getLength(), Integer::intValue, 100);
+        final long offset = Math.max(0L, NullSafe.getOrElse(page.getOffset(), Integer::longValue, 0L));
+        final int length = pageLength(page);
         final Ledger.Page found = ledgerProvider.get().waiting(readable.keySet(), offset, length);
         // Each row named with its document rather than its uuid, since the view is over all of them.
         final List<LedgerShape> rows = found.shapes().stream()
@@ -163,8 +169,8 @@ public class SupervisorResourceImpl implements SupervisorResource {
         final PageRequest page = asked.getPageRequest() == null
                 ? new PageRequest(0, 100)
                 : asked.getPageRequest();
-        final long offset = NullSafe.getOrElse(page.getOffset(), Integer::longValue, 0L);
-        final int length = NullSafe.getOrElse(page.getLength(), Integer::intValue, 100);
+        final long offset = Math.max(0L, NullSafe.getOrElse(page.getOffset(), Integer::longValue, 0L));
+        final int length = pageLength(page);
         final Serving.Page found = servingProvider.get()
                 .rules(readable.keySet(), asked.getBelow(), offset, length);
         // Each row named with its document rather than its uuid, since the view is over all of them.
@@ -325,6 +331,15 @@ public class SupervisorResourceImpl implements SupervisorResource {
         onStage(attempt, (stage, doc) -> stage.relearn(doc, attempt.attempt().shape(),
                 "Sent back to be learned again by " + who));
         return detail(read(id));
+    }
+
+    /// How many rows a page may hold: what was asked for, within what the server will give. A request
+    /// is not to be trusted with either end of it — an unbounded length hands over the whole table in
+    /// one call, and a negative one reaches the database as `LIMIT -1` and answers with a server error
+    /// rather than a refusal.
+    private static int pageLength(final PageRequest page) {
+        final int asked = NullSafe.getOrElse(page.getLength(), Integer::intValue, 100);
+        return Math.max(1, Math.min(asked, PAGE_LIMIT));
     }
 
     /// The documents this person may read, by uuid and keeping their names, narrowed to the one they

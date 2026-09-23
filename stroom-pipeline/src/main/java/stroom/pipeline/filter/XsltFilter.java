@@ -166,14 +166,20 @@ public class XsltFilter extends AbstractXMLFilter implements SupportsCodeInjecti
             // person's edit in the stepper, or a candidate a supervisor is judging. Where the element
             // references nothing at all the code is the whole of it, which is what lets a candidate be
             // run before it has been written anywhere. Never pooled: it is nobody else's stylesheet.
-            if (injectedCode != null) {
-                xslt = xslt == null
-                        ? XsltDoc.builder()
-                                .uuid(UUID.randomUUID().toString())
-                                .name(getElementId().getId())
-                                .data(injectedCode)
-                                .build()
-                        : xslt.copy().data(injectedCode).build();
+            if (injectedCode != null && xslt != null) {
+                xslt = xslt.copy().data(injectedCode).build();
+                usePool = false;
+            } else if (injectedCode != null && xsltRef == null && NullSafe.isBlankString(xsltNamePattern)) {
+                // Fabricated only where the element names no document at all, as the three parsers do
+                // and for their reason: a name pattern that has stopped resolving is a fault to be told
+                // about, not a gap for the editor's pane to fill silently. Stepping a pipeline whose
+                // stylesheet is found by name pattern, after the document it found was renamed, would
+                // otherwise compile whatever is in the code pane and hide the resolution failure.
+                xslt = XsltDoc.builder()
+                        .uuid(UUID.randomUUID().toString())
+                        .name(getElementId().getId())
+                        .data(injectedCode)
+                        .build();
                 usePool = false;
             }
 

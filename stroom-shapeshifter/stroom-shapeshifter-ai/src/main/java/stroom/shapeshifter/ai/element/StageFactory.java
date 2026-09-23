@@ -173,7 +173,7 @@ public class StageFactory {
                 new PipelineFragmentRunner(pipelineStore, pipelineDataCache, elementRegistryFactory,
                         pipelineFactoryProvider,
                         headlessCaptureProvider, errorReceiverProvider, fragmentOutputProvider,
-                        taskContextFactory, runners),
+                        injectedCodeProvider, taskContextFactory),
                 attempts,
                 rules,
                 shapes,

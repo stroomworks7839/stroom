@@ -297,6 +297,20 @@ public final class Stage {
                                             + recorded.attempt().shape());
         }
         attempts.amended(attemptId, turnNumber, answer, answeredBy);
+        // What the attempt drafted goes with the answer that produced it. The turns after the one
+        // answered are discarded for exactly this reason — they are a consequence of an answer that has
+        // changed — and a draft rule is the last of those consequences. Left in the table it would be a
+        // draft nothing awaits: the reset below clears the pointer that says which shape is waiting for
+        // it, so approving or rejecting it would throw, every stream of the shape would be sentinelled
+        // by it, and the only way out would be deleting the rule by hand.
+        if (recorded.ruleUuid() != null) {
+            rules.byUuid(doc.getUuid(), recorded.ruleUuid())
+                    .filter(RoutingRule::isDraft)
+                    .ifPresent(draft -> {
+                        rules.remove(doc.getUuid(), draft.getUuid());
+                        regressionSet.discard(draft.getUuid());
+                    });
+        }
         // A person re-running an attempt is saying the shape is not settled: whatever this attempt
         // concluded about it — given up, marked, a draft awaiting someone — is undone, or the re-run would
         // be refused by the state its own first run left behind (A28).
@@ -525,6 +539,14 @@ public final class Stage {
         if (matched.isPresent() && matched.get().isDraft()) {
             return Optional.of("Awaiting review: draft rule " + matched.get().getUuid()
                                + " already binds shape " + shape.id());
+        }
+        if (matched.isPresent() && matched.get().isPinned()) {
+            // §7.3 rule 2: a pin freezes a rule — served, never promoted, retracted or relearned. Every
+            // other path that would rebind one checks; carrying an attempt on did not, so a rule pinned
+            // while a deferred attempt was parked would be rebound by the relearning the attempt
+            // resumes into.
+            return Optional.of("Rule " + matched.get().getUuid() + " is pinned, so what it binds for "
+                               + "shape " + shape.id() + " is not to be changed");
         }
         final Optional<String> givenUp = shapes.reasonGivenUp(doc.getUuid(), shape.id());
         if (givenUp.isPresent()) {
@@ -1139,6 +1161,10 @@ public final class Stage {
                         ? null
                         : rule.getPipeline().getUuid()), reason);
         ledger.sentinelled(doc.getUuid(), shape.id(), input.id(), input.pipeline(), reason);
+        // And the attempt that bound it says so. It said nothing before: an attempt that promoted a rule
+        // the gate has since taken back went on reading as promoted, which is the one thing a person
+        // reading it back would most want to know was no longer true.
+        record(() -> attempts.retracted(doc.getUuid(), rule.getUuid(), reason));
         return new StageRun(doc, new Retracted(rule, judged.score(), reason),
                 shape, null, null, judged.verdicts(), List.of(), null, List.of());
     }
@@ -1481,7 +1507,7 @@ public final class Stage {
                 ? null
                 : rule.getPipeline().getUuid());
         replay(doc, produced, said);
-        record(() -> attempts.decided(doc.getUuid(), ruleUuid, AttemptStatus.RETRACTED, said));
+        record(() -> attempts.retracted(doc.getUuid(), ruleUuid, said));
         return produced.size();
     }
 

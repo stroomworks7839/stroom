@@ -74,9 +74,14 @@ public class RulesDao implements Rules {
                 .map(RulesDao::rule));
     }
 
+    /// One transaction, as `insert` is: reading the last position and writing past it are one act. Two
+    /// nodes promoting two shapes of one document at the same moment would otherwise both read the same
+    /// last position and both write at it — the key on `(doc_uuid, sort_order)` is not unique, so
+    /// nothing would refuse it — and the density that `insert`, `move` and `remove` all read a position
+    /// as a place in a list by would be gone.
     @Override
     public RoutingRule append(final String docUuid, final RoutingRule rule) {
-        return JooqUtil.contextResult(connProvider, context ->
+        return JooqUtil.transactionResult(connProvider, context ->
                 write(context, docUuid, rule, nextOrder(context, docUuid)));
     }
 

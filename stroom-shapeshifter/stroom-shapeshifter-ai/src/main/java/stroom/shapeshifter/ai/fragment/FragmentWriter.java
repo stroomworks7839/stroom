@@ -20,7 +20,6 @@ import stroom.docref.DocRef;
 import stroom.pipeline.PipelineStore;
 import stroom.pipeline.shared.PipelineDoc;
 import stroom.pipeline.shared.TextConverterDoc;
-import stroom.pipeline.shared.TextConverterDoc.TextConverterType;
 import stroom.pipeline.shared.XsltDoc;
 import stroom.pipeline.shared.data.PipelineData;
 import stroom.pipeline.shared.data.PipelineDataBuilder;
@@ -164,10 +163,20 @@ public final class FragmentWriter {
         // The type is checked before anything is created, so an unsupported one leaves no orphan behind.
         return switch (configured.documentType()) {
             case TextConverterDoc.TYPE -> {
+                // The kind comes from the step, because the element that will read it refuses one of
+                // the wrong kind: XMLFragmentParser throws "The assigned text converter is not an XML
+                // fragment". Written as Data Splitter for everything, a learned XMLFragmentParser chain
+                // passes every scorer — the stand-in reads only the text — and then fails on every
+                // stream a node gives it.
+                if (configured.converterType() == null) {
+                    throw new IllegalArgumentException("Step configuration of type "
+                                                       + configured.documentType() + " does not say which "
+                                                       + "kind of text converter it is");
+                }
                 final DocRef docRef = creator.create(folder, TextConverterDoc.TYPE, name);
                 textConverterStore.writeDocument(textConverterStore.readDocument(docRef)
                         .copy()
-                        .converterType(TextConverterType.DATA_SPLITTER)
+                        .converterType(configured.converterType())
                         .data(data)
                         .build());
                 yield docRef;

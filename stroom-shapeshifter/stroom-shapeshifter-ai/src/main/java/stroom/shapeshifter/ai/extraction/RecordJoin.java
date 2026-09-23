@@ -46,6 +46,13 @@ public final class RecordJoin {
     private RecordJoin() {
     }
 
+    /// A stream of one record goes through the same parse as a stream of many, and is not handed back
+    /// as it came. Null means "this step produced nothing that is a document", and a caller reads it as
+    /// the reason to stop and say so ([PerRecord]); short-circuiting a single record past the parse let
+    /// a stylesheet that wrote bare text report success with non-XML output and no diagnostic at all —
+    /// the blind re-ask that check exists to stop, met on the one stream shape where it is easiest to
+    /// miss.
+    ///
     /// @param documents What the transform wrote, one per record, in order.
     /// @return The one document they make between them, or null where there is nothing to join or a
     /// piece of it will not parse — which the scorers see as a step that produced nothing.
@@ -55,9 +62,6 @@ public final class RecordJoin {
                 .toList();
         if (written.isEmpty()) {
             return null;
-        }
-        if (written.size() == 1) {
-            return written.get(0);
         }
         final StringWriter writing = new StringWriter();
         try {

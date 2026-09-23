@@ -68,6 +68,11 @@ public class AttemptsDao implements Attempts {
 
     /// How many attempts one pass removes: a delete of every old row at once would hold locks across the
     /// table, and the job runs again.
+    /// The states in which an attempt's rule is one that was, or was about to be, serving: the ones a
+    /// retraction is about.
+    private static final List<String> BOUND = List.of(AttemptStatus.PROMOTED.name(),
+            AttemptStatus.PROVISIONAL.name(), AttemptStatus.AWAITING_REVIEW.name());
+
     private static final int PRUNE_BATCH = 1000;
 
     private final ShapeshifterAiDbConnProvider connProvider;
@@ -363,6 +368,23 @@ public class AttemptsDao implements Attempts {
                 .where(SHAPESHIFTER_ATTEMPT.DOC_UUID.eq(docUuid))
                 .and(SHAPESHIFTER_ATTEMPT.RULE_UUID.eq(ruleUuid))
                 .and(SHAPESHIFTER_ATTEMPT.STATUS.eq(AttemptStatus.AWAITING_REVIEW.name()))
+                .execute());
+    }
+
+    /// The attempts that bound this rule, whatever state they ended in — promoted, provisional, or
+    /// awaiting a review that will now never happen. Not [#decided]'s filter, which is A25's decision
+    /// about a draft *awaiting review*: a retraction is about a rule that was serving.
+    @Override
+    public void retracted(final String docUuid, final String ruleUuid, final String decision) {
+        JooqUtil.context(connProvider, context -> context
+                .update(SHAPESHIFTER_ATTEMPT)
+                .set(SHAPESHIFTER_ATTEMPT.STATUS, AttemptStatus.RETRACTED.name())
+                .set(SHAPESHIFTER_ATTEMPT.DECISION, decision)
+                .set(SHAPESHIFTER_ATTEMPT.VERSION, SHAPESHIFTER_ATTEMPT.VERSION.plus(1))
+                .set(SHAPESHIFTER_ATTEMPT.UPDATE_TIME_MS, System.currentTimeMillis())
+                .where(SHAPESHIFTER_ATTEMPT.DOC_UUID.eq(docUuid))
+                .and(SHAPESHIFTER_ATTEMPT.RULE_UUID.eq(ruleUuid))
+                .and(SHAPESHIFTER_ATTEMPT.STATUS.in(BOUND))
                 .execute());
     }
 

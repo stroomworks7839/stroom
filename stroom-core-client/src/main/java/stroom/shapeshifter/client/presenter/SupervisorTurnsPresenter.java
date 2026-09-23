@@ -123,6 +123,11 @@ public class SupervisorTurnsPresenter extends MyPresenterWidget<PagerView> {
         if (turn == null || attempt == null) {
             return;
         }
+        // Which attempt this answer is for, taken now. The popup does not stop a person clicking
+        // another attempt in the list behind it, and reading the field when OK is pressed would write a
+        // hand-written answer into whatever they had moved on to — reopening that attempt and taking
+        // its shape back. A reader meeting state that was not built for it, in a window.
+        final long attemptId = attempt.getId();
         final EditorPresenter editor = editorProvider.get();
         editor.setMode(AceEditorMode.XML);
         editor.setText(NullSafe.string(turn.getAnswer()));
@@ -135,26 +140,27 @@ public class SupervisorTurnsPresenter extends MyPresenterWidget<PagerView> {
                         : "Edit turn ") + turn.getNumber() + ": " + NullSafe.string(turn.getQuestion()))
                 .onHideRequest(event -> {
                     if (event.isOk()) {
-                        amend(turn, editor.getText());
+                        amend(attemptId, turn, editor.getText());
                     }
                     event.hide();
                 })
                 .fire();
     }
 
-    private void amend(final SupervisorTurn turn, final String answer) {
-        final long attemptId = attempt.getId();
+    private void amend(final long attemptId, final SupervisorTurn turn, final String answer) {
         restFactory
                 .create(SUPERVISOR_RESOURCE)
                 .method(resource -> resource.amend(attemptId, turn.getNumber(),
                         new AmendTurnRequest(answer)))
                 .onSuccess(amended -> {
-                    read(amended);
                     if (onAmended != null) {
                         // The attempt is open again and has taken its shape back, so the list above is
-                        // showing a status that is no longer true.
+                        // showing a status that is no longer true. Told first, because refreshing the
+                        // list clears the selection and reading the transcript under a cleared
+                        // selection would blank the answer just written.
                         onAmended.accept(amended);
                     }
+                    read(amended);
                 })
                 .taskMonitorFactory(getView())
                 .exec();

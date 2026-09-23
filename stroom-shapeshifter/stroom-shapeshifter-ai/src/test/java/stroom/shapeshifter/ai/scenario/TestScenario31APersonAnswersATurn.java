@@ -227,6 +227,43 @@ class TestScenario31APersonAnswersATurn {
                 .isGreaterThan(Scenarios.NOW.toEpochMilli());
     }
 
+    /// What an attempt drafted goes with the answer that produced it.
+    ///
+    /// The turns after the one answered are discarded because they are a consequence of an answer that
+    /// has changed, and a draft rule is the last of those consequences. Left in the table it is a draft
+    /// nothing awaits: the reset clears the pointer that says which shape is waiting for it, so
+    /// approving or rejecting it throws, every stream of the shape is sentinelled by it, and the only
+    /// way out is deleting the rule by hand.
+    @Test
+    void amendingAnAttemptTakesBackWhatItDrafted() {
+        final Scenarios scenarios = new Scenarios();
+        final ShapeshifterAiDoc doc = scenarios.documents.put(doc().copy()
+                .promotionMode(PromotionMode.REVIEW)
+                .build());
+        scenarios.inputs.put(stream(1L));
+        final Script model = scenarios.script(FOUR_FIELDS, XSLT)
+                .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter")
+                .expect(QuestionMatcher.configuration("DSParser")).reply(Scenarios.fenced(FOUR_FIELDS))
+                .expect(QuestionMatcher.configuration("XSLTFilter")).reply(Scenarios.fenced(XSLT));
+        scenarios.stage(model).run(doc, stream(1L));
+        final Recorded drafted = scenarios.attempts.forDocument(DOC, 10).get(0);
+        assertThat(drafted.status()).isEqualTo(AttemptStatus.AWAITING_REVIEW);
+        assertThat(scenarios.rules.forDocument(DOC))
+                .describedAs("review mode wrote a draft for somebody to decide (A25)")
+                .anySatisfy(rule -> assertThat(rule.isDraft()).isTrue());
+
+        scenarios.stage(Script.of()).amend(doc, drafted.id(), 1, "DSParser -> XSLTFilter", OPERATOR);
+
+        assertThat(scenarios.rules.forDocument(DOC))
+                .describedAs("the draft goes with the answer that produced it, or it is a draft nothing "
+                             + "awaits: unapprovable, unrejectable, and sentinelling every stream of its "
+                             + "shape until somebody deletes the rule by hand")
+                .noneSatisfy(rule -> assertThat(rule.isDraft()).isTrue());
+        assertThat(scenarios.shapes.draftAwaiting(DOC, shape()))
+                .describedAs("and nothing is waiting for one")
+                .isEmpty();
+    }
+
     @Test
     void anAttemptCannotBeRunAgainWhileAnotherHoldsItsShape() {
         // A45: re-running takes the shape back, and a shape another attempt is learning is not free. A

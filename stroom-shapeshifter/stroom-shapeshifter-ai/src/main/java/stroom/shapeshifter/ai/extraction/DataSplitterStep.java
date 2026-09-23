@@ -17,6 +17,7 @@
 package stroom.shapeshifter.ai.extraction;
 
 import stroom.pipeline.shared.TextConverterDoc;
+import stroom.pipeline.shared.TextConverterDoc.TextConverterType;
 import stroom.shapeshifter.ai.extraction.Compilation.Compiled;
 import stroom.shapeshifter.ai.extraction.Compilation.Rejected;
 import stroom.shapeshifter.ai.learning.InputKind;
@@ -32,7 +33,8 @@ import java.util.Optional;
 public final class DataSplitterStep implements StepRunner {
 
     public static final String ELEMENT_TYPE = "DSParser";
-    private static final Configured CONFIGURED = new Configured(TextConverterDoc.TYPE, "textConverter");
+    private static final Configured CONFIGURED = new Configured(TextConverterDoc.TYPE, "textConverter",
+            TextConverterType.DATA_SPLITTER);
 
     private final DataSplitterCompiler compiler;
 

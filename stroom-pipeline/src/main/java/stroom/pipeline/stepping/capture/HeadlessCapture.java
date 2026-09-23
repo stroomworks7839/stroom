@@ -99,6 +99,17 @@ public class HeadlessCapture implements PipelineCapture {
         return truncated;
     }
 
+    /// Forget what was captured, for a caller that runs a pipeline more than once through one capture
+    /// and wants each run's records to be that run's.
+    ///
+    /// A caller that did not clear would have to remember how many records there were before and skip
+    /// them, which works until the cap is reached: past it nothing more is kept, the count stops
+    /// advancing, and every later run reads back as having produced nothing at all.
+    public void clear() {
+        records.clear();
+        truncated = false;
+    }
+
     /// What every element made of every record, in order.
     public List<Record> getRecords() {
         return List.copyOf(records);

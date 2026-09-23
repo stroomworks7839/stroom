@@ -224,6 +224,47 @@ class TestScenario33SteppingIntoTheFragment extends AbstractProcessIntegrationTe
                 .contains("2020-06-17T08:14:00.000Z");
     }
 
+    /// **A feed nobody has taught can be stepped**, which is the case the stage pane exists for.
+    ///
+    /// A stage that binds nothing emits nothing, and the stepper stops at records — a record being an
+    /// `endDocument` reaching the detector below the element. So an untaught feed produced no records,
+    /// the stepper found nothing to stop at, and the pane that says *would learn*, with the shape and
+    /// the reason, was the one thing that could never be reached in the one case it was written for.
+    ///
+    /// A step is a dry run, so one empty document costs nothing and is what carries the explanation. In
+    /// a task the same document would be an empty stream, which reads as a feed that had nothing in it,
+    /// and that is why it is done only here.
+    @Test
+    void aFeedNobodyHasTaughtCanStillBeStepped() {
+        final DocRef feed = storeCreationTool.getOrCreateFeedDoc(FEED);
+        final DocRef doc = document();
+        final DocRef pipeline = pipeline(feed, doc);
+        rawStream();
+        // Nothing has run it, so nothing is bound and the model must not be asked by looking.
+        advisor.set(Script.of());
+
+        final SteppingResult stepped = step(pipeline, StepType.FIRST);
+
+        assertThat(stepped.isFoundRecord())
+                .describedAs("there is a record to stop at, though the stage bound nothing and emitted "
+                             + "nothing of its own")
+                .isTrue();
+        final SharedElementData stage = stepped.getStepData().getElementData("shapeshifterAi");
+        final ShapeshifterAiStepDetails details = (ShapeshifterAiStepDetails) stage.getDetails();
+        assertThat(details).describedAs("and the stage pane is there to say what would happen").isNotNull();
+        assertThat(details.isDryRun()).isTrue();
+        assertThat(details.getDecision())
+                .describedAs("*would* learn: nothing has been learned by looking")
+                .isEqualTo("Would");
+        assertThat(details.getShapeId()).isEqualTo("Feed=" + FEED + "|Type=" + StreamTypeNames.RAW_EVENTS);
+        assertThat(details.getNested())
+                .describedAs("with no chain beneath it, because no chain ran")
+                .isEmpty();
+        assertThat(rules.forDocument(doc.getUuid()))
+                .describedAs("and nothing was bound by opening the stepper on it")
+                .isEmpty();
+    }
+
     private static List<NestedElementData> nested(final SteppingResult result) {
         final SharedElementData stage = result.getStepData().getElementData("shapeshifterAi");
         return ((ShapeshifterAiStepDetails) stage.getDetails()).getNested();

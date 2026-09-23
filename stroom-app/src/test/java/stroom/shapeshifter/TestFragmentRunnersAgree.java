@@ -20,6 +20,7 @@ import stroom.docref.DocRef;
 import stroom.pipeline.PipelineStore;
 import stroom.pipeline.errorhandler.ErrorReceiverProxy;
 import stroom.pipeline.factory.ElementRegistryFactory;
+import stroom.pipeline.factory.InjectedCode;
 import stroom.pipeline.factory.PipelineDataCache;
 import stroom.pipeline.factory.PipelineFactory;
 import stroom.pipeline.factory.PipelineStackLoader;
@@ -103,6 +104,8 @@ class TestFragmentRunnersAgree extends AbstractProcessIntegrationTest {
     @Inject
     private Provider<HeadlessCapture> headlessCaptureProvider;
     @Inject
+    private Provider<InjectedCode> injectedCodeProvider;
+    @Inject
     private TaskContextFactory taskContextFactory;
     @Inject
     private PipelineScopeRunnable pipelineScopeRunnable;
@@ -132,7 +135,7 @@ class TestFragmentRunnersAgree extends AbstractProcessIntegrationTest {
                     textConverterStore, xsltStore, runners);
             final FragmentRunner pipeline = new PipelineFragmentRunner(pipelineStore, pipelineDataCache,
                     elementRegistryFactory, pipelineFactoryProvider, headlessCaptureProvider, errorReceiverProvider,
-                    fragmentOutputProvider, taskContextFactory, runners);
+                    fragmentOutputProvider, injectedCodeProvider, taskContextFactory);
 
             stood.addAll(standIn.run(fragment, DOCUMENT, boundary));
             ran.addAll(pipeline.run(fragment, DOCUMENT, boundary));
@@ -171,7 +174,7 @@ class TestFragmentRunnersAgree extends AbstractProcessIntegrationTest {
             final DocRef fragment = fragmentWriter.write(FOLDER, "taken-v1", chain, boundary);
             final FragmentRunner runner = new PipelineFragmentRunner(pipelineStore, pipelineDataCache,
                     elementRegistryFactory, pipelineFactoryProvider, headlessCaptureProvider,
-                    errorReceiverProvider, fragmentOutputProvider, taskContextFactory, runners);
+                    errorReceiverProvider, fragmentOutputProvider, injectedCodeProvider, taskContextFactory);
 
             assertThat(runner.takeRecords())
                     .describedAs("nothing has run, so there is nothing to take")
@@ -254,7 +257,7 @@ class TestFragmentRunnersAgree extends AbstractProcessIntegrationTest {
                     textConverterStore, xsltStore, steps);
             final FragmentRunner pipeline = new PipelineFragmentRunner(pipelineStore, pipelineDataCache,
                     elementRegistryFactory, pipelineFactoryProvider, headlessCaptureProvider, errorReceiverProvider,
-                    fragmentOutputProvider, taskContextFactory, steps);
+                    fragmentOutputProvider, injectedCodeProvider, taskContextFactory);
             stood.addAll(standIn.run(fragment, input, boundary));
             ran.addAll(pipeline.run(fragment, input, boundary));
         });

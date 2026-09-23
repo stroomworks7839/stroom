@@ -191,7 +191,12 @@ public final class PipelineStepRunner implements StepRunner {
                 if (built == null) {
                     return new StepResult(null, diagnostics(capture, 0, speaking, logging, refused));
                 }
-                final int before = capture.getRecordCount();
+                // This run's records and no others: one capture serves every run of a prepared chain,
+                // and a run that read past the last one would stop reading anything at all once the cap
+                // was reached — the count would stop advancing and every later run would report having
+                // produced nothing, with no diagnostic to say why.
+                capture.clear();
+                final int before = 0;
                 String failure = null;
                 try {
                     built.process(new ByteArrayInputStream(input.getBytes(StandardCharsets.UTF_8)),
@@ -206,7 +211,7 @@ public final class PipelineStepRunner implements StepRunner {
                         .filter(text -> text != null && !text.isBlank())
                         .toList();
                 return new StepResult(RecordJoin.join(written),
-                        diagnostics(capture, before, speaking, logging, failure));
+                        diagnostics(capture, before, speaking, logging, truncated(capture, failure)));
             }
 
             @Override
@@ -246,6 +251,21 @@ public final class PipelineStepRunner implements StepRunner {
     ///
     /// @param from Records before this one belong to an earlier input, since one prepared pipeline
     ///             captures every record it is given.
+    /// What a run failed with, and — where the capture kept less than the run produced — that it did.
+    /// A candidate judged on the first ten thousand records of a longer stream is judged on a sample of
+    /// its own output, and saying so is the difference between a low score a person can read and one
+    /// they cannot.
+    private static String truncated(final HeadlessCapture capture, final String failure) {
+        if (!capture.isTruncated()) {
+            return failure;
+        }
+        final String said = "More than " + MOST_RECORDS + " records went through; what is judged is the "
+                            + "first " + MOST_RECORDS + " of them";
+        return failure == null
+                ? said
+                : failure + ". " + said;
+    }
+
     private static List<StoredError> diagnostics(final HeadlessCapture capture,
                                                  final int from,
                                                  final List<String> elementIds,

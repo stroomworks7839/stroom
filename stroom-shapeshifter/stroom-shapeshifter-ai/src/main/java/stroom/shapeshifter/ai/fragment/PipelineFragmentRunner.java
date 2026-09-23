@@ -23,6 +23,7 @@ import stroom.pipeline.errorhandler.ErrorReceiverProxy;
 import stroom.pipeline.errorhandler.LoggedException;
 import stroom.pipeline.errorhandler.LoggingErrorReceiver;
 import stroom.pipeline.factory.ElementRegistryFactory;
+import stroom.pipeline.factory.InjectedCode;
 import stroom.pipeline.factory.Pipeline;
 import stroom.pipeline.factory.PipelineDataCache;
 import stroom.pipeline.factory.PipelineFactory;
@@ -113,8 +114,8 @@ public final class PipelineFragmentRunner implements FragmentRunner {
     private final Provider<HeadlessCapture> captureProvider;
     private final Provider<ErrorReceiverProxy> errorReceiverProvider;
     private final Provider<FragmentOutput> fragmentOutputProvider;
+    private final Provider<InjectedCode> injectedCodeProvider;
     private final TaskContextFactory taskContextFactory;
-    private final Map<String, Boolean> parsers = new HashMap<>();
 
     private SimpleEventList lastOutput;
     /// What the fragment's own elements made of the run just made, for a caller that must show it
@@ -129,8 +130,8 @@ public final class PipelineFragmentRunner implements FragmentRunner {
                                   final Provider<HeadlessCapture> captureProvider,
                                   final Provider<ErrorReceiverProxy> errorReceiverProvider,
                                   final Provider<FragmentOutput> fragmentOutputProvider,
-                                  final TaskContextFactory taskContextFactory,
-                                  final List<StepRunner> runners) {
+                                  final Provider<InjectedCode> injectedCodeProvider,
+                                  final TaskContextFactory taskContextFactory) {
         this.pipelineStore = pipelineStore;
         this.pipelineDataCache = pipelineDataCache;
         this.elementRegistryFactory = elementRegistryFactory;
@@ -138,10 +139,8 @@ public final class PipelineFragmentRunner implements FragmentRunner {
         this.captureProvider = captureProvider;
         this.errorReceiverProvider = errorReceiverProvider;
         this.fragmentOutputProvider = fragmentOutputProvider;
+        this.injectedCodeProvider = injectedCodeProvider;
         this.taskContextFactory = taskContextFactory;
-        // The runners are consulted for one thing only: whether an element parses raw input into records
-        // (design 01 §4), which decides where the scorers of meaning apply.
-        runners.forEach(runner -> parsers.put(runner.elementType(), runner.parser()));
     }
 
     @Override
@@ -183,6 +182,15 @@ public final class PipelineFragmentRunner implements FragmentRunner {
         final ErrorReceiver previous = errorReceiverProxy.getErrorReceiver();
         final LoggingErrorReceiver logging = new LoggingErrorReceiver();
         errorReceiverProxy.setErrorReceiver(logging);
+        // And no code anybody is editing, for the same reason and with more teeth. Injected code is
+        // keyed by element id and scoped to the pipeline, so a person stepping a pipeline whose
+        // XSLTFilter happens to be called `xsltFilter` — which is exactly what this feature names the
+        // transform in every fragment it writes — would have their edit compiled into the fragment in
+        // place of what was learned. The fragment runs what the fragment says. Put back afterwards:
+        // this run is made inside somebody else's pipeline and their edits are still theirs.
+        final InjectedCode injectedCode = injectedCodeProvider.get();
+        final Map<String, String> borrowedCode = injectedCode.asMap();
+        injectedCode.set(Map.of());
         String failure = null;
         try {
             final Pipeline pipeline = pipelineFactoryProvider.get()
@@ -201,6 +209,7 @@ public final class PipelineFragmentRunner implements FragmentRunner {
         } finally {
             errorReceiverProxy.setErrorReceiver(previous);
             fragmentOutput.setHandler(borrowed);
+            injectedCode.set(borrowedCode);
         }
 
         final List<Attempted> steps = new ArrayList<>();
@@ -231,8 +240,12 @@ public final class PipelineFragmentRunner implements FragmentRunner {
                     diagnostics(capture, speaking, logging, output == null
                             ? failure
                             : null));
-            steps.add(new Attempted(element.getType(), parsers.getOrDefault(element.getType(), false),
-                    current, result, boundary));
+            // Asked of the node's own element registry and not of the step runners, for the reason
+            // `parses` states: a fragment may hold a parser no runner stands in for — stroom's XML
+            // parser, the combined parser, anything a person put there by hand — and one mistaken for a
+            // filter has its output judged against the target schema by the scorers of meaning, which
+            // fails every stream of a chain that is working.
+            steps.add(new Attempted(element.getType(), parses(element), current, result, boundary));
             if (output == null) {
                 break;
             }

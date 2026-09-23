@@ -20,6 +20,7 @@ import stroom.docref.DocRef;
 import stroom.pipeline.PipelineStore;
 import stroom.pipeline.errorhandler.ErrorReceiverProxy;
 import stroom.pipeline.factory.ElementRegistryFactory;
+import stroom.pipeline.factory.InjectedCode;
 import stroom.pipeline.factory.PipelineDataCache;
 import stroom.pipeline.factory.PipelineFactory;
 import stroom.pipeline.stepping.capture.HeadlessCapture;
@@ -91,6 +92,8 @@ class TestTheJudgedRunIsTheServedRun extends AbstractProcessIntegrationTest {
     @Inject
     private Provider<FragmentOutput> fragmentOutputProvider;
     @Inject
+    private Provider<InjectedCode> injectedCodeProvider;
+    @Inject
     private TaskContextFactory taskContextFactory;
     @Inject
     private PipelineScopeRunnable pipelineScopeRunnable;
@@ -111,7 +114,7 @@ class TestTheJudgedRunIsTheServedRun extends AbstractProcessIntegrationTest {
 
             final FragmentRunner runner = new PipelineFragmentRunner(pipelineStore, pipelineDataCache,
                     elementRegistryFactory, pipelineFactoryProvider, headlessCaptureProvider, errorReceiverProvider,
-                    fragmentOutputProvider, taskContextFactory, runners);
+                    fragmentOutputProvider, injectedCodeProvider, taskContextFactory);
             final List<Attempted> steps = runner.run(fragment, DOCUMENT, boundary);
             judged.set(steps.get(steps.size() - 1).result().output());
             served.set(written(runner.lastOutput().orElseThrow()));

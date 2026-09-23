@@ -259,7 +259,12 @@ public class OutputsDao implements Outputs {
             final List<Long> old = context
                     .select(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.ID)
                     .from(ShapeshifterOutput.SHAPESHIFTER_OUTPUT)
-                    .where(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.CREATE_TIME_MS.lt(producedBeforeMs))
+                    // By when the row was last *produced*, not when it was first inserted. A stream
+                    // served again updates the row in place, which is why migration 009 added the
+                    // column: pruning on the insert time would delete a stream processed sixty days ago
+                    // and reprocessed this morning, and with it the record spans and bindings that make
+                    // it reprocessable at all.
+                    .where(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.PRODUCE_TIME_MS.lt(producedBeforeMs))
                     .limit(PRUNE_BATCH)
                     .fetch(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.ID);
             if (old.isEmpty()) {

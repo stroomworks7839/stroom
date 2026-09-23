@@ -2876,7 +2876,54 @@ themselves.
 editing a rule's expression, and the Routing tab's Edit has done that since the tab existed. What was
 actually owed was the Supervisor's own acts.
 
-291 tests in the module, 33 against MySQL, 21 in Tier 2.
+**An audit of the whole branch**, 2026-09-24, the first over all fifty commits rather than one slice:
+fifteen findings, all fixed. Four of them would have reached a running node.
+
+- **Every text converter was written as a Data Splitter.** `TextConverterDoc` carries its kind and the
+  element that reads it refuses the wrong one — `XMLFragmentParser` throws "The assigned text converter
+  is not an XML fragment" — so a learned `XMLFragmentParser` chain (scenario 49) passed every scorer and
+  would have failed on every stream. Tier 1 could not see it: the stand-in runner reads the text and
+  never the kind. The step says which kind it writes now, and the writer refuses a configuration that
+  does not say.
+- **`prune` deleted by the wrong clock.** Migration 009 added `produce_time_ms` precisely because a
+  stream served again updates its row in place; pruning on the *insert* time would have deleted the
+  bindings and record spans of anything first processed sixty days ago and reprocessed this morning —
+  the very rows migration 010 exists to keep.
+- **Amending an attempt left the draft it had written.** The shape was reset, which clears the pointer
+  saying what awaits review, and the rule stayed: approve and reject would throw, every stream of the
+  shape would be sentinelled by a draft nothing awaits, and the only way out was deleting the rule by
+  hand. The draft goes with the answer that produced it, as the later turns already did.
+- **A non-modal editor resolved its attempt when OK was pressed.** Clicking another attempt in the list
+  behind it made the answer land in that one — reopening it and taking its shape back. The attempt is
+  taken when the editor opens. A reader meeting state that was not built for it, in a window.
+
+And a fifth that was the slice above's own: **a supervised stage that binds nothing could not be
+stepped at all.** It emits nothing, the stepper stops at records, a record is an `endDocument` reaching
+the detector below the element — so an untaught feed produced no records, and the stage pane that says
+*would learn* was unreachable in the one case it was written for. One empty document, on a step and only
+on a step, because a step writes nothing anywhere and in a task the same document would be an empty
+stream. The Tier 2 test for it fails without the fix.
+
+The rest: injected code leaked into the fragment's own pipeline, so stepping a pipeline whose
+`XSLTFilter` is called `xsltFilter` — which is what this feature names every transform it writes — ran
+the person's edit in place of what was learned; `RecordJoin` handed a single record back without parsing
+it, so a one-record stream whose transform wrote bare text reported success with no diagnostic; the
+fragment runner asked the step runners whether an element parses where it documents that the element
+registry must answer; `RETRACTED` was written through the door A25's decisions use, which filters to
+drafts awaiting review, so it never matched anything; `whyNotToCarryOn` was the only mutation path that
+did not check for a pin; the import confirmation screen's read of a *pack* left that pack's rules where
+the next read of the local document would take them, even after a cancelled import; the ledger and
+serving endpoints took any page length a request asked for; appending a rule was not one transaction, so
+two nodes promoting at once could take the same position; `XsltFilter` fabricated a document whenever
+code was injected, masking a name pattern that had stopped resolving, where the three parsers changed
+beside it are careful not to; and one `HeadlessCapture` served every run of a prepared chain, so past ten
+thousand records every later run read back as having produced nothing.
+
+294 tests in the module, 33 against MySQL, 22 in Tier 2, and the 1,155 of `stroom-pipeline`. Three of
+the fifteen could be held by a test that fails without its fix and passes with it — the converter's
+kind, the retraction reaching the attempt that bound the rule, and the draft an amended attempt takes
+back — and one more, the untaught feed that could not be stepped, in Tier 2. The rest are guards,
+clamps and a column name: what holds them is the reasoning written where they are.
 
 **Noted, not acted on.** `Stage` crossed checkstyle's 2,000-line file length with this slice — a warning
 rather than an error, and the only hand-written file in these modules to do so. The operator's decisions

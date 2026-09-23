@@ -27,6 +27,7 @@ import stroom.pipeline.shared.data.PipelineLink;
 import stroom.pipeline.shared.data.PipelineProperty;
 import stroom.shapeshifter.ai.extraction.DataSplitterStep;
 import stroom.shapeshifter.ai.extraction.JsonStep;
+import stroom.shapeshifter.ai.extraction.XmlFragmentStep;
 import stroom.shapeshifter.ai.learning.LearnedStep;
 import stroom.shapeshifter.ai.learning.StepResult;
 import stroom.shapeshifter.ai.scoring.Verdict;
@@ -195,6 +196,32 @@ class TestFragmentWriter {
         final DocRef xsltRef = properties.get(1).getValue().getEntity();
         assertThat(xsltRef.getType()).isEqualTo(XsltDoc.TYPE);
         assertThat(stores.xslts.readDocument(xsltRef).getData()).isEqualTo(XSLT);
+    }
+
+    /// A text converter is written as the kind the step says it is, not as the one most steps happen to
+    /// use.
+    ///
+    /// `TextConverterDoc` carries its kind and the element that reads it refuses one of the wrong kind:
+    /// `XMLFragmentParser` throws "The assigned text converter is not an XML fragment". Written as Data
+    /// Splitter for everything, a learned `XMLFragmentParser` chain passes every scorer — the stand-in
+    /// runner reads only the text — and then fails on every stream a node gives it. Tier 1 could not see
+    /// it; this is where it is seen.
+    @Test
+    void aTextConverterIsWrittenAsTheKindItsStepSaysItIs() {
+        final ContentStores stores = new ContentStores();
+        final FragmentWriter writer = stores.writer();
+        final List<LearnedStep> chain = List.of(
+                new LearnedStep(new XmlFragmentStep(), "<!-- fragment -->",
+                        new StepResult("<records/>", List.of()), UNSCORED),
+                new LearnedStep(new XsltStep(), XSLT, new StepResult("<Events/>", List.of()), UNSCORED));
+
+        final DocRef fragment = writer.write(FOLDER, "xml-fragments-v1", chain, null);
+
+        final PipelineData data = stores.pipelines.readDocument(fragment).getPipelineData();
+        final DocRef textConverterRef = data.getProperties().getAdd().get(0).getValue().getEntity();
+        assertThat(stores.textConverters.readDocument(textConverterRef).getConverterType())
+                .describedAs("the kind XMLFragmentParser will accept, and it accepts only one")
+                .isEqualTo(TextConverterType.XML_FRAGMENT);
     }
 
     @Test

@@ -118,6 +118,10 @@ public class SupervisorGuidancePresenter extends MyPresenterWidget<PagerView> {
     }
 
     private void add() {
+        // Which shape this is about, taken now rather than when OK is pressed: the dialog can be
+        // reopened on another shape while a prompt is up.
+        final String about = shapeId;
+        final String onDocument = docUuid;
         PromptEvent.fire(this,
                 "What should the learning know about this shape? It is kept against the shape, so every "
                 + "question asked about it from now on carries it.", "",
@@ -128,7 +132,8 @@ public class SupervisorGuidancePresenter extends MyPresenterWidget<PagerView> {
                     }
                     restFactory
                             .create(SUPERVISOR_RESOURCE)
-                            .method(resource -> resource.hint(docUuid, new GuidanceRequest(shapeId, message)))
+                            .method(resource -> resource.hint(onDocument,
+                                    new GuidanceRequest(about, message)))
                             .onSuccess(this::changed)
                             .taskMonitorFactory(this)
                             .exec();
@@ -142,6 +147,8 @@ public class SupervisorGuidancePresenter extends MyPresenterWidget<PagerView> {
         if (said == null) {
             return;
         }
+        final String about = shapeId;
+        final String onDocument = docUuid;
         ConfirmEvent.fire(this,
                 "Take this back? It stops being carried into what is asked about this shape. The turns "
                 + "that already carried it still say they did.",
@@ -149,7 +156,7 @@ public class SupervisorGuidancePresenter extends MyPresenterWidget<PagerView> {
                     if (ok) {
                         restFactory
                                 .create(SUPERVISOR_RESOURCE)
-                                .method(resource -> resource.withdraw(docUuid, said.getId(), shapeId))
+                                .method(resource -> resource.withdraw(onDocument, said.getId(), about))
                                 .onSuccess(this::changed)
                                 .taskMonitorFactory(this)
                                 .exec();

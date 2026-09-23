@@ -110,6 +110,17 @@ public interface Attempts {
     /// though it were still waiting.
     void decided(String docUuid, String ruleUuid, AttemptStatus status, String decision);
 
+    /// The rule an attempt bound has been taken back out of the table (A28, design 01 §6, §11.6), by the
+    /// gate or by a person.
+    ///
+    /// Separate from [#decided], and it has to be: that one is A25's decision about a draft *awaiting
+    /// review*, and filters to attempts in that state. A retraction is about a rule that was **serving**,
+    /// whose attempt closed promoted or provisional a long time ago, so the same call would match
+    /// nothing and the attempt would go on reading "Promoted 0.93" for a rule that no longer exists.
+    ///
+    /// Attempts that ended some other way are left alone: an abandoned attempt did not bind this rule.
+    void retracted(String docUuid, String ruleUuid, String decision);
+
     /// Remove the record of attempts that finished before a given time, and their turns with them (A28,
     /// design 01 §12 item 8): one row per attempt and one per turn is the fastest-growing thing this
     /// feature writes, and a record kept for ever is a record nobody reads.

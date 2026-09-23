@@ -17,6 +17,7 @@
 package stroom.shapeshifter.ai.extraction;
 
 import stroom.pipeline.shared.TextConverterDoc;
+import stroom.pipeline.shared.TextConverterDoc.TextConverterType;
 import stroom.shapeshifter.ai.learning.InputKind;
 import stroom.shapeshifter.ai.learning.StepResult;
 import stroom.shapeshifter.ai.learning.StepRunner;
@@ -63,7 +64,8 @@ public final class XmlFragmentStep implements StepRunner {
             <records>&fragment;</records>""";
 
     private static final ElementId ELEMENT = new ElementId("xmlFragmentParser");
-    private static final Configured CONFIGURED = new Configured(TextConverterDoc.TYPE, "textConverter");
+    private static final Configured CONFIGURED = new Configured(TextConverterDoc.TYPE, "textConverter",
+            TextConverterType.XML_FRAGMENT);
     private static final String ROOT = "records";
 
     @Override

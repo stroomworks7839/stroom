@@ -261,6 +261,24 @@ public class Supervision {
                         ? stage.serve(bindings, input)
                         : null;
         if (served == null) {
+            // Nothing ran, so there is nothing to play on. In a task that is the end of it: the stream
+            // is sentinelled and the reason is on the error stream.
+            //
+            // A step is different, and this is the whole of A30's promise for a feed nobody has taught
+            // yet. The stepper stops at records, and a record is an `endDocument` reaching the detector
+            // below this element — so an element that emits nothing produces no records, the stepper
+            // finds nothing to stop at, and the stage pane that says *would learn*, with the shape and
+            // the reason, is never shown. The one case the pane exists for would be the one case it
+            // could not be reached in.
+            //
+            // So one empty document, on a step and only on a step. Nothing is written anywhere by a dry
+            // run, and an empty record that a person can select is what carries the explanation; in a
+            // task the same document would be an empty stream, which reads as a feed that had nothing
+            // in it, and that is why this is not done there.
+            if (stepping && downstream != null) {
+                downstream.startDocument();
+                downstream.endDocument();
+            }
             return;
         }
         // What the fragment said, on this pipeline's error stream (A20). The fragment runs under an

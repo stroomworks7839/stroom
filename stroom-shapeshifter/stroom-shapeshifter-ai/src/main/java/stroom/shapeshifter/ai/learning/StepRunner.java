@@ -16,6 +16,8 @@
 
 package stroom.shapeshifter.ai.learning;
 
+import stroom.pipeline.shared.TextConverterDoc.TextConverterType;
+
 import java.util.Optional;
 
 /**
@@ -93,11 +95,23 @@ public interface StepRunner {
     }
 
     /**
-     * @param documentType The document type consumed, e.g. {@code TextConverter}.
-     * @param propertyName The element property that references the document, e.g. {@code textConverter}.
+     * @param documentType  The document type consumed, e.g. {@code TextConverter}.
+     * @param propertyName  The element property that references the document, e.g. {@code textConverter}.
+     * @param converterType Which kind of text converter, for a step whose document is one; null for
+     *                      every other document type. A {@code TextConverterDoc} carries its kind, and
+     *                      the element that reads it refuses one of the wrong kind — {@code
+     *                      XMLFragmentParser} throws "The assigned text converter is not an XML
+     *                      fragment" — so a writer that guessed would write a fragment that passes
+     *                      every scorer and fails on every stream a node gives it.
      */
-    record Configured(String documentType, String propertyName) {
+    record Configured(String documentType, String propertyName, TextConverterType converterType) {
 
+        /**
+         * A configuration whose document is not a text converter and so has no kind.
+         */
+        public Configured(final String documentType, final String propertyName) {
+            this(documentType, propertyName, null);
+        }
     }
 
 

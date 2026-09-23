@@ -19,6 +19,8 @@ package stroom.shapeshifter.ai.scenario;
 import stroom.shapeshifter.ai.extraction.ExtractionCorpus.Golden;
 import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.Stage;
+import stroom.shapeshifter.shared.AttemptCriteria;
+import stroom.shapeshifter.shared.AttemptStatus;
 import stroom.shapeshifter.shared.LearningMode;
 import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ScorerSetting;
@@ -148,6 +150,33 @@ class TestRetractingARuleByHand {
                              + "relearned")
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("pinned");
+    }
+
+    /// The attempt that bound the rule says it has been taken back.
+    ///
+    /// Not through the door A25's decisions use: that one closes the attempt *awaiting review* for a
+    /// rule, and a retraction is about a rule that was **serving** — whose attempt closed promoted a
+    /// long time ago. Sent through it, the call matched nothing and the attempt went on reading
+    /// "Promoted 0.93" for a rule that no longer exists.
+    @Test
+    void theAttemptThatBoundItSaysSo() {
+        final Scenarios scenarios = new Scenarios();
+        final Stage stage = scenarios.stage(document -> learn(scenarios), scenarios.rules);
+        final ShapeshifterAiDoc doc = doc();
+        stage.run(doc, stream(1L));
+        final RoutingRule bound = scenarios.rules.forDocument("doc-1").get(0);
+        assertThat(scenarios.attempts.found(new AttemptCriteria(), List.of("doc-1")).attempts())
+                .describedAs("the attempt that bound it closed promoted")
+                .anySatisfy(attempt -> assertThat(attempt.status()).isEqualTo(AttemptStatus.PROMOTED));
+
+        stage.retract(doc, bound.getUuid(), "The timestamps are wrong.", "jo");
+
+        assertThat(scenarios.attempts.found(new AttemptCriteria(), List.of("doc-1")).attempts())
+                .describedAs("and now says it was retracted, with who asked and why")
+                .anySatisfy(attempt -> {
+                    assertThat(attempt.status()).isEqualTo(AttemptStatus.RETRACTED);
+                    assertThat(attempt.decision()).contains("Retracted by jo").contains("timestamps");
+                });
     }
 
     private Script learn(final Scenarios scenarios) {

@@ -35,6 +35,11 @@ import java.util.concurrent.atomic.AtomicLong;
 /// and it does not outlive the node, which is why the tables exist.
 public final class InMemoryAttempts implements Attempts {
 
+    /// The states in which an attempt's rule is one that was, or was about to be, serving: the ones a
+    /// retraction is about.
+    private static final Set<AttemptStatus> BOUND = Set.of(AttemptStatus.PROMOTED,
+            AttemptStatus.PROVISIONAL, AttemptStatus.AWAITING_REVIEW);
+
     /// The states in which an attempt is still learning, and so still holds its shape (A45). A draft
     /// awaiting review is not one of them: it has written its rule, and the rule is what the router and
     /// the shape's own row answer with until a person decides.
@@ -161,6 +166,19 @@ public final class InMemoryAttempts implements Attempts {
                 .toList()
                 .forEach(attempt -> closed(attempt.id(), status, decision, attempt.ruleUuid(), attempt.score(),
                         0L));
+    }
+
+    /// The attempts that bound this rule, whatever state they ended in — promoted, provisional, or
+    /// awaiting a review that will now never happen.
+    @Override
+    public synchronized void retracted(final String docUuid, final String ruleUuid, final String decision) {
+        attempts.values().stream()
+                .filter(attempt -> attempt.attempt().docUuid().equals(docUuid)
+                                   && ruleUuid.equals(attempt.ruleUuid())
+                                   && BOUND.contains(attempt.status()))
+                .toList()
+                .forEach(attempt -> closed(attempt.id(), AttemptStatus.RETRACTED, decision,
+                        attempt.ruleUuid(), attempt.score(), 0L));
     }
 
     @Override

@@ -39,7 +39,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -59,8 +58,20 @@ public class ShapeshifterAiSerialiser implements DocumentSerialiser2<Shapeshifte
     private final Provider<Rules> rulesProvider;
     /// The documents this node has already had the chance to migrate, so that a read is a read.
     private final Set<String> migrated = ConcurrentHashMap.newKeySet();
-    /// What a read found, for the store to migrate: a document read but never opened keeps nothing else.
-    private final Map<String, List<RoutingRule>> carried = new ConcurrentHashMap<>();
+    /// What the read on *this thread* found, for the store to migrate on the same thread and at once.
+    ///
+    /// Per thread, and that is the whole of its correctness. There is one `read` for every reason a
+    /// document is deserialised, and an import's confirmation screen deserialises the **incoming pack**
+    /// to show what it would change — a pack whose document carries the same uuid as the local one it
+    /// would replace. Held in a map keyed by uuid, the pack's rules would sit there waiting, and the
+    /// next ordinary read of the *local* document would take them and write them into its table, even
+    /// if the person cancelled the import.
+    ///
+    /// The store reads and migrates in one call on one thread ([ShapeshifterAiStoreImpl#readDocument]),
+    /// so what it carried is what it drains. Every other read leaves its carry on its own thread, where
+    /// the next read overwrites it and nothing ever reads it. That also ends the map's unbounded growth:
+    /// a document read but never opened kept its rules for the life of the node.
+    private final ThreadLocal<Carried> carried = new ThreadLocal<>();
 
     @Inject
     ShapeshifterAiSerialiser(final Serialiser2Factory serialiser2Factory, final Provider<Rules> rulesProvider) {
@@ -134,8 +145,12 @@ public class ShapeshifterAiSerialiser implements DocumentSerialiser2<Shapeshifte
             return;
         }
         final List<RoutingRule> legacy = legacyRules(importExportDocument);
-        if (!legacy.isEmpty()) {
-            carried.put(document.getUuid(), legacy);
+        if (legacy.isEmpty()) {
+            // Cleared and not left: what this thread carried from the read before must not be taken for
+            // this document's.
+            carried.remove();
+        } else {
+            carried.set(new Carried(document.getUuid(), legacy));
         }
     }
 
@@ -149,10 +164,13 @@ public class ShapeshifterAiSerialiser implements DocumentSerialiser2<Shapeshifte
         if (document == null || document.getUuid() == null) {
             return;
         }
-        final List<RoutingRule> legacy = carried.remove(document.getUuid());
-        if (legacy == null || !migrated.add(document.getUuid())) {
+        final Carried found = carried.get();
+        carried.remove();
+        if (found == null || !found.docUuid().equals(document.getUuid())
+            || !migrated.add(document.getUuid())) {
             return;
         }
+        final List<RoutingRule> legacy = found.rules();
         final Rules rules = rulesProvider.get();
         if (!rules.forDocument(document.getUuid()).isEmpty()) {
             return;
@@ -172,5 +190,16 @@ public class ShapeshifterAiSerialiser implements DocumentSerialiser2<Shapeshifte
                                           + "steps are the default plan's until it is saved again.",
                 name, Arrays.toString(PlanExample.values())));
         return PlanExample.DIRECT;
+    }
+
+
+    // --------------------------------------------------------------------------------
+
+
+    /// The rules one read found, and which document they were read for. The uuid is checked on the way
+    /// out as well as in: a thread that read one document and migrated another would otherwise carry
+    /// the first's rules into the second.
+    private record Carried(String docUuid, List<RoutingRule> rules) {
+
     }
 }
