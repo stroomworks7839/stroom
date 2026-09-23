@@ -63,6 +63,13 @@ public class InjectedCode {
         }
     }
 
+    /// What is held, so that something borrowing this carrier for one build can give back what it
+    /// found: a supervisor judging a candidate inside a stepping session must not wipe the edits the
+    /// person stepping is running with.
+    public Map<String, String> asMap() {
+        return Map.copyOf(byElementId);
+    }
+
     /// Whether any element is to run with code in place of its document.
     public boolean isEmpty() {
         return byElementId.isEmpty();

@@ -19,6 +19,7 @@ package stroom.shapeshifter.ai.element;
 import stroom.node.api.NodeInfo;
 import stroom.pipeline.PipelineStore;
 import stroom.pipeline.errorhandler.ErrorReceiverProxy;
+import stroom.pipeline.factory.InjectedCode;
 import stroom.pipeline.factory.PipelineDataCache;
 import stroom.pipeline.factory.PipelineFactory;
 import stroom.pipeline.stepping.capture.HeadlessCapture;
@@ -78,6 +79,7 @@ public class StageFactory {
     private final Provider<PipelineFactory> pipelineFactoryProvider;
     private final Provider<HeadlessCapture> headlessCaptureProvider;
     private final Provider<ErrorReceiverProxy> errorReceiverProvider;
+    private final Provider<InjectedCode> injectedCodeProvider;
     private final TaskContextFactory taskContextFactory;
     private final NodeInfo nodeInfo;
     private final Attempts attempts;
@@ -99,6 +101,7 @@ public class StageFactory {
                         final Provider<PipelineFactory> pipelineFactoryProvider,
                         final Provider<HeadlessCapture> headlessCaptureProvider,
                         final Provider<ErrorReceiverProxy> errorReceiverProvider,
+                        final Provider<InjectedCode> injectedCodeProvider,
                         final TaskContextFactory taskContextFactory,
                         final NodeInfo nodeInfo,
                         final Attempts attempts,
@@ -118,6 +121,7 @@ public class StageFactory {
         this.pipelineFactoryProvider = pipelineFactoryProvider;
         this.headlessCaptureProvider = headlessCaptureProvider;
         this.errorReceiverProvider = errorReceiverProvider;
+        this.injectedCodeProvider = injectedCodeProvider;
         this.taskContextFactory = taskContextFactory;
         this.nodeInfo = nodeInfo;
         this.attempts = attempts;
@@ -132,9 +136,18 @@ public class StageFactory {
 
     /// A stage on this node, under the wall clock and a fresh seed for the held-out split (A14).
     public Stage create() {
+        // A node judges a candidate with the element that will run it (§12 item 2) — but only where the
+        // module re-implements one. The parsers here already drive stroom's own factories: the Data
+        // Splitter's DS3 factory, the JSON reader, stroom's XML reader, and they additionally report
+        // what each record consumed, which input coverage (A11) is scored on and a pipeline does not
+        // tell anyone. The transform is the one place the module drives Saxon itself — its own
+        // configuration, no pool, no function library — so it is the one wrapped.
         final List<StepRunner> runners = List.of(
-                new DataSplitterStep(dataSplitterCompiler), new JsonStep(), new XmlFragmentStep(),
-                new XsltStep());
+                new DataSplitterStep(dataSplitterCompiler),
+                new JsonStep(),
+                new XmlFragmentStep(),
+                new PipelineStepRunner(new XsltStep(), pipelineFactoryProvider, headlessCaptureProvider,
+                        injectedCodeProvider, errorReceiverProvider, taskContextFactory));
         final List<Scorer> scorers = List.of(
                 new CompileScorer(), new InputCoverageScorer(), new YieldScorer(), schemaConformanceScorer,
                 new ExtractionQualityScorer(), new BusinessRulesScorer());

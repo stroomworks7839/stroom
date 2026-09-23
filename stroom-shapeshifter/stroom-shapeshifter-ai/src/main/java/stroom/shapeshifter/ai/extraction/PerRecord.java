@@ -69,14 +69,15 @@ public final class PerRecord {
         }
         // Compiled once for the candidate, run once per record: a stylesheet compiled per record is a
         // stylesheet compiled ten thousand times for a stream of ten thousand records.
-        final StepRunner.Prepared prepared = runner.prepare(configuration);
         final List<String> written = new ArrayList<>();
         final List<StoredError> diagnostics = new ArrayList<>();
-        for (final String record : records) {
-            final StepResult result = prepared.run(record);
-            diagnostics.addAll(result.diagnostics());
-            if (result.output() != null) {
-                written.add(result.output());
+        try (StepRunner.Prepared prepared = runner.prepare(configuration)) {
+            for (final String record : records) {
+                final StepResult result = prepared.run(record);
+                diagnostics.addAll(result.diagnostics());
+                if (result.output() != null) {
+                    written.add(result.output());
+                }
             }
         }
         final String joined = RecordJoin.join(written);

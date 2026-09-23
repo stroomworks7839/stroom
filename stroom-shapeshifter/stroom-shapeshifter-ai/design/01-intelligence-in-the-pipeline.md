@@ -1660,8 +1660,10 @@ the order they arrived. Items marked *built* already exist in `stroom-shapeshift
    capture. A prefix is already `stopAfter`, and running the chain against the scorers is the stage's
    work, not the pipeline's. The bound path built on it 2026-09-23: `FragmentRunner` is a seam, a node
    runs the fragment as a pipeline (`PipelineFragmentRunner`) and Tier 1 keeps the stand-in, with a
-   Tier 2 scenario holding the two to the same events. What is left is the dialogue's own candidate
-   runs, which are still the stand-in's.*
+   Tier 2 scenario holding the two to the same events. **The dialogue's candidate runs followed the same
+   day**: `PipelineStepRunner` is the element as the pipeline runs it, wrapped in the smallest pipeline
+   that can be given text, and a Tier 2 scenario per kind of element holds it to the module's runner.
+   **Item 2 is complete.***
 3. **The new document type.** The `Doc` and `Resource` in `stroom-core-shared`; `DocumentTypeRegistry`
    — both the constant *and* the `put` in the static block; a `DocumentTypeGroup` and `SvgImage`; the
    store, serialiser and resource implementation; one `DocumentStoreBinder.create(...).bind(...)`,
@@ -2191,6 +2193,19 @@ including the degeneracy trap (§8.3) that changes the scoring model and propose
   learned as the records it carries, where it was previously read as text and abandoned. With it:
   an element may declare a configuration that is never asked for, and each parser declares what it
   consumes so that the split question follows the stream rather than a guess from the element's shape.
+- Audit of item 2's last slice (the owner's code review): five findings, all fixed — design 02 §6.1.
+  The first was the drift the slice exists to prevent, and the agreement test had passed it: wrapping a
+  parser dropped the record ranges input coverage (A11) is scored on, turning a gate off in silence. A
+  node now wraps only the transform, which is the one element the module re-implements; the parsers
+  already drive stroom's own factories. With it: a prepared candidate is built once rather than per
+  record, a refusal by the parser in front of a transform is heard rather than lost, and the injected
+  code carrier is restored rather than cleared, so a candidate judged inside a stepping session no
+  longer wipes the person's edits.
+- §12 item 2 completed (design 02 §6.1): a node judges a candidate with the element that will run it.
+  `PipelineStepRunner` wraps each element in the smallest pipeline that can be given text, injects the
+  candidate rather than writing it, and captures what the element wrote; the module's runners remain
+  Tier 1's, and a Tier 2 scenario per kind of element holds the two to the same answers. The four Tier 2
+  scenarios now run their candidates through the real elements without a line changing in them.
 - Audit of item 18 (the owner's code review): six findings, five fixed — design 02 §6.1 — and one
   collision to rule on. The element types that parse were hardcoded in two places on a mistaken belief
   that a resource cannot reach the element registry; both now ask the registry the fragment check asks.

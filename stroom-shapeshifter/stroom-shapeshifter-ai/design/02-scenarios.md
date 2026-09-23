@@ -2131,6 +2131,71 @@ transformation stage — a filter rather than a parser — which is §12 item 4'
 254 tests in the module, including the pipeline walk: a supervisor under a parser, one under the source,
 an element that is not in the pipeline at all, and a pipeline that loops.
 
+The fortieth slice, 2026-09-23, is the third of design 03 §7's ten and the last of §12 item 2: **a node
+judges a candidate with the element that will run it**.
+
+The bound path moved onto the pipeline in slice 36; a candidate was still being tried with the module's
+own step runners while it was being written. Those runners were written to stand in for elements, and
+they stand in well — but a stylesheet judged by Saxon configured one way and run by Saxon configured
+another is judged on a difference the model cannot see, and the feedback it gets is about a fault the
+pipeline does not have.
+
+`PipelineStepRunner` is the element as the pipeline runs it, wrapped in the smallest pipeline that can
+be given text: the element behind the source, with a parser between them where the element is a filter,
+since a filter is pushed events and what the dialogue hands it is the previous element's output as text.
+The candidate's configuration is injected rather than written (§12 item 1), the run is captured (§12
+item 2), and what the element wrote comes back joined. It is a decorator: the module's runner still says
+what the element is called, what document it takes, whether it parses and what it consumes — only what
+it *does* is replaced.
+
+The node builds these; Tier 1 keeps the module's, so the scenario suite still runs in seconds. The guard
+is a Tier 2 scenario per kind of element, because each stands in for something different — Saxon's
+configuration for a stylesheet, the DS3 factory for a splitter, the JSON reader, the fragment wrapper —
+and all four agree.
+
+Writing that guard found a real fault in the slice: an element whose configuration is its own business
+(§12 item 26) was being given nothing, because the runner only injected what it was passed and the
+fragment parser is never passed anything. The stand-in reached for its built-in wrapper and the pipeline
+reached for a text converter that was not there, so one produced a document and the other produced
+nothing. The runner asks for the fixed configuration where there is no candidate, as the dialogue does.
+
+The four Tier 2 scenarios — 18, 19, 20 and 30 — now run their candidates through the real elements
+without a line changing in them, which is the other half of the evidence.
+
+The audit of the slice found five, and the first was the very drift the slice exists to prevent —
+which my own agreement test had passed, because it compared only what each side *wrote*.
+
+**The wrapper dropped what a parser consumed, and with it the coverage gate.** A `StepResult` carries
+record ranges as well as output, the Data Splitter's stand-in fills them from the DS3 locator, and input
+coverage (A11) is scored on them; a pipeline reports no such thing. Wrapping the parsers therefore
+turned a gate off in silence: a configuration consuming a tenth of its input would no longer have been
+penalised or even warned about. The fix is to wrap less. The parsers in the module are not
+re-implementations at all — they drive stroom's own DS3 factory, its JSON reader and its XML reader —
+so there was nothing to stand in for and something to lose. **The transform is the one place the module
+drives Saxon itself**, with its own configuration, no pool and no function library, and it is the one
+wrapped now.
+
+**A prepared candidate was being rebuilt for every record.** `PerRecord` asks for a prepared
+configuration precisely so that compiling is paid once, which item 25's audit established for the
+stand-in; the wrapper inherited the default and rebuilt the pipeline per record. It now builds once,
+starts the pipeline, gives it record after record, and closes it — and `StepRunner.Prepared` is
+closeable for that reason, since what preparing takes (a built pipeline, a pooled stylesheet) has to be
+given back.
+
+**A refusal by the parser in front went unheard.** A transform is given text and the wrapper puts a
+parser in front of it; text that is not well formed is refused *there*, and the diagnostics were being
+read only for the element under test. The step came back having failed with nothing to say — the silence
+`PerRecord.unjoined` was written to stop. Every element of the little chain is heard now.
+
+**And the carrier was cleared rather than restored.** `InjectedCode` is pipeline-scoped and shared with
+whatever built the enclosing pipeline: a supervisor judging a candidate inside a stepping session was
+wiping the edits the person stepping was running with. What was there is put back, as the error receiver
+beside it already was.
+
+The agreement test compares diagnostics as well as output now, and three cases were added for what it
+could not see: a candidate that will not compile, input that will not parse, and a prepared candidate
+given record after record. 254 tests in the module, 14 in Tier 2.
+
 ### 6.4 What the one-record run found
 
 Item 25 changed what the model is shown, and no scripted scenario can say whether that makes it write

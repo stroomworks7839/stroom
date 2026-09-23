@@ -104,10 +104,16 @@ public interface StepRunner {
     // --------------------------------------------------------------------------------
 
 
-    /// One configuration, compiled, to be run over one input after another.
-    @FunctionalInterface
-    interface Prepared {
+    /// One configuration, compiled, to be run over one input after another, and then closed.
+    ///
+    /// Closing matters where preparing took something that has to be given back — a pooled stylesheet,
+    /// a built pipeline — and costs nothing where it did not, which is why the default does nothing.
+    interface Prepared extends AutoCloseable {
 
         StepResult run(String input);
+
+        @Override
+        default void close() {
+        }
     }
 }
