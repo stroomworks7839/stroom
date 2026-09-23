@@ -16,6 +16,9 @@
 
 package stroom.shapeshifter.ai.stage;
 
+import stroom.shapeshifter.shared.LedgerShape;
+
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -37,4 +40,33 @@ public interface Ledger {
      * @return The inputs that were on it, oldest first, each with the pipeline that sentinelled it.
      */
     List<Replayable> release(String docUuid, String shape);
+
+    /// What is on the ledger, a row per shape, most recently added first — for the view of A28 §11.6,
+    /// and for anybody who wants to know what a promotion would release.
+    ///
+    /// A **read**. It is a method of its own rather than a mode of [#release] because releasing is what
+    /// a promotion does, and a surface that answered by releasing would put a backlog through the
+    /// pipeline because somebody looked at it.
+    ///
+    /// @param docUuids Whose ledgers to read: the documents the caller may see, already narrowed to the
+    ///                 one they asked about if they asked about one. They go into the query rather than
+    ///                 filtering its answer, because a total taken before the filtering would say how
+    ///                 many shapes wait on documents the caller may not see, and the pages they turned
+    ///                 would come back short.
+    /// @param offset   The first row to return, counted from zero.
+    /// @param limit    How many rows at most.
+    Page waiting(Collection<String> docUuids, long offset, int limit);
+
+
+    // --------------------------------------------------------------------------------
+
+
+    /// One page of the ledger, and how many shapes there are in all.
+    ///
+    /// @param shapes The page, most recently added to first.
+    /// @param total  Every shape waiting, not just this page's: what a pager counts, and what an
+    ///               operator wants to know before they start turning pages.
+    record Page(List<LedgerShape> shapes, long total) {
+
+    }
 }

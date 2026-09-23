@@ -16,11 +16,13 @@
 
 package stroom.shapeshifter.shared;
 
+import stroom.util.shared.PageRequest;
 import stroom.util.shared.ResourcePaths;
 import stroom.util.shared.RestResource;
 import stroom.util.shared.ResultPage;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
@@ -28,8 +30,11 @@ import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import org.fusesource.restygwt.client.DirectRestService;
+
+import java.util.List;
 
 /**
  * The Supervisor of ruling A28: attempts across every Shapeshifter AI document, not a tab on one. A row
@@ -77,6 +82,14 @@ public interface SupervisorResource extends RestResource, DirectRestService {
     @Operation(summary = "Reject what an attempt drafted, and give up on its shape",
             operationId = "rejectShapeshifterAiAttempt")
     SupervisorAttempt reject(@PathParam("id") long id, RejectRequest request);
+
+    @POST
+    @Path("/ledger")
+    @Operation(
+            summary = "What is waiting on the ledger, a row per shape",
+            operationId = "findShapeshifterAiLedger")
+    ResultPage<LedgerShape> ledger(@QueryParam("docUuid") String docUuid,
+                                   @Parameter(description = "page", required = true) PageRequest pageRequest);
 
     @POST
     @Path("/{id}/relearn")

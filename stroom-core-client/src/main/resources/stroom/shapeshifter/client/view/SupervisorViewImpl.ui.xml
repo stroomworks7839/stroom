@@ -4,7 +4,14 @@
     <g:SimplePanel styleName="max">
         <g:ThinSplitLayoutPanel styleName="max">
             <g:north size="400">
-                <g:SimplePanel ui:field="attemptList" styleName="max dashboard-panel"/>
+                <g:ThinSplitLayoutPanel styleName="max">
+                    <g:east size="500">
+                        <g:SimplePanel ui:field="ledger" styleName="max dashboard-panel"/>
+                    </g:east>
+                    <g:center>
+                        <g:SimplePanel ui:field="attemptList" styleName="max dashboard-panel"/>
+                    </g:center>
+                </g:ThinSplitLayoutPanel>
             </g:north>
             <g:center>
                 <g:SimplePanel ui:field="turnList" styleName="max dashboard-panel"/>

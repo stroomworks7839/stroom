@@ -25,14 +25,18 @@ import stroom.shapeshifter.ai.stage.Attempts;
 import stroom.shapeshifter.ai.stage.Attempts.Page;
 import stroom.shapeshifter.ai.stage.Attempts.Recorded;
 import stroom.shapeshifter.ai.stage.Attempts.Turn;
+import stroom.shapeshifter.ai.stage.Ledger;
 import stroom.shapeshifter.shared.AmendTurnRequest;
 import stroom.shapeshifter.shared.AttemptCriteria;
+import stroom.shapeshifter.shared.LedgerShape;
 import stroom.shapeshifter.shared.RejectRequest;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 import stroom.shapeshifter.shared.SupervisorAttempt;
 import stroom.shapeshifter.shared.SupervisorResource;
 import stroom.shapeshifter.shared.SupervisorTurn;
 import stroom.util.pipeline.scope.PipelineScopeRunnable;
+import stroom.util.shared.NullSafe;
+import stroom.util.shared.PageRequest;
 import stroom.util.shared.PageResponse;
 import stroom.util.shared.PermissionException;
 import stroom.util.shared.ResultPage;
@@ -40,7 +44,9 @@ import stroom.util.shared.ResultPage;
 import jakarta.inject.Inject;
 import jakarta.inject.Provider;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 
 /// The Supervisor of A28: attempts across every Shapeshifter AI document, and what a person may do to
@@ -57,18 +63,21 @@ public class SupervisorResourceImpl implements SupervisorResource {
     private final Provider<StageFactory> stageFactoryProvider;
     private final Provider<PipelineScopeRunnable> pipelineScopeProvider;
     private final Provider<SecurityContext> securityContextProvider;
+    private final Provider<Ledger> ledgerProvider;
 
     @Inject
     SupervisorResourceImpl(final Provider<Attempts> attemptsProvider,
                            final Provider<ShapeshifterAiStore> storeProvider,
                            final Provider<StageFactory> stageFactoryProvider,
                            final Provider<PipelineScopeRunnable> pipelineScopeProvider,
-                           final Provider<SecurityContext> securityContextProvider) {
+                           final Provider<SecurityContext> securityContextProvider,
+                           final Provider<Ledger> ledgerProvider) {
         this.attemptsProvider = attemptsProvider;
         this.storeProvider = storeProvider;
         this.stageFactoryProvider = stageFactoryProvider;
         this.pipelineScopeProvider = pipelineScopeProvider;
         this.securityContextProvider = securityContextProvider;
+        this.ledgerProvider = ledgerProvider;
     }
 
     @Override
@@ -87,6 +96,42 @@ public class SupervisorResourceImpl implements SupervisorResource {
                 ? 0L
                 : asked.getPageRequest().getOffset();
         return new ResultPage<>(rows, new PageResponse(offset, rows.size(), page.total(), true));
+    }
+
+    /// What is waiting on the ledger (§5.2, A28), a row per shape, beside the attempts.
+    ///
+    /// Nothing is held: every stream named here was processed to an error stream and is where it always
+    /// was, so this is a list of what a promotion *would* release rather than a queue of anything being
+    /// kept. Reading it releases nothing — a surface that answered by releasing would put a backlog
+    /// through the pipeline because somebody looked at it.
+    ///
+    /// The documents this person may see go into the query rather than filtering its answer, as they do
+    /// for [#find]: a total taken before the filtering would say how many shapes wait on documents they
+    /// may not see, and the pages they turned would come back short.
+    @Override
+    public ResultPage<LedgerShape> ledger(final String docUuid, final PageRequest pageRequest) {
+        final PageRequest page = pageRequest == null
+                ? new PageRequest(0, 100)
+                : pageRequest;
+        final Map<String, DocRef> readable = new LinkedHashMap<>();
+        storeProvider.get().listDocuments().stream()
+                .filter(docRef -> docUuid == null || docUuid.equals(docRef.getUuid()))
+                .filter(docRef -> may(docRef.getUuid(), DocumentPermission.VIEW))
+                .forEach(docRef -> readable.put(docRef.getUuid(), docRef));
+        final long offset = NullSafe.getOrElse(page.getOffset(), Integer::longValue, 0L);
+        final int length = NullSafe.getOrElse(page.getLength(), Integer::intValue, 100);
+        final Ledger.Page found = ledgerProvider.get().waiting(readable.keySet(), offset, length);
+        // Each row named with its document rather than its uuid, since the view is over all of them.
+        final List<LedgerShape> rows = found.shapes().stream()
+                .map(shape -> new LedgerShape(
+                        readable.get(shape.getDoc().getUuid()),
+                        shape.getShapeId(),
+                        shape.getWaiting(),
+                        shape.getOldestTimeMs(),
+                        shape.getNewestTimeMs(),
+                        shape.getReason()))
+                .toList();
+        return new ResultPage<>(rows, new PageResponse(offset, rows.size(), found.total(), true));
     }
 
     @Override

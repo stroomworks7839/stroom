@@ -2569,6 +2569,74 @@ Reject wore the Delete icon, three buttons along from Delete itself: one removes
 shape up for good, and only the tooltip said which was which.
 
 
+The forty-sixth slice, 2026-09-23, is design 03 §7's eighth: **the Supervisor's decisions, and the
+ledger beside them** (A28's remainder).
+
+The cross-document table of every attempt has existed since 2026-09-22 and its endpoints with it —
+approve, reject, amend, relearn, all by attempt id — and none of them could be reached. Three are now
+buttons on the attempt list's own toolbar: Approve and Reject where an attempt awaits review (A25), and
+*learn this shape again* for one that was given up or bound something nobody is content with. Rejecting
+asks why and refuses a blank, and uses the prompt the Routing tab uses, so that a rejection reads the
+same wherever a person meets it.
+
+**The ledger needed a way to be read.** It had two methods — put a row on, and take a shape's rows off —
+and the second is what a promotion does. `Ledger.waiting` is a read, and it is a method of its own
+rather than a mode of `release` for exactly that reason: a view that answered by releasing would put a
+backlog through the pipeline because somebody opened a screen. That is not hypothetical. Scenario 13's
+first draft asserted the ledger row before the promotion, which spent it, and the promotion then had
+nothing to release.
+
+A row per shape: how many streams are waiting, since when, and what the newest of them was told. Grouped
+by document *and* shape, because the view is over every document and two documents may have shapes of
+one name that settle separately. In the table it is one round trip — a grouping joined back to its own
+newest row — so ten thousand waiting shapes are ten thousand rows rather than ten thousand queries, and
+a shape with ten thousand waiting streams is one row, which is the whole reason the view is grouped.
+
+Two implementations of the ledger exist, the rows a node keeps and the list the scenarios run on, and a
+view written against one and served by the other is a view that lies. A test holds them to the same
+answers over the same sequence; the grouping key and the ordering are the two things that would have
+drifted in silence.
+
+What the column headings say, because it is the thing most easily misread: **nothing is held**. Every
+stream counted on the ledger was processed to an error stream and is where it always was. The view is a
+list of what a promotion would release, not a queue of anything being kept.
+
+The audit of the slice (the owner's code review) found four, all fixed, and the first was the day's
+fourth instance of one mistake: **a reader meeting state that was not built for it.**
+
+A selection holds the row *object* it was made from, and refreshing a list builds new ones without
+touching it. So an attempt just approved still answered *awaiting review* to the guard that exists to
+decide whether Reject is offered — and rejecting it would have taken the rule that had just been
+promoted out of the routing table and given its shape up. The selection is cleared before anything else
+now, which is not tidiness: it is what makes the guard see the truth. The Routing tab never had the hole,
+because its own round trip ends in the same `updateButtons` the buttons were set from.
+
+**The ordering the agreement test pins was not an ordering.** `order by newest desc` had no tiebreaker,
+so shapes last added to in the same millisecond — routine against a local database — came back in
+whatever order the database felt like, while the list in memory sorted stably and fell back to insertion
+order. The test that exists to hold the two implementations together was a coin flip on the very thing
+it holds. Both break ties by the newest row's id now.
+
+**And the view could not show more than a page.** The grid was handed the whole list with no provider
+behind it: past a hundred shapes the pager offers a second page that nothing serves, which flatly
+contradicts the ten thousand the query was written for. It is paged properly now — the same `ResultPage`
+and `RestDataProvider` as the attempts beside it, limit and offset in the query, a count for the total —
+and the documents a person may see go *into* the query rather than filtering its answer, so the total
+does not count shapes on documents they cannot see and their pages do not come back short. That
+reasoning was already written down for the attempts; it had not been carried across.
+
+The fourth was in the tests themselves, and worth recording because of what it would have said. Both new
+tests wrote rows for a second shape and released them on the last line of the test body, so an assertion
+that failed partway left them behind — and the next test would then have reported that the table and the
+heap had diverged, when what had happened is that the table started with more in it. A false report from
+the one test whose job is to detect a real divergence. The cleanup happens before each test now.
+
+**Owed out of the slice**: *answer instead* and *edit and re-run from here*, which A28 puts on a turn
+rather than on an attempt — the `amend` endpoint is built and what it needs is an editor in the turns
+grid, which is a different shape of work from a button; and *retract* and *widen selector*, which A28
+lists and which have no endpoint yet.
+
+
 ## 7. Decisions taken
 
 Ruled 2026-09-17, each as recommended:

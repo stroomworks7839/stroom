@@ -2239,6 +2239,12 @@ including the degeneracy trap (§8.3) that changes the scoring model and propose
   candidate rather than writing it, and captures what the element wrote; the module's runners remain
   Tier 1's, and a Tier 2 scenario per kind of element holds the two to the same answers. The four Tier 2
   scenarios now run their candidates through the real elements without a line changing in them.
+- **The Supervisor's decisions and the ledger beside them** (A28's remainder, design 02 §6.1):
+  Approve, Reject and *learn this shape again* on the attempt list, and the ledger as a row per shape —
+  how many streams are waiting, since when, and what the last of them was told. The ledger needed a way
+  to be *read*: it had only a way to be spent, and reading by releasing would have put a backlog through
+  the pipeline because somebody opened a screen. Owed: *answer instead* and *edit and re-run from here*,
+  which belong to a turn, and *retract* and *widen selector*, which have no endpoint yet.
 - **Approve and Reject on the Routing tab** (§12 item 13's remainder, design 02 §6.1): review mode has
   been built in the stage since 2026-09-18 and had no buttons. It has them now, on the table that holds
   the draft. The slice also found a regression the audit before it had introduced — a second description

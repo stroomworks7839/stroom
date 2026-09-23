@@ -18,11 +18,20 @@ package stroom.shapeshifter.ai.impl.db;
 
 import stroom.db.util.JooqUtil;
 import stroom.shapeshifter.ai.stage.Ledger;
+import stroom.shapeshifter.ai.stage.Ledger.Page;
 import stroom.shapeshifter.ai.stage.Replayable;
+import stroom.shapeshifter.shared.LedgerShape;
+import stroom.shapeshifter.shared.ShapeshifterAiDoc;
+import stroom.util.shared.NullSafe;
 
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import org.jooq.Field;
+import org.jooq.Record1;
+import org.jooq.Table;
+import org.jooq.impl.DSL;
 
+import java.util.Collection;
 import java.util.List;
 
 import static stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterLedger.SHAPESHIFTER_LEDGER;
@@ -80,6 +89,67 @@ public class LedgerDao implements Ledger {
                         .execute();
             }
             return List.copyOf(inputs);
+        });
+    }
+
+    /// One row per shape in one round trip: the counts and the times from a grouping, and the reason
+    /// from the newest row of each group, which the grouping names by its id.
+    ///
+    /// A shape with ten thousand waiting streams is one row here rather than ten thousand, which is the
+    /// whole reason the view is grouped by shape; and a page of shapes is a page, because a document may
+    /// have more of them than anybody wants to scroll.
+    @Override
+    public Page waiting(final Collection<String> docUuids, final long offset, final int limit) {
+        if (NullSafe.isEmptyCollection(docUuids)) {
+            return new Page(List.of(), 0L);
+        }
+        final Field<Integer> waiting = DSL.count().as("waiting");
+        final Field<Long> oldest = DSL.min(SHAPESHIFTER_LEDGER.CREATE_TIME_MS).as("oldest");
+        final Field<Long> newest = DSL.max(SHAPESHIFTER_LEDGER.CREATE_TIME_MS).as("newest");
+        final Field<Long> newestId = DSL.max(SHAPESHIFTER_LEDGER.ID).as("newest_id");
+        // Grouped by document as well as shape: the view is over every document (A28), and two
+        // documents may have shapes of the same name that settle separately.
+        final Table<?> grouped = DSL
+                .select(SHAPESHIFTER_LEDGER.DOC_UUID, SHAPESHIFTER_LEDGER.SHAPE_HASH,
+                        waiting, oldest, newest, newestId)
+                .from(SHAPESHIFTER_LEDGER)
+                .where(SHAPESHIFTER_LEDGER.DOC_UUID.in(docUuids))
+                .groupBy(SHAPESHIFTER_LEDGER.DOC_UUID, SHAPESHIFTER_LEDGER.SHAPE_HASH)
+                .asTable("grouped");
+        return JooqUtil.contextResult(connProvider, context -> {
+            final List<LedgerShape> shapes = context
+                    .select(SHAPESHIFTER_LEDGER.DOC_UUID,
+                            SHAPESHIFTER_LEDGER.SHAPE_ID,
+                            SHAPESHIFTER_LEDGER.REASON,
+                            grouped.field(waiting),
+                            grouped.field(oldest),
+                            grouped.field(newest))
+                    .from(grouped)
+                    .join(SHAPESHIFTER_LEDGER).on(SHAPESHIFTER_LEDGER.ID.eq(grouped.field(newestId)))
+                    // Newest first, and where two shapes were last added to in the same millisecond —
+                    // which is routine — the one whose newest row was written last. Without a
+                    // tiebreaker the order is whatever the database felt like, and an order like that
+                    // cannot be held to.
+                    .orderBy(grouped.field(newest).desc(), grouped.field(newestId).desc())
+                    .limit(offset, limit)
+                    .fetch(row -> new LedgerShape(
+                            ShapeshifterAiDoc.buildDocRef()
+                                    .uuid(row.get(SHAPESHIFTER_LEDGER.DOC_UUID))
+                                    .build(),
+                            row.get(SHAPESHIFTER_LEDGER.SHAPE_ID),
+                            row.get(grouped.field(waiting)),
+                            row.get(grouped.field(oldest)),
+                            row.get(grouped.field(newest)),
+                            row.get(SHAPESHIFTER_LEDGER.REASON)));
+            // How many shapes in all, so that a pager can say how far there is to go.
+            final long total = context
+                    .select(DSL.countDistinct(SHAPESHIFTER_LEDGER.DOC_UUID, SHAPESHIFTER_LEDGER.SHAPE_HASH))
+                    .from(SHAPESHIFTER_LEDGER)
+                    .where(SHAPESHIFTER_LEDGER.DOC_UUID.in(docUuids))
+                    .fetchOptional()
+                    .map(Record1::value1)
+                    .orElse(0);
+            return new Page(shapes, total);
         });
     }
 }

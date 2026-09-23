@@ -25,10 +25,12 @@ import stroom.dispatch.client.RestFactory;
 import stroom.shapeshifter.shared.AttemptCriteria;
 import stroom.shapeshifter.shared.SupervisorAttempt;
 import stroom.shapeshifter.shared.SupervisorResource;
+import stroom.svg.client.Preset;
 import stroom.util.client.DataGridUtil;
 import stroom.util.shared.NullSafe;
 import stroom.util.shared.PageRequest;
 import stroom.util.shared.ResultPage;
+import stroom.widget.button.client.ButtonView;
 import stroom.widget.customdatebox.client.ClientDateUtil;
 import stroom.widget.util.client.MultiSelectionModel;
 import stroom.widget.util.client.MultiSelectionModelImpl;
@@ -84,6 +86,11 @@ public class SupervisorListPresenter extends MyPresenterWidget<PagerView> {
             }
         };
         dataProvider.addDataDisplay(dataGrid);
+    }
+
+    /// A button on this list's own toolbar, for the actions A28 puts beside the attempt they act on.
+    public ButtonView add(final Preset preset) {
+        return getView().addButton(preset);
     }
 
     public MultiSelectionModel<SupervisorAttempt> getSelectionModel() {

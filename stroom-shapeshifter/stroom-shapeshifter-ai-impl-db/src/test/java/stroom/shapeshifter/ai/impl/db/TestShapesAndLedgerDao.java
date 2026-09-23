@@ -23,11 +23,14 @@ import stroom.shapeshifter.ai.stage.Attempts.Page;
 import stroom.shapeshifter.ai.stage.Attempts.Recorded;
 import stroom.shapeshifter.ai.stage.Attempts.Turn;
 import stroom.shapeshifter.ai.stage.Bindings;
+import stroom.shapeshifter.ai.stage.Ledger;
 import stroom.shapeshifter.ai.stage.Replayable;
 import stroom.shapeshifter.ai.stage.Spend.Spent;
+import stroom.shapeshifter.ai.state.InMemoryLedger;
 import stroom.shapeshifter.shared.AttemptCriteria;
 import stroom.shapeshifter.shared.AttemptStatus;
 import stroom.shapeshifter.shared.ExecutionMode;
+import stroom.shapeshifter.shared.LedgerShape;
 import stroom.shapeshifter.shared.PromotionMode;
 import stroom.shapeshifter.shared.QuestionKind;
 import stroom.shapeshifter.shared.RecordBoundary;
@@ -53,6 +56,7 @@ class TestShapesAndLedgerDao {
 
     private static final String DOC = "doc-" + System.nanoTime();
     private static final String SHAPE = "Feed=DOOR-ACCESS|Type=Raw Events";
+    private static final String OTHER_SHAPE = "Feed=TURNSTILE|Type=Raw Events";
 
     @Inject
     private ShapesDao shapes;
@@ -70,6 +74,10 @@ class TestShapesAndLedgerDao {
         Guice.createInjector(new TestModule()).injectMembers(this);
         shapes.reset(DOC, SHAPE);
         ledger.release(DOC, SHAPE);
+        // Every shape these tests write, not just the one most of them use: a test that fails partway
+        // leaves its rows behind, and the next test would then report that the table and the heap had
+        // diverged when what had actually happened is that the table started with more in it.
+        ledger.release(DOC, OTHER_SHAPE);
     }
 
     @Test
@@ -616,4 +624,88 @@ class TestShapesAndLedgerDao {
     private static long now() {
         return System.currentTimeMillis();
     }
+
+    /// The ledger read rather than released (A28 §11.6): a row per shape, what is waiting and since
+    /// when, and the newest stream's reason standing for the shape.
+    ///
+    /// Reading takes nothing off. A view that answered by releasing would put a backlog through the
+    /// pipeline because somebody opened a screen, which is the opposite of what the screen is for.
+    @Test
+    void theLedgerIsReadWithoutBeingSpent() {
+        final String other = OTHER_SHAPE;
+        ledger.sentinelled(DOC, SHAPE, 1L, "pipeline-1", "Nothing binds this shape");
+        ledger.sentinelled(DOC, SHAPE, 2L, "pipeline-1", "Being learned on another node");
+        ledger.sentinelled(DOC, other, 3L, "pipeline-1", "Awaiting review");
+
+        assertThat(ledger.waiting(List.of(DOC), 0L, 100).shapes())
+                .describedAs("a row per shape, most recently added first")
+                .extracting(LedgerShape::getShapeId, LedgerShape::getWaiting, LedgerShape::getReason)
+                .containsExactly(
+                        tuple(other, 1, "Awaiting review"),
+                        tuple(SHAPE, 2, "Being learned on another node"));
+        assertThat(ledger.waiting(List.of(DOC), 0L, 100).shapes().get(1))
+                .describedAs("and how long it has been waiting")
+                .satisfies(shape -> assertThat(shape.getOldestTimeMs())
+                        .isLessThanOrEqualTo(shape.getNewestTimeMs()));
+        assertThat(ledger.waiting(List.of(DOC, "another-document"), 0L, 100).total())
+                .describedAs("every document a person may see, for a view that is over all of them")
+                .isEqualTo(2L);
+        assertThat(ledger.waiting(List.of(DOC), 0L, 1).shapes())
+                .describedAs("a page is a page, and the total says how much there is beyond it")
+                .hasSize(1);
+        assertThat(ledger.waiting(List.of(DOC), 0L, 1).total()).isEqualTo(2L);
+        assertThat(ledger.waiting(List.of(), 0L, 100).shapes())
+                .describedAs("no documents to read is nothing to read, not everything")
+                .isEmpty();
+        assertThat(ledger.waiting(List.of("no-such-document"), 0L, 100).shapes()).isEmpty();
+
+        assertThat(ledger.waiting(List.of(DOC), 0L, 100).shapes())
+                .describedAs("read twice is read twice: nothing was taken off by the reading")
+                .hasSize(2);
+        assertThat(ledger.release(DOC, SHAPE))
+                .describedAs("and the release still has everything to release")
+                .hasSize(2);
+        assertThat(ledger.waiting(List.of(DOC), 0L, 100).shapes())
+                .describedAs("which is the one thing that does take a shape off")
+                .extracting(LedgerShape::getShapeId).containsExactly(other);
+
+        ledger.release(DOC, other);
+    }
+
+
+    /// The table and the heap answer the same question the same way.
+    ///
+    /// Two implementations of the ledger exist — the rows a node keeps and the list the scenarios run
+    /// on — and a view written against one and served by the other is a view that lies. The grouping
+    /// key and the order are the two things that would drift silently, so they are the two things held.
+    @Test
+    void theLedgerInMemoryAgreesWithTheLedgerInRows() {
+        final String other = OTHER_SHAPE;
+        final InMemoryLedger inMemory = new InMemoryLedger();
+        final List<Ledger> both = List.of(ledger, inMemory);
+        both.forEach(seam -> {
+            seam.sentinelled(DOC, SHAPE, 1L, "pipeline-1", "Nothing binds this shape");
+            seam.sentinelled(DOC, SHAPE, 1L, "pipeline-1", "Nothing binds this shape");
+            seam.sentinelled(DOC, other, 2L, "pipeline-1", "Awaiting review");
+            seam.sentinelled(DOC, SHAPE, 3L, "pipeline-2", "Being learned on another node");
+        });
+
+        assertThat(summarise(inMemory.waiting(List.of(DOC), 0L, 100).shapes()))
+                .describedAs("the same shapes, the same counts, the same reasons, in the same order")
+                .isEqualTo(summarise(ledger.waiting(List.of(DOC), 0L, 100).shapes()));
+        assertThat(summarise(inMemory.waiting(List.of(DOC), 0L, 100).shapes()))
+                .describedAs("a stream sentinelled twice for one shape is one waiting stream, not two")
+                .containsExactly(SHAPE + " x2: Being learned on another node",
+                        other + " x1: Awaiting review");
+
+        ledger.release(DOC, SHAPE);
+        ledger.release(DOC, other);
+    }
+
+    private static List<String> summarise(final List<LedgerShape> shapes) {
+        return shapes.stream()
+                .map(shape -> shape.getShapeId() + " x" + shape.getWaiting() + ": " + shape.getReason())
+                .toList();
+    }
+
 }

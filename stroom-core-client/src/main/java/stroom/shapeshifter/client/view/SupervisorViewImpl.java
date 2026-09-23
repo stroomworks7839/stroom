@@ -32,6 +32,8 @@ public class SupervisorViewImpl extends ViewImpl implements SupervisorPresenter.
     SimplePanel attemptList;
     @UiField
     SimplePanel turnList;
+    @UiField
+    SimplePanel ledger;
 
     @Inject
     public SupervisorViewImpl(final Binder binder) {
@@ -49,6 +51,8 @@ public class SupervisorViewImpl extends ViewImpl implements SupervisorPresenter.
             attemptList.setWidget(content);
         } else if (SupervisorPresenter.TURN_LIST.equals(slot)) {
             turnList.setWidget(content);
+        } else if (SupervisorPresenter.LEDGER.equals(slot)) {
+            ledger.setWidget(content);
         }
     }
 
