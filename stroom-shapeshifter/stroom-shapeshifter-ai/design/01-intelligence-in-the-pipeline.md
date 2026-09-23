@@ -2148,6 +2148,18 @@ including the degeneracy trap (§8.3) that changes the scoring model and propose
   `shapeshifter_turn`, the `Attempts` seam and its DAO, and the stage recording an attempt and every
   turn of it. Not the rendered prompt, which waits for redaction (A38); not yet the claim on the shape,
   which waits for the dialogue to be resumable (A45).
+- Audit of A47 (the owner's code review): five findings, all fixed — design 02 §6.1. The question
+  promised the model one record of each kind while the representatives are capped at three, so a feed of
+  five shapes would have been told it had seen them all; where the cap bites the question now says how
+  many it is not showing. The block also sat between the record and the sentence describing it, so
+  "the input below" had no referent and "nothing outside it to look at" contradicted the list above it —
+  it now follows the one-record instruction and says these are other runs, not context. With them: the
+  examples share one record's worth of budget rather than taking one each, and the counts are taken over
+  the records the element will actually be given.
+- A47 built (design 02 §6.1): the configuration question carries one record of each kind the split
+  found, where the plan has not settled its targets — `Configuration.otherKinds`, one representative per
+  kind, capped at three. Under target-first nothing changes, since the targets already show each kind
+  beside its event. Two scenarios hold both halves. **The audit of item 25 is closed.**
 - A46's three decisions ruled, all on the recommendation, and A47 with them. A hint attaches to the
   shape rather than to a turn, so it needs no timing: whatever question comes next carries every hint
   standing then and records which it carried, and "mid process" turns out to be one state of three —

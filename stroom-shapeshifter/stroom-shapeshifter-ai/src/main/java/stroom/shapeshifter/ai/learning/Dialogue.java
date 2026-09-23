@@ -579,6 +579,12 @@ public final class Dialogue {
             final String shown = oneAtATime
                     ? perRecord.get(0)
                     : input;
+            // A47: one record of each kind, where the plan has not settled its targets yet. Where it has,
+            // the targets show a record of each kind beside the event it must become, and showing them
+            // here as well is a budget (A44) spent saying the same thing twice.
+            final List<String> otherKinds = oneAtATime && walk.targets.isEmpty()
+                    ? TargetChecks.representatives(perRecord).stream().skip(1).toList()
+                    : List.of();
             final Optional<StepRunner.Configured> configured = runner.configured();
             final Visit visit;
             if (configured.isEmpty()) {
@@ -604,7 +610,7 @@ public final class Dialogue {
                 visit = candidates(step, walk, (candidate, feedback) -> {
                     final String reply = ask(walk, step, candidate, new Configuration(runner.elementType(),
                             configured.get().documentType(), walk.sample, shown, walk.previous[index], split,
-                            walk.targets, oneAtATime, carried(walk, oneAtATime), feedback));
+                            walk.targets, oneAtATime, carried(perRecord), otherKinds, feedback));
                     final Optional<String> configuration = ConfigurationReply.configuration(reply);
                     if (configuration.isEmpty()) {
                         return Judged.refused("The reply was not a single " + configured.get().documentType()
@@ -735,12 +741,15 @@ public final class Dialogue {
     /// one of them (§12 item 25): one record is one record's worth of evidence, and the configuration
     /// written for it is run over every record of the stream, so what it is not being shown is said
     /// rather than left for it to discover.
-    private static Question.Records carried(final Walk walk, final boolean oneAtATime) {
-        if (!oneAtATime || walk.records == null || walk.records.isEmpty()) {
+    private static Question.Records carried(final List<String> perRecord) {
+        if (perRecord.isEmpty()) {
             return Question.Records.UNKNOWN;
         }
-        return new Question.Records(walk.records.size(),
-                TargetChecks.representatives(walk.records, walk.records.size()).size());
+        // Counted over what this element will actually be given, which is what the representatives shown
+        // beside the count are drawn from: for an element after the first, that is what the one before
+        // it wrote, and not the stream's own records.
+        return new Question.Records(perRecord.size(),
+                TargetChecks.representatives(perRecord, perRecord.size()).size());
     }
 
     /// Where the first element that is not a parser sits in the chain: the one the fragment's filter

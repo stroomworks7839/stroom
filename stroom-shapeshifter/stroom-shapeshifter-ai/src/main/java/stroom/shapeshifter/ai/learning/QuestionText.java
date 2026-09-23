@@ -65,6 +65,8 @@ public final class QuestionText {
             "XSLTFilter", "transforms XML records into event-logging:3 events with an XSLT 2.0 stylesheet");
 
     private static final int INPUT_SHOWN = 6000;
+    /// However many kinds share the budget, each is shown enough to be recognisable.
+    private static final int SHORTEST = 1000;
 
     private final Templates templates;
     private final String system;
@@ -196,7 +198,8 @@ public final class QuestionText {
                 ? Template.EXTRACTION_RULES
                 : Template.TRANSFORMATION_RULES));
         variables.put("input", shown(question.input()) + ownMarkup(extraction, question.input()));
-        variables.put("split", split(question.split(), question.oneRecord(), question.records()));
+        variables.put("split", split(question.split(), question.oneRecord(), question.records(),
+                question.otherKinds()));
         variables.put("targets", targets(question.targets(), extraction));
         variables.put("previous", question.previousConfiguration() == null
                 ? ""
@@ -209,7 +212,10 @@ public final class QuestionText {
      * The settled boundary as the configuration question carries it: a parser's configuration to cut the
      * same records, or the element that is one record where the input is XML (A35).
      */
-    private static String split(final Boundary split, final boolean oneRecord, final Records records) {
+    private static String split(final Boundary split,
+                                final boolean oneRecord,
+                                final Records records,
+                                final List<String> otherKinds) {
         if (oneRecord) {
             // What it will actually be given (§12 item 25): one record, once per record. A stylesheet
             // written for the whole stream — counting its siblings, reaching into the document around it
@@ -219,7 +225,7 @@ public final class QuestionText {
             return "\nThe input below is **one record**: this configuration is run once for each record of "
                    + "the stream, with one record in front of it each time, exactly as shown. Produce the "
                    + "one event for the record you are given, and do not look outside it — there is "
-                   + "nothing outside it to look at.\n" + carried(records);
+                   + "nothing outside it to look at.\n" + carried(records) + otherKinds(otherKinds, records);
         }
         if (split == null) {
             return "";
@@ -299,10 +305,41 @@ public final class QuestionText {
         return "```xml\n" + document.strip() + "\n```";
     }
 
-    /**
-     * The input as far as a question should carry it; a long stream is cut with a note, since the model
-     * learns from a sample, not the whole.
-     */
+    /// The stream's other kinds of record, one apiece (A47): the configuration is run over every record,
+    /// and one written from a login alone drops the logouts. Shown only where the plan has not settled
+    /// its targets, since those already carry a record of each kind beside the event it must become.
+    ///
+    /// Said after the one-record instruction and not before it: these are examples of the *other* runs
+    /// this configuration will have, not context for the record in front of it, and reading across them
+    /// is exactly what it must not do.
+    ///
+    /// @param shown How many kinds are actually shown, which is capped
+    /// ([TargetChecks#REPRESENTATIVES]); [Records#kinds()] says how many there are. Where the cap bites,
+    /// the question says so rather than claiming one of each: a model told it has seen every shape when
+    /// it has seen three of five writes a configuration that drops the other two, which is the failure
+    /// A47 exists to prevent, with an assurance attached.
+    private static String otherKinds(final List<String> shown, final Records records) {
+        if (shown == null || shown.isEmpty()) {
+            return "";
+        }
+        final int others = records == null || records.kinds() <= 1
+                ? shown.size()
+                : records.kinds() - 1;
+        final StringBuilder text = new StringBuilder("\nIt will be given the stream's other shapes in the "
+                                                    + "same way — one record at a time, each on its own run. ");
+        text.append(others <= shown.size()
+                ? "Here is one record of each of them:\n"
+                : "Here is one record of " + shown.size() + " of the " + others + " other shapes; there are "
+                  + (others - shown.size()) + " more this question does not show:\n");
+        // The examples together cost no more than the record itself: this block is resent with every
+        // re-ask, and a feed whose records are kilobytes would otherwise treble the question (A44).
+        final int each = Math.max(INPUT_SHOWN / shown.size(), SHORTEST);
+        for (final String record : shown) {
+            text.append(shown(record, each)).append('\n');
+        }
+        return text.toString();
+    }
+
     /// Where a transform is given the stream's own markup rather than a parser's records, said next to
     /// the input rather than left to the transformation rules, which describe the usual case and state
     /// `records:2`. A chain with no parser hands the element the feed's XML as it arrived; a stylesheet
@@ -317,13 +354,25 @@ public final class QuestionText {
                + "are named above, and do not set xpath-default-namespace to " + RECORDS + ".\n";
     }
 
+    /**
+     * The input as far as a question should carry it; a long stream is cut with a note, since the model
+     * learns from a sample, not the whole.
+     */
     private static String shown(final String input) {
+        return shown(input, INPUT_SHOWN);
+    }
+
+    /**
+     * The same, to a budget of the caller's choosing: several records shown in one question share what
+     * one of them would have had.
+     */
+    private static String shown(final String input, final int budget) {
         if (input == null) {
             return "(nothing)";
         }
-        return input.length() <= INPUT_SHOWN
+        return input.length() <= budget
                 ? fenced(input)
-                : fenced(input.substring(0, INPUT_SHOWN)) + "\n(cut after " + INPUT_SHOWN + " of " + input.length()
+                : fenced(input.substring(0, budget)) + "\n(cut after " + budget + " of " + input.length()
                   + " characters)";
     }
 }

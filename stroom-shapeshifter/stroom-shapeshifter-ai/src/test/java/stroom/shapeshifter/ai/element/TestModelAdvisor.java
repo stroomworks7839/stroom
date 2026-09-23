@@ -89,7 +89,7 @@ class TestModelAdvisor {
         final Chain chain = new Chain(SAMPLE, List.of("DSParser", "XSLTFilter"), List.of());
         final String first = advisor.ask(List.of(), chain);
         final Configuration configuration = new Configuration("DSParser", "TextConverter", SAMPLE, "a,b\n", null,
-                null, List.of(), false, Question.Records.UNKNOWN, List.of());
+                null, List.of(), false, Question.Records.UNKNOWN, List.of(), List.of());
         final String second = advisor.ask(List.of(new Exchange(chain, first)), configuration);
 
         assertThat(first).isEqualTo("DSParser -> XSLTFilter");

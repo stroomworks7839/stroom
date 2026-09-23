@@ -31,6 +31,7 @@ import stroom.shapeshifter.ai.stage.StageRun;
 import stroom.shapeshifter.shared.BusinessRulesParameters;
 import stroom.shapeshifter.shared.ExtractionQualityParameters;
 import stroom.shapeshifter.shared.LearningMode;
+import stroom.shapeshifter.shared.LearningPlan;
 import stroom.shapeshifter.shared.PlanExample;
 import stroom.shapeshifter.shared.RecordBoundary;
 import stroom.shapeshifter.shared.SchemaConformanceParameters;
@@ -141,6 +142,55 @@ class TestScenario46Json {
         assertThat(run.decision()).describedAs(run.decision().toString()).isInstanceOf(Promoted.class);
         assertThat(Scenarios.canonical(run.output())).describedAs("twelve events, not one")
                 .isEqualTo(Scenarios.canonical(EVENTS));
+    }
+
+    @Test
+    void whereThePlanHasNoTargetsYetTheTransformIsShownOneRecordOfEachKind() {
+        // A47: the escalating plan asks for a configuration before any target exists, so a stream of
+        // logins and logouts would otherwise show the model a login and a sentence saying the rest
+        // differ. Saying a second kind exists is not the same as showing it, and a stylesheet written
+        // from a login alone drops the logouts.
+        final Scenarios scenarios = new Scenarios();
+        final Script script = scenarios.jsonScript("events", XSLT)
+                .expect(QuestionMatcher.chain()).reply("JSONParser -> XSLTFilter")
+                .expect(QuestionMatcher.split().withoutFeedback()).reply("events")
+                .expect(QuestionMatcher.configuration("XSLTFilter").withoutFeedback())
+                .reply(Scenarios.fenced(XSLT));
+
+        final StageRun run = scenarios.stage(script).run(
+                doc().copy().plan(LearningPlan.of(PlanExample.ESCALATING)).build(), stream(1, DOCUMENT));
+
+        script.verifyExhausted();
+        assertThat(run.decision()).describedAs(run.decision().toString()).isInstanceOf(Promoted.class);
+        final Configuration transform = (Configuration) script.asked().stream()
+                .filter(Configuration.class::isInstance).findFirst().orElseThrow();
+        assertThat(transform.targets()).describedAs("asked before any target was settled").isEmpty();
+        assertThat(transform.input()).describedAs("the record it will be given, a login")
+                .contains("key=\"kind\">login<");
+        assertThat(transform.otherKinds()).describedAs("and one of the other kind, which it will also be given")
+                .hasSize(1);
+        assertThat(transform.otherKinds().get(0)).contains("key=\"kind\">logout<");
+    }
+
+    @Test
+    void whereTheTargetsAlreadyShowEachKindTheQuestionDoesNotShowThemAgain() {
+        // A47's other half: under target-first every kind is already in front of the model as a record
+        // beside the event it must become, so repeating them in the question is a budget (A44) spent
+        // saying the same thing twice.
+        final Scenarios scenarios = new Scenarios();
+        final Script script = scenarios.jsonScript("events", XSLT)
+                .expect(QuestionMatcher.chain()).reply("JSONParser -> XSLTFilter")
+                .expect(QuestionMatcher.configuration("XSLTFilter").withTargets(2))
+                .reply(Scenarios.fenced(XSLT));
+
+        final StageRun run = scenarios.stage(script).run(doc(), stream(1, DOCUMENT));
+
+        script.verifyExhausted();
+        final Configuration transform = (Configuration) script.asked().stream()
+                .filter(Configuration.class::isInstance).findFirst().orElseThrow();
+        assertThat(transform.targets()).describedAs("one target per kind, each with its record").hasSize(2);
+        assertThat(transform.otherKinds()).isEmpty();
+        assertThat(run.decision()).isInstanceOf(Promoted.class);
     }
 
     @Test

@@ -1749,6 +1749,49 @@ a shortfall every record shares told once, and a configuration prepared once and
 the last against a counting runner, since compiling once and compiling ten thousand times produce the same
 answer and differ only in what they cost.
 
+The thirty-third slice, 2026-09-22, is A47, which the live run asked for: **one record of each kind the
+split found** — but only where the plan has not settled its targets. Under target-first every kind is
+already in front of the model twice, as a record and as the event it must become, so repeating them in
+the question is a budget (A44) spent saying the same thing. Under the escalating plan the transform is
+asked before any target exists, and the run of 2026-09-22 showed what that costs: a stream of logins and
+logouts put one login in front of the model and a sentence saying seven records of another shape
+followed. Saying a second kind exists is not showing it.
+
+The question now carries them — `Configuration.otherKinds`, one representative per kind by the same
+discrimination the split uses, capped at three — and the text says what they are for: *"The stream
+carries one other kind of record, and this configuration is run over those too. One of each."* The
+counts stay, since how many records follow is worth saying whether or not their shapes are shown.
+
+Two scenarios hold it, one either way: the escalating plan over the JSON document is shown a login and a
+logout, and target-first over the same stream is shown the login alone with two targets beside it. The
+first fails against the code as it was.
+
+The audit of the slice found five, all fixed, and the first was the slice defeating its own purpose.
+**The question promised one of each kind and showed at most three.** The representatives are capped at
+three and the first of them is the record already shown, so at most two others reach the question —
+while the count beside them is uncapped. A feed of five shapes would have read *"the stream holds 40
+records of 5 different shapes"* and, a line later, *"one of each"*, which tells a model it has seen every
+shape when it has seen three: a configuration that drops two shapes, written with an assurance attached,
+which is worse than the silence A47 replaced. The question now says *"one record of 2 of the 4 other
+shapes; there are 2 more this question does not show"* whenever the cap bites, and the record's own
+contract says the list is not exhaustive.
+
+**And the block was in the wrong place.** Appended to the input, it landed between the record and the
+sentence that describes it — *"The input below is **one record** … do not look outside it, there is
+nothing outside it to look at"* — so "below" had no referent and the instruction contradicted the list
+above it. It now comes after that sentence and after the counts, and says what those records are: *"It
+will be given the stream's other shapes in the same way — one record at a time, each on its own run."*
+They are examples of other runs, not context to read across, which is the whole point of the one-record
+framing.
+
+Three smaller ones: the examples now share one record's worth of the question's budget between them
+rather than taking a full one each, since this block is resent with every re-ask and a feed of
+kilobyte records would otherwise treble the question (A44); the counts are taken over the records the
+element will actually be given rather than the stream's own, which for an element after the first are
+what the one before it wrote; and a block javadoc that had come loose from `shown()` was put back.
+
+242 tests in the module, 24 against MySQL, 4 in Tier 2.
+
 ### 6.4 What the one-record run found
 
 Item 25 changed what the model is shown, and no scripted scenario can say whether that makes it write

@@ -145,6 +145,15 @@ public sealed interface Question {
      *                              where the input is one of them: one record shown is one record's
      *                              worth of evidence, and a configuration written for it is run over all
      *                              of them, so what it is not being shown is said rather than hidden.
+     * @param otherKinds            One record of each *other* kind the split found (A47), where the plan
+     *                              has not yet settled its targets. Saying a second kind exists is not
+     *                              the same as showing it, and a configuration written from a login
+     *                              alone drops the logouts. Empty where the targets already show a
+     *                              record of each kind beside the event it must become, and where the
+     *                              stream carries one kind. <b>Not necessarily every other kind</b>: the
+     *                              representatives are capped, and {@link Records#kinds()} is what says
+     *                              how many there are, so a question built from this must not promise
+     *                              the model it has seen them all.
      */
     record Configuration(String elementType,
                          String documentType,
@@ -155,10 +164,12 @@ public sealed interface Question {
                          List<Target> targets,
                          boolean oneRecord,
                          Records records,
+                         List<String> otherKinds,
                          List<StoredError> feedback) implements Question {
 
         public Configuration {
             targets = List.copyOf(targets);
+            otherKinds = List.copyOf(otherKinds);
         }
     }
 }

@@ -73,7 +73,7 @@ class TestQuestionText {
         final StoredError shortfall = new StoredError(Severity.ERROR, null, new ElementId("Scorecard"),
                 "Input coverage scored 0.6 against a threshold of 0.9");
         final String text = WORDS.render(new Configuration("DSParser", "TextConverter", SAMPLE, "a,b,c\n",
-                "<dataSplitter/>", null, List.of(), false, Question.Records.UNKNOWN, List.of(shortfall)));
+                "<dataSplitter/>", null, List.of(), false, Question.Records.UNKNOWN, List.of(), List.of(shortfall)));
 
         assertThat(text)
                 .contains("Write the TextConverter document for the DSParser element")
@@ -93,7 +93,7 @@ class TestQuestionText {
         // stream is written for something that will never arrive.
         final String text = WORDS.render(new Configuration("XSLTFilter", "XSLT", SAMPLE,
                 "<records xmlns=\"records:2\"><record/></records>", null,
-                Boundary.ofArray("events", 3), List.of(), true, new Question.Records(12, 2), List.of()));
+                Boundary.ofArray("events", 3), List.of(), true, new Question.Records(12, 2), List.of(), List.of()));
 
         assertThat(text)
                 .contains("The input below is **one record**")
@@ -107,6 +107,41 @@ class TestQuestionText {
     }
 
     @Test
+    void theOtherKindsOfRecordAreShownOneOfEach() {
+        // A47: the configuration is run over every record, so a question that shows only the first kind
+        // invites a configuration that handles only the first kind.
+        final String text = WORDS.render(new Configuration("XSLTFilter", "XSLT", SAMPLE,
+                "<records xmlns=\"records:2\"><record kind=\"login\"/></records>", null,
+                Boundary.ofArray("events", 3), List.of(), true, new Question.Records(12, 2),
+                List.of("<records xmlns=\"records:2\"><record kind=\"logout\"/></records>"), List.of()));
+
+        assertThat(text)
+                .contains("one record at a time, each on its own run")
+                .contains("Here is one record of each of them")
+                .contains("kind=\"logout\"")
+                .describedAs("after the one-record instruction, not before it: these are other runs, not "
+                             + "context for this record")
+                .containsSubsequence("do not look outside it", "each on its own run");
+    }
+
+    @Test
+    void whereTheKindsShownAreCappedTheQuestionSaysSoRatherThanClaimingOneOfEach() {
+        // The representatives are capped, and a model told it has seen every shape when it has seen
+        // three of five writes a configuration that drops the other two — the failure A47 exists to
+        // prevent, with an assurance attached.
+        final String text = WORDS.render(new Configuration("XSLTFilter", "XSLT", SAMPLE,
+                "<records xmlns=\"records:2\"><record kind=\"login\"/></records>", null,
+                Boundary.ofArray("events", 3), List.of(), true, new Question.Records(40, 5),
+                List.of("<records xmlns=\"records:2\"><record kind=\"logout\"/></records>",
+                        "<records xmlns=\"records:2\"><record kind=\"alarm\"/></records>"), List.of()));
+
+        assertThat(text)
+                .contains("Here is one record of 2 of the 4 other shapes")
+                .contains("there are 2 more this question does not show")
+                .doesNotContain("one record of each of them");
+    }
+
+    @Test
     void markupThatIsNotRecordsTwoIsSaidToBeTheStreamsOwn() {
         // The transformation rules describe the usual case and state records:2, but a chain with no
         // parser hands the transform the feed's XML as it arrived. A stylesheet that sets
@@ -114,7 +149,7 @@ class TestQuestionText {
         // without Saxon raising anything — which the live run of 2026-09-22 spent seven attempts on.
         final String text = WORDS.render(new Configuration("XSLTFilter", "XSLT", SAMPLE,
                 "<auditLog application=\"DocVault\"><entry id=\"a1\"/></auditLog>", null,
-                Boundary.ofElement("entry", 1), List.of(), true, new Question.Records(8, 2), List.of()));
+                Boundary.ofElement("entry", 1), List.of(), true, new Question.Records(8, 2), List.of(), List.of()));
 
         assertThat(text)
                 .contains("This input is the stream's own markup and not records:2")
@@ -125,7 +160,7 @@ class TestQuestionText {
     void aParsersRecordsAreNotContradicted() {
         final String text = WORDS.render(new Configuration("XSLTFilter", "XSLT", SAMPLE,
                 "<records xmlns=\"records:2\"><record/></records>", null,
-                Boundary.ofArray("events", 3), List.of(), true, new Question.Records(12, 2), List.of()));
+                Boundary.ofArray("events", 3), List.of(), true, new Question.Records(12, 2), List.of(), List.of()));
 
         assertThat(text).doesNotContain("the stream's own markup");
     }
@@ -134,7 +169,7 @@ class TestQuestionText {
     void theTransformQuestionCarriesTheSchemasFailureModesAndTheDegeneracyTrap() {
         final String text = WORDS.render(new Configuration("XSLTFilter", "XSLT", SAMPLE,
                 "<records xmlns=\"records:2\"/>", null, null, List.of(), false, Question.Records.UNKNOWN,
-                List.of()));
+                List.of(), List.of()));
 
         assertThat(text)
                 .contains("event-logging:3")
