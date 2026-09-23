@@ -30,6 +30,7 @@ import stroom.shapeshifter.shared.AttemptStatus;
 import stroom.shapeshifter.shared.ExecutionMode;
 import stroom.shapeshifter.shared.PromotionMode;
 import stroom.shapeshifter.shared.QuestionKind;
+import stroom.shapeshifter.shared.RecordBoundary;
 import stroom.shapeshifter.shared.StepOutcome;
 import stroom.util.shared.PageRequest;
 
@@ -419,9 +420,10 @@ class TestShapesAndLedgerDao {
         // output stream's attributes too, where a person reads them, but a custom stream attribute is not
         // a field stroom can query.
         final DocRef fragment = PipelineDoc.buildDocRef().uuid("fragment-1").name("door-v1").build();
-        outputs.emitted(1L, "pipeline-1", new Bindings(DOC, "rule-1", fragment, false, 0.97));
-        outputs.emitted(2L, "pipeline-2", new Bindings(DOC, "rule-1", fragment, false, 0.98));
-        outputs.emitted(3L, null, new Bindings(DOC, "rule-2", fragment, true, 0.5));
+        outputs.emitted(1L, "pipeline-1", new Bindings(DOC, "rule-1", fragment,
+                RecordBoundary.ofElement("Event").atDepth(1), false, 0.97));
+        outputs.emitted(2L, "pipeline-2", new Bindings(DOC, "rule-1", fragment, null, false, 0.98));
+        outputs.emitted(3L, null, new Bindings(DOC, "rule-2", fragment, null, true, 0.5));
 
         assertThat(outputs.boundBy("rule-1", "fragment-1"))
                 .extracting(Replayable::inputId, Replayable::pipeline)
@@ -434,18 +436,45 @@ class TestShapesAndLedgerDao {
         // A rule keeps its uuid when it is rebound (§7.3 rule 3), so what an earlier generation produced
         // is not what a retraction of this one asks for.
         final DocRef rebound = PipelineDoc.buildDocRef().uuid("fragment-2").name("door-v2").build();
-        outputs.emitted(4L, "pipeline-1", new Bindings(DOC, "rule-1", rebound, false, 0.99));
+        outputs.emitted(4L, "pipeline-1", new Bindings(DOC, "rule-1", rebound, null, false, 0.99));
         assertThat(outputs.boundBy("rule-1", "fragment-2")).extracting(Replayable::inputId)
                 .describedAs("only what this binding produced").containsExactly(4L);
         assertThat(outputs.boundBy("rule-1", "fragment-1")).extracting(Replayable::inputId)
                 .describedAs("and the generation before it is left alone").containsExactly(1L, 2L);
 
-        // A stream processed twice under one rule is one thing to replay, and the later run is what its
-        // output is.
-        outputs.emitted(1L, "pipeline-3", new Bindings(DOC, "rule-1", fragment, false, 0.99));
+        // A stream processed twice by one pipeline under one rule is one thing to replay; by two
+        // pipelines it is two outputs, and a retraction asks for both, because both are still there.
+        outputs.emitted(1L, "pipeline-3", new Bindings(DOC, "rule-1", fragment, null, false, 0.99));
         assertThat(outputs.boundBy("rule-1", "fragment-1"))
                 .extracting(Replayable::inputId, Replayable::pipeline)
-                .containsExactly(tuple(1L, "pipeline-3"), tuple(2L, "pipeline-2"));
+                .containsExactly(tuple(1L, "pipeline-1"), tuple(2L, "pipeline-2"), tuple(1L, "pipeline-3"));
+        outputs.emitted(1L, "pipeline-1", new Bindings(DOC, "rule-1", fragment,
+                RecordBoundary.ofElement("Event").atDepth(1), false, 0.95));
+        assertThat(outputs.boundBy("rule-1", "fragment-1"))
+                .describedAs("and the same pipeline again is the same output, said again")
+                .hasSize(3);
+
+        // What an as-processed reprocess asks (design 01 §7.3): what was bound when this input was last
+        // processed by this pipeline, so that the fragment which produced the output produces it again.
+        assertThat(outputs.asProcessed(2L, "pipeline-2")).get()
+                .extracting(Bindings::ruleUuid, bindings -> bindings.fragment().getUuid(), Bindings::provisional)
+                .containsExactly("rule-1", "fragment-1", false);
+        assertThat(outputs.asProcessed(1L, "pipeline-1")).get()
+                .describedAs("under the boundary that produced it, not the rule's boundary today")
+                .extracting(bindings -> bindings.boundary().getElement(),
+                        bindings -> bindings.boundary().splitDepth().orElseThrow())
+                .containsExactly("Event", 1);
+        assertThat(outputs.asProcessed(1L, "pipeline-3")).describedAs("another pipeline's run of the same "
+                                                                     + "input is another output, not a "
+                                                                     + "replacement for it")
+                .get().extracting(Bindings::score).isEqualTo(0.99);
+        assertThat(outputs.asProcessed(1L, "pipeline-9")).isEmpty();
+        assertThat(outputs.asProcessed(3L, null))
+                .describedAs("an output of no pipeline is of no pipeline rather than of any")
+                .isPresent();
+        assertThat(outputs.asProcessed(3L, "pipeline-1")).isEmpty();
+        assertThat(outputs.asProcessed(99L, "pipeline-1"))
+                .describedAs("an input nothing remembers cannot be processed again as it was").isEmpty();
 
         // Kept for as long as a node is told to keep them, and no longer: a row per output stream is a
         // row per stream (design 01 §12 item 8).

@@ -17,6 +17,7 @@
 package stroom.shapeshifter.ai.stage;
 
 import stroom.docref.DocRef;
+import stroom.shapeshifter.shared.RecordBoundary;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -30,16 +31,27 @@ import java.util.Map;
  * @param docUuid     The Shapeshifter AI document.
  * @param ruleUuid    The routing rule that matched or was bound.
  * @param fragment    The fragment the rule bound.
+ * @param boundary    What one record was in this stream when it was processed (A35), because the
+ *                    fragment alone does not say how its chain is run: the same fragment under another
+ *                    boundary produces other events, and the rule's boundary today is not necessarily
+ *                    the one that produced this output. Null where the rule had none, which is every
+ *                    chain over raw text, since there the parser's configuration cuts the records.
  * @param provisional Whether the rule was provisional when it produced this output (§6).
  * @param score       The fragment's score over this stream.
  */
-public record Bindings(String docUuid, String ruleUuid, DocRef fragment, boolean provisional, double score) {
+public record Bindings(String docUuid,
+                       String ruleUuid,
+                       DocRef fragment,
+                       RecordBoundary boundary,
+                       boolean provisional,
+                       double score) {
 
     public static final String DOC_ATTRIBUTE = "ShapeshifterAiDoc";
     public static final String RULE_ATTRIBUTE = "ShapeshifterAiRule";
     public static final String FRAGMENT_ATTRIBUTE = "ShapeshifterAiFragment";
     public static final String PROVISIONAL_ATTRIBUTE = "ShapeshifterAiProvisional";
     public static final String SCORE_ATTRIBUTE = "ShapeshifterAiScore";
+    public static final String RECORD_ATTRIBUTE = "ShapeshifterAiRecord";
 
     /**
      * The bindings as the output stream's attributes carry them.
@@ -51,6 +63,11 @@ public record Bindings(String docUuid, String ruleUuid, DocRef fragment, boolean
         attributes.put(FRAGMENT_ATTRIBUTE, fragment.getUuid());
         attributes.put(PROVISIONAL_ATTRIBUTE, Boolean.toString(provisional));
         attributes.put(SCORE_ATTRIBUTE, Double.toString(score));
+        if (boundary != null) {
+            // What one record was, for a person reading the stream's attributes: the row in the A26
+            // table is what an as-processed reprocess reads, but an attribute is what is visible.
+            attributes.put(RECORD_ATTRIBUTE, boundary.toString());
+        }
         return attributes;
     }
 }

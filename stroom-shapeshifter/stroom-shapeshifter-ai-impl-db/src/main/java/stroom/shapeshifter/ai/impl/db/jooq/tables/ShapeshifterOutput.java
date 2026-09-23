@@ -82,7 +82,7 @@ public class ShapeshifterOutput extends TableImpl<ShapeshifterOutputRecord> {
     /**
      * The column <code>stroom.shapeshifter_output.pipeline_uuid</code>.
      */
-    public final TableField<ShapeshifterOutputRecord, String> PIPELINE_UUID = createField(DSL.name("pipeline_uuid"), SQLDataType.VARCHAR(255), this, "");
+    public final TableField<ShapeshifterOutputRecord, String> PIPELINE_UUID = createField(DSL.name("pipeline_uuid"), SQLDataType.VARCHAR(255).nullable(false).defaultValue(DSL.inline("", SQLDataType.VARCHAR)), this, "");
 
     /**
      * The column <code>stroom.shapeshifter_output.fragment_uuid</code>.
@@ -98,6 +98,26 @@ public class ShapeshifterOutput extends TableImpl<ShapeshifterOutputRecord> {
      * The column <code>stroom.shapeshifter_output.score</code>.
      */
     public final TableField<ShapeshifterOutputRecord, Double> SCORE = createField(DSL.name("score"), SQLDataType.DOUBLE, this, "");
+
+    /**
+     * The column <code>stroom.shapeshifter_output.boundary_element</code>.
+     */
+    public final TableField<ShapeshifterOutputRecord, String> BOUNDARY_ELEMENT = createField(DSL.name("boundary_element"), SQLDataType.VARCHAR(255), this, "");
+
+    /**
+     * The column <code>stroom.shapeshifter_output.boundary_array</code>.
+     */
+    public final TableField<ShapeshifterOutputRecord, String> BOUNDARY_ARRAY = createField(DSL.name("boundary_array"), SQLDataType.VARCHAR(255), this, "");
+
+    /**
+     * The column <code>stroom.shapeshifter_output.boundary_depth</code>.
+     */
+    public final TableField<ShapeshifterOutputRecord, Integer> BOUNDARY_DEPTH = createField(DSL.name("boundary_depth"), SQLDataType.INTEGER, this, "");
+
+    /**
+     * The column <code>stroom.shapeshifter_output.produce_time_ms</code>.
+     */
+    public final TableField<ShapeshifterOutputRecord, Long> PRODUCE_TIME_MS = createField(DSL.name("produce_time_ms"), SQLDataType.BIGINT.nullable(false).defaultValue(DSL.inline("0", SQLDataType.BIGINT)), this, "");
 
     private ShapeshifterOutput(Name alias, Table<ShapeshifterOutputRecord> aliased) {
         this(alias, aliased, (Field<?>[]) null, null);
@@ -150,7 +170,7 @@ public class ShapeshifterOutput extends TableImpl<ShapeshifterOutputRecord> {
 
     @Override
     public List<UniqueKey<ShapeshifterOutputRecord>> getUniqueKeys() {
-        return Arrays.asList(Keys.KEY_SHAPESHIFTER_OUTPUT_SHAPESHIFTER_OUTPUT_RULE_INPUT);
+        return Arrays.asList(Keys.KEY_SHAPESHIFTER_OUTPUT_SHAPESHIFTER_OUTPUT_RULE_INPUT_PIPELINE);
     }
 
     @Override

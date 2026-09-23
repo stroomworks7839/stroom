@@ -330,6 +330,50 @@ public final class Stage {
         return Optional.empty();
     }
 
+    /// The stream through the fragment that produced its output before: an **as-processed** reprocess
+    /// (design 01 §7.3), which is what an audit needs and what a person asks for when the question is
+    /// "what did this stream become?" rather than "what would it become now?".
+    ///
+    /// The routing table is not consulted and nothing is learned, scored or relearned. A rule that has
+    /// since been rebound, retracted or given up makes no difference: what ran is what runs, because an
+    /// improvement is a new document and the old one cannot have changed (§7.3 rule 1). For the other
+    /// question — resolve the selector against today's table — the answer is [#run], which is what a
+    /// release (A12) reprocesses through.
+    ///
+    /// @return The run bound to the recorded fragment, or a sentinel where nothing is recorded for this
+    /// input: an input nothing remembers cannot be served as it was, and quietly serving it as-current
+    /// would answer a question nobody asked.
+    public StageRun reprocess(final ShapeshifterAiDoc doc, final Input input) {
+        final Map<String, Object> attributes = input.routingAttributes(ShapeSignature.of(input.data()));
+        final Shape shape = Shape.of(doc.getLearningKey(), attributes);
+        final Optional<Bindings> recorded = outputs.asProcessed(input.id(), input.pipeline());
+        if (recorded.isEmpty()) {
+            return refused(doc, shape, "Nothing is recorded for input " + input.id()
+                                       + " on this pipeline, so it cannot be processed again as it was; "
+                                       + "reprocess it as-current instead");
+        }
+        final Bindings bindings = recorded.get();
+        final Optional<RoutingRule> rule = rules.forDocument(doc.getUuid()).stream()
+                .filter(candidate -> candidate.getUuid().equals(bindings.ruleUuid()))
+                .findFirst();
+        // Under the boundary that produced it, which the row remembers: the rule's boundary is today's,
+        // and a rebind may have changed it. The same fragment under another boundary is another chain.
+        final List<Attempted> attempted = fragmentRunner.run(bindings.fragment(), input.data(),
+                bindings.boundary());
+        final String output = attempted.isEmpty()
+                ? null
+                : attempted.get(attempted.size() - 1).result().output();
+        if (output == null) {
+            // The fragment is still there and still immutable, so this is the content having gone — a
+            // document deleted by hand, or a fragment that never ran cleanly. Said rather than served.
+            return refused(doc, shape, "The fragment " + bindings.fragment().getUuid()
+                                       + " that produced input " + input.id() + " produced nothing this time");
+        }
+        // Recorded again, because this output carries the same bindings as the one it replaces.
+        outputs.emitted(input.id(), input.pipeline(), bindings);
+        return new StageRun(doc, new Bound(rule.orElse(null)), shape, bindings, output, List.of(), List.of());
+    }
+
     /**
      * Route, learn, judge, write, emit — design 02 §4 — over one stream.
      */
@@ -1078,10 +1122,21 @@ public final class Stage {
                           final RoutingRule rule,
                           final Judged judged,
                           final List<Exchange> transcript) {
-        final Bindings bindings = new Bindings(doc.getUuid(), rule.getUuid(), rule.getPipeline(), rule.isProvisional(),
-                judged.score());
+        final Bindings bindings = new Bindings(doc.getUuid(), rule.getUuid(), rule.getPipeline(),
+                rule.getRecordBoundary(), rule.isProvisional(), judged.score());
         outputs.emitted(input.id(), input.pipeline(), bindings);
         return new StageRun(doc, decision, shape, bindings, judged.output(), judged.verdicts(), transcript);
+    }
+
+    /// The stream is not processed and nothing is waiting for it to be: an error naming the shape and
+    /// the reason, and **no ledger row**.
+    ///
+    /// The ledger is what a shape's settling releases (A12): a row goes on it because a promotion will
+    /// one day take it off. A refusal no promotion can answer — an as-processed reprocess of an input
+    /// nothing remembers — would go on and stay on, and every later release of that shape would ask for
+    /// it again, be refused again, and write the row again.
+    private StageRun refused(final ShapeshifterAiDoc doc, final Shape shape, final String reason) {
+        return new StageRun(doc, new Sentinel(reason), shape, null, null, List.of(), List.of());
     }
 
     /**

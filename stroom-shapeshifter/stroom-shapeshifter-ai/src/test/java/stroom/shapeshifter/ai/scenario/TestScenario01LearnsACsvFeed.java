@@ -127,7 +127,8 @@ class TestScenario01LearnsACsvFeed {
         assertThat(run.bindings())
                 .describedAs("design 01 §7.3 rule 3: the output records what produced it")
                 .isEqualTo(new Bindings(run.doc().getUuid(), promoted.rule().getUuid(),
-                        promoted.rule().getPipeline(), false, promoted.score()));
+                        promoted.rule().getPipeline(), promoted.rule().getRecordBoundary(), false,
+                        promoted.score()));
 
         // Scored over the whole stream: coverage and yield on the split, yield on the transform.
         assertThat(run.verdicts()).hasSize(2);

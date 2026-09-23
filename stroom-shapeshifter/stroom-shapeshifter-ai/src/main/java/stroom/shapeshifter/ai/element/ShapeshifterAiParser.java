@@ -151,6 +151,7 @@ public class ShapeshifterAiParser extends AbstractParser {
     private final Stage stage;
 
     private DocRef docRef;
+    private boolean asProcessed;
 
     @Inject
     public ShapeshifterAiParser(final ErrorReceiverProxy errorReceiverProxy,
@@ -187,6 +188,24 @@ public class ShapeshifterAiParser extends AbstractParser {
     @PipelinePropertyDocRef(types = ShapeshifterAiDoc.TYPE)
     public void setShapeshifterAi(final DocRef docRef) {
         this.docRef = docRef;
+    }
+
+    /// Which question a reprocess is asking (design 01 §7.3). False — the default — resolves the
+    /// routing table as it stands today, which is what "we have fixed it, run the backlog again" wants
+    /// and the mode a release (A12) reprocesses in. True runs each stream through the fragment that
+    /// produced its output before, which is what an audit wants: the content cannot have changed, so
+    /// the answer cannot either.
+    ///
+    /// It is a property rather than something a reprocess request carries because a reprocess in Stroom
+    /// names a pipeline and not a mode; an operator who wants to re-run history as it happened points a
+    /// pipeline whose supervisor has this set at the streams in question.
+    @PipelineProperty(
+            description = "Process each stream through the fragment that produced it before, rather "
+                          + "than through whatever the routing table binds today.",
+            defaultValue = "false",
+            displayPriority = 2)
+    public void setAsProcessed(final boolean asProcessed) {
+        this.asProcessed = asProcessed;
     }
 
     @Override
@@ -298,7 +317,9 @@ public class ShapeshifterAiParser extends AbstractParser {
                 throw ProcessException.create("Shapeshifter AI document " + docRef + " was not found");
             }
             final Input input = input(inputSource);
-            final StageRun run = stage.run(doc, input);
+            final StageRun run = asProcessed
+                    ? stage.reprocess(doc, input)
+                    : stage.run(doc, input);
             final Bindings bindings = run.bindings();
             if (bindings == null) {
                 errorReceiverProxy.log(Severity.ERROR, null, getElementId(),

@@ -1691,9 +1691,12 @@ the order they arrived. Items marked *built* already exist in `stroom-shapeshift
    attempt's budgets (A5). Rate limiting across documents is not built and is deferred — §15.2; the
    spend breaker of A44 is kept.*
 7. **Output stream metadata for bindings** (§7.3 rule 3), and a reprocessing mode that honours it.
-   *The `Bindings` record on every `StageRun` and the `Outputs` seam are built 2026-09-18, and the
-   element writes them to the output stream's attributes through `MetaData`; the reprocessing mode
-   that reads them is not built.*
+   *Built: the `Bindings` record on every `StageRun` and the `Outputs` seam (2026-09-18), the element
+   writing them to the output stream's attributes through `MetaData`, and — 2026-09-23 — the
+   as-processed mode that reads them back: `Outputs.asProcessed` asks what was bound when an input was
+   last processed by a pipeline, `Stage.reprocess` runs that fragment again and learns nothing, and the
+   supervisor element chooses between the two modes with a property, since a reprocess in Stroom names
+   a pipeline and not a mode.*
 8. **The runtime-state schema** (A26, A41–A44): a `stroom-shapeshifter-ai-impl-db` module in the pattern of
    `stroom-ai-impl-db` — Flyway migration, jOOQ codegen, its own connection provider — holding the
    three tables of §11.4; the DAO in the impl module; the error stream
@@ -2186,6 +2189,14 @@ including the degeneracy trap (§8.3) that changes the scoring model and propose
   learned as the records it carries, where it was previously read as text and abandoned. With it:
   an element may declare a configuration that is never asked for, and each parser declares what it
   consumes so that the split question follows the stream rather than a guess from the element's shape.
+- Audit of item 7 (the owner's code review): nine findings, all fixed but one recorded — design 02
+  §6.1. Four were the same oversight: an output is not described by its fragment alone, so the record
+  boundary is now recorded with it, the pipeline is part of what a row is, and a produced time says
+  which row was written last. The fifth was the ledger: a refusal no promotion can answer was going onto
+  the list a shape's settling releases, where it would have renewed itself for ever.
+- §12 item 7 completed (design 02 §6.1): reprocessing as-processed, which runs a stream through the
+  fragment that produced its output rather than through whatever is bound today. The first of design 03
+  §7's ten slices, and the one that closes the loop's audit half.
 - The phases restructured for the MVP (design 03): phase D no longer carries the restricted XSLT
   library or the content-pack checks, which are deferred; "where it stands" is brought up to the
   thirty-seventh slice; and design 03 §7 gives the order the rest of the MVP is built in, ten slices

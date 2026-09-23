@@ -17,6 +17,7 @@
 package stroom.shapeshifter.ai.stage;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * The bindings every output carries (design 01 §7.3 rule 3), as far as the stage needs to look back at
@@ -38,6 +39,20 @@ public interface Outputs {
      * rule produced were produced correctly by what was then bound.
      */
     List<Replayable> boundBy(String ruleUuid, String fragmentUuid);
+
+    /// What was bound when this input was last processed by this pipeline, for an **as-processed**
+    /// reprocess (design 01 §7.3): the same fragment runs again and the result is the result it had,
+    /// because rule 1 makes a written document immutable — an improvement is a new document, never an
+    /// edit to one that has run.
+    ///
+    /// This is what an audit needs, and it is the opposite of the release A12 performs, which resolves
+    /// the selector against today's table so that a backlog picks up what was learned since.
+    ///
+    /// @return Empty where nothing is recorded for that input and pipeline: nothing was produced, or it
+    /// was produced before this node began recording, or the row has been pruned. An as-processed
+    /// reprocess of an input nothing remembers cannot be served and must say so rather than quietly
+    /// routing as-current.
+    Optional<Bindings> asProcessed(long inputId, String pipeline);
 
     /**
      * Forget what was produced before a given time (design 01 §12 item 8): a row per output stream is a

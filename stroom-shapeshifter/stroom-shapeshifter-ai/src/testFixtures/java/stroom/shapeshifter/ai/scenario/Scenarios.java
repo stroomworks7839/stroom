@@ -20,9 +20,10 @@ import stroom.shapeshifter.ai.extraction.DataSplitterStep;
 import stroom.shapeshifter.ai.extraction.ExtractionCorpus;
 import stroom.shapeshifter.ai.extraction.ExtractionCorpus.Golden;
 import stroom.shapeshifter.ai.extraction.JsonStep;
-import stroom.shapeshifter.ai.extraction.XmlFragmentStep;
 import stroom.shapeshifter.ai.extraction.NodeFixture;
+import stroom.shapeshifter.ai.extraction.XmlFragmentStep;
 import stroom.shapeshifter.ai.fragment.ContentStores;
+import stroom.shapeshifter.ai.fragment.FragmentRunner;
 import stroom.shapeshifter.ai.fragment.StandInFragmentRunner;
 import stroom.shapeshifter.ai.learning.Advisor;
 import stroom.shapeshifter.ai.learning.Advisors;
@@ -144,14 +145,24 @@ public final class Scenarios {
     /// A stage over given advisors: for a scenario about a node that makes a new advisor per call, each
     /// counting its own tokens, as the node's own does (A28).
     public Stage stage(final Advisors advisors, final Rules rules) {
+        return stage(advisors, rules, null);
+    }
+
+    /// A stage over a given fragment runner: for a scenario that watches *how* a written fragment is
+    /// run — with which record boundary, say — rather than what it produced.
+    ///
+    /// @param fragmentRunner Null for the stand-in the scenarios use.
+    public Stage stage(final Advisors advisors, final Rules rules, final FragmentRunner fragmentRunner) {
         final List<StepRunner> runners = runners();
         return new Stage(
                 advisors,
                 runners,
                 scorers(),
                 stores.writer(),
-                new StandInFragmentRunner(stores.pipelines, stores.stackLoader, stores.textConverters, stores.xslts,
-                        runners),
+                fragmentRunner != null
+                        ? fragmentRunner
+                        : new StandInFragmentRunner(stores.pipelines, stores.stackLoader, stores.textConverters,
+                                stores.xslts, runners),
                 attempts,
                 rules,
                 shapes,

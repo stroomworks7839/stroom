@@ -17,16 +17,21 @@
 package stroom.shapeshifter.ai.impl.db;
 
 import stroom.db.util.JooqUtil;
+import stroom.pipeline.shared.PipelineDoc;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterOutput;
 import stroom.shapeshifter.ai.stage.Bindings;
 import stroom.shapeshifter.ai.stage.Outputs;
 import stroom.shapeshifter.ai.stage.Replayable;
+import stroom.shapeshifter.shared.RecordBoundary;
+import stroom.util.shared.NullSafe;
 
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.jooq.impl.DSL;
 
 import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 
 
 /// What each rule produced, as rows (design 01 §7.3 rule 3, A26): retracting a rule means finding the
@@ -50,26 +55,51 @@ public class OutputsDao implements Outputs {
 
     @Override
     public void emitted(final long inputId, final String pipeline, final Bindings bindings) {
+        final long now = System.currentTimeMillis();
+        final RecordBoundary boundary = bindings.boundary();
         JooqUtil.context(connProvider, context -> context
                 .insertInto(ShapeshifterOutput.SHAPESHIFTER_OUTPUT)
-                .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.CREATE_TIME_MS, System.currentTimeMillis())
+                .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.CREATE_TIME_MS, now)
+                .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.PRODUCE_TIME_MS, now)
                 .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.DOC_UUID, bindings.docUuid())
                 .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.RULE_UUID, bindings.ruleUuid())
                 .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.INPUT_META_ID, inputId)
-                .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.PIPELINE_UUID, pipeline)
+                .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.PIPELINE_UUID, ofPipeline(pipeline))
                 .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.FRAGMENT_UUID,
                         bindings.fragment().getUuid())
+                .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.BOUNDARY_ELEMENT, NullSafe.get(boundary,
+                        RecordBoundary::getElement))
+                .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.BOUNDARY_ARRAY, NullSafe.get(boundary,
+                        RecordBoundary::getArray))
+                .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.BOUNDARY_DEPTH, NullSafe.get(boundary,
+                        RecordBoundary::getDepth))
                 .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.PROVISIONAL, bindings.provisional())
                 .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.SCORE, bindings.score())
-                // A stream processed twice under one rule is one thing to replay; the later run is what
-                // its output is, so the row says the later one.
+                // A stream processed twice by one pipeline under one rule is one thing to replay; the
+                // later run is what its output is, so the row says the later one — including when it
+                // was produced, since the row keeps the id it was inserted with and the id cannot then
+                // say which row was written last.
                 .onDuplicateKeyUpdate()
-                .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.PIPELINE_UUID, pipeline)
+                .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.PRODUCE_TIME_MS, now)
                 .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.FRAGMENT_UUID,
                         bindings.fragment().getUuid())
+                .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.BOUNDARY_ELEMENT, NullSafe.get(boundary,
+                        RecordBoundary::getElement))
+                .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.BOUNDARY_ARRAY, NullSafe.get(boundary,
+                        RecordBoundary::getArray))
+                .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.BOUNDARY_DEPTH, NullSafe.get(boundary,
+                        RecordBoundary::getDepth))
                 .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.PROVISIONAL, bindings.provisional())
                 .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.SCORE, bindings.score())
                 .execute());
+    }
+
+    /// An output of no pipeline is of no pipeline rather than of any: the empty string says so, and a
+    /// unique key can hold it where it cannot hold a NULL.
+    private static String ofPipeline(final String pipeline) {
+        return pipeline == null
+                ? ""
+                : pipeline;
     }
 
     @Override
@@ -85,7 +115,61 @@ public class OutputsDao implements Outputs {
                 .orderBy(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.ID)
                 .fetch(row -> new Replayable(
                         row.get(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.INPUT_META_ID),
-                        row.get(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.PIPELINE_UUID))));
+                        // Back to null: the seam says null where no pipeline is known, and the empty
+                        // string is only how a unique key holds that.
+                        namedPipeline(row.get(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.PIPELINE_UUID)))));
+    }
+
+    @Override
+    public Optional<Bindings> asProcessed(final long inputId, final String pipeline) {
+        return JooqUtil.contextResult(connProvider, context -> context
+                        .select(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.DOC_UUID,
+                                ShapeshifterOutput.SHAPESHIFTER_OUTPUT.RULE_UUID,
+                                ShapeshifterOutput.SHAPESHIFTER_OUTPUT.FRAGMENT_UUID,
+                                ShapeshifterOutput.SHAPESHIFTER_OUTPUT.BOUNDARY_ELEMENT,
+                                ShapeshifterOutput.SHAPESHIFTER_OUTPUT.BOUNDARY_ARRAY,
+                                ShapeshifterOutput.SHAPESHIFTER_OUTPUT.BOUNDARY_DEPTH,
+                                ShapeshifterOutput.SHAPESHIFTER_OUTPUT.PROVISIONAL,
+                                ShapeshifterOutput.SHAPESHIFTER_OUTPUT.SCORE)
+                        .from(ShapeshifterOutput.SHAPESHIFTER_OUTPUT)
+                        .where(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.INPUT_META_ID.eq(inputId))
+                        .and(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.PIPELINE_UUID.eq(ofPipeline(pipeline)))
+                        // What was produced last is what its output is: a stream served again under the
+                        // same rule updates its row in place and keeps the id it was inserted with, so
+                        // the id is the order rows were first written and not the order they were run.
+                        .orderBy(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.PRODUCE_TIME_MS.desc(),
+                                ShapeshifterOutput.SHAPESHIFTER_OUTPUT.ID.desc())
+                        .limit(1)
+                        .fetchOptional())
+                .map(row -> new Bindings(
+                        row.get(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.DOC_UUID),
+                        row.get(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.RULE_UUID),
+                        PipelineDoc.buildDocRef()
+                                .uuid(row.get(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.FRAGMENT_UUID))
+                                .build(),
+                        boundary(row.get(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.BOUNDARY_ELEMENT),
+                                row.get(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.BOUNDARY_ARRAY),
+                                row.get(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.BOUNDARY_DEPTH)),
+                        row.get(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.PROVISIONAL),
+                        // A row written before the score was recorded scores nothing rather than
+                        // failing the reprocess it was read for.
+                        Objects.requireNonNullElse(
+                                row.get(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.SCORE), 0.0)));
+    }
+
+    /// The pipeline a row names, or null where it names none: the inverse of [#ofPipeline(String)].
+    private static String namedPipeline(final String pipeline) {
+        return pipeline == null || pipeline.isEmpty()
+                ? null
+                : pipeline;
+    }
+
+    /// The boundary a row remembers, or null where the rule had none.
+    private static RecordBoundary boundary(final String element, final String array, final Integer depth) {
+        if (element == null && array == null) {
+            return null;
+        }
+        return new RecordBoundary(element, array, depth);
     }
 
     /// In batches, like the attempts': a delete of every old row at once would hold locks across the

@@ -2000,6 +2000,79 @@ internal subset, which holds angle brackets of its own, so stripping it with a n
 first `>` left `]>` in front of the root — "content is not allowed in prolog", from a step whose whole
 job is to make a document. The declaration ends at `]>`.
 
+The thirty-eighth slice, 2026-09-23, is the first of design 03 §7's ten and the rest of §12 item 7:
+**reprocessing as it was processed**.
+
+Half of item 7 was built in slice 9: every output carries the bindings that produced it — the document,
+the rule, the fragment, whether the binding was provisional and what it scored — on the output stream's
+attributes and in the `Outputs` seam. What was missing is the half that reads them. Design 01 §7.3 has
+two modes and the difference matters: **as-current** resolves the selector against today's routing
+table, which is what "we have fixed it, run the backlog again" wants and the mode a release (A12)
+reprocesses in; **as-processed** runs each stream through the fragment that produced its output, which
+is what an audit wants and what rule 1 makes possible by never letting a document that has run be
+edited.
+
+`Outputs.asProcessed(inputId, pipeline)` is the lookup — the last thing recorded for that input on that
+pipeline — with the DAO taking the newest row and the in-memory implementation the last. `Stage.reprocess`
+is the run: no routing table, no learning, no scoring, no rolling score, no relearn. A rule that has
+since been rebound, retracted or given up makes no difference, which is the point. Where nothing is
+recorded it sentinels and says so rather than quietly serving as-current, because an input nothing
+remembers cannot be served as it was and answering a different question silently is worse than refusing.
+
+The mode is a property on the supervisor element rather than something the reprocess request carries,
+and that is worth stating plainly: a reprocess in Stroom names a pipeline, not a mode. An operator who
+wants history re-run as it happened points a pipeline whose supervisor has `asProcessed` set at the
+streams in question. If the request ever learns to carry a mode, the element reads it there instead and
+nothing else changes.
+
+Two scenarios, and the first is only a test because a rule is rebound in the middle of it: a stream is
+learned and served by one fragment, the rule is rebound to another that would produce different events,
+and the same stream reprocessed as-processed comes back through the first fragment with the output it
+had. Against a `reprocess` that delegates to `run`, both fail.
+
+The audit of the slice found nine, and four of them were the same oversight from different angles: **an
+output is not described by its fragment alone.**
+
+**The boundary had to be recorded with it.** A rebind keeps the rule's uuid and replaces its boundary,
+and the boundary is what says where the chain is cut and so what the transform is given — the same
+fragment under another boundary is another chain. As-processed was taking the fragment from the row and
+the boundary from today's rule, which is a run that never happened; where the rule had been retracted it
+took no boundary at all. `Bindings` now carries the boundary, the row remembers it, and the stream's
+attributes carry it for a person to read.
+
+**The pipeline had to be part of what a row is.** The unique key was `(rule, input)`, so one document
+used by two pipelines meant the second run overwrote the first's row and made the first pipeline's
+streams unreprocessable — they would have refused with "nothing is recorded". The key now carries the
+pipeline, an output of no pipeline is the empty string rather than NULL so that a unique key can hold
+it, and a retraction asks for both outputs because both are still there.
+
+**And the id does not say which row was written last.** A stream served again under the same rule
+updates its row in place and keeps the id it was inserted with, so "the newest row" ordered by id was
+the order rows were *first* written. There is a produced time now, updated on every emit, and the
+lookup orders by it.
+
+The fourth was the ledger. A refusal that no promotion can answer — an as-processed reprocess of an
+input nothing remembers — was going onto the ledger, which is the list a shape's settling releases. It
+would have gone on, never come off, and been asked for again at every future release of that shape,
+writing itself a fresh row each time. It is refused without a ledger row now, and the scenario says the
+ledger stays empty.
+
+Three smaller ones with them: a row whose score was never written unboxed to a `NullPointerException`
+where it should have read as nothing; `Bound` was constructed with a null rule through a needlessly
+clever expression; and the javadoc that belonged to `run` had been left attached to `reprocess`.
+
+One finding is recorded rather than fixed: on a node the stream is transformed twice, once by the stage
+and once by the element, and for an as-processed reprocess nothing is scored so the first run is pure
+cost. The bound path has the same shape and there the first run produces the scorecard, so the fix
+belongs to both together rather than to this slice. 247 tests in the module, 24 against MySQL.
+
+Proving the boundary fix took three attempts, which is worth recording because the first two *passed*.
+A CSV feed has no boundary at all, so rebinding one changes nothing; a JSON feed has one, but the
+stylesheet selects globally, so cutting the stream differently produces the same events. Neither test
+was testing anything. What discriminates is watching the seam: a `FragmentRunner` that records the
+boundary it was asked to run under, injected through a new fixture hook, and an assertion that the
+depth it was given is the depth the row remembers.
+
 ### 6.4 What the one-record run found
 
 Item 25 changed what the model is shown, and no scripted scenario can say whether that makes it write
