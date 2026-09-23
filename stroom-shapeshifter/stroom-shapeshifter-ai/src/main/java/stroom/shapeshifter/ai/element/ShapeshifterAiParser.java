@@ -17,107 +17,43 @@
 package stroom.shapeshifter.ai.element;
 
 import stroom.docref.DocRef;
-import stroom.meta.api.AttributeMap;
-import stroom.meta.shared.Meta;
-import stroom.node.api.NodeInfo;
 import stroom.pipeline.LocationFactoryProxy;
-import stroom.pipeline.PipelineStore;
 import stroom.pipeline.errorhandler.ErrorReceiverProxy;
-import stroom.pipeline.errorhandler.ProcessException;
 import stroom.pipeline.factory.ConfigurableElement;
-import stroom.pipeline.factory.ElementRegistryFactory;
-import stroom.pipeline.factory.Pipeline;
-import stroom.pipeline.factory.PipelineDataCache;
-import stroom.pipeline.factory.PipelineFactory;
 import stroom.pipeline.factory.PipelineProperty;
 import stroom.pipeline.factory.PipelinePropertyDocRef;
 import stroom.pipeline.parser.AbstractParser;
-import stroom.pipeline.shared.PipelineDoc;
-import stroom.pipeline.shared.data.PipelineData;
-import stroom.pipeline.shared.data.PipelineDataBuilder;
-import stroom.pipeline.shared.data.PipelineElement;
 import stroom.pipeline.shared.data.PipelineElementType;
 import stroom.pipeline.shared.data.PipelineElementType.Category;
-import stroom.pipeline.shared.data.PipelineLink;
-import stroom.pipeline.state.FeedHolder;
 import stroom.pipeline.state.MetaData;
-import stroom.pipeline.state.MetaDataHolder;
-import stroom.pipeline.state.MetaHolder;
-import stroom.pipeline.state.PipelineHolder;
-import stroom.shapeshifter.ai.doc.ShapeshifterAiStore;
-import stroom.shapeshifter.ai.extraction.DataSplitterCompiler;
-import stroom.shapeshifter.ai.extraction.DataSplitterStep;
-import stroom.shapeshifter.ai.extraction.JsonStep;
-import stroom.shapeshifter.ai.extraction.XmlFragmentStep;
-import stroom.shapeshifter.ai.fragment.FragmentRunner;
-import stroom.shapeshifter.ai.fragment.FragmentWriter;
-import stroom.shapeshifter.ai.fragment.ReplayUnits;
-import stroom.shapeshifter.ai.learning.Advisors;
-import stroom.shapeshifter.ai.scoring.BusinessRulesScorer;
-import stroom.shapeshifter.ai.scoring.CompileScorer;
-import stroom.shapeshifter.ai.scoring.ExtractionQualityScorer;
-import stroom.shapeshifter.ai.scoring.InputCoverageScorer;
-import stroom.shapeshifter.ai.scoring.SchemaConformanceScorer;
-import stroom.shapeshifter.ai.scoring.YieldScorer;
-import stroom.shapeshifter.ai.stage.Attempts;
-import stroom.shapeshifter.ai.stage.Bindings;
-import stroom.shapeshifter.ai.stage.Decision;
-import stroom.shapeshifter.ai.stage.Decision.Drafted;
-import stroom.shapeshifter.ai.stage.Decision.GivenUp;
-import stroom.shapeshifter.ai.stage.Decision.Retracted;
-import stroom.shapeshifter.ai.stage.Decision.Sentinel;
-import stroom.shapeshifter.ai.stage.Input;
-import stroom.shapeshifter.ai.stage.Ledger;
-import stroom.shapeshifter.ai.stage.Outputs;
-import stroom.shapeshifter.ai.stage.RegressionSet;
-import stroom.shapeshifter.ai.stage.Reprocessing;
-import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.ai.stage.ShapeSignature;
-import stroom.shapeshifter.ai.stage.Shapes;
-import stroom.shapeshifter.ai.stage.Spend;
 import stroom.shapeshifter.ai.stage.Stage;
-import stroom.shapeshifter.ai.stage.StageRun;
-import stroom.shapeshifter.ai.transformation.XsltStep;
-import stroom.shapeshifter.shared.ReplayUnit;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 import stroom.svg.shared.SvgImage;
-import stroom.task.api.TaskContextFactory;
-import stroom.util.shared.NullSafe;
-import stroom.util.shared.Severity;
 
 import jakarta.inject.Inject;
 import org.xml.sax.InputSource;
+import org.xml.sax.SAXException;
 import org.xml.sax.XMLReader;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.io.UncheckedIOException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.time.Clock;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * The supervisor element (design 01 §3, §12 item 4): one supervised stage in a pipeline, parameterised by
- * its Shapeshifter AI document. Sits where a parser sits — fed the stream, emitting events — and does
- * what the {@link Stage} decides: routes the stream to a bound fragment, learns one when nothing is
- * bound and the document allows, or refuses it with an error naming the shape and the reason (A4).
+ * The supervisor at the extraction stage (design 01 §3, §12 item 4): one supervised stage fed the raw
+ * stream, emitting events. Sits where a parser sits, and does what the {@link Stage} decides — routes
+ * the stream to a bound fragment, learns one when nothing is bound and the document allows, or refuses
+ * it with an error naming the shape and the reason (A4). A stage fed by a parser is
+ * {@link ShapeshifterAiFilter} instead; what the two do is the same and is in {@link Supervision}.
  * <p>
- * A bound fragment runs as a nested pipeline (A20): the fragment's merged {@code PipelineData} with a
- * {@link FragmentOutputFilter} at its tail, built by the same {@link PipelineFactory} in the same
- * pipeline scope, so its errors reach this pipeline's error stream and its events reach this element's
- * targets. The bindings that produced the output (§7.3 rule 3) go into the output stream's attributes
- * through {@link MetaData}. For now the fragment runs twice on a stream: once through the step runners
- * for the score the stage decides on, once as a pipeline for the output; a fragment runner over the
- * nested pipeline with per-element capture (§12 item 2) is what removes the first run.
+ * A bound fragment runs as a nested pipeline (A20), built by the same {@link stroom.pipeline.factory.PipelineFactory}
+ * in the same pipeline scope, so its errors reach this pipeline's error stream and its events reach this
+ * element's targets. It runs once: the run the stage judged is the run that is served. The bindings that
+ * produced the output (§7.3 rule 3) go into the output stream's attributes through {@link MetaData}.
  * <p>
  * The stage's runtime state — shapes, ledger, outputs, requests, regression set — is whatever the node
  * binds for the seams of A26; until the module of §12 item 8 exists that is in-memory and node-local.
@@ -126,9 +62,9 @@ import java.util.concurrent.ThreadLocalRandom;
         type = ShapeshifterAiParser.TYPE,
         category = Category.PARSER,
         description = """
-                A supervised stage: routes each stream to the fragment its Shapeshifter AI document \
-                binds for the stream's shape, learns a fragment for a shape nothing binds, and \
-                refuses a shape it has given up on.
+                A supervised stage over a raw stream: routes each stream to the fragment its \
+                Shapeshifter AI document binds for the stream's shape, learns a fragment for a shape \
+                nothing binds, and refuses a shape it has given up on.
                 """,
         roles = {
                 PipelineElementType.ROLE_PARSER,
@@ -140,22 +76,8 @@ import java.util.concurrent.ThreadLocalRandom;
 public class ShapeshifterAiParser extends AbstractParser {
 
     public static final String TYPE = "ShapeshifterAi";
-    private static final String OUTPUT_ELEMENT_ID = "shapeshifterAiOutput";
 
-    private final ShapeshifterAiStore store;
-    private final ElementRegistryFactory elementRegistryFactory;
-    private final PipelineStore pipelineStore;
-    private final PipelineDataCache pipelineDataCache;
-    private final PipelineFactory pipelineFactory;
-    private final TaskContextFactory taskContextFactory;
-    private final FeedHolder feedHolder;
-    private final MetaHolder metaHolder;
-    private final MetaDataHolder metaDataHolder;
-    private final MetaData metaData;
-    private final FragmentOutput fragmentOutput;
-    private final ErrorReceiverProxy errorReceiverProxy;
-    private final PipelineHolder pipelineHolder;
-    private final Stage stage;
+    private final Supervision supervision;
 
     private DocRef docRef;
     private boolean asProcessed;
@@ -163,34 +85,9 @@ public class ShapeshifterAiParser extends AbstractParser {
     @Inject
     public ShapeshifterAiParser(final ErrorReceiverProxy errorReceiverProxy,
                                 final LocationFactoryProxy locationFactory,
-                                final ShapeshifterAiStore store,
-                                final ElementRegistryFactory elementRegistryFactory,
-                                final PipelineStore pipelineStore,
-                                final PipelineDataCache pipelineDataCache,
-                                final PipelineFactory pipelineFactory,
-                                final TaskContextFactory taskContextFactory,
-                                final FeedHolder feedHolder,
-                                final MetaHolder metaHolder,
-                                final MetaDataHolder metaDataHolder,
-                                final MetaData metaData,
-                                final FragmentOutput fragmentOutput,
-                                final PipelineHolder pipelineHolder,
-                                final StageFactory stageFactory) {
+                                final Supervision supervision) {
         super(errorReceiverProxy, locationFactory);
-        this.errorReceiverProxy = errorReceiverProxy;
-        this.store = store;
-        this.elementRegistryFactory = elementRegistryFactory;
-        this.pipelineStore = pipelineStore;
-        this.pipelineDataCache = pipelineDataCache;
-        this.pipelineFactory = pipelineFactory;
-        this.taskContextFactory = taskContextFactory;
-        this.feedHolder = feedHolder;
-        this.metaHolder = metaHolder;
-        this.metaDataHolder = metaDataHolder;
-        this.metaData = metaData;
-        this.fragmentOutput = fragmentOutput;
-        this.pipelineHolder = pipelineHolder;
-        this.stage = stageFactory.create();
+        this.supervision = supervision;
     }
 
     @PipelineProperty(description = "The Shapeshifter AI document that governs this stage.", displayPriority = 1)
@@ -219,92 +116,14 @@ public class ShapeshifterAiParser extends AbstractParser {
 
     @Override
     protected XMLReader createReader() {
-        if (docRef == null) {
-            throw ProcessException.create("No Shapeshifter AI document is set on element " + getElementId());
-        }
-        checkPosition();
+        supervision.checkPosition(supervision.document(docRef, getElementId()), getElementId());
         return new SupervisorReader();
     }
 
-    /// What this stage may learn must match where it stands (A1, design 01 §4): a stage fed by the
-    /// source is given raw data and its chains must parse; a stage fed by a parser is given records and
-    /// its chains must not. The document's allowed elements are what a chain is chosen from, so they
-    /// are what has to agree, and the pipeline this element sits in is what says which position it is in.
-    ///
-    /// Checked as the pipeline is built rather than when a model is asked: a document that cannot learn
-    /// anything usable here should say so before it has spent a call finding out.
-    ///
-    /// Skipped where the answer is not knowable — the pipeline cannot be read, or the document names no
-    /// allowed elements and so constrains nothing. A check that cannot be made is not a check that
-    /// failed, and refusing on a guess would be worse than not looking.
-    private void checkPosition() {
-        final ShapeshifterAiDoc doc = store.readDocument(docRef);
-        if (doc == null || NullSafe.isEmptyCollection(doc.getAllowedElements())) {
-            return;
-        }
-        final Optional<Boolean> fedByParser = fedByParser();
-        if (fedByParser.isEmpty()) {
-            return;
-        }
-        final ReplayUnit allowed = ReplayUnits.ofElements(doc.getAllowedElements(), this::parses);
-        final ReplayUnit here = ReplayUnit.forStageFedByParser(fedByParser.get());
-        if (allowed != here) {
-            throw ProcessException.create(ReplayUnits.mismatch(allowed,
-                    "The allowed elements of Shapeshifter AI document " + doc.getName()));
-        }
-    }
-
-    /// Whether anything above this element in its pipeline parses, or empty where the pipeline it is
-    /// running in cannot be read.
-    private Optional<Boolean> fedByParser() {
-        final DocRef pipelineRef = pipelineHolder.getPipeline();
-        if (pipelineRef == null) {
-            return Optional.empty();
-        }
-        final PipelineDoc pipelineDoc = pipelineStore.readDocument(pipelineRef);
-        if (pipelineDoc == null) {
-            return Optional.empty();
-        }
-        return ReplayUnits.fedByParser(pipelineDataCache.get(pipelineDoc), getElementId().getId(),
-                this::parses);
-    }
-
-    /// Whether an element type parses, as the node's own element registry has it — the same question
-    /// `FragmentCheckImpl` asks of a fragment, asked the same way, because the two must agree.
-    private boolean parses(final String elementType) {
-        final PipelineElementType type = elementRegistryFactory.get().getElementType(elementType);
-        return type != null && type.hasRole(PipelineElementType.ROLE_PARSER);
-    }
-
     /**
-     * The stream as the {@link Stage} sees it: its meta id, feed, type, attributes and content. The whole
-     * stream is read: the extraction stage's replay unit is the stream (A1), and the stage learns on a
-     * prefix and judges on the whole.
+     * The whole stream is read: the extraction stage's replay unit is the stream (A1), and the stage
+     * learns on a prefix and judges on the whole.
      */
-    private Input input(final InputSource inputSource) {
-        final Meta meta = metaHolder.getMeta();
-        final AttributeMap attributeMap = metaDataHolder.getMetaData();
-        final Map<String, String> attributes = new HashMap<>();
-        if (attributeMap != null) {
-            attributeMap.forEach(attributes::put);
-        }
-        return new Input(
-                meta == null
-                        ? -1L
-                        : meta.getId(),
-                feedHolder.getFeedName(),
-                meta == null
-                        ? null
-                        : meta.getTypeName(),
-                attributes,
-                read(inputSource),
-                // Which pipeline is processing it: what the ledger keeps, so that a stream sentinelled
-                // here is replayed here when its shape settles — wherever that happens (A12).
-                pipelineHolder.getPipeline() == null
-                        ? null
-                        : pipelineHolder.getPipeline().getUuid());
-    }
-
     private static String read(final InputSource inputSource) {
         try {
             final Reader reader = inputSource.getCharacterStream() != null
@@ -325,96 +144,21 @@ public class ShapeshifterAiParser extends AbstractParser {
         }
     }
 
-    /**
-     * The fragment as a nested pipeline: its merged data with an output filter linked from its tail, the
-     * tail being the one element nothing links onward from.
-     */
-    private Pipeline nested(final DocRef fragment) {
-        final PipelineDoc fragmentDoc = pipelineStore.readDocument(fragment);
-        final PipelineData merged = pipelineDataCache.get(fragmentDoc);
-        final Set<String> linkedFrom = new HashSet<>();
-        for (final PipelineLink link : merged.getAddedLinks()) {
-            linkedFrom.add(link.getFrom());
-        }
-        final List<String> tails = merged.getAddedElements().stream()
-                .map(PipelineElement::getId)
-                .filter(id -> !linkedFrom.contains(id))
-                .toList();
-        if (tails.size() != 1) {
-            throw ProcessException.create("Fragment " + fragment.getName() + " is not a chain: its tail is "
-                                          + tails);
-        }
-        final PipelineData withOutput = new PipelineDataBuilder(merged)
-                .addElement(new PipelineElement(OUTPUT_ELEMENT_ID, FragmentOutputFilter.TYPE))
-                .addLink(tails.get(0), OUTPUT_ELEMENT_ID)
-                .build();
-        return pipelineFactory.create(withOutput, taskContextFactory.current());
-    }
 
-    private static String reason(final Decision decision) {
-        return switch (decision) {
-            case Sentinel sentinel -> sentinel.reason();
-            case GivenUp givenUp -> "Shape given up: " + givenUp.reason();
-            case Retracted retracted -> retracted.reason();
-            case Drafted drafted -> "Awaiting review: draft rule " + drafted.rule().getUuid() + " binds "
-                                    + drafted.rule().getPipeline().getName();
-            default -> throw new IllegalStateException("Decision " + decision + " bound nothing and refused nothing");
-        };
-    }
+    // --------------------------------------------------------------------------------
+
 
     /**
-     * Reads the stream, lets the stage decide, and either runs the bound fragment into this element's
-     * targets or logs the refusal. The document is never written: it holds only what a person authors,
-     * and what the stage learns is rows (A41). Two tasks learning the same shape at once still race
-     * until the lease of A42 exists, but they race on rows and not on one document.
+     * Reads the stream and lets the supervision decide. The document is never written: it holds only
+     * what a person authors, and what the stage learns is rows (A41). Two tasks learning the same shape
+     * at once still race until the lease of A42 exists, but they race on rows and not on one document.
      */
     private final class SupervisorReader extends stroom.pipeline.xml.converter.AbstractParser {
 
         @Override
-        public void parse(final InputSource inputSource) {
-            final ShapeshifterAiDoc doc = store.readDocument(docRef);
-            if (doc == null) {
-                throw ProcessException.create("Shapeshifter AI document " + docRef + " was not found");
-            }
-            final Input input = input(inputSource);
-            final StageRun run = asProcessed
-                    ? stage.reprocess(doc, input)
-                    : stage.run(doc, input);
-            final Bindings bindings = run.bindings();
-            if (bindings == null) {
-                errorReceiverProxy.log(Severity.ERROR, null, getElementId(),
-                        "Shape " + run.shape().id() + ": " + reason(run.decision()), null);
-                return;
-            }
-            record(bindings);
-            fragmentOutput.setHandler(getContentHandler());
-            final Pipeline pipeline = nested(bindings.fragment());
-            try {
-                // Inside the try, as the task executor has it: a nested element that fails to start has
-                // still borrowed what endProcessing gives back.
-                pipeline.startProcessing();
-                pipeline.process(new ByteArrayInputStream(input.data().getBytes(StandardCharsets.UTF_8)),
-                        StandardCharsets.UTF_8.name());
-            } finally {
-                pipeline.endProcessing();
-            }
-        }
-
-        /**
-         * The output stream's attributes are one set for the whole stream, and a stream of several parts
-         * is served part by part. The first part's bindings stand for the stream; a later part that bound
-         * differently is reported, since the attributes cannot say so and an as-processed reprocess of it
-         * would be misled (design 01 §7.3).
-         */
-        private void record(final Bindings bindings) {
-            final String recorded = metaData.getAttributes().get(Bindings.RULE_ATTRIBUTE);
-            if (recorded == null) {
-                bindings.asAttributes().forEach(metaData::put);
-            } else if (!recorded.equals(bindings.ruleUuid())) {
-                errorReceiverProxy.log(Severity.WARNING, null, getElementId(),
-                        "Part " + metaHolder.getPartIndex() + " was bound by rule " + bindings.ruleUuid()
-                        + " but the stream's bindings name rule " + recorded + " from an earlier part", null);
-            }
+        public void parse(final InputSource inputSource) throws SAXException {
+            supervision.supervise(supervision.document(docRef, getElementId()), getElementId(), asProcessed,
+                    read(inputSource), getContentHandler());
         }
     }
 }

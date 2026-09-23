@@ -44,10 +44,14 @@ public interface Outputs {
     /// record's own text in hand rather than by running the parser again over a stream that may be
     /// thirty gigabytes.
     ///
-    /// @param recordIndex Counted from zero, in the order the parser emitted them.
+    /// @param docUuid     Whose stage is asking. A pipeline may hold two supervised stages and each
+    ///                     records what it produced, so an input on a pipeline names two outputs; a
+    ///                     document belongs to one stage, because what it may learn has to match where
+    ///                     it stands (A1), so it is what tells them apart.
+    /// @param recordIndex  Counted from zero, in the order the parser emitted them.
     /// @return Empty where nothing was recorded for that record: an output with no parser to ask, a row
     /// written before spans were kept, or a record past what was kept.
-    Optional<TextRange> span(long inputId, String pipeline, int recordIndex);
+    Optional<TextRange> span(String docUuid, long inputId, String pipeline, int recordIndex);
 
     /**
      * What one binding produced: the inputs whose output this rule made *with this fragment*, oldest
@@ -67,11 +71,14 @@ public interface Outputs {
     /// This is what an audit needs, and it is the opposite of the release A12 performs, which resolves
     /// the selector against today's table so that a backlog picks up what was learned since.
     ///
-    /// @return Empty where nothing is recorded for that input and pipeline: nothing was produced, or it
-    /// was produced before this node began recording, or the row has been pruned. An as-processed
-    /// reprocess of an input nothing remembers cannot be served and must say so rather than quietly
-    /// routing as-current.
-    Optional<Bindings> asProcessed(long inputId, String pipeline);
+    /// @param docUuid Whose stage is asking, as [#span] means it: without it, a pipeline holding both
+    ///                stages of §3 would answer the extraction stage with the transformation stage's
+    ///                fragment, which would then be run over raw bytes.
+    /// @return Empty where nothing is recorded for that document, input and pipeline: nothing was
+    /// produced, or it was produced before this node began recording, or the row has been pruned. An
+    /// as-processed reprocess of an input nothing remembers cannot be served and must say so rather than
+    /// quietly routing as-current.
+    Optional<Bindings> asProcessed(String docUuid, long inputId, String pipeline);
 
     /**
      * Forget what was produced before a given time (design 01 §12 item 8): a row per output stream is a

@@ -19,6 +19,7 @@ package stroom.shapeshifter.ai.element;
 import stroom.node.api.NodeInfo;
 import stroom.pipeline.PipelineStore;
 import stroom.pipeline.errorhandler.ErrorReceiverProxy;
+import stroom.pipeline.factory.ElementRegistryFactory;
 import stroom.pipeline.factory.InjectedCode;
 import stroom.pipeline.factory.PipelineDataCache;
 import stroom.pipeline.factory.PipelineFactory;
@@ -27,6 +28,7 @@ import stroom.shapeshifter.ai.extraction.DataSplitterCompiler;
 import stroom.shapeshifter.ai.extraction.DataSplitterStep;
 import stroom.shapeshifter.ai.extraction.JsonStep;
 import stroom.shapeshifter.ai.extraction.XmlFragmentStep;
+import stroom.shapeshifter.ai.fragment.FragmentOutput;
 import stroom.shapeshifter.ai.fragment.FragmentWriter;
 import stroom.shapeshifter.ai.fragment.PipelineFragmentRunner;
 import stroom.shapeshifter.ai.learning.Advisors;
@@ -76,10 +78,12 @@ public class StageFactory {
     private final FragmentWriter fragmentWriter;
     private final PipelineStore pipelineStore;
     private final PipelineDataCache pipelineDataCache;
+    private final ElementRegistryFactory elementRegistryFactory;
     private final Provider<PipelineFactory> pipelineFactoryProvider;
     private final Provider<HeadlessCapture> headlessCaptureProvider;
     private final Provider<ErrorReceiverProxy> errorReceiverProvider;
     private final Provider<InjectedCode> injectedCodeProvider;
+    private final Provider<FragmentOutput> fragmentOutputProvider;
     private final TaskContextFactory taskContextFactory;
     private final NodeInfo nodeInfo;
     private final Attempts attempts;
@@ -98,10 +102,12 @@ public class StageFactory {
                         final FragmentWriter fragmentWriter,
                         final PipelineStore pipelineStore,
                         final PipelineDataCache pipelineDataCache,
+                        final ElementRegistryFactory elementRegistryFactory,
                         final Provider<PipelineFactory> pipelineFactoryProvider,
                         final Provider<HeadlessCapture> headlessCaptureProvider,
                         final Provider<ErrorReceiverProxy> errorReceiverProvider,
                         final Provider<InjectedCode> injectedCodeProvider,
+                        final Provider<FragmentOutput> fragmentOutputProvider,
                         final TaskContextFactory taskContextFactory,
                         final NodeInfo nodeInfo,
                         final Attempts attempts,
@@ -118,10 +124,12 @@ public class StageFactory {
         this.fragmentWriter = fragmentWriter;
         this.pipelineStore = pipelineStore;
         this.pipelineDataCache = pipelineDataCache;
+        this.elementRegistryFactory = elementRegistryFactory;
         this.pipelineFactoryProvider = pipelineFactoryProvider;
         this.headlessCaptureProvider = headlessCaptureProvider;
         this.errorReceiverProvider = errorReceiverProvider;
         this.injectedCodeProvider = injectedCodeProvider;
+        this.fragmentOutputProvider = fragmentOutputProvider;
         this.taskContextFactory = taskContextFactory;
         this.nodeInfo = nodeInfo;
         this.attempts = attempts;
@@ -158,8 +166,10 @@ public class StageFactory {
                 fragmentWriter,
                 // A node judges and serves through the real pipeline (§12 item 2): the stand-in the Tier 1
                 // scenarios run on is for a harness with no node under it.
-                new PipelineFragmentRunner(pipelineStore, pipelineDataCache, pipelineFactoryProvider,
-                        headlessCaptureProvider, errorReceiverProvider, taskContextFactory, runners),
+                new PipelineFragmentRunner(pipelineStore, pipelineDataCache, elementRegistryFactory,
+                        pipelineFactoryProvider,
+                        headlessCaptureProvider, errorReceiverProvider, fragmentOutputProvider,
+                        taskContextFactory, runners),
                 attempts,
                 rules,
                 shapes,

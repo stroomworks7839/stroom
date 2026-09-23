@@ -17,6 +17,7 @@
 package stroom.shapeshifter.ai.stage;
 
 import stroom.docref.DocRef;
+import stroom.pipeline.xml.event.EventList;
 import stroom.query.api.ExpressionOperator;
 import stroom.shapeshifter.ai.extraction.PerRecord;
 import stroom.shapeshifter.ai.fragment.FragmentRunner;
@@ -347,7 +348,7 @@ public final class Stage {
     public StageRun reprocess(final ShapeshifterAiDoc doc, final Input input) {
         final Map<String, Object> attributes = input.routingAttributes(ShapeSignature.of(input.data()));
         final Shape shape = Shape.of(doc.getLearningKey(), attributes);
-        final Optional<Bindings> recorded = outputs.asProcessed(input.id(), input.pipeline());
+        final Optional<Bindings> recorded = outputs.asProcessed(doc.getUuid(), input.id(), input.pipeline());
         if (recorded.isEmpty()) {
             return refused(doc, shape, "Nothing is recorded for input " + input.id()
                                        + " on this pipeline, so it cannot be processed again as it was; "
@@ -361,6 +362,7 @@ public final class Stage {
         // and a rebind may have changed it. The same fragment under another boundary is another chain.
         final List<Attempted> attempted = fragmentRunner.run(bindings.fragment(), input.data(),
                 bindings.boundary());
+        final EventList events = fragmentRunner.lastOutput().orElse(null);
         final String output = attempted.isEmpty()
                 ? null
                 : attempted.get(attempted.size() - 1).result().output();
@@ -372,7 +374,25 @@ public final class Stage {
         }
         // Recorded again, because this output carries the same bindings as the one it replaces.
         outputs.emitted(input.id(), input.pipeline(), bindings);
-        return new StageRun(doc, new Bound(rule.orElse(null)), shape, bindings, output, List.of(), List.of());
+        return new StageRun(doc, new Bound(rule.orElse(null)), shape, bindings, output, List.of(), List.of(),
+                events, attempted.stream().flatMap(step -> step.result().diagnostics().stream()).toList());
+    }
+
+    /// A bound fragment run over an input for its events, for a caller that has a downstream to serve
+    /// and a [StageRun] that carried none.
+    ///
+    /// A chain is judged as it is learned — step by step, over the element runners, before it has been
+    /// written anywhere — so the stream a shape was *learned* on has an output and no events to serve it
+    /// with. The fragment it became is run once here, which is the run that stream would have made had a
+    /// rule already bound it, and not a second one: nothing has run this fragment yet.
+    ///
+    /// A stream a rule already binds never comes here. Its events are the ones its judgement was made
+    /// from, which is what §12 item 2 bought: the run that is judged is the run that is served.
+    public Served serve(final Bindings bindings, final Input input) {
+        final List<Attempted> attempted = fragmentRunner.run(bindings.fragment(), input.data(),
+                bindings.boundary());
+        return new Served(fragmentRunner.lastOutput().orElse(null),
+                attempted.stream().flatMap(step -> step.result().diagnostics().stream()).toList());
     }
 
     /**
@@ -670,7 +690,7 @@ public final class Stage {
 
         // The candidate over the whole stream: the held-out judgement of A14/A15 where there are enough
         // records for one, and the floor a provisional binding must clear where there are not.
-        final Judged judged = Judged.of(rerun(learned.chain(), input.data(), learned.boundary()), scorecard);
+        final Judged judged = asLearned(rerun(learned.chain(), input.data(), learned.boundary()), scorecard);
         if (!judged.clearsFloor(doc)) {
             return givenUp(doc, shape, input, "Below the promotion floor",
                     "Candidate scored " + judged.score() + " against a floor of " + doc.getPromotionFloor(),
@@ -778,7 +798,7 @@ public final class Stage {
                         : rule.getPipeline().getUuid()), reason);
         ledger.sentinelled(doc.getUuid(), shape.id(), input.id(), input.pipeline(), reason);
         return new StageRun(doc, new Retracted(rule, judged.score(), reason),
-                shape, null, null, judged.verdicts(), List.of());
+                shape, null, null, judged.verdicts(), List.of(), null, List.of());
     }
 
     /**
@@ -832,7 +852,7 @@ public final class Stage {
                     served, outcome.transcript());
         }
         final Learned learned = (Learned) outcome;
-        final Judged candidate = Judged.of(rerun(learned.chain(), input.data(), learned.boundary()), scorecard);
+        final Judged candidate = asLearned(rerun(learned.chain(), input.data(), learned.boundary()), scorecard);
         if (!candidate.clearsFloor(doc)) {
             return emit(doc, new Kept(incumbent, "Candidate scored " + candidate.score() + " against a floor of "
                                                  + doc.getPromotionFloor()), shape, input, incumbent, served,
@@ -844,7 +864,7 @@ public final class Stage {
                     served, learned.transcript());
         }
         for (final Accepted accepted : regressionSet.accepted(incumbent.getUuid())) {
-            final Judged onRecord = Judged.of(rerun(learned.chain(), accepted.input(), learned.boundary()),
+            final Judged onRecord = asLearned(rerun(learned.chain(), accepted.input(), learned.boundary()),
                     scorecard);
             if (onRecord.score() < accepted.score()) {
                 return emit(doc, new Kept(incumbent, "Candidate scored " + onRecord.score() + " against "
@@ -945,7 +965,7 @@ public final class Stage {
                                                                       + " binds " + fragment.getName()
                                                                       + " for shape " + shape.id());
             return new StageRun(doc, new Drafted(rule, judged.score()), shape, null,
-                    null, judged.verdicts(), transcript);
+                    null, judged.verdicts(), transcript, null, List.of());
         }
         replay(doc, ledger.release(doc.getUuid(), shape.id()),
                 "Shape " + shape.id() + " bound by rule " + rule.getUuid()
@@ -1126,7 +1146,8 @@ public final class Stage {
         final Bindings bindings = new Bindings(doc.getUuid(), rule.getUuid(), rule.getPipeline(),
                 rule.getRecordBoundary(), rule.isProvisional(), judged.score());
         outputs.emitted(input.id(), input.pipeline(), bindings, judged.spans());
-        return new StageRun(doc, decision, shape, bindings, judged.output(), judged.verdicts(), transcript);
+        return new StageRun(doc, decision, shape, bindings, judged.output(), judged.verdicts(), transcript,
+                judged.events(), judged.diagnostics());
     }
 
     /// The stream is not processed and nothing is waiting for it to be: an error naming the shape and
@@ -1137,7 +1158,8 @@ public final class Stage {
     /// nothing remembers — would go on and stay on, and every later release of that shape would ask for
     /// it again, be refused again, and write the row again.
     private StageRun refused(final ShapeshifterAiDoc doc, final Shape shape, final String reason) {
-        return new StageRun(doc, new Sentinel(reason), shape, null, null, List.of(), List.of());
+        return new StageRun(doc, new Sentinel(reason), shape, null, null, List.of(), List.of(), null,
+                List.of());
     }
 
     /**
@@ -1146,7 +1168,8 @@ public final class Stage {
      */
     private StageRun sentinel(final ShapeshifterAiDoc doc, final Shape shape, final Input input, final String reason) {
         ledger.sentinelled(doc.getUuid(), shape.id(), input.id(), input.pipeline(), reason);
-        return new StageRun(doc, new Sentinel(reason), shape, null, null, List.of(), List.of());
+        return new StageRun(doc, new Sentinel(reason), shape, null, null, List.of(), List.of(), null,
+                List.of());
     }
 
     /**
@@ -1163,7 +1186,8 @@ public final class Stage {
                              final List<Exchange> transcript) {
         shapes.giveUp(doc.getUuid(), shape.id(), reason);
         ledger.sentinelled(doc.getUuid(), shape.id(), input.id(), input.pipeline(), reason);
-        return new StageRun(doc, new GivenUp(decision, diagnostics), shape, null, null, verdicts, transcript);
+        return new StageRun(doc, new GivenUp(decision, diagnostics), shape, null, null, verdicts, transcript,
+                null, List.of());
     }
 
     /**
@@ -1496,7 +1520,23 @@ public final class Stage {
                          final DocRef fragment,
                          final String input,
                          final RecordBoundary boundary) {
-        return Judged.of(fragmentRunner.run(fragment, input, boundary), scorecard);
+        // The events are taken here, in the call that made the run, and carried with the judgement they
+        // belong to. Which of a call's runs is the one being served is not known until the decision is
+        // made — a candidate is run and may be discarded, an incumbent is run and may be kept — and the
+        // runner keeps only the last, so reading them anywhere else reads somebody else's stream.
+        final List<Attempted> attempted = fragmentRunner.run(fragment, input, boundary);
+        return Judged.of(attempted, scorecard, fragmentRunner.lastOutput().orElse(null));
+    }
+
+    /// A chain judged as it was *learned*: step by step over the element runners, before it has been
+    /// written as a fragment and so before anything has run it as a pipeline.
+    ///
+    /// It carries no events, because there are none to carry. Whoever serves the stream asks for them
+    /// with [#serve] once the fragment exists. Taking the runner's last output here instead would hand
+    /// this stream the events of whatever ran before it — a variant tried and rejected earlier in this
+    /// very call, or an earlier record of the same pipeline scope.
+    private static Judged asLearned(final List<Attempted> attempted, final Scorecard scorecard) {
+        return Judged.of(attempted, scorecard, null);
     }
 
     /**
@@ -1509,9 +1549,9 @@ public final class Stage {
      *                judged, not excused.
      */
     private record Judged(String output, List<Verdict> verdicts, double score, int records,
-                          List<TextRange> spans) {
+                          List<TextRange> spans, EventList events, List<StoredError> diagnostics) {
 
-        static Judged of(final List<Attempted> attempted, final Scorecard scorecard) {
+        static Judged of(final List<Attempted> attempted, final Scorecard scorecard, final EventList events) {
             final List<Verdict> verdicts = attempted.stream().map(scorecard::judge).toList();
             final String output = attempted.isEmpty()
                     ? null
@@ -1524,14 +1564,38 @@ public final class Stage {
             final List<TextRange> spans = attempted.isEmpty()
                     ? List.of()
                     : attempted.get(0).result().recordRanges();
-            return new Judged(output, verdicts, candidateScore(verdicts), records, spans);
+            return new Judged(output, verdicts, candidateScore(verdicts), records, spans, events,
+                    diagnostics(attempted));
         }
 
+
+        /// What the elements said, in chain order. A run that is served rather than discarded has these
+        /// put on the pipeline's error stream by whoever serves it (A20): the fragment runs under a
+        /// receiver of its own, so that a candidate's complaints go to the model rather than to the
+        /// operator, and the one run that is kept must not be silent for the same reason.
+        private static List<StoredError> diagnostics(final List<Attempted> attempted) {
+            return attempted.stream()
+                    .flatMap(step -> step.result().diagnostics().stream())
+                    .toList();
+        }
 
         boolean clearsFloor(final ShapeshifterAiDoc doc) {
             return !verdicts.isEmpty()
                    && score >= doc.getPromotionFloor()
                    && verdicts.stream().allMatch(Verdict::gatesPassed);
         }
+    }
+
+
+    // --------------------------------------------------------------------------------
+
+
+    /// One run of a bound fragment, for a caller that means to serve it.
+    ///
+    /// @param events      What the chain's tail emitted, or null where the fragment produced nothing and
+    ///                    where the runner has no pipeline under it to make events with.
+    /// @param diagnostics What its elements said making them, for the pipeline's error stream (A20).
+    public record Served(EventList events, List<StoredError> diagnostics) {
+
     }
 }

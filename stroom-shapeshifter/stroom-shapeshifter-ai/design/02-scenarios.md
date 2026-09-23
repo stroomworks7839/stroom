@@ -153,7 +153,7 @@ Ordered by what each needs built; each one is unlocked by the machinery the prev
 | 10 | **Pinned rule is never rebound** | as 9 with the rule pinned | as 9 | v2 written? no — no learning is attempted for a pinned, matched rule | pin honoured at routing |
 | 11 | **Given-up shape does not consult the model** | shape given up by scenario 7 | *empty script* | stream sentinelled; zero questions | ledger consulted before learning |
 | 12 | **Learning mode disabled** | `learningMode: DISABLED`, no matching rule, no bound variant for the feed and type | *empty script* | sentinel; zero questions | §11 opt-in |
-| 13 | **Promotion releases the quarantine** (A12) | a shape in the ledger with two input streams recorded against it; then a run that learns it | as 1 | the ledger entry is cleared and a reprocess request names exactly those two inputs; nothing was held — the earlier runs produced error streams naming the shape | ledger; release as a reprocess request (Tier 1 records the request; Tier 2 creates the filter) |
+| 13 | **Promotion releases the quarantine** (A12) | a shape in the ledger with two input streams recorded against it; then a run that learns it | as 1 | the ledger entry is cleared and a reprocess request names exactly those two inputs; nothing was held — the earlier runs produced error streams naming the shape | ledger; release as a reprocess request (Tier 1 records the request; Tier 2 creates the filter, and a second pass over the task queue processes exactly the stream that waited — built 2026-09-23) |
 | 14 | **Too few records to judge** (A14) | `minRecordsPerShape` 10; stream of 3 records | as 1 | learned; the candidate clears the floor on the 3 records so it is bound *provisionally* and handles the stream, with the binding marked provisional in the output; not promoted; attempt `PROVISIONAL`; a later stream of 10 records supplies the held-out split and promotes it | provisional binding (A5, design 01 §6) |
 | 15 | **Every budget question** | `maxAttempts` 1 | one bad reply | abandoned after one question, reason names the step | already built |
 | 16 | **Model reply is not a document / not a chain** | | prose, then a document | refused with feedback | already built (`TestDialogue`); re-homed |
@@ -190,6 +190,7 @@ Ordered by what each needs built; each one is unlocked by the machinery the prev
 | 47 | **Fixed-width: nothing to split on** (A11, A36, design 03 §3) | fixture `fixed-width.log`: thirty sign-on lines of six columns by position and no delimiter — time, user, terminal, action, result and a reason that holds spaces; the escalating plan; scorers Yield (records), Schema conformance (gate), Extraction quality (gate), Business rules with "a sign-on decision states its outcome" | chain `DSParser -> XSLTFilter`; a positional regex capturing four columns and matching the rest of the line; a stylesheet over the four, twice; then, against two targets, the four-column regex again and the six-column one; XSLT | coverage is 1.0 with four columns — every character is consumed — and never speaks; the four-column transform cannot state an outcome and the rule refuses it, twice, so the plan escalates to a target; two kinds of line, a reason of two words and of one, and a target for each; asked again against them the four-column parser is caught by preservation — the records carry no value for `PASSWORD OK`, for `REVOKED` — and the six-column one passes; promoted outright, the output the golden | the fixture, two splitters, two stylesheets and the golden; the escalating plan on a real shortfall |
 | 49 | **XML fragments, no root** (design 01 §12 item 26; the owner's question) | fixture `events-fragments.xml`: one `<Event>…</Event>` per line in the Windows namespace, no root; allowed elements include `XMLFragmentParser`; the target-first plan | chain `XMLFragmentParser -> XSLTFilter`; the split names `Event`; targets; XSLT | no configuration question for the fragment parser, which wraps the fragments in a root; the split question is the XML one, since the parser's output is records XML — not the JSON one because the parser is run only; the rule carries `element Event`; the stream counts its events; promoted | the `XMLFragmentParser` step runner with a built-in wrapper; the walk's kind from the parser's output; the fixture and golden |
 | 48 | **CSV with embedded newlines** (A36, design 03 §3) | fixture `csv-multiline.csv`: twenty headerless records of a document store's audit — time, user, workstation, action, document, note — the note quoted where it holds a comma, a doubled quote or a line break, six spanning two lines; the target-first plan; Yield by lines, expected 0.77 | a line-based DS3, then one regex over the stream honouring the quoting, the record as one field; targets; a six-field DS3 of the same regex; XSLT | the line split cuts a record in two: it consumes every character, so coverage says nothing, and loses none, so wholeness — a character share — says nothing either; yield against the lines a record takes refuses it, before any target is asked; the quoting split passes; targets are whole records, one spanning lines; promoted outright, the golden holding the note with its line break intact and its doubled quotes as one | the fixture, two splitters, stylesheet and golden; the DS3 rules teaching a quoted field |
+| 50 | **A supervised stage at the transformation position, and the pair** (design 01 §3, §12 item 4; item 18's audit) | the CSV fixture behind a hand-written `DSParser`, a document allowing `XSLTFilter` alone, Tier 2 only; and again as `Source -> ShapeshifterAi -> ShapeshifterAiFilter`, two documents, one stage learning the splitter and one the stylesheet; the scripted stylesheet has something to say about every record | no chain question — one allowed element is no choice — the split names `record`, targets, XSLT | the filter-shaped supervisor stands below a parser, which the parser-shaped one cannot; the events it is given become the text the stage sees; the written fragment holds no parser (A1); the stylesheet's warning reaches this pipeline's error stream once for the stream (A20), on the stream that learned and on the stream the rule then bound | `ShapeshifterAiFilter`; `Supervision`; a fragment run with a parser put in front of it; both stages on the output stream's attributes, the one nearest the source under the plain names |
 
 Scenarios 3, 15, 16 and 17 exist today as unit tests of one component; they become scenarios so
 that the catalogue is the one place the behaviour is stated.
@@ -2289,6 +2290,142 @@ corrected the namespace by itself on its second try. That is the argument for re
 Not measured: one record *per kind* rather than the first (the audit's open point), any model but
 `claude-sonnet-5`, and whether row 11's target-first drop from 0.999 to 0.938 is more than the target
 stage negotiating two fewer targets in this run. 238 tests in the module after the two fixes.
+
+The forty-second slice, 2026-09-23, clears the two things phase D surfaced and did not schedule: **the
+transformation stage gets an element it can stand in, and a stream is transformed once**.
+
+**The collision.** Item 18's audit found that the `RECORD` position of A1 could not be drawn. A
+supervisor declares the parser role, the pipeline editor refuses a parser under a parser
+(`StructureValidationUtil`), so the extract-then-transform pair of design 01 §3 had nowhere to put its
+second stage. The remedy is the one the audit named and §12 item 4 owns: a second element of the same
+stage, shaped as a filter. `ShapeshifterAiFilter` declares no role the editor refuses below a parser, is
+a target with targets of its own, and does nothing the parser does not — everything but the shape moved
+into `Supervision`, which both elements now are.
+
+What it does with the events it is given is serialise them back to text before the stage sees them,
+because text is what a stage puts to a model, judges, scores and records (design 01 §4). One document in
+is one stream to the stage: where a `SplitFilter` stands above, that is a record at a time; where
+nothing splits, it is the whole of what the parser wrote. Scenario 50 runs the position end to end —
+`Source -> DSParser -> ShapeshifterAiFilter -> …` — and the stage learns a stylesheet, promotes it,
+writes a fragment with no parser in it, and serves the next stream from the rule.
+
+**The double transform.** The stream used to be transformed twice on a node: once by the stage, for the
+score it decides on, and once by the supervisor element, for the output. The element does not run
+anything now. A fragment run keeps the events its tail emitted — the runner puts the output filter at the
+tail itself — and the stage carries them on the `StageRun` of the run it decided on, which is the only
+way to know which run is the one being served: a candidate that fails the floor is run and discarded,
+and its events must not be the ones played on.
+
+Three things came out of doing it.
+
+**A build that captures drops any element without stepping visibility.** `PipelineFactory` links straight
+past such an element to its children, and the output filter has no children, so the tail's events reached
+nobody and every Tier 2 scenario wrote an empty stream. A fragment is always run under a capture, because
+a run is judged as well as served, so the filter needs that visibility to exist at all.
+
+**A learned stream has no events to serve.** A chain is judged as it is learned — step by step, over the
+element runners, before it has been written anywhere — so the fragment a promotion writes has not been
+run as a pipeline when the stream that taught it needs serving. `Stage.serve` runs it once for them,
+which is the run that stream would have made had a rule already bound it, and not a second one.
+
+**And the fragment would have gone quiet.** A fragment runs under an error receiver of its own so that
+the complaints of candidates nobody keeps go to the model rather than to the operator. The element's
+second run did not, which is how a served fragment's warnings used to reach the pipeline's error stream
+(A20) — and with that run gone they would simply have stopped arriving. The run that is served now
+carries its diagnostics with it and the supervision puts them on the error stream, each named by the
+element of the fragment that raised it, once per distinct message over the stream. Scenario 50 holds it
+with a stylesheet that has something to say about every record, on the stream that learned and on the
+stream that was bound, and fails against the code without it.
+
+`TestTheJudgedRunIsTheServedRun` is the discriminating one for the run itself: the events a run kept are,
+event for event, the output that run was judged on. The two are compared event by event and not whole,
+because a fragment that splits emits one document per record — as any pipeline serving records does —
+while what is judged is those documents joined. `TestSupervisorPositions` holds the roles the editor's
+rule turns on, stated here rather than called because that rule lives in the GWT client and a server test
+cannot reach it.
+
+262 tests in the module, 24 against MySQL, 7 in Tier 2.
+
+
+The forty-third slice, 2026-09-23, is design 03 §7's fifth and the last thing phase D owes:
+**scenario 13's other half — the promotion releases the stream that waited, and it is processed**.
+
+Tier 1 has recorded the reprocess request since the ledger existed, and phase C's harness mocked the
+rest. The request is real: `PipelineReprocessing` builds a reprocess filter over the outputs the named
+pipeline made from the named inputs, and task creation turns those back into their inputs. What had
+never been run was the whole of it against a database and a processor.
+
+`TestScenario13ReleaseInAPipeline` runs it. Learning off, the first stream cannot bind: an error stream
+naming the shape, no output, a ledger row. Learning on, the next stream of the shape is learned and
+promoted, and the promotion releases the ledger. A second pass over the task queue then finds one task —
+for the stream that waited, and for nothing else — which produces its six events with the model never
+asked, because the rule that settled the shape is what serves it (A12). Design 01 §5.2's claim, that
+nothing is held, is now a thing that happens rather than a thing the design says.
+
+One thing worth recording, because it cost an hour and will cost somebody else one: **the ledger's only
+reader is its release, and a release spends it**. The first draft asserted the ledger row before the
+promotion, which took it off, so the promotion had nothing to release and the reprocess filter was never
+created — silently, since a release over no inputs asks for nothing and reports nothing. That the row is
+there is scenario 20's to say; this scenario waits for it to be spent by the thing that is supposed to
+spend it.
+
+262 tests in the module, 24 against MySQL, 17 in Tier 2.
+
+
+The audit of the forty-second and forty-third slices (the owner's code review) found six, five fixed and
+one recorded.
+
+**The judgement of a learned chain was taking another stream's events.** The critical one, and the fix
+this slice exists for made it possible. The events of a run are taken from the runner, which keeps only
+the last, and a helper took them for *every* judgement — including the three that are made by re-running
+a chain over the element runners, which run no fragment at all. So a shape learned behind anything that
+had already run a fragment took that run's events: a variant tried and rejected earlier in the very same
+call, or an earlier record of the same pipeline scope. The stream would have been served the wrong
+stream's output, with its own output in the row beside it. A judgement made over the runners now carries
+no events by construction, and `TestServedRunEvents` runs one stage over three streams — learned, served,
+then a second shape learned behind it — and fails against the code as it was.
+
+**The guard for "produced nothing" could not fire.** A runner sets its event list before it processes, so
+the list is never null — empty, where a fragment stopped or emitted nothing. The check the supervision
+makes was for null, so a fragment that produced nothing fell through it and fired no events at a
+downstream, writing the empty stream the check exists to prevent. A run with no events now says it has
+none.
+
+**A fragment's head was asked of the wrong authority.** Whether the first element of a chain parses
+decided whether a parser is spliced in front of it, and it was asked of the step runners rather than of
+the element registry that `ReplayUnits` and the fragment check ask. Any parser no runner stands in for —
+stroom's XML parser, the combined parser, anything a person put there by hand — would have been taken for
+a filter and given a parser of its own, producing a pipeline that cannot be linked. It asks the registry
+now, as everything else does.
+
+**And two that the pair itself opened.** A pipeline may now hold two supervised stages, and they have one
+set of stream attributes and one output table between them. The second stage's bindings were being
+dropped — the first had taken the attribute names — and it logged a warning about stream *parts* on every
+stream, because the part check was comparing it with the stage above it rather than with itself. Each
+stage is remembered by itself now, and the stage nearest the source takes the plain attribute names while
+any behind it are named by their element. The output rows were distinct, being keyed by the rule, but the
+read-back was not: an as-processed reprocess asked by input and pipeline alone would have answered the
+extraction stage with the transformation stage's fragment and run a stylesheet over raw bytes. It asks by
+document too — a document belongs to one stage, because what it may learn must match where it stands —
+and a DAO case says so.
+
+Finding both of those needed the pair to exist, and proving them needed it to run, so scenario 50 gained
+`Source -> ShapeshifterAi -> ShapeshifterAiFilter -> …`: two documents, two stages, one learning the
+splitter and one the stylesheet, and both on the stream's attributes at the end. Making it run needed one
+thing of the test fixtures — a script may now carry a structure per stage, each saying whether a question
+is about its kind of input, since a stage given raw text and a stage given markup answer the split and
+target questions in different terms.
+
+**Recorded rather than fixed:** the served output is now buffered as events before any of it is fired.
+The element used to stream the nested pipeline's events straight to its targets; one run doing both jobs
+means the run must finish before the decision is known, so a stream's whole output is held. The judged
+runs were always samples; a served run is a production stream, and this is a new allocation on the
+serving path. It is the price of the run that is judged being the run that is served, and the way out is
+to know the decision before the run rather than after — which is a ruling about when a stream may be
+emitted and then retracted, and the owner's.
+
+263 tests in the module, 24 against MySQL, 18 in Tier 2.
+
 
 ## 7. Decisions taken
 

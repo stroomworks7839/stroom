@@ -36,7 +36,7 @@ public final class Script implements Advisor {
 
     private final List<Line> lines = new ArrayList<>();
     private final List<Question> asked = new ArrayList<>();
-    private Structure structure;
+    private final List<Structure> structures = new ArrayList<>();
     private int next;
 
     private Script() {
@@ -67,15 +67,18 @@ public final class Script implements Advisor {
      * that expects a split or target question explicitly still takes precedence.
      */
     public Script structure(final Structure structure) {
-        this.structure = structure;
+        this.structures.add(structure);
         return this;
     }
 
     @Override
     public String ask(final List<Exchange> transcript, final Question question) {
         asked.add(question);
-        if (structure != null && (next >= lines.size() || !lines.get(next).matcher().matches(question))) {
-            final Optional<String> answer = structure.answer(question);
+        if (!structures.isEmpty() && (next >= lines.size() || !lines.get(next).matcher().matches(question))) {
+            final Optional<String> answer = structures.stream()
+                    .filter(candidate -> structures.size() == 1 || candidate.fits(question))
+                    .findFirst()
+                    .flatMap(candidate -> candidate.answer(question));
             if (answer.isPresent()) {
                 return answer.get();
             }

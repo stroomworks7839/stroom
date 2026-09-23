@@ -19,6 +19,7 @@ package stroom.shapeshifter;
 import stroom.docref.DocRef;
 import stroom.pipeline.PipelineStore;
 import stroom.pipeline.errorhandler.ErrorReceiverProxy;
+import stroom.pipeline.factory.ElementRegistryFactory;
 import stroom.pipeline.factory.PipelineDataCache;
 import stroom.pipeline.factory.PipelineFactory;
 import stroom.pipeline.factory.PipelineStackLoader;
@@ -29,6 +30,7 @@ import stroom.shapeshifter.ai.extraction.DataSplitterCompiler;
 import stroom.shapeshifter.ai.extraction.DataSplitterStep;
 import stroom.shapeshifter.ai.extraction.ExtractionCorpus.Golden;
 import stroom.shapeshifter.ai.extraction.JsonStep;
+import stroom.shapeshifter.ai.fragment.FragmentOutput;
 import stroom.shapeshifter.ai.fragment.FragmentRunner;
 import stroom.shapeshifter.ai.fragment.FragmentWriter;
 import stroom.shapeshifter.ai.fragment.PipelineFragmentRunner;
@@ -107,6 +109,10 @@ class TestFragmentRunnersAgree extends AbstractProcessIntegrationTest {
     private Provider<ErrorReceiverProxy> errorReceiverProvider;
     @Inject
     private Provider<DataSplitterCompiler> dataSplitterCompilerProvider;
+    @Inject
+    private Provider<FragmentOutput> fragmentOutputProvider;
+    @Inject
+    private ElementRegistryFactory elementRegistryFactory;
 
     @Test
     void theStandInAndThePipelineMakeTheSameEventsOfTheSameFragment() {
@@ -124,8 +130,8 @@ class TestFragmentRunnersAgree extends AbstractProcessIntegrationTest {
             final FragmentRunner standIn = new StandInFragmentRunner(pipelineStore, pipelineStackLoader,
                     textConverterStore, xsltStore, runners);
             final FragmentRunner pipeline = new PipelineFragmentRunner(pipelineStore, pipelineDataCache,
-                    pipelineFactoryProvider, headlessCaptureProvider, errorReceiverProvider,
-                    taskContextFactory, runners);
+                    elementRegistryFactory, pipelineFactoryProvider, headlessCaptureProvider, errorReceiverProvider,
+                    fragmentOutputProvider, taskContextFactory, runners);
 
             stood.addAll(standIn.run(fragment, DOCUMENT, boundary));
             ran.addAll(pipeline.run(fragment, DOCUMENT, boundary));
@@ -202,8 +208,8 @@ class TestFragmentRunnersAgree extends AbstractProcessIntegrationTest {
             final FragmentRunner standIn = new StandInFragmentRunner(pipelineStore, pipelineStackLoader,
                     textConverterStore, xsltStore, steps);
             final FragmentRunner pipeline = new PipelineFragmentRunner(pipelineStore, pipelineDataCache,
-                    pipelineFactoryProvider, headlessCaptureProvider, errorReceiverProvider,
-                    taskContextFactory, steps);
+                    elementRegistryFactory, pipelineFactoryProvider, headlessCaptureProvider, errorReceiverProvider,
+                    fragmentOutputProvider, taskContextFactory, steps);
             stood.addAll(standIn.run(fragment, input, boundary));
             ran.addAll(pipeline.run(fragment, input, boundary));
         });

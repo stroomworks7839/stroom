@@ -46,7 +46,7 @@ public final class InMemoryOutputs implements Outputs {
                 // A run with no parser to ask knows nothing about where the records began, and knowing
                 // nothing must not erase what was known: an as-processed reprocess of a stream keeps the
                 // spans the run that produced it recorded.
-                ? span(inputId, pipeline)
+                ? span(bindings.docUuid(), inputId, pipeline)
                 : List.copyOf(spans);
         emitted.removeIf(output -> output.inputId() == inputId
                                    && output.bindings().ruleUuid().equals(bindings.ruleUuid())
@@ -64,10 +64,12 @@ public final class InMemoryOutputs implements Outputs {
                 .toList();
     }
 
-    /// Every span recorded for this input on this pipeline, newest first, or empty where none was.
-    private List<TextRange> span(final long inputId, final String pipeline) {
+    /// The last spans recorded for this input on this pipeline by this document's stage, or empty where
+    /// none were.
+    private List<TextRange> span(final String docUuid, final long inputId, final String pipeline) {
         return emitted.stream()
                 .filter(output -> output.inputId() == inputId)
+                .filter(output -> output.bindings().docUuid().equals(docUuid))
                 .filter(output -> Objects.equals(output.pipeline(), pipeline))
                 .map(Emitted::spans)
                 .filter(spans -> !spans.isEmpty())
@@ -76,11 +78,13 @@ public final class InMemoryOutputs implements Outputs {
     }
 
     @Override
-    public synchronized Optional<TextRange> span(final long inputId,
+    public synchronized Optional<TextRange> span(final String docUuid,
+                                                 final long inputId,
                                                  final String pipeline,
                                                  final int recordIndex) {
         return emitted.stream()
                 .filter(output -> output.inputId() == inputId)
+                .filter(output -> output.bindings().docUuid().equals(docUuid))
                 .filter(output -> Objects.equals(output.pipeline(), pipeline))
                 .map(Emitted::spans)
                 .filter(spans -> recordIndex >= 0 && recordIndex < spans.size())
@@ -89,11 +93,15 @@ public final class InMemoryOutputs implements Outputs {
     }
 
     @Override
-    public synchronized Optional<Bindings> asProcessed(final long inputId, final String pipeline) {
-        // The last thing recorded for this input on this pipeline: a stream served twice keeps one row
-        // per rule, and what its output is now is what ran last.
+    public synchronized Optional<Bindings> asProcessed(final String docUuid,
+                                                       final long inputId,
+                                                       final String pipeline) {
+        // The last thing recorded for this input on this pipeline by this document's stage: a stream
+        // served twice keeps one row per rule, and what its output is now is what ran last.
         return emitted.stream()
                 .filter(output -> output.inputId() == inputId)
+                // This document's stage, since a pipeline may hold two and they record the same input.
+                .filter(output -> output.bindings().docUuid().equals(docUuid))
                 // This pipeline's, exactly: a stream another pipeline produced is another output, and an
                 // output of no pipeline is of no pipeline rather than of any.
                 .filter(output -> Objects.equals(output.pipeline(), pipeline))

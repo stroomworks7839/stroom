@@ -18,6 +18,7 @@ package stroom.shapeshifter.ai.element;
 
 import stroom.job.api.ScheduledJobsBinder;
 import stroom.pipeline.factory.PipelineElementModule;
+import stroom.shapeshifter.ai.fragment.FragmentOutputFilter;
 import stroom.shapeshifter.ai.learning.Advisors;
 import stroom.shapeshifter.ai.stage.Documents;
 import stroom.shapeshifter.ai.stage.Inputs;
@@ -68,7 +69,11 @@ public class ShapeshifterAiElementModule extends PipelineElementModule {
 
     @Override
     protected void configureElements() {
+        // The two shapes a supervised stage takes (§12 item 4): the parser is the extraction stage,
+        // given a stream; the filter is the transformation stage, given records. The pipeline editor
+        // refuses a parser under a parser, so the second could not be drawn without the second shape.
         bindElement(ShapeshifterAiParser.class);
+        bindElement(ShapeshifterAiFilter.class);
         bindElement(FragmentOutputFilter.class);
     }
 

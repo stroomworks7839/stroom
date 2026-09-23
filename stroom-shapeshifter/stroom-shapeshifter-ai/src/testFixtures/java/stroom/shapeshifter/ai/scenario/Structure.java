@@ -24,6 +24,7 @@ import stroom.shapeshifter.ai.learning.StepResult;
 import stroom.shapeshifter.ai.learning.StepRunner;
 import stroom.shapeshifter.ai.learning.TargetChecks;
 import stroom.shapeshifter.ai.scoring.OutputRecords;
+import stroom.shapeshifter.ai.stage.ShapeSignature;
 
 import java.util.List;
 import java.util.Optional;
@@ -81,6 +82,26 @@ public final class Structure {
         this.recordElement = recordElement;
         this.arrayKey = arrayKey;
         this.stylesheet = stylesheet;
+    }
+
+    /// Whether this is the structure for the input a question is about. A pipeline may hold two
+    /// supervised stages — one given raw text, one given the records the first made of it — and each
+    /// answers the split and target questions in its own terms, so a scenario over the pair carries a
+    /// structure per stage and each says which is its.
+    public boolean fits(final Question question) {
+        final String sample = switch (question) {
+            case Split split -> split.sample().text();
+            case TargetFor target -> target.sample().text();
+            default -> null;
+        };
+        if (sample == null) {
+            return false;
+        }
+        // The splitter is for raw text and the record element for markup, which is the one thing that
+        // tells the two stages' questions apart without asking which element sent them.
+        return splitter != null
+                ? !ShapeSignature.isMarkup(sample)
+                : ShapeSignature.isMarkup(sample);
     }
 
     public Optional<String> answer(final Question question) {

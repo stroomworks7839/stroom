@@ -458,48 +458,60 @@ class TestShapesAndLedgerDao {
 
         // What an as-processed reprocess asks (design 01 §7.3): what was bound when this input was last
         // processed by this pipeline, so that the fragment which produced the output produces it again.
-        assertThat(outputs.asProcessed(2L, "pipeline-2")).get()
+        assertThat(outputs.asProcessed(DOC, 2L, "pipeline-2")).get()
                 .extracting(Bindings::ruleUuid, bindings -> bindings.fragment().getUuid(), Bindings::provisional)
                 .containsExactly("rule-1", "fragment-1", false);
-        assertThat(outputs.asProcessed(1L, "pipeline-1")).get()
+        assertThat(outputs.asProcessed(DOC, 1L, "pipeline-1")).get()
                 .describedAs("under the boundary that produced it, not the rule's boundary today")
                 .extracting(bindings -> bindings.boundary().getElement(),
                         bindings -> bindings.boundary().splitDepth().orElseThrow())
                 .containsExactly("Event", 1);
-        assertThat(outputs.asProcessed(1L, "pipeline-3")).describedAs("another pipeline's run of the same "
+        assertThat(outputs.asProcessed(DOC, 1L, "pipeline-3")).describedAs("another pipeline's run of the same "
                                                                      + "input is another output, not a "
                                                                      + "replacement for it")
                 .get().extracting(Bindings::score).isEqualTo(0.99);
-        assertThat(outputs.asProcessed(1L, "pipeline-9")).isEmpty();
-        assertThat(outputs.asProcessed(3L, null))
+        assertThat(outputs.asProcessed(DOC, 1L, "pipeline-9")).isEmpty();
+        assertThat(outputs.asProcessed(DOC, 3L, null))
                 .describedAs("an output of no pipeline is of no pipeline rather than of any")
                 .isPresent();
-        assertThat(outputs.asProcessed(3L, "pipeline-1")).isEmpty();
-        assertThat(outputs.asProcessed(99L, "pipeline-1"))
+        assertThat(outputs.asProcessed(DOC, 3L, "pipeline-1")).isEmpty();
+        assertThat(outputs.asProcessed(DOC, 99L, "pipeline-1"))
                 .describedAs("an input nothing remembers cannot be processed again as it was").isEmpty();
+
+        // A pipeline may hold two supervised stages (design 01 §3), and they record what each made of
+        // the same input on the same pipeline. Whose stage is asking is what tells the two apart:
+        // without it the extraction stage would be answered with the transformation stage's fragment,
+        // which would then be run over raw bytes.
+        final DocRef transform = PipelineDoc.buildDocRef().uuid("fragment-t").name("transform").build();
+        outputs.emitted(2L, "pipeline-2", new Bindings("doc-2", "rule-t", transform, null, false, 0.97));
+        assertThat(outputs.asProcessed(DOC, 2L, "pipeline-2")).get()
+                .describedAs("the stage that asked, not the one that recorded last")
+                .extracting(bindings -> bindings.fragment().getUuid()).isEqualTo("fragment-1");
+        assertThat(outputs.asProcessed("doc-2", 2L, "pipeline-2")).get()
+                .extracting(bindings -> bindings.fragment().getUuid()).isEqualTo("fragment-t");
 
         // Where each record began and ended in the stream it was cut from (§12 item 21), so that a
         // fault found at an event is put to the model with the record that made it.
         outputs.emitted(5L, "pipeline-1", new Bindings(DOC, "rule-1", fragment, null, false, 0.9),
                 List.of(new TextRange(DefaultLocation.of(2, 1), DefaultLocation.of(2, 40)),
                         new TextRange(DefaultLocation.of(3, 1), DefaultLocation.of(4, 12))));
-        assertThat(outputs.span(5L, "pipeline-1", 0)).get()
+        assertThat(outputs.span(DOC, 5L, "pipeline-1", 0)).get()
                 .extracting(span -> span.getFrom().getLineNo(), span -> span.getTo().getColNo())
                 .containsExactly(2, 40);
-        assertThat(outputs.span(5L, "pipeline-1", 1)).get()
+        assertThat(outputs.span(DOC, 5L, "pipeline-1", 1)).get()
                 .describedAs("a record that spans two lines says both")
                 .extracting(span -> span.getFrom().getLineNo(), span -> span.getTo().getLineNo())
                 .containsExactly(3, 4);
-        assertThat(outputs.span(5L, "pipeline-1", 2))
+        assertThat(outputs.span(DOC, 5L, "pipeline-1", 2))
                 .describedAs("a record past what was cut has no span").isEmpty();
-        assertThat(outputs.span(5L, "pipeline-9", 0))
+        assertThat(outputs.span(DOC, 5L, "pipeline-9", 0))
                 .describedAs("and another pipeline's run is another output").isEmpty();
-        assertThat(outputs.span(1L, "pipeline-1", 0))
+        assertThat(outputs.span(DOC, 1L, "pipeline-1", 0))
                 .describedAs("an output recorded with no spans has none to give").isEmpty();
         // And a later run with nothing to say about the records — an as-processed reprocess, which has
         // no parser to ask — leaves what was recorded where it is.
         outputs.emitted(5L, "pipeline-1", new Bindings(DOC, "rule-1", fragment, null, false, 0.9));
-        assertThat(outputs.span(5L, "pipeline-1", 0))
+        assertThat(outputs.span(DOC, 5L, "pipeline-1", 0))
                 .describedAs("knowing nothing does not erase what was known").isPresent();
 
         // Kept for as long as a node is told to keep them, and no longer: a row per output stream is a

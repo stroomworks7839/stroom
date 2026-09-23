@@ -17,10 +17,12 @@
 package stroom.shapeshifter.ai.fragment;
 
 import stroom.docref.DocRef;
+import stroom.pipeline.xml.event.EventList;
 import stroom.shapeshifter.ai.scoring.Attempted;
 import stroom.shapeshifter.shared.RecordBoundary;
 
 import java.util.List;
+import java.util.Optional;
 
 /// Runs a written fragment over an input and says what each of its elements made of it: what the
 /// promotion gate judges (§7.4), and what a bound rule's stream goes through.
@@ -44,5 +46,21 @@ public interface FragmentRunner {
 
     default List<Attempted> run(final DocRef fragment, final String input) {
         return run(fragment, input, null);
+    }
+
+    /// The events the chain's tail emitted on the run just made, where the runner has a pipeline under
+    /// it to emit them. This is how a stream's output reaches the supervisor's own downstream without
+    /// the fragment being run a second time: the run that is judged is the run that is served.
+    ///
+    /// A runner keeps one run's events and the next run replaces them, so a caller that wants a
+    /// particular run's output takes it immediately after that run. The stage does: it takes them where
+    /// it builds the judgement they belong to, and carries them with it, because which run is the one
+    /// being served is not known until the decision is made — a candidate that fails the floor is run
+    /// and discarded, and its events must not be the ones played on.
+    ///
+    /// Empty from [StandInFragmentRunner], which has no pipeline and no events: Tier 1 asserts on what
+    /// each step wrote and has no downstream to play anything on to.
+    default Optional<EventList> lastOutput() {
+        return Optional.empty();
     }
 }

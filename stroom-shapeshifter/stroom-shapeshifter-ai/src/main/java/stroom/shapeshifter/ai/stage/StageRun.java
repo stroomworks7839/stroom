@@ -16,9 +16,11 @@
 
 package stroom.shapeshifter.ai.stage;
 
+import stroom.pipeline.xml.event.EventList;
 import stroom.shapeshifter.ai.learning.Exchange;
 import stroom.shapeshifter.ai.scoring.Verdict;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
+import stroom.util.shared.StoredError;
 
 import java.util.List;
 
@@ -35,6 +37,16 @@ import java.util.List;
  * @param verdicts       The scorecard's verdicts on the fragment over the whole stream, one per step, in
  *                       chain order; empty when nothing ran.
  * @param transcript     Every exchange with the model, oldest first; empty when it was not consulted.
+ * @param events         The same output as the events the fragment emitted making it, for a caller with
+ *                       a downstream to play them on to — which is how the supervisor element serves a
+ *                       stream without running the fragment a second time. Null where the fragment was
+ *                       run by something with no pipeline under it, as Tier 1 runs it, and where
+ *                       nothing ran at all.
+ * @param diagnostics    What the fragment's elements said making that output, for a caller that must
+ *                       put them on the pipeline's error stream (A20). A fragment runs under an error
+ *                       receiver of its own, so that a candidate's complaints reach the model rather
+ *                       than the operator; the one run that is served has to be heard, and these are
+ *                       what it said. Empty where nothing ran or nothing is served.
  */
 public record StageRun(ShapeshifterAiDoc doc,
                        Decision decision,
@@ -42,6 +54,8 @@ public record StageRun(ShapeshifterAiDoc doc,
                        Bindings bindings,
                        String output,
                        List<Verdict> verdicts,
-                       List<Exchange> transcript) {
+                       List<Exchange> transcript,
+                       EventList events,
+                       List<StoredError> diagnostics) {
 
 }

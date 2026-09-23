@@ -22,14 +22,20 @@ import stroom.pipeline.errorhandler.ErrorReceiver;
 import stroom.pipeline.errorhandler.ErrorReceiverProxy;
 import stroom.pipeline.errorhandler.LoggedException;
 import stroom.pipeline.errorhandler.LoggingErrorReceiver;
+import stroom.pipeline.factory.ElementRegistryFactory;
 import stroom.pipeline.factory.Pipeline;
 import stroom.pipeline.factory.PipelineDataCache;
 import stroom.pipeline.factory.PipelineFactory;
 import stroom.pipeline.shared.PipelineDoc;
 import stroom.pipeline.shared.data.PipelineData;
+import stroom.pipeline.shared.data.PipelineDataBuilder;
 import stroom.pipeline.shared.data.PipelineElement;
+import stroom.pipeline.shared.data.PipelineElementType;
 import stroom.pipeline.shared.data.PipelineLink;
 import stroom.pipeline.stepping.capture.HeadlessCapture;
+import stroom.pipeline.xml.event.EventList;
+import stroom.pipeline.xml.event.simple.SimpleEventList;
+import stroom.pipeline.xml.event.simple.SimpleEventListBuilder;
 import stroom.shapeshifter.ai.extraction.PerRecord;
 import stroom.shapeshifter.ai.extraction.RecordJoin;
 import stroom.shapeshifter.ai.learning.StepResult;
@@ -47,6 +53,7 @@ import stroom.util.shared.StoredError;
 
 import jakarta.inject.Inject;
 import jakarta.inject.Provider;
+import org.xml.sax.ContentHandler;
 
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
@@ -55,6 +62,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 /// The fragment run as a pipeline (§12 item 2): the real elements, the real pools, the real filters, and
@@ -77,6 +85,18 @@ public final class PipelineFragmentRunner implements FragmentRunner {
 
     private static final String SOURCE = "Source";
 
+    /// What turns the text a stage is given into the events every element of a transformation-stage
+    /// fragment expects. A fragment learned for a stage fed by a parser (A1) holds no parser of its
+    /// own — there is nothing left to parse — but it is still handed a stream of bytes here, so one
+    /// stands in front of it. It is no part of the chain: the walk that says what each element made of
+    /// the input reads the fragment as the fragment has it.
+    private static final String XML_PARSER = "XMLParser";
+    private static final String XML_PARSER_ID = "shapeshifterAiFragmentParser";
+
+    /// Where the chain's tail writes, so that the events it makes can be played on to the supervisor's
+    /// own downstream rather than made a second time (see [FragmentRunner#lastOutput]).
+    private static final String OUTPUT_ID = "shapeshifterAiOutput";
+
     /// How many records of a run to keep. A judgement is made on a sample (§3), not on a production
     /// stream, and the capture holds what it keeps in memory.
     private static final int MOST_RECORDS = 10_000;
@@ -87,25 +107,33 @@ public final class PipelineFragmentRunner implements FragmentRunner {
 
     private final PipelineStore pipelineStore;
     private final PipelineDataCache pipelineDataCache;
+    private final ElementRegistryFactory elementRegistryFactory;
     private final Provider<PipelineFactory> pipelineFactoryProvider;
     private final Provider<HeadlessCapture> captureProvider;
     private final Provider<ErrorReceiverProxy> errorReceiverProvider;
+    private final Provider<FragmentOutput> fragmentOutputProvider;
     private final TaskContextFactory taskContextFactory;
     private final Map<String, Boolean> parsers = new HashMap<>();
+
+    private SimpleEventList lastOutput;
 
     @Inject
     public PipelineFragmentRunner(final PipelineStore pipelineStore,
                                   final PipelineDataCache pipelineDataCache,
+                                  final ElementRegistryFactory elementRegistryFactory,
                                   final Provider<PipelineFactory> pipelineFactoryProvider,
                                   final Provider<HeadlessCapture> captureProvider,
                                   final Provider<ErrorReceiverProxy> errorReceiverProvider,
+                                  final Provider<FragmentOutput> fragmentOutputProvider,
                                   final TaskContextFactory taskContextFactory,
                                   final List<StepRunner> runners) {
         this.pipelineStore = pipelineStore;
         this.pipelineDataCache = pipelineDataCache;
+        this.elementRegistryFactory = elementRegistryFactory;
         this.pipelineFactoryProvider = pipelineFactoryProvider;
         this.captureProvider = captureProvider;
         this.errorReceiverProvider = errorReceiverProvider;
+        this.fragmentOutputProvider = fragmentOutputProvider;
         this.taskContextFactory = taskContextFactory;
         // The runners are consulted for one thing only: whether an element parses raw input into records
         // (design 01 §4), which decides where the scorers of meaning apply.
@@ -117,9 +145,28 @@ public final class PipelineFragmentRunner implements FragmentRunner {
         final PipelineDoc fragmentDoc = pipelineStore.readDocument(fragment);
         final PipelineData merged = pipelineDataCache.get(fragmentDoc);
 
+        final Map<String, PipelineElement> elements = new HashMap<>();
+        merged.getAddedElements().forEach(element -> elements.put(element.getId(), element));
+        final Map<String, String> next = new HashMap<>();
+        for (final PipelineLink link : merged.getAddedLinks()) {
+            if (next.put(link.getFrom(), link.getTo()) != null) {
+                throw new IllegalStateException("Fragment " + fragment.getName()
+                                                + " forks: a fragment is a single chain");
+            }
+        }
+
         // One capture per run: what this fragment did with this stream and nothing else.
         final HeadlessCapture capture = captureProvider.get();
         capture.setMaxRecords(MOST_RECORDS);
+
+        // And one recorder per run, for the caller that means to play the tail's events on rather than
+        // run the fragment again. Kept whatever the run came to, since a run that stopped has an empty
+        // list and not a stale one.
+        final SimpleEventListBuilder emitted = new SimpleEventListBuilder();
+        lastOutput = (SimpleEventList) emitted.getEventList();
+        final FragmentOutput fragmentOutput = fragmentOutputProvider.get();
+        final ContentHandler borrowed = fragmentOutput.getHandler();
+        fragmentOutput.setHandler(emitted);
 
         // Somewhere for the elements to log. A candidate that will not compile says so through the
         // receiver, and without one in place the first thing it says is a NullPointerException that
@@ -132,7 +179,7 @@ public final class PipelineFragmentRunner implements FragmentRunner {
         String failure = null;
         try {
             final Pipeline pipeline = pipelineFactoryProvider.get()
-                    .create(merged, taskContextFactory.current(), capture);
+                    .create(runnable(fragment, merged, elements, next), taskContextFactory.current(), capture);
             pipeline.process(new ByteArrayInputStream(input.getBytes(StandardCharsets.UTF_8)),
                     StandardCharsets.UTF_8.name());
         } catch (final LoggedException e) {
@@ -146,16 +193,7 @@ public final class PipelineFragmentRunner implements FragmentRunner {
             failure = e.getClass().getSimpleName() + ": " + e.getMessage();
         } finally {
             errorReceiverProxy.setErrorReceiver(previous);
-        }
-
-        final Map<String, PipelineElement> elements = new HashMap<>();
-        merged.getAddedElements().forEach(element -> elements.put(element.getId(), element));
-        final Map<String, String> next = new HashMap<>();
-        for (final PipelineLink link : merged.getAddedLinks()) {
-            if (next.put(link.getFrom(), link.getTo()) != null) {
-                throw new IllegalStateException("Fragment " + fragment.getName()
-                                                + " forks: a fragment is a single chain");
-            }
+            fragmentOutput.setHandler(borrowed);
         }
 
         final List<Attempted> steps = new ArrayList<>();
@@ -194,6 +232,67 @@ public final class PipelineFragmentRunner implements FragmentRunner {
             current = output;
         }
         return steps;
+    }
+
+    @Override
+    public Optional<EventList> lastOutput() {
+        // A run that emitted nothing has nothing to serve, and an empty list is not an output: firing it
+        // at a downstream would write an empty stream, which reads as a feed that had nothing in it. The
+        // caller is told there are no events and says why.
+        return Optional.ofNullable(lastOutput)
+                .filter(events -> !events.getEvents().isEmpty())
+                .map(EventList.class::cast);
+    }
+
+    /// The fragment as a pipeline that can be handed a stream. Two elements are added to what the
+    /// fragment itself holds, and neither belongs to the chain: a parser in front where the chain has
+    /// none, because a fragment learned for a stage fed by a parser is pushed events and is given text
+    /// here; and an output filter at the tail, so that the events the last element makes are kept.
+    ///
+    /// The walk that says what each element made of the input reads the fragment as the fragment has
+    /// it, so nothing added here is scored, re-asked or shown to anyone.
+    private PipelineData runnable(final DocRef fragment,
+                                  final PipelineData merged,
+                                  final Map<String, PipelineElement> elements,
+                                  final Map<String, String> next) {
+        final PipelineDataBuilder builder = new PipelineDataBuilder(merged);
+        final String first = next.get(SOURCE);
+        if (first == null) {
+            throw new IllegalStateException("Fragment " + fragment.getName() + " links nothing to its source");
+        }
+        if (!parses(elements.get(first))) {
+            // Out of the add list, not onto the remove list: `removeLink` records a link taken away from
+            // an *inherited* pipeline, and this one is not inherited from anywhere. Left on, the source
+            // would still be linked straight to an element that cannot take a stream.
+            builder.getLinks().getAddList()
+                    .removeIf(link -> SOURCE.equals(link.getFrom()) && first.equals(link.getTo()));
+            builder.addElement(new PipelineElement(XML_PARSER_ID, XML_PARSER));
+            builder.addLink(SOURCE, XML_PARSER_ID);
+            builder.addLink(XML_PARSER_ID, first);
+        }
+        String tail = first;
+        final Set<String> seen = new HashSet<>();
+        seen.add(first);
+        for (String id = next.get(tail); id != null && seen.add(id); id = next.get(id)) {
+            tail = id;
+        }
+        builder.addElement(new PipelineElement(OUTPUT_ID, FragmentOutputFilter.TYPE));
+        builder.addLink(tail, OUTPUT_ID);
+        return builder.build();
+    }
+
+    /// Whether an element of a fragment turns raw input into records, as the node's own element registry
+    /// has it — the same answer [ReplayUnits] derives a fragment's replay unit from, asked the same way.
+    ///
+    /// The step runners are not asked. A fragment may hold a parser no runner stands in for — stroom's
+    /// XML parser, the combined parser, anything a person put there by hand — and a parser mistaken for
+    /// a filter gets another parser spliced in front of it and a pipeline that cannot be linked.
+    private boolean parses(final PipelineElement element) {
+        if (element == null) {
+            return false;
+        }
+        final PipelineElementType type = elementRegistryFactory.get().getElementType(element.getType());
+        return type != null && type.hasRole(PipelineElementType.ROLE_PARSER);
     }
 
     /// This element and every one after it in the chain: who might have something to say about a run

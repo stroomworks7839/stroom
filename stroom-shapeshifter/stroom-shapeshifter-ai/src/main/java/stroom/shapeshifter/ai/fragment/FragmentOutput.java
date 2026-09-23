@@ -14,17 +14,17 @@
  * limitations under the License.
  */
 
-package stroom.shapeshifter.ai.element;
+package stroom.shapeshifter.ai.fragment;
 
 import stroom.util.pipeline.scope.PipelineScoped;
 
 import org.xml.sax.ContentHandler;
 
 /**
- * Where a fragment's output goes when the supervisor runs it as a nested pipeline: the supervisor's own
- * downstream, set here before the run and read by the {@link FragmentOutputFilter} the supervisor puts
- * at the fragment's tail. Pipeline-scoped because the nested pipeline is built in the supervisor's scope
- * and its elements are handed nothing else.
+ * Where a fragment's output goes when it is run as a nested pipeline: set by
+ * {@link PipelineFragmentRunner} before each run and read by the {@link FragmentOutputFilter} it puts
+ * at the fragment's tail. Pipeline-scoped because the nested pipeline is built in the supervisor's
+ * scope and its elements are handed nothing else.
  */
 @PipelineScoped
 public class FragmentOutput {

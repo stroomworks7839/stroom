@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package stroom.shapeshifter.ai.element;
+package stroom.shapeshifter.ai.fragment;
 
 import stroom.pipeline.factory.ConfigurableElement;
 import stroom.pipeline.filter.AbstractXMLFilter;
@@ -24,13 +24,19 @@ import stroom.svg.shared.SvgImage;
 import jakarta.inject.Inject;
 
 /**
- * The tail the supervisor adds to a fragment when it runs it: every event the fragment's last element
- * emits goes to the supervisor's downstream. Internal — a fragment has no destination of its own
- * (A20), and this is the one the supervisor lends it.
+ * The tail added to a fragment when it is run: every event the fragment's last element emits goes
+ * wherever {@link FragmentOutput} points. Internal — a fragment has no destination of its own (A20),
+ * and this is the one it is lent.
  */
 @ConfigurableElement(
         type = FragmentOutputFilter.TYPE,
-        roles = {PipelineElementType.ROLE_TARGET},
+        // Stepping visibility because a build that captures drops any element without it and links
+        // straight past to its children (`PipelineFactory#getChildElements`). This element has no
+        // children, so being dropped means the tail's events reach nobody — and a fragment is always
+        // run under a capture, since a run is judged as well as served.
+        roles = {
+                PipelineElementType.ROLE_TARGET,
+                PipelineElementType.VISABILITY_STEPPING},
         icon = SvgImage.AI)
 public class FragmentOutputFilter extends AbstractXMLFilter {
 

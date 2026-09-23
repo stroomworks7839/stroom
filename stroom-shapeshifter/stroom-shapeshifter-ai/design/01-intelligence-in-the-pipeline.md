@@ -1678,7 +1678,14 @@ the order they arrived. Items marked *built* already exist in `stroom-shapeshift
    Approve and Reject, over the runtime-state seams of A26 — design 02 §6.1. The element itself,
    `ShapeshifterAiParser`, is built the same day: a parser-position element that runs the bound
    fragment as a nested pipeline in its own scope, with scenario 18 passing as a processor task;
-   the child-task context and per-element capture (item 2) are not.*
+   the child-task context and per-element capture (item 2) are not. **Both positions built
+   2026-09-23**: `ShapeshifterAiFilter` is the same stage shaped as a filter, which is what the
+   transformation stage needs and a parser cannot be — the editor refuses a parser under a parser, so
+   the `RECORD` position of A1 and the `S1 → S2` pair of §3 could not be drawn at all. What the two
+   have in common is `Supervision`; what differs is only their shape in a pipeline. Scenario 50 runs the
+   transformation position end to end. With it, the element stopped running anything: a fragment run
+   keeps the events its tail emitted and the stage carries them on the `StageRun` of the run it decided
+   on, so a stream is transformed once and not twice. The child-task context is still not built.*
 5. **The scorer set of §8.4**, including the input-coverage scorer (A11) and the anti-degeneracy
    scorer (A16), which have no existing equivalent. *The SPI and the compile, coverage and yield scorers
    are built; schema conformance, extraction quality (anti-degeneracy) and business rules followed on
@@ -2213,6 +2220,24 @@ including the degeneracy trap (§8.3) that changes the scoring model and propose
   candidate rather than writing it, and captures what the element wrote; the module's runners remain
   Tier 1's, and a Tier 2 scenario per kind of element holds the two to the same answers. The four Tier 2
   scenarios now run their candidates through the real elements without a line changing in them.
+- Audit of the item 4 slices (the owner's code review): six findings, five fixed — design 02 §6.1 —
+  and one recorded. The critical one was the fix's own seam: the events of a run are taken from the
+  runner, which keeps only the last, and a helper took them for judgements that ran no fragment at all,
+  so a shape learned behind a fragment that had already run took *that* run's events. Two of the others
+  were opened by the pair existing — two supervised stages share one set of stream attributes and one
+  output table, and the second stage's bindings were being dropped while an as-processed reprocess could
+  not tell the two apart. Recorded rather than fixed: one run doing both jobs means the run must finish
+  before the decision is known, so a served stream's whole output is now held as events; the way out is
+  to know the decision before the run, which is a ruling about when a stream may be emitted and then
+  retracted.
+- **The two positions a stage can stand in, and one transform per stream** (§12 item 4, design 02
+  §6.1): `ShapeshifterAiFilter` is the supervised stage shaped as a filter, which settles the collision
+  item 18's audit recorded — the transformation stage has an element it can stand in, and the `S1 → S2`
+  pair of §3 can be drawn. `Supervision` is what both elements are. With it the element stopped running
+  the fragment a second time for the output: a run keeps the events its tail emitted, the stage carries
+  them with the judgement it decided on, and what is served is what was judged. The diagnostics of that
+  run go with them, so a served fragment is still heard on the pipeline's error stream (A20) now that
+  the second run is gone.
 - Audit of item 18 (the owner's code review): six findings, five fixed — design 02 §6.1 — and one
   collision to rule on. The element types that parse were hardcoded in two places on a mistaken belief
   that a resource cannot reach the element registry; both now ask the registry the fragment check asks.
@@ -2221,7 +2246,8 @@ including the degeneracy trap (§8.3) that changes the scoring model and propose
   was at fault. **The collision**: a supervisor element declares the parser role and the pipeline editor
   refuses a parser under a parser, so the `RECORD` position of A1 — and the `S1 → S2` pair of §3 —
   cannot be drawn in the UI. Expressing it needs a transformation-stage element that is a filter rather
-  than a parser, which belongs to §12 item 4.
+  than a parser, which belongs to §12 item 4. *Settled 2026-09-23: that element is
+  `ShapeshifterAiFilter`.*
 - §12 item 18 built (design 02 §6.1): the replay unit derived from the chain rather than declared, and
   the two checks A1 asks for — a rule's fragment must be replayable over what its stage is given, and a
   document's allowed elements must match where its supervisor stands. Both refuse before a model is

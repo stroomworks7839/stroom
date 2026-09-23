@@ -57,16 +57,33 @@ public record Bindings(String docUuid,
      * The bindings as the output stream's attributes carry them.
      */
     public Map<String, String> asAttributes() {
+        return asAttributes(null);
+    }
+
+    /// The bindings as the output stream's attributes carry them, named for one stage of a pipeline that
+    /// holds more than one.
+    ///
+    /// A pipeline may hold two supervised stages — the extract-then-transform pair of design 01 §3 —
+    /// and they have one set of stream attributes between them. The stage nearest the source takes the
+    /// plain names, because that is the binding a reader means when they do not say which stage; every
+    /// stage behind it takes the same names suffixed with its element id, so that what it bound is on
+    /// the stream rather than lost to whoever wrote first.
+    ///
+    /// @param elementId The element to name, or null for the plain names.
+    public Map<String, String> asAttributes(final String elementId) {
+        final String suffix = elementId == null
+                ? ""
+                : "." + elementId;
         final Map<String, String> attributes = new LinkedHashMap<>();
-        attributes.put(DOC_ATTRIBUTE, docUuid);
-        attributes.put(RULE_ATTRIBUTE, ruleUuid);
-        attributes.put(FRAGMENT_ATTRIBUTE, fragment.getUuid());
-        attributes.put(PROVISIONAL_ATTRIBUTE, Boolean.toString(provisional));
-        attributes.put(SCORE_ATTRIBUTE, Double.toString(score));
+        attributes.put(DOC_ATTRIBUTE + suffix, docUuid);
+        attributes.put(RULE_ATTRIBUTE + suffix, ruleUuid);
+        attributes.put(FRAGMENT_ATTRIBUTE + suffix, fragment.getUuid());
+        attributes.put(PROVISIONAL_ATTRIBUTE + suffix, Boolean.toString(provisional));
+        attributes.put(SCORE_ATTRIBUTE + suffix, Double.toString(score));
         if (boundary != null) {
             // What one record was, for a person reading the stream's attributes: the row in the A26
             // table is what an as-processed reprocess reads, but an attribute is what is visible.
-            attributes.put(RECORD_ATTRIBUTE, boundary.toString());
+            attributes.put(RECORD_ATTRIBUTE + suffix, boundary.toString());
         }
         return attributes;
     }

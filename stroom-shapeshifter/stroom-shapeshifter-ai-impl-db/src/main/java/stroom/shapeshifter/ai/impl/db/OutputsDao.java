@@ -65,7 +65,10 @@ public class OutputsDao implements Outputs {
     }
 
     @Override
-    public Optional<TextRange> span(final long inputId, final String pipeline, final int recordIndex) {
+    public Optional<TextRange> span(final String docUuid,
+                                    final long inputId,
+                                    final String pipeline,
+                                    final int recordIndex) {
         if (recordIndex < 0) {
             return Optional.empty();
         }
@@ -73,6 +76,7 @@ public class OutputsDao implements Outputs {
                         .select(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.RECORD_SPANS)
                         .from(ShapeshifterOutput.SHAPESHIFTER_OUTPUT)
                         .where(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.INPUT_META_ID.eq(inputId))
+                        .and(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.DOC_UUID.eq(docUuid))
                         .and(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.PIPELINE_UUID.eq(ofPipeline(pipeline)))
                         .orderBy(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.PRODUCE_TIME_MS.desc(),
                                 ShapeshifterOutput.SHAPESHIFTER_OUTPUT.ID.desc())
@@ -193,7 +197,7 @@ public class OutputsDao implements Outputs {
     }
 
     @Override
-    public Optional<Bindings> asProcessed(final long inputId, final String pipeline) {
+    public Optional<Bindings> asProcessed(final String docUuid, final long inputId, final String pipeline) {
         return JooqUtil.contextResult(connProvider, context -> context
                         .select(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.DOC_UUID,
                                 ShapeshifterOutput.SHAPESHIFTER_OUTPUT.RULE_UUID,
@@ -205,6 +209,9 @@ public class OutputsDao implements Outputs {
                                 ShapeshifterOutput.SHAPESHIFTER_OUTPUT.SCORE)
                         .from(ShapeshifterOutput.SHAPESHIFTER_OUTPUT)
                         .where(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.INPUT_META_ID.eq(inputId))
+                        // This document's stage, since a pipeline may hold two of them (design 01 §3)
+                        // and each records what it made of the same input.
+                        .and(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.DOC_UUID.eq(docUuid))
                         .and(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.PIPELINE_UUID.eq(ofPipeline(pipeline)))
                         // What was produced last is what its output is: a stream served again under the
                         // same rule updates its row in place and keeps the id it was inserted with, so

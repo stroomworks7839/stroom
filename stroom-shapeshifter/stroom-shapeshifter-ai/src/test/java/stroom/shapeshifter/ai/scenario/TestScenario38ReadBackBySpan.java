@@ -43,13 +43,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 /// record's own text comes back out of the stream by its span.
 class TestScenario38ReadBackBySpan {
 
+    private static final String DOC = "doc-1";
     private static final String FEED = "DOOR-ACCESS";
     private static final Golden CSV = Scenarios.corpus("001_csv_with_header");
     private static final String XSLT = Scenarios.resource("csv-logon.xsl");
 
     private static ShapeshifterAiDoc doc() {
         return Scenarios.document()
-                .uuid("doc-1")
+                .uuid(DOC)
                 .name("door-access")
                 .learningMode(LearningMode.AUTOMATIC)
                 .allowedElements(List.of("DSParser", "XSLTFilter"))
@@ -73,7 +74,7 @@ class TestScenario38ReadBackBySpan {
         assertThat(run.decision()).describedAs(run.decision().toString()).isInstanceOf(Promoted.class);
 
         // The spans were kept as the stream was served, one per record the parser cut.
-        final Optional<TextRange> second = scenarios.outputs.span(1L, "pipeline-1", 1);
+        final Optional<TextRange> second = scenarios.outputs.span(DOC, 1L, "pipeline-1", 1);
         assertThat(second).describedAs("the second record's span").isPresent();
 
         // And the record's own text comes back out of the stream by it, without the parser running.
@@ -84,7 +85,7 @@ class TestScenario38ReadBackBySpan {
         assertThat(text)
                 .describedAs("the second record of the stream, which the header line is not")
                 .isEqualTo(lines.get(2));
-        assertThat(scenarios.outputs.span(1L, "pipeline-1", 0).flatMap(span -> inputs.textOf(1L, span)))
+        assertThat(scenarios.outputs.span(DOC, 1L, "pipeline-1", 0).flatMap(span -> inputs.textOf(1L, span)))
                 .contains(lines.get(1));
     }
 
@@ -100,11 +101,11 @@ class TestScenario38ReadBackBySpan {
                 .expect(QuestionMatcher.configuration("XSLTFilter")).reply(Scenarios.fenced(XSLT)));
         final ShapeshifterAiDoc doc = doc();
         stage.run(doc, stream(1, CSV.input()));
-        final TextRange before = scenarios.outputs.span(1L, "pipeline-1", 1).orElseThrow();
+        final TextRange before = scenarios.outputs.span(DOC, 1L, "pipeline-1", 1).orElseThrow();
 
         stage.reprocess(doc, stream(1, CSV.input()));
 
-        assertThat(scenarios.outputs.span(1L, "pipeline-1", 1))
+        assertThat(scenarios.outputs.span(DOC, 1L, "pipeline-1", 1))
                 .describedAs("still there, and the same span")
                 .contains(before);
     }
@@ -113,7 +114,7 @@ class TestScenario38ReadBackBySpan {
     void aRecordNothingRecordedHasNoSpanAndSaysSoRatherThanGuessing() {
         final Scenarios scenarios = new Scenarios();
 
-        assertThat(scenarios.outputs.span(99L, "pipeline-1", 0)).isEmpty();
+        assertThat(scenarios.outputs.span(DOC, 99L, "pipeline-1", 0)).isEmpty();
     }
 
     @Test
