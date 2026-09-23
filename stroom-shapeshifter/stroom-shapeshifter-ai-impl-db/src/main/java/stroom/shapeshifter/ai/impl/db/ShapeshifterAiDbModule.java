@@ -23,6 +23,7 @@ import stroom.shapeshifter.ai.cache.CachedRules;
 import stroom.shapeshifter.ai.cache.CachedShapes;
 import stroom.shapeshifter.ai.cache.Rows;
 import stroom.shapeshifter.ai.stage.Attempts;
+import stroom.shapeshifter.ai.stage.Guidance;
 import stroom.shapeshifter.ai.stage.Ledger;
 import stroom.shapeshifter.ai.stage.Outputs;
 import stroom.shapeshifter.ai.stage.Rules;
@@ -51,6 +52,7 @@ public class ShapeshifterAiDbModule
         super.configure();
         bind(Attempts.class).to(AttemptsDao.class);
         bind(Ledger.class).to(LedgerDao.class);
+        bind(Guidance.class).to(GuidanceDao.class);
         bind(Spend.class).to(SpendDao.class);
         bind(Outputs.class).to(OutputsDao.class);
         // The two the hot path reads for every stream are bound as the rows behind a cache, and the cache

@@ -108,6 +108,11 @@ public class ShapeshifterTurn extends TableImpl<ShapeshifterTurnRecord> {
      */
     public final TableField<ShapeshifterTurnRecord, String> OUTCOME = createField(DSL.name("outcome"), SQLDataType.VARCHAR(32), this, "");
 
+    /**
+     * The column <code>stroom.shapeshifter_turn.carried_guidance</code>.
+     */
+    public final TableField<ShapeshifterTurnRecord, String> CARRIED_GUIDANCE = createField(DSL.name("carried_guidance"), SQLDataType.CLOB(65535), this, "");
+
     private ShapeshifterTurn(Name alias, Table<ShapeshifterTurnRecord> aliased) {
         this(alias, aliased, (Field<?>[]) null, null);
     }

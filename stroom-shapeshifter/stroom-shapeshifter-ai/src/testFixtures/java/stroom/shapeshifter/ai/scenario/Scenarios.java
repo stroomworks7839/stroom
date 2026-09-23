@@ -39,6 +39,7 @@ import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.ai.stage.Stage;
 import stroom.shapeshifter.ai.state.InMemoryAttempts;
 import stroom.shapeshifter.ai.state.InMemoryDocuments;
+import stroom.shapeshifter.ai.state.InMemoryGuidance;
 import stroom.shapeshifter.ai.state.InMemoryInputs;
 import stroom.shapeshifter.ai.state.InMemoryLedger;
 import stroom.shapeshifter.ai.state.InMemoryOutputs;
@@ -83,6 +84,7 @@ public final class Scenarios {
     public final InMemorySpend spend = new InMemorySpend();
     public final InMemoryShapes shapes = new InMemoryShapes();
     public final InMemoryLedger ledger = new InMemoryLedger();
+    public final InMemoryGuidance guidance = new InMemoryGuidance();
     public final InMemoryOutputs outputs = new InMemoryOutputs();
     public final InMemoryReprocessing reprocessing = new InMemoryReprocessing();
     public final InMemoryRegressionSet regressionSet = new InMemoryRegressionSet();
@@ -168,6 +170,7 @@ public final class Scenarios {
                 shapes,
                 spend,
                 ledger,
+                guidance,
                 outputs,
                 reprocessing,
                 regressionSet,

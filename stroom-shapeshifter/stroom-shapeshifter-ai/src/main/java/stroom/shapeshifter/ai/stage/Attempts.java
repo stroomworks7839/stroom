@@ -167,8 +167,24 @@ public interface Attempts {
                 String question,
                 String answer,
                 String answeredBy,
-                StepOutcome outcome) {
+                StepOutcome outcome,
+                List<Long> carried) {
 
+        public Turn {
+            carried = List.copyOf(carried);
+        }
+
+        /// A turn that carried no guidance, which is every turn until somebody says something (A46).
+        public Turn(final int number,
+                    final String stepId,
+                    final int candidate,
+                    final QuestionKind kind,
+                    final String question,
+                    final String answer,
+                    final String answeredBy,
+                    final StepOutcome outcome) {
+            this(number, stepId, candidate, kind, question, answer, answeredBy, outcome, List.of());
+        }
     }
 
     /// A page of attempts, and how many there are to page through.

@@ -29,6 +29,7 @@ import stroom.shapeshifter.ai.scoring.Attempted;
 import stroom.shapeshifter.ai.scoring.OutputRecords;
 import stroom.shapeshifter.ai.scoring.Scorecard;
 import stroom.shapeshifter.ai.scoring.Verdict;
+import stroom.shapeshifter.ai.stage.Guidance.Given;
 import stroom.shapeshifter.shared.Check;
 import stroom.shapeshifter.shared.ConfigureRole;
 import stroom.shapeshifter.shared.LearningPlan;
@@ -54,6 +55,7 @@ import java.util.OptionalInt;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 /**
@@ -89,6 +91,9 @@ public final class Dialogue {
     private final BiConsumer<Integer, Exchange> onTurn;
     private Budget budget;
     private long alreadySpent;
+    private Supplier<List<Given>> guidance = List::of;
+    /// What [#guidance] answered for this walk, read when the walk begins.
+    private List<Given> standing = List.of();
 
     public Dialogue(final Advisor advisor, final List<StepRunner> runners, final Scorecard scorecard) {
         this(advisor, runners, scorecard, Clock.systemUTC());
@@ -147,6 +152,24 @@ public final class Dialogue {
         return this;
     }
 
+    /// What a supervisor has said about the shape being learned (A46), carried into every question.
+    ///
+    /// A supplier rather than a list, because guidance belongs to the shape and not to this object: an
+    /// attempt parked awaiting the model and resumed a day later must carry what was said in between,
+    /// and that is the whole reason a hint needs no timing. Each turn records which rows it carried, so
+    /// a re-walk (A45) replays what was used rather than what has since been added.
+    ///
+    /// Read once per walk rather than once per question. A deferred attempt re-walks from the start on
+    /// every pass of the worker, so a read per question would cost a select per turn per pass — and
+    /// within one walk, which is seconds, a hint arriving between two questions is a distinction nobody
+    /// can act on. The pass that follows reads it afresh.
+    ///
+    /// @return This dialogue, to be run.
+    public Dialogue guidedBy(final Supplier<List<Given>> guidance) {
+        this.guidance = guidance;
+        return this;
+    }
+
     public Outcome run(final ShapeshifterAiDoc policy, final Sample sample) {
         return run(policy, sample, List.of());
     }
@@ -157,6 +180,10 @@ public final class Dialogue {
      */
     public Outcome run(final ShapeshifterAiDoc policy, final Sample sample, final List<StoredError> opening) {
         final Walk walk = new Walk(policy, sample, opening);
+        // What a supervisor has said, read as this walk begins (A46). A deferred attempt is re-walked
+        // from the start on every pass, so each pass reads it afresh and a hint given between passes is
+        // carried by the one that follows.
+        standing = List.copyOf(guidance.get());
         budget = new Budget(policy, clock.millis(), advisor.tokensUsed() - alreadySpent);
         try {
             return follow(walk);
@@ -816,14 +843,17 @@ public final class Dialogue {
         heartbeat.run();
         final String reply;
         try {
-            reply = advisor.ask(List.copyOf(walk.transcript), question);
+            reply = advisor.ask(List.copyOf(walk.transcript), question, standing);
         } catch (final RecordedAdvisor.AwaitingAnswer awaiting) {
             // Where the walk stopped is the dialogue's to say: the advisor knows only the question, and a
             // turn recorded unanswered (A28) needs the step, the candidate and the number it would be.
             throw new RecordedAdvisor.AwaitingAnswer(question, step.effectiveId(), candidate,
                     walk.transcript.size() + 1);
         }
-        final Exchange exchange = new Exchange(question, reply, step.effectiveId(), candidate, null);
+        // What it was actually asked with, which is the advisor's to say: a turn replayed from the
+        // record was asked under what stood then, not under what stands now (A45).
+        final Exchange exchange = new Exchange(question, reply, step.effectiveId(), candidate, null,
+                advisor.carried(standing));
         walk.transcript.add(exchange);
         onTurn.accept(walk.transcript.size(), exchange);
         budget.check(clock.millis(), advisor.tokensUsed());

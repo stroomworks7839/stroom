@@ -136,6 +136,7 @@ public final class Stage {
     private final Shapes shapes;
     private final Spend spend;
     private final Ledger ledger;
+    private final Guidance guidance;
     private final Outputs outputs;
     private final Reprocessing reprocessing;
     private final RegressionSet regressionSet;
@@ -154,6 +155,7 @@ public final class Stage {
                  final Shapes shapes,
                  final Spend spend,
                  final Ledger ledger,
+                 final Guidance guidance,
                  final Outputs outputs,
                  final Reprocessing reprocessing,
                  final RegressionSet regressionSet,
@@ -170,6 +172,7 @@ public final class Stage {
         this.shapes = shapes;
         this.spend = spend;
         this.ledger = ledger;
+        this.guidance = guidance;
         this.outputs = outputs;
         this.reprocessing = reprocessing;
         this.regressionSet = regressionSet;
@@ -730,7 +733,7 @@ public final class Stage {
             record(() -> attempts.turn(attemptId, new Attempts.Turn(number, exchange.step(),
                     exchange.candidate(), Question.kindOf(exchange.question()), exchange.question().summary(),
                     exchange.reply(), answeredBefore.getOrDefault(number, answeredBy),
-                    exchange.outcome())));
+                    exchange.outcome(), exchange.carried())));
         }
     }
 
@@ -811,7 +814,7 @@ public final class Stage {
                                   final ExpressionOperator selector,
                                   final Recorder recorder) {
         // Learn on a prefix, judge on the whole stream.
-        final Outcome outcome = learn(doc, input, attributes, scorecard, List.of(), recorder);
+        final Outcome outcome = learn(doc, shape, input, attributes, scorecard, List.of(), recorder);
         if (outcome instanceof final Abandoned abandoned) {
             return givenUp(doc, shape, input, abandoned.reason(), abandoned.reason(), abandoned.diagnostics(),
                     List.of(), outcome.transcript());
@@ -971,7 +974,7 @@ public final class Stage {
                                                                  + ". The bound fragment scored " + served.score()
                                                                  + " on this stream"));
         served.verdicts().forEach(verdict -> opening.addAll(verdict.feedback()));
-        final Outcome outcome = learn(doc, input, attributes, scorecard, opening, recorder);
+        final Outcome outcome = learn(doc, shape, input, attributes, scorecard, opening, recorder);
         // The mark is spent now that the relearning has happened, and not before: an attempt that parks
         // at a question (A5) is carried on by the worker, which must find the shape as this walk found it
         // or ask something else (A45). Spent whatever the candidate came to, or a shape that cannot be
@@ -1109,6 +1112,7 @@ public final class Stage {
     }
 
     private Outcome learn(final ShapeshifterAiDoc doc,
+                          final Shape shape,
                           final Input input,
                           final Map<String, Object> attributes,
                           final Scorecard scorecard,
@@ -1120,7 +1124,11 @@ public final class Stage {
         // (A28).
         final Dialogue dialogue = new Dialogue(advisor, runners, scorecard, clock,
                 recorder::heartbeat, recorder::turn)
-                .alreadySpent(recorder.alreadySpent());
+                .alreadySpent(recorder.alreadySpent())
+                // What a supervisor has said about this shape (A46), read afresh before every question
+                // so that a hint given while the attempt was parked is carried by the turn that
+                // resumes it.
+                .guidedBy(() -> guidance.standing(doc.getUuid(), shape.id()));
         final Sample sample = Sample.of(learningPrefix(input.data(), doc), doc.getLearningKey(), attributes);
         final long before = advisor.tokensUsed();
         final List<Exchange> asked = new ArrayList<>();

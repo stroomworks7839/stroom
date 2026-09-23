@@ -14,6 +14,7 @@ import org.jooq.impl.SchemaImpl;
 
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterAttempt;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterFeedState;
+import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterGuidance;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterLedger;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterOutput;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterRule;
@@ -44,6 +45,11 @@ public class Stroom extends SchemaImpl {
      * The table <code>stroom.shapeshifter_feed_state</code>.
      */
     public final ShapeshifterFeedState SHAPESHIFTER_FEED_STATE = ShapeshifterFeedState.SHAPESHIFTER_FEED_STATE;
+
+    /**
+     * The table <code>stroom.shapeshifter_guidance</code>.
+     */
+    public final ShapeshifterGuidance SHAPESHIFTER_GUIDANCE = ShapeshifterGuidance.SHAPESHIFTER_GUIDANCE;
 
     /**
      * The table <code>stroom.shapeshifter_ledger</code>.
@@ -93,6 +99,7 @@ public class Stroom extends SchemaImpl {
         return Arrays.asList(
             ShapeshifterAttempt.SHAPESHIFTER_ATTEMPT,
             ShapeshifterFeedState.SHAPESHIFTER_FEED_STATE,
+            ShapeshifterGuidance.SHAPESHIFTER_GUIDANCE,
             ShapeshifterLedger.SHAPESHIFTER_LEDGER,
             ShapeshifterOutput.SHAPESHIFTER_OUTPUT,
             ShapeshifterRule.SHAPESHIFTER_RULE,

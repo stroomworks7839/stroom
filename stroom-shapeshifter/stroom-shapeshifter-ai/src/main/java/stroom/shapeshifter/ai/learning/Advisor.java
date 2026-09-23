@@ -16,6 +16,8 @@
 
 package stroom.shapeshifter.ai.learning;
 
+import stroom.shapeshifter.ai.stage.Guidance.Given;
+
 import java.util.List;
 
 /**
@@ -31,6 +33,33 @@ public interface Advisor {
      * @return The model's reply, verbatim. Parsing it is the caller's job.
      */
     String ask(List<Exchange> transcript, Question question);
+
+    /// The same, with what a supervisor has said about this shape (A46) — carried into the question, in
+    /// front of it, as context rather than as a turn of its own.
+    ///
+    /// Defaulted so that an advisor with no use for it needs to know nothing: a scripted one answers
+    /// what it was told to answer, and guidance is for the thing that has to be persuaded.
+    ///
+    /// @param guidance Everything standing at the moment the question is asked, oldest first. Read per
+    ///                 question rather than per attempt, so that a hint given while an attempt is parked
+    ///                 is carried by the turn that resumes it (A5, A28).
+    default String ask(final List<Exchange> transcript,
+                       final Question question,
+                       final List<Given> guidance) {
+        return ask(transcript, question);
+    }
+
+    /// What the answer just given was actually asked with (A46): the ids a turn records having carried.
+    ///
+    /// For an advisor that put the question, that is the guidance it was offered. For one that replayed
+    /// an answer from the record (A45), it is what the *recorded* turn carried — because a re-walk
+    /// replays what was used and not what has since been added, and only the advisor knows which of the
+    /// two just happened.
+    ///
+    /// @param offered What was given to the [#ask] that has just returned.
+    default List<Long> carried(final List<Given> offered) {
+        return offered.stream().map(Given::id).toList();
+    }
 
     /**
      * Tokens the model has charged this advisor for so far, where it says; zero where it does not. The

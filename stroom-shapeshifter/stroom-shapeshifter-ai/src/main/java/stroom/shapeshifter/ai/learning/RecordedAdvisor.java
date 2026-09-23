@@ -17,6 +17,7 @@
 package stroom.shapeshifter.ai.learning;
 
 import stroom.shapeshifter.ai.stage.Attempts.Turn;
+import stroom.shapeshifter.ai.stage.Guidance.Given;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -44,6 +45,9 @@ public final class RecordedAdvisor implements Advisor {
     private final List<Turn> answered = new ArrayList<>();
     private final Advisor then;
     private int next;
+    /// The turn the last question was answered from, or null where it was put afresh: what says whether
+    /// the guidance a re-walk records is the record's or today's.
+    private Turn replayed;
 
     /// @param turns The turns of the attempt being resumed, in order; those with no answer are the ones it
     ///              stopped at and are not replayed.
@@ -67,15 +71,34 @@ public final class RecordedAdvisor implements Advisor {
 
     @Override
     public String ask(final List<Exchange> transcript, final Question question) {
+        return ask(transcript, question, List.of());
+    }
+
+    /// The record first, then whoever answers what it does not.
+    ///
+    /// Guidance is passed on to the one that has to be persuaded and withheld from the record, which has
+    /// already answered: a replayed turn was asked under what stood then, and saying otherwise would put
+    /// a hint into the history of a question nobody asked with it.
+    @Override
+    public String ask(final List<Exchange> transcript, final Question question, final List<Given> guidance) {
         if (next < answered.size()) {
             final Turn turn = answered.get(next++);
             // The summary names the kind of question and what it is about, so one comparison covers both.
             if (!question.summary().equals(turn.question())) {
                 throw new ReplayDiverged(turn, question);
             }
+            replayed = turn;
             return turn.answer();
         }
-        return then.ask(transcript, question);
+        replayed = null;
+        return then.ask(transcript, question, guidance);
+    }
+
+    @Override
+    public List<Long> carried(final List<Given> offered) {
+        return replayed == null
+                ? then.carried(offered)
+                : replayed.carried();
     }
 
     @Override

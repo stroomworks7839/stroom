@@ -41,6 +41,7 @@ import stroom.shapeshifter.ai.scoring.SchemaConformanceScorer;
 import stroom.shapeshifter.ai.scoring.Scorer;
 import stroom.shapeshifter.ai.scoring.YieldScorer;
 import stroom.shapeshifter.ai.stage.Attempts;
+import stroom.shapeshifter.ai.stage.Guidance;
 import stroom.shapeshifter.ai.stage.Ledger;
 import stroom.shapeshifter.ai.stage.Outputs;
 import stroom.shapeshifter.ai.stage.RegressionSet;
@@ -91,6 +92,7 @@ public class StageFactory {
     private final Shapes shapes;
     private final Spend spend;
     private final Ledger ledger;
+    private final Guidance guidance;
     private final Outputs outputs;
     private final Reprocessing reprocessing;
     private final RegressionSet regressionSet;
@@ -115,6 +117,7 @@ public class StageFactory {
                         final Shapes shapes,
                         final Spend spend,
                         final Ledger ledger,
+                        final Guidance guidance,
                         final Outputs outputs,
                         final Reprocessing reprocessing,
                         final RegressionSet regressionSet) {
@@ -137,6 +140,7 @@ public class StageFactory {
         this.shapes = shapes;
         this.spend = spend;
         this.ledger = ledger;
+        this.guidance = guidance;
         this.outputs = outputs;
         this.reprocessing = reprocessing;
         this.regressionSet = regressionSet;
@@ -175,6 +179,7 @@ public class StageFactory {
                 shapes,
                 spend,
                 ledger,
+                guidance,
                 outputs,
                 reprocessing,
                 regressionSet,

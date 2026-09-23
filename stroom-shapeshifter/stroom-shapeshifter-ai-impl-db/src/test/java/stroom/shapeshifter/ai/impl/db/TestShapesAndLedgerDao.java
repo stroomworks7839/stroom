@@ -23,6 +23,7 @@ import stroom.shapeshifter.ai.stage.Attempts.Page;
 import stroom.shapeshifter.ai.stage.Attempts.Recorded;
 import stroom.shapeshifter.ai.stage.Attempts.Turn;
 import stroom.shapeshifter.ai.stage.Bindings;
+import stroom.shapeshifter.ai.stage.Guidance.Given;
 import stroom.shapeshifter.ai.stage.Ledger;
 import stroom.shapeshifter.ai.stage.Replayable;
 import stroom.shapeshifter.ai.stage.Spend.Spent;
@@ -62,6 +63,8 @@ class TestShapesAndLedgerDao {
     private ShapesDao shapes;
     @Inject
     private LedgerDao ledger;
+    @Inject
+    private GuidanceDao guidance;
     @Inject
     private SpendDao spend;
     @Inject
@@ -706,6 +709,44 @@ class TestShapesAndLedgerDao {
         return shapes.stream()
                 .map(shape -> shape.getShapeId() + " x" + shape.getWaiting() + ": " + shape.getReason())
                 .toList();
+    }
+
+
+    /// A supervisor's messages as rows (A46): kept per shape, read oldest first, and taken back by id.
+    ///
+    /// Per shape and not per attempt, which is the ruling's first decision: what a person knows is about
+    /// the feed, so a hint outlives the attempt that first used it and the relearning of A29 months
+    /// later carries it too.
+    @Test
+    void whatASupervisorSaysIsKeptAgainstTheShape() {
+        final long first = guidance.given(DOC, SHAPE, "Timestamps are local, not UTC.", "jo");
+        final long second = guidance.given(DOC, SHAPE, "Column four is a terminal id.", "sam");
+        guidance.given(DOC, OTHER_SHAPE, "Nothing to do with the door.", "jo");
+
+        assertThat(guidance.standing(DOC, SHAPE))
+                .describedAs("oldest first, so that a later hint correcting an earlier one reads as one")
+                .extracting(Given::id, Given::message, Given::author)
+                .containsExactly(
+                        tuple(first, "Timestamps are local, not UTC.", "jo"),
+                        tuple(second, "Column four is a terminal id.", "sam"));
+        assertThat(guidance.standing(DOC, SHAPE).get(0).timeMs()).isPositive();
+        assertThat(guidance.standing(DOC, OTHER_SHAPE))
+                .describedAs("a hint is about one shape, and a neighbour's is not this one's")
+                .hasSize(1);
+        assertThat(guidance.standing(DOC, "Feed=NOBODY|Type=Raw Events")).isEmpty();
+
+        guidance.withdraw(DOC, first);
+        assertThat(guidance.standing(DOC, SHAPE))
+                .describedAs("a hint that turned out to be wrong is worse than no hint")
+                .extracting(Given::id).containsExactly(second);
+        guidance.withdraw("another-document", second);
+        assertThat(guidance.standing(DOC, SHAPE))
+                .describedAs("and taking one back is by document as well as id, so a mistyped id cannot "
+                             + "take back somebody else's")
+                .hasSize(1);
+
+        guidance.withdraw(DOC, second);
+        guidance.standing(DOC, OTHER_SHAPE).forEach(given -> guidance.withdraw(DOC, given.id()));
     }
 
 }

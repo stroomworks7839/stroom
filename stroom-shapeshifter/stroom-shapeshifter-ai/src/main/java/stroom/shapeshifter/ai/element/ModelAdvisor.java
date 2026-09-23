@@ -22,6 +22,8 @@ import stroom.shapeshifter.ai.learning.Advisor;
 import stroom.shapeshifter.ai.learning.Exchange;
 import stroom.shapeshifter.ai.learning.Question;
 import stroom.shapeshifter.ai.learning.QuestionText;
+import stroom.shapeshifter.ai.stage.Guidance.Given;
+import stroom.util.shared.NullSafe;
 
 import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.data.message.ChatMessage;
@@ -33,6 +35,7 @@ import dev.langchain4j.model.chat.response.ChatResponse;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 
 /**
  * The node's advisor (design 01 §10, §12 item 6): a model document's chat model, asked the questions of
@@ -72,8 +75,18 @@ public final class ModelAdvisor implements Advisor {
 
     @Override
     public String ask(final List<Exchange> transcript, final Question question) {
+        return ask(transcript, question, List.of());
+    }
+
+    /// The document's words, then what a supervisor has said about this shape (A46), then the dialogue.
+    ///
+    /// Guidance goes in the **system** message beside the document's own instructions, because that is
+    /// what it is: a standing fact about the feed, not a turn of the conversation. Put in as a turn it
+    /// would have to be answered; put in here it is simply true for every question that follows.
+    @Override
+    public String ask(final List<Exchange> transcript, final Question question, final List<Given> guidance) {
         final List<ChatMessage> messages = new ArrayList<>();
-        messages.add(SystemMessage.from(words.system()));
+        messages.add(SystemMessage.from(words.system() + guidance(guidance)));
         for (final Exchange exchange : transcript) {
             messages.add(UserMessage.from(words.render(exchange.question())));
             messages.add(AiMessage.from(exchange.reply()));
@@ -103,6 +116,19 @@ public final class ModelAdvisor implements Advisor {
                                                    + (transcript.size() + 1) + ": failed", e);
             throw e;
         }
+    }
+
+    /// What a supervisor has told this stage about this shape, oldest first and attributed. Attributed
+    /// because the model should weigh a person's words as a person's, and because the transcript a
+    /// person reads afterwards has to show whose they were.
+    private static String guidance(final List<Given> guidance) {
+        if (NullSafe.isEmptyCollection(guidance)) {
+            return "";
+        }
+        return guidance.stream()
+                .map(given -> "- " + given.message().strip() + " (" + given.author() + ")")
+                .collect(Collectors.joining("\n",
+                        "\n\nA supervisor of this feed has said:\n", ""));
     }
 
     @Override

@@ -24,6 +24,7 @@ import stroom.shapeshifter.shared.ExecutionMode;
 import stroom.shapeshifter.shared.PromotionMode;
 import stroom.shapeshifter.shared.QuestionKind;
 import stroom.shapeshifter.shared.StepOutcome;
+import stroom.util.shared.NullSafe;
 
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
@@ -33,6 +34,7 @@ import org.jooq.Record;
 import org.jooq.exception.IntegrityConstraintViolationException;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -308,12 +310,19 @@ public class AttemptsDao implements Attempts {
                 .set(SHAPESHIFTER_TURN.OUTCOME, turn.outcome() == null
                         ? null
                         : turn.outcome().name())
+                // Which guidance this question carried (A46), so that a re-walk replays what was used
+                // rather than what has since been added.
+                .set(SHAPESHIFTER_TURN.CARRIED_GUIDANCE, carried(turn.carried()))
                 .onDuplicateKeyUpdate()
                 .set(SHAPESHIFTER_TURN.ANSWER, turn.answer())
                 .set(SHAPESHIFTER_TURN.ANSWERED_BY, turn.answeredBy())
                 .set(SHAPESHIFTER_TURN.OUTCOME, turn.outcome() == null
                         ? null
                         : turn.outcome().name())
+                // On the update as well as the insert: a question the attempt parked at is written
+                // before it is asked, with nothing carried, and answered on the pass that resumes it.
+                // Left off here the column would stay empty for exactly the turn that carried something.
+                .set(SHAPESHIFTER_TURN.CARRIED_GUIDANCE, carried(turn.carried()))
                 .execute());
     }
 
@@ -512,6 +521,25 @@ public class AttemptsDao implements Attempts {
                 turns);
     }
 
+    /// The guidance a turn carried, as a list of ids: small, fixed-width and never queried on, so a
+    /// column of its own would be a table of its own for nothing.
+    private static String carried(final List<Long> carried) {
+        return NullSafe.isEmptyCollection(carried)
+                ? null
+                : carried.stream().map(String::valueOf).collect(Collectors.joining(","));
+    }
+
+    private static List<Long> carried(final String written) {
+        if (NullSafe.isBlankString(written)) {
+            return List.of();
+        }
+        return Arrays.stream(written.split(","))
+                .map(String::trim)
+                .filter(id -> !id.isEmpty())
+                .map(Long::valueOf)
+                .toList();
+    }
+
     private static Turn turn(final Record record) {
         final String outcome = record.get(SHAPESHIFTER_TURN.OUTCOME);
         return new Turn(
@@ -524,6 +552,7 @@ public class AttemptsDao implements Attempts {
                 record.get(SHAPESHIFTER_TURN.ANSWERED_BY),
                 outcome == null
                         ? null
-                        : StepOutcome.valueOf(outcome));
+                        : StepOutcome.valueOf(outcome),
+                carried(record.get(SHAPESHIFTER_TURN.CARRIED_GUIDANCE)));
     }
 }

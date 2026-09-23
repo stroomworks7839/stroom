@@ -174,8 +174,10 @@ public final class InMemoryAttempts implements Attempts {
             throw new IllegalArgumentException("Attempt " + attemptId + " has no turn " + turnNumber);
         }
         final Turn was = written.get(at);
+        // The guidance it was asked with is kept: answering instead replaces the answer, not the
+        // question or what the question carried (A46). The table keeps it for the same reason.
         written.set(at, new Turn(was.number(), was.stepId(), was.candidate(), was.kind(), was.question(),
-                answer, answeredBy, null));
+                answer, answeredBy, null, was.carried()));
         // What came after this turn is a consequence of the answer that has changed, and the walk will
         // derive it again.
         written.removeIf(turn -> turn.number() > turnNumber);
