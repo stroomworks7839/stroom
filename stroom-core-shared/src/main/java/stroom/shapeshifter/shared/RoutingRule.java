@@ -106,6 +106,8 @@ public class RoutingRule {
      */
     @JsonProperty
     private final RecordBoundary recordBoundary;
+    @JsonProperty
+    private final String shapeId;
 
     @JsonCreator
     public RoutingRule(@JsonProperty("uuid") final String uuid,
@@ -116,7 +118,8 @@ public class RoutingRule {
                        @JsonProperty("provisional") final Boolean provisional,
                        @JsonProperty("promotedTimeMs") final Long promotedTimeMs,
                        @JsonProperty("score") final Double score,
-                       @JsonProperty("recordBoundary") final RecordBoundary recordBoundary) {
+                       @JsonProperty("recordBoundary") final RecordBoundary recordBoundary,
+                       @JsonProperty("shapeId") final String shapeId) {
         this.uuid = uuid;
         this.expression = expression;
         this.pipeline = pipeline;
@@ -126,11 +129,12 @@ public class RoutingRule {
         this.promotedTimeMs = promotedTimeMs;
         this.score = score;
         this.recordBoundary = recordBoundary;
+        this.shapeId = shapeId;
     }
 
     @SerialisationTestConstructor
     private RoutingRule() {
-        this(null, null, null, null, null, null, null, null, null);
+        this(null, null, null, null, null, null, null, null, null, null);
     }
 
     /**
@@ -220,6 +224,13 @@ public class RoutingRule {
         return score;
     }
 
+    /// Which shape this rule was learned for (A46), or null where it did not come from one — a rule an
+    /// operator wrote by hand, or one written before this was recorded. A rule with no shape cannot be
+    /// *improved*, because there is nothing to claim an attempt against; relearning is what it has.
+    public String getShapeId() {
+        return shapeId;
+    }
+
     public RecordBoundary getRecordBoundary() {
         return recordBoundary;
     }
@@ -241,13 +252,14 @@ public class RoutingRule {
                Objects.equals(pipeline, that.pipeline) &&
                Objects.equals(promotedTimeMs, that.promotedTimeMs) &&
                Objects.equals(score, that.score) &&
-               Objects.equals(recordBoundary, that.recordBoundary);
+               Objects.equals(recordBoundary, that.recordBoundary) &&
+               Objects.equals(shapeId, that.shapeId);
     }
 
     @Override
     public int hashCode() {
         return Objects.hash(uuid, expression, pipeline, pinned, draft, provisional, promotedTimeMs, score,
-                recordBoundary);
+                recordBoundary, shapeId);
     }
 
     @Override
@@ -288,6 +300,7 @@ public class RoutingRule {
         private Long promotedTimeMs;
         private Double score;
         private RecordBoundary recordBoundary;
+        private String shapeId;
 
         private Builder() {
         }
@@ -302,6 +315,7 @@ public class RoutingRule {
             this.promotedTimeMs = rule.promotedTimeMs;
             this.score = rule.score;
             this.recordBoundary = rule.recordBoundary;
+            this.shapeId = rule.shapeId;
         }
 
         public Builder uuid(final String uuid) {
@@ -344,6 +358,13 @@ public class RoutingRule {
             return this;
         }
 
+        /// Which shape this rule was learned for (A46), or null where it did not come from one: a rule
+        /// an operator wrote by hand has no shape, and neither has one written before this was recorded.
+        public Builder shapeId(final String shapeId) {
+            this.shapeId = shapeId;
+            return this;
+        }
+
         public Builder recordBoundary(final RecordBoundary recordBoundary) {
             this.recordBoundary = recordBoundary;
             return this;
@@ -351,7 +372,7 @@ public class RoutingRule {
 
         public RoutingRule build() {
             return new RoutingRule(uuid, expression, pipeline, pinned, draft, provisional, promotedTimeMs, score,
-                    recordBoundary);
+                    recordBoundary, shapeId);
         }
     }
 }

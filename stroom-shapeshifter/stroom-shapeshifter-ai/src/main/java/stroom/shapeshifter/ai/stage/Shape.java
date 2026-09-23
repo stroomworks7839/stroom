@@ -54,6 +54,26 @@ public record Shape(Map<String, String> values, List<String> missing) {
         return new Shape(values, missing);
     }
 
+    /// A shape read back from the id it was recorded under, for a path that begins from a *rule* rather
+    /// than from a stream (A46's improvement): the stream whose values made the id is long gone, and the
+    /// id is what keys the ledger, the shape's state and an attempt's claim.
+    ///
+    /// Splitting the id back up is exact for every value that can be told apart by it in the first
+    /// place. A value holding a `|` or an `=` would mis-split here — and would already have made two
+    /// different shapes share one id, which is the worse of the two problems and not this method's.
+    public static Shape parse(final String id) {
+        final Map<String, String> values = new LinkedHashMap<>();
+        if (id != null && !id.isBlank()) {
+            for (final String field : id.split("\\|")) {
+                final int at = field.indexOf('=');
+                if (at > 0) {
+                    values.put(field.substring(0, at), field.substring(at + 1));
+                }
+            }
+        }
+        return new Shape(values, List.of());
+    }
+
     /**
      * The shape as the ledger and the regression set key it: the key's values in order, e.g.
      * {@code Feed=SYSLOG|Type=Raw Events}.

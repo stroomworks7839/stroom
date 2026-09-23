@@ -1925,6 +1925,12 @@ the order they arrived. Items marked *built* already exist in `stroom-shapeshift
    that touches those tables. Item 29 assumes A46's three open decisions are settled first: how a hint
    enters, whether a person may promote over the gate's refusal, and whether a hint is copied into the
    document's `instructions`.
+   *The message built 2026-09-23 as the `Guidance` seam (migration 011, 012) — per `(doc, shape)`,
+   carried into every question and recorded on each turn that carried it — and `Stage.improve` the same
+   day, opening an attempt from the incumbent's configuration and judging it against every record the
+   rule was accepted on. The rule records its shape now (migration 013), since an improvement starts
+   from a rule and a selector's values are escaped for the matcher. Owed: the surfaces, and the promotion
+   over a refusal that decision 2 allows.*
 
 Items 1 and 2 are changes to `stroom-pipeline` that benefit the stepper too. They were built as part of
 this work rather than proposed separately, at the owner's direction (2026-09-23): while this is an MVP
@@ -2239,6 +2245,14 @@ including the degeneracy trap (§8.3) that changes the scoring model and propose
   candidate rather than writing it, and captures what the element wrote; the module's runners remain
   Tier 1's, and a Tier 2 scenario per kind of element holds the two to the same answers. The four Tier 2
   scenarios now run their candidates through the real elements without a line changing in them.
+- **A supervisor's message, and improving a rule that is already good** (A46, §12 item 29, design 02
+  §6.1): a hint attaches to the shape and every question afterwards carries it; `Stage.improve` opens an
+  attempt from what the incumbent wrote, judged against the records the rule was accepted on, with the
+  incumbent serving throughout. The improvement needed the rule to record its shape (migration 013),
+  since a selector holds the shape's values escaped for the matcher and reading one back is guesswork.
+  Owed: the surfaces — *hint* on a shape or attempt, and the filter over serving rules with *improve* on
+  the row. Stated rather than leaned on: the regression set is in memory, so after a restart a rule has
+  no accepted records and an improvement is refused rather than judged against nothing.
 - **The Supervisor's decisions and the ledger beside them** (A28's remainder, design 02 §6.1):
   Approve, Reject and *learn this shape again* on the attempt list, and the ledger as a row per shape —
   how many streams are waiting, since when, and what the last of them was told. The ledger needed a way

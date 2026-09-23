@@ -284,6 +284,20 @@ public class ShapeshifterRuleRecord extends UpdatableRecordImpl<ShapeshifterRule
         return (Integer) get(18);
     }
 
+    /**
+     * Setter for <code>stroom.shapeshifter_rule.shape_id</code>.
+     */
+    public void setShapeId(String value) {
+        set(19, value);
+    }
+
+    /**
+     * Getter for <code>stroom.shapeshifter_rule.shape_id</code>.
+     */
+    public String getShapeId() {
+        return (String) get(19);
+    }
+
     // -------------------------------------------------------------------------
     // Primary key information
     // -------------------------------------------------------------------------
@@ -307,7 +321,7 @@ public class ShapeshifterRuleRecord extends UpdatableRecordImpl<ShapeshifterRule
     /**
      * Create a detached, initialised ShapeshifterRuleRecord
      */
-    public ShapeshifterRuleRecord(Long id, Integer version, Long createTimeMs, Long updateTimeMs, String docUuid, String ruleUuid, Integer sortOrder, String expression, String pipelineType, String pipelineUuid, String pipelineName, Boolean pinned, Boolean draft, Boolean provisional, Long promotedTimeMs, Double score, String boundaryElement, String boundaryArray, Integer boundaryDepth) {
+    public ShapeshifterRuleRecord(Long id, Integer version, Long createTimeMs, Long updateTimeMs, String docUuid, String ruleUuid, Integer sortOrder, String expression, String pipelineType, String pipelineUuid, String pipelineName, Boolean pinned, Boolean draft, Boolean provisional, Long promotedTimeMs, Double score, String boundaryElement, String boundaryArray, Integer boundaryDepth, String shapeId) {
         super(ShapeshifterRule.SHAPESHIFTER_RULE);
 
         setId(id);
@@ -329,6 +343,7 @@ public class ShapeshifterRuleRecord extends UpdatableRecordImpl<ShapeshifterRule
         setBoundaryElement(boundaryElement);
         setBoundaryArray(boundaryArray);
         setBoundaryDepth(boundaryDepth);
+        setShapeId(shapeId);
         resetTouchedOnNotNull();
     }
 }

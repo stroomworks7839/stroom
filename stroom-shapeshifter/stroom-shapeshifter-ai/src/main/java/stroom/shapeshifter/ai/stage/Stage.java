@@ -17,6 +17,7 @@
 package stroom.shapeshifter.ai.stage;
 
 import stroom.docref.DocRef;
+import stroom.meta.shared.MetaFields;
 import stroom.pipeline.xml.event.EventList;
 import stroom.query.api.ExpressionOperator;
 import stroom.shapeshifter.ai.extraction.PerRecord;
@@ -68,6 +69,7 @@ import stroom.util.logging.LambdaLoggerFactory;
 import stroom.util.logging.LogUtil;
 import stroom.util.shared.DocPath;
 import stroom.util.shared.ElementId;
+import stroom.util.shared.NullSafe;
 import stroom.util.shared.Severity;
 import stroom.util.shared.StoredError;
 import stroom.util.shared.TextRange;
@@ -298,6 +300,189 @@ public final class Stage {
         // concluded about it — given up, marked, a draft awaiting someone — is undone, or the re-run would
         // be refused by the state its own first run left behind (A28).
         shapes.reset(doc.getUuid(), recorded.attempt().shape());
+    }
+
+    /// Ask for a rule that is already serving to be made **better** (A46, §12 item 29).
+    ///
+    /// Not `relearn`, which marks a shape and waits for the next stream to carry the work. An
+    /// improvement does not wait for traffic: the records the rule was accepted on are kept per rule
+    /// (A18) with the score each achieved, so an attempt has both a sample to learn from and the bar to
+    /// beat without a stream arriving. A feed that ships once a day can be improved at eleven in the
+    /// morning.
+    ///
+    /// It begins from what the incumbent wrote rather than from nothing — the model is shown what is
+    /// serving, what it scores, and what the person wants better — and the incumbent keeps serving
+    /// throughout (A29): a candidate takes over only through the ordinary gate (A15, A18, §7.4). So
+    /// nothing waits for a person and a person waits for nothing.
+    ///
+    /// The message is recorded as guidance for the shape (A46) before the attempt opens, which is what
+    /// carries it into every question the attempt asks — and leaves it standing for the relearning after
+    /// this one, because what a person knows about a feed does not stop being true.
+    ///
+    /// @param ruleUuid The rule to improve: one that is serving. A draft is decided, not improved; a
+    ///                 reserved rule binds nothing; a rule with no shape did not come from one.
+    /// @param message  What the person wants better, in their words. Optional: asking again from the
+    ///                 incumbent is itself worth something.
+    /// @param by       Who asked, for the guidance and for the attempt.
+    public StageRun improve(final ShapeshifterAiDoc doc,
+                            final String ruleUuid,
+                            final String message,
+                            final String by) {
+        final RoutingRule incumbent = rules.forDocument(doc.getUuid()).stream()
+                .filter(rule -> rule.getUuid().equals(ruleUuid))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Rule " + ruleUuid + " is not a rule of this document"));
+        if (incumbent.isDraft()) {
+            throw new IllegalArgumentException("Rule " + ruleUuid + " is a draft awaiting review: approve or "
+                                               + "reject it rather than improving it");
+        }
+        if (incumbent.isReserved() || incumbent.getPipeline() == null) {
+            throw new IllegalArgumentException("Rule " + ruleUuid + " binds nothing, so there is nothing to "
+                                               + "improve");
+        }
+        if (NullSafe.isBlankString(incumbent.getShapeId())) {
+            throw new IllegalArgumentException("Rule " + ruleUuid + " did not come from a learned shape, so "
+                                               + "there is no shape to learn again");
+        }
+        if (incumbent.isPinned()) {
+            // §7.3 rule 2: a pin freezes a rule — served, never promoted, retracted or relearned. An
+            // improvement rebinds it, which is exactly what the pin is there to stop.
+            throw new IllegalStateException("Rule " + ruleUuid + " is pinned; unpin it before improving it");
+        }
+        if (doc.getLearningMode() == LearningMode.DISABLED) {
+            // The kill switch is a kill switch. Every other path that asks a model reads it, and a
+            // button that asked anyway would be a way round it.
+            throw new IllegalStateException("Shapeshifter AI is disabled for this document");
+        }
+        final Optional<String> awaiting = shapes.draftAwaiting(doc.getUuid(), incumbent.getShapeId());
+        if (awaiting.isPresent()) {
+            // One draft per shape: a second would overwrite the pointer that says which one is awaiting
+            // review, leaving the first in the table with nothing to approve or reject it by.
+            throw new IllegalStateException("Draft rule " + awaiting.get() + " is already awaiting review "
+                                            + "for this shape; decide it before asking for another");
+        }
+        final List<Accepted> accepted = regressionSet.accepted(ruleUuid);
+        if (accepted.isEmpty()) {
+            // Without a record it was accepted on there is nothing to learn from and nothing to beat.
+            // Said rather than guessed at: an improvement judged on nothing would be a promotion in
+            // disguise.
+            throw new IllegalArgumentException("Rule " + ruleUuid + " has no accepted records to improve "
+                                               + "against; relearn its shape instead");
+        }
+        if (!NullSafe.isBlankString(message)) {
+            guidance.given(doc.getUuid(), incumbent.getShapeId(), message, by);
+        }
+
+        // The shape the rule was learned for, read back from what the rule recorded: an improvement
+        // begins from a rule and there is no stream to take a shape from.
+        final Shape shape = Shape.parse(incumbent.getShapeId());
+        final Accepted sample = accepted.get(0);
+        // The shape's own values, so that the model is asked about the feed it is improving rather than
+        // about an unnamed sample: the headers are what a question carries and what A29's "shown means
+        // bound" rests on. They come from the rule, since there is no stream here to read them off.
+        final Input input = new Input(-1L,
+                shape.values().get(MetaFields.FIELD_FEED),
+                shape.values().get(MetaFields.FIELD_TYPE),
+                shape.values(), sample.input(), null);
+        final Map<String, Object> attributes = input.routingAttributes(ShapeSignature.of(sample.input()));
+        final Scorecard scorecard = new Scorecard(doc.getScorers(), scorers);
+        // Asked where it was asked from, whatever the document's execution mode. Deferred mode exists
+        // because a model call inside a *processing task* holds a task slot (A5); an improvement is not
+        // a processing task, the incumbent is serving throughout, and nothing waits on it but the person
+        // who asked. Carrying one on from the worker would need the attempt to remember that it is an
+        // improvement and to find its sample in the regression set rather than in the stream store,
+        // which is not built.
+        return recording(doc, shape, input, advisors.of(doc),
+                reason -> refused(doc, shape, "Rule " + ruleUuid + " is not being improved: " + reason),
+                recorder -> improveUnderClaim(doc, incumbent, input, attributes, scorecard, accepted, recorder));
+    }
+
+    /// The improvement itself, under the attempt's claim on the shape (A42, A45).
+    ///
+    /// The model opens with what the incumbent is and what it scores, so that it improves something
+    /// rather than starting again in ignorance; and the gate is the accepted records themselves — every
+    /// one of them, since there is no stream to be better on. A candidate that is worse on any record
+    /// the rule was accepted on is not an improvement whatever else it does (A18).
+    private StageRun improveUnderClaim(final ShapeshifterAiDoc doc,
+                                       final RoutingRule incumbent,
+                                       final Input input,
+                                       final Map<String, Object> attributes,
+                                       final Scorecard scorecard,
+                                       final List<Accepted> accepted,
+                                       final Recorder recorder) {
+        final Shape shape = Shape.parse(incumbent.getShapeId());
+        final List<StoredError> opening = new ArrayList<>();
+        opening.add(new StoredError(Severity.ERROR, null, STAGE,
+                "Improving " + incumbent.getPipeline().getName() + ", which is serving this shape and scored "
+                + incumbent.getScore() + " when it was promoted. It is not failing: make it better."));
+        final Outcome outcome = learn(doc, shape, input, attributes, scorecard, opening, recorder);
+        if (outcome instanceof final Abandoned abandoned) {
+            return kept(doc, shape, incumbent, "No candidate: " + abandoned.reason(), outcome.transcript());
+        }
+        final Learned learned = (Learned) outcome;
+        final Judged candidate = asLearned(rerun(learned.chain(), input.data(), learned.boundary()), scorecard);
+        if (!candidate.clearsFloor(doc)) {
+            return kept(doc, shape, incumbent, "Candidate scored " + candidate.score() + " against a floor of "
+                                               + doc.getPromotionFloor(), learned.transcript());
+        }
+        // Every accepted record, not one: an improvement asked for out of the blue has no stream to be
+        // better on, so the records the rule was accepted on are the whole of the evidence (A18).
+        for (final Accepted record : accepted) {
+            final Judged onRecord = asLearned(rerun(learned.chain(), record.input(), learned.boundary()),
+                    scorecard);
+            if (onRecord.score() < record.score()) {
+                return kept(doc, shape, incumbent, "Candidate scored " + onRecord.score() + " against "
+                                                   + record.score() + " accepted on an earlier stream",
+                        learned.transcript());
+            }
+        }
+        final DocRef fragment = write(doc, shape, learned);
+        // A shape marked for relearning has just been learned again, by hand: the mark is spent, or the
+        // next stream of the shape would relearn the rule somebody has only now improved.
+        shapes.reset(doc.getUuid(), shape.id());
+        if (doc.getPromotionMode() == PromotionMode.REVIEW) {
+            // Behind the incumbent, which keeps serving until somebody approves this (A25).
+            final RoutingRule draft = RoutingRule.builder()
+                    .uuid(UUID.randomUUID().toString())
+                    .expression(incumbent.getExpression())
+                    .pipeline(fragment)
+                    .draft(true)
+                    .score(candidate.score())
+                    .recordBoundary(learned.boundary())
+                    .shapeId(shape.id())
+                    .build();
+            rules.append(doc.getUuid(), draft);
+            regressionSet.accept(draft.getUuid(), List.of(new Accepted(input.data(), candidate.score(),
+                    learned.targets())), doc.getRegressionCap());
+            shapes.awaitReview(doc.getUuid(), shape.id(), draft.getUuid());
+            return new StageRun(doc, new Drafted(draft, candidate.score()), shape, null, candidate.output(),
+                    candidate.verdicts(), learned.transcript(), null, List.of());
+        }
+        final RoutingRule rebound = incumbent.copy()
+                .pipeline(fragment)
+                .promotedTimeMs(clock.millis())
+                .score(candidate.score())
+                .recordBoundary(learned.boundary())
+                .shapeId(shape.id())
+                .build();
+        regressionSet.accept(rebound.getUuid(), List.of(new Accepted(input.data(), candidate.score(),
+                learned.targets())), doc.getRegressionCap());
+        rules.replace(doc.getUuid(), rebound);
+        return new StageRun(doc, new Rebound(incumbent, rebound, candidate.score()), shape,
+                new Bindings(doc.getUuid(), rebound.getUuid(), fragment, learned.boundary(), false,
+                        candidate.score()),
+                candidate.output(), candidate.verdicts(), learned.transcript(), null, List.of());
+    }
+
+    /// The incumbent goes on serving, and why it was not replaced is said rather than swallowed.
+    private StageRun kept(final ShapeshifterAiDoc doc,
+                          final Shape shape,
+                          final RoutingRule incumbent,
+                          final String reason,
+                          final List<Exchange> transcript) {
+        return new StageRun(doc, new Kept(incumbent, reason), shape, null, null, List.of(), transcript, null,
+                List.of());
     }
 
     /**
@@ -614,9 +799,18 @@ public final class Stage {
         // tokens: asking twice would read two fresh counters and record nothing spent. In deferred mode
         // there is no advisor at all (A5): the attempt is opened and parked at its first question for the
         // worker to carry on, so the task costs a sentinel and not a model call.
-        final Advisor advisor = doc.getExecutionMode() == ExecutionMode.DEFERRED
+        return recording(doc, shape, input, doc.getExecutionMode() == ExecutionMode.DEFERRED
                 ? RecordedAdvisor.awaiting()
-                : advisors.of(doc);
+                : advisors.of(doc), waiting, attempt);
+    }
+
+    /// The same, for a caller that has already decided who answers.
+    private StageRun recording(final ShapeshifterAiDoc doc,
+                               final Shape shape,
+                               final Input input,
+                               final Advisor advisor,
+                               final Function<String, StageRun> waiting,
+                               final Function<Recorder, StageRun> attempt) {
         final Optional<Long> opened = attempts.opened(new Attempts.Attempt(doc.getUuid(), shape.id(),
                 input.feed(), input.type(), input.id(), node, doc.getExecutionMode(), doc.getPromotionMode(),
                 claimUntil(doc)), clock.millis());
@@ -1028,6 +1222,7 @@ public final class Stage {
                     .draft(true)
                     .score(candidate.score())
                     .recordBoundary(learned.boundary())
+                    .shapeId(shape.id())
                     .build();
             rules.append(doc.getUuid(), draft);
             regressionSet.accept(draft.getUuid(), List.of(new Accepted(input.data(), candidate.score(),
@@ -1079,6 +1274,9 @@ public final class Stage {
                         : clock.millis())
                 .score(judged.score())
                 .recordBoundary(boundary)
+                // Which shape it was learned for (A46): what an improvement claims its attempt against,
+                // and what a view of serving rules shows beside each one.
+                .shapeId(shape.id())
                 .build();
         // Appended, not prepended (design 02 §4): learned rules are exclusive by key, so order among them
         // is moot, and an operator's more specific rule above them keeps its precedence.
@@ -1170,6 +1368,11 @@ public final class Stage {
                     .promotedTimeMs(clock.millis())
                     .score(draft.getScore())
                     .recordBoundary(draft.getRecordBoundary())
+                    // The draft knows its shape and the incumbent may predate the column (A46): taking
+                    // it over is how a rule written before then stops being one that cannot be improved.
+                    .shapeId(draft.getShapeId() == null
+                            ? incumbent.get().getShapeId()
+                            : draft.getShapeId())
                     .build());
             rules.remove(doc.getUuid(), draft.getUuid());
             regressionSet.accept(incumbent.get().getUuid(), regressionSet.accepted(draft.getUuid()),

@@ -2637,6 +2637,53 @@ grid, which is a different shape of work from a button; and *retract* and *widen
 lists and which have no endpoint yet.
 
 
+The forty-seventh slice, 2026-09-23, is design 03 §7's ninth, ruling A46 and §12 item 29: **a
+supervisor's message, and improving a rule that is already good**. Built in two halves, and recorded as
+two.
+
+**The message** (committed separately). A hint, a correction, or a fact about the feed the sample does
+not show, attached to the **shape** — which is the whole of A46's first decision. What a person knows is
+about the feed, not about turn 7 of attempt 412, so nothing has to be timed, nothing is refused for
+arriving at the wrong moment, and a hint outlives the attempt that first used it. It goes into the
+system text beside the document's own instructions and attributed, because that is what it is: a
+standing fact rather than a turn of the conversation. Read as a walk begins, so a deferred attempt's
+next pass carries what was said between passes without a select per question.
+
+Its audit found six, and the first was the day's fourth instance of one mistake: guidance never reached
+the model in deferred mode, because the new method was carried through the model's advisor and not
+through the one that wraps it on every resumed attempt — while the turn went on recording that it had.
+Behind it, a re-walk was stamping today's guidance onto turns answered from the record, which is the
+opposite of what its own comment promised. The advisor says what an answer was asked with now, because
+only it knows whether it put the question or replayed one.
+
+**The improvement.** `Stage.improve` is the door A46 says does not exist: a rule serving at 0.93 is above
+every threshold, nothing has flagged it, and there was no way to ask for better. It is not `relearn`,
+which marks a shape and waits for the next stream to do the work. An improvement does not wait for
+traffic — the records a rule was accepted on are kept per rule (A18) with the score each achieved, so an
+attempt has both a sample to learn from and the bar to beat with no stream arriving. A feed that ships
+once a day can be improved at eleven in the morning.
+
+It opens from what the incumbent wrote rather than from nothing, the incumbent serves throughout, and a
+candidate takes over only through the ordinary gate: clear the floor, and be no worse on **every** record
+the rule was accepted on. Every one, not one — with no stream to be better on, those records are the
+whole of the evidence. The person's message is recorded as guidance before the attempt opens, so the
+same machinery carries it into every question and leaves it standing for the relearning after this one.
+
+**It needed one thing of the rule: its shape.** An improvement begins from a rule, and a rule recorded
+no shape. Its selector holds the shape's values, but as a matcher expression with the values escaped, so
+reading a shape back out of one is guesswork. Migration 013 puts the shape on the rule — which the view
+of serving rules needs on every row in any case — and a rule that has none, because an operator wrote it
+by hand or because it predates the column, is refused plainly rather than guessed at.
+
+**The limit, stated rather than leaned on.** The regression set is still in memory and node-local, and it
+is exactly what an improvement samples from and is judged against. After a restart a rule has no accepted
+records, and `improve` refuses it — which is the right failure rather than improving against nothing, but
+it means the door only opens for rules promoted since the node last started. Making the regression set a
+stream is design 01 §15.2's, deferred with phase E; it is the one item there the MVP puts on screen.
+
+281 tests in the module, 27 against MySQL, 18 in Tier 2.
+
+
 ## 7. Decisions taken
 
 Ruled 2026-09-17, each as recommended:
