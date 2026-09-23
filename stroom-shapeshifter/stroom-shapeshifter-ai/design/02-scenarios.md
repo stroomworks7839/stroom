@@ -2683,6 +2683,83 @@ stream is design 01 §15.2's, deferred with phase E; it is the one item there th
 
 281 tests in the module, 27 against MySQL, 18 in Tier 2.
 
+**The surfaces.** The third half, and the one that makes the other two reachable: until it existed
+neither `Guidance.given` nor `Stage.improve` had a caller outside a test. A46 names the way in — *a
+filter over serving rules by rolling score, ordered by the traffic each carries, with improve beside
+re-learn on the row; and hint on an attempt* — and the Supervisor gains all of it.
+
+**Why the list is ordered by traffic and only filtered by score.** Every other surface in the feature is
+reached because something went wrong: a shape was given up, a draft awaits review, a rolling score fell
+through the floor. A rule serving at 0.93 is above every threshold and nothing will ever raise it, so a
+person who wants it better has to go and find it — and the rule worth an hour is the one carrying the
+most streams. Sorting by score would put the worst rule in the installation at the top whether it
+carried one stream a month or a million.
+
+**A seam of its own, because it is none of the three tables and all of them.** `Serving` joins the rules
+to the shape state each was learned for and to what has been said about it. Not a method on `Rules`,
+which would have made the rule store depend on shape state it knows nothing about; and not a read above
+the seams, which would have meant loading every rule of a document to sort it in Java — the one thing a
+document with ten thousand shapes cannot afford. The node answers with one statement and the in-memory
+sibling does the same work over three maps, held together by an agreement test on the order, the paging
+and the totals, as the ledger's two are.
+
+**Migration 014, and why the rule needed a second column for its shape.** 013 put the shape's *id* on the
+rule, which is what a person reads and what an improvement claims its attempt against. The view needs to
+*join* on it, and `shape_id` is a `longtext` because a learning key may name a sender-supplied header — a
+join on which cannot use an index. So the hash goes beside it, written wherever the id is, and the
+existing rows are backfilled in the migration itself: MySQL's `SHA2(x, 256)` is the same digest over the
+same UTF-8 bytes, down to the lower-case hex, as the hash `shapeshifter_shape` is keyed by.
+
+**What the view leaves out, and why each.** A draft is decided rather than improved (A25); a reserved
+rule binds nothing; a rule an operator wrote by hand came from no shape and has nothing to learn again.
+A pinned rule *is* shown — it is serving, and hiding it would be a lie about what is running — but the
+button says why it cannot be improved rather than being offered and then refusing. A rule promoted a
+minute ago is shown with no score at all rather than a zero: the promotion resets the shape, so a
+binding nobody has seen work reads as untested rather than as bad, which is also the row most worth a
+look.
+
+**One thing is not yet what A46 asks for**, and it is the same debt the stage already carries: an
+improvement should be taken by the deferred worker, and it runs while the request is open. The worker
+would need the attempt to remember that it is an improvement and to find its sample in the regression set
+rather than in the stream store. Nothing waits on it meanwhile — the incumbent serves every stream
+throughout, and a candidate takes over only through the ordinary gate — but a person clicking the button
+holds a request while a model is asked.
+
+**Two pre-existing defects found by finishing the loop**, both in this feature's own shared types and
+neither introduced here: `PlanStep` and `RecordBoundary` validate in their constructors, so
+`TestJsonSerialisation` could not build one, and `RecordBoundary.splitDepth()` carried a `@JsonIgnore`
+Jackson never looked at. Both now have the `@SerialisationTestConstructor` the test asks for.
+
+**Its audit found six.** The first was the one that mattered: the improve prompt's callback ran on
+Cancel as well as on OK, because `Window.prompt` answers `null` when a person changes their mind and
+nothing was reading the difference — so changing your mind spent a model run and, in automatic mode,
+could rebind the rule. Every sibling handler guarded; this one could not use their guard, because an
+*empty* message is legitimate here and means "ask again from what it already does". Null is Cancel;
+empty is a question with nothing added.
+
+Behind it: the filter took `NaN` and `Infinity`, which `Double.valueOf` parses without complaint and
+the database refuses to bind, so a typing mistake answered with a server error instead of the message
+written for it; filtering from page three re-read offset forty of a three-row answer and showed an
+empty grid; and a blank-but-not-null shape id was hashed by the rows and skipped by the heap, so the
+two implementations would have disagreed about whether to list a row whose improve button the stage
+then refuses — the "button that lies" again, latent because nothing writes one.
+
+The sixth was the surfaces' own omission: the list showed how much had been said about a shape and
+offered no way to read it or to take any of it back, though `withdraw` had been built and its own
+comment said a wrong hint "is carried into every question about the shape until it is withdrawn". A
+hint that turned out to be wrong is worse than no hint, and a count is not a way to find one. *Hint*
+now opens what is standing — oldest first, with who wrote each and when — and adds or withdraws from
+there, so that a person about to say something sees what has already been said.
+
+Also said rather than left bare: an improvement runs while the request is open, so a request that times
+out has not necessarily failed. The failure now says to look for the attempt before asking again,
+because asking twice spends a second model run.
+
+288 tests in the module, 33 against MySQL, 18 in Tier 2.
+
+
+288 tests in the module, 33 against MySQL, 18 in Tier 2.
+
 
 ## 7. Decisions taken
 

@@ -46,6 +46,7 @@ import stroom.shapeshifter.ai.state.InMemoryOutputs;
 import stroom.shapeshifter.ai.state.InMemoryRegressionSet;
 import stroom.shapeshifter.ai.state.InMemoryReprocessing;
 import stroom.shapeshifter.ai.state.InMemoryRules;
+import stroom.shapeshifter.ai.state.InMemoryServing;
 import stroom.shapeshifter.ai.state.InMemoryShapes;
 import stroom.shapeshifter.ai.state.InMemorySpend;
 import stroom.shapeshifter.ai.transformation.XsltStep;
@@ -90,6 +91,8 @@ public final class Scenarios {
     public final InMemoryRegressionSet regressionSet = new InMemoryRegressionSet();
     public final InMemoryDocuments documents = new InMemoryDocuments();
     public final InMemoryInputs inputs = new InMemoryInputs();
+    /// The serving view of A46 over the three seams above it, as a node reads it from one query.
+    public final InMemoryServing serving = new InMemoryServing(rules, shapes, guidance);
 
     /// A document as a scenario means it: **inline**, so that the stage learns in front of the test. The
     /// document's own default is deferred (A5), which is right for a node — an LLM call in a processing

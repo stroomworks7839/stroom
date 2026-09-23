@@ -1929,8 +1929,14 @@ the order they arrived. Items marked *built* already exist in `stroom-shapeshift
    carried into every question and recorded on each turn that carried it — and `Stage.improve` the same
    day, opening an attempt from the incumbent's configuration and judging it against every record the
    rule was accepted on. The rule records its shape now (migration 013), since an improvement starts
-   from a rule and a selector's values are escaped for the matcher. Owed: the surfaces, and the promotion
-   over a refusal that decision 2 allows.*
+   from a rule and a selector's values are escaped for the matcher. The surfaces followed the same day:
+   the `Serving` seam and the Supervisor's list of serving rules — ordered by the traffic each carries
+   and filtered by what each has been scoring, with *improve* and *hint* on the row — and *hint* on an
+   attempt. The rule carries its shape's hash beside its id (migration 014) so that the list can join
+   and page in the query rather than in Java, which is what a document with ten thousand shapes needs.
+   Owed: the promotion over a refusal that decision 2 allows; and an improvement should be taken by the
+   deferred worker rather than run while the request is open, which wants the attempt to remember that
+   it is an improvement and to find its sample in the regression set.*
 
 Items 1 and 2 are changes to `stroom-pipeline` that benefit the stepper too. They were built as part of
 this work rather than proposed separately, at the owner's direction (2026-09-23): while this is an MVP

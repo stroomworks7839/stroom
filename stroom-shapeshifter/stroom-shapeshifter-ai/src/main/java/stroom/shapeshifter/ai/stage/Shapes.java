@@ -65,4 +65,29 @@ public interface Shapes {
      * rolling score starts afresh.
      */
     void reset(String docUuid, String shape);
+
+    /**
+     * What the shape has been scoring lately and over how many records, for a person reading a list of
+     * what is serving (A46) rather than for the stage. {@link #scored} answers only once the memory is
+     * full, because it decides whether to act; this answers whatever the row holds, because a list that
+     * showed nothing until a shape had brought a hundred records would be empty on the feeds that matter
+     * least often.
+     *
+     * @return Empty where the shape has no row, or has one that has never been scored.
+     */
+    Optional<Rolling> rolling(String docUuid, String shape);
+
+
+    // --------------------------------------------------------------------------------
+
+
+    /**
+     * A shape's rolling score and the traffic behind it.
+     *
+     * @param score   The mean per-record score over the rolling memory (design 01 §5).
+     * @param records How many records that mean rests on, capped at the memory.
+     */
+    record Rolling(double score, int records) {
+
+    }
 }

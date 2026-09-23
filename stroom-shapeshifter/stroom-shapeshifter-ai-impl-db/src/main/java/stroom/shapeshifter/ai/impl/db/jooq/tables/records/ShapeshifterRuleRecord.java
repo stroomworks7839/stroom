@@ -298,6 +298,20 @@ public class ShapeshifterRuleRecord extends UpdatableRecordImpl<ShapeshifterRule
         return (String) get(19);
     }
 
+    /**
+     * Setter for <code>stroom.shapeshifter_rule.shape_hash</code>.
+     */
+    public void setShapeHash(String value) {
+        set(20, value);
+    }
+
+    /**
+     * Getter for <code>stroom.shapeshifter_rule.shape_hash</code>.
+     */
+    public String getShapeHash() {
+        return (String) get(20);
+    }
+
     // -------------------------------------------------------------------------
     // Primary key information
     // -------------------------------------------------------------------------
@@ -321,7 +335,7 @@ public class ShapeshifterRuleRecord extends UpdatableRecordImpl<ShapeshifterRule
     /**
      * Create a detached, initialised ShapeshifterRuleRecord
      */
-    public ShapeshifterRuleRecord(Long id, Integer version, Long createTimeMs, Long updateTimeMs, String docUuid, String ruleUuid, Integer sortOrder, String expression, String pipelineType, String pipelineUuid, String pipelineName, Boolean pinned, Boolean draft, Boolean provisional, Long promotedTimeMs, Double score, String boundaryElement, String boundaryArray, Integer boundaryDepth, String shapeId) {
+    public ShapeshifterRuleRecord(Long id, Integer version, Long createTimeMs, Long updateTimeMs, String docUuid, String ruleUuid, Integer sortOrder, String expression, String pipelineType, String pipelineUuid, String pipelineName, Boolean pinned, Boolean draft, Boolean provisional, Long promotedTimeMs, Double score, String boundaryElement, String boundaryArray, Integer boundaryDepth, String shapeId, String shapeHash) {
         super(ShapeshifterRule.SHAPESHIFTER_RULE);
 
         setId(id);
@@ -344,6 +358,7 @@ public class ShapeshifterRuleRecord extends UpdatableRecordImpl<ShapeshifterRule
         setBoundaryArray(boundaryArray);
         setBoundaryDepth(boundaryDepth);
         setShapeId(shapeId);
+        setShapeHash(shapeHash);
         resetTouchedOnNotNull();
     }
 }

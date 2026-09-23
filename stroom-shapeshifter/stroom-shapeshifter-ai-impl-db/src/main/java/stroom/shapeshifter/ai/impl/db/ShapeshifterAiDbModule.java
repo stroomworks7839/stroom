@@ -27,6 +27,7 @@ import stroom.shapeshifter.ai.stage.Guidance;
 import stroom.shapeshifter.ai.stage.Ledger;
 import stroom.shapeshifter.ai.stage.Outputs;
 import stroom.shapeshifter.ai.stage.Rules;
+import stroom.shapeshifter.ai.stage.Serving;
 import stroom.shapeshifter.ai.stage.Shapes;
 import stroom.shapeshifter.ai.stage.Spend;
 import stroom.util.entityevent.EntityEvent;
@@ -55,6 +56,7 @@ public class ShapeshifterAiDbModule
         bind(Guidance.class).to(GuidanceDao.class);
         bind(Spend.class).to(SpendDao.class);
         bind(Outputs.class).to(OutputsDao.class);
+        bind(Serving.class).to(ServingDao.class);
         // The two the hot path reads for every stream are bound as the rows behind a cache, and the cache
         // is what everything else asks for (design 01 §12 item 8): a routing table read from the database
         // once per stream per node is the first thing to give at volume. Nothing but the cache asks the

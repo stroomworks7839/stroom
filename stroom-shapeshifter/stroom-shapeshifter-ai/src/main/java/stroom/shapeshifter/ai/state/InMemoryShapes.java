@@ -104,6 +104,16 @@ public final class InMemoryShapes implements Shapes {
         row.records = 0;
     }
 
+    /// Whatever the row holds, scored or not: the list of A46 shows a shape that has brought three
+    /// records as well as one that has brought a thousand, and says how many each rests on.
+    @Override
+    public synchronized Optional<Rolling> rolling(final String docUuid, final String shape) {
+        final Row row = rows.get(key(docUuid, shape));
+        return row == null || row.records == 0
+                ? Optional.empty()
+                : Optional.of(new Rolling(row.score, row.records));
+    }
+
     public synchronized double rollingScore(final String docUuid, final String shape) {
         return row(docUuid, shape).score;
     }

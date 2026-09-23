@@ -154,6 +154,11 @@ public class ShapeshifterRule extends TableImpl<ShapeshifterRuleRecord> {
      */
     public final TableField<ShapeshifterRuleRecord, String> SHAPE_ID = createField(DSL.name("shape_id"), SQLDataType.CLOB, this, "");
 
+    /**
+     * The column <code>stroom.shapeshifter_rule.shape_hash</code>.
+     */
+    public final TableField<ShapeshifterRuleRecord, String> SHAPE_HASH = createField(DSL.name("shape_hash"), SQLDataType.VARCHAR(64), this, "");
+
     private ShapeshifterRule(Name alias, Table<ShapeshifterRuleRecord> aliased) {
         this(alias, aliased, (Field<?>[]) null, null);
     }
@@ -190,7 +195,7 @@ public class ShapeshifterRule extends TableImpl<ShapeshifterRuleRecord> {
 
     @Override
     public List<Index> getIndexes() {
-        return Arrays.asList(Indexes.SHAPESHIFTER_RULE_SHAPESHIFTER_RULE_DOC_UUID_SORT_ORDER);
+        return Arrays.asList(Indexes.SHAPESHIFTER_RULE_SHAPESHIFTER_RULE_DOC_SHAPE, Indexes.SHAPESHIFTER_RULE_SHAPESHIFTER_RULE_DOC_UUID_SORT_ORDER);
     }
 
     @Override

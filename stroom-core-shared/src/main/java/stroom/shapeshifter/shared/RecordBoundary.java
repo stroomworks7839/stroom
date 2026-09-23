@@ -16,6 +16,8 @@
 
 package stroom.shapeshifter.shared;
 
+import stroom.util.shared.SerialisationTestConstructor;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -57,6 +59,13 @@ public final class RecordBoundary {
         this.depth = depth;
     }
 
+    /// A boundary that is only enough to be one: what a serialisation test builds, since the real
+    /// constructor refuses the empty one.
+    @SerialisationTestConstructor
+    private RecordBoundary() {
+        this(null, ROOT, null);
+    }
+
     /// The boundary of input that is already XML: the element that is one record.
     public static RecordBoundary ofElement(final String element) {
         return new RecordBoundary(element, null, null);
@@ -83,7 +92,6 @@ public final class RecordBoundary {
     /// XML document at its one wrapper, which is one document for the whole stream and bounds nothing.
     /// A rule with no depth is written without a filter, exactly as it was before item 25, until it is
     /// learned again.
-    @JsonIgnore
     public OptionalInt splitDepth() {
         return depth == null
                 ? OptionalInt.empty()

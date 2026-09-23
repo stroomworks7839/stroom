@@ -117,6 +117,12 @@ public class CachedShapes implements Shapes, Clearable, EntityEvent.Handler {
         return rows.scored(docUuid, shape, score, records, memory);
     }
 
+    /// Straight to the rows, for the same reason [#scored] is: a count every served stream adds to.
+    @Override
+    public Optional<Rolling> rolling(final String docUuid, final String shape) {
+        return rows.rolling(docUuid, shape);
+    }
+
     /// A reverse lookup for a person approving or rejecting a draft, not for the hot path.
     @Override
     public Optional<String> shapeAwaiting(final String docUuid, final String ruleUuid) {

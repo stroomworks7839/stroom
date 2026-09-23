@@ -5,8 +5,15 @@
         <g:ThinSplitLayoutPanel styleName="max">
             <g:north size="400">
                 <g:ThinSplitLayoutPanel styleName="max">
-                    <g:east size="500">
-                        <g:SimplePanel ui:field="ledger" styleName="max dashboard-panel"/>
+                    <g:east size="560">
+                        <g:ThinSplitLayoutPanel styleName="max">
+                            <g:north size="190">
+                                <g:SimplePanel ui:field="ledger" styleName="max dashboard-panel"/>
+                            </g:north>
+                            <g:center>
+                                <g:SimplePanel ui:field="serving" styleName="max dashboard-panel"/>
+                            </g:center>
+                        </g:ThinSplitLayoutPanel>
                     </g:east>
                     <g:center>
                         <g:SimplePanel ui:field="attemptList" styleName="max dashboard-panel"/>

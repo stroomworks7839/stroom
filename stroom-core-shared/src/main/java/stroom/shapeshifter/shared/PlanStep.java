@@ -17,6 +17,7 @@
 package stroom.shapeshifter.shared;
 
 import stroom.docref.HasDisplayValue;
+import stroom.util.shared.SerialisationTestConstructor;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -110,6 +111,13 @@ public class PlanStep {
         this.transitions = transitions == null
                 ? List.of()
                 : Collections.unmodifiableList(new ArrayList<>(transitions));
+    }
+
+    /// A step that is only enough to be one: what a serialisation test builds, since a step with no
+    /// kind is not a step and the real constructor says so.
+    @SerialisationTestConstructor
+    private PlanStep() {
+        this(null, QuestionKind.CHAIN, null, null, null, null, null, null);
     }
 
     /// A step with no id, role, checks or transitions: the form the A34 list had.

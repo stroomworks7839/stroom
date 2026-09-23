@@ -51,16 +51,20 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
     public static final String ATTEMPT_LIST = "ATTEMPT_LIST";
     public static final String TURN_LIST = "TURN_LIST";
     public static final String LEDGER = "LEDGER";
+    public static final String SERVING = "SERVING";
 
     private static final SupervisorResource SUPERVISOR_RESOURCE = GWT.create(SupervisorResource.class);
 
     private final SupervisorListPresenter listPresenter;
     private final SupervisorTurnsPresenter turnsPresenter;
     private final SupervisorLedgerPresenter ledgerPresenter;
+    private final SupervisorServingPresenter servingPresenter;
+    private final SupervisorGuidancePresenter guidancePresenter;
     private final RestFactory restFactory;
     private final ButtonView approveButton;
     private final ButtonView rejectButton;
     private final ButtonView relearnButton;
+    private final ButtonView hintButton;
 
     @Inject
     public SupervisorPresenter(final EventBus eventBus,
@@ -68,16 +72,21 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
                                final SupervisorListPresenter listPresenter,
                                final SupervisorTurnsPresenter turnsPresenter,
                                final SupervisorLedgerPresenter ledgerPresenter,
+                               final SupervisorServingPresenter servingPresenter,
+                               final SupervisorGuidancePresenter guidancePresenter,
                                final RestFactory restFactory) {
         super(eventBus, view);
         this.listPresenter = listPresenter;
         this.turnsPresenter = turnsPresenter;
         this.ledgerPresenter = ledgerPresenter;
+        this.servingPresenter = servingPresenter;
+        this.guidancePresenter = guidancePresenter;
         this.restFactory = restFactory;
 
         setInSlot(ATTEMPT_LIST, listPresenter);
         setInSlot(TURN_LIST, turnsPresenter);
         setInSlot(LEDGER, ledgerPresenter);
+        setInSlot(SERVING, servingPresenter);
 
         // The decisions A28 puts beside the attempt they are about. Approve and Reject are review
         // mode's (A25), offered here as well as on the document's Routing tab because a person watching
@@ -86,6 +95,11 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
         approveButton = listPresenter.add(SvgPresets.TICK.title("Approve what this attempt drafted"));
         rejectButton = listPresenter.add(SvgPresets.DISABLE.title("Reject what this attempt drafted"));
         relearnButton = listPresenter.add(SvgPresets.RERUN.title("Learn this shape again"));
+        // A46's message: neither an answer to a turn nor a decision about one. It attaches to the
+        // attempt's shape, so a person reading a transcript and seeing what the model did not know can
+        // say so there and then, and whatever is asked next carries it.
+        hintButton = listPresenter.add(SvgPresets.EDIT.title(
+                "What has been said about this attempt's shape, and say something else"));
         updateButtons();
     }
 
@@ -104,6 +118,7 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
         registerHandler(approveButton.addClickHandler(event -> approve()));
         registerHandler(rejectButton.addClickHandler(event -> reject()));
         registerHandler(relearnButton.addClickHandler(event -> relearn()));
+        registerHandler(hintButton.addClickHandler(event -> hint()));
     }
 
     /// Approve what an attempt drafted (A25): the promotion it was waiting for, and the release of every
@@ -153,6 +168,23 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
         }
     }
 
+    /// Tell the learning something about the selected attempt's shape (A46).
+    ///
+    /// It attaches to the shape and not to the attempt, which is the ruling's first decision: what a
+    /// person knows is about the feed, not about turn 7 of attempt 412. So nothing has to be timed,
+    /// nothing is refused for arriving at the wrong moment, and a hint outlives the attempt it was
+    /// written from — the relearning of A29, months later, carries it too.
+    ///
+    /// It asks for nothing to be run. A person reading a transcript and seeing what the model did not
+    /// know should be able to write it down there and then.
+    private void hint() {
+        final SupervisorAttempt attempt = selected();
+        if (attempt != null) {
+            guidancePresenter.show(attempt.getDoc().getUuid(), attempt.getShape(),
+                    servingPresenter::refresh);
+        }
+    }
+
     /// One action, one call, and the list read again afterwards: an attempt decided here changes the
     /// row it was decided from, and a person watching should see it change.
     ///
@@ -199,6 +231,7 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
         approveButton.setEnabled(review);
         rejectButton.setEnabled(review);
         relearnButton.setEnabled(selected() != null);
+        hintButton.setEnabled(selected() != null);
     }
 
     @Override
@@ -225,6 +258,7 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
     public void refresh() {
         listPresenter.refresh();
         ledgerPresenter.refresh();
+        servingPresenter.refresh();
     }
 
 

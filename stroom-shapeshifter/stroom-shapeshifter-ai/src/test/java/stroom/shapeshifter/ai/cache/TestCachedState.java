@@ -277,5 +277,10 @@ class TestCachedState {
         public void reset(final String docUuid, final String shape) {
             delegate.reset(docUuid, shape);
         }
+
+        @Override
+        public java.util.Optional<Rolling> rolling(final String docUuid, final String shape) {
+            return delegate.rolling(docUuid, shape);
+        }
     }
 }

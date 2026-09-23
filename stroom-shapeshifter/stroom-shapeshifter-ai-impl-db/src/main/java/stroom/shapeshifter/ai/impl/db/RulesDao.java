@@ -23,6 +23,7 @@ import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.shared.RecordBoundary;
 import stroom.shapeshifter.shared.RoutingRule;
 import stroom.util.json.JsonUtil;
+import stroom.util.shared.NullSafe;
 
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
@@ -167,6 +168,7 @@ public class RulesDao implements Rules {
                     .set(SHAPESHIFTER_RULE.BOUNDARY_ARRAY, array(rule))
                     .set(SHAPESHIFTER_RULE.BOUNDARY_DEPTH, depth(rule))
                     .set(SHAPESHIFTER_RULE.SHAPE_ID, rule.getShapeId())
+                    .set(SHAPESHIFTER_RULE.SHAPE_HASH, shapeHash(rule))
                     .where(SHAPESHIFTER_RULE.DOC_UUID.eq(docUuid))
                     .and(SHAPESHIFTER_RULE.RULE_UUID.eq(rule.getUuid()))
                     .execute();
@@ -230,6 +232,7 @@ public class RulesDao implements Rules {
                 .set(SHAPESHIFTER_RULE.BOUNDARY_ARRAY, array(stored))
                 .set(SHAPESHIFTER_RULE.BOUNDARY_DEPTH, depth(stored))
                 .set(SHAPESHIFTER_RULE.SHAPE_ID, stored.getShapeId())
+                .set(SHAPESHIFTER_RULE.SHAPE_HASH, shapeHash(stored))
                 .execute();
         return stored;
     }
@@ -271,6 +274,18 @@ public class RulesDao implements Rules {
                                 : null)
                 .shapeId(record.get(SHAPESHIFTER_RULE.SHAPE_ID))
                 .build();
+    }
+
+    /// The shape's hash beside its id, so that the serving view of A46 can join a rule to its shape's
+    /// state on an indexed column: [ServingDao] orders by traffic and filters by score, and neither lives
+    /// on this table. Written wherever the id is, by the same rule — a rule with no shape has no hash.
+    private static String shapeHash(final RoutingRule rule) {
+        // Blank counts as none, as it does everywhere else that asks whether a rule came from a shape
+        // (`Stage.improve`, `InMemoryServing`). A hash of the empty string is a real hash, and a rule
+        // carrying one would be listed as serving and then refused when somebody pressed improve.
+        return NullSafe.isBlankString(rule.getShapeId())
+                ? null
+                : ShapesDao.hash(rule.getShapeId());
     }
 
     private static String expression(final RoutingRule rule) {

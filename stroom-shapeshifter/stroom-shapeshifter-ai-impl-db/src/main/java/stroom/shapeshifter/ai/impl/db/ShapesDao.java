@@ -151,6 +151,24 @@ public class ShapesDao implements Shapes {
         });
     }
 
+    /// Whatever the row holds, scored or not; a row that has never been scored reads as nothing, so that
+    /// a list shows no score rather than showing zero, which would read as a shape scoring badly.
+    @Override
+    public Optional<Rolling> rolling(final String docUuid, final String shape) {
+        return JooqUtil.contextResult(connProvider, context -> context
+                .select(SHAPESHIFTER_SHAPE.ROLLING_SCORE, SHAPESHIFTER_SHAPE.ROLLING_RECORDS)
+                .from(SHAPESHIFTER_SHAPE)
+                .where(SHAPESHIFTER_SHAPE.DOC_UUID.eq(docUuid))
+                .and(SHAPESHIFTER_SHAPE.SHAPE_HASH.eq(hash(shape)))
+                .fetchOptional()
+                .filter(row -> row.get(SHAPESHIFTER_SHAPE.ROLLING_RECORDS) > 0)
+                .map(row -> new Rolling(
+                        row.get(SHAPESHIFTER_SHAPE.ROLLING_SCORE) == null
+                                ? 0.0
+                                : row.get(SHAPESHIFTER_SHAPE.ROLLING_SCORE),
+                        row.get(SHAPESHIFTER_SHAPE.ROLLING_RECORDS))));
+    }
+
     private Optional<String> text(final String docUuid,
                                   final String shape,
                                   final org.jooq.TableField<?, String> column) {

@@ -25,6 +25,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
@@ -90,6 +91,46 @@ public interface SupervisorResource extends RestResource, DirectRestService {
             operationId = "findShapeshifterAiLedger")
     ResultPage<LedgerShape> ledger(@QueryParam("docUuid") String docUuid,
                                    @Parameter(description = "page", required = true) PageRequest pageRequest);
+
+    @POST
+    @Path("/serving")
+    @Operation(
+            summary = "The rules that are serving, ordered by the traffic each carries",
+            operationId = "findShapeshifterAiServingRules")
+    ResultPage<ServingRule> serving(ServingCriteria criteria);
+
+    @POST
+    @Path("/serving/{docUuid}/{ruleUuid}/improve")
+    @Operation(
+            summary = "Ask for a rule that is already serving to be made better",
+            operationId = "improveShapeshifterAiRule")
+    ImproveOutcome improve(@PathParam("docUuid") String docUuid,
+                           @PathParam("ruleUuid") String ruleUuid,
+                           ImproveRequest request);
+
+    @GET
+    @Path("/guidance/{docUuid}")
+    @Operation(
+            summary = "What a supervisor has told the learning about a shape",
+            operationId = "fetchShapeshifterAiGuidance")
+    List<SupervisorGuidance> guidance(@PathParam("docUuid") String docUuid,
+                                      @QueryParam("shapeId") String shapeId);
+
+    @POST
+    @Path("/guidance/{docUuid}")
+    @Operation(
+            summary = "Tell the learning something about a shape, without asking for anything to be run",
+            operationId = "addShapeshifterAiGuidance")
+    List<SupervisorGuidance> hint(@PathParam("docUuid") String docUuid, GuidanceRequest request);
+
+    @DELETE
+    @Path("/guidance/{docUuid}/{id}")
+    @Operation(
+            summary = "Take back something said about a shape, so that it stops being carried",
+            operationId = "withdrawShapeshifterAiGuidance")
+    List<SupervisorGuidance> withdraw(@PathParam("docUuid") String docUuid,
+                                      @PathParam("id") long id,
+                                      @QueryParam("shapeId") String shapeId);
 
     @POST
     @Path("/{id}/relearn")
