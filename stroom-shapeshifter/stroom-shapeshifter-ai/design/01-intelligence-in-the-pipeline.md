@@ -1778,6 +1778,22 @@ the order they arrived. Items marked *built* already exist in `stroom-shapeshift
    `ShapeshifterAiStepDetails` subtype built from `StageRun`; the presenter that replaces the code
    pane; the stepping tree expanding the element to its fragment's chain; the dry-run rule for the
    element under a `SteppingController`. Depends on item 4.
+   *The server half built 2026-09-23. The dry run first, because it is a hazard rather than a feature:
+   `Stage.dryRun` routes and serves and does nothing else, and a shape no rule binds is reported as
+   `Decision.Would` rather than learned — until it existed, opening the stepper on an untaught feed
+   would have taught it. Then the slot: `ElementStepDetails` on `SharedElementData`, carried through the
+   capture store the stepper reads back from, and supplied by the element itself through
+   `HasStepDetails`, because only the element knows when the record its details are about has been
+   processed. `StepDetails` is the mapping from `StageRun`, which was already everything a scenario
+   asserts on. **The pane built the same day**: `ShapeshifterAiStepPresenter` where the code pane would
+   be, showing the decision, the shape, the rule, the scorers step by step, the dialogue turn by turn
+   and the fragment as a link; which elements show a pane is a registry the feature writes itself into,
+   keyed by element type because the stepper's layout is built before any step has been taken. The pane
+   is read-only: the actions A30 puts beside the evidence are the Routing tab's and the Supervisor
+   view's and arrive with them. **Owed**: stepping *into* the fragment, which is not a client change —
+   the fragment is a nested pipeline whose elements are not in the stepped pipeline's model, so it would
+   have to be built under the stepping controller with its ids namespaced and one record detector
+   driving (design 03 §7 slice 6c).*
 20. **Learning against a target** (A31, §10.1): the *Split* question first for every kind of input,
    then the *Target* question; representative records per line kind by signature;
    the field-preservation and target-fidelity checks; feedback attributed to the step that lost the
@@ -2220,6 +2236,20 @@ including the degeneracy trap (§8.3) that changes the scoring model and propose
   candidate rather than writing it, and captures what the element wrote; the module's runners remain
   Tier 1's, and a Tier 2 scenario per kind of element holds the two to the same answers. The four Tier 2
   scenarios now run their candidates through the real elements without a line changing in them.
+- Audit of the phase F slices (the owner's code review): five findings, all fixed — design 02 §6.1.
+  Four were the dry run telling a person something other than what would happen: the pane prefixing
+  *Would* onto a decision that was not hypothetical; a step the element had nothing to say about keeping
+  the step before; a variant the stage said it would bind showing an empty output pane, because what was
+  served followed the bindings rather than the run's events; and a provisional rule about to be retracted
+  reported as served. A surface that shows the wrong thing confidently is worse than one that shows
+  nothing, and all four did.
+- **Phase F opened** (§12 item 19's server half, design 02 §6.1): stepping is a dry run, and a
+  supervised stage has something to say about a step. `Stage.dryRun` routes and serves and writes
+  nothing, so a person opening the stepper on an untaught feed no longer teaches it by looking; and
+  `SharedElementData` gains the `details` slot A30 asks for, carried through the capture store and
+  supplied by the element through `HasStepDetails`. The pane itself followed the same day; what is left
+  of item 19 is stepping *into* the fragment, which the nested pipeline makes a server change rather
+  than a client one.
 - Audit of the item 4 slices (the owner's code review): six findings, five fixed — design 02 §6.1 —
   and one recorded. The critical one was the fix's own seam: the events of a run are taken from the
   runner, which keeps only the last, and a helper took them for judgements that ran no fragment at all,

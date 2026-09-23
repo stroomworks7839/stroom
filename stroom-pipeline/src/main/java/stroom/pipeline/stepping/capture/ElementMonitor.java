@@ -18,8 +18,10 @@ package stroom.pipeline.stepping.capture;
 
 import stroom.pipeline.errorhandler.LoggingErrorReceiver;
 import stroom.pipeline.factory.Element;
+import stroom.pipeline.factory.HasStepDetails;
 import stroom.pipeline.filter.SAXEventRecorder;
 import stroom.pipeline.shared.data.PipelineElementType;
+import stroom.pipeline.shared.stepping.ElementStepDetails;
 import stroom.pipeline.stepping.store.CapturedData;
 import stroom.pipeline.stepping.store.CapturedElementData;
 import stroom.pipeline.writer.XMLWriter;
@@ -154,7 +156,14 @@ public class ElementMonitor {
             }
         }
 
-        return new CapturedElementData(input, output, formatInput, formatOutput, hasOutput, indicators);
+        // What the element has to say about the step beyond its text (A30), asked of the element itself
+        // because only it knows when the record it is about has been processed.
+        final ElementStepDetails details = element instanceof final HasStepDetails hasStepDetails
+                ? hasStepDetails.getStepDetails()
+                : null;
+
+        return new CapturedElementData(input, output, formatInput, formatOutput, hasOutput, false, indicators,
+                details);
     }
 
     private static CapturedData saxEvents(final SAXEventRecorder recorder) {

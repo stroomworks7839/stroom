@@ -571,6 +571,9 @@ public class SteppingPresenter
                     updateToggleConsoleBtnVisibility(indicators, elementId);
                 } else {
                     clearIndicators(elementPresenter, elementId);
+                    // And whatever pane the element shows of its own (A30): a step it has nothing to
+                    // say about must not go on showing what it said about the step before.
+                    elementPresenter.setStepDetails(null);
                 }
             } else {
                 clearIndicators(elementPresenter, elementId);
@@ -685,6 +688,10 @@ public class SteppingPresenter
                 output,
                 1,
                 elementData.isFormatOutput());
+
+        // And what the element had to say about the step beyond its text (A30): a supervised stage's
+        // decision, where its code pane would be.
+        elementPresenter.setStepDetails(elementData.getDetails());
     }
 
     public void setPipelineDoc(final PipelineDoc pipelineDoc) {

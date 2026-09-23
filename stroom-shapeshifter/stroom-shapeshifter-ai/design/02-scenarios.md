@@ -2427,6 +2427,99 @@ emitted and then retracted, and the owner's.
 263 tests in the module, 24 against MySQL, 18 in Tier 2.
 
 
+The forty-fourth slice, 2026-09-23, opens phase F with the server half of design 03 §7's sixth, §12 item
+19: **stepping is a dry run, and a supervised stage has something to say about a step**.
+
+**The dry run first, because it is a hazard and not a feature.** A person opening the stepper on a feed
+nobody has taught yet would, until now, have taught it by looking: a model call spent, a fragment
+written, a rule bound and serving live data, none of it asked for. `Stage.dryRun` routes and serves and
+does nothing else — no model, no fragment, no rule bound, promoted, retracted or relearned, no rolling
+score, no output row, no ledger row, no reprocess request — and a shape no rule binds is *reported*, as
+a new `Decision.Would`, rather than learned. The element takes that path when `PipelineContext` says it
+is stepping, and logs what it would do at INFO rather than ERROR, because a shape nobody has taught yet
+is the ordinary state of the feed someone has opened the stepper on.
+
+It is a separate walk rather than a flag through `run`, and deliberately: every branch of that walk
+writes something, and a flag threaded through all of them would be one `if` away from a stepping session
+that learned a shape and bound it.
+
+**Then the slot A30 asks for.** `SharedElementData` gains an optional, JSON-typed `details`, an
+`ElementStepDetails` with `ShapeshifterAiStepDetails` as its first subtype: the shape and the learning
+key's values, the decision and its reason, the rule, the fragment as a `DocRef` so the pane can offer it
+as a link, the record boundary, the scorecard's verdicts step by step, and the transcript — as
+`SupervisorTurn`, the same type the Supervisor view carries, so that a person reading a turn in the
+stepper and a turn in the Supervisor is reading the same thing.
+
+How an element supplies them was the one open question. The capture asks the element itself, through a
+`HasStepDetails` interface, rather than being handed something to carry: an element that has details has
+them for the record it has just processed, and nothing between it and the capture would know when that
+is. The stepper reads its data back from a store rather than from the run, so the details travel with it
+— through `CapturedElementData`, its binary framing and the mapper that makes the wire form.
+
+`StepDetails` is the mapping, and it is pure: `StageRun` was written as everything a scenario asserts on
+(design 02 §1), and that is the same list a person wants to see. The one thing it adds is whether this
+was a step, because a dry run's decision is what the stage *would* have done and the pane has to say so.
+
+**And then the pane itself.** `ShapeshifterAiStepPresenter` stands where a supervisor's code pane would:
+the decision in a line, the shape's key values, the rule, the score, the record boundary, the scorers
+step by step, the dialogue turn by turn, and the fragment as a link that opens it. Where the step was a
+dry run it reads *would* — a pane that showed what would happen as what did would be lying about a rule
+that does not exist.
+
+Two things it needed of the stepper. `ElementStepDetailsPresenterRegistry` says which elements show a
+pane of their own and what shows it, and the feature registers its own two element types as its plugin
+loads; the stepper knows nothing about either. And the registry is keyed by *element type* rather than
+by the details' type, which is not where this started: the stepper's layout is built once, when the
+element is loaded, and the details do not arrive until a step is taken — what the pane is for has to be
+known before there is anything to put in it. The element type names moved to `ShapeshifterAiElements` in
+shared code so that the client can say which elements those are without a duplicated string.
+
+The pane is read-only. The actions A30 puts beside the evidence — Approve, Reject, pin, retract — belong
+to the Routing tab and the Supervisor view and arrive with them (design 03 §7 slices 7 and 8).
+
+**What is left of item 19 is stepping *into* the fragment**, and separating it was worth doing: it is
+not a client change. A fragment runs as a nested pipeline whose elements are not in the stepped
+pipeline's model at all, so the tree cannot simply show them — the nested pipeline would have to be
+built under the stepping controller rather than a headless capture, with its element ids namespaced
+against the outer pipeline's and only one record detector driving. It is §5.2's reviewer flow and it is
+worth having; it is design 03 §7's slice 6c.
+
+The audit of the slice (the owner's code review) found five, all fixed.
+
+**The pane said "Would served by rule X".** The view prefixed every dry run's line with *Would*, but
+only a hypothetical decision reads as one — a step over a shape a rule already binds really does run the
+fragment, and its output is in the pane beside the words. The hypothetical belongs to the decision, so
+`Decision.Would` says itself now and both the pane and the error stream read it the same way.
+
+**A step the element had nothing to say about kept the step before.** The pane is a presenter that lives
+across steps, and it ignored details it did not recognise — including none at all. Step onto a record
+the supervisor never ran on and it went on showing the previous record's decision, rule, scores and
+transcript as though they were this one's. It clears now, and the stepper clears it where there is no
+element data at all. With it, a narrower case of the same thing: the details a step shows are kept per
+element and were never cleared, so a record the element began and never finished — one the parser above
+it refused — would have shown the record before it. The element forgets at the start of a record.
+
+**A variant it said it would bind showed an empty output pane.** The dry run tries the fragments already
+learned for a shape's neighbours, because trying one costs no question, and reports that it would bind
+the one that fits. It had run it and had its output — and the supervision returned before firing
+anything, because nothing was *bound*. What is served follows the run's events now and not its bindings:
+a step may have a real output with no binding behind it, and the one thing the person opened the stepper
+to see was that output.
+
+**And a provisional rule about to be retracted said it was being served.** A provisional rule is on
+trial (A14): the first stream bringing enough records to judge it either promotes it or retracts it, and
+retraction is the one branch of serving where the stream gets no output at all — the rule goes and the
+stream is sentinelled. The dry run reported *served by rule X* and showed its output, which is the
+opposite of what would happen. It now says which of the two the stream would cause, and shows no output
+where there would be none.
+
+271 tests in the module. The pane itself has no test but the GWT compile: a presenter that renders is
+not a thing this codebase tests, and what it renders — the mapping from `StageRun` — is tested where it
+is made. One fix is not covered either: that a variant's output reaches the panes is a property of
+`Supervision`, which needs a node and a stepping session to exercise, and the Tier 1 test can only hold
+the stage to reporting the variant and carrying its output.
+
+
 ## 7. Decisions taken
 
 Ruled 2026-09-17, each as recommended:

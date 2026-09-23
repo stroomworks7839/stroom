@@ -34,6 +34,8 @@ import stroom.shapeshifter.client.presenter.ShapeshifterAiScoringPresenter;
 import stroom.shapeshifter.client.presenter.ShapeshifterAiScoringPresenter.ShapeshifterAiScoringView;
 import stroom.shapeshifter.client.presenter.ShapeshifterAiSettingsPresenter;
 import stroom.shapeshifter.client.presenter.ShapeshifterAiSettingsPresenter.ShapeshifterAiSettingsView;
+import stroom.shapeshifter.client.presenter.ShapeshifterAiStepPresenter;
+import stroom.shapeshifter.client.presenter.ShapeshifterAiStepPresenter.ShapeshifterAiStepView;
 import stroom.shapeshifter.client.presenter.SupervisorListPresenter;
 import stroom.shapeshifter.client.presenter.SupervisorPresenter;
 import stroom.shapeshifter.client.presenter.SupervisorPresenter.SupervisorView;
@@ -47,6 +49,7 @@ import stroom.shapeshifter.client.view.ShapeshifterAiPromotionViewImpl;
 import stroom.shapeshifter.client.view.ShapeshifterAiRoutingViewImpl;
 import stroom.shapeshifter.client.view.ShapeshifterAiScoringViewImpl;
 import stroom.shapeshifter.client.view.ShapeshifterAiSettingsViewImpl;
+import stroom.shapeshifter.client.view.ShapeshifterAiStepViewImpl;
 import stroom.shapeshifter.client.view.SupervisorViewImpl;
 import stroom.shapeshifter.client.view.XPathAssertionViewImpl;
 
@@ -63,6 +66,10 @@ public class ShapeshifterAiModule extends PluginModule {
                 SupervisorViewImpl.class);
         bind(SupervisorListPresenter.class);
         bind(SupervisorTurnsPresenter.class);
+        // The stage pane the stepper shows in place of a supervisor's code pane (A30).
+        bindPresenterWidget(ShapeshifterAiStepPresenter.class,
+                ShapeshifterAiStepView.class,
+                ShapeshifterAiStepViewImpl.class);
         bindPresenterWidget(ShapeshifterAiSettingsPresenter.class,
                 ShapeshifterAiSettingsView.class,
                 ShapeshifterAiSettingsViewImpl.class);

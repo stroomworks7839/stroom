@@ -16,6 +16,7 @@
 
 package stroom.shapeshifter.ai.stage;
 
+import stroom.docref.DocRef;
 import stroom.shapeshifter.shared.RoutingRule;
 import stroom.util.shared.StoredError;
 
@@ -106,5 +107,24 @@ public sealed interface Decision {
      */
     record Sentinel(String reason) implements Decision {
 
+    }
+
+    /// What the stage *would* have done, which is all a dry run may say (A30, design 01 §11.7).
+    /// Stepping routes and serves and does nothing else, so a shape no rule binds is reported here
+    /// rather than learned, sentinelled or given up.
+    ///
+    /// @param what      What would happen, in the words the stage would have used had it done it.
+    /// @param candidate The fragment it would have used, where one already exists — a variant learned
+    ///                  for a neighbouring shape (design 01 §6) — and null where it would have had to
+    ///                  learn one or would have bound nothing at all.
+    record Would(String what, DocRef candidate) implements Decision {
+
+        /// The clause as a person reads it — *would learn a fragment for this shape* — so that every
+        /// surface says it the same way and only a decision that is hypothetical reads as one.
+        public String said() {
+            return what == null || what.isEmpty()
+                    ? "Would do nothing"
+                    : "Would " + Character.toLowerCase(what.charAt(0)) + what.substring(1);
+        }
     }
 }

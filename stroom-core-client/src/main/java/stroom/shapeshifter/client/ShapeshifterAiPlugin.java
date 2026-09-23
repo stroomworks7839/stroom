@@ -24,9 +24,12 @@ import stroom.docstore.shared.DocRefUtil;
 import stroom.document.client.DocumentPlugin;
 import stroom.document.client.DocumentPluginEventManager;
 import stroom.entity.client.presenter.DocPresenter;
+import stroom.pipeline.stepping.client.presenter.ElementStepDetailsPresenterRegistry;
 import stroom.security.client.api.ClientSecurityContext;
 import stroom.shapeshifter.client.presenter.ShapeshifterAiPresenter;
+import stroom.shapeshifter.client.presenter.ShapeshifterAiStepPresenter;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
+import stroom.shapeshifter.shared.ShapeshifterAiElements;
 import stroom.shapeshifter.shared.ShapeshifterAiResource;
 import stroom.task.client.TaskMonitorFactory;
 
@@ -52,10 +55,18 @@ public class ShapeshifterAiPlugin extends DocumentPlugin<ShapeshifterAiDoc> {
                                    final RestFactory restFactory,
                                    final ContentManager contentManager,
                                    final DocumentPluginEventManager entityPluginEventManager,
-                                   final ClientSecurityContext securityContext) {
+                                   final ClientSecurityContext securityContext,
+                                   final ElementStepDetailsPresenterRegistry stepDetailsRegistry,
+                                   final Provider<ShapeshifterAiStepPresenter> stepPresenterProvider) {
         super(eventBus, contentManager, entityPluginEventManager, securityContext);
         this.editorProvider = editorProvider;
         this.restFactory = restFactory;
+        // The stepper shows a supervised stage's decision where an element's code pane would be (A30).
+        // It knows nothing about this feature: the feature says which of its elements have a pane and
+        // what shows it, and does so here because the plugin is where the feature meets the client.
+        // Both shapes of the stage, because both have a decision to explain (§12 item 4).
+        stepDetailsRegistry.register(ShapeshifterAiElements.PARSER, stepPresenterProvider::get);
+        stepDetailsRegistry.register(ShapeshifterAiElements.FILTER, stepPresenterProvider::get);
     }
 
     @Override

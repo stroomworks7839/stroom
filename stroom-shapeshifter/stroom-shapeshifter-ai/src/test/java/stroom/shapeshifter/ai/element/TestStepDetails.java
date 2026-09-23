@@ -1,0 +1,151 @@
+/*
+ * Copyright 2026 Crown Copyright
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package stroom.shapeshifter.ai.element;
+
+import stroom.shapeshifter.ai.extraction.ExtractionCorpus.Golden;
+import stroom.shapeshifter.ai.scenario.QuestionMatcher;
+import stroom.shapeshifter.ai.scenario.Scenarios;
+import stroom.shapeshifter.ai.scenario.Script;
+import stroom.shapeshifter.ai.stage.Input;
+import stroom.shapeshifter.ai.stage.Stage;
+import stroom.shapeshifter.ai.stage.StageRun;
+import stroom.shapeshifter.shared.LearningMode;
+import stroom.shapeshifter.shared.QuestionKind;
+import stroom.shapeshifter.shared.ScorerSetting;
+import stroom.shapeshifter.shared.ScorerType;
+import stroom.shapeshifter.shared.ShapeshifterAiDoc;
+import stroom.shapeshifter.shared.ShapeshifterAiStepDetails;
+import stroom.shapeshifter.shared.StageScore;
+import stroom.shapeshifter.shared.StageVerdict;
+import stroom.shapeshifter.shared.SupervisorTurn;
+import stroom.shapeshifter.shared.YieldBasis;
+import stroom.shapeshifter.shared.YieldParameters;
+
+import org.junit.jupiter.api.Test;
+
+import java.util.List;
+import java.util.Map;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+/// Design 01 §11.7 and A30: what the stepper's stage pane shows, from what the stage decided.
+///
+/// A supervisor has no document to show as code, so the pane is the decision — and the decision is
+/// already everything a scenario asserts on (design 02 §1). This holds the mapping to that: what a
+/// person reads in the stepper is what the tests read.
+class TestStepDetails {
+
+    private static final String FEED = "DOOR-ACCESS";
+    private static final String XSLT = Scenarios.resource("csv-logon.xsl");
+    private static final Golden CSV = Scenarios.corpus("001_csv_with_header");
+
+    @Test
+    void aLearnedStreamShowsItsShapeDecisionFragmentScoresAndTranscript() {
+        final Scenarios scenarios = new Scenarios();
+        final Script script = script(scenarios);
+        final Stage stage = scenarios.stage(document -> script, scenarios.rules);
+        final StageRun run = stage.run(doc(), stream());
+
+        final ShapeshifterAiStepDetails details = StepDetails.of(run, false);
+
+        assertThat(details.isDryRun()).isFalse();
+        assertThat(details.getDocument().getUuid()).isEqualTo("doc-1");
+        assertThat(details.getShapeId()).isEqualTo("Feed=DOOR-ACCESS|Type=Raw Events");
+        assertThat(details.getShape())
+                .describedAs("the learning key's values are what make it this shape")
+                .containsExactly(Map.entry("Feed", FEED), Map.entry("Type", "Raw Events"));
+        assertThat(details.getDecision()).isEqualTo("Promoted");
+        assertThat(details.getReason()).startsWith("Promoted rule ");
+        assertThat(details.getRuleUuid()).isEqualTo(scenarios.rules.forDocument("doc-1").get(0).getUuid());
+        assertThat(details.getFragment())
+                .describedAs("carried as a reference so the pane can offer it as a link")
+                .isEqualTo(run.bindings().fragment());
+        assertThat(details.isProvisional()).isFalse();
+        assertThat(details.getScore()).isEqualTo(run.bindings().score());
+
+        assertThat(details.getVerdicts())
+                .describedAs("one per step of the chain, in chain order")
+                .hasSize(2)
+                .extracting(StageVerdict::getStep).containsExactly(1, 2);
+        // Across the chain rather than per step, because which scorers apply depends on what a step was
+        // given: the scorers of meaning apply to a step whose input was already records (design 01 §4).
+        assertThat(details.getVerdicts()).flatExtracting(StageVerdict::getScores)
+                .describedAs("and every scorer that applied, with what it was measured against")
+                .isNotEmpty()
+                .allSatisfy(score -> assertThat(score.getScorer()).isNotNull());
+        assertThat(details.getVerdicts()).flatExtracting(StageVerdict::getScores)
+                .extracting(StageScore::isMet)
+                .describedAs("a promoted chain met what it was measured against").doesNotContain(false);
+
+        assertThat(details.getTranscript())
+                .describedAs("every exchange with the model, as the Supervisor view carries a turn")
+                .isNotEmpty()
+                .extracting(SupervisorTurn::getKind)
+                .startsWith(QuestionKind.CHAIN);
+        assertThat(details.getTranscript())
+                .extracting(SupervisorTurn::getNumber).startsWith(1);
+    }
+
+    @Test
+    void aSteppedUnknownShapeSaysWhatItWouldDoAndNamesNoRule() {
+        final Scenarios scenarios = new Scenarios();
+        final Stage stage = scenarios.stage(document -> Script.of(), scenarios.rules);
+        final StageRun run = stage.dryRun(doc(), stream(), false);
+
+        final ShapeshifterAiStepDetails details = StepDetails.of(run, true);
+
+        assertThat(details.isDryRun())
+                .describedAs("the pane has to say that this is what would happen, not what did")
+                .isTrue();
+        assertThat(details.getDecision()).isEqualTo("Would");
+        assertThat(details.getReason())
+                .describedAs("the hypothetical is in the decision itself, not put there by the pane: a "
+                             + "step over a shape a rule binds really does run the fragment")
+                .isEqualTo("Would learn a fragment for this shape");
+        assertThat(details.getRuleUuid()).isNull();
+        assertThat(details.getFragment()).isNull();
+        assertThat(details.getVerdicts()).isEmpty();
+        assertThat(details.getTranscript()).isEmpty();
+    }
+
+    private Script script(final Scenarios scenarios) {
+        return scenarios.script(CSV.configuration(), XSLT)
+                .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter")
+                .expect(QuestionMatcher.configuration("DSParser")).reply(Scenarios.fenced(CSV.configuration()))
+                .expect(QuestionMatcher.configuration("XSLTFilter")).reply(Scenarios.fenced(XSLT));
+    }
+
+    private static ShapeshifterAiDoc doc() {
+        return Scenarios.document()
+                .uuid("doc-1")
+                .name("door-access")
+                .learningMode(LearningMode.AUTOMATIC)
+                .allowedElements(List.of("DSParser", "XSLTFilter"))
+                .minRecordsPerShape(1)
+                // Named, because a document with no scorers produces verdicts with nothing in them and
+                // this is about what the pane shows of them.
+                .scorers(List.of(
+                        new ScorerSetting(ScorerType.COMPILE, 0.0, 1.0, true, null),
+                        new ScorerSetting(ScorerType.YIELD, 1.0, 0.5, false,
+                                new YieldParameters(1.0, YieldBasis.RECORDS))))
+                .build();
+    }
+
+    private static Input stream() {
+        return new Input(1L, FEED, "Raw Events", Map.of("Format", "CSV"), CSV.input(), "pipeline-1");
+    }
+}

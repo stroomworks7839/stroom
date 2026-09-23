@@ -1,0 +1,31 @@
+<!DOCTYPE ui:UiBinder SYSTEM "http://dl.google.com/gwt/DTD/xhtml.ent">
+<ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
+             xmlns:g="urn:import:com.google.gwt.user.client.ui">
+    <ui:style>
+        .pane {
+            overflow: auto;
+            padding: 8px;
+        }
+
+        .decision {
+            font-weight: bold;
+            padding-bottom: 4px;
+        }
+
+        .heading {
+            font-weight: bold;
+            padding: 8px 0 2px 0;
+        }
+    </ui:style>
+    <g:ScrollPanel styleName="max">
+        <g:FlowPanel addStyleNames="{style.pane}">
+            <g:Label ui:field="decision" addStyleNames="{style.decision}"/>
+            <g:HTML ui:field="summary"/>
+            <g:Anchor ui:field="fragment" visible="false"/>
+            <g:Label text="Scores" addStyleNames="{style.heading}"/>
+            <g:HTML ui:field="verdicts"/>
+            <g:Label text="Dialogue" addStyleNames="{style.heading}"/>
+            <g:HTML ui:field="transcript"/>
+        </g:FlowPanel>
+    </g:ScrollPanel>
+</ui:UiBinder>

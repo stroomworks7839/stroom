@@ -30,6 +30,7 @@ import stroom.pipeline.state.FeedHolder;
 import stroom.pipeline.state.MetaData;
 import stroom.pipeline.state.MetaDataHolder;
 import stroom.pipeline.state.MetaHolder;
+import stroom.pipeline.state.PipelineContext;
 import stroom.pipeline.state.PipelineHolder;
 import stroom.shapeshifter.ai.doc.ShapeshifterAiStore;
 import stroom.shapeshifter.ai.fragment.ReplayUnits;
@@ -39,12 +40,14 @@ import stroom.shapeshifter.ai.stage.Decision.Drafted;
 import stroom.shapeshifter.ai.stage.Decision.GivenUp;
 import stroom.shapeshifter.ai.stage.Decision.Retracted;
 import stroom.shapeshifter.ai.stage.Decision.Sentinel;
+import stroom.shapeshifter.ai.stage.Decision.Would;
 import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.Stage;
 import stroom.shapeshifter.ai.stage.Stage.Served;
 import stroom.shapeshifter.ai.stage.StageRun;
 import stroom.shapeshifter.shared.ReplayUnit;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
+import stroom.shapeshifter.shared.ShapeshifterAiStepDetails;
 import stroom.util.pipeline.scope.PipelineScoped;
 import stroom.util.shared.ElementId;
 import stroom.util.shared.NullSafe;
@@ -80,11 +83,16 @@ public class Supervision {
     private final MetaData metaData;
     private final ErrorReceiverProxy errorReceiverProxy;
     private final PipelineHolder pipelineHolder;
+    private final PipelineContext pipelineContext;
     private final Stage stage;
 
     /// What each supervisor in this pipeline has recorded for this stream, by element id. Pipeline-
     /// scoped state, like the attributes it guards.
     private final Map<String, String> recordedBy = new HashMap<>();
+
+    /// What each supervisor last decided, by element id, for the stage pane to show (A30). Replaced
+    /// each time the element runs, because the capture asks for the record it has just processed.
+    private final Map<String, ShapeshifterAiStepDetails> stepDetails = new HashMap<>();
 
     @Inject
     public Supervision(final ShapeshifterAiStore store,
@@ -97,6 +105,7 @@ public class Supervision {
                        final MetaData metaData,
                        final ErrorReceiverProxy errorReceiverProxy,
                        final PipelineHolder pipelineHolder,
+                       final PipelineContext pipelineContext,
                        final StageFactory stageFactory) {
         this.store = store;
         this.elementRegistryFactory = elementRegistryFactory;
@@ -108,6 +117,7 @@ public class Supervision {
         this.metaData = metaData;
         this.errorReceiverProxy = errorReceiverProxy;
         this.pipelineHolder = pipelineHolder;
+        this.pipelineContext = pipelineContext;
         this.stage = stageFactory.create();
     }
 
@@ -164,6 +174,10 @@ public class Supervision {
     /// sentinel, a shape given up, a draft awaiting review — emits nothing and says why on the error
     /// stream (A4).
     ///
+    /// Stepping is a dry run (A30): the stage routes and serves, and a shape nothing binds is reported
+    /// rather than learned. A person opening the stepper on a feed nobody has taught yet must not spend
+    /// a model call and bind a rule by looking.
+    ///
     /// @param data        The stream as text: the whole of it for a stage fed by the source, one
     ///                    record's markup for a stage fed by a parser.
     /// @param asProcessed Which question a reprocess is asking (design 01 §7.3).
@@ -174,22 +188,46 @@ public class Supervision {
                           final String data,
                           final ContentHandler downstream) throws SAXException {
         final Input input = input(data);
-        final StageRun run = asProcessed
-                ? stage.reprocess(doc, input)
-                : stage.run(doc, input);
+        final boolean stepping = pipelineContext.isStepping();
+        final StageRun run = stepping
+                ? stage.dryRun(doc, input, asProcessed)
+                : asProcessed
+                        ? stage.reprocess(doc, input)
+                        : stage.run(doc, input);
+        // What the stage pane shows for this element, kept for the capture to ask (A30). Per element,
+        // because a pipeline may hold two supervised stages and each has its own decision to explain.
+        stepDetails.put(elementId.getId(), StepDetails.of(run, stepping));
         final Bindings bindings = run.bindings();
-        if (bindings == null) {
-            errorReceiverProxy.log(Severity.ERROR, null, elementId,
-                    "Shape " + run.shape().id() + ": " + reason(run.decision()), null);
+        // What happened, or — for a step — what would have. A dry run's report is not a fault: a shape
+        // nobody has taught yet is the ordinary state of the feed a person has opened the stepper on,
+        // and an error marker would say otherwise.
+        errorReceiverProxy.log(stepping
+                        ? Severity.INFO
+                        : bindings == null
+                                ? Severity.ERROR
+                                : Severity.INFO, null, elementId,
+                "Shape " + run.shape().id() + ": " + reason(run.decision()), null);
+
+        // Recorded only where a fragment really was bound and really did run: a step leaves no trace of
+        // having asked, and the bindings of a run nobody made do not belong on the stream.
+        if (bindings != null && !stepping) {
+            record(bindings, elementId);
+        }
+
+        // What is served follows the *events*, not the bindings. A stream a rule already bound carries
+        // the events of the run it was judged on; a stream the shape was learned on carries none,
+        // because the chain was judged as it was learned and the fragment it became has not been run as
+        // a pipeline yet — so that one fragment is run here, once. A step never goes and makes a run of
+        // its own: it shows what the run it already made produced, which for a variant it says it would
+        // bind is a real output with no binding behind it.
+        final Served served = run.events() != null
+                ? new Served(run.events(), run.diagnostics())
+                : bindings != null && !stepping
+                        ? stage.serve(bindings, input)
+                        : null;
+        if (served == null) {
             return;
         }
-        record(bindings, elementId);
-        // A stream a rule already bound carries the events of the run it was judged on; a stream the
-        // shape was learned on carries none, because the chain was judged as it was learned and the
-        // fragment it became has not been run as a pipeline yet.
-        final Served served = run.events() == null
-                ? stage.serve(bindings, input)
-                : new Served(run.events(), run.diagnostics());
         // What the fragment said, on this pipeline's error stream (A20). The fragment runs under an
         // error receiver of its own, so that the complaints of a candidate nobody keeps go to the model
         // rather than to the operator; the run that is served is the one the operator has to hear, and
@@ -201,11 +239,24 @@ public class Supervision {
             // Nothing downstream can be served from that, and silently writing an empty stream would
             // look like a feed that had nothing in it.
             errorReceiverProxy.log(Severity.ERROR, null, elementId,
-                    "Shape " + run.shape().id() + " is bound to fragment " + bindings.fragment().getName()
+                    "Shape " + run.shape().id() + " is bound to fragment "
+                    + NullSafe.get(bindings, Bindings::fragment, DocRef::getName)
                     + ", which produced nothing for this stream", null);
             return;
         }
         served.events().fire(downstream);
+    }
+
+    /// Forget what this element last decided, because it is about to decide again (A30). The capture
+    /// asks for the record it has just captured, and a record the element never finished — one the
+    /// parser above it refused, say — would otherwise be shown the record before it.
+    public void startRecord(final ElementId elementId) {
+        stepDetails.remove(elementId.getId());
+    }
+
+    /// What this element last decided, as the stage pane shows it (A30), or null where it has not run.
+    public ShapeshifterAiStepDetails stepDetails(final ElementId elementId) {
+        return stepDetails.get(elementId.getId());
     }
 
     /// The stream as the [Stage] sees it: its meta id, feed, type, attributes and content.
@@ -285,6 +336,8 @@ public class Supervision {
             case Retracted retracted -> retracted.reason();
             case Drafted drafted -> "Awaiting review: draft rule " + drafted.rule().getUuid() + " binds "
                                     + drafted.rule().getPipeline().getName();
+            // Stepping: what the stage would have done, which is all a dry run may say (A30).
+            case Would would -> would.said();
             default -> throw new IllegalStateException("Decision " + decision + " bound nothing and refused nothing");
         };
     }

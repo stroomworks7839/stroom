@@ -31,6 +31,7 @@ import stroom.editor.client.view.IndicatorLines;
 import stroom.pipeline.shared.data.PipelineElement;
 import stroom.pipeline.shared.data.PipelineElementType;
 import stroom.pipeline.shared.data.PipelineProperty;
+import stroom.pipeline.shared.stepping.ElementStepDetails;
 import stroom.pipeline.shared.stepping.FindElementDocRequest;
 import stroom.pipeline.shared.stepping.StepType;
 import stroom.pipeline.shared.stepping.SteppingResource;
@@ -75,6 +76,7 @@ public class ElementPresenter
     private final Provider<ClassificationWrapperView> classificationWrapperViewProvider;
     private final Provider<EditorPresenter> editorProvider;
     private final DocumentPluginRegistry documentPluginRegistry;
+    private final ElementStepDetailsPresenterRegistry stepDetailsRegistry;
     private final RestFactory restFactory;
 
     private PipelineModel pipelineModel;
@@ -91,6 +93,8 @@ public class ElementPresenter
 
     private Indicators indicators;
     private EditorPresenter codePresenter;
+    /// The pane this element shows in place of its code pane (A30), or null where it has none.
+    private ElementStepDetailsPresenter stepDetailsPresenter;
     private EditorPresenter inputPresenter;
     private EditorPresenter outputPresenter;
     private EditorPresenter logPresenter;
@@ -108,11 +112,13 @@ public class ElementPresenter
                             final Provider<ClassificationWrapperView> classificationWrapperViewProvider,
                             final Provider<EditorPresenter> editorProvider,
                             final DocumentPluginRegistry documentPluginRegistry,
+                            final ElementStepDetailsPresenterRegistry stepDetailsRegistry,
                             final RestFactory restFactory) {
         super(eventBus, view);
         this.classificationWrapperViewProvider = classificationWrapperViewProvider;
         this.editorProvider = editorProvider;
         this.documentPluginRegistry = documentPluginRegistry;
+        this.stepDetailsRegistry = stepDetailsRegistry;
         this.restFactory = restFactory;
     }
 
@@ -121,7 +127,13 @@ public class ElementPresenter
             loaded = true;
             boolean loading = false;
 
-            if (pipelineModel.hasRole(element, PipelineElementType.ROLE_HAS_CODE)) {
+            // An element whose behaviour is a decision has no document to show as code, and shows what
+            // it decided instead (A30). Asked here rather than when a step arrives, because the layout
+            // below is built once and a pane it was not told about has nowhere to go.
+            stepDetailsPresenter = stepDetailsRegistry.get(element.getType());
+            if (stepDetailsPresenter != null) {
+                getView().setCodeView(stepDetailsPresenter.getView());
+            } else if (pipelineModel.hasRole(element, PipelineElementType.ROLE_HAS_CODE)) {
                 getView().setCodeView(getCodePresenter(element).getView());
 
                 try {
@@ -167,6 +179,16 @@ public class ElementPresenter
             }
         } else {
             consumer.accept(true);
+        }
+    }
+
+    /**
+     * What the element at the cursor had to say about this step beyond its text (A30), for the pane that
+     * stands where its code pane would. Ignored by every element that has no such pane.
+     */
+    public void setStepDetails(final ElementStepDetails details) {
+        if (stepDetailsPresenter != null) {
+            stepDetailsPresenter.setDetails(details);
         }
     }
 

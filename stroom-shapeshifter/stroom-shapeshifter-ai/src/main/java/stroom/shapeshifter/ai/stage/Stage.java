@@ -54,6 +54,7 @@ import stroom.shapeshifter.ai.stage.Decision.Provisional;
 import stroom.shapeshifter.ai.stage.Decision.Rebound;
 import stroom.shapeshifter.ai.stage.Decision.Retracted;
 import stroom.shapeshifter.ai.stage.Decision.Sentinel;
+import stroom.shapeshifter.ai.stage.Decision.Would;
 import stroom.shapeshifter.ai.stage.RegressionSet.Accepted;
 import stroom.shapeshifter.shared.AttemptStatus;
 import stroom.shapeshifter.shared.ExecutionMode;
@@ -393,6 +394,135 @@ public final class Stage {
                 bindings.boundary());
         return new Served(fragmentRunner.lastOutput().orElse(null),
                 attempted.stream().flatMap(step -> step.result().diagnostics().stream()).toList());
+    }
+
+    /// What this stage would do with a stream, and what it would produce, without doing any of it
+    /// (A30, design 01 §11.7).
+    ///
+    /// Stepping is a dry run. The routing table is resolved and a bound fragment is run, because a
+    /// fragment's output is what the person stepping the pipeline came to see — and nothing else
+    /// happens at all: no model is asked, no fragment written, no rule bound, promoted, retracted or
+    /// relearned, no rolling score, no output row, no ledger row and no reprocess request. A shape no
+    /// rule binds is *reported*, as [Decision.Would], rather than learned.
+    ///
+    /// It is a separate walk rather than a flag through [#run] because every branch of that walk writes
+    /// something, and a flag threaded through all of them would be one `if` away from a stepping
+    /// session that learned a shape and bound it.
+    ///
+    /// @param asProcessed As [#reprocess]: the fragment that produced this input's output before,
+    ///                    rather than whatever the table binds today.
+    public StageRun dryRun(final ShapeshifterAiDoc doc, final Input input, final boolean asProcessed) {
+        final Map<String, Object> attributes = input.routingAttributes(ShapeSignature.of(input.data()));
+        final Shape shape = Shape.of(doc.getLearningKey(), attributes);
+        final Scorecard scorecard = new Scorecard(doc.getScorers(), scorers);
+
+        if (asProcessed) {
+            final Optional<Bindings> recorded = outputs.asProcessed(doc.getUuid(), input.id(), input.pipeline());
+            return recorded
+                    .map(bindings -> served(doc, new Bound(null), shape, bindings,
+                            judge(scorecard, bindings.fragment(), input.data(), bindings.boundary())))
+                    .orElseGet(() -> would(doc, shape, "Refuse the stream: nothing is recorded for input "
+                                                       + input.id() + " on this pipeline, so it cannot be "
+                                                       + "processed again as it was", null));
+        }
+
+        final List<RoutingRule> table = rules.forDocument(doc.getUuid());
+        final Optional<RoutingRule> matched = router.route(table, attributes);
+        if (matched.isPresent()) {
+            final RoutingRule rule = matched.get();
+            if (rule.isReserved()) {
+                return would(doc, shape, "Sentinel the stream: reserved, rule " + (table.indexOf(rule) + 1)
+                                         + " matches and binds nothing", null);
+            }
+            if (rule.isDraft()) {
+                return would(doc, shape, "Sentinel the stream: draft rule " + rule.getUuid() + " binds "
+                                         + rule.getPipeline().getName() + " and awaits review", null);
+            }
+            final Judged judged = judge(scorecard, rule.getPipeline(), input.data(), rule.getRecordBoundary());
+            // What [#serve] would go on to do with that judgement. Only one of its branches changes what
+            // the stream gets: a provisional rule that has brought enough records to be judged on and
+            // failed the floor is retracted, and the stream is sentinelled with no output at all. Saying
+            // "served by rule X" and showing its output would be the opposite of what would happen.
+            if (rule.isProvisional() && !rule.isPinned()
+                && judged.records() >= doc.getMinRecordsPerShape()) {
+                if (!judged.clearsFloor(doc)) {
+                    return would(doc, shape, "Retract rule " + rule.getUuid() + ", which scored "
+                                             + judged.score() + " against a floor of "
+                                             + doc.getPromotionFloor() + " on the "
+                                             + judged.records() + " records this stream brings, and "
+                                             + "sentinel the stream", rule.getPipeline());
+                }
+                return new StageRun(doc, new Would("Promote rule " + rule.getUuid() + ", which scored "
+                                                   + judged.score() + " on the " + judged.records()
+                                                   + " records this stream brings", rule.getPipeline()),
+                        shape,
+                        new Bindings(doc.getUuid(), rule.getUuid(), rule.getPipeline(),
+                                rule.getRecordBoundary(), rule.isProvisional(), judged.score()),
+                        judged.output(), judged.verdicts(), List.of(), judged.events(),
+                        judged.diagnostics());
+            }
+            return served(doc, new Bound(rule), shape,
+                    new Bindings(doc.getUuid(), rule.getUuid(), rule.getPipeline(), rule.getRecordBoundary(),
+                            rule.isProvisional(), judged.score()),
+                    judged);
+        }
+
+        final Optional<String> givenUp = shapes.reasonGivenUp(doc.getUuid(), shape.id());
+        if (givenUp.isPresent()) {
+            return would(doc, shape, "Sentinel the stream: shape given up: " + givenUp.get(), null);
+        }
+        if (!shape.missing().isEmpty()) {
+            return would(doc, shape, "Sentinel the stream: the learning key names '"
+                                     + shape.missing().get(0) + "' but the stream carries no value for it",
+                    null);
+        }
+        try {
+            RoutingRule.learnedSelector(doc.getLearningKey(), attributes);
+        } catch (final IllegalArgumentException e) {
+            return would(doc, shape, "Sentinel the stream: " + e.getMessage(), null);
+        }
+
+        // The variants are tried for real, because trying one is a run and a run writes nothing: what a
+        // person wants to know here is whether this shape would have cost a call at all.
+        for (final RoutingRule variant : compatibleVariants(doc, input)) {
+            final Judged judged = judge(scorecard, variant.getPipeline(), input.data(), variant.getRecordBoundary());
+            if (judged.clearsFloor(doc)) {
+                // Nothing is bound, so there are no bindings — but the variant ran, and what it made of
+                // the stream is what the person stepping came to see. What is served follows the events,
+                // not the bindings (see `Supervision`).
+                return new StageRun(doc,
+                        new Would("Bind " + variant.getPipeline().getName() + ", already learned for a "
+                                  + "neighbouring shape, which scores " + judged.score() + " on this stream",
+                                variant.getPipeline()),
+                        shape, null, judged.output(), judged.verdicts(), List.of(), judged.events(),
+                        judged.diagnostics());
+            }
+        }
+
+        if (doc.getLearningMode() == LearningMode.DISABLED) {
+            return would(doc, shape, "Sentinel the stream: Shapeshifter AI is disabled for this document "
+                                     + "and no bound variant fits", null);
+        }
+        return would(doc, shape, "Learn a fragment for this shape", null);
+    }
+
+    /// A bound fragment's run, as a dry run reports it: what it produced and what the scorers made of
+    /// it, and nothing recorded anywhere.
+    private StageRun served(final ShapeshifterAiDoc doc,
+                            final Decision decision,
+                            final Shape shape,
+                            final Bindings bindings,
+                            final Judged judged) {
+        return new StageRun(doc, decision, shape, bindings, judged.output(), judged.verdicts(), List.of(),
+                judged.events(), judged.diagnostics());
+    }
+
+    private StageRun would(final ShapeshifterAiDoc doc,
+                           final Shape shape,
+                           final String what,
+                           final DocRef candidate) {
+        return new StageRun(doc, new Would(what, candidate), shape, null, null, List.of(), List.of(), null,
+                List.of());
     }
 
     /**

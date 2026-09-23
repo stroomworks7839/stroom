@@ -22,12 +22,15 @@ import stroom.pipeline.errorhandler.ErrorListenerAdaptor;
 import stroom.pipeline.errorhandler.ErrorReceiverProxy;
 import stroom.pipeline.errorhandler.LoggedException;
 import stroom.pipeline.factory.ConfigurableElement;
+import stroom.pipeline.factory.HasStepDetails;
 import stroom.pipeline.factory.PipelineProperty;
 import stroom.pipeline.factory.PipelinePropertyDocRef;
 import stroom.pipeline.filter.AbstractXMLFilter;
 import stroom.pipeline.shared.data.PipelineElementType;
 import stroom.pipeline.shared.data.PipelineElementType.Category;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
+import stroom.shapeshifter.shared.ShapeshifterAiElements;
+import stroom.shapeshifter.shared.ShapeshifterAiStepDetails;
 import stroom.svg.shared.SvgImage;
 import stroom.util.shared.Severity;
 import stroom.util.xml.XMLUtil;
@@ -75,9 +78,9 @@ import javax.xml.transform.stream.StreamResult;
                 PipelineElementType.VISABILITY_STEPPING,
                 PipelineElementType.ROLE_MUTATOR},
         icon = SvgImage.AI)
-public class ShapeshifterAiFilter extends AbstractXMLFilter {
+public class ShapeshifterAiFilter extends AbstractXMLFilter implements HasStepDetails {
 
-    public static final String TYPE = "ShapeshifterAiFilter";
+    public static final String TYPE = ShapeshifterAiElements.FILTER;
 
     private final Supervision supervision;
     private final ErrorReceiverProxy errorReceiverProxy;
@@ -138,6 +141,9 @@ public class ShapeshifterAiFilter extends AbstractXMLFilter {
     /// bound fragment makes of it, not what came in.
     @Override
     public void startDocument() throws SAXException {
+        // Before anything else: what this element decided about the record before must not be shown as
+        // this one's if this one never reaches endDocument (A30).
+        supervision.startRecord(getElementId());
         records = new ByteArrayOutputStream();
         serialiser.setResult(new StreamResult(records));
         serialiser.startDocument();
@@ -196,4 +202,11 @@ public class ShapeshifterAiFilter extends AbstractXMLFilter {
     public void skippedEntity(final String name) throws SAXException {
         serialiser.skippedEntity(name);
     }
+
+    /// What this stage decided about the record just captured, for the stepper's stage pane (A30).
+    @Override
+    public ShapeshifterAiStepDetails getStepDetails() {
+        return supervision.stepDetails(getElementId());
+    }
+
 }

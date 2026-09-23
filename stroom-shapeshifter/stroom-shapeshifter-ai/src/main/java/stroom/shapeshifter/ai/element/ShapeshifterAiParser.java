@@ -20,6 +20,7 @@ import stroom.docref.DocRef;
 import stroom.pipeline.LocationFactoryProxy;
 import stroom.pipeline.errorhandler.ErrorReceiverProxy;
 import stroom.pipeline.factory.ConfigurableElement;
+import stroom.pipeline.factory.HasStepDetails;
 import stroom.pipeline.factory.PipelineProperty;
 import stroom.pipeline.factory.PipelinePropertyDocRef;
 import stroom.pipeline.parser.AbstractParser;
@@ -29,6 +30,8 @@ import stroom.pipeline.state.MetaData;
 import stroom.shapeshifter.ai.stage.ShapeSignature;
 import stroom.shapeshifter.ai.stage.Stage;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
+import stroom.shapeshifter.shared.ShapeshifterAiElements;
+import stroom.shapeshifter.shared.ShapeshifterAiStepDetails;
 import stroom.svg.shared.SvgImage;
 
 import jakarta.inject.Inject;
@@ -73,9 +76,9 @@ import java.nio.charset.StandardCharsets;
                 PipelineElementType.VISABILITY_STEPPING,
                 PipelineElementType.ROLE_MUTATOR},
         icon = SvgImage.AI)
-public class ShapeshifterAiParser extends AbstractParser {
+public class ShapeshifterAiParser extends AbstractParser implements HasStepDetails {
 
-    public static final String TYPE = "ShapeshifterAi";
+    public static final String TYPE = ShapeshifterAiElements.PARSER;
 
     private final Supervision supervision;
 
@@ -144,6 +147,12 @@ public class ShapeshifterAiParser extends AbstractParser {
         }
     }
 
+    /// What this stage decided about the record just captured, for the stepper's stage pane (A30).
+    @Override
+    public ShapeshifterAiStepDetails getStepDetails() {
+        return supervision.stepDetails(getElementId());
+    }
+
 
     // --------------------------------------------------------------------------------
 
@@ -157,8 +166,10 @@ public class ShapeshifterAiParser extends AbstractParser {
 
         @Override
         public void parse(final InputSource inputSource) throws SAXException {
+            supervision.startRecord(getElementId());
             supervision.supervise(supervision.document(docRef, getElementId()), getElementId(), asProcessed,
                     read(inputSource), getContentHandler());
         }
     }
+
 }
