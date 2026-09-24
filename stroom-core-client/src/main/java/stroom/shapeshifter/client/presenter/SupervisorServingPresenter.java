@@ -154,6 +154,19 @@ public class SupervisorServingPresenter extends MyPresenterWidget<PagerView> {
         dataProvider.refresh();
     }
 
+    /// Read the list again after something was done to a row, and let go of the row first.
+    ///
+    /// A selection holds the row *object* it was made from, and rebuilding the list makes new ones
+    /// without touching it — so a rule just accepted would go on answering "provisional" to the guard
+    /// that offers Accept, and a rule just retracted would go on offering Improve for a rule that is no
+    /// longer in the table. Both would be told no by the server, which is the right answer arriving in
+    /// the wrong way.
+    private void acted() {
+        selectionModel.clear();
+        updateButtons();
+        refresh();
+    }
+
     /// Ask for a rule that is already serving to be made better (A46).
     ///
     /// The message is optional and the prompt says so: asking again from the incumbent, with the records
@@ -191,7 +204,7 @@ public class SupervisorServingPresenter extends MyPresenterWidget<PagerView> {
                                 // The incumbent served every stream throughout and a candidate takes
                                 // over only through the ordinary gate, so "nothing changed" is an
                                 // outcome and not a failure. The person is told which of the four.
-                                AlertEvent.fireInfo(this, outcome.getSaid(), this::refresh);
+                                AlertEvent.fireInfo(this, outcome.getSaid(), this::acted);
                             })
                             // The attempt runs while the request is open, so a request that times out
                             // has not necessarily failed: it may have promoted or drafted since. Said
@@ -202,7 +215,7 @@ public class SupervisorServingPresenter extends MyPresenterWidget<PagerView> {
                                     "It may still be running, or may have finished after the request "
                                     + "gave up. Look for its attempt in the list before asking again — "
                                     + "asking twice spends a second model run.",
-                                    this::refresh))
+                                    this::acted))
                             .taskMonitorFactory(this)
                             .exec();
                 });
@@ -220,6 +233,7 @@ public class SupervisorServingPresenter extends MyPresenterWidget<PagerView> {
             // What is standing first, then the adding: a person about to say something should see what
             // has already been said, or the same hint is given three times and a wrong one is never
             // taken back. The row's count is read again when anything changes.
+            // Only the count on the row changes, so the row a person is reading stays selected.
             guidancePresenter.show(rule.getDoc().getUuid(), rule.getShapeId(), this::refresh);
         }
     }
@@ -246,7 +260,7 @@ public class SupervisorServingPresenter extends MyPresenterWidget<PagerView> {
                                 .create(SUPERVISOR_RESOURCE)
                                 .method(resource -> resource.accept(rule.getDoc().getUuid(),
                                         rule.getRuleUuid()))
-                                .onSuccess(done -> refresh())
+                                .onSuccess(done -> acted())
                                 .taskMonitorFactory(this)
                                 .exec();
                     }
@@ -301,7 +315,7 @@ public class SupervisorServingPresenter extends MyPresenterWidget<PagerView> {
                                           + (asked == 1
                                                   ? " it produced is"
                                                   : "s it produced are")
-                                          + " asked to be processed again.", this::refresh);
+                                          + " asked to be processed again.", this::acted);
                             })
                             .taskMonitorFactory(this)
                             .exec();

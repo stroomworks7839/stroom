@@ -122,16 +122,25 @@ public class SupervisorListPresenter extends MyPresenterWidget<PagerView> {
     /// is an offset into a list that has just changed length, and re-reading it would show them an
     /// empty grid whenever the filter leaves fewer rows than they had scrolled past.
     private void filter() {
+        // What is being asked for now, taken now: the popup does not stop a person opening it again
+        // behind itself, and reading the field when OK is pressed would write one dialog's answer over
+        // the other's.
+        final AttemptCriteria opened = criteria;
         final AttemptFilterPresenter presenter = filterPresenterProvider.get();
-        presenter.read(criteria);
+        presenter.read(opened);
         ShowPopupEvent.builder(presenter)
                 .popupType(PopupType.OK_CANCEL_DIALOG)
                 .popupSize(PopupSize.resizable(600, 640))
                 .caption("Which attempts to show")
                 .onHideRequest(e -> {
                     if (e.isOk()) {
-                        criteria = presenter.write(criteria);
+                        criteria = presenter.write(opened);
                         updateFilterButton();
+                        // The selection goes with it. It holds the row *object* it was made from, and
+                        // an attempt the filter has just excluded would still answer the guards that
+                        // decide whether Approve, Reject and the rest are offered — on a row that is
+                        // no longer on the screen.
+                        selectionModel.clear();
                         dataGrid.setVisibleRange(new Range(0, PageRequest.DEFAULT_PAGE_LENGTH));
                         refresh();
                     }

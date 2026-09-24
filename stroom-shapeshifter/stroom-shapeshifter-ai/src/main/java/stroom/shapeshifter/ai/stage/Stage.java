@@ -558,6 +558,16 @@ public final class Stage {
             // would be a way round it.
             throw new IllegalStateException("Shapeshifter AI is disabled for this document");
         }
+        final Optional<String> awaiting = shapes.draftAwaiting(doc.getUuid(), shape);
+        if (awaiting.isPresent()) {
+            // A shape whose draft is waiting for somebody has already been learned; what it needs is a
+            // decision, not another attempt. Asked for anyway it would spin: the streams would be
+            // released, reprocessed, meet the draft, and be sentinelled by it again — the same rows
+            // back on the ledger and nothing learned.
+            throw new IllegalStateException("Draft rule " + awaiting.get() + " is awaiting review for "
+                                            + "this shape; approve or reject it rather than learning it "
+                                            + "again");
+        }
         final String said = "Sent back to be learned again by " + by + ": " + reason;
         relearn(doc, shape, said);
         final List<Replayable> waiting = ledger.release(doc.getUuid(), shape);
@@ -1521,6 +1531,15 @@ public final class Stage {
         }
         final String said = "Accepted by " + by + " on the score it was bound at, without waiting for "
                             + "records to judge it on";
+        // What it is *not* is a rule with a record behind it. A provisional binding deliberately puts
+        // nothing in the regression set — see `bind`, which records only for a promotion or a draft —
+        // and the stream it was bound from is long gone by the time anybody accepts it: there is no
+        // text to record and no score measured per record to record it with. So a rule accepted this
+        // way has no accepted records, which means `improve` refuses it and asks for a relearning
+        // instead, and A18's "no worse on any record it was accepted on" has nothing to hold a later
+        // relearning to. Both are the honest consequence of promoting without evidence, and both are
+        // said here rather than found later. Design 01 §15: giving a provisional binding its record at
+        // bind time would fix it and is a change to the gate, not to this button.
         rules.replace(doc.getUuid(), rule.copy()
                 .provisional(false)
                 .promotedTimeMs(clock.millis())

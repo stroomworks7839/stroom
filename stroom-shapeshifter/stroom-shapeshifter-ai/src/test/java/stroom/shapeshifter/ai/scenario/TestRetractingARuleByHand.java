@@ -218,6 +218,14 @@ class TestRetractingARuleByHand {
                 .describedAs("the kill switch is a kill switch here too")
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("disabled");
+
+        scenarios.shapes.awaitReview("doc-1", SHAPE, "a-draft");
+        assertThatThrownBy(() -> stage.learnAgain(doc, SHAPE, "Why.", "jo"))
+                .describedAs("a shape whose draft is waiting needs a decision, not another attempt: "
+                             + "asked for anyway it would release the streams, reprocess them, meet the "
+                             + "draft and sentinel them again — the same rows back and nothing learned")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("awaiting review");
     }
 
     /// A provisional binding may be accepted rather than waited out (design 01 §6, §11.6).

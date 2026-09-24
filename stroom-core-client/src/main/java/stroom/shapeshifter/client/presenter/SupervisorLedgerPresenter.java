@@ -168,6 +168,10 @@ public class SupervisorLedgerPresenter extends MyPresenterWidget<PagerView> {
     }
 
     private void learned() {
+        // The row has just been released — the streams it counted are being processed again — so the
+        // selection is on a shape that is no longer waiting, and the button would stay lit for it.
+        selectionModel.clear();
+        updateButtons();
         refresh();
         if (onLearn != null) {
             onLearn.run();

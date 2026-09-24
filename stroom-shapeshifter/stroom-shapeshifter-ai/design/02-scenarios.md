@@ -3037,7 +3037,42 @@ Two places where what was built differs from the ruling's words, both deliberate
 serving list rather than the attempt row, because what is retracted is a *rule*; and **widen selector**
 is the document's Routing tab, where editing a rule's expression has always lived.
 
+**Its own audit found six**, before anybody opened it, and one of them is not a bug but a limit worth
+stating.
+
+**A rule accepted by hand can never be improved.** A provisional binding deliberately records nothing
+in the regression set — `bind` records only for a promotion or a draft — and the stream it was bound
+from is long gone by the time anybody accepts it, so there is no text to record and no per-record score
+to record it with. The consequence is real and two-sided: `improve` refuses such a rule and asks for a
+relearning instead, and A18's "no worse on any record it was accepted on" has nothing to hold a later
+relearning to. Both are the honest consequence of promoting without evidence and both are now written
+where the promoting happens. Giving a provisional binding its record at bind time would fix it, and
+that is a change to the gate rather than to this button.
+
+**Learning a shape whose draft is waiting would have spun.** It is not given up, so nothing refused it:
+the streams would be released, reprocessed, meet the draft and be sentinelled by it again — the same
+rows back on the ledger and nothing learned. A shape awaiting review needs a decision, not another
+attempt, and says so now.
+
+Then three of one kind, which is the kind this feature keeps producing: **a selection outliving what it
+was made on.** Filtering the attempts left the selection on an attempt the filter had just excluded, so
+Approve, Reject and the rest stayed lit for a row no longer on the screen. Learning a shape left the
+selection on a ledger row that had just been released. Accepting or retracting a rule left the
+selection holding the old row, so Accept stayed lit for a rule that was no longer provisional and
+Improve for one no longer in the table — each would have been told no by the server, which is the right
+answer arriving in the wrong way. Hinting deliberately keeps its row, since only the count changes.
+
+And one taken back rather than kept: the grids' columns were narrowed and the panel widened because
+every one of them totals more width than it is given. The owner's answer is that overflowing grids
+scroll, which is true, so the change went back out — a fix for a problem that was not one is churn.
+
 296 tests in the module, 33 against MySQL, 22 in Tier 2.
+
+Checked and cleared, so that the next reader need not: `automaticBind` runs for GIN-instantiated
+presenter widgets, so the new lists' buttons are live; `Integer` returns have ample precedent in
+stroom's own resources; `MultiSelectionModelImpl.clear()` fires a change, so the parent's buttons
+follow a cleared child selection; and the document picker decorates a uuid-only `DocRef`, so a filter
+re-opened shows the document's name rather than a blank.
 
 
 ## 7. Decisions taken
