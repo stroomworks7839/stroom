@@ -19,59 +19,21 @@ package stroom.shapeshifter.ai.impl.db;
 import stroom.db.util.AbstractFlyWayDbModule;
 import stroom.db.util.DataSourceProxy;
 import stroom.shapeshifter.ai.ShapeshifterAiDbConfig;
-import stroom.shapeshifter.ai.cache.CachedRules;
-import stroom.shapeshifter.ai.cache.CachedShapes;
-import stroom.shapeshifter.ai.cache.Rows;
-import stroom.shapeshifter.ai.stage.Attempts;
-import stroom.shapeshifter.ai.stage.Guidance;
-import stroom.shapeshifter.ai.stage.Ledger;
-import stroom.shapeshifter.ai.stage.Outputs;
-import stroom.shapeshifter.ai.stage.Rules;
-import stroom.shapeshifter.ai.stage.Serving;
-import stroom.shapeshifter.ai.stage.Shapes;
-import stroom.shapeshifter.ai.stage.Spend;
-import stroom.util.entityevent.EntityEvent;
-import stroom.util.guice.GuiceUtil;
-import stroom.util.shared.Clearable;
-
-import com.google.inject.Scopes;
 
 import java.util.List;
 import javax.sql.DataSource;
 
-/// The runtime state of A26 as tables: the seams the stage has used against memory since slice 8, bound
-/// here to rows so that what a node learns survives its restart and reaches every other node (A41, A42).
+/// The tables of A26 and the connection to them, and nothing else. This module is installed in the
+/// bootstrap injector, which holds only data sources and configuration so that it can run the Flyway
+/// migrations before the application exists: anything bound here that asks for an application service —
+/// a cache manager, the entity event bus — stops the node before it starts. Those bindings live in
+/// [ShapeshifterAiDaoModule], which the application injector installs.
 public class ShapeshifterAiDbModule
         extends AbstractFlyWayDbModule<ShapeshifterAiDbConfig, ShapeshifterAiDbConnProvider> {
 
     private static final String MODULE = "stroom-shapeshifter-ai";
     private static final String FLYWAY_LOCATIONS = "stroom/shapeshifter/ai/impl/db/migration";
     private static final String FLYWAY_TABLE = "shapeshifter_ai_schema_history";
-
-    @Override
-    protected void configure() {
-        super.configure();
-        bind(Attempts.class).to(AttemptsDao.class);
-        bind(Ledger.class).to(LedgerDao.class);
-        bind(Guidance.class).to(GuidanceDao.class);
-        bind(Spend.class).to(SpendDao.class);
-        bind(Outputs.class).to(OutputsDao.class);
-        bind(Serving.class).to(ServingDao.class);
-        // The two the hot path reads for every stream are bound as the rows behind a cache, and the cache
-        // is what everything else asks for (design 01 §12 item 8): a routing table read from the database
-        // once per stream per node is the first thing to give at volume. Nothing but the cache asks the
-        // database, and what writes through it tells every node to let go of its copy.
-        bind(Rules.class).annotatedWith(Rows.class).to(RulesDao.class);
-        bind(Shapes.class).annotatedWith(Rows.class).to(ShapesDao.class);
-        bind(Rules.class).to(CachedRules.class).in(Scopes.SINGLETON);
-        bind(Shapes.class).to(CachedShapes.class).in(Scopes.SINGLETON);
-        GuiceUtil.buildMultiBinder(binder(), EntityEvent.Handler.class)
-                .addBinding(CachedRules.class)
-                .addBinding(CachedShapes.class);
-        GuiceUtil.buildMultiBinder(binder(), Clearable.class)
-                .addBinding(CachedRules.class)
-                .addBinding(CachedShapes.class);
-    }
 
     @Override
     protected String getFlyWayTableName() {

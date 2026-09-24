@@ -32,8 +32,9 @@ public class TestModule extends AbstractModule {
         super.configure();
         install(new DbTestModule());
         install(new ShapeshifterAiDbModule());
-        // The caches the module binds in front of the rows need somewhere to live and something to tell,
-        // and these tests are about the rows: a real cache manager, and a bus nothing is listening on.
+        install(new ShapeshifterAiDaoModule());
+        // The caches the DAO module binds in front of the rows need somewhere to live and something to
+        // tell, and these tests are about the rows: a real cache manager, and a bus nothing listens on.
         bind(CacheManager.class).toInstance(new CacheManagerImpl());
         bind(EntityEventBus.class).toInstance(new EntityEventBus() {
             @Override

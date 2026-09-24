@@ -30,6 +30,7 @@ dependencies {
     implementation libs.jooq
     implementation libs.slf4j.api
 
+    implementation project(':stroom-cache:stroom-cache-api')
     implementation project(':stroom-config:stroom-config-common')
     implementation project(':stroom-core-shared')
     implementation project(':stroom-db-util')
@@ -42,7 +43,6 @@ dependencies {
     runtimeOnly libs.mysql.connector.java
 
     testImplementation project(':stroom-cache:stroom-cache-impl')
-    testImplementation project(':stroom-cache:stroom-cache-api')
     testImplementation project(':stroom-meta:stroom-meta-api')
     testImplementation project(':stroom-test-common')
 

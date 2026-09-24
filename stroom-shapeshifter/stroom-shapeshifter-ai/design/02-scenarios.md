@@ -3196,6 +3196,28 @@ nothing to do with what is being demonstrated:
   of itself.
 
 
+**The node would not start** (the owner's report, 2026-09-24), and the reason is worth keeping because
+nothing in this branch's tests could see it. `ShapeshifterAiDbModule` bound the caches in front of the
+rows, and a database module is not installed where the rest of the feature is: it goes in the *bootstrap*
+injector, which exists only to open the data sources and run the Flyway migrations before the
+application does, and the application's injector is a child of that one and inherits what it binds. The
+bootstrap injector has no cache manager and no entity event bus, so Guice refused to build it and Stroom
+stopped on startup with two missing implementations.
+
+Stroom's own arrangement says where each belongs, and the feature now follows it: a `*DbModule` holds
+the migrations and the connection and nothing else, and a `*DaoModule` beside it holds the bindings,
+installed by `CoreModule` in the injector that has an application in it. The cache bindings, the `@Rows`
+bindings behind them and both multibinder contributions moved across unchanged — and the `Clearable` and
+`EntityEvent.Handler` contributions are better for it, since they now land in the same injector as the
+things that read those sets.
+
+`TestShapeshifterAiModules` is the guard, and it needs no database: it builds an injector over the
+database module with only what the bootstrap injector holds, which fails with exactly the owner's two
+errors on the arrangement that shipped, and one over the DAO module with what a node holds, which must
+give the caches in front of the rows. `TestBootStrapModule` would also have caught it, but only where
+there is a database to run it against.
+
+
 ## 7. Decisions taken
 
 Ruled 2026-09-17, each as recommended:
