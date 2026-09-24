@@ -115,7 +115,8 @@ public class ShapeshifterPresenter extends DocTabPresenter<LinkTabPanelView, Sha
                                final ShapeshifterDoc document,
                                final boolean readOnly) {
                 readText(document.getData());
-                presenter.read(project, document.getColours(), document.getSample(), sourceError, readOnly);
+                presenter.read(project, document.getColours(), document.getSample(), document.getSampleText(),
+                        document.getSampleKind(), sourceError, readOnly);
             }
 
             @Override
@@ -128,6 +129,8 @@ public class ShapeshifterPresenter extends DocTabPresenter<LinkTabPanelView, Sha
                         .data(text)
                         .colours(presenter.getColours())
                         .sample(presenter.getSampleLocation())
+                        .sampleText(presenter.getSampleText())
+                        .sampleKind(presenter.getSampleKind())
                         .build();
             }
         });
@@ -250,7 +253,7 @@ public class ShapeshifterPresenter extends DocTabPresenter<LinkTabPanelView, Sha
             // under the banner; one that parses again replaces it.
             design.read(sourceError == null
                     ? project
-                    : null, null, null, sourceError, isReadOnly());
+                    : null, null, null, null, null, sourceError, isReadOnly());
         }
         if (had != (sourceError == null)) {
             onChange();

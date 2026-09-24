@@ -48,8 +48,6 @@ public class ShapeshifterDesignViewImpl extends ViewImpl implements Shapeshifter
     @UiField
     ThinSplitLayoutPanel rows;
     @UiField
-    ThinSplitLayoutPanel topRow;
-    @UiField
     SimplePanel crumb;
     @UiField
     SimplePanel input;
@@ -62,7 +60,6 @@ public class ShapeshifterDesignViewImpl extends ViewImpl implements Shapeshifter
     @UiField
     SimplePanel output;
 
-    private Widget stripWidget;
     private Widget workbenchWidget;
     private Widget samplePageWidget;
 
@@ -110,8 +107,7 @@ public class ShapeshifterDesignViewImpl extends ViewImpl implements Shapeshifter
 
     @Override
     public void setStrip(final View view) {
-        stripWidget = view.asWidget();
-        strip.setWidget(stripWidget);
+        strip.setWidget(view.asWidget());
     }
 
     @Override
@@ -136,13 +132,14 @@ public class ShapeshifterDesignViewImpl extends ViewImpl implements Shapeshifter
 
     @Override
     public void showWorkbench(final boolean open) {
-        // In place of the crumb, input, variables and strip (design 18 section 5.6): the top row
-        // goes, and the strip cell holds the workbench; the panel and the output pane stay.
-        rows.setWidgetHidden(topRow, open);
-        strip.setWidget(open
+        // The whole of the area right of the panel, as the sample page takes it (design 44 §5p).
+        // It used to keep the output pane beside it, which showed what the cursor's frame wrote
+        // in the last run — about a different question, frozen where the cursor was left, and
+        // absent altogether for a library part, while the workbench's own sample is live.
+        centre.setWidget(open
                 ? workbenchWidget
-                : stripWidget);
-        rows.onResize();
+                : rows);
+        centre.onResize();
     }
 
     @Override

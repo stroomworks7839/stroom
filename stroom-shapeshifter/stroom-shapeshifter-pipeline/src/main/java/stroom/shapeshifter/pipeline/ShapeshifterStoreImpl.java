@@ -48,11 +48,15 @@ class ShapeshifterStoreImpl
     }
 
     /**
-     * The sample reference never leaves the environment (design 44 §5j). It is a pointer to a
-     * stream on this installation: somewhere else the same id is a different stream, or none, and
-     * an export that silently pointed at unrelated data would be worse than one that pointed at
-     * nothing. Stripped at the seam {@code omitAuditFields} already uses, which is also the seam
-     * the git repository export goes through.
+     * The sample <b>reference</b> never leaves the environment (design 44 §5j): it is a pointer to
+     * a stream on this installation, and somewhere else the same id is a different stream or none,
+     * so an export that silently pointed at unrelated data would be worse than one that pointed at
+     * nothing. Pasted sample <b>text</b> travels (§5q) — literal bytes mean the same everywhere,
+     * and carrying them is what lets an exported configuration demonstrate itself. Stripped at the
+     * seam {@code omitAuditFields} already uses, which is also the seam the git repository export
+     * goes through. The kind goes with the reference (§5t): a configuration that arrives claiming
+     * to use a stream it no longer has would be claiming something it cannot honour, so it
+     * arrives on its sample text instead.
      */
     @Override
     public ImportExportDocument exportDocument(final DocRef docRef,
@@ -60,6 +64,6 @@ class ShapeshifterStoreImpl
                                                final List<Message> messageList) {
         checkDocumentPermission(docRef, DocumentPermission.VIEW);
         return getStore().exportDocument(docRef, omitAuditFields, messageList,
-                doc -> doc.copy().sample(null).build());
+                doc -> doc.copy().sample(null).sampleKind(null).build());
     }
 }

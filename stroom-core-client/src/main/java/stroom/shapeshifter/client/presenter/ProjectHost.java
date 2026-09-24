@@ -16,6 +16,7 @@
 
 package stroom.shapeshifter.client.presenter;
 
+import stroom.pipeline.shared.SourceLocation;
 import stroom.shapeshifter.config.Project;
 import stroom.shapeshifter.config.Template;
 
@@ -63,6 +64,16 @@ public interface ProjectHost {
      * record is the server's to fetch, and the client sees it only as the trace's input.
      */
     String getSample();
+
+    /**
+     * The pasted sample the project keeps, whichever kind is in use (design 44 §5s). A stream is
+     * often a temporary look at something else, so choosing one does not throw away what the
+     * author wrote; it is kept, saved and offered back when they return to the pasted kind.
+     */
+    String getKeptSampleText();
+
+    /** The stream the project keeps, whichever kind is in use; null where it has never had one. */
+    SourceLocation getKeptSampleLocation();
 
     /** Where it came from - a record to read, or text pasted - or null for none (design 44 §5). */
     SampleSource getSampleSource();

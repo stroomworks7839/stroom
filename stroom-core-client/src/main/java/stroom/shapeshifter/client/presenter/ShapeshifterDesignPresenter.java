@@ -22,6 +22,7 @@ import stroom.pipeline.shared.SourceLocation;
 import stroom.shapeshifter.client.presenter.ShapeshifterDesignPresenter.ShapeshifterDesignView;
 import stroom.shapeshifter.config.Project;
 import stroom.shapeshifter.config.Template;
+import stroom.shapeshifter.shared.ShapeshifterDoc.SampleKind;
 import stroom.shapeshifter.shared.ShapeshifterMessage;
 import stroom.shapeshifter.shared.ShapeshifterPreviewRequest;
 import stroom.shapeshifter.shared.ShapeshifterResource;
@@ -114,6 +115,14 @@ public class ShapeshifterDesignPresenter
      * with a sample that will never work.
      */
     private boolean sampleRemembered;
+    /**
+     * The pasted sample, kept whichever kind is in use (design 44 §5s). Held apart from
+     * {@link #sampleSource} because that is the sample in force and this is the author's own
+     * text, which a look at a stream should not destroy.
+     */
+    private String keptSampleText;
+    /** The stream, kept the same way and for the same reason: returning to the paste keeps it. */
+    private SourceLocation keptSampleLocation;
     private TraceModel trace;
     private long cursor = TraceModel.ROOT;
     private boolean stale;
@@ -391,7 +400,8 @@ public class ShapeshifterDesignPresenter
      * error keeps the previous project on screen, read-only, under the error.
      */
     public void read(final Project project, final Map<String, String> colours, final SourceLocation sample,
-                     final String sourceError, final boolean readOnly) {
+                     final String sampleText, final SampleKind sampleKind, final String sourceError,
+                     final boolean readOnly) {
         this.readOnly = readOnly;
         this.sourceError = sourceError;
         if (project != null) {
@@ -406,9 +416,27 @@ public class ShapeshifterDesignPresenter
         // arrive from the Source tab mid-edit, and it must not pull the sample out from under
         // them. The feed is unknown until something reads the stream, so the row says what the
         // reference says.
-        if (sample != null && sampleSource == null) {
-            sampleSource = SampleSource.record(sample, null);
-            sampleRemembered = true;
+        if (keptSampleText == null) {
+            keptSampleText = sampleText;
+        }
+        if (keptSampleLocation == null) {
+            keptSampleLocation = sample;
+        }
+        if (sampleSource == null) {
+            // The document says which it was using. Where it does not — it never had one, or it
+            // arrived from an export, which carries the text and neither the stream nor the claim
+            // to be using one — whichever it has will do, the text first because it always works.
+            final boolean stream = sampleKind == SampleKind.STREAM
+                    ? sample != null
+                    : sampleKind == null && sample != null && sampleText == null;
+            if (stream) {
+                sampleSource = SampleSource.record(sample, null);
+                sampleRemembered = true;
+            } else if (sampleText != null) {
+                // Pasted text cannot fail to resolve, so it is not "remembered" in the sense the
+                // flag means: there is nothing for a failed run to forget.
+                sampleSource = SampleSource.pasted(sampleText);
+            }
         }
         getView().setBanner(sourceError == null
                 ? null
@@ -469,10 +497,34 @@ public class ShapeshifterDesignPresenter
      * pasted sample, which is data and stays out of the document (design 44 §5j). Read when the
      * document is written, never pushed, so choosing a sample does not make the document dirty.
      */
+    @Override
+    public String getKeptSampleText() {
+        return keptSampleText;
+    }
+
+    @Override
+    public SourceLocation getKeptSampleLocation() {
+        return keptSampleLocation;
+    }
+
+    /** What the document keeps: the pasted text, whether or not it is the sample in force. */
+    public String getSampleText() {
+        return keptSampleText;
+    }
+
+    /** Both are kept; this is the stream, whether or not it is the one in force. */
     public SourceLocation getSampleLocation() {
-        return sampleSource == null
-                ? null
-                : sampleSource.getLocation();
+        return keptSampleLocation;
+    }
+
+    /** Which of the two the project is using, for the document to remember. */
+    public SampleKind getSampleKind() {
+        if (sampleSource == null) {
+            return null;
+        }
+        return sampleSource.getText() != null
+                ? SampleKind.PASTED
+                : SampleKind.STREAM;
     }
 
     /** The colour overrides as they stand, for the document to keep: only for templates that still exist. */
@@ -598,6 +650,19 @@ public class ShapeshifterDesignPresenter
     public void setSampleSource(final SampleSource source) {
         this.sampleSource = source;
         this.sampleRemembered = false;
+        final String text = source == null
+                ? null
+                : source.getText();
+        if (source != null && source.getLocation() != null) {
+            keptSampleLocation = source.getLocation();
+        }
+        if (text != null && !text.equals(keptSampleText)) {
+            // The author's own text is document content now that it is saved and exported
+            // (§5q), so writing it makes the document dirty exactly as any other edit does.
+            // Choosing a stream does not: it says which data to look at, not what the project is.
+            keptSampleText = text;
+            ValueChangeEvent.fire(this, project);
+        }
         announceCanRun();
         if (source == null) {
             trace = null;

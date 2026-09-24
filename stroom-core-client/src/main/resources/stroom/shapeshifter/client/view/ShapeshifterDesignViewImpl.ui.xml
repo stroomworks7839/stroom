@@ -2,8 +2,8 @@
 <ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
              xmlns:g="urn:import:com.google.gwt.user.client.ui">
     <!-- Design 43 section 4.1: the mockup's quadrant - panel, then (crumb / input | variables)
-         over (strip | output) - as nested split panels; the workbench replaces the top row and
-         the strip cell in place, leaving the panel and the output pane where they are. -->
+         over (strip | output) - as nested split panels. The workbench and the sample page each
+         replace the whole quadrant, leaving only the panel beside them (design 44 §5a, §5p). -->
     <g:ThinSplitLayoutPanel ui:field="layout" styleName="max default-min-sizes ss-design">
         <g:north size="26">
             <g:Label ui:field="banner" styleName="shapeshifter-banner"/>
@@ -15,12 +15,12 @@
             <g:SimplePanel ui:field="templatePanel" styleName="max"/>
         </g:west>
         <g:center>
-            <!-- Everything right of the panel: the navigator's rows, or a page shown in their
-                 place - the sample's (design 44 §5a). -->
+            <!-- Everything right of the panel: the navigator's rows, or what is shown in their
+                 place - the sample page, or the workbench (design 44 §5a, §5p). -->
             <g:SimpleLayoutPanel ui:field="centre">
             <g:ThinSplitLayoutPanel ui:field="rows" vSplits="0.5" styleName="max default-min-sizes">
                 <g:north size="300">
-                    <g:ThinSplitLayoutPanel ui:field="topRow" hSplits="0.38" styleName="max default-min-sizes">
+                    <g:ThinSplitLayoutPanel hSplits="0.38" styleName="max default-min-sizes">
                         <g:north size="30">
                             <g:SimplePanel ui:field="crumb" styleName="max"/>
                         </g:north>

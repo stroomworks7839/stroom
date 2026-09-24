@@ -25,6 +25,7 @@ import com.google.gwt.event.logical.shared.ValueChangeEvent;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
 import com.google.gwt.uibinder.client.UiHandler;
+import com.google.gwt.user.client.ui.Label;
 import com.google.gwt.user.client.ui.SimpleLayoutPanel;
 import com.google.gwt.user.client.ui.SimplePanel;
 import com.google.gwt.user.client.ui.Widget;
@@ -43,6 +44,8 @@ public class SampleSourceViewImpl
     SelectionBox<Kind> kind;
     @UiField
     SimpleLayoutPanel body;
+    @UiField
+    Label keeping;
 
     private Widget streamView;
 
@@ -92,6 +95,11 @@ public class SampleSourceViewImpl
         return kind.getValue() == null
                 ? Kind.STREAM
                 : kind.getValue();
+    }
+
+    @Override
+    public void setKeeping(final String text) {
+        keeping.setText(text);
     }
 
     @Override

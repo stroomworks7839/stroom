@@ -138,12 +138,24 @@ public class SampleSourcePresenter
                 : host.getSampleSource();
         reading = true;
         try {
-            getView().setKind(current != null && current.getText() != null
+            final boolean pastedKind = current == null || current.getText() != null;
+            getView().setKind(pastedKind
                     ? Kind.PASTED
                     : Kind.STREAM);
-            final String text = current == null || current.getText() == null
+            // The two kinds are kept differently, so the page says which one the author is on
+            // rather than leaving them to find out at an export (design 44 §5q).
+            getView().setKeeping(pastedKind
+                    ? "saved with the project, and carried when it is exported"
+                    : "the project remembers which stream; the data stays where it is, and the "
+                      + "reference is dropped when the project is exported");
+            // The kept text, not the sample in force: a look at a stream must leave what the
+            // author wrote where they can get back to it (design 44 §5s).
+            final String kept = host == null
+                    ? null
+                    : host.getKeptSampleText();
+            final String text = kept == null
                     ? ""
-                    : current.getText();
+                    : kept;
             if (!text.equals(pasted.getText())) {
                 pasted.setText(text);
             }
@@ -199,6 +211,15 @@ public class SampleSourcePresenter
         if (kind == Kind.PASTED) {
             onPasted();
         } else {
+            // Returning to the stream returns to the one the project kept, rather than making the
+            // author find it again — both are kept and the document remembers which is in force
+            // (design 44 §5t). The viewer catches up as they browse.
+            final SourceLocation kept = host == null
+                    ? null
+                    : host.getKeptSampleLocation();
+            if (kept != null) {
+                host.setSampleSource(SampleSource.record(kept, null));
+            }
             chose();
         }
     }
@@ -282,6 +303,9 @@ public class SampleSourcePresenter
         Kind getKind();
 
         void setKind(Kind kind);
+
+        /** What becomes of a sample of this kind: whether it is kept, and whether it travels. */
+        void setKeeping(String text);
 
     }
 }

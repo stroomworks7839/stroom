@@ -498,6 +498,15 @@
 /* The workbench's right column: sections with quiet uppercase headings (mockup #wbRight). */
 /* The sample page's head: where the data comes from, and nothing else - the words and the
    picker on one line, whatever width the page has. */
+/* What becomes of the chosen kind of sample, beside the picker that chooses it. */
+.ss-smp-keeping {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .ss-smp-head {
     display: flex;
     flex-wrap: nowrap;

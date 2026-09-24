@@ -55,9 +55,17 @@ import java.util.Objects;
         "description",
         "data",
         "colours",
-        "sample"})
+        "sample",
+        "sampleText",
+        "sampleKind"})
 @JsonInclude(Include.NON_NULL)
 public class ShapeshifterDoc extends AbstractEmbeddableDoc implements HasData {
+
+    /** Where a project's sample comes from: a stream on this installation, or text in the document. */
+    public enum SampleKind {
+        STREAM,
+        PASTED
+    }
 
     public static final String TYPE = "Shapeshifter";
     public static final DocumentType DOCUMENT_TYPE = DocumentTypeRegistry.SHAPESHIFTER_DOCUMENT_TYPE;
@@ -84,6 +92,28 @@ public class ShapeshifterDoc extends AbstractEmbeddableDoc implements HasData {
      */
     @JsonProperty
     private final SourceLocation sample;
+    /**
+     * Sample data the author pasted, kept with the project and <b>carried on export</b> — unlike
+     * {@link #sample}, which is stripped (design 44 §5q). The two are the same question answered
+     * two ways, and they travel differently for a reason: a stream id means a different stream in
+     * another installation, or none, while pasted bytes mean the same everywhere. It is what
+     * makes a project portable — an exported configuration arrives able to demonstrate itself.
+     *
+     * <p>The cost, accepted rather than overlooked: a configuration exported from a live system
+     * carries whatever its author pasted into it, so the Data page says so where the pasting
+     * happens.
+     */
+    @JsonProperty
+    private final String sampleText;
+    /**
+     * Which of the two the project is using (design 44 §5t). Both are kept — a look at a stream
+     * should not throw away what the author pasted, and returning to the paste should not throw
+     * away the stream — so which one is in force is its own fact rather than something inferred
+     * from which is present. Stripped on export with the reference it names: an exported
+     * configuration cannot honour a stream it no longer has, and lands on its sample text.
+     */
+    @JsonProperty
+    private final SampleKind sampleKind;
 
     @JsonCreator
     public ShapeshifterDoc(@JsonProperty("uuid") final String uuid,
@@ -97,6 +127,8 @@ public class ShapeshifterDoc extends AbstractEmbeddableDoc implements HasData {
                            @JsonProperty("data") final String data,
                            @JsonProperty("colours") final Map<String, String> colours,
                            @JsonProperty("sample") final SourceLocation sample,
+                           @JsonProperty("sampleText") final String sampleText,
+                           @JsonProperty("sampleKind") final SampleKind sampleKind,
                            @JsonProperty("embeddedIn") final DocRef embeddedIn) {
         super(TYPE, uuid, name, version, createTimeMs, updateTimeMs, createUser, updateUser, embeddedIn);
         this.description = description;
@@ -105,6 +137,10 @@ public class ShapeshifterDoc extends AbstractEmbeddableDoc implements HasData {
                 ? null
                 : Collections.unmodifiableMap(new HashMap<>(colours));
         this.sample = sample;
+        this.sampleText = sampleText == null || sampleText.isEmpty()
+                ? null
+                : sampleText;
+        this.sampleKind = sampleKind;
     }
 
     public static DocRef getDocRef(final String uuid) {
@@ -138,6 +174,16 @@ public class ShapeshifterDoc extends AbstractEmbeddableDoc implements HasData {
         return sample;
     }
 
+    /** Which sample the project is using; null where it has never had one. */
+    public SampleKind getSampleKind() {
+        return sampleKind;
+    }
+
+    /** Sample data pasted by the author, or null; kept with the project and exported with it. */
+    public String getSampleText() {
+        return sampleText;
+    }
+
     @Override
     public boolean equals(final Object o) {
         if (this == o) {
@@ -153,12 +199,14 @@ public class ShapeshifterDoc extends AbstractEmbeddableDoc implements HasData {
         return Objects.equals(description, that.description) &&
                Objects.equals(data, that.data) &&
                Objects.equals(colours, that.colours) &&
-               Objects.equals(sample, that.sample);
+               Objects.equals(sample, that.sample) &&
+               Objects.equals(sampleText, that.sampleText) &&
+               sampleKind == that.sampleKind;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(super.hashCode(), description, data, colours, sample);
+        return Objects.hash(super.hashCode(), description, data, colours, sample, sampleText, sampleKind);
     }
 
     public Builder copy() {
@@ -180,6 +228,8 @@ public class ShapeshifterDoc extends AbstractEmbeddableDoc implements HasData {
         private String data;
         private Map<String, String> colours;
         private SourceLocation sample;
+        private String sampleText;
+        private SampleKind sampleKind;
         private DocRef embeddedIn;
 
         public Builder() {
@@ -191,6 +241,8 @@ public class ShapeshifterDoc extends AbstractEmbeddableDoc implements HasData {
             this.data = doc.data;
             this.colours = doc.colours;
             this.sample = doc.sample;
+            this.sampleText = doc.sampleText;
+            this.sampleKind = doc.sampleKind;
             this.embeddedIn = doc.getEmbeddedIn();
         }
 
@@ -211,6 +263,16 @@ public class ShapeshifterDoc extends AbstractEmbeddableDoc implements HasData {
 
         public Builder sample(final SourceLocation sample) {
             this.sample = sample;
+            return self();
+        }
+
+        public Builder sampleText(final String sampleText) {
+            this.sampleText = sampleText;
+            return self();
+        }
+
+        public Builder sampleKind(final SampleKind sampleKind) {
+            this.sampleKind = sampleKind;
             return self();
         }
 
@@ -237,6 +299,8 @@ public class ShapeshifterDoc extends AbstractEmbeddableDoc implements HasData {
                     data,
                     colours,
                     sample,
+                    sampleText,
+                    sampleKind,
                     embeddedIn);
         }
     }

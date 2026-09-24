@@ -94,3 +94,16 @@ tasks.register('jmh', JavaExec) {
                        '-rff', new File(results, "${stamp}-${commit}-ds3.json").path]
     }
 }
+
+// The demonstration content pack (design 44 §5r): the engine's fixtures as Shapeshifter
+// documents, each carrying its own sample, in the layout a Stroom import reads. A task rather
+// than a checked-in zip, so it follows the fixtures instead of going stale beside them.
+tasks.register('contentPack', JavaExec) {
+    group = 'build'
+    description = 'Build a Stroom content pack of the fixture projects, with their samples'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'stroom.shapeshifter.pipeline.pack.ContentPackBuilder'
+    // Beside the checkout rather than inside it: it is a build artefact to pick up and import,
+    // not something to commit, and it is easier to find there than under a module's build dir.
+    args = ["${rootProject.projectDir.parentFile}/shapeshifter-demos.zip"]
+}

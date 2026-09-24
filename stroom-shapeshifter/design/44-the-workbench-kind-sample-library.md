@@ -797,6 +797,132 @@ sibling cards can be equal and searching for the moved one afterwards finds the 
 
 The GWT draft compile caught the last of it: `int[].clone()` is not emulated, `Arrays.copyOf` is.
 
+## 5p. The workbench takes the quadrant — built 2026-09-23
+
+Opening the workbench hid the crumb, input and variables and put the workbench in the strip's
+cell, leaving the output pane beside it. That pane answers *"what did the selected frame write in
+the last run?"*, which is the wrong question three times over while a pattern is being edited: it
+is about the last run, not the sample the workbench is re-running as the author types; it is about
+the cursor, which the workbench does not move, so it is frozen wherever the cursor was left; and
+for a library part there is no frame behind it at all. Three hundred and twenty pixels of stale
+context beside a pane that carries the live version.
+
+The workbench now takes the whole area right of the panel, by the mechanism the sample page
+already used — `centre.setWidget(...)` rather than hiding rows and swapping a cell. Two things
+that replace the navigator now do it the same way, and the strip's cell only ever holds the
+strip. `topRow` was addressed by nothing afterwards and is gone rather than left wired.
+
+## 5q. The reference is stripped; the bytes travel — ruled and built 2026-09-24
+
+§5j condition 3 kept pasted sample text out of the document altogether, on the grounds that data
+in a configuration artefact is a classification question. The owner's expectation was that
+remembering the sample meant remembering *whichever* kind was chosen, and that the text is the
+one worth keeping across an export. That is the better reading and it inverts the condition:
+
+| | kept in the document | carried on export |
+|---|---|---|
+| a stream reference | ✔ | ✗ |
+| pasted text | ✔ | ✔ |
+
+The principle is one line: **strip what is meaningless elsewhere, carry what means the same
+everywhere.** A stream id resolves to a different stream in another installation, or to none, so
+an export must not carry it — §5j's first condition stands. Pasted bytes are literal and resolve
+to themselves, so carrying them is what lets an exported configuration demonstrate itself. §5j
+stripped both and excluded the text, which had the principle right and the case wrong.
+
+`ShapeshifterDoc.sampleText` holds it, `ShapeshifterStoreImpl` strips only `sample`, and the
+editor restores whichever the document has — a reference can fail to resolve and is forgotten
+with a word when it does (§5j condition 4), while pasted text cannot fail and is simply there.
+
+The cost is accepted rather than overlooked: a configuration exported from a live system carries
+whatever its author pasted into it. So the Data page says which kind they are on, beside the
+picker that chooses it — *"saved with the project, and carried when it is exported"* against
+*"the project remembers which stream; the data stays where it is, and the reference is dropped
+when the project is exported"*. A consequence an author meets at export time is one the editor
+should have told them at paste time.
+
+This is also what makes a **content pack** of demonstration projects possible: with the text in
+the document, an imported project runs without the importer having to find data for it.
+
+## 5r. A content pack of the fixtures — built 2026-09-24
+
+The engine has seventy-odd fixtures covering every shape a project takes, and none of them were
+reachable from the editor: to see one an author had to know it existed, find its JSON and paste
+it into the Source tab. §5q is what makes the fix possible — with the sample in the document, an
+imported project runs without the importer finding data for it.
+
+`./gradlew :stroom-shapeshifter:stroom-shapeshifter-pipeline:contentPack` writes a Stroom import
+zip of **72 documents** in three folders: `projects` (33), `native` (18) and `ds3` (21, migrated
+through `Ds3Migration`). Sixty-five carry their own sample.
+
+A task rather than a checked-in zip, because a pack beside the fixtures goes stale and a pack
+built from them cannot. The layout is what `ImportExportSerializerImplV2` writes, since import
+reads what export writes: per document a `.node` of properties, a `.meta` of the document's own
+JSON, and the `.json` extension asset that is the project — and a folder is a `.node` beside the
+directory it names. Identifiers are derived from the fixture's name rather than drawn fresh, so a
+second import updates the projects instead of duplicating them.
+
+Three things it refuses to pretend about, each found by building it rather than by planning it:
+
+- **Binary inputs carry no sample.** Seven fixtures are Avro, Parquet, protobuf or
+  length-prefixed bytes; the field is text, and a "sample" that is not the fixture's bytes is
+  worse than none. They say so in their description. The first cut sniffed for binary and let
+  three of the seven through — a length-prefixed record with small fields holds no NUL and
+  decodes as UTF-8 while being nothing of the kind — so the extension is trusted over the
+  content.
+- **A configuration that does not read is not packed.** Every project is parsed before it is
+  written, which caught `parquet_cities`: its match kind was retired by design 38 and the ledger
+  has it SKIPPED for that reason. Shipping it would have shipped a document that fails the moment
+  it is selected.
+- **The fixture that must be rejected is rejected.** `008_invalid_xml_FAIL` fails to migrate,
+  which is the fixture passing.
+
+Everything in the pack is written by hand, so `ContentPackBuilderTest` reads it back the way an
+import reads it — the properties as properties, the meta as a `ShapeshifterDoc`, the project as a
+`Project` — and checks that building it twice names everything the same.
+
+## 5s. The pasted sample is the author's, and is kept — built 2026-09-24
+
+Two refinements to §5q, from using it.
+
+**Editing the sample text makes the document dirty.** §5j condition 2 said the sample is written
+on an ordinary save and never as a side effect of choosing one, which is right for a *stream
+reference* — that says which data to look at, not what the project is. It is wrong for pasted
+text, which since §5q is saved and exported and is therefore document content. Writing it now
+fires the same `ValueChangeEvent` any other edit does; choosing a stream still fires nothing.
+
+**Switching to a stream no longer destroys the text.** The two kinds were one field, so the paste
+lived only while it was the kind in force, and a look at a stream threw it away. A look at a
+stream is usually temporary. The pasted text is now kept beside the sample in force —
+`ProjectHost.getKeptSampleText()` — saved whichever kind is active, offered back in the Data
+page's pasted half even while the stream half is showing, and restored on load.
+
+## 5t. Which sample is in use is its own fact — built 2026-09-24
+
+§5s inferred the kind: the document stored a reference only while a stream was in force, so a
+reference meant the stream was active and its absence meant the text was. Cheap, and wrong in the
+same way the first version was — it kept the text at the cost of the reference. Returning to the
+paste threw the stream away, and the author had to find it again.
+
+So both are kept and `ShapeshifterDoc.sampleKind` says which is in use. Three facts rather than
+two doing the work of three:
+
+| | kept | dirties the document | exported |
+|---|---|---|---|
+| `sampleText` | ✔ | ✔ | ✔ |
+| `sample` (the reference) | ✔ | ✗ | ✗ |
+| `sampleKind` | ✔ | ✗ | ✗ |
+
+The text is the only one that makes the document dirty, because it is the only one the author
+*writes*; the other two record where they were looking. The kind is stripped on export with the
+reference it names — a configuration arriving with a claim to be using a stream it no longer has
+would be claiming what it cannot honour — so an imported project lands on its sample text, which
+is exactly what a content pack needs. On load the kind decides; where it is absent, whichever the
+document has will do, the text first because it always works.
+
+Returning to the stream kind restores the kept stream rather than making the author find it
+again; the viewer catches up as they browse.
+
 ## 6. Order
 
 §1, §2, §3a and §3b built 2026-09-21; §4, §5 and its parts the day after, from the first sitting with them. Each phase gated as design 43's were — core-client compile and checkstyle, the

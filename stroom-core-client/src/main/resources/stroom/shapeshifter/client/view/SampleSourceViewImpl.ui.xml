@@ -6,7 +6,11 @@
         <g:north size="50">
             <g:FlowPanel styleName="ss-smp-head">
                 <g:Label styleName="ss-lim-label" text="Sample data from"/>
-                <l:SelectionBox ui:field="kind" title="Where the project's data comes from; it is never kept with the document"/>
+                <l:SelectionBox ui:field="kind" title="Where the project's data comes from"/>
+                <!-- The two kinds are kept differently and travel differently, and the page is
+                     where the author chooses between them, so it is where that is said
+                     (design 44 §5q). -->
+                <g:Label ui:field="keeping" styleName="ss-det-desc ss-smp-keeping"/>
             </g:FlowPanel>
         </g:north>
         <g:center>
