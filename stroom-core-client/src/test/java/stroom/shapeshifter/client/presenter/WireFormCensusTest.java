@@ -53,7 +53,7 @@ class WireFormCensusTest {
             "..", "stroom-shapeshifter", "stroom-shapeshifter-engine", "src", "test", "resources", "fixtures");
 
     /** Lower is better; drop it when a construct is modelled. */
-    private static final int WIRE_FORM_CEILING = 8;
+    private static final int WIRE_FORM_CEILING = 3;
 
     @Test
     void mostInstructionsOpenAsAFormRatherThanAsJson() throws IOException {
@@ -169,6 +169,13 @@ class WireFormCensusTest {
             final List<RefExpression> found = new ArrayList<>();
             found.add(apply.directive().select());
             apply.directive().withParam().forEach(param -> found.add(param.value()));
+            return found;
+        }
+        if (node instanceof final OutputNode.CallTemplate call) {
+            // The form spells a call's parameters, so the walk has to hold them to the same
+            // round trip — and to say so when one of them is why the wire form kept the card.
+            final List<RefExpression> found = new ArrayList<>();
+            call.withParam().forEach(param -> found.add(param.value()));
             return found;
         }
         if (node instanceof final OutputNode.EmitError value) {

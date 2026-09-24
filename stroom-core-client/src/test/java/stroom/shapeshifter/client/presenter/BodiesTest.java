@@ -17,6 +17,7 @@
 package stroom.shapeshifter.client.presenter;
 
 import stroom.shapeshifter.config.Condition;
+import stroom.shapeshifter.config.EngineVars;
 import stroom.shapeshifter.config.OutputNode;
 import stroom.shapeshifter.config.OutputNode.Choose;
 import stroom.shapeshifter.config.OutputNode.Element;
@@ -27,6 +28,7 @@ import stroom.shapeshifter.config.OutputNode.Text;
 import stroom.shapeshifter.config.OutputNode.ValueOf;
 import stroom.shapeshifter.config.OutputNode.WhenBranch;
 import stroom.shapeshifter.config.RefExpression;
+import stroom.shapeshifter.config.RefExpression.MatchIndex;
 import stroom.shapeshifter.config.RefExpression.RefPart;
 import stroom.shapeshifter.config.json.ProjectJson;
 
@@ -260,6 +262,49 @@ class BodiesTest {
     }
 
     @Test
+    void theMatchIndexIsSpeltAsASubscriptAndReadBack() {
+        // Which match to read, not just which group: bytes[i] and heading[matchCount()] are the
+        // two the fixtures hold (design 44 §5aa).
+        final RefExpression byVariable = new RefExpression(List.of(new RefPart.Capture(
+                "bytes", 0, new MatchIndex(0, false, false, "i", null))));
+        assertThat(Instructions.spell(byVariable)).isEqualTo("bytes[i]");
+        assertThat(Instructions.read("bytes[i]")).isEqualTo(byVariable);
+
+        final RefExpression byCounter = new RefExpression(List.of(new RefPart.Capture(
+                "heading", 0, new MatchIndex(0, false, false, null, EngineVars.MATCH_COUNT))));
+        assertThat(Instructions.spell(byCounter)).isEqualTo("heading[matchCount()]");
+        assertThat(Instructions.read("heading[matchCount()]")).isEqualTo(byCounter);
+
+        // The rest of the index rules, and a group wearing one rather than a name.
+        assertThat(Instructions.read("v[3]")).isEqualTo(new RefExpression(List.of(
+                new RefPart.Capture("v", 0, new MatchIndex(3, false, false, null, null)))));
+        assertThat(Instructions.read("$1[+1]")).isEqualTo(new RefExpression(List.of(
+                new RefPart.Capture(null, 1, new MatchIndex(1, true, false, null, null)))));
+        assertThat(Instructions.read("$1[-1]")).isEqualTo(new RefExpression(List.of(
+                new RefPart.Capture(null, 1, new MatchIndex(-1, true, false, null, null)))));
+        assertThat(Instructions.read("v[last]")).isEqualTo(new RefExpression(List.of(
+                new RefPart.Capture("v", 0, new MatchIndex(0, false, true, null, null)))));
+        // The parens tell the keyword from the function of that name.
+        assertThat(Instructions.read("v[last()]")).isEqualTo(new RefExpression(List.of(
+                new RefPart.Capture("v", 0, new MatchIndex(0, false, false, null, EngineVars.LAST)))));
+
+        // A variable named for the keyword has no subscript to be spelt in, so the wire keeps it.
+        assertThat(Instructions.spell(new RefExpression(List.of(new RefPart.Capture(
+                "v", 0, new MatchIndex(0, false, false, "last", null)))))).isNull();
+    }
+
+    @Test
+    void namesWearingTheGrammarsPunctuationAreNotSpelt() {
+        // "a,b" inside a call would be read back as two arguments and "a[1]" as a subscript, so
+        // neither is offered — the same rule as a name with a space (design 44 §5aa).
+        for (final String name : new String[]{"a,b", "a[1]", "a(b", "a b"}) {
+            assertThat(Instructions.spell(ProjectJson.readRefOrName(name)))
+                    .describedAs("spelling the name %s", name)
+                    .isNull();
+        }
+    }
+
+    @Test
     void halfWrittenTextIsReadAsANameRatherThanRefused() {
         // Every one of these is something an author can leave in the box mid-edit. None may throw,
         // and none may be read as a part the author did not write (design 44 §5z audit).
@@ -270,6 +315,13 @@ class BodiesTest {
                 "\"unclosed",       // the literal not yet closed
                 ")x(",              // the parens the wrong way round
                 "get(m,)",          // an argument not yet typed
+                "bytes[]",          // the subscript with nothing in it
+                "bytes[+]",         // a sign with no number after it
+                "bytes[i",          // the subscript not yet closed
+                "bytes[\"x\"]",      // a literal where an index rule goes
+                "get(, \"k\")",       // the first argument not yet typed
+                "get(m, )",         // the second not yet typed
+                "size( )",          // the only one not yet typed
                 "$",                // the dollar alone
                 "",                 // nothing at all
         };
@@ -279,6 +331,19 @@ class BodiesTest {
                     .describedAs("reading %s", text)
                     .isEqualTo(ProjectJson.readRefOrName(text));
         }
+    }
+
+    @Test
+    void deeplyNestedCallsAreReadOnceEach() {
+        // A call's arguments are read by the same method that reads the call, so asking a token
+        // what it is more than once costs that much again at every level: twenty deep was
+        // billions of re-readings and a frozen tab. One reading per token keeps it linear.
+        String spelling = "xs";
+        for (int i = 0; i < 20; i++) {
+            spelling = "get(" + spelling + ", \"k\")";
+        }
+        final RefExpression ref = Instructions.read(spelling);
+        assertThat(Instructions.spell(ref)).isEqualTo(spelling);
     }
 
     @Test

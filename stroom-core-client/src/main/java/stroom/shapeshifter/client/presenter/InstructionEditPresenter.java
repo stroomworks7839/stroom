@@ -245,7 +245,8 @@ public class InstructionEditPresenter extends MyPresenterWidget<InstructionEditV
             case "value-of":
                 field(0, "Select", "a name, $1 or $label for a capture group, \"quoted "
                                    + "text\" for a literal, or a call such as index(), size(xs) "
-                                   + "or get(m, \"k\"); several one after another are joined");
+                                   + "or get(m, \"k\"); [i] or [matchCount()] after a name says "
+                                   + "which match; several one after another are joined");
                 break;
             case "element":
                 field(0, "Name", null);

@@ -16,6 +16,7 @@
 
 package stroom.shapeshifter.client.presenter;
 
+import stroom.shapeshifter.config.EngineVars;
 import stroom.shapeshifter.config.OutputNode;
 import stroom.shapeshifter.config.OutputNode.ApplyTemplates;
 import stroom.shapeshifter.config.OutputNode.Attribute;
@@ -33,6 +34,7 @@ import stroom.shapeshifter.config.OutputNode.Transform;
 import stroom.shapeshifter.config.OutputNode.ValueOf;
 import stroom.shapeshifter.config.OutputNode.Variable;
 import stroom.shapeshifter.config.RefExpression;
+import stroom.shapeshifter.config.RefExpression.MatchIndex;
 import stroom.shapeshifter.config.RefExpression.RefPart;
 import stroom.shapeshifter.config.json.JsonObject;
 import stroom.shapeshifter.config.json.JsonText;
@@ -53,6 +55,9 @@ public final class Instructions {
 
     /** Nine digits always fit an int, so a group number of at most that many never overflows. */
     private static final int GROUP_DIGITS = 9;
+
+    /** What a subscript calls the last populated entry, the one index rule that is not a value. */
+    private static final String LAST_ENTRY = "last";
 
     public enum Category {
         OUTPUT("output"),
@@ -252,22 +257,27 @@ public final class Instructions {
             return quoteLiteral(text.value());
         }
         if (part instanceof final RefPart.Capture capture) {
-            if (capture.matchIndex() != null) {
+            // A subscript says which match to read: bytes[i], heading[matchCount()] (design
+            // 44 §5aa). Nothing without an index rule carries one.
+            final String index = capture.matchIndex() == null
+                    ? ""
+                    : spellIndex(capture.matchIndex());
+            if (index == null) {
                 return null;
             }
             if (capture.label() != null) {
                 // A group the pattern named. The dollar says "a group of this match" either way:
                 // digits are its number, a word is its label (design 44 §5y).
                 return capture.varId() == null && capture.group() == 0 && spellableName(capture.label())
-                        ? "$" + capture.label()
+                        ? "$" + capture.label() + index
                         : null;
             }
             if (capture.varId() == null) {
-                return "$" + capture.group();
+                return "$" + capture.group() + index;
             }
             if (capture.group() == 0) {
                 return spellableName(capture.varId())
-                        ? capture.varId()
+                        ? capture.varId() + index
                         : null;
             }
             return null;
@@ -293,12 +303,55 @@ public final class Instructions {
                     ? ""
                     : ", " + key) + ")";
         }
-        if (part instanceof final RefPart.Counter counter && counter.matchIndex() == null) {
-            return counter.counter().spelling();
+        if (part instanceof final RefPart.Counter counter) {
+            final String index = counter.matchIndex() == null
+                    ? ""
+                    : spellIndex(counter.matchIndex());
+            if (index != null) {
+                return counter.counter().spelling() + index;
+            }
         }
         return whole == null
                 ? null
                 : ProjectJson.refOrName(whole);
+    }
+
+    /**
+     * An index rule as a subscript: {@code [3]} the third, {@code [+1]} and {@code [-1]} relative
+     * to this match, {@code [last]} the last populated entry, {@code [i]} an index a variable
+     * holds and {@code [matchCount()]} one a function answers (design 44 §5aa).
+     *
+     * <p>Null where the rule cannot be said without losing part of itself: an index the engine
+     * ignores, a negative absolute, or a variable named for the keyword.
+     */
+    private static String spellIndex(final MatchIndex index) {
+        final boolean plain = index.index() == 0 && !index.isOffset();
+        if (index.varRef() != null) {
+            // [last] is the keyword, so a variable of that name has no subscript to be spelt in.
+            return plain && !index.isLast() && spellableName(index.varRef())
+                   && !LAST_ENTRY.equals(index.varRef())
+                    ? "[" + index.varRef() + "]"
+                    : null;
+        }
+        if (index.counter() != null) {
+            return plain && !index.isLast()
+                    ? "[" + index.counter().spelling() + "]"
+                    : null;
+        }
+        if (index.isLast()) {
+            // The engine ignores the index here, but dropping it would be a lossy round trip.
+            return plain
+                    ? "[" + LAST_ENTRY + "]"
+                    : null;
+        }
+        if (index.isOffset()) {
+            return "[" + (index.index() < 0
+                    ? ""
+                    : "+") + index.index() + "]";
+        }
+        return index.index() < 0
+                ? null
+                : "[" + index.index() + "]";
     }
 
     /**
@@ -327,29 +380,42 @@ public final class Instructions {
         if (tokens == null) {
             return null;
         }
-        final String only = tokens.size() == 1
-                ? tokens.get(0)
-                : null;
-        if (only != null && !isQuoted(only) && !isGroup(only) && !isLabel(only)
-            && accessorOf(only) == null) {
-            // One name or one function: the wire's own reading, unchanged.
-            return null;
-        }
         final List<RefPart> parts = new ArrayList<>();
         for (final String token : tokens) {
-            if (isQuoted(token)) {
-                parts.add(new RefPart.Text(unquote(token)));
-            } else if (isGroup(token)) {
-                parts.add(new RefPart.Capture(null, Integer.parseInt(token.substring(1)), null));
-            } else if (isLabel(token)) {
-                parts.add(RefPart.Capture.label(token.substring(1)));
-            } else if (accessorOf(token) != null) {
-                parts.add(accessorOf(token));
-            } else {
+            // Once per token: a call's arguments are read by this same method, so reading one
+            // twice to ask what it is would cost twice as much again at every level of nesting.
+            final RefPart part = partOf(token);
+            if (part == null) {
+                if (tokens.size() == 1) {
+                    // One name or one function: the wire's own reading, unchanged.
+                    return null;
+                }
                 parts.addAll(ProjectJson.readRefOrName(token).parts());
+            } else {
+                parts.add(part);
             }
         }
         return parts;
+    }
+
+    /** One token as the part it spells, or null where only the wire can read it. */
+    private static RefPart partOf(final String token) {
+        if (isQuoted(token)) {
+            return new RefPart.Text(unquote(token));
+        }
+        // Before the group and the label: $1[+1] wears a subscript, it is not a label whose name
+        // happens to start with a digit.
+        final RefPart subscript = subscripted(token);
+        if (subscript != null) {
+            return subscript;
+        }
+        if (isGroup(token)) {
+            return new RefPart.Capture(null, Integer.parseInt(token.substring(1)), null);
+        }
+        if (isLabel(token)) {
+            return RefPart.Capture.label(token.substring(1));
+        }
+        return accessorOf(token);
     }
 
     /**
@@ -393,9 +459,10 @@ public final class Instructions {
                 }
             } else {
                 // A call is one token however its arguments are spaced: get(m, "k") is not three.
-                if (c == '(') {
+                // A subscript nests the same way, so bytes[matchCount()] is one token too.
+                if (c == '(' || c == '[') {
                     depth++;
-                } else if (c == ')') {
+                } else if (c == ')' || c == ']') {
                     depth--;
                 }
                 token.append(c);
@@ -413,6 +480,73 @@ public final class Instructions {
     }
 
     /**
+     * A token wearing a subscript — {@code bytes[i]}, {@code $1[+1]}, {@code matchCount()[2]} —
+     * as the part it is, or null where it wears none or the base is not something that can carry
+     * one (design 44 §5aa).
+     */
+    private static RefPart subscripted(final String token) {
+        if (!token.endsWith("]")) {
+            return null;
+        }
+        final int open = token.lastIndexOf('[');
+        if (open <= 0) {
+            return null;
+        }
+        final MatchIndex index = matchIndexOf(token.substring(open + 1, token.length() - 1));
+        if (index == null) {
+            return null;
+        }
+        final String base = token.substring(0, open);
+        if (isGroup(base)) {
+            return new RefPart.Capture(null, Integer.parseInt(base.substring(1)), index);
+        }
+        if (isLabel(base)) {
+            return new RefPart.Capture(null, 0, index, base.substring(1));
+        }
+        if (base.endsWith("()")) {
+            final EngineVars counter = EngineVars.byName(base.substring(0, base.length() - 2));
+            return counter == null
+                    ? null
+                    : new RefPart.Counter(counter, index);
+        }
+        return spellableName(base)
+                ? new RefPart.Capture(base, 0, index)
+                : null;
+    }
+
+    /** What is inside a subscript as an index rule, or null where it is not one. */
+    private static MatchIndex matchIndexOf(final String inner) {
+        if (inner.isEmpty()) {
+            return null;
+        }
+        if (LAST_ENTRY.equals(inner)) {
+            return new MatchIndex(0, false, true, null, null);
+        }
+        final char first = inner.charAt(0);
+        final boolean relative = first == '+' || first == '-';
+        final String digits = relative
+                ? inner.substring(1)
+                : inner;
+        if (relative || isDigits(digits)) {
+            // A sign with nothing after it is half-written, not an index of nothing.
+            return isDigits(digits) && digits.length() <= GROUP_DIGITS
+                    ? new MatchIndex(first == '-'
+                            ? -Integer.parseInt(digits)
+                            : Integer.parseInt(digits), relative, false, null, null)
+                    : null;
+        }
+        if (inner.endsWith("()")) {
+            final EngineVars counter = EngineVars.byName(inner.substring(0, inner.length() - 2));
+            return counter == null
+                    ? null
+                    : new MatchIndex(0, false, false, null, counter);
+        }
+        return spellableName(inner)
+                ? new MatchIndex(0, false, false, inner, null)
+                : null;
+    }
+
+    /**
      * A token as an accessor — {@code size(xs)}, {@code get(m, "k")} — or null where it is not
      * one. The arguments are spellings in their own right, so a collection may be a name, a
      * group, or another accessor.
@@ -427,7 +561,9 @@ public final class Instructions {
             return null;
         }
         final List<String> args = arguments(token.substring(open + 1, token.length() - 1));
-        if (args == null || args.isEmpty() || args.size() > 2) {
+        if (args == null || args.isEmpty() || args.size() > 2 || args.contains("")) {
+            // An argument left blank is half-written: get(, "k") is not a call over a variable
+            // with no name, and saving it as one would put the author's text beyond the form.
             return null;
         }
         final RefExpression of = read(args.get(0));
@@ -569,7 +705,10 @@ public final class Instructions {
         }
         for (int i = 0; i < name.length(); i++) {
             final char c = name.charAt(i);
-            if (c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '"' || c == '\\') {
+            // The grammar's own punctuation: a name wearing any of it would be read back as
+            // something else — "a,b" inside get() as two arguments, "a[1]" as a subscript.
+            if (c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '"' || c == '\\'
+                || c == '(' || c == ')' || c == '[' || c == ']' || c == ',') {
                 return false;
             }
         }

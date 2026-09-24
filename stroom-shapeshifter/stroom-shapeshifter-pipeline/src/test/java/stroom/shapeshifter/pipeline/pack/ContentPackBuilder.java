@@ -247,8 +247,11 @@ public final class ContentPackBuilder {
         props.setProperty("type", type);
         props.setProperty("name", name);
         props.setProperty("version", "V2");
-        // As the export writes it: every node on the way down, this one included.
-        props.setProperty("path", path);
+        // As the export writes it: a delimiter before every node on the way down, this one
+        // included, so the root's own path and its children's are spelt the same way.
+        props.setProperty("path", path.startsWith("/")
+                ? path
+                : "/" + path);
         final java.io.StringWriter writer = new java.io.StringWriter();
         props.store(writer, null);
         // Properties.store stamps a date comment, which would make every build a different file.

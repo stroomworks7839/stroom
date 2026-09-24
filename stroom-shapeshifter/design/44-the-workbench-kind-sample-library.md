@@ -1185,6 +1185,55 @@ unclosed literal, an empty argument and the parens the wrong way round all fall 
 own reading, which is the rule the fallback was built for. Both findings are now tests, one for
 the half-written text and one asserting that what the form spells it reads back unchanged.
 
+## 5aa. A match index is a subscript — built 2026-09-24
+
+Five of the eight the wire form still held were a capture that says *which match* to read, not
+just which group — `bytes` as it stood at index `i`, `heading` as it stood at `matchCount()`:
+
+```json
+"capture": { "var_id": "heading", "group": 0,
+             "match_index": { "function": "matchCount" } }
+```
+
+`MatchIndex` has five rules, and the model's own comment already spells two of them, so the
+notation was not invented here: `[3]` the third, `[+1]` and `[-1]` relative to this match,
+`[last]` the last populated entry, `[i]` an index a variable holds, `[matchCount()]` one a
+function answers. The subscript goes after whatever carries it — a name, a group, a label, or a
+counter — so `bytes[i]`, `$1[+1]` and `index()[2]` are all one token, and what is inside it is
+read by the rules the grammar already has: digits are a number, a word is a name, a word with
+parens is a function.
+
+`last` is a keyword inside a subscript and also one of the engine's functions, which the parens
+tell apart: `[last]` is the last populated entry, `[last()]` is the function. The cost is that a
+variable *named* `last` has no subscript it can be spelt in, so the wire form keeps that one —
+the same rule as a name with a space, and no fixture writes it.
+
+Three edges were closed rather than left to be found later. An index the engine ignores, and a
+negative absolute, are not spelt at all: dropping either would be a lossy round trip of the kind
+§5u went looking for. And a name wearing the grammar's own punctuation is no longer spellable —
+`a,b` inside a call would read back as two arguments, `a[1]` as a subscript — which was a latent
+fault in §5z's call syntax, not in this.
+
+```
+              §5w    §5x    §5y    §5z   §5aa
+the wire form  57     54     43      8      3      (of 1586 instructions)
+```
+
+**Three left**: two a `for-each` with a sort, one a `max` with a cast. Still open, and neither is
+a reference: a sort is a repeating sub-form of three controls, and a cast has nowhere to go in a
+call of two arguments.
+
+A review of the whole grammar afterwards found two more of the same kind. A blank argument was
+being read as a call rather than as half-written text, so `get(, "k")` saved an accessor over a
+variable with no name — and inconsistently, since `get(m,)` already fell back and `get(m, )` did
+not. And a token was being asked what it was up to three times, once per branch; because a call's
+arguments are read by the method that reads the call, that multiplied at every level of nesting,
+so twenty deep was billions of re-readings on the UI thread. One reading per token, kept.
+
+The census walk had a hole in the same place: it did not carry a `call-template`'s parameters,
+which the form does spell, so nothing held them to the round trip and any such card that fell to
+the wire form was reported as an unmodelled kind rather than as the parameter it was.
+
 ## 6. Order
 
 §1, §2, §3a and §3b built 2026-09-21; §4, §5 and its parts the day after, from the first sitting with them. Each phase gated as design 43's were — core-client compile and checkstyle, the
