@@ -1281,6 +1281,67 @@ reached the label `$as` and the index rule in `foo[as]`, neither of which a modi
 confused with — and both stopped meaning what they had meant. Only the bare word collides, so
 only the bare word is reserved.
 
+## 5ac. A sort is rows, not a spelling — built 2026-09-24
+
+The last two were the same thing, and the only one of the four that was never a reference:
+`ForEach.sort` is a *list* of `Sort(by, order, as)`, so no spelling could have reached it. It
+wanted what a guard already has — rows.
+
+`SortListPanel` and `SortKeyRow` are built on the clause editor's shape, which is the point: a
+repeating list of rows with a `+` beneath it is an idiom the editor already had, and a second one
+would have been a second idiom. A row is **by · order · as · ✕**, the first row reading `by` and
+the rest `then`, since a key after the first only decides what the one before it left level. The
+cast offers *as text* for uncast, which is the model's own default and the one total ordering.
+
+One thing the form was doing quietly had to stop: `write` built its `for-each` with `List.of()`
+for the sort. That was harmless while a sorted `for-each` never opened as a form — it could not
+be reached — but it would have silently dropped the ordering the moment it could. The rows are
+written back now.
+
+```
+              §5w    §5x    §5y    §5z   §5aa   §5ab   §5ac
+the wire form  57     54     43      8      3      2      0      (of 1586 instructions)
+```
+
+**Zero.** Every instruction in all 51 fixture projects opens as a form, and the census ratchet
+now sits at zero rather than at a ceiling: a rise is a construct that has slipped, not a budget
+being spent. The wire form stays for what no fixture writes — it is the fallback the whole
+exercise depended on, and §5z, §5aa and §5ab each leaned on it to refuse a spelling rather than
+invent one — but it is no longer where the ordinary work happens. That was **618 instructions,
+39% of every fixture,** when §5v counted it.
+
+## 5ad. What the document cannot hold, the form does not offer — 2026-09-24
+
+The review of §5ac went after the other side of the round trip — text an author types rather than
+configuration a fixture holds — and found three places the form offered something that could not
+survive being saved, plus one that could not survive a kind change.
+
+**A labelled capture wearing a subscript.** `RefPart.Capture` permits a label beside a match
+index, but the wire does not: `ReferenceJson` writes only the label and refuses to read anything
+beside it — *"a capture reference by label names nothing else"*. §5aa put subscripts on every base
+that could carry one, and the help text advertised both, so `$when[i]` was spelt, read, and then
+silently written to the document as `$when`. The model permits it; the document is what decides,
+so the form no longer offers or reads it.
+
+**A label made of digits.** `$12` is group 12, so a label of `12` had a spelling that meant
+something else on the way back. It has none now.
+
+**A modifier that did not bind.** `max(xs) as numbr` was read as a call and two undeclared
+variable reads, saved, and thereafter stuck in the wire form under a note about paths and
+accessors. But `as` and `or` are reserved words — never the names they would otherwise be read
+as — so an unbound one is the one fault this grammar can actually name. The dialog now says
+*"'as' comes after min or max and takes a cast: string, number, integer, double, boolean, date"*
+and stays open, which is what the error path was already there for.
+
+**The sort survived its kind.** `showKind` hides every conditional control when the kind changes;
+the sort rows were hidden only by `clear()`, which runs on opening a card, not on changing its
+kind. A `for-each` switched to an `element` kept its Sort group on screen and editable, writing
+nothing. Hidden with the rest now.
+
+None of these is the grammar being wrong. Three are the form offering more than the document can
+keep, which is the same fault in three places, and worth naming as a rule: **the wire format, not
+the model, is what the form may offer** — the model is the wider of the two.
+
 ## 6. Order
 
 §1, §2, §3a and §3b built 2026-09-21; §4, §5 and its parts the day after, from the first sitting with them. Each phase gated as design 43's were — core-client compile and checkstyle, the

@@ -51,6 +51,10 @@
             <form:FormGroup ui:field="conditionGroup" identity="ssInstrCondition" label="Test">
                 <ss:ClauseListPanel ui:field="condition"/>
             </form:FormGroup>
+            <form:FormGroup ui:field="sortGroup" identity="ssInstrSort" label="Sort"
+                            helpText="The order the entries are walked in. Each key is read with index() bound to the entry, and a key after the first only decides what the one before it left level.">
+                <ss:SortListPanel ui:field="sort"/>
+            </form:FormGroup>
             <form:FormGroup ui:field="wireGroup" identity="ssInstrWire" label="Wire form"
                             helpText="The instruction as the document holds it.">
                 <g:TextArea ui:field="wire" addStyleNames="w-100 shapeshifter-entries" visibleLines="10"/>

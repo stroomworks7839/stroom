@@ -22,7 +22,10 @@ import stroom.shapeshifter.config.EngineVars;
 import stroom.shapeshifter.config.OutputNode;
 import stroom.shapeshifter.config.OutputNode.Choose;
 import stroom.shapeshifter.config.OutputNode.Element;
+import stroom.shapeshifter.config.OutputNode.ForEach;
 import stroom.shapeshifter.config.OutputNode.If;
+import stroom.shapeshifter.config.OutputNode.Order;
+import stroom.shapeshifter.config.OutputNode.Sort;
 import stroom.shapeshifter.config.OutputNode.Switch;
 import stroom.shapeshifter.config.OutputNode.SwitchCase;
 import stroom.shapeshifter.config.OutputNode.Text;
@@ -297,6 +300,27 @@ class BodiesTest {
     }
 
     @Test
+    void sortKeysAreSpeltAndReadBackAsRows() {
+        // The last of the wire form's holdings, and the only one that was never a reference but
+        // a list of its own: the fixture's key is bytes as it stood at i (design 44 §5ac).
+        final Sort sort = new Sort(new RefExpression(List.of(new RefPart.Capture(
+                "bytes", 0, new MatchIndex(0, false, false, "i", null)))),
+                Order.DESCENDING, Cast.NUMBER);
+        final SortKey row = SortKey.of(sort);
+        assertThat(row.getBy()).isEqualTo("bytes[i]");
+        assertThat(row.getOrder()).isEqualTo(Order.DESCENDING);
+        assertThat(row.getAs()).isEqualTo(Cast.NUMBER);
+
+        // What the row holds is what the dialog builds back.
+        assertThat(new Sort(Instructions.read(row.getBy()), row.getOrder(), row.getAs()))
+                .isEqualTo(sort);
+
+        // An unsorted walk is a for-each with no rows, not a row with nothing in it.
+        assertThat(new ForEach(ProjectJson.readRefOrName("xs"), "x", null, List.of(), List.of())
+                .sort()).isEmpty();
+    }
+
+    @Test
     void everyShapeOfDefaultReadsBackToWhatItWas() {
         // Whatever the form spells as one word can be a default, so every shape is held to the
         // round trip rather than the literal alone. A default of matchCount() was spelt and then
@@ -372,6 +396,40 @@ class BodiesTest {
         // A variable named for the keyword has no subscript to be spelt in, so the wire keeps it.
         assertThat(Instructions.spell(new RefExpression(List.of(new RefPart.Capture(
                 "v", 0, new MatchIndex(0, false, false, "last", null)))))).isNull();
+    }
+
+    @Test
+    void theFormOffersOnlyWhatTheDocumentCanHold() {
+        // The wire refuses a labelled capture that names anything else, so a subscript on one
+        // could never be saved: the form does not offer it, and does not read it either
+        // (design 44 §5ad).
+        assertThat(Instructions.spell(new RefExpression(List.of(new RefPart.Capture(
+                null, 0, new MatchIndex(0, false, false, "i", null), "when"))))).isNull();
+        assertThat(Instructions.read("$when[i]"))
+                .isEqualTo(ProjectJson.readRefOrName("$when[i]"));
+
+        // $12 is group 12, so a label of digits has no spelling of its own to be read back by.
+        assertThat(Instructions.spell(new RefExpression(List.of(RefPart.Capture.label("12")))))
+                .isNull();
+        assertThat(Instructions.read("$12")).isEqualTo(RefExpression.group(12));
+    }
+
+    @Test
+    void anUnfinishedModifierIsSaidRatherThanSaved() {
+        // A modifier that did not bind is a reserved word, never the name it would be read as,
+        // so the dialog says what is wrong instead of saving a call and two undeclared reads.
+        assertThat(Instructions.fault("max(xs) as"))
+                .contains("'as' comes after min or max");
+        assertThat(Instructions.fault("max(xs) as numbr"))
+                .contains("'as' comes after min or max").contains("number");
+        assertThat(Instructions.fault("get(m, \"k\") or"))
+                .contains("'or' comes after get");
+
+        // And nothing to say about a spelling that reads.
+        for (final String good : new String[]{
+                "max(xs) as number", "get(m, \"k\") or \"-\"", "$1 \" x\"", "bytes[i]"}) {
+            assertThat(Instructions.fault(good)).describedAs("fault of %s", good).isNull();
+        }
     }
 
     @Test

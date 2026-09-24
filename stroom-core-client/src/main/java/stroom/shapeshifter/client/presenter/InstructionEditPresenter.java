@@ -19,6 +19,7 @@ package stroom.shapeshifter.client.presenter;
 import stroom.alert.client.event.AlertEvent;
 import stroom.shapeshifter.client.presenter.InstructionEditPresenter.InstructionEditView;
 import stroom.shapeshifter.client.view.ClauseListPanel;
+import stroom.shapeshifter.client.view.SortListPanel;
 import stroom.shapeshifter.config.Condition;
 import stroom.shapeshifter.config.ConfigException;
 import stroom.shapeshifter.config.Dispatch;
@@ -38,9 +39,11 @@ import stroom.shapeshifter.config.OutputNode.Holder;
 import stroom.shapeshifter.config.OutputNode.If;
 import stroom.shapeshifter.config.OutputNode.Insert;
 import stroom.shapeshifter.config.OutputNode.Namespace;
+import stroom.shapeshifter.config.OutputNode.Order;
 import stroom.shapeshifter.config.OutputNode.Param;
 import stroom.shapeshifter.config.OutputNode.Put;
 import stroom.shapeshifter.config.OutputNode.Remove;
+import stroom.shapeshifter.config.OutputNode.Sort;
 import stroom.shapeshifter.config.OutputNode.Switch;
 import stroom.shapeshifter.config.OutputNode.SwitchCase;
 import stroom.shapeshifter.config.OutputNode.Text;
@@ -77,6 +80,7 @@ public class InstructionEditPresenter extends MyPresenterWidget<InstructionEditV
     private List<List<OutputNode>> bodies = List.of();
     private OutputNode original;
     private List<GuardClause> clauses = new ArrayList<>();
+    private List<SortKey> sortKeys = new ArrayList<>();
     private String conditionJson;
 
     @Inject
@@ -108,6 +112,29 @@ public class InstructionEditPresenter extends MyPresenterWidget<InstructionEditV
             @Override
             public void onJson(final String text) {
                 conditionJson = text;
+            }
+        });
+        view.getSort().setListener(new SortListPanel.Listener() {
+            @Override
+            public void onSortChange(final int index, final SortKey key) {
+                if (index >= 0 && index < sortKeys.size()) {
+                    sortKeys.set(index, key);
+                }
+            }
+
+            @Override
+            public void onSortRemove(final int index) {
+                if (index >= 0 && index < sortKeys.size()) {
+                    sortKeys.remove(index);
+                    view.getSort().setKeys(sortKeys);
+                }
+            }
+
+            @Override
+            public void onSortAdd() {
+                sortKeys = view.getSort().getKeys();
+                sortKeys.add(new SortKey("", Order.ASCENDING, null));
+                view.getSort().setKeys(sortKeys);
             }
         });
         view.setOnKind(this::showKind);
@@ -164,6 +191,9 @@ public class InstructionEditPresenter extends MyPresenterWidget<InstructionEditV
         v.setMode(null);
         v.setDispatch(null, false);
         v.setConditionVisible(false);
+        v.setSortVisible(false);
+        sortKeys = new ArrayList<>();
+        v.getSort().setKeys(sortKeys);
         v.setWire("");
         v.setNote(null);
         clauses = new ArrayList<>();
@@ -180,6 +210,16 @@ public class InstructionEditPresenter extends MyPresenterWidget<InstructionEditV
         return ref == null || Instructions.spell(ref) != null;
     }
 
+    /** Whether every sort key's expression has a field spelling; a for-each need not sort. */
+    private static boolean spellableKeys(final List<Sort> sort) {
+        for (final Sort key : sort) {
+            if (Instructions.spell(key.by()) == null) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     /** Whether every reference the form would show has a field spelling. */
     static boolean spellable(final OutputNode node) {
         if (node instanceof ValueOf v) {
@@ -194,7 +234,7 @@ public class InstructionEditPresenter extends MyPresenterWidget<InstructionEditV
         } else if (node instanceof Switch s) {
             return Instructions.spell(s.select()) != null;
         } else if (node instanceof ForEach f) {
-            return Instructions.spell(f.select()) != null && f.sort().isEmpty();
+            return Instructions.spell(f.select()) != null && spellableKeys(f.sort());
         } else if (node instanceof ForEachGroup g) {
             return Instructions.spell(g.select()) != null && optional(g.groupBy());
         } else if (node instanceof Append a) {
@@ -235,6 +275,7 @@ public class InstructionEditPresenter extends MyPresenterWidget<InstructionEditV
         v.setModeVisible(false);
         v.setDispatchVisible(false);
         v.setConditionVisible(false);
+        v.setSortVisible(false);
         v.setWireVisible(false);
         v.setNote(null);
         switch (kind) {
@@ -303,6 +344,7 @@ public class InstructionEditPresenter extends MyPresenterWidget<InstructionEditV
                 field(0, "Select", "the collection iterated: a declared name, or a function");
                 field(1, "As", "the name each entry is bound to");
                 field(2, "As key", "for a map, the name each key is bound to; blank for none");
+                v.setSortVisible(true);
                 break;
             case "for-each-group":
                 field(0, "Select", "the collection grouped: a declared name, or a function");
@@ -402,6 +444,11 @@ public class InstructionEditPresenter extends MyPresenterWidget<InstructionEditV
             v.setField(2, f.asKey() == null
                     ? ""
                     : f.asKey());
+            sortKeys = new ArrayList<>();
+            for (final Sort key : f.sort()) {
+                sortKeys.add(SortKey.of(key));
+            }
+            v.getSort().setKeys(sortKeys);
         } else if (node instanceof ForEachGroup g) {
             v.setField(0, Instructions.ref(g.select()));
             v.setField(1, Instructions.ref(g.groupBy()));
@@ -512,7 +559,7 @@ public class InstructionEditPresenter extends MyPresenterWidget<InstructionEditV
                 case "for-each":
                     return new ForEach(ref(v.getField(0), "for-each needs a select"),
                             required(v.getField(1), "for-each needs a name to bind each entry to"),
-                            blankToNull(v.getField(2)), List.of(), body(0));
+                            blankToNull(v.getField(2)), sort(), body(0));
                 case "for-each-group":
                     // Blank groups by the entry's own value, which is what the model means
                     // by a null group-by.
@@ -589,11 +636,33 @@ public class InstructionEditPresenter extends MyPresenterWidget<InstructionEditV
     private static RefExpression refOrNull(final String text) {
         return text == null || text.trim().isEmpty()
                 ? null
-                : Instructions.read(text);
+                : Instructions.read(checked(text));
     }
 
     private static RefExpression ref(final String text, final String message) {
-        return Instructions.read(required(text, message));
+        return Instructions.read(checked(required(text, message)));
+    }
+
+    /**
+     * The text, or a refusal saying what the grammar could not finish reading. Saving half-read
+     * text would put it beyond the form, so the dialog stays open and says why (design 44 §5ad).
+     */
+    private static String checked(final String text) {
+        final String fault = Instructions.fault(text);
+        if (fault != null) {
+            throw new ConfigException(fault);
+        }
+        return text;
+    }
+
+    /** The sort rows as the ordering they spell. A row left blank has nothing to sort by. */
+    private List<Sort> sort() {
+        final List<Sort> keys = new ArrayList<>();
+        for (final SortKey key : getView().getSort().getKeys()) {
+            keys.add(new Sort(ref(key.getBy(), "a sort key needs something to sort by"),
+                    key.getOrder(), key.getAs()));
+        }
+        return keys;
     }
 
     /** A key or position the configuration may leave out: blank is absent, not an error. */
@@ -611,7 +680,7 @@ public class InstructionEditPresenter extends MyPresenterWidget<InstructionEditV
         }
         // Quoting is the spelling's to read, not this method's: testing the first and last
         // character called `"a" "b"` one literal of `a" "b`, and it never unescaped anything.
-        return Instructions.read(t);
+        return Instructions.read(checked(t));
     }
 
     private static String required(final String text, final String message) {
@@ -724,6 +793,10 @@ public class InstructionEditPresenter extends MyPresenterWidget<InstructionEditV
         ClauseListPanel getCondition();
 
         void setConditionVisible(boolean visible);
+
+        SortListPanel getSort();
+
+        void setSortVisible(boolean visible);
 
         String getWire();
 

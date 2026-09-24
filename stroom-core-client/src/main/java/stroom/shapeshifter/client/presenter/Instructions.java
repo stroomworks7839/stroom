@@ -272,9 +272,14 @@ public final class Instructions {
             }
             if (capture.label() != null) {
                 // A group the pattern named. The dollar says "a group of this match" either way:
-                // digits are its number, a word is its label (design 44 §5y).
-                return capture.varId() == null && capture.group() == 0 && spellableName(capture.label())
-                        ? "$" + capture.label() + index
+                // digits are its number, a word is its label (design 44 §5y) — so a label of
+                // digits has no spelling of its own, and the wire keeps it. Nor does a label
+                // with a subscript: the document cannot hold one (ReferenceJson: "a capture
+                // reference by label names nothing else"), so the form must not offer it.
+                return capture.varId() == null && capture.group() == 0
+                       && capture.matchIndex() == null
+                       && spellableName(capture.label()) && !isDigits(capture.label())
+                        ? "$" + capture.label()
                         : null;
             }
             if (capture.varId() == null) {
@@ -482,6 +487,34 @@ public final class Instructions {
         return CAST_KEYWORD.equals(word) || DEFAULT_KEYWORD.equals(word);
     }
 
+    /**
+     * What is wrong with a spelling the author has typed, in words they can act on, or null
+     * where there is nothing to say. A modifier that did not bind is the one fault the grammar
+     * can name: it is a reserved word, so it is never the name it would otherwise be read as,
+     * and saying so beats saving a call and two undeclared reads (design 44 §5ad).
+     */
+    public static String fault(final String text) {
+        for (final RefPart part : read(text).parts()) {
+            if (part instanceof final RefPart.Capture capture && isModifier(capture.varId())) {
+                return CAST_KEYWORD.equals(capture.varId())
+                        ? "'as' comes after min or max and takes a cast: " + casts()
+                        : "'or' comes after get and takes a default after it, such as or \"-\"";
+            }
+        }
+        return null;
+    }
+
+    private static String casts() {
+        final StringBuilder out = new StringBuilder();
+        for (final Cast cast : Cast.values()) {
+            if (out.length() > 0) {
+                out.append(", ");
+            }
+            out.append(castName(cast));
+        }
+        return out.toString();
+    }
+
     /** Whether a spelling is one word, so that a modifier can carry it. */
     private static boolean isOneToken(final String spelling) {
         final List<String> tokens = tokenise(spelling);
@@ -605,7 +638,9 @@ public final class Instructions {
             return new RefPart.Capture(null, Integer.parseInt(base.substring(1)), index);
         }
         if (isLabel(base)) {
-            return new RefPart.Capture(null, 0, index, base.substring(1));
+            // The document cannot hold a labelled capture with an index, so neither does the
+            // form: $when[i] is not a reference, and the text stands as the wire reads it.
+            return null;
         }
         if (base.endsWith("()")) {
             final EngineVars counter = EngineVars.byName(base.substring(0, base.length() - 2));

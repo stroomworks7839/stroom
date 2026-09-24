@@ -98,6 +98,10 @@ public class InstructionEditViewImpl extends ViewImpl implements InstructionEdit
     @UiField
     ClauseListPanel condition;
     @UiField
+    FormGroup sortGroup;
+    @UiField
+    SortListPanel sort;
+    @UiField
     FormGroup wireGroup;
     @UiField
     TextArea wire;
@@ -112,6 +116,7 @@ public class InstructionEditViewImpl extends ViewImpl implements InstructionEdit
         dispatch.setDisplayValueFunction(d -> d.name().toLowerCase(Locale.ROOT));
         dispatch.addItems(Dispatch.values());
         condition.setEmptyText("(no clauses yet)");
+        sort.setEmptyText("(walked in the order the entries are in)");
     }
 
     @Override
@@ -338,6 +343,16 @@ public class InstructionEditViewImpl extends ViewImpl implements InstructionEdit
     @Override
     public ClauseListPanel getCondition() {
         return condition;
+    }
+
+    @Override
+    public SortListPanel getSort() {
+        return sort;
+    }
+
+    @Override
+    public void setSortVisible(final boolean visible) {
+        sortGroup.setVisible(visible);
     }
 
     @Override

@@ -52,11 +52,14 @@ class WireFormCensusTest {
     private static final Path FIXTURES = Paths.get(
             "..", "stroom-shapeshifter", "stroom-shapeshifter-engine", "src", "test", "resources", "fixtures");
 
-    /** Lower is better; drop it when a construct is modelled. */
-    private static final int WIRE_FORM_CEILING = 2;
+    /**
+     * Zero, and it stays there: every construct the fixtures hold is modelled. The wire form
+     * remains for what no fixture writes, and this says when something has slipped back.
+     */
+    private static final int WIRE_FORM_CEILING = 0;
 
     @Test
-    void mostInstructionsOpenAsAFormRatherThanAsJson() throws IOException {
+    void everyInstructionOpensAsAFormRatherThanAsJson() throws IOException {
         final List<OutputNode> all = new ArrayList<>();
         int projects = 0;
         for (final Path config : configs()) {
@@ -97,8 +100,8 @@ class WireFormCensusTest {
 
         assertThat(all).as("the fixtures should have been read").isNotEmpty();
         assertThat(wire)
-                .as("instructions falling to the wire form; model a construct to lower it, "
-                    + "and lower the ceiling with it")
+                .as("instructions falling to the wire form; every construct the fixtures hold "
+                    + "is modelled, so this is zero and a rise is a construct that has slipped")
                 .isLessThanOrEqualTo(WIRE_FORM_CEILING);
     }
 
@@ -185,7 +188,11 @@ class WireFormCensusTest {
             return refs(value.select());
         }
         if (node instanceof final OutputNode.ForEach value) {
-            return refs(value.select());
+            // The sort keys are fields of the form too, so they are held to the same round trip.
+            final List<RefExpression> found = new ArrayList<>();
+            found.add(value.select());
+            value.sort().forEach(key -> found.add(key.by()));
+            return found;
         }
         if (node instanceof final OutputNode.ForEachGroup value) {
             return refs(value.select(), value.groupBy());
