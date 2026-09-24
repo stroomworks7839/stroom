@@ -881,6 +881,27 @@ Everything in the pack is written by hand, so `ContentPackBuilderTest` reads it 
 import reads it — the properties as properties, the meta as a `ShapeshifterDoc`, the project as a
 `Project` — and checks that building it twice names everything the same.
 
+**The first pack would not import**, and the reason is worth keeping. A folder's directory is
+named for its **file prefix** — `Shapeshifter_demos.Folder.<uuid>` — not for the folder:
+`foldersToNodeToDiskPath` resolves each folder with `createFilePrefix`, and reading,
+`nodeFilePathToDirectoryName` maps a directory back to its folder by stripping `.node` from a
+sibling node file's name. A directory named for the folder is the **version 1** convention, which
+is what the one checked-in content pack in the repository looks like and what I copied. The
+import refuses it: *"Node file for folder 'Shapeshifter demos' was not found"*.
+
+**And a document without a `version` imports as an explorer entry with nothing behind it.**
+`StoreImpl.createDocument` stamps one; the import writes what the meta holds rather than making
+one up; so a meta without it stored a document with a null version and the entry opened onto
+*"Document not found"*. The pack derives one from the identifier, so a rebuild is still the same
+pack, and the test asserts every meta has one. Both of this section's import failures were the
+same mistake — assuming a field the editor never shows is a field that does not matter.
+
+Nor would the obvious workaround — dropping the folder node files and letting Stroom make the
+folders — have worked: every directory the reader meets must resolve through that map, so a
+directory without a node file fails the same way. The test now asserts the invariant directly,
+which is the check that was missing: every directory segment in the zip has a sibling
+`<segment>.node`.
+
 ## 5s. The pasted sample is the author's, and is kept — built 2026-09-24
 
 Two refinements to §5q, from using it.

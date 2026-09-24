@@ -83,6 +83,8 @@ class ContentPackBuilderTest {
             assertThat(doc.getUuid()).isEqualTo(node.getProperty("uuid"));
             assertThat(doc.getName()).isEqualTo(node.getProperty("name"));
             assertThat(doc.getType()).isEqualTo("Shapeshifter");
+            // A document without one is written to the store with a null version.
+            assertThat(doc.getVersion()).as(prefix + ": version").isNotBlank();
             // The stream reference is never packed; the sample text is the whole point of it.
             assertThat(doc.getSample()).isNull();
             if (doc.getSampleText() != null) {
@@ -98,6 +100,28 @@ class ContentPackBuilderTest {
         // Every fixture that has one, and the binary ones honestly without.
         assertThat(documents).isGreaterThan(60);
         assertThat(withSamples).isGreaterThan(50);
+    }
+
+    @Test
+    void everyDirectoryIsNamedForTheNodeFileThatDescribesIt(@TempDir final Path dir) throws Exception {
+        // The invariant the import actually enforces, and the one the first pack broke: a folder's
+        // directory is named for its file prefix, and reading maps a directory back to its folder
+        // by stripping ".node" from a sibling node file's name. A directory without that sibling
+        // fails the import with "Node file for folder '<name>' was not found".
+        final Path zip = dir.resolve("pack.zip");
+        ContentPackBuilder.main(new String[]{zip.toString()});
+        final java.util.Set<String> entries = names(zip);
+
+        for (final String entry : entries) {
+            final String[] segments = entry.split("/");
+            final StringBuilder parent = new StringBuilder();
+            for (int i = 0; i < segments.length - 1; i++) {
+                assertThat(entries)
+                        .as("directory '" + segments[i] + "' in '" + entry + "' needs its node file")
+                        .contains(parent + segments[i] + ".node");
+                parent.append(segments[i]).append("/");
+            }
+        }
     }
 
     @Test

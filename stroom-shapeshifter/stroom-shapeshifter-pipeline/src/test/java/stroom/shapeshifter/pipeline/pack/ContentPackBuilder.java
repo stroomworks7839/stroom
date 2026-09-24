@@ -84,17 +84,17 @@ public final class ContentPackBuilder {
     }
 
     private void build() throws IOException {
-        folder("", ROOT);
-        final int projects = projects();
-        final int natives = natives();
-        final int legacy = legacy();
+        final String root = folder("", "", ROOT);
+        final int projects = projects(root);
+        final int natives = natives(root);
+        final int legacy = legacy(root);
         System.out.println(projects + " projects, " + natives + " native, " + legacy + " migrated from DS3");
         notes.forEach(System.out::println);
     }
 
     /** {@code fixtures/projects/<name>/project.json}, with {@code input.txt} or {@code input.xml}. */
-    private int projects() throws IOException {
-        folder(ROOT + "/", "projects");
+    private int projects(final String root) throws IOException {
+        final String dirOf = folder(root, ROOT, "projects");
         int count = 0;
         for (final Path dir : sorted(FIXTURES.resolve("projects"))) {
             final Path config = dir.resolve("project.json");
@@ -102,7 +102,7 @@ public final class ContentPackBuilder {
                 continue;
             }
             final String name = dir.getFileName().toString();
-            count += document(ROOT + "/projects/", name, Files.readString(config),
+            count += document(dirOf, ROOT + "/projects", name, Files.readString(config),
                     sampleOf(dir.resolve("input.txt"), dir.resolve("input.xml"), dir.resolve("input.bin")),
                     "The engine's " + name + " fixture.");
         }
@@ -110,8 +110,8 @@ public final class ContentPackBuilder {
     }
 
     /** {@code fixtures/native/<name>/project.json}, whose input is the legacy fixture of the same name. */
-    private int natives() throws IOException {
-        folder(ROOT + "/", "native");
+    private int natives(final String root) throws IOException {
+        final String dirOf = folder(root, ROOT, "native");
         int count = 0;
         for (final Path dir : sorted(FIXTURES.resolve("native"))) {
             final Path config = dir.resolve("project.json");
@@ -119,7 +119,7 @@ public final class ContentPackBuilder {
                 continue;
             }
             final String name = dir.getFileName().toString();
-            count += document(ROOT + "/native/", name, Files.readString(config),
+            count += document(dirOf, ROOT + "/native", name, Files.readString(config),
                     sampleOf(FIXTURES.resolve("legacy").resolve(name + ".in")),
                     "The " + name + " fixture written natively, over the legacy input.");
         }
@@ -127,8 +127,8 @@ public final class ContentPackBuilder {
     }
 
     /** {@code fixtures/legacy/<name>.ds3.xml}, migrated, with the same fixture's input. */
-    private int legacy() throws IOException {
-        folder(ROOT + "/", "ds3");
+    private int legacy(final String root) throws IOException {
+        final String dirOf = folder(root, ROOT, "ds3");
         int count = 0;
         for (final Path config : sorted(FIXTURES.resolve("legacy"))) {
             final String file = config.getFileName().toString();
@@ -145,7 +145,7 @@ public final class ContentPackBuilder {
                 notes.add("  skipped " + name + ": " + e.getMessage());
                 continue;
             }
-            count += document(ROOT + "/ds3/", name, JsonText.printPretty(ProjectJson.writeProject(project)),
+            count += document(dirOf, ROOT + "/ds3", name, JsonText.printPretty(ProjectJson.writeProject(project)),
                     sampleOf(FIXTURES.resolve("legacy").resolve(name + ".in")),
                     "Migrated from the DS3 configuration of the " + name + " fixture.");
         }
@@ -184,8 +184,8 @@ public final class ContentPackBuilder {
         return java.util.Arrays.equals(bytes, decoded.getBytes(StandardCharsets.UTF_8));
     }
 
-    private int document(final String parent, final String name, final String project,
-                          final String sample, final String description) throws IOException {
+    private int document(final String dir, final String path, final String name, final String project,
+                         final String sample, final String description) throws IOException {
         // Parsed before it is packed. A fixture the reader cannot read is one the editor cannot
         // open — parquet_cities names a match kind design 38 retired, and the ledger has it
         // SKIPPED for exactly that reason — and shipping it would be shipping a document that
@@ -196,17 +196,21 @@ public final class ContentPackBuilder {
             notes.add("  skipped " + name + ": its configuration does not read (" + e.getMessage() + ")");
             return 0;
         }
-        final String uuid = idOf(TYPE + ":" + parent + name);
+        final String uuid = idOf(TYPE + ":" + path + "/" + name);
         final ShapeshifterDoc doc = ShapeshifterDoc.builder()
                 .uuid(uuid)
                 .name(name)
+                // Every document has one, and a real export carries it: StoreImpl.createDocument
+                // stamps a version, and the import writes what the meta holds rather than making
+                // one up. Derived from the identifier so a rebuilt pack is the same pack.
+                .version(idOf("version:" + uuid))
                 .description(sample == null
                         ? description + " Its input is binary, so it carries no sample: choose one to run it."
                         : description)
                 .sampleText(sample)
                 .build();
-        final String prefix = parent + filePrefix(name, TYPE, uuid);
-        write(prefix + ".node", nodeProperties(uuid, TYPE, name, parent));
+        final String prefix = dir + filePrefix(name, TYPE, uuid);
+        write(prefix + ".node", nodeProperties(uuid, TYPE, name, path + "/" + name));
         // The document's own JSON without its data, exactly as ShapeshifterSerialiser writes it:
         // the project travels as the json extension asset beside it.
         write(prefix + ".meta", JsonUtil.writeValueAsString(doc));
@@ -214,10 +218,21 @@ public final class ContentPackBuilder {
         return 1;
     }
 
-    private void folder(final String parent, final String name) throws IOException {
-        final String uuid = idOf(FOLDER + ":" + parent + name);
-        write(parent + filePrefix(name, FOLDER, uuid) + ".node",
-                nodeProperties(uuid, FOLDER, name, parent));
+    /**
+     * A folder: its node file, and the directory its children go in. The directory is named for
+     * the <b>file prefix</b>, not for the folder — {@code ImportExportSerializerImplV2} resolves a
+     * folder's directory with {@code createFilePrefix} and, reading, maps a directory back to its
+     * folder by stripping {@code .node} from the node file's name. A directory named for the
+     * folder is the version 1 convention and the import refuses it: <i>"Node file for folder
+     * 'Shapeshifter demos' was not found"</i>.
+     *
+     * @return the directory every child of this folder is written into, with its separator
+     */
+    private String folder(final String dir, final String path, final String name) throws IOException {
+        final String uuid = idOf(FOLDER + ":" + path + "/" + name);
+        final String prefix = filePrefix(name, FOLDER, uuid);
+        write(dir + prefix + ".node", nodeProperties(uuid, FOLDER, name, path + "/" + name));
+        return dir + prefix + "/";
     }
 
     /** {@code ImportExportFileNameUtil.createFilePrefix}: a safe name, the type, the uuid. */
@@ -226,15 +241,14 @@ public final class ContentPackBuilder {
     }
 
     private static String nodeProperties(final String uuid, final String type, final String name,
-                                         final String parent) throws IOException {
+                                         final String path) throws IOException {
         final Properties props = new Properties();
         props.setProperty("uuid", uuid);
         props.setProperty("type", type);
         props.setProperty("name", name);
         props.setProperty("version", "V2");
-        props.setProperty("path", "/" + (parent.isEmpty()
-                ? ""
-                : parent.substring(0, parent.length() - 1)));
+        // As the export writes it: every node on the way down, this one included.
+        props.setProperty("path", path);
         final java.io.StringWriter writer = new java.io.StringWriter();
         props.store(writer, null);
         // Properties.store stamps a date comment, which would make every build a different file.
