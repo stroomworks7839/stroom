@@ -3,7 +3,7 @@
              xmlns:g="urn:import:com.google.gwt.user.client.ui">
     <g:FlowPanel styleName="max ss-panel ss-out">
         <g:Label ui:field="note" styleName="ss-note"/>
-        <g:ScrollPanel styleName="ss-panel-body">
+        <g:ScrollPanel ui:field="body" styleName="ss-panel-body">
             <g:FlowPanel>
                 <g:Label ui:field="empty" styleName="ss-none"/>
                 <g:HTML ui:field="output" styleName="ss-out-box mono"/>

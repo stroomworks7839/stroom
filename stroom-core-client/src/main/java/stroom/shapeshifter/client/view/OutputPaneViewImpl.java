@@ -27,6 +27,7 @@ import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
 import com.google.gwt.user.client.ui.HTML;
 import com.google.gwt.user.client.ui.Label;
+import com.google.gwt.user.client.ui.ScrollPanel;
 import com.google.gwt.user.client.ui.Widget;
 import com.google.inject.Inject;
 import com.gwtplatform.mvp.client.ViewWithUiHandlers;
@@ -44,6 +45,8 @@ public class OutputPaneViewImpl extends ViewWithUiHandlers<OutputUiHandlers> imp
 
     @UiField
     Label note;
+    @UiField
+    ScrollPanel body;
     @UiField
     HTML output;
     @UiField
@@ -99,6 +102,8 @@ public class OutputPaneViewImpl extends ViewWithUiHandlers<OutputUiHandlers> imp
                 ? ""
                 : noteText);
         note.setVisible(noteText != null);
+        // What this frame wrote is the whole point of the pane, so it is what the pane shows.
+        Marks.reveal(body, output.getElement(), "ss-o-own");
     }
 
     @Override

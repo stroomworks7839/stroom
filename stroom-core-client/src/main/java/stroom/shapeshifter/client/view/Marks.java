@@ -19,11 +19,13 @@ package stroom.shapeshifter.client.view;
 import stroom.shapeshifter.client.presenter.Hot;
 import stroom.shapeshifter.client.presenter.Mark;
 
+import com.google.gwt.core.client.Scheduler;
 import com.google.gwt.dom.client.Element;
 import com.google.gwt.dom.client.NodeList;
 import com.google.gwt.safehtml.shared.SafeHtml;
 import com.google.gwt.safehtml.shared.SafeHtmlBuilder;
 import com.google.gwt.safehtml.shared.SafeHtmlUtils;
+import com.google.gwt.user.client.ui.ScrollPanel;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -145,6 +147,44 @@ final class Marks {
                 span.removeClassName(HOT_CLASS);
             }
         }
+    }
+
+    /**
+     * Bring the first mark of a class into view, if it is not there already.
+     *
+     * <p>Stepping moves the frame, not the pane, so the mark a step lands on can be anywhere in
+     * an output long enough to scroll. This leaves a third of the pane above it, so it arrives
+     * with the lines before it rather than flush against the top, and does nothing at all while
+     * it is already on screen — a step within one screenful should not move the text under the
+     * reader's eye. Instant rather than animated: a held-down step key outruns any easing.
+     *
+     * <p>Deferred because the HTML it measures was set in the same pass, and a span has no
+     * position until the browser has laid it out.
+     */
+    static void reveal(final ScrollPanel pane, final Element block, final String className) {
+        Scheduler.get().scheduleDeferred(() -> {
+            final Element mark = firstOfClass(block, className);
+            final int viewport = pane.getElement().getClientHeight();
+            if (mark == null || viewport <= 0) {
+                return;
+            }
+            final int shown = pane.getVerticalScrollPosition();
+            final int top = mark.getAbsoluteTop() - pane.getElement().getAbsoluteTop() + shown;
+            if (top >= shown && top + mark.getOffsetHeight() <= shown + viewport) {
+                return;
+            }
+            pane.setVerticalScrollPosition(Math.max(0, top - viewport / 3));
+        });
+    }
+
+    private static Element firstOfClass(final Element block, final String className) {
+        final NodeList<Element> spans = block.getElementsByTagName("span");
+        for (int i = 0; i < spans.getLength(); i++) {
+            if (spans.getItem(i).hasClassName(className)) {
+                return spans.getItem(i);
+            }
+        }
+        return null;
     }
 
     private static String attrOf(final Hot.Kind kind) {
