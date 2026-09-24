@@ -67,6 +67,8 @@ public class TransitionListPresenter extends MyPresenterWidget<PagerView> {
                                    final Provider<TransitionPresenter> editPresenterProvider) {
         super(eventBus, view);
         this.editPresenterProvider = editPresenterProvider;
+        // The table is a control in a form, so it is drawn as one.
+        view.asWidget().addStyleName("form-control-background form-control-border");
         dataGrid = new MyDataGrid<>(this);
         dataGrid.setTableName("Transitions");
         selectionModel = dataGrid.addDefaultSelectionModel(true);

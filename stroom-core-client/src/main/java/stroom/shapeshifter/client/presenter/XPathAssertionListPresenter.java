@@ -60,6 +60,8 @@ public class XPathAssertionListPresenter extends MyPresenterWidget<PagerView> {
                                        final Provider<XPathAssertionPresenter> editPresenterProvider) {
         super(eventBus, view);
         this.editPresenterProvider = editPresenterProvider;
+        // The table is a control in a form, so it is drawn as one.
+        view.asWidget().addStyleName("form-control-background form-control-border");
         dataGrid = new MyDataGrid<>(this);
         dataGrid.setTableName("Assertions");
         selectionModel = dataGrid.addDefaultSelectionModel(true);

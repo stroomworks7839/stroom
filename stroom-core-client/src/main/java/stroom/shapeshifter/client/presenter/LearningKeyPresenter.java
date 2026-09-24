@@ -66,6 +66,8 @@ public class LearningKeyPresenter extends MyPresenterWidget<PagerView> {
                                 final MenuPresenter menuPresenter) {
         super(eventBus, view);
         this.menuPresenter = menuPresenter;
+        // The table is a control in a form, so it is drawn as one.
+        view.asWidget().addStyleName("form-control-background form-control-border");
         dataGrid = new MyDataGrid<>(this);
         dataGrid.setTableName("Learning Key");
         selectionModel = dataGrid.addDefaultSelectionModel(true);
