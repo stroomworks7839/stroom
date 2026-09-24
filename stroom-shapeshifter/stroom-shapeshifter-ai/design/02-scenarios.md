@@ -3110,6 +3110,20 @@ free: `stroom-ai` has a local variable and a private method by that name and no 
 that moves in front of a person besides the pane's heading is the element id errors from the run are
 attributed to on the error stream, which was `Dialogue` and is now `Conversation`.
 
+**The audit of the rename found one, and it was the one worth finding.** `ShapeshifterAiSerialiser`
+holds `LEGACY_PLAN`, the name the plan was saved under before A37 — and that is a name in **stored
+data**, which no decision about what to call things today can change: a document written then has
+`"dialogue"` in its JSON for ever. The rename took it with everything else, so every pre-A37 document
+would have silently lost its plan and fallen back to the default.
+
+Nothing caught it because **the test was renamed in lockstep**: it went on constructing a legacy
+document with a `"conversation"` key and migrating it, which passes perfectly and proves nothing, since
+no document ever written contains that key. A green test asserting a thing that cannot happen. The key
+is back, the test is back, and the test now fails against the broken constant — checked, because a
+guard nobody has seen fail is not a guard.
+
+No other serialised identity moved: no `@JsonProperty`, no enum constant, no stream attribute.
+
 **Two mentions were left alone on purpose**, both comments inside migration `V07_13_00_002`. A
 migration that has been applied is checksummed by Flyway, and editing it — even a comment — fails
 validation against every database that has already run it. A stale word in the history of a schema is

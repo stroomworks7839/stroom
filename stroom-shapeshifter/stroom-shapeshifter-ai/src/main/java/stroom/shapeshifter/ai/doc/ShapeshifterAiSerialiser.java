@@ -49,7 +49,11 @@ public class ShapeshifterAiSerialiser implements DocumentSerialiser2<Shapeshifte
     /// The asset the delegate keeps the document's JSON in.
     private static final String META = "meta";
     private static final String PLAN = "plan";
-    private static final String LEGACY_PLAN = "conversation";
+    /// The name the plan was saved under before A37 renamed it, which is a name in **stored data** and
+    /// so can never be renamed: a document written then has `"dialogue"` in its JSON whatever this
+    /// feature decides to call the thing today. Left behind by the 2026-09-24 rename, which took it
+    /// with everything else and would have made every pre-A37 document silently lose its plan.
+    private static final String LEGACY_PLAN = "dialogue";
     private static final String LEGACY_PRESET = "preset";
     /// Where a document's rules were kept before A41 made them rows.
     private static final String LEGACY_RULES = "routingTable";
