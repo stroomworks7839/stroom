@@ -170,42 +170,52 @@ public class InstructionEditPresenter extends MyPresenterWidget<InstructionEditV
         conditionJson = null;
     }
 
+    /**
+     * An optional reference: shown where it is there and the form can spell it, and shown blank
+     * where the configuration leaves it out. {@code Put.key} is null for a set or a scalar and
+     * {@code ForEachGroup.groupBy} is null to group by the entry's own value, so treating an
+     * absent one as unshowable sent the ordinary case to the wire form.
+     */
+    private static boolean optional(final RefExpression ref) {
+        return ref == null || Instructions.spell(ref) != null;
+    }
+
     /** Whether every reference the form would show has a field spelling. */
-    private static boolean spellable(final OutputNode node) {
+    static boolean spellable(final OutputNode node) {
         if (node instanceof ValueOf v) {
-            return ProjectJson.refOrName(v.select()) != null;
+            return Instructions.spell(v.select()) != null;
         } else if (node instanceof EmitError e) {
-            return ProjectJson.refOrName(e.message()) != null;
+            return Instructions.spell(e.message()) != null;
         } else if (node instanceof ApplyTemplates a) {
-            return ProjectJson.refOrName(a.directive().select()) != null
+            return Instructions.spell(a.directive().select()) != null
                    && spellableParams(a.directive().withParam());
         } else if (node instanceof CallTemplate c) {
             return spellableParams(c.withParam());
         } else if (node instanceof Switch s) {
-            return ProjectJson.refOrName(s.select()) != null;
+            return Instructions.spell(s.select()) != null;
         } else if (node instanceof ForEach f) {
-            return ProjectJson.refOrName(f.select()) != null && f.sort().isEmpty();
+            return Instructions.spell(f.select()) != null && f.sort().isEmpty();
         } else if (node instanceof ForEachGroup g) {
-            return ProjectJson.refOrName(g.select()) != null && ProjectJson.refOrName(g.groupBy()) != null;
+            return Instructions.spell(g.select()) != null && optional(g.groupBy());
         } else if (node instanceof Append a) {
-            return ProjectJson.refOrName(a.target()) != null && ProjectJson.refOrName(a.select()) != null;
+            return Instructions.spell(a.target()) != null && Instructions.spell(a.select()) != null;
         } else if (node instanceof Insert i) {
-            return ProjectJson.refOrName(i.target()) != null && ProjectJson.refOrName(i.position()) != null
-                   && ProjectJson.refOrName(i.select()) != null;
+            return Instructions.spell(i.target()) != null && Instructions.spell(i.position()) != null
+                   && Instructions.spell(i.select()) != null;
         } else if (node instanceof Put p) {
-            return ProjectJson.refOrName(p.target()) != null && ProjectJson.refOrName(p.key()) != null
-                   && ProjectJson.refOrName(p.select()) != null;
+            return Instructions.spell(p.target()) != null && optional(p.key())
+                   && Instructions.spell(p.select()) != null;
         } else if (node instanceof Remove r) {
-            return ProjectJson.refOrName(r.target()) != null && ProjectJson.refOrName(r.key()) != null;
+            return Instructions.spell(r.target()) != null && Instructions.spell(r.key()) != null;
         } else if (node instanceof Clear c) {
-            return ProjectJson.refOrName(c.target()) != null;
+            return Instructions.spell(c.target()) != null;
         }
         return true;
     }
 
     private static boolean spellableParams(final List<Param> params) {
         for (final Param param : params) {
-            if (ProjectJson.refOrName(param.value()) == null) {
+            if (Instructions.spell(param.value()) == null) {
                 return false;
             }
         }
@@ -233,7 +243,9 @@ public class InstructionEditPresenter extends MyPresenterWidget<InstructionEditV
                 v.setMultiLabel("Text");
                 break;
             case "value-of":
-                field(0, "Select", "a declared name, or a function such as index()");
+                field(0, "Select", "a name, $1 or $label for a capture group, \"quoted "
+                                   + "text\" for a literal, or a call such as index(), size(xs) "
+                                   + "or get(m, \"k\"); several one after another are joined");
                 break;
             case "element":
                 field(0, "Name", null);
@@ -255,8 +267,8 @@ public class InstructionEditPresenter extends MyPresenterWidget<InstructionEditV
                 field(0, "Message", "a declared name, or a function");
                 break;
             case "apply-templates":
-                field(0, "Select", "what is dispatched: a declared name, or a function; "
-                                   + "blank is this match's whole content");
+                field(0, "Select", "what is dispatched: a declared name, $1 for a capture "
+                                   + "group, or a function; blank is this match's whole content");
                 v.setModeVisible(true);
                 field(2, "Max depth", "how deep recursion goes before the engine calls it a runaway");
                 flag(0, "Ignore errors");
@@ -292,7 +304,8 @@ public class InstructionEditPresenter extends MyPresenterWidget<InstructionEditV
                 break;
             case "for-each-group":
                 field(0, "Select", "the collection grouped: a declared name, or a function");
-                field(1, "Group by", "a declared name, or a function");
+                field(1, "Group by", "a declared name, or a function; blank groups by the "
+                                     + "entry's own value");
                 break;
             case "append":
                 field(0, "Target", "the list or set appended to");
@@ -305,7 +318,8 @@ public class InstructionEditPresenter extends MyPresenterWidget<InstructionEditV
                 break;
             case "put":
                 field(0, "Target", "the map put into");
-                field(1, "Key", "a declared name, a function, or a literal");
+                field(1, "Key", "a declared name, a function, or a literal; blank for a set "
+                                + "or a scalar, which take no key");
                 field(2, "Select", "what is put");
                 break;
             case "remove":
@@ -498,8 +512,10 @@ public class InstructionEditPresenter extends MyPresenterWidget<InstructionEditV
                             required(v.getField(1), "for-each needs a name to bind each entry to"),
                             blankToNull(v.getField(2)), List.of(), body(0));
                 case "for-each-group":
+                    // Blank groups by the entry's own value, which is what the model means
+                    // by a null group-by.
                     return new ForEachGroup(ref(v.getField(0), "for-each-group needs a select"),
-                            ref(v.getField(1), "for-each-group needs a group-by"), body(0));
+                            refOrNull(v.getField(1)), body(0));
                 case "append":
                     return new Append(ref(v.getField(0), "append needs a target"),
                             ref(v.getField(1), "append needs a select"));
@@ -508,8 +524,9 @@ public class InstructionEditPresenter extends MyPresenterWidget<InstructionEditV
                             refOrText(v.getField(1), "insert needs a position"),
                             ref(v.getField(2), "insert needs a select"));
                 case "put":
+                    // Blank is a set or a scalar, which take no key.
                     return new Put(ref(v.getField(0), "put needs a target"),
-                            refOrText(v.getField(1), "put needs a key"),
+                            refOrTextOrNull(v.getField(1)),
                             ref(v.getField(2), "put needs a select"));
                 case "remove":
                     return new Remove(ref(v.getField(0), "remove needs a target"),
@@ -570,22 +587,29 @@ public class InstructionEditPresenter extends MyPresenterWidget<InstructionEditV
     private static RefExpression refOrNull(final String text) {
         return text == null || text.trim().isEmpty()
                 ? null
-                : ProjectJson.readRefOrName(text);
+                : Instructions.read(text);
     }
 
     private static RefExpression ref(final String text, final String message) {
-        return ProjectJson.readRefOrName(required(text, message));
+        return Instructions.read(required(text, message));
+    }
+
+    /** A key or position the configuration may leave out: blank is absent, not an error. */
+    private static RefExpression refOrTextOrNull(final String text) {
+        return text == null || text.trim().isEmpty()
+                ? null
+                : refOrText(text, "");
     }
 
     /** A key or position: a number or quoted text is the literal, else a reference. */
     private static RefExpression refOrText(final String text, final String message) {
         final String t = required(text, message);
-        if (t.matches("-?[0-9]+") || t.length() >= 2 && t.startsWith("\"") && t.endsWith("\"")) {
-            return RefExpression.text(t.startsWith("\"")
-                    ? t.substring(1, t.length() - 1)
-                    : t);
+        if (t.matches("-?[0-9]+")) {
+            return RefExpression.text(t);
         }
-        return ProjectJson.readRefOrName(t);
+        // Quoting is the spelling's to read, not this method's: testing the first and last
+        // character called `"a" "b"` one literal of `a" "b`, and it never unescaped anything.
+        return Instructions.read(t);
     }
 
     private static String required(final String text, final String message) {

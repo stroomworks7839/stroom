@@ -33,11 +33,13 @@ import stroom.shapeshifter.config.OutputNode.Transform;
 import stroom.shapeshifter.config.OutputNode.ValueOf;
 import stroom.shapeshifter.config.OutputNode.Variable;
 import stroom.shapeshifter.config.RefExpression;
+import stroom.shapeshifter.config.RefExpression.RefPart;
 import stroom.shapeshifter.config.json.JsonObject;
 import stroom.shapeshifter.config.json.JsonText;
 import stroom.shapeshifter.config.json.JsonValue;
 import stroom.shapeshifter.config.json.ProjectJson;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -48,6 +50,9 @@ import java.util.Map;
  * invoke, control, transform, collection).
  */
 public final class Instructions {
+
+    /** Nine digits always fit an int, so a group number of at most that many never overflows. */
+    private static final int GROUP_DIGITS = 9;
 
     public enum Category {
         OUTPUT("output"),
@@ -189,10 +194,395 @@ public final class Instructions {
 
     /** A reference as a field spells it, or its wire form when it has no spelling. */
     public static String ref(final RefExpression ref) {
-        final String text = ProjectJson.refOrName(ref);
+        if (ref == null) {
+            // An optional reference the configuration leaves out — a put into a set has no key,
+            // a for-each-group by the entry's own value has no group-by — is a blank field, not
+            // a document the form refuses to show (design 44 §5x).
+            return "";
+        }
+        final String text = spell(ref);
         return text != null
                 ? text
                 : JsonText.print(ProjectJson.writeRefOrNameWire(ref));
+    }
+
+    /**
+     * The form's spelling of a reference, or null where the form cannot show it and the wire has
+     * to (design 44 §5u).
+     *
+     * <p>The editor spells a capture group {@code $1}, as the variables pane has always spelt a
+     * name {@code $k}: a dollar introduces a value. The wire has no short form for a numbered
+     * group — {@code group()} is already one of design 35 §6's counters, so it could not have one
+     * — and reading the wire's silence as "the form cannot show this" sent every reference to a
+     * numbered group to the raw JSON, which is what a migrated {@code apply-templates} always
+     * selects.
+     */
+    public static String spell(final RefExpression ref) {
+        if (ref == null) {
+            // An absent reference has no spelling. The wire's refOrName dereferences it, so
+            // asking about a node with an optional reference threw rather than answering.
+            return null;
+        }
+        if (ref.parts().size() == 1) {
+            return spellPart(ref.parts().get(0), ref);
+        }
+        // Several parts, juxtaposed in order (§5w). One part the form cannot spell makes the
+        // whole expression unspellable: a reference shown with a piece missing would be a lie.
+        final StringBuilder out = new StringBuilder();
+        for (final RefPart part : ref.parts()) {
+            final String spelt = spellPart(part, null);
+            if (spelt == null) {
+                return null;
+            }
+            if (out.length() > 0) {
+                out.append(' ');
+            }
+            out.append(spelt);
+        }
+        return out.toString();
+    }
+
+    /**
+     * One part. {@code whole} is the expression it came from where it is the only part, so a
+     * bare name and a counter keep the wire's own spelling of themselves; null within a
+     * sequence, where the wire has nothing to say about a part on its own.
+     */
+    private static String spellPart(final RefPart part, final RefExpression whole) {
+        if (part instanceof final RefPart.Text text) {
+            return quoteLiteral(text.value());
+        }
+        if (part instanceof final RefPart.Capture capture) {
+            if (capture.matchIndex() != null) {
+                return null;
+            }
+            if (capture.label() != null) {
+                // A group the pattern named. The dollar says "a group of this match" either way:
+                // digits are its number, a word is its label (design 44 §5y).
+                return capture.varId() == null && capture.group() == 0 && spellableName(capture.label())
+                        ? "$" + capture.label()
+                        : null;
+            }
+            if (capture.varId() == null) {
+                return "$" + capture.group();
+            }
+            if (capture.group() == 0) {
+                return spellableName(capture.varId())
+                        ? capture.varId()
+                        : null;
+            }
+            return null;
+        }
+        if (part instanceof final RefPart.Accessor accessor) {
+            // A function of a collection, as the counters are functions of the match: size(xs),
+            // get(m, "k") (design 44 §5z). A default or a cast has nowhere to go in a call of
+            // two arguments, so those keep the wire form.
+            if (accessor.orElse() != null || accessor.as() != null) {
+                return null;
+            }
+            final String of = spell(accessor.of());
+            if (of == null) {
+                return null;
+            }
+            final String key = accessor.key() == null
+                    ? null
+                    : spell(accessor.key());
+            if (accessor.key() != null && key == null) {
+                return null;
+            }
+            return accessor.kind().spelling() + "(" + of + (key == null
+                    ? ""
+                    : ", " + key) + ")";
+        }
+        if (part instanceof final RefPart.Counter counter && counter.matchIndex() == null) {
+            return counter.counter().spelling();
+        }
+        return whole == null
+                ? null
+                : ProjectJson.refOrName(whole);
+    }
+
+    /**
+     * A reference as the form writes it: a sequence of parts, juxtaposed (design 44 §5w).
+     *
+     * <p>{@code "on " $1 " at " when} is four parts — a literal, this match's group 1, a literal,
+     * and the name {@code when} — concatenated in that order, which is what a {@code value-of}
+     * of several parts is. A lone part spells as itself, so the simple cases read as they always
+     * did: {@code $1}, {@code when}, {@code index()}.
+     */
+    public static RefExpression read(final String text) {
+        final List<RefPart> parts = parts(text == null
+                ? ""
+                : text);
+        if (parts == null) {
+            return ProjectJson.readRefOrName(text == null
+                    ? ""
+                    : text.trim());
+        }
+        return new RefExpression(parts);
+    }
+
+    /** The tokens of a spelling as parts, or null where it is one bare token the wire can read. */
+    private static List<RefPart> parts(final String text) {
+        final List<String> tokens = tokenise(text);
+        if (tokens == null) {
+            return null;
+        }
+        final String only = tokens.size() == 1
+                ? tokens.get(0)
+                : null;
+        if (only != null && !isQuoted(only) && !isGroup(only) && !isLabel(only)
+            && accessorOf(only) == null) {
+            // One name or one function: the wire's own reading, unchanged.
+            return null;
+        }
+        final List<RefPart> parts = new ArrayList<>();
+        for (final String token : tokens) {
+            if (isQuoted(token)) {
+                parts.add(new RefPart.Text(unquote(token)));
+            } else if (isGroup(token)) {
+                parts.add(new RefPart.Capture(null, Integer.parseInt(token.substring(1)), null));
+            } else if (isLabel(token)) {
+                parts.add(RefPart.Capture.label(token.substring(1)));
+            } else if (accessorOf(token) != null) {
+                parts.add(accessorOf(token));
+            } else {
+                parts.addAll(ProjectJson.readRefOrName(token).parts());
+            }
+        }
+        return parts;
+    }
+
+    /**
+     * The spelling split into tokens: quoted literals whole, everything else on whitespace. Null
+     * where the quoting does not close, so an author mid-edit is not told their text is a name.
+     */
+    private static List<String> tokenise(final String text) {
+        final List<String> tokens = new ArrayList<>();
+        final StringBuilder token = new StringBuilder();
+        boolean quoted = false;
+        boolean escaped = false;
+        int depth = 0;
+        for (int i = 0; i < text.length(); i++) {
+            final char c = text.charAt(i);
+            if (quoted) {
+                // Inside a literal nothing is punctuation: a bracket does not nest and a space
+                // does not divide.
+                token.append(c);
+                if (escaped) {
+                    escaped = false;
+                } else if (c == '\\') {
+                    escaped = true;
+                } else if (c == '"') {
+                    quoted = false;
+                    if (depth == 0) {
+                        tokens.add(token.toString());
+                        token.setLength(0);
+                    }
+                }
+            } else if (c == '"') {
+                if (depth == 0 && token.length() > 0) {
+                    tokens.add(token.toString());
+                    token.setLength(0);
+                }
+                quoted = true;
+                token.append(c);
+            } else if ((c == ' ' || c == '\t' || c == '\n') && depth == 0) {
+                if (token.length() > 0) {
+                    tokens.add(token.toString());
+                    token.setLength(0);
+                }
+            } else {
+                // A call is one token however its arguments are spaced: get(m, "k") is not three.
+                if (c == '(') {
+                    depth++;
+                } else if (c == ')') {
+                    depth--;
+                }
+                token.append(c);
+            }
+        }
+        if (quoted || depth != 0) {
+            return null;
+        }
+        if (token.length() > 0) {
+            tokens.add(token.toString());
+        }
+        return tokens.isEmpty()
+                ? null
+                : tokens;
+    }
+
+    /**
+     * A token as an accessor — {@code size(xs)}, {@code get(m, "k")} — or null where it is not
+     * one. The arguments are spellings in their own right, so a collection may be a name, a
+     * group, or another accessor.
+     */
+    private static RefPart.Accessor accessorOf(final String token) {
+        final int open = token.indexOf('(');
+        if (open <= 0 || !token.endsWith(")")) {
+            return null;
+        }
+        final RefPart.Accessor.Kind kind = kindOf(token.substring(0, open));
+        if (kind == null) {
+            return null;
+        }
+        final List<String> args = arguments(token.substring(open + 1, token.length() - 1));
+        if (args == null || args.isEmpty() || args.size() > 2) {
+            return null;
+        }
+        final RefExpression of = read(args.get(0));
+        final RefExpression key = args.size() > 1
+                ? read(args.get(1))
+                : null;
+        try {
+            return new RefPart.Accessor(kind, of, key, null, null);
+        } catch (final RuntimeException e) {
+            // get and contains need a key and the rest take none; a spelling that disagrees is
+            // not an accessor, and the wire form says so rather than the form inventing one.
+            return null;
+        }
+    }
+
+    private static RefPart.Accessor.Kind kindOf(final String name) {
+        for (final RefPart.Accessor.Kind kind : RefPart.Accessor.Kind.values()) {
+            if (kind.spelling().equals(name)) {
+                return kind;
+            }
+        }
+        return null;
+    }
+
+    /** The arguments of a call, split on the commas that are not inside quotes or a nested call. */
+    private static List<String> arguments(final String inner) {
+        final List<String> args = new ArrayList<>();
+        final StringBuilder arg = new StringBuilder();
+        int depth = 0;
+        boolean quoted = false;
+        boolean escaped = false;
+        for (int i = 0; i < inner.length(); i++) {
+            final char c = inner.charAt(i);
+            if (quoted) {
+                arg.append(c);
+                if (escaped) {
+                    escaped = false;
+                } else if (c == '\\') {
+                    escaped = true;
+                } else if (c == '"') {
+                    quoted = false;
+                }
+                continue;
+            }
+            switch (c) {
+                case '"' -> {
+                    quoted = true;
+                    arg.append(c);
+                }
+                case '(' -> {
+                    depth++;
+                    arg.append(c);
+                }
+                case ')' -> {
+                    depth--;
+                    arg.append(c);
+                }
+                case ',' -> {
+                    if (depth == 0) {
+                        args.add(arg.toString().trim());
+                        arg.setLength(0);
+                    } else {
+                        arg.append(c);
+                    }
+                }
+                default -> arg.append(c);
+            }
+        }
+        if (quoted || depth != 0) {
+            return null;
+        }
+        if (arg.length() > 0) {
+            args.add(arg.toString().trim());
+        }
+        return args;
+    }
+
+    /** A dollar and a word: the group a pattern named, as {@code $1} is the group it numbered. */
+    private static boolean isLabel(final String token) {
+        return token.length() > 1 && token.charAt(0) == '$' && !isDigits(token.substring(1))
+               && spellableName(token.substring(1));
+    }
+
+    private static boolean isQuoted(final String token) {
+        return token.length() >= 2 && token.charAt(0) == '"' && token.charAt(token.length() - 1) == '"';
+    }
+
+    /** More digits than a group number can hold is not a group, so the reading never overflows. */
+    private static boolean isGroup(final String token) {
+        return token.length() > 1 && token.length() <= GROUP_DIGITS + 1 && token.charAt(0) == '$'
+               && isDigits(token.substring(1));
+    }
+
+    private static String unquote(final String token) {
+        final String inner = token.substring(1, token.length() - 1);
+        final StringBuilder out = new StringBuilder(inner.length());
+        for (int i = 0; i < inner.length(); i++) {
+            final char c = inner.charAt(i);
+            if (c == '\\' && i + 1 < inner.length()) {
+                final char next = inner.charAt(++i);
+                switch (next) {
+                    case 'n' -> out.append('\n');
+                    case 'r' -> out.append('\r');
+                    case 't' -> out.append('\t');
+                    default -> out.append(next);
+                }
+            } else {
+                out.append(c);
+            }
+        }
+        return out.toString();
+    }
+
+    private static String quoteLiteral(final String value) {
+        final StringBuilder out = new StringBuilder(value.length() + 2).append('"');
+        for (int i = 0; i < value.length(); i++) {
+            final char c = value.charAt(i);
+            switch (c) {
+                case '\\' -> out.append("\\\\");
+                case '"' -> out.append("\\\"");
+                case '\n' -> out.append("\\n");
+                case '\r' -> out.append("\\r");
+                case '\t' -> out.append("\\t");
+                default -> out.append(c);
+            }
+        }
+        return out.append('"').toString();
+    }
+
+    /**
+     * Whether a name survives being written into the field and read back. Whitespace would split
+     * it into two parts, a quote would open a literal, and a trailing {@code ()} would read as a
+     * counter. A name that cannot be spelt faithfully is not spelt at all, and the wire form
+     * takes it.
+     */
+    private static boolean spellableName(final String name) {
+        if (name.isEmpty() || name.endsWith("()") || name.charAt(0) == '$') {
+            return false;
+        }
+        for (int i = 0; i < name.length(); i++) {
+            final char c = name.charAt(i);
+            if (c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '"' || c == '\\') {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static boolean isDigits(final String text) {
+        for (int i = 0; i < text.length(); i++) {
+            if (text.charAt(i) < '0' || text.charAt(i) > '9') {
+                return false;
+            }
+        }
+        return !text.isEmpty();
     }
 
     private static String quote(final String text) {

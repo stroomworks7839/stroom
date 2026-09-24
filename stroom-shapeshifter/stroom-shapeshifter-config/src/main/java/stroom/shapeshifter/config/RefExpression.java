@@ -57,9 +57,15 @@ public record RefExpression(List<RefPart> parts) {
      * null. A bare name is what a collection site means by its target (design 35 §5).
      */
     public String bareName() {
+        // The group and the label matter: a bare name reads back as group 0 of the name
+        // (ReferenceJson.nameRef), so spelling "v" for group 1 of v would lose the 1 — a
+        // silently lossy round-trip through the short form. Found by the editor's own spelling
+        // work (design 44 §5u); no fixture writes such a reference, which is why it had never
+        // shown.
         return parts.size() == 1
                && parts.get(0) instanceof RefPart.Capture capture
                && capture.varId() != null && capture.matchIndex() == null
+               && capture.group() == 0 && capture.label() == null
                 ? capture.varId()
                 : null;
     }

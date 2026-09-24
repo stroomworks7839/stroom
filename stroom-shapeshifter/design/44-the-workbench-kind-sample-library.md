@@ -944,6 +944,247 @@ document has will do, the text first because it always works.
 Returning to the stream kind restores the kept stream rather than making the author find it
 again; the viewer catches up as they browse.
 
+## 5u. The form has its own spelling for a group — built 2026-09-24
+
+Editing an `apply-templates` showed the wire form — the raw JSON of the instruction — where it
+should have shown fields. Not a fallback misfiring: the fallback was doing what it was told.
+
+`InstructionEditPresenter.spellable` asked `ProjectJson.refOrName(ref) != null`, which is *"has
+the wire a short spelling for this?"*, and used the answer for *"can the form show this?"* Those
+are different questions. The wire's short spelling covers a bare name and a counter function, and
+nothing else — a numbered capture group has none, and cannot have one, because `group()` is
+already one of design 35 §6's eight counters. So every reference to a numbered group went to raw
+JSON, which is what a migrated `apply-templates` always selects: `{"capture": {"group": 1}}`.
+
+The editor spells it **`$1`**, as the variables pane has always spelt a name `$k` — a dollar
+introduces a value. `Instructions.spell` and `Instructions.read` are the pair, the form's own and
+not the wire's, and every one of the nineteen places that asked the wire now asks the form. The
+wire is untouched: a project still reads and writes `{"capture": {"group": 1}}`, and `$1` never
+leaves the editor.
+
+**It also found a lossy short form.** `RefExpression.bareName()` returned the variable's name
+without regard to the group, while `nameRef` reads a bare name back as *group 0* of it — so
+writing group 1 of `v` as `"v"` silently lost the 1. No fixture writes such a reference, which is
+why a round-trip test had never caught it. `bareName()` now requires the group to be 0 and no
+label, so a reference it cannot spell faithfully it does not spell at all.
+
+## 5v. How much the wire form actually shows — counted 2026-09-24
+
+Before building a structured editor for what is left, counted rather than guessed.
+`WireFormCensusTest` walks every fixture project through the reader and asks
+`InstructionEditPresenter.spellable` of every instruction at every depth:
+
+```
+1586 instructions across 51 fixture projects
+   968  open as a form
+   618  open as the wire form — of which 596 are value-of
+```
+
+And what those `value-of`s select, which is the number that decides what to build:
+
+| | |
+|---|---|
+| **265** | **literal text** |
+| **324** | **parts concatenated** (2 to 35 of them; 207 are exactly 3) |
+| 4 | an accessor or fold |
+| 3 | a match-indexed reference |
+
+So it is not a long tail. **Two constructs are 589 of the 596**, and one of them is nearly free:
+a `value-of` of literal text has an obvious spelling, and the editor already uses it for a key or
+a position — *a number or quoted text is the literal, else a reference*. The other is the row-list
+editor of §5u's note, and 207 of its cases are three parts, which is what a template of
+`"text" $1 "text"` looks like.
+
+Modelling both would take the wire form from 618 instructions to around 29 — from **39% of every
+instruction in the fixtures** to under 2%, at which point it is genuinely the escape hatch it was
+meant to be rather than the ordinary way a `value-of` is edited.
+
+The census is a ratchet, as the fixture ledger is: the count may fall and not rise, so modelling
+a construct is a change someone makes on purpose and regressing one fails the build.
+
+It also found that `Instructions.spell` — and `ProjectJson.refOrName` beneath it — dereferenced a
+null reference, so asking the question of a node with an optional one threw rather than answering.
+
+## 5w. Parts, juxtaposed — built 2026-09-24
+
+§5v's census said what to build: 589 of the 596 unspellable `value-of`s were literal text or
+several parts concatenated. Both are the same construct — a `RefExpression` *is* a list of parts —
+so both are one piece of work.
+
+The form spells a sequence by writing its parts one after another:
+
+```
+"on " $1 " at " when
+```
+
+Four parts: a literal, this match's group 1, a literal, and the name `when`. A lone part spells as
+itself, so the simple cases read exactly as they did — `$1`, `when`, `index()` — and a literal
+alone is `"plain"`, which is the convention the editor already used for a key or a position.
+
+Built as a spelling rather than a row of widgets, which is the other way to say the same thing.
+The census is the argument: 207 of the concatenations are exactly three parts, of the shape
+`"text" $1 "text"`, and three rows of kind-picker-plus-value to say that is worse than one line
+that says it. The guard's `ClauseListPanel` is the precedent for rows, and rows earn their place
+there because a clause has three fields of its own; a part has one.
+
+Three rules it keeps:
+
+- **Unclosed quoting is not a name.** `"half` reads as the wire would read it rather than
+  silently becoming a variable called `"half`, so an author mid-keystroke is not told something
+  false about what they have typed.
+- **One part it cannot spell makes the whole unspellable.** A reference shown with a piece
+  missing would be a lie, so the wire form takes it.
+- **The wire is untouched.** A project still reads and writes `{"parts": [...]}`; this spelling
+  never leaves the editor.
+
+**Two holes the audit found**, both of the same kind — a spelling the form offers that it cannot
+read back, which on OK would silently rewrite the author's configuration:
+
+- The key and position reader tested the first and last character for a quote, so `"a" "b"` was
+  one literal of `a" "b`, and nothing was ever unescaped. Quoting is the spelling's to read, and
+  that method now defers to it; only a bare number stays its own case.
+- A **name with a space** spelt bare and read back as two names. A name is now spelt only where
+  it survives the round trip — no whitespace, no quote, no backslash, and not ending in `()`,
+  which would read as a counter. One that cannot be spelt faithfully is not spelt at all.
+
+The invariant behind both is now tested over the fixtures rather than over invented cases: every
+reference the form would show as a field, in every fixture project, must read back as itself —
+five hundred and some of them.
+
+The census, which is the measure of whether it worked:
+
+```
+              before   after
+open as a form   968    1529
+the wire form    618      57      (of 1586 instructions)
+```
+
+From 39% of every instruction in the fixtures to 3.6%. The census names what the 57 are, by the
+part the form cannot spell:
+
+| count | why |
+|---|---|
+| **31** | an accessor or fold — `get`, `size`, `sum`, `keys` |
+| **11** | a labelled group |
+| 8 | a reference the configuration leaves absent |
+| 5 | a match-indexed reference — which entry of a multi-valued name |
+| 2 | a `for-each` with a sort |
+
+Each is a real construct with operands of its own, unlike a part, so each is its own piece of
+work — an accessor is a function, a collection and sometimes a key; a labelled group is a name
+the pattern gave; a match index is a choice among entries. Except the third, which is not a
+missing feature but a fault: `spell` answers "no spelling" for an absent reference exactly as it
+does for one it cannot show, so an instruction with a null select goes to the wire form where a
+blank field would have done.
+
+### What the wire form is actually for
+
+It was defended here as the honest escape hatch, on the grounds that the alternative is a
+configuration the editor cannot open. The owner's objection is the right one: **a wire form stops
+this being a structured visual editor.** An author who meets one has to know the wire format, and
+at that point the editor has handed the problem back.
+
+The defence was also weaker than it looked. The language is finite and known — a fixed set of
+instruction kinds, four kinds of reference part, a published list of accessors — so "the editor
+cannot cover everything" is false. It is a question of work, not of possibility, and the wire
+form is a **backlog marker** rather than a piece of architecture. Five constructs stand between
+here and nothing, and the census counts them.
+
+What survives as a reason to keep the mechanism at all: a configuration written by a **later
+version** of the language, or one hand-edited into a shape this version does not know. Showing it
+as text beats refusing to open the document. That is a safety net for the unknown, not a place an
+author should ever land with a configuration this version can produce — and the ratchet is what
+tells us which of the two it currently is.
+
+## 5x. An absent reference is a blank field — built 2026-09-24
+
+Eight of the 57 were not a missing feature but a fault. `Instructions.spell` answers "no
+spelling" for an absent reference exactly as it does for one it cannot show, and `spellable`
+read both the same way, so an instruction with a null reference went to the wire form where a
+blank field would have done.
+
+They were not odd configurations either. `Put.key` is documented *"null for a set or a scalar"*
+and `ForEachGroup.groupBy` *"null to group by the entry's own value"* — the ordinary case for
+both. The form was refusing to show what the model calls normal. All three layers had it wrong:
+the decision treated absent as unshowable, the fill would have thrown on it, and the save
+demanded a value the model does not. Now blank means absent, and both fields say so.
+
+## 5y. A dollar is a group of this match — built 2026-09-24
+
+Eleven more were a **labelled group** — a group the pattern named. §5u spelt a numbered group
+`$1`; a labelled one is the same idea with the name the pattern gave it, so it spells `$host`.
+The dollar now means one thing: *a group of this match*, its number in digits or its label in
+letters.
+
+It costs one previously-possible spelling: a variable whose own name begins with a dollar used to
+spell bare and now cannot, because it would read as a group. The variables pane has always shown
+a name as `$k` with the dollar added for display, so a name that carries one is a curiosity; the
+wire form takes it, and the test says so.
+
+```
+              §5w    §5x    §5y
+the wire form  57     54     43     (of 1586 instructions)
+```
+
+The 43 that remain: **36 an accessor or fold**, 5 a match-indexed reference, 2 a `for-each` with
+a sort.
+
+## 5z. An accessor is a call — built 2026-09-24, after an audit that changed the answer
+
+The paragraph above used to say all 36 accessors stood alone, and conclude that they wanted a
+sub-form of controls. **Both halves were wrong**, and an audit before building found it. The
+classification had been reporting the first *absent* reference as the reason, which hid what the
+real one was; and the round-trip test only walked an instruction's select, so a reference in a
+put's key was never checked at all. Widening the walk to every reference an instruction holds,
+and skipping absent ones, gave a different picture:
+
+| count | accessor |
+|---|---|
+| **28** | `get` with a key — 24 of them **within a sequence** |
+| 6 | `size` |
+| 1 | `sum` |
+| 1 | `max` with a cast |
+
+Two thirds live inside concatenations, where a sub-form cannot reach; and 35 of the 36 use only a
+kind, a collection and sometimes a key — no defaults, no nesting, one cast between them. That is
+a **call**, spelt as the counters already are:
+
+```
+size(xs)        get(m, "k")        "n=" size(xs)
+```
+
+The arguments are spellings in their own right, so a collection may be a name, a group, a literal
+or another call, and nesting comes for nothing. A default or a cast has nowhere to go in a call of
+two arguments, so the one `max` with a cast keeps the wire form — as does a spelling the language
+refuses, like `size(xs, 2)`, which is left to be read as the wire would read it rather than
+quietly made into something else.
+
+The tokeniser had to learn that a call is one token however its arguments are spaced, and that
+inside a literal nothing is punctuation — a bracket does not nest and a space does not divide.
+The first cut got the second half wrong and split `get(m, "k")` into three.
+
+```
+              §5w    §5x    §5y    §5z
+the wire form  57     54     43      8      (of 1586 instructions)
+```
+
+**Eight left**, from 618: five a match-indexed reference, two a `for-each` with a sort, one that
+cast. 0.5% of the instructions in every fixture, which is the wire form being what it was always
+meant to be.
+
+### The grammar audited
+
+A new grammar deserved its own audit, so the reader was fed what an author leaves in the box
+half-way through typing rather than what the fixtures hold. It found a crash: `$99999999999999`
+passed the test for a group — a dollar and digits — and then overflowed the int it was read into,
+throwing out of the dialog. More digits than a group number can hold is now not a group, so the
+text falls back to being read as a name, which the form declines to spell and the wire keeps.
+
+Nothing else threw, and nothing was quietly made into something it was not: an unclosed call, an
+unclosed literal, an empty argument and the parens the wrong way round all fall back to the wire's
+own reading, which is the rule the fallback was built for. Both findings are now tests, one for
+the half-written text and one asserting that what the form spells it reads back unchanged.
+
 ## 6. Order
 
 §1, §2, §3a and §3b built 2026-09-21; §4, §5 and its parts the day after, from the first sitting with them. Each phase gated as design 43's were — core-client compile and checkstyle, the

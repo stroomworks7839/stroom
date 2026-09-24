@@ -26,6 +26,8 @@ import stroom.shapeshifter.config.OutputNode.SwitchCase;
 import stroom.shapeshifter.config.OutputNode.Text;
 import stroom.shapeshifter.config.OutputNode.ValueOf;
 import stroom.shapeshifter.config.OutputNode.WhenBranch;
+import stroom.shapeshifter.config.RefExpression;
+import stroom.shapeshifter.config.RefExpression.RefPart;
 import stroom.shapeshifter.config.json.ProjectJson;
 
 import org.junit.jupiter.api.Test;
@@ -117,6 +119,180 @@ class BodiesTest {
         assertThat(Bodies.moveTo(BODY, Bodies.path("2"), Bodies.path("2.1.0.0"), 0)).isSameAs(BODY);
         // Its neighbour is not inside it, so that one is allowed.
         assertThat(Bodies.moveTo(BODY, Bodies.path("0"), Bodies.path("2.0"), 0)).isNotSameAs(BODY);
+    }
+
+    @Test
+    void captureGroupsAreSpeltAndReadBack() {
+        // The case a migrated apply-templates always has, and the one that used to fall to raw
+        // JSON: the wire has no short form for a numbered group, because group() is already a
+        // counter, so the form has its own (design 44 §5u).
+        assertThat(Instructions.spell(RefExpression.group(1))).isEqualTo("$1");
+        assertThat(Instructions.spell(RefExpression.group(0))).isEqualTo("$0");
+        assertThat(Instructions.read("$1")).isEqualTo(RefExpression.group(1));
+        assertThat(Instructions.read(" $12 ")).isEqualTo(RefExpression.group(12));
+
+        // A name is still a name, and one that merely starts with a dollar is not a group.
+        assertThat(Instructions.spell(ProjectJson.readRefOrName("k"))).isEqualTo("k");
+        assertThat(Instructions.read("k")).isEqualTo(ProjectJson.readRefOrName("k"));
+        // $k is the group the pattern labelled k, not a variable called "$k" (§5y).
+        assertThat(Instructions.read("$k")).isEqualTo(
+                new RefExpression(List.of(RefPart.Capture.label("k"))));
+
+        // What the form cannot spell, it says so about rather than guessing.
+        assertThat(Instructions.spell(new RefExpression(List.of(
+                new RefPart.Capture("v", 1, null))))).isNull();
+    }
+
+    @Test
+    void severalPartsAreSpeltAsASequenceAndReadBack() {
+        // What a value-of of several parts looks like: literals and references, juxtaposed
+        // (design 44 §5w). 207 of the fixtures' unspellable value-ofs are exactly this shape.
+        final RefExpression three = new RefExpression(List.of(
+                new RefPart.Text("on "),
+                new RefPart.Capture(null, 1, null),
+                new RefPart.Text(" at")));
+        assertThat(Instructions.spell(three)).isEqualTo("\"on \" $1 \" at\"");
+        assertThat(Instructions.read("\"on \" $1 \" at\"")).isEqualTo(three);
+
+        // A literal alone, which is 265 of them, and one that needs escaping.
+        final RefExpression literal = new RefExpression(List.of(new RefPart.Text("plain")));
+        assertThat(Instructions.spell(literal)).isEqualTo("\"plain\"");
+        assertThat(Instructions.read("\"plain\"")).isEqualTo(literal);
+        final RefExpression awkward = new RefExpression(List.of(
+                new RefPart.Text("a \"b\"\nc\td")));
+        assertThat(Instructions.read(Instructions.spell(awkward))).isEqualTo(awkward);
+
+        // A name inside a sequence is a name; a name alone still spells bare.
+        final RefExpression mixed = new RefExpression(List.of(
+                new RefPart.Capture("when", 0, null),
+                new RefPart.Text("!")));
+        assertThat(Instructions.spell(mixed)).isEqualTo("when \"!\"");
+        assertThat(Instructions.read("when \"!\"")).isEqualTo(mixed);
+
+        // Unclosed quoting is not silently a name: the form keeps the wire while it is being typed.
+        assertThat(Instructions.read("\"half")).isEqualTo(ProjectJson.readRefOrName("\"half"));
+
+        // One part it cannot spell makes the whole unspellable, rather than showing a lie.
+        assertThat(Instructions.spell(new RefExpression(List.of(
+                new RefPart.Text("x"),
+                new RefPart.Capture("v", 2, null))))).isNull();
+    }
+
+    @Test
+    void spellingsTheFormCannotReadBackAreNotOffered() {
+        // Two adjacent literals: the key and position reader used to test the first and last
+        // character and call this one literal of `a" "b`.
+        final RefExpression two = new RefExpression(List.of(
+                new RefPart.Text("a"), new RefPart.Text("b")));
+        assertThat(Instructions.read(Instructions.spell(two))).isEqualTo(two);
+
+        // A name with a space in it would come back as two names, so it is not spelt at all.
+        assertThat(Instructions.spell(new RefExpression(List.of(
+                new RefPart.Capture("my name", 0, null))))).isNull();
+        // Nor one that would read as a counter, or open a literal.
+        assertThat(Instructions.spell(new RefExpression(List.of(
+                new RefPart.Capture("index()", 0, null))))).isNull();
+        assertThat(Instructions.spell(new RefExpression(List.of(
+                new RefPart.Capture("a\"b", 0, null))))).isNull();
+
+        // An ordinary name still spells bare. One that begins with a dollar would read as a
+        // group of this match, so it is not spelt bare and the wire form takes it.
+        assertThat(Instructions.spell(new RefExpression(List.of(
+                new RefPart.Capture("when", 0, null))))).isEqualTo("when");
+        assertThat(Instructions.spell(new RefExpression(List.of(
+                new RefPart.Capture("$k", 0, null))))).isNull();
+    }
+
+    @Test
+    void groupsThePatternNamedAreSpeltWithTheirName() {
+        // The dollar says "a group of this match" either way: digits are its number, a word is
+        // the label the pattern gave it (design 44 §5y).
+        final RefExpression labelled = new RefExpression(List.of(RefPart.Capture.label("host")));
+        assertThat(Instructions.spell(labelled)).isEqualTo("$host");
+        assertThat(Instructions.read("$host")).isEqualTo(labelled);
+        assertThat(Instructions.read(Instructions.spell(labelled))).isEqualTo(labelled);
+
+        // Numbered and labelled sit side by side in a sequence.
+        final RefExpression mixed = new RefExpression(List.of(
+                RefPart.Capture.label("host"), new RefPart.Text(":"), new RefPart.Capture(null, 2, null)));
+        assertThat(Instructions.spell(mixed)).isEqualTo("$host \":\" $2");
+        assertThat(Instructions.read("$host \":\" $2")).isEqualTo(mixed);
+    }
+
+    @Test
+    void accessorsAreSpeltAsCallsAndReadBack() {
+        // A function of a collection, as a counter is a function of the match (design 44 §5z).
+        final RefExpression size = new RefExpression(List.of(new RefPart.Accessor(
+                RefPart.Accessor.Kind.SIZE, ProjectJson.readRefOrName("xs"), null, null, null)));
+        assertThat(Instructions.spell(size)).isEqualTo("size(xs)");
+        assertThat(Instructions.read("size(xs)")).isEqualTo(size);
+
+        // get takes a key, and the arguments are spellings in their own right.
+        final RefExpression get = new RefExpression(List.of(new RefPart.Accessor(
+                RefPart.Accessor.Kind.GET, ProjectJson.readRefOrName("m"),
+                RefExpression.text("k"), null, null)));
+        assertThat(Instructions.spell(get)).isEqualTo("get(m, \"k\")");
+        assertThat(Instructions.read("get(m, \"k\")")).isEqualTo(get);
+        // A call is one token however its arguments are spaced.
+        assertThat(Instructions.read("get(m,\"k\")")).isEqualTo(get);
+
+        // Inside a sequence, which is where two thirds of the fixtures' accessors live.
+        final RefExpression mixed = new RefExpression(List.of(
+                new RefPart.Text("n="),
+                new RefPart.Accessor(RefPart.Accessor.Kind.SIZE,
+                        ProjectJson.readRefOrName("xs"), null, null, null)));
+        assertThat(Instructions.spell(mixed)).isEqualTo("\"n=\" size(xs)");
+        assertThat(Instructions.read("\"n=\" size(xs)")).isEqualTo(mixed);
+
+        // One over another, which the arguments being spellings gives for nothing.
+        final RefExpression nested = new RefExpression(List.of(new RefPart.Accessor(
+                RefPart.Accessor.Kind.SIZE, get, null, null, null)));
+        assertThat(Instructions.read(Instructions.spell(nested))).isEqualTo(nested);
+
+        // A default or a cast has nowhere to go in a call of two arguments, so the wire keeps it.
+        assertThat(Instructions.spell(new RefExpression(List.of(new RefPart.Accessor(
+                RefPart.Accessor.Kind.MAX, ProjectJson.readRefOrName("xs"), null, null,
+                stroom.shapeshifter.config.Cast.INTEGER))))).isNull();
+
+        // A spelling the language refuses is not quietly made into something else.
+        assertThat(Instructions.read("size(xs, 2)"))
+                .isEqualTo(ProjectJson.readRefOrName("size(xs, 2)"));
+    }
+
+    @Test
+    void halfWrittenTextIsReadAsANameRatherThanRefused() {
+        // Every one of these is something an author can leave in the box mid-edit. None may throw,
+        // and none may be read as a part the author did not write (design 44 §5z audit).
+        final String[] halfWritten = {
+                "$99999999999999",  // more digits than a group number holds
+                "size(xs",          // the call not yet closed
+                "size()",           // the call with nothing in it
+                "\"unclosed",       // the literal not yet closed
+                ")x(",              // the parens the wrong way round
+                "get(m,)",          // an argument not yet typed
+                "$",                // the dollar alone
+                "",                 // nothing at all
+        };
+        for (final String text : halfWritten) {
+            final RefExpression read = Instructions.read(text);
+            assertThat(read)
+                    .describedAs("reading %s", text)
+                    .isEqualTo(ProjectJson.readRefOrName(text));
+        }
+    }
+
+    @Test
+    void whatTheFormSpellsItReadsBackTheSame() {
+        // Spelling and reading are one grammar, so a spelling put back through both is unchanged.
+        final String[] spellings = {
+                "$0", "$1", "$name", "\"a\" \"b\"", "size(xs)", "get(m, \"k\")",
+                "get(size(xs), $1)", "\"a\" get(m, \"k\") $2", "index()", "get(index(), \"k\")",
+        };
+        for (final String spelling : spellings) {
+            assertThat(Instructions.spell(Instructions.read(spelling)))
+                    .describedAs("spelling %s back", spelling)
+                    .isEqualTo(spelling);
+        }
     }
 
     @Test
