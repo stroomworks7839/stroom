@@ -25,6 +25,7 @@ import com.google.web.bindery.event.shared.EventBus;
 import com.gwtplatform.mvp.client.MyPresenterWidget;
 import com.gwtplatform.mvp.client.View;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -52,11 +53,21 @@ public class TransitionPresenter extends MyPresenterWidget<TransitionView> {
      * @param steps The ids of the plan's steps, which is what a target may be.
      */
     public void read(final Transition transition, final List<String> steps) {
-        getView().setTargets(steps);
-        getView().setOutcome(transition.getOn());
-        getView().setTarget(transition.getGoTo() == null
+        final String target = transition.getGoTo() == null
                 ? ABANDON
-                : transition.getGoTo());
+                : transition.getGoTo();
+        final List<String> targets = new ArrayList<>(steps);
+        if (!END.equals(target) && !ABANDON.equals(target) && !targets.contains(target)) {
+            // A step this transition names that is not there any more — renamed, or removed. Offered
+            // anyway, so that opening the transition shows what it says: dropped from the list it would
+            // come back blank, and a blank target is *abandon*, so merely looking at a dangling
+            // transition would quietly turn it into one that gives the attempt up. It stays wrong, the
+            // plan's own check goes on saying so, and the person decides what it should be.
+            targets.add(target);
+        }
+        getView().setTargets(targets);
+        getView().setOutcome(transition.getOn());
+        getView().setTarget(target);
     }
 
     public Transition write() {

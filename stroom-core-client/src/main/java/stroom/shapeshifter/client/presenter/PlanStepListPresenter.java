@@ -104,7 +104,15 @@ public class PlanStepListPresenter extends MyPresenterWidget<PagerView> {
         registerHandler(addButton.addClickHandler(event -> {
             if (!readOnly) {
                 show(PlanStep.of(QuestionKind.CONFIGURE), added -> {
-                    steps.add(added);
+                    // After the selected step, as the routing table adds a rule: where a step sits is
+                    // part of what the plan means, so a person adding one while looking at another
+                    // means it to go there. With nothing selected it goes at the end.
+                    final int after = at(selectionModel.getSelected());
+                    if (after < 0) {
+                        steps.add(added);
+                    } else {
+                        steps.add(after + 1, added);
+                    }
                     changed();
                 });
             }
@@ -112,10 +120,10 @@ public class PlanStepListPresenter extends MyPresenterWidget<PagerView> {
         registerHandler(editButton.addClickHandler(event -> edit()));
         registerHandler(copyButton.addClickHandler(event -> {
             final PlanStep selected = selectionModel.getSelected();
-            if (!readOnly && selected != null) {
+            if (!readOnly && at(selected) >= 0) {
                 // Without its id: two steps of one name is a plan whose transitions cannot say which
                 // they mean, and the copy is the one that should be renamed.
-                steps.add(steps.indexOf(selected) + 1, new PlanStep(null, selected.getKind(),
+                steps.add(at(selected) + 1, new PlanStep(null, selected.getKind(),
                         selected.getRole(), selected.getWhen(), selected.getCandidates(),
                         selected.getKinds(), selected.getChecks(), selected.getTransitions()));
                 changed();
@@ -138,7 +146,7 @@ public class PlanStepListPresenter extends MyPresenterWidget<PagerView> {
     /// step and the refusal arrives a long way from the delete that caused it.
     private void remove() {
         final PlanStep selected = selectionModel.getSelected();
-        if (readOnly || selected == null) {
+        if (readOnly || at(selected) < 0) {
             return;
         }
         final String id = selected.effectiveId();
@@ -149,7 +157,7 @@ public class PlanStepListPresenter extends MyPresenterWidget<PagerView> {
                 .map(PlanStep::effectiveId)
                 .toList();
         if (pointing.isEmpty()) {
-            steps.remove(selected);
+            steps.remove(at(selected));
             selectionModel.clear();
             changed();
             return;
@@ -159,7 +167,7 @@ public class PlanStepListPresenter extends MyPresenterWidget<PagerView> {
                 + " goes to it, and a plan whose transition names no step is refused on save.",
                 ok -> {
                     if (ok) {
-                        steps.remove(selected);
+                        steps.remove(at(selected));
                         selectionModel.clear();
                         changed();
                     }
@@ -168,10 +176,10 @@ public class PlanStepListPresenter extends MyPresenterWidget<PagerView> {
 
     private void move(final int by) {
         final PlanStep selected = selectionModel.getSelected();
-        if (readOnly || selected == null) {
+        if (readOnly || at(selected) < 0) {
             return;
         }
-        final int from = steps.indexOf(selected);
+        final int from = at(selected);
         final int to = from + by;
         if (to >= 0 && to < steps.size()) {
             steps.remove(from);
@@ -183,10 +191,16 @@ public class PlanStepListPresenter extends MyPresenterWidget<PagerView> {
 
     private void edit() {
         final PlanStep existing = selectionModel.getSelected();
-        if (!readOnly && existing != null) {
+        if (!readOnly && at(existing) >= 0) {
             show(existing, edited -> {
-                steps.set(steps.indexOf(existing), edited);
-                changed();
+                // Looked up again on the way back, not captured: the dialog is not modal to the list
+                // behind it, and a row that has moved or gone while it was open must not be written
+                // over by its old position.
+                final int index = at(existing);
+                if (index >= 0) {
+                    steps.set(index, edited);
+                    changed();
+                }
             });
         }
     }
@@ -254,6 +268,28 @@ public class PlanStepListPresenter extends MyPresenterWidget<PagerView> {
         }
     }
 
+    /// Where a step sits, **by identity** and not by equality.
+    ///
+    /// A step is a value: two of them with the same kind, guard, limits, checks and transitions and no
+    /// id of their own are `equals`, and copying a step makes exactly that — the copy drops the id, so a
+    /// step that never had one is copied into its own twin. `List.indexOf` would then answer with the
+    /// first of the pair whichever was selected, and editing, moving or removing the second would do it
+    /// to the first.
+    ///
+    /// The grid's rows are the very objects in this list, so identity is the right question and the
+    /// only one that distinguishes them.
+    private int at(final PlanStep step) {
+        if (step == null) {
+            return -1;
+        }
+        for (int i = 0; i < steps.size(); i++) {
+            if (steps.get(i) == step) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
     /// Every step's name, which is what a transition may go to.
     private List<String> ids() {
         return steps.stream().map(PlanStep::effectiveId).toList();
@@ -269,7 +305,7 @@ public class PlanStepListPresenter extends MyPresenterWidget<PagerView> {
         final PlanStep selected = selectionModel.getSelected();
         final boolean one = selected != null;
         final int index = one
-                ? steps.indexOf(selected)
+                ? at(selected)
                 : -1;
         addButton.setEnabled(!readOnly);
         editButton.setEnabled(!readOnly && one);
@@ -282,7 +318,7 @@ public class PlanStepListPresenter extends MyPresenterWidget<PagerView> {
     private void initTableColumns() {
         dataGrid.addResizableColumn(
                 DataGridUtil.htmlColumnBuilder((PlanStep step) ->
-                        SafeHtmlUtils.fromString(Integer.toString(steps.indexOf(step) + 1)))
+                        SafeHtmlUtils.fromString(Integer.toString(at(step) + 1)))
                         .rightAligned().build(),
                 DataGridUtil.headingBuilder("#")
                         .withToolTip("Where the step sits. A pass goes to the next one unless a "

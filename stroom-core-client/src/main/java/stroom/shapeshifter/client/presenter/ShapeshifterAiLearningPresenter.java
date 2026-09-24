@@ -97,6 +97,11 @@ public class ShapeshifterAiLearningPresenter
      */
     @Override
     public void onPlanExample(final List<PlanStep> steps) {
+        if (isReadOnly()) {
+            // The picker is disabled on a read-only document, so this should not be reachable; loading
+            // an example is still an edit, and an edit is refused here rather than only being hidden.
+            return;
+        }
         planStepListPresenter.read(steps, false);
         planChanged();
         onChange();
@@ -197,8 +202,11 @@ public class ShapeshifterAiLearningPresenter
      */
     private void showPlanProblem() {
         // The plan's own check, which is the one the store runs: said in one place so that the tab and
-        // the save cannot disagree about what is wrong.
-        final List<String> problems = plan().problems();
+        // the save cannot disagree about what is wrong. Asked of the steps alone — the templates play
+        // no part in it, and reading them here would tie this to the order the tab happens to fill its
+        // fields in.
+        final List<String> problems = new LearningPlan(planStepListPresenter.write(), null, null)
+                .problems();
         getView().setPlanProblem(problems.isEmpty()
                 ? null
                 : String.join("; ", problems));

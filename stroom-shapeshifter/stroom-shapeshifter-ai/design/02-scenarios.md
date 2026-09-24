@@ -2974,6 +2974,25 @@ pipeline editor.
 
 The GWT compile is the check item 24 names for the `.ui.xml` bindings, and it passes.
 
+**Its own audit found five**, before anybody opened it. The one that mattered: a `PlanStep` is a *value*
+and two of them can be equal, so `List.indexOf` answers with the first of a pair whichever was
+selected — and **Copy makes exactly that pair in one click**, since the copy drops the id and a step
+that never had one is copied into its own twin. Editing, moving or removing the second would have done
+it to the first. Rows are found by identity now, which is the right question: the grid's rows are the
+very objects in the list.
+
+Behind it: loading an example would have made a read-only document editable, since the handler passed
+`false` rather than asking; a transition whose step had been renamed came back blank when it was opened,
+and a blank target is *abandon*, so merely looking at a dangling transition would have quietly turned it
+into one that gives the attempt up — the missing step is offered anyway now, still wrong and still
+flagged; the inline check was asking the whole plan, templates and all, when what can be wrong with one
+is a property of its steps alone, which tied it to the order the tab happens to fill its fields in; and
+a step was always appended where the routing table beside it inserts after the selection.
+
+The binding question was asked and answered rather than assumed: GWTP's `HandlerContainerImpl` takes its
+`automaticBind` through an `@Inject` method, so any presenter widget GIN instantiates is bound and its
+`onBind` runs. These are all GIN-injected, so their buttons are live.
+
 
 ## 7. Decisions taken
 
