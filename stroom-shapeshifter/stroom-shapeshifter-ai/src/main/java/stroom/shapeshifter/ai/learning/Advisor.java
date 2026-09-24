@@ -21,7 +21,7 @@ import stroom.shapeshifter.ai.stage.Guidance.Given;
 import java.util.List;
 
 /**
- * The AI seam of design §10, as the dialogue of A21 sees it: one question at a time, each carrying the
+ * The AI seam of design §10, as the conversation of A21 sees it: one question at a time, each carrying the
  * exchanges before it. A node implements this over {@code stroom-ai}; a test implements it with canned
  * replies. Nothing on this side of the seam knows which.
  */
@@ -63,7 +63,7 @@ public interface Advisor {
 
     /**
      * Tokens the model has charged this advisor for so far, where it says; zero where it does not. The
-     * dialogue reads it before and after each question to hold an attempt to its token budget (A5).
+     * conversation reads it before and after each question to hold an attempt to its token budget (A5).
      */
     default long tokensUsed() {
         return 0;

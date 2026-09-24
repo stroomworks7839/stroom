@@ -26,7 +26,7 @@ import stroom.shapeshifter.ai.fragment.FragmentRunner.FragmentRecord;
 import stroom.shapeshifter.ai.fragment.FragmentWriter;
 import stroom.shapeshifter.ai.learning.Advisor;
 import stroom.shapeshifter.ai.learning.Advisors;
-import stroom.shapeshifter.ai.learning.Dialogue;
+import stroom.shapeshifter.ai.learning.Conversation;
 import stroom.shapeshifter.ai.learning.Exchange;
 import stroom.shapeshifter.ai.learning.LearnedStep;
 import stroom.shapeshifter.ai.learning.Outcome;
@@ -194,7 +194,7 @@ public final class Stage {
 
     /**
      * Carry on an attempt that stopped at a question, with the answers it has been given (A28): the
-     * dialogue is re-walked from the start over the same sample, answered from the record until the record
+     * conversation is re-walked from the start over the same sample, answered from the record until the record
      * runs out, which re-derives everything those answers produced — the chain, the boundary, the records,
      * the targets, each element's configuration and output — because all of it follows from the sample and
      * the answers. What is asked beyond the record is asked of {@code answerer}: the model, for the worker
@@ -1411,7 +1411,7 @@ public final class Stage {
         // The attempt's claim is pushed out before every question (A45), and every turn is recorded as it
         // is answered and again as it is judged, so an attempt still running shows what it had got to
         // (A28).
-        final Dialogue dialogue = new Dialogue(advisor, runners, scorecard, clock,
+        final Conversation conversation = new Conversation(advisor, runners, scorecard, clock,
                 recorder::heartbeat, recorder::turn)
                 .alreadySpent(recorder.alreadySpent())
                 // What a supervisor has said about this shape (A46), read afresh before every question
@@ -1422,7 +1422,7 @@ public final class Stage {
         final long before = advisor.tokensUsed();
         final List<Exchange> asked = new ArrayList<>();
         try {
-            final Outcome outcome = dialogue.run(doc, sample, opening);
+            final Outcome outcome = conversation.run(doc, sample, opening);
             asked.addAll(outcome.transcript());
             return outcome;
         } finally {

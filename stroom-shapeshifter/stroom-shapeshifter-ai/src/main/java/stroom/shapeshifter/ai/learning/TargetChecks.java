@@ -40,7 +40,7 @@ import java.util.Set;
 import java.util.TreeSet;
 
 /**
- * The checks a target brings to the dialogue (design 01 §10.1, ruling A31), beside the document's
+ * The checks a target brings to the conversation (design 01 §10.1, ruling A31), beside the document's
  * scorers: whether a proposed target is an event worth aiming at; whether the parser's records
  * <i>preserve</i> what the targets need; whether the transform's events <i>reproduce</i> them. Each
  * says what fell short in the terms the model can act on.

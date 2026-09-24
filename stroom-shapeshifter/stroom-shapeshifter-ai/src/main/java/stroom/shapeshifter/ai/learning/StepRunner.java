@@ -21,7 +21,7 @@ import stroom.pipeline.shared.TextConverterDoc.TextConverterType;
 import java.util.Optional;
 
 /**
- * Runs one kind of pipeline element headlessly, for the dialogue to try a candidate configuration before
+ * Runs one kind of pipeline element headlessly, for the conversation to try a candidate configuration before
  * anything is written to a store (design §7.3 rule 1). One runner per element type the stage can use.
  * <p>
  * This is the stand-in for the headless harness of design §12 item 2 until that is extracted from the

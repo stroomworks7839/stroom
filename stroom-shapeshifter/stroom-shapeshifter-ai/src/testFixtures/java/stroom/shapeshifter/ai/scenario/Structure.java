@@ -169,7 +169,7 @@ public final class Structure {
     /**
      * The event the script's own chain makes of one record, as the fenced document the target question
      * wants; {@code none} where the chain emits no record for it. The chain runs over the whole sample,
-     * as it will in the dialogue — a splitter that reads a header cannot make sense of one line alone —
+     * as it will in the conversation — a splitter that reads a header cannot make sense of one line alone —
      * and the record's event is the one at the position of the emitted record whose values all come from
      * the record.
      */

@@ -48,7 +48,7 @@ import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * One attempt's dialogue, turn by turn (A28): what was asked, what was answered and by whom, and what
+ * One attempt's conversation, turn by turn (A28): what was asked, what was answered and by whom, and what
  * the answer scored. A turn with no answer is the question the attempt stopped at, which is what a
  * person may answer instead.
  */
@@ -66,7 +66,7 @@ public class SupervisorTurnsPresenter extends MyPresenterWidget<PagerView> {
     /// answers, and the answer to a row they have left must not land in the grid under the row they are
     /// on now.
     private int asked;
-    /// Which attempt's dialogue is on show, so that an answer is written against the right one.
+    /// Which attempt's conversation is on show, so that an answer is written against the right one.
     private SupervisorAttempt attempt;
     /// What to do when an answer has been written: the attempt has changed and the list above it with it.
     private Consumer<SupervisorAttempt> onAmended;
@@ -171,7 +171,7 @@ public class SupervisorTurnsPresenter extends MyPresenterWidget<PagerView> {
     }
 
     /**
-     * Read the dialogue of one attempt. The list gives the row without its turns — a page of transcripts
+     * Read the conversation of one attempt. The list gives the row without its turns — a page of transcripts
      * is a page nobody reads — so the detail is fetched when a row is chosen.
      */
     public void read(final SupervisorAttempt attempt) {
@@ -217,7 +217,7 @@ public class SupervisorTurnsPresenter extends MyPresenterWidget<PagerView> {
                         .rightAligned()
                         .build(),
                 DataGridUtil.headingBuilder("#")
-                        .withToolTip("The turn's place in the dialogue.")
+                        .withToolTip("The turn's place in the conversation.")
                         .rightAligned()
                         .build(),
                 40);

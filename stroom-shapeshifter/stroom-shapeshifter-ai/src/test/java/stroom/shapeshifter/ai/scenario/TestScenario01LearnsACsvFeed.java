@@ -47,7 +47,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Design 02 §5, scenario 1: a CSV feed with nothing in the routing table. The stage learns a
- * splitter and a transform in one dialogue, judges them over the whole stream, promotes, and the
+ * splitter and a transform in one conversation, judges them over the whole stream, promotes, and the
  * routing table gains the learned rule.
  * <p>
  * The corpus case has six records under a header. The coverage threshold sits at 0.8 because the

@@ -48,7 +48,7 @@ import javax.xml.transform.URIResolver;
 import javax.xml.transform.stream.StreamResult;
 
 /**
- * The {@code XSLTFilter} element as a step of the A21 dialogue: compile the candidate stylesheet, then
+ * The {@code XSLTFilter} element as a step of the A21 conversation: compile the candidate stylesheet, then
  * transform the input with it. Saxon is driven directly, as the filter drives it, but without the filter's
  * pooling, reference-data loaders or Stroom function library — so a candidate that calls a
  * {@code stroom:} function fails here where the filter would have served it. That is the restricted

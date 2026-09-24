@@ -53,12 +53,13 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * The A21 dialogue end to end against a simulated model: a Shapeshifter AI document, a sample from the {@code TestDS3}
- * corpus, and canned replies that carry the corpus's own Data Splitter configuration and a stylesheet
- * that turns its records into {@code event-logging:3} events. What is asserted is the order and content
- * of the questions — that is the design — and the translation that comes out of the end.
+ * The A21 conversation end to end against a simulated model: a Shapeshifter AI document, a sample from
+ * the {@code TestDS3} corpus, and canned replies that carry the corpus's own Data Splitter
+ * configuration and a stylesheet that turns its records into {@code event-logging:3} events. What is
+ * asserted is the order and content of the questions — that is the design — and the translation that
+ * comes out of the end.
  */
-class TestDialogue {
+class TestConversation {
 
     private static final NodeFixture FIXTURE = new NodeFixture();
     private static final Golden CSV = golden("001_csv_with_header");
@@ -77,13 +78,13 @@ class TestDialogue {
                     "X-Sender-Token", "s3cret"));
 
     /**
-     * These tests are about the dialogue; the scorecard is the compile gate alone so that a step passes
+     * These tests are about the conversation; the scorecard is the compile gate alone so that a step passes
      * when it runs. Scoring has its own tests and the scenarios.
      */
-    private static Dialogue dialogue(final Advisor advisor) {
+    private static Conversation conversation(final Advisor advisor) {
         // These tests are about A21's mechanics — the chain, the re-ask, the refusal, the budgets — so they
         // run the direct shape; the split and target turns of A31 have their own tests.
-        return new Dialogue(advisor, List.of(new DataSplitterStep(FIXTURE.compiler()), new XsltStep()),
+        return new Conversation(advisor, List.of(new DataSplitterStep(FIXTURE.compiler()), new XsltStep()),
                 new Scorecard(List.of(new ScorerSetting(ScorerType.COMPILE, 1.0, 1.0, true, null)),
                         List.of(new CompileScorer())), Clock.systemUTC());
     }
@@ -120,17 +121,18 @@ class TestDialogue {
 
     @Test
     void anAttemptThatOutrunsItsWallClockBudgetIsAbandoned() {
-        // A5: the budget bounds the whole dialogue. Every read of the clock moves it by a minute, so the
+        // A5: the budget bounds the whole conversation. Every read of the clock moves it by a minute, so the
         // first question's check passes at one minute and the check after it fails at two.
         final CannedAdvisor model = new CannedAdvisor(
                 "DSParser -> XSLTFilter",
                 CannedAdvisor.fenced(CSV.configuration()),
                 CannedAdvisor.fenced(XSLT));
-        final Dialogue dialogue = new Dialogue(model, List.of(new DataSplitterStep(FIXTURE.compiler()), new XsltStep()),
+        final Conversation conversation = new Conversation(model,
+                List.of(new DataSplitterStep(FIXTURE.compiler()), new XsltStep()),
                 new Scorecard(List.of(new ScorerSetting(ScorerType.COMPILE, 1.0, 1.0, true, null)),
                         List.of(new CompileScorer())), ticking(60_000));
 
-        final Outcome outcome = dialogue.run(policy().copy().attemptBudgetMs(90_000).build(), SAMPLE);
+        final Outcome outcome = conversation.run(policy().copy().attemptBudgetMs(90_000).build(), SAMPLE);
 
         assertThat(outcome).isInstanceOf(Abandoned.class);
         assertThat(((Abandoned) outcome).reason()).contains("budget of 90000 ms is spent");
@@ -158,7 +160,7 @@ class TestDialogue {
             }
         };
 
-        final Outcome outcome = dialogue(model).run(policy().copy().tokenBudget(1000L).build(), SAMPLE);
+        final Outcome outcome = conversation(model).run(policy().copy().tokenBudget(1000L).build(), SAMPLE);
 
         assertThat(outcome).isInstanceOf(Abandoned.class);
         assertThat(((Abandoned) outcome).reason()).contains("budget of 1000 tokens is spent after 1400 tokens");
@@ -172,7 +174,7 @@ class TestDialogue {
                 CannedAdvisor.fenced(CSV.configuration()),
                 CannedAdvisor.fenced(XSLT));
 
-        final Outcome outcome = dialogue(model).run(policy(), SAMPLE);
+        final Outcome outcome = conversation(model).run(policy(), SAMPLE);
 
         assertThat(model.questions()).hasSize(3);
         final Chain shape = (Chain) model.questions().get(0);
@@ -219,7 +221,7 @@ class TestDialogue {
                 CannedAdvisor.fenced(CSV.configuration()),
                 CannedAdvisor.fenced(XSLT));
 
-        final Outcome outcome = dialogue(model).run(policy(), SAMPLE);
+        final Outcome outcome = conversation(model).run(policy(), SAMPLE);
 
         assertThat(outcome).isInstanceOf(Learned.class);
         assertThat(model.questions()).hasSize(4);
@@ -243,7 +245,7 @@ class TestDialogue {
                 CannedAdvisor.fenced(CSV.configuration()),
                 CannedAdvisor.fenced(XSLT));
 
-        final Outcome outcome = dialogue(model).run(policy(), SAMPLE);
+        final Outcome outcome = conversation(model).run(policy(), SAMPLE);
 
         assertThat(outcome).isInstanceOf(Learned.class);
         final Configuration reAsk = (Configuration) model.questions().get(2);
@@ -261,7 +263,7 @@ class TestDialogue {
                 "DSParser",
                 CannedAdvisor.fenced(CSV.configuration()));
 
-        final Outcome outcome = dialogue(model).run(policy(), SAMPLE);
+        final Outcome outcome = conversation(model).run(policy(), SAMPLE);
 
         assertThat(outcome).isInstanceOf(Learned.class);
         final Chain reAsk = (Chain) model.questions().get(1);
@@ -277,7 +279,7 @@ class TestDialogue {
         final CannedAdvisor model = new CannedAdvisor(CannedAdvisor.fenced(XSLT));
         final ShapeshifterAiDoc transformOnly = policy().copy().allowedElements(List.of("XSLTFilter")).build();
 
-        final Outcome outcome = dialogue(model).run(transformOnly, Sample.of(CSV.expectedRecords()));
+        final Outcome outcome = conversation(model).run(transformOnly, Sample.of(CSV.expectedRecords()));
 
         assertThat(model.questions()).singleElement().isInstanceOf(Configuration.class);
         assertThat(((Learned) outcome).output()).isEqualTo(EXPECTED_EVENTS);
@@ -291,7 +293,7 @@ class TestDialogue {
                 CannedAdvisor.fenced(BAD_CSV.configuration()));
         final ShapeshifterAiDoc twoAttempts = policy().copy().maxAttempts(2).build();
 
-        final Outcome outcome = dialogue(model).run(twoAttempts, SAMPLE);
+        final Outcome outcome = conversation(model).run(twoAttempts, SAMPLE);
 
         assertThat(outcome).isInstanceOf(Abandoned.class);
         final Abandoned abandoned = (Abandoned) outcome;
@@ -307,7 +309,7 @@ class TestDialogue {
         final CannedAdvisor model = new CannedAdvisor();
         final ShapeshifterAiDoc jsonOnly = policy().copy().allowedElements(List.of("JSONParser")).build();
 
-        final Outcome outcome = dialogue(model).run(jsonOnly, SAMPLE);
+        final Outcome outcome = conversation(model).run(jsonOnly, SAMPLE);
 
         assertThat(outcome).isInstanceOf(Abandoned.class);
         assertThat(((Abandoned) outcome).reason()).contains("JSONParser");
@@ -339,10 +341,10 @@ class TestDialogue {
             }
         };
         final CannedAdvisor model = new CannedAdvisor("XMLParser, XSLTFilter");
-        final Dialogue dialogue = new Dialogue(model, List.of(passThrough, new XsltStep()),
+        final Conversation conversation = new Conversation(model, List.of(passThrough, new XsltStep()),
                 new Scorecard(List.of(), List.of()), Clock.systemUTC());
 
-        final Outcome outcome = dialogue.run(policy(), SAMPLE);
+        final Outcome outcome = conversation.run(policy(), SAMPLE);
 
         assertThat(outcome).isInstanceOf(Abandoned.class);
         final Abandoned abandoned = (Abandoned) outcome;
@@ -387,10 +389,10 @@ class TestDialogue {
             final ShapeshifterAiDoc doc = policy().copy().plan(LearningPlan.of(PlanExample.DIRECT).withSteps(List.of(
                     PlanStep.parse("CHAIN"), PlanStep.parse("CONFIGURE parser " + transition),
                     PlanStep.parse("CONFIGURE transform")))).build();
-            final Dialogue dialogue = new Dialogue(model, List.of(failing, new XsltStep()),
+            final Conversation conversation = new Conversation(model, List.of(failing, new XsltStep()),
                     new Scorecard(List.of(), List.of()), Clock.systemUTC());
 
-            final Outcome outcome = dialogue.run(doc, SAMPLE);
+            final Outcome outcome = conversation.run(doc, SAMPLE);
 
             // The transition fired: the plan ended at 'end', where the unconfigured elements are found out,
             // rather than abandoning at the parser.
@@ -402,7 +404,7 @@ class TestDialogue {
         final ShapeshifterAiDoc doc = policy().copy().plan(LearningPlan.of(PlanExample.DIRECT).withSteps(List.of(
                 PlanStep.parse("CHAIN"), PlanStep.parse("CONFIGURE parser on compile-failed goto end"),
                 PlanStep.parse("CONFIGURE transform")))).build();
-        final Outcome outcome = new Dialogue(model, List.of(failing, new XsltStep()),
+        final Outcome outcome = new Conversation(model, List.of(failing, new XsltStep()),
                 new Scorecard(List.of(), List.of()), Clock.systemUTC()).run(doc, SAMPLE);
         assertThat(((Abandoned) outcome).reason()).describedAs("nothing was compiled, so compile-failed is not it")
                 .isEqualTo("XMLParser failed on its input");
@@ -443,10 +445,10 @@ class TestDialogue {
         final ShapeshifterAiDoc doc = policy().copy().plan(LearningPlan.of(PlanExample.DIRECT).withSteps(List.of(
                 PlanStep.parse("CHAIN"), PlanStep.parse("CONFIGURE parser"),
                 PlanStep.parse("CONFIGURE transform on refused goto parser")))).build();
-        final Dialogue dialogue = new Dialogue(model, List.of(passThrough, new XsltStep()),
+        final Conversation conversation = new Conversation(model, List.of(passThrough, new XsltStep()),
                 new Scorecard(List.of(), List.of()), Clock.systemUTC());
 
-        final Outcome outcome = dialogue.run(doc, SAMPLE);
+        final Outcome outcome = conversation.run(doc, SAMPLE);
 
         assertThat(outcome).describedAs(outcome.toString()).isInstanceOf(Learned.class);
         assertThat(model.questions()).hasSize(3);

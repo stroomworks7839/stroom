@@ -24,7 +24,7 @@
             <g:Anchor ui:field="fragment" visible="false"/>
             <g:Label text="Scores" addStyleNames="{style.heading}"/>
             <g:HTML ui:field="verdicts"/>
-            <g:Label text="Dialogue" addStyleNames="{style.heading}"/>
+            <g:Label text="Conversation" addStyleNames="{style.heading}"/>
             <g:HTML ui:field="transcript"/>
         </g:FlowPanel>
     </g:ScrollPanel>

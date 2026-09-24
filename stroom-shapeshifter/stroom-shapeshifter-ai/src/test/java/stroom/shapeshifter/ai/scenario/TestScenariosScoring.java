@@ -311,7 +311,7 @@ class TestScenariosScoring {
     @Test
     void scenario7ACandidateThatClearsEveryThresholdButNotTheFloorIsGivenUp() {
         // Yield at its default threshold of 0.5 lets a transform that drops every other record through the
-        // dialogue; the floor of 0.95 over the whole stream does not.
+        // conversation; the floor of 0.95 over the whole stream does not.
         final Scenarios scenarios = new Scenarios();
         final ShapeshifterAiDoc doc = doc().copy().promotionFloor(0.95).build();
         final String everyOther = CsvLines.replacing(XSLT, "  <xsl:template match=\"record\">",

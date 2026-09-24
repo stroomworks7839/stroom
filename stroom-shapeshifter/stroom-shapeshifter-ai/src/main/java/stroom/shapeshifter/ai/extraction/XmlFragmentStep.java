@@ -83,7 +83,7 @@ public final class XmlFragmentStep implements StepRunner {
         return Optional.of(CONFIGURED);
     }
 
-    /// The wrapper, which the dialogue uses without asking and the writer writes as the element's
+    /// The wrapper, which the conversation uses without asking and the writer writes as the element's
     /// `TextConverter`.
     @Override
     public Optional<String> fixedConfiguration() {

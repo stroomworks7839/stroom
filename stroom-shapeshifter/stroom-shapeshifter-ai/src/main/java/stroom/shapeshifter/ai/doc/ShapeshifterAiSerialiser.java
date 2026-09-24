@@ -49,7 +49,7 @@ public class ShapeshifterAiSerialiser implements DocumentSerialiser2<Shapeshifte
     /// The asset the delegate keeps the document's JSON in.
     private static final String META = "meta";
     private static final String PLAN = "plan";
-    private static final String LEGACY_PLAN = "dialogue";
+    private static final String LEGACY_PLAN = "conversation";
     private static final String LEGACY_PRESET = "preset";
     /// Where a document's rules were kept before A41 made them rows.
     private static final String LEGACY_RULES = "routingTable";
@@ -106,7 +106,7 @@ public class ShapeshifterAiSerialiser implements DocumentSerialiser2<Shapeshifte
     public ShapeshifterAiDoc read(final ImportExportDocument importExportDocument) throws IOException {
         final ShapeshifterAiDoc document = delegate.read(importExportDocument);
         rememberLegacyRules(document, importExportDocument);
-        // A document saved when the plan was called the dialogue (before A37) reads as it was written. The
+        // A document saved when the plan was called the conversation (before A37) reads as it was written. The
         // shared class cannot carry the old name — its JSON is generated for the client too — so it is
         // honoured here, on the way in only, and only where the old name occurs at all.
         final byte[] meta = importExportDocument.getExtAssetData(META);

@@ -23,8 +23,8 @@ import java.util.List;
 
 /**
  * The simulated model: replies in the order scripted, whatever is asked, and keeps every question so a
- * test can assert what the dialogue put to it. Running out of script is a test failure, not a refusal —
- * a dialogue asking more than the test expected is the thing under test.
+ * test can assert what the conversation put to it. Running out of script is a test failure, not a refusal —
+ * a conversation asking more than the test expected is the thing under test.
  */
 class CannedAdvisor implements Advisor {
 
@@ -39,7 +39,7 @@ class CannedAdvisor implements Advisor {
     @Override
     public String ask(final List<Exchange> transcript, final Question question) {
         if (replies.isEmpty()) {
-            throw new AssertionError("The dialogue asked more than was scripted: " + question);
+            throw new AssertionError("The conversation asked more than was scripted: " + question);
         }
         questions.add(question);
         transcripts.add(transcript);

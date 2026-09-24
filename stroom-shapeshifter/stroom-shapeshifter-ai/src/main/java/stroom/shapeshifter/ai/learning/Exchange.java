@@ -21,7 +21,7 @@ import stroom.shapeshifter.shared.StepOutcome;
 import java.util.List;
 
 /**
- * One turn of the dialogue: a question as put, the reply as given, and — once judged — which step of the
+ * One turn of the conversation: a question as put, the reply as given, and — once judged — which step of the
  * plan asked it, which candidate it was, and how it ended (A28, A37). The outcome is null until the
  * candidate is judged, and stays null for a turn that was never judged, such as a reply the budget cut off.
  *

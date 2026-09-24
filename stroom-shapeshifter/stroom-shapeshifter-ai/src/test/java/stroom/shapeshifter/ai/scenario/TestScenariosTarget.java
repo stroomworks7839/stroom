@@ -324,7 +324,7 @@ class TestScenariosTarget {
                         .replace("      </regex>\n", "      </regex>\n      <all/>\n")))
                 .expect(QuestionMatcher.split().withFeedbackMentioning("characters as record text"))
                 .reply(Scenarios.fenced(BLOCK_SPLIT))
-                // Three kinds of block by their first line, the most the dialogue asks about; none becomes an
+                // Three kinds of block by their first line, the most the conversation asks about; none becomes an
                 // event here, since this scenario is about the boundary.
                 .expect(QuestionMatcher.target()).reply(TargetChecks.NONE)
                 .expect(QuestionMatcher.target()).reply(TargetChecks.NONE)
@@ -379,7 +379,7 @@ class TestScenariosTarget {
                 new Input(1, "DOCVAULT", "Raw Events", Map.of("Format", "XML"), NESTED_XML));
 
         script.verifyExhausted();
-        // The dialogue learned the shape whole; the record element the split settled reaches the stage's
+        // The conversation learned the shape whole; the record element the split settled reaches the stage's
         // count (A35) — three entries, not the root's one <entries> — so the stream meets the two records the
         // document asks and is promoted, and the rule carries the element for the streams it will serve.
         assertThat(run.decision()).describedAs(run.decision().toString()).isInstanceOf(Promoted.class);

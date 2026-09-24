@@ -22,7 +22,7 @@ import stroom.util.shared.StoredError;
 import java.util.List;
 
 /**
- * The typed questions of the A21 dialogue. Each carries what the model needs to answer it and nothing
+ * The typed questions of the A21 conversation. Each carries what the model needs to answer it and nothing
  * about how it is rendered into a prompt, which is the {@link Advisor}'s concern.
  */
 public sealed interface Question {
@@ -136,7 +136,7 @@ public sealed interface Question {
      *                              no split or it does not concern this element.
      * @param targets               What each kind of record must become (A31): the parser's records must
      *                              carry every value these need, the transform must produce exactly
-     *                              these. Empty where the dialogue has no targets.
+     *                              these. Empty where the conversation has no targets.
      * @param oneRecord             Whether the input shown is one record rather than the whole stream:
      *                              the fragment's `SplitFilter` gives this element one record at a time
      *                              (§12 item 25), so it is asked for a configuration that handles one,

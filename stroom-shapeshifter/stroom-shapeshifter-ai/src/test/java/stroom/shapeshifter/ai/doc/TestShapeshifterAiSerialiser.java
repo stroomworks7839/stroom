@@ -47,7 +47,7 @@ class TestShapeshifterAiSerialiser {
             new ShapeshifterAiSerialiser(new Serialiser2FactoryImpl(), () -> rules);
 
     @Test
-    void aDocumentSavedWhenThePlanWasTheDialogueReadsAsItWasWritten() throws IOException {
+    void aDocumentSavedWhenThePlanWasTheConversationReadsAsItWasWritten() throws IOException {
         final LearningPlan plan = LearningPlan.of(PlanExample.TARGET_FIRST)
                 .withTemplates(Map.of(Template.CHAIN, "Pick: ${elements}\n${sample}"));
         final ShapeshifterAiDoc doc = ShapeshifterAiDoc.builder().uuid("d").name("door").plan(plan).build();
@@ -57,7 +57,7 @@ class TestShapeshifterAiSerialiser {
 
         written.removeExtAsset("meta");
         written.addExtAsset(new ByteArrayImportExportAsset("meta", DocDataType.JSON,
-                json.replace("\"plan\"", "\"dialogue\"").getBytes(StandardCharsets.UTF_8)));
+                json.replace("\"plan\"", "\"conversation\"").getBytes(StandardCharsets.UTF_8)));
 
         final ShapeshifterAiDoc read = serialiser.read(written);
         assertThat(read.getPlan()).isEqualTo(plan);
@@ -79,7 +79,7 @@ class TestShapeshifterAiSerialiser {
                 ShapeshifterAiDoc.builder().uuid("d").name("door").build());
         final ObjectNode json = (ObjectNode) JsonUtil.getMapper().readTree(written.getExtAssetData("meta"));
         json.remove("plan");
-        final ObjectNode legacy = json.putObject("dialogue");
+        final ObjectNode legacy = json.putObject("conversation");
         legacy.put("preset", "TARGET_FIRST");
         legacy.putObject("templates").put("CHAIN", "Pick");
         written.removeExtAsset("meta");
@@ -136,7 +136,7 @@ class TestShapeshifterAiSerialiser {
                 ShapeshifterAiDoc.builder().uuid("d").name("door").build());
         final ObjectNode json = (ObjectNode) JsonUtil.getMapper().readTree(written.getExtAssetData("meta"));
         json.remove("plan");
-        json.putObject("dialogue").put("preset", "SOME_EXAMPLE_THAT_WENT_AWAY");
+        json.putObject("conversation").put("preset", "SOME_EXAMPLE_THAT_WENT_AWAY");
         written.removeExtAsset("meta");
         written.addExtAsset(new ByteArrayImportExportAsset("meta", DocDataType.JSON,
                 JsonUtil.getMapper().writeValueAsBytes(json)));

@@ -291,12 +291,12 @@ held-out fraction, minimum records, regression-stream cap and retention) — fiv
 Documentation and Permissions, each a plain form. Replay unit is not a setting: it is a property of
 the chosen fragment (§4). The document *stores* configuration only. The one piece of runtime state
 shown on it is the draft rules on the Routing tab, read from the A26 tables; error mode, attempts,
-dialogues and outcomes are viewed across every document in the Supervisor view of A28 (§11.6).
+conversations and outcomes are viewed across every document in the Supervisor view of A28 (§11.6).
 
 **Five words, used strictly.** A *variant* is a pipeline fragment written for a stage (A20), whether
 or not a rule yet binds it. A *shape* is one value of the document's learning key (§5); the A21
 question that chooses an element chain is the *chain* question, not a shape question. An *attempt*
-is one learning episode for one shape — the A21 dialogue, made durable by A28 — and a *candidate* is
+is one learning episode for one shape — the A21 conversation, made durable by A28 — and a *candidate* is
 one whole chain tried within it: re-asking a failing element yields a new candidate that keeps the
 elements that passed, so the candidate limit (`maxAttempts` as built) counts chains and the
 per-attempt budget bounds the whole attempt. Code still says `Attempted` where it means a candidate. A
@@ -308,8 +308,8 @@ asks about, at most as many as the step's `kinds` limit — which is finer than 
 routed or bound on. An *outcome* is the typed result of judging one candidate — passed, refused, or
 which check fell short — the closed vocabulary the plan's transitions are written over (A37, §10.2).
 And a *plan* is the graph of questions, checks and transitions the document holds (§10.2): an attempt
-*follows* a plan, and what it says and hears while doing so is its dialogue — the plan is data, the
-dialogue is the run.
+*follows* a plan, and what it says and hears while doing so is its conversation — the plan is data, the
+conversation is the run.
 
 **The scoring service** is an SPI with built-in scorers wrapping validators Stroom already has; §8.
 
@@ -512,7 +512,7 @@ section's.
 | Correct for | Backfills, onboarding, moderate volume, a fast endpoint | High volume, a slow or shared endpoint |
 
 **Ruling A5.** *Execution mode is a document setting, `INLINE` or `DEFERRED`, deferred by default. Every
-attempt carries a wall-clock and token budget for the whole dialogue, mandatory in both modes: an
+attempt carries a wall-clock and token budget for the whole conversation, mandatory in both modes: an
 inline attempt that exceeds it sentinels the stream and continues as a deferred attempt, so the loop
 degrades rather than blocks. Nothing in the mode depends on the model's location.*
 
@@ -787,7 +787,7 @@ a logoff. It is advisory and a trigger, never a gate: a model judging a model's 
 in the same direction as the transform it judges, so the anti-degeneracy scorer of A16 remains the
 safety mechanism. When a shape's rolling review score falls below the scorer's threshold the shape is
 marked for relearning, and the judge's critique is the feedback of the next candidate — a further
-kind of question in the dialogue, `Critique`, beside the four of §10.2, which a scripted model answers
+kind of question in the conversation, `Critique`, beside the four of §10.2, which a scripted model answers
 like any other. Its
 findings are written as an audit stream. It is budgeted per hour, separately from learning's
 per-attempt budgets, so that honesty-checking and learning cannot starve each other.*
@@ -917,16 +917,16 @@ What is missing matters, and this design must supply it:
 | Gap | Consequence here | Required |
 |---|---|---|
 | No structured or JSON output; `chat` returns free text | The response must be parsed to recover a configuration | Extract from a fenced code block with a strict grammar; refuse anything ambiguous. Extraction failure is a failed candidate with feedback, not an error. |
-| `chat(model, systemPrompt, message)` is one-shot; there is no message history | An attempt is a dialogue (A21), and every turn after the first needs the turns before it | Add a multi-turn call taking the transcript. `getChatModel()` already exposes langchain4j's `ChatModel`, which takes a message list, so this is a thin addition. The transcript itself lives in the attempt tables of A28, not in the `AiChat`/`AiChatMessage` store, which is a chat feature and too thin for typed questions with runs and scores attached; `stroom-ai` logs each raw exchange for audit and nothing more. |
+| `chat(model, systemPrompt, message)` is one-shot; there is no message history | An attempt is a conversation (A21), and every turn after the first needs the turns before it | Add a multi-turn call taking the transcript. `getChatModel()` already exposes langchain4j's `ChatModel`, which takes a message list, so this is a thin addition. The transcript itself lives in the attempt tables of A28, not in the `AiChat`/`AiChatMessage` store, which is a chat feature and too thin for typed questions with runs and scores attached; `stroom-ai` logs each raw exchange for audit and nothing more. |
 | No retry on transient failure | A dropped connection burns a candidate | Separate *transport* retries from *candidates*. A 503 is not a failed candidate. |
 | No rate limiting or concurrency ceiling | A bad feed at volume becomes unbounded spend | Per-document and global token and call budgets, enforced before the call. |
 | No token or cost accounting | No way to see or cap spend | Read `tokenUsage()` and record per feed, stage and shape. |
 | `chat()` emits no audit event — only REST callers are logged | AI-authored changes to a security product's transforms would be untraceable | Log every invocation through `DocumentEventLog` with the prompt, model, target document and outcome. Non-negotiable, and doubly so under A9. |
 | Response cache keyed on `(modelUuid, systemPrompt, message)` | **A retry with an unchanged prompt returns the cached failure** | Bypass the cache explicitly on retries rather than relying on the prompt having varied. |
 
-**The prompt contract.** An attempt is not one request but a **dialogue of typed questions, asked
+**The prompt contract.** An attempt is not one request but a **conversation of typed questions, asked
 in chain order, each answered by running the fragment as far as it has been built**. What follows is
-the dialogue as first ruled (A21) — the *direct* example of §10.2, and what a new document's steps
+the conversation as first ruled (A21) — the *direct* example of §10.2, and what a new document's steps
 say; §10.1 adds the split and target questions of the *target-first* example, and §10.2 makes the
 steps, their order and their words the document's own:
 
@@ -961,22 +961,22 @@ mandatory `xsi:schemaLocation` and the `ignoreErrors` prohibition, both of which
 gate enforcing. The response to a configuration
 question must be a single document of the declared type and nothing else. Prior candidates and their
 failures accumulate across the attempt — without that, the second candidate commonly repeats the
-first. The attempt's wall-clock and token budgets (A5) bound the whole dialogue, not each question
+first. The attempt's wall-clock and token budgets (A5) bound the whole conversation, not each question
 or candidate.
 
 Running a prefix of the chain is the headless harness of §12 item 2 invoked on a partial fragment; it
 is not additional machinery, but it is a requirement the harness must be built to.
 
-**Proposed ruling A21.** *An attempt is a dialogue: a chain question, then one configuration question
+**Proposed ruling A21.** *An attempt is a conversation: a chain question, then one configuration question
 per document-bearing element in chain order, each asked with the real output of the elements before
 it, with feedback returned to the step that failed; a `Critique` question where A23 has one to
 offer; and a closing promotion turn, answered by the §7.4 gate — *provisional* where A14 cannot yet be
 met (§6) — or, in review mode, by a person (A25, A28). The document carries the allowed-element list from which the chain is chosen; A10's initial set
 is its default. Depends on A20.*
 
-The dialogue was built on 2026-09-16 as `Dialogue` in `stroom.shapeshifter.ai.learning`, behind an
+The conversation was built on 2026-09-16 as `Dialogue` in `stroom.shapeshifter.ai.learning`, behind an
 `Advisor` seam that a node will implement over `stroom-ai` and that `CannedAdvisor` implements for
-`TestDialogue`. Against the corpus's CSV case it settles the chain, asks for the splitter, runs it, asks
+`TestConversation`. Against the corpus's CSV case it settles the chain, asks for the splitter, runs it, asks
 for the stylesheet with the real `records:2` output, runs that, and hands a chain to `FragmentWriter`,
 which writes the two configuration documents and the fragment into real stores. The step runners drive
 the Data Splitter and Saxon directly; the fragment is not yet run through `PipelineFactory`, which is
@@ -984,12 +984,12 @@ the Data Splitter and Saxon directly; the fragment is not yet run through `Pipel
 (§7.5), so that learned content has a node in the tree and the folder's permissions; a document
 created straight through its store would have neither.
 
-**The dialogue is resumable, and that is what makes it supervisable.** As built, `Dialogue` runs to
+**The conversation is resumable, and that is what makes it supervisable.** As built, `Conversation` runs to
 completion in one call. A28 makes an attempt a persisted state machine instead: it stops at each
 question, the attempt and its turns so far are rows (A26's module), and it continues when the next
 answer arrives — from the model, driven by a job, or from a person. The `Advisor` seam already
 abstracts who answers; A28 adds that the answerer may change between turns, and that any turn's
-answer may be replaced and the dialogue re-run from there. Inline mode is the state machine driven
+answer may be replaced and the conversation re-run from there. Inline mode is the state machine driven
 synchronously within the task to its end; deferred mode is the same machine left at its first
 question for the job to pick up; review mode is the same machine whose promotion turn is answered
 by a person rather than by the §7.4 gate alone.
@@ -1008,7 +1008,7 @@ by which time the feedback lands on the wrong step.
 **Proposed ruling A31.** *A stage is learned against a* target*: events the model proposes from the
 raw sample before any configuration is written, one per kind of input record, validated on the spot
 and open to review. Extraction is then judged by whether its records* preserve *what the target needs;
-transformation by whether its output* reproduces *the target. The dialogue of A21 becomes:*
+transformation by whether its output* reproduces *the target. The conversation of A21 becomes:*
 
 1. *Chain, as now.*
 2. *Split. What one record is in this input, before anything is said about its meaning: for raw text
@@ -1050,14 +1050,14 @@ better but its split was not, and the nested feed is unmeasured — so the choic
 model and per feed, and the harness exists to make it. Three details of the build differ from the text
 above and are recorded rather than hidden. First, field preservation and target fidelity are not
 document scorers of §8.4's kind: there is nothing to weight or threshold — a target is met or it is
-not — so they are checks the dialogue applies after the scorecard (`TargetChecks`), the parser's and
+not — so they are checks the conversation applies after the scorecard (`TargetChecks`), the parser's and
 the last element's respectively, and §12 item 20 calls them checks. Second, for an input that
 is already XML — the first element is not a parser — the split question asks which element is one
 record (A35, built after the coherence audit found the build taking the root's children instead): the
 reply is an element's local name, judged by whether such elements occur, are not the root, are not a
 container holding a repeated child, and between their occurrences hold the document whole. The
 transform question is then told that each such element is one record. Since slice 19 (2026-09-22) the
-boundary the dialogue settled — the element for XML, the array's key for JSON, `root` for top-level
+boundary the conversation settled — the element for XML, the array's key for JSON, `root` for top-level
 values — is carried by the learned outcome and written on the routing rule (`recordBoundary`), and the
 stage counts a stream's records by it — the A14 evidence — and the yield scorer counts a records input by
 it, on the learning stream and on every stream the rule then serves; a rule from before it, or one for
@@ -1097,8 +1097,8 @@ owner's ruling (A32, then A33) is that this is not a choice to make in code: mod
 want different plans, and what varies between them is *what is asked, in what words, in what
 order* — so that is what the document carries. Two layers, and the line between them is what the
 machine can execute. The word: what the document holds is a **learning plan** (renamed 2026-09-21
-from "dialogue definition", once A37 made it a decision tree rather than a conversation); the
-attempt that follows it is still a dialogue, and its record a transcript.
+from "conversation definition", once A37 made it a decision tree rather than a conversation); the
+attempt that follows it is still a conversation, and its record a transcript.
 
 **Typed, in code: the question kinds.** A reply has to *be* something the stage can run and judge. There
 are four kinds and each is a (reply grammar, judge) pair: *Chain* — element names joined by `->`,
@@ -1117,7 +1117,7 @@ closed vocabulary (A37): `passed`; `refused` — the reply was not in the kind's
 checks — `coverage`, `yield`, `wholeness`, `conformance`, `quality`, `rules`, `errors`,
 `classification`, `preservation`, `fidelity` — with `critique` to follow A23. The scorers of §8.4 and
 the checks of §10.1 are the sources; a new check is new code, and so is a new outcome. The attempt's
-budget (A5) is not an outcome: it ends the attempt from outside the dialogue, whatever step it is at.
+budget (A5) is not an outcome: it ends the attempt from outside the conversation, whatever step it is at.
 
 **Data, on the document: the learning plan.** A `LearningPlan` section of the Shapeshifter AI
 document, with two parts — and no mode. There is one mechanism, the step graph, and "direct",
@@ -1227,7 +1227,7 @@ The interpreter walks steps and takes transitions; it holds no knowledge of whic
 **Where it is seen.** The Learning tab shows the steps as one line each in the grammar above, with the
 examples to load from, and the templates one at a time — the effective text, editable, with the built-in text a reset
 away — and the version of the built-ins the document was last saved against. A28's turn rows record
-the text as sent, so a run read back is the dialogue that ran, whatever the defaults have since become.
+the text as sent, so a run read back is the conversation that ran, whatever the defaults have since become.
 The one-line grammar is the first editor, not the last: once the mechanism has been proven — the
 scenarios of 02 and a live run over a graph that escalates — the graph gets a structured editor of its
 own, §12 item 24, in which a step is a form and a transition is chosen from the closed lists rather
@@ -1463,7 +1463,7 @@ bar to beat without a stream arriving: the candidate is asked over those records
 lower on any of them (§7.4). A feed that ships once a day can still be improved at eleven in the
 morning.
 
-**What it does not become.** Not a chat beside the dialogue: the questions stay typed and the answers
+**What it does not become.** Not a chat beside the conversation: the questions stay typed and the answers
 stay grammared (A21, A37), because that is what makes a transcript re-walkable (A45) and a run
 reproducible. A hint is data the questions carry, not a conversation the plan has to follow.
 
@@ -1541,22 +1541,22 @@ not free, and the ledger remains afterwards for the per-shape case the gate cann
 interaction — pending ones a person can decide or alter, completed ones showing the conversation and
 the decision reached — as a supervisory overview of the whole process, in every mode. It is a better
 idea than it first looks, because it collapses three loose ends into one mechanism. Under A21 an
-attempt is already a dialogue of typed questions, each answered, run and scored, so a person does not
+attempt is already a conversation of typed questions, each answered, run and scored, so a person does not
 edit free text: they replace the answer to one question — the splitter, the stylesheet, the element
 chain — and the step re-runs. A25's drafts, A26's shape statuses, A23's findings and A24's error
 mode are all things awaiting a decision or recording one. The one thing the overview needs that does
-not yet exist is for the dialogue to be **durable and resumable** (§10), and that single change is
+not yet exist is for the conversation to be **durable and resumable** (§10), and that single change is
 also the deferred worker §6 was missing, and also the answer to "can a person start learning rather
 than merely approve it" — they raise an attempt for a given-up shape from the same screen, so no
 on-request learning mode is needed.
 
-**Proposed ruling A28.** *Every attempt is a durable, resumable record — its dialogue, each turn's
+**Proposed ruling A28.** *Every attempt is a durable, resumable record — its conversation, each turn's
 question, answer, run output and scores, and its outcome — and the same record whichever mode
 produced it. A* Supervisor view*, top-level beside Processors and Jobs rather than a tab on one
 document, lists attempts across all documents, filterable by document, feed, shape, execution mode,
 promotion mode and status:* `IN_PROGRESS`*,* `AWAITING_MODEL`*,* `AWAITING_REVIEW`*,* `PROVISIONAL`*,*
 `PROMOTED`*,* `REJECTED`*,* `ABANDONED`*,* `ERROR`*. One row per attempt: when, where, mode, candidates used, tokens
-and cost, the decision and who or what made it. A row opens to the dialogue turn by turn — question,
+and cost, the decision and who or what made it. A row opens to the conversation turn by turn — question,
 answer, captured output, the scores that lost marks — with* answer instead *and* edit and re-run
 from here *per turn, and* approve*,* reject*,* retract *(an automatic promotion undone — the routing
 rebind §7.3 already allows and audits)*, widen selector *and* re-learn *per attempt. Automatic
@@ -1673,7 +1673,7 @@ the order they arrived. Items marked *built* already exist in `stroom-shapeshift
    capture. A prefix is already `stopAfter`, and running the chain against the scorers is the stage's
    work, not the pipeline's. The bound path built on it 2026-09-23: `FragmentRunner` is a seam, a node
    runs the fragment as a pipeline (`PipelineFragmentRunner`) and Tier 1 keeps the stand-in, with a
-   Tier 2 scenario holding the two to the same events. **The dialogue's candidate runs followed the same
+   Tier 2 scenario holding the two to the same events. **The conversation's candidate runs followed the same
    day**: `PipelineStepRunner` is the element as the pipeline runs it, wrapped in the smallest pipeline
    that can be given text, and a Tier 2 scenario per kind of element holds it to the module's runner.
    **Item 2 is complete.***
@@ -1709,7 +1709,7 @@ the order they arrived. Items marked *built* already exist in `stroom-shapeshift
    transcript, not each call in isolation — and explicit cache bypass. *Built 2026-09-18 beside
    `stroom-ai` rather than in it: `ModelAdvisor` takes the chat model `stroom-ai` builds for the
    document's model and puts the whole transcript to it, counts tokens, audits each call against the
-   Shapeshifter AI document, and bypasses the response cache by not using it; the `Dialogue` enforces the
+   Shapeshifter AI document, and bypasses the response cache by not using it; the `Conversation` enforces the
    attempt's budgets (A5). Rate limiting across documents is not built and is deferred — §15.2; the
    spend breaker of A44 is kept.*
 7. **Output stream metadata for bindings** (§7.3 rule 3), and a reprocessing mode that honours it.
@@ -1759,7 +1759,7 @@ the order they arrived. Items marked *built* already exist in `stroom-shapeshift
    ***Deferred — §15.2.***
 15. **Durable attempts and the Supervisor view** (A28, A45): `shapeshifter_attempt` and
    `shapeshifter_turn` in the A26 module, the attempt row carrying the claim on its shape (A45); the
-   dialogue **resumable by replay** rather than by saved workings — an attempt stops at a question,
+   conversation **resumable by replay** rather than by saved workings — an attempt stops at a question,
    and is carried on by re-walking it with the answers it was given, which re-derives everything those
    answers produced, because the chain, the boundary, the records, the targets and each element's
    configuration and output all follow from the sample and the answers. What the model said is a
@@ -1802,7 +1802,7 @@ the order they arrived. Items marked *built* already exist in `stroom-shapeshift
    `HasStepDetails`, because only the element knows when the record its details are about has been
    processed. `StepDetails` is the mapping from `StageRun`, which was already everything a scenario
    asserts on. **The pane built the same day**: `ShapeshifterAiStepPresenter` where the code pane would
-   be, showing the decision, the shape, the rule, the scorers step by step, the dialogue turn by turn
+   be, showing the decision, the shape, the rule, the scorers step by step, the conversation turn by turn
    and the fragment as a link; which elements show a pane is a registry the feature writes itself into,
    keyed by element type because the stepper's layout is built before any step has been taken. The pane
    is read-only: the actions A30 puts beside the evidence are the Routing tab's and the Supervisor
@@ -1826,7 +1826,7 @@ the order they arrived. Items marked *built* already exist in `stroom-shapeshift
    then the *Target* question; representative records per line kind by signature;
    the field-preservation and target-fidelity checks; feedback attributed to the step that lost the
    value; targets carried on the attempt and onto the regression set; the target as what review shows.
-   Changes A21's dialogue and what A28's turn rows hold, so it is sequenced before items 8 and 15.
+   Changes A21's conversation and what A28's turn rows hold, so it is sequenced before items 8 and 15.
    Built as the *target-first* example steps (item 22), the split question for XML input included (A35);
    owed: the record element carried onto the rule and into the stage's record count and yield (with
    item 8), and the A18 check reading the targets as goldens.
@@ -1839,7 +1839,7 @@ the order they arrived. Items marked *built* already exist in `stroom-shapeshift
    that line rather than seeking to a byte.*
 22. **The plan as data** (A32–A34, §10.2): `LearningPlan` on the document — the document's
    own steps with guards and limits, override-only templates with variables, the built-ins' version;
-   `PlanExample`, the two measured step lists the Learning tab loads from; the `Dialogue`
+   `PlanExample`, the two measured step lists the Learning tab loads from; the `Conversation`
    interpreting the steps; `QuestionText` rendering templates; validation on save and before the first
    question; the Learning tab's steps and template editor; a resource that serves the built-in templates
    to the client. Replaces the `DialogueShape` setting of A32 with the section it named, and A34 took
@@ -1848,10 +1848,11 @@ the order they arrived. Items marked *built* already exist in `stroom-shapeshift
 23. **The plan as a graph** (A37, §10.2): the closed list of outcomes and of checks in
    `stroom-core-shared`; the definition's classes renamed for what they now are — `DialogueDefinition`
    to `LearningPlan`, `DialogueStep` to `PlanStep`, `DialogueExample` to `PlanExample`,
-   `SHAPESHIFTER_LIVE_DIALOGUE` to `SHAPESHIFTER_LIVE_PLAN` — while `Dialogue`, the run, keeps its name;
+   `SHAPESHIFTER_LIVE_DIALOGUE` to `SHAPESHIFTER_LIVE_PLAN` — while `Dialogue`, the run, kept its name
+   then and became `Conversation` on 2026-09-24;
    `PlanStep` gains an id, a role, its checks and its transitions, with the
    one-line grammar extended and every constraint of §10.2 checked on save and at the stage; the
-   `Dialogue` recast as an interpreter that enters steps and takes transitions, the routing of §10.1's
+   `Conversation` recast as an interpreter that enters steps and takes transitions, the routing of §10.1's
    rule 6 leaving `TargetChecks` for the examples; the *escalating* example beside the two; every
    scorer and check reporting its outcome; the Learning tab's grammar and the examples; scenarios
    39–42. Extends item 22 and is sequenced before item 8, since A28's turn rows record the step id and
@@ -1931,7 +1932,7 @@ the order they arrived. Items marked *built* already exist in `stroom-shapeshift
    asks one closed question a step, runs the candidate itself, scores it with gates outside the model
    (§8), routes on typed outcomes, and leaves a transcript a person can answer instead of (A28). Run 7
    is the argument for that shape — given a scorer wrong about the unit, the model optimised to it and
-   the gate admitted a one-event transform (design 02 §6.3). But A32 says a dialogue is a setting to
+   the gate admitted a one-event transform (design 02 §6.3). But A32 says a conversation is a setting to
    be measured, not an opinion to be held: an `AGENT` plan — the model given the skill text of item 27
    and run-and-score as tools, inside the same budget, behind the same promotion gate and writing the
    same transcript — is one more row in the plan comparison, and would say what the closed questions
@@ -1941,7 +1942,7 @@ the order they arrived. Items marked *built* already exist in `stroom-shapeshift
    live run of item 25, 2026-09-22). Two additions to what a person may do, both over machinery that
    exists. *A message*: a `GUIDANCE` row per `(doc, shape)` — a hint, a correction, a fact about the
    feed the sample does not show — carrying its text, its author and when it was given. Every question
-   the dialogue asks carries the guidance standing at that moment and records on its turn which rows it
+   the conversation asks carries the guidance standing at that moment and records on its turn which rows it
    carried, so a re-walk (A45) replays what was actually used rather than what has since been added. A
    hint therefore needs no timing: it attaches to the shape, not to a turn, and applies to the attempt
    in flight if one is parked and to the next one otherwise. It is neither an answer nor a question,
@@ -2012,7 +2013,7 @@ prototype (§15) — gives in its §7 the order the rest of the MVP is built in 
 | A18 | **The set is built; the stream is deferred — §15.1.** Per-rule regression stream; promotion must not regress on any previously-accepted record; retention a document setting capped by the feed's | **Ruled** 2026-09-14; retention settled 2026-09-17 |
 | A19 | Generated extraction configurations may not set `ignoreErrors`; rejected at the compile gate | **Proposed, §9.1** — arises from the degeneracy probe and is owed a ruling |
 | A20 | A variant is a pipeline fragment — a Pipeline document with no destination — not a list of element/document pairs | **Ruled, 2026-09-22** — the owner's, as built since slice 3: the fragment writer, runner and content creator, the rule's `pipeline` |
-| A21 | An attempt is a dialogue: chain first, then one configuration per element in chain order, each with the real output of the elements before it; feedback to the failing step; a `Critique` question and a closing promotion turn; the document carries the allowed-element list | **Ruled, 2026-09-22** — the owner's, as built: the *direct* plan, generalised by A31, A34 and A37 into the plan as data; the `Critique` kind deferred with A23 (phase E) |
+| A21 | An attempt is a conversation: chain first, then one configuration per element in chain order, each with the real output of the elements before it; feedback to the failing step; a `Critique` question and a closing promotion turn; the document carries the allowed-element list | **Ruled, 2026-09-22** — the owner's, as built: the *direct* plan, generalised by A31, A34 and A37 into the plan as data; the `Critique` kind deferred with A23 (phase E) |
 | A22 | A routing selector is an expression over stream metadata and the attribute map, with the shape signature as a field; rules are ordered and first match binds | **Ruled, 2026-09-22** — the owner's, as built since slice 4, narrowed by A29 to the document's learning key |
 | A23 | **Deferred — §15.2.** An AI review scorer samples single records asynchronously; advisory and a relearn trigger, never a gate; its critique feeds the next candidate | **Proposed, §8.4** — the owner's, 2026-09-17 |
 | A24 | **Partly built; the rest deferred — §15.2.** The circuit breaker's open state is an error mode per document and feed: fatal error streams, no model calls, operator reset with optional half-open retry | **Proposed, §11.2** — the owner's, 2026-09-17 |
@@ -2023,7 +2024,7 @@ prototype (§15) — gives in its §7 the order the rest of the MVP is built in 
 | A29 | The learning key — the fields a learned rule binds on and the chain question sees — is a document setting, default `Feed AND Type`, with attribute-map fields and the shape signature choosable; a shape is one value of the key; shown means bound; a bound shape whose rolling per-record score falls below the document's relearn threshold is relearned | **Ruled** 2026-09-17 — the owner's; replaces the fixed `Feed AND Type AND Shape Signature` of the first A22 decisions |
 | A30 | The supervisor element in the stepper shows a stage pane — shape, match path, decision, fragment and verdicts, transcript, actions — in place of a code pane, expands to its fragment's chain, and runs dry | **Proposed, §11.7** — the owner's, 2026-09-18 |
 | A31 | A stage is learned against a target: events the model proposes per kind of record, validated and reviewable before any configuration is written; extraction judged by preserving what the target needs, transformation by reproducing it; the record boundary is its own question for every kind of input, asked first and answered without a target; input spans kept so a fault at any event can be relearned with its record | **Ruled, 2026-09-18** — the owner's, after the first live runs; *Split* always its own question ruled the same day. Built as the *target-first* example steps (A34) and measured against direct (design 02 §6.3); the split question for input that is already XML built under A35; the record element's reach into the stage's count and the rule is owed to §12 item 8 |
-| A32 | The dialogue's shape — direct (A21) or target-first (A31) — is a setting on the Shapeshifter AI document beside the model it is used with, default direct; models trained differently want different dialogues, and the two are measured against each other on the same feeds rather than one chosen in code | **Ruled, 2026-09-18** — the owner's, after design 02 §6.3; **superseded by A34** the same day: the setting became the document's own step list, and the measuring it asked for stands |
+| A32 | The conversation's shape — direct (A21) or target-first (A31) — is a setting on the Shapeshifter AI document beside the model it is used with, default direct; models trained differently want different conversations, and the two are measured against each other on the same feeds rather than one chosen in code | **Ruled, 2026-09-18** — the owner's, after design 02 §6.3; **superseded by A34** the same day: the setting became the document's own step list, and the measuring it asked for stands |
 | A33 | The plan is data on the document (§10.2): an ordered step list of the four typed question kinds with `always/text/xml` guards and per-step limits, and override-only templates with block variables over versioned built-in text; the kinds, their reply grammars and their judges stay in code; no expressions or loops | **Ruled, 2026-09-18** — the owner's, on four questions put with recommendations: section on the document (not a separate type), ordered list with simple guards, override-only, built now as slice 11 |
 | A34 | No presets: the document owns its step list, and "direct" and "target-first" are examples the Learning tab loads into it, nothing more; the plan is the ordered list, each step re-asked on its own shortfall — not problem-triggered steps | **Ruled, 2026-09-18** — the owner's, on the coherence audit finding the preset had survived A33 as a mode in all but name; supersedes the setting of A32. A37 takes the list to a graph; no presets stands |
 | A35 | The split question is asked of XML input too, as A31 said: the reply names the element that is one record, judged by occurrence, not-the-root, not-a-container and wholeness; the transform is told each such element is one record; markup input is learned from whole, not from a line prefix | **Ruled, 2026-09-18** — the owner's, on the coherence audit: build it rather than amend A31. The boundary on the rule and in the stage's count and yield built in slice 19, 2026-09-22, ahead of the A26 tables, on run 7's evidence |
@@ -2070,8 +2071,8 @@ including the degeneracy trap (§8.3) that changes the scoring model and propose
   proposes A19.
 - The Shapeshifter AI document type and its editor built. Building it showed the routing table's unit of
   selection was a hand-rolled copy of `PipelineData`; A20 proposes a pipeline fragment instead.
-- A21 follows: an attempt is a dialogue that settles the fragment's chain before asking for any
-  document. Built as `Dialogue`.
+- A21 follows: an attempt is a conversation that settles the fragment's chain before asking for any
+  document. Built as `Dialogue`, which is what a conversation was called until 2026-09-24.
 - A22 asks what selects a branch and answers: an expression over the stream's metadata, as receive
   rules already do, with the content-derived signature as one field among them.
 
@@ -2156,19 +2157,19 @@ including the degeneracy trap (§8.3) that changes the scoring model and propose
   preserving what the target needs and transformation by reproducing it; the record boundary is its own
   question for every kind of input, learned first and alone; input spans are kept with the bindings so a fault at the millionth event of a large
   stream can be relearned with its record in hand. §12 gains items 20 and 21.
-- A32 ruled, the owner's, after the two dialogues were measured against each other (design 02 §6.3):
-  the shape of the dialogue is a document setting beside the model, default direct, so that a strategy
-  can be chosen per model and per feed rather than fixed in code. `DialogueShape` on the document; the
+- A32 ruled, the owner's, after the two conversations were measured against each other (design 02 §6.3):
+  the shape of the conversation is a document setting beside the model, default direct, so that a strategy
+  can be chosen per model and per feed rather than fixed in code. `ConversationShape` on the document; the
   Learning tab offers it.
 - A33 ruled, the owner's, the same evening, on the question A32 raised — is it a fixed set of modes or
   configurable, templated, staged questions? §10.2: the question kinds stay typed in code; the
-  dialogue — steps, templates — is data on the document. §12 gains item 22.
+  conversation — steps, templates — is data on the document. §12 gains item 22.
 - A34 ruled, the owner's, on the coherence audit that followed: the built-ins are examples only, the
-  document owns its steps, the model is the ordered list with per-step re-asks. `DialogueShape` became
-  `DialogueExample`; the preset field is gone; A32's setting is superseded.
+  document owns its steps, the model is the ordered list with per-step re-asks. `ConversationShape` became
+  `ConversationExample`; the preset field is gone; A32's setting is superseded.
 - A35 and A36 ruled, the owner's, on the audit's two open questions with recommendations: the XML split
   question built (§10.1, scenario 37's XML variant); coverage by characters (§8.4). Decided at the same
-  time: the next live run is feeds 06 and 07 in both dialogues when the key allows; slice 12 is the A26
+  time: the next live run is feeds 06 and 07 in both conversations when the key allows; slice 12 is the A26
   tables (§12 item 8), which is also where the record element reaches the rule.
 
 **2026-09-21.**
@@ -2178,7 +2179,7 @@ including the degeneracy trap (§8.3) that changes the scoring model and propose
   A35 debt, design 02 §6's ordering of the tables before the durable attempts — and *kind* defined,
   since it had come to mean both a question and a class of record (§3).
 - A37 ruled, the owner's, from the observation that direct and target-first were two paths through a
-  flow the document could not express: the dialogue is a graph over typed kinds and typed outcomes,
+  flow the document could not express: the conversation is a graph over typed kinds and typed outcomes,
   with checks and transitions declared per step (§10.2). Three examples now, the third escalating from
   direct to a target when the transform stays short. §12 gains item 23, slice 12, ahead of the A26
   tables; design 02 gains scenarios 41 and 42.
@@ -2188,10 +2189,11 @@ including the degeneracy trap (§8.3) that changes the scoring model and propose
   live run.
 - The word changed, the owner's, on two questions with recommendations: what the document holds is a
   **learning plan** (`LearningPlan`, `PlanStep`, `PlanExample`, `SHAPESHIFTER_LIVE_PLAN`), since A37
-  made it a decision tree; the run stays an *attempt* with its *dialogue* and *transcript*, and the
-  `Dialogue` class keeps its name. §3 defines both; the code follows in slice 12.
+  made it a decision tree; the run stays an *attempt* with its *conversation* and *transcript*, and the
+  `Dialogue` class keeps its name — until 2026-09-24, when it became `Conversation`. §3 defines both;
+  the code follows in slice 12.
 - Slice 12 built: A37 in code (§12 item 23) — `Check`, `StepOutcome`, `ConfigureRole`, `Transition`,
-  `PlanStep`, `LearningPlan`, `PlanExample` with the escalating example; `Dialogue` an interpreter over
+  `PlanStep`, `LearningPlan`, `PlanExample` with the escalating example; `Conversation` an interpreter over
   the graph; scenarios 41 and 42; the rename throughout. Building the escalating example found that a
   pass must be able to end the plan, so `on passed goto` and the reserved `end` joined the grammar
   (§10.2). Audited the same day: nine findings fixed, the two that mattered being `on passed` firing
@@ -2255,16 +2257,16 @@ including the degeneracy trap (§8.3) that changes the scoring model and propose
   7: the escalating example splits every input, and a parser refused on yield goes back to the split.
 - Slice 25, the attempt resumed (A28, A45; design 02 §6.1): the claim moved from the shape row to the
   attempt, a parked attempt keeping it; `RecordedAdvisor` answering from the turns and then from
-  whoever will; `Stage.resume`; the dialogue resumable by replay rather than by saved state.
+  whoever will; `Stage.resume`; the conversation resumable by replay rather than by saved state.
 - Audit of slice 24, before the resuming is built on it: eight findings, all fixed — design 02 §6.1;
   the tokens an attempt spent were always zero, since the node makes an advisor per call and the
-  recording read a different one from the dialogue; a record that failed could fail a bound stream; a
+  recording read a different one from the conversation; a record that failed could fail a bound stream; a
   turn was written only at the end; a decision's `toString` carried the stream's own text; approval
   and rejection left an attempt awaiting review for ever.
 - Slice 24, the attempt as a record (A28; design 02 §6.1): `shapeshifter_attempt` and
   `shapeshifter_turn`, the `Attempts` seam and its DAO, and the stage recording an attempt and every
   turn of it. Not the rendered prompt, which waits for redaction (A38); not yet the claim on the shape,
-  which waits for the dialogue to be resumable (A45).
+  which waits for the conversation to be resumable (A45).
 - §12 item 26 built (design 02 §6.1): a stream of markup fragments is wrapped into a document and
   learned as the records it carries, where it was previously read as text and abandoned. With it:
   an element may declare a configuration that is never asked for, and each parser declares what it
@@ -2378,7 +2380,7 @@ including the degeneracy trap (§8.3) that changes the scoring model and propose
   nobody is watching. Nothing is rescinded: every ruling keeps its number and its section, and §15.4
   says what the MVP keeps although it reads as safety.
 - Three decisions, the owner's: the next slice is item 26 (a stream of markup fragments is not a
-  document, and today is abandoned); the dialogue's candidate runs will follow the bound path's shape —
+  document, and today is abandoned); the conversation's candidate runs will follow the bound path's shape —
   a node runs them through the real pipeline while Tier 1 keeps the stand-in, with an agreement test per
   input shape as the guard; and cross-module changes are made as part of this work rather than proposed
   upstream separately, since this is an MVP prototype and the cross-module detail will be reviewed as a
@@ -2558,14 +2560,14 @@ including the degeneracy trap (§8.3) that changes the scoring model and propose
   attempts exist the shape row's lease columns are it (slice 23); when they do, one open attempt per
   shape is what one learner means, and a paused attempt is still learning.
 - Audit of slice 23 (the owner's code review): seven findings, all fixed — design 02 §6.1. The lease
-  was released when the dialogue ended rather than when the rule was written, so two nodes could bind
+  was released when the conversation ended rather than when the rule was written, so two nodes could bind
   one selector; its expiry was judged against a different clock from the one that set it, so every
   scenario's lease was expired on arrival; relearning took no lease at all; nothing heartbeat; the
   in-memory shapes dropped the lease on reset where the row keeps it; spend was not counted when an
   attempt threw; and both DAOs took a shared lock they then had to upgrade, which two nodes doing at
   once would deadlock.
 - Slice 23, the lease and the spend counter (A42, A44; design 02 §6.1): one learner per shape across
-  the cluster, taken before the dialogue and given back after, its loser sentinelling rather than
+  the cluster, taken before the conversation and given back after, its loser sentinelling rather than
   waiting; what an attempt cost added to the document's window in one place. The policy that reads the
   count is A24's, in phase E.
 - Slice 22, scenario 20 against the tables (design 02 §6.1; design 03 §2): tier 2 had been running

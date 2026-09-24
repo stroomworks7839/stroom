@@ -34,7 +34,7 @@ import java.util.Set;
 
 /// The learning plan (A33, A34, A37; design 01 §10.2): the graph of questions, checks and transitions the
 /// Shapeshifter AI document holds, and the templates it overrides. An attempt follows the plan; what it
-/// says and hears is its dialogue. A document naming no steps is read as [PlanExample#DIRECT]'s.
+/// says and hears is its conversation. A document naming no steps is read as [PlanExample#DIRECT]'s.
 @JsonPropertyOrder({"steps", "templates", "builtInVersion"})
 @JsonInclude(Include.NON_NULL)
 public class LearningPlan {

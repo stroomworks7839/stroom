@@ -39,7 +39,7 @@ import java.util.Optional;
  * A real model behind the {@link Advisor} seam, for the live smoke of design 02 §6.1: the scenarios run
  * as written, with a model answering in place of a {@link Script}. Each question is put as
  * {@link QuestionText} renders it, after the system text and the attempt's transcript so far, so the
- * model sees the whole dialogue as design 01 §10 requires. Usage is counted for the write-up.
+ * model sees the whole conversation as design 01 §10 requires. Usage is counted for the write-up.
  * <p>
  * Configured from the environment, as {@code TestExtractionReconstruction} is: {@code SHAPESHIFTER_AI_BASE_URL}
  * and {@code SHAPESHIFTER_LEARNING_MODEL} for an OpenAI-compatible endpoint, {@code SHAPESHIFTER_AI_API_KEY}

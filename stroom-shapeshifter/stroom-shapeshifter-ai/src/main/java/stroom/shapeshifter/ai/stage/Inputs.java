@@ -22,7 +22,7 @@ import java.util.List;
 import java.util.Optional;
 
 /// The streams an attempt was raised on, by the meta id its row names (A28): what lets an attempt be
-/// carried on outside the task that raised it. Deferred mode's worker re-walks the dialogue over the
+/// carried on outside the task that raised it. Deferred mode's worker re-walks the conversation over the
 /// same sample, and the sample is the stream, which is kept where every stream is kept rather than
 /// copied into the attempt — a stream's own text may not be stored until redaction is built (A17, A38),
 /// and storing it twice would be storing it twice.

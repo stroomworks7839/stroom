@@ -44,7 +44,7 @@ public enum AttemptStatus implements HasDisplayValue {
     RETRACTED("Retracted"),
     /// It ran out of candidates, budget or sense, and wrote nothing.
     ABANDONED("Abandoned"),
-    /// Something outside the dialogue failed: the model, the node, the database.
+    /// Something outside the conversation failed: the model, the node, the database.
     ERROR("Error");
 
     private final String displayValue;

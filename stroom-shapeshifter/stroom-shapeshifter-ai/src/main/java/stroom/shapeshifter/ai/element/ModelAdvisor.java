@@ -40,12 +40,12 @@ import java.util.stream.Collectors;
 /**
  * The node's advisor (design 01 §10, §12 item 6): a model document's chat model, asked the questions of
  * {@link QuestionText} — the words the live smoke measured — after the system text and the attempt's
- * transcript so far, so the model sees the whole dialogue. Every invocation is audited against the
+ * transcript so far, so the model sees the whole conversation. Every invocation is audited against the
  * Shapeshifter AI document with the model, the kind of question, the tokens charged and the outcome,
  * as A9 requires of a change nobody watches; the sample itself is not written to the audit, since A17's
  * redaction is not built and the audit is not the place to leak what it would redact. Transport retries
  * are the chat model's own (the client retries a dropped connection before this sees it), so a 503 is not
- * a failed candidate; the attempt's budgets are the dialogue's, fed by {@link #tokensUsed()}.
+ * a failed candidate; the attempt's budgets are the conversation's, fed by {@link #tokensUsed()}.
  * <p>
  * No response cache stands between this and the model: a re-ask with the same words must reach the model,
  * which is the cache-bypass §10 asks for.
@@ -78,7 +78,7 @@ public final class ModelAdvisor implements Advisor {
         return ask(transcript, question, List.of());
     }
 
-    /// The document's words, then what a supervisor has said about this shape (A46), then the dialogue.
+    /// The document's words, then what a supervisor has said about this shape (A46), then the conversation.
     ///
     /// Guidance goes in the **system** message beside the document's own instructions, because that is
     /// what it is: a standing fact about the feed, not a turn of the conversation. Put in as a turn it

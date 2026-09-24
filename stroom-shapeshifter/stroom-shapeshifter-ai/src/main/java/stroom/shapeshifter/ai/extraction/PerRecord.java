@@ -58,7 +58,7 @@ public final class PerRecord {
         return run(runner, configuration, input, RecordSplit.split(input, depth));
     }
 
-    /// The same, for a caller that has already cut the input — the dialogue cuts it to show the model one
+    /// The same, for a caller that has already cut the input — the conversation cuts it to show the model one
     /// record and would otherwise cut it again for every candidate it asks about.
     public static StepResult run(final StepRunner runner,
                                  final String configuration,

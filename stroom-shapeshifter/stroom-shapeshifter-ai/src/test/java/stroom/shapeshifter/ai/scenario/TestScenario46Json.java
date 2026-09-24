@@ -227,8 +227,8 @@ class TestScenario46Json {
         final String readsTheEnvelope = XSLT.replace(
                 "select=\"string[@key = 'user']\"",
                 "select=\"//string[@key = 'source']\"");
-        // The targets come from this stylesheet run over the whole document, as the dialogue runs it, so
-        // it answers every question the dialogue puts: what it does not survive is the promotion gate,
+        // The targets come from this stylesheet run over the whole document, as the conversation runs it, so
+        // it answers every question the conversation puts: what it does not survive is the promotion gate,
         // which runs the chain the way the fragment will.
         final Script script = scenarios.jsonScript("events", readsTheEnvelope)
                 .expect(QuestionMatcher.chain()).reply("JSONParser -> XSLTFilter")
@@ -242,7 +242,7 @@ class TestScenario46Json {
         script.verifyExhausted();
         assertThat(run.decision()).describedAs(run.decision().toString()).isInstanceOf(GivenUp.class);
         assertThat(((GivenUp) run.decision()).reason())
-                .describedAs("caught where it is written rather than at the gate: the dialogue shows the "
+                .describedAs("caught where it is written rather than at the gate: the conversation shows the "
                              + "transform one record and runs it over every record, so the envelope is "
                              + "missing the first time the candidate is judged")
                 .isEqualTo("No passing configuration for XSLTFilter after 1 attempts");

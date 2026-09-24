@@ -37,7 +37,7 @@ import java.util.stream.Collectors;
 
 /**
  * The prompt contract of design 01 §10 as text: what a model is told before its first answer, and how
- * each typed question is put — in the words of the document's dialogue (§10.2). Every question carries
+ * each typed question is put — in the words of the document's conversation (§10.2). Every question carries
  * the stage's objective and the document's instructions (the system text), the sample and the learning
  * key's values, the real input the element will receive, the previous configuration on a re-ask, and the
  * feedback that lost the marks. For extraction it carries the mandatory {@code xsi:schemaLocation} and

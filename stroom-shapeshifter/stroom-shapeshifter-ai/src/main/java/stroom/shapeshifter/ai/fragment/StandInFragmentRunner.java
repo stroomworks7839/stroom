@@ -47,7 +47,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
- * Runs a written fragment over an input with the step runners, the way the dialogue ran it before it
+ * Runs a written fragment over an input with the step runners, the way the conversation ran it before it
  * was written: the chain is walked from {@code Source} along the links, each element's configuration
  * document read back from its store, each step's output the next step's input. The Tier 1 stand-in for
  * merging the fragment into a pipeline (design 02 §2). It runs the fragment as a pipeline would — the

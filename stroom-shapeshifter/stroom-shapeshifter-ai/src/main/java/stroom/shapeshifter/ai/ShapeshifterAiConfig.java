@@ -97,7 +97,7 @@ public class ShapeshifterAiConfig extends AbstractConfig implements IsStroomConf
     @Min(1)
     @JsonProperty("deferredLearningBatchSize")
     @JsonPropertyDescription("How many attempts awaiting the model one pass of the Shapeshifter AI Deferred "
-                             + "Learning job carries on. One attempt is one dialogue, which may be minutes "
+                             + "Learning job carries on. One attempt is one conversation, which may be minutes "
                              + "of model time, so a pass is bounded and the job's schedule sets the rate. "
                              + "At least one: a batch of none would leave every deferred document learning "
                              + "nothing, silently.")

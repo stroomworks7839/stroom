@@ -92,7 +92,7 @@ public final class DeferredWorker {
                 ? Optional.empty()
                 : inputs.byId(inputId);
         if (input.isEmpty()) {
-            // The dialogue is re-walked over the sample, and the sample is the stream (A45): without it
+            // The conversation is re-walked over the sample, and the sample is the stream (A45): without it
             // there is nothing to carry on from, and waiting longer will not bring it back.
             return abandon(attempt, "The stream this attempt was learning from is no longer held");
         }

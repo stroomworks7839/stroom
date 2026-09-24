@@ -27,7 +27,7 @@ import java.util.List;
 /// recorded, in the order they were put, and then the model — or nothing, where the attempt is to stop
 /// and wait.
 ///
-/// This is how an attempt resumes. The dialogue is not a state machine that saves its own workings: it is
+/// This is how an attempt resumes. The conversation is not a state machine that saves its own workings: it is
 /// re-walked from the start with the answers it was given, which re-derives everything those answers
 /// produced — the chain, the boundary, the records, the targets, each element's configuration and output
 /// — because all of it follows from the sample and the answers, both of which are kept. What the model
@@ -61,7 +61,7 @@ public final class RecordedAdvisor implements Advisor {
         this.then = then;
     }
 
-    /// An advisor that answers nothing: the dialogue stops at the first question the record does not
+    /// An advisor that answers nothing: the conversation stops at the first question the record does not
     /// answer, and the attempt waits for whoever will (A28).
     public static Advisor awaiting() {
         return (transcript, question) -> {
@@ -128,7 +128,7 @@ public final class RecordedAdvisor implements Advisor {
 
 
     /// Raised where an attempt has reached a question nobody present can answer: it stops here, and the
-    /// worker or a person takes it up (A28). Where in the walk it stopped is filled in by the dialogue,
+    /// worker or a person takes it up (A28). Where in the walk it stopped is filled in by the conversation,
     /// which alone knows it, so that the turn can be recorded unanswered and a person can answer it.
     public static final class AwaitingAnswer extends RuntimeException {
 

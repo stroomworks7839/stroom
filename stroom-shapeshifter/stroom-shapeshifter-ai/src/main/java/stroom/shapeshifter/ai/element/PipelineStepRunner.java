@@ -52,7 +52,7 @@ import java.util.Optional;
 /// the real pools, the real function library, given the candidate's configuration without that
 /// configuration having been written anywhere (§12 item 1).
 ///
-/// The dialogue asks one element at a time, each with what the element before it wrote, and that is
+/// The conversation asks one element at a time, each with what the element before it wrote, and that is
 /// what this preserves: a pipeline is built for this element alone — behind a parser where the element
 /// is a filter, since a filter is pushed SAX events and what it is given here is text — the
 /// configuration is injected, the stream is processed and what the element wrote is captured.

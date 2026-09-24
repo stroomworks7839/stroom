@@ -75,7 +75,7 @@ public interface Attempts {
     /// no longer awaiting: opening the attempt that took it closed this one.
     List<Recorded> awaiting(int limit);
 
-    /// Push a running attempt's claim out, as the dialogue asks each question (A45): the heartbeat that
+    /// Push a running attempt's claim out, as the conversation asks each question (A45): the heartbeat that
     /// keeps a slow model call from costing a node the shape it is learning.
     void heartbeat(long attemptId, long expiryMs);
 

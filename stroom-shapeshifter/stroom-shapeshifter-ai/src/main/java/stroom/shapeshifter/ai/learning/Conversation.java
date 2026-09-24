@@ -74,13 +74,13 @@ import java.util.stream.Collectors;
  * says {@code on passed goto}; {@code end} names the end of the plan. Each transition is taken at most once
  * per attempt, so every plan ends. The interpreter knows nothing of which plan it is walking.
  * <p>
- * The chain is chosen from the document's allowed elements that this dialogue can actually run: offering
+ * The chain is chosen from the document's allowed elements that this conversation can actually run: offering
  * the model an element there is no runner for would be a trap. A document that allows nothing runnable,
  * or whose plan cannot be held, is abandoned before the model is asked anything, naming what is wrong.
  */
-public final class Dialogue {
+public final class Conversation {
 
-    private static final ElementId DIALOGUE = new ElementId("Dialogue");
+    private static final ElementId CONVERSATION = new ElementId("Conversation");
     private static final Set<Check> SPLIT_CHECKS = EnumSet.of(Check.COVERAGE, Check.YIELD, Check.WHOLENESS);
 
     private final Advisor advisor;
@@ -95,11 +95,11 @@ public final class Dialogue {
     /// What [#guidance] answered for this walk, read when the walk begins.
     private List<Given> standing = List.of();
 
-    public Dialogue(final Advisor advisor, final List<StepRunner> runners, final Scorecard scorecard) {
+    public Conversation(final Advisor advisor, final List<StepRunner> runners, final Scorecard scorecard) {
         this(advisor, runners, scorecard, Clock.systemUTC());
     }
 
-    public Dialogue(final Advisor advisor,
+    public Conversation(final Advisor advisor,
                     final List<StepRunner> runners,
                     final Scorecard scorecard,
                     final Clock clock) {
@@ -109,10 +109,10 @@ public final class Dialogue {
 
     /**
      * @param heartbeat Run before every question, for a caller holding something that expires while the
-     *                  dialogue runs — the attempt's claim on its shape (A45), which one slow model call
+     *                  conversation runs — the attempt's claim on its shape (A45), which one slow model call
      *                  would otherwise outlive.
      */
-    public Dialogue(final Advisor advisor,
+    public Conversation(final Advisor advisor,
                     final List<StepRunner> runners,
                     final Scorecard scorecard,
                     final Clock clock,
@@ -126,7 +126,7 @@ public final class Dialogue {
      *               transcript: for a caller recording the attempt as it happens (A28), so that one still
      *               running — or one whose node died — shows what it had got to.
      */
-    public Dialogue(final Advisor advisor,
+    public Conversation(final Advisor advisor,
                     final List<StepRunner> runners,
                     final Scorecard scorecard,
                     final Clock clock,
@@ -146,8 +146,8 @@ public final class Dialogue {
     /// budget over again each time. The wall-clock half of the budget is this leg's, since an attempt may
     /// wait days for a person and the waiting is not the attempt taking too long.
     ///
-    /// @return This dialogue, to be run.
-    public Dialogue alreadySpent(final long tokens) {
+    /// @return This conversation, to be run.
+    public Conversation alreadySpent(final long tokens) {
         this.alreadySpent = tokens;
         return this;
     }
@@ -164,8 +164,8 @@ public final class Dialogue {
     /// within one walk, which is seconds, a hint arriving between two questions is a distinction nobody
     /// can act on. The pass that follows reads it afresh.
     ///
-    /// @return This dialogue, to be run.
-    public Dialogue guidedBy(final Supplier<List<Given>> guidance) {
+    /// @return This conversation, to be run.
+    public Conversation guidedBy(final Supplier<List<Given>> guidance) {
         this.guidance = guidance;
         return this;
     }
@@ -188,7 +188,7 @@ public final class Dialogue {
         try {
             return follow(walk);
         } catch (final BudgetExhausted e) {
-            // A5: an attempt has a wall-clock and token budget for the whole dialogue, whichever mode; one that
+            // A5: an attempt has a wall-clock and token budget for the whole conversation, whichever mode; one that
             // runs out is abandoned, not left to block a task or spend without end.
             return abandoned(e.getMessage(), List.of(), walk.transcript);
         }
@@ -200,7 +200,7 @@ public final class Dialogue {
                 .filter(runners::containsKey)
                 .toList();
         if (allowed.isEmpty()) {
-            return abandoned("The document allows no element this dialogue can run: "
+            return abandoned("The document allows no element this conversation can run: "
                              + policy.getAllowedElements(), List.of(), walk.transcript);
         }
         final LearningPlan plan = policy.getPlan();
@@ -534,7 +534,7 @@ public final class Dialogue {
                         new TargetFor(walk.sample, record, kind, representatives.size(), feedback));
                 if (TargetChecks.NONE.equalsIgnoreCase(reply.strip()) && seen > 1) {
                     reply = ask(walk, step, candidate, new TargetFor(walk.sample, record, kind,
-                            representatives.size(), List.of(new StoredError(Severity.WARNING, null, DIALOGUE,
+                            representatives.size(), List.of(new StoredError(Severity.WARNING, null, CONVERSATION,
                                     "This kind of record is seen " + seen + " times in the sample; a header or a "
                                     + "comment is seen once. If these records carry no event, reply none again; "
                                     + "otherwise write the event, with the fields the record has and without "
@@ -845,7 +845,7 @@ public final class Dialogue {
         try {
             reply = advisor.ask(List.copyOf(walk.transcript), question, standing);
         } catch (final RecordedAdvisor.AwaitingAnswer awaiting) {
-            // Where the walk stopped is the dialogue's to say: the advisor knows only the question, and a
+            // Where the walk stopped is the conversation's to say: the advisor knows only the question, and a
             // turn recorded unanswered (A28) needs the step, the candidate and the number it would be.
             throw new RecordedAdvisor.AwaitingAnswer(question, step.effectiveId(), candidate,
                     walk.transcript.size() + 1);
@@ -879,7 +879,7 @@ public final class Dialogue {
     }
 
     private static List<StoredError> refusal(final String message) {
-        return List.of(new StoredError(Severity.FATAL_ERROR, null, DIALOGUE, message));
+        return List.of(new StoredError(Severity.FATAL_ERROR, null, CONVERSATION, message));
     }
 
     /**

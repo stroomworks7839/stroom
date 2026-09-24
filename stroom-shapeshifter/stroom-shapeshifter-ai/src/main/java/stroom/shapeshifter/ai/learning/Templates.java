@@ -27,13 +27,13 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * The built-in text of the dialogue and how a template is rendered (design 01 §10.2, A33). Each
+ * The built-in text of the conversation and how a template is rendered (design 01 §10.2, A33). Each
  * {@link Template} has a built-in text with {@code ${variable}} slots; a document overrides only the
  * templates it names and every other follows the built-in of {@link #VERSION}. A variable renders a
  * <em>block</em> — the whole "what fell short" list, or nothing — so a template needs no conditionals;
  * the blocks are computed by {@link QuestionText}, which is where the words meet the attempt.
  * <p>
- * The built-in text is the dialogue as measured (design 02 §6.2, §6.3): the worked Data Splitter
+ * The built-in text is the conversation as measured (design 02 §6.2, §6.3): the worked Data Splitter
  * example, the schema's failure modes, the degeneracy trap, "a header line is a record too". A finding
  * that changes it raises {@link #VERSION}, and a document saved against an earlier version says so.
  */

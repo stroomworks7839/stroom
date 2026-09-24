@@ -314,7 +314,7 @@ class TestScenariosBindingBeforeLearning {
                 .expect(QuestionMatcher.configuration("DSParser")).reply(Scenarios.fenced(CSV.configuration()))
                 .expect(QuestionMatcher.configuration("XSLTFilter")).reply(Scenarios.fenced(XSLT));
         // The other node arrives at the moment the rule is written: the model has been asked and answered,
-        // so a lease released when the dialogue ended would be free, and it would learn the shape again.
+        // so a lease released when the conversation ended would be free, and it would learn the shape again.
         final Rules watched = new Rules() {
             @Override
             public List<RoutingRule> forDocument(final String docUuid) {
@@ -397,7 +397,7 @@ class TestScenariosBindingBeforeLearning {
         assertThat(attempt.attempt().node()).isEqualTo("node-1");
         assertThat(attempt.turns()).hasSameSizeAs(learned.transcript());
         assertThat(attempt.turns()).extracting(Turn::number)
-                .describedAs("every turn of the dialogue, in order, including those the structure answered")
+                .describedAs("every turn of the conversation, in order, including those the structure answered")
                 .isEqualTo(IntStream.rangeClosed(1, learned.transcript().size()).boxed().toList());
         assertThat(attempt.turns().get(0).kind()).isEqualTo(QuestionKind.CHAIN);
         assertThat(attempt.turns().get(0).question())
@@ -486,7 +486,7 @@ class TestScenariosBindingBeforeLearning {
     @Test
     void anAttemptThatStopsAtAQuestionIsCarriedOnFromWhatItWasAnswered() {
         // A28 and A45: an attempt parked at a question keeps its claim on the shape, and the answers it
-        // already has are not asked again. The dialogue keeps no state of its own — it is re-walked with
+        // already has are not asked again. The conversation keeps no state of its own — it is re-walked with
         // those answers, which re-derives what they produced.
         final Scenarios scenarios = new Scenarios();
         final ShapeshifterAiDoc doc = keyedOnFormat();

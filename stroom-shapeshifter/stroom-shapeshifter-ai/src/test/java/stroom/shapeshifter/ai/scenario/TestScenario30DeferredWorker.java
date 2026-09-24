@@ -196,7 +196,7 @@ class TestScenario30DeferredWorker {
 
     @Test
     void anAttemptWhoseStreamOrDocumentIsGoneIsAbandonedRatherThanWaitingForEver() {
-        // The worker re-walks the dialogue over the sample, and the sample is the stream (A45): a stream
+        // The worker re-walks the conversation over the sample, and the sample is the stream (A45): a stream
         // aged off leaves nothing to carry on from, and a shape whose attempt waits for ever is a shape
         // nothing else may learn.
         final Scenarios scenarios = new Scenarios();

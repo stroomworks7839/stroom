@@ -39,7 +39,7 @@ import java.util.List;
 
 /**
  * The Supervisor of ruling A28: attempts across every Shapeshifter AI document, not a tab on one. A row
- * opens to the dialogue turn by turn, and what a person may do to an attempt they are reading — answer a
+ * opens to the conversation turn by turn, and what a person may do to an attempt they are reading — answer a
  * turn instead, edit one and run it again, approve or reject what it drafted, or send its shape back to
  * be learned afresh — is here rather than spread across the documents.
  * <p>

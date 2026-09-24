@@ -27,7 +27,7 @@ import java.util.function.Supplier;
 
 /**
  * The simulated model of design 02 §3: an ordered list of expected question and scripted reply. Each
- * question the dialogue asks is checked against the next expectation and answered with its reply; a
+ * question the conversation asks is checked against the next expectation and answered with its reply; a
  * question the script did not expect fails the scenario with both printed, and a script with lines
  * left over fails it at {@link #verifyExhausted()}. The script never looks at a question to decide
  * what to say — its author fixed the outcome.
@@ -84,7 +84,7 @@ public final class Script implements Advisor {
             }
         }
         if (next >= lines.size()) {
-            throw new AssertionError("The dialogue asked a question " + (next + 1)
+            throw new AssertionError("The conversation asked a question " + (next + 1)
                                      + " the script did not expect:\n" + question);
         }
         final Line line = lines.get(next++);
@@ -115,7 +115,7 @@ public final class Script implements Advisor {
     public void verifyExhausted() {
         if (next < lines.size()) {
             throw new AssertionError("The script had " + (lines.size() - next)
-                                     + " reply(ies) the dialogue never asked for; next expected: "
+                                     + " reply(ies) the conversation never asked for; next expected: "
                                      + lines.get(next).matcher().describe());
         }
     }

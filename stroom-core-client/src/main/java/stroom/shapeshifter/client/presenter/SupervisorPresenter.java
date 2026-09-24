@@ -41,7 +41,7 @@ import java.util.function.Function;
 
 /**
  * The Supervisor of ruling A28: every Shapeshifter AI document's attempts in one place, rather than a
- * tab on each document. The list above, and below it the dialogue of whichever attempt is selected,
+ * tab on each document. The list above, and below it the conversation of whichever attempt is selected,
  * turn by turn — what was asked, what was answered, by whom, and what the answer scored.
  */
 public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter.SupervisorView>

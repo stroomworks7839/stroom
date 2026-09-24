@@ -27,7 +27,7 @@ import stroom.shapeshifter.ai.learning.StepRunner;
 import java.util.Optional;
 
 /**
- * The {@code DSParser} element as a step of the A21 dialogue: compile the candidate through the gate of
+ * The {@code DSParser} element as a step of the A21 conversation: compile the candidate through the gate of
  * §8.1, then run it over the input. The output is the {@code records:2} document the next element sees.
  */
 public final class DataSplitterStep implements StepRunner {
