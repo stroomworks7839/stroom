@@ -90,6 +90,10 @@ public final class DemoContentPack {
     public static final String MODEL_UUID = "871334dc-5286-4409-8179-a5c27e4e2044";
     public static final String PIPELINE_UUID = "898e3818-672a-4c2f-afd5-a72ef811c414";
     public static final String FILTER_UUID = "2cf19cba-6d01-44d2-90d7-a53514fbab43";
+    /// The uuid of the processor the filter runs under. An exported filter names its processor, and the
+    /// importer makes the processor from that name where the installation has none; without it the
+    /// import of the filter fails on a null uuid.
+    public static final String PROCESSOR_UUID = "0f1b9f8c-6d61-4f0c-9d0e-3a57ec5e3e9d";
     private static final List<String> FEED_UUIDS = List.of(
             "757e9412-9c2a-4cc4-b46c-ecc16893cdec",
             "52ce424f-0d18-433e-9808-aa771f7d5171",
@@ -100,6 +104,15 @@ public final class DemoContentPack {
     /// tree and in the Supervisor's error messages.
     public static final String STAGE_ELEMENT = "Shapeshifter AI";
 
+    /// The version every document in the pack is at. A document in Stroom always has one — it is what a
+    /// save checks before it writes — and the column it lands in does not take null, so a pack whose
+    /// documents had none imported as an explorer entry with nothing behind it. Fixed rather than
+    /// random, so that writing the pack twice writes the same bytes.
+    private static final String VERSION = "5b3a2c74-1f3e-4a26-9c55-7bd9f0b6d0a1";
+
+    /// The time every entry in the zip is stamped with; see [#writeZip].
+    private static final long WRITTEN = 1_767_225_600_000L;
+
     private static final String CONTENT_ROOT = "stroomContent";
     private static final String NODE = ".node";
     private static final String META = ".meta";
@@ -107,13 +120,21 @@ public final class DemoContentPack {
 
     /// One file per feed, in the order of [#FEEDS]: the data design 02 §5 scenario 51 learns from. It is
     /// not content and the importer ignores it; it is there so that a demo has something to post.
-    private static final Map<String, Supplier<String>> SAMPLES = new LinkedHashMap<>(Map.of(
-            "door-access.csv", () -> Scenarios.corpus("001_csv_with_header").input(),
-            "app-events.jsonl", () -> Scenarios.resource("records.jsonl"),
-            "firewall.log", () -> Scenarios.resource("syslog.log"),
-            "mainframe.log", () -> Scenarios.resource("fixed-width.log")));
+    /// Written out one by one rather than from a `Map.of`, whose iteration order is different in every
+    /// JVM: the pack is committed, and a file order that changed from one writing to the next would put
+    /// a diff in front of a person who had changed nothing.
+    private static final Map<String, Supplier<String>> SAMPLES = samples();
 
     private DemoContentPack() {
+    }
+
+    private static Map<String, Supplier<String>> samples() {
+        final Map<String, Supplier<String>> samples = new LinkedHashMap<>();
+        samples.put("door-access.csv", () -> Scenarios.corpus("001_csv_with_header").input());
+        samples.put("app-events.jsonl", () -> Scenarios.resource("records.jsonl"));
+        samples.put("firewall.log", () -> Scenarios.resource("syslog.log"));
+        samples.put("mainframe.log", () -> Scenarios.resource("fixed-width.log"));
+        return samples;
     }
 
     /// The Shapeshifter AI document the pack ships: scenario 51's settings, an identity, and the model.
@@ -125,6 +146,7 @@ public final class DemoContentPack {
     public static ShapeshifterAiDoc document() {
         final ShapeshifterAiDoc configured = DemoDocument.configure(ShapeshifterAiDoc.builder())
                 .uuid(DOCUMENT_UUID)
+                .version(VERSION)
                 .name(DOCUMENT_NAME)
                 .description("""
                         One supervised stage, pointed at four feeds of four unrelated formats and told \
@@ -139,6 +161,11 @@ public final class DemoContentPack {
         return configured.copy()
                 .plan(configured.getPlan().withBuiltInVersion(Templates.VERSION))
                 .build();
+    }
+
+    /// @return A reference to the Shapeshifter AI document the pack ships.
+    public static DocRef documentRef() {
+        return new DocRef(ShapeshifterAiDoc.TYPE, DOCUMENT_UUID, DOCUMENT_NAME);
     }
 
     /// @return A reference to the model document the stage calls.
@@ -167,6 +194,7 @@ public final class DemoContentPack {
     public static OpenAIModelDoc model() {
         return OpenAIModelDoc.builder()
                 .uuid(MODEL_UUID)
+                .version(VERSION)
                 .name(MODEL_NAME)
                 .description("""
                         The model the Shapeshifter AI stage asks. Set the base URL and model id for the \
@@ -183,6 +211,7 @@ public final class DemoContentPack {
         return FEEDS.stream()
                 .map(name -> FeedDoc.builder()
                         .uuid(FEED_UUIDS.get(FEEDS.indexOf(name)))
+                        .version(VERSION)
                         .name(name)
                         .description("A demo feed. Post anything you like to it; the stage has not been "
                                      + "told what this format is.")
@@ -229,6 +258,7 @@ public final class DemoContentPack {
     public static PipelineDoc pipeline() {
         return PipelineDoc.builder()
                 .uuid(PIPELINE_UUID)
+                .version(VERSION)
                 .name(PIPELINE_NAME)
                 .description("The supervised stage where a parser and its translation would be.")
                 .build();
@@ -252,6 +282,7 @@ public final class DemoContentPack {
         return ProcessorFilter.builder()
                 .uuid(FILTER_UUID)
                 .processorType(ProcessorType.PIPELINE)
+                .processorUuid(PROCESSOR_UUID)
                 .pipelineUuid(PIPELINE_UUID)
                 .pipelineName(PIPELINE_NAME)
                 .queryData(QueryData.builder()
@@ -270,12 +301,12 @@ public final class DemoContentPack {
         final Map<String, byte[]> files = new LinkedHashMap<>();
         files.put("README.md", utf8(readme()));
         SAMPLES.forEach((name, resource) -> files.put("data/" + name, utf8(resource.get())));
-        add(files, new DocRef(ShapeshifterAiDoc.TYPE, DOCUMENT_UUID, DOCUMENT_NAME),
-                Map.of(META, json(document())));
+        add(files, documentRef(), Map.of(META, json(document())));
         add(files, modelRef(), Map.of(META, json(model())));
-        add(files, pipelineRef(), Map.of(
-                META, json(pipeline()),
-                JSON, json(pipelineData(new DocRef(ShapeshifterAiDoc.TYPE, DOCUMENT_UUID, DOCUMENT_NAME)))));
+        final Map<String, byte[]> pipelineAssets = new LinkedHashMap<>();
+        pipelineAssets.put(META, json(pipeline()));
+        pipelineAssets.put(JSON, json(pipelineData(documentRef())));
+        add(files, pipelineRef(), pipelineAssets);
         feeds().forEach(feed -> add(files,
                 new DocRef(FeedDoc.TYPE, feed.getUuid(), feed.getName()),
                 Map.of(META, json(feed))));
@@ -293,7 +324,12 @@ public final class DemoContentPack {
             }
             try (final ZipOutputStream out = new ZipOutputStream(Files.newOutputStream(zip))) {
                 for (final Map.Entry<String, byte[]> file : files().entrySet()) {
-                    out.putNextEntry(new ZipEntry(file.getKey()));
+                    final ZipEntry entry = new ZipEntry(file.getKey());
+                    // The pack is committed, so writing it again when nothing has changed should leave
+                    // nothing to commit: a timestamp of the moment it was written would be a diff of
+                    // every entry every time.
+                    entry.setTime(WRITTEN);
+                    out.putNextEntry(entry);
                     out.write(file.getValue());
                     out.closeEntry();
                 }
@@ -364,9 +400,11 @@ public final class DemoContentPack {
                 - **`%s`** — `Source -> Shapeshifter AI -> Schema filter -> ... -> Stream appender`.
                 - **`%s`** — four feeds. The pack tells the stage nothing about their formats.
 
-                A processor filter over those four feeds comes with the pipeline, and an imported filter
-                arrives **enabled**. Set the model up before posting anything, or the first stream will
-                fail for want of an API key.
+                A processor filter over those four feeds comes with the pipeline. Importing from
+                **Tools -> Import** leaves it switched off unless you tick **Enable Processor Filters**
+                on the confirmation screen; a pack dropped in `content_pack_import` arrives with it on.
+                Set the model up before posting anything, or the first stream will fail for want of an
+                API key.
 
                 ## Before you run it
 

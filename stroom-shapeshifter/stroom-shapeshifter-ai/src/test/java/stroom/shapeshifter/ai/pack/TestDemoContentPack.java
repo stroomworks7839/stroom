@@ -31,10 +31,16 @@ import stroom.util.json.JsonUtil;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -52,6 +58,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 /// is the one Stroom has always read and the pack is written to match an export of it file for file.
 class TestDemoContentPack {
 
+    /// Where the pack is committed, relative to the root of the repository.
+    private static final String PACK = "shapeshifter-ai-demo-v1.0.zip";
+
     @Test
     void theDocumentIsTheOneScenario51Proves() {
         final ShapeshifterAiDoc document = read(ShapeshifterAiDoc.TYPE, ShapeshifterAiDoc.class);
@@ -61,6 +70,7 @@ class TestDemoContentPack {
         final ShapeshifterAiDoc scenario = DemoDocument
                 .configure(ShapeshifterAiDoc.builder())
                 .uuid(document.getUuid())
+                .version(document.getVersion())
                 .name(document.getName())
                 .description(document.getDescription())
                 .executionMode(document.getExecutionMode())
@@ -138,6 +148,28 @@ class TestDemoContentPack {
         assertThat(filter.getPipelineUuid())
                 .describedAs("the importer finds the filter's pipeline by this")
                 .isEqualTo(DemoContentPack.PIPELINE_UUID);
+        assertThat(filter.getProcessorUuid())
+                .describedAs("and it makes the processor from this; a filter naming none fails on a "
+                             + "null uuid while the rest of the pack lands")
+                .isEqualTo(DemoContentPack.PROCESSOR_UUID);
+    }
+
+    /// A document with no version cannot be written at all — the column it lands in does not take null —
+    /// and the import records that against the document while the explorer entry is made anyway. What a
+    /// person then sees is a pack that imported and a document that will not open.
+    @Test
+    void everyDocumentCarriesTheVersionASavedDocumentHas() {
+        final Map<String, byte[]> files = DemoContentPack.files();
+        final List<String> documents = files.keySet().stream()
+                .filter(name -> name.endsWith(".meta"))
+                // A processor filter is not a document in the store and has a version of its own kind.
+                .filter(name -> !name.contains("." + ProcessorFilter.ENTITY_TYPE + "."))
+                .toList();
+        assertThat(documents).hasSize(3 + DemoContentPack.FEEDS.size());
+        assertThat(documents).allSatisfy(name -> assertThat(
+                        JsonUtil.readValue(files.get(name), Map.class).get("version"))
+                .describedAs(name)
+                .isNotNull());
     }
 
     /// Every asset has the `.node` beside it that tells the importer what it is, and every `.node` says
@@ -178,6 +210,43 @@ class TestDemoContentPack {
         assertThat(files).containsKey("README.md");
         assertThat(files.keySet()).filteredOn(name -> name.startsWith("data/"))
                 .allSatisfy(name -> assertThat(files.get(name)).isNotEmpty());
+    }
+
+    /// The pack is committed to the repository, so it can fall behind the code that writes it — and a
+    /// demo run from a stale zip is a demo of something nobody has tested. Regenerate it by running
+    /// [GenerateDemoContentPack] with the path this looks in.
+    @Test
+    void theCommittedPackIsTheOneThisCodeWrites() throws IOException {
+        final Path committed = repositoryRoot().resolve(PACK);
+        assertThat(committed)
+                .describedAs("the committed pack is missing; write it with GenerateDemoContentPack")
+                .exists();
+
+        final Map<String, byte[]> expected = DemoContentPack.files();
+        try (final ZipFile zip = new ZipFile(committed.toFile())) {
+            assertThat(zip.stream().map(ZipEntry::getName))
+                    .describedAs("the committed pack holds exactly the files this code writes")
+                    .containsExactlyInAnyOrderElementsOf(expected.keySet());
+            for (final Map.Entry<String, byte[]> file : expected.entrySet()) {
+                try (final InputStream in = zip.getInputStream(zip.getEntry(file.getKey()))) {
+                    assertThat(in.readAllBytes())
+                            .describedAs(file.getKey() + " has changed since the pack was written")
+                            .isEqualTo(file.getValue());
+                }
+            }
+        }
+    }
+
+    /// The directory the build is rooted in, found by climbing until the settings file appears rather
+    /// than by counting `..` from wherever a test happens to be run.
+    private static Path repositoryRoot() {
+        Path directory = Paths.get("").toAbsolutePath();
+        while (directory != null && !Files.exists(directory.resolve("settings.gradle"))) {
+            directory = directory.getParent();
+        }
+        assertThat(directory).describedAs("no settings.gradle above " + Paths.get("").toAbsolutePath())
+                .isNotNull();
+        return directory;
     }
 
     private static <T> T read(final String type, final Class<T> clazz) {

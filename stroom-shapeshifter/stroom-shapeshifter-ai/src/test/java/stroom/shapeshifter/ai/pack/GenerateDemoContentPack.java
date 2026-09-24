@@ -27,7 +27,11 @@ import java.nio.file.Paths;
 /// reads every file back.
 ///
 /// Run it with no arguments to write `build/content/shapeshifter-ai-demo-v1.0.zip`, or give it a path to
-/// write it somewhere else — the `content_pack_import` directory of an instance, for example.
+/// write it somewhere else — the root of the repository, where the pack is committed, or the
+/// `content_pack_import` directory of an instance.
+///
+/// Writing it twice writes the same bytes, so regenerating a pack nothing has changed leaves nothing to
+/// commit; `TestDemoContentPack` checks the committed pack against what this would write.
 public final class GenerateDemoContentPack {
 
     private static final Path DEFAULT = Paths.get("build", "content", "shapeshifter-ai-demo-v1.0.zip");

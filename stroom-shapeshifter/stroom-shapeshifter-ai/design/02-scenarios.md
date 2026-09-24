@@ -3218,6 +3218,42 @@ give the caches in front of the rows. `TestBootStrapModule` would also have caug
 there is a database to run it against.
 
 
+**The pack imported and the document would not open** (the owner's report, 2026-09-24), which is the
+fault the pack's own tests were built to catch and could not. `TestDemoContentPack` reads every file
+back with the classes the importer reads them with; but reading a file is not importing it, and what
+went wrong happened after the read.
+
+Two things, both of them things an *exported* document carries and a hand-written one has to be told to:
+
+- **A version.** Every document in the store has one — it is what a save checks before it writes — and
+  the column it lands in does not take null. The insert failed for the document, the pipeline and all
+  four feeds with `Column 'version' cannot be null`, and `StoreImpl.importDocument` records a failure
+  against the document rather than throwing, so the explorer entry was made and nothing was behind it.
+  A person sees a pack that imported and a document that will not open.
+- **A processor for the filter.** An exported filter names the processor it runs under, and the importer
+  makes that processor where the installation has none. Ours named none, so `Processor.getDocRef(null)`
+  threw `UUID not set` and the filter was the one part of the pack that did not arrive at all.
+
+The guard is `TestDemoContentPackImports` in `stroom-app`, which needed the database the earlier tests
+were built to avoid: it writes the pack, imports it exactly as the import screen does — a confirmation
+pass, every change agreed to, then the import — and then opens what landed. It reproduces both faults
+on the pack as shipped. `TestDemoContentPack` gained the two cheap guards that catch the same thing
+without a database: every document carries a version, and the filter names its processor.
+
+It also settled a question the README had answered wrongly. An imported filter arrives **enabled only
+when the import is told to enable filters** — the `content_pack_import` directory does, and the import
+screen does when **Enable Processor Filters** is ticked. The README said filters always arrive enabled,
+which would have left a demo posting data into a pipeline that made no tasks.
+
+The pack is committed at the root of the repository now, at the owner's direction, so that what a demo
+is run from is the thing under review rather than a zip somebody generated once. That only works if the
+zip is the one the code writes, which `TestDemoContentPack` checks file by file, and if writing it twice
+writes the same bytes — it did not: the entries were stamped with the moment of writing, and both the
+sample files and the pipeline's two assets came out of a `Map.of`, whose iteration order differs in
+every JVM. A pack that changed in three ways every time it was written would have made its own diffs
+unreadable.
+
+
 ## 7. Decisions taken
 
 Ruled 2026-09-17, each as recommended:
