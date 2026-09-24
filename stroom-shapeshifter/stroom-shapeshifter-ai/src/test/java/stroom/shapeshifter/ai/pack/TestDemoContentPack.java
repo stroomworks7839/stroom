@@ -1,0 +1,203 @@
+/*
+ * Copyright 2026 Crown Copyright
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package stroom.shapeshifter.ai.pack;
+
+import stroom.docref.DocRef;
+import stroom.feed.shared.FeedDoc;
+import stroom.openai.shared.OpenAIModelDoc;
+import stroom.pipeline.shared.PipelineDoc;
+import stroom.pipeline.shared.data.PipelineData;
+import stroom.pipeline.shared.data.PipelineProperty;
+import stroom.processor.api.ProcessorFilterUtil;
+import stroom.processor.shared.ProcessorFilter;
+import stroom.shapeshifter.ai.learning.Templates;
+import stroom.shapeshifter.shared.ShapeshifterAiDoc;
+import stroom.util.json.JsonUtil;
+
+import org.junit.jupiter.api.Test;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+/// Checks every document the demo content pack is made of.
+///
+/// The pack itself is written by [GenerateDemoContentPack], not here: what this is for is the documents
+/// and how they name each other. What the *arrangement* does is
+/// `TestScenario51AnyFormatFromAnyFeedInAPipeline`, which runs the pack's own document, pipeline and
+/// filter over four formats in a real pipeline.
+///
+/// **What this can prove and what it cannot.** Every file is read back with the very classes Stroom's
+/// importer reads it with, so a property name that does not exist, a document that will not
+/// deserialise, an asset with no `.node` beside it or a reference that names nothing in the pack are all
+/// caught here. What is not caught is the importer's own behaviour, which needs a database; the format
+/// is the one Stroom has always read and the pack is written to match an export of it file for file.
+class TestDemoContentPack {
+
+    @Test
+    void theDocumentIsTheOneScenario51Proves() {
+        final ShapeshifterAiDoc document = read(ShapeshifterAiDoc.TYPE, ShapeshifterAiDoc.class);
+
+        // Field for field the settings of design 02 §5 scenario 51. Not "much the same as": if this
+        // fails, the pack has drifted from the only run that says it works.
+        final ShapeshifterAiDoc scenario = DemoDocument
+                .configure(ShapeshifterAiDoc.builder())
+                .uuid(document.getUuid())
+                .name(document.getName())
+                .description(document.getDescription())
+                .executionMode(document.getExecutionMode())
+                .model(document.getModel())
+                // The stamp of the built-in question text is the store's to write, and the pack carries
+                // it because the pack is written as a saved document would be.
+                .plan(document.getPlan().withBuiltInVersion(Templates.VERSION))
+                .build();
+        assertThat(document).isEqualTo(scenario);
+        assertThat(document.getPlan().getBuiltInVersion())
+                .describedAs("and a document that arrived without the stamp would say its templates "
+                             + "were of no known version until someone saved it")
+                .isEqualTo(Templates.VERSION);
+        assertThat(document.getModel())
+                .describedAs("and it names the model the pack ships, by the uuid the pack gives it")
+                .isEqualTo(DemoContentPack.modelRef());
+    }
+
+    @Test
+    void everyDocumentInThePackReadsBack() {
+        assertThat(read(OpenAIModelDoc.TYPE, OpenAIModelDoc.class))
+                .satisfies(model -> {
+                    assertThat(model.getUuid()).isEqualTo(DemoContentPack.MODEL_UUID);
+                    assertThat(model.getApiKeyName())
+                            .describedAs("the key is named, never carried")
+                            .isEqualTo(DemoContentPack.API_KEY_NAME);
+                    assertThat(model.getBaseUrl()).isNotBlank();
+                    assertThat(model.getModelId()).isNotBlank();
+                });
+        assertThat(read(PipelineDoc.TYPE, PipelineDoc.class).getUuid())
+                .isEqualTo(DemoContentPack.PIPELINE_UUID);
+
+        final Map<String, byte[]> files = DemoContentPack.files();
+        final List<String> feedFiles = files.keySet().stream()
+                .filter(name -> name.contains("." + FeedDoc.TYPE + ".") && name.endsWith(".meta"))
+                .toList();
+        assertThat(feedFiles).hasSize(DemoContentPack.FEEDS.size());
+        assertThat(feedFiles).allSatisfy(name -> assertThat(
+                        JsonUtil.readValue(files.get(name), FeedDoc.class).getName())
+                .isIn(DemoContentPack.FEEDS));
+    }
+
+    /// The pipeline's elements travel in their own asset, and the one thing that would make the demo do
+    /// nothing at all is the stage being attached to no document.
+    @Test
+    void theStageIsAttachedToTheDocument() {
+        final PipelineData data = JsonUtil.readValue(
+                DemoContentPack.files().get(pathFor(PipelineDoc.TYPE, ".json")), PipelineData.class);
+        assertThat(data.getAddedElements())
+                .extracting(element -> element.getType())
+                .containsExactly("Source", "ShapeshifterAi", "SchemaFilter", "RecordOutputFilter",
+                        "RecordCountFilter", "XMLWriter", "StreamAppender");
+        final PipelineProperty attachment = data.getAddedProperties().stream()
+                .filter(property -> DemoContentPack.STAGE_ELEMENT.equals(property.getElement())
+                                    && "shapeshifterAi".equals(property.getName()))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("the stage is attached to no document"));
+        assertThat(attachment.getValue().getEntity())
+                .isEqualTo(new DocRef(ShapeshifterAiDoc.TYPE, DemoContentPack.DOCUMENT_UUID,
+                        DemoContentPack.DOCUMENT_NAME));
+        assertThat(data.getAddedProperties())
+                .describedAs("the appender names no feed, so each feed's events go back to that feed")
+                .noneMatch(property -> "feed".equals(property.getName()));
+    }
+
+    /// A filter carrying an id, a processor or a tracker is refused on import, and the pack would then
+    /// need a filter building by hand — which is most of what it exists to save.
+    @Test
+    void theFilterIsOneThatCanBeImported() {
+        final ProcessorFilter filter = read(ProcessorFilter.ENTITY_TYPE, ProcessorFilter.class);
+        assertThat(ProcessorFilterUtil.shouldImport(filter)).isTrue();
+        assertThat(filter.getId()).isNull();
+        assertThat(filter.getProcessor()).isNull();
+        assertThat(filter.getProcessorFilterTracker()).isNull();
+        assertThat(filter.getPipelineUuid())
+                .describedAs("the importer finds the filter's pipeline by this")
+                .isEqualTo(DemoContentPack.PIPELINE_UUID);
+    }
+
+    /// Every asset has the `.node` beside it that tells the importer what it is, and every `.node` says
+    /// the same thing about its document as the document's file name does.
+    @Test
+    void everyAssetIsAnnouncedByANodeFile() {
+        final Map<String, byte[]> files = DemoContentPack.files();
+        final List<String> nodes = files.keySet().stream().filter(name -> name.endsWith(".node")).toList();
+        assertThat(nodes).hasSize(4 + DemoContentPack.FEEDS.size());
+
+        for (final String node : nodes) {
+            final String prefix = node.substring(0, node.length() - ".node".length());
+            assertThat(files).containsKey(prefix + ".meta");
+
+            final Properties properties = properties(files.get(node));
+            assertThat(properties.getProperty("path")).isEqualTo(DemoContentPack.FOLDER);
+            final String uuid = properties.getProperty("uuid");
+            final String type = properties.getProperty("type");
+            assertThat(uuid).isNotBlank();
+            assertThat(prefix)
+                    .describedAs("the importer finds a document's assets by its name, type and uuid")
+                    .endsWith(type + "." + uuid);
+            assertThat(properties.getProperty("version"))
+                    .describedAs("no version key, so the importer reads this as the format it is")
+                    .isNull();
+        }
+        assertThat(files.keySet())
+                .filteredOn(name -> name.startsWith("stroomContent/"))
+                .allSatisfy(name -> assertThat(name).startsWith("stroomContent/Shapeshifter_AI_Demo/"));
+    }
+
+    /// Four files of four unrelated formats, so that a demo has something to post.
+    @Test
+    void thereIsSomethingToPost() {
+        final Map<String, byte[]> files = DemoContentPack.files();
+        assertThat(files.keySet()).filteredOn(name -> name.startsWith("data/"))
+                .hasSize(DemoContentPack.FEEDS.size());
+        assertThat(files).containsKey("README.md");
+        assertThat(files.keySet()).filteredOn(name -> name.startsWith("data/"))
+                .allSatisfy(name -> assertThat(files.get(name)).isNotEmpty());
+    }
+
+    private static <T> T read(final String type, final Class<T> clazz) {
+        return JsonUtil.readValue(DemoContentPack.files().get(pathFor(type, ".meta")), clazz);
+    }
+
+    private static String pathFor(final String type, final String extension) {
+        return DemoContentPack.files().keySet().stream()
+                .filter(name -> name.contains("." + type + ".") && name.endsWith(extension))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("no " + type + extension + " in the pack"));
+    }
+
+    private static Properties properties(final byte[] bytes) {
+        final Properties properties = new Properties();
+        try {
+            properties.load(new java.io.StringReader(new String(bytes, StandardCharsets.UTF_8)));
+        } catch (final IOException e) {
+            throw new AssertionError(e);
+        }
+        return properties;
+    }
+}

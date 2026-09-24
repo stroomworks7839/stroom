@@ -191,6 +191,7 @@ Ordered by what each needs built; each one is unlocked by the machinery the prev
 | 49 | **XML fragments, no root** (design 01 §12 item 26; the owner's question) | fixture `events-fragments.xml`: one `<Event>…</Event>` per line in the Windows namespace, no root; allowed elements include `XMLFragmentParser`; the target-first plan | chain `XMLFragmentParser -> XSLTFilter`; the split names `Event`; targets; XSLT | no configuration question for the fragment parser, which wraps the fragments in a root; the split question is the XML one, since the parser's output is records XML — not the JSON one because the parser is run only; the rule carries `element Event`; the stream counts its events; promoted | the `XMLFragmentParser` step runner with a built-in wrapper; the walk's kind from the parser's output; the fixture and golden |
 | 48 | **CSV with embedded newlines** (A36, design 03 §3) | fixture `csv-multiline.csv`: twenty headerless records of a document store's audit — time, user, workstation, action, document, note — the note quoted where it holds a comma, a doubled quote or a line break, six spanning two lines; the target-first plan; Yield by lines, expected 0.77 | a line-based DS3, then one regex over the stream honouring the quoting, the record as one field; targets; a six-field DS3 of the same regex; XSLT | the line split cuts a record in two: it consumes every character, so coverage says nothing, and loses none, so wholeness — a character share — says nothing either; yield against the lines a record takes refuses it, before any target is asked; the quoting split passes; targets are whole records, one spanning lines; promoted outright, the golden holding the note with its line break intact and its doubled quotes as one | the fixture, two splitters, stylesheet and golden; the DS3 rules teaching a quoted field |
 | 50 | **A supervised stage at the transformation position, and the pair** (design 01 §3, §12 item 4; item 18's audit) | the CSV fixture behind a hand-written `DSParser`, a document allowing `XSLTFilter` alone, Tier 2 only; and again as `Source -> ShapeshifterAi -> ShapeshifterAiFilter`, two documents, one stage learning the splitter and one the stylesheet; the scripted stylesheet has something to say about every record | no chain question — one allowed element is no choice — the split names `record`, targets, XSLT | the filter-shaped supervisor stands below a parser, which the parser-shaped one cannot; the events it is given become the text the stage sees; the written fragment holds no parser (A1); the stylesheet's warning reaches this pipeline's error stream once for the stream (A20), on the stream that learned and on the stream the rule then bound | `ShapeshifterAiFilter`; `Supervision`; a fragment run with a parser put in front of it; both stages on the output stream's attributes, the one nearest the source under the plain names |
+| 51 | **One document, any format, any feed** (design 03 §7; the content pack's basis) | one document — `AUTOMATIC`, the escalating plan, allowed `DSParser`, `JSONParser`, `XMLFragmentParser`, `XSLTFilter`, and one set of scorers: Compile (gate), Yield, Schema conformance (gate), Extraction quality (gate) — and four feeds of four formats: `DOOR-ACCESS` the corpus CSV, `APP-EVENTS` `records.jsonl`, `FIREWALL` `syslog.log`, `MAINFRAME` `fixed-width.log` | per format, the chain reply that format needs, then its split, targets where the plan escalates, and its configurations | four shapes, four attempts, four rules, none provisional, each serving its own feed without asking again; every chain question carried all four allowed elements, and what followed was shaped by the answer — no configuration question for the JSON parser, one for the others, and the split question in the vocabulary of the parser's output; one scorer set judged all four and each promoted on its own evidence, the output each format's golden | nothing new: every part exists by scenario 50. What it proves is that they hold together in one document, which every format scenario before it avoided by narrowing `allowedElements` to the parser it needed. At Tier 2 the same four run through one real pipeline as processor tasks, which is the demo content pack's arrangement |
 
 Scenarios 3, 15, 16 and 17 exist today as unit tests of one component; they become scenarios so
 that the catalogue is the one place the behaviour is stated.
@@ -3133,6 +3134,66 @@ the cheaper of the two.
 records of A21 being built as `Dialogue`, of A33's `DialogueDefinition`/`DialogueStep`/`DialogueExample`
 being renamed to the plan's classes in slice 12, and of A37 ruling that the run was "still a dialogue",
 all say what they said. Each now carries the date it stopped being true.
+
+
+**One document over every format** (2026-09-24), the scenario the content pack is built from. Scenarios
+43 to 50 each proved a format, and each of them quietly narrowed `allowedElements` to the one parser it
+needed — so nothing had yet shown the stage working with the whole list in front of it, which is what a
+document someone points at an unknown feed actually has. Scenario 51 is one document, unmodified, met by
+CSV, JSON lines, syslog and fixed-width in turn: four shapes, four rules, none provisional, one set of
+scorers judging all four.
+
+What a scripted model can prove here is everything around the choice of parser, and that is worth
+stating plainly, because the scenario's name promises more than a script can give. Proved: the chain
+question offers all four elements; the split question is asked in the vocabulary of the parser the
+answer named; a `JSONParser` is asked for no configuration where a `DSParser` is; one scorer set reaches
+a verdict on four formats; and each shape promotes on its own evidence and writes its format's golden.
+Not proved, and not provable without a model: that a model *picks* well from that list. That is phase
+B's live run, and this scenario is what makes the run worth doing.
+
+
+**The demo content pack** (2026-09-24, the owner's request), and what had to come first.
+
+The owner's correction, mid-build, set the order: *the test is supposed to prove the full multi-data
+end-to-end process; once that works, the test becomes a content pack.* The pack is not the deliverable a
+test produces — it is what an arrangement that has been seen to work is written down as.
+
+So scenario 51 was built at Tier 2 as well: `TestScenario51AnyFormatFromAnyFeedInAPipeline`, one
+document and one pipeline meeting four feeds of four unrelated formats in turn as processor tasks over
+real feeds and real streams. Each is learned, each fragment is a pipeline document anyone can open, each
+output stream equals its format's golden and carries the bindings that say what produced it, and a
+second stream of a format already learned is served by its rule with nothing asked. Tier 1 says the
+stage reaches the right decisions; this says the whole arrangement works.
+
+The pack is that arrangement. `DemoContentPack` holds the document, the pipeline, the filter and the
+feeds, and the Tier 2 test runs *those*, so the demo is not a rehearsal of what is shipped but the thing
+itself — with one difference, the model, which is scripted here and is the live run's to answer. The
+settings beneath come from `DemoDocument`, which Tier 1's scenario 51 is also run with, so a pack that
+drifted from either run fails a test.
+
+Writing it out is [GenerateDemoContentPack], run rather than tested, because a deliverable is not a side
+effect of a test run. `TestDemoContentPack` reads every file back with the classes the importer reads
+them with, so a property that does not exist, a document that will not deserialise, an asset with no
+`.node` beside it or a reference naming nothing in the pack all fail there. What that cannot reach is
+the importer's own behaviour, which needs a database.
+
+It is written rather than exported for the same reason. The format is the one this build reads: a
+`.node` per document naming its uuid, type, name and explorer path, with the document's assets beside it
+under the same prefix. It carries no secret — the model document names a stored secret and the person
+running the demo creates it with their own key.
+
+Three things the building of it found, each of which would have made a demo fail for a reason that has
+nothing to do with what is being demonstrated:
+
+- A filter whose feed term was a single `IN` listing the four feeds **created no tasks at all**. A term
+  per feed under an `OR` does, and it is also what a person editing the filter would see.
+- A document written outside the store carries no stamp of the built-in question text it was saved
+  against, because the stamp is written by `ShapeshifterAiStoreImpl` on save. An imported document
+  without it would say its templates were of no known version until someone saved it. The pack is
+  written as a saved document is.
+- A processor filter is the one document in the pack with no name of its own, and the exporter gives it
+  one made of its pipeline and the head of its uuid. The pack writes that name, so it reads as an export
+  of itself.
 
 
 ## 7. Decisions taken

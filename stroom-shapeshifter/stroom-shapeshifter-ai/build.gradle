@@ -68,6 +68,7 @@ dependencies {
     testFixturesImplementation project(':stroom-importexport:stroom-importexport-api')
     testFixturesImplementation project(':stroom-pipeline')
     testFixturesImplementation project(':stroom-processor:stroom-processor-api')
+    testFixturesImplementation project(':stroom-query:stroom-query-api')
     testFixturesImplementation project(':stroom-security:stroom-security-api')
     testFixturesImplementation project(':stroom-security:stroom-security-mock')
     testFixturesImplementation project(':stroom-test-common')
