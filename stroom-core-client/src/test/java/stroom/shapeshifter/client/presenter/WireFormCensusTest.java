@@ -53,7 +53,7 @@ class WireFormCensusTest {
             "..", "stroom-shapeshifter", "stroom-shapeshifter-engine", "src", "test", "resources", "fixtures");
 
     /** Lower is better; drop it when a construct is modelled. */
-    private static final int WIRE_FORM_CEILING = 3;
+    private static final int WIRE_FORM_CEILING = 2;
 
     @Test
     void mostInstructionsOpenAsAFormRatherThanAsJson() throws IOException {

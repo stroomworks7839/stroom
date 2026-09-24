@@ -1234,6 +1234,53 @@ The census walk had a hole in the same place: it did not carry a `call-template`
 which the form does spell, so nothing held them to the round trip and any such card that fell to
 the wire form was reported as an unmodelled kind rather than as the parameter it was.
 
+## 5ab. A default and a cast come after the call — built 2026-09-24
+
+`get` takes a default when there is no such entry and `min` and `max` take an ordering cast, and
+a call of two arguments has nowhere to put either. They bind from outside instead:
+
+```
+get(m, "k") or "-"        max(xs) as number
+```
+
+A modifier is not a part of its own — it binds to the call before it and takes the word after it
+— so `"n=" max(xs) as number` is two parts, not four. `as` is for `min` and `max` and `or` is for
+`get`; anywhere else, or with a cast that is not one, the words stay ordinary parts and the model
+refuses them, which is the fallback doing its job rather than the form saving something the
+author did not write.
+
+The two words are keywords, so a variable named `as` or `or` has no spelling and the wire form
+keeps it — the third such reservation, after `last` in a subscript, and for the same reason: a
+name that cannot be told from the grammar around it is not spelt at all. A default is one word
+for the same reason, since a default of several parts would be read back as a default and then a
+sequence.
+
+This is worth more than the one instruction it clears. **No fixture uses a `get` default**, so the
+census never counted it, but the form could not spell one either — an author inventing one today
+dropped to the wire form. The census counts what the fixtures hold; this closes a gap in what an
+author can say.
+
+```
+              §5w    §5x    §5y    §5z   §5aa   §5ab
+the wire form  57     54     43      8      3      2      (of 1586 instructions)
+```
+
+**Two left**, both the same thing: a `for-each` with a sort. That is not a reference at all but a
+repeating sub-form of three controls — an expression, an order and a cast — so it is the one
+remaining piece that is UI rather than grammar.
+
+The review of it found the §5u fault itself, not a cousin of it. A default may be any one word
+the form spells, and a counter is one — but the word the modifier carries was read by a narrower
+rule than the one that spells it, so `get(m, "k") or matchCount()` was spelt and then not read
+back: the default vanished and two junk parts took its place, on a card that `spellable` said
+could be opened as a form. The narrow rule now reads a counter too, and the test no longer asks
+about a literal default: it asks about every shape a default can be.
+
+The reservation was also too wide. It sat in the test every *name-shaped* thing passes, so it
+reached the label `$as` and the index rule in `foo[as]`, neither of which a modifier can be
+confused with — and both stopped meaning what they had meant. Only the bare word collides, so
+only the bare word is reserved.
+
 ## 6. Order
 
 §1, §2, §3a and §3b built 2026-09-21; §4, §5 and its parts the day after, from the first sitting with them. Each phase gated as design 43's were — core-client compile and checkstyle, the

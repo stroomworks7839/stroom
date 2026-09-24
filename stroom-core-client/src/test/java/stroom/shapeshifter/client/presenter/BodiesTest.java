@@ -16,6 +16,7 @@
 
 package stroom.shapeshifter.client.presenter;
 
+import stroom.shapeshifter.config.Cast;
 import stroom.shapeshifter.config.Condition;
 import stroom.shapeshifter.config.EngineVars;
 import stroom.shapeshifter.config.OutputNode;
@@ -30,6 +31,7 @@ import stroom.shapeshifter.config.OutputNode.WhenBranch;
 import stroom.shapeshifter.config.RefExpression;
 import stroom.shapeshifter.config.RefExpression.MatchIndex;
 import stroom.shapeshifter.config.RefExpression.RefPart;
+import stroom.shapeshifter.config.RefExpression.RefPart.Accessor.Kind;
 import stroom.shapeshifter.config.json.ProjectJson;
 
 import org.junit.jupiter.api.Test;
@@ -251,14 +253,93 @@ class BodiesTest {
                 RefPart.Accessor.Kind.SIZE, get, null, null, null)));
         assertThat(Instructions.read(Instructions.spell(nested))).isEqualTo(nested);
 
-        // A default or a cast has nowhere to go in a call of two arguments, so the wire keeps it.
-        assertThat(Instructions.spell(new RefExpression(List.of(new RefPart.Accessor(
-                RefPart.Accessor.Kind.MAX, ProjectJson.readRefOrName("xs"), null, null,
-                stroom.shapeshifter.config.Cast.INTEGER))))).isNull();
-
         // A spelling the language refuses is not quietly made into something else.
         assertThat(Instructions.read("size(xs, 2)"))
                 .isEqualTo(ProjectJson.readRefOrName("size(xs, 2)"));
+    }
+
+    @Test
+    void theDefaultAndTheCastComeAfterTheCall() {
+        // A call of two arguments has no room for them, so they bind to it from outside
+        // (design 44 §5ab).
+        final RefExpression cast = new RefExpression(List.of(new RefPart.Accessor(
+                Kind.MAX, ProjectJson.readRefOrName("xs"), null, null, Cast.INTEGER)));
+        assertThat(Instructions.spell(cast)).isEqualTo("max(xs) as integer");
+        assertThat(Instructions.read("max(xs) as integer")).isEqualTo(cast);
+
+        final RefExpression orElse = new RefExpression(List.of(new RefPart.Accessor(
+                Kind.GET, ProjectJson.readRefOrName("m"), RefExpression.text("k"),
+                RefExpression.text("-"), null)));
+        assertThat(Instructions.spell(orElse)).isEqualTo("get(m, \"k\") or \"-\"");
+        assertThat(Instructions.read("get(m, \"k\") or \"-\"")).isEqualTo(orElse);
+
+        // The modifier takes the word after it, wherever the call sits in a sequence.
+        assertThat(Instructions.read("\"n=\" max(xs) as number")).isEqualTo(new RefExpression(List.of(
+                new RefPart.Text("n="),
+                new RefPart.Accessor(Kind.MAX, ProjectJson.readRefOrName("xs"), null, null,
+                        Cast.NUMBER))));
+
+        // as is for min and max and or is for get. Anywhere else, and for a cast that is not one,
+        // the words are ordinary parts — and since neither name can be spelt, the wire keeps them
+        // rather than the form saving something the author did not write.
+        for (final String text : new String[]{
+                "size(xs) as number", "max(xs) or \"-\"", "max(xs) as wobble", "max(xs) as"}) {
+            assertThat(Instructions.spell(Instructions.read(text)))
+                    .describedAs("reading %s", text)
+                    .isNull();
+        }
+
+        // A default of several parts would be read back as a default and then a sequence.
+        assertThat(Instructions.spell(new RefExpression(List.of(new RefPart.Accessor(
+                Kind.GET, ProjectJson.readRefOrName("m"), RefExpression.text("k"),
+                new RefExpression(List.of(new RefPart.Text("a"), new RefPart.Text("b"))),
+                null))))).isNull();
+    }
+
+    @Test
+    void everyShapeOfDefaultReadsBackToWhatItWas() {
+        // Whatever the form spells as one word can be a default, so every shape is held to the
+        // round trip rather than the literal alone. A default of matchCount() was spelt and then
+        // not read back, which is the one thing the form must never do (design 44 §5u).
+        final List<RefExpression> defaults = List.of(
+                RefExpression.text("-"),
+                ProjectJson.readRefOrName("fallback"),
+                RefExpression.group(1),
+                new RefExpression(List.of(RefPart.Capture.label("when"))),
+                new RefExpression(List.of(new RefPart.Counter(EngineVars.MATCH_COUNT, null))),
+                new RefExpression(List.of(new RefPart.Capture(
+                        "bytes", 0, new MatchIndex(0, false, false, "i", null)))),
+                new RefExpression(List.of(new RefPart.Accessor(
+                        Kind.SIZE, ProjectJson.readRefOrName("xs"), null, null, null))));
+        for (final RefExpression orElse : defaults) {
+            final RefExpression ref = new RefExpression(List.of(new RefPart.Accessor(
+                    Kind.GET, ProjectJson.readRefOrName("m"), RefExpression.text("k"),
+                    orElse, null)));
+            final String spelt = Instructions.spell(ref);
+            assertThat(spelt).describedAs("spelling a default of %s", orElse).isNotNull();
+            assertThat(Instructions.read(spelt)).describedAs("reading %s", spelt).isEqualTo(ref);
+        }
+    }
+
+    @Test
+    void onlyTheBareModifierWordIsReserved() {
+        // A modifier is a bare word after a call, so only the bare name collides with one: $as is
+        // a label and as[i] wears a subscript, and the form still spells and reads both.
+        final RefExpression label = new RefExpression(List.of(RefPart.Capture.label("as")));
+        assertThat(Instructions.spell(label)).isEqualTo("$as");
+        assertThat(Instructions.read("$as")).isEqualTo(label);
+
+        final RefExpression indexed = new RefExpression(List.of(new RefPart.Capture(
+                "as", 0, new MatchIndex(0, false, false, "i", null))));
+        assertThat(Instructions.spell(indexed)).isEqualTo("as[i]");
+        assertThat(Instructions.read("as[i]")).isEqualTo(indexed);
+
+        assertThat(Instructions.read("foo[as]")).isEqualTo(new RefExpression(List.of(
+                new RefPart.Capture("foo", 0, new MatchIndex(0, false, false, "as", null)))));
+
+        // The bare name itself, which a call wearing a modifier could not be told from.
+        assertThat(Instructions.spell(ProjectJson.readRefOrName("as"))).isNull();
+        assertThat(Instructions.spell(ProjectJson.readRefOrName("or"))).isNull();
     }
 
     @Test

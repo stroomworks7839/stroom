@@ -16,6 +16,7 @@
 
 package stroom.shapeshifter.client.presenter;
 
+import stroom.shapeshifter.config.Cast;
 import stroom.shapeshifter.config.EngineVars;
 import stroom.shapeshifter.config.OutputNode;
 import stroom.shapeshifter.config.OutputNode.ApplyTemplates;
@@ -58,6 +59,10 @@ public final class Instructions {
 
     /** What a subscript calls the last populated entry, the one index rule that is not a value. */
     private static final String LAST_ENTRY = "last";
+
+    /** What a call wears after it: {@code max(xs) as number}, {@code get(m, "k") or "-"}. */
+    private static final String CAST_KEYWORD = "as";
+    private static final String DEFAULT_KEYWORD = "or";
 
     public enum Category {
         OUTPUT("output"),
@@ -276,7 +281,11 @@ public final class Instructions {
                 return "$" + capture.group() + index;
             }
             if (capture.group() == 0) {
+                // A bare modifier word binds to the call before it, so a variable of that name
+                // could not be told from a call wearing one. Only the bare spelling collides:
+                // $as is a label and as[i] wears a subscript, and neither is a modifier.
                 return spellableName(capture.varId())
+                       && !(index.isEmpty() && isModifier(capture.varId()))
                         ? capture.varId() + index
                         : null;
             }
@@ -284,11 +293,8 @@ public final class Instructions {
         }
         if (part instanceof final RefPart.Accessor accessor) {
             // A function of a collection, as the counters are functions of the match: size(xs),
-            // get(m, "k") (design 44 §5z). A default or a cast has nowhere to go in a call of
-            // two arguments, so those keep the wire form.
-            if (accessor.orElse() != null || accessor.as() != null) {
-                return null;
-            }
+            // get(m, "k") (design 44 §5z), wearing what the call has no room for after it:
+            // get(m, "k") or "-", max(xs) as number (design 44 §5ab).
             final String of = spell(accessor.of());
             if (of == null) {
                 return null;
@@ -299,9 +305,21 @@ public final class Instructions {
             if (accessor.key() != null && key == null) {
                 return null;
             }
-            return accessor.kind().spelling() + "(" + of + (key == null
+            final String call = accessor.kind().spelling() + "(" + of + (key == null
                     ? ""
                     : ", " + key) + ")";
+            if (accessor.as() != null) {
+                return call + " " + CAST_KEYWORD + " " + castName(accessor.as());
+            }
+            if (accessor.orElse() != null) {
+                // The default is one word, because a modifier binds to the word after it: a
+                // default of several parts would be read back as a default and then a sequence.
+                final String orElse = spell(accessor.orElse());
+                return orElse == null || !isOneToken(orElse)
+                        ? null
+                        : call + " " + DEFAULT_KEYWORD + " " + orElse;
+            }
+            return call;
         }
         if (part instanceof final RefPart.Counter counter) {
             final String index = counter.matchIndex() == null
@@ -381,7 +399,19 @@ public final class Instructions {
             return null;
         }
         final List<RefPart> parts = new ArrayList<>();
-        for (final String token : tokens) {
+        for (int i = 0; i < tokens.size(); i++) {
+            final String token = tokens.get(i);
+            // A modifier is not a part of its own: it binds to the call before it, taking the
+            // word after it with it (design 44 §5ab).
+            final RefPart.Accessor modified = i + 1 < tokens.size() && !parts.isEmpty()
+                                              && parts.get(parts.size() - 1) instanceof final RefPart.Accessor before
+                    ? modified(before, token, tokens.get(i + 1))
+                    : null;
+            if (modified != null) {
+                parts.set(parts.size() - 1, modified);
+                i++;
+                continue;
+            }
             // Once per token: a call's arguments are read by this same method, so reading one
             // twice to ask what it is would cost twice as much again at every level of nesting.
             final RefPart part = partOf(token);
@@ -396,6 +426,80 @@ public final class Instructions {
             }
         }
         return parts;
+    }
+
+    /**
+     * A call wearing a modifier — {@code max(xs) as number}, {@code get(m, "k") or "-"} — or null
+     * where the two words after it are not one. {@code as} is for {@code min} and {@code max} and
+     * {@code or} is for {@code get}; anywhere else the words are parts in their own right.
+     */
+    private static RefPart.Accessor modified(final RefPart.Accessor accessor, final String keyword,
+                                             final String argument) {
+        try {
+            if (CAST_KEYWORD.equals(keyword) && accessor.as() == null) {
+                final Cast cast = castOf(argument);
+                return cast == null
+                        ? null
+                        : new RefPart.Accessor(accessor.kind(), accessor.of(), accessor.key(),
+                                accessor.orElse(), cast);
+            }
+            if (DEFAULT_KEYWORD.equals(keyword) && accessor.orElse() == null) {
+                final RefExpression orElse = oneWord(argument);
+                return orElse == null
+                        ? null
+                        : new RefPart.Accessor(accessor.kind(), accessor.of(), accessor.key(),
+                                orElse, accessor.as());
+            }
+        } catch (final RuntimeException e) {
+            // The kind takes no such modifier, so those were two ordinary words after all.
+            return null;
+        }
+        return null;
+    }
+
+    /** One token as an expression of its own, or null where the form could not spell it back. */
+    private static RefExpression oneWord(final String token) {
+        final RefPart part = partOf(token);
+        if (part != null) {
+            return new RefExpression(List.of(part));
+        }
+        // A name and a counter are the two the wire reads and this method does not: without
+        // them a default of index() would be spelt and then not read back, which is the one
+        // thing the form must never do (design 44 §5u).
+        return spellableName(token) || isCounter(token)
+                ? ProjectJson.readRefOrName(token)
+                : null;
+    }
+
+    /** Whether a token is one of the engine's functions, spelt {@code index()}. */
+    private static boolean isCounter(final String token) {
+        return token.endsWith("()")
+               && EngineVars.byName(token.substring(0, token.length() - 2)) != null;
+    }
+
+    /** The two words a modifier is spelt with, which no bare name may be spelt as. */
+    private static boolean isModifier(final String word) {
+        return CAST_KEYWORD.equals(word) || DEFAULT_KEYWORD.equals(word);
+    }
+
+    /** Whether a spelling is one word, so that a modifier can carry it. */
+    private static boolean isOneToken(final String spelling) {
+        final List<String> tokens = tokenise(spelling);
+        return tokens != null && tokens.size() == 1;
+    }
+
+    /** A cast by the name the wire format spells it with, or null where there is no such cast. */
+    private static Cast castOf(final String name) {
+        for (final Cast cast : Cast.values()) {
+            if (castName(cast).equals(name)) {
+                return cast;
+            }
+        }
+        return null;
+    }
+
+    private static String castName(final Cast cast) {
+        return cast.name().toLowerCase(Locale.ROOT);
     }
 
     /** One token as the part it spells, or null where only the wire can read it. */
