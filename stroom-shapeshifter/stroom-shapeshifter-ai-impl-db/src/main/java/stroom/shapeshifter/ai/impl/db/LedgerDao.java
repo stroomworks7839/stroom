@@ -70,6 +70,19 @@ public class LedgerDao implements Ledger {
 
     /// Read then delete in one transaction: two nodes promoting the same shape must not both release the
     /// same inputs, or the backlog is reprocessed twice.
+    /// One statement over the shape's rows: the reason changes and nothing else does. The time each was
+    /// sentinelled is left alone — a stream has been waiting since it arrived, and a new reason does not
+    /// make it newly late — which is also what keeps the view's "waiting since" honest.
+    @Override
+    public void restate(final String docUuid, final String shape, final String reason) {
+        JooqUtil.context(connProvider, context -> context
+                .update(SHAPESHIFTER_LEDGER)
+                .set(SHAPESHIFTER_LEDGER.REASON, reason)
+                .where(SHAPESHIFTER_LEDGER.DOC_UUID.eq(docUuid))
+                .and(SHAPESHIFTER_LEDGER.SHAPE_HASH.eq(ShapesDao.hash(shape)))
+                .execute());
+    }
+
     @Override
     public List<Replayable> release(final String docUuid, final String shape) {
         return JooqUtil.transactionResult(connProvider, context -> {

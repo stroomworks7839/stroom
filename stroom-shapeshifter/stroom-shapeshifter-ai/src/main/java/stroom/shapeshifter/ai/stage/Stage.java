@@ -1627,6 +1627,11 @@ public final class Stage {
         regressionSet.discard(draft.getUuid());
         shapes.reset(doc.getUuid(), shape);
         shapes.giveUp(doc.getUuid(), shape, "Rejected: " + reason);
+        // And the streams that were waiting for somebody to review it stop saying they are. They are
+        // still waiting — nothing binds the shape now — but a ledger row that goes on naming a draft
+        // that no longer exists is the screen a person would use to start the shape learning again,
+        // telling them to review something instead.
+        ledger.restate(doc.getUuid(), shape, "Rejected: " + reason);
         record(() -> attempts.decided(doc.getUuid(), ruleUuid, AttemptStatus.REJECTED, "Rejected: " + reason));
     }
 

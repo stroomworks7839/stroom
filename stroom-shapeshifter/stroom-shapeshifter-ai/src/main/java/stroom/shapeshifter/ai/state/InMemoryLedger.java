@@ -54,6 +54,19 @@ public final class InMemoryLedger implements Ledger {
     }
 
     @Override
+    public synchronized void restate(final String docUuid, final String shape, final String reason) {
+        for (int i = 0; i < rows.size(); i++) {
+            final Row row = rows.get(i);
+            if (row.docUuid().equals(docUuid) && row.shape().equals(shape)) {
+                // The time it was sentinelled is kept: the stream has been waiting since it arrived,
+                // and a new reason does not make it newly late.
+                rows.set(i, new Row(row.docUuid(), row.shape(), row.inputId(), row.pipeline(), reason,
+                        row.timeMs()));
+            }
+        }
+    }
+
+    @Override
     public synchronized List<Replayable> release(final String docUuid, final String shape) {
         final List<Replayable> released = new ArrayList<>();
         rows.removeIf(row -> {

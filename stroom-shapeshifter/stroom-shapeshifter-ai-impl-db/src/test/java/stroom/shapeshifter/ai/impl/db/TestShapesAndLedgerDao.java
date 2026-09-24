@@ -701,6 +701,21 @@ class TestShapesAndLedgerDao {
                 .containsExactly(SHAPE + " x2: Being learned on another node",
                         other + " x1: Awaiting review");
 
+        // Saying something else about why a shape's streams wait, without releasing any of them: what
+        // rejecting a draft does, so that the rows stop naming a draft that no longer exists.
+        both.forEach(seam -> seam.restate(DOC, other, "Rejected: the wrong parser"));
+        assertThat(summarise(inMemory.waiting(List.of(DOC), 0L, 100).shapes()))
+                .describedAs("the table and the heap restate the same rows the same way, and leave the "
+                             + "other shape's alone")
+                .isEqualTo(summarise(ledger.waiting(List.of(DOC), 0L, 100).shapes()));
+        assertThat(summarise(ledger.waiting(List.of(DOC), 0L, 100).shapes()))
+                .contains(other + " x1: Rejected: the wrong parser");
+        assertThat(ledger.waiting(List.of(DOC), 0L, 100).shapes())
+                .describedAs("and nothing is released: the streams are still waiting, and still waiting "
+                             + "since they arrived")
+                .filteredOn(row -> other.equals(row.getShapeId()))
+                .allSatisfy(row -> assertThat(row.getWaiting()).isEqualTo(1));
+
         ledger.release(DOC, SHAPE);
         ledger.release(DOC, other);
     }

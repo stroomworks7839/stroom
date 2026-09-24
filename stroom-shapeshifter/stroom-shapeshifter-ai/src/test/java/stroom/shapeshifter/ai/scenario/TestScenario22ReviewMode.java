@@ -177,8 +177,18 @@ class TestScenario22ReviewMode {
         assertThat(scenarios.rules.forDocument(DOC)).isEmpty();
         assertThat(scenarios.regressionSet.accepted(draft.getUuid())).isEmpty();
         assertThat(scenarios.shapes.reasonGivenUp(DOC, SHAPE)).contains("Rejected: the wrong parser");
-        assertThat(scenarios.ledger.rows()).describedAs("the ledger keeps what it had").hasSize(2);
-        assertThat(scenarios.reprocessing.requests()).isEmpty();
+        assertThat(scenarios.ledger.rows())
+                .describedAs("the ledger keeps what it had: the streams are still waiting, because "
+                             + "nothing binds the shape now either")
+                .hasSize(2);
+        assertThat(scenarios.ledger.rows()).extracting(InMemoryLedger.Row::reason)
+                .describedAs("but they stop saying they are waiting for somebody to review a draft "
+                             + "that no longer exists — which is what the screen a person would use to "
+                             + "start the shape learning again would otherwise have told them")
+                .allMatch(reason -> reason.contains("Rejected: the wrong parser"));
+        assertThat(scenarios.reprocessing.requests())
+                .describedAs("and nothing is released or replayed: only the reason changed")
+                .isEmpty();
 
         // The model is not asked again: the shape is given up until an operator says otherwise.
         final Script silent = Script.of();

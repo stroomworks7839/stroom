@@ -3075,6 +3075,25 @@ follow a cleared child selection; and the document picker decorates a uuid-only 
 re-opened shows the document's name rather than a blank.
 
 
+**And the ledger itself, checked against phase F** (the owner's question, 2026-09-24). Phase F turned
+the ledger from a record into a screen people act on, and a row's reason is written once — when the
+stream is sentinelled — so anything that changes *why* a shape is unsettled without settling it leaves
+every row saying what has stopped being true.
+
+Every such path was walked. Giving a shape up, and the gate's own retraction, sentinel the stream that
+caused them, so the newest row — which is the one the view shows — is right. Approving, binding, and
+learning a shape again all *release*. Retracting by hand has no waiting streams to speak of, and the
+outputs it replays are sentinelled afresh when they find nothing bound. Accepting a provisional binding
+touches nothing, because the ledger was released when it was bound.
+
+**Rejecting a draft was the one that did not.** The streams that had been sentinelled "awaiting review"
+went on saying so — for a draft that no longer exists and a shape that is now given up — on the very
+screen a person would use to start it learning again. `Ledger.restate` says something else about a
+shape's rows without releasing any of them, and rejecting uses it. The time each was sentinelled is
+left alone: a stream has been waiting since it arrived, and a new reason does not make it newly late,
+which is what keeps "waiting since" honest.
+
+
 ## 7. Decisions taken
 
 Ruled 2026-09-17, each as recommended:

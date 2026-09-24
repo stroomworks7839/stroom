@@ -41,6 +41,20 @@ public interface Ledger {
      */
     List<Replayable> release(String docUuid, String shape);
 
+    /// Say something else about why every stream waiting on a shape is waiting, without releasing any
+    /// of them (§5.2).
+    ///
+    /// A row's reason is written when the stream is sentinelled and is the last thing said about it,
+    /// and the view shows the newest — so a decision that changes *why* a shape is unsettled, without
+    /// settling it, leaves every row saying something that has stopped being true. Rejecting a draft is
+    /// the case: the streams that were waiting for somebody to review it go on saying so, for a draft
+    /// that no longer exists and a shape that is now given up, on the very screen a person would use to
+    /// start it learning again.
+    ///
+    /// Nothing is released and nothing is replayed. The streams are still waiting, and still where they
+    /// always were; only the reason changes.
+    void restate(String docUuid, String shape, String reason);
+
     /// What is on the ledger, a row per shape, most recently added first — for the view of A28 §11.6,
     /// and for anybody who wants to know what a promotion would release.
     ///
