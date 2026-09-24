@@ -110,6 +110,10 @@ public final class DemoContentPack {
     /// random, so that writing the pack twice writes the same bytes.
     private static final String VERSION = "5b3a2c74-1f3e-4a26-9c55-7bd9f0b6d0a1";
 
+    /// The base name the entries of a feed's data zip share: Stroom pairs a `.meta` with its `.dat` by
+    /// it, and one stream per zip needs only one pair.
+    private static final String DATA_BASE = "001";
+
     /// The time every entry in the zip is stamped with; see [#writeZip].
     private static final long WRITTEN = 1_767_225_600_000L;
 
@@ -125,7 +129,20 @@ public final class DemoContentPack {
     /// a diff in front of a person who had changed nothing.
     private static final Map<String, Supplier<String>> SAMPLES = samples();
 
+    /// Which sample each feed's data zip carries, named rather than taken by position, so that adding a
+    /// feed to [#FEEDS] without a sample fails where it is written and not where it is posted.
+    private static final Map<String, String> FEED_SAMPLES = feedSamples();
+
     private DemoContentPack() {
+    }
+
+    private static Map<String, String> feedSamples() {
+        final Map<String, String> samples = new LinkedHashMap<>();
+        samples.put("DOOR-ACCESS", "door-access.csv");
+        samples.put("APP-EVENTS", "app-events.jsonl");
+        samples.put("FIREWALL", "firewall.log");
+        samples.put("MAINFRAME", "mainframe.log");
+        return samples;
     }
 
     private static Map<String, Supplier<String>> samples() {
@@ -314,18 +331,60 @@ public final class DemoContentPack {
         return files;
     }
 
+    /// One feed's sample as a zip Stroom will take: the `.meta` that names the feed and the type, and
+    /// the data beside it under the same base name.
+    ///
+    /// The `.meta` is what lets the zip be posted to the data feed endpoint without anything else being
+    /// said — the feed is in the file rather than in the request. Uploaded through **Data -> Upload**
+    /// instead, the feed chosen in the dialog overrides it (`DataUploadTaskHandler` builds an attribute
+    /// map that overrides embedded meta), so choose the feed this zip is named after.
+    ///
+    /// @param feed One of [#FEEDS].
+    /// @return The zip's files, the `.meta` before the data as Stroom requires when a feed is named.
+    public static Map<String, byte[]> dataFiles(final String feed) {
+        final String sample = FEED_SAMPLES.get(feed);
+        if (sample == null) {
+            throw new IllegalArgumentException("The pack has no sample for feed " + feed + "; it has "
+                                               + FEED_SAMPLES.keySet());
+        }
+        final Map<String, byte[]> files = new LinkedHashMap<>();
+        files.put(DATA_BASE + ".meta", utf8("Feed:" + feed + "\nType:" + StreamTypeNames.RAW_EVENTS + "\n"));
+        files.put(DATA_BASE + ".dat", utf8(SAMPLES.get(sample).get()));
+        return files;
+    }
+
+    /// @return The name of the zip a feed's data is written to.
+    public static String dataZipName(final String feed) {
+        return safe(feed) + "_data.zip";
+    }
+
     /// Writes the pack as a zip, replacing whatever was there.
     ///
     /// @param zip Where to write it.
     public static void writeZip(final Path zip) {
+        write(zip, files(), "the demo content pack");
+    }
+
+    /// Writes one zip per feed, each holding that feed's sample and a `.meta` naming the feed.
+    ///
+    /// One per feed rather than one for all four, because a zip carrying several feeds can only be
+    /// *posted*: the upload dialog overrides what the entries say with the feed chosen in it.
+    ///
+    /// @param directory Where to write them.
+    public static void writeDataZips(final Path directory) {
+        FEEDS.forEach(feed -> write(directory.resolve(dataZipName(feed)), dataFiles(feed),
+                "the demo data for " + feed));
+    }
+
+    private static void write(final Path zip, final Map<String, byte[]> files, final String what) {
         try {
             if (zip.getParent() != null) {
                 Files.createDirectories(zip.getParent());
             }
             try (final ZipOutputStream out = new ZipOutputStream(Files.newOutputStream(zip))) {
-                for (final Map.Entry<String, byte[]> file : files().entrySet()) {
+                for (final Map.Entry<String, byte[]> file : files.entrySet()) {
                     final ZipEntry entry = new ZipEntry(file.getKey());
-                    // The pack is committed, so writing it again when nothing has changed should leave
+                    // These are committed, so writing one again when nothing has changed should leave
                     // nothing to commit: a timestamp of the moment it was written would be a diff of
                     // every entry every time.
                     entry.setTime(WRITTEN);
@@ -335,7 +394,7 @@ public final class DemoContentPack {
                 }
             }
         } catch (final IOException e) {
-            throw new UncheckedIOException("Unable to write the demo content pack to " + zip, e);
+            throw new UncheckedIOException("Unable to write " + what + " to " + zip, e);
         }
     }
 

@@ -60,6 +60,8 @@ class TestDemoContentPack {
 
     /// Where the pack is committed, relative to the root of the repository.
     private static final String PACK = "shapeshifter-ai-demo-v1.0.zip";
+    /// Where the data to post is committed, beside the pack.
+    private static final String DATA = "demo-data";
 
     @Test
     void theDocumentIsTheOneScenario51Proves() {
@@ -222,16 +224,44 @@ class TestDemoContentPack {
                 .describedAs("the committed pack is missing; write it with GenerateDemoContentPack")
                 .exists();
 
-        final Map<String, byte[]> expected = DemoContentPack.files();
-        try (final ZipFile zip = new ZipFile(committed.toFile())) {
-            assertThat(zip.stream().map(ZipEntry::getName))
-                    .describedAs("the committed pack holds exactly the files this code writes")
+        assertThatZipHolds(committed, DemoContentPack.files());
+    }
+
+    /// One zip per feed, each holding the sample that feed is demonstrated with and a `.meta` naming the
+    /// feed, so that posting it needs nothing said in the request. Committed beside the pack, and so
+    /// checked against what the code writes, as the pack is.
+    @Test
+    void everyFeedHasDataToPostAndItIsWhatThisCodeWrites() throws IOException {
+        for (final String feed : DemoContentPack.FEEDS) {
+            final Path committed = repositoryRoot().resolve(DATA).resolve(DemoContentPack.dataZipName(feed));
+            assertThat(committed)
+                    .describedAs("no data for " + feed + "; write it with GenerateDemoContentPack")
+                    .exists();
+
+            final Map<String, byte[]> expected = DemoContentPack.dataFiles(feed);
+            assertThat(expected.keySet())
+                    .describedAs("the meta comes before the data, which is what Stroom requires of a "
+                                 + "zip that names its own feed")
+                    .containsExactly("001.meta", "001.dat");
+            assertThat(new String(expected.get("001.meta"), StandardCharsets.UTF_8))
+                    .describedAs("and the meta names the feed and the type, colon-delimited as "
+                                 + "AttributeMapUtil reads them")
+                    .isEqualTo("Feed:" + feed + "\nType:Raw Events\n");
+            assertThatZipHolds(committed, expected);
+        }
+    }
+
+    private static void assertThatZipHolds(final Path zip, final Map<String, byte[]> expected)
+            throws IOException {
+        try (final ZipFile file = new ZipFile(zip.toFile())) {
+            assertThat(file.stream().map(ZipEntry::getName))
+                    .describedAs(zip + " holds exactly the files this code writes")
                     .containsExactlyInAnyOrderElementsOf(expected.keySet());
-            for (final Map.Entry<String, byte[]> file : expected.entrySet()) {
-                try (final InputStream in = zip.getInputStream(zip.getEntry(file.getKey()))) {
+            for (final Map.Entry<String, byte[]> entry : expected.entrySet()) {
+                try (final InputStream in = file.getInputStream(file.getEntry(entry.getKey()))) {
                     assertThat(in.readAllBytes())
-                            .describedAs(file.getKey() + " has changed since the pack was written")
-                            .isEqualTo(file.getValue());
+                            .describedAs(entry.getKey() + " in " + zip + " has changed since it was written")
+                            .isEqualTo(entry.getValue());
                 }
             }
         }

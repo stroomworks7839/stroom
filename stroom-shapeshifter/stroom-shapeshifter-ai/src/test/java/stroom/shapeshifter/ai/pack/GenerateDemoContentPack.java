@@ -28,13 +28,17 @@ import java.nio.file.Paths;
 ///
 /// Run it with no arguments to write `build/content/shapeshifter-ai-demo-v1.0.zip`, or give it a path to
 /// write it somewhere else — the root of the repository, where the pack is committed, or the
-/// `content_pack_import` directory of an instance.
+/// `content_pack_import` directory of an instance. The demo data goes beside it, one zip per feed, in a
+/// `demo-data` directory.
 ///
 /// Writing it twice writes the same bytes, so regenerating a pack nothing has changed leaves nothing to
-/// commit; `TestDemoContentPack` checks the committed pack against what this would write.
+/// commit; `TestDemoContentPack` checks the committed pack and the committed data against what this
+/// would write.
 public final class GenerateDemoContentPack {
 
     private static final Path DEFAULT = Paths.get("build", "content", "shapeshifter-ai-demo-v1.0.zip");
+    /// Where the data zips go, beside wherever the pack is written.
+    private static final String DATA = "demo-data";
 
     private GenerateDemoContentPack() {
     }
@@ -46,5 +50,12 @@ public final class GenerateDemoContentPack {
                 : DEFAULT;
         DemoContentPack.writeZip(zip);
         System.out.println("Demo content pack written to " + zip.toAbsolutePath());
+
+        final Path beside = zip.getParent() == null
+                ? Paths.get("")
+                : zip.getParent();
+        final Path data = beside.resolve(DATA);
+        DemoContentPack.writeDataZips(data);
+        System.out.println("Demo data written to " + data.toAbsolutePath());
     }
 }
