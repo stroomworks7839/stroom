@@ -2994,6 +2994,52 @@ The binding question was asked and answered rather than assumed: GWTP's `Handler
 `onBind` runs. These are all GIN-injected, so their buttons are live.
 
 
+The fifty-first slice, 2026-09-24, is **the Supervisor finished against its own ruling**: A28's §11.6
+read line by line and what was missing built.
+
+**The screen is reached from the Monitoring menu**, "Shapeshifter AI Attempts", as A28 asks —
+"top-level beside Processors and Jobs rather than a tab on one document". It needs `VIEW_DATA`, and
+each document's rows are then filtered by the reader's permission on that document, inside the query.
+
+**The six filters.** A28 says "filterable by document, feed, shape, execution mode, promotion mode and
+status". The server had done all six since the view was built; the screen passed all nulls and offered
+nothing. They are behind one button now, because the form is longer than a toolbar holds, and the
+button says when a filter is on — a screen quietly showing a tenth of what a person expects is a screen
+they will not trust twice. Filtering goes back to the first page, for the reason the serving list
+already did: an offset into a list that has just changed length shows an empty grid.
+
+**Learning a given-up shape from the ledger**, which is the door the ruling leans on: "they raise an
+attempt for a given-up shape from the same screen, so no on-request learning mode is needed". Building
+it found that `relearn` could not have done it. A shape that was given up stays given up, and every
+path reads the give-up *before* it looks at the relearn mark — so marking a given-up shape said nothing
+at all, and the Re-learn button on a rejected attempt was a no-op. Sending a shape back now clears the
+give-up, because that is what the act means.
+
+And a mark alone would only have said "learn it when the feed next ships". A shape given up has streams
+waiting on the ledger *because* nothing bound it, and they are the traffic: they are asked for again,
+exactly as a promotion asks for them (A12), so the first of them through learns the shape. Nothing is
+held and nothing is lost — each was processed to an error stream and is where it always was.
+
+**Accepting a provisional binding** (§6): a candidate that cleared the floor on too few records to
+judge serves, marked, until enough arrive. For a feed that ships a handful a day that is a long wait,
+and a person who has read what it is producing may not want to take it. What is skipped is the wait,
+not the floor — which it has already cleared — and the attempt records that a person did it, so a rule
+promoted this way is not mistaken for one the gate promoted. The row says which state it is in, because
+that is what decides what may be done to it.
+
+**Not built, because there is nothing to show yet.** The other half of §11.6's status strip — feeds in
+error mode with reason and reset — is A24's, and A24 is deferred with phase E: `shapeshifter_feed_state`
+does not exist. A strip over a table that is not there would be a lie. The row also lacks the
+*candidates used* and the *cost* the ruling names; tokens are there, and cost is derived nowhere in the
+feature.
+
+Two places where what was built differs from the ruling's words, both deliberate: **retract** is on the
+serving list rather than the attempt row, because what is retracted is a *rule*; and **widen selector**
+is the document's Routing tab, where editing a rule's expression has always lived.
+
+296 tests in the module, 33 against MySQL, 22 in Tier 2.
+
+
 ## 7. Decisions taken
 
 Ruled 2026-09-17, each as recommended:

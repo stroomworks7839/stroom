@@ -17,6 +17,7 @@
 package stroom.shapeshifter.client.presenter;
 
 import stroom.alert.client.event.AlertEvent;
+import stroom.alert.client.event.ConfirmEvent;
 import stroom.alert.client.event.PromptEvent;
 import stroom.data.client.presenter.ColumnSizeConstants;
 import stroom.data.client.presenter.RestDataProvider;
@@ -75,6 +76,7 @@ public class SupervisorServingPresenter extends MyPresenterWidget<PagerView> {
     private final ButtonView improveButton;
     private final ButtonView hintButton;
     private final ButtonView retractButton;
+    private final ButtonView acceptButton;
     private final ButtonView openButton;
     private final ButtonView filterButton;
     private Double below;
@@ -98,6 +100,10 @@ public class SupervisorServingPresenter extends MyPresenterWidget<PagerView> {
                 "Ask for this rule to be made better, from what it already does"));
         hintButton = view.addButton(SvgPresets.EDIT.title(
                 "What has been said about this shape, and say something else"));
+        // §6, §11.6: a provisional binding a person may accept rather than wait out. Offered only for
+        // the rows that are one, which is why the row says which it is.
+        acceptButton = view.addButton(SvgPresets.TICK.title(
+                "Accept this provisional binding now, without waiting for records to judge it on"));
         // What the rule actually bound. The fragment is a pipeline document, so from it stroom's own
         // editor reaches the Data Splitter and the stylesheet the model wrote.
         openButton = view.addButton(SvgPresets.EDIT.title(
@@ -138,6 +144,7 @@ public class SupervisorServingPresenter extends MyPresenterWidget<PagerView> {
         registerHandler(selectionModel.addSelectionHandler(event -> updateButtons()));
         registerHandler(improveButton.addClickHandler(event -> improve()));
         registerHandler(hintButton.addClickHandler(event -> hint()));
+        registerHandler(acceptButton.addClickHandler(event -> accept()));
         registerHandler(openButton.addClickHandler(event -> open()));
         registerHandler(retractButton.addClickHandler(event -> retract()));
         registerHandler(filterButton.addClickHandler(event -> filter()));
@@ -215,6 +222,35 @@ public class SupervisorServingPresenter extends MyPresenterWidget<PagerView> {
             // taken back. The row's count is read again when anything changes.
             guidancePresenter.show(rule.getDoc().getUuid(), rule.getShapeId(), this::refresh);
         }
+    }
+
+    /// Accept a provisional binding now (§6): the rule stops being marked provisional and serves on
+    /// the score it was bound at.
+    ///
+    /// Confirmed, and the confirmation says what is being skipped. A provisional rule cleared the
+    /// promotion floor — that is what made it bindable — and what it has not had is enough records for
+    /// a held-out judgement. Accepting says the wait is not worth it, which is a person's call to make
+    /// and not a gate's.
+    private void accept() {
+        final ServingRule rule = selected();
+        if (rule == null || !rule.isProvisional()) {
+            return;
+        }
+        ConfirmEvent.fire(this,
+                "Accept this binding? It scored " + score(rule.getPromotedScore()) + " on the stream it "
+                + "was learned from, which cleared the floor but was too few records to judge it on. "
+                + "Accepting serves it on that score without waiting for more.",
+                ok -> {
+                    if (ok) {
+                        restFactory
+                                .create(SUPERVISOR_RESOURCE)
+                                .method(resource -> resource.accept(rule.getDoc().getUuid(),
+                                        rule.getRuleUuid()))
+                                .onSuccess(done -> refresh())
+                                .taskMonitorFactory(this)
+                                .exec();
+                    }
+                });
     }
 
     /// Open the fragment the selected rule binds, which is how a person gets from "this is scoring
@@ -333,6 +369,7 @@ public class SupervisorServingPresenter extends MyPresenterWidget<PagerView> {
         improveButton.setEnabled(one);
         hintButton.setEnabled(one);
         retractButton.setEnabled(one);
+        acceptButton.setEnabled(one && selected().isProvisional());
         openButton.setEnabled(one && selected().getFragment() != null);
     }
 
@@ -357,6 +394,13 @@ public class SupervisorServingPresenter extends MyPresenterWidget<PagerView> {
                 DataGridUtil.headingBuilder("Serving")
                         .withToolTip("The pipeline fragment it binds: what every stream of this shape is "
                                      + "processed by.")
+                        .build(),
+                ColumnSizeConstants.MEDIUM_COL);
+        dataGrid.addResizableColumn(
+                DataGridUtil.htmlColumnBuilder((ServingRule rule) -> text(state(rule))).build(),
+                DataGridUtil.headingBuilder("State")
+                        .withToolTip("Serving on a judgement, serving provisionally until enough "
+                                     + "records arrive to make one (§6), or frozen by a pin (§7.3).")
                         .build(),
                 ColumnSizeConstants.MEDIUM_COL);
         dataGrid.addResizableColumn(
@@ -405,6 +449,17 @@ public class SupervisorServingPresenter extends MyPresenterWidget<PagerView> {
                         .rightAligned()
                         .build(),
                 60);
+    }
+
+    /// What a person may do to the row depends on this, so it is on the row.
+    private static String state(final ServingRule rule) {
+        final StringBuilder state = new StringBuilder(rule.isProvisional()
+                ? "Provisional"
+                : "Serving");
+        if (rule.isPinned()) {
+            state.append(", pinned");
+        }
+        return state.toString();
     }
 
     private static String score(final Double score) {

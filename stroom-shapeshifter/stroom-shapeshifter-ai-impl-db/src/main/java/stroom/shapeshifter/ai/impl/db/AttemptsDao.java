@@ -373,12 +373,13 @@ public class AttemptsDao implements Attempts {
 
     /// The attempts that bound this rule, whatever state they ended in — promoted, provisional, or
     /// awaiting a review that will now never happen. Not [#decided]'s filter, which is A25's decision
-    /// about a draft *awaiting review*: a retraction is about a rule that was serving.
+    /// about a draft *awaiting review*: these are about a rule that was serving.
     @Override
-    public void retracted(final String docUuid, final String ruleUuid, final String decision) {
+    public void settled(final String docUuid, final String ruleUuid, final AttemptStatus status,
+                        final String decision) {
         JooqUtil.context(connProvider, context -> context
                 .update(SHAPESHIFTER_ATTEMPT)
-                .set(SHAPESHIFTER_ATTEMPT.STATUS, AttemptStatus.RETRACTED.name())
+                .set(SHAPESHIFTER_ATTEMPT.STATUS, status.name())
                 .set(SHAPESHIFTER_ATTEMPT.DECISION, decision)
                 .set(SHAPESHIFTER_ATTEMPT.VERSION, SHAPESHIFTER_ATTEMPT.VERSION.plus(1))
                 .set(SHAPESHIFTER_ATTEMPT.UPDATE_TIME_MS, System.currentTimeMillis())

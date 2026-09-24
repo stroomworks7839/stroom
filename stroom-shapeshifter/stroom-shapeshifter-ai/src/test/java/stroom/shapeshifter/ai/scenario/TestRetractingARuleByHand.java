@@ -179,6 +179,87 @@ class TestRetractingARuleByHand {
                 });
     }
 
+    /// A shape that was given up is learned again when somebody asks, and the streams waiting on it are
+    /// what learns it (A28, design 01 §11.6).
+    ///
+    /// This is the door the ruling leans on — "they raise an attempt for a given-up shape from the same
+    /// screen, so no on-request learning mode is needed". Marking the shape is not enough on its own:
+    /// every path reads the give-up first and sentinels the stream before it ever looks at the mark, so
+    /// a mark on a given-up shape says nothing at all.
+    @Test
+    void aGivenUpShapeIsLearnedAgainWhenSomebodyAsks() {
+        final Scenarios scenarios = new Scenarios();
+        final Stage stage = scenarios.stage(document -> learn(scenarios), scenarios.rules);
+        final ShapeshifterAiDoc doc = doc();
+        // Given up, with streams waiting on the ledger because nothing bound it.
+        scenarios.shapes.giveUp("doc-1", SHAPE, "The model could not make sense of it");
+        scenarios.ledger.sentinelled("doc-1", SHAPE, 1L, "pipeline-1", "Shape given up");
+        scenarios.ledger.sentinelled("doc-1", SHAPE, 2L, "pipeline-1", "Shape given up");
+
+        final int asked = stage.learnAgain(doc, SHAPE, "The feed has been fixed.", "jo");
+
+        assertThat(asked)
+                .describedAs("the streams waiting on it are the traffic that will learn it")
+                .isEqualTo(2);
+        assertThat(scenarios.shapes.reasonGivenUp("doc-1", SHAPE))
+                .describedAs("the give-up goes, or the mark below it would never be reached")
+                .isEmpty();
+        assertThat(scenarios.shapes.relearnReason("doc-1", SHAPE))
+                .describedAs("and the shape is marked, so the next stream of it learns rather than binds")
+                .isPresent();
+        assertThat(scenarios.reprocessing.requests())
+                .describedAs("with who asked and why on every stream asked for")
+                .isNotEmpty()
+                .allSatisfy(request -> assertThat(request.reason())
+                        .contains("Sent back to be learned again by jo")
+                        .contains("feed has been fixed"));
+        assertThatThrownBy(() -> scenarios.stage(document -> learn(scenarios), scenarios.rules)
+                .learnAgain(doc().copy().learningMode(LearningMode.DISABLED).build(), SHAPE, "Why.", "jo"))
+                .describedAs("the kill switch is a kill switch here too")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("disabled");
+    }
+
+    /// A provisional binding may be accepted rather than waited out (design 01 §6, §11.6).
+    ///
+    /// It cleared the promotion floor — that is what made it bindable — and what it has not had is
+    /// enough records for a held-out judgement. Accepting skips the wait, not the floor.
+    @Test
+    void aProvisionalBindingCanBeAcceptedRatherThanWaitedOut() {
+        final Scenarios scenarios = new Scenarios();
+        final Stage stage = scenarios.stage(document -> learn(scenarios), scenarios.rules);
+        final ShapeshifterAiDoc doc = doc();
+        scenarios.rules.append("doc-1", RoutingRule.builder()
+                .uuid("provisional")
+                .shapeId(SHAPE)
+                .pipeline(stroom.docref.DocRef.builder()
+                        .type("Pipeline").uuid("fragment-1").name("door-v1").build())
+                .provisional(true)
+                .score(0.91)
+                .build());
+
+        stage.accept(doc, "provisional", "jo");
+
+        final RoutingRule accepted = scenarios.rules.forDocument("doc-1").get(0);
+        assertThat(accepted.isProvisional())
+                .describedAs("it serves on the score it was bound at, no longer marked as waiting")
+                .isFalse();
+        assertThat(accepted.getPromotedTimeMs()).describedAs("and says when it took over").isNotNull();
+        assertThat(accepted.getScore())
+                .describedAs("on the score it cleared the floor with, which is not being re-judged")
+                .isEqualTo(0.91);
+
+        assertThatThrownBy(() -> stage.accept(doc, "provisional", "jo"))
+                .describedAs("a rule already serving on a judgement has nothing to accept")
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("not a provisional binding");
+        scenarios.rules.replace("doc-1", accepted.copy().provisional(true).pinned(true).build());
+        assertThatThrownBy(() -> stage.accept(doc, "provisional", "jo"))
+                .describedAs("§7.3 rule 2: a pin freezes a rule — served, never promoted")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("pinned");
+    }
+
     private Script learn(final Scenarios scenarios) {
         return scenarios.script(CSV.configuration(), XSLT)
                 .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter")

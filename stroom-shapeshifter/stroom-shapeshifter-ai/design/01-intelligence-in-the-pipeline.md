@@ -1575,7 +1575,15 @@ logged through `stroom-ai`'s audit as §10 requires.*
 *Built out over 2026-09-23 (design 02 §6.1): the ledger grouped by shape, Approve, Reject and re-learn
 beside the attempt, answering a turn instead and editing one to run the attempt again from there, and
 retracting a rule that is serving — which is the gate's own retraction (§6) offered for a reason no gate
-can see, and which leaves the shape to be learned again rather than giving it up.*
+can see, and which leaves the shape to be learned again rather than giving it up. Completed 2026-09-24:
+the six filters this ruling names; **learning a given-up shape from the ledger**, which is the door the
+ruling leans on when it says no on-request learning mode is needed — the give-up goes, the shape is
+marked, and the streams waiting on it are asked for again so that the first of them through learns it;
+and accepting a provisional binding without waiting for the records that would promote it (§6). Not
+built, because there is nothing yet to show: the half of the status strip that lists feeds in error mode
+with reason and reset, which is A24's and is deferred with phase E — `shapeshifter_feed_state` does not
+exist. The row also lacks the candidates used and the cost this ruling names; tokens are there and cost
+is derived nowhere.*
 
 **What A46 adds to the view** (the owner's, 2026-09-22). Two things the list above does not carry: a
 *message* a person writes into an attempt, which is neither an answer to a turn nor a decision about

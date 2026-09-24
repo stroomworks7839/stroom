@@ -19,6 +19,8 @@ package stroom.shapeshifter.client.gin;
 import stroom.core.client.gin.PluginModule;
 import stroom.monitoring.client.ShapeshifterAiSupervisorPlugin;
 import stroom.shapeshifter.client.ShapeshifterAiPlugin;
+import stroom.shapeshifter.client.presenter.AttemptFilterPresenter;
+import stroom.shapeshifter.client.presenter.AttemptFilterPresenter.AttemptFilterView;
 import stroom.shapeshifter.client.presenter.PlanStepPresenter;
 import stroom.shapeshifter.client.presenter.PlanStepPresenter.PlanStepView;
 import stroom.shapeshifter.client.presenter.RoutingRulePresenter;
@@ -47,6 +49,7 @@ import stroom.shapeshifter.client.presenter.TransitionPresenter;
 import stroom.shapeshifter.client.presenter.TransitionPresenter.TransitionView;
 import stroom.shapeshifter.client.presenter.XPathAssertionPresenter;
 import stroom.shapeshifter.client.presenter.XPathAssertionPresenter.XPathAssertionView;
+import stroom.shapeshifter.client.view.AttemptFilterViewImpl;
 import stroom.shapeshifter.client.view.PlanStepViewImpl;
 import stroom.shapeshifter.client.view.RoutingRuleViewImpl;
 import stroom.shapeshifter.client.view.ScorerSettingViewImpl;
@@ -104,6 +107,9 @@ public class ShapeshifterAiModule extends PluginModule {
                 XPathAssertionView.class,
                 XPathAssertionViewImpl.class);
         // The plan editor of §12 item 24: a step as a form, and a transition as a form inside it.
+        bindPresenterWidget(AttemptFilterPresenter.class,
+                AttemptFilterView.class,
+                AttemptFilterViewImpl.class);
         bindPresenterWidget(PlanStepPresenter.class,
                 PlanStepView.class,
                 PlanStepViewImpl.class);

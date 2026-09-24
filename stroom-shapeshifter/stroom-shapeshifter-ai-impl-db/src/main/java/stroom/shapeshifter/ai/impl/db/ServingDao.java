@@ -102,6 +102,7 @@ public class ServingDao implements Serving {
                             SHAPESHIFTER_RULE.PIPELINE_UUID,
                             SHAPESHIFTER_RULE.PIPELINE_NAME,
                             SHAPESHIFTER_RULE.PINNED,
+                            SHAPESHIFTER_RULE.PROVISIONAL,
                             SHAPESHIFTER_RULE.SCORE,
                             SHAPESHIFTER_RULE.PROMOTED_TIME_MS,
                             SHAPESHIFTER_SHAPE.ROLLING_SCORE,
@@ -145,6 +146,7 @@ public class ServingDao implements Serving {
                         row.get(SHAPESHIFTER_RULE.PIPELINE_UUID),
                         row.get(SHAPESHIFTER_RULE.PIPELINE_NAME)),
                 row.get(SHAPESHIFTER_RULE.PINNED),
+                row.get(SHAPESHIFTER_RULE.PROVISIONAL),
                 row.get(SHAPESHIFTER_RULE.SCORE),
                 row.get(SHAPESHIFTER_RULE.PROMOTED_TIME_MS),
                 // No rolling score until the shape has served something: shown as nothing rather than as

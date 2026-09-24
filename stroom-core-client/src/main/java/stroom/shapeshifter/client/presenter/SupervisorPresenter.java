@@ -93,6 +93,13 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
         });
         setInSlot(TURN_LIST, turnsPresenter);
         setInSlot(LEDGER, ledgerPresenter);
+        // A shape sent back to be learned shows up as an attempt, so the list beside it is read again.
+        ledgerPresenter.setOnLearn(() -> {
+            listPresenter.getSelectionModel().clear();
+            updateButtons();
+            listPresenter.refresh();
+            servingPresenter.refresh();
+        });
         setInSlot(SERVING, servingPresenter);
 
         // The decisions A28 puts beside the attempt they are about. Approve and Reject are review

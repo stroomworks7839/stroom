@@ -109,6 +109,14 @@ public interface SupervisorResource extends RestResource, DirectRestService {
                            ImproveRequest request);
 
     @POST
+    @Path("/serving/{docUuid}/{ruleUuid}/accept")
+    @Operation(
+            summary = "Accept a provisional binding now, rather than waiting for the records that would "
+                      + "promote it",
+            operationId = "acceptShapeshifterAiRule")
+    Boolean accept(@PathParam("docUuid") String docUuid, @PathParam("ruleUuid") String ruleUuid);
+
+    @POST
     @Path("/serving/{docUuid}/{ruleUuid}/retract")
     @Operation(
             summary = "Take a rule that is serving back out of the table, and ask for what it produced "
@@ -141,6 +149,14 @@ public interface SupervisorResource extends RestResource, DirectRestService {
     List<SupervisorGuidance> withdraw(@PathParam("docUuid") String docUuid,
                                       @PathParam("id") long id,
                                       @QueryParam("shapeId") String shapeId);
+
+    @POST
+    @Path("/ledger/{docUuid}/learn")
+    @Operation(
+            summary = "Ask for a shape to be learned now, and for the streams waiting on it to be "
+                      + "processed again",
+            operationId = "learnShapeshifterAiShape")
+    Integer learn(@PathParam("docUuid") String docUuid, LearnShapeRequest request);
 
     @POST
     @Path("/{id}/relearn")

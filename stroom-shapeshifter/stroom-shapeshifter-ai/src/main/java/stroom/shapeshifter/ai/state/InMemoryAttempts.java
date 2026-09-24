@@ -171,13 +171,14 @@ public final class InMemoryAttempts implements Attempts {
     /// The attempts that bound this rule, whatever state they ended in — promoted, provisional, or
     /// awaiting a review that will now never happen.
     @Override
-    public synchronized void retracted(final String docUuid, final String ruleUuid, final String decision) {
+    public synchronized void settled(final String docUuid, final String ruleUuid,
+                                     final AttemptStatus status, final String decision) {
         attempts.values().stream()
                 .filter(attempt -> attempt.attempt().docUuid().equals(docUuid)
                                    && ruleUuid.equals(attempt.ruleUuid())
                                    && BOUND.contains(attempt.status()))
                 .toList()
-                .forEach(attempt -> closed(attempt.id(), AttemptStatus.RETRACTED, decision,
+                .forEach(attempt -> closed(attempt.id(), status, decision,
                         attempt.ruleUuid(), attempt.score(), 0L));
     }
 

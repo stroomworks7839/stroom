@@ -26,12 +26,16 @@ import stroom.shapeshifter.shared.AttemptCriteria;
 import stroom.shapeshifter.shared.SupervisorAttempt;
 import stroom.shapeshifter.shared.SupervisorResource;
 import stroom.svg.client.Preset;
+import stroom.svg.client.SvgPresets;
 import stroom.util.client.DataGridUtil;
 import stroom.util.shared.NullSafe;
 import stroom.util.shared.PageRequest;
 import stroom.util.shared.ResultPage;
 import stroom.widget.button.client.ButtonView;
 import stroom.widget.customdatebox.client.ClientDateUtil;
+import stroom.widget.popup.client.event.ShowPopupEvent;
+import stroom.widget.popup.client.presenter.PopupSize;
+import stroom.widget.popup.client.presenter.PopupType;
 import stroom.widget.util.client.MultiSelectionModel;
 import stroom.widget.util.client.MultiSelectionModelImpl;
 
@@ -40,6 +44,7 @@ import com.google.gwt.safehtml.shared.SafeHtml;
 import com.google.gwt.safehtml.shared.SafeHtmlUtils;
 import com.google.gwt.view.client.Range;
 import com.google.inject.Inject;
+import com.google.inject.Provider;
 import com.google.web.bindery.event.shared.EventBus;
 import com.gwtplatform.mvp.client.MyPresenterWidget;
 
@@ -55,14 +60,23 @@ public class SupervisorListPresenter extends MyPresenterWidget<PagerView> {
 
     private final MultiSelectionModelImpl<SupervisorAttempt> selectionModel;
     private final RestDataProvider<SupervisorAttempt, ResultPage<SupervisorAttempt>> dataProvider;
+    private final Provider<AttemptFilterPresenter> filterPresenterProvider;
+    private final ButtonView filterButton;
+    private final MyDataGrid<SupervisorAttempt> dataGrid;
+    /// What is being asked for (A28): every attempt of every readable document until somebody narrows
+    /// it. Kept here because the data provider is asked for a page at a time and must ask the same
+    /// question each time.
+    private AttemptCriteria criteria = new AttemptCriteria();
 
     @Inject
     public SupervisorListPresenter(final EventBus eventBus,
                                    final PagerView view,
+                                   final Provider<AttemptFilterPresenter> filterPresenterProvider,
                                    final RestFactory restFactory) {
         super(eventBus, view);
+        this.filterPresenterProvider = filterPresenterProvider;
 
-        final MyDataGrid<SupervisorAttempt> dataGrid = new MyDataGrid<>(this);
+        dataGrid = new MyDataGrid<>(this);
         dataGrid.setTableName("Shapeshifter AI Attempts");
         selectionModel = dataGrid.addDefaultSelectionModel(true);
         view.setDataWidget(dataGrid);
@@ -73,12 +87,18 @@ public class SupervisorListPresenter extends MyPresenterWidget<PagerView> {
             protected void exec(final Range range,
                                 final Consumer<ResultPage<SupervisorAttempt>> dataConsumer,
                                 final RestErrorHandler errorHandler) {
-                final AttemptCriteria criteria = new AttemptCriteria(
+                final AttemptCriteria asked = new AttemptCriteria(
                         new PageRequest(range.getStart(), range.getLength()),
-                        null, null, null, null, null, null, null);
+                        criteria.getSortList(),
+                        criteria.getDocUuid(),
+                        criteria.getFeed(),
+                        criteria.getShape(),
+                        criteria.getExecutionMode(),
+                        criteria.getPromotionMode(),
+                        criteria.getStatuses());
                 restFactory
                         .create(SUPERVISOR_RESOURCE)
-                        .method(resource -> resource.find(criteria))
+                        .method(resource -> resource.find(asked))
                         .onSuccess(dataConsumer)
                         .onFailure(errorHandler)
                         .taskMonitorFactory(view)
@@ -86,6 +106,46 @@ public class SupervisorListPresenter extends MyPresenterWidget<PagerView> {
             }
         };
         dataProvider.addDataDisplay(dataGrid);
+        // The six things A28 says a person may narrow by, behind one button: the form is longer than a
+        // toolbar can hold, and a filter that is on is said on the button rather than only being felt.
+        filterButton = view.addButton(SvgPresets.FILTER.title("Narrow which attempts are shown"));
+        updateFilterButton();
+    }
+
+    @Override
+    protected void onBind() {
+        super.onBind();
+        registerHandler(filterButton.addClickHandler(event -> filter()));
+    }
+
+    /// Narrow what is shown, or widen it again. Always from the first page: the offset a person is on
+    /// is an offset into a list that has just changed length, and re-reading it would show them an
+    /// empty grid whenever the filter leaves fewer rows than they had scrolled past.
+    private void filter() {
+        final AttemptFilterPresenter presenter = filterPresenterProvider.get();
+        presenter.read(criteria);
+        ShowPopupEvent.builder(presenter)
+                .popupType(PopupType.OK_CANCEL_DIALOG)
+                .popupSize(PopupSize.resizable(600, 640))
+                .caption("Which attempts to show")
+                .onHideRequest(e -> {
+                    if (e.isOk()) {
+                        criteria = presenter.write(criteria);
+                        updateFilterButton();
+                        dataGrid.setVisibleRange(new Range(0, PageRequest.DEFAULT_PAGE_LENGTH));
+                        refresh();
+                    }
+                    e.hide();
+                })
+                .fire();
+    }
+
+    /// The button says whether anything is being left out, because a screen that is quietly showing a
+    /// tenth of what a person expects is a screen they will not trust twice.
+    private void updateFilterButton() {
+        filterButton.setTitle(AttemptFilterPresenter.isFiltering(criteria)
+                ? "Attempts are being filtered; click to change or clear"
+                : "Narrow which attempts are shown");
     }
 
     /// A button on this list's own toolbar, for the actions A28 puts beside the attempt they act on.

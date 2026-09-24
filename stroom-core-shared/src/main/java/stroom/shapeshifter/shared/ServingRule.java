@@ -46,6 +46,8 @@ public class ServingRule {
     @JsonProperty
     private final boolean pinned;
     @JsonProperty
+    private final boolean provisional;
+    @JsonProperty
     private final Double promotedScore;
     @JsonProperty
     private final Long promotedTimeMs;
@@ -62,6 +64,7 @@ public class ServingRule {
                        @JsonProperty("shapeId") final String shapeId,
                        @JsonProperty("fragment") final DocRef fragment,
                        @JsonProperty("pinned") final boolean pinned,
+                       @JsonProperty("provisional") final boolean provisional,
                        @JsonProperty("promotedScore") final Double promotedScore,
                        @JsonProperty("promotedTimeMs") final Long promotedTimeMs,
                        @JsonProperty("rollingScore") final Double rollingScore,
@@ -72,6 +75,7 @@ public class ServingRule {
         this.shapeId = shapeId;
         this.fragment = fragment;
         this.pinned = pinned;
+        this.provisional = provisional;
         this.promotedScore = promotedScore;
         this.promotedTimeMs = promotedTimeMs;
         this.rollingScore = rollingScore;
@@ -107,7 +111,18 @@ public class ServingRule {
     }
 
     /**
-     * What it scored on the records it was promoted on (A14).
+     * Whether it is serving on a candidate that cleared the floor before enough records arrived to
+     * judge it properly (A14, design 01 §6): bound, marked as such, and promoted or retracted the first
+     * time a stream brings enough. A person may accept one now rather than wait — what is skipped is
+     * the wait for records, not the floor, which it has already cleared.
+     */
+    public boolean isProvisional() {
+        return provisional;
+    }
+
+    /**
+     * What it scored on the records it was promoted on (A14), or on the stream it was bound
+     * provisionally from.
      */
     public Double getPromotedScore() {
         return promotedScore;

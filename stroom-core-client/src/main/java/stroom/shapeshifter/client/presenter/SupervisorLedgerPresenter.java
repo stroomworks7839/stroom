@@ -16,6 +16,8 @@
 
 package stroom.shapeshifter.client.presenter;
 
+import stroom.alert.client.event.AlertEvent;
+import stroom.alert.client.event.PromptEvent;
 import stroom.data.client.presenter.ColumnSizeConstants;
 import stroom.data.client.presenter.RestDataProvider;
 import stroom.data.grid.client.MyDataGrid;
@@ -23,13 +25,17 @@ import stroom.data.grid.client.PagerView;
 import stroom.dispatch.client.RestErrorHandler;
 import stroom.dispatch.client.RestFactory;
 import stroom.docref.DocRef;
+import stroom.shapeshifter.shared.LearnShapeRequest;
 import stroom.shapeshifter.shared.LedgerShape;
 import stroom.shapeshifter.shared.SupervisorResource;
+import stroom.svg.client.SvgPresets;
 import stroom.util.client.DataGridUtil;
 import stroom.util.shared.NullSafe;
 import stroom.util.shared.PageRequest;
 import stroom.util.shared.ResultPage;
+import stroom.widget.button.client.ButtonView;
 import stroom.widget.customdatebox.client.ClientDateUtil;
+import stroom.widget.util.client.MultiSelectionModel;
 
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.safehtml.shared.SafeHtml;
@@ -59,16 +65,23 @@ public class SupervisorLedgerPresenter extends MyPresenterWidget<PagerView> {
 
     private final RestDataProvider<LedgerShape, ResultPage<LedgerShape>> dataProvider;
     private final MyDataGrid<LedgerShape> dataGrid;
+    private final MultiSelectionModel<LedgerShape> selectionModel;
+    private final RestFactory restFactory;
+    private final ButtonView learnButton;
+    /// Told when a shape has been sent back to be learned, so that the attempts beside this can be read
+    /// again: what was asked for will show up there.
+    private Runnable onLearn;
 
     @Inject
     public SupervisorLedgerPresenter(final EventBus eventBus,
                                      final PagerView view,
                                      final RestFactory restFactory) {
         super(eventBus, view);
+        this.restFactory = restFactory;
         dataGrid = new MyDataGrid<>(this);
         dataGrid.setTableName("Shapeshifter AI Ledger");
         dataGrid.setMultiLine(true);
-        dataGrid.addDefaultSelectionModel(true);
+        selectionModel = dataGrid.addDefaultSelectionModel(true);
         view.setDataWidget(dataGrid);
         initTableColumns();
 
@@ -90,6 +103,79 @@ public class SupervisorLedgerPresenter extends MyPresenterWidget<PagerView> {
             }
         };
         dataProvider.addDataDisplay(dataGrid);
+        // A28's way of starting learning rather than merely approving it: a shape waiting here is
+        // waiting because nothing bound it, and this asks for it to be learned now.
+        learnButton = view.addButton(SvgPresets.RERUN.title(
+                "Learn this shape now, and process the streams waiting on it again"));
+        updateButtons();
+    }
+
+    @Override
+    protected void onBind() {
+        super.onBind();
+        registerHandler(selectionModel.addSelectionHandler(event -> updateButtons()));
+        registerHandler(learnButton.addClickHandler(event -> learn()));
+    }
+
+    /**
+     * Told when a shape has been sent back to be learned.
+     */
+    public void setOnLearn(final Runnable onLearn) {
+        this.onLearn = onLearn;
+    }
+
+    /// Ask for the selected shape to be learned now (A28).
+    ///
+    /// This is the door the ruling leans on — "they raise an attempt for a given-up shape from the same
+    /// screen, so no on-request learning mode is needed". A shape given up stays given up until
+    /// somebody says otherwise, and this is saying otherwise: the give-up goes, the shape is sent back,
+    /// and the streams waiting on it are asked to be processed again so that the first of them through
+    /// learns it.
+    ///
+    /// The reason is asked for rather than assumed. It opens the next attempt — the model is told why
+    /// it is being asked again — and travels with every stream asked for.
+    private void learn() {
+        final LedgerShape shape = selectionModel.getSelected();
+        if (shape == null || shape.getDoc() == null) {
+            return;
+        }
+        PromptEvent.fire(this,
+                "Why is this shape being learned again? The model is told, and every stream waiting on "
+                + "it is asked to be processed again — " + shape.getWaiting()
+                + (shape.getWaiting() == 1
+                        ? " stream."
+                        : " streams."), "",
+                reason -> {
+                    // Null is Cancel; empty is no reason, and this one is not offered without one.
+                    if (NullSafe.isBlankString(reason)) {
+                        return;
+                    }
+                    restFactory
+                            .create(SUPERVISOR_RESOURCE)
+                            .method(resource -> resource.learn(shape.getDoc().getUuid(),
+                                    new LearnShapeRequest(shape.getShapeId(), reason)))
+                            .onSuccess(asked -> AlertEvent.fireInfo(this, asked == null || asked == 0
+                                    ? "The shape will be learned when its feed next ships: nothing was "
+                                      + "waiting on it."
+                                    : asked + (asked == 1
+                                            ? " stream is"
+                                            : " streams are")
+                                      + " asked to be processed again, and the first of them through "
+                                      + "learns the shape.", this::learned))
+                            .taskMonitorFactory(getView())
+                            .exec();
+                });
+    }
+
+    private void learned() {
+        refresh();
+        if (onLearn != null) {
+            onLearn.run();
+        }
+    }
+
+    private void updateButtons() {
+        learnButton.setEnabled(selectionModel.getSelected() != null);
     }
 
     /**

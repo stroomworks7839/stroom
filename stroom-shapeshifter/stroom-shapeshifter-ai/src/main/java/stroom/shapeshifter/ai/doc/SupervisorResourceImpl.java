@@ -35,6 +35,7 @@ import stroom.shapeshifter.shared.AttemptCriteria;
 import stroom.shapeshifter.shared.GuidanceRequest;
 import stroom.shapeshifter.shared.ImproveOutcome;
 import stroom.shapeshifter.shared.ImproveRequest;
+import stroom.shapeshifter.shared.LearnShapeRequest;
 import stroom.shapeshifter.shared.LedgerShape;
 import stroom.shapeshifter.shared.RejectRequest;
 import stroom.shapeshifter.shared.ServingCriteria;
@@ -209,6 +210,25 @@ public class SupervisorResourceImpl implements SupervisorResource {
         return new ImproveOutcome(StepDetails.describe(decision));
     }
 
+    /// Accept a provisional binding now (design 01 §6, §11.6), rather than waiting for the records
+    /// that would promote it.
+    ///
+    /// Held to EDIT, as the other acts that change the document's routing are. Not a way round the
+    /// gate: the rule cleared the promotion floor when it was bound, and what is skipped is the wait
+    /// for more records to judge it on.
+    @Override
+    public Boolean accept(final String docUuid, final String ruleUuid) {
+        if (!may(docUuid, DocumentPermission.EDIT)) {
+            throw new PermissionException(securityContextProvider.get().getUserRef(),
+                    "You do not have permission to change the rules of this document");
+        }
+        final String by = securityContextProvider.get().getUserIdentityForAudit();
+        final ShapeshifterAiDoc doc = document(docUuid);
+        pipelineScopeProvider.get().scopeRunnable(() ->
+                stageFactoryProvider.get().create().accept(doc, ruleUuid, by));
+        return Boolean.TRUE;
+    }
+
     /// Take a rule that is serving back out of the table (A28, design 01 §11.6).
     ///
     /// The reason is asked for rather than assumed: it goes on the request to process again everything
@@ -233,6 +253,31 @@ public class SupervisorResourceImpl implements SupervisorResource {
         final ShapeshifterAiDoc doc = document(docUuid);
         return pipelineScopeProvider.get().scopeResult(() ->
                 stageFactoryProvider.get().create().retract(doc, ruleUuid, request.getReason(), by));
+    }
+
+    /// Ask for a shape to be learned now (A28), and for the streams waiting on it to be processed
+    /// again — which is what raising an attempt for a given-up shape from this screen means.
+    ///
+    /// Held to EDIT, as the other acts that spend a model's tokens and change the document's routing
+    /// are: this one overrides a decision to stop, whether the stage's or a person's.
+    @Override
+    public Integer learn(final String docUuid, final LearnShapeRequest request) {
+        if (request == null || NullSafe.isBlankString(request.getShapeId())) {
+            throw new IllegalArgumentException("Learning is about a shape: say which");
+        }
+        if (NullSafe.isBlankString(request.getReason())) {
+            throw new IllegalArgumentException("A shape sent back to be learned says why: the reason "
+                                               + "opens the next attempt and travels with every stream "
+                                               + "asked for");
+        }
+        if (!may(docUuid, DocumentPermission.EDIT)) {
+            throw new PermissionException(securityContextProvider.get().getUserRef(),
+                    "You do not have permission to change how this document learns");
+        }
+        final String by = securityContextProvider.get().getUserIdentityForAudit();
+        final ShapeshifterAiDoc doc = document(docUuid);
+        return pipelineScopeProvider.get().scopeResult(() -> stageFactoryProvider.get().create()
+                .learnAgain(doc, request.getShapeId(), request.getReason(), by));
     }
 
     /// What has been said about a shape (A46), oldest first.
@@ -358,8 +403,8 @@ public class SupervisorResourceImpl implements SupervisorResource {
     /// since it has no store to ask, and the view is over every document at once.
     private static ServingRule named(final DocRef doc, final ServingRule rule) {
         return new ServingRule(doc, rule.getRuleUuid(), rule.getShapeId(), rule.getFragment(),
-                rule.isPinned(), rule.getPromotedScore(), rule.getPromotedTimeMs(), rule.getRollingScore(),
-                rule.getRecords(), rule.getGuidance());
+                rule.isPinned(), rule.isProvisional(), rule.getPromotedScore(), rule.getPromotedTimeMs(),
+                rule.getRollingScore(), rule.getRecords(), rule.getGuidance());
     }
 
     private ShapeshifterAiDoc document(final String docUuid) {

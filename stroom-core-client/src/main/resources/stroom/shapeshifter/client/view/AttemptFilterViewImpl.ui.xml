@@ -1,0 +1,38 @@
+<!DOCTYPE ui:UiBinder SYSTEM "http://dl.google.com/gwt/DTD/xhtml.ent">
+<ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
+             xmlns:g="urn:import:com.google.gwt.user.client.ui"
+             xmlns:l="urn:import:stroom.item.client"
+             xmlns:form="urn:import:stroom.widget.form.client">
+    <g:FlowPanel styleName="max form-padding form">
+        <form:FormGroup identity="attemptFilterDocument"
+                        label="Document"
+                        helpText="Which Shapeshifter AI document's attempts. Left empty, every document you may read.">
+            <g:SimplePanel ui:field="document" width="400px"/>
+        </form:FormGroup>
+        <form:FormGroup identity="attemptFilterFeed"
+                        label="Feed"
+                        helpText="The feed the stream came from, matched exactly. Left empty, every feed.">
+            <g:TextBox ui:field="feed" width="300px"/>
+        </form:FormGroup>
+        <form:FormGroup identity="attemptFilterShape"
+                        label="Shape"
+                        helpText="The learning key's values, as the attempt records them, e.g. Feed=SYSLOG|Type=Raw Events. Left empty, every shape.">
+            <g:TextBox ui:field="shape" width="400px"/>
+        </form:FormGroup>
+        <form:FormGroup identity="attemptFilterExecutionMode"
+                        label="Execution mode"
+                        helpText="Whether the attempt asked the model in the processing task or was carried on by the deferred worker.">
+            <l:SelectionBox ui:field="executionMode"/>
+        </form:FormGroup>
+        <form:FormGroup identity="attemptFilterPromotionMode"
+                        label="Promotion mode"
+                        helpText="Whether what the attempt learned was bound automatically or held as a draft for review.">
+            <l:SelectionBox ui:field="promotionMode"/>
+        </form:FormGroup>
+        <form:FormGroup identity="attemptFilterStatuses"
+                        label="Status"
+                        helpText="Where the attempt stands. None ticked — or all of them — is every status.">
+            <g:FlowPanel ui:field="statuses" styleName="dock-container-vertical"/>
+        </form:FormGroup>
+    </g:FlowPanel>
+</ui:UiBinder>

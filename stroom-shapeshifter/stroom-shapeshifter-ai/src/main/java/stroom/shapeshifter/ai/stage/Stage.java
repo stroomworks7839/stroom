@@ -522,7 +522,47 @@ public final class Stage {
      * @param reason Why, in the words a person gave: the model opens its next attempt with it.
      */
     public void relearn(final ShapeshifterAiDoc doc, final String shape, final String reason) {
+        if (shapes.reasonGivenUp(doc.getUuid(), shape).isPresent()) {
+            // A shape that was given up stays given up until something says otherwise, and a mark alone
+            // says nothing: every path reads the give-up first and sentinels the stream before it ever
+            // looks at the mark. Sending a shape back *is* saying otherwise, so the give-up goes — and
+            // with it the rest of what was concluded about the shape, since it is being started afresh.
+            shapes.reset(doc.getUuid(), shape);
+        }
         shapes.markForRelearning(doc.getUuid(), shape, reason);
+    }
+
+    /// Ask for a shape to be learned now, rather than when its feed next ships (A28, design 01 §11.6).
+    ///
+    /// This is what the ruling means by raising an attempt for a given-up shape from the Supervisor,
+    /// and why it says no on-request learning mode is needed. [#relearn] marks a shape and waits for
+    /// traffic; a shape that was given up has streams waiting on the ledger *because* nothing bound it,
+    /// and they are the traffic. So they are asked for again, exactly as a promotion asks for them
+    /// (A12), and the first of them through learns the shape.
+    ///
+    /// Nothing is held and nothing is lost: every stream named here was processed to an error stream
+    /// and is where it always was, and a shape that fails to learn is sentinelled again as it was
+    /// before.
+    ///
+    /// @param reason Why, in the person's words: it opens the next attempt and travels with every
+    ///               stream asked for.
+    /// @param by     Who asked, since this overrides a decision — theirs or the stage's — to stop.
+    /// @return How many streams were asked to be processed again. None means the shape has nothing
+    /// waiting, and it will be learned when its feed next ships.
+    public int learnAgain(final ShapeshifterAiDoc doc,
+                          final String shape,
+                          final String reason,
+                          final String by) {
+        if (doc.getLearningMode() == LearningMode.DISABLED) {
+            // The kill switch is a kill switch, as it is for an improvement: a button that asked anyway
+            // would be a way round it.
+            throw new IllegalStateException("Shapeshifter AI is disabled for this document");
+        }
+        final String said = "Sent back to be learned again by " + by + ": " + reason;
+        relearn(doc, shape, said);
+        final List<Replayable> waiting = ledger.release(doc.getUuid(), shape);
+        replay(doc, waiting, said);
+        return waiting.size();
     }
 
     /**
@@ -1164,7 +1204,7 @@ public final class Stage {
         // And the attempt that bound it says so. It said nothing before: an attempt that promoted a rule
         // the gate has since taken back went on reading as promoted, which is the one thing a person
         // reading it back would most want to know was no longer true.
-        record(() -> attempts.retracted(doc.getUuid(), rule.getUuid(), reason));
+        record(() -> attempts.settled(doc.getUuid(), rule.getUuid(), AttemptStatus.RETRACTED, reason));
         return new StageRun(doc, new Retracted(rule, judged.score(), reason),
                 shape, null, null, judged.verdicts(), List.of(), null, List.of());
     }
@@ -1450,6 +1490,49 @@ public final class Stage {
                 inputIds));
     }
 
+    /// Accept a provisional binding now, rather than waiting for the records that would promote it
+    /// (design 01 §6, §11.6).
+    ///
+    /// A rule is bound provisionally when its candidate cleared the floor on a stream that did not
+    /// bring enough records for a held-out judgement (A14): it serves, marked as such, until enough
+    /// arrive to promote or retract it. For a feed that ships a handful of records a day that can be a
+    /// long wait, and a person who has read what it is producing may not want to wait.
+    ///
+    /// What it is *not* is a way round the gate. The rule already cleared the promotion floor — that is
+    /// what made it bindable at all — and what is being skipped is the wait for more records to judge
+    /// it on, not the judgement. Recorded against the attempt as a person's doing, so that a rule
+    /// promoted this way is not mistaken for one the gate promoted.
+    ///
+    /// @param by Who accepted it.
+    public void accept(final ShapeshifterAiDoc doc, final String ruleUuid, final String by) {
+        final RoutingRule rule = rules.forDocument(doc.getUuid()).stream()
+                .filter(candidate -> ruleUuid.equals(candidate.getUuid()))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Rule " + ruleUuid + " is not a rule of this document"));
+        if (!rule.isProvisional()) {
+            // Nothing to accept: it is already serving on a judgement, or it is a draft, or it binds
+            // nothing. Said rather than quietly doing nothing.
+            throw new IllegalArgumentException("Rule " + ruleUuid + " is not a provisional binding");
+        }
+        if (rule.isPinned()) {
+            // §7.3 rule 2: a pin freezes a rule — served, never promoted, retracted or relearned.
+            throw new IllegalStateException("Rule " + ruleUuid + " is pinned; unpin it before accepting it");
+        }
+        final String said = "Accepted by " + by + " on the score it was bound at, without waiting for "
+                            + "records to judge it on";
+        rules.replace(doc.getUuid(), rule.copy()
+                .provisional(false)
+                .promotedTimeMs(clock.millis())
+                .build());
+        // The rolling score starts from here, as it does for a rule the gate promotes: what it scored
+        // while provisional was scored on too few records to mean anything.
+        if (!NullSafe.isBlankString(rule.getShapeId())) {
+            shapes.reset(doc.getUuid(), rule.getShapeId());
+        }
+        record(() -> attempts.settled(doc.getUuid(), ruleUuid, AttemptStatus.PROMOTED, said));
+    }
+
     /// Take a rule that is serving out of the table, by hand (A28, design 01 §11.6).
     ///
     /// The automatic retraction of §6 is what a provisional rule gets when it fails the gate; this is the
@@ -1507,7 +1590,7 @@ public final class Stage {
                 ? null
                 : rule.getPipeline().getUuid());
         replay(doc, produced, said);
-        record(() -> attempts.retracted(doc.getUuid(), ruleUuid, said));
+        record(() -> attempts.settled(doc.getUuid(), ruleUuid, AttemptStatus.RETRACTED, said));
         return produced.size();
     }
 

@@ -94,6 +94,7 @@ public final class InMemoryServing implements Serving {
                 rule.getShapeId(),
                 rule.getPipeline(),
                 rule.isPinned(),
+                rule.isProvisional(),
                 rule.getScore(),
                 rule.getPromotedTimeMs(),
                 rolling.map(Shapes.Rolling::score).orElse(null),
