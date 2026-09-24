@@ -36,4 +36,15 @@ public interface ShapeshifterAiSettingsUiHandlers extends UiHandlers {
     default void onPlanExample(final List<PlanStep> steps) {
         // Only the Learning tab holds a plan.
     }
+
+    /**
+     * The button beneath the plan was pressed, at this point on the screen: which examples there are to
+     * load, and what replacing a plan that has been edited means, belong to the tab that owns the plan.
+     *
+     * @param x Where the menu of examples goes, across.
+     * @param y Where the menu of examples goes, down.
+     */
+    default void onLoadExample(final int x, final int y) {
+        // Only the Learning tab holds a plan.
+    }
 }

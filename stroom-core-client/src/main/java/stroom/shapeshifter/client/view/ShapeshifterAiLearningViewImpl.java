@@ -20,7 +20,6 @@ import stroom.entity.client.presenter.ReadOnlyChangeHandler;
 import stroom.item.client.SelectionBox;
 import stroom.shapeshifter.client.presenter.ShapeshifterAiLearningPresenter.ShapeshifterAiLearningView;
 import stroom.shapeshifter.client.presenter.ShapeshifterAiSettingsUiHandlers;
-import stroom.shapeshifter.shared.PlanExample;
 import stroom.shapeshifter.shared.PlanStep;
 import stroom.shapeshifter.shared.SampleRedaction;
 import stroom.shapeshifter.shared.Template;
@@ -64,9 +63,11 @@ public class ShapeshifterAiLearningViewImpl
     @UiField
     TextArea instructions;
     @UiField
-    SelectionBox<PlanExample> planExample;
-    @UiField
     SimplePanel planSteps;
+    /// Loading an example replaces the steps, so it is a button beneath the table and not a picker
+    /// above it: what it does is done once, and nothing about it describes the plan afterwards.
+    @UiField
+    Button loadExample;
     /// The same plan in the grammar the harness and import/export carry, shown and not edited: a person
     /// reading the whole of it at once, or pasting it somewhere, wants the text.
     @UiField
@@ -103,8 +104,6 @@ public class ShapeshifterAiLearningViewImpl
     @Inject
     public ShapeshifterAiLearningViewImpl(final Binder binder) {
         widget = binder.createAndBindUi(this);
-        planExample.setNonSelectString("Load an example…");
-        planExample.addItems(PlanExample.values());
         template.addItems(Template.values());
         template.setValue(Template.CHAIN);
         showTemplate();
@@ -323,7 +322,7 @@ public class ShapeshifterAiLearningViewImpl
         relearnThreshold.setEnabled(enabled);
         allowedElements.setEnabled(enabled);
         instructions.setEnabled(enabled);
-        planExample.setEnabled(enabled);
+        loadExample.setEnabled(enabled);
         template.setEnabled(enabled);
         templateText.setReadOnly(readOnly);
         resetTemplate.setEnabled(enabled && overrides.containsKey(template.getValue()));
@@ -376,19 +375,13 @@ public class ShapeshifterAiLearningViewImpl
     }
 
     /**
-     * Loading an example replaces the steps with its own; the selector goes back to its prompt, since the
-     * example is a starting point and not a setting.
+     * Which example to load is asked here, where the button is; the menu of them, and what replacing a
+     * plan means, belong to whoever owns the step list.
      */
-    @UiHandler("planExample")
-    public void onPlanExample(final ValueChangeEvent<PlanExample> event) {
-        final PlanExample example = event.getValue();
-        if (example == null) {
-            return;
-        }
-        planExample.setValue(null);
-        // The list is what holds the plan now, so the example is handed to whoever owns it.
+    @UiHandler("loadExample")
+    public void onLoadExample(final ClickEvent event) {
         if (getUiHandlers() != null) {
-            getUiHandlers().onPlanExample(example.steps());
+            getUiHandlers().onLoadExample(event.getClientX(), event.getClientY());
         }
     }
 

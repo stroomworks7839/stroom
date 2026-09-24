@@ -17,6 +17,7 @@
 package stroom.shapeshifter.client.presenter;
 
 import stroom.alert.client.event.AlertEvent;
+import stroom.alert.client.event.ConfirmEvent;
 import stroom.dispatch.client.RestFactory;
 import stroom.docref.DocRef;
 import stroom.entity.client.presenter.DocPresenter;
@@ -32,6 +33,12 @@ import stroom.shapeshifter.shared.SampleRedaction;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 import stroom.shapeshifter.shared.ShapeshifterAiResource;
 import stroom.shapeshifter.shared.Template;
+import stroom.widget.menu.client.presenter.Item;
+import stroom.widget.menu.client.presenter.MenuBuilder;
+import stroom.widget.menu.client.presenter.MenuPresenter;
+import stroom.widget.popup.client.event.ShowPopupEvent;
+import stroom.widget.popup.client.presenter.PopupPosition;
+import stroom.widget.popup.client.presenter.PopupType;
 
 import com.google.gwt.core.client.GWT;
 import com.google.inject.Inject;
@@ -58,6 +65,7 @@ public class ShapeshifterAiLearningPresenter
     private final LearningKeyPresenter learningKeyPresenter;
     private final RestFactory restFactory;
     private final PlanStepListPresenter planStepListPresenter;
+    private final MenuPresenter menuPresenter;
     /**
      * The plan as read, for what the list does not hold: the template overrides and the built-in
      * version they were saved against.
@@ -70,11 +78,13 @@ public class ShapeshifterAiLearningPresenter
                                               final DocSelectionBoxPresenter modelPresenter,
                                               final LearningKeyPresenter learningKeyPresenter,
                                               final PlanStepListPresenter planStepListPresenter,
+                                              final MenuPresenter menuPresenter,
                                               final RestFactory restFactory) {
         super(eventBus, view);
         this.modelPresenter = modelPresenter;
         this.learningKeyPresenter = learningKeyPresenter;
         this.planStepListPresenter = planStepListPresenter;
+        this.menuPresenter = menuPresenter;
         this.restFactory = restFactory;
         view.setUiHandlers(this);
 
@@ -105,6 +115,50 @@ public class ShapeshifterAiLearningPresenter
         planStepListPresenter.read(steps, false);
         planChanged();
         onChange();
+    }
+
+    /**
+     * The examples as a menu at the button: three graphs a document might start from (A34, A37), and
+     * choosing one replaces the steps in the table rather than recording anything about the document —
+     * which is why it is asked for here and not shown as a setting.
+     *
+     * <p>A plan that has steps is confirmed first. An example is one click, and the steps it would
+     * replace may be an afternoon's editing.</p>
+     */
+    @Override
+    public void onLoadExample(final int x, final int y) {
+        if (isReadOnly()) {
+            return;
+        }
+        final MenuBuilder menu = MenuBuilder.builder();
+        for (final PlanExample example : PlanExample.values()) {
+            menu.withSimpleMenuItem(item -> item
+                    .text(example.getDisplayValue())
+                    .command(() -> confirmThenLoad(example)));
+        }
+        final List<Item> items = menu.build();
+        menuPresenter.setData(items);
+        ShowPopupEvent.builder(menuPresenter)
+                .popupType(PopupType.POPUP)
+                .popupPosition(new PopupPosition(x, y))
+                .fire();
+    }
+
+    private void confirmThenLoad(final PlanExample example) {
+        final int steps = planStepListPresenter.write().size();
+        if (steps == 0) {
+            onPlanExample(example.steps());
+            return;
+        }
+        ConfirmEvent.fire(this,
+                "Replace this plan's " + steps + " step" + (steps == 1
+                        ? ""
+                        : "s") + " with the " + example.getDisplayValue() + " example?",
+                ok -> {
+                    if (ok) {
+                        onPlanExample(example.steps());
+                    }
+                });
     }
 
     @Override

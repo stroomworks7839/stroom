@@ -99,7 +99,15 @@ public class SupervisorTurnsPresenter extends MyPresenterWidget<PagerView> {
     @Override
     protected void onBind() {
         super.onBind();
-        registerHandler(selectionModel.addSelectionHandler(event -> updateButtons()));
+        registerHandler(selectionModel.addSelectionHandler(event -> {
+            // Double-clicking a turn opens it, as it does everywhere else a row has a dialog behind it.
+            // A cell of the grid holds one line of what may be a whole configuration, so the row is
+            // unreadable until it is opened.
+            if (event.getSelectionType().isDoubleSelect()) {
+                answer();
+            }
+            updateButtons();
+        }));
         registerHandler(answerButton.addClickHandler(event -> answer()));
     }
 
@@ -129,6 +137,10 @@ public class SupervisorTurnsPresenter extends MyPresenterWidget<PagerView> {
         // its shape back. A reader meeting state that was not built for it, in a window.
         final long attemptId = attempt.getId();
         final EditorPresenter editor = editorProvider.get();
+        // The editor is the whole of this dialog, so it is drawn as a control in one: elsewhere — the
+        // column filter, the column function editor — the panel an editor sits in carries these, and
+        // here there is no panel but the editor itself.
+        editor.getView().asWidget().addStyleName("form-control-border form-control-background");
         editor.setMode(AceEditorMode.XML);
         editor.setText(NullSafe.string(turn.getAnswer()));
         editor.getLineNumbersOption().setOn();

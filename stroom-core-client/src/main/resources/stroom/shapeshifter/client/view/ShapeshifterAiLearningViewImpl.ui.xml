@@ -35,9 +35,10 @@
                         label="Learning plan"
                         helpText="The questions the stage asks the model, in the order they are first entered. Each step is a kind — Chain, Split, Target or Configure — with what governs its asking: which elements a Configure step writes, the input it runs for, how many answers to ask for and how many kinds of record to show, which checks judge it, and where it goes on each outcome. A step re-asks itself on any shortfall until it is spent; a step that passes goes to the next one unless a transition says otherwise; a transition may go to the end of the plan or give the attempt up, and each is taken at most once per attempt. Chain must come first and Configure last; Split and Target at most once each. Load an example to start from: Direct asks for the chain and then each element's configuration; Target first settles the record boundary, asks what one record of each kind should become, and holds every configuration to those events; Escalating starts direct and asks for a target only when the transform stays short. The text below is the same plan in the grammar the harness and import/export carry.">
             <g:FlowPanel>
-                <l:SelectionBox ui:field="planExample"/>
                 <g:SimplePanel ui:field="planSteps" width="900px" height="260px"
                                styleName="dashboard-panel dock-container-vertical"/>
+                <b:Button ui:field="loadExample" text="Load an example" width="140px"
+                          addStyleNames="allow-focus"/>
                 <g:Label ui:field="planProblem" visible="false"/>
                 <g:TextArea ui:field="planText" width="900px" height="90px" readOnly="true"/>
             </g:FlowPanel>
