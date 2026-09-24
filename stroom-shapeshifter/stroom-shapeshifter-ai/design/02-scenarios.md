@@ -2934,6 +2934,47 @@ along a seam — and a refactor of the feature's heart, made casually and immedi
 worse than a warning.
 
 
+The fiftieth slice, 2026-09-24, is design 03 §7's tenth and last, ruling A37 and §12 item 24: **the
+plan editor** — and, with it, a check over every other thing the UI is meant to let a person see and
+change.
+
+**Built a week before its own sequencing advises**, at the owner's direction. Item 24 waits for the
+2026-10-01 live run over an escalating graph, "so that the editor is built over a mechanism that has
+been seen to work rather than over a grammar that may still move". The risk was taken knowingly and is
+bounded: every form is driven by the closed lists — `QuestionKind`, `ConfigureRole`, `StepGuard`,
+`Check`, `StepOutcome` — so a value added or renamed by what the run shows flows through without a line
+changing here. Only a *structural* change to a step, a new field, would mean rework.
+
+**What the editor is for.** The text grammar is exact and unforgiving, and a person learning it by
+having a save rejected is learning it the hard way. Now the order is the list's, every closed list is a
+picker, and a transition may only go to a step that is there — so most of what the grammar can get wrong
+cannot be written at all. A step is a form; its transitions are a list inside that form, each one two
+pickers; the copy of a step drops its id, because two steps of one name leave a transition unable to say
+which it means.
+
+**What a form per step cannot catch, and where it is caught.** A plan is a graph, and what is wrong with
+one is a property of the whole of it: a CHAIN first, a CONFIGURE last, SPLIT and TARGET at most once, a
+`goto` that names a step which is there. `LearningPlan.problems()` already said all of that for the
+store, so the tab says it from the same place as the list is edited — the tab and the save cannot
+disagree about what is wrong, because there is only one of them.
+
+**The text grammar has not gone**, as item 24 asks: it is what the harness and import/export carry, and
+it is shown read-only beneath the list so that a person can read the whole plan at once or paste it
+somewhere.
+
+**And the rest of the ask turned out to be built.** Checked against the document rather than assumed:
+the question text of every template is already selectable, editable and resettable to the built-in
+(A33); the scorers already have their type, weight, threshold, gate and per-type parameters; the model
+reference is already a document picker on the Learning tab (A13); and the learning key, instructions,
+allowed elements, attempt and token budgets, redaction and sample limit are all there. What was missing
+was one thing: **a learned fragment could not be opened.** The Routing tab and the serving list now open
+it, and from a pipeline document stroom's own editor reaches the Data Splitter and the stylesheet the
+model wrote — which is the only place those are worth reading, since nothing here should reimplement a
+pipeline editor.
+
+The GWT compile is the check item 24 names for the `.ui.xml` bindings, and it passes.
+
+
 ## 7. Decisions taken
 
 Ruled 2026-09-17, each as recommended:

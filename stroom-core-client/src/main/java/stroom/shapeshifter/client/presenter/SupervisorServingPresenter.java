@@ -25,6 +25,7 @@ import stroom.data.grid.client.PagerView;
 import stroom.dispatch.client.RestErrorHandler;
 import stroom.dispatch.client.RestFactory;
 import stroom.docref.DocRef;
+import stroom.document.client.event.OpenDocumentEvent;
 import stroom.shapeshifter.shared.ImproveRequest;
 import stroom.shapeshifter.shared.RejectRequest;
 import stroom.shapeshifter.shared.ServingCriteria;
@@ -74,6 +75,7 @@ public class SupervisorServingPresenter extends MyPresenterWidget<PagerView> {
     private final ButtonView improveButton;
     private final ButtonView hintButton;
     private final ButtonView retractButton;
+    private final ButtonView openButton;
     private final ButtonView filterButton;
     private Double below;
 
@@ -96,6 +98,10 @@ public class SupervisorServingPresenter extends MyPresenterWidget<PagerView> {
                 "Ask for this rule to be made better, from what it already does"));
         hintButton = view.addButton(SvgPresets.EDIT.title(
                 "What has been said about this shape, and say something else"));
+        // What the rule actually bound. The fragment is a pipeline document, so from it stroom's own
+        // editor reaches the Data Splitter and the stylesheet the model wrote.
+        openButton = view.addButton(SvgPresets.EDIT.title(
+                "Open the fragment this rule binds"));
         retractButton = view.addButton(SvgPresets.DISABLE.title(
                 "Take this rule back out of the table, and ask for what it produced to be processed "
                 + "again"));
@@ -132,6 +138,7 @@ public class SupervisorServingPresenter extends MyPresenterWidget<PagerView> {
         registerHandler(selectionModel.addSelectionHandler(event -> updateButtons()));
         registerHandler(improveButton.addClickHandler(event -> improve()));
         registerHandler(hintButton.addClickHandler(event -> hint()));
+        registerHandler(openButton.addClickHandler(event -> open()));
         registerHandler(retractButton.addClickHandler(event -> retract()));
         registerHandler(filterButton.addClickHandler(event -> filter()));
     }
@@ -207,6 +214,15 @@ public class SupervisorServingPresenter extends MyPresenterWidget<PagerView> {
             // has already been said, or the same hint is given three times and a wrong one is never
             // taken back. The row's count is read again when anything changes.
             guidancePresenter.show(rule.getDoc().getUuid(), rule.getShapeId(), this::refresh);
+        }
+    }
+
+    /// Open the fragment the selected rule binds, which is how a person gets from "this is scoring
+    /// 0.71" to the stylesheet that is doing it.
+    private void open() {
+        final ServingRule rule = selected();
+        if (rule != null && rule.getFragment() != null) {
+            OpenDocumentEvent.fire(this, rule.getFragment(), true);
         }
     }
 
@@ -317,6 +333,7 @@ public class SupervisorServingPresenter extends MyPresenterWidget<PagerView> {
         improveButton.setEnabled(one);
         hintButton.setEnabled(one);
         retractButton.setEnabled(one);
+        openButton.setEnabled(one && selected().getFragment() != null);
     }
 
     private void initTableColumns() {

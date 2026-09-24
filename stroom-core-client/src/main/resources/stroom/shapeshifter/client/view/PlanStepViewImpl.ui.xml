@@ -1,0 +1,49 @@
+<!DOCTYPE ui:UiBinder SYSTEM "http://dl.google.com/gwt/DTD/xhtml.ent">
+<ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
+             xmlns:g="urn:import:com.google.gwt.user.client.ui"
+             xmlns:l="urn:import:stroom.item.client"
+             xmlns:form="urn:import:stroom.widget.form.client">
+    <g:FlowPanel styleName="max form-padding form">
+        <form:FormGroup identity="stepKind"
+                        label="Kind"
+                        helpText="What this step asks. Chain picks the elements; Split settles what one record is; Target settles what the events should look like; Configure writes one element's configuration.">
+            <l:SelectionBox ui:field="kind"/>
+        </form:FormGroup>
+        <form:FormGroup identity="stepRole"
+                        label="Role"
+                        helpText="Which elements a Configure step configures: the parser, the transform, or — left empty — every element in chain order. Only a Configure step takes one.">
+            <l:SelectionBox ui:field="role"/>
+        </form:FormGroup>
+        <form:FormGroup identity="stepWhen"
+                        label="When"
+                        helpText="The guard: the step runs only for input of this kind. 'always' runs it for every input.">
+            <l:SelectionBox ui:field="when"/>
+        </form:FormGroup>
+        <form:FormGroup identity="stepId"
+                        label="Id"
+                        helpText="The step's name for a transition to go to. A word: a letter, then letters, digits, hyphens or underscores. Leave it empty and the step goes by its kind.">
+            <g:TextBox ui:field="id" width="200px"/>
+        </form:FormGroup>
+        <form:FormGroup identity="stepCandidates"
+                        label="Candidates"
+                        helpText="How many answers to ask for at this step before it is spent. Empty for the kind's own default.">
+            <g:TextBox ui:field="candidates" width="80px"/>
+        </form:FormGroup>
+        <form:FormGroup identity="stepKinds"
+                        label="Kinds"
+                        helpText="How many kinds of record to show the model at this step. Empty for the kind's own default.">
+            <g:TextBox ui:field="kinds" width="80px"/>
+        </form:FormGroup>
+        <form:FormGroup identity="stepChecks"
+                        label="Checks"
+                        helpText="What judges this step's answers, and so which outcomes it can raise. None ticked leaves the kind's own checks.">
+            <g:FlowPanel ui:field="checks" styleName="dock-container-vertical"/>
+        </form:FormGroup>
+        <form:FormGroup identity="stepTransitions"
+                        label="Transitions"
+                        helpText="Where the step goes on an outcome. With none it re-asks itself on a shortfall until its candidates are gone, and a pass goes to the next step.">
+            <g:SimplePanel ui:field="transitions" width="520px" height="180px"
+                           styleName="dashboard-panel dock-container-vertical"/>
+        </form:FormGroup>
+    </g:FlowPanel>
+</ui:UiBinder>

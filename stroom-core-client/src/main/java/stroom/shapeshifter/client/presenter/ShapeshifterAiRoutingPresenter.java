@@ -20,6 +20,7 @@ import stroom.alert.client.event.ConfirmEvent;
 import stroom.alert.client.event.PromptEvent;
 import stroom.dispatch.client.RestFactory;
 import stroom.docref.DocRef;
+import stroom.document.client.event.OpenDocumentEvent;
 import stroom.entity.client.presenter.DocPresenter;
 import stroom.query.client.ExpressionTreePresenter;
 import stroom.shapeshifter.client.presenter.RoutingRuleListPresenter.RoutingRow;
@@ -76,6 +77,7 @@ public class ShapeshifterAiRoutingPresenter
     private final ButtonView moveDownButton;
     private final ButtonView approveButton;
     private final ButtonView rejectButton;
+    private final ButtonView openButton;
 
     @Inject
     public ShapeshifterAiRoutingPresenter(final EventBus eventBus,
@@ -106,6 +108,10 @@ public class ShapeshifterAiRoutingPresenter
         // table that holds it, beside the fragment it binds and the shape it is for.
         approveButton = listPresenter.add(SvgPresets.TICK.title("Approve the selected draft"));
         rejectButton = listPresenter.add(SvgPresets.DISABLE.title("Reject the selected draft"));
+        // What a learned rule actually bound. The fragment is a pipeline document like any other, so
+        // opening it is how a person reaches the Data Splitter and the stylesheet the model wrote —
+        // from there stroom's own editor has them.
+        openButton = listPresenter.add(SvgPresets.EDIT.title("Open the fragment this rule binds"));
         listPresenter.getView().asWidget().getElement().getStyle().setBorderStyle(BorderStyle.NONE);
         updateButtons();
     }
@@ -120,6 +126,7 @@ public class ShapeshifterAiRoutingPresenter
         registerHandler(moveDownButton.addClickHandler(event -> move(1)));
         registerHandler(approveButton.addClickHandler(this::onApprove));
         registerHandler(rejectButton.addClickHandler(this::onReject));
+        registerHandler(openButton.addClickHandler(event -> onOpenFragment()));
         registerHandler(listPresenter.getSelectionModel().addSelectionHandler(this::onSelection));
         super.onBind();
     }
@@ -268,6 +275,15 @@ public class ShapeshifterAiRoutingPresenter
 
     /// Approve a draft (A25): the promotion it was waiting for. Confirmed, because it puts a learned
     /// transform in front of live data and releases every stream that waited for it.
+    /// Open the fragment the selected rule binds. Read-only or not: looking at what is serving is not
+    /// editing the document this tab belongs to.
+    private void onOpenFragment() {
+        final RoutingRule selected = selected();
+        if (selected != null && selected.getPipeline() != null) {
+            OpenDocumentEvent.fire(this, selected.getPipeline(), true);
+        }
+    }
+
     private void onApprove(final ClickEvent event) {
         final RoutingRule draft = selectedDraft();
         if (draft != null) {
@@ -375,6 +391,8 @@ public class ShapeshifterAiRoutingPresenter
         final boolean draft = selectedDraft() != null;
         approveButton.setEnabled(draft);
         rejectButton.setEnabled(draft);
+        // A reserved rule binds nothing, so there is nothing to open.
+        openButton.setEnabled(selected && selected().getPipeline() != null);
     }
 
 

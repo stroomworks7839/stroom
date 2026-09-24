@@ -1862,6 +1862,16 @@ the order they arrived. Items marked *built* already exist in `stroom-shapeshift
    been proven by the scenarios and by a live run over a graph that escalates (the run planned for
    2026-10-01), so that the editor is built over a mechanism that has been seen to work rather than
    over a grammar that may still move. A GWT draft compile is the check of its `.ui.xml` bindings.
+   *Built 2026-09-24 at the owner's direction, a week before that sequencing: the steps as a list with
+   add, edit, copy, delete and move; a step as a form whose kind, role, guard and checks are all
+   pickers; its transitions as a list inside it, each an outcome picker and a step picker over the
+   plan's own steps; the examples loadable as before; and `LearningPlan.problems()` — the store's own
+   check — shown beside the list as it is edited, since what can be wrong with a graph is a property of
+   the whole of it and no form per step could catch it. The text grammar stays as the read-only summary
+   and as what the harness and import/export carry. The risk of building ahead of the live run is
+   bounded by the forms being driven from the closed lists: a value added or renamed flows through, and
+   only a new field on a step would mean rework. The paths drawn over the graph from A28's attempts are
+   not built.*
 25. **The learned boundary as a `SplitFilter` in the written fragment** (A35; the owner's question,
    2026-09-22). Stroom's own shape for XML and JSON is parser, then `SplitFilter`, then the transform:
    the filter cuts the parsed stream into one document per record at a depth and count, so the

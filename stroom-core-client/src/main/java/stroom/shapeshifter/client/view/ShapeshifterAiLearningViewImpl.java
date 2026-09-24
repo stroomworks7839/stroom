@@ -66,7 +66,11 @@ public class ShapeshifterAiLearningViewImpl
     @UiField
     SelectionBox<PlanExample> planExample;
     @UiField
-    TextArea planSteps;
+    SimplePanel planSteps;
+    /// The same plan in the grammar the harness and import/export carry, shown and not edited: a person
+    /// reading the whole of it at once, or pasting it somewhere, wants the text.
+    @UiField
+    TextArea planText;
     @UiField
     SelectionBox<Template> template;
     @UiField
@@ -174,14 +178,16 @@ public class ShapeshifterAiLearningViewImpl
     }
 
     @Override
-    public String getPlanSteps() {
-        return planSteps.getValue();
+    public void setPlanStepsView(final View view) {
+        planSteps.setWidget(view.asWidget());
     }
 
     @Override
-    public void setPlanSteps(final String steps) {
-        planSteps.setValue(steps);
+    public void setPlanText(final String text) {
+        planText.setValue(text);
     }
+
+
 
     @Override
     public Map<Template, String> getTemplateOverrides() {
@@ -318,7 +324,6 @@ public class ShapeshifterAiLearningViewImpl
         allowedElements.setEnabled(enabled);
         instructions.setEnabled(enabled);
         planExample.setEnabled(enabled);
-        planSteps.setEnabled(enabled);
         template.setEnabled(enabled);
         templateText.setReadOnly(readOnly);
         resetTemplate.setEnabled(enabled && overrides.containsKey(template.getValue()));
@@ -380,18 +385,11 @@ public class ShapeshifterAiLearningViewImpl
         if (example == null) {
             return;
         }
-        final List<String> lines = new ArrayList<>();
-        for (final PlanStep step : example.steps()) {
-            lines.add(step.format());
-        }
-        planSteps.setValue(String.join("\n", lines));
         planExample.setValue(null);
-        fireChange();
-    }
-
-    @UiHandler("planSteps")
-    public void onPlanSteps(final ValueChangeEvent<String> event) {
-        fireChange();
+        // The list is what holds the plan now, so the example is handed to whoever owns it.
+        if (getUiHandlers() != null) {
+            getUiHandlers().onPlanExample(example.steps());
+        }
     }
 
     @UiHandler("template")
