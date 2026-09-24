@@ -77,7 +77,7 @@
   },
   {
    "id": "f1579b76-cb4f-3a90-ba6d-1e794b045dee",
-   "name": "unnamed",
+   "name": "log_fields",
    "mode": "auto_0",
    "match": {
     "regex": {
@@ -251,7 +251,7 @@
   },
   {
    "id": "add425a4-7dd5-34a2-9dd6-ad0d376192db",
-   "name": "unnamed",
+   "name": "log_entry",
    "mode": "root",
    "match": {
     "regex": {

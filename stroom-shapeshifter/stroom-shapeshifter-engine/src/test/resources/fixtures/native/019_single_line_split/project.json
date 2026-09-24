@@ -83,7 +83,7 @@
   },
   {
    "id": "692d518c-364e-3cc0-85c2-309df379ef1e",
-   "name": "unnamed",
+   "name": "heading_fields",
    "mode": "auto_0",
    "match": {
     "delimiter": {
@@ -108,7 +108,7 @@
   },
   {
    "id": "c54d6396-9d2d-3b19-9363-0e2d3423f26b",
-   "name": "unnamed",
+   "name": "heading_line",
    "mode": "root",
    "match": {
     "delimiter": {
@@ -147,7 +147,7 @@
   },
   {
    "id": "732d85ac-6f5c-3168-a336-8347ea8f7e3a",
-   "name": "unnamed",
+   "name": "data_fields",
    "mode": "auto_1",
    "match": {
     "delimiter": {
@@ -225,7 +225,7 @@
   },
   {
    "id": "1ed68926-e504-37f2-9d34-3b520e5319fc",
-   "name": "unnamed",
+   "name": "data_line",
    "mode": "root",
    "match": {
     "delimiter": {

@@ -77,7 +77,7 @@
   },
   {
    "id": "f517a399-0cf4-392d-a184-fc92f66a8e55",
-   "name": "unnamed",
+   "name": "audit_stamp",
    "mode": "auto_2",
    "match": {
     "regex": {
@@ -200,7 +200,7 @@
   },
   {
    "id": "6673c57d-c39f-39bd-81b8-bb9f08ee2888",
-   "name": "unnamed",
+   "name": "exec_args",
    "mode": "auto_3",
    "match": {
     "regex": {
@@ -374,7 +374,7 @@
   },
   {
    "id": "e23d0cbe-aa01-3491-a6c1-92eb47b2c31c",
-   "name": "unnamed",
+   "name": "key_values",
    "mode": "auto_3",
    "match": {
     "regex": {
@@ -448,7 +448,7 @@
   },
   {
    "id": "35767ad9-493f-3ac2-923e-7706524c0da0",
-   "name": "unnamed",
+   "name": "audit_line",
    "mode": "auto_1",
    "match": {
     "regex": {
@@ -653,7 +653,7 @@
   },
   {
    "id": "60dbf29f-f679-3a51-9910-dad28b431030",
-   "name": "unnamed",
+   "name": "separator",
    "mode": "auto_1",
    "match": {
     "regex": {
@@ -673,7 +673,7 @@
   },
   {
    "id": "692d518c-364e-3cc0-85c2-309df379ef1e",
-   "name": "unnamed",
+   "name": "lines",
    "mode": "auto_0",
    "match": {
     "delimiter": {
@@ -704,7 +704,7 @@
   },
   {
    "id": "c54d6396-9d2d-3b19-9363-0e2d3423f26b",
-   "name": "unnamed",
+   "name": "records",
    "mode": "root",
    "match": {
     "delimiter": {

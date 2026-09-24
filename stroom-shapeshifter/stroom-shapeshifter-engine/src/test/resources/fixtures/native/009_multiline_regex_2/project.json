@@ -77,7 +77,7 @@
   },
   {
    "id": "02edd755-4e30-387c-8d6a-a9c91d61dadd",
-   "name": "unnamed",
+   "name": "query_header",
    "mode": "auto_0",
    "match": {
     "regex": {
@@ -253,7 +253,7 @@
   },
   {
    "id": "dfedb74a-2832-3519-bab3-50c34d993dd3",
-   "name": "unnamed",
+   "name": "query_fields",
    "mode": "auto_0",
    "match": {
     "regex": {
@@ -327,7 +327,7 @@
   },
   {
    "id": "d278fb7f-4768-3236-b553-79d5fa7889bb",
-   "name": "unnamed",
+   "name": "results_header",
    "mode": "auto_1",
    "match": {
     "regex": {
@@ -450,7 +450,7 @@
   },
   {
    "id": "0fb6ed65-c774-30a1-8491-53654f2ab0e9",
-   "name": "unnamed",
+   "name": "results_fields",
    "mode": "auto_1",
    "match": {
     "regex": {
@@ -524,7 +524,7 @@
   },
   {
    "id": "add425a4-7dd5-34a2-9dd6-ad0d376192db",
-   "name": "unnamed",
+   "name": "query_results",
    "mode": "root",
    "match": {
     "regex": {
