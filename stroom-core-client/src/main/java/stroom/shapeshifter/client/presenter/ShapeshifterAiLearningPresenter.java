@@ -29,7 +29,6 @@ import stroom.shapeshifter.client.presenter.ShapeshifterAiLearningPresenter.Shap
 import stroom.shapeshifter.shared.LearningPlan;
 import stroom.shapeshifter.shared.PlanExample;
 import stroom.shapeshifter.shared.PlanStep;
-import stroom.shapeshifter.shared.SampleRedaction;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 import stroom.shapeshifter.shared.ShapeshifterAiResource;
 import stroom.shapeshifter.shared.Template;
@@ -191,7 +190,6 @@ public class ShapeshifterAiLearningPresenter
         view.setMaxAttempts(doc.getMaxAttempts());
         view.setAttemptBudgetMs(doc.getAttemptBudgetMs());
         view.setTokenBudget(doc.getTokenBudget());
-        view.setSampleRedaction(doc.getSampleRedaction());
         view.setSampleSizeLimit(doc.getSampleSizeLimit());
     }
 
@@ -209,7 +207,6 @@ public class ShapeshifterAiLearningPresenter
                 .maxAttempts(view.getMaxAttempts())
                 .attemptBudgetMs(view.getAttemptBudgetMs())
                 .tokenBudget(view.getTokenBudget())
-                .sampleRedaction(view.getSampleRedaction())
                 .sampleSizeLimit(view.getSampleSizeLimit())
                 .build();
     }
@@ -309,10 +306,6 @@ public class ShapeshifterAiLearningPresenter
         Long getTokenBudget();
 
         void setTokenBudget(Long tokenBudget);
-
-        SampleRedaction getSampleRedaction();
-
-        void setSampleRedaction(SampleRedaction sampleRedaction);
 
         /**
          * The list the plan is edited in, in place of the text box it was typed in (§12 item 24).

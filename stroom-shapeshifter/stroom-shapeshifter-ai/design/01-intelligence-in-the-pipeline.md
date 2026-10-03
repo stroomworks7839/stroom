@@ -223,7 +223,7 @@ context, exactly as reference data loading already does.
 
 **The Shapeshifter AI document** is the new Stroom document type (ruled A3). One document describes one stage:
 its learning key, its variants and how to select among them, its scorers with their weights and
-thresholds, its AI instructions, its candidate limit and budgets, its redaction setting, its
+thresholds, its AI instructions, its candidate limit and budgets, its sample size limit, its
 execution mode and its promotion mode. These are ordinary content: permissioned, importable, exportable. Because a document is
 referenced by a pipeline element property, the same document can be shared by many pipelines, which is
 what the source design wanted its scoring-profile library for. The document holds configuration
@@ -285,7 +285,7 @@ has the same treatment on a Scoring tab: one row per scorer with its weight, thr
 parameters (§8.4), each scorer at most once. The rest of the document is split by what it governs:
 Settings (execution mode; learning mode, `AUTOMATIC` or `DISABLED`, the latter being the AI-off
 degradation §11 requires), Learning (model, learning key, relearn threshold, allowed elements,
-instructions, the learning plan's steps and templates (§10.2), candidate limit, budgets, redaction, sample
+instructions, the learning plan's steps and templates (§10.2), candidate limit, budgets, sample
 size limit) and Promotion (promotion mode (A25), floor,
 held-out fraction, minimum records, regression-stream cap and retention) — five tabs, plus
 Documentation and Permissions, each a plain form. Replay unit is not a setting: it is a property of
@@ -930,7 +930,8 @@ the conversation as first ruled (A21) — the *direct* example of §10.2, and wh
 say; §10.1 adds the split and target questions of the *target-first* example, and §10.2 makes the
 steps, their order and their words the document's own:
 
-1. **Chain.** Given the redacted sample (A17), the values of the learning key (A29 — where the key
+1. **Chain.** Given the sample (which A17 redacts once A38 is built, and which travels as it arrived
+   until then), the values of the learning key (A29 — where the key
    includes a `Format` or `Schema` header it answers half of this question before the sample is
    read) and the document's allowed elements,
    which chain of elements fits? The answer is drawn from a vocabulary of element type names and
@@ -1270,6 +1271,14 @@ preservation and fidelity redact the real output before holding it to them. It i
 dimension beside the plan. The owner deferred building it: it is a second variable on an unproven
 capability and would make the transforms harder to read; the live runs send fixture data only. It must be
 built before a real feed is pointed at a model outside the deployment (design 03, phase G).*
+
+**The setting was withdrawn, 2026-10-03** (the owner's). A17's override lived on the document as
+`sampleRedaction`, defaulting to `REDACTED`, while nothing redacted anything: every document asserted a
+safety property the build did not deliver, which on this feature is the property its conditions of
+deployment turn on (§15.1). The field and its control are gone until A38 is built, when they return —
+documents that carried it read as before, since an unknown property is ignored, and the words of A17 and
+A38 above are the specification to build from. What remains built of A17 is the size cap, which is a
+document setting still.
 
 A17 governs what reaches the *model*. The regression stream of A18 is a separate exposure: it is a
 persistent copy of real, unredacted log samples living outside the source stream's lifecycle, because
@@ -2009,7 +2018,7 @@ prototype (§15) — gives in its §7 the order the rest of the MVP is built in 
 | A14 | Promotion measured on a held-out sample the model never saw | **Ruled** |
 | A15 | Absolute floor **and** no regression against the incumbent | **Ruled** |
 | A16 | Anti-degeneracy scorer; schema conformance is a gate, not a maximand | **Proposed, §8.3** — arises from the schema review and is owed a ruling |
-| A17 | Redacted samples by default, raw by override — per feed as first ruled, per document since opt-in became per document (§11) | **Ruled**; **build deferred to §15.1** as a condition of deployment; scope restated 2026-09-17 |
+| A17 | Redacted samples by default, raw by override — per feed as first ruled, per document since opt-in became per document (§11) | **Ruled**; **build deferred to §15.1** as a condition of deployment; scope restated 2026-09-17; the document setting withdrawn 2026-10-03 until the build, the size cap kept |
 | A18 | **The set is built; the stream is deferred — §15.1.** Per-rule regression stream; promotion must not regress on any previously-accepted record; retention a document setting capped by the feed's | **Ruled** 2026-09-14; retention settled 2026-09-17 |
 | A19 | Generated extraction configurations may not set `ignoreErrors`; rejected at the compile gate | **Proposed, §9.1** — arises from the degeneracy probe and is owed a ruling |
 | A20 | A variant is a pipeline fragment — a Pipeline document with no destination — not a list of element/document pairs | **Ruled, 2026-09-22** — the owner's, as built since slice 3: the fragment writer, runner and content creator, the rule's `pipeline` |
@@ -2628,7 +2637,7 @@ and each of these must exist before the feature meets real data or a real enviro
 
 | Owed | Ruling | Built already | Why it is safe to defer now, and what makes it due |
 |---|---|---|---|
-| **Redaction** | A17, A38 (§11.1) | Nothing — the rulings say how it works and no part of it is written | Samples reach the model unredacted. Safe while the only samples are fixtures in this repository. **Due before any real feed is pointed at any model** |
+| **Redaction** | A17, A38 (§11.1) | Nothing — the rulings say how it works and no part of it is written, and since 2026-10-03 the document carries no setting for it either | Samples reach the model unredacted. Safe while the only samples are fixtures in this repository. **Due before any real feed is pointed at any model** |
 | **The restricted XSLT function library** | §12 item 10 (§11.1) | The *learning-time* confinement in `XsltStep`: no `document()`, no `unparsed-text()`, no includes, no external entities, no extension functions, and no recovery from a refused fetch. A candidate cannot read the filesystem while it is being judged | What is missing is the *runtime* restriction, in `XsltPoolImpl` where `StroomXsltFunctionLibrary` is registered: a **promoted** stylesheet runs with the full `stroom:` library and can reach the network — `http-call`, `fetch-json`, `ask-ai`. Safe in a sandbox on fixture data with a person reading every promotion. **Due before the feature runs anywhere that matters** |
 | **The regression stream's retention and classification** | A18 (§11.1, §12 item 9) | The `RegressionSet` seam, its in-memory implementation and the gate that scores a candidate against every accepted record | What is missing is the stream itself — the set is in memory, so it has no retention to cap and no classification to inherit. It becomes real data the moment the records are real. **Due with redaction** |
 

@@ -19,7 +19,6 @@ package stroom.shapeshifter.ai.pack;
 import stroom.shapeshifter.shared.ExtractionQualityParameters;
 import stroom.shapeshifter.shared.LearningMode;
 import stroom.shapeshifter.shared.PlanExample;
-import stroom.shapeshifter.shared.SampleRedaction;
 import stroom.shapeshifter.shared.SchemaConformanceParameters;
 import stroom.shapeshifter.shared.ScorerSetting;
 import stroom.shapeshifter.shared.ScorerType;
@@ -106,9 +105,6 @@ public final class DemoDocument {
                 .plan(PlanExample.ESCALATING)
                 .allowedElements(ALLOWED_ELEMENTS)
                 .instructions(INSTRUCTIONS)
-                // The samples are what the model has to work from, and a demo learning an unknown
-                // format cannot afford them reduced to token classes (A17).
-                .sampleRedaction(SampleRedaction.RAW)
                 .minRecordsPerShape(5)
                 .promotionFloor(0.85)
                 .scorers(scorers());

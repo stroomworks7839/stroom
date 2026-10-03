@@ -2967,7 +2967,7 @@ somewhere.
 the question text of every template is already selectable, editable and resettable to the built-in
 (A33); the scorers already have their type, weight, threshold, gate and per-type parameters; the model
 reference is already a document picker on the Learning tab (A13); and the learning key, instructions,
-allowed elements, attempt and token budgets, redaction and sample limit are all there. What was missing
+allowed elements, attempt and token budgets and the sample limit are all there. What was missing
 was one thing: **a learned fragment could not be opened.** The Routing tab and the serving list now open
 it, and from a pipeline document stroom's own editor reaches the Data Splitter and the stylesheet the
 model wrote — which is the only place those are worth reading, since nothing here should reimplement a
@@ -3253,6 +3253,26 @@ sample files and the pipeline's two assets came out of a `Map.of`, whose iterati
 every JVM. A pack that changed in three ways every time it was written would have made its own diffs
 unreadable.
 
+
+**Redaction's setting was withdrawn** (the owner's, 2026-10-03), which is a removal worth recording
+because of what it says about the rest. `sampleRedaction` was on the document and on the Learning tab
+from the first slice, defaulting to `REDACTED`; A38 ruled how redaction works and the owner deferred
+building it. Nothing in the stage ever read the setting — the mentions in `Stage`, `Inputs`, `Sample`,
+`Question` and `ModelAdvisor` are comments explaining what is *not* done while A38 is unbuilt — so every
+document asserted that samples were reduced to token classes while they were sent to the model as they
+arrived. On a feature whose conditions of deployment (01 §15.1) turn on that very property, a control
+that states it and does not deliver it is worse than no control.
+
+Removing it touched ten files and about seventy-five lines, more than half of them one enum: the field
+and its eleven mentions on `ShapeshifterAiDoc`, the picker and its plumbing on the Learning tab, two
+assertions, and the demo document's override. No migration — there is no column, the setting lives in
+the document's JSON, and the shared mapper does not fail on unknown properties, so documents and
+exported packs that carry it still read and simply lose the key when next saved. The content pack was
+regenerated, which `TestDemoContentPack` insists on.
+
+A17 and A38 stay in §13 word for word, since a ruling records a decision and not a build, with a note
+saying the setting is gone until the build happens. What remains built of A17 is its size cap, which is
+still a document setting.
 
 ## 7. Decisions taken
 

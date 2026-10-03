@@ -72,7 +72,6 @@ import java.util.Objects;
         "maxAttempts",
         "attemptBudgetMs",
         "tokenBudget",
-        "sampleRedaction",
         "sampleSizeLimit",
         "promotionMode",
         "promotionFloor",
@@ -117,7 +116,6 @@ public class ShapeshifterAiDoc extends AbstractDoc {
      */
     static final LearningPlan DEFAULT_PLAN = LearningPlan.of(PlanExample.DIRECT);
     static final long DEFAULT_ATTEMPT_BUDGET_MS = 60_000L;
-    static final SampleRedaction DEFAULT_SAMPLE_REDACTION = SampleRedaction.REDACTED;
     static final int DEFAULT_SAMPLE_SIZE_LIMIT = 8_192;
     static final double DEFAULT_PROMOTION_FLOOR = 0.9;
     static final double DEFAULT_HELD_OUT_FRACTION = 0.2;
@@ -194,12 +192,9 @@ public class ShapeshifterAiDoc extends AbstractDoc {
     @JsonProperty
     private final Long tokenBudget;
     /**
-     * Whether samples sent to the model are reduced to token classes or sent raw. Ruling A17.
-     */
-    @JsonProperty
-    private final SampleRedaction sampleRedaction;
-    /**
-     * Largest sample, in bytes, sent to the model. Ruling A17's size cap.
+     * Largest sample, in bytes, sent to the model: ruling A17's size cap, which is the half of A17 that
+     * is built. Redacting the values themselves waits on A38 and has no setting here until it does
+     * (design 01 §15.1).
      */
     @JsonProperty
     private final int sampleSizeLimit;
@@ -264,7 +259,6 @@ public class ShapeshifterAiDoc extends AbstractDoc {
             @JsonProperty("maxAttempts") final Integer maxAttempts,
             @JsonProperty("attemptBudgetMs") final Long attemptBudgetMs,
             @JsonProperty("tokenBudget") final Long tokenBudget,
-            @JsonProperty("sampleRedaction") final SampleRedaction sampleRedaction,
             @JsonProperty("sampleSizeLimit") final Integer sampleSizeLimit,
             @JsonProperty("promotionMode") final PromotionMode promotionMode,
             @JsonProperty("promotionFloor") final Double promotionFloor,
@@ -291,7 +285,6 @@ public class ShapeshifterAiDoc extends AbstractDoc {
         this.maxAttempts = Objects.requireNonNullElse(maxAttempts, DEFAULT_MAX_ATTEMPTS);
         this.attemptBudgetMs = Objects.requireNonNullElse(attemptBudgetMs, DEFAULT_ATTEMPT_BUDGET_MS);
         this.tokenBudget = tokenBudget;
-        this.sampleRedaction = Objects.requireNonNullElse(sampleRedaction, DEFAULT_SAMPLE_REDACTION);
         this.sampleSizeLimit = Objects.requireNonNullElse(sampleSizeLimit, DEFAULT_SAMPLE_SIZE_LIMIT);
         this.promotionMode = Objects.requireNonNullElse(promotionMode, DEFAULT_PROMOTION_MODE);
         this.promotionFloor = Objects.requireNonNullElse(promotionFloor, DEFAULT_PROMOTION_FLOOR);
@@ -371,10 +364,6 @@ public class ShapeshifterAiDoc extends AbstractDoc {
         return tokenBudget;
     }
 
-    public SampleRedaction getSampleRedaction() {
-        return sampleRedaction;
-    }
-
     public int getSampleSizeLimit() {
         return sampleSizeLimit;
     }
@@ -438,7 +427,6 @@ public class ShapeshifterAiDoc extends AbstractDoc {
                Objects.equals(allowedElements, that.allowedElements) &&
                Objects.equals(instructions, that.instructions) &&
                Objects.equals(tokenBudget, that.tokenBudget) &&
-               sampleRedaction == that.sampleRedaction &&
                Objects.equals(regressionRetentionDays, that.regressionRetentionDays) &&
                Objects.equals(scorers, that.scorers);
     }
@@ -459,7 +447,6 @@ public class ShapeshifterAiDoc extends AbstractDoc {
                 maxAttempts,
                 attemptBudgetMs,
                 tokenBudget,
-                sampleRedaction,
                 sampleSizeLimit,
                 promotionMode,
                 promotionFloor,
@@ -485,7 +472,6 @@ public class ShapeshifterAiDoc extends AbstractDoc {
                ", maxAttempts=" + maxAttempts +
                ", attemptBudgetMs=" + attemptBudgetMs +
                ", tokenBudget=" + tokenBudget +
-               ", sampleRedaction=" + sampleRedaction +
                ", sampleSizeLimit=" + sampleSizeLimit +
                ", promotionMode=" + promotionMode +
                ", promotionFloor=" + promotionFloor +
@@ -524,7 +510,6 @@ public class ShapeshifterAiDoc extends AbstractDoc {
         private int maxAttempts = DEFAULT_MAX_ATTEMPTS;
         private long attemptBudgetMs = DEFAULT_ATTEMPT_BUDGET_MS;
         private Long tokenBudget;
-        private SampleRedaction sampleRedaction = DEFAULT_SAMPLE_REDACTION;
         private int sampleSizeLimit = DEFAULT_SAMPLE_SIZE_LIMIT;
         private PromotionMode promotionMode = DEFAULT_PROMOTION_MODE;
         private double promotionFloor = DEFAULT_PROMOTION_FLOOR;
@@ -552,7 +537,6 @@ public class ShapeshifterAiDoc extends AbstractDoc {
             this.maxAttempts = doc.maxAttempts;
             this.attemptBudgetMs = doc.attemptBudgetMs;
             this.tokenBudget = doc.tokenBudget;
-            this.sampleRedaction = doc.sampleRedaction;
             this.sampleSizeLimit = doc.sampleSizeLimit;
             this.promotionMode = doc.promotionMode;
             this.promotionFloor = doc.promotionFloor;
@@ -636,11 +620,6 @@ public class ShapeshifterAiDoc extends AbstractDoc {
             return self();
         }
 
-        public Builder sampleRedaction(final SampleRedaction sampleRedaction) {
-            this.sampleRedaction = sampleRedaction;
-            return self();
-        }
-
         public Builder sampleSizeLimit(final int sampleSizeLimit) {
             this.sampleSizeLimit = sampleSizeLimit;
             return self();
@@ -708,7 +687,6 @@ public class ShapeshifterAiDoc extends AbstractDoc {
                     maxAttempts,
                     attemptBudgetMs,
                     tokenBudget,
-                    sampleRedaction,
                     sampleSizeLimit,
                     promotionMode,
                     promotionFloor,

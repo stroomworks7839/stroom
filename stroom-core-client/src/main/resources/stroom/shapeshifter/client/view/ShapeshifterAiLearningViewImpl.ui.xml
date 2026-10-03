@@ -68,11 +68,6 @@
                         helpText="Token budget for a whole attempt. Zero means unlimited.">
             <v:ValueSpinner ui:field="tokenBudget" width="120px"/>
         </form:FormGroup>
-        <form:FormGroup identity="shapeshifterAiSampleRedaction"
-                        label="Sample redaction"
-                        helpText="Whether the samples and headers sent to the model are reduced to token classes or sent as they are.">
-            <l:SelectionBox ui:field="sampleRedaction"/>
-        </form:FormGroup>
         <form:FormGroup identity="shapeshifterAiSampleSizeLimit"
                         label="Sample size limit (bytes)"
                         helpText="The largest sample sent to the model.">

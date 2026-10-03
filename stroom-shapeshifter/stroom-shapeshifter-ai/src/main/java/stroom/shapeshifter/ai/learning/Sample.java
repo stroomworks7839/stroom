@@ -29,7 +29,8 @@ import java.util.Map;
  * what the learned rule requires cannot drift apart, and the attribute map's sender-set entries —
  * hostnames, paths, tokens — never travel unless an operator put that header in the key. Both text and
  * values are subject to the redaction of A17 before they reach a model; that redaction is not yet built,
- * so today they travel as they arrive.
+ * so today they travel as they arrive — and the document says nothing about it, since a setting that
+ * promised redaction while none happened was worse than no setting (design 02 §6.1).
  *
  * @param text    The input sample, as the first element of the chain will receive it.
  * @param headers The learning key's values present on the stream, in key order.

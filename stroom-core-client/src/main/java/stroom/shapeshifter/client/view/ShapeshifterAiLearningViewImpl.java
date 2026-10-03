@@ -21,7 +21,6 @@ import stroom.item.client.SelectionBox;
 import stroom.shapeshifter.client.presenter.ShapeshifterAiLearningPresenter.ShapeshifterAiLearningView;
 import stroom.shapeshifter.client.presenter.ShapeshifterAiSettingsUiHandlers;
 import stroom.shapeshifter.shared.PlanStep;
-import stroom.shapeshifter.shared.SampleRedaction;
 import stroom.shapeshifter.shared.Template;
 import stroom.widget.button.client.Button;
 import stroom.widget.valuespinner.client.ValueSpinner;
@@ -97,8 +96,6 @@ public class ShapeshifterAiLearningViewImpl
     @UiField
     ValueSpinner tokenBudget;
     @UiField
-    SelectionBox<SampleRedaction> sampleRedaction;
-    @UiField
     ValueSpinner sampleSizeLimit;
 
     @Inject
@@ -107,7 +104,6 @@ public class ShapeshifterAiLearningViewImpl
         template.addItems(Template.values());
         template.setValue(Template.CHAIN);
         showTemplate();
-        sampleRedaction.addItems(SampleRedaction.values());
         bound(relearnThreshold, 0, PERCENT);
         bound(maxAttempts, 1, Integer.MAX_VALUE);
         bound(attemptBudgetMs, 1, Long.MAX_VALUE);
@@ -283,16 +279,6 @@ public class ShapeshifterAiLearningViewImpl
     }
 
     @Override
-    public SampleRedaction getSampleRedaction() {
-        return sampleRedaction.getValue();
-    }
-
-    @Override
-    public void setSampleRedaction(final SampleRedaction sampleRedaction) {
-        this.sampleRedaction.setValue(sampleRedaction);
-    }
-
-    @Override
     public int getSampleSizeLimit() {
         return sampleSizeLimit.getIntValue();
     }
@@ -329,7 +315,6 @@ public class ShapeshifterAiLearningViewImpl
         maxAttempts.setEnabled(enabled);
         attemptBudgetMs.setEnabled(enabled);
         tokenBudget.setEnabled(enabled);
-        sampleRedaction.setEnabled(enabled);
         sampleSizeLimit.setEnabled(enabled);
     }
 
@@ -366,11 +351,6 @@ public class ShapeshifterAiLearningViewImpl
 
     @UiHandler("tokenBudget")
     public void onTokenBudget(final ValueChangeEvent<Long> event) {
-        fireChange();
-    }
-
-    @UiHandler("sampleRedaction")
-    public void onSampleRedaction(final ValueChangeEvent<SampleRedaction> event) {
         fireChange();
     }
 

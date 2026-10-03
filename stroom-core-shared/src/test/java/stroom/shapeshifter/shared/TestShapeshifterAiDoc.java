@@ -193,7 +193,7 @@ class TestShapeshifterAiDoc {
         final ShapeshifterAiDoc doc = new ShapeshifterAiDoc(
                 "uuid", "name", "1", null, null, null, null,
                 null, null, null, null, null, null, null, null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null);
+                null, null, null, null, null, null);
 
         assertThat(doc.getExecutionMode()).isEqualTo(ExecutionMode.DEFERRED);
         assertThat(doc.getLearningMode()).isEqualTo(LearningMode.DISABLED);
@@ -209,7 +209,6 @@ class TestShapeshifterAiDoc {
         assertThat(doc.getMaxAttempts()).describedAs("five since the first live run, design 02 §6.2").isEqualTo(5);
         assertThat(doc.getAttemptBudgetMs()).isEqualTo(60_000L);
         assertThat(doc.getTokenBudget()).isNull();
-        assertThat(doc.getSampleRedaction()).isEqualTo(SampleRedaction.REDACTED);
         assertThat(doc.getSampleSizeLimit()).isEqualTo(8_192);
         assertThat(doc.getPromotionMode()).describedAs("A9").isEqualTo(PromotionMode.AUTOMATIC);
         assertThat(doc.getPromotionFloor()).isEqualTo(0.9);
@@ -228,7 +227,7 @@ class TestShapeshifterAiDoc {
         final ShapeshifterAiDoc created = new ShapeshifterAiDoc(
                 "uuid", "name", null, null, null, null, null,
                 null, null, null, null, null, null, null, null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null);
+                null, null, null, null, null, null);
 
         assertThat(built).isEqualTo(created);
     }
@@ -336,7 +335,6 @@ class TestShapeshifterAiDoc {
                 .maxAttempts(5)
                 .attemptBudgetMs(120_000L)
                 .tokenBudget(4_096L)
-                .sampleRedaction(SampleRedaction.RAW)
                 .sampleSizeLimit(1_024)
                 .promotionMode(PromotionMode.REVIEW)
                 .promotionFloor(0.95)

@@ -27,7 +27,6 @@ import stroom.shapeshifter.shared.PlanStep;
 import stroom.shapeshifter.shared.PromotionMode;
 import stroom.shapeshifter.shared.QuestionKind;
 import stroom.shapeshifter.shared.RoutingRule;
-import stroom.shapeshifter.shared.SampleRedaction;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 import stroom.shapeshifter.shared.Template;
 
@@ -59,7 +58,6 @@ class TestShapeshifterAiStoreImpl {
         assertThat(doc.getLearningMode())
                 .describedAs("Shapeshifter AI is opt-in per document (§11), so a new document must not call the model")
                 .isEqualTo(LearningMode.DISABLED);
-        assertThat(doc.getSampleRedaction()).isEqualTo(SampleRedaction.REDACTED);
         assertThat(doc.getModel()).isNull();
         assertThat(doc.getScorers()).isEmpty();
     }
