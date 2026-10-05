@@ -38,13 +38,21 @@ import stroom.processor.api.DeferTaskException;
 import stroom.shapeshifter.ai.doc.ShapeshifterAiStore;
 import stroom.shapeshifter.ai.fragment.FragmentRunner.FragmentRecord;
 import stroom.shapeshifter.ai.fragment.ReplayUnits;
+import stroom.shapeshifter.ai.fragment.ServedStream;
 import stroom.shapeshifter.ai.stage.Bindings;
+import stroom.shapeshifter.ai.stage.Decision;
+import stroom.shapeshifter.ai.stage.Decision.Bound;
 import stroom.shapeshifter.ai.stage.Decision.Deferred;
+import stroom.shapeshifter.ai.stage.Decision.Promoted;
+import stroom.shapeshifter.ai.stage.Decision.Provisional;
+import stroom.shapeshifter.ai.stage.Decision.Rebound;
 import stroom.shapeshifter.ai.stage.Input;
+import stroom.shapeshifter.ai.stage.ShapeSignature;
 import stroom.shapeshifter.ai.stage.Stage;
 import stroom.shapeshifter.ai.stage.Stage.Served;
 import stroom.shapeshifter.ai.stage.StageRun;
 import stroom.shapeshifter.shared.ReplayUnit;
+import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 import stroom.shapeshifter.shared.ShapeshifterAiStepDetails;
 import stroom.util.pipeline.scope.PipelineScoped;
@@ -54,8 +62,18 @@ import stroom.util.shared.Severity;
 
 import jakarta.inject.Inject;
 import org.xml.sax.ContentHandler;
+import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.io.SequenceInputStream;
+import java.io.UncheckedIOException;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -211,27 +229,48 @@ public class Supervision {
                           final boolean asProcessed,
                           final String data,
                           final ContentHandler downstream) throws SAXException {
-        final Input input = input(data);
+        supervise(doc, elementId, asProcessed, input(data), downstream);
+    }
+
+    /// The same, for a stage fed by the source that is given the stream itself (design 04 §3, *streams of
+    /// any size*). A step and a reprocess read the whole stream as text, as they always have: a step is
+    /// bounded by the person stepping and a reprocess asks what was done. A task reads the stream's
+    /// prefix — the shape's signature and the sample the model is shown need no more — and the rest is
+    /// read by the fragment as it serves the stream.
+    ///
+    /// @param source The stream.
+    public void supervise(final ShapeshifterAiDoc doc,
+                          final ElementId elementId,
+                          final boolean asProcessed,
+                          final InputSource source,
+                          final ContentHandler downstream) throws SAXException {
+        final Input input = pipelineContext.isStepping() || asProcessed
+                ? input(read(source))
+                : streamed(source);
+        supervise(doc, elementId, asProcessed, input, downstream);
+    }
+
+    private void supervise(final ShapeshifterAiDoc doc,
+                           final ElementId elementId,
+                           final boolean asProcessed,
+                           final Input input,
+                           final ContentHandler downstream) throws SAXException {
         final boolean stepping = pipelineContext.isStepping();
-        // A task takes the decision of design 04 §3 — emit, defer or error — and never learns; a
-        // reprocess asks what was done; a step asks what would be. The one exception is a stage fed by
-        // a parser (design 01 §12 item 4): its stream is the records the parser above it made, which the
-        // worker cannot read back from the store, so it still learns where it stands until the attempt
-        // carries its own sample — recorded in design 04 §7 against phase 4.
+        // A task takes the decision of design 04 §3 — emit, defer or error — and never learns, and serves
+        // a bound stream as it is read; a reprocess asks what was done; a step asks what would be. The
+        // one exception is a stage fed by a parser (design 01 §12 item 4): its stream is the records the
+        // parser above it made, which the worker cannot read back from the store, so it still learns
+        // where it stands until the attempt carries its own sample — recorded in design 04 §7 against
+        // phase 4.
+        if (!stepping && !asProcessed && !fedByParser(elementId).orElse(false)) {
+            decideAndStream(doc, elementId, input, downstream);
+            return;
+        }
         final StageRun run = stepping
                 ? stage.dryRun(doc, input, asProcessed)
                 : asProcessed
                         ? stage.reprocess(doc, input)
-                        : fedByParser(elementId).orElse(false)
-                                ? stage.run(doc, input)
-                                : stage.decide(doc, input);
-        if (run.decision() instanceof final Deferred deferred) {
-            // The stream waits (design 04 §5.1): the exception travels out of the pipeline as a deferral
-            // and not as a failure, so nothing is logged to the error receiver, no output is kept, and
-            // the task ends deferred. Nothing downstream of this element goes on working on a stream
-            // that will not be emitted.
-            throw new DeferTaskException(deferred.reason());
-        }
+                        : stage.run(doc, input);
         // What the stage pane shows for this element, kept for the capture to ask (A30). Per element,
         // because a pipeline may hold two supervised stages and each has its own decision to explain.
         stepDetails.put(elementId.getId(), StepDetails.of(run, stepping));
@@ -318,6 +357,99 @@ public class Supervision {
             return;
         }
         served.events().fire(downstream);
+    }
+
+    /// The task's path (design 04 §3): the decision on the stream's prefix, and where a rule binds the
+    /// stream, the stream served as it is read — the fragment running over the whole of it once and each
+    /// record of its output judged as it is written. A deferral is thrown out of the pipeline as a
+    /// deferral and not a failure, so nothing is logged to the error receiver, the task ends deferred, and
+    /// what the downstream wrote before the stop is the task's to discard.
+    private void decideAndStream(final ShapeshifterAiDoc doc,
+                                 final ElementId elementId,
+                                 final Input input,
+                                 final ContentHandler downstream) {
+        final StageRun run = stage.decide(doc, input);
+        if (run.decision() instanceof final Deferred deferred) {
+            throw new DeferTaskException(deferred.reason());
+        }
+        stepDetails.put(elementId.getId(), StepDetails.of(run, false));
+        fragmentRecords.put(elementId.getId(), List.of());
+        stage.takeFragment();
+        final Bindings bindings = run.bindings();
+        errorReceiverProxy.log(bindings == null
+                        ? Severity.ERROR
+                        : Severity.INFO, null, elementId,
+                "Shape " + run.shape().id() + ": " + StepDetails.describe(run.decision()), null);
+        if (bindings == null) {
+            return;
+        }
+        record(bindings, elementId);
+        final RoutingRule rule = ruleOf(run.decision());
+        final ServedStream served = stage.stream(doc, rule, input, downstream);
+        served.diagnostics().forEach(error -> errorReceiverProxy.log(error.getSeverity(),
+                error.getLocation(), error.getElementId(), error.getMessage(), null));
+        if (served.records() == 0) {
+            errorReceiverProxy.log(Severity.ERROR, null, elementId,
+                    "Shape " + run.shape().id() + " is bound to fragment " + bindings.fragment().getName()
+                    + ", which produced nothing for this stream", null);
+        }
+    }
+
+    /// The rule a decision that binds a stream names.
+    private static RoutingRule ruleOf(final Decision decision) {
+        return switch (decision) {
+            case Bound bound -> bound.rule();
+            case Promoted promoted -> promoted.rule();
+            case Provisional provisional -> provisional.rule();
+            case Rebound rebound -> rebound.rule();
+            default -> throw new IllegalStateException("A decision with bindings names a rule: " + decision);
+        };
+    }
+
+    /// The stream as a task takes it: its prefix as text, and the rest to be read by the fragment. A
+    /// stream that is all prefix is read whole; a stream of characters rather than bytes, or in an
+    /// encoding other than UTF-8, is read whole as well, since the fragment is given bytes it must be able
+    /// to read as the text was.
+    private Input streamed(final InputSource source) {
+        final InputStream bytes = source.getByteStream();
+        final boolean utf8 = source.getEncoding() == null
+                             || StandardCharsets.UTF_8.name().equalsIgnoreCase(source.getEncoding());
+        if (bytes == null || !utf8) {
+            return input(read(source));
+        }
+        try {
+            final byte[] prefix = bytes.readNBytes(Input.PREFIX_BYTES);
+            if (prefix.length < Input.PREFIX_BYTES) {
+                return input(ShapeSignature.withoutBom(new String(prefix, StandardCharsets.UTF_8)));
+            }
+            final Input whole = input(ShapeSignature.withoutBom(new String(prefix, StandardCharsets.UTF_8)));
+            return Input.streamed(whole.id(), whole.feed(), whole.type(), whole.attributes(), whole.data(),
+                    whole.pipeline(), whole.taskId(), whole.filterId(),
+                    () -> new SequenceInputStream(new ByteArrayInputStream(prefix), bytes));
+        } catch (final IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    /// The stream as text, whole.
+    private static String read(final InputSource inputSource) {
+        try {
+            final Reader reader = inputSource.getCharacterStream() != null
+                    ? inputSource.getCharacterStream()
+                    : new InputStreamReader(inputSource.getByteStream(), inputSource.getEncoding() == null
+                            ? StandardCharsets.UTF_8
+                            : Charset.forName(inputSource.getEncoding()));
+            final StringBuilder text = new StringBuilder();
+            final char[] buffer = new char[8192];
+            for (int n = reader.read(buffer); n >= 0; n = reader.read(buffer)) {
+                text.append(buffer, 0, n);
+            }
+            // A byte order mark is not content: read as text it would make XML or JSON look like a line
+            // of text to every classification downstream.
+            return ShapeSignature.withoutBom(text.toString());
+        } catch (final IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
     /// Forget what this element last decided, because it is about to decide again (A30). The capture

@@ -22,6 +22,9 @@ import stroom.pipeline.xml.event.EventList;
 import stroom.shapeshifter.ai.scoring.Attempted;
 import stroom.shapeshifter.shared.RecordBoundary;
 
+import org.xml.sax.ContentHandler;
+
+import java.io.InputStream;
 import java.util.List;
 import java.util.Optional;
 
@@ -47,6 +50,25 @@ public interface FragmentRunner {
 
     default List<Attempted> run(final DocRef fragment, final String input) {
         return run(fragment, input, null);
+    }
+
+    /// Serve a stream (design 04 §3, *streams of any size*): run the fragment over it as it is read, judge
+    /// each record of the tail's output as it is produced, hand each that clears the bar on, and stop at
+    /// the first that does not. Nothing larger than a record is held. The stream is read once.
+    ///
+    /// @param fragment   The fragment.
+    /// @param input      The stream, as bytes, UTF-8.
+    /// @param boundary   What one record is in the stream (A35), as the rule carries it; null where none
+    ///                   was settled.
+    /// @param judge      The bar, record by record.
+    /// @param downstream Where records that clear the bar go; null where nothing is to be handed on.
+    /// @return What the run came to.
+    default ServedStream serve(final DocRef fragment,
+                               final InputStream input,
+                               final RecordBoundary boundary,
+                               final RecordJudge judge,
+                               final ContentHandler downstream) {
+        throw new UnsupportedOperationException("This runner judges a run and does not serve one");
     }
 
     /// The events the chain's tail emitted on the run just made, where the runner has a pipeline under

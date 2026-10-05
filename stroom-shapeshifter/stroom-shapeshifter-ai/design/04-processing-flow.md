@@ -502,10 +502,57 @@ one premise inherited rather than introduced: a failing record's index is an ind
 the span it is read back by is the parser's; they are the same record only where the transform is one
 to one, which scenario 38 already assumed and the yield scorer is what notices otherwise.
 
-What is not built is the second bullet. The element still reads the whole stream into a string at
-`endDocument`, `FragmentRunner.run` takes a string and keeps an `EventList`, and every scorer judges a
-step's whole output. Scoring record by record as the output is produced is a change to the data path
-from the element through the runner to the scorers, and is the slice to do next, on its own.
+*The second bullet, built 2026-10-05, after phase 4's first slice.* The parser-position element hands the
+stream itself to `Supervision`, which reads a bounded prefix (`Input.PREFIX_BYTES`, 64 KiB) for the
+signature and the sample and takes the task decision on it; `Stage.decide` binds a served stream without
+running anything, and `Stage.stream` serves it as it is read: `FragmentRunner.serve` runs the fragment over
+the whole stream once as a pipeline, with a `RecordGate` at the tail that judges each record of the output
+as it is produced — a `RecordJudge` built from the document's record-judging gates, over the record as a
+document of its own — and hands each that clears to the pipeline's downstream, which writes as it goes.
+The first record short of the bar is thrown out of the fragment as `RecordShortfall`, a deferral by type,
+caught by the runner and handed to the stage with the record and its verdict; the stage defers the stream
+with what was found — no second read — and throws the deferral; `AbstractProcessorTaskExecutor` then
+discards every child of the input this task wrote. The whole-output `EventList` survives only on the paths
+that still read whole: a step, an as-processed reprocess, a stage fed by a parser, and a session's own
+judgement of a candidate over its sample. The stand-in runner serves through the same gate over its
+step-by-step output, so Tier 1 asserts the verdicts a node decides on. `StreamInputs` reads a held stream
+the same way: the prefix, and the rest opened again for a fragment. Scenario 55 (design 02 §5) and
+`TestScenario16AServingRunWritesAsItGoes` are the exit; what neither can show is memory, which is the
+gate's construction.
+
+Three things the build found. The path out of a pipeline had a sixth place that swallowed a deferral,
+beyond phase 1's five: `XsltFilter` catches whatever its transform's output handler throws, logs it as a
+fatal error of the transform and throws a `LoggedException` — and the gate stands at the tail of a
+fragment whose last element is that filter, so the first shortfall came back as a fatal error on the
+task's error stream and a task that completed with errors rather than deferring. The filter now lets a
+deferral through unlogged, as the parser and the executor do. A split fragment's tail emits one document
+per record, each with the root around it, which the whole-output path's downstream merged without
+anybody noticing; the gate reads them as one document and closes the root once, when the run ends. And a
+stream small enough to read whole was at first served the old way, which would have meant a six-record
+scenario exercising a path a ten-gigabyte stream never meets; every task stream now goes through the
+gate.
+
+*Its own audit found three, 2026-10-05.* A stream stopped at a short record was handed to the relearning
+session with the mean of the records before it as its score, so a candidate scoring below that mean would
+have been kept out by an incumbent that had just failed; a stream with a record short of the bar scores
+nothing (A55). A run that made nothing fed the rolling score a sample of zero records; it feeds it
+nothing. And a fragment given the bytes as they are was given the byte order mark too, which the
+whole-text path had always taken off; the runner takes it off the same way the combined parser does. One
+thing checked rather than changed: the per-record bar's schema filter comes from an unscoped provider, so
+judging a record while the pipeline below the gate is mid-document touches no filter of that pipeline.
+
+**The loudest limit, owed to A64 and the next slice's first job.** A relearning session opened by a
+shortfall learns from the stream's *prefix* — the sample the model is shown, and the only text the worker
+reads — so where the record that fell short lies beyond the prefix, the session cannot see it, promotes
+on what it can, the woken task falls short at the same record, and another session opens on the same
+prefix: rounds bounded only by the spend breaker (A67). §4 already says what ends this — the worker's
+first act on a held stream is to run the transform in force over the whole of it and make the records
+that fall short the next question's sample — and nothing less does.
+
+Two limits besides. A stream of characters rather than bytes, or in an encoding other than UTF-8, is
+read whole, since the fragment is given the bytes as they are. And the per-record bar builds a schema
+filter per record through the scorer's provider, which is what the scorer did for a whole output and is
+the first thing to measure on a stream of millions of records.
 
 ### Phase 3 — The corpus is durable and holds output *(the feature; design 01 §12 item 9)*
 

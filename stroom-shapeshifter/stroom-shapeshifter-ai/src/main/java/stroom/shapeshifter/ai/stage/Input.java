@@ -19,8 +19,12 @@ package stroom.shapeshifter.ai.stage;
 import stroom.meta.shared.MetaFields;
 import stroom.shapeshifter.shared.RoutingFields;
 
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Supplier;
 
 /**
  * One stream as the stage receives it: the metadata a selector may match on (A22) and the data.
@@ -36,24 +40,59 @@ import java.util.Map;
  *                   Null where nothing is processing it — a worker re-walking an attempt, a scenario.
  * @param taskId     The processor task processing it, where one is: what a deferral wakes (design 04 §5.3).
  * @param filterId   That task's filter, where one is.
+ * @param opener     Where the whole stream is read from, where `data` is only its prefix (design 04 §3);
+ *                   null where `data` is the whole of it.
  */
 public record Input(long id, String feed, String type, Map<String, String> attributes, String data,
-                    String pipeline, Long taskId, Integer filterId) {
+                    String pipeline, Long taskId, Integer filterId, Supplier<InputStream> opener) {
+
+    /// How much of a stream is read as text before anything is decided about it (design 04 §3, *streams
+    /// of any size*): enough for the shape's signature and the sample the model is shown, which the
+    /// document bounds far below this, and no more. The rest is read as the fragment runs over it.
+    public static final int PREFIX_BYTES = 64 * 1024;
 
     public Input {
         attributes = Map.copyOf(attributes);
     }
 
+    /// A stream whose text is all in hand: the whole of it is `data`.
+    public Input(final long id, final String feed, final String type, final Map<String, String> attributes,
+                 final String data, final String pipeline, final Long taskId, final Integer filterId) {
+        this(id, feed, type, attributes, data, pipeline, taskId, filterId, null);
+    }
+
     /// A stream as a task has it, before design 04: nothing to wake.
     public Input(final long id, final String feed, final String type, final Map<String, String> attributes,
                  final String data, final String pipeline) {
-        this(id, feed, type, attributes, data, pipeline, null, null);
+        this(id, feed, type, attributes, data, pipeline, null, null, null);
+    }
+
+    /// Whether `data` is the whole stream. Where it is not, `data` is the first [#PREFIX_BYTES] of it as
+    /// text, and the whole is read through [#open].
+    public boolean complete() {
+        return opener == null;
+    }
+
+    /// The whole stream, as bytes, for a fragment to run over. Where the stream was read in full, its
+    /// text; otherwise what the stream's opener gives, which in a node is the stream itself and may be
+    /// opened once.
+    public InputStream open() {
+        return opener == null
+                ? new ByteArrayInputStream(data.getBytes(StandardCharsets.UTF_8))
+                : opener.get();
     }
 
     /// A stream as a scenario has it: nothing is processing it.
     public Input(final long id, final String feed, final String type, final Map<String, String> attributes,
                  final String data) {
         this(id, feed, type, attributes, data, null);
+    }
+
+    /// A stream read as far as its prefix, the rest to be read as the fragment runs over it.
+    public static Input streamed(final long id, final String feed, final String type,
+                                 final Map<String, String> attributes, final String prefix, final String pipeline,
+                                 final Long taskId, final Integer filterId, final Supplier<InputStream> opener) {
+        return new Input(id, feed, type, attributes, prefix, pipeline, taskId, filterId, opener);
     }
 
 

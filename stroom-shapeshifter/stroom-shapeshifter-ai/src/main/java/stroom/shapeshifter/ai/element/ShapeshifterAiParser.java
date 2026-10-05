@@ -27,7 +27,6 @@ import stroom.pipeline.parser.AbstractParser;
 import stroom.pipeline.shared.data.PipelineElementType;
 import stroom.pipeline.shared.data.PipelineElementType.Category;
 import stroom.pipeline.state.MetaData;
-import stroom.shapeshifter.ai.stage.ShapeSignature;
 import stroom.shapeshifter.ai.stage.Stage;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 import stroom.shapeshifter.shared.ShapeshifterAiElements;
@@ -39,12 +38,6 @@ import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 import org.xml.sax.XMLReader;
 
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.Reader;
-import java.io.UncheckedIOException;
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 
 /**
  * The supervisor at the extraction stage (design 01 §3, §12 item 4): one supervised stage fed the raw
@@ -123,29 +116,6 @@ public class ShapeshifterAiParser extends AbstractParser implements HasStepDetai
         return new SupervisorReader();
     }
 
-    /**
-     * The whole stream is read: the extraction stage's replay unit is the stream (A1), and the stage
-     * learns on a prefix and judges on the whole.
-     */
-    private static String read(final InputSource inputSource) {
-        try {
-            final Reader reader = inputSource.getCharacterStream() != null
-                    ? inputSource.getCharacterStream()
-                    : new InputStreamReader(inputSource.getByteStream(), inputSource.getEncoding() == null
-                            ? StandardCharsets.UTF_8
-                            : Charset.forName(inputSource.getEncoding()));
-            final StringBuilder text = new StringBuilder();
-            final char[] buffer = new char[8192];
-            for (int n = reader.read(buffer); n >= 0; n = reader.read(buffer)) {
-                text.append(buffer, 0, n);
-            }
-            // A byte order mark is not content: read as text it would make XML or JSON look like a line of
-            // text to every classification downstream.
-            return ShapeSignature.withoutBom(text.toString());
-        } catch (final IOException e) {
-            throw new UncheckedIOException(e);
-        }
-    }
 
     /// What this stage decided about the record just captured, for the stepper's stage pane (A30).
     @Override
@@ -168,7 +138,7 @@ public class ShapeshifterAiParser extends AbstractParser implements HasStepDetai
         public void parse(final InputSource inputSource) throws SAXException {
             supervision.startRecord(getElementId());
             supervision.supervise(supervision.document(docRef, getElementId()), getElementId(), asProcessed,
-                    read(inputSource), getContentHandler());
+                    inputSource, getContentHandler());
         }
     }
 

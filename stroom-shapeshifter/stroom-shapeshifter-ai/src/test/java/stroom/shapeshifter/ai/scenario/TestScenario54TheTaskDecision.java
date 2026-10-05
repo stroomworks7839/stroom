@@ -16,10 +16,15 @@
 
 package stroom.shapeshifter.ai.scenario;
 
+import stroom.docref.DocRef;
+import stroom.processor.api.DeferTaskException;
 import stroom.shapeshifter.ai.extraction.ExtractionCorpus.Golden;
 import stroom.shapeshifter.ai.fragment.FragmentRunner;
+import stroom.shapeshifter.ai.fragment.RecordJudge;
+import stroom.shapeshifter.ai.fragment.ServedStream;
 import stroom.shapeshifter.ai.fragment.StandInFragmentRunner;
 import stroom.shapeshifter.ai.pack.DemoDocument;
+import stroom.shapeshifter.ai.scoring.Attempted;
 import stroom.shapeshifter.ai.stage.Attempts.Recorded;
 import stroom.shapeshifter.ai.stage.Decision.Bound;
 import stroom.shapeshifter.ai.stage.Decision.Deferred;
@@ -33,16 +38,20 @@ import stroom.shapeshifter.ai.stage.StageRun;
 import stroom.shapeshifter.ai.state.InMemoryLedger;
 import stroom.shapeshifter.shared.AttemptStatus;
 import stroom.shapeshifter.shared.PromotionMode;
+import stroom.shapeshifter.shared.RecordBoundary;
 import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 
 import org.junit.jupiter.api.Test;
+import org.xml.sax.ContentHandler;
 
+import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
 
 /// Design 02 §5, scenario 54: **the task decision** (design 04 §3; §8's scenarios 1, 2, 3, 7 and 9 at
@@ -106,12 +115,16 @@ class TestScenario54TheTaskDecision {
                 .isEqualTo(AttemptStatus.PROMOTED);
         assertThat(scenarios.wake.woken()).extracting(Deferral::inputId).containsExactly(1L, 2L);
 
-        // Tried again, each is served, and its row goes.
+        // Tried again, each is bound and served as it is read, and its row goes.
         for (final long id : List.of(1L, 2L)) {
-            final StageRun served = task(scenarios, silent, null).decide(doc, stream(id, MIXED));
-            assertThat(served.decision()).describedAs(served.decision().toString()).isInstanceOf(Bound.class);
-            assertThat(served.output()).contains("<Action>Logoff</Action>");
-            assertThat(served.verdicts().getLast().failingRecords()).isEmpty();
+            final StageRun bound = task(scenarios, silent, null).decide(doc, stream(id, MIXED));
+            assertThat(bound.decision()).describedAs(bound.decision().toString()).isInstanceOf(Bound.class);
+            final TextSink sink = new TextSink();
+            final ServedStream served = task(scenarios, silent, null)
+                    .stream(doc, ((Bound) bound.decision()).rule(), stream(id, MIXED), sink);
+            assertThat(served.clear()).isTrue();
+            assertThat(served.records()).isEqualTo(6);
+            assertThat(sink.text()).contains("<Action>Logoff</Action>");
         }
         assertThat(scenarios.deferrals.forDocument(DOC)).isEmpty();
         assertThat(silent.asked()).isEmpty();
@@ -130,14 +143,21 @@ class TestScenario54TheTaskDecision {
 
         scenarios.documents.put(doc);
         scenarios.inputs.put(stream(2L, MIXED));
-        final StageRun held = task(scenarios, silent, counting).decide(doc, stream(2L, MIXED));
-
-        assertThat(held.decision()).describedAs(held.decision().toString()).isInstanceOf(Deferred.class);
-        assertThat(((Deferred) held.decision()).reason()).contains("2 of 6 record(s) fell short of the bar");
-        assertThat(runs.get()).describedAs("scored once").isEqualTo(1);
+        final StageRun bound = task(scenarios, silent, counting).decide(doc, stream(2L, MIXED));
+        assertThat(bound.decision()).describedAs("nothing is known until it is read").isInstanceOf(Bound.class);
+        final TextSink sink = new TextSink();
+        assertThatThrownBy(() -> task(scenarios, silent, counting).stream(doc, learned, stream(2L, MIXED), sink))
+                .isInstanceOf(DeferTaskException.class)
+                .hasMessageStartingWith("Record 3 fell short of the bar");
+        assertThat(sink.records())
+                .describedAs("the two records before it were handed on; nothing after")
+                .isEqualTo(2);
+        assertThat(runs.get()).describedAs("read once").isEqualTo(1);
         final Deferral row = scenarios.deferrals.of(DOC, 2L).orElseThrow();
         assertThat(row.failedAgainst()).isEqualTo(learned.getPipeline().getUuid());
-        assertThat(row.failingRecords()).isEqualTo(2);
+        assertThat(row.failingRecords())
+                .describedAs("the one the run stopped at; nothing after it was read")
+                .isEqualTo(1);
         assertThat(scenarios.shapes.relearnReason(DOC, SHAPE)).isPresent();
         assertThat(scenarios.attempts.forDocument(DOC, 10))
                 .describedAs("a relearning session, opened and parked, beside the one that learned the rule")
@@ -147,13 +167,15 @@ class TestScenario54TheTaskDecision {
         // Tried again before the transform moves: deferred by the stamp, without a run.
         final StageRun again = task(scenarios, silent, counting).decide(doc, stream(2L, MIXED));
         assertThat(again.decision()).isInstanceOf(Deferred.class);
-        assertThat(runs.get()).describedAs("not scored again (§8.3)").isEqualTo(1);
+        assertThat(runs.get()).describedAs("not read again (§8.3)").isEqualTo(1);
         assertThat(scenarios.deferrals.of(DOC, 2L).orElseThrow().attempts()).isEqualTo(2);
         assertThat(scenarios.attempts.forDocument(DOC, 10)).describedAs("no second session").hasSize(2);
 
         // A stream of the shape whose records all clear flows while the session runs (§8.2).
         final StageRun flowing = task(scenarios, silent, counting).decide(doc, stream(3L, CSV.input()));
         assertThat(flowing.decision()).describedAs(flowing.decision().toString()).isInstanceOf(Bound.class);
+        assertThat(task(scenarios, silent, counting).stream(doc, learned, stream(3L, CSV.input()), new TextSink())
+                .clear()).isTrue();
         assertThat(scenarios.deferrals.forDocument(DOC)).extracting(Deferral::inputId).containsExactly(2L);
 
         // The worker relearns on the held stream; the rebinding wakes it; it is served under the new
@@ -164,7 +186,9 @@ class TestScenario54TheTaskDecision {
         assertThat(scenarios.wake.woken()).extracting(Deferral::inputId).containsExactly(2L);
         final StageRun served = task(scenarios, silent, counting).decide(doc, stream(2L, MIXED));
         assertThat(served.decision()).describedAs(served.decision().toString()).isInstanceOf(Bound.class);
-        assertThat(served.verdicts().getLast().failingRecords()).isEmpty();
+        final RoutingRule rebound = ((Bound) served.decision()).rule();
+        assertThat(task(scenarios, silent, counting).stream(doc, rebound, stream(2L, MIXED), new TextSink()).clear())
+                .isTrue();
         assertThat(scenarios.deferrals.forDocument(DOC)).isEmpty();
         assertThat(silent.asked()).isEmpty();
     }
@@ -196,7 +220,11 @@ class TestScenario54TheTaskDecision {
                 .decide(doc, stream(2L, MIXED));
 
         assertThat(served.decision()).describedAs(served.decision().toString()).isInstanceOf(Bound.class);
-        assertThat(served.verdicts().getLast().failingRecords()).containsExactly(2, 4);
+        final TextSink sink = new TextSink();
+        final ServedStream streamed = scenarios.stage(document -> Script.of(), scenarios.rules)
+                .stream(doc, ((Bound) served.decision()).rule(), stream(2L, MIXED), sink);
+        assertThat(streamed.clear()).isTrue();
+        assertThat(sink.records()).describedAs("every record, the thin ones too").isEqualTo(6);
         assertThat(scenarios.deferrals.forDocument(DOC)).isEmpty();
         assertThat(scenarios.attempts.forDocument(DOC, 10))
                 .describedAs("the session that learned it, and no new one")
@@ -236,6 +264,8 @@ class TestScenario54TheTaskDecision {
         assertThat(scenarios.wake.woken()).extracting(Deferral::inputId).containsExactly(2L);
         final StageRun served = task(scenarios, silent, null).decide(doc, stream(2L, MIXED));
         assertThat(served.decision()).describedAs(served.decision().toString()).isInstanceOf(Bound.class);
+        task(scenarios, silent, null)
+                .stream(doc, ((Bound) served.decision()).rule(), stream(2L, MIXED), new TextSink());
         assertThat(scenarios.deferrals.forDocument(DOC)).isEmpty();
     }
 
@@ -246,16 +276,19 @@ class TestScenario54TheTaskDecision {
         final ShapeshifterAiDoc doc = doc();
         learn(scenarios, doc, LOGON_ONLY);
         final Script silent = Script.of();
-        task(scenarios, silent, null).decide(doc, stream(2L, MIXED));
+        final RoutingRule rule = scenarios.rules.forDocument(DOC).get(0);
+        assertThatThrownBy(() -> task(scenarios, silent, null).stream(doc, rule, stream(2L, MIXED), new TextSink()))
+                .isInstanceOf(DeferTaskException.class);
 
         final StageRun again = task(scenarios, silent, null).decide(doc, stream(2L, MIXED));
 
         assertThat(((Deferred) again.decision()).reason())
-                .startsWith("2 of 6 record(s) fell short of the bar (")
+                .startsWith("Record 3 fell short of the bar: ")
                 .contains("learning this shape");
         assertThat(scenarios.deferrals.of(DOC, 2L).orElseThrow().reason())
                 .describedAs("the row keeps why, not what each try found")
-                .isEqualTo("2 of 6 record(s) fell short of the bar");
+                .startsWith("Record 3 fell short of the bar: ")
+                .doesNotContain("learning this shape");
     }
 
     private static RoutingRule learn(final Scenarios scenarios, final ShapeshifterAiDoc doc, final String xslt) {
@@ -278,9 +311,22 @@ class TestScenario54TheTaskDecision {
         final FragmentRunner standIn = new StandInFragmentRunner(scenarios.stores.pipelines,
                 scenarios.stores.stackLoader, scenarios.stores.textConverters, scenarios.stores.xslts,
                 scenarios.runners());
-        return (fragment, input, boundary) -> {
-            runs.incrementAndGet();
-            return standIn.run(fragment, input, boundary);
+        return new FragmentRunner() {
+            @Override
+            public List<Attempted> run(final DocRef fragment, final String input, final RecordBoundary boundary) {
+                runs.incrementAndGet();
+                return standIn.run(fragment, input, boundary);
+            }
+
+            @Override
+            public ServedStream serve(final DocRef fragment,
+                                      final InputStream input,
+                                      final RecordBoundary boundary,
+                                      final RecordJudge judge,
+                                      final ContentHandler downstream) {
+                runs.incrementAndGet();
+                return standIn.serve(fragment, input, boundary, judge, downstream);
+            }
         };
     }
 

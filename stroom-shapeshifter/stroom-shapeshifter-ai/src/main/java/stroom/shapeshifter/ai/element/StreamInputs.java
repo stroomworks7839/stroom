@@ -17,13 +17,14 @@
 package stroom.shapeshifter.ai.element;
 
 import stroom.data.store.api.AttributeMapFactory;
+import stroom.data.store.api.InputStreamProvider;
 import stroom.data.store.api.Source;
-import stroom.data.store.api.SourceUtil;
 import stroom.data.store.api.Store;
 import stroom.meta.api.MetaService;
 import stroom.meta.shared.Meta;
 import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.Inputs;
+import stroom.shapeshifter.ai.stage.ShapeSignature;
 import stroom.util.logging.LambdaLogger;
 import stroom.util.logging.LambdaLoggerFactory;
 import stroom.util.logging.LogUtil;
@@ -31,6 +32,11 @@ import stroom.util.logging.LogUtil;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
+import java.io.FilterInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Optional;
 
@@ -66,14 +72,17 @@ public class StreamInputs implements Inputs {
         }
         try (final Source source = store.openSource(metaId)) {
             final Map<String, String> attributes = attributeMapFactory.getAttributes(metaId);
-            return Optional.of(new Input(
-                    metaId,
-                    meta.getFeedName(),
-                    meta.getTypeName(),
-                    attributes == null
+            // Read as far as the prefix (design 04 §3): what a session samples from is bounded by the
+            // document far below this, and the whole of a stream of any size is read only by a fragment
+            // running over it, through the opener, which opens the stream again.
+            final Prefix prefix = prefix(source);
+            return Optional.of(prefix.complete()
+                    ? new Input(metaId, meta.getFeedName(), meta.getTypeName(), attributes == null
                             ? Map.of()
-                            : attributes,
-                    SourceUtil.readString(source)));
+                            : attributes, prefix.text())
+                    : Input.streamed(metaId, meta.getFeedName(), meta.getTypeName(), attributes == null
+                            ? Map.of()
+                            : attributes, prefix.text(), null, null, null, () -> open(metaId)));
         } catch (final Exception e) {
             // Deleted, on a volume this node cannot reach, or unreadable — and the close of the source
             // throws a checked exception besides. The attempt that was learning from it is abandoned by
@@ -81,5 +90,40 @@ public class StreamInputs implements Inputs {
             LOGGER.warn(() -> LogUtil.message("Stream {} could not be read: {}", metaId, e.getMessage()), e);
             return Optional.empty();
         }
+    }
+
+    /// The first [Input#PREFIX_BYTES] of the stream as text, and whether that was all of it.
+    private static Prefix prefix(final Source source) throws IOException {
+        try (final InputStreamProvider provider = source.get(0)) {
+            final InputStream in = provider.get();
+            final byte[] bytes = in.readNBytes(Input.PREFIX_BYTES);
+            final boolean complete = bytes.length < Input.PREFIX_BYTES || in.read() < 0;
+            return new Prefix(ShapeSignature.withoutBom(new String(bytes, StandardCharsets.UTF_8)), complete);
+        }
+    }
+
+    /// The whole stream, opened afresh, closing its source with it.
+    private InputStream open(final long metaId) {
+        try {
+            final Source source = store.openSource(metaId);
+            final InputStreamProvider provider = source.get(0);
+            return new FilterInputStream(provider.get()) {
+                @Override
+                public void close() throws IOException {
+                    try {
+                        super.close();
+                    } finally {
+                        provider.close();
+                        source.close();
+                    }
+                }
+            };
+        } catch (final IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    private record Prefix(String text, boolean complete) {
+
     }
 }

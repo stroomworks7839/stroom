@@ -27,6 +27,7 @@ import stroom.pipeline.factory.InjectedCode;
 import stroom.pipeline.factory.Pipeline;
 import stroom.pipeline.factory.PipelineDataCache;
 import stroom.pipeline.factory.PipelineFactory;
+import stroom.pipeline.reader.BOMRemovalInputStream;
 import stroom.pipeline.shared.PipelineDoc;
 import stroom.pipeline.shared.data.PipelineData;
 import stroom.pipeline.shared.data.PipelineDataBuilder;
@@ -38,6 +39,7 @@ import stroom.pipeline.stepping.capture.HeadlessCapture;
 import stroom.pipeline.xml.event.EventList;
 import stroom.pipeline.xml.event.simple.SimpleEventList;
 import stroom.pipeline.xml.event.simple.SimpleEventListBuilder;
+import stroom.processor.api.DeferTaskException;
 import stroom.shapeshifter.ai.extraction.PerRecord;
 import stroom.shapeshifter.ai.extraction.RecordJoin;
 import stroom.shapeshifter.ai.learning.StepResult;
@@ -56,8 +58,10 @@ import stroom.util.shared.StoredError;
 import jakarta.inject.Inject;
 import jakarta.inject.Provider;
 import org.xml.sax.ContentHandler;
+import org.xml.sax.SAXException;
 
 import java.io.ByteArrayInputStream;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -253,6 +257,83 @@ public final class PipelineFragmentRunner implements FragmentRunner {
         }
         lastRecords = recorded(capture, chain(fragment, elements, next));
         return steps;
+    }
+
+    @Override
+    public ServedStream serve(final DocRef fragment,
+                              final InputStream input,
+                              final RecordBoundary boundary,
+                              final RecordJudge judge,
+                              final ContentHandler downstream) {
+        final PipelineDoc fragmentDoc = pipelineStore.readDocument(fragment);
+        final PipelineData merged = pipelineDataCache.get(fragmentDoc);
+        final Map<String, PipelineElement> elements = new HashMap<>();
+        merged.getAddedElements().forEach(element -> elements.put(element.getId(), element));
+        final Map<String, String> next = new HashMap<>();
+        for (final PipelineLink link : merged.getAddedLinks()) {
+            if (next.put(link.getFrom(), link.getTo()) != null) {
+                throw new IllegalStateException("Fragment " + fragment.getName()
+                                                + " forks: a fragment is a single chain");
+            }
+        }
+        // No capture: a serving run keeps nothing of what it read, which is the point of it. The tail's
+        // events go to the gate, which judges each record and hands on what clears.
+        lastRecords = List.of();
+        lastOutput = null;
+        final RecordGate gate = new RecordGate(judge, downstream);
+        final FragmentOutput fragmentOutput = fragmentOutputProvider.get();
+        final ContentHandler borrowed = fragmentOutput.getHandler();
+        fragmentOutput.setHandler(gate);
+        final ErrorReceiverProxy errorReceiverProxy = errorReceiverProvider.get();
+        final ErrorReceiver previous = errorReceiverProxy.getErrorReceiver();
+        final LoggingErrorReceiver logging = new LoggingErrorReceiver();
+        errorReceiverProxy.setErrorReceiver(logging);
+        final InjectedCode injectedCode = injectedCodeProvider.get();
+        final Map<String, String> borrowedCode = injectedCode.asMap();
+        injectedCode.set(Map.of());
+        RecordShortfall shortfall = null;
+        String failure = null;
+        try {
+            final Pipeline pipeline = pipelineFactoryProvider.get()
+                    .create(runnable(fragment, merged, elements, next), taskContextFactory.current());
+            // A byte order mark is not content, and the whole-text path has always taken it off before the
+            // fragment saw the stream; a fragment given the bytes as they are is given them without it.
+            pipeline.process(new BOMRemovalInputStream(input, StandardCharsets.UTF_8.name()),
+                    StandardCharsets.UTF_8.name());
+            gate.finish();
+        } catch (final SAXException e) {
+            failure = e.getClass().getSimpleName() + ": " + e.getMessage();
+        } catch (final RuntimeException e) {
+            // The gate stops the run by throwing the shortfall out of the pipeline, which may wrap it;
+            // it is a deferral by type, so the layers that let deferrals through let it through.
+            final DeferTaskException deferral = DeferTaskException.unwrap(e);
+            if (deferral instanceof final RecordShortfall stopped) {
+                shortfall = stopped;
+            } else if (deferral != null) {
+                throw deferral;
+            } else if (e instanceof LoggedException) {
+                LOGGER.debug("Fragment {} stopped: {}", fragment.getName(), e.getMessage());
+            } else {
+                LOGGER.debug(() -> LogUtil.message("Fragment {} failed: {}", fragment.getName(), e.getMessage()), e);
+                failure = e.getClass().getSimpleName() + ": " + e.getMessage();
+            }
+        } finally {
+            errorReceiverProxy.setErrorReceiver(previous);
+            fragmentOutput.setHandler(borrowed);
+            injectedCode.set(borrowedCode);
+        }
+        final List<StoredError> diagnostics = new ArrayList<>();
+        for (final PipelineElement element : chain(fragment, elements, next)) {
+            final Indicators said = logging.getIndicators(new ElementId(element.getId()));
+            if (said != null) {
+                diagnostics.addAll(said.getErrorList());
+            }
+        }
+        if (diagnostics.isEmpty() && failure != null) {
+            diagnostics.add(new StoredError(Severity.FATAL_ERROR, null, new ElementId(next.get(SOURCE)), failure));
+        }
+        return new ServedStream(gate.records(), gate.meanTotal(), PerRecord.told(diagnostics),
+                Optional.ofNullable(shortfall));
     }
 
     /// Handed over and let go of: see [FragmentRunner#takeRecords]. A decision that runs no fragment

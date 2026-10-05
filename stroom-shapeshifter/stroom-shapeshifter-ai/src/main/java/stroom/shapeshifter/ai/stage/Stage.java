@@ -19,11 +19,15 @@ package stroom.shapeshifter.ai.stage;
 import stroom.docref.DocRef;
 import stroom.meta.shared.MetaFields;
 import stroom.pipeline.xml.event.EventList;
+import stroom.processor.api.DeferTaskException;
 import stroom.query.api.ExpressionOperator;
 import stroom.shapeshifter.ai.extraction.PerRecord;
 import stroom.shapeshifter.ai.fragment.FragmentRunner;
 import stroom.shapeshifter.ai.fragment.FragmentRunner.FragmentRecord;
 import stroom.shapeshifter.ai.fragment.FragmentWriter;
+import stroom.shapeshifter.ai.fragment.RecordJudge;
+import stroom.shapeshifter.ai.fragment.RecordShortfall;
+import stroom.shapeshifter.ai.fragment.ServedStream;
 import stroom.shapeshifter.ai.learning.Advisor;
 import stroom.shapeshifter.ai.learning.Advisors;
 import stroom.shapeshifter.ai.learning.Conversation;
@@ -66,6 +70,7 @@ import stroom.shapeshifter.shared.LearningMode;
 import stroom.shapeshifter.shared.PromotionMode;
 import stroom.shapeshifter.shared.RecordBoundary;
 import stroom.shapeshifter.shared.RoutingRule;
+import stroom.shapeshifter.shared.ScorerType;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 import stroom.util.logging.LambdaLogger;
 import stroom.util.logging.LambdaLoggerFactory;
@@ -80,6 +85,7 @@ import stroom.util.shared.TextRange;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
 import net.sf.saxon.s9api.XdmNode;
+import org.xml.sax.ContentHandler;
 
 import java.io.IOException;
 import java.time.Clock;
@@ -148,6 +154,12 @@ public final class Stage {
     private final RegressionSet regressionSet;
     private final Deferrals deferrals;
     private final Wake wake;
+    /// What a record of the chain's output is judged as when it is served: the element type the scorers
+    /// of meaning read it as, which is any element that is not a parser.
+    private static final String TRANSFORM = "XSLTFilter";
+    /// The scorers that judge a record (design 04 §6): the bar, record by record.
+    private static final Set<ScorerType> RECORD_SCORERS = Set.of(ScorerType.SCHEMA_CONFORMANCE,
+            ScorerType.EXTRACTION_QUALITY, ScorerType.BUSINESS_RULES);
     private final Router router = new Router();
     private final Clock clock;
     private final long seed;
@@ -917,26 +929,90 @@ public final class Stage {
                         row.get().failingRecords());
             }
         }
-        final Judged judged = judge(scorecard, rule.getPipeline(), input.data(), rule.getRecordBoundary());
-        final Set<Integer> failing = judged.failingRecords();
-        if (!failing.isEmpty() && !rule.isPinned()) {
-            final int records = judged.spans().isEmpty()
-                    ? judged.records()
-                    : judged.spans().size();
-            return session(doc, shape, rule, input, attributes, scorecard, judged,
-                    failing.size() + " of " + records + " record(s) fell short of the bar", stamp, failing.size());
+        // Served as it is read (design 04 §3, *streams of any size*): nothing is run here. The caller
+        // streams the fragment over the stream with [#stream], which judges each record as the fragment
+        // writes it, and what the stream came to is decided there.
+        return new StageRun(doc, new Bound(rule), shape, bindingsOf(doc, rule), null, List.of(), List.of(), null,
+                List.of());
+    }
+
+    /// Serve a stream a rule binds, as it is read (design 04 §3): the fragment runs over the whole stream
+    /// once, each record of its output is judged by the gates that judge a record as it is produced, and
+    /// each that clears the bar is handed on to the downstream. The first record short of the bar stops
+    /// the run: the stream is deferred — a row stamped against the fragment in force, the shape marked,
+    /// a relearning session opened where none holds the shape — and the deferral is thrown, so that the
+    /// task ends deferred and what the downstream wrote of the records before it is discarded.
+    ///
+    /// A stream that clears in full is served: its row goes, the shape's rolling score is fed, a
+    /// provisional rule that has now seen enough records is promoted, and the output is recorded against
+    /// the bindings that produced it. A pinned rule's stream is handed on whatever each record scores.
+    ///
+    /// @param doc        The document.
+    /// @param rule       The rule that binds the stream, as [#decide] returned it.
+    /// @param input      The stream.
+    /// @param downstream Where the output goes.
+    /// @return What the run came to, for the caller to say on the error stream (A20).
+    public ServedStream stream(final ShapeshifterAiDoc doc,
+                               final RoutingRule rule,
+                               final Input input,
+                               final ContentHandler downstream) {
+        final Map<String, Object> attributes = input.routingAttributes(ShapeSignature.of(input.data()));
+        final Shape shape = Shape.of(doc.getLearningKey(), attributes);
+        final Scorecard bar = recordBar(doc);
+        final RecordJudge judge = rule.isPinned()
+                ? (index, record) -> new Verdict(List.of(), 1.0)
+                : (index, record) -> bar.judge(new Attempted(TRANSFORM, false, null,
+                        new StepResult(record, List.of()), rule.getRecordBoundary()));
+        final ServedStream served = fragmentRunner.serve(rule.getPipeline(), input.open(), rule.getRecordBoundary(),
+                judge, downstream);
+        if (served.shortfall().isPresent()) {
+            final RecordShortfall short_ = served.shortfall().get();
+            final String reason = "Record " + (short_.index() + 1) + " fell short of the bar: "
+                                  + short_.verdict().feedback().stream()
+                                          .map(StoredError::getMessage)
+                                          .findFirst()
+                                          .orElse("a gate failed");
+            final StageRun deferred = session(doc, shape, rule, input, attributes,
+                    new Scorecard(doc.getScorers(), scorers), Judged.shortOf(served, short_), reason, stamp(rule), 1);
+            throw new DeferTaskException(((Deferred) deferred.decision()).reason());
         }
-        // Served. A provisional rule is promoted the first time the shape brings enough records for the
-        // gate and they clear the floor (A14, design 01 §6); the rolling score goes on being kept for the
-        // Supervisor's list of what could be better (A46), and triggers nothing here.
         deferrals.released(doc.getUuid(), input.id());
-        if (rule.isProvisional() && judged.records() >= doc.getMinRecordsPerShape() && judged.clearsFloor(doc)) {
-            return promote(doc, shape, rule, input, judged);
+        if (rule.isProvisional()) {
+            // Promoted the first time the shape brings enough records and they clear the floor (A14,
+            // design 01 §6): what [#promote] does, less the output, which the downstream has.
+            if (served.records() >= doc.getMinRecordsPerShape() && served.meanTotal() >= doc.getPromotionFloor()) {
+                rules.replace(doc.getUuid(), rule.copy()
+                        .provisional(false)
+                        .promotedTimeMs(clock.millis())
+                        .score(served.meanTotal())
+                        .build());
+                shapes.reset(doc.getUuid(), shape.id());
+            }
+        } else if (!rule.isPinned() && served.records() > 0) {
+            // The rolling score goes on being kept for the Supervisor's list of what could be better
+            // (A46), and triggers nothing here. A run that made nothing is said on the error stream by the
+            // caller and scores nothing.
+            shapes.scored(doc.getUuid(), shape.id(), served.meanTotal(), served.records(),
+                    doc.getMinRecordsPerShape());
         }
-        if (!rule.isPinned() && !rule.isProvisional()) {
-            shapes.scored(doc.getUuid(), shape.id(), judged.score(), judged.records(), doc.getMinRecordsPerShape());
-        }
-        return emit(doc, new Bound(rule), shape, input, rule, judged, List.of());
+        outputs.emitted(input.id(), input.pipeline(), bindingsOf(doc, rule), List.of());
+        return served;
+    }
+
+    /// The bar a record is held to (A55): the document's gates that judge a record. The scorers that
+    /// measure a stream — compile, coverage, yield — judged the candidate when it was promoted and have
+    /// nothing to say about one record.
+    private Scorecard recordBar(final ShapeshifterAiDoc doc) {
+        return new Scorecard(doc.getScorers().stream()
+                .filter(setting -> RECORD_SCORERS.contains(setting.getType()))
+                .toList(), scorers);
+    }
+
+    private static Bindings bindingsOf(final ShapeshifterAiDoc doc, final RoutingRule rule) {
+        return new Bindings(doc.getUuid(), rule.getUuid(), rule.getPipeline(), rule.getRecordBoundary(),
+                rule.isProvisional(), rule.getScore() == null
+                ? 0.0
+                : rule.getScore());
     }
 
     /// A stream under a rule waits for the rule to be learned again: the row is written against the
@@ -2354,7 +2430,24 @@ public final class Stage {
      *                judged, not excused.
      */
     private record Judged(String output, List<Verdict> verdicts, double score, int records,
-                          List<TextRange> spans, EventList events, List<StoredError> diagnostics) {
+                          List<TextRange> spans, EventList events, List<StoredError> diagnostics,
+                          Set<Integer> fellShort) {
+
+        Judged(final String output, final List<Verdict> verdicts, final double score, final int records,
+               final List<TextRange> spans, final EventList events, final List<StoredError> diagnostics) {
+            this(output, verdicts, score, records, spans, events, diagnostics, null);
+        }
+
+        /// A stream served as it was read, stopped at the record that fell short (design 04 §3): what is
+        /// known of it is the records judged before and including that one and the verdict on the one.
+        /// No output and no spans, since nothing was held; the stream is not read again to learn what was
+        /// already found. Its score is nothing: a stream with a record short of the bar did not clear it
+        /// (A55), and a candidate that clears the floor must not be kept out by the mean of the records
+        /// before the one that failed.
+        static Judged shortOf(final ServedStream served, final RecordShortfall shortfall) {
+            return new Judged(null, List.of(shortfall.verdict()), 0.0, served.records(), List.of(),
+                    null, served.diagnostics(), Set.of(shortfall.index()));
+        }
 
         static Judged of(final List<Attempted> attempted, final Scorecard scorecard, final EventList events) {
             final List<Verdict> verdicts = attempted.stream().map(scorecard::judge).toList();
@@ -2394,6 +2487,9 @@ public final class Stage {
         /// step's, since that is what is emitted, and the scorers that judge records one by one judge a
         /// transform's records and not a parser's. Zero-based, in output order.
         Set<Integer> failingRecords() {
+            if (fellShort != null) {
+                return fellShort;
+            }
             return verdicts.isEmpty()
                     ? Set.of()
                     : verdicts.get(verdicts.size() - 1).failingRecords();

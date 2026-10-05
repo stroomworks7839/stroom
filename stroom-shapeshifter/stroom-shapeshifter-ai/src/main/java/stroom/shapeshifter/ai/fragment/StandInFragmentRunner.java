@@ -35,12 +35,25 @@ import stroom.shapeshifter.ai.extraction.PerRecord;
 import stroom.shapeshifter.ai.learning.StepResult;
 import stroom.shapeshifter.ai.learning.StepRunner;
 import stroom.shapeshifter.ai.scoring.Attempted;
+import stroom.shapeshifter.ai.scoring.ConfinedXml;
 import stroom.shapeshifter.shared.RecordBoundary;
+import stroom.util.shared.StoredError;
 
+import org.xml.sax.ContentHandler;
+import org.xml.sax.InputSource;
+import org.xml.sax.SAXException;
+import org.xml.sax.XMLReader;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.StringReader;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.Set;
 import java.util.function.Function;
@@ -155,6 +168,46 @@ public final class StandInFragmentRunner implements FragmentRunner {
             current = step.result().output();
         }
         return steps;
+    }
+
+    /// The stand-in serves as it runs: the chain over the whole text, step by step, and the tail's output
+    /// then read through the same gate the pipeline's tail feeds, so that what Tier 1 asserts about a
+    /// record's verdict is what a node decides. Nothing here is streaming — the text is in hand — and
+    /// nothing here needs to be.
+    @Override
+    public ServedStream serve(final DocRef fragment,
+                              final InputStream input,
+                              final RecordBoundary boundary,
+                              final RecordJudge judge,
+                              final ContentHandler downstream) {
+        final String text;
+        try {
+            text = new String(input.readAllBytes(), StandardCharsets.UTF_8);
+        } catch (final IOException e) {
+            throw new UncheckedIOException(e);
+        }
+        final List<Attempted> steps = run(fragment, text, boundary);
+        final List<StoredError> diagnostics = steps.stream()
+                .flatMap(step -> step.result().diagnostics().stream())
+                .toList();
+        final String output = steps.isEmpty()
+                ? null
+                : steps.get(steps.size() - 1).result().output();
+        if (output == null || output.isBlank()) {
+            return new ServedStream(0, 0.0, diagnostics, Optional.empty());
+        }
+        final RecordGate gate = new RecordGate(judge, downstream);
+        try {
+            final XMLReader reader = ConfinedXml.reader();
+            reader.setContentHandler(gate);
+            reader.parse(new InputSource(new StringReader(output)));
+            gate.finish();
+        } catch (final RecordShortfall shortfall) {
+            return new ServedStream(gate.records(), gate.meanTotal(), diagnostics, Optional.of(shortfall));
+        } catch (final SAXException | IOException e) {
+            throw new IllegalStateException("The chain's output could not be read: " + e.getMessage(), e);
+        }
+        return new ServedStream(gate.records(), gate.meanTotal(), diagnostics, Optional.empty());
     }
 
     private PipelineDataMerger merge(final DocRef fragment) {

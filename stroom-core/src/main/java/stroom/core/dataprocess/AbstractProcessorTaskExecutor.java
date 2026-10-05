@@ -272,8 +272,12 @@ public abstract class AbstractProcessorTaskExecutor implements ProcessorTaskExec
             LOGGER.error(e::getMessage, e);
         } finally {
             // Delete duplicate output — unless the run deferred. A reprocess that defers has replaced
-            // nothing, and the output it would have superseded must stand until it does.
-            if (!deferred) {
+            // nothing, and the output it would have superseded must stand until it does. What a deferred
+            // run itself wrote before it deferred is discarded instead: a serving run writes its output
+            // as it goes and a deferral means none of it is to be seen.
+            if (deferred) {
+                discardOutput(meta, processor);
+            } else {
                 deleteDuplicateOutput(meta, processor);
             }
         }
@@ -573,6 +577,36 @@ public abstract class AbstractProcessorTaskExecutor implements ProcessorTaskExec
     @Override
     public String toString() {
         return String.valueOf(streamSource.getMeta());
+    }
+
+    /// What this task wrote for the stream before it deferred: every child of the input on this
+    /// pipeline that names this task, logically deleted, so that a stream that waits leaves nothing
+    /// visible. Output other tasks wrote is left alone; it is theirs.
+    private void discardOutput(final Meta meta, final Processor processor) {
+        try {
+            final ExpressionOperator findMetaExpression = ExpressionOperator.builder()
+                    .addIdTerm(MetaFields.PARENT_ID, Condition.EQUALS, meta.getId())
+                    .addDocRefTerm(MetaFields.PIPELINE, Condition.IS_DOC_REF, processor.getPipeline())
+                    .addOperator(ExpressionOperator.builder()
+                            .op(Op.OR)
+                            .addTextTerm(MetaFields.STATUS, Condition.EQUALS, Status.LOCKED.toString())
+                            .addTextTerm(MetaFields.STATUS, Condition.EQUALS, Status.UNLOCKED.toString())
+                            .build())
+                    .build();
+            final List<Meta> written = metaService.find(new FindMetaCriteria(findMetaExpression)).getValues();
+            int discarded = 0;
+            for (final Meta child : written) {
+                if (child.getProcessorTaskId() != null && child.getProcessorTaskId() == processorTask.getId()) {
+                    metaService.updateStatus(child, child.getStatus(), Status.DELETED);
+                    discarded++;
+                }
+            }
+            final int count = discarded;
+            LOGGER.debug(() -> "Discarded " + count + " output stream(s) of deferred task " + processorTask.getId());
+        } catch (final RuntimeException e) {
+            LOGGER.error(() -> "Unable to discard the output of deferred task " + processorTask.getId()
+                               + ": " + e.getMessage(), e);
+        }
     }
 
     private void deleteDuplicateOutput(final Meta meta,

@@ -41,6 +41,7 @@ import stroom.pipeline.state.FeedHolder;
 import stroom.pipeline.state.PipelineContext;
 import stroom.pipeline.state.PipelineHolder;
 import stroom.pipeline.xslt.XsltStore;
+import stroom.processor.api.DeferTaskException;
 import stroom.svg.shared.SvgImage;
 import stroom.util.CharBuffer;
 import stroom.util.io.PathCreator;
@@ -296,6 +297,11 @@ public class XsltFilter extends AbstractXMLFilter implements SupportsCodeInjecti
             }
 
         } catch (final RuntimeException e) {
+            // A deferral from downstream is not a failure of the transform: it travels on as itself.
+            final DeferTaskException deferral = DeferTaskException.unwrap(e);
+            if (deferral != null) {
+                throw deferral;
+            }
             final Throwable throwable = unwrapException(e);
 
             errorReceiverProxy.log(Severity.FATAL_ERROR,
@@ -322,6 +328,12 @@ public class XsltFilter extends AbstractXMLFilter implements SupportsCodeInjecti
                 handler.endDocument();
             } catch (final Throwable e) {
                 try {
+                    // A deferral from downstream is not a failure of the transform: it travels on as
+                    // itself, and nothing is logged for it.
+                    final DeferTaskException deferral = DeferTaskException.unwrap(e);
+                    if (deferral != null) {
+                        throw deferral;
+                    }
                     final Throwable throwable = unwrapException(e);
 
                     errorReceiverProxy.log(Severity.FATAL_ERROR,
