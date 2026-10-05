@@ -13,6 +13,7 @@ import org.jooq.impl.DSL;
 import org.jooq.impl.SchemaImpl;
 
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterAttempt;
+import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterCorpus;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterDeferral;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterFeedState;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterGuidance;
@@ -41,6 +42,11 @@ public class Stroom extends SchemaImpl {
      * The table <code>stroom.shapeshifter_attempt</code>.
      */
     public final ShapeshifterAttempt SHAPESHIFTER_ATTEMPT = ShapeshifterAttempt.SHAPESHIFTER_ATTEMPT;
+
+    /**
+     * The table <code>stroom.shapeshifter_corpus</code>.
+     */
+    public final ShapeshifterCorpus SHAPESHIFTER_CORPUS = ShapeshifterCorpus.SHAPESHIFTER_CORPUS;
 
     /**
      * The table <code>stroom.shapeshifter_deferral</code>.
@@ -104,6 +110,7 @@ public class Stroom extends SchemaImpl {
     public final List<Table<?>> getTables() {
         return Arrays.asList(
             ShapeshifterAttempt.SHAPESHIFTER_ATTEMPT,
+            ShapeshifterCorpus.SHAPESHIFTER_CORPUS,
             ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL,
             ShapeshifterFeedState.SHAPESHIFTER_FEED_STATE,
             ShapeshifterGuidance.SHAPESHIFTER_GUIDANCE,

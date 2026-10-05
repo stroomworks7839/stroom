@@ -5,6 +5,7 @@ package stroom.shapeshifter.ai.impl.db.jooq;
 
 
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterAttempt;
+import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterCorpus;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterDeferral;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterFeedState;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterGuidance;
@@ -26,6 +27,11 @@ public class Tables {
      * The table <code>stroom.shapeshifter_attempt</code>.
      */
     public static final ShapeshifterAttempt SHAPESHIFTER_ATTEMPT = ShapeshifterAttempt.SHAPESHIFTER_ATTEMPT;
+
+    /**
+     * The table <code>stroom.shapeshifter_corpus</code>.
+     */
+    public static final ShapeshifterCorpus SHAPESHIFTER_CORPUS = ShapeshifterCorpus.SHAPESHIFTER_CORPUS;
 
     /**
      * The table <code>stroom.shapeshifter_deferral</code>.

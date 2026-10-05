@@ -211,6 +211,7 @@ class TestScenariosRetractionRelearningAndRelease {
                 .reply(Scenarios.fenced(FOUR_FIELDS_AND_ALARMS))
                 .expect(QuestionMatcher.configuration("XSLTFilter").withFeedbackMentioning("Relearning"))
                 .reply(Scenarios.fenced(XSLT));
+        final int held = scenarios.regressionSet.accepted(incumbent.getUuid()).size();
         final StageRun third = scenarios.stage(relearn).run(second.doc(), stream(3, withAlarms));
         relearn.verifyExhausted();
 
@@ -224,7 +225,9 @@ class TestScenariosRetractionRelearningAndRelease {
         assertThat(scenarios.rules.forDocument(DOC)).containsExactly(rebound.rule());
         assertThat(events(third.output())).describedAs("the incumbent served this stream").isEqualTo(14);
         assertThat(third.bindings().fragment()).isEqualTo(incumbent.getPipeline());
-        assertThat(scenarios.regressionSet.accepted(incumbent.getUuid())).hasSize(2);
+        assertThat(scenarios.regressionSet.accepted(incumbent.getUuid()))
+                .describedAs("the records that fell short under the incumbent were learned for, and go in (A56)")
+                .hasSizeGreaterThan(held);
         assertThat(scenarios.shapes.relearnReason(DOC, SHAPE)).isEmpty();
         assertThat(scenarios.stores.pipelines.list()).hasSize(2);
 

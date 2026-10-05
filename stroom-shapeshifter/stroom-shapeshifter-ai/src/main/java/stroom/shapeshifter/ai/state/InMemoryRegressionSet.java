@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2026 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,11 +23,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * The regression set as a map of lists: what scenarios run over, and what a node runs over until the
- * A26 module exists — node-local and gone on restart.
- Every method is synchronised: one node's tasks share it.
- */
+/// The corpus as a map of lists: what scenarios run over — node-local and gone on restart. Every method
+/// is synchronised: one node's tasks share it.
 public final class InMemoryRegressionSet implements RegressionSet {
 
     private final Map<String, List<Accepted>> accepted = new HashMap<>();
@@ -38,14 +35,31 @@ public final class InMemoryRegressionSet implements RegressionSet {
     }
 
     @Override
+    public synchronized void accept(final String docUuid,
+                                    final String ruleUuid,
+                                    final String feed,
+                                    final String type,
+                                    final List<Accepted> entries,
+                                    final int cap) {
+        append(ruleUuid, entries, cap);
+    }
+
+    @Override
     public synchronized void discard(final String ruleUuid) {
         accepted.remove(ruleUuid);
     }
 
     @Override
-    public synchronized void accept(final String ruleUuid, final List<Accepted> records, final int cap) {
+    public synchronized void move(final String fromRuleUuid, final String toRuleUuid, final int cap) {
+        final List<Accepted> moving = accepted.remove(fromRuleUuid);
+        if (moving != null) {
+            append(toRuleUuid, moving, cap);
+        }
+    }
+
+    private void append(final String ruleUuid, final List<Accepted> entries, final int cap) {
         final List<Accepted> kept = accepted.computeIfAbsent(ruleUuid, k -> new ArrayList<>());
-        kept.addAll(records);
+        kept.addAll(entries);
         // The cap keeps the most recent; the oldest accepted records are the first to go.
         while (kept.size() > cap) {
             kept.remove(0);

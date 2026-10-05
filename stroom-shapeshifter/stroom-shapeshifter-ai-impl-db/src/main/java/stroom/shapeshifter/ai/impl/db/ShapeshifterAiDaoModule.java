@@ -21,6 +21,7 @@ import stroom.shapeshifter.ai.cache.CachedRules;
 import stroom.shapeshifter.ai.cache.CachedShapes;
 import stroom.shapeshifter.ai.cache.Rows;
 import stroom.shapeshifter.ai.stage.Attempts;
+import stroom.shapeshifter.ai.stage.CorpusIndex;
 import stroom.shapeshifter.ai.stage.Deferrals;
 import stroom.shapeshifter.ai.stage.Guidance;
 import stroom.shapeshifter.ai.stage.Ledger;
@@ -61,6 +62,7 @@ public class ShapeshifterAiDaoModule extends AbstractModule {
         bind(Outputs.class).to(OutputsDao.class);
         bind(Serving.class).to(ServingDao.class);
         bind(Deferrals.class).to(DeferralsDao.class);
+        bind(CorpusIndex.class).to(CorpusIndexDao.class);
         // The two the hot path reads for every stream are bound as the rows behind a cache, and the cache
         // is what everything else asks for (design 01 §12 item 8): a routing table read from the database
         // once per stream per node is the first thing to give at volume. Nothing but the cache asks the

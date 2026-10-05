@@ -518,6 +518,40 @@ from the element through the runner to the scorers, and is the slice to do next,
 - **Exit:** scenario 10 of §8 in Tier 2, with the corpus surviving a restart between the session that
   filled it and the one it refuses, and the entry named in the feedback.
 
+*Built 2026-10-05.* `RegressionSet.Accepted` is a record: the record as the parser cut it, as one
+document the transform is given (`RecordSplit`'s form); its own text and the stream's preamble and
+postamble where the parser said where it cut; the output it was accepted with; its `Kind` — translation,
+Unknown, none; the score, the attempt and the target. `Corpus` builds the entries at every promotion —
+the sample's records on a first learning or a draft, the records that fell short on a relearning, the
+sample again where none was named — and holds a candidate to them (A66) by running the chain's transform
+steps over each: the output must clear the bar, a translation must not become an Unknown, a record that
+yielded must still yield; the refusal names the entry and the attempt that accepted it. A provisional
+rule's entries go in at binding and a promotion on a later stream adds nothing; Approve re-keys a draft's
+rows to the incumbent. In a node, `StoredRegressionSet` writes a promotion's entries as one stream on the
+source feed of type `Shapeshifter Corpus`, one entry per segment as a line of JSON, and `CorpusIndexDao`
+keeps a row per entry in `shapeshifter_corpus`; the cap drops rows and logically deletes a stream nothing
+names. Scenario 53 is the exit at both tiers: at Tier 2 the rule is learned in a processor task and two
+stages built afresh — one accepted, one refused by name — find the corpus with nothing but the rows and
+the stream carried over.
+
+What is recorded rather than built. `regressionRetentionDays` is still a setting with nothing behind it:
+the corpus lives under the feed's retention rules, which is A18's cap, and the document's own shorter
+retention is not applied. An improvement from the corpus needs every entry's text, which only the data
+splitter supplies, so a rule learned over the JSON or XML parser cannot be improved from its corpus and
+says so. The entries' one-record documents are indexed by the parser's record order, which is the
+candidate's parser's too only while the parser is unchanged — the premise phase 2 recorded. The stream
+type is created on demand (`MetaDaoImpl.create` asks the type DAO to get or create it), and creating a
+stream checks no permission, but reading one does: the corpus is the feed's data, so a person asking for
+an improvement must be able to view the feed's data, or the corpus reads as empty and the improvement is
+refused for having nothing to learn from. That is the classification doing what A18 asked of it, and
+the refusal could say so better than it does.
+
+*Its own audit found two, 2026-10-05.* A chain that is a parser alone — its output is its records — was
+held to nothing: the gate ran its transform steps, of which there are none, and read the empty result as
+a record that now yielded nothing. Such a chain is now held to the record it emits. And a corpus stream
+whose write failed part-way would have stayed on the feed as data nothing names; it is logically deleted
+before the failure is reported.
+
 ### Phase 4 — Streams wait instead of failing *(the feature, on phases 1 to 3)*
 
 - A `Deferred` decision. `Stage.serve` defers where a record falls short of the bar instead of marking

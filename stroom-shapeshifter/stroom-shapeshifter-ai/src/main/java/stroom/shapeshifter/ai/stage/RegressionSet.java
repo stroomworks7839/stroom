@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2026 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,43 +16,96 @@
 
 package stroom.shapeshifter.ai.stage;
 
-import stroom.shapeshifter.ai.learning.Target;
-
 import java.util.List;
 
-/**
- * The records a promoted variant was accepted on, per rule (ruling A18, keyed on the rule's uuid so
- * that a rule an operator widens keeps its history): a candidate that would score lower on any of them
- * is not promoted, however well it does on new data. Appended at promotion, capped per rule by the
- * document. In-memory in scenarios; a stream in a node.
- */
+/// The corpus (ruling A18; design 04 §4.1): the records a rule was accepted on, per rule, each with the
+/// output it was accepted with. Keyed on the rule's uuid so that a rule an operator widens keeps its
+/// history. A candidate is held to every entry, to **no worse** (A66): every entry's new output must
+/// clear the bar, and a record once translated may never become Unknown. Output may otherwise change.
+///
+/// An entry is a record and not a stream (A56): only the records a session had to learn for go in — a
+/// first stream contributes the sample the model was shown, a relearning the records that fell short —
+/// so a stream of ten gigabytes contributes a handful. Appended at promotion, capped per rule by the
+/// document (A63), the oldest going first. In-memory in scenarios; in a node, a stream per promotion on
+/// the source feed with a row per entry (design 04 §4.1), so that the copy inherits the feed's
+/// classification and lives under its retention.
 public interface RegressionSet {
 
+    /// What a rule was accepted on, oldest first.
+    ///
+    /// @param ruleUuid The rule.
+    /// @return Its entries.
     List<Accepted> accepted(String ruleUuid);
 
-    void accept(String ruleUuid, List<Accepted> records, int cap);
+    /// Append a promotion's entries, dropping the oldest beyond the cap.
+    ///
+    /// @param docUuid  The document.
+    /// @param ruleUuid The rule.
+    /// @param feed     The feed the records came from: where a node keeps the copy.
+    /// @param type     The stream type the records came from.
+    /// @param entries  The records, in the order they were learned.
+    /// @param cap      How many entries the rule may hold (A63).
+    void accept(String docUuid, String ruleUuid, String feed, String type, List<Accepted> entries, int cap);
 
-    /**
-     * A rule that will never serve — a rejected draft, or a draft whose history moved to the rule it
-     * replaced on Approve — takes its records with it.
-     */
+    /// A rule that will never serve — a rejected draft, a retracted rule — takes its records with it.
+    ///
+    /// @param ruleUuid The rule.
     void discard(String ruleUuid);
 
-    /**
-     * @param input   The record as it was received.
-     * @param score   The weighted score the promoted variant achieved on it.
-     * @param targets What each kind of record in it was to become (A31): the goldens, as design 01 §7.4
-     *                described the set — empty where the attempt had none.
-     */
-    record Accepted(String input, double score, List<Target> targets) {
+    /// Approve rebinds the incumbent to a draft's fragment and the draft's history becomes the
+    /// incumbent's: its entries move, appended after what the incumbent already holds.
+    ///
+    /// @param fromRuleUuid The draft.
+    /// @param toRuleUuid   The rule it replaced.
+    /// @param cap          How many entries the rule may hold (A63).
+    void move(String fromRuleUuid, String toRuleUuid, int cap);
 
-        public Accepted {
-            targets = List.copyOf(targets);
+    // --------------------------------------------------------------------------------
+
+    /// What a record became when it was accepted.
+    enum Kind {
+        /// A real translation: an event with something in its detail.
+        TRANSLATION,
+        /// An admission: an event whose detail is `Unknown` (A51, A53).
+        UNKNOWN,
+        /// Nothing: a kind of record that yields no event — a header line, a comment.
+        NONE
+    }
+
+    /// One record a rule was accepted on.
+    ///
+    /// @param record     The record as the parser cut it, as one document of its own: the parser's output
+    ///                   with this record alone under its ancestors, which is what the transform is given
+    ///                   and what a candidate is run over.
+    /// @param text       The record's own text as it was received, where the parser knows where it cut —
+    ///                   the data splitter does, the JSON and XML parsers do not — else null.
+    /// @param preamble   What the stream carried before its first record — a header line, an opening
+    ///                   bracket — where the parser knows; else null. What a stream rebuilt from entries
+    ///                   begins with.
+    /// @param postamble  What the stream carried after its last record, likewise.
+    /// @param output     The output the record was accepted with: the transform's events for it, or null
+    ///                   where it yielded none.
+    /// @param kind       What that output is.
+    /// @param score      The weighted score the promoted candidate achieved on the stream it was accepted
+    ///                   from.
+    /// @param attemptId  The attempt that accepted it, where one was open.
+    /// @param acceptedMs When it was accepted.
+    /// @param target     What the plan said this kind of record should become (A31), where it settled one.
+    record Accepted(String record,
+                    String text,
+                    String preamble,
+                    String postamble,
+                    String output,
+                    Kind kind,
+                    double score,
+                    Long attemptId,
+                    long acceptedMs,
+                    String target) {
+
+        /// Whether the record can be put back through a parser: it has its own text, and what the stream
+        /// wrapped it in.
+        public boolean runnable() {
+            return text != null;
         }
-
-        public Accepted(final String input, final double score) {
-            this(input, score, List.of());
-        }
-
     }
 }

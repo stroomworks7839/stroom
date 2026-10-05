@@ -22,6 +22,7 @@ import stroom.shapeshifter.ai.stage.Decision.Kept;
 import stroom.shapeshifter.ai.stage.Decision.Rebound;
 import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.RegressionSet.Accepted;
+import stroom.shapeshifter.ai.stage.RegressionSet.Kind;
 import stroom.shapeshifter.ai.stage.Stage;
 import stroom.shapeshifter.ai.stage.StageRun;
 import stroom.shapeshifter.shared.LearningMode;
@@ -109,12 +110,16 @@ class TestImproveARuleThatIsServing {
         stage.run(doc, stream());
         final RoutingRule bound = scenarios.rules.forDocument("doc-1").get(0);
 
-        // A bar no candidate can reach. What the gate is about is the *comparison* — a candidate that
-        // is worse on a record the rule was accepted on is not an improvement — and saying so with a
-        // score rather than by writing a deliberately mediocre stylesheet keeps the test about the gate.
+        // Seeded by hand. What the gate is about is the entry a candidate is held to — a record the rule
+        // was accepted on that the candidate makes less of is not an improvement (A66) — and an entry
+        // that says it yielded an event, over a record that holds nothing to make one of, is the cheapest
+        // way to have one. Its text is an ordinary line, so the sample the candidate learns from still
+        // parses and the candidate still clears the floor; it is the entry that refuses it.
         scenarios.regressionSet.discard(bound.getUuid());
-        scenarios.regressionSet.accept(bound.getUuid(),
-                List.of(new Accepted(CSV.input(), 1.5, List.of())), doc.getRegressionCap());
+        final String[] lines = CSV.input().split("\n");
+        scenarios.regressionSet.accept("doc-1", bound.getUuid(), FEED, "Raw Events", List.of(new Accepted(
+                "<records xmlns=\"records:2\"/>", lines[1], lines[0] + "\n", "\n", "<Events><Event/></Events>",
+                Kind.TRANSLATION, 1.0, 7L, 0L, null)), doc.getRegressionCap());
 
         final Stage improver = scenarios.stage(document -> learn(scenarios), scenarios.rules);
         final StageRun improved = improver.improve(doc, bound.getUuid(), null, "jo");
@@ -123,7 +128,9 @@ class TestImproveARuleThatIsServing {
                 .describedAs("worse on a record the rule was accepted on is not an improvement, whatever "
                              + "else it does (A18)")
                 .isInstanceOf(Kept.class);
-        assertThat(((Kept) improved.decision()).reason()).contains("accepted on an earlier stream");
+        assertThat(((Kept) improved.decision()).reason())
+                .contains("makes nothing of a record that yielded an event")
+                .contains("record 1 of 1 in the corpus, accepted by attempt 7");
         assertThat(scenarios.rules.forDocument("doc-1").get(0).getPipeline())
                 .describedAs("and the incumbent is still bound, having served throughout")
                 .isEqualTo(bound.getPipeline());

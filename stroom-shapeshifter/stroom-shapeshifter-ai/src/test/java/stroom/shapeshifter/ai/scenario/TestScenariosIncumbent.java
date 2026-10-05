@@ -191,7 +191,7 @@ class TestScenariosIncumbent {
         final Scenarios scenarios = new Scenarios();
         final StageRun marked = incumbentMarked(scenarios, "user");
         final RoutingRule v1 = scenarios.rules.forDocument(DOC).get(0);
-        assertThat(scenarios.regressionSet.accepted(v1.getUuid())).hasSize(1);
+        assertThat(scenarios.regressionSet.accepted(v1.getUuid())).hasSize(6);
 
         final String v2 = userOnlyWhen(XSLT, "starts-with(data[@name='who']/@value, 'staff')");
         final Script relearn = learning(scenarios, v2);
@@ -199,7 +199,7 @@ class TestScenariosIncumbent {
         relearn.verifyExhausted();
 
         assertThat(run.decision()).isInstanceOf(Kept.class);
-        assertThat(((Kept) run.decision()).reason()).contains("accepted on an earlier stream");
+        assertThat(((Kept) run.decision()).reason()).contains("falls short of the bar on a record it was accepted on");
         assertThat(scenarios.rules.forDocument(DOC)).containsExactly(v1);
         assertThat(scenarios.stores.xslts.list()).hasSize(1);
     }
@@ -228,7 +228,7 @@ class TestScenariosIncumbent {
         assertThat(scenarios.stores.pipelines.list()).hasSize(2);
         assertThat(scenarios.stores.xslts.list()).hasSize(2);
         assertThat(scenarios.stores.pipelines.readDocument(v1.getPipeline())).isNotNull();
-        assertThat(scenarios.regressionSet.accepted(v1.getUuid())).hasSize(2);
+        assertThat(scenarios.regressionSet.accepted(v1.getUuid())).hasSizeGreaterThan(6);
     }
 
     @Test

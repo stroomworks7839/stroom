@@ -150,8 +150,9 @@ class TestScenariosBindingBeforeLearning {
         assertThat(scenarios.rules.forDocument("doc-1")).hasSize(2);
         assertThat(scenarios.stores.pipelines.list()).hasSize(1);
         assertThat(scenarios.regressionSet.accepted(bound.getUuid()))
-                .describedAs("held out by construction: promoted, so accepted")
-                .hasSize(1);
+                .describedAs("nothing was learned for (A56): the variant was bound by looking, and the "
+                             + "corpus is what a session had to learn")
+                .isEmpty();
     }
 
     @Test
@@ -217,8 +218,9 @@ class TestScenariosBindingBeforeLearning {
         assertThat(provisional.rule().getPromotedTimeMs()).isNull();
         assertThat(first.output()).isEqualTo(EXPECTED_EVENTS);
         assertThat(scenarios.regressionSet.accepted(provisional.rule().getUuid()))
-                .describedAs("nothing is accepted until promotion")
-                .isEmpty();
+                .describedAs("what was learned for goes in under a provisional rule too (A56): the five "
+                             + "records of the sample")
+                .hasSize(5);
 
         // The same shape again with twelve records: the provisional rule serves it and, now that the
         // shape has enough records and clears the floor, is promoted in place.
@@ -240,7 +242,9 @@ class TestScenariosBindingBeforeLearning {
         assertThat(promoted.isProvisional()).isFalse();
         assertThat(promoted.getPromotedTimeMs()).isEqualTo(Scenarios.NOW.toEpochMilli());
         assertThat(scenarios.rules.forDocument("doc-1")).containsExactly(promoted);
-        assertThat(scenarios.regressionSet.accepted(promoted.getUuid())).hasSize(1);
+        assertThat(scenarios.regressionSet.accepted(promoted.getUuid()))
+                .describedAs("a stream that merely brought enough records learned nothing, and adds nothing")
+                .hasSize(5);
 
         // And a third stream is simply bound.
         final StageRun third = scenarios.stage(silent).run(second.doc(), stream("CSV"));

@@ -177,7 +177,7 @@ public final class TargetChecks {
      * The kind of one record, by which representatives are chosen and counted: the text skeleton of a line,
      * the record skeleton of markup.
      */
-    static String kindOf(final String record) {
+    public static String kindOf(final String record) {
         return ShapeSignature.isMarkup(record)
                 ? ShapeSignature.recordSkeleton(record)
                 : ShapeSignature.textSkeleton(record);

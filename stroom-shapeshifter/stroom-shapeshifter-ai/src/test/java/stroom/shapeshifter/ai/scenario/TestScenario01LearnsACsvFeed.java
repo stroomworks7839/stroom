@@ -27,6 +27,7 @@ import stroom.shapeshifter.ai.stage.Decision.Bound;
 import stroom.shapeshifter.ai.stage.Decision.Promoted;
 import stroom.shapeshifter.ai.stage.Decision.Sentinel;
 import stroom.shapeshifter.ai.stage.Input;
+import stroom.shapeshifter.ai.stage.RegressionSet.Kind;
 import stroom.shapeshifter.ai.stage.StageRun;
 import stroom.shapeshifter.shared.LearningMode;
 import stroom.shapeshifter.shared.PlanExample;
@@ -165,8 +166,14 @@ class TestScenario01LearnsACsvFeed {
         assertThat(scenarios.stores.textConverters.list()).hasSize(1);
         assertThat(scenarios.stores.xslts.list()).hasSize(1);
         assertThat(scenarios.regressionSet.accepted(rule.getUuid()))
-                .describedAs("A18: the regression set is per rule")
-                .hasSize(1);
+                .describedAs("A18, A56: the corpus is per rule and per record — the five records of the sample, "
+                             + "the held-out fifth of the stream having been judged on and not learned from")
+                .hasSize(5)
+                .allSatisfy(entry -> {
+                    assertThat(entry.kind()).isEqualTo(Kind.TRANSLATION);
+                    assertThat(entry.text()).describedAs("the record's own text, by the parser's span").isNotBlank();
+                    assertThat(entry.output()).contains("<Event>");
+                });
     }
 
     @Test

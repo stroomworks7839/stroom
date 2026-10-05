@@ -157,7 +157,7 @@ class TestScenario22ReviewMode {
         final Request request = scenarios.reprocessing.requests().get(0);
         assertThat(request.inputIds()).containsExactly(1L, 2L);
         assertThat(request.reason()).contains("approved").contains(SHAPE);
-        assertThat(scenarios.regressionSet.accepted(live.getUuid())).hasSize(1);
+        assertThat(scenarios.regressionSet.accepted(live.getUuid())).isNotEmpty();
 
         final Script silent = Script.of();
         final StageRun third = scenarios.stage(silent).run(waiting.doc(), stream(3, lines(7, 0)));
@@ -250,13 +250,16 @@ class TestScenario22ReviewMode {
 
         // Approve rebinds the incumbent to the draft's fragment: one rule, the incumbent's uuid, the
         // draft's fragment, and a regression set that carries both histories.
+        final int incumbentHeld = scenarios.regressionSet.accepted(incumbent.getUuid()).size();
         scenarios.stage(Script.of()).approve(relearned.doc(), draft.getUuid());
         assertThat(scenarios.rules.forDocument(DOC)).hasSize(1);
         final RoutingRule rebound = scenarios.rules.forDocument(DOC).get(0);
         assertThat(rebound.getUuid()).isEqualTo(incumbent.getUuid());
         assertThat(rebound.getPipeline()).isEqualTo(draft.getPipeline());
         assertThat(rebound.isDraft()).isFalse();
-        assertThat(scenarios.regressionSet.accepted(incumbent.getUuid())).hasSize(2);
+        assertThat(scenarios.regressionSet.accepted(incumbent.getUuid()))
+                .describedAs("the draft's records, learned for in its session, now follow the incumbent's")
+                .hasSizeGreaterThan(incumbentHeld);
         assertThat(scenarios.regressionSet.accepted(draft.getUuid())).isEmpty();
         assertThat(scenarios.reprocessing.requests()).describedAs("the shape's ledger was already empty").hasSize(1);
 
@@ -309,7 +312,9 @@ class TestScenario22ReviewMode {
         final RoutingRule live = scenarios.rules.forDocument(DOC).get(0);
         assertThat(live.isProvisional()).isFalse();
         assertThat(live.getPromotedTimeMs()).isEqualTo(Scenarios.NOW.toEpochMilli());
-        assertThat(scenarios.regressionSet.accepted(live.getUuid())).hasSize(1);
+        assertThat(scenarios.regressionSet.accepted(live.getUuid()))
+                .describedAs("one entry per record of the sample it was learned from, however few (A56)")
+                .hasSize(5);
     }
 
     @Test

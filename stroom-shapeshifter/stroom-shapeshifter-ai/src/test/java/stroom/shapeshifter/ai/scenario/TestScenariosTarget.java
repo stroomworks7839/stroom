@@ -151,8 +151,10 @@ class TestScenariosTarget {
                 .anyMatch(message -> message.contains("Required field EventSource/User/Id is present in 0 of 1"));
         // The targets went with the promotion, as the regression set's goldens.
         final RoutingRule rule = ((Promoted) run.decision()).rule();
-        assertThat(scenarios.regressionSet.accepted(rule.getUuid()).get(0).targets()).hasSize(1);
-        assertThat(scenarios.regressionSet.accepted(rule.getUuid()).get(0).targets().get(0).event()).isPresent();
+        assertThat(scenarios.regressionSet.accepted(rule.getUuid()))
+                .describedAs("each entry carries what the plan said its kind of record should become")
+                .isNotEmpty()
+                .allSatisfy(entry -> assertThat(entry.target()).isNotNull());
     }
 
     @Test
@@ -176,7 +178,9 @@ class TestScenariosTarget {
         assertThat(questioned.feedback()).extracting(error -> error.getMessage())
                 .anyMatch(message -> message.startsWith("This kind of record is seen 5 times in the sample"));
         final RoutingRule rule = ((Promoted) run.decision()).rule();
-        assertThat(scenarios.regressionSet.accepted(rule.getUuid()).get(0).targets().get(0).event()).isPresent();
+        assertThat(scenarios.regressionSet.accepted(rule.getUuid()))
+                .isNotEmpty()
+                .allSatisfy(entry -> assertThat(entry.target()).isNotNull());
     }
 
     @Test
@@ -200,7 +204,10 @@ class TestScenariosTarget {
         script.verifyExhausted();
         assertThat(run.decision()).isInstanceOf(Promoted.class);
         final RoutingRule rule = ((Promoted) run.decision()).rule();
-        assertThat(scenarios.regressionSet.accepted(rule.getUuid()).get(0).targets().get(0).event()).isEmpty();
+        assertThat(scenarios.regressionSet.accepted(rule.getUuid()))
+                .describedAs("a kind of record that yields no event has no target event to carry")
+                .isNotEmpty()
+                .allSatisfy(entry -> assertThat(entry.target()).isNull());
     }
 
     @Test

@@ -10,6 +10,7 @@ import org.jooq.impl.DSL;
 import org.jooq.impl.Internal;
 
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterAttempt;
+import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterCorpus;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterDeferral;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterGuidance;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterLedger;
@@ -30,6 +31,8 @@ public class Indexes {
     public static final Index SHAPESHIFTER_ATTEMPT_SHAPESHIFTER_ATTEMPT_CREATE_TIME_MS = Internal.createIndex(DSL.name("shapeshifter_attempt_create_time_ms"), ShapeshifterAttempt.SHAPESHIFTER_ATTEMPT, new OrderField[] { ShapeshifterAttempt.SHAPESHIFTER_ATTEMPT.CREATE_TIME_MS }, false);
     public static final Index SHAPESHIFTER_ATTEMPT_SHAPESHIFTER_ATTEMPT_DOC_SHAPE = Internal.createIndex(DSL.name("shapeshifter_attempt_doc_shape"), ShapeshifterAttempt.SHAPESHIFTER_ATTEMPT, new OrderField[] { ShapeshifterAttempt.SHAPESHIFTER_ATTEMPT.DOC_UUID, ShapeshifterAttempt.SHAPESHIFTER_ATTEMPT.SHAPE_HASH }, false);
     public static final Index SHAPESHIFTER_ATTEMPT_SHAPESHIFTER_ATTEMPT_STATUS = Internal.createIndex(DSL.name("shapeshifter_attempt_status"), ShapeshifterAttempt.SHAPESHIFTER_ATTEMPT, new OrderField[] { ShapeshifterAttempt.SHAPESHIFTER_ATTEMPT.STATUS }, false);
+    public static final Index SHAPESHIFTER_CORPUS_SHAPESHIFTER_CORPUS_META = Internal.createIndex(DSL.name("shapeshifter_corpus_meta"), ShapeshifterCorpus.SHAPESHIFTER_CORPUS, new OrderField[] { ShapeshifterCorpus.SHAPESHIFTER_CORPUS.META_ID }, false);
+    public static final Index SHAPESHIFTER_CORPUS_SHAPESHIFTER_CORPUS_RULE = Internal.createIndex(DSL.name("shapeshifter_corpus_rule"), ShapeshifterCorpus.SHAPESHIFTER_CORPUS, new OrderField[] { ShapeshifterCorpus.SHAPESHIFTER_CORPUS.RULE_UUID, ShapeshifterCorpus.SHAPESHIFTER_CORPUS.ID }, false);
     public static final Index SHAPESHIFTER_DEFERRAL_SHAPESHIFTER_DEFERRAL_DOC_FEED_TYPE = Internal.createIndex(DSL.name("shapeshifter_deferral_doc_feed_type"), ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL, new OrderField[] { ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.DOC_UUID, ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.FEED_NAME, ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.TYPE_NAME }, false);
     public static final Index SHAPESHIFTER_GUIDANCE_SHAPESHIFTER_GUIDANCE_DOC_SHAPE = Internal.createIndex(DSL.name("shapeshifter_guidance_doc_shape"), ShapeshifterGuidance.SHAPESHIFTER_GUIDANCE, new OrderField[] { ShapeshifterGuidance.SHAPESHIFTER_GUIDANCE.DOC_UUID, ShapeshifterGuidance.SHAPESHIFTER_GUIDANCE.SHAPE_HASH }, false);
     public static final Index SHAPESHIFTER_LEDGER_SHAPESHIFTER_LEDGER_INPUT_META_ID = Internal.createIndex(DSL.name("shapeshifter_ledger_input_meta_id"), ShapeshifterLedger.SHAPESHIFTER_LEDGER, new OrderField[] { ShapeshifterLedger.SHAPESHIFTER_LEDGER.INPUT_META_ID }, false);

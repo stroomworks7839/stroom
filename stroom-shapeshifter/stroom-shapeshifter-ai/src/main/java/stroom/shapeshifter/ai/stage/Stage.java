@@ -410,15 +410,21 @@ public final class Stage {
         // The shape the rule was learned for, read back from what the rule recorded: an improvement
         // begins from a rule and there is no stream to take a shape from.
         final Shape shape = Shape.parse(incumbent.getShapeId());
-        final Accepted sample = accepted.get(0);
+        // The stream to learn from is the corpus itself, put back together: every record as it was
+        // received, between what the stream wrapped them in. A record whose parser did not say where it
+        // cut — JSON's, XML's — cannot be put back through one, and that is said rather than guessed at.
+        final String sample = Corpus.stream(accepted)
+                .orElseThrow(() -> new IllegalArgumentException("Rule " + ruleUuid + " was accepted on records "
+                                                                + "that cannot be put back through its parser; "
+                                                                + "relearn its shape instead"));
         // The shape's own values, so that the model is asked about the feed it is improving rather than
         // about an unnamed sample: the headers are what a question carries and what A29's "shown means
         // bound" rests on. They come from the rule, since there is no stream here to read them off.
         final Input input = new Input(-1L,
                 shape.values().get(MetaFields.FIELD_FEED),
                 shape.values().get(MetaFields.FIELD_TYPE),
-                shape.values(), sample.input(), null);
-        final Map<String, Object> attributes = input.routingAttributes(ShapeSignature.of(sample.input()));
+                shape.values(), sample, null);
+        final Map<String, Object> attributes = input.routingAttributes(ShapeSignature.of(sample));
         final Scorecard scorecard = new Scorecard(doc.getScorers(), scorers);
         // Asked where it was asked from, whatever the document's execution mode. Deferred mode exists
         // because a model call inside a *processing task* holds a task slot (A5); an improvement is not
@@ -461,15 +467,24 @@ public final class Stage {
         }
         // Every accepted record, not one: an improvement asked for out of the blue has no stream to be
         // better on, so the records the rule was accepted on are the whole of the evidence (A18).
-        for (final Accepted record : accepted) {
-            final Judged onRecord = asLearned(rerun(learned.chain(), record.input(), learned.boundary()),
-                    scorecard);
-            if (onRecord.score() < record.score()) {
-                return kept(doc, shape, incumbent, "Candidate scored " + onRecord.score() + " against "
-                                                   + record.score() + " accepted on an earlier stream",
+        for (int i = 0; i < accepted.size(); i++) {
+            final Accepted record = accepted.get(i);
+            final List<LearnedStep> transforms = Corpus.transforms(learned.chain());
+            final Judged onRecord = asLearned(rerun(transforms, record.record(), learned.boundary()), scorecard);
+            final Optional<String> shortfall = Corpus.shortfall(record, onRecord.verdicts(),
+                    Corpus.outputFor(transforms, record.record(), learned.boundary()));
+            if (shortfall.isPresent()) {
+                return kept(doc, shape, incumbent, "Candidate " + shortfall.get() + " — "
+                                                   + Corpus.name(i + 1, accepted.size(), record),
                         learned.transcript());
             }
         }
+        // The corpus was the stream, so what the model was shown of it was learned for again: each of
+        // those records goes in with what the candidate now makes of it, and the cap lets the oldest go
+        // (A63).
+        final List<Accepted> entries = Corpus.entries(learned.chain(), learned.boundary(),
+                learningPrefix(input.data(), doc), null, learned.targets(), candidate.score(),
+                recorder.attemptId(), clock.millis(), doc.getRegressionCap());
         final DocRef fragment = write(doc, shape, learned);
         // A shape marked for relearning has just been learned again, by hand: the mark is spent, or the
         // next stream of the shape would relearn the rule somebody has only now improved.
@@ -486,8 +501,8 @@ public final class Stage {
                     .shapeId(shape.id())
                     .build();
             rules.append(doc.getUuid(), draft);
-            regressionSet.accept(draft.getUuid(), List.of(new Accepted(input.data(), candidate.score(),
-                    learned.targets())), doc.getRegressionCap());
+            regressionSet.accept(doc.getUuid(), draft.getUuid(), input.feed(), input.type(), entries,
+                    doc.getRegressionCap());
             shapes.awaitReview(doc.getUuid(), shape.id(), draft.getUuid());
             return new StageRun(doc, new Drafted(draft, candidate.score()), shape, null, candidate.output(),
                     candidate.verdicts(), learned.transcript(), null, List.of());
@@ -499,8 +514,8 @@ public final class Stage {
                 .recordBoundary(learned.boundary())
                 .shapeId(shape.id())
                 .build();
-        regressionSet.accept(rebound.getUuid(), List.of(new Accepted(input.data(), candidate.score(),
-                learned.targets())), doc.getRegressionCap());
+        regressionSet.accept(doc.getUuid(), rebound.getUuid(), input.feed(), input.type(), entries,
+                    doc.getRegressionCap());
         rules.replace(doc.getUuid(), rebound);
         return new StageRun(doc, new Rebound(incumbent, rebound, candidate.score()), shape,
                 new Bindings(doc.getUuid(), rebound.getUuid(), fragment, learned.boundary(), false,
@@ -1009,6 +1024,10 @@ public final class Stage {
             return advisor;
         }
 
+        private long attemptId() {
+            return attemptId;
+        }
+
         /// What this attempt had spent before it was last parked (A5): its budget is the whole of it.
         private long alreadySpent() {
             return alreadySpent;
@@ -1122,7 +1141,12 @@ public final class Stage {
                     judged.verdicts(), learned.transcript());
         }
         final DocRef fragment = write(doc, shape, learned);
-        return bind(doc, shape, input, selector, fragment, judged, learned.targets(), learned.transcript(),
+        // What goes in the corpus (A56): the sample the model was shown, every record of it, since a
+        // first learning learned for all of them.
+        final List<Accepted> entries = Corpus.entries(learned.chain(), learned.boundary(),
+                learningPrefix(input.data(), doc), null, learned.targets(), judged.score(), recorder.attemptId(),
+                clock.millis(), doc.getRegressionCap());
+        return bind(doc, shape, input, selector, fragment, judged, entries, learned.transcript(),
                 learned.boundary());
     }
 
@@ -1180,7 +1204,7 @@ public final class Stage {
 
     /**
      * A provisional rule met the gate: promoted in place — same rule, same {@code uuid} — and its
-     * regression set begins with this stream (A18).
+     * corpus already holds what was learned for (A56).
      */
     private StageRun promote(final ShapeshifterAiDoc doc,
                              final Shape shape,
@@ -1192,8 +1216,8 @@ public final class Stage {
                 .promotedTimeMs(clock.millis())
                 .score(judged.score())
                 .build();
-        regressionSet.accept(promoted.getUuid(), List.of(new Accepted(input.data(), judged.score())),
-                doc.getRegressionCap());
+        // The corpus already holds what was learned for (A56); a stream that merely brought enough records
+        // to be judged on learned nothing, and contributes nothing.
         shapes.reset(doc.getUuid(), shape.id());
         rules.replace(doc.getUuid(), promoted);
         return emit(doc, new Promoted(promoted, judged.score()), shape, input, promoted, judged, List.of());
@@ -1292,27 +1316,35 @@ public final class Stage {
                                                  + served.score() + " on this stream"), shape, input, incumbent,
                     served, learned.transcript());
         }
-        for (final Accepted accepted : regressionSet.accepted(incumbent.getUuid())) {
-            final Judged onRecord = asLearned(rerun(learned.chain(), accepted.input(), learned.boundary()),
-                    scorecard);
-            if (onRecord.score() < accepted.score()) {
-                return emit(doc, new Kept(incumbent, "Candidate scored " + onRecord.score() + " against "
-                                                     + accepted.score() + " accepted on an earlier stream"),
+        // Held to the corpus, to no worse (A66): every record the rule was accepted on, run through the
+        // candidate's transform, must clear the bar, and none that translated may become an Unknown.
+        // Output may otherwise change — the output each was accepted with is kept so that a person can
+        // see what changed, not so that the gate can refuse it.
+        final List<Accepted> corpus = regressionSet.accepted(incumbent.getUuid());
+        for (int i = 0; i < corpus.size(); i++) {
+            final Accepted accepted = corpus.get(i);
+            final List<LearnedStep> transforms = Corpus.transforms(learned.chain());
+            final Judged onRecord = asLearned(rerun(transforms, accepted.record(), learned.boundary()), scorecard);
+            final Optional<String> shortfall = Corpus.shortfall(accepted, onRecord.verdicts(),
+                    Corpus.outputFor(transforms, accepted.record(), learned.boundary()));
+            if (shortfall.isPresent()) {
+                return emit(doc, new Kept(incumbent, "Candidate " + shortfall.get() + " — "
+                                                     + Corpus.name(i + 1, corpus.size(), accepted)),
                         shape, input, incumbent, served, learned.transcript());
             }
-            // A18 with the targets as goldens (A31, §12 item 20), and *not* as a gate: §7.4 is explicit
-            // that a better variant legitimately produces different output, so what a record was accepted
-            // as becoming is a signal and not a bar. The score is a number over the whole record and two
-            // different events can reach it, so a candidate that scores the same while writing something
-            // else is worth saying out loud — to the person reading the attempt, not to the gate.
-            fidelity(onRecord.output(), accepted.targets()).ifPresent(changed ->
-                    LOGGER.info(() -> LogUtil.message(
-                            "Shapeshifter AI document {}: the candidate for rule {} scores {} on a record "
-                            + "accepted at {}, and writes something other than what that record was "
-                            + "accepted as becoming: {}",
-                            doc.getUuid(), incumbent.getUuid(), onRecord.score(), accepted.score(),
-                            changed.getMessage())));
         }
+        // What this session learned for (A56): the records of the stream that fell short under the
+        // incumbent, with what the candidate makes of them. A relearning that names no record — the shape
+        // fell short on yield or coverage, which are measures of the stream and lay nothing at a record —
+        // learned for the sample it was shown, as a first learning does.
+        final Set<Integer> fellShort = served.failingRecords();
+        final List<Accepted> entries = fellShort.isEmpty()
+                ? Corpus.entries(learned.chain(), learned.boundary(), learningPrefix(input.data(), doc), null,
+                        learned.targets(), candidate.score(), recorder.attemptId(), clock.millis(),
+                        doc.getRegressionCap())
+                : Corpus.entries(learned.chain(), learned.boundary(), input.data(), fellShort,
+                        learned.targets(), candidate.score(), recorder.attemptId(), clock.millis(),
+                        doc.getRegressionCap());
         final DocRef fragment = write(doc, shape, learned);
         if (doc.getPromotionMode() == PromotionMode.REVIEW) {
             // Behind the incumbent, which keeps matching first; Approve rebinds the incumbent to this
@@ -1327,8 +1359,8 @@ public final class Stage {
                     .shapeId(shape.id())
                     .build();
             rules.append(doc.getUuid(), draft);
-            regressionSet.accept(draft.getUuid(), List.of(new Accepted(input.data(), candidate.score(),
-                    learned.targets())), doc.getRegressionCap());
+            regressionSet.accept(doc.getUuid(), draft.getUuid(), input.feed(), input.type(), entries,
+                    doc.getRegressionCap());
             shapes.awaitReview(doc.getUuid(), shape.id(), draft.getUuid());
             return emit(doc, new Drafted(draft, candidate.score()), shape, input,
                     incumbent, served, learned.transcript());
@@ -1339,8 +1371,8 @@ public final class Stage {
                 .score(candidate.score())
                 .recordBoundary(learned.boundary())
                 .build();
-        regressionSet.accept(rebound.getUuid(), List.of(new Accepted(input.data(), candidate.score(),
-                learned.targets())), doc.getRegressionCap());
+        regressionSet.accept(doc.getUuid(), rebound.getUuid(), input.feed(), input.type(), entries,
+                    doc.getRegressionCap());
         rules.replace(doc.getUuid(), rebound);
         return emit(doc, new Rebound(incumbent, rebound, candidate.score()), shape,
                 input, incumbent, served, learned.transcript());
@@ -1360,7 +1392,7 @@ public final class Stage {
                           final ExpressionOperator selector,
                           final DocRef fragment,
                           final Judged judged,
-                          final List<Target> targets,
+                          final List<Accepted> entries,
                           final List<Exchange> transcript,
                           final RecordBoundary boundary) {
         final boolean provisional = judged.records() < doc.getMinRecordsPerShape();
@@ -1383,13 +1415,11 @@ public final class Stage {
         // Appended, not prepended (design 02 §4): learned rules are exclusive by key, so order among them
         // is moot, and an operator's more specific rule above them keeps its precedence.
         rules.append(doc.getUuid(), rule);
-        if (!provisional || draft) {
-            // A draft's records go in now, under its uuid, however few: they are what it was judged on
-            // whether or not it is approved — and a person approving it on too few is the A14 exception
-            // design 01 §6 allows them — and Reject takes them out again.
-            regressionSet.accept(rule.getUuid(), List.of(new Accepted(input.data(), judged.score(), targets)),
-                    doc.getRegressionCap());
-        }
+        // What was learned for goes in now, under a draft or a provisional rule too (A56): the records are
+        // what the session put to the model whether or not the stream brought enough of them or a person
+        // has yet approved what it made of them. Reject and retraction take them out again.
+        regressionSet.accept(doc.getUuid(), rule.getUuid(), input.feed(), input.type(), entries,
+                doc.getRegressionCap());
         shapes.reset(doc.getUuid(), shape.id());
         if (draft) {
             shapes.awaitReview(doc.getUuid(), shape.id(), rule.getUuid());
@@ -1477,9 +1507,7 @@ public final class Stage {
                             : draft.getShapeId())
                     .build());
             rules.remove(doc.getUuid(), draft.getUuid());
-            regressionSet.accept(incumbent.get().getUuid(), regressionSet.accepted(draft.getUuid()),
-                    doc.getRegressionCap());
-            regressionSet.discard(draft.getUuid());
+            regressionSet.move(draft.getUuid(), incumbent.get().getUuid(), doc.getRegressionCap());
         } else {
             rules.replace(doc.getUuid(), draft.copy()
                     .draft(false)
@@ -2041,7 +2069,7 @@ public final class Stage {
      * The chain over an input, step by step. A step that produced nothing leaves the rest unrun; one that
      * produced output with errors is followed, as {@link FragmentRunner} follows it.
      */
-    private static List<Attempted> rerun(final List<LearnedStep> chain,
+    static List<Attempted> rerun(final List<LearnedStep> chain,
                                          final String input,
                                          final RecordBoundary boundary) {
         final List<Attempted> attempted = new ArrayList<>();
@@ -2071,18 +2099,6 @@ public final class Stage {
             current = attempt.result().output();
         }
         return attempted;
-    }
-
-    /**
-     * What a candidate's events lose against the goldens a record was accepted on (A18, A31), if
-     * anything: empty where the attempt had no targets — every record accepted before A31 — and empty
-     * where the candidate wrote nothing at all, which the score has already caught.
-     */
-    private static Optional<StoredError> fidelity(final String events, final List<Target> targets) {
-        if (targets.isEmpty() || events == null || events.isBlank()) {
-            return Optional.empty();
-        }
-        return TargetChecks.fidelity(events, targets).stream().findFirst();
     }
 
     /**
