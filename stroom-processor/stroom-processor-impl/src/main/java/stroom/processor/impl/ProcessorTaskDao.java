@@ -74,6 +74,15 @@ public interface ProcessorTaskDao {
     int countDeadTasks(Instant statusOlderThan);
 
     /**
+     * How many tasks are in a status across every filter: what sysinfo shows for the deferred
+     * population, which nothing else counts.
+     *
+     * @param status The status to count.
+     * @return The number of tasks in it.
+     */
+    int countTasks(TaskStatus status);
+
+    /**
      * Renew the heartbeat of tasks this node is currently processing by setting their status
      * time to {@code nowMs}. A row is only stamped if it is still
      * {@link TaskStatus#PROCESSING} and still owned by the named node, so a task that has
@@ -150,6 +159,29 @@ public interface ProcessorTaskDao {
      * @return The number of tasks returned to CREATED.
      */
     long sweepQueuedTasks(Instant statusOlderThan);
+
+    /**
+     * Return DEFERRED tasks whose status time is older than the threshold to CREATED, so that the
+     * next fetch picks them up. A deferred task is one an element asked for back later
+     * ({@code DeferTaskException}): what its stream needed was not there yet. Nothing else looks at
+     * DEFERRED rows — claiming looks for CREATED, the dead task reap for PROCESSING — so without this
+     * sweep a deferred task would wait forever. The same shape as {@link #sweepQueuedTasks(Instant)}
+     * and served by the same index.
+     *
+     * @param statusOlderThan Sweep rows whose status time is older than this.
+     * @return The number of tasks returned to CREATED.
+     */
+    long sweepDeferredTasks(Instant statusOlderThan);
+
+    /**
+     * Return the DEFERRED tasks of a filter whose streams are named to CREATED now, rather than when
+     * the sweep next finds them: whatever they were waiting for has arrived.
+     *
+     * @param filterId The filter whose tasks they are.
+     * @param metaIds  The streams whose tasks are to be woken.
+     * @return The number of tasks returned to CREATED.
+     */
+    int wakeDeferredTasks(int filterId, Collection<Long> metaIds);
 
     /**
      * Count the current number of tasks for a filter matching the specified status.

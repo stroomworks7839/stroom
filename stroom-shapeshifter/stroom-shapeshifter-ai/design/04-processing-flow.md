@@ -428,6 +428,35 @@ it has. Phases 1, 2 and 3 do not depend on one another and may be built in any o
 This is the part that needs review outside the feature, and the only part that touches a table every
 installation has. It adds a status value and no column, so its migration is nothing.
 
+*Built 2026-10-05.* `TaskStatus.DEFERRED` (30); `DeferTaskException` in `stroom-processor-api` with an
+`unwrap` that finds a deferral under the `ProcessException` and `XPathException` the pipeline wraps
+things in; `sweepDeferredTasks` and `wakeDeferredTasks` on the DAO and its mock; the sweep in
+`ProcessorTaskReaper` in both modes, on `stroom.processor.deferredTaskRetryDelay` (5m by default);
+the third outcome in `DataProcessorTaskHandler`. The path out of a pipeline turned out to run through
+**five** places that swallow exceptions, not the two §5.1 counted: `AbstractProcessorTaskExecutor` has
+three (`exec`, `process`, and the stream loop's `handleProcessingException`), `AbstractParser`'s
+catch walks a cause chain and logs a fatal error, and both `MultiWayProcessor`s — one in
+`ProcessorFactoryImpl`, one in `SimpleProcessorFactory` — run each branch of a pipeline on another
+thread and report its exception as a fatal error without rethrowing anything, so a deferral thrown on
+a branch is now kept and thrown by the calling thread once every branch has finished.
+`TestDeferredTask` in `stroom-app` is the exit: a parser that defers each stream once, in both modes,
+with no child stream of any kind after the deferral and one output stream after the retry, by the sweep
+and by a wake. (One thing it taught about the test rather than the flow: `XMLWriter` writes a record
+when an element closes at depth one, so a document with only a root writes nothing.) The DAO tests
+hold the sweep, the wake, and what the reap and the deletes do with the status; the reaper test holds
+the delay in both modes. Sysinfo's claim view counts the deferred population across the cluster, with a note saying what returns it.
+
+*Its own audit found four, 2026-10-05.* The one that mattered: the executor deletes a stream's earlier
+output from the same pipeline whenever a task ends, so a **reprocess that deferred would have deleted
+the output it was going to supersede and replaced it with nothing** — the deferred path now leaves
+that deletion to the run that completes, and a scenario holds it. The others: the handler recognised
+only a bare deferral and not one wrapped by an executor other than the pipeline's; a deferral thrown
+while a parser was starting, rather than parsing, was still a fatal error; and the mock DAO compared a
+boxed id with `==`. One limit recorded rather than fixed, because phase 4 owns it: a deferral
+guarantees that the branch which deferred wrote nothing, and a pipeline whose *other* branches write —
+a raw writer beside a parser — is not yet held to leaving nothing; the discard of §5.1 is where that
+is paid.
+
 ### Phase 2 — The score is per record *(the feature; no behaviour change)*
 
 - `SchemaConformanceScorer`, `ExtractionQualityScorer` and `BusinessRulesScorer` report each record's

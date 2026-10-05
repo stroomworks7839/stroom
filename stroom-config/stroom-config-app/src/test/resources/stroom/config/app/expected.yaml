@@ -836,6 +836,7 @@ appConfig:
         minimumIdle: 10
         prepStmtCacheSize: 25
         prepStmtCacheSqlLimit: 256
+    deferredTaskRetryDelay: "PT5M"
     deleteAge: "P1D"
     fillTaskQueue: true
     processorCache:

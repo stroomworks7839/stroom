@@ -32,6 +32,7 @@ import stroom.util.logging.LambdaLoggerFactory;
 
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -98,6 +99,89 @@ class TestProcessorTaskDaoImpl extends AbstractProcessorTest {
         assertThat(countOwned(NODE1)).isZero();
         assertThat(countOwned(NODE2)).isEqualTo(3);
         assertThat(countOwned(null)).isEqualTo(3);
+    }
+
+    /**
+     * Design 04 §5.2. A deferred task is one an element asked for back later. The sweep returns those
+     * deferred longer ago than the threshold to CREATED with no node and a bumped version, and leaves
+     * the rest — younger deferrals and every other status — exactly as they were.
+     */
+    @Test
+    void testSweepDeferredTasks() {
+        processor1 = createProcessor();
+        processorFilter1a = createProcessorFilter(processor1);
+        final Instant now = Instant.now();
+        final long due = createProcessorTask(
+                processorFilter1a, TaskStatus.DEFERRED, null, FEED, now.minus(Duration.ofMinutes(6)));
+        final long notYet = createProcessorTask(
+                processorFilter1a, TaskStatus.DEFERRED, null, FEED, now.minus(Duration.ofMinutes(4)));
+        final long processing = createProcessorTask(
+                processorFilter1a, TaskStatus.PROCESSING, NODE1, FEED, now.minus(Duration.ofMinutes(6)));
+        final long created = createProcessorTask(
+                processorFilter1a, TaskStatus.CREATED, null, FEED, now.minus(Duration.ofMinutes(6)));
+        final int dueVersion = getTaskVersion(due);
+
+        assertThat(processorTaskDao.countTasks(TaskStatus.DEFERRED)).isEqualTo(2);
+
+        final long swept = processorTaskDao.sweepDeferredTasks(now.minus(Duration.ofMinutes(5)));
+
+        assertThat(swept).isEqualTo(1);
+        assertThat(processorTaskDao.countTasks(TaskStatus.DEFERRED)).isEqualTo(1);
+        assertThat(getTaskStatus(due)).isEqualTo(TaskStatus.CREATED);
+        assertThat(getTaskNodeId(due)).isNull();
+        assertThat(getTaskVersion(due)).isEqualTo(dueVersion + 1);
+        assertThat(getTaskStatusTimeMs(due)).isGreaterThanOrEqualTo(now.toEpochMilli());
+        assertThat(getTaskStatus(notYet)).isEqualTo(TaskStatus.DEFERRED);
+        assertThat(getTaskStatus(processing)).isEqualTo(TaskStatus.PROCESSING);
+        assertThat(getTaskStatus(created)).isEqualTo(TaskStatus.CREATED);
+    }
+
+    /**
+     * Design 04 §5.3. A wake returns the deferred tasks of one filter whose streams are named, now,
+     * whatever their age; a task of another filter over the same stream, a stream not named, and a task
+     * of the filter that is not deferred are all left alone.
+     */
+    @Test
+    void testWakeDeferredTasks() {
+        processor1 = createProcessor();
+        processorFilter1a = createProcessorFilter(processor1);
+        processorFilter1b = createProcessorFilter(processor1);
+        final Instant now = Instant.now();
+        final long named = createProcessorTask(processorFilter1a, TaskStatus.DEFERRED, null, FEED, now, 1L);
+        final long alsoNamed = createProcessorTask(processorFilter1a, TaskStatus.DEFERRED, null, FEED, now, 2L);
+        final long notNamed = createProcessorTask(processorFilter1a, TaskStatus.DEFERRED, null, FEED, now, 3L);
+        final long otherFilter = createProcessorTask(processorFilter1b, TaskStatus.DEFERRED, null, FEED, now, 1L);
+        final long notDeferred = createProcessorTask(processorFilter1a, TaskStatus.COMPLETE, NODE1, FEED, now, 1L);
+
+        final int woken = processorTaskDao.wakeDeferredTasks(processorFilter1a.getId(), List.of(1L, 2L, 99L));
+
+        assertThat(woken).isEqualTo(2);
+        assertThat(getTaskStatus(named)).isEqualTo(TaskStatus.CREATED);
+        assertThat(getTaskStatus(alsoNamed)).isEqualTo(TaskStatus.CREATED);
+        assertThat(getTaskStatus(notNamed)).isEqualTo(TaskStatus.DEFERRED);
+        assertThat(getTaskStatus(otherFilter)).isEqualTo(TaskStatus.DEFERRED);
+        assertThat(getTaskStatus(notDeferred)).isEqualTo(TaskStatus.COMPLETE);
+        assertThat(processorTaskDao.wakeDeferredTasks(processorFilter1a.getId(), List.of())).isZero();
+    }
+
+    /**
+     * What the statements that already exist do with the new status, held to rather than assumed
+     * (design 04 §5.2): the dead-task reap leaves a deferred task alone however old it is, and deleting
+     * a filter takes its deferred tasks with it.
+     */
+    @Test
+    void testDeferredTasksAreNotReapedButAreDeletedWithTheirFilter() {
+        processor1 = createProcessor();
+        processorFilter1a = createProcessorFilter(processor1);
+        final Instant now = Instant.now();
+        final long deferred = createProcessorTask(
+                processorFilter1a, TaskStatus.DEFERRED, null, FEED, now.minus(Duration.ofHours(1)));
+
+        processorTaskDao.reapDeadTasks(now.minus(Duration.ofMinutes(10)));
+        assertThat(getTaskStatus(deferred)).isEqualTo(TaskStatus.DEFERRED);
+
+        processorTaskDao.logicalDeleteByProcessorFilterId(processorFilter1a.getId());
+        assertThat(getTaskStatus(deferred)).isEqualTo(TaskStatus.DELETED);
     }
 
     /**

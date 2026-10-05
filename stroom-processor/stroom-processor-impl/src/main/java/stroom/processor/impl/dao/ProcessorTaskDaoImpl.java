@@ -442,6 +442,69 @@ class ProcessorTaskDaoImpl implements ProcessorTaskDao {
     }
 
     @Override
+    public int countTasks(final TaskStatus status) {
+        return JooqUtil.contextResult(processorDbConnProvider, context -> context
+                .selectCount()
+                .from(PROCESSOR_TASK)
+                .where(PROCESSOR_TASK.STATUS.eq(status.getPrimitiveValue()))
+                .fetchOne(0, int.class));
+    }
+
+    @Override
+    public long sweepDeferredTasks(final Instant statusOlderThan) {
+        final long nowMs = System.currentTimeMillis();
+        final Supplier<String> msgSupplier = () -> LogUtil.message(
+                "sweepDeferredTasks - statusOlderThan: {}", statusOlderThan);
+
+        // One statement, as the queue sweep is, over processor_task_status_time_ms_status_idx. A
+        // deferred task has no node, so there is nothing to clear but the status and the times.
+        final int count = JooqUtil.contextResult(processorDbConnProvider, context ->
+                JooqUtil.withDeadlockRetries(() -> context
+                                .update(PROCESSOR_TASK)
+                                .setNull(PROCESSOR_TASK.FK_PROCESSOR_NODE_ID)
+                                .set(PROCESSOR_TASK.STATUS, TaskStatus.CREATED.getPrimitiveValue())
+                                .set(PROCESSOR_TASK.STATUS_TIME_MS, nowMs)
+                                .setNull(PROCESSOR_TASK.START_TIME_MS)
+                                .setNull(PROCESSOR_TASK.END_TIME_MS)
+                                .set(PROCESSOR_TASK.VERSION, PROCESSOR_TASK.VERSION.plus(1))
+                                .where(PROCESSOR_TASK.STATUS.eq(TaskStatus.DEFERRED.getPrimitiveValue()))
+                                .and(PROCESSOR_TASK.STATUS_TIME_MS.lt(statusOlderThan.toEpochMilli()))
+                                .execute(),
+                        msgSupplier));
+        if (count > 0) {
+            LOGGER.debug(() -> "Returned " + count + " deferred tasks (deferred since before "
+                               + statusOlderThan + ") to CREATED");
+        }
+        return count;
+    }
+
+    @Override
+    public int wakeDeferredTasks(final int filterId, final Collection<Long> metaIds) {
+        if (NullSafe.isEmptyCollection(metaIds)) {
+            return 0;
+        }
+        final long nowMs = System.currentTimeMillis();
+        int count = 0;
+        // Chunked, as getTaskAvailability is, so that a long backlog cannot produce an unbounded IN list.
+        final List<Long> remaining = new ArrayList<>(metaIds);
+        for (int from = 0; from < remaining.size(); from += BATCH_SIZE) {
+            final List<Long> chunk = remaining.subList(from, Math.min(from + BATCH_SIZE, remaining.size()));
+            count += JooqUtil.contextResult(processorDbConnProvider, context -> changeStatus(
+                    context,
+                    null,
+                    TaskStatus.CREATED,
+                    nowMs,
+                    PROCESSOR_TASK.STATUS.eq(TaskStatus.DEFERRED.getPrimitiveValue())
+                            .and(PROCESSOR_TASK.FK_PROCESSOR_FILTER_ID.eq(filterId))
+                            .and(PROCESSOR_TASK.META_ID.in(chunk))));
+        }
+        final int woken = count;
+        LOGGER.debug(() -> LogUtil.message("wakeDeferredTasks - filterId: {}, metaIds: {}, woken: {}",
+                filterId, metaIds.size(), woken));
+        return count;
+    }
+
+    @Override
     public Map<Integer, Long> getTaskAvailability(final Collection<Integer> filterIds) {
         if (NullSafe.isEmptyCollection(filterIds)) {
             return Map.of();

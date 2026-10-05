@@ -36,6 +36,7 @@ import stroom.util.shared.ResultPage;
 import jakarta.inject.Singleton;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -176,6 +177,35 @@ public class MockProcessorTaskDao implements ProcessorTaskDao, Clearable {
     @Override
     public long sweepQueuedTasks(final Instant statusOlderThan) {
         return 0;
+    }
+
+    @Override
+    public int countTasks(final TaskStatus status) {
+        return (int) dao.getMap().values().stream().filter(task -> status.equals(task.getStatus())).count();
+    }
+
+    @Override
+    public long sweepDeferredTasks(final Instant statusOlderThan) {
+        return wake(task -> task.getStatusTimeMs() < statusOlderThan.toEpochMilli());
+    }
+
+    @Override
+    public int wakeDeferredTasks(final int filterId, final Collection<Long> metaIds) {
+        return (int) wake(task -> task.getProcessorFilter() != null
+                                  && Objects.equals(task.getProcessorFilter().getId(), filterId)
+                                  && metaIds.contains(task.getMetaId()));
+    }
+
+    private long wake(final java.util.function.Predicate<ProcessorTask> due) {
+        final long now = System.currentTimeMillis();
+        long count = 0;
+        for (final ProcessorTask task : new ArrayList<>(dao.getMap().values())) {
+            if (TaskStatus.DEFERRED.equals(task.getStatus()) && due.test(task)) {
+                dao.update(task.copy().status(TaskStatus.CREATED).statusTimeMs(now).nodeName(null).build());
+                count++;
+            }
+        }
+        return count;
     }
 
     @Override
