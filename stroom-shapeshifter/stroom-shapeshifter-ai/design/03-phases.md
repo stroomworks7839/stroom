@@ -37,6 +37,14 @@ one record changed.
 
 **What is left of the MVP is the whole of F**, in the order §7 gives: slices 6 to 10, the surfaces.
 
+**The processing flow is a phase of its own, not yet placed** (the owner, 2026-10-04). Design 04 describes
+it: a stream that cannot be translated yet waits as a deferred task rather than as an error stream, and
+learning leaves the processing thread altogether. It is the largest piece of work outside this feature —
+three primitives in `stroom-processor` and worker claiming moving from experiment to requirement — and
+it supersedes the sentinel-and-release mechanism phase C built. Where it falls in the order is the
+owner's to set; nothing else in the MVP depends on it, and a real feed cannot be pointed at the feature
+without it.
+
 ## 2. The phases
 
 | Phase | Delivers | Closes (design 01 §12 / design 02 §5) | Exit criterion |
