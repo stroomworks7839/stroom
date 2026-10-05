@@ -471,6 +471,40 @@ is paid.
   records, by span, with the gate that failed each; and a shadow run over the six formats of design 03
   §3 whose would-defer rows are read and agreed before phase 4 turns them into behaviour.
 
+*Built 2026-10-05, all but the streaming.* `Score` carries `failingRecords` beside its value, zero-based
+in output order: the schema scorer names the records the validator failed and the ones it never reached,
+extraction quality names a record that says Unknown where the document forbids it or lacks a required
+field, business rules names the records an assertion fell short on (a transform's own messages are laid
+at no record). `Verdict.failingRecords` is the union over the gates (A55) and `Judged.failingRecords` is
+the last step's, since that is what is emitted. `Deferrals` is the table of §6 — `shapeshifter_deferral`,
+one row per stream and document, upserted on the unique key with `first_deferred_ms` kept and
+`attempts` counted; `task_id` and `filter_id` are what phase 4 wakes, and `Input` now carries them from
+`StreamProcessorHolder`, null in the stepper. `Stage.shadow` writes a row for a served stream with
+records short of the bar, against the rule's fragment as named today, and the unknown-shape path writes
+one with nothing failed against; both go on sentinelling and emitting exactly as before. Scenario 52
+(design 02 §5) is the exit's first half: the records by index, the gate that named each, the text by
+span, the rows; scenario 51 is the shadow run over the four formats of the pack, whose table is empty.
+
+*Its own audit found three, 2026-10-05.* The schema scorer keyed an error raised before any record
+began — the validator failing to start — as record zero, which the zero-based account would have named
+as record minus one; such an error now names no record. A shadow row, once written, was never taken
+off, so the table would have shown every stream that ever fell short and not the ones waiting: a stream
+emitted with every record clearing the bar now releases its row, which is a delete per emitted stream
+beside the output row already written per stream. And the per-record sets had no test below the
+scenario; `TestPerRecordScoring` holds each scorer's, the union over gates, and the validator's
+one-based count. Two limits recorded rather than fixed, because phase 4 owns them: the stream that
+brings a relearning still goes out under the incumbent, so its row stands until a reprocess serves it
+clean (scenario 52 shows both halves), and a stream under a *pinned* rule writes a row like any other,
+which phase 4 must decide what to do with — a rule a person has pinned is one nobody will relearn. And
+one premise inherited rather than introduced: a failing record's index is an index into the output, and
+the span it is read back by is the parser's; they are the same record only where the transform is one
+to one, which scenario 38 already assumed and the yield scorer is what notices otherwise.
+
+What is not built is the second bullet. The element still reads the whole stream into a string at
+`endDocument`, `FragmentRunner.run` takes a string and keeps an `EventList`, and every scorer judges a
+step's whole output. Scoring record by record as the output is produced is a change to the data path
+from the element through the runner to the scorers, and is the slice to do next, on its own.
+
 ### Phase 3 — The corpus is durable and holds output *(the feature; design 01 §12 item 9)*
 
 - `RegressionSet.Accepted` becomes a record's input, the output it was accepted with, whether that was

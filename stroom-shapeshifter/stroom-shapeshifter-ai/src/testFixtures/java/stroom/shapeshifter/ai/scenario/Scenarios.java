@@ -38,6 +38,7 @@ import stroom.shapeshifter.ai.stage.DeferredWorker;
 import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.ai.stage.Stage;
 import stroom.shapeshifter.ai.state.InMemoryAttempts;
+import stroom.shapeshifter.ai.state.InMemoryDeferrals;
 import stroom.shapeshifter.ai.state.InMemoryDocuments;
 import stroom.shapeshifter.ai.state.InMemoryGuidance;
 import stroom.shapeshifter.ai.state.InMemoryInputs;
@@ -89,6 +90,7 @@ public final class Scenarios {
     public final InMemoryOutputs outputs = new InMemoryOutputs();
     public final InMemoryReprocessing reprocessing = new InMemoryReprocessing();
     public final InMemoryRegressionSet regressionSet = new InMemoryRegressionSet();
+    public final InMemoryDeferrals deferrals = new InMemoryDeferrals();
     public final InMemoryDocuments documents = new InMemoryDocuments();
     public final InMemoryInputs inputs = new InMemoryInputs();
     /// The serving view of A46 over the three seams above it, as a node reads it from one query.
@@ -177,6 +179,7 @@ public final class Scenarios {
                 outputs,
                 reprocessing,
                 regressionSet,
+                deferrals,
                 Clock.fixed(NOW, ZoneOffset.UTC),
                 SEED,
                 node);

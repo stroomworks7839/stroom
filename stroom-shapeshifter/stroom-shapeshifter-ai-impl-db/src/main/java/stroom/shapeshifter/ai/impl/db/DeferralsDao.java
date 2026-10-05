@@ -1,0 +1,119 @@
+/*
+ * Copyright 2026 Crown Copyright
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package stroom.shapeshifter.ai.impl.db;
+
+import stroom.db.util.JooqUtil;
+import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterDeferral;
+import stroom.shapeshifter.ai.stage.Deferrals;
+
+import jakarta.inject.Inject;
+import jakarta.inject.Singleton;
+import org.jooq.Record;
+
+import java.util.List;
+
+/// The deferral rows of design 04 §6 as a table, one row per stream and document. A stream put back a
+/// second time is the same row brought up to date — the unique key on document and meta id makes the
+/// insert an update — and the time it first waited is what the row was inserted with, so that a new
+/// reason does not make it newly late.
+@Singleton
+public class DeferralsDao implements Deferrals {
+
+    private final ShapeshifterAiDbConnProvider connProvider;
+
+    @Inject
+    DeferralsDao(final ShapeshifterAiDbConnProvider connProvider) {
+        this.connProvider = connProvider;
+    }
+
+    @Override
+    public void deferred(final String docUuid,
+                         final long inputId,
+                         final String feed,
+                         final String type,
+                         final String pipeline,
+                         final Long taskId,
+                         final Integer filterId,
+                         final String failedAgainst,
+                         final String reason,
+                         final int failingRecords) {
+        final long now = System.currentTimeMillis();
+        JooqUtil.context(connProvider, context -> context
+                .insertInto(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL)
+                .set(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.DOC_UUID, docUuid)
+                .set(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.META_ID, inputId)
+                .set(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.FEED_NAME, feed)
+                .set(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.TYPE_NAME, type)
+                .set(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.PIPELINE_UUID, pipeline)
+                .set(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.TASK_ID, taskId)
+                .set(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.FILTER_ID, filterId)
+                .set(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.FAILED_AGAINST, failedAgainst)
+                .set(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.REASON, reason)
+                .set(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.FAILING_RECORDS, failingRecords)
+                .set(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.FIRST_DEFERRED_MS, now)
+                .set(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.UPDATE_TIME_MS, now)
+                .set(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.ATTEMPTS, 1)
+                // Tried again and put back again: everything but when it first waited moves. The task
+                // moves too — a reprocess is a new task for the same stream.
+                .onDuplicateKeyUpdate()
+                .set(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.PIPELINE_UUID, pipeline)
+                .set(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.TASK_ID, taskId)
+                .set(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.FILTER_ID, filterId)
+                .set(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.FAILED_AGAINST, failedAgainst)
+                .set(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.REASON, reason)
+                .set(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.FAILING_RECORDS, failingRecords)
+                .set(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.UPDATE_TIME_MS, now)
+                .set(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.ATTEMPTS,
+                        ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.ATTEMPTS.plus(1))
+                .execute());
+    }
+
+    @Override
+    public void released(final String docUuid, final long inputId) {
+        JooqUtil.context(connProvider, context -> context
+                .deleteFrom(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL)
+                .where(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.DOC_UUID.eq(docUuid))
+                .and(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.META_ID.eq(inputId))
+                .execute());
+    }
+
+    @Override
+    public List<Deferral> forDocument(final String docUuid) {
+        return JooqUtil.contextResult(connProvider, context -> context
+                .selectFrom(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL)
+                .where(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.DOC_UUID.eq(docUuid))
+                .orderBy(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.FIRST_DEFERRED_MS.asc(),
+                        ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.META_ID.asc())
+                .fetch(DeferralsDao::deferral));
+    }
+
+    private static Deferral deferral(final Record row) {
+        return new Deferral(
+                row.get(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.DOC_UUID),
+                row.get(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.META_ID),
+                row.get(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.FEED_NAME),
+                row.get(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.TYPE_NAME),
+                row.get(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.PIPELINE_UUID),
+                row.get(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.TASK_ID),
+                row.get(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.FILTER_ID),
+                row.get(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.FAILED_AGAINST),
+                row.get(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.REASON),
+                row.get(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.FAILING_RECORDS),
+                row.get(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.FIRST_DEFERRED_MS),
+                row.get(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.ATTEMPTS));
+    }
+}

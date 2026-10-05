@@ -53,6 +53,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -165,7 +166,20 @@ public final class SchemaConformanceScorer implements Scorer {
             diagnostics.add(new StoredError(Severity.WARNING, null, CONFORMANCE,
                     "Record " + failure.getKey() + ": " + failure.getValue()));
         }
-        return Optional.of(new Score(type(), (double) passing / total, diagnostics));
+        // The validator counts records from one; the output's records are indexed from zero. An error
+        // raised before any record began — the validator failing to start — is keyed zero and names no
+        // record. A record the validator never reached is failing too, and is every index from the last
+        // it reached.
+        final Set<Integer> failingRecords = new TreeSet<>();
+        for (final int record : errors.failing.keySet()) {
+            if (record >= 1) {
+                failingRecords.add(record - 1);
+            }
+        }
+        for (int record = counter.records; record < total; record++) {
+            failingRecords.add(record);
+        }
+        return Optional.of(new Score(type(), (double) passing / total, diagnostics, failingRecords));
     }
 
     /**

@@ -104,6 +104,7 @@ public final class BusinessRulesScorer implements Scorer {
             return Optional.empty();
         }
         final int failed = Math.min(records.size(), failing.size() + messageFailures);
-        return Optional.of(new Score(type(), 1.0 - (double) failed / records.size(), diagnostics));
+        // A transform's own messages are not laid at a record, so only the assertions name which fell short.
+        return Optional.of(new Score(type(), 1.0 - (double) failed / records.size(), diagnostics, failing));
     }
 }

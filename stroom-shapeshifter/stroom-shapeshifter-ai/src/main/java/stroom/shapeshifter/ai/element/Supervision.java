@@ -33,6 +33,7 @@ import stroom.pipeline.state.MetaDataHolder;
 import stroom.pipeline.state.MetaHolder;
 import stroom.pipeline.state.PipelineContext;
 import stroom.pipeline.state.PipelineHolder;
+import stroom.pipeline.state.StreamProcessorHolder;
 import stroom.shapeshifter.ai.doc.ShapeshifterAiStore;
 import stroom.shapeshifter.ai.fragment.FragmentRunner.FragmentRecord;
 import stroom.shapeshifter.ai.fragment.ReplayUnits;
@@ -80,6 +81,7 @@ public class Supervision {
     private final MetaData metaData;
     private final ErrorReceiverProxy errorReceiverProxy;
     private final PipelineHolder pipelineHolder;
+    private final StreamProcessorHolder streamProcessorHolder;
     private final PipelineContext pipelineContext;
     private final Stage stage;
 
@@ -123,6 +125,7 @@ public class Supervision {
                        final MetaData metaData,
                        final ErrorReceiverProxy errorReceiverProxy,
                        final PipelineHolder pipelineHolder,
+                       final StreamProcessorHolder streamProcessorHolder,
                        final PipelineContext pipelineContext,
                        final StageFactory stageFactory) {
         this.store = store;
@@ -135,6 +138,7 @@ public class Supervision {
         this.metaData = metaData;
         this.errorReceiverProxy = errorReceiverProxy;
         this.pipelineHolder = pipelineHolder;
+        this.streamProcessorHolder = streamProcessorHolder;
         this.pipelineContext = pipelineContext;
         this.stage = stageFactory.create();
     }
@@ -416,7 +420,16 @@ public class Supervision {
                 // here is replayed here when its shape settles — wherever that happens (A12).
                 pipelineHolder.getPipeline() == null
                         ? null
-                        : pipelineHolder.getPipeline().getUuid());
+                        : pipelineHolder.getPipeline().getUuid(),
+                // And which task, so that a deferral can be woken (design 04 §5.3): null in the stepper
+                // and anywhere else no task is behind the stream.
+                streamProcessorHolder.getStreamTask() == null
+                        ? null
+                        : streamProcessorHolder.getStreamTask().getId(),
+                streamProcessorHolder.getStreamTask() == null
+                        || streamProcessorHolder.getStreamTask().getProcessorFilter() == null
+                        ? null
+                        : streamProcessorHolder.getStreamTask().getProcessorFilter().getId());
     }
 
     /// The output stream's attributes are one set for the whole stream, and a stream of several parts is

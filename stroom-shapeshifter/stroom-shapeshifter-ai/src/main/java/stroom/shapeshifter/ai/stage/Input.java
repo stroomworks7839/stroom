@@ -34,12 +34,20 @@ import java.util.Map;
  *                   is replayed through when its shape settles (A12), which the ledger keeps because the
  *                   settling may happen in another task, on another node, or with nobody there at all.
  *                   Null where nothing is processing it — a worker re-walking an attempt, a scenario.
+ * @param taskId     The processor task processing it, where one is: what a deferral wakes (design 04 §5.3).
+ * @param filterId   That task's filter, where one is.
  */
 public record Input(long id, String feed, String type, Map<String, String> attributes, String data,
-                    String pipeline) {
+                    String pipeline, Long taskId, Integer filterId) {
 
     public Input {
         attributes = Map.copyOf(attributes);
+    }
+
+    /// A stream as a task has it, before design 04: nothing to wake.
+    public Input(final long id, final String feed, final String type, final Map<String, String> attributes,
+                 final String data, final String pipeline) {
+        this(id, feed, type, attributes, data, pipeline, null, null);
     }
 
     /// A stream as a scenario has it: nothing is processing it.

@@ -132,6 +132,11 @@ class TestScenario51AnyFormatFromAnyFeed {
                         "Feed=APP-EVENTS|Type=Raw Events",
                         "Feed=FIREWALL|Type=Raw Events",
                         "Feed=MAINFRAME|Type=Raw Events");
+        // And none of the four would have waited (design 04 §7, phase 2): every record of every format
+        // cleared the bar, so the shadow deferral table has nothing to say about any of them.
+        assertThat(scenarios.deferrals.forDocument(DOC))
+                .describedAs("what phase 4 would have deferred")
+                .isEmpty();
         assertThat(table).allSatisfy(rule -> {
             assertThat(rule.isDraft()).isFalse();
             assertThat(rule.isProvisional())

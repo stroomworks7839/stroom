@@ -22,6 +22,8 @@ import stroom.util.shared.StoredError;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.TreeSet;
 
 /**
  * The scorecard's verdict on one step: every judgement, the weighted total of the scores that carry
@@ -42,6 +44,20 @@ public record Verdict(List<Judgement> judgements, double weightedTotal) {
 
     public boolean gatesPassed() {
         return judgements.stream().noneMatch(Judgement::failedGate);
+    }
+
+    /// The records that fell short of the bar (design 04 §3, A55): a record clears it when every gate
+    /// scorer that judges records one by one passed on *that* record, so this is the union of the gates'
+    /// failing records. Zero-based, in output order. Empty where every record cleared it — or where no
+    /// gate judges per record, which is a document that has chosen not to have a bar.
+    public Set<Integer> failingRecords() {
+        final Set<Integer> failing = new TreeSet<>();
+        for (final Judgement judgement : judgements) {
+            if (judgement.setting().isGate()) {
+                failing.addAll(judgement.score().failingRecords());
+            }
+        }
+        return failing;
     }
 
     public List<StoredError> feedback() {

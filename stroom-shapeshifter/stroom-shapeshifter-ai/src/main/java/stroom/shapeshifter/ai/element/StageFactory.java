@@ -41,6 +41,7 @@ import stroom.shapeshifter.ai.scoring.SchemaConformanceScorer;
 import stroom.shapeshifter.ai.scoring.Scorer;
 import stroom.shapeshifter.ai.scoring.YieldScorer;
 import stroom.shapeshifter.ai.stage.Attempts;
+import stroom.shapeshifter.ai.stage.Deferrals;
 import stroom.shapeshifter.ai.stage.Guidance;
 import stroom.shapeshifter.ai.stage.Ledger;
 import stroom.shapeshifter.ai.stage.Outputs;
@@ -96,6 +97,7 @@ public class StageFactory {
     private final Outputs outputs;
     private final Reprocessing reprocessing;
     private final RegressionSet regressionSet;
+    private final Deferrals deferrals;
 
     @Inject
     public StageFactory(final Advisors advisors,
@@ -120,7 +122,8 @@ public class StageFactory {
                         final Guidance guidance,
                         final Outputs outputs,
                         final Reprocessing reprocessing,
-                        final RegressionSet regressionSet) {
+                        final RegressionSet regressionSet,
+                        final Deferrals deferrals) {
         this.advisors = advisors;
         this.dataSplitterCompiler = dataSplitterCompiler;
         this.schemaConformanceScorer = schemaConformanceScorer;
@@ -144,6 +147,7 @@ public class StageFactory {
         this.outputs = outputs;
         this.reprocessing = reprocessing;
         this.regressionSet = regressionSet;
+        this.deferrals = deferrals;
     }
 
     /// A stage on this node, under the wall clock and a fresh seed for the held-out split (A14).
@@ -183,6 +187,7 @@ public class StageFactory {
                 outputs,
                 reprocessing,
                 regressionSet,
+                deferrals,
                 Clock.systemUTC(),
                 ThreadLocalRandom.current().nextLong(),
                 nodeInfo.getThisNodeName());

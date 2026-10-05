@@ -192,6 +192,7 @@ Ordered by what each needs built; each one is unlocked by the machinery the prev
 | 48 | **CSV with embedded newlines** (A36, design 03 §3) | fixture `csv-multiline.csv`: twenty headerless records of a document store's audit — time, user, workstation, action, document, note — the note quoted where it holds a comma, a doubled quote or a line break, six spanning two lines; the target-first plan; Yield by lines, expected 0.77 | a line-based DS3, then one regex over the stream honouring the quoting, the record as one field; targets; a six-field DS3 of the same regex; XSLT | the line split cuts a record in two: it consumes every character, so coverage says nothing, and loses none, so wholeness — a character share — says nothing either; yield against the lines a record takes refuses it, before any target is asked; the quoting split passes; targets are whole records, one spanning lines; promoted outright, the golden holding the note with its line break intact and its doubled quotes as one | the fixture, two splitters, stylesheet and golden; the DS3 rules teaching a quoted field |
 | 50 | **A supervised stage at the transformation position, and the pair** (design 01 §3, §12 item 4; item 18's audit) | the CSV fixture behind a hand-written `DSParser`, a document allowing `XSLTFilter` alone, Tier 2 only; and again as `Source -> ShapeshifterAi -> ShapeshifterAiFilter`, two documents, one stage learning the splitter and one the stylesheet; the scripted stylesheet has something to say about every record | no chain question — one allowed element is no choice — the split names `record`, targets, XSLT | the filter-shaped supervisor stands below a parser, which the parser-shaped one cannot; the events it is given become the text the stage sees; the written fragment holds no parser (A1); the stylesheet's warning reaches this pipeline's error stream once for the stream (A20), on the stream that learned and on the stream the rule then bound | `ShapeshifterAiFilter`; `Supervision`; a fragment run with a parser put in front of it; both stages on the output stream's attributes, the one nearest the source under the plain names |
 | 51 | **One document, any format, any feed** (design 03 §7; the content pack's basis) | one document — `AUTOMATIC`, the escalating plan, allowed `DSParser`, `JSONParser`, `XMLFragmentParser`, `XSLTFilter`, and one set of scorers: Compile (gate), Yield, Schema conformance (gate), Extraction quality (gate) — and four feeds of four formats: `DOOR-ACCESS` the corpus CSV, `APP-EVENTS` `records.jsonl`, `FIREWALL` `syslog.log`, `MAINFRAME` `fixed-width.log` | per format, the chain reply that format needs, then its split, targets where the plan escalates, and its configurations | four shapes, four attempts, four rules, none provisional, each serving its own feed without asking again; every chain question carried all four allowed elements, and what followed was shaped by the answer — no configuration question for the JSON parser, one for the others, and the split question in the vocabulary of the parser's output; one scorer set judged all four and each promoted on its own evidence, the output each format's golden | nothing new: every part exists by scenario 50. What it proves is that they hold together in one document, which every format scenario before it avoided by narrowing `allowedElements` to the parser it needed. At Tier 2 the same four run through one real pipeline as processor tasks, which is the demo content pack's arrangement |
+| 52 | **The records that fell short** (design 04 §3, A55; phase 2's exit) | the demo document; a rule learned from the corpus CSV — logons alone — with a stylesheet that translates a logon fully and leaves any other record as an `Event` holding nothing but a `TypeId`; then `csv-mixed.csv`, six records of which the third and fifth are logoffs | nothing: the rule serves it | the stream is served as it always was — six events, the two thin ones among them — and the transform step's verdict names records 2 and 4, zero-based, as the ones that fell short, the schema gate naming both and extraction quality (no Unknown, no required field) naming none; each is its own text back out of the stream by its span; the shadow deferral table holds one row for the stream — against the rule's fragment, two of six, no task — and none for the stream that learned; a shape nothing is learned for, parked for a worker, is a row with nothing it failed against; scenario 51's four formats leave the table empty | `Score.failingRecords`, `Verdict.failingRecords` (the union over gates), `Deferrals` and its in-memory and table forms, `Stage.shadow` |
 
 Scenarios 3, 15, 16 and 17 exist today as unit tests of one component; they become scenarios so
 that the catalogue is the one place the behaviour is stated.
@@ -3273,6 +3274,25 @@ regenerated, which `TestDemoContentPack` insists on.
 A17 and A38 stay in §13 word for word, since a ruling records a decision and not a build, with a note
 saying the setting is gone until the build happens. What remains built of A17 is its size cap, which is
 still a document setting.
+
+**The bar moved to the record** (2026-10-05; design 04 §7, phase 2). Scenario 52 is the first of design
+04's scenarios to be built, and it was built in shadow: the stage still serves, sentinels and emits as it
+did, and what is new is what it *knows* — which records of a served stream fell short of which gate, and
+which streams it would have held. The scorers that judge records one by one now name them (`Score.
+failingRecords`), a verdict's failing records are the union over its gates and no more (A55), and the
+deferral table of design 04 §6 exists and is written, one row per stream and document, with nothing
+about which records and none of their text (A69).
+
+Two things the scenario taught. The reason on a row counts the records the parser cut, not the lines the
+judgement rests on (A14): the mixed stream is seven lines and six records, and "2 of 7" is a number
+nobody can check against the output. And the second gate the scenario expected to name the thin records
+— extraction quality — names none of them, rightly: the stylesheet left them typed and empty rather than
+Unknown, and the demo document requires no field, so the schema gate is the one that caught them. That
+is why the bar is the union of the gates and not any one of them, and the scenario says so rather than
+pretending otherwise.
+
+The streaming half of phase 2 — scoring record by record as the output is produced, the whole-output
+`EventList` gone — is not in this slice; design 04 §7 records where it stands.
 
 ## 7. Decisions taken
 

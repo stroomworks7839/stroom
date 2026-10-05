@@ -91,6 +91,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.OptionalInt;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -143,6 +144,7 @@ public final class Stage {
     private final Outputs outputs;
     private final Reprocessing reprocessing;
     private final RegressionSet regressionSet;
+    private final Deferrals deferrals;
     private final Router router = new Router();
     private final Clock clock;
     private final long seed;
@@ -162,6 +164,7 @@ public final class Stage {
                  final Outputs outputs,
                  final Reprocessing reprocessing,
                  final RegressionSet regressionSet,
+                 final Deferrals deferrals,
                  final Clock clock,
                  final long seed,
                  final String node) {
@@ -179,6 +182,7 @@ public final class Stage {
         this.outputs = outputs;
         this.reprocessing = reprocessing;
         this.regressionSet = regressionSet;
+        this.deferrals = deferrals;
         this.clock = clock;
         this.seed = seed;
         this.node = node;
@@ -865,7 +869,13 @@ public final class Stage {
         // does not wait, which would hold this thread for the length of an attempt: it sentinels and
         // returns, and the winner's promotion releases the backlog as A12 releases any other.
         return recording(doc, shape, input,
-                reason -> sentinel(doc, shape, input, reason),
+                reason -> {
+                    // What phase 4 will defer instead of sentinelling (design 04 §3): recorded now, in
+                    // shadow, so the backlog can be seen before anything changes for a stream.
+                    deferrals.deferred(doc.getUuid(), input.id(), input.feed(), input.type(), input.pipeline(),
+                            input.taskId(), input.filterId(), null, reason, 0);
+                    return sentinel(doc, shape, input, reason);
+                },
                 recorder -> learnAndBind(doc, shape, input, attributes, scorecard, selector, recorder));
     }
 
@@ -1132,6 +1142,7 @@ public final class Stage {
                            final Scorecard scorecard) {
         final Judged judged = judge(scorecard, rule.getPipeline(), input.data(), rule.getRecordBoundary());
         final boolean enough = judged.records() >= doc.getMinRecordsPerShape();
+        shadow(doc, input, rule, judged);
         if (rule.isPinned()) {
             return emit(doc, new Bound(rule), shape, input, rule, judged, List.of());
         }
@@ -1683,6 +1694,24 @@ public final class Stage {
         return variants;
     }
 
+    /// What phase 4 will defer instead of emitting (design 04 §3): a served stream with records short of
+    /// the bar. Recorded in shadow — the stream goes on being emitted as it always has — against the
+    /// fragment as it is named today, snapshots not existing until phase 4 (A61).
+    private void shadow(final ShapeshifterAiDoc doc, final Input input, final RoutingRule rule, final Judged judged) {
+        final Set<Integer> failing = judged.failingRecords();
+        if (failing.isEmpty()) {
+            return;
+        }
+        // Out of the records the parser cut, where it cut any: the stream's line count is what the
+        // judgement rests on (A14), but a line is not a record a person reads this row against.
+        final int records = judged.spans().isEmpty()
+                ? judged.records()
+                : judged.spans().size();
+        deferrals.deferred(doc.getUuid(), input.id(), input.feed(), input.type(), input.pipeline(),
+                input.taskId(), input.filterId(), rule.getPipeline().getUuid(),
+                failing.size() + " of " + records + " record(s) fell short of the bar", failing.size());
+    }
+
     /**
      * The stream's output with the bindings that produced it (design 01 §7.3 rule 3).
      */
@@ -1696,6 +1725,12 @@ public final class Stage {
         final Bindings bindings = new Bindings(doc.getUuid(), rule.getUuid(), rule.getPipeline(),
                 rule.getRecordBoundary(), rule.isProvisional(), judged.score());
         outputs.emitted(input.id(), input.pipeline(), bindings, judged.spans());
+        // A stream emitted with every record clearing the bar waits no more: the shadow row written for
+        // it when it fell short — by a serve, before the shape was learned again — is taken off, so that
+        // the backlog is what is waiting and not what ever waited.
+        if (judged.failingRecords().isEmpty()) {
+            deferrals.released(doc.getUuid(), input.id());
+        }
         return new StageRun(doc, decision, shape, bindings, judged.output(), judged.verdicts(), transcript,
                 judged.events(), judged.diagnostics());
     }
@@ -2133,6 +2168,15 @@ public final class Stage {
             return !verdicts.isEmpty()
                    && score >= doc.getPromotionFloor()
                    && verdicts.stream().allMatch(Verdict::gatesPassed);
+        }
+
+        /// The records of the chain's output that fell short of the bar (design 04 §3, A55): the last
+        /// step's, since that is what is emitted, and the scorers that judge records one by one judge a
+        /// transform's records and not a parser's. Zero-based, in output order.
+        Set<Integer> failingRecords() {
+            return verdicts.isEmpty()
+                    ? Set.of()
+                    : verdicts.get(verdicts.size() - 1).failingRecords();
         }
     }
 

@@ -28,6 +28,8 @@ import net.sf.saxon.s9api.XdmNode;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.TreeSet;
 
 /**
  * Extraction quality, the anti-degeneracy scorer of design 01 §8.3 (ruling A16): how much of the output
@@ -72,11 +74,19 @@ public final class ExtractionQualityScorer implements Scorer {
         long elements = 0;
         long data = 0;
         long unknown = 0;
-        for (final XdmNode record : records) {
+        // Which records fell short, one by one (design 04 §3): a record that names Unknown where the
+        // document does not allow it, or that lacks a required field. The typed-element ratio is a
+        // measure of the whole and lays nothing at a record.
+        final Set<Integer> failingRecords = new TreeSet<>();
+        for (int i = 0; i < records.size(); i++) {
+            final XdmNode record = records.get(i);
             elements += output.count(record, ALL_ELEMENTS);
             data += output.count(record, DATA_ELEMENTS);
             if (output.holds(record, UNKNOWN_DETAIL)) {
                 unknown++;
+                if (!quality.isAllowUnknownEventDetail()) {
+                    failingRecords.add(i);
+                }
             }
         }
         final double typed = elements == 0
@@ -97,9 +107,11 @@ public final class ExtractionQualityScorer implements Scorer {
         }
         for (final String field : quality.getRequiredFields()) {
             long present = 0;
-            for (final XdmNode record : records) {
-                if (output.holds(record, present(field))) {
+            for (int i = 0; i < records.size(); i++) {
+                if (output.holds(records.get(i), present(field))) {
                     present++;
+                } else {
+                    failingRecords.add(i);
                 }
             }
             final double coverage = (double) present / records.size();
@@ -110,7 +122,7 @@ public final class ExtractionQualityScorer implements Scorer {
             }
         }
         final double value = measures.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
-        return Optional.of(new Score(type(), value, diagnostics));
+        return Optional.of(new Score(type(), value, diagnostics, failingRecords));
     }
 
     private static String present(final String field) {
