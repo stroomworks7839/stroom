@@ -19,6 +19,7 @@ package stroom.shapeshifter.ai.element;
 import stroom.job.api.ScheduledJobsBinder;
 import stroom.pipeline.factory.PipelineElementModule;
 import stroom.shapeshifter.ai.fragment.FragmentOutputFilter;
+import stroom.shapeshifter.ai.fragment.FragmentTapFilter;
 import stroom.shapeshifter.ai.learning.Advisors;
 import stroom.shapeshifter.ai.stage.Documents;
 import stroom.shapeshifter.ai.stage.Inputs;
@@ -76,6 +77,7 @@ public class ShapeshifterAiElementModule extends PipelineElementModule {
         bindElement(ShapeshifterAiParser.class);
         bindElement(ShapeshifterAiFilter.class);
         bindElement(FragmentOutputFilter.class);
+        bindElement(FragmentTapFilter.class);
     }
 
 

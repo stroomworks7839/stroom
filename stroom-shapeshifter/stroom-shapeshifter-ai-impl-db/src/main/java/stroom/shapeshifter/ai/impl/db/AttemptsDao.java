@@ -55,12 +55,12 @@ public class AttemptsDao implements Attempts {
     /// awaiting review is not one of them: it has written its rule, and the rule is what the router and
     /// the shape's own row answer with until a person decides.
     private static final List<String> OPEN = List.of(AttemptStatus.IN_PROGRESS.name(),
-            AttemptStatus.AWAITING_MODEL.name());
+            AttemptStatus.AWAITING_MODEL.name(), AttemptStatus.PARKED.name());
 
     /// The states an attempt is never pruned in, however old: it is still learning, still waiting for
     /// the model, or waiting for a person to decide, and none of those is over.
     private static final List<String> KEPT = List.of(AttemptStatus.IN_PROGRESS.name(),
-            AttemptStatus.AWAITING_MODEL.name(), AttemptStatus.AWAITING_REVIEW.name());
+            AttemptStatus.AWAITING_MODEL.name(), AttemptStatus.PARKED.name(), AttemptStatus.AWAITING_REVIEW.name());
 
     /// The most attempts one page may ask for, whatever it asks for: a view that asked for everything
     /// would read every attempt every document has ever made.
@@ -328,6 +328,22 @@ public class AttemptsDao implements Attempts {
                 // before it is asked, with nothing carried, and answered on the pass that resumes it.
                 // Left off here the column would stay empty for exactly the turn that carried something.
                 .set(SHAPESHIFTER_TURN.CARRIED_GUIDANCE, carried(turn.carried()))
+                .execute());
+    }
+
+    @Override
+    public void parked(final long attemptId, final String reason, final long tokensSpent) {
+        JooqUtil.context(connProvider, context -> context
+                .update(SHAPESHIFTER_ATTEMPT)
+                .set(SHAPESHIFTER_ATTEMPT.STATUS, AttemptStatus.PARKED.name())
+                .set(SHAPESHIFTER_ATTEMPT.DECISION, reason)
+                // A lease that does not lapse: nothing takes the shape from a parked attempt but a person.
+                .set(SHAPESHIFTER_ATTEMPT.EXPIRY_MS, Long.MAX_VALUE)
+                .set(SHAPESHIFTER_ATTEMPT.TOKENS_SPENT, SHAPESHIFTER_ATTEMPT.TOKENS_SPENT.plus(tokensSpent))
+                .set(SHAPESHIFTER_ATTEMPT.VERSION, SHAPESHIFTER_ATTEMPT.VERSION.plus(1))
+                .set(SHAPESHIFTER_ATTEMPT.UPDATE_TIME_MS, System.currentTimeMillis())
+                .where(SHAPESHIFTER_ATTEMPT.ID.eq(attemptId))
+                .and(SHAPESHIFTER_ATTEMPT.STATUS.in(OPEN))
                 .execute());
     }
 

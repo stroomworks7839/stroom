@@ -219,6 +219,36 @@ class TestShapesAndLedgerDao {
     }
 
     @Test
+    void anAttemptParkedForAPersonKeepsItsShapeAndIsNobodysToCarry() {
+        // A65: the worker leaves it alone, no task of the shape opens another, and its lease does not
+        // lapse — until a person acts, which is not the DAO's to do.
+        final String shape = SHAPE + "-parked";
+        final long id = attempts.opened(new Attempt(DOC, shape, "F", "T", 1L, "node-1",
+                ExecutionMode.DEFERRED, PromotionMode.AUTOMATIC, now() + 60_000L), now()).orElseThrow();
+        attempts.claimed(id, "node-1", now(), now() + 60_000L);
+
+        attempts.parked(id, "3 of 12 record(s) fell short of the bar on the held stream; out of candidates", 400L);
+
+        final Recorded parked = attempts.byId(id).orElseThrow();
+        assertThat(parked.status()).isEqualTo(AttemptStatus.PARKED);
+        assertThat(parked.decision()).startsWith("3 of 12 record(s) fell short");
+        assertThat(parked.tokensSpent()).isEqualTo(400L);
+        assertThat(attempts.awaiting(10)).extracting(Recorded::id).describedAs("not the worker's").doesNotContain(id);
+        assertThat(attempts.claimed(id, "node-2", now() + 1_000_000_000L, now() + 1_000_060_000L))
+                .describedAs("nobody's to carry, however long it has stood").isFalse();
+        assertThat(attempts.open(DOC, shape, now() + 1_000_000_000L)).describedAs("and it keeps its shape")
+                .map(Recorded::id).contains(id);
+        assertThat(attempts.opened(new Attempt(DOC, shape, "F", "T", 2L, "node-2",
+                ExecutionMode.DEFERRED, PromotionMode.AUTOMATIC, now() + 60_000L), now() + 1_000_000_000L))
+                .describedAs("so no second attempt opens for it").isEmpty();
+
+        // A finished attempt is not parked after the fact.
+        attempts.closed(id, AttemptStatus.ABANDONED, "Given up", null, null, 0L);
+        attempts.parked(id, "late", 1L);
+        assertThat(attempts.byId(id).orElseThrow().status()).isEqualTo(AttemptStatus.ABANDONED);
+    }
+
+    @Test
     void whatEveryNodeSpendsIsCountedInOnePlace() {
         // A44: a budget divided by node count is not a budget, and a feed burning spend on one node is
         // invisible to the others.

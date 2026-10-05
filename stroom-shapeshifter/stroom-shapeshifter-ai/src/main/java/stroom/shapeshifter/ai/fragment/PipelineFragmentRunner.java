@@ -102,6 +102,8 @@ public final class PipelineFragmentRunner implements FragmentRunner {
     /// Where the chain's tail writes, so that the events it makes can be played on to the supervisor's
     /// own downstream rather than made a second time (see [FragmentRunner#lastOutput]).
     private static final String OUTPUT_ID = "shapeshifterAiOutput";
+    /// Where a serving run taps the parser's records (design 04 §4).
+    private static final String TAP_ID = "shapeshifterAiTap";
 
     /// How many records of a run to keep. A judgement is made on a sample (§3), not on a production
     /// stream, and the capture holds what it keeps in memory.
@@ -118,6 +120,7 @@ public final class PipelineFragmentRunner implements FragmentRunner {
     private final Provider<HeadlessCapture> captureProvider;
     private final Provider<ErrorReceiverProxy> errorReceiverProvider;
     private final Provider<FragmentOutput> fragmentOutputProvider;
+    private final Provider<FragmentTap> fragmentTapProvider;
     private final Provider<InjectedCode> injectedCodeProvider;
     private final TaskContextFactory taskContextFactory;
 
@@ -134,6 +137,7 @@ public final class PipelineFragmentRunner implements FragmentRunner {
                                   final Provider<HeadlessCapture> captureProvider,
                                   final Provider<ErrorReceiverProxy> errorReceiverProvider,
                                   final Provider<FragmentOutput> fragmentOutputProvider,
+                                  final Provider<FragmentTap> fragmentTapProvider,
                                   final Provider<InjectedCode> injectedCodeProvider,
                                   final TaskContextFactory taskContextFactory) {
         this.pipelineStore = pipelineStore;
@@ -143,6 +147,7 @@ public final class PipelineFragmentRunner implements FragmentRunner {
         this.captureProvider = captureProvider;
         this.errorReceiverProvider = errorReceiverProvider;
         this.fragmentOutputProvider = fragmentOutputProvider;
+        this.fragmentTapProvider = fragmentTapProvider;
         this.injectedCodeProvider = injectedCodeProvider;
         this.taskContextFactory = taskContextFactory;
     }
@@ -290,10 +295,22 @@ public final class PipelineFragmentRunner implements FragmentRunner {
         // events go to the gate, which judges each record and hands on what clears.
         lastRecords = List.of();
         lastOutput = null;
-        final RecordGate gate = new RecordGate(judge, downstream);
+        // The parser's records, tapped as they are cut, so that a record whose output falls short can be
+        // shown to a session as the parser had it. Only where the fragment has a parser: a fragment fed
+        // records has nothing of its own to tap.
+        final boolean parsed = parses(elements.get(next.get(SOURCE)));
+        final RecordTap tap = new RecordTap();
+        final RecordGate gate = new RecordGate(judge, downstream, parsed
+                ? index -> tap.current()
+                : index -> Optional.empty());
         final FragmentOutput fragmentOutput = fragmentOutputProvider.get();
         final ContentHandler borrowed = fragmentOutput.getHandler();
         fragmentOutput.setHandler(gate);
+        final FragmentTap fragmentTap = fragmentTapProvider.get();
+        final ContentHandler borrowedTap = fragmentTap.getHandler();
+        fragmentTap.setHandler(parsed
+                ? tap
+                : null);
         final ErrorReceiverProxy errorReceiverProxy = errorReceiverProvider.get();
         final ErrorReceiver previous = errorReceiverProxy.getErrorReceiver();
         final LoggingErrorReceiver logging = new LoggingErrorReceiver();
@@ -305,7 +322,8 @@ public final class PipelineFragmentRunner implements FragmentRunner {
         String failure = null;
         try {
             final Pipeline pipeline = pipelineFactoryProvider.get()
-                    .create(runnable(fragment, merged, elements, next), taskContextFactory.current());
+                    .create(tapped(runnable(fragment, merged, elements, next), next.get(SOURCE), parsed),
+                            taskContextFactory.current());
             // A byte order mark is not content, and the whole-text path has always taken it off before the
             // fragment saw the stream; a fragment given the bytes as they are is given them without it.
             pipeline.process(new BOMRemovalInputStream(input, StandardCharsets.UTF_8.name()),
@@ -330,6 +348,7 @@ public final class PipelineFragmentRunner implements FragmentRunner {
         } finally {
             errorReceiverProxy.setErrorReceiver(previous);
             fragmentOutput.setHandler(borrowed);
+            fragmentTap.setHandler(borrowedTap);
             injectedCode.set(borrowedCode);
         }
         final List<StoredError> diagnostics = new ArrayList<>();
@@ -464,6 +483,18 @@ public final class PipelineFragmentRunner implements FragmentRunner {
         }
         builder.addElement(new PipelineElement(OUTPUT_ID, FragmentOutputFilter.TYPE));
         builder.addLink(tail, OUTPUT_ID);
+        return builder.build();
+    }
+
+    /// The runnable fragment with a tap branched off its parser (design 04 §4): a second child of the
+    /// parser, beside the split and the transform, which the parser's events reach as they do them.
+    private static PipelineData tapped(final PipelineData runnable, final String parser, final boolean parsed) {
+        if (!parsed) {
+            return runnable;
+        }
+        final PipelineDataBuilder builder = new PipelineDataBuilder(runnable);
+        builder.addElement(new PipelineElement(TAP_ID, FragmentTapFilter.TYPE));
+        builder.addLink(parser, TAP_ID);
         return builder.build();
     }
 

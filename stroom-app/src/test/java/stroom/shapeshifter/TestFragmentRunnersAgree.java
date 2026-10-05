@@ -34,6 +34,7 @@ import stroom.shapeshifter.ai.extraction.ExtractionCorpus.Golden;
 import stroom.shapeshifter.ai.extraction.JsonStep;
 import stroom.shapeshifter.ai.fragment.FragmentOutput;
 import stroom.shapeshifter.ai.fragment.FragmentRunner;
+import stroom.shapeshifter.ai.fragment.FragmentTap;
 import stroom.shapeshifter.ai.fragment.FragmentWriter;
 import stroom.shapeshifter.ai.fragment.PipelineFragmentRunner;
 import stroom.shapeshifter.ai.fragment.StandInFragmentRunner;
@@ -116,6 +117,8 @@ class TestFragmentRunnersAgree extends AbstractProcessIntegrationTest {
     @Inject
     private Provider<FragmentOutput> fragmentOutputProvider;
     @Inject
+    private Provider<FragmentTap> fragmentTapProvider;
+    @Inject
     private ElementRegistryFactory elementRegistryFactory;
 
     @Test
@@ -135,7 +138,7 @@ class TestFragmentRunnersAgree extends AbstractProcessIntegrationTest {
                     textConverterStore, xsltStore, runners);
             final FragmentRunner pipeline = new PipelineFragmentRunner(pipelineStore, pipelineDataCache,
                     elementRegistryFactory, pipelineFactoryProvider, headlessCaptureProvider, errorReceiverProvider,
-                    fragmentOutputProvider, injectedCodeProvider, taskContextFactory);
+                    fragmentOutputProvider, fragmentTapProvider, injectedCodeProvider, taskContextFactory);
 
             stood.addAll(standIn.run(fragment, DOCUMENT, boundary));
             ran.addAll(pipeline.run(fragment, DOCUMENT, boundary));
@@ -174,7 +177,8 @@ class TestFragmentRunnersAgree extends AbstractProcessIntegrationTest {
             final DocRef fragment = fragmentWriter.write(FOLDER, "taken-v1", chain, boundary);
             final FragmentRunner runner = new PipelineFragmentRunner(pipelineStore, pipelineDataCache,
                     elementRegistryFactory, pipelineFactoryProvider, headlessCaptureProvider,
-                    errorReceiverProvider, fragmentOutputProvider, injectedCodeProvider, taskContextFactory);
+                    errorReceiverProvider, fragmentOutputProvider, fragmentTapProvider, injectedCodeProvider,
+                    taskContextFactory);
 
             assertThat(runner.takeRecords())
                     .describedAs("nothing has run, so there is nothing to take")
@@ -257,7 +261,7 @@ class TestFragmentRunnersAgree extends AbstractProcessIntegrationTest {
                     textConverterStore, xsltStore, steps);
             final FragmentRunner pipeline = new PipelineFragmentRunner(pipelineStore, pipelineDataCache,
                     elementRegistryFactory, pipelineFactoryProvider, headlessCaptureProvider, errorReceiverProvider,
-                    fragmentOutputProvider, injectedCodeProvider, taskContextFactory);
+                    fragmentOutputProvider, fragmentTapProvider, injectedCodeProvider, taskContextFactory);
             stood.addAll(standIn.run(fragment, input, boundary));
             ran.addAll(pipeline.run(fragment, input, boundary));
         });

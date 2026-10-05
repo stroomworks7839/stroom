@@ -29,6 +29,7 @@ import stroom.shapeshifter.ai.fragment.FragmentWriter;
 import stroom.shapeshifter.ai.fragment.RecordJudge;
 import stroom.shapeshifter.ai.fragment.RecordShortfall;
 import stroom.shapeshifter.ai.fragment.ServedStream;
+import stroom.shapeshifter.ai.fragment.Shortfalls;
 import stroom.shapeshifter.ai.learning.Advisor;
 import stroom.shapeshifter.ai.learning.Advisors;
 import stroom.shapeshifter.ai.learning.Conversation;
@@ -57,6 +58,7 @@ import stroom.shapeshifter.ai.stage.Decision.Deferred;
 import stroom.shapeshifter.ai.stage.Decision.Drafted;
 import stroom.shapeshifter.ai.stage.Decision.GivenUp;
 import stroom.shapeshifter.ai.stage.Decision.Kept;
+import stroom.shapeshifter.ai.stage.Decision.Parked;
 import stroom.shapeshifter.ai.stage.Decision.Promoted;
 import stroom.shapeshifter.ai.stage.Decision.Provisional;
 import stroom.shapeshifter.ai.stage.Decision.Rebound;
@@ -101,6 +103,7 @@ import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.OptionalInt;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -157,6 +160,8 @@ public final class Stage {
     private final Wake wake;
     private final Snapshots snapshots;
     private final FragmentCodes codes;
+    /// The element whose output is always `records` over `record`.
+    private static final String DATA_SPLITTER = "DSParser";
     /// What a record of the chain's output is judged as when it is served: the element type the scorers
     /// of meaning read it as, which is any element that is not a parser.
     private static final String TRANSFORM = "XSLTFilter";
@@ -277,14 +282,16 @@ public final class Stage {
             final Judged served = judge(scorecard, rule.getPipeline(), input.data(), rule.getRecordBoundary());
             final String marked = shapes.relearnReason(doc.getUuid(), shape.id())
                     .orElse("the shape was marked for relearning");
-            return carrying(doc, shape, input, attemptId, recorded.tokensSpent(), answeredBefore, replay,
+            return carrying(doc, shape, input, attemptId, recorded.tokensSpent(), answeredBefore, replay, true,
                     reason -> emit(doc, new Kept(rule, reason), shape, input, rule, served, List.of()),
-                    recorder -> relearnUnderClaim(doc, shape, rule, input, attributes, scorecard, served,
-                            marked, recorder));
+                    recorder -> settle(doc, shape, input, attributes, scorecard, recorder,
+                            relearnUnderClaim(doc, shape, rule, input, attributes, scorecard, served, marked,
+                                    recorder)));
         }
-        return carrying(doc, shape, input, attemptId, recorded.tokensSpent(), answeredBefore, replay,
+        return carrying(doc, shape, input, attemptId, recorded.tokensSpent(), answeredBefore, replay, true,
                 reason -> sentinel(doc, shape, input, reason),
-                recorder -> learnAndBind(doc, shape, input, attributes, scorecard, selector, recorder));
+                recorder -> settle(doc, shape, input, attributes, scorecard, recorder,
+                        learnAndBind(doc, shape, input, attributes, scorecard, selector, recorder)));
     }
 
     /**
@@ -485,7 +492,7 @@ public final class Stage {
             return kept(doc, shape, incumbent, "No candidate: " + abandoned.reason(), outcome.transcript());
         }
         final Learned learned = (Learned) outcome;
-        final Judged candidate = asLearned(rerun(learned.chain(), input.data(), learned.boundary()), scorecard);
+        final Judged candidate = asLearned(rerun(learned.chain(), input.data(), boundary(learned)), scorecard);
         if (!candidate.clearsFloor(doc)) {
             return kept(doc, shape, incumbent, "Candidate scored " + candidate.score() + " against a floor of "
                                                + doc.getPromotionFloor(), learned.transcript());
@@ -495,9 +502,9 @@ public final class Stage {
         for (int i = 0; i < accepted.size(); i++) {
             final Accepted record = accepted.get(i);
             final List<LearnedStep> transforms = Corpus.transforms(learned.chain());
-            final Judged onRecord = asLearned(rerun(transforms, record.record(), learned.boundary()), scorecard);
+            final Judged onRecord = asLearned(rerun(transforms, record.record(), boundary(learned)), scorecard);
             final Optional<String> shortfall = Corpus.shortfall(record, onRecord.verdicts(),
-                    Corpus.outputFor(transforms, record.record(), learned.boundary()));
+                    Corpus.outputFor(transforms, record.record(), boundary(learned)));
             if (shortfall.isPresent()) {
                 return kept(doc, shape, incumbent, "Candidate " + shortfall.get() + " — "
                                                    + Corpus.name(i + 1, accepted.size(), record),
@@ -507,7 +514,7 @@ public final class Stage {
         // The corpus was the stream, so what the model was shown of it was learned for again: each of
         // those records goes in with what the candidate now makes of it, and the cap lets the oldest go
         // (A63).
-        final List<Accepted> entries = Corpus.entries(learned.chain(), learned.boundary(),
+        final List<Accepted> entries = Corpus.entries(learned.chain(), boundary(learned),
                 learningPrefix(input.data(), doc), null, learned.targets(), candidate.score(),
                 recorder.attemptId(), clock.millis(), doc.getRegressionCap());
         // In place (A58), unless a person is to review it first: a draft is its own fragment until Approve
@@ -527,7 +534,7 @@ public final class Stage {
                     .pipeline(fragment)
                     .draft(true)
                     .score(candidate.score())
-                    .recordBoundary(learned.boundary())
+                    .recordBoundary(boundary(learned))
                     .shapeId(shape.id())
                     .snapshot(snapshot(doc, draftUuid, fragment))
                     .build();
@@ -543,7 +550,7 @@ public final class Stage {
                 .snapshot(snapshot(doc, incumbent.getUuid(), fragment))
                 .promotedTimeMs(clock.millis())
                 .score(candidate.score())
-                .recordBoundary(learned.boundary())
+                .recordBoundary(boundary(learned))
                 .shapeId(shape.id())
                 .build();
         regressionSet.accept(doc.getUuid(), rebound.getUuid(), input.feed(), input.type(), entries,
@@ -551,7 +558,7 @@ public final class Stage {
         rules.replace(doc.getUuid(), rebound);
         wake(doc, input.feed(), input.type());
         return new StageRun(doc, new Rebound(incumbent, rebound, candidate.score()), shape,
-                new Bindings(doc.getUuid(), rebound.getUuid(), fragment, learned.boundary(), false,
+                new Bindings(doc.getUuid(), rebound.getUuid(), fragment, boundary(learned), false,
                         candidate.score()),
                 candidate.output(), candidate.verdicts(), learned.transcript(), null, List.of());
     }
@@ -984,8 +991,8 @@ public final class Stage {
         final Shape shape = Shape.of(doc.getLearningKey(), attributes);
         final Scorecard bar = recordBar(doc);
         final RecordJudge judge = rule.isPinned()
-                ? (index, record) -> new Verdict(List.of(), 1.0)
-                : (index, record) -> bar.judge(new Attempted(TRANSFORM, false, null,
+                ? (index, record, parsed) -> new Verdict(List.of(), 1.0)
+                : (index, record, parsed) -> bar.judge(new Attempted(TRANSFORM, false, null,
                         new StepResult(record, List.of()), rule.getRecordBoundary()));
         final ServedStream served = fragmentRunner.serve(rule.getPipeline(), input.open(), rule.getRecordBoundary(),
                 judge, downstream);
@@ -1231,7 +1238,7 @@ public final class Stage {
             // takes what that attempt comes to rather than learning the same thing beside it.
             return waiting.apply("Another node is learning this shape; this stream waits for what it learns");
         }
-        return carrying(doc, shape, input, opened.get(), 0L, Map.of(), advisor, waiting, attempt);
+        return carrying(doc, shape, input, opened.get(), 0L, Map.of(), advisor, false, waiting, attempt);
     }
 
     /**
@@ -1245,11 +1252,13 @@ public final class Stage {
                               final long alreadySpent,
                               final Map<Integer, String> answeredBefore,
                               final Advisor advisor,
+                              final boolean worker,
                               final Function<String, StageRun> waiting,
                               final Function<Recorder, StageRun> attempt) {
         final long before = advisor.tokensUsed();
         final Recorder recorder = new Recorder(doc, advisor, attemptId, alreadySpent, answeredBefore,
                 answeredBy(doc));
+        recorder.worker = worker;
         final StageRun run;
         try {
             run = attempt.apply(recorder);
@@ -1274,6 +1283,12 @@ public final class Stage {
                     e.getClass().getSimpleName() + ": " + e.getMessage(), null, null,
                     Math.max(0L, advisor.tokensUsed() - before)));
             throw e;
+        }
+        if (run.decision() instanceof final Parked parked) {
+            // Parked for a person (A65): the attempt keeps its shape with a lease that does not lapse, and
+            // the worker leaves it alone. Not closed — a person's answer carries it on.
+            record(() -> attempts.parked(attemptId, parked.reason(), Math.max(0L, advisor.tokensUsed() - before)));
+            return run;
         }
         // The run is done and its rule is written: the record of it must not be what fails the stream.
         record(() -> attempts.closed(attemptId, statusOf(run.decision()), reason(run.decision()),
@@ -1305,6 +1320,9 @@ public final class Stage {
         private final long alreadySpent;
         private final Map<Integer, String> answeredBefore;
         private final String answeredBy;
+        /// Whether this is the worker carrying a session (A64): a session that cannot finish parks for a
+        /// person (A65) rather than giving its shape up, and runs its held stream in full before it ends.
+        private boolean worker;
 
         private Recorder(final ShapeshifterAiDoc doc,
                          final Advisor advisor,
@@ -1318,6 +1336,10 @@ public final class Stage {
             this.alreadySpent = alreadySpent;
             this.answeredBefore = Map.copyOf(answeredBefore);
             this.answeredBy = answeredBy;
+        }
+
+        private boolean worker() {
+            return worker;
         }
 
         private Advisor advisor() {
@@ -1356,6 +1378,7 @@ public final class Stage {
             case Rebound ignored -> AttemptStatus.PROMOTED;
             case Provisional ignored -> AttemptStatus.PROVISIONAL;
             case Drafted ignored -> AttemptStatus.AWAITING_REVIEW;
+            case Parked ignored -> AttemptStatus.PARKED;
             default -> AttemptStatus.ABANDONED;
         };
     }
@@ -1426,6 +1449,11 @@ public final class Stage {
         // Learn on a prefix, judge on the whole stream.
         final Outcome outcome = learn(doc, shape, input, attributes, scorecard, List.of(), recorder);
         if (outcome instanceof final Abandoned abandoned) {
+            if (recorder.worker()) {
+                // A session that cannot finish parks for a person (A65) rather than giving its shape up: its
+                // streams go on waiting, and nothing is baked because money or candidates ran out.
+                return parked(doc, shape, abandoned.reason(), outcome.transcript());
+            }
             return givenUp(doc, shape, input, abandoned.reason(), abandoned.reason(), abandoned.diagnostics(),
                     List.of(), outcome.transcript());
         }
@@ -1433,7 +1461,7 @@ public final class Stage {
 
         // The candidate over the whole stream: the held-out judgement of A14/A15 where there are enough
         // records for one, and the floor a provisional binding must clear where there are not.
-        final Judged judged = asLearned(rerun(learned.chain(), input.data(), learned.boundary()), scorecard);
+        final Judged judged = asLearned(rerun(learned.chain(), input.data(), boundary(learned)), scorecard);
         if (!judged.clearsFloor(doc)) {
             return givenUp(doc, shape, input, "Below the promotion floor",
                     "Candidate scored " + judged.score() + " against a floor of " + doc.getPromotionFloor(),
@@ -1443,11 +1471,11 @@ public final class Stage {
         final DocRef fragment = write(doc, shape, learned);
         // What goes in the corpus (A56): the sample the model was shown, every record of it, since a
         // first learning learned for all of them.
-        final List<Accepted> entries = Corpus.entries(learned.chain(), learned.boundary(),
+        final List<Accepted> entries = Corpus.entries(learned.chain(), boundary(learned),
                 learningPrefix(input.data(), doc), null, learned.targets(), judged.score(), recorder.attemptId(),
                 clock.millis(), doc.getRegressionCap());
         return bind(doc, shape, input, selector, fragment, judged, entries, learned.transcript(),
-                learned.boundary());
+                boundary(learned));
     }
 
     /**
@@ -1600,6 +1628,10 @@ public final class Stage {
                                                                  + ". The bound fragment scored " + served.score()
                                                                  + " on this stream"));
         served.verdicts().forEach(verdict -> opening.addAll(verdict.feedback()));
+        // And what the fragment's run had to say — for a full pass, the records that fell short, as the
+        // parser cut them and as the transform left them (A64): what the model has to see to learn for
+        // a record that lay beyond the sample.
+        opening.addAll(served.diagnostics());
         final Outcome outcome = learn(doc, shape, input, attributes, scorecard, opening, recorder);
         // The mark is spent now that the relearning has happened, and not before: an attempt that parks
         // at a question (A5) is carried on by the worker, which must find the shape as this walk found it
@@ -1607,11 +1639,15 @@ public final class Stage {
         // fixed would be relearned on every stream.
         shapes.reset(doc.getUuid(), shape.id());
         if (outcome instanceof final Abandoned abandoned) {
+            if (recorder.worker()) {
+                // As a first learning does (A65): the incumbent serves what it can, the held stream waits.
+                return parked(doc, shape, abandoned.reason(), outcome.transcript());
+            }
             return emit(doc, new Kept(incumbent, "No candidate: " + abandoned.reason()), shape, input, incumbent,
                     served, outcome.transcript());
         }
         final Learned learned = (Learned) outcome;
-        final Judged candidate = asLearned(rerun(learned.chain(), input.data(), learned.boundary()), scorecard);
+        final Judged candidate = asLearned(rerun(learned.chain(), input.data(), boundary(learned)), scorecard);
         if (!candidate.clearsFloor(doc)) {
             return emit(doc, new Kept(incumbent, "Candidate scored " + candidate.score() + " against a floor of "
                                                  + doc.getPromotionFloor()), shape, input, incumbent, served,
@@ -1630,9 +1666,9 @@ public final class Stage {
         for (int i = 0; i < corpus.size(); i++) {
             final Accepted accepted = corpus.get(i);
             final List<LearnedStep> transforms = Corpus.transforms(learned.chain());
-            final Judged onRecord = asLearned(rerun(transforms, accepted.record(), learned.boundary()), scorecard);
+            final Judged onRecord = asLearned(rerun(transforms, accepted.record(), boundary(learned)), scorecard);
             final Optional<String> shortfall = Corpus.shortfall(accepted, onRecord.verdicts(),
-                    Corpus.outputFor(transforms, accepted.record(), learned.boundary()));
+                    Corpus.outputFor(transforms, accepted.record(), boundary(learned)));
             if (shortfall.isPresent()) {
                 return emit(doc, new Kept(incumbent, "Candidate " + shortfall.get() + " — "
                                                      + Corpus.name(i + 1, corpus.size(), accepted)),
@@ -1645,10 +1681,10 @@ public final class Stage {
         // learned for the sample it was shown, as a first learning does.
         final Set<Integer> fellShort = served.failingRecords();
         final List<Accepted> entries = fellShort.isEmpty()
-                ? Corpus.entries(learned.chain(), learned.boundary(), learningPrefix(input.data(), doc), null,
+                ? Corpus.entries(learned.chain(), boundary(learned), learningPrefix(input.data(), doc), null,
                         learned.targets(), candidate.score(), recorder.attemptId(), clock.millis(),
                         doc.getRegressionCap())
-                : Corpus.entries(learned.chain(), learned.boundary(), input.data(), fellShort,
+                : Corpus.entries(learned.chain(), boundary(learned), input.data(), fellShort,
                         learned.targets(), candidate.score(), recorder.attemptId(), clock.millis(),
                         doc.getRegressionCap());
         // In place (A58), unless a person is to review it first: a draft is its own fragment until Approve
@@ -1666,7 +1702,7 @@ public final class Stage {
                     .pipeline(fragment)
                     .draft(true)
                     .score(candidate.score())
-                    .recordBoundary(learned.boundary())
+                    .recordBoundary(boundary(learned))
                     .shapeId(shape.id())
                     .snapshot(snapshot(doc, draftUuid, fragment))
                     .build();
@@ -1682,7 +1718,7 @@ public final class Stage {
                 .snapshot(snapshot(doc, incumbent.getUuid(), fragment))
                 .promotedTimeMs(clock.millis())
                 .score(candidate.score())
-                .recordBoundary(learned.boundary())
+                .recordBoundary(boundary(learned))
                 .build();
         regressionSet.accept(doc.getUuid(), rebound.getUuid(), input.feed(), input.type(), entries,
                     doc.getRegressionCap());
@@ -2080,12 +2116,109 @@ public final class Stage {
             return write(doc, shape, learned);
         }
         return writer.rewrite(incumbent.getPipeline(), DocPath.fromParts(FOLDER, doc.getName()),
-                incumbent.getPipeline().getName(), learned.chain(), learned.boundary());
+                incumbent.getPipeline().getName(), learned.chain(), boundary(learned));
+    }
+
+    /// The most rounds a session runs before it parks regardless: the budgets are what bound a session
+    /// (A65), and this is the guard behind them for a document whose budgets are generous.
+    private static final int MOST_ROUNDS = 10;
+
+    /// How many records short of the bar a full pass keeps as evidence: enough kinds to learn for, few
+    /// enough to put to a model.
+    private static final int EVIDENCE = 5;
+
+    /// The session carried to its end (A64, A50): the held stream is the acceptance test. A promotion is
+    /// followed by a full pass of the stream through the promoted transform, judging every record; where
+    /// any falls short, the records that did — as the parser cut them, with what the transform made of
+    /// them — open the next question, and the transform is learned again in place. The session ends when
+    /// the stream clears, or parks (A65) when its budgets or its rounds are spent.
+    private StageRun settle(final ShapeshifterAiDoc doc,
+                            final Shape shape,
+                            final Input input,
+                            final Map<String, Object> attributes,
+                            final Scorecard scorecard,
+                            final Recorder recorder,
+                            final StageRun first) {
+        StageRun run = first;
+        Shortfalls pass = null;
+        for (int round = 1; round <= MOST_ROUNDS; round++) {
+            final RoutingRule rule;
+            // Why the last round kept the incumbent, where it did: the candidate was asked to clear the
+            // held stream and did not get to serve, so the incumbent's pass still stands and the next
+            // question says what kept the candidate out as well as what the stream wants.
+            String kept = null;
+            final boolean passed = pass != null;
+            switch (run.decision()) {
+                case Promoted promoted -> rule = promoted.rule();
+                case Rebound rebound -> rule = rebound.rule();
+                case Provisional provisional -> rule = provisional.rule();
+                case Kept held when passed -> {
+                    rule = held.incumbent();
+                    kept = held.reason();
+                }
+                default -> {
+                    // A draft, an incumbent kept before any pass, a parking: nothing is serving the stream
+                    // yet, or the session has already said what it came to.
+                    return run;
+                }
+            }
+            if (kept == null) {
+                pass = fullPass(doc, rule, input);
+                if (pass.clear()) {
+                    return run;
+                }
+            }
+            final Judged served = Judged.shortOf(pass);
+            final String reason = pass.shortCount() + " of " + pass.judged()
+                                  + " record(s) fell short of the bar on the held stream, round " + round
+                                  + (kept == null
+                    ? ""
+                    : "; the last candidate was kept out: " + kept);
+            if (round == MOST_ROUNDS) {
+                return parked(doc, shape, reason + "; " + MOST_ROUNDS + " rounds without the stream clearing",
+                        run.transcript());
+            }
+            run = relearnUnderClaim(doc, shape, rule, input, attributes, scorecard, served, reason, recorder);
+        }
+        return run;
+    }
+
+    /// The held stream run in full through a rule's fragment, every record judged by the bar, the ones
+    /// that fall short kept (design 04 §4). Nothing is handed on and nothing is written.
+    private Shortfalls fullPass(final ShapeshifterAiDoc doc, final RoutingRule rule, final Input input) {
+        final Scorecard bar = recordBar(doc);
+        final Shortfalls shortfalls = new Shortfalls((index, record, parsed) -> bar.judge(
+                new Attempted(TRANSFORM, false, null, new StepResult(record, List.of()), rule.getRecordBoundary())),
+                EVIDENCE);
+        fragmentRunner.serve(rule.getPipeline(), input.open(), rule.getRecordBoundary(), shortfalls, null);
+        return shortfalls;
+    }
+
+    /// The session parks for a person (A65).
+    private StageRun parked(final ShapeshifterAiDoc doc,
+                            final Shape shape,
+                            final String reason,
+                            final List<Exchange> transcript) {
+        return new StageRun(doc, new Parked(reason), shape, null, null, List.of(), transcript, null, List.of());
+    }
+
+    /// What one record is for a learned chain: the boundary the plan settled, or for a chain that begins
+    /// with the Data Splitter — whose output is always `records` over `record` — one record per `record`,
+    /// one deep. Settled here and not left empty because an empty boundary is a fragment with no
+    /// `SplitFilter`, whose transform is given the whole parsed stream as one document and holds it
+    /// (design 04 §3, *streams of any size*); a text stream of any size has to be cut too.
+    static RecordBoundary boundary(final Learned learned) {
+        if (learned.boundary() != null) {
+            return learned.boundary();
+        }
+        return !learned.chain().isEmpty() && DATA_SPLITTER.equals(learned.chain().get(0).elementType())
+                ? RecordBoundary.ofElement("record").atDepth(1)
+                : null;
     }
 
     private DocRef write(final ShapeshifterAiDoc doc, final Shape shape, final Learned learned) {
         return writer.write(DocPath.fromParts(FOLDER, doc.getName()), shape.slug() + "-" + clock.millis(),
-                learned.chain(), learned.boundary());
+                learned.chain(), boundary(learned));
     }
 
     /**
@@ -2241,7 +2374,10 @@ public final class Stage {
             final int by = document == null
                     ? -1
                     : Records.parsed(document, boundary);
-            if (by >= 0) {
+            // A parser whose output holds no records at all did not cut a stream of none: it failed to
+            // cut what the stream brought, and the stream is judged as what it brought — not as too few
+            // records to judge (A14).
+            if (by > 0) {
                 return by;
             }
         }
@@ -2543,6 +2679,27 @@ public final class Stage {
         static Judged shortOf(final ServedStream served, final RecordShortfall shortfall) {
             return new Judged(null, List.of(shortfall.verdict()), 0.0, served.records(), List.of(),
                     null, served.diagnostics(), Set.of(shortfall.index()));
+        }
+
+        /// A held stream run in full by a session, with the records that fell short kept as evidence
+        /// (A64): their verdicts, and as diagnostics what each was and became, which is what the next
+        /// question opens with. Scores nothing, as a stream with a record short of the bar does.
+        static Judged shortOf(final Shortfalls pass) {
+            final List<Verdict> verdicts = new ArrayList<>();
+            final List<StoredError> evidence = new ArrayList<>();
+            final Set<Integer> indices = new TreeSet<>();
+            for (final Shortfalls.Shortfall shortfall : pass.kept()) {
+                verdicts.add(shortfall.verdict());
+                indices.add(shortfall.index());
+                evidence.add(new StoredError(Severity.ERROR, null, STAGE, "Record " + (shortfall.index() + 1)
+                                                                        + " of the held stream fell short of the bar."
+                                                                        + (shortfall.parsed() == null
+                        ? ""
+                        : " The record as the parser cut it:\n" + shortfall.parsed())
+                                                                        + "\nWhat the transform made of it:\n"
+                                                                        + shortfall.output()));
+            }
+            return new Judged(null, verdicts, 0.0, pass.judged(), List.of(), null, evidence, indices);
         }
 
         static Judged of(final List<Attempted> attempted, final Scorecard scorecard, final EventList events) {

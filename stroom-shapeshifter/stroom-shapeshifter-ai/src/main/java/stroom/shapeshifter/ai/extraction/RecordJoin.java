@@ -83,10 +83,11 @@ public final class RecordJoin {
             throws TransformerConfigurationException {
         final SAXTransformerFactory factory = new TransformerFactoryImpl();
         final TransformerHandler handler = factory.newTransformerHandler();
-        handler.getTransformer().setOutputProperty(OutputKeys.INDENT, "no");
-        // The declaration stays and no indentation is added: what the transform wrote for each record
-        // carries its own spacing, and this is putting those pieces together rather than reformatting
-        // them.
+        // Laid out as the transform would have laid out the one document, had it been given the stream
+        // whole: the same serialiser with the same indentation, so that what a chain run per record
+        // produces reads the same as what the chain run over the whole text did, and a golden written
+        // against the one holds against the other.
+        handler.getTransformer().setOutputProperty(OutputKeys.INDENT, "yes");
         handler.getTransformer().setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "no");
         handler.setResult(new StreamResult(writing));
         return handler;
@@ -146,10 +147,20 @@ public final class RecordJoin {
         @Override
         public void characters(final char[] ch, final int start, final int length) throws SAXException {
             // Everything inside the root, including the text directly in it: a record's own content is
-            // not only its elements.
-            if (depth >= 1) {
+            // not only its elements. The one exception is the whitespace directly under the root, which
+            // is each piece's indentation and not content: the joined document is indented afresh.
+            if (depth >= 1 && !(depth == 1 && blank(ch, start, length))) {
                 joined.characters(ch, start, length);
             }
+        }
+
+        private static boolean blank(final char[] ch, final int start, final int length) {
+            for (int i = start; i < start + length; i++) {
+                if (!Character.isWhitespace(ch[i])) {
+                    return false;
+                }
+            }
+            return true;
         }
     }
 }

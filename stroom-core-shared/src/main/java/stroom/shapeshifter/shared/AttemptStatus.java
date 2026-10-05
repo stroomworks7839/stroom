@@ -22,7 +22,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
 /// Where an attempt stands (A28): the states the Supervisor view filters by. An attempt is in one of them
-/// at a time, and the ones that end it — everything but [#IN_PROGRESS], [#AWAITING_MODEL] and
+/// at a time, and the ones that end it — everything but [#IN_PROGRESS], [#AWAITING_MODEL], [#PARKED] and
 /// [#AWAITING_REVIEW] — are final.
 public enum AttemptStatus implements HasDisplayValue {
 
@@ -32,6 +32,10 @@ public enum AttemptStatus implements HasDisplayValue {
     AWAITING_MODEL("Awaiting model"),
     /// Learned, and waiting for a person to approve or reject what it wrote (A25).
     AWAITING_REVIEW("Awaiting review"),
+    /// Out of budget, or out of candidates, before its stream cleared the bar: parked for a person (A65),
+    /// holding its shape with a lease that does not lapse, and left alone by the worker until somebody
+    /// answers it, gives it more to spend, or sends it to the exhaustion step.
+    PARKED("Parked"),
     /// Bound on too few records to judge it on (A14); it promotes or retracts when enough arrive.
     PROVISIONAL("Provisional"),
     /// Bound, and judged on enough records to mean it.

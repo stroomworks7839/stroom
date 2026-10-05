@@ -168,7 +168,7 @@ class TestScenario18LearnsACsvFeedInAPipeline extends AbstractProcessIntegration
         assertThat(fragment.getName()).startsWith(FEED + "-Raw-Events-");
         assertThat(fragment.getPipelineData().getAddedElements())
                 .extracting(element -> element.getType())
-                .containsExactly("Source", "DSParser", "XSLTFilter");
+                .containsExactly("Source", "DSParser", "SplitFilter", "XSLTFilter");
 
         final Meta output = outputs().get(0);
         assertThat(canonical(data(output))).isEqualTo(canonical(EXPECTED_EVENTS));

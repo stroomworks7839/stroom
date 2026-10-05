@@ -212,7 +212,8 @@ class TestScenariosBindingBeforeLearning {
         script.verifyExhausted();
         assertThat(first.decision()).isInstanceOf(Provisional.class);
         final Provisional provisional = (Provisional) first.decision();
-        assertThat(provisional.records()).isEqualTo(7);
+        assertThat(provisional.records()).describedAs("the six records the parser cut, not the seven lines")
+                .isEqualTo(6);
         assertThat(provisional.required()).isEqualTo(10);
         assertThat(provisional.rule().isProvisional()).isTrue();
         assertThat(provisional.rule().getPromotedTimeMs()).isNull();

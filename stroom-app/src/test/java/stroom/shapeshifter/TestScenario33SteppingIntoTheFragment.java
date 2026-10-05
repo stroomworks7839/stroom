@@ -157,45 +157,46 @@ class TestScenario33SteppingIntoTheFragment extends AbstractProcessIntegrationTe
         final List<NestedElementData> nested = details.getNested();
         assertThat(nested)
                 .extracting(NestedElementData::getName, NestedElementData::getType)
-                .describedAs("the chain as it was learned, in the order it ran — and nothing the runner "
-                             + "added to make it runnable")
-                .containsExactly(tuple("dsParser", "DSParser"), tuple("xsltFilter", "XSLTFilter"));
+                .describedAs("the chain as it was learned, in the order it ran — the split that cuts the "
+                             + "records included, and nothing the runner added to make it runnable")
+                .containsExactly(tuple("dsParser", "DSParser"), tuple("splitFilter", "SplitFilter"),
+                        tuple("xsltFilter", "XSLTFilter"));
         assertThat(nested)
                 .extracting(NestedElementData::getId)
                 .describedAs("named by the stage that ran them, because a fragment may hold an XSLTFilter "
                              + "and so may the pipeline it is running inside")
-                .containsExactly("shapeshifterAi/dsParser", "shapeshifterAi/xsltFilter");
+                .containsExactly("shapeshifterAi/dsParser", "shapeshifterAi/splitFilter", "shapeshifterAi/xsltFilter");
 
         final NestedElementData parser = nested.get(0);
-        final NestedElementData transform = nested.get(1);
+        final NestedElementData split = nested.get(1);
+        final NestedElementData transform = nested.get(2);
         assertThat(parser.getInput())
                 .describedAs("the learned parser was given the stream's own text")
                 .isNotBlank();
         assertThat(parser.getOutput())
                 .describedAs("and cut it into records")
                 .contains("<record>");
+        assertThat(split.getType()).describedAs("the split is shown where it ran").isEqualTo("SplitFilter");
         assertThat(transform.getInput())
-                .describedAs("what the parser wrote is what the transform was given: the chain, opened up")
-                .isEqualTo(parser.getOutput());
+                .describedAs("what the parser wrote for this record is what the transform was given, one "
+                             + "record at a time: the chain, opened up")
+                .isEqualTo(parser.getOutput())
+                .contains("<record>");
         assertThat(transform.getOutput())
                 .describedAs("and the transform wrote the event the stage emitted")
                 .contains("<Event");
     }
 
     /**
-     * A chain run once over the whole stream says so, on every record of it.
+     * A chain that splits steps record by record.
      * <p>
-     * A stage standing where a parser stands is handed the stream, so its chain runs once: the learned
-     * parser reads the whole of it and the learned transform is handed the whole of what that produced.
-     * The records the stepper walks are cut from the far end <em>afterwards</em>, so stepping forward
-     * moves the stage's record on and does not move these — there is nothing to move.
-     * <p>
-     * The row says which it is rather than leaving it to be noticed. Six records' worth of output under
-     * a cursor sitting on the first reads as a fault otherwise, and the alternative — cutting the
-     * element's output up for display — would show a person something the element never produced.
+     * A stage standing where a parser stands is handed the stream, so the learned parser reads the
+     * whole of it once; the split then cuts what the parser wrote and the transform is given one record
+     * at a time (design 04 §3), and so is the stepper: each record under the cursor shows the transform
+     * given that record and writing that record's event, and stepping forward moves them on.
      */
     @Test
-    void aChainRunOverTheWholeStreamSaysSo() {
+    void aChainThatSplitsStepsRecordByRecord() {
         final DocRef feed = storeCreationTool.getOrCreateFeedDoc(FEED);
         final DocRef doc = document();
         final DocRef pipeline = pipeline(feed, doc);
@@ -215,16 +216,16 @@ class TestScenario33SteppingIntoTheFragment extends AbstractProcessIntegrationTe
                 .isEqualTo(first.getFoundLocation().getRecordIndex() + 1);
         final List<NestedElementData> one = nested(first);
         final List<NestedElementData> two = nested(second);
-        assertThat(one).allMatch(NestedElementData::isWholeStream)
-                .describedAs("a chain handed the stream ran once over all of it, and each row says so");
-        assertThat(two).extracting(NestedElementData::getOutput)
-                .describedAs("so the second record shows the same one run as the first: what is there to "
-                             + "show is what the elements did, which was done once")
-                .isEqualTo(one.stream().map(NestedElementData::getOutput).toList());
-        assertThat(one.get(0).getOutput())
-                .describedAs("and what that one run produced is the whole stream's records, not one")
+        assertThat(one).noneMatch(NestedElementData::isWholeStream)
+                .describedAs("no row is one run over the whole stream: the chain cut the records itself");
+        assertThat(one.get(2).getOutput())
+                .describedAs("the first record's event")
                 .contains("2020-06-17T08:00:00.000Z")
-                .contains("2020-06-17T08:14:00.000Z");
+                .doesNotContain("2020-06-17T08:14:00.000Z");
+        assertThat(two.get(2).getOutput())
+                .describedAs("and the second record's, which is another")
+                .isNotEqualTo(one.get(2).getOutput())
+                .doesNotContain("2020-06-17T08:00:00.000Z");
     }
 
     /// **A feed nobody has taught can be stepped**, which is the case the stage pane exists for.
@@ -323,7 +324,7 @@ class TestScenario33SteppingIntoTheFragment extends AbstractProcessIntegrationTe
         final PipelineDoc fragment = pipelineStore.readDocument(table.get(0).getPipeline());
         assertThat(fragment.getPipelineData().getAddedElements())
                 .extracting(PipelineElement::getType)
-                .containsExactly("Source", "DSParser", "XSLTFilter");
+                .containsExactly("Source", "DSParser", "SplitFilter", "XSLTFilter");
         // The model must not be asked again: a step is a dry run, and anything it consulted would be a
         // model call spent by looking.
         advisor.set(Script.of());

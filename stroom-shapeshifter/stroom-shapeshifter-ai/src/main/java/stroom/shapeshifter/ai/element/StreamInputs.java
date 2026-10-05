@@ -92,14 +92,27 @@ public class StreamInputs implements Inputs {
         }
     }
 
-    /// The first [Input#PREFIX_BYTES] of the stream as text, and whether that was all of it.
+    /// The first [Input#PREFIX_BYTES] of the stream as text, and whether that was all of it. A prefix that
+    /// is not the whole stream ends at the last line break within it: a line cut in the middle is not a
+    /// record of the stream, and judged as one it would fail a candidate that every whole record clears.
     private static Prefix prefix(final Source source) throws IOException {
         try (final InputStreamProvider provider = source.get(0)) {
             final InputStream in = provider.get();
             final byte[] bytes = in.readNBytes(Input.PREFIX_BYTES);
             final boolean complete = bytes.length < Input.PREFIX_BYTES || in.read() < 0;
-            return new Prefix(ShapeSignature.withoutBom(new String(bytes, StandardCharsets.UTF_8)), complete);
+            final String text = ShapeSignature.withoutBom(new String(bytes, StandardCharsets.UTF_8));
+            return new Prefix(complete
+                    ? text
+                    : wholeLines(text), complete);
         }
+    }
+
+    /// The text up to and including its last line break, or all of it where it has none.
+    private static String wholeLines(final String text) {
+        final int lastBreak = text.lastIndexOf('\n');
+        return lastBreak < 0
+                ? text
+                : text.substring(0, lastBreak + 1);
     }
 
     /// The whole stream, opened afresh, closing its source with it.

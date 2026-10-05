@@ -27,6 +27,7 @@ import stroom.shapeshifter.ai.stage.Decision.Deferred;
 import stroom.shapeshifter.ai.stage.Decision.Drafted;
 import stroom.shapeshifter.ai.stage.Decision.GivenUp;
 import stroom.shapeshifter.ai.stage.Decision.Kept;
+import stroom.shapeshifter.ai.stage.Decision.Parked;
 import stroom.shapeshifter.ai.stage.Decision.Promoted;
 import stroom.shapeshifter.ai.stage.Decision.Provisional;
 import stroom.shapeshifter.ai.stage.Decision.Rebound;
@@ -160,6 +161,7 @@ class TestStepDetails {
                 new GivenUp("nothing passed", List.of()),
                 new Sentinel("nothing binds this shape"),
                 new Deferred("waiting on a session"),
+                new Parked("the attempt's budget is spent"),
                 new Would("learn a fragment for this shape", null));
 
         assertThat(all).allSatisfy(decision -> assertThat(StepDetails.describe(decision))

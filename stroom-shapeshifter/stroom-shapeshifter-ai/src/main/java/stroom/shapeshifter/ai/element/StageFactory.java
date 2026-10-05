@@ -30,6 +30,7 @@ import stroom.shapeshifter.ai.extraction.JsonStep;
 import stroom.shapeshifter.ai.extraction.XmlFragmentStep;
 import stroom.shapeshifter.ai.fragment.FragmentCodes;
 import stroom.shapeshifter.ai.fragment.FragmentOutput;
+import stroom.shapeshifter.ai.fragment.FragmentTap;
 import stroom.shapeshifter.ai.fragment.FragmentWriter;
 import stroom.shapeshifter.ai.fragment.PipelineFragmentRunner;
 import stroom.shapeshifter.ai.learning.Advisors;
@@ -89,6 +90,7 @@ public class StageFactory {
     private final Provider<ErrorReceiverProxy> errorReceiverProvider;
     private final Provider<InjectedCode> injectedCodeProvider;
     private final Provider<FragmentOutput> fragmentOutputProvider;
+    private final Provider<FragmentTap> fragmentTapProvider;
     private final TaskContextFactory taskContextFactory;
     private final NodeInfo nodeInfo;
     private final Attempts attempts;
@@ -118,6 +120,7 @@ public class StageFactory {
                         final Provider<ErrorReceiverProxy> errorReceiverProvider,
                         final Provider<InjectedCode> injectedCodeProvider,
                         final Provider<FragmentOutput> fragmentOutputProvider,
+                        final Provider<FragmentTap> fragmentTapProvider,
                         final TaskContextFactory taskContextFactory,
                         final NodeInfo nodeInfo,
                         final Attempts attempts,
@@ -145,6 +148,7 @@ public class StageFactory {
         this.errorReceiverProvider = errorReceiverProvider;
         this.injectedCodeProvider = injectedCodeProvider;
         this.fragmentOutputProvider = fragmentOutputProvider;
+        this.fragmentTapProvider = fragmentTapProvider;
         this.taskContextFactory = taskContextFactory;
         this.nodeInfo = nodeInfo;
         this.attempts = attempts;
@@ -188,7 +192,7 @@ public class StageFactory {
                 // scenarios run on is for a harness with no node under it.
                 new PipelineFragmentRunner(pipelineStore, pipelineDataCache, elementRegistryFactory,
                         pipelineFactoryProvider,
-                        headlessCaptureProvider, errorReceiverProvider, fragmentOutputProvider,
+                        headlessCaptureProvider, errorReceiverProvider, fragmentOutputProvider, fragmentTapProvider,
                         injectedCodeProvider, taskContextFactory),
                 attempts,
                 rules,

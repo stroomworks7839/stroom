@@ -57,6 +57,15 @@ public interface Attempts {
     /// it and not its last leg.
     void parked(long attemptId, AttemptStatus status, long expiryMs, long tokensSpent);
 
+    /// Park an attempt for a person (A65): out of budget or out of candidates before its stream cleared
+    /// the bar. It keeps its claim on the shape with a lease that does not lapse, the worker leaves it
+    /// alone, and what it stopped on is recorded as its decision for the Supervisor to show.
+    ///
+    /// @param attemptId   The attempt.
+    /// @param reason      What it stopped on.
+    /// @param tokensSpent What this leg cost.
+    void parked(long attemptId, String reason, long tokensSpent);
+
     /// Take up an attempt that stopped, as this node, and hold it while it runs (A45). An attempt parked
     /// awaiting an answer is nobody's to carry — no thread is behind it — so whichever worker reaches it
     /// first may take it; one that is running is its own node's until its claim lapses, which is how a

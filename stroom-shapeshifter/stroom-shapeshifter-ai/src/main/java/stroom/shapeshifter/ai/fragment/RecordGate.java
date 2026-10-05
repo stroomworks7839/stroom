@@ -30,6 +30,8 @@ import org.xml.sax.SAXException;
 import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.function.IntFunction;
 import javax.xml.transform.TransformerConfigurationException;
 import javax.xml.transform.sax.TransformerHandler;
 import javax.xml.transform.stream.StreamResult;
@@ -48,6 +50,7 @@ public final class RecordGate implements ContentHandler {
 
     private final RecordJudge judge;
     private final ContentHandler downstream;
+    private final IntFunction<Optional<String>> parsedAt;
     /// The document's opening: everything up to and including the root's start tag.
     private final SimpleEventListBuilder opening = new SimpleEventListBuilder();
     private SimpleEventListBuilder record;
@@ -63,9 +66,14 @@ public final class RecordGate implements ContentHandler {
 
     /// @param judge      The bar.
     /// @param downstream Where records that clear it go; null where nothing is to be handed on.
-    public RecordGate(final RecordJudge judge, final ContentHandler downstream) {
+    /// @param parsedAt   The record as the parser cut it, by the output record's index, for the judge to
+    ///                   ask for; empty where the runner cannot say.
+    public RecordGate(final RecordJudge judge,
+                      final ContentHandler downstream,
+                      final IntFunction<Optional<String>> parsedAt) {
         this.judge = judge;
         this.downstream = downstream;
+        this.parsedAt = parsedAt;
     }
 
     /// How many records were judged, the short one included.
@@ -193,11 +201,15 @@ public final class RecordGate implements ContentHandler {
     private void judged(final List<Event> events) throws SAXException {
         final int index = records;
         final String document = alone(events);
-        final Verdict verdict = judge.judge(index, document);
+        final Verdict verdict = judge.judge(index, document, () -> parsedAt.apply(index));
         records++;
         totals += verdict.weightedTotal();
         if (!RecordJudge.clears(verdict)) {
-            throw new RecordShortfall(index, verdict, document);
+            if (judge.stops()) {
+                throw new RecordShortfall(index, verdict, document);
+            }
+            // A full pass goes on: the record is not handed on, and the judge has kept what it needs.
+            return;
         }
         if (downstream != null) {
             if (!opened) {

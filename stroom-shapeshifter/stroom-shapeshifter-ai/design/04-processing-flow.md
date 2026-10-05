@@ -686,15 +686,51 @@ the structure a snapshot kept is recorded and not yet run. And noticing a hand e
 documents on every served stream — three reads through the document stores — which is the price of A72
 as ruled and the next thing to measure at volume after the per-record schema filter.
 
-What this slice does not do, each owed to the slices after it: in-place editing and snapshots (A58, A61);
-the worker carrying a session to its end and resuming a lapsed one, with the lease renewed per turn (§4,
-A64); parking for a person (A65); and the stage fed by a parser, which still learns in the task because
-the records the parser above it made are its stream and the worker cannot read those back from the
-store — the attempt would have to carry its own sample, which is a change to the attempt row worth a
-ruling. Until A64, a held stream whose records still fall short after a promotion is deferred again by
-the woken task, against the new stamp, and a new session opens on it: the loop of A50 happens as rounds
-of tasks rather than within one session, which is what §4's *one stream at a time* describes and costs
-one transform and one score per round.
+What the first slice did not do, each owed to the slices after it: in-place editing and snapshots (A58,
+A61 — the second slice); the worker carrying a session to its end (A64 — the third); parking for a person
+(A65 — the third, at its minimum); resuming a lapsed session with the lease renewed per turn (§4, still
+owed); and the stage fed by a parser, which still learns in the task because the records the parser above
+it made are its stream and the worker cannot read those back from the store — the attempt would have to
+carry its own sample, which is a change to the attempt row worth a ruling.
+
+*Built 2026-10-05, the third slice: the session runs the held stream in full (A64, A65 at its minimum,
+A73).* A worker that takes an attempt carries it to the stream clearing: after each promotion or
+rebinding the stage runs the held stream in full through the rule's fragment with a judge that collects
+rather than stops — `Shortfalls`, up to five records kept, each as the parser cut it, what the transform
+made of it and the verdict — and where any fell short, opens the next question with them as its
+feedback and learns the transform again in place — a candidate kept out, below the floor or no better
+than the incumbent or short on the corpus, costs a round and the next question says why — up to ten
+rounds, after which, or when the plan's candidates are spent, the attempt is `PARKED` with its reason, a status the worker's listing leaves out
+and `Attempts.parked` gives a lease that does not lapse. In a pipeline the evidence comes from a tap:
+`PipelineFragmentRunner.serve` adds a `ShapeshifterAiTap` filter to the fragment's parser for the run,
+through `FragmentTap` as `FragmentOutput` already borrowed the tail, and `RecordTap` holds the parser's
+current record so that the gate's judge can ask for it by index; the stand-in cuts the parser's output
+by the boundary instead. A task of a parked shape defers and opens nothing. Scenario 57 is the exit, at
+both tiers: `TestScenario57TheSessionRunsTheHeldStreamInFullInAPipeline` puts the records that fall
+short beyond the sixty-four kibibyte prefix of a real stream, which is the case the slice exists for.
+
+Four things the build found. A chain beginning with the Data Splitter carried no `SplitFilter`: the
+transform was given the whole parsed stream as one document — held, which §3 says nothing may be — and
+the stand-in ran it whole while the pipeline would have run it whole too. `Stage.boundary` settles one
+record as one `record`, one deep, for such a chain where the plan settled nothing, so every learned
+fragment now splits; the joined output of a per-record run is laid out as the one document again so the
+goldens hold; a stream brings as many records as the parser cut, and a parser that cut none is judged on
+the lines it was given. The prefix a task reads as text ends at its last line break (`StreamInputs`),
+since a line cut in the middle judged as a record failed a candidate every whole record cleared. With
+the tap the parser has two targets, and the pipeline's fork between them wrapped what the split's branch
+threw — the shortfall, from inside a record — as a processing failure whose cause the parser could not
+see, so the parser logged it as fatal and wrote the error stream a deferral must not leave (§8 scenario
+6): `XMLFilterFork` now lets a deferral up as it is, and `AbstractParser` looks for one in its SAX branch
+as it already did in the other. And the budgets of A65 as the Tier 1 fixture can see them are
+the plan's candidates: its clock is fixed and
+its scripted model spends no tokens, so the parking scenario spends the plan, which is the one ending
+of a session that is not a promotion and not a parse given up.
+
+What this slice does not do: resume a lapsed `IN_PROGRESS` session or renew the lease per turn (§4);
+give the Supervisor its actions on a parked attempt — answer, more to spend, send to the exhaustion
+step — which phase 6 owes with the screen; and tell a session out of budget from one out of candidates
+in anything but its reason. Nothing is done with a stream that cannot be parsed beyond what phase 5
+rules.
 
 ### Phase 5 — A session always ends *(the feature)*
 

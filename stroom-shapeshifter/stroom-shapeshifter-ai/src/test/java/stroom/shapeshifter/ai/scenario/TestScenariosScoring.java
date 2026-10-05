@@ -276,7 +276,8 @@ class TestScenariosScoring {
                         .toList())
                 .build();
         final String everyOther = CsvLines.replacing(XSLT, "  <xsl:template match=\"record\">",
-                "  <xsl:template match=\"record[position() mod 2 = 0]\"/>\n\n  <xsl:template match=\"record\">");
+                "  <xsl:template match=\"record[number(substring(data[@name='who']/@value, 5)) mod 2 = 1]\"/>\n\n"
+                + "  <xsl:template match=\"record\">");
         final Script script = scenarios.script(FOUR_FIELDS, XSLT)
                 .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter")
                 .expect(QuestionMatcher.configuration("DSParser")).reply(Scenarios.fenced(FOUR_FIELDS))
@@ -315,7 +316,8 @@ class TestScenariosScoring {
         final Scenarios scenarios = new Scenarios();
         final ShapeshifterAiDoc doc = doc().copy().promotionFloor(0.95).build();
         final String everyOther = CsvLines.replacing(XSLT, "  <xsl:template match=\"record\">",
-                "  <xsl:template match=\"record[position() mod 2 = 0]\"/>\n\n  <xsl:template match=\"record\">");
+                "  <xsl:template match=\"record[number(substring(data[@name='who']/@value, 5)) mod 2 = 1]\"/>\n\n"
+                + "  <xsl:template match=\"record\">");
         final Script script = scenarios.script(FOUR_FIELDS, XSLT)
                 .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter")
                 .expect(QuestionMatcher.configuration("DSParser")).reply(Scenarios.fenced(FOUR_FIELDS))

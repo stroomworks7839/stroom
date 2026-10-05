@@ -28,6 +28,7 @@ import stroom.pipeline.xml.event.EventList;
 import stroom.shapeshifter.ai.extraction.JsonStep;
 import stroom.shapeshifter.ai.fragment.FragmentOutput;
 import stroom.shapeshifter.ai.fragment.FragmentRunner;
+import stroom.shapeshifter.ai.fragment.FragmentTap;
 import stroom.shapeshifter.ai.fragment.FragmentWriter;
 import stroom.shapeshifter.ai.fragment.PipelineFragmentRunner;
 import stroom.shapeshifter.ai.fragment.StandInFragmentRunner;
@@ -92,6 +93,8 @@ class TestTheJudgedRunIsTheServedRun extends AbstractProcessIntegrationTest {
     @Inject
     private Provider<FragmentOutput> fragmentOutputProvider;
     @Inject
+    private Provider<FragmentTap> fragmentTapProvider;
+    @Inject
     private Provider<InjectedCode> injectedCodeProvider;
     @Inject
     private TaskContextFactory taskContextFactory;
@@ -114,7 +117,7 @@ class TestTheJudgedRunIsTheServedRun extends AbstractProcessIntegrationTest {
 
             final FragmentRunner runner = new PipelineFragmentRunner(pipelineStore, pipelineDataCache,
                     elementRegistryFactory, pipelineFactoryProvider, headlessCaptureProvider, errorReceiverProvider,
-                    fragmentOutputProvider, injectedCodeProvider, taskContextFactory);
+                    fragmentOutputProvider, fragmentTapProvider, injectedCodeProvider, taskContextFactory);
             final List<Attempted> steps = runner.run(fragment, DOCUMENT, boundary);
             judged.set(steps.get(steps.size() - 1).result().output());
             served.set(written(runner.lastOutput().orElseThrow()));

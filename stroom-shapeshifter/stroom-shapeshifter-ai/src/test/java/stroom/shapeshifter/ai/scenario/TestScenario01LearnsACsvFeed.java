@@ -156,13 +156,14 @@ class TestScenario01LearnsACsvFeed {
         assertThat(rule.getPromotedTimeMs()).isEqualTo(Scenarios.NOW.toEpochMilli());
         assertThat(rule.isPinned()).isFalse();
 
-        // The fragment is real content: a Source → DSParser → XSLTFilter pipeline over two new documents.
+        // The fragment is real content: a Source → DSParser → SplitFilter → XSLTFilter pipeline over two new
+        // documents, the split giving the transform one record at a time (design 04 §3).
         assertThat(rule.getPipeline().getName()).startsWith("DOOR-ACCESS-Raw-Events-");
         assertThat(run.shape().id()).isEqualTo("Feed=DOOR-ACCESS|Type=Raw Events");
         assertThat(scenarios.stores.pipelines.readDocument(rule.getPipeline()).getPipelineData()
                 .getAddedElements())
                 .extracting(element -> element.getType())
-                .containsExactly("Source", "DSParser", "XSLTFilter");
+                .containsExactly("Source", "DSParser", "SplitFilter", "XSLTFilter");
         assertThat(scenarios.stores.textConverters.list()).hasSize(1);
         assertThat(scenarios.stores.xslts.list()).hasSize(1);
         assertThat(scenarios.regressionSet.accepted(rule.getUuid()))

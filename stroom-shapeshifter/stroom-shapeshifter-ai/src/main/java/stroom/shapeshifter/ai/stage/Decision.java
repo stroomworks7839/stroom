@@ -109,6 +109,15 @@ public sealed interface Decision {
 
     }
 
+    /// The session stopped short of its stream clearing the bar — out of budget, or out of candidates —
+    /// and parked for a person (A65): its shape held with a lease that does not lapse, its streams waiting,
+    /// nothing baked as Unknown because money ran out.
+    ///
+    /// @param reason What it stopped on.
+    record Parked(String reason) implements Decision {
+
+    }
+
     /// The stream waits (design 04 §3): nothing is emitted, nothing is errored, and the task that carries
     /// it ends deferred, to be tried again when the shape's transform moves or the retry delay passes. A
     /// deferral row says what it waits on; where a session was needed and none held the shape, one was

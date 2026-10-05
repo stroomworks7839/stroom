@@ -44,7 +44,7 @@ public final class InMemoryAttempts implements Attempts {
     /// awaiting review is not one of them: it has written its rule, and the rule is what the router and
     /// the shape's own row answer with until a person decides.
     private static final Set<AttemptStatus> OPEN = Set.of(AttemptStatus.IN_PROGRESS,
-            AttemptStatus.AWAITING_MODEL);
+            AttemptStatus.AWAITING_MODEL, AttemptStatus.PARKED);
 
     private final Map<Long, Recorded> attempts = new LinkedHashMap<>();
     private final Map<Long, List<Turn>> turns = new LinkedHashMap<>();
@@ -135,6 +135,16 @@ public final class InMemoryAttempts implements Attempts {
             }
         }
         written.add(turn);
+    }
+
+    @Override
+    public synchronized void parked(final long attemptId, final String reason, final long tokensSpent) {
+        final Recorded was = attempts.get(attemptId);
+        if (was != null && OPEN.contains(was.status())) {
+            attempts.put(attemptId, new Recorded(was.id(), claim(was, Long.MAX_VALUE), AttemptStatus.PARKED, reason,
+                    was.ruleUuid(), was.score(), was.tokensSpent() + tokensSpent, was.createTimeMs(),
+                    System.currentTimeMillis(), List.of()));
+        }
     }
 
     @Override

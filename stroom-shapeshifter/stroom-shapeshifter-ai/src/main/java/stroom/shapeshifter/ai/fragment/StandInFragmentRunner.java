@@ -32,6 +32,7 @@ import stroom.pipeline.shared.data.PipelineProperty;
 import stroom.pipeline.textconverter.TextConverterStore;
 import stroom.pipeline.xslt.XsltStore;
 import stroom.shapeshifter.ai.extraction.PerRecord;
+import stroom.shapeshifter.ai.extraction.RecordSplit;
 import stroom.shapeshifter.ai.learning.StepResult;
 import stroom.shapeshifter.ai.learning.StepRunner;
 import stroom.shapeshifter.ai.scoring.Attempted;
@@ -208,7 +209,16 @@ public final class StandInFragmentRunner implements FragmentRunner {
         if (output == null || output.isBlank()) {
             return new ServedStream(0, 0.0, diagnostics, Optional.empty());
         }
-        final RecordGate gate = new RecordGate(judge, downstream);
+        // The parser's records, by index, for a judge that wants the record whose output fell short: the
+        // one-to-one premise of design 04 §3, which is what the pipeline's tap gives too.
+        final List<String> parsedRecords = steps.get(0).parser()
+                ? RecordSplit.split(steps.get(0).result().output(), boundary == null
+                        ? 1
+                        : boundary.splitDepth().orElse(1))
+                : List.of();
+        final RecordGate gate = new RecordGate(judge, downstream, index -> index < parsedRecords.size()
+                ? Optional.of(parsedRecords.get(index))
+                : Optional.empty());
         try {
             final XMLReader reader = ConfinedXml.reader();
             reader.setContentHandler(gate);
