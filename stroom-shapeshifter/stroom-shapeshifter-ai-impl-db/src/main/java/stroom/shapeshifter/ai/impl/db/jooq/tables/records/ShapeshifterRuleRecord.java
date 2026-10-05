@@ -312,6 +312,20 @@ public class ShapeshifterRuleRecord extends UpdatableRecordImpl<ShapeshifterRule
         return (String) get(20);
     }
 
+    /**
+     * Setter for <code>stroom.shapeshifter_rule.snapshot_id</code>.
+     */
+    public void setSnapshotId(String value) {
+        set(21, value);
+    }
+
+    /**
+     * Getter for <code>stroom.shapeshifter_rule.snapshot_id</code>.
+     */
+    public String getSnapshotId() {
+        return (String) get(21);
+    }
+
     // -------------------------------------------------------------------------
     // Primary key information
     // -------------------------------------------------------------------------
@@ -335,7 +349,7 @@ public class ShapeshifterRuleRecord extends UpdatableRecordImpl<ShapeshifterRule
     /**
      * Create a detached, initialised ShapeshifterRuleRecord
      */
-    public ShapeshifterRuleRecord(Long id, Integer version, Long createTimeMs, Long updateTimeMs, String docUuid, String ruleUuid, Integer sortOrder, String expression, String pipelineType, String pipelineUuid, String pipelineName, Boolean pinned, Boolean draft, Boolean provisional, Long promotedTimeMs, Double score, String boundaryElement, String boundaryArray, Integer boundaryDepth, String shapeId, String shapeHash) {
+    public ShapeshifterRuleRecord(Long id, Integer version, Long createTimeMs, Long updateTimeMs, String docUuid, String ruleUuid, Integer sortOrder, String expression, String pipelineType, String pipelineUuid, String pipelineName, Boolean pinned, Boolean draft, Boolean provisional, Long promotedTimeMs, Double score, String boundaryElement, String boundaryArray, Integer boundaryDepth, String shapeId, String shapeHash, String snapshotId) {
         super(ShapeshifterRule.SHAPESHIFTER_RULE);
 
         setId(id);
@@ -359,6 +373,7 @@ public class ShapeshifterRuleRecord extends UpdatableRecordImpl<ShapeshifterRule
         setBoundaryDepth(boundaryDepth);
         setShapeId(shapeId);
         setShapeHash(shapeHash);
+        setSnapshotId(snapshotId);
         resetTouchedOnNotNull();
     }
 }

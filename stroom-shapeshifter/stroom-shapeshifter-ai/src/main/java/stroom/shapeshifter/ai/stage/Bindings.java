@@ -44,7 +44,18 @@ public record Bindings(String docUuid,
                        DocRef fragment,
                        RecordBoundary boundary,
                        boolean provisional,
-                       double score) {
+                       double score,
+                       String snapshotId) {
+
+    /// Bindings with no snapshot: a run before snapshots existed, or a scenario that has none.
+    public Bindings(final String docUuid,
+                    final String ruleUuid,
+                    final DocRef fragment,
+                    final RecordBoundary boundary,
+                    final boolean provisional,
+                    final double score) {
+        this(docUuid, ruleUuid, fragment, boundary, provisional, score, null);
+    }
 
     public static final String DOC_ATTRIBUTE = "ShapeshifterAiDoc";
     public static final String RULE_ATTRIBUTE = "ShapeshifterAiRule";
@@ -52,6 +63,7 @@ public record Bindings(String docUuid,
     public static final String PROVISIONAL_ATTRIBUTE = "ShapeshifterAiProvisional";
     public static final String SCORE_ATTRIBUTE = "ShapeshifterAiScore";
     public static final String RECORD_ATTRIBUTE = "ShapeshifterAiRecord";
+    public static final String SNAPSHOT_ATTRIBUTE = "ShapeshifterAiSnapshot";
 
     /**
      * The bindings as the output stream's attributes carry them.
@@ -80,6 +92,11 @@ public record Bindings(String docUuid,
         attributes.put(FRAGMENT_ATTRIBUTE + suffix, fragment.getUuid());
         attributes.put(PROVISIONAL_ATTRIBUTE + suffix, Boolean.toString(provisional));
         attributes.put(SCORE_ATTRIBUTE + suffix, Double.toString(score));
+        if (snapshotId != null) {
+            // Which configuration of the fragment produced it (A61): the fragment moves in place under a
+            // session, and the uuid alone no longer says what ran.
+            attributes.put(SNAPSHOT_ATTRIBUTE + suffix, snapshotId);
+        }
         if (boundary != null) {
             // What one record was, for a person reading the stream's attributes: the row in the A26
             // table is what an as-processed reprocess reads, but an attribute is what is visible.

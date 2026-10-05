@@ -16,6 +16,7 @@ import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterGuidance;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterLedger;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterOutput;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterRule;
+import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterSnapshot;
 
 
 /**
@@ -39,4 +40,5 @@ public class Indexes {
     public static final Index SHAPESHIFTER_OUTPUT_SHAPESHIFTER_OUTPUT_DOC_UUID = Internal.createIndex(DSL.name("shapeshifter_output_doc_uuid"), ShapeshifterOutput.SHAPESHIFTER_OUTPUT, new OrderField[] { ShapeshifterOutput.SHAPESHIFTER_OUTPUT.DOC_UUID }, false);
     public static final Index SHAPESHIFTER_RULE_SHAPESHIFTER_RULE_DOC_SHAPE = Internal.createIndex(DSL.name("shapeshifter_rule_doc_shape"), ShapeshifterRule.SHAPESHIFTER_RULE, new OrderField[] { ShapeshifterRule.SHAPESHIFTER_RULE.DOC_UUID, ShapeshifterRule.SHAPESHIFTER_RULE.SHAPE_HASH }, false);
     public static final Index SHAPESHIFTER_RULE_SHAPESHIFTER_RULE_DOC_UUID_SORT_ORDER = Internal.createIndex(DSL.name("shapeshifter_rule_doc_uuid_sort_order"), ShapeshifterRule.SHAPESHIFTER_RULE, new OrderField[] { ShapeshifterRule.SHAPESHIFTER_RULE.DOC_UUID, ShapeshifterRule.SHAPESHIFTER_RULE.SORT_ORDER }, false);
+    public static final Index SHAPESHIFTER_SNAPSHOT_SHAPESHIFTER_SNAPSHOT_RULE = Internal.createIndex(DSL.name("shapeshifter_snapshot_rule"), ShapeshifterSnapshot.SHAPESHIFTER_SNAPSHOT, new OrderField[] { ShapeshifterSnapshot.SHAPESHIFTER_SNAPSHOT.RULE_UUID, ShapeshifterSnapshot.SHAPESHIFTER_SNAPSHOT.ID }, false);
 }

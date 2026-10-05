@@ -657,6 +657,27 @@ document, so two supervised pipelines under one document processing one stream s
 moves whichever task wrote it last — a second filter's task comes back by the retry delay; and Reject
 wakes nothing, so a stream waiting on a rejected draft errors at its next retry rather than at once.
 
+*Built 2026-10-05, the second slice: snapshots and in-place editing (A58, A61, A70–A72).*
+`shapeshifter_snapshot` holds a promotion's configuration as text — the fragment's `PipelineData` as
+JSON, element id to code, document uuid to version — keyed by a snapshot id; `RoutingRule.snapshot` points
+at it, `Bindings.snapshotId` records it on every output and as a stream attribute, and the deferral stamp
+is it. `FragmentWriter.rewrite` edits a fragment in place for a rebinding or an improvement, overwriting
+the configuration documents the chain still has elements for and writing a new one only for an element
+the fragment did not have; a draft stays a sibling fragment until approved, and Approve carries the
+draft's snapshot and snapshots to the incumbent. `FragmentCodes` reads a fragment as text, which is what a
+snapshot is taken from and what a hand edit is noticed by: `Stage.decideServed` compares the live
+documents' versions with the rule's snapshot before comparing the stamp, and takes a new snapshot where
+they differ or where the rule has none. An as-processed reprocess runs the live fragment with the
+snapshot's code injected per element through `InjectedCode`, which both runners now take. Retract and
+reject discard the rule's snapshots. Scenario 56 is the exit.
+
+Two limits. A snapshot's code is injected into the live fragment's *structure* (A70): a session that
+changes the chain's shape — another parser, an element added — leaves earlier snapshots' code with no
+element to land on, and a reprocess of those outputs runs the live structure with what code still fits;
+the structure a snapshot kept is recorded and not yet run. And noticing a hand edit reads the fragment's
+documents on every served stream — three reads through the document stores — which is the price of A72
+as ruled and the next thing to measure at volume after the per-record schema filter.
+
 What this slice does not do, each owed to the slices after it: in-place editing and snapshots (A58, A61);
 the worker carrying a session to its end and resuming a lapsed one, with the lease renewed per turn (§4,
 A64); parking for a person (A65); and the stage fed by a parser, which still learns in the task because
@@ -876,3 +897,22 @@ it on its own.*
 **A69.** *A session learns from one stream, and every waiting stream is tried again when it promotes.
 A waiting stream records that it waits and against which transform, and nothing about which of its
 records failed: the session works that out for its own stream, and for the rest it would be stale.*
+Ruled 2026-10-05, the owner's, on four questions put with recommendations, for the snapshot and session
+slices:
+
+**A70.** *A snapshot (A61) is a row of configuration text — the fragment's structure and each element's
+code — keyed by a version id, and an as-processed reprocess runs the live fragment's structure with the
+snapshot's code injected per element, as the stepper injects an edit.* No documents are copied.
+
+**A71.** *A snapshot lives as long as its rule and goes with it on retract or reject.* It is a few
+kilobytes per promotion; nothing about it is worth a setting.
+
+**A72.** *A fragment edited by hand is snapshotted on the first serve after the edit: the stage keeps the
+document versions a snapshot was taken from, and a live fragment whose versions differ is snapshotted
+before it serves — a promotion by hand.* Outputs are stamped with what produced them, and the deferral
+stamp moves, so waiting streams are scored against the edit.
+
+**A73.** *The A64 full pass is built with the minimum of A65: a `PARKED` attempt status the worker leaves
+alone, a lease that does not lapse, and the Supervisor showing it.* A session out of budget mid-iteration
+stops there rather than being abandoned into another round.
+

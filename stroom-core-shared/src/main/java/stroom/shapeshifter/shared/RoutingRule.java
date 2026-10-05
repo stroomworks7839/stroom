@@ -108,6 +108,11 @@ public class RoutingRule {
     private final RecordBoundary recordBoundary;
     @JsonProperty
     private final String shapeId;
+    /// The snapshot of the fragment's configuration this rule serves with (A61): what a deferral row is
+    /// stamped with and what an output records. Null for a rule written before snapshots existed, which
+    /// is snapshotted the first time it serves.
+    @JsonProperty
+    private final String snapshot;
 
     @JsonCreator
     public RoutingRule(@JsonProperty("uuid") final String uuid,
@@ -119,7 +124,8 @@ public class RoutingRule {
                        @JsonProperty("promotedTimeMs") final Long promotedTimeMs,
                        @JsonProperty("score") final Double score,
                        @JsonProperty("recordBoundary") final RecordBoundary recordBoundary,
-                       @JsonProperty("shapeId") final String shapeId) {
+                       @JsonProperty("shapeId") final String shapeId,
+                       @JsonProperty("snapshot") final String snapshot) {
         this.uuid = uuid;
         this.expression = expression;
         this.pipeline = pipeline;
@@ -130,11 +136,12 @@ public class RoutingRule {
         this.score = score;
         this.recordBoundary = recordBoundary;
         this.shapeId = shapeId;
+        this.snapshot = snapshot;
     }
 
     @SerialisationTestConstructor
     private RoutingRule() {
-        this(null, null, null, null, null, null, null, null, null, null);
+        this(null, null, null, null, null, null, null, null, null, null, null);
     }
 
     /**
@@ -235,6 +242,11 @@ public class RoutingRule {
         return recordBoundary;
     }
 
+    /// The snapshot this rule serves with (A61), or null for a rule written before snapshots existed.
+    public String getSnapshot() {
+        return snapshot;
+    }
+
     @Override
     public boolean equals(final Object o) {
         if (this == o) {
@@ -253,13 +265,14 @@ public class RoutingRule {
                Objects.equals(promotedTimeMs, that.promotedTimeMs) &&
                Objects.equals(score, that.score) &&
                Objects.equals(recordBoundary, that.recordBoundary) &&
-               Objects.equals(shapeId, that.shapeId);
+               Objects.equals(shapeId, that.shapeId) &&
+               Objects.equals(snapshot, that.snapshot);
     }
 
     @Override
     public int hashCode() {
         return Objects.hash(uuid, expression, pipeline, pinned, draft, provisional, promotedTimeMs, score,
-                recordBoundary, shapeId);
+                recordBoundary, shapeId, snapshot);
     }
 
     @Override
@@ -301,6 +314,7 @@ public class RoutingRule {
         private Double score;
         private RecordBoundary recordBoundary;
         private String shapeId;
+        private String snapshot;
 
         private Builder() {
         }
@@ -316,6 +330,7 @@ public class RoutingRule {
             this.score = rule.score;
             this.recordBoundary = rule.recordBoundary;
             this.shapeId = rule.shapeId;
+            this.snapshot = rule.snapshot;
         }
 
         public Builder uuid(final String uuid) {
@@ -370,9 +385,15 @@ public class RoutingRule {
             return this;
         }
 
+        /// The snapshot the rule serves with (A61).
+        public Builder snapshot(final String snapshot) {
+            this.snapshot = snapshot;
+            return this;
+        }
+
         public RoutingRule build() {
             return new RoutingRule(uuid, expression, pipeline, pinned, draft, provisional, promotedTimeMs, score,
-                    recordBoundary, shapeId);
+                    recordBoundary, shapeId, snapshot);
         }
     }
 }

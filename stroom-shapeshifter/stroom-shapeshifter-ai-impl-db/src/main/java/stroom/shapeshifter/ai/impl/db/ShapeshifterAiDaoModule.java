@@ -29,6 +29,7 @@ import stroom.shapeshifter.ai.stage.Outputs;
 import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.ai.stage.Serving;
 import stroom.shapeshifter.ai.stage.Shapes;
+import stroom.shapeshifter.ai.stage.Snapshots;
 import stroom.shapeshifter.ai.stage.Spend;
 import stroom.util.entityevent.EntityEvent;
 import stroom.util.entityevent.EntityEventBus;
@@ -63,6 +64,7 @@ public class ShapeshifterAiDaoModule extends AbstractModule {
         bind(Serving.class).to(ServingDao.class);
         bind(Deferrals.class).to(DeferralsDao.class);
         bind(CorpusIndex.class).to(CorpusIndexDao.class);
+        bind(Snapshots.class).to(SnapshotsDao.class);
         // The two the hot path reads for every stream are bound as the rows behind a cache, and the cache
         // is what everything else asks for (design 01 §12 item 8): a routing table read from the database
         // once per stream per node is the first thing to give at volume. Nothing but the cache asks the

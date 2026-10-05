@@ -149,6 +149,14 @@ public final class PipelineFragmentRunner implements FragmentRunner {
 
     @Override
     public List<Attempted> run(final DocRef fragment, final String input, final RecordBoundary boundary) {
+        return run(fragment, input, boundary, Map.of());
+    }
+
+    @Override
+    public List<Attempted> run(final DocRef fragment,
+                               final String input,
+                               final RecordBoundary boundary,
+                               final Map<String, String> code) {
         final PipelineDoc fragmentDoc = pipelineStore.readDocument(fragment);
         final PipelineData merged = pipelineDataCache.get(fragmentDoc);
 
@@ -194,7 +202,9 @@ public final class PipelineFragmentRunner implements FragmentRunner {
         // this run is made inside somebody else's pipeline and their edits are still theirs.
         final InjectedCode injectedCode = injectedCodeProvider.get();
         final Map<String, String> borrowedCode = injectedCode.asMap();
-        injectedCode.set(Map.of());
+        // Nothing anybody is editing — and, for a reprocess as it was processed, a snapshot's code in
+        // place of what the fragment's documents say today (A70).
+        injectedCode.set(code);
         String failure = null;
         try {
             final Pipeline pipeline = pipelineFactoryProvider.get()

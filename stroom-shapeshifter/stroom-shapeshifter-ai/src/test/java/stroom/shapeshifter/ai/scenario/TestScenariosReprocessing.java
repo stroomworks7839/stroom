@@ -91,6 +91,15 @@ class TestScenariosReprocessing {
             boundaries.add(boundary);
             return runner.run(fragment, input, boundary);
         }
+
+        @Override
+        public List<Attempted> run(final DocRef fragment,
+                                   final String input,
+                                   final RecordBoundary boundary,
+                                   final Map<String, String> code) {
+            boundaries.add(boundary);
+            return runner.run(fragment, input, boundary, code);
+        }
     }
 
     private static Stage stage(final Scenarios scenarios) {

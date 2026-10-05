@@ -125,7 +125,15 @@ class TestServedRunEvents {
 
         @Override
         public List<Attempted> run(final DocRef fragment, final String input, final RecordBoundary boundary) {
-            final List<Attempted> attempted = runner.run(fragment, input, boundary);
+            return run(fragment, input, boundary, Map.of());
+        }
+
+        @Override
+        public List<Attempted> run(final DocRef fragment,
+                                   final String input,
+                                   final RecordBoundary boundary,
+                                   final Map<String, String> code) {
+            final List<Attempted> attempted = runner.run(fragment, input, boundary, code);
             emitted.add(handler -> {
             });
             return attempted;

@@ -220,14 +220,18 @@ class TestScenariosIncumbent {
         assertThat(rebound.score()).isEqualTo(1.0);
         final RoutingRule v2 = rebound.rule();
         assertThat(v2.getUuid()).isEqualTo(v1.getUuid());
-        assertThat(v2.getPipeline()).isNotEqualTo(v1.getPipeline());
+        assertThat(v2.getPipeline())
+                .describedAs("the same fragment, edited in place (A58)")
+                .isEqualTo(v1.getPipeline());
+        assertThat(v2.getSnapshot()).describedAs("under a new snapshot (A61)").isNotEqualTo(v1.getSnapshot());
         assertThat(v2.getScore()).isEqualTo(1.0);
         assertThat(v2.getPromotedTimeMs()).isEqualTo(Scenarios.NOW.toEpochMilli());
         assertThat(scenarios.rules.forDocument(DOC)).containsExactly(v2);
-        // v1's documents are untouched: new siblings, never edits (design 01 §7.3 rule 1).
-        assertThat(scenarios.stores.pipelines.list()).hasSize(2);
-        assertThat(scenarios.stores.xslts.list()).hasSize(2);
-        assertThat(scenarios.stores.pipelines.readDocument(v1.getPipeline())).isNotNull();
+        // One fragment and one stylesheet per shape, growing as the session learns (A58): what ran before
+        // is the snapshot's to keep, not a sibling document's.
+        assertThat(scenarios.stores.pipelines.list()).hasSize(1);
+        assertThat(scenarios.stores.xslts.list()).hasSize(1);
+        assertThat(scenarios.snapshots.forRule(v1.getUuid())).hasSize(2);
         assertThat(scenarios.regressionSet.accepted(v1.getUuid())).hasSizeGreaterThan(6);
     }
 

@@ -190,7 +190,9 @@ class TestScenario16AServingRunWritesAsItGoes extends AbstractCoreIntegrationTes
                 .isEmpty();
         final Deferral row = deferrals.of(document.getUuid(), mixed.getId()).orElseThrow();
         assertThat(row.reason()).startsWith("Record 3 fell short of the bar");
-        assertThat(row.failedAgainst()).isEqualTo(rules.forDocument(document.getUuid()).get(0).getPipeline().getUuid());
+        assertThat(row.failedAgainst())
+                .describedAs("stamped with the snapshot in force (A61)")
+                .isEqualTo(rules.forDocument(document.getUuid()).get(0).getSnapshot());
         final List<Recorded> open = attempts.forDocument(document.getUuid(), 10).stream()
                 .filter(attempt -> attempt.status() == AttemptStatus.AWAITING_MODEL)
                 .toList();

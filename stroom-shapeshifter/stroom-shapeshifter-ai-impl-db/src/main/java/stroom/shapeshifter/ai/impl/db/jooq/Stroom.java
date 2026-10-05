@@ -21,6 +21,7 @@ import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterLedger;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterOutput;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterRule;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterShape;
+import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterSnapshot;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterSpend;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterTurn;
 
@@ -84,6 +85,11 @@ public class Stroom extends SchemaImpl {
     public final ShapeshifterShape SHAPESHIFTER_SHAPE = ShapeshifterShape.SHAPESHIFTER_SHAPE;
 
     /**
+     * The table <code>stroom.shapeshifter_snapshot</code>.
+     */
+    public final ShapeshifterSnapshot SHAPESHIFTER_SNAPSHOT = ShapeshifterSnapshot.SHAPESHIFTER_SNAPSHOT;
+
+    /**
      * The table <code>stroom.shapeshifter_spend</code>.
      */
     public final ShapeshifterSpend SHAPESHIFTER_SPEND = ShapeshifterSpend.SHAPESHIFTER_SPEND;
@@ -118,6 +124,7 @@ public class Stroom extends SchemaImpl {
             ShapeshifterOutput.SHAPESHIFTER_OUTPUT,
             ShapeshifterRule.SHAPESHIFTER_RULE,
             ShapeshifterShape.SHAPESHIFTER_SHAPE,
+            ShapeshifterSnapshot.SHAPESHIFTER_SNAPSHOT,
             ShapeshifterSpend.SHAPESHIFTER_SPEND,
             ShapeshifterTurn.SHAPESHIFTER_TURN
         );

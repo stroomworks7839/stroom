@@ -219,7 +219,10 @@ class TestScenariosRetractionRelearningAndRelease {
         final Rebound rebound = (Rebound) third.decision();
         assertThat(rebound.incumbent()).isEqualTo(incumbent);
         assertThat(rebound.rule().getUuid()).isEqualTo(incumbent.getUuid());
-        assertThat(rebound.rule().getPipeline()).isNotEqualTo(incumbent.getPipeline());
+        assertThat(rebound.rule().getPipeline())
+                .describedAs("edited in place (A58)")
+                .isEqualTo(incumbent.getPipeline());
+        assertThat(rebound.rule().getSnapshot()).isNotEqualTo(incumbent.getSnapshot());
         assertThat(rebound.rule().getPromotedTimeMs()).isEqualTo(Scenarios.NOW.toEpochMilli());
         assertThat(rebound.score()).isEqualTo(1.0);
         assertThat(scenarios.rules.forDocument(DOC)).containsExactly(rebound.rule());
@@ -229,7 +232,7 @@ class TestScenariosRetractionRelearningAndRelease {
                 .describedAs("the records that fell short under the incumbent were learned for, and go in (A56)")
                 .hasSizeGreaterThan(held);
         assertThat(scenarios.shapes.relearnReason(DOC, SHAPE)).isEmpty();
-        assertThat(scenarios.stores.pipelines.list()).hasSize(2);
+        assertThat(scenarios.stores.pipelines.list()).describedAs("one fragment per shape (A58)").hasSize(1);
 
         // And the stream after that is served by the new fragment, every record an event.
         final StageRun fourth = scenarios.stage(silent).run(third.doc(), stream(4, withAlarms));

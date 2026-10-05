@@ -174,6 +174,7 @@ public class RulesDao implements Rules {
                     .set(SHAPESHIFTER_RULE.BOUNDARY_DEPTH, depth(rule))
                     .set(SHAPESHIFTER_RULE.SHAPE_ID, rule.getShapeId())
                     .set(SHAPESHIFTER_RULE.SHAPE_HASH, shapeHash(rule))
+                    .set(SHAPESHIFTER_RULE.SNAPSHOT_ID, rule.getSnapshot())
                     .where(SHAPESHIFTER_RULE.DOC_UUID.eq(docUuid))
                     .and(SHAPESHIFTER_RULE.RULE_UUID.eq(rule.getUuid()))
                     .execute();
@@ -238,6 +239,7 @@ public class RulesDao implements Rules {
                 .set(SHAPESHIFTER_RULE.BOUNDARY_DEPTH, depth(stored))
                 .set(SHAPESHIFTER_RULE.SHAPE_ID, stored.getShapeId())
                 .set(SHAPESHIFTER_RULE.SHAPE_HASH, shapeHash(stored))
+                .set(SHAPESHIFTER_RULE.SNAPSHOT_ID, stored.getSnapshot())
                 .execute();
         return stored;
     }
@@ -278,6 +280,7 @@ public class RulesDao implements Rules {
                                 ? RecordBoundary.ofArray(boundaryArray).atDepth(boundaryDepth)
                                 : null)
                 .shapeId(record.get(SHAPESHIFTER_RULE.SHAPE_ID))
+                .snapshot(record.get(SHAPESHIFTER_RULE.SNAPSHOT_ID))
                 .build();
     }
 

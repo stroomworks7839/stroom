@@ -76,6 +76,93 @@ public final class FragmentWriter {
         this.xsltStore = xsltStore;
     }
 
+    /// Rewrite a fragment in place (A58): the same pipeline document, and the same configuration
+    /// documents where the chain still has an element of the same id and type to run them — their text
+    /// overwritten — with a new document only for an element the fragment did not have. One fragment and
+    /// one stylesheet per shape, growing as the session learns; what ran before is a snapshot's to keep.
+    ///
+    /// @param fragment The fragment to rewrite.
+    /// @param folder   Where a new configuration document goes, where one is needed.
+    /// @param name     The name a new configuration document is prefixed with.
+    /// @param chain    The chain as learned.
+    /// @param boundary What one record is, where settled.
+    /// @return The same fragment.
+    public DocRef rewrite(final DocRef fragment,
+                          final DocPath folder,
+                          final String name,
+                          final List<LearnedStep> chain,
+                          final RecordBoundary boundary) {
+        chain.stream()
+                .map(step -> step.runner().configured())
+                .flatMap(Optional::stream)
+                .map(Configured::documentType)
+                .filter(type -> !WRITABLE.contains(type))
+                .findFirst()
+                .ifPresent(type -> {
+                    throw new IllegalArgumentException("No store to write a " + type + " document");
+                });
+        final PipelineDoc existing = pipelineStore.readDocument(fragment);
+        final Map<String, DocRef> referenced = new HashMap<>();
+        for (final PipelineProperty property : existing.getPipelineData().getAddedProperties()) {
+            if (property.getValue() != null && property.getValue().getEntity() != null) {
+                referenced.put(property.getElement() + "/" + property.getName(), property.getValue().getEntity());
+            }
+        }
+        final PipelineDataBuilder builder = new PipelineDataBuilder()
+                .addElement(new PipelineElement(SOURCE, SOURCE));
+        String previous = SOURCE;
+        final OptionalInt depth = boundary == null
+                ? OptionalInt.empty()
+                : boundary.splitDepth();
+        boolean split = false;
+        final Map<String, Integer> idsUsed = new HashMap<>();
+        for (final LearnedStep step : chain) {
+            if (!split && !step.runner().parser() && depth.isPresent()) {
+                builder.addElement(new PipelineElement(SPLIT, SPLIT_FILTER));
+                builder.addLink(previous, SPLIT);
+                builder.addProperty(new PipelineProperty(SPLIT, SPLIT_DEPTH,
+                        new PipelinePropertyValue(depth.getAsInt())));
+                builder.addProperty(new PipelineProperty(SPLIT, SPLIT_COUNT, new PipelinePropertyValue(1)));
+                previous = SPLIT;
+                split = true;
+            }
+            final String elementId = uniqueId(step.runner().elementId(), idsUsed);
+            builder.addElement(new PipelineElement(elementId, step.elementType()));
+            builder.addLink(previous, elementId);
+            step.runner().configured().ifPresent(configured -> {
+                final DocRef was = referenced.get(elementId + "/" + configured.propertyName());
+                final DocRef configuration = was != null && configured.documentType().equals(was.getType())
+                        ? overwrite(was, configured, step.configuration())
+                        : writeConfiguration(folder, name + "-" + elementId, configured, step.configuration());
+                builder.addProperty(new PipelineProperty(
+                        elementId, configured.propertyName(), new PipelinePropertyValue(configuration)));
+            });
+            previous = elementId;
+        }
+        pipelineStore.writeDocument(existing.copy().pipelineData(builder.build()).build());
+        return fragment;
+    }
+
+    /// A configuration document's text replaced with what was learned, in place.
+    private DocRef overwrite(final DocRef docRef, final Configured configured, final String data) {
+        switch (docRef.getType()) {
+            case TextConverterDoc.TYPE -> textConverterStore.writeDocument(textConverterStore.readDocument(docRef)
+                    .copy()
+                    .converterType(configured.converterType() == null
+                            ? textConverterStore.readDocument(docRef).getConverterType()
+                            : configured.converterType())
+                    .data(data)
+                    .build());
+            case XsltDoc.TYPE -> xsltStore.writeDocument(xsltStore.readDocument(docRef)
+                    .copy()
+                    .data(data)
+                    .build());
+            default -> throw new IllegalArgumentException("No store for configuration documents of type "
+                                                          + docRef.getType());
+        }
+        return docRef;
+    }
+
     /**
      * @param folder Where the fragment and its configuration documents are created.
      * @param name   The name for the fragment; configuration documents take it with the element id appended.

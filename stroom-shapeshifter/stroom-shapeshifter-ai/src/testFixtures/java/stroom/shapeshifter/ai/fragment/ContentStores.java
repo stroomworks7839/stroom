@@ -92,6 +92,11 @@ public final class ContentStores {
         };
     }
 
+    /// A fragment as text, read from these stores: what a snapshot is taken from.
+    public FragmentCodes codes() {
+        return new FragmentCodes(pipelines, textConverters, xslts);
+    }
+
     public FragmentWriter writer() {
         return new FragmentWriter(creator, pipelines, textConverters, xslts);
     }

@@ -104,6 +104,14 @@ public final class StandInFragmentRunner implements FragmentRunner {
      */
     @Override
     public List<Attempted> run(final DocRef fragment, final String input, final RecordBoundary boundary) {
+        return run(fragment, input, boundary, Map.of());
+    }
+
+    @Override
+    public List<Attempted> run(final DocRef fragment,
+                               final String input,
+                               final RecordBoundary boundary,
+                               final Map<String, String> code) {
         final PipelineDataMerger merged = merge(fragment);
         final Map<String, PipelineElement> elements = merged.getElements();
         final Map<String, String> next = merged.getLinks().values().stream()
@@ -148,9 +156,13 @@ public final class StandInFragmentRunner implements FragmentRunner {
                 throw new IllegalStateException("No runner for element type " + element.getType()
                                                 + " in fragment " + fragment.getName());
             }
-            final String configuration = runner.configured()
-                    .map(configured -> configuration(merged, fragment, elementId, configured.propertyName()))
-                    .orElse(null);
+            // A snapshot's code for the element where one was given (A70), else what the fragment's
+            // documents say.
+            final String configuration = code.containsKey(elementId)
+                    ? code.get(elementId)
+                    : runner.configured()
+                            .map(configured -> configuration(merged, fragment, elementId, configured.propertyName()))
+                            .orElse(null);
             final boolean first = split && !ran && depth.isPresent();
             ran = ran || first;
             // As above: one SplitFilter in a fragment, so what follows the first per-record element is

@@ -22,6 +22,7 @@ import stroom.pipeline.xml.event.EventList;
 import stroom.processor.api.DeferTaskException;
 import stroom.query.api.ExpressionOperator;
 import stroom.shapeshifter.ai.extraction.PerRecord;
+import stroom.shapeshifter.ai.fragment.FragmentCodes;
 import stroom.shapeshifter.ai.fragment.FragmentRunner;
 import stroom.shapeshifter.ai.fragment.FragmentRunner.FragmentRecord;
 import stroom.shapeshifter.ai.fragment.FragmentWriter;
@@ -154,6 +155,8 @@ public final class Stage {
     private final RegressionSet regressionSet;
     private final Deferrals deferrals;
     private final Wake wake;
+    private final Snapshots snapshots;
+    private final FragmentCodes codes;
     /// What a record of the chain's output is judged as when it is served: the element type the scorers
     /// of meaning read it as, which is any element that is not a parser.
     private static final String TRANSFORM = "XSLTFilter";
@@ -181,6 +184,8 @@ public final class Stage {
                  final RegressionSet regressionSet,
                  final Deferrals deferrals,
                  final Wake wake,
+                 final Snapshots snapshots,
+                 final FragmentCodes codes,
                  final Clock clock,
                  final long seed,
                  final String node) {
@@ -200,6 +205,8 @@ public final class Stage {
         this.regressionSet = regressionSet;
         this.deferrals = deferrals;
         this.wake = wake;
+        this.snapshots = snapshots;
+        this.codes = codes;
         this.clock = clock;
         this.seed = seed;
         this.node = node;
@@ -330,6 +337,7 @@ public final class Stage {
                     .ifPresent(draft -> {
                         rules.remove(doc.getUuid(), draft.getUuid());
                         regressionSet.discard(draft.getUuid());
+                        snapshots.discard(draft.getUuid());
                     });
         }
         // A person re-running an attempt is saying the shape is not settled: whatever this attempt
@@ -502,20 +510,26 @@ public final class Stage {
         final List<Accepted> entries = Corpus.entries(learned.chain(), learned.boundary(),
                 learningPrefix(input.data(), doc), null, learned.targets(), candidate.score(),
                 recorder.attemptId(), clock.millis(), doc.getRegressionCap());
-        final DocRef fragment = write(doc, shape, learned);
+        // In place (A58), unless a person is to review it first: a draft is its own fragment until Approve
+        // rebinds the incumbent to it.
+        final DocRef fragment = doc.getPromotionMode() == PromotionMode.REVIEW
+                ? write(doc, shape, learned)
+                : rewrite(doc, incumbent, learned);
         // A shape marked for relearning has just been learned again, by hand: the mark is spent, or the
         // next stream of the shape would relearn the rule somebody has only now improved.
         shapes.reset(doc.getUuid(), shape.id());
         if (doc.getPromotionMode() == PromotionMode.REVIEW) {
             // Behind the incumbent, which keeps serving until somebody approves this (A25).
+            final String draftUuid = UUID.randomUUID().toString();
             final RoutingRule draft = RoutingRule.builder()
-                    .uuid(UUID.randomUUID().toString())
+                    .uuid(draftUuid)
                     .expression(incumbent.getExpression())
                     .pipeline(fragment)
                     .draft(true)
                     .score(candidate.score())
                     .recordBoundary(learned.boundary())
                     .shapeId(shape.id())
+                    .snapshot(snapshot(doc, draftUuid, fragment))
                     .build();
             rules.append(doc.getUuid(), draft);
             regressionSet.accept(doc.getUuid(), draft.getUuid(), input.feed(), input.type(), entries,
@@ -526,6 +540,7 @@ public final class Stage {
         }
         final RoutingRule rebound = incumbent.copy()
                 .pipeline(fragment)
+                .snapshot(snapshot(doc, incumbent.getUuid(), fragment))
                 .promotedTimeMs(clock.millis())
                 .score(candidate.score())
                 .recordBoundary(learned.boundary())
@@ -673,8 +688,14 @@ public final class Stage {
                 .findFirst();
         // Under the boundary that produced it, which the row remembers: the rule's boundary is today's,
         // and a rebind may have changed it. The same fragment under another boundary is another chain.
+        // And with the code that produced it (A61, A70): the fragment has moved in place since, and the
+        // snapshot the row names is what ran. A row from before snapshots existed runs the fragment as
+        // it stands, which is all that was ever recorded for it.
+        final Map<String, String> code = bindings.snapshotId() == null
+                ? Map.of()
+                : snapshots.byId(bindings.snapshotId()).map(Snapshots.Snapshot::code).orElse(Map.of());
         final List<Attempted> attempted = fragmentRunner.run(bindings.fragment(), input.data(),
-                bindings.boundary());
+                bindings.boundary(), code);
         final EventList events = fragmentRunner.lastOutput().orElse(null);
         final String output = attempted.isEmpty()
                 ? null
@@ -914,10 +935,13 @@ public final class Stage {
     /// The task decision for a shape a rule serves.
     private StageRun decideServed(final ShapeshifterAiDoc doc,
                                   final Shape shape,
-                                  final RoutingRule rule,
+                                  final RoutingRule matched,
                                   final Input input,
                                   final Map<String, Object> attributes,
                                   final Scorecard scorecard) {
+        // As it serves now (A72): a hand edit is snapshotted here, before the stamp is compared, so that
+        // a stream deferred against the old snapshot is scored against the edit.
+        final RoutingRule rule = freshened(doc, matched);
         final String stamp = stamp(rule);
         if (!rule.isPinned()) {
             final Optional<Deferral> row = deferrals.of(doc.getUuid(), input.id());
@@ -1012,7 +1036,7 @@ public final class Stage {
         return new Bindings(doc.getUuid(), rule.getUuid(), rule.getPipeline(), rule.getRecordBoundary(),
                 rule.isProvisional(), rule.getScore() == null
                 ? 0.0
-                : rule.getScore());
+                : rule.getScore(), rule.getSnapshot());
     }
 
     /// A stream under a rule waits for the rule to be learned again: the row is written against the
@@ -1078,10 +1102,12 @@ public final class Stage {
         return new StageRun(doc, new Deferred(said), shape, null, null, List.of(), List.of(), null, List.of());
     }
 
-    /// What a deferral row is stamped with: the transform in force, which until A61's snapshots is the
-    /// fragment the rule names — a rebinding writes a new fragment, so the stamp moves with it.
+    /// What a deferral row is stamped with: the transform in force — the rule's snapshot (A61), or for a
+    /// rule written before snapshots existed the fragment it names, until its first serve snapshots it.
     private static String stamp(final RoutingRule rule) {
-        return rule.getPipeline().getUuid();
+        return rule.getSnapshot() != null
+                ? rule.getSnapshot()
+                : rule.getPipeline().getUuid();
     }
 
     /// A promotion wakes what waits on its shape (design 04 §5.3): every row of that feed and type, whose
@@ -1625,18 +1651,24 @@ public final class Stage {
                 : Corpus.entries(learned.chain(), learned.boundary(), input.data(), fellShort,
                         learned.targets(), candidate.score(), recorder.attemptId(), clock.millis(),
                         doc.getRegressionCap());
-        final DocRef fragment = write(doc, shape, learned);
+        // In place (A58), unless a person is to review it first: a draft is its own fragment until Approve
+        // rebinds the incumbent to it.
+        final DocRef fragment = doc.getPromotionMode() == PromotionMode.REVIEW
+                ? write(doc, shape, learned)
+                : rewrite(doc, incumbent, learned);
         if (doc.getPromotionMode() == PromotionMode.REVIEW) {
             // Behind the incumbent, which keeps matching first; Approve rebinds the incumbent to this
             // fragment and carries the history over.
+            final String draftUuid = UUID.randomUUID().toString();
             final RoutingRule draft = RoutingRule.builder()
-                    .uuid(UUID.randomUUID().toString())
+                    .uuid(draftUuid)
                     .expression(incumbent.getExpression())
                     .pipeline(fragment)
                     .draft(true)
                     .score(candidate.score())
                     .recordBoundary(learned.boundary())
                     .shapeId(shape.id())
+                    .snapshot(snapshot(doc, draftUuid, fragment))
                     .build();
             rules.append(doc.getUuid(), draft);
             regressionSet.accept(doc.getUuid(), draft.getUuid(), input.feed(), input.type(), entries,
@@ -1647,6 +1679,7 @@ public final class Stage {
         }
         final RoutingRule rebound = incumbent.copy()
                 .pipeline(fragment)
+                .snapshot(snapshot(doc, incumbent.getUuid(), fragment))
                 .promotedTimeMs(clock.millis())
                 .score(candidate.score())
                 .recordBoundary(learned.boundary())
@@ -1678,8 +1711,9 @@ public final class Stage {
                           final RecordBoundary boundary) {
         final boolean provisional = judged.records() < doc.getMinRecordsPerShape();
         final boolean draft = doc.getPromotionMode() == PromotionMode.REVIEW;
+        final String ruleUuid = UUID.randomUUID().toString();
         final RoutingRule rule = RoutingRule.builder()
-                .uuid(UUID.randomUUID().toString())
+                .uuid(ruleUuid)
                 .expression(selector)
                 .pipeline(fragment)
                 .provisional(provisional)
@@ -1692,6 +1726,8 @@ public final class Stage {
                 // Which shape it was learned for (A46): what an improvement claims its attempt against,
                 // and what a view of serving rules shows beside each one.
                 .shapeId(shape.id())
+                // The configuration it serves with, kept (A61).
+                .snapshot(snapshot(doc, ruleUuid, fragment))
                 .build();
         // Appended, not prepended (design 02 §4): learned rules are exclusive by key, so order among them
         // is moot, and an operator's more specific rule above them keeps its precedence.
@@ -1778,6 +1814,7 @@ public final class Stage {
             }
             rules.replace(doc.getUuid(), incumbent.get().copy()
                     .pipeline(draft.getPipeline())
+                    .snapshot(draft.getSnapshot())
                     .provisional(false)
                     .promotedTimeMs(clock.millis())
                     .score(draft.getScore())
@@ -1790,6 +1827,7 @@ public final class Stage {
                     .build());
             rules.remove(doc.getUuid(), draft.getUuid());
             regressionSet.move(draft.getUuid(), incumbent.get().getUuid(), doc.getRegressionCap());
+            snapshots.move(draft.getUuid(), incumbent.get().getUuid());
         } else {
             rules.replace(doc.getUuid(), draft.copy()
                     .draft(false)
@@ -1921,6 +1959,7 @@ public final class Stage {
         final String said = "Retracted by " + by + ": " + reason;
         rules.remove(doc.getUuid(), rule.getUuid());
         regressionSet.discard(rule.getUuid());
+        snapshots.discard(rule.getUuid());
         if (!NullSafe.isBlankString(rule.getShapeId())) {
             // The shape is unknown again rather than given up: the rule was wrong, not the shape, and the
             // next stream of it learns afresh. A rule with no shape came from none, and there is nothing
@@ -1950,6 +1989,7 @@ public final class Stage {
         final String shape = shapeAwaiting(doc, draft);
         rules.remove(doc.getUuid(), draft.getUuid());
         regressionSet.discard(draft.getUuid());
+        snapshots.discard(draft.getUuid());
         shapes.reset(doc.getUuid(), shape);
         shapes.giveUp(doc.getUuid(), shape, "Rejected: " + reason);
         // And the streams that were waiting for somebody to review it stop saying they are. They are
@@ -1985,6 +2025,41 @@ public final class Stage {
                 .filter(rule -> !rule.isDraft() && !rule.isReserved()
                                 && Objects.equals(rule.getExpression(), draft.getExpression()))
                 .findFirst();
+    }
+
+    /// A snapshot of a fragment as it stands, kept against a rule (A61, A70): the version the rule serves
+    /// with, stamps its deferrals with and records its outputs under.
+    private String snapshot(final ShapeshifterAiDoc doc, final String ruleUuid, final DocRef fragment) {
+        final FragmentCodes.Codes read = codes.read(fragment);
+        final String id = UUID.randomUUID().toString();
+        snapshots.keep(new Snapshots.Snapshot(id, doc.getUuid(), ruleUuid, fragment.getUuid(), read.structure(),
+                read.code(), read.versions(), clock.millis()));
+        return id;
+    }
+
+    /// The rule as it serves now (A72): where its fragment has been edited by hand since its snapshot
+    /// was taken — the documents' versions differ — or it has no snapshot at all, having been written
+    /// before snapshots existed, a snapshot is taken and the rule points at it. A promotion by hand.
+    private RoutingRule freshened(final ShapeshifterAiDoc doc, final RoutingRule rule) {
+        if (rule.getPipeline() == null) {
+            return rule;
+        }
+        if (rule.getSnapshot() != null) {
+            final Optional<Snapshots.Snapshot> kept = snapshots.byId(rule.getSnapshot());
+            if (kept.isPresent() && kept.get().versions().equals(codes.versions(rule.getPipeline()))) {
+                return rule;
+            }
+        }
+        final RoutingRule fresh = rule.copy().snapshot(snapshot(doc, rule.getUuid(), rule.getPipeline())).build();
+        rules.replace(doc.getUuid(), fresh);
+        return fresh;
+    }
+
+    /// A session improves a rule's fragment in place (A58): the same pipeline, the same documents, the
+    /// text replaced. What ran before is the snapshot's to keep.
+    private DocRef rewrite(final ShapeshifterAiDoc doc, final RoutingRule incumbent, final Learned learned) {
+        return writer.rewrite(incumbent.getPipeline(), DocPath.fromParts(FOLDER, doc.getName()),
+                incumbent.getPipeline().getName(), learned.chain(), learned.boundary());
     }
 
     private DocRef write(final ShapeshifterAiDoc doc, final Shape shape, final Learned learned) {
@@ -2037,7 +2112,7 @@ public final class Stage {
                           final Judged judged,
                           final List<Exchange> transcript) {
         final Bindings bindings = new Bindings(doc.getUuid(), rule.getUuid(), rule.getPipeline(),
-                rule.getRecordBoundary(), rule.isProvisional(), judged.score());
+                rule.getRecordBoundary(), rule.isProvisional(), judged.score(), rule.getSnapshot());
         outputs.emitted(input.id(), input.pipeline(), bindings, judged.spans());
         return new StageRun(doc, decision, shape, bindings, judged.output(), judged.verdicts(), transcript,
                 judged.events(), judged.diagnostics());

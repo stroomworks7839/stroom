@@ -154,7 +154,9 @@ class TestScenario54TheTaskDecision {
                 .isEqualTo(2);
         assertThat(runs.get()).describedAs("read once").isEqualTo(1);
         final Deferral row = scenarios.deferrals.of(DOC, 2L).orElseThrow();
-        assertThat(row.failedAgainst()).isEqualTo(learned.getPipeline().getUuid());
+        assertThat(row.failedAgainst())
+                .describedAs("stamped with the snapshot in force (A61)")
+                .isEqualTo(learned.getSnapshot());
         assertThat(row.failingRecords())
                 .describedAs("the one the run stopped at; nothing after it was read")
                 .isEqualTo(1);

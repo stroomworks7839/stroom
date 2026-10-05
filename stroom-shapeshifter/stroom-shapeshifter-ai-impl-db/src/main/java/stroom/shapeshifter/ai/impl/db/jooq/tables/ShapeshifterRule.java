@@ -159,6 +159,11 @@ public class ShapeshifterRule extends TableImpl<ShapeshifterRuleRecord> {
      */
     public final TableField<ShapeshifterRuleRecord, String> SHAPE_HASH = createField(DSL.name("shape_hash"), SQLDataType.VARCHAR(64), this, "");
 
+    /**
+     * The column <code>stroom.shapeshifter_rule.snapshot_id</code>.
+     */
+    public final TableField<ShapeshifterRuleRecord, String> SNAPSHOT_ID = createField(DSL.name("snapshot_id"), SQLDataType.VARCHAR(255), this, "");
+
     private ShapeshifterRule(Name alias, Table<ShapeshifterRuleRecord> aliased) {
         this(alias, aliased, (Field<?>[]) null, null);
     }

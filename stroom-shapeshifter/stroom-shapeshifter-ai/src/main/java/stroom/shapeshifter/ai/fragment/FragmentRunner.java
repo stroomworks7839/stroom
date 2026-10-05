@@ -26,6 +26,7 @@ import org.xml.sax.ContentHandler;
 
 import java.io.InputStream;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /// Runs a written fragment over an input and says what each of its elements made of it: what the
@@ -50,6 +51,22 @@ public interface FragmentRunner {
 
     default List<Attempted> run(final DocRef fragment, final String input) {
         return run(fragment, input, null);
+    }
+
+    /// The same, with each element given the code of a snapshot in place of the document it references
+    /// (A70): how an as-processed reprocess runs what produced an output, after the fragment has moved
+    /// on in place.
+    ///
+    /// @param code Element id to the code it is to run with; an element not named runs what it
+    ///             references.
+    default List<Attempted> run(final DocRef fragment,
+                                final String input,
+                                final RecordBoundary boundary,
+                                final Map<String, String> code) {
+        if (!code.isEmpty()) {
+            throw new UnsupportedOperationException("This runner runs what a fragment references and takes no code");
+        }
+        return run(fragment, input, boundary);
     }
 
     /// Serve a stream (design 04 §3, *streams of any size*): run the fragment over it as it is read, judge

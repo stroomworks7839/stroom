@@ -28,6 +28,7 @@ import stroom.shapeshifter.ai.extraction.DataSplitterCompiler;
 import stroom.shapeshifter.ai.extraction.DataSplitterStep;
 import stroom.shapeshifter.ai.extraction.JsonStep;
 import stroom.shapeshifter.ai.extraction.XmlFragmentStep;
+import stroom.shapeshifter.ai.fragment.FragmentCodes;
 import stroom.shapeshifter.ai.fragment.FragmentOutput;
 import stroom.shapeshifter.ai.fragment.FragmentWriter;
 import stroom.shapeshifter.ai.fragment.PipelineFragmentRunner;
@@ -49,6 +50,7 @@ import stroom.shapeshifter.ai.stage.RegressionSet;
 import stroom.shapeshifter.ai.stage.Reprocessing;
 import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.ai.stage.Shapes;
+import stroom.shapeshifter.ai.stage.Snapshots;
 import stroom.shapeshifter.ai.stage.Spend;
 import stroom.shapeshifter.ai.stage.Stage;
 import stroom.shapeshifter.ai.stage.Wake;
@@ -100,6 +102,8 @@ public class StageFactory {
     private final RegressionSet regressionSet;
     private final Deferrals deferrals;
     private final Wake wake;
+    private final Snapshots snapshots;
+    private final FragmentCodes codes;
 
     @Inject
     public StageFactory(final Advisors advisors,
@@ -126,7 +130,9 @@ public class StageFactory {
                         final Reprocessing reprocessing,
                         final RegressionSet regressionSet,
                         final Deferrals deferrals,
-                        final Wake wake) {
+                        final Wake wake,
+                        final Snapshots snapshots,
+                        final FragmentCodes codes) {
         this.advisors = advisors;
         this.dataSplitterCompiler = dataSplitterCompiler;
         this.schemaConformanceScorer = schemaConformanceScorer;
@@ -152,6 +158,8 @@ public class StageFactory {
         this.regressionSet = regressionSet;
         this.deferrals = deferrals;
         this.wake = wake;
+        this.snapshots = snapshots;
+        this.codes = codes;
     }
 
     /// A stage on this node, under the wall clock and a fresh seed for the held-out split (A14).
@@ -193,6 +201,8 @@ public class StageFactory {
                 regressionSet,
                 deferrals,
                 wake,
+                snapshots,
+                codes,
                 Clock.systemUTC(),
                 ThreadLocalRandom.current().nextLong(),
                 nodeInfo.getThisNodeName());

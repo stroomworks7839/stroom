@@ -100,6 +100,7 @@ public class OutputsDao implements Outputs {
                 .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.RULE_UUID, bindings.ruleUuid())
                 .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.INPUT_META_ID, inputId)
                 .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.PIPELINE_UUID, ofPipeline(pipeline))
+                .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.SNAPSHOT_ID, bindings.snapshotId())
                 .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.FRAGMENT_UUID,
                         bindings.fragment().getUuid())
                 .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.BOUNDARY_ELEMENT, NullSafe.get(boundary,
@@ -117,6 +118,7 @@ public class OutputsDao implements Outputs {
                 // say which row was written last.
                 .onDuplicateKeyUpdate()
                 .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.PRODUCE_TIME_MS, now)
+                .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.SNAPSHOT_ID, bindings.snapshotId())
                 .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.FRAGMENT_UUID,
                         bindings.fragment().getUuid())
                 .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.BOUNDARY_ELEMENT, NullSafe.get(boundary,
@@ -206,7 +208,8 @@ public class OutputsDao implements Outputs {
                                 ShapeshifterOutput.SHAPESHIFTER_OUTPUT.BOUNDARY_ARRAY,
                                 ShapeshifterOutput.SHAPESHIFTER_OUTPUT.BOUNDARY_DEPTH,
                                 ShapeshifterOutput.SHAPESHIFTER_OUTPUT.PROVISIONAL,
-                                ShapeshifterOutput.SHAPESHIFTER_OUTPUT.SCORE)
+                                ShapeshifterOutput.SHAPESHIFTER_OUTPUT.SCORE,
+                                ShapeshifterOutput.SHAPESHIFTER_OUTPUT.SNAPSHOT_ID)
                         .from(ShapeshifterOutput.SHAPESHIFTER_OUTPUT)
                         .where(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.INPUT_META_ID.eq(inputId))
                         // This document's stage, since a pipeline may hold two of them (design 01 §3)
@@ -233,7 +236,8 @@ public class OutputsDao implements Outputs {
                         // A row written before the score was recorded scores nothing rather than
                         // failing the reprocess it was read for.
                         Objects.requireNonNullElse(
-                                row.get(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.SCORE), 0.0)));
+                                row.get(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.SCORE), 0.0),
+                        row.get(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.SNAPSHOT_ID)));
     }
 
     /// The pipeline a row names, or null where it names none: the inverse of [#ofPipeline(String)].

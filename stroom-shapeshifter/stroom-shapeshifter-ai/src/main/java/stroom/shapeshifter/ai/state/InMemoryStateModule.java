@@ -25,6 +25,7 @@ import stroom.shapeshifter.ai.stage.Outputs;
 import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.ai.stage.Serving;
 import stroom.shapeshifter.ai.stage.Shapes;
+import stroom.shapeshifter.ai.stage.Snapshots;
 import stroom.shapeshifter.ai.stage.Spend;
 
 import com.google.inject.AbstractModule;
@@ -48,5 +49,6 @@ public class InMemoryStateModule extends AbstractModule {
         bind(Spend.class).to(InMemorySpend.class).in(Scopes.SINGLETON);
         bind(Deferrals.class).to(InMemoryDeferrals.class).in(Scopes.SINGLETON);
         bind(CorpusIndex.class).to(InMemoryCorpusIndex.class).in(Scopes.SINGLETON);
+        bind(Snapshots.class).to(InMemorySnapshots.class).in(Scopes.SINGLETON);
     }
 }
