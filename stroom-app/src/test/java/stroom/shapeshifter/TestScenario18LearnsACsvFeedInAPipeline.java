@@ -37,6 +37,7 @@ import stroom.processor.shared.QueryData;
 import stroom.query.api.ExpressionOperator;
 import stroom.query.api.ExpressionTerm.Condition;
 import stroom.shapeshifter.ai.doc.ShapeshifterAiStore;
+import stroom.shapeshifter.ai.element.DeferredLearning;
 import stroom.shapeshifter.ai.element.ShapeshifterAiParser;
 import stroom.shapeshifter.ai.extraction.DataSplitterCompiler;
 import stroom.shapeshifter.ai.extraction.DataSplitterStep;
@@ -110,6 +111,8 @@ class TestScenario18LearnsACsvFeedInAPipeline extends AbstractProcessIntegration
     @Inject
     private AdvisorHolder advisor;
     @Inject
+    private DeferredLearning deferredLearning;
+    @Inject
     private Provider<DS3ParserFactory> parserFactories;
 
     @Test
@@ -140,8 +143,14 @@ class TestScenario18LearnsACsvFeedInAPipeline extends AbstractProcessIntegration
                 .expect(QuestionMatcher.configuration("XSLTFilter")).reply(Scenarios.fenced(XSLT));
         advisor.set(script);
         rawStream();
-        final ProcessorResult first = processOne();
+        // The task defers and opens the session; the worker learns; the woken task serves (design 04 §3).
+        final ProcessorResult deferred = processOne();
+        assertThat(deferred.getMarkerCount(Severity.ERROR, Severity.FATAL_ERROR)).isZero();
+        assertThat(deferred.getWritten()).isZero();
+        assertThat(script.asked()).describedAs("nothing asked in the task").isEmpty();
+        deferredLearning.exec();
         script.verifyExhausted();
+        final ProcessorResult first = processOne();
 
         assertThat(first.getMarkerCount(Severity.ERROR, Severity.FATAL_ERROR)).isZero();
         assertThat(first.getWritten()).isEqualTo(6);

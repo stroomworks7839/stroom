@@ -44,6 +44,7 @@ import stroom.processor.shared.QueryData;
 import stroom.query.api.ExpressionOperator;
 import stroom.query.api.ExpressionTerm.Condition;
 import stroom.shapeshifter.ai.doc.ShapeshifterAiStore;
+import stroom.shapeshifter.ai.element.DeferredLearning;
 import stroom.shapeshifter.ai.element.ShapeshifterAiParser;
 import stroom.shapeshifter.ai.extraction.DataSplitterCompiler;
 import stroom.shapeshifter.ai.extraction.DataSplitterStep;
@@ -124,6 +125,8 @@ class TestScenario33SteppingIntoTheFragment extends AbstractProcessIntegrationTe
     private MockStore streamStore;
     @Inject
     private AdvisorHolder advisor;
+    @Inject
+    private DeferredLearning deferredLearning;
     @Inject
     private Provider<DS3ParserFactory> parserFactories;
     @Inject
@@ -310,8 +313,10 @@ class TestScenario33SteppingIntoTheFragment extends AbstractProcessIntegrationTe
                 .expect(QuestionMatcher.configuration("XSLTFilter")).reply(Scenarios.fenced(XSLT));
         advisor.set(script);
         rawStream();
-        final ProcessorResult result = processOne();
+        processOne();
+        deferredLearning.exec();
         script.verifyExhausted();
+        final ProcessorResult result = processOne();
         assertThat(result.getMarkerCount(Severity.ERROR, Severity.FATAL_ERROR)).isZero();
         final List<RoutingRule> table = rules.forDocument(doc.getUuid());
         assertThat(table).hasSize(1);

@@ -40,6 +40,7 @@ import stroom.util.shared.ResultPage;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -90,6 +91,11 @@ class ProcessorTaskServiceImpl implements ProcessorTaskService, Searchable {
     public ResultPage<ProcessorTaskSummary> findSummary(final ExpressionCriteria criteria) {
         return securityContext.secureResult(PERMISSION, () ->
                 processorTaskDao.findSummary(criteria));
+    }
+
+    @Override
+    public int wakeDeferredTasks(final int filterId, final Collection<Long> metaIds) {
+        return processorTaskDao.wakeDeferredTasks(filterId, metaIds);
     }
 
     @Override

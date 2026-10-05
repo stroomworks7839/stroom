@@ -18,6 +18,7 @@ package stroom.shapeshifter;
 
 import stroom.data.shared.StreamTypeNames;
 import stroom.docref.DocRef;
+import stroom.entity.shared.ExpressionCriteria;
 import stroom.meta.api.MetaService;
 import stroom.meta.shared.FindMetaCriteria;
 import stroom.meta.shared.Meta;
@@ -31,11 +32,16 @@ import stroom.pipeline.shared.data.PipelineElement;
 import stroom.pipeline.xml.converter.ds3.DS3ParserFactory;
 import stroom.processor.api.ProcessorFilterService;
 import stroom.processor.api.ProcessorResult;
+import stroom.processor.api.ProcessorTaskService;
+import stroom.processor.impl.ProcessorConfig;
 import stroom.processor.shared.CreateProcessFilterRequest;
+import stroom.processor.shared.ProcessorTask;
 import stroom.processor.shared.QueryData;
+import stroom.processor.shared.TaskStatus;
 import stroom.query.api.ExpressionOperator;
 import stroom.query.api.ExpressionTerm.Condition;
 import stroom.shapeshifter.ai.doc.ShapeshifterAiStore;
+import stroom.shapeshifter.ai.element.DeferredLearning;
 import stroom.shapeshifter.ai.element.ShapeshifterAiParser;
 import stroom.shapeshifter.ai.extraction.DataSplitterCompiler;
 import stroom.shapeshifter.ai.extraction.DataSplitterStep;
@@ -45,6 +51,8 @@ import stroom.shapeshifter.ai.scenario.QuestionMatcher;
 import stroom.shapeshifter.ai.scenario.Scenarios;
 import stroom.shapeshifter.ai.scenario.Script;
 import stroom.shapeshifter.ai.scenario.Structure;
+import stroom.shapeshifter.ai.stage.Deferrals;
+import stroom.shapeshifter.ai.stage.Deferrals.Deferral;
 import stroom.shapeshifter.ai.stage.Ledger;
 import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.ai.stage.Shape;
@@ -60,6 +68,7 @@ import stroom.test.AbstractCoreIntegrationTest;
 import stroom.test.CommonTranslationTestHelper;
 import stroom.test.StoreCreationTool;
 import stroom.util.shared.Severity;
+import stroom.util.time.StroomDuration;
 
 import jakarta.inject.Inject;
 import jakarta.inject.Provider;
@@ -74,6 +83,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
 /// Design 02 §5, scenario 13, in tier 2 against a real database: **promotion releases the ledger, and
 /// what is released is actually processed**.
@@ -104,6 +114,14 @@ class TestScenario13ReleaseInAPipeline extends AbstractCoreIntegrationTest {
     @Inject
     private AdvisorHolder advisor;
     @Inject
+    private Provider<ProcessorConfig> processorConfigProvider;
+    @Inject
+    private ProcessorTaskService processorTaskService;
+    @Inject
+    private Deferrals deferrals;
+    @Inject
+    private DeferredLearning deferredLearning;
+    @Inject
     private Rules rules;
     @Inject
     private Ledger ledger;
@@ -127,42 +145,50 @@ class TestScenario13ReleaseInAPipeline extends AbstractCoreIntegrationTest {
                 .priority(1)
                 .build());
 
-        // Learning is off, so the first stream cannot bind and is not held: an error stream naming the
-        // shape, and a ledger row naming the input and the pipeline that would replay it.
+        // Learning is off, so the first stream cannot bind: it waits (design 04 §3), with a deferral row
+        // naming the task a wake will move, and nothing is sentinelled or written to make it wait.
+        // A node that found a filter empty waits before asking it again; a wake must not wait on that.
+        processorConfigProvider.get().setSkipEmptyFilterFetchDuration(StroomDuration.ZERO);
         advisor.set(Script.of());
         final Meta early = rawStream();
-        final ProcessorResult sentinelled = processOne();
-        assertThat(sentinelled.getMarkerCount(Severity.ERROR, Severity.FATAL_ERROR)).isEqualTo(1);
-        assertThat(sentinelled.getWritten()).isZero();
+        final ProcessorResult deferred = processOne();
+        assertThat(deferred.getMarkerCount(Severity.ERROR, Severity.FATAL_ERROR)).isZero();
+        assertThat(deferred.getWritten()).isZero();
         assertThat(events()).describedAs("nothing was produced from it").isEmpty();
-        // That it is remembered is scenario 20's to assert, and asserting it here would spend it: the
-        // ledger's only reader is its release, and a release is what this scenario is waiting for.
 
-        // Learning on. The next stream of the same shape learns and is promoted, and the promotion
-        // releases the shape's ledger — which is a reprocess filter over what the pipeline made of the
-        // stream that waited.
+        // Learning on. The next stream of the same shape defers too, with a session opened on it; the
+        // worker learns and promotes, and the promotion wakes every task waiting on the shape.
         allowLearning(doc);
         final Script script = script();
         advisor.set(script);
         final Meta learned = rawStream();
-        final ProcessorResult promoted = processOne();
+        processOne();
+        deferredLearning.exec();
         script.verifyExhausted();
-
-        assertThat(promoted.getMarkerCount(Severity.ERROR, Severity.FATAL_ERROR)).isZero();
-        assertThat(promoted.getWritten()).isEqualTo(6);
         assertThat(rules.forDocument(doc.getUuid())).hasSize(1);
         assertThat(ledger.release(doc.getUuid(), shape()))
-                .describedAs("the ledger is empty: what it held has been asked for")
+                .describedAs("the ledger holds nothing: nothing was sentinelled")
                 .isEmpty();
 
-        // And the ask is real. The filter the release created yields a task for the stream that waited,
-        // which now runs through the rule that settled its shape — bound, not learned again.
+        // And the wake is real: both tasks are back in the queue ahead of the retry delay, and run again
+        // through the rule that settled the shape — bound, not learned again.
+        final List<ProcessorTask> tasks = processorTaskService.find(new ExpressionCriteria()).getValues();
+        assertThat(tasks).describedAs(tasks.toString())
+                .extracting(ProcessorTask::getMetaId, ProcessorTask::getStatus)
+                .containsExactlyInAnyOrder(tuple(early.getId(), TaskStatus.CREATED),
+                        tuple(learned.getId(), TaskStatus.CREATED));
+        assertThat(deferrals.forDocument(doc.getUuid()))
+                .describedAs("both rows stand until each stream is served")
+                .extracting(Deferral::inputId)
+                .containsExactly(early.getId(), learned.getId());
         final Script silent = Script.of();
         advisor.set(silent);
         final List<ProcessorResult> released = commonTranslationTestHelper.processAll();
-        assertThat(released).describedAs("one task, for the stream that waited").hasSize(1);
-        assertThat(released.get(0).getMarkerCount(Severity.ERROR, Severity.FATAL_ERROR)).isZero();
-        assertThat(released.get(0).getWritten()).isEqualTo(6);
+        assertThat(released).describedAs("two tasks, woken by the promotion").hasSize(2);
+        assertThat(released).allSatisfy(result -> {
+            assertThat(result.getMarkerCount(Severity.ERROR, Severity.FATAL_ERROR)).isZero();
+            assertThat(result.getWritten()).isEqualTo(6);
+        });
 
         assertThat(events())
                 .describedAs("both streams have output now: the one that taught the shape and the one "

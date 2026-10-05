@@ -24,6 +24,7 @@ import stroom.shapeshifter.ai.scoring.Verdict;
 import stroom.shapeshifter.ai.stage.Bindings;
 import stroom.shapeshifter.ai.stage.Decision;
 import stroom.shapeshifter.ai.stage.Decision.Bound;
+import stroom.shapeshifter.ai.stage.Decision.Deferred;
 import stroom.shapeshifter.ai.stage.Decision.Drafted;
 import stroom.shapeshifter.ai.stage.Decision.GivenUp;
 import stroom.shapeshifter.ai.stage.Decision.Kept;
@@ -118,6 +119,7 @@ public final class StepDetails {
             case Retracted retracted -> retracted.reason();
             case GivenUp givenUp -> "Shape given up: " + givenUp.reason();
             case Sentinel sentinel -> sentinel.reason();
+            case Deferred deferred -> "Deferred: " + deferred.reason();
             case Would would -> would.said();
         };
     }

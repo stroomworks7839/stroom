@@ -25,6 +25,7 @@ import jakarta.inject.Singleton;
 import org.jooq.Record;
 
 import java.util.List;
+import java.util.Optional;
 
 /// The deferral rows of design 04 §6 as a table, one row per stream and document. A stream put back a
 /// second time is the same row brought up to date — the unique key on document and meta id makes the
@@ -96,6 +97,27 @@ public class DeferralsDao implements Deferrals {
         return JooqUtil.contextResult(connProvider, context -> context
                 .selectFrom(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL)
                 .where(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.DOC_UUID.eq(docUuid))
+                .orderBy(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.FIRST_DEFERRED_MS.asc(),
+                        ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.META_ID.asc())
+                .fetch(DeferralsDao::deferral));
+    }
+
+    @Override
+    public Optional<Deferral> of(final String docUuid, final long inputId) {
+        return JooqUtil.contextResult(connProvider, context -> context
+                .selectFrom(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL)
+                .where(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.DOC_UUID.eq(docUuid))
+                .and(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.META_ID.eq(inputId))
+                .fetchOptional(DeferralsDao::deferral));
+    }
+
+    @Override
+    public List<Deferral> waiting(final String docUuid, final String feed, final String type) {
+        return JooqUtil.contextResult(connProvider, context -> context
+                .selectFrom(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL)
+                .where(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.DOC_UUID.eq(docUuid))
+                .and(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.FEED_NAME.eq(feed))
+                .and(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.TYPE_NAME.eq(type))
                 .orderBy(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.FIRST_DEFERRED_MS.asc(),
                         ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.META_ID.asc())
                 .fetch(DeferralsDao::deferral));

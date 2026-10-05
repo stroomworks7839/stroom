@@ -21,6 +21,7 @@ import stroom.shapeshifter.ai.stage.Deferrals;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 
 /// The deferral rows as a list: what scenarios inspect, node-local and gone on restart. Every method is
 /// synchronised: one node's tasks share it.
@@ -55,6 +56,20 @@ public final class InMemoryDeferrals implements Deferrals {
     @Override
     public synchronized void released(final String docUuid, final long inputId) {
         rows.removeIf(row -> row.docUuid().equals(docUuid) && row.inputId() == inputId);
+    }
+
+    @Override
+    public synchronized Optional<Deferral> of(final String docUuid, final long inputId) {
+        return rows.stream()
+                .filter(row -> row.docUuid().equals(docUuid) && row.inputId() == inputId)
+                .findFirst();
+    }
+
+    @Override
+    public synchronized List<Deferral> waiting(final String docUuid, final String feed, final String type) {
+        return forDocument(docUuid).stream()
+                .filter(row -> row.feed().equals(feed) && row.type().equals(type))
+                .toList();
     }
 
     @Override

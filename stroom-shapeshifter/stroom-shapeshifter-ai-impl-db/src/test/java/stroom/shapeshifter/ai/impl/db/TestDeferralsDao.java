@@ -81,6 +81,21 @@ class TestDeferralsDao {
     }
 
     @Test
+    void oneStreamsRowComesBackByItsIdAndAShapesRowsComeBackOldestFirst() {
+        deferrals.deferred(DOC, 7L, "DOOR-ACCESS", "Raw Events", "pipe", 100L, 5, "frag:1", "short", 2);
+        deferrals.deferred(DOC, 9L, "DOOR-ACCESS", "Raw Events", "pipe", 102L, 5, null, "no rule", 0);
+        deferrals.deferred(DOC, 8L, "LIFT", "Raw Events", "pipe", 101L, 5, null, "no rule", 0);
+
+        assertThat(deferrals.of(DOC, 9L)).isPresent().get().extracting(Deferral::reason).isEqualTo("no rule");
+        assertThat(deferrals.of(DOC, 99L)).isEmpty();
+        assertThat(deferrals.waiting(DOC, "DOOR-ACCESS", "Raw Events"))
+                .extracting(Deferral::inputId)
+                .containsExactly(7L, 9L);
+        assertThat(deferrals.waiting(DOC, "LIFT", "Raw Events")).extracting(Deferral::inputId).containsExactly(8L);
+        assertThat(deferrals.waiting(DOC, "LIFT", "Events")).isEmpty();
+    }
+
+    @Test
     void releasedRowsAreGoneAndOtherDocumentsAreUntouched() {
         deferrals.deferred(DOC, 7L, "DOOR-ACCESS", "Raw Events", "pipe", 100L, 5, "frag:1", "short", 2);
         deferrals.deferred(DOC, 9L, "DOOR-ACCESS", "Raw Events", "pipe", 102L, 5, "frag:1", "short", 3);

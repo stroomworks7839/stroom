@@ -109,6 +109,16 @@ public sealed interface Decision {
 
     }
 
+    /// The stream waits (design 04 §3): nothing is emitted, nothing is errored, and the task that carries
+    /// it ends deferred, to be tried again when the shape's transform moves or the retry delay passes. A
+    /// deferral row says what it waits on; where a session was needed and none held the shape, one was
+    /// opened and parked for the worker.
+    ///
+    /// @param reason Why it waits, in words.
+    record Deferred(String reason) implements Decision {
+
+    }
+
     /// What the stage *would* have done, which is all a dry run may say (A30, design 01 §11.7).
     /// Stepping routes and serves and does nothing else, so a shape no rule binds is reported here
     /// rather than learned, sentinelled or given up.

@@ -46,6 +46,7 @@ import stroom.meta.mock.MockMetaModule;
 import stroom.node.mock.MockNodeServiceModule;
 import stroom.pipeline.xmlschema.MockXmlSchemaModule;
 import stroom.planb.impl.MockPlanBModule;
+import stroom.processor.api.ProcessorTaskService;
 import stroom.processor.impl.MockProcessorModule;
 import stroom.resource.impl.MockResourceModule;
 import stroom.security.api.ContentPackUserService;
@@ -116,7 +117,9 @@ public class MockServiceModule extends AbstractModule {
         install(new stroom.pipeline.xsltfunctions.CommonXsltFunctionModule());
         install(new stroom.pipeline.xsltfunctions.DataStoreXsltFunctionModule());
         install(new stroom.pipeline.refdata.ReferenceDataModule());
-        install(new stroom.processor.mock.MockProcessorModule());
+        // The mock task service, with its wake made real over the mock task DAO (design 04 §5.3): what
+        // stroom.processor.mock.MockProcessorModule binds, and nothing else.
+        bind(ProcessorTaskService.class).to(WakingMockProcessorTaskService.class);
         install(new MockResourceModule());
         install(new stroom.task.impl.MockTaskModule());
         install(new MockInternalStatisticsModule());

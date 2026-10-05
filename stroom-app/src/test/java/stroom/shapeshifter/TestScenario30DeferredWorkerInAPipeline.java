@@ -149,7 +149,7 @@ class TestScenario30DeferredWorkerInAPipeline extends AbstractProcessIntegration
 
         assertThat(script.asked()).describedAs("no model call inside the processing task").isEmpty();
         assertThat(task.getMarkerCount(Severity.ERROR, Severity.FATAL_ERROR))
-                .describedAs("the sentinel is an error stream, as an unknown shape's always is").isEqualTo(1);
+                .describedAs("the stream waits, and nothing is sentinelled to make it (design 04 §8.7)").isZero();
         assertThat(task.getWritten()).isZero();
         assertThat(outputs()).isEmpty();
         assertThat(rules.forDocument(doc.getUuid())).isEmpty();
@@ -161,8 +161,8 @@ class TestScenario30DeferredWorkerInAPipeline extends AbstractProcessIntegration
                 .describedAs("naming the stream it was raised on, which is how the job finds it again")
                 .isEqualTo(raw.getId());
 
-        // A second stream of the same shape while the attempt waits: sentinelled behind it, and on the
-        // ledger with it — scenario 13's two streams, which the promotion must release together.
+        // A second stream of the same shape while the attempt waits: deferred behind it — scenario 13's
+        // two streams, which the promotion must wake together.
         final Meta second = rawStream();
         processOne();
         assertThat(attempts.forDocument(doc.getUuid(), 10)).describedAs("one attempt for one shape")
@@ -184,7 +184,7 @@ class TestScenario30DeferredWorkerInAPipeline extends AbstractProcessIntegration
         final String shape = Shape.of(List.of(MetaFields.FIELD_FEED, MetaFields.FIELD_TYPE),
                 Map.of(MetaFields.FIELD_FEED, FEED, MetaFields.FIELD_TYPE, StreamTypeNames.RAW_EVENTS)).id();
         assertThat(ledger.release(doc.getUuid(), shape))
-                .describedAs("the promotion released the ledger, so what waited is asked for (A12)")
+                .describedAs("the ledger holds nothing: what waited was deferred, not sentinelled")
                 .isEmpty();
         // Scenario 13's substance in a node: *both* streams waited on this shape and one promotion
         // released them together. That the release then becomes a reprocess filter is what this harness
@@ -195,12 +195,15 @@ class TestScenario30DeferredWorkerInAPipeline extends AbstractProcessIntegration
         final Script silent = Script.of();
         advisor.set(silent);
         rawStream();
-        final ProcessorResult served = processOne();
+        // The two that waited, woken by the promotion, and the new one: all three bound in the task.
+        final List<ProcessorResult> served = commonTranslationTestHelper.processAll();
 
         assertThat(silent.asked()).isEmpty();
-        assertThat(served.getMarkerCount(Severity.ERROR, Severity.FATAL_ERROR)).isZero();
-        assertThat(served.getWritten()).isEqualTo(6);
-        assertThat(outputs()).hasSize(1);
+        assertThat(served).hasSize(3).allSatisfy(result -> {
+            assertThat(result.getMarkerCount(Severity.ERROR, Severity.FATAL_ERROR)).isZero();
+            assertThat(result.getWritten()).isEqualTo(6);
+        });
+        assertThat(outputs()).hasSize(3);
         assertThat(attempts.forDocument(doc.getUuid(), 10))
                 .describedAs("and opened no second attempt: the shape is known now").hasSize(1);
     }

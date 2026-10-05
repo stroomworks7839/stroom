@@ -23,6 +23,7 @@ import stroom.shapeshifter.ai.scenario.Scenarios;
 import stroom.shapeshifter.ai.scenario.Script;
 import stroom.shapeshifter.ai.stage.Decision;
 import stroom.shapeshifter.ai.stage.Decision.Bound;
+import stroom.shapeshifter.ai.stage.Decision.Deferred;
 import stroom.shapeshifter.ai.stage.Decision.Drafted;
 import stroom.shapeshifter.ai.stage.Decision.GivenUp;
 import stroom.shapeshifter.ai.stage.Decision.Kept;
@@ -158,6 +159,7 @@ class TestStepDetails {
                 new Retracted(rule, 0.2, "it failed the gate"),
                 new GivenUp("nothing passed", List.of()),
                 new Sentinel("nothing binds this shape"),
+                new Deferred("waiting on a session"),
                 new Would("learn a fragment for this shape", null));
 
         assertThat(all).allSatisfy(decision -> assertThat(StepDetails.describe(decision))

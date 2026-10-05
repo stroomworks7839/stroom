@@ -356,7 +356,9 @@ that are fine — and it means the deferred population is bounded by what arrive
 
 **The wake** is the same statement with a narrower `WHERE`: the AI, on promotion, moves its own
 deferred tasks back to `CREATED` for the filter and meta ids it knows are waiting on that shape, rather
-than letting them sleep out their retry time. Ordinary FIFO by task id then processes them oldest first.
+than letting them sleep out their retry time. Ordinary FIFO by task id then processes them oldest first —
+after `skipEmptyFilterFetchDuration`, where the node last found the filter empty, since a wake changes
+the rows and not the node's memory of them.
 
 **Visibility**: deferred counts per filter in the processing screens and in sysinfo, and a maximum
 deferral age past which a task is **raised, not failed** (A57): flagged in the Supervisor and counted,
@@ -575,6 +577,48 @@ before the failure is reported.
 - **Exit:** steps 1 to 3 of test A (§8.1), and test B over the known types; scenarios 1, 2, 3, 6, 7, 9,
   11, 12, 13, 15 and 16 of §8 in both tiers, and the live run of design 02 §6.3
   repeated over a feed whose later streams carry record types its first did not.
+
+*Built 2026-10-05, the first slice: the task decision.* `Stage.decide` is what a task calls (`Supervision`,
+for a stage fed by the source): resolve the shape, consult what is known, emit, defer or error, never
+learn. A rule serving with every record clearing the bar emits, and promotes a provisional rule as before;
+any record short of the bar defers, with a row stamped against the rule's fragment — the stamp until A61's
+snapshots exist, which moves because a rebinding writes a new fragment — the shape marked with why, and a
+relearning session opened and parked where none holds the shape; a row whose stamp is still in force
+defers again without a run. No rule defers and opens the session on the stream; learning disabled defers
+and opens nothing; a draft awaiting review defers; a shape given up, a reserved selector or a stream with
+no value for the key errors, with the ledger saying so. A pinned rule serves whatever the bar says.
+`Decision.Deferred` is thrown out of `Supervision` as `DeferTaskException`; a promotion — a binding, a
+rebinding, an approval — wakes every row of its shape through `Wake`, which in a node is
+`ProcessorTaskService.wakeDeferredTasks` over the phase 1 DAO; the woken task decides again, and a serve
+takes the row off. The `ExecutionMode` setting is still on the document and no longer read by the task
+path; phase 6 removes it. Scenario 54 holds the decision at Tier 1 and
+`TestScenarioAFromNothingToServed` holds test A's steps 1 to 3 against real tasks and a real database.
+
+Two things the build found. A node that has found a filter empty waits `skipEmptyFilterFetchDuration`
+before asking it again, so a wake is honoured within that backoff rather than at once — the tests zero
+it, a node lives with it, and it is worth a line in the processing screens' help when phase 6 gets to
+them. And the mock harness the Tier 2 scenarios run on offers each stream once, from a tracker, whatever
+the task rows say; its wake now winds the tracker back, in a test-only service, so the woken stream is
+offered again.
+
+*Its own audit found two, 2026-10-05.* An approval woke nothing: a draft awaiting review holds its
+shape's streams waiting, and Approve — a promotion like any other — now wakes them. And a stream tried
+again while its session was still open had the note of each try appended to its row's reason, so a row
+grew a clause per retry; the row now keeps only why the stream waits, and the note of what the try found
+the session doing goes to the decision alone. Two limits recorded: the deferral row is one per stream and
+document, so two supervised pipelines under one document processing one stream share a row and the wake
+moves whichever task wrote it last — a second filter's task comes back by the retry delay; and Reject
+wakes nothing, so a stream waiting on a rejected draft errors at its next retry rather than at once.
+
+What this slice does not do, each owed to the slices after it: in-place editing and snapshots (A58, A61);
+the worker carrying a session to its end and resuming a lapsed one, with the lease renewed per turn (§4,
+A64); parking for a person (A65); and the stage fed by a parser, which still learns in the task because
+the records the parser above it made are its stream and the worker cannot read those back from the
+store — the attempt would have to carry its own sample, which is a change to the attempt row worth a
+ruling. Until A64, a held stream whose records still fall short after a promotion is deferred again by
+the woken task, against the new stamp, and a new session opens on it: the loop of A50 happens as rounds
+of tasks rather than within one session, which is what §4's *one stream at a time* describes and costs
+one transform and one score per round.
 
 ### Phase 5 — A session always ends *(the feature)*
 

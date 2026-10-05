@@ -38,13 +38,14 @@ import stroom.shapeshifter.ai.cache.Rows;
 import stroom.shapeshifter.ai.doc.ShapeshifterAiStore;
 import stroom.shapeshifter.ai.element.ShapeshifterAiParser;
 import stroom.shapeshifter.ai.extraction.ExtractionCorpus.Golden;
+import stroom.shapeshifter.ai.impl.db.DeferralsDao;
 import stroom.shapeshifter.ai.impl.db.LedgerDao;
 import stroom.shapeshifter.ai.impl.db.RulesDao;
 import stroom.shapeshifter.ai.scenario.AdvisorHolder;
 import stroom.shapeshifter.ai.scenario.Scenarios;
 import stroom.shapeshifter.ai.scenario.Script;
+import stroom.shapeshifter.ai.stage.Deferrals;
 import stroom.shapeshifter.ai.stage.Ledger;
-import stroom.shapeshifter.ai.stage.Replayable;
 import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.ai.stage.Shape;
 import stroom.shapeshifter.shared.LearningMode;
@@ -65,7 +66,6 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.tuple;
 
 /// Design 02 §5, scenario 20, in tier 2 against a real database (design 03, phase C): a stream whose shape
 /// has no binding produces no output, an error stream naming the shape and the reason, and a row in the
@@ -93,6 +93,8 @@ class TestScenario20SentinelInAPipeline extends AbstractCoreIntegrationTest {
     @Inject
     private Rules rules;
     @Inject
+    private Deferrals deferrals;
+    @Inject
     @Rows
     private Rules ruleRows;
     @Inject
@@ -119,8 +121,8 @@ class TestScenario20SentinelInAPipeline extends AbstractCoreIntegrationTest {
                         .build())
                 .priority(1)
                 .build());
-        // Learning is off for this document, so nothing can bind and nothing is asked: the shape is
-        // sentinelled, which is what this scenario is about.
+        // Learning is off for this document, so nothing can bind and nothing is asked: the stream waits,
+        // and the row that says so is what this scenario is about.
         final Script silent = Script.of();
         advisor.set(silent);
         final Meta raw = rawStream();
@@ -129,21 +131,32 @@ class TestScenario20SentinelInAPipeline extends AbstractCoreIntegrationTest {
 
         assertThat(silent.asked()).describedAs("the model was not asked").isEmpty();
         assertThat(result.getMarkerCount(Severity.ERROR, Severity.FATAL_ERROR))
-                .describedAs("one error, naming the shape").isEqualTo(1);
+                .describedAs("no error: the stream waits for a person to turn learning on (design 04 §3)")
+                .isZero();
         assertThat(result.getWritten()).isZero();
         assertThat(metaService.find(FindMetaCriteria.createWithType(StreamTypeNames.EVENTS)).getValues())
                 .describedAs("no output stream: the stage bound nothing")
                 .isEmpty();
         assertThat(rules.forDocument(doc.getUuid())).describedAs("and wrote no rule").isEmpty();
 
-        // The ledger names the input, in a row: promotion would replay exactly this stream (A12).
+        // The deferral names the input, in a row: the task a promotion would wake (design 04 §5.3).
         final String shape = Shape.of(List.of(MetaFields.FIELD_FEED, MetaFields.FIELD_TYPE),
                 Map.of(MetaFields.FIELD_FEED, FEED, MetaFields.FIELD_TYPE, StreamTypeNames.RAW_EVENTS)).id();
         assertThat(ledger.release(doc.getUuid(), shape))
-                .describedAs("the ledger row is a row in the database, not a map in one node's heap")
-                .extracting(Replayable::inputId, Replayable::pipeline)
-                .describedAs("naming the stream and the pipeline that would replay it (A12)")
-                .containsExactly(tuple(raw.getId(), pipeline.getUuid()));
+                .describedAs("nothing is sentinelled to make it wait, so the ledger holds nothing")
+                .isEmpty();
+        assertThat(deferrals).isInstanceOf(DeferralsDao.class);
+        assertThat(deferrals.of(doc.getUuid(), raw.getId()))
+                .describedAs("the deferral row is a row in the database, not a map in one node's heap")
+                .isPresent()
+                .get()
+                .satisfies(row -> {
+                    assertThat(row.pipeline()).isEqualTo(pipeline.getUuid());
+                    assertThat(row.taskId()).describedAs("the task a wake will move").isNotNull();
+                    assertThat(row.filterId()).isNotNull();
+                    assertThat(row.failedAgainst()).isNull();
+                    assertThat(row.reason()).contains("disabled");
+                });
     }
 
     private DocRef document() {

@@ -32,6 +32,7 @@ import stroom.processor.shared.CreateProcessFilterRequest;
 import stroom.processor.shared.ProcessorFilter;
 import stroom.processor.shared.QueryData;
 import stroom.shapeshifter.ai.doc.ShapeshifterAiStore;
+import stroom.shapeshifter.ai.element.DeferredLearning;
 import stroom.shapeshifter.ai.extraction.DataSplitterCompiler;
 import stroom.shapeshifter.ai.extraction.DataSplitterStep;
 import stroom.shapeshifter.ai.extraction.ExtractionCorpus.Golden;
@@ -124,6 +125,8 @@ class TestScenario51AnyFormatFromAnyFeedInAPipeline extends AbstractProcessInteg
     @Inject
     private AdvisorHolder advisor;
     @Inject
+    private DeferredLearning deferredLearning;
+    @Inject
     private Provider<DS3ParserFactory> parserFactories;
 
     private DocRef document;
@@ -212,8 +215,10 @@ class TestScenario51AnyFormatFromAnyFeedInAPipeline extends AbstractProcessInteg
     private void learn(final String feed, final String data, final String expected, final Script script) {
         advisor.set(script);
         rawStream(feed, data);
-        final ProcessorResult result = processOne();
+        processOne();
+        deferredLearning.exec();
         script.verifyExhausted();
+        final ProcessorResult result = processOne();
 
         assertThat(result.getMarkerCount(Severity.ERROR, Severity.FATAL_ERROR))
                 .describedAs(feed + " was processed without error")

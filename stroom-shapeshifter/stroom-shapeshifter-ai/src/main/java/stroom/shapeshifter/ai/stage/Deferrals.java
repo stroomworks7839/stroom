@@ -17,6 +17,7 @@
 package stroom.shapeshifter.ai.stage;
 
 import java.util.List;
+import java.util.Optional;
 
 /// The streams that are waiting, and on what (design 04 §3, §6): one row per stream a document has put
 /// back — the stream, the task and filter that will be woken, the transform it failed against, and since
@@ -65,6 +66,21 @@ public interface Deferrals {
     /// @param docUuid The document.
     /// @return Its rows.
     List<Deferral> forDocument(String docUuid);
+
+    /// One stream's row, where it has one.
+    ///
+    /// @param docUuid The document.
+    /// @param inputId The stream's meta id.
+    /// @return Its row.
+    Optional<Deferral> of(String docUuid, long inputId);
+
+    /// What is waiting on one shape (A49: a feed and a type), oldest first: what a promotion wakes.
+    ///
+    /// @param docUuid The document.
+    /// @param feed    The feed.
+    /// @param type    The type.
+    /// @return Its rows.
+    List<Deferral> waiting(String docUuid, String feed, String type);
 
     // --------------------------------------------------------------------------------
 

@@ -31,6 +31,7 @@ import stroom.processor.shared.CreateProcessFilterRequest;
 import stroom.processor.shared.ProcessorFilter;
 import stroom.processor.shared.QueryData;
 import stroom.shapeshifter.ai.doc.ShapeshifterAiStore;
+import stroom.shapeshifter.ai.element.DeferredLearning;
 import stroom.shapeshifter.ai.element.StageFactory;
 import stroom.shapeshifter.ai.element.StoredRegressionSet;
 import stroom.shapeshifter.ai.extraction.DataSplitterCompiler;
@@ -121,6 +122,8 @@ class TestScenario53TheCorpusSurvivesARestart extends AbstractProcessIntegration
     @Inject
     private AdvisorHolder advisor;
     @Inject
+    private DeferredLearning deferredLearning;
+    @Inject
     private Provider<DS3ParserFactory> parserFactories;
     @Inject
     private Provider<PipelineScopeRunnable> pipelineScopes;
@@ -136,6 +139,8 @@ class TestScenario53TheCorpusSurvivesARestart extends AbstractProcessIntegration
         // Learned in a task: the stylesheet admits a logoff rather than translating it.
         advisor.set(script(CSV.configuration(), ADMITS_LOGOFF));
         rawStream(MIXED);
+        processOne();
+        deferredLearning.exec();
         final ProcessorResult result = processOne();
         assertThat(result.getMarkerCount(Severity.ERROR, Severity.FATAL_ERROR)).isZero();
         final RoutingRule rule = rules.forDocument(document.getUuid()).get(0);

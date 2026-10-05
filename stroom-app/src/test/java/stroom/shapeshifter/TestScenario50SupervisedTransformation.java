@@ -39,6 +39,7 @@ import stroom.processor.shared.QueryData;
 import stroom.query.api.ExpressionOperator;
 import stroom.query.api.ExpressionTerm.Condition;
 import stroom.shapeshifter.ai.doc.ShapeshifterAiStore;
+import stroom.shapeshifter.ai.element.DeferredLearning;
 import stroom.shapeshifter.ai.element.ShapeshifterAiFilter;
 import stroom.shapeshifter.ai.element.ShapeshifterAiParser;
 import stroom.shapeshifter.ai.extraction.DataSplitterCompiler;
@@ -131,6 +132,8 @@ class TestScenario50SupervisedTransformation extends AbstractProcessIntegrationT
     private MockStore streamStore;
     @Inject
     private AdvisorHolder advisor;
+    @Inject
+    private DeferredLearning deferredLearning;
     @Inject
     private Provider<DS3ParserFactory> parserFactories;
 
@@ -243,6 +246,11 @@ class TestScenario50SupervisedTransformation extends AbstractProcessIntegrationT
                 .expect(QuestionMatcher.configuration("XSLTFilter")).reply(Scenarios.fenced(XSLT));
         advisor.set(script);
         rawStream(PAIR_FEED);
+        // The extraction stage stands where a parser stands: its task defers and the worker learns it
+        // (design 04 §3). The transformation stage below it is fed by that parser and still learns in
+        // the task, on the woken run — see Supervision for why.
+        processOne();
+        deferredLearning.exec();
         final ProcessorResult result = processOne();
         script.verifyExhausted();
 

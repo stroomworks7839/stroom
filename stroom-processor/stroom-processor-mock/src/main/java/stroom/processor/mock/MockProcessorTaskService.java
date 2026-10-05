@@ -22,6 +22,8 @@ import stroom.processor.shared.ProcessorTask;
 import stroom.processor.shared.ProcessorTaskSummary;
 import stroom.util.shared.ResultPage;
 
+import java.util.Collection;
+
 public class MockProcessorTaskService implements ProcessorTaskService {
 
     @Override
@@ -32,5 +34,11 @@ public class MockProcessorTaskService implements ProcessorTaskService {
     @Override
     public ResultPage<ProcessorTaskSummary> findSummary(final ExpressionCriteria criteria) {
         return ResultPage.empty();
+    }
+
+    @Override
+    public int wakeDeferredTasks(final int filterId, final Collection<Long> metaIds) {
+        // Nothing is queued here to wake.
+        return 0;
     }
 }

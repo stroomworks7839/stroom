@@ -50,6 +50,7 @@ import stroom.shapeshifter.ai.state.InMemoryRules;
 import stroom.shapeshifter.ai.state.InMemoryServing;
 import stroom.shapeshifter.ai.state.InMemoryShapes;
 import stroom.shapeshifter.ai.state.InMemorySpend;
+import stroom.shapeshifter.ai.state.InMemoryWake;
 import stroom.shapeshifter.ai.transformation.XsltStep;
 import stroom.shapeshifter.shared.ExecutionMode;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
@@ -91,6 +92,7 @@ public final class Scenarios {
     public final InMemoryReprocessing reprocessing = new InMemoryReprocessing();
     public final InMemoryRegressionSet regressionSet = new InMemoryRegressionSet();
     public final InMemoryDeferrals deferrals = new InMemoryDeferrals();
+    public final InMemoryWake wake = new InMemoryWake();
     public final InMemoryDocuments documents = new InMemoryDocuments();
     public final InMemoryInputs inputs = new InMemoryInputs();
     /// The serving view of A46 over the three seams above it, as a node reads it from one query.
@@ -180,6 +182,7 @@ public final class Scenarios {
                 reprocessing,
                 regressionSet,
                 deferrals,
+                wake,
                 Clock.fixed(NOW, ZoneOffset.UTC),
                 SEED,
                 node);

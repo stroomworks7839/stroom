@@ -34,10 +34,12 @@ import stroom.pipeline.state.MetaHolder;
 import stroom.pipeline.state.PipelineContext;
 import stroom.pipeline.state.PipelineHolder;
 import stroom.pipeline.state.StreamProcessorHolder;
+import stroom.processor.api.DeferTaskException;
 import stroom.shapeshifter.ai.doc.ShapeshifterAiStore;
 import stroom.shapeshifter.ai.fragment.FragmentRunner.FragmentRecord;
 import stroom.shapeshifter.ai.fragment.ReplayUnits;
 import stroom.shapeshifter.ai.stage.Bindings;
+import stroom.shapeshifter.ai.stage.Decision.Deferred;
 import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.Stage;
 import stroom.shapeshifter.ai.stage.Stage.Served;
@@ -211,11 +213,25 @@ public class Supervision {
                           final ContentHandler downstream) throws SAXException {
         final Input input = input(data);
         final boolean stepping = pipelineContext.isStepping();
+        // A task takes the decision of design 04 §3 — emit, defer or error — and never learns; a
+        // reprocess asks what was done; a step asks what would be. The one exception is a stage fed by
+        // a parser (design 01 §12 item 4): its stream is the records the parser above it made, which the
+        // worker cannot read back from the store, so it still learns where it stands until the attempt
+        // carries its own sample — recorded in design 04 §7 against phase 4.
         final StageRun run = stepping
                 ? stage.dryRun(doc, input, asProcessed)
                 : asProcessed
                         ? stage.reprocess(doc, input)
-                        : stage.run(doc, input);
+                        : fedByParser(elementId).orElse(false)
+                                ? stage.run(doc, input)
+                                : stage.decide(doc, input);
+        if (run.decision() instanceof final Deferred deferred) {
+            // The stream waits (design 04 §5.1): the exception travels out of the pipeline as a deferral
+            // and not as a failure, so nothing is logged to the error receiver, no output is kept, and
+            // the task ends deferred. Nothing downstream of this element goes on working on a stream
+            // that will not be emitted.
+            throw new DeferTaskException(deferred.reason());
+        }
         // What the stage pane shows for this element, kept for the capture to ask (A30). Per element,
         // because a pipeline may hold two supervised stages and each has its own decision to explain.
         stepDetails.put(elementId.getId(), StepDetails.of(run, stepping));
