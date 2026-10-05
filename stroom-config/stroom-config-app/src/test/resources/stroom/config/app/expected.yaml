@@ -1288,6 +1288,7 @@ appConfig:
       maximumSize: 1000
       refreshAfterWrite: null
       statisticsMode: "INTERNAL"
+    sessionLease: "PT10M"
     shapeCache:
       expireAfterAccess: "PT10M"
       expireAfterWrite: null

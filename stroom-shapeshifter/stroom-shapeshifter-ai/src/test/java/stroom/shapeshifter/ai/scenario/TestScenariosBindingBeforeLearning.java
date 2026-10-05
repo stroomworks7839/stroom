@@ -371,15 +371,20 @@ class TestScenariosBindingBeforeLearning {
     }
 
     @Test
-    void aClaimThatHasLapsedIsFreeForTheNextNode() {
-        // The holder died mid-attempt: its claim runs out and the next node in learns, rather than the
-        // shape being stuck until someone notices (A45).
+    void aClaimThatHasLapsedStillHoldsTheShape() {
+        // The holder died mid-attempt: its claim has run out, and the shape is still its — the session is
+        // carried on from its recorded turns by the next worker to find it (design 04 §4, scenario 58),
+        // not learned again from nothing by the next stream.
         final Scenarios scenarios = new Scenarios();
-        heldByAnotherNode(scenarios, Scenarios.NOW.toEpochMilli() - 1);
+        final long held = heldByAnotherNode(scenarios, Scenarios.NOW.toEpochMilli() - 1);
+        final Script silent = Script.of();
 
-        final StageRun run = learnShapeX(scenarios, keyedOnFormat());
+        final StageRun run = scenarios.stage(silent).run(keyedOnFormat(), stream("CSV"));
 
-        assertThat(run.decision()).describedAs(run.decision().toString()).isInstanceOf(Promoted.class);
+        assertThat(run.decision()).describedAs(run.decision().toString()).isNotInstanceOf(Promoted.class);
+        assertThat(silent.asked()).describedAs("nothing is learned over it").isEmpty();
+        assertThat(scenarios.attempts.forDocument("doc-1", 10)).extracting(Recorded::id)
+                .describedAs("and no attempt opens beside it").containsExactly(held);
     }
 
     @Test

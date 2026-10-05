@@ -37,6 +37,7 @@ public class ShapeshifterAiConfig extends AbstractConfig implements IsStroomConf
     private final CacheConfig shapeCache;
     private final int deferredLearningBatchSize;
     private final StroomDuration attemptRetention;
+    private final StroomDuration sessionLease;
 
     public ShapeshifterAiConfig() {
         dbConfig = new ShapeshifterAiDbConfig();
@@ -52,6 +53,7 @@ public class ShapeshifterAiConfig extends AbstractConfig implements IsStroomConf
                 .build();
         deferredLearningBatchSize = 10;
         attemptRetention = StroomDuration.ofDays(90);
+        sessionLease = StroomDuration.ofMinutes(10);
     }
 
     @SuppressWarnings("unused")
@@ -60,12 +62,14 @@ public class ShapeshifterAiConfig extends AbstractConfig implements IsStroomConf
                                 @JsonProperty("ruleCache") final CacheConfig ruleCache,
                                 @JsonProperty("shapeCache") final CacheConfig shapeCache,
                                 @JsonProperty("deferredLearningBatchSize") final int deferredLearningBatchSize,
-                                @JsonProperty("attemptRetention") final StroomDuration attemptRetention) {
+                                @JsonProperty("attemptRetention") final StroomDuration attemptRetention,
+                                @JsonProperty("sessionLease") final StroomDuration sessionLease) {
         this.dbConfig = dbConfig;
         this.ruleCache = ruleCache;
         this.shapeCache = shapeCache;
         this.deferredLearningBatchSize = deferredLearningBatchSize;
         this.attemptRetention = attemptRetention;
+        this.sessionLease = sessionLease;
     }
 
     @Override
@@ -114,5 +118,17 @@ public class ShapeshifterAiConfig extends AbstractConfig implements IsStroomConf
                              + "row per stream that nothing will ever remove.")
     public StroomDuration getAttemptRetention() {
         return attemptRetention;
+    }
+
+    @JsonProperty("sessionLease")
+    @JsonPropertyDescription("How long a node's claim on a learning session lasts from its last turn. The "
+                             + "node renews it before and after every question it puts to the model, so a "
+                             + "live session never lapses; one whose node has died lapses within this of "
+                             + "its last turn, and the next pass of the Deferred Learning job on any node "
+                             + "carries it on from the turns already recorded. Longer than the slowest "
+                             + "model call expected, or a slow answer is taken for a dead node and two nodes "
+                             + "walk one session.")
+    public StroomDuration getSessionLease() {
+        return sessionLease;
     }
 }

@@ -40,15 +40,17 @@ public interface Attempts {
     /// `(doc, shape)` is what one learner means, and an attempt parked awaiting the model or a person is
     /// still learning.
     ///
-    /// @param nowMs What the caller's clock says now, against which a claim's expiry is judged: the two
-    ///              must come from one clock, or a stage whose clock is fixed — a test's — opens attempts
-    ///              that have lapsed on arrival and claims nothing, as the lease of A42 once did.
-    /// @return The attempt's id, or empty where another is open for the shape and has not lapsed — the
-    /// caller has not taken the shape and must not learn it.
+    /// An open attempt whose lease has lapsed holds its shape still: its node has stopped, and the session
+    /// is resumed from its recorded turns by the next worker to find it (design 04 §4), not replaced.
+    ///
+    /// @param nowMs What the caller's clock says now, which the record keeps beside the claim's expiry;
+    ///              the two must come from one clock.
+    /// @return The attempt's id, or empty where another is open for the shape — the caller has not taken
+    /// the shape and must not learn it.
     Optional<Long> opened(Attempt attempt, long nowMs);
 
-    /// The attempt open for a shape, if one is: what a node meeting the shape finds instead of taking it,
-    /// and what the worker picks up.
+    /// The attempt open for a shape, if one is — lapsed or not: what a node meeting the shape finds instead
+    /// of taking it, and what a stream of the shape waits on.
     Optional<Recorded> open(String docUuid, String shape, long nowMs);
 
     /// Park an attempt until whoever will answer its next question does (A28): it keeps its claim on the
@@ -84,6 +86,15 @@ public interface Attempts {
     /// no longer awaiting: opening the attempt that took it closed this one.
     List<Recorded> awaiting(int limit);
 
+    /// The attempts a node was carrying whose lease has lapsed: `IN_PROGRESS`, expiry at or before `nowMs`,
+    /// oldest first. The node behind each has stopped without finishing — died, or was stopped — and the
+    /// session is resumed from its recorded turns by whichever worker finds it (design 04 §4), not opened
+    /// again from nothing.
+    ///
+    /// @param nowMs The time the lease is judged against.
+    /// @param limit The most to list.
+    List<Recorded> lapsed(long nowMs, int limit);
+
     /// Push a running attempt's claim out, as the conversation asks each question (A45): the heartbeat that
     /// keeps a slow model call from costing a node the shape it is learning.
     void heartbeat(long attemptId, long expiryMs);
@@ -108,10 +119,10 @@ public interface Attempts {
     /// shape back and its claim is pushed out, as opening one does (A45), whether it had finished, was
     /// parked, or was being walked by a node that has since stopped.
     ///
-    /// @return Whether it was opened. False where another attempt holds the shape now, and false where a
-    /// node is walking this one at this moment: its answers are that walk's to give, and a person's would
-    /// be overwritten by the next turn it records. Either way the person is told rather than the answer
-    /// being lost.
+    /// @return Whether it was opened. False where another attempt holds the shape now — lapsed or not,
+    /// since a lapsed one is resumed and not replaced — and false where a node is walking this one at this
+    /// moment: its answers are that walk's to give, and a person's would be overwritten by the next turn
+    /// it records. Either way the person is told rather than the answer being lost.
     boolean reopened(long attemptId, long nowMs, long expiryMs);
 
     /// What a person decided about the draft an attempt wrote (A25, A28): the attempt that is awaiting

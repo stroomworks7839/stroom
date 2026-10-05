@@ -286,13 +286,18 @@ class TestScenario31APersonAnswersATurn {
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("cannot be run again");
 
-        // That node stops holding it: a claim nobody is behind is released, as opening a new attempt
-        // releases one, or a dead node would keep a shape from ever being run again.
+        // That node's lease lapses and it still holds the shape: a lapsed session is resumed by the next
+        // worker, not swept aside for an answer to an older attempt (design 04 §4, scenario 58).
         scenarios.attempts.heartbeat(theirs, Scenarios.NOW.toEpochMilli() - 1);
+        assertThatThrownBy(() -> scenarios.stage(Script.of())
+                .amend(doc, abandoned.id(), 1, "DSParser -> XSLTFilter", OPERATOR))
+                .isInstanceOf(IllegalStateException.class);
+        assertThat(scenarios.attempts.byId(theirs).orElseThrow().status()).isEqualTo(AttemptStatus.IN_PROGRESS);
+
+        // Once it has finished, the shape is free and the answer goes through.
+        scenarios.attempts.closed(theirs, AttemptStatus.ABANDONED, "Given up", null, null, 0L);
         scenarios.stage(Script.of()).amend(doc, abandoned.id(), 1, "DSParser -> XSLTFilter", OPERATOR);
 
-        assertThat(scenarios.attempts.byId(theirs).orElseThrow().status())
-                .isEqualTo(AttemptStatus.ABANDONED);
         assertThat(scenarios.attempts.byId(abandoned.id()).orElseThrow().status())
                 .isEqualTo(AttemptStatus.AWAITING_MODEL);
     }

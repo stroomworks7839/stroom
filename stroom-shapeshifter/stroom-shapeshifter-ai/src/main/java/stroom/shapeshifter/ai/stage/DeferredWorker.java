@@ -25,6 +25,9 @@ import stroom.util.logging.LambdaLogger;
 import stroom.util.logging.LambdaLoggerFactory;
 import stroom.util.logging.LogUtil;
 
+import java.time.Clock;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 
@@ -47,20 +50,25 @@ public final class DeferredWorker {
     private final Documents documents;
     private final Inputs inputs;
     private final Advisors advisors;
+    private final Clock clock;
 
     public DeferredWorker(final Stage stage,
                           final Attempts attempts,
                           final Documents documents,
                           final Inputs inputs,
-                          final Advisors advisors) {
+                          final Advisors advisors,
+                          final Clock clock) {
         this.stage = stage;
         this.attempts = attempts;
         this.documents = documents;
         this.inputs = inputs;
         this.advisors = advisors;
+        this.clock = clock;
     }
 
-    /// Advance up to `limit` waiting attempts, oldest first.
+    /// Advance up to `limit` attempts, oldest first: those waiting for the model, and then those a node
+    /// was carrying whose lease has lapsed (design 04 §4) — a session whose node died is carried on from
+    /// the turns it recorded, by this node, and not opened again from nothing.
     ///
     /// One attempt's failure is its own: a document deleted, a stream aged off or a model that fell over
     /// closes that attempt and the pass goes on to the next, since a job that stops at the first bad
@@ -69,7 +77,14 @@ public final class DeferredWorker {
     /// @return How many attempts this pass carried to an end. An attempt another node took first, or one
     /// the shape no longer wants, is not one of them: nothing was learned for it here.
     public int advance(final int limit) {
-        final List<Recorded> waiting = attempts.awaiting(limit);
+        // Oldest first across both kinds: a lapsed session has streams waiting on it as a parked attempt
+        // has, and a cluster with a full batch of parked attempts must not leave it behind for ever.
+        final List<Recorded> waiting = new ArrayList<>(attempts.awaiting(limit));
+        waiting.addAll(attempts.lapsed(clock.millis(), limit));
+        waiting.sort(Comparator.comparingLong(Recorded::id));
+        if (waiting.size() > limit) {
+            waiting.subList(limit, waiting.size()).clear();
+        }
         int advanced = 0;
         for (final Recorded attempt : waiting) {
             if (carry(attempt)) {
@@ -77,7 +92,7 @@ public final class DeferredWorker {
             }
         }
         final int carried = advanced;
-        LOGGER.debug(() -> LogUtil.message("Carried on {} of {} attempts awaiting the model",
+        LOGGER.debug(() -> LogUtil.message("Carried on {} of {} attempts awaiting the model or lapsed",
                 carried, waiting.size()));
         return advanced;
     }

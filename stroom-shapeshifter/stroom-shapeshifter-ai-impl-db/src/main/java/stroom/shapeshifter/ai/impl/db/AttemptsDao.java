@@ -89,18 +89,10 @@ public class AttemptsDao implements Attempts {
     public Optional<Long> opened(final Attempt attempt, final long nowMs) {
         final long now = System.currentTimeMillis();
         final String claim = ShapesDao.hash(attempt.shape());
+        // An attempt whose lease has lapsed still holds its shape: the node behind it has stopped, and the
+        // session is resumed by the next worker to find it (design 04 §4), not abandoned here for a new one
+        // that would ask the model everything again.
         return JooqUtil.transactionResult(connProvider, context -> {
-            // An attempt that has lapsed holds nothing: its claim is released before this one asks for it,
-            // which is how a node that died lets the next in.
-            context.update(SHAPESHIFTER_ATTEMPT)
-                    .setNull(SHAPESHIFTER_ATTEMPT.CLAIM_KEY)
-                    .set(SHAPESHIFTER_ATTEMPT.STATUS, AttemptStatus.ABANDONED.name())
-                    .set(SHAPESHIFTER_ATTEMPT.DECISION, "Lapsed: the node learning it stopped")
-                    .set(SHAPESHIFTER_ATTEMPT.UPDATE_TIME_MS, now)
-                    .where(SHAPESHIFTER_ATTEMPT.DOC_UUID.eq(attempt.docUuid()))
-                    .and(SHAPESHIFTER_ATTEMPT.CLAIM_KEY.eq(claim))
-                    .and(SHAPESHIFTER_ATTEMPT.EXPIRY_MS.le(nowMs))
-                    .execute();
             try {
                 // The unique key on (doc_uuid, claim_key) is what admits one open attempt per shape: two
                 // nodes meeting a new shape at once are decided by the database, not by what each read.
@@ -138,6 +130,21 @@ public class AttemptsDao implements Attempts {
                         .select()
                         .from(SHAPESHIFTER_ATTEMPT)
                         .where(SHAPESHIFTER_ATTEMPT.STATUS.eq(AttemptStatus.AWAITING_MODEL.name()))
+                        .orderBy(SHAPESHIFTER_ATTEMPT.ID)
+                        .limit(limit)
+                        .fetch())
+                .stream()
+                .map(record -> recorded(record, turns(record.get(SHAPESHIFTER_ATTEMPT.ID))))
+                .toList();
+    }
+
+    @Override
+    public List<Recorded> lapsed(final long nowMs, final int limit) {
+        return JooqUtil.contextResult(connProvider, context -> context
+                        .select()
+                        .from(SHAPESHIFTER_ATTEMPT)
+                        .where(SHAPESHIFTER_ATTEMPT.STATUS.eq(AttemptStatus.IN_PROGRESS.name()))
+                        .and(SHAPESHIFTER_ATTEMPT.EXPIRY_MS.le(nowMs))
                         .orderBy(SHAPESHIFTER_ATTEMPT.ID)
                         .limit(limit)
                         .fetch())
@@ -194,19 +201,8 @@ public class AttemptsDao implements Attempts {
                 && expiry > nowMs) {
                 return false;
             }
-            // Whatever else holds this shape and has lapsed holds nothing (A45), the same release that
-            // opening an attempt performs: an attempt whose node died must not block the shape from ever
-            // being run again.
-            context.update(SHAPESHIFTER_ATTEMPT)
-                    .setNull(SHAPESHIFTER_ATTEMPT.CLAIM_KEY)
-                    .set(SHAPESHIFTER_ATTEMPT.STATUS, AttemptStatus.ABANDONED.name())
-                    .set(SHAPESHIFTER_ATTEMPT.DECISION, "Lapsed: the node learning it stopped")
-                    .set(SHAPESHIFTER_ATTEMPT.UPDATE_TIME_MS, now)
-                    .where(SHAPESHIFTER_ATTEMPT.DOC_UUID.eq(row.get(SHAPESHIFTER_ATTEMPT.DOC_UUID)))
-                    .and(SHAPESHIFTER_ATTEMPT.CLAIM_KEY.eq(row.get(SHAPESHIFTER_ATTEMPT.SHAPE_HASH)))
-                    .and(SHAPESHIFTER_ATTEMPT.EXPIRY_MS.le(nowMs))
-                    .and(SHAPESHIFTER_ATTEMPT.ID.ne(attemptId))
-                    .execute();
+            // Whatever else holds the shape keeps it, lapsed or not: a lapsed session is resumed, not
+            // swept aside for an answer to an older one, and the unique key below says so.
             try {
                 // Its claim taken back, and pushed out: an attempt a person has just answered must not be
                 // swept away by the next stream of its shape before the worker reaches it.
@@ -247,7 +243,6 @@ public class AttemptsDao implements Attempts {
                         .where(SHAPESHIFTER_ATTEMPT.DOC_UUID.eq(docUuid))
                         .and(SHAPESHIFTER_ATTEMPT.SHAPE_HASH.eq(ShapesDao.hash(shape)))
                         .and(SHAPESHIFTER_ATTEMPT.STATUS.in(OPEN))
-                        .and(SHAPESHIFTER_ATTEMPT.EXPIRY_MS.gt(nowMs))
                         .orderBy(SHAPESHIFTER_ATTEMPT.ID.desc())
                         .limit(1)
                         .fetchOptional())

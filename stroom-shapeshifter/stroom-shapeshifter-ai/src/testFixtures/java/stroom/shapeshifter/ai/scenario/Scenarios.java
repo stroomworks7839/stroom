@@ -61,6 +61,7 @@ import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -78,6 +79,8 @@ public final class Scenarios {
      * Every promotion in a scenario happens at this instant, so promotion times are assertable.
      */
     public static final Instant NOW = Instant.parse("2026-09-17T09:00:00Z");
+    /// A node's lease on a session (design 04 §4), as a node's configuration defaults it.
+    public static final Duration LEASE = Duration.ofMinutes(10);
     public static final long SEED = 42L;
 
     private static final NodeFixture NODE = new NodeFixture();
@@ -188,6 +191,7 @@ public final class Scenarios {
                 snapshots,
                 stores.codes(),
                 Clock.fixed(NOW, ZoneOffset.UTC),
+                LEASE,
                 SEED,
                 node);
     }
@@ -196,7 +200,8 @@ public final class Scenarios {
     /// job that carries on the attempts a deferred document parks. The stage is one of this scenario's,
     /// since a stage holds nothing of a stream between calls.
     public DeferredWorker worker(final Advisor answerer) {
-        return new DeferredWorker(stage(answerer), attempts, documents, inputs, document -> answerer);
+        return new DeferredWorker(stage(answerer), attempts, documents, inputs, document -> answerer,
+                Clock.fixed(NOW, ZoneOffset.UTC));
     }
 
     public static Golden corpus(final String stem) {

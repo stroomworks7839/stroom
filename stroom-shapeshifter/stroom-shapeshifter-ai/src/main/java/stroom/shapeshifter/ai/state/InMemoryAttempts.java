@@ -72,8 +72,7 @@ public final class InMemoryAttempts implements Attempts {
         return attempts.values().stream()
                 .filter(attempt -> attempt.attempt().docUuid().equals(docUuid)
                                    && attempt.attempt().shape().equals(shape)
-                                   && OPEN.contains(attempt.status())
-                                   && attempt.attempt().expiryMs() > nowMs)
+                                   && OPEN.contains(attempt.status()))
                 .max(Comparator.comparingLong(Recorded::id))
                 .map(this::withTurns);
     }
@@ -233,9 +232,8 @@ public final class InMemoryAttempts implements Attempts {
         if (was.status() == AttemptStatus.IN_PROGRESS && was.attempt().expiryMs() > nowMs) {
             return false;
         }
-        // Whatever else holds this shape and has lapsed holds nothing (A45), or an attempt whose node
-        // died would block the shape from ever being run again.
-        lapsed(was.attempt().docUuid(), was.attempt().shape(), attemptId, nowMs);
+        // Whatever else holds the shape keeps it, lapsed or not: a lapsed session is resumed, not swept
+        // aside for an answer to an older one.
         if (open(was.attempt().docUuid(), was.attempt().shape(), nowMs)
                 .filter(other -> other.id() != attemptId)
                 .isPresent()) {
@@ -247,24 +245,21 @@ public final class InMemoryAttempts implements Attempts {
         return true;
     }
 
-    /// Every other attempt on this shape whose claim has passed, abandoned: the same release that opening
-    /// an attempt performs (A45).
-    private void lapsed(final String docUuid, final String shape, final long except, final long nowMs) {
-        attempts.values().stream()
-                .filter(attempt -> attempt.id() != except
-                                   && attempt.attempt().docUuid().equals(docUuid)
-                                   && attempt.attempt().shape().equals(shape)
-                                   && OPEN.contains(attempt.status())
-                                   && attempt.attempt().expiryMs() <= nowMs)
-                .toList()
-                .forEach(attempt -> closed(attempt.id(), AttemptStatus.ABANDONED,
-                        "Lapsed: the node learning it stopped", null, null, 0L));
-    }
-
     @Override
     public synchronized List<Recorded> awaiting(final int limit) {
         return attempts.values().stream()
                 .filter(attempt -> attempt.status() == AttemptStatus.AWAITING_MODEL)
+                .sorted(Comparator.comparingLong(Recorded::id))
+                .limit(limit)
+                .map(this::withTurns)
+                .toList();
+    }
+
+    @Override
+    public synchronized List<Recorded> lapsed(final long nowMs, final int limit) {
+        return attempts.values().stream()
+                .filter(attempt -> attempt.status() == AttemptStatus.IN_PROGRESS
+                                   && attempt.attempt().expiryMs() <= nowMs)
                 .sorted(Comparator.comparingLong(Recorded::id))
                 .limit(limit)
                 .map(this::withTurns)

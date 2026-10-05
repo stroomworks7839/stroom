@@ -92,6 +92,7 @@ import org.xml.sax.ContentHandler;
 
 import java.io.IOException;
 import java.time.Clock;
+import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -129,11 +130,6 @@ public final class Stage {
 
     private static final String FOLDER = "Shapeshifter";
     /**
-     * Added to the attempt budget for the claim's expiry: an attempt that runs to its budget still holds
-     * the shape it is learning.
-     */
-    private static final long CLAIM_GRACE_MS = 30_000L;
-    /**
      * The window a document's spend is counted over (A44). A24 will make it a setting, with the budget it
      * is measured against; until then it is an hour, which is long enough to see a feed burning spend and
      * short enough that yesterday's does not hide it.
@@ -170,6 +166,8 @@ public final class Stage {
             ScorerType.EXTRACTION_QUALITY, ScorerType.BUSINESS_RULES);
     private final Router router = new Router();
     private final Clock clock;
+    /// How long a claim on an attempt lasts from its last renewal (design 04 §4).
+    private final Duration lease;
     private final long seed;
     private final String node;
 
@@ -192,6 +190,7 @@ public final class Stage {
                  final Snapshots snapshots,
                  final FragmentCodes codes,
                  final Clock clock,
+                 final Duration lease,
                  final long seed,
                  final String node) {
         this.advisors = advisors;
@@ -213,16 +212,16 @@ public final class Stage {
         this.snapshots = snapshots;
         this.codes = codes;
         this.clock = clock;
+        this.lease = lease;
         this.seed = seed;
         this.node = node;
     }
 
-    /**
-     * When a claim taken now lapses if nothing extends it (A45): long enough for an attempt that runs to
-     * its whole budget still to hold the shape it is learning.
-     */
-    private long claimUntil(final ShapeshifterAiDoc doc) {
-        return clock.millis() + doc.getAttemptBudgetMs() + CLAIM_GRACE_MS;
+    /// When a claim taken or renewed now lapses: one lease on, which is a turn's allowance and not the
+    /// attempt's whole budget, so that a session whose node has died is noticed within a turn (§4). The
+    /// claim is renewed before every question and as every turn is recorded.
+    private long claimUntil() {
+        return clock.millis() + lease.toMillis();
     }
 
     /**
@@ -250,7 +249,7 @@ public final class Stage {
         }
         // Carrying it on is taking it (A45): an attempt that has finished is not resumed, and one another
         // node has taken since is that node's until its claim lapses.
-        if (!attempts.claimed(attemptId, node, clock.millis(), claimUntil(doc))) {
+        if (!attempts.claimed(attemptId, node, clock.millis(), claimUntil())) {
             return sentinel(doc, shape, input, "Attempt " + attemptId + " is not this node's to carry on: it "
                                                + "has finished, or another node holds it");
         }
@@ -326,7 +325,7 @@ public final class Stage {
         if (recorded.turns().stream().noneMatch(turn -> turn.number() == turnNumber)) {
             throw new IllegalArgumentException("Attempt " + attemptId + " has no turn " + turnNumber);
         }
-        if (!attempts.reopened(attemptId, clock.millis(), claimUntil(doc))) {
+        if (!attempts.reopened(attemptId, clock.millis(), claimUntil())) {
             throw new IllegalStateException("Attempt " + attemptId + " cannot be run again: it is being "
                                             + "carried on now, or another attempt is learning shape "
                                             + recorded.attempt().shape());
@@ -1232,7 +1231,7 @@ public final class Stage {
                                final Function<Recorder, StageRun> attempt) {
         final Optional<Long> opened = attempts.opened(new Attempts.Attempt(doc.getUuid(), shape.id(),
                 input.feed(), input.type(), input.id(), node, doc.getExecutionMode(), doc.getPromotionMode(),
-                claimUntil(doc)), clock.millis());
+                claimUntil()), clock.millis());
         if (opened.isEmpty()) {
             // Another attempt holds this shape (A45): it is still learning, parked or not, and this stream
             // takes what that attempt comes to rather than learning the same thing beside it.
@@ -1272,7 +1271,7 @@ public final class Stage {
             record(() -> attempts.turn(attemptId, new Attempts.Turn(recorder.numbered(awaiting.number()),
                     awaiting.stepId(), awaiting.candidate(), Question.kindOf(awaiting.question()),
                     awaiting.question().summary(), null, null, null)));
-            record(() -> attempts.parked(attemptId, AttemptStatus.AWAITING_MODEL, claimUntil(doc),
+            record(() -> attempts.parked(attemptId, AttemptStatus.AWAITING_MODEL, claimUntil(),
                     Math.max(0L, advisor.tokensUsed() - before)));
             return waiting.apply("Awaiting the model: attempt " + attemptId + " stopped at "
                                  + awaiting.question().summary());
@@ -1361,11 +1360,14 @@ public final class Stage {
         /// The claim pushed out, before every question: an attempt held up by one slow model call would
         /// otherwise run past its expiry and have its shape learned again by another node (A45).
         private void heartbeat() {
-            record(() -> attempts.heartbeat(attemptId, claimUntil(doc)));
+            record(() -> attempts.heartbeat(attemptId, claimUntil()));
         }
 
         private void turn(final int number, final Exchange exchange) {
             final int numbered = numbered(number);
+            // Renewed as the turn completes as well as before it is asked, so a live session is never
+            // mistaken for a dead one however long the model took.
+            heartbeat();
             record(() -> attempts.turn(attemptId, new Attempts.Turn(numbered, exchange.step(),
                     exchange.candidate(), Question.kindOf(exchange.question()), exchange.question().summary(),
                     exchange.reply(), answeredBefore.getOrDefault(numbered, answeredBy),

@@ -32,6 +32,8 @@ import jakarta.inject.Inject;
 import jakarta.inject.Provider;
 import jakarta.inject.Singleton;
 
+import java.time.Clock;
+
 /// Deferred mode's worker as a node runs it (A5, A28): the job behind *Shapeshifter AI Deferred
 /// Learning*. A deferred document asks the model nothing in the processing task — the attempt is opened
 /// and parked at its first question — and this is what carries those attempts on, at whatever pace the
@@ -82,7 +84,7 @@ public class DeferredLearning {
             // compiler, the schema scorer — reports through the scoped error receiver, and a candidate
             // configuration is compiled and run here exactly as it is in a task.
             final DeferredWorker worker = new DeferredWorker(stageFactory.get().create(), attempts, documents,
-                    inputs, advisors);
+                    inputs, advisors, Clock.systemUTC());
             final int carried = worker.advance(configProvider.get().getDeferredLearningBatchSize());
             if (carried > 0) {
                 LOGGER.info(() -> LogUtil.message("Carried on {} attempt(s) awaiting the model", carried));

@@ -201,9 +201,18 @@ class TestShapesAndLedgerDao {
                 .describedAs("which carries it on").isTrue();
 
         attempts.heartbeat(id, now() - 1);
-        assertThat(attempts.open(DOC, shape, now())).describedAs("lapsed, and the shape is free").isEmpty();
+        assertThat(attempts.open(DOC, shape, now())).describedAs("lapsed, and it still holds its shape: the "
+                                                                 + "session is resumed, not replaced (design 04 §4)")
+                .map(Recorded::id).contains(id);
+        assertThat(attempts.lapsed(now(), 10)).extracting(Recorded::id)
+                .describedAs("which is what the next worker finds it by").contains(id);
+        assertThat(attempts.opened(new Attempt(DOC, shape, "F", "T", 2L, "node-2",
+                ExecutionMode.DEFERRED, PromotionMode.AUTOMATIC, now() + 60_000L), now()))
+                .describedAs("so no attempt opens beside it").isEmpty();
         assertThat(attempts.claimed(id, "node-1", now(), now() + 60_000L))
                 .describedAs("a node that died lets the next one in").isTrue();
+        assertThat(attempts.lapsed(now(), 10)).extracting(Recorded::id)
+                .describedAs("and taken, it is nobody's to find").doesNotContain(id);
         assertThat(attempts.byId(id).orElseThrow().attempt().node()).isEqualTo("node-1");
 
         // What it spent on each leg is added up, not overwritten, or a resumed attempt's cost is only its
@@ -315,7 +324,7 @@ class TestShapesAndLedgerDao {
     @Test
     void oneOpenAttemptPerShapeIsWhatOneLearnerMeans() {
         // A45: the attempt row is the claim. A parked attempt is still learning, and one whose expiry has
-        // passed has lapsed, so the next node takes the shape.
+        // passed has lapsed and is still learning too: it is resumed, not replaced (design 04 §4).
         final String shape = SHAPE + "-claim";
         final long mine = attempts.opened(new Attempt(DOC, shape, "F", "T", 1L, "node-1",
                 ExecutionMode.INLINE, PromotionMode.AUTOMATIC, now() + 60_000L), now()).orElseThrow();
@@ -331,15 +340,14 @@ class TestShapesAndLedgerDao {
         assertThat(attempts.opened(new Attempt(DOC, shape, "F", "T", 3L, "node-2",
                 ExecutionMode.INLINE, PromotionMode.AUTOMATIC, now() + 60_000L), now())).isEmpty();
 
-        // Lapsed, and the next node in takes it.
+        // Lapsed, it still holds the shape: nobody opens beside it.
         attempts.parked(mine, AttemptStatus.AWAITING_MODEL, now() - 1, 0L);
-        assertThat(attempts.open(DOC, shape, now())).isEmpty();
-        final Long theirs = attempts.opened(new Attempt(DOC, shape, "F", "T", 4L, "node-2",
-                ExecutionMode.INLINE, PromotionMode.AUTOMATIC, now() + 60_000L), now()).orElseThrow();
-        assertThat(theirs).isNotEqualTo(mine);
+        assertThat(attempts.open(DOC, shape, now())).map(Recorded::id).contains(mine);
+        assertThat(attempts.opened(new Attempt(DOC, shape, "F", "T", 4L, "node-2",
+                ExecutionMode.INLINE, PromotionMode.AUTOMATIC, now() + 60_000L), now())).isEmpty();
 
         // Closed, it holds nothing, and the shape is free for the attempt after it.
-        attempts.closed(theirs, AttemptStatus.PROMOTED, "Promoted 1.0", "rule-2", 1.0, 0L);
+        attempts.closed(mine, AttemptStatus.PROMOTED, "Promoted 1.0", "rule-2", 1.0, 0L);
         assertThat(attempts.open(DOC, shape, now())).isEmpty();
         assertThat(attempts.opened(new Attempt(DOC, shape, "F", "T", 5L, "node-3",
                 ExecutionMode.INLINE, PromotionMode.AUTOMATIC, now() + 60_000L), now())).isPresent();
@@ -393,10 +401,9 @@ class TestShapesAndLedgerDao {
 
     @Test
     void anAttemptIsOpenedAgainDespiteAClaimNobodyIsBehind() {
-        // A45: an attempt whose node died holds its shape until something releases it. Opening one again
-        // releases it, as opening a new one does, or a person could never re-run a shape a dead node had
-        // been learning. And the claim of the attempt reopened is pushed out, or the next stream of the
-        // shape would sweep away the very answer they had just given.
+        // A45: an attempt whose node died holds its shape, and a person may still answer it and run it
+        // again. The claim of the attempt reopened is pushed out, or a worker would find it lapsed and
+        // take it before the answer was recorded against it.
         final String shape = SHAPE + "-lapsed";
         final long dead = attempts.opened(new Attempt(DOC, shape, "F", "T", 1L, "node-dead",
                 ExecutionMode.INLINE, PromotionMode.AUTOMATIC, now() - 1), now() - 2).orElseThrow();
@@ -406,15 +413,11 @@ class TestShapesAndLedgerDao {
         attempts.turn(mine, new Turn(1, "chain", 1, QuestionKind.CHAIN, "Chain: choose from [DSParser]",
                 "DSParser", "local-model", StepOutcome.PASSED));
         attempts.parked(mine, AttemptStatus.AWAITING_MODEL, now() - 1, 0L);
-        // A third attempt takes the shape and its node dies holding it.
-        final long stopped = attempts.opened(new Attempt(DOC, shape, "F", "T", 3L, "node-dead",
-                ExecutionMode.INLINE, PromotionMode.AUTOMATIC, now() - 1), now()).orElseThrow();
 
         assertThat(attempts.reopened(mine, now(), now() + 60_000L))
-                .describedAs("the lapsed claim is released, as opening a new attempt would release it")
+                .describedAs("lapsed or not, a person's answer reopens it")
                 .isTrue();
 
-        assertThat(attempts.byId(stopped).orElseThrow().status()).isEqualTo(AttemptStatus.ABANDONED);
         final Recorded reopened = attempts.byId(mine).orElseThrow();
         assertThat(reopened.status()).isEqualTo(AttemptStatus.AWAITING_MODEL);
         assertThat(reopened.attempt().expiryMs()).isGreaterThan(now());

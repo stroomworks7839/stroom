@@ -24,6 +24,7 @@ import stroom.pipeline.factory.InjectedCode;
 import stroom.pipeline.factory.PipelineDataCache;
 import stroom.pipeline.factory.PipelineFactory;
 import stroom.pipeline.stepping.capture.HeadlessCapture;
+import stroom.shapeshifter.ai.ShapeshifterAiConfig;
 import stroom.shapeshifter.ai.extraction.DataSplitterCompiler;
 import stroom.shapeshifter.ai.extraction.DataSplitterStep;
 import stroom.shapeshifter.ai.extraction.JsonStep;
@@ -106,6 +107,7 @@ public class StageFactory {
     private final Wake wake;
     private final Snapshots snapshots;
     private final FragmentCodes codes;
+    private final Provider<ShapeshifterAiConfig> configProvider;
 
     @Inject
     public StageFactory(final Advisors advisors,
@@ -135,7 +137,8 @@ public class StageFactory {
                         final Deferrals deferrals,
                         final Wake wake,
                         final Snapshots snapshots,
-                        final FragmentCodes codes) {
+                        final FragmentCodes codes,
+                        final Provider<ShapeshifterAiConfig> configProvider) {
         this.advisors = advisors;
         this.dataSplitterCompiler = dataSplitterCompiler;
         this.schemaConformanceScorer = schemaConformanceScorer;
@@ -164,6 +167,7 @@ public class StageFactory {
         this.wake = wake;
         this.snapshots = snapshots;
         this.codes = codes;
+        this.configProvider = configProvider;
     }
 
     /// A stage on this node, under the wall clock and a fresh seed for the held-out split (A14).
@@ -208,6 +212,7 @@ public class StageFactory {
                 snapshots,
                 codes,
                 Clock.systemUTC(),
+                configProvider.get().getSessionLease().getDuration(),
                 ThreadLocalRandom.current().nextLong(),
                 nodeInfo.getThisNodeName());
     }

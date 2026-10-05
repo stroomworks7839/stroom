@@ -741,11 +741,36 @@ order. One thing noted and left: a candidate kept out under the worker is record
 output of the stream, as it was before this slice, though the worker wrote nothing; it is bookkeeping a
 reprocess reads and is worth a look when the Supervisor's view of a session is built.
 
-What this slice does not do: resume a lapsed `IN_PROGRESS` session or renew the lease per turn (§4);
-give the Supervisor its actions on a parked attempt — answer, more to spend, send to the exhaustion
-step — which phase 6 owes with the screen; and tell a session out of budget from one out of candidates
-in anything but its reason. Nothing is done with a stream that cannot be parsed beyond what phase 5
-rules.
+What the third slice did not do: give the Supervisor its actions on a parked attempt — answer, more to
+spend, send to the exhaustion step — which phase 6 owes with the screen; and tell a session out of
+budget from one out of candidates in anything but its reason. Nothing is done with a stream that cannot
+be parsed beyond what phase 5 rules.
+
+*Built 2026-10-05, the fourth slice: a session whose node dies is carried on by another (§4).* The lease
+is a turn's allowance: `ShapeshifterAiConfig.sessionLease`, ten minutes by default, taken when an attempt
+is claimed and renewed before every question and as every turn is recorded, so a live session never
+lapses and a dead one is noticed within a turn. A lapsed lease no longer frees the shape: `opened` does
+not abandon the holder and `open` does not look at the expiry, so the next stream of the shape waits on
+the session and nothing opens beside it. `Attempts.lapsed` lists what a node was carrying whose lease
+has run out, and `DeferredWorker.advance` takes those after the attempts awaiting the model: `claimed`
+already let any node take a lapsed attempt, and `resume` already re-walked the recorded turns, so the
+dead node's session is finished by whichever worker finds it, asking the model only what it had not
+been answered. Scenario 58 is the exit, at Tier 1 with two node names over one set of state and at the
+DAO against the table. Added to the expected configuration, as every setting is.
+
+*Its own audit found two, 2026-10-05.* A person's answer to an older attempt still swept a lapsed session
+aside: `reopened` abandoned whatever lapsed attempt held the shape so that the reopened one could take it
+back — the old release, kept — where the rule is now that a lapsed session is resumed; the clause is gone
+in both implementations, and a reopen is refused while any attempt holds the shape, as its contract now
+says. And the worker took lapsed sessions only with what was left of its batch after the attempts
+awaiting the model, so a cluster whose batch was always full of parked attempts would never have reached
+one; the two kinds are listed together, oldest first, and the batch cut from that.
+
+What this slice does not do: nothing at Tier 2 beyond the DAO, since the test harness has one node
+name — the takeover is the DAO's `claimed` and the worker's listing, both held — and nothing for a
+session whose node dies *inside* a model call longer than the lease, which is taken for dead and
+walked by two nodes at once until the first finishes; the lease is to be set longer than the slowest
+call expected, and the setting's description says so.
 
 ### Phase 5 — A session always ends *(the feature)*
 
