@@ -17,6 +17,7 @@
 package stroom.shapeshifter.ai.scenario;
 
 import stroom.docref.DocRef;
+import stroom.meta.shared.MetaFields;
 import stroom.pipeline.shared.XsltDoc;
 import stroom.pipeline.shared.data.PipelineProperty;
 import stroom.processor.api.DeferTaskException;
@@ -28,11 +29,13 @@ import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.Snapshots.Snapshot;
 import stroom.shapeshifter.ai.stage.Stage;
 import stroom.shapeshifter.ai.stage.StageRun;
+import stroom.shapeshifter.shared.RoutingFields;
 import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -155,6 +158,50 @@ class TestScenario56ASnapshotKeepsWhatRan {
         assertThat(scenarios.snapshots.forRule(learned.getUuid())).hasSize(2);
     }
 
+    /// A fragment bound for two shapes — one learned, one bound by looking (design 01 §6) — is not either
+    /// rule's alone: a relearning for the second writes it a fragment of its own, and the first goes on
+    /// serving with what it had.
+    @Test
+    void aFragmentSharedWithANeighbouringShapeIsNotEditedInPlace() {
+        final Scenarios scenarios = new Scenarios();
+        final ShapeshifterAiDoc doc = doc().copy()
+                .learningKey(List.of(MetaFields.FIELD_FEED, MetaFields.FIELD_TYPE, RoutingFields.FORMAT))
+                .build();
+        scenarios.documents.put(doc);
+        final Script learning = script(scenarios, LOGON_ONLY);
+        final StageRun first = scenarios.stage(document -> learning, scenarios.rules)
+                .run(doc, stream(1L, CSV.input(), "CSV"));
+        learning.verifyExhausted();
+        final RoutingRule a = ((Promoted) first.decision()).rule();
+        // The neighbour, bound by looking to a's fragment.
+        final Script silent = Script.of();
+        final StageRun second = task(scenarios, silent).decide(doc, stream(2L, CSV.input(), "CSV-v2"));
+        final RoutingRule b = ((Promoted) second.decision()).rule();
+        assertThat(b.getPipeline()).isEqualTo(a.getPipeline());
+        assertThat(b.getSnapshot())
+                .describedAs("its own snapshot of the shared fragment")
+                .isNotEqualTo(a.getSnapshot());
+
+        // A mixed stream of the neighbour's shape falls short; the worker relearns the neighbour.
+        scenarios.inputs.put(stream(3L, MIXED, "CSV-v2"));
+        assertThatThrownBy(() -> task(scenarios, silent).stream(doc, b, stream(3L, MIXED, "CSV-v2"), new TextSink()))
+                .isInstanceOf(DeferTaskException.class);
+        final Script relearning = script(scenarios, TRANSLATES_BOTH);
+        assertThat(scenarios.worker(relearning).advance(10)).isEqualTo(1);
+        relearning.verifyExhausted();
+
+        final RoutingRule rebound = scenarios.rules.forDocument(DOC).stream()
+                .filter(rule -> rule.getUuid().equals(b.getUuid()))
+                .findFirst()
+                .orElseThrow();
+        assertThat(rebound.getPipeline()).describedAs("a fragment of its own").isNotEqualTo(a.getPipeline());
+        assertThat(stylesheet(scenarios, a.getPipeline()))
+                .describedAs("the neighbour's fragment is as it was")
+                .isEqualTo(LOGON_ONLY);
+        assertThat(stylesheet(scenarios, rebound.getPipeline())).isEqualTo(TRANSLATES_BOTH);
+        assertThat(scenarios.stores.pipelines.list()).hasSize(2);
+    }
+
     @Test
     void aRetractedRuleTakesItsSnapshotsWithIt() {
         final Scenarios scenarios = new Scenarios();
@@ -212,5 +259,9 @@ class TestScenario56ASnapshotKeepsWhatRan {
 
     private static Input stream(final long id, final String data) {
         return new Input(id, FEED, "Raw Events", Map.of(), data, PIPELINE);
+    }
+
+    private static Input stream(final long id, final String data, final String format) {
+        return new Input(id, FEED, "Raw Events", Map.of(RoutingFields.FORMAT, format), data, PIPELINE);
     }
 }

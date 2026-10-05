@@ -191,4 +191,17 @@ class TestRulesDao {
                 .pipeline(new DocRef("Pipeline", "fragment-" + name, name))
                 .build();
     }
+
+    /// The snapshot a rule serves with (A61) goes round the trip, and moves with a replacement.
+    @Test
+    void aRuleKeepsItsSnapshotAndTakesTheNextOnReplacement() {
+        final String doc = "doc-snapshot-" + System.nanoTime();
+        rules.append(doc, RoutingRule.builder().uuid("rule-s").snapshot("snap-1").build());
+
+        assertThat(rules.forDocument(doc).get(0).getSnapshot()).isEqualTo("snap-1");
+
+        rules.replace(doc, rules.forDocument(doc).get(0).copy().snapshot("snap-2").build());
+        assertThat(rules.forDocument(doc).get(0).getSnapshot()).isEqualTo("snap-2");
+        rules.forDocument(doc).forEach(rule -> rules.remove(doc, rule.getUuid()));
+    }
 }

@@ -514,7 +514,7 @@ public final class Stage {
         // rebinds the incumbent to it.
         final DocRef fragment = doc.getPromotionMode() == PromotionMode.REVIEW
                 ? write(doc, shape, learned)
-                : rewrite(doc, incumbent, learned);
+                : rewrite(doc, shape, incumbent, learned);
         // A shape marked for relearning has just been learned again, by hand: the mark is spent, or the
         // next stream of the shape would relearn the rule somebody has only now improved.
         shapes.reset(doc.getUuid(), shape.id());
@@ -1655,7 +1655,7 @@ public final class Stage {
         // rebinds the incumbent to it.
         final DocRef fragment = doc.getPromotionMode() == PromotionMode.REVIEW
                 ? write(doc, shape, learned)
-                : rewrite(doc, incumbent, learned);
+                : rewrite(doc, shape, incumbent, learned);
         if (doc.getPromotionMode() == PromotionMode.REVIEW) {
             // Behind the incumbent, which keeps matching first; Approve rebinds the incumbent to this
             // fragment and carries the history over.
@@ -2044,20 +2044,41 @@ public final class Stage {
         if (rule.getPipeline() == null) {
             return rule;
         }
-        if (rule.getSnapshot() != null) {
-            final Optional<Snapshots.Snapshot> kept = snapshots.byId(rule.getSnapshot());
-            if (kept.isPresent() && kept.get().versions().equals(codes.versions(rule.getPipeline()))) {
-                return rule;
+        try {
+            if (rule.getSnapshot() != null) {
+                final Optional<Snapshots.Snapshot> kept = snapshots.byId(rule.getSnapshot());
+                if (kept.isPresent() && kept.get().versions().equals(codes.versions(rule.getPipeline()))) {
+                    return rule;
+                }
             }
+            final RoutingRule fresh = rule.copy().snapshot(snapshot(doc, rule.getUuid(), rule.getPipeline())).build();
+            rules.replace(doc.getUuid(), fresh);
+            return fresh;
+        } catch (final RuntimeException e) {
+            // A fragment whose documents cannot be read — deleted by hand — cannot be snapshotted, and is
+            // not what this is about: the rule serves as it stands and the serve says what it finds.
+            LOGGER.debug(() -> LogUtil.message("Rule {} could not be snapshotted: {}", rule.getUuid(),
+                    e.getMessage()), e);
+            return rule;
         }
-        final RoutingRule fresh = rule.copy().snapshot(snapshot(doc, rule.getUuid(), rule.getPipeline())).build();
-        rules.replace(doc.getUuid(), fresh);
-        return fresh;
     }
 
     /// A session improves a rule's fragment in place (A58): the same pipeline, the same documents, the
     /// text replaced. What ran before is the snapshot's to keep.
-    private DocRef rewrite(final ShapeshifterAiDoc doc, final RoutingRule incumbent, final Learned learned) {
+    private DocRef rewrite(final ShapeshifterAiDoc doc,
+                           final Shape shape,
+                           final RoutingRule incumbent,
+                           final Learned learned) {
+        final boolean shared = rules.forDocument(doc.getUuid()).stream()
+                .anyMatch(other -> !other.getUuid().equals(incumbent.getUuid())
+                                   && other.getPipeline() != null
+                                   && other.getPipeline().getUuid().equals(incumbent.getPipeline().getUuid()));
+        if (shared) {
+            // A fragment bound for a neighbouring shape as well (design 01 §6) is not this rule's alone
+            // to edit: what this session learned for its shape is written as a fragment of its own, and
+            // the neighbour goes on serving with what it had.
+            return write(doc, shape, learned);
+        }
         return writer.rewrite(incumbent.getPipeline(), DocPath.fromParts(FOLDER, doc.getName()),
                 incumbent.getPipeline().getName(), learned.chain(), learned.boundary());
     }

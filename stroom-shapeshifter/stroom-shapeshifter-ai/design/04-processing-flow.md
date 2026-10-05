@@ -671,6 +671,14 @@ they differ or where the rule has none. An as-processed reprocess runs the live 
 snapshot's code injected per element through `InjectedCode`, which both runners now take. Retract and
 reject discard the rule's snapshots. Scenario 56 is the exit.
 
+*Its own audit found two, 2026-10-05.* A fragment bound for a neighbouring shape by looking (design 01
+§6) was one that a relearning for either shape would have edited in place, so one shape's session would
+have moved the other shape's transform under it — the neighbour's rule noticing a "hand edit" and
+snapshotting what somebody else's session wrote. A fragment any other rule of the document names is not
+edited in place: the relearning writes its shape a fragment of its own and the neighbour serves on with
+what it had. And a rule whose fragment's documents cannot be read would have failed its task on the
+snapshot rather than on the serve; it is served as it stands and the serve says what it finds.
+
 Two limits. A snapshot's code is injected into the live fragment's *structure* (A70): a session that
 changes the chain's shape — another parser, an element added — leaves earlier snapshots' code with no
 element to land on, and a reprocess of those outputs runs the live structure with what code still fits;
