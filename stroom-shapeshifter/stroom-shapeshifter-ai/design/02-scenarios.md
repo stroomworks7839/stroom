@@ -3400,7 +3400,9 @@ is why scenario 7 now filters by what the record says. The prefix a task reads a
 line break, since a line cut in the middle is not a record and judged as one it failed a candidate every
 whole record cleared. And at Tier 1 the conversation was judging the candidate over the whole stream,
 because a scenario's input had always been the whole text: scenario 57 hands the stage a prefix and an
-opener, as a task does, which is the only way the full pass has anything the sample did not.
+opener, as a task does, which is the only way the full pass has anything the sample did not. Its audit
+found the pipeline's tap one record behind the judgement and a session's rounds writing over one
+another's turns; both are held by the scenario now (design 04 §7, phase 4's third slice).
 
 ## 7. Decisions taken
 

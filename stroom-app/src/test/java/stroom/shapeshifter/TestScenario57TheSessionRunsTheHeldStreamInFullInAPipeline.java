@@ -72,6 +72,7 @@ import stroom.test.CommonTranslationTestHelper;
 import stroom.test.StoreCreationTool;
 import stroom.test.common.util.test.FileSystemTestUtil;
 import stroom.util.shared.Severity;
+import stroom.util.shared.StoredError;
 import stroom.util.time.StroomDuration;
 
 import jakarta.inject.Inject;
@@ -187,6 +188,21 @@ class TestScenario57TheSessionRunsTheHeldStreamInFullInAPipeline extends Abstrac
         advisor.set(script);
         deferredLearning.exec();
         script.verifyExhausted();
+        // The evidence is the record that fell short, as the parser cut it — not its neighbour: the tap
+        // is read while the parser is still inside the record whose output is being judged.
+        final List<String> evidence = script.asked().stream()
+                .flatMap(question -> question.feedback().stream())
+                .map(StoredError::getMessage)
+                .filter(message -> message.contains("The record as the parser cut it"))
+                .distinct()
+                .toList();
+        assertThat(evidence).describedAs("the shortfalls kept, each with its parsed record").hasSize(LOGOFFS);
+        assertThat(evidence.get(0))
+                .describedAs(evidence.get(0))
+                .contains("Record " + (LOGONS + 1) + " of the held stream")
+                .contains("value=\"user" + LOGONS + "\"")
+                .contains("value=\"logoff\"")
+                .doesNotContain("user" + (LOGONS - 1));
         final Recorded carried = attempts.byId(open.get(0).id()).orElseThrow();
         assertThat(carried.status()).describedAs(String.valueOf(carried.decision())).isEqualTo(AttemptStatus.PROMOTED);
         assertThat(attempts.forDocument(document.getUuid(), 10)).describedAs("one session to its end").hasSize(1);

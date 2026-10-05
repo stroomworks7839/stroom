@@ -19,6 +19,7 @@ package stroom.shapeshifter.ai.scenario;
 import stroom.shapeshifter.ai.extraction.ExtractionCorpus.Golden;
 import stroom.shapeshifter.ai.pack.DemoDocument;
 import stroom.shapeshifter.ai.stage.Attempts.Recorded;
+import stroom.shapeshifter.ai.stage.Attempts.Turn;
 import stroom.shapeshifter.ai.stage.Decision.Bound;
 import stroom.shapeshifter.ai.stage.Decision.Deferred;
 import stroom.shapeshifter.ai.stage.Deferrals.Deferral;
@@ -36,6 +37,7 @@ import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -93,6 +95,13 @@ class TestScenario57TheSessionRunsTheHeldStreamInFull {
         final List<Recorded> attempts = scenarios.attempts.forDocument(DOC, 10);
         assertThat(attempts).describedAs("one session, carried to its end (A64)").hasSize(1);
         assertThat(attempts.get(0).status()).isEqualTo(AttemptStatus.PROMOTED);
+        // Both rounds' turns are the attempt's, numbered on from one round to the next, so that a re-walk
+        // replays the whole session in order and no round writes over an earlier one.
+        final List<Turn> turns = attempts.get(0).turns();
+        assertThat(turns).extracting(Turn::number)
+                .containsExactlyElementsOf(IntStream.rangeClosed(1, turns.size()).boxed().toList());
+        assertThat(turns).filteredOn(turn -> turn.question().startsWith("Configure: XSLTFilter"))
+                .describedAs("the transform was asked for in each round").hasSize(2);
         final RoutingRule rule = scenarios.rules.forDocument(DOC).get(0);
         assertThat(scenarios.stores.pipelines.list()).describedAs("one fragment, edited in place").hasSize(1);
         assertThat(scenarios.snapshots.forRule(rule.getUuid())).describedAs("two promotions").hasSize(2);

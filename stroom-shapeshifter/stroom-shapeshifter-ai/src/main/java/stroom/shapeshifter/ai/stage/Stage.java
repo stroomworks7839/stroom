@@ -1269,8 +1269,8 @@ public final class Stage {
             // The question it stopped at is recorded unanswered (A28), so that a person can see what is
             // being waited for and answer it instead, and so that the replay has something to check its
             // re-walk against when they do.
-            record(() -> attempts.turn(attemptId, new Attempts.Turn(awaiting.number(), awaiting.stepId(),
-                    awaiting.candidate(), Question.kindOf(awaiting.question()),
+            record(() -> attempts.turn(attemptId, new Attempts.Turn(recorder.numbered(awaiting.number()),
+                    awaiting.stepId(), awaiting.candidate(), Question.kindOf(awaiting.question()),
                     awaiting.question().summary(), null, null, null)));
             record(() -> attempts.parked(attemptId, AttemptStatus.AWAITING_MODEL, claimUntil(doc),
                     Math.max(0L, advisor.tokensUsed() - before)));
@@ -1323,6 +1323,9 @@ public final class Stage {
         /// Whether this is the worker carrying a session (A64): a session that cannot finish parks for a
         /// person (A65) rather than giving its shape up, and runs its held stream in full before it ends.
         private boolean worker;
+        /// The highest turn number recorded so far, and the number the current walk's turns count on from.
+        private int highest;
+        private int base;
 
         private Recorder(final ShapeshifterAiDoc doc,
                          final Advisor advisor,
@@ -1362,10 +1365,27 @@ public final class Stage {
         }
 
         private void turn(final int number, final Exchange exchange) {
-            record(() -> attempts.turn(attemptId, new Attempts.Turn(number, exchange.step(),
+            final int numbered = numbered(number);
+            record(() -> attempts.turn(attemptId, new Attempts.Turn(numbered, exchange.step(),
                     exchange.candidate(), Question.kindOf(exchange.question()), exchange.question().summary(),
-                    exchange.reply(), answeredBefore.getOrDefault(number, answeredBy),
+                    exchange.reply(), answeredBefore.getOrDefault(numbered, answeredBy),
                     exchange.outcome(), exchange.carried())));
+        }
+
+        /// A turn's number in the attempt, from its number in the walk that asked it. A session runs its
+        /// walks one after another — a learning, then a relearning for each round that did not clear the
+        /// held stream (A64) — and each walk numbers its own turns from one; the attempt numbers them on
+        /// from where the last walk left off, so that no round's turns are written over an earlier
+        /// round's and a re-walk replays them all, in order. A turn is recorded twice under one number,
+        /// as it is answered and as it is judged, which is why a walk's beginning is said and not inferred.
+        private int numbered(final int number) {
+            highest = Math.max(highest, base + number);
+            return base + number;
+        }
+
+        /// A walk begins: its turns count on from the highest the attempt has.
+        private void walkBegins() {
+            base = highest;
         }
     }
 
@@ -1803,6 +1823,7 @@ public final class Stage {
                           final List<StoredError> opening,
                           final Recorder recorder) {
         final Advisor advisor = recorder.advisor();
+        recorder.walkBegins();
         // The attempt's claim is pushed out before every question (A45), and every turn is recorded as it
         // is answered and again as it is judged, so an attempt still running shows what it had got to
         // (A28).

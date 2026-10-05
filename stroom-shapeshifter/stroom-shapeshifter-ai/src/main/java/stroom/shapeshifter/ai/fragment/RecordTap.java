@@ -27,6 +27,9 @@ import org.xml.sax.Locator;
 import org.xml.sax.SAXException;
 
 import java.io.StringWriter;
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import javax.xml.transform.TransformerConfigurationException;
@@ -37,9 +40,11 @@ import javax.xml.transform.stream.StreamResult;
 /// so that when the record's output falls short the record itself — as the parser cut it, as a document
 /// of its own — can be shown to the session. Nothing larger than one record is held.
 ///
-/// The parser emits a record's events before the split hands that record to the transform, and the
-/// transform's output is judged before the next record's events arrive, so the record the tap holds when
-/// a judgement is made is the record that was judged.
+/// The split hands a record to the transform as the record's last event reaches it, and the transform's
+/// output is judged there and then — before the next record's events arrive, and before the tap, which
+/// sits beside the split on the parser's fork, has necessarily been told the record ended. So the record
+/// the tap shows at a judgement is the one it is in the middle of, where it is in one: what it has of it,
+/// closed, which at the record's last event is the whole record.
 public final class RecordTap implements ContentHandler {
 
     private final SimpleEventListBuilder opening = new SimpleEventListBuilder();
@@ -50,10 +55,16 @@ public final class RecordTap implements ContentHandler {
     private String rootUri;
     private String rootLocalName;
     private String rootQName;
+    /// The elements open within the record being built, innermost last, for closing a record read mid-way.
+    private final Deque<String[]> open = new ArrayDeque<>();
 
-    /// The record most recently cut, as a document of its own, or empty where none has been.
+    /// The record being cut, or where none is open the record most recently cut, as a document of its
+    /// own; empty where there has been none.
     public Optional<String> current() {
-        if (last == null) {
+        final List<Event> events = record != null
+                ? ((SimpleEventList) record.getEventList()).getEvents()
+                : last;
+        if (events == null) {
             return Optional.empty();
         }
         try {
@@ -63,8 +74,14 @@ public final class RecordTap implements ContentHandler {
             for (final Event event : ((SimpleEventList) opening.getEventList()).getEvents()) {
                 event.fire(handler);
             }
-            for (final Event event : last) {
+            for (final Event event : events) {
                 event.fire(handler);
+            }
+            if (record != null) {
+                for (final Iterator<String[]> it = open.descendingIterator(); it.hasNext(); ) {
+                    final String[] element = it.next();
+                    handler.endElement(element[0], element[1], element[2]);
+                }
             }
             handler.endElement(rootUri, rootLocalName, rootQName);
             handler.endDocument();
@@ -124,6 +141,7 @@ public final class RecordTap implements ContentHandler {
                 record = new SimpleEventListBuilder();
             }
             record.startElement(uri, localName, qName, atts);
+            open.push(new String[]{uri, localName, qName});
         }
     }
 
@@ -131,6 +149,7 @@ public final class RecordTap implements ContentHandler {
     public void endElement(final String uri, final String localName, final String qName) throws SAXException {
         if (depth >= 2) {
             record.endElement(uri, localName, qName);
+            open.pop();
             if (depth == 2) {
                 last = ((SimpleEventList) record.getEventList()).getEvents();
                 record = null;

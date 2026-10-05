@@ -726,6 +726,21 @@ the plan's candidates: its clock is fixed and
 its scripted model spends no tokens, so the parking scenario spends the plan, which is the one ending
 of a session that is not a promotion and not a parse given up.
 
+*Its own audit found two, 2026-10-05.* The tap was read one record late in a pipeline: the split hands a
+record to the transform as the record's last event reaches it, and the parser's fork had told the split
+before it told the tap, so the tap still held the record before — the evidence put to the model said a
+logon record had produced a logoff event, which is the kind of wrong a model will learn from. The tap
+now shows the record it is in the middle of, closed, which at the record's last event is the whole of it;
+the Tier 2 scenario asserts the evidence names the record whose output fell short and not its
+neighbour, and failed against the tap as it was. And a session's rounds overwrote one another's turns:
+each walk numbers its turns from one and the attempt kept them by number, so after two rounds the record
+of the session was the second round's alone, and a re-walk — a resume, a person's answer — would have
+replayed the second round's answers to the first round's questions. The recorder now numbers a walk's
+turns on from where the last left off, and the Tier 1 scenario asserts both rounds' turns stand, in
+order. One thing noted and left: a candidate kept out under the worker is recorded by `emit` as an
+output of the stream, as it was before this slice, though the worker wrote nothing; it is bookkeeping a
+reprocess reads and is worth a look when the Supervisor's view of a session is built.
+
 What this slice does not do: resume a lapsed `IN_PROGRESS` session or renew the lease per turn (§4);
 give the Supervisor its actions on a parked attempt — answer, more to spend, send to the exhaustion
 step — which phase 6 owes with the screen; and tell a session out of budget from one out of candidates
