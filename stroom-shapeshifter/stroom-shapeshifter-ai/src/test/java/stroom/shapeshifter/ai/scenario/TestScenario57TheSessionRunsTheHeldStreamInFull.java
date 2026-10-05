@@ -130,11 +130,13 @@ class TestScenario57TheSessionRunsTheHeldStreamInFull {
         final Script silent = Script.of();
         task(scenarios, silent).decide(doc, input(1L, STREAM));
 
-        // The one candidate does not compile: the session has nothing left to try.
+        // The one candidate does not compile, nor does the one the exhaustion step asks for: the session
+        // has nothing left to try.
         final Script script = scenarios.script(CSV.configuration(), LOGON_ONLY)
                 .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter")
                 .expect(QuestionMatcher.configuration("DSParser")).reply(Scenarios.fenced(CSV.configuration()))
-                .expect(QuestionMatcher.configuration("XSLTFilter")).reply(Scenarios.fenced(BROKEN));
+                .expect(QuestionMatcher.configuration("XSLTFilter")).reply(Scenarios.fenced(BROKEN))
+                .expect(QuestionMatcher.admission("XSLTFilter")).reply(Scenarios.fenced(BROKEN));
         assertThat(scenarios.worker(script).advance(10)).isEqualTo(1);
         script.verifyExhausted();
 

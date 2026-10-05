@@ -486,7 +486,7 @@ public final class Stage {
         opening.add(new StoredError(Severity.ERROR, null, STAGE,
                 "Improving " + incumbent.getPipeline().getName() + ", which is serving this shape and scored "
                 + incumbent.getScore() + " when it was promoted. It is not failing: make it better."));
-        final Outcome outcome = learn(doc, shape, input, attributes, scorecard, opening, recorder);
+        final Outcome outcome = learn(doc, shape, input, attributes, scorecard, opening, List.of(), recorder);
         if (outcome instanceof final Abandoned abandoned) {
             return kept(doc, shape, incumbent, "No candidate: " + abandoned.reason(), outcome.transcript());
         }
@@ -903,6 +903,9 @@ public final class Stage {
 
         final Optional<String> givenUp = shapes.reasonGivenUp(doc.getUuid(), shape.id());
         if (givenUp.isPresent()) {
+            // A stream that waited on a session that gave the shape up (A54) has reached its end: its row
+            // goes, and it errors with the reason.
+            deferrals.released(doc.getUuid(), input.id());
             return sentinel(doc, shape, input, "Shape given up: " + givenUp.get());
         }
         if (!shape.missing().isEmpty()) {
@@ -1469,8 +1472,17 @@ public final class Stage {
                                   final ExpressionOperator selector,
                                   final Recorder recorder) {
         // Learn on a prefix, judge on the whole stream.
-        final Outcome outcome = learn(doc, shape, input, attributes, scorecard, List.of(), recorder);
+        final Outcome outcome = learn(doc, shape, input, attributes, scorecard, List.of(), List.of(), recorder);
         if (outcome instanceof final Abandoned abandoned) {
+            if (abandoned.parse()) {
+                // The one failure nothing can serve (A52, A54): the stream cannot be cut into records that
+                // meet the document's gates. The shape is given up, and the streams waiting on it are
+                // woken to error with the reason, as a given-up shape's streams do.
+                final StageRun givenUp = givenUp(doc, shape, input, abandoned.reason(), abandoned.reason(),
+                        abandoned.diagnostics(), List.of(), outcome.transcript());
+                wake(doc, input.feed(), input.type());
+                return givenUp;
+            }
             if (recorder.worker()) {
                 // A session that cannot finish parks for a person (A65) rather than giving its shape up: its
                 // streams go on waiting, and nothing is baked because money or candidates ran out.
@@ -1654,7 +1666,7 @@ public final class Stage {
         // parser cut them and as the transform left them (A64): what the model has to see to learn for
         // a record that lay beyond the sample.
         opening.addAll(served.diagnostics());
-        final Outcome outcome = learn(doc, shape, input, attributes, scorecard, opening, recorder);
+        final Outcome outcome = learn(doc, shape, input, attributes, scorecard, opening, served.held(), recorder);
         // The mark is spent now that the relearning has happened, and not before: an attempt that parks
         // at a question (A5) is carried on by the worker, which must find the shape as this walk found it
         // or ask something else (A45). Spent whatever the candidate came to, or a shape that cannot be
@@ -1702,13 +1714,21 @@ public final class Stage {
         // fell short on yield or coverage, which are measures of the stream and lay nothing at a record —
         // learned for the sample it was shown, as a first learning does.
         final Set<Integer> fellShort = served.failingRecords();
-        final List<Accepted> entries = fellShort.isEmpty()
-                ? Corpus.entries(learned.chain(), boundary(learned), learningPrefix(input.data(), doc), null,
-                        learned.targets(), candidate.score(), recorder.attemptId(), clock.millis(),
-                        doc.getRegressionCap())
-                : Corpus.entries(learned.chain(), boundary(learned), input.data(), fellShort,
-                        learned.targets(), candidate.score(), recorder.attemptId(), clock.millis(),
-                        doc.getRegressionCap());
+        final List<Accepted> entries;
+        if (!served.held().isEmpty()) {
+            // A full pass kept the records themselves (design 04 §4), which may lie beyond the text in
+            // hand: they are the entries.
+            entries = Corpus.heldEntries(learned.chain(), boundary(learned), served.held(), learned.targets(),
+                    candidate.score(), recorder.attemptId(), clock.millis(), doc.getRegressionCap());
+        } else if (fellShort.isEmpty()) {
+            entries = Corpus.entries(learned.chain(), boundary(learned), learningPrefix(input.data(), doc), null,
+                    learned.targets(), candidate.score(), recorder.attemptId(), clock.millis(),
+                    doc.getRegressionCap());
+        } else {
+            entries = Corpus.entries(learned.chain(), boundary(learned), input.data(), fellShort,
+                    learned.targets(), candidate.score(), recorder.attemptId(), clock.millis(),
+                    doc.getRegressionCap());
+        }
         // In place (A58), unless a person is to review it first: a draft is its own fragment until Approve
         // rebinds the incumbent to it.
         final DocRef fragment = doc.getPromotionMode() == PromotionMode.REVIEW
@@ -1823,6 +1843,7 @@ public final class Stage {
                           final Map<String, Object> attributes,
                           final Scorecard scorecard,
                           final List<StoredError> opening,
+                          final List<String> held,
                           final Recorder recorder) {
         final Advisor advisor = recorder.advisor();
         recorder.walkBegins();
@@ -1832,6 +1853,9 @@ public final class Stage {
         final Conversation conversation = new Conversation(advisor, runners, scorecard, clock,
                 recorder::heartbeat, recorder::turn)
                 .alreadySpent(recorder.alreadySpent())
+                // The records the held stream fell short on (design 04 §4): every candidate for the
+                // transform is held to them, beyond the sample they are not in.
+                .heldTo(held)
                 // What a supervisor has said about this shape (A46), read afresh before every question
                 // so that a hint given while the attempt was parked is carried by the turn that
                 // resumes it.
@@ -2684,13 +2708,21 @@ public final class Stage {
      *                judgement rests on (A14), counted on the input so that a variant that drops records is
      *                judged, not excused.
      */
+    /// @param held The records that fell short, each as the parser cut it, where a full pass kept them
+    ///             (design 04 §4): what the next question's candidates are held to. Empty otherwise.
     private record Judged(String output, List<Verdict> verdicts, double score, int records,
                           List<TextRange> spans, EventList events, List<StoredError> diagnostics,
-                          Set<Integer> fellShort) {
+                          Set<Integer> fellShort, List<String> held) {
+
+        Judged(final String output, final List<Verdict> verdicts, final double score, final int records,
+               final List<TextRange> spans, final EventList events, final List<StoredError> diagnostics,
+               final Set<Integer> fellShort) {
+            this(output, verdicts, score, records, spans, events, diagnostics, fellShort, List.of());
+        }
 
         Judged(final String output, final List<Verdict> verdicts, final double score, final int records,
                final List<TextRange> spans, final EventList events, final List<StoredError> diagnostics) {
-            this(output, verdicts, score, records, spans, events, diagnostics, null);
+            this(output, verdicts, score, records, spans, events, diagnostics, null, List.of());
         }
 
         /// A stream served as it was read, stopped at the record that fell short (design 04 §3): what is
@@ -2722,7 +2754,11 @@ public final class Stage {
                                                                         + "\nWhat the transform made of it:\n"
                                                                         + shortfall.output()));
             }
-            return new Judged(null, verdicts, 0.0, pass.judged(), List.of(), null, evidence, indices);
+            final List<String> held = pass.kept().stream()
+                    .map(Shortfalls.Shortfall::parsed)
+                    .filter(Objects::nonNull)
+                    .toList();
+            return new Judged(null, verdicts, 0.0, pass.judged(), List.of(), null, evidence, indices, held);
         }
 
         static Judged of(final List<Attempted> attempted, final Scorecard scorecard, final EventList events) {

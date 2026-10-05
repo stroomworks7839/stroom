@@ -113,8 +113,9 @@ public class LearningPlan {
         if (steps.get(0).getKind() != QuestionKind.CHAIN) {
             problems.add("The first step must be CHAIN");
         }
-        if (steps.get(steps.size() - 1).getKind() != QuestionKind.CONFIGURE) {
-            problems.add("The last step must be CONFIGURE");
+        final QuestionKind lastKind = steps.get(steps.size() - 1).getKind();
+        if (lastKind != QuestionKind.CONFIGURE && lastKind != QuestionKind.ADMIT) {
+            problems.add("The last step must be CONFIGURE or ADMIT");
         }
         for (final QuestionKind kind : QuestionKind.values()) {
             int count = 0;
@@ -165,6 +166,14 @@ public class LearningPlan {
                     && !Transition.END.equals(transition.getGoTo())) {
                     problems.add("'" + transition.format() + "' in step '" + step.effectiveId()
                                  + "' names no step");
+                } else if (!transition.abandons() && !Transition.END.equals(transition.getGoTo())
+                           && ids.get(transition.getGoTo()).getKind() == QuestionKind.ADMIT
+                           && !transition.onSpent()) {
+                    // The exhaustion step is reached when the candidates are spent and by no other route
+                    // (design 04 §4): a plan that sent a model there sooner would be asking for the
+                    // admitted form before the trying was done.
+                    problems.add("'" + transition.format() + "' in step '" + step.effectiveId()
+                                 + "' goes to ADMIT, which only 'on spent' may");
                 }
             }
         }

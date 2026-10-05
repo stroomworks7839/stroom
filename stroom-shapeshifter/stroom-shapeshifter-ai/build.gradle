@@ -101,3 +101,13 @@ dependencies {
     testImplementation libs.bundles.common.test.implementation
     testRuntimeOnly libs.bundles.common.test.runtime
 }
+
+// Writes the demo content pack and its data to the repository root, where they are committed. The pack is a
+// deliverable, not a test: run this after changing the demo document, the plan examples or the templates,
+// and TestDemoContentPack then checks the committed pack against what the code would write.
+tasks.register('generateDemoContentPack', JavaExec) {
+    dependsOn compileTestJava
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'stroom.shapeshifter.ai.pack.GenerateDemoContentPack'
+    args = [rootProject.file('shapeshifter-ai-demo-v1.0.zip').absolutePath]
+}

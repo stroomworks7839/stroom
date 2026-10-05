@@ -35,7 +35,8 @@ import java.util.TreeSet;
  * Extraction quality, the anti-degeneracy scorer of design 01 §8.3 (ruling A16): how much of the output
  * means something. Three measures over the records, averaged — the proportion of elements that are typed
  * rather than {@code Data}; the proportion of records whose {@code EventDetail} names a real branch
- * rather than {@code Unknown}, unless the document allows {@code Unknown}; and the proportion of records
+ * rather than {@code Unknown} — a learned admission, an {@code Unknown} carrying the marker of A62, being
+ * neither (A53) — unless the document allows {@code Unknown}; and the proportion of records
  * carrying each field the document requires. A transform that emits the mandatory skeleton, puts
  * {@code Unknown} where a decision was due and dumps every field into {@code Data} validates perfectly
  * and scores here as the nothing it extracted. Applies to a step that transformed records into records.
@@ -44,8 +45,11 @@ public final class ExtractionQualityScorer implements Scorer {
 
     private static final ElementId QUALITY = new ElementId("ExtractionQuality");
     private static final String ALL_ELEMENTS = "descendant-or-self::*";
-    private static final String DATA_ELEMENTS = "descendant-or-self::*[local-name() = 'Data']";
-    private static final String UNKNOWN_DETAIL = "*[local-name() = 'EventDetail']/*[local-name() = 'Unknown']";
+    // A learned admission (A53, A62) is not counted: an Unknown carrying the marker is what an exhausted
+    // session was allowed to say, and the marker item is not untyped data. A bare Unknown is refused as it
+    // always was.
+    private static final String DATA_ELEMENTS = Admission.DATA_BUT_MARKER;
+    private static final String UNKNOWN_DETAIL = Admission.BARE_UNKNOWN;
 
     @Override
     public ScorerType type() {

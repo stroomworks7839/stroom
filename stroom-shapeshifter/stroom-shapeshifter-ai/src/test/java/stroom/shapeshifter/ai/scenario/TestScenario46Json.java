@@ -234,6 +234,10 @@ class TestScenario46Json {
                 .expect(QuestionMatcher.chain()).reply("JSONParser -> XSLTFilter")
                 .expect(QuestionMatcher.split()).reply("events")
                 .expect(QuestionMatcher.configuration("XSLTFilter"))
+                .reply(Scenarios.fenced(readsTheEnvelope))
+                // The candidate spent, the plan's exhaustion step asks once more (design 04 §4): the same
+                // stylesheet fails the same way, and that is the end of it.
+                .expect(QuestionMatcher.admission("XSLTFilter"))
                 .reply(Scenarios.fenced(readsTheEnvelope));
 
         final StageRun run = scenarios.stage(script).run(doc().copy().maxAttempts(1).build(),
@@ -245,7 +249,7 @@ class TestScenario46Json {
                 .describedAs("caught where it is written rather than at the gate: the conversation shows the "
                              + "transform one record and runs it over every record, so the envelope is "
                              + "missing the first time the candidate is judged")
-                .isEqualTo("No passing configuration for XSLTFilter after 1 attempts");
+                .isEqualTo("No admission for XSLTFilter after 1 attempts");
         assertThat(scenarios.rules.forDocument("doc-1")).describedAs("and nothing was bound").isEmpty();
     }
 

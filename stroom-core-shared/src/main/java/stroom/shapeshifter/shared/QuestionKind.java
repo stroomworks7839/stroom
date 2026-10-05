@@ -39,7 +39,15 @@ public enum QuestionKind implements HasDisplayValue {
     /**
      * Each element's configuration in turn, judged by the scorecard and held to the targets.
      */
-    CONFIGURE("Configure");
+    CONFIGURE("Configure"),
+    /**
+     * The exhaustion step (design 04 §4, A51, A53): the transform's configuration once more, for a
+     * session whose candidates are spent with records of the held stream still short — this time with a
+     * match for each record type it cannot translate whose output is the admitted form, an
+     * {@code EventDetail/Unknown} carrying the marker of {@link LearnedUnknown}. The only step that may
+     * ask for that form, and reached only by a transition from a spent step.
+     */
+    ADMIT("Admit");
 
     private final String displayValue;
 

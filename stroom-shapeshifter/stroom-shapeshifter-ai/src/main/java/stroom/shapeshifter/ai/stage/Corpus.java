@@ -143,6 +143,33 @@ final class Corpus {
         return entries;
     }
 
+    /// The entries for the records a full pass kept (design 04 §4, A56): each as the parser cut it, with what
+    /// the candidate makes of it. These records lie beyond the text the session has — they were read from
+    /// the stream as the fragment ran over it — so no record carries its own text or what the stream
+    /// wrapped it in, and an improvement (A46) cannot be learned from them; a relearning from a stream can.
+    ///
+    /// @param held The records, each as one document of its own.
+    static List<Accepted> heldEntries(final List<LearnedStep> chain,
+                                      final RecordBoundary boundary,
+                                      final List<String> held,
+                                      final List<Target> targets,
+                                      final double score,
+                                      final Long attemptId,
+                                      final long now,
+                                      final int atMost) {
+        final List<LearnedStep> transforms = transforms(chain);
+        final List<Accepted> entries = new ArrayList<>();
+        for (final String record : held) {
+            if (entries.size() == atMost) {
+                break;
+            }
+            final String output = outputFor(transforms, record, boundary);
+            entries.add(new Accepted(record, null, null, null, output, kindOf(output), score, attemptId, now,
+                    targetFor(targets, record, null)));
+        }
+        return entries;
+    }
+
     /// What a chain makes of one entry's record: its transform steps' output, or — for a chain that is a
     /// parser alone, whose output is its records — the record itself, so that a parser-only rule is held
     /// to what it emits and not to nothing.

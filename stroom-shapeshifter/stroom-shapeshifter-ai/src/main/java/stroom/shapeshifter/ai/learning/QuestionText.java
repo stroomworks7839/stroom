@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-
 package stroom.shapeshifter.ai.learning;
 
 import stroom.shapeshifter.ai.learning.Question.Chain;
@@ -24,6 +23,7 @@ import stroom.shapeshifter.ai.learning.Question.Split;
 import stroom.shapeshifter.ai.learning.Question.TargetFor;
 import stroom.shapeshifter.shared.BusinessRulesParameters;
 import stroom.shapeshifter.shared.ExtractionQualityParameters;
+import stroom.shapeshifter.shared.LearnedUnknown;
 import stroom.shapeshifter.shared.LearningPlan;
 import stroom.shapeshifter.shared.ScorerSetting;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
@@ -207,6 +207,13 @@ public final class QuestionText {
                 ? ""
                 : "\nYour previous configuration was:\n" + fenced(question.previousConfiguration()) + "\n");
         variables.put("feedback", feedback(question.feedback()));
+        if (question.admitting()) {
+            // The exhaustion step's question (design 04 §4): the configuration question with the admitted
+            // form in it, which no other question names (A53).
+            variables.put("marker", LearnedUnknown.MARKER);
+            variables.put("admitted", fenced(LearnedUnknown.markup("the record kind")));
+            return templates.render(Template.ADMISSION, variables);
+        }
         return templates.render(Template.CONFIGURATION, variables);
     }
 

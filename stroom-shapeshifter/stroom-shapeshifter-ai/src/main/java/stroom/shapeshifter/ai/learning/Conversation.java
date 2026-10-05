@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-
 package stroom.shapeshifter.ai.learning;
 
 import stroom.shapeshifter.ai.extraction.PerRecord;
@@ -25,6 +24,7 @@ import stroom.shapeshifter.ai.learning.Question.Chain;
 import stroom.shapeshifter.ai.learning.Question.Configuration;
 import stroom.shapeshifter.ai.learning.Question.Split;
 import stroom.shapeshifter.ai.learning.Question.TargetFor;
+import stroom.shapeshifter.ai.scoring.Admission;
 import stroom.shapeshifter.ai.scoring.Attempted;
 import stroom.shapeshifter.ai.scoring.OutputRecords;
 import stroom.shapeshifter.ai.scoring.Scorecard;
@@ -32,8 +32,10 @@ import stroom.shapeshifter.ai.scoring.Verdict;
 import stroom.shapeshifter.ai.stage.Guidance.Given;
 import stroom.shapeshifter.shared.Check;
 import stroom.shapeshifter.shared.ConfigureRole;
+import stroom.shapeshifter.shared.LearnedUnknown;
 import stroom.shapeshifter.shared.LearningPlan;
 import stroom.shapeshifter.shared.PlanStep;
+import stroom.shapeshifter.shared.QuestionKind;
 import stroom.shapeshifter.shared.RecordBoundary;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 import stroom.shapeshifter.shared.StepGuard;
@@ -94,6 +96,9 @@ public final class Conversation {
     private Supplier<List<Given>> guidance = List::of;
     /// What [#guidance] answered for this walk, read when the walk begins.
     private List<Given> standing = List.of();
+    /// The records of the held stream that fell short under the transform in force (design 04 §4), as the
+    /// parser cut them: what every candidate for the chain's last element is held to, beyond the sample.
+    private List<String> held = List.of();
 
     public Conversation(final Advisor advisor, final List<StepRunner> runners, final Scorecard scorecard) {
         this(advisor, runners, scorecard, Clock.systemUTC());
@@ -165,6 +170,17 @@ public final class Conversation {
     /// can act on. The pass that follows reads it afresh.
     ///
     /// @return This conversation, to be run.
+    /// Hold every candidate for the chain's last element to these records as well as to the sample: the
+    /// records of the held stream that fell short under the transform in force (design 04 §4), each as
+    /// the parser cut it. A session's second question is about them; without this its candidates would
+    /// be judged on a sample they are not in.
+    ///
+    /// @param records Each record as one document of its own, as the transform is given it.
+    public Conversation heldTo(final List<String> records) {
+        held = List.copyOf(records);
+        return this;
+    }
+
     public Conversation guidedBy(final Supplier<List<Given>> guidance) {
         this.guidance = guidance;
         return this;
@@ -213,15 +229,23 @@ public final class Conversation {
         final List<PlanStep> steps = plan.getSteps();
 
         int at = 0;
+        // Whether the step at `at` was reached by a transition rather than by the step before it ending:
+        // the exhaustion step is entered only that way (design 04 §4), since it is reached when another
+        // step's candidates are spent and never because the step above it passed.
+        boolean jumped = false;
         while (at < steps.size()) {
             final PlanStep step = steps.get(at);
-            final Visit visit = enter(step, allowed, walk);
+            final Visit visit = step.getKind() == QuestionKind.ADMIT && !jumped
+                    ? Visit.next()
+                    : enter(step, allowed, walk);
+            jumped = false;
             switch (visit.kind()) {
                 // What a transition carried is spent by the next question asked, so a step the guard
                 // skips passes it on rather than dropping it.
                 case NEXT -> at++;
                 case ABANDON -> {
-                    return abandoned(visit.reason(), visit.feedback(), walk.transcript);
+                    return new Abandoned(visit.reason(), List.copyOf(visit.feedback()), List.copyOf(walk.transcript),
+                            visit.parse());
                 }
                 case GOTO -> {
                     final String edge = step.effectiveId() + " " + visit.transition().format();
@@ -231,6 +255,7 @@ public final class Conversation {
                                          + "per attempt", visit.feedback(), walk.transcript);
                     }
                     walk.carried = visit.feedback();
+                    jumped = true;
                     at = Transition.END.equals(visit.transition().getGoTo())
                             ? steps.size()
                             : indexOf(steps, visit.transition().getGoTo());
@@ -271,7 +296,8 @@ public final class Conversation {
             case CHAIN -> chain(step, allowed, walk);
             case SPLIT -> split(step, walk);
             case TARGET -> target(step, walk);
-            case CONFIGURE -> configure(step, walk);
+            case CONFIGURE -> configure(step, walk, false);
+            case ADMIT -> configure(step, walk, true);
         };
     }
 
@@ -575,10 +601,15 @@ public final class Conversation {
      * and against the targets (A31): a parser must preserve what they need, the chain's last element must
      * reproduce them. A role the chain does not have is skipped.
      */
-    private Visit configure(final PlanStep step, final Walk walk) {
+    private Visit configure(final PlanStep step, final Walk walk, final boolean admitting) {
         final Set<Check> checks = checks(step, EnumSet.allOf(Check.class));
         final Scorecard over = scorecard.only(checks);
-        for (final int index : walk.elements(step.getRole(), runners)) {
+        // The exhaustion step (design 04 §4) is the transform's configuration asked for once more, with
+        // the admitted form in it: the transform alone, whatever the plan wrote for its role.
+        final ConfigureRole role = admitting
+                ? ConfigureRole.TRANSFORM
+                : step.getRole();
+        for (final int index : walk.elements(role, runners)) {
             final StepRunner runner = runners.get(walk.chain.get(index));
             if (index > 0 && walk.learned[index - 1] == null) {
                 return Visit.abandon(runner.elementType() + " cannot be configured before "
@@ -625,7 +656,7 @@ public final class Conversation {
                 final StepResult ran = oneAtATime
                         ? PerRecord.run(runner, fixed.get(), input, perRecord)
                         : runner.run(fixed.get(), input);
-                final Judged judged = judge(over, checks, runner, fixed.get(), input, ran, walk, last);
+                final Judged judged = judge(over, checks, runner, fixed.get(), input, ran, walk, last, admitting);
                 walk.learn(index, judged.learned());
                 visit = judged.outcome() == StepOutcome.PASSED
                         ? Visit.next()
@@ -638,7 +669,7 @@ public final class Conversation {
                 final StepResult ran = oneAtATime
                         ? PerRecord.run(runner, null, input, perRecord)
                         : runner.run(null, input);
-                final Judged judged = judge(over, checks, runner, null, input, ran, walk, last);
+                final Judged judged = judge(over, checks, runner, null, input, ran, walk, last, admitting);
                 walk.learn(index, judged.learned());
                 visit = judged.outcome() == StepOutcome.PASSED
                         ? Visit.next()
@@ -650,10 +681,10 @@ public final class Conversation {
                 final Boundary split = carriesSplit
                         ? walk.split
                         : null;
-                visit = candidates(step, walk, (candidate, feedback) -> {
+                final Visit asked = candidates(step, walk, (candidate, feedback) -> {
                     final String reply = ask(walk, step, candidate, new Configuration(runner.elementType(),
                             configured.get().documentType(), walk.sample, shown, walk.previous[index], split,
-                            walk.targets, oneAtATime, carried(perRecord), otherKinds, feedback));
+                            walk.targets, oneAtATime, carried(perRecord), otherKinds, admitting, feedback));
                     final Optional<String> configuration = ConfigurationReply.configuration(reply);
                     if (configuration.isEmpty()) {
                         return Judged.refused("The reply was not a single " + configured.get().documentType()
@@ -664,17 +695,69 @@ public final class Conversation {
                             ? PerRecord.run(runner, configuration.get(), input, perRecord)
                             : runner.run(configuration.get(), input);
                     final Judged judged = judge(over, checks, runner, configuration.get(), input, result,
-                            walk, last);
+                            walk, last, admitting);
                     walk.learn(index, judged.learned());
                     return judged;
-                }, "No passing configuration for " + runner.elementType() + " after "
-                   + candidates(step, walk.policy) + " attempts");
+                }, (admitting
+                        ? "No admission for "
+                        : "No passing configuration for ") + runner.elementType() + " after "
+                    + candidates(step, walk.policy) + " attempts");
+                // A parser whose candidates are spent is the one failure nothing can serve (A52, A54): the
+                // abandonment says so, for the stage to give the shape up rather than park.
+                visit = asked.kind() == Visit.Kind.ABANDON && runner.parser()
+                        ? asked.asParse()
+                        : asked;
             }
             if (visit.kind() != Visit.Kind.NEXT) {
                 return visit;
             }
         }
         return passed(step, Visit.next());
+    }
+
+    /// A candidate run over each record the held stream fell short on, judged one at a time: the outcome
+    /// of the first that falls short, with the record named in the feedback, or null where all clear.
+    private Judged heldTo(final Scorecard over,
+                          final StepRunner runner,
+                          final String configuration,
+                          final RecordBoundary boundary,
+                          final boolean admitting) {
+        try (StepRunner.Prepared prepared = runner.prepare(configuration)) {
+            for (int i = 0; i < held.size(); i++) {
+                final String record = held.get(i);
+                final StepResult result = prepared.run(record);
+                if (!result.passed()) {
+                    return Judged.failed(result, true);
+                }
+                // The held records are the ones a model would most like to admit, and the sample does
+                // not show them: the refusal of the admitted form (A53) is made here as well.
+                if (!admitting && admitted(result.output())) {
+                    return refusedAdmission();
+                }
+                final Verdict verdict = over.judge(Attempted.of(runner, record, result, boundary));
+                if (!verdict.passed()) {
+                    final List<StoredError> feedback = new ArrayList<>();
+                    feedback.add(new StoredError(Severity.ERROR, null, new ElementId(runner.elementId()),
+                            "On a record of the held stream that fell short (" + (i + 1) + " of " + held.size()
+                            + "), as the parser cut it:\n" + record));
+                    feedback.addAll(verdict.feedback());
+                    return new Judged(Scorecard.outcome(verdict), feedback, null);
+                }
+            }
+        }
+        return null;
+    }
+
+    /// The admitted form offered at any step but the exhaustion step (A53).
+    private static Judged refusedAdmission() {
+        return Judged.refused("The admitted form — an Unknown marked " + LearnedUnknown.MARKER
+                              + " — is the exhaustion step's to ask for: translate the record, or leave it "
+                              + "for that step");
+    }
+
+    /// Whether a transform's output carries a learned admission (A62).
+    private static boolean admitted(final String output) {
+        return OutputRecords.parse(output).map(Admission::admitsAny).orElse(false);
     }
 
     /**
@@ -690,15 +773,31 @@ public final class Conversation {
                          final String input,
                          final StepResult result,
                          final Walk walk,
-                         final boolean last) {
+                         final boolean last,
+                         final boolean admitting) {
         if (!result.passed()) {
             return Judged.failed(result, runner.configured().isPresent());
         }
-        final Verdict verdict = over.judge(Attempted.of(runner, input, result, walk.split == null
+        final RecordBoundary boundary = walk.split == null
                 ? null
-                : walk.split.shared()));
+                : walk.split.shared();
+        // Only the exhaustion step may ask for the admitted form (A53): offered anywhere else it is
+        // refused, so that a model cannot take the short way out of a record it could translate.
+        if (!admitting && !runner.parser() && admitted(result.output())) {
+            return refusedAdmission();
+        }
+        final Verdict verdict = over.judge(Attempted.of(runner, input, result, boundary));
         if (!verdict.passed()) {
             return new Judged(Scorecard.outcome(verdict), verdict.feedback(), null);
+        }
+        // Held to the records of the held stream that fell short (design 04 §4): a candidate for the
+        // chain's last element is run over each as the pipeline would give it, and judged on it alone, so
+        // that a transform the sample does not exercise cannot pass by ignoring what the stream wants.
+        if (last && !runner.parser() && configuration != null && !held.isEmpty()) {
+            final Judged short_ = heldTo(over, runner, configuration, boundary, admitting);
+            if (short_ != null) {
+                return short_;
+            }
         }
         if (!walk.targets.isEmpty()) {
             if (runner.parser() && checks.contains(Check.PRESERVATION)) {
@@ -919,7 +1018,18 @@ public final class Conversation {
     /**
      * Where a step's visit leaves the walk: at the next step, at the step a transition names, or abandoned.
      */
-    private record Visit(Kind kind, Transition transition, String reason, List<StoredError> feedback) {
+    /// @param parse Whether an abandonment is the parser's candidates spent (A54).
+    private record Visit(Kind kind, Transition transition, String reason, List<StoredError> feedback,
+                         boolean parse) {
+
+        Visit(final Kind kind, final Transition transition, final String reason, final List<StoredError> feedback) {
+            this(kind, transition, reason, feedback, false);
+        }
+
+        /// This abandonment, as the parser's.
+        Visit asParse() {
+            return new Visit(kind, transition, reason, feedback, true);
+        }
 
         static Visit next() {
             return new Visit(Kind.NEXT, null, null, List.of());

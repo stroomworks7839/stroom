@@ -57,7 +57,7 @@ class TestShapeshifterAiDoc {
         assertThat(new LearningPlan(null, null, null).getSteps()).isEqualTo(PlanExample.DIRECT.steps());
         assertThat(LearningPlan.of(PlanExample.DIRECT).withSteps(List.of(
                 PlanStep.of(QuestionKind.CONFIGURE), PlanStep.of(QuestionKind.CHAIN))).problems())
-                .containsExactly("The first step must be CHAIN", "The last step must be CONFIGURE");
+                .containsExactly("The first step must be CHAIN", "The last step must be CONFIGURE or ADMIT");
         assertThat(LearningPlan.of(PlanExample.DIRECT).withSteps(List.of(
                 PlanStep.of(QuestionKind.CHAIN), PlanStep.of(QuestionKind.SPLIT),
                 PlanStep.of(QuestionKind.SPLIT), PlanStep.of(QuestionKind.CONFIGURE))).problems())
@@ -100,7 +100,7 @@ class TestShapeshifterAiDoc {
             assertThat(LearningPlan.of(example).problems()).describedAs(example.name()).isEmpty();
         }
         assertThat(LearningPlan.of(PlanExample.ESCALATING).getSteps()).extracting(PlanStep::effectiveId)
-                .containsExactly("chain", "split", "parser", "first", "target", "again", "transform");
+                .containsExactly("chain", "split", "parser", "first", "target", "again", "transform", "admit");
         assertThat(LearningPlan.of(PlanExample.ESCALATING).step("split").getWhen()).isEqualTo(StepGuard.ALWAYS);
         assertThat(LearningPlan.of(PlanExample.ESCALATING).step("parser").getTransitions())
                 .extracting(Transition::format).containsExactly("on yield-short goto split");

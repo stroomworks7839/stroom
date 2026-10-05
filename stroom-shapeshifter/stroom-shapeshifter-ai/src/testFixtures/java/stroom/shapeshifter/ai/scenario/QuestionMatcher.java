@@ -65,7 +65,14 @@ public final class QuestionMatcher {
 
     public static QuestionMatcher configuration(final String elementType) {
         return new QuestionMatcher("configuration question for " + elementType,
-                q -> q instanceof final Configuration c && c.elementType().equals(elementType));
+                q -> q instanceof final Configuration c && c.elementType().equals(elementType) && !c.admitting());
+    }
+
+    /// The exhaustion step's question (design 04 §4): the transform's configuration asked for once more,
+    /// with the admitted form in it.
+    public static QuestionMatcher admission(final String elementType) {
+        return new QuestionMatcher("admission question for " + elementType,
+                q -> q instanceof final Configuration c && c.elementType().equals(elementType) && c.admitting());
     }
 
     public QuestionMatcher allowing(final String... elementTypes) {

@@ -787,6 +787,37 @@ call expected, and the setting's description says so.
   mid-run (§8.1); scenarios 4, 5 and 14 of §8, and a scripted run in which a model that asks for the admitted
   form before the exhaustion step is refused it.
 
+*Built 2026-10-05: the exhaustion step and the unlearnable parse (A51–A54, A62, A74–A76).* The marker is
+`LearnedUnknown.MARKER`, `ShapeshifterUnknown`, in shared code: a `Data` item of that name inside
+`EventDetail/Unknown` whose value is the model's name for the record kind admitted (A74), and the event
+schema allows it — `Unknown` holds any number of `Data` items, checked before anything else was written.
+`ADMIT` is a plan step kind, the transform's configuration asked for once more with the admitted form in
+its text (`Template.ADMISSION`, which raised the built-in version), entered only by a transition and never
+by the step above it ending; the example plans reach it `on spent` from their last transform step, the
+direct plan now having a parser step and a transform step rather than one over both. The quality scorer
+accepts a marked Unknown and leaves the marker out of its count of untyped data; a bare Unknown is refused
+as it always was; and the conversation refuses the admitted form at any step but `ADMIT` (`REFUSED`), so a
+model cannot take the short way out of a record it could translate. A marked Unknown clears the bar when
+served and is held in the corpus as an admission (A75), which A66 lets a later translation replace and
+refuses to let a translation become. A parser whose candidates are spent is the one failure nothing can
+serve (A54): the abandonment says so, the session gives the shape up, and the streams waiting on it are
+woken to error with the reason, their rows released. Scenarios 59 and 60 hold it at Tier 1 and test A's
+steps 4 to 6 at Tier 2, on the CSV feed with a badge-fault kind standing for the untranslatable type.
+
+Building it found the gap that would have made the step unreachable: a relearning judged its candidates
+on the sample, which is a prefix the records that fell short are usually not in, so a transform that
+ignored them passed its step and the session looped to parking without ever spending a candidate. The
+conversation now holds every candidate for the chain's last element to the records the full pass kept, as
+the parser cut them, and a candidate short on one is judged short with the record in its feedback; the
+corpus takes those records as its entries for that round, each without its own text, since they lie
+beyond the text in hand. The exhaustion step is reached by the plan's candidates being spent (A76), which
+with the direct plan's single candidate per step is after one refusal; budgets out before that still park
+(A65), and the Supervisor's action that sends a parked session to the step waits for phase 6's screen.
+
+What this does not do: test B; a relearning whose *parser* candidates are spent parks rather than giving
+the shape up, since an incumbent is serving and A54 was written for a shape nothing serves; and the
+admission's record-kind value is the model's word, checked for nothing but its presence.
+
 ### Phase 6 — What an operator sees, and what is taken out
 
 - The Supervisor's backlog from the deferral table: what waits, on which transform and since when. The maximum deferral age (scenario 8), past which a stream is
@@ -901,8 +932,8 @@ later completed, or an error stream that is later deleted, is a failure the fina
 - **Learning in stepping mode**, which the owner has said is a different discussion.
 - **How long a snapshot is kept** (A61). It must outlive every output that names it, so it follows the
   retention of the feed's processed data; the rule for that is not written.
-- **That a marked Unknown validates.** A62 puts the marker in a `Data` item inside `Unknown`; the event
-  schema is downloaded content and has not been checked for it. Phase 5 checks it first.
+- ~~**That a marked Unknown validates.**~~ Checked, 2026-10-05: `Unknown` holds any number of `Data`
+  items, each with a required `Name` and an optional `Value`, so the marker of A62 validates as written.
 
 ---
 
@@ -999,4 +1030,19 @@ stamp moves, so waiting streams are scored against the edit.
 **A73.** *The A64 full pass is built with the minimum of A65: a `PARKED` attempt status the worker leaves
 alone, a lease that does not lapse, and the Supervisor showing it.* A session out of budget mid-iteration
 stops there rather than being abandoned into another round.
+
+The owner's, 2026-10-05, for phase 5:
+
+**A74.** *The marker of a learned Unknown is one `Data` item named `ShapeshifterUnknown` inside
+`EventDetail/Unknown`, whose value is the model's name for the record kind it admitted.* One constant in
+shared code; the value says what was admitted, for a reader and for a later improvement.
+
+**A75.** *A marked Unknown clears the bar once served, is held in the corpus as an admission, and counts
+towards the shape's rolling score as any served record does.* A66 then lets a later improvement replace it
+with a translation and refuses the reverse; nothing is counted (A51), and nothing drags the shape towards
+relearning for admissions alone (§8 scenario 14).
+
+**A76.** *A session goes to the exhaustion step when the plan's candidates for the transform are spent
+with records of the held stream still short — by the plan's own transition, and by no other route.*
+Budgets spent before that park (A65); a person's sending a parked session there waits for the screen.
 

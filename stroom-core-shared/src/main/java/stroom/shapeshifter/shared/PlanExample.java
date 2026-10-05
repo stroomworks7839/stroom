@@ -30,13 +30,19 @@ import java.util.List;
 public enum PlanExample implements HasDisplayValue {
     DIRECT("Direct", List.of(
             PlanStep.parse("CHAIN"),
-            PlanStep.parse("CONFIGURE"))),
+            PlanStep.parse("CONFIGURE parser"),
+            PlanStep.parse("CONFIGURE transform on spent goto admit"),
+            // The exhaustion step (design 04 §4): reached only when the transform's candidates are spent
+            // with records of the held stream still short, and the one step that may ask for the admitted
+            // form (A53).
+            PlanStep.parse("ADMIT"))),
     TARGET_FIRST("Target first", List.of(
             PlanStep.parse("CHAIN"),
             PlanStep.parse("SPLIT"),
             PlanStep.parse("TARGET kinds 3"),
             PlanStep.parse("CONFIGURE parser"),
-            PlanStep.parse("CONFIGURE transform on preservation-short goto parser"))),
+            PlanStep.parse("CONFIGURE transform on preservation-short goto parser on spent goto admit"),
+            PlanStep.parse("ADMIT"))),
     ESCALATING("Escalating", List.of(
             PlanStep.parse("CHAIN"),
             // The split is asked of every input (A39): what one record is costs one question and is what
@@ -47,7 +53,8 @@ public enum PlanExample implements HasDisplayValue {
             PlanStep.parse("first: CONFIGURE transform candidates 2 on passed goto end on spent goto target"),
             PlanStep.parse("TARGET kinds 3"),
             PlanStep.parse("again: CONFIGURE parser"),
-            PlanStep.parse("CONFIGURE transform on preservation-short goto again")));
+            PlanStep.parse("CONFIGURE transform on preservation-short goto again on spent goto admit"),
+            PlanStep.parse("ADMIT")));
 
     private final String displayValue;
     private final List<PlanStep> steps;

@@ -41,7 +41,9 @@ public sealed interface Question {
             case Chain ignored -> QuestionKind.CHAIN;
             case Split ignored -> QuestionKind.SPLIT;
             case TargetFor ignored -> QuestionKind.TARGET;
-            case Configuration ignored -> QuestionKind.CONFIGURE;
+            case Configuration configuration -> configuration.admitting()
+                    ? QuestionKind.ADMIT
+                    : QuestionKind.CONFIGURE;
         };
     }
 
@@ -165,6 +167,7 @@ public sealed interface Question {
                          boolean oneRecord,
                          Records records,
                          List<String> otherKinds,
+                         boolean admitting,
                          List<StoredError> feedback) implements Question {
 
         public Configuration {

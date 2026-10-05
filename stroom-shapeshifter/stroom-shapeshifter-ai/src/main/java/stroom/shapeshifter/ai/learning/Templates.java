@@ -42,7 +42,7 @@ public final class Templates {
     /**
      * Raised when the built-in text changes in a way a stored run should be told apart from.
      */
-    public static final int VERSION = 5;
+    public static final int VERSION = 6;
 
     private static final Map<Template, String> BUILT_IN = new EnumMap<>(Template.class);
 
@@ -127,6 +127,26 @@ public final class Templates {
                 Write the ${documentType} document for the ${elementType} element.
 
                 ${headers}${rules}
+
+                The element will receive this input:
+                ${input}
+                ${split}${targets}${previous}${feedback}
+                Reply with the ${documentType} document as a single fenced XML code block and nothing else.""");
+        BUILT_IN.put(Template.ADMISSION, """
+                Write the ${documentType} document for the ${elementType} element once more. Your candidates \
+                for it are spent, and the records named in the feedback below still cannot be translated: no \
+                event the schema allows says what they are.
+
+                ${headers}${rules}
+
+                For each kind of record the feedback names that you cannot translate, add a match that admits \
+                it: an Event whose EventDetail holds TypeId and then exactly this, with the record kind as the \
+                value, and nothing else in the detail:
+                ${admitted}
+                The Data item named ${marker} is what marks the event as a learned admission; without it an \
+                Unknown is refused, and with it the event is accepted and served. Admit only what cannot be \
+                translated. Every match that already translates a record must be kept exactly as it is, and \
+                every record the feedback shows as translating must still translate.
 
                 The element will receive this input:
                 ${input}

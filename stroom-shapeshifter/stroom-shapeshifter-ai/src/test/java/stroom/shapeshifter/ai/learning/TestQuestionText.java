@@ -73,7 +73,8 @@ class TestQuestionText {
         final StoredError shortfall = new StoredError(Severity.ERROR, null, new ElementId("Scorecard"),
                 "Input coverage scored 0.6 against a threshold of 0.9");
         final String text = WORDS.render(new Configuration("DSParser", "TextConverter", SAMPLE, "a,b,c\n",
-                "<dataSplitter/>", null, List.of(), false, Question.Records.UNKNOWN, List.of(), List.of(shortfall)));
+                "<dataSplitter/>", null, List.of(), false,
+                        Question.Records.UNKNOWN, List.of(), false, List.of(shortfall)));
 
         assertThat(text)
                 .contains("Write the TextConverter document for the DSParser element")
@@ -93,7 +94,8 @@ class TestQuestionText {
         // stream is written for something that will never arrive.
         final String text = WORDS.render(new Configuration("XSLTFilter", "XSLT", SAMPLE,
                 "<records xmlns=\"records:2\"><record/></records>", null,
-                Boundary.ofArray("events", 3), List.of(), true, new Question.Records(12, 2), List.of(), List.of()));
+                Boundary.ofArray("events", 3), List.of(), true, new Question.Records(12, 2), List.of(), false,
+                        List.of()));
 
         assertThat(text)
                 .contains("The input below is **one record**")
@@ -113,7 +115,7 @@ class TestQuestionText {
         final String text = WORDS.render(new Configuration("XSLTFilter", "XSLT", SAMPLE,
                 "<records xmlns=\"records:2\"><record kind=\"login\"/></records>", null,
                 Boundary.ofArray("events", 3), List.of(), true, new Question.Records(12, 2),
-                List.of("<records xmlns=\"records:2\"><record kind=\"logout\"/></records>"), List.of()));
+                List.of("<records xmlns=\"records:2\"><record kind=\"logout\"/></records>"), false, List.of()));
 
         assertThat(text)
                 .contains("one record at a time, each on its own run")
@@ -133,7 +135,7 @@ class TestQuestionText {
                 "<records xmlns=\"records:2\"><record kind=\"login\"/></records>", null,
                 Boundary.ofArray("events", 3), List.of(), true, new Question.Records(40, 5),
                 List.of("<records xmlns=\"records:2\"><record kind=\"logout\"/></records>",
-                        "<records xmlns=\"records:2\"><record kind=\"alarm\"/></records>"), List.of()));
+                        "<records xmlns=\"records:2\"><record kind=\"alarm\"/></records>"), false, List.of()));
 
         assertThat(text)
                 .contains("Here is one record of 2 of the 4 other shapes")
@@ -149,7 +151,8 @@ class TestQuestionText {
         // without Saxon raising anything — which the live run of 2026-09-22 spent seven attempts on.
         final String text = WORDS.render(new Configuration("XSLTFilter", "XSLT", SAMPLE,
                 "<auditLog application=\"DocVault\"><entry id=\"a1\"/></auditLog>", null,
-                Boundary.ofElement("entry", 1), List.of(), true, new Question.Records(8, 2), List.of(), List.of()));
+                Boundary.ofElement("entry", 1), List.of(), true, new Question.Records(8, 2), List.of(), false,
+                        List.of()));
 
         assertThat(text)
                 .contains("This input is the stream's own markup and not records:2")
@@ -160,7 +163,8 @@ class TestQuestionText {
     void aParsersRecordsAreNotContradicted() {
         final String text = WORDS.render(new Configuration("XSLTFilter", "XSLT", SAMPLE,
                 "<records xmlns=\"records:2\"><record/></records>", null,
-                Boundary.ofArray("events", 3), List.of(), true, new Question.Records(12, 2), List.of(), List.of()));
+                Boundary.ofArray("events", 3), List.of(), true, new Question.Records(12, 2), List.of(), false,
+                        List.of()));
 
         assertThat(text).doesNotContain("the stream's own markup");
     }
@@ -169,7 +173,7 @@ class TestQuestionText {
     void theTransformQuestionCarriesTheSchemasFailureModesAndTheDegeneracyTrap() {
         final String text = WORDS.render(new Configuration("XSLTFilter", "XSLT", SAMPLE,
                 "<records xmlns=\"records:2\"/>", null, null, List.of(), false, Question.Records.UNKNOWN,
-                List.of(), List.of()));
+                List.of(), false, List.of()));
 
         assertThat(text)
                 .contains("event-logging:3")

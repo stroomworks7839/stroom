@@ -50,7 +50,18 @@ public sealed interface Outcome {
      * @param diagnostics What the last failing step reported, if a step failed; the last question's
      *                    feedback otherwise never reached a question, so it is kept here.
      */
-    record Abandoned(String reason, List<StoredError> diagnostics, List<Exchange> transcript) implements Outcome {
+    ///
+    /// @param parse Whether what was spent was the parser's candidates: the stream could not be cut into
+    ///              records that meet the document's gates, which is the one failure nothing can serve
+    ///              (A52, A54). False for every other reason.
+    record Abandoned(String reason,
+                     List<StoredError> diagnostics,
+                     List<Exchange> transcript,
+                     boolean parse) implements Outcome {
 
+        public Abandoned(final String reason, final List<StoredError> diagnostics,
+                         final List<Exchange> transcript) {
+            this(reason, diagnostics, transcript, false);
+        }
     }
 }

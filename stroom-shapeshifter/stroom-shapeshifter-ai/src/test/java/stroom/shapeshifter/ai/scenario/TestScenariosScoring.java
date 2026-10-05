@@ -286,14 +286,22 @@ class TestScenariosScoring {
                 .expect(QuestionMatcher.configuration("XSLTFilter").withFeedbackMentioning("Yield scored"))
                 .reply(Scenarios.fenced(everyOther))
                 .expect(QuestionMatcher.configuration("XSLTFilter").withFeedbackMentioning("Yield scored"))
+                .reply(Scenarios.fenced(everyOther))
+                // The candidates spent, the plan's exhaustion step asks for the transform as many times
+                // again (design 04 §4); a stylesheet that still drops every other record fails there too.
+                .expect(QuestionMatcher.admission("XSLTFilter").withFeedbackMentioning("Yield scored"))
+                .reply(Scenarios.fenced(everyOther))
+                .expect(QuestionMatcher.admission("XSLTFilter").withFeedbackMentioning("Yield scored"))
+                .reply(Scenarios.fenced(everyOther))
+                .expect(QuestionMatcher.admission("XSLTFilter").withFeedbackMentioning("Yield scored"))
                 .reply(Scenarios.fenced(everyOther));
 
         final StageRun run = scenarios.stage(script).run(doc, stream(1, CsvLines.lines(6)));
 
         script.verifyExhausted();
-        assertThat(script.scripted()).hasSize(5);
+        assertThat(script.scripted()).hasSize(8);
         assertThat(run.decision()).isInstanceOf(GivenUp.class);
-        assertThat(((GivenUp) run.decision()).reason()).contains("No passing configuration for XSLTFilter after 3");
+        assertThat(((GivenUp) run.decision()).reason()).contains("No admission for XSLTFilter after 3");
         assertThat(feedback(script.scripted().get(4)))
                 .anyMatch(message -> message.contains("against an expected 1.0"));
         assertThat(scenarios.rules.forDocument(DOC)).isEmpty();

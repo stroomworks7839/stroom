@@ -32,6 +32,8 @@ public enum Template implements HasDisplayValue {
     TARGET("Target question", "headers", "kind", "total", "transformationRules", "record", "feedback"),
     CONFIGURATION("Configuration question", "headers", "elementType", "documentType", "rules", "input", "split",
             "targets", "previous", "feedback"),
+    ADMISSION("Admission question", "headers", "elementType", "documentType", "rules", "input", "split",
+            "targets", "previous", "feedback", "marker", "admitted"),
     SPLIT_RULES("Split rules"),
     EXTRACTION_RULES("Extraction rules"),
     TRANSFORMATION_RULES("Transformation rules");
