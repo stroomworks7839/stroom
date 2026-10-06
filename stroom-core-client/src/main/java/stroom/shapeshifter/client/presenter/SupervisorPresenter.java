@@ -70,6 +70,7 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
     private final ButtonView relearnButton;
     private final ButtonView hintButton;
     private final ButtonView grantButton;
+    private final ButtonView exhaustButton;
 
     @Inject
     public SupervisorPresenter(final EventBus eventBus,
@@ -126,6 +127,10 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
         // alone (A77), which the worker then carries on with.
         grantButton = listPresenter.add(SvgPresets.ADD.title(
                 "Give this parked attempt more to spend, and carry it on"));
+        // A65's other action on a parked session: no more trying — the next transform question is not
+        // put, and the plan goes to its exhaustion step, where what cannot be translated is admitted.
+        exhaustButton = listPresenter.add(SvgPresets.FAST_FORWARD_BLUE.title(
+                "Send this parked attempt to the exhaustion step, and carry it on"));
         updateButtons();
     }
 
@@ -146,6 +151,7 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
         registerHandler(relearnButton.addClickHandler(event -> relearn()));
         registerHandler(hintButton.addClickHandler(event -> hint()));
         registerHandler(grantButton.addClickHandler(event -> grant()));
+        registerHandler(exhaustButton.addClickHandler(event -> exhaust()));
     }
 
     /// Approve what an attempt drafted (A25): the promotion it was waiting for, and the release of every
@@ -241,6 +247,23 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
         }
     }
 
+    /// Send a parked session to the exhaustion step (A65, A76): the worker carries it on, puts no further
+    /// transform question to the model, and asks for the admitted form for what the stream still wants.
+    private void exhaust() {
+        final SupervisorAttempt attempt = parked();
+        if (attempt != null) {
+            ConfirmEvent.fire(this,
+                    "Send this attempt to the exhaustion step? The model is not asked for another "
+                    + "translation: it is asked to admit, as marked Unknown events, the records the stream "
+                    + "still cannot translate, and the stream is served with them.",
+                    ok -> {
+                        if (ok) {
+                            act(resource -> resource.exhaust(attempt.getId()));
+                        }
+                    });
+        }
+    }
+
     /// The selected attempt where it is parked for a person, and null otherwise.
     private SupervisorAttempt parked() {
         final SupervisorAttempt attempt = selected();
@@ -297,6 +320,7 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
         relearnButton.setEnabled(selected() != null);
         hintButton.setEnabled(selected() != null);
         grantButton.setEnabled(parked() != null);
+        exhaustButton.setEnabled(parked() != null);
     }
 
     @Override

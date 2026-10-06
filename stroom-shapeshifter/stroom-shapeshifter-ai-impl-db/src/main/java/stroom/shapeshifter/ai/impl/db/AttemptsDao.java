@@ -354,6 +354,8 @@ public class AttemptsDao implements Attempts {
                 .set(SHAPESHIFTER_ATTEMPT.RULE_UUID, ruleUuid)
                 .set(SHAPESHIFTER_ATTEMPT.SCORE, score)
                 .set(SHAPESHIFTER_ATTEMPT.TOKENS_SPENT, SHAPESHIFTER_ATTEMPT.TOKENS_SPENT.plus(tokensSpent))
+                // A sending to the exhaustion step stands until the attempt closes (A65).
+                .set(SHAPESHIFTER_ATTEMPT.EXHAUST_NEXT, (byte) 0)
                 .set(SHAPESHIFTER_ATTEMPT.VERSION, SHAPESHIFTER_ATTEMPT.VERSION.plus(1))
                 .set(SHAPESHIFTER_ATTEMPT.UPDATE_TIME_MS, System.currentTimeMillis())
                 // A claim that has ended holds nothing (A45), and frees the shape for the next attempt.
@@ -548,7 +550,19 @@ public class AttemptsDao implements Attempts {
                 record.get(SHAPESHIFTER_ATTEMPT.UPDATE_TIME_MS),
                 turns,
                 new Grant(record.get(SHAPESHIFTER_ATTEMPT.GRANTED_TOKENS),
-                        record.get(SHAPESHIFTER_ATTEMPT.GRANTED_MS)));
+                        record.get(SHAPESHIFTER_ATTEMPT.GRANTED_MS)),
+                record.get(SHAPESHIFTER_ATTEMPT.EXHAUST_NEXT) != 0);
+    }
+
+    @Override
+    public void exhaustNext(final long attemptId) {
+        JooqUtil.context(connProvider, context -> context
+                .update(SHAPESHIFTER_ATTEMPT)
+                .set(SHAPESHIFTER_ATTEMPT.EXHAUST_NEXT, (byte) 1)
+                .set(SHAPESHIFTER_ATTEMPT.VERSION, SHAPESHIFTER_ATTEMPT.VERSION.plus(1))
+                .set(SHAPESHIFTER_ATTEMPT.UPDATE_TIME_MS, System.currentTimeMillis())
+                .where(SHAPESHIFTER_ATTEMPT.ID.eq(attemptId))
+                .execute());
     }
 
     @Override

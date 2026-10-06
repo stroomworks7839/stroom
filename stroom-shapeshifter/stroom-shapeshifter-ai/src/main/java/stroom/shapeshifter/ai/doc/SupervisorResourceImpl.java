@@ -166,6 +166,14 @@ public class SupervisorResourceImpl implements SupervisorResource {
         return detail(read(id));
     }
 
+    /// Send a parked session to the exhaustion step (A65), and carry it on.
+    @Override
+    public SupervisorAttempt exhaust(final long id) {
+        final Recorded attempt = change(id);
+        onStage(attempt, (stage, doc) -> stage.exhaust(doc, id));
+        return detail(read(id));
+    }
+
     @Override
     public ResultPage<SupervisorAttempt> find(final AttemptCriteria criteria) {
         final AttemptCriteria asked = criteria == null
@@ -586,6 +594,7 @@ public class SupervisorResourceImpl implements SupervisorResource {
                 attempt.tokensSpent(),
                 attempt.grant().tokens(),
                 attempt.grant().ms(),
+                attempt.exhaustNext(),
                 attempt.createTimeMs(),
                 attempt.updateTimeMs(),
                 turns);

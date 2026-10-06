@@ -129,6 +129,8 @@ class TestScenario13ReleaseInAPipeline extends AbstractCoreIntegrationTest {
 
     @Test
     void scenario13ThePromotionReleasesTheStreamThatWaitedAndItIsProcessed() {
+        // A filter over a supervised pipeline needs the node to claim its own tasks (design 04 §7).
+        processorConfigProvider.get().setClaimTasksOnWorker(true);
         final DocRef feed = storeCreationTool.getOrCreateFeedDoc(FEED);
         final DocRef doc = document();
         final DocRef pipeline = pipeline(feed, doc);

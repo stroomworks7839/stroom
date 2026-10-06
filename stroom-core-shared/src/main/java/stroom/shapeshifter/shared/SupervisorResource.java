@@ -91,6 +91,12 @@ public interface SupervisorResource extends RestResource, DirectRestService {
     SupervisorAttempt grant(@PathParam("id") long id, GrantRequest request);
 
     @POST
+    @Path("/{id}/exhaust")
+    @Operation(summary = "Send a parked attempt to the exhaustion step, and carry it on",
+            operationId = "exhaustShapeshifterAiAttempt")
+    SupervisorAttempt exhaust(@PathParam("id") long id);
+
+    @POST
     @Path("/backlog")
     @Operation(
             summary = "What is waiting on a session, a row per stream, the raised ones first",

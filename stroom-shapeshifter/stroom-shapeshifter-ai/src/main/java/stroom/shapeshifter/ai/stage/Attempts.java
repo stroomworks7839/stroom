@@ -85,6 +85,12 @@ public interface Attempts {
     /// no longer awaiting: opening the attempt that took it closed this one.
     List<Recorded> awaiting(int limit);
 
+    /// Send an attempt to the exhaustion step (A65): the worker carrying it on puts no further transform
+    /// question to the model and takes the plan's spent transition instead. Stands until the attempt is
+    /// [#closed]: a park on the way — for the budget the exhaustion step's own question needs — and the
+    /// grant that reopens it leave the sending to be taken by the walk that follows.
+    void exhaustNext(long attemptId);
+
     /// Give an attempt more to spend (A77): tokens and milliseconds added to what the document allows it,
     /// recorded against the attempt alone and kept for as long as the row is.
     void granted(long attemptId, long tokens, long ms);
@@ -226,7 +232,11 @@ public interface Attempts {
     }
 
     /// An attempt as it is read back: what it was, what it came to, and every turn of it.
-    /// @param grant What a person granted the attempt beyond the document's budgets (A77).
+    /// @param grant       What a person granted the attempt beyond the document's budgets (A77).
+    /// @param exhaustNext Whether a person sent the attempt to the exhaustion step (A65): the next transform
+    ///                    question that would be put to the model is not put, and the plan's spent
+    ///                    transition is taken instead. Stands until the attempt closes, through any park
+    ///                    and grant between.
     record Recorded(long id,
                     Attempt attempt,
                     AttemptStatus status,
@@ -237,13 +247,21 @@ public interface Attempts {
                     long createTimeMs,
                     long updateTimeMs,
                     List<Turn> turns,
-                    Grant grant) {
+                    Grant grant,
+                    boolean exhaustNext) {
 
         public Recorded(final long id, final Attempt attempt, final AttemptStatus status, final String decision,
                         final String ruleUuid, final Double score, final long tokensSpent, final long createTimeMs,
                         final long updateTimeMs, final List<Turn> turns) {
             this(id, attempt, status, decision, ruleUuid, score, tokensSpent, createTimeMs, updateTimeMs, turns,
-                    Grant.NONE);
+                    Grant.NONE, false);
+        }
+
+        public Recorded(final long id, final Attempt attempt, final AttemptStatus status, final String decision,
+                        final String ruleUuid, final Double score, final long tokensSpent, final long createTimeMs,
+                        final long updateTimeMs, final List<Turn> turns, final Grant grant) {
+            this(id, attempt, status, decision, ruleUuid, score, tokensSpent, createTimeMs, updateTimeMs, turns,
+                    grant, false);
         }
     }
 

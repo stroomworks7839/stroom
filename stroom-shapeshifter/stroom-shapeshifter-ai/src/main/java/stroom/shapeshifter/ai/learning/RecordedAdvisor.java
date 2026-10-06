@@ -83,8 +83,10 @@ public final class RecordedAdvisor implements Advisor {
     public String ask(final List<Exchange> transcript, final Question question, final List<Given> guidance) {
         if (next < answered.size()) {
             final Turn turn = answered.get(next++);
-            // The summary names the kind of question and what it is about, so one comparison covers both.
-            if (!question.summary().equals(turn.question())) {
+            // The identity names the kind of question and what it is about, so one comparison covers
+            // both; how much the step had been told is left out of it, since a re-walk over a fragment
+            // the session itself bound is told of that fragment's shortfalls from its first question.
+            if (!question.identity().equals(Question.identityOf(turn.question()))) {
                 throw new ReplayDiverged(turn, question);
             }
             replayed = turn;
@@ -92,6 +94,11 @@ public final class RecordedAdvisor implements Advisor {
         }
         replayed = null;
         return then.ask(transcript, question, guidance);
+    }
+
+    @Override
+    public boolean replaying() {
+        return next < answered.size();
     }
 
     @Override

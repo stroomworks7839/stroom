@@ -29,6 +29,7 @@ import stroom.pipeline.shared.data.PipelineDataUtil;
 import stroom.pipeline.shared.data.PipelineElement;
 import stroom.processor.api.ProcessorFilterService;
 import stroom.processor.api.ProcessorResult;
+import stroom.processor.impl.ProcessorConfig;
 import stroom.processor.shared.CreateProcessFilterRequest;
 import stroom.processor.shared.QueryData;
 import stroom.query.api.ExpressionOperator;
@@ -55,6 +56,8 @@ import stroom.test.StoreCreationTool;
 import stroom.util.shared.Severity;
 
 import jakarta.inject.Inject;
+import jakarta.inject.Provider;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -99,6 +102,14 @@ class TestScenario20SentinelInAPipeline extends AbstractCoreIntegrationTest {
     private Rules ruleRows;
     @Inject
     private Ledger ledger;
+    @Inject
+    private Provider<ProcessorConfig> processorConfigProvider;
+
+    @BeforeEach
+    void setUp() {
+        // A filter over a supervised pipeline needs the node to claim its own tasks (design 04 §7).
+        processorConfigProvider.get().setClaimTasksOnWorker(true);
+    }
 
     @Test
     void scenario20TheSentinelIsAnErrorStreamAndTheLedgerIsARow() {

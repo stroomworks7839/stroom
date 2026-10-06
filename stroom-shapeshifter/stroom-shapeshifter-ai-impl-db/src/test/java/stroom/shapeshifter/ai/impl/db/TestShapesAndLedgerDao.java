@@ -277,6 +277,26 @@ class TestShapesAndLedgerDao {
     }
 
     @Test
+    void aSendingToTheExhaustionStepStandsOnTheRowUntilTheAttemptCloses() {
+        // A65: a person's sending is read back with the row for the worker to take, stands through a park
+        // and the reopening that follows, and is cleared when the attempt closes.
+        final String shape = SHAPE + "-exhaust";
+        final long id = attempts.opened(new Attempt(DOC, shape, "F", "T", 1L, "node-1",
+                PromotionMode.AUTOMATIC, now() + 60_000L), now()).orElseThrow();
+        assertThat(attempts.byId(id).orElseThrow().exhaustNext()).isFalse();
+
+        attempts.exhaustNext(id);
+        assertThat(attempts.byId(id).orElseThrow().exhaustNext()).isTrue();
+
+        attempts.parked(id, "over budget", 1L);
+        assertThat(attempts.byId(id).orElseThrow().exhaustNext()).describedAs("stands through a park").isTrue();
+        assertThat(attempts.reopened(id, now(), now() + 60_000L)).isTrue();
+        assertThat(attempts.byId(id).orElseThrow().exhaustNext()).describedAs("and a reopening").isTrue();
+        attempts.closed(id, AttemptStatus.PROMOTED, "Promoted", "rule-x", 1.0, 1L);
+        assertThat(attempts.byId(id).orElseThrow().exhaustNext()).describedAs("cleared by the close").isFalse();
+    }
+
+    @Test
     void whatEveryNodeSpendsIsCountedInOnePlace() {
         // A44: a budget divided by node count is not a budget, and a feed burning spend on one node is
         // invisible to the others.

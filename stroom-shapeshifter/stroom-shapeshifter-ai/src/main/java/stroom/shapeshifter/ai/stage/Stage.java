@@ -281,15 +281,15 @@ public final class Stage {
             final Judged served = judge(scorecard, rule.getPipeline(), input.data(), rule.getRecordBoundary());
             final String marked = shapes.relearnReason(doc.getUuid(), shape.id())
                     .orElse("the shape was marked for relearning");
-            return carrying(doc, shape, input, attemptId, recorded.tokensSpent(), recorded.grant(), answeredBefore,
-                    replay, true,
+            return carrying(doc, shape, input, attemptId, recorded.tokensSpent(), recorded.grant(),
+                    recorded.exhaustNext(), answeredBefore, replay, true,
                     reason -> emit(doc, new Kept(rule, reason), shape, input, rule, served, List.of()),
                     recorder -> settle(doc, shape, input, attributes, scorecard, recorder,
                             relearnUnderClaim(doc, shape, rule, input, attributes, scorecard, served, marked,
                                     recorder)));
         }
-        return carrying(doc, shape, input, attemptId, recorded.tokensSpent(), recorded.grant(), answeredBefore,
-                replay, true,
+        return carrying(doc, shape, input, attemptId, recorded.tokensSpent(), recorded.grant(),
+                recorded.exhaustNext(), answeredBefore, replay, true,
                 reason -> sentinel(doc, shape, input, reason),
                 recorder -> settle(doc, shape, input, attributes, scorecard, recorder,
                         learnAndBind(doc, shape, input, attributes, scorecard, selector, recorder)));
@@ -332,6 +332,30 @@ public final class Stage {
             throw new IllegalArgumentException("A grant is tokens, milliseconds or both, and not less than nothing");
         }
         attempts.granted(attemptId, tokens, ms);
+        if (!attempts.reopened(attemptId, clock.millis(), claimUntil())) {
+            throw new IllegalStateException("Attempt " + attemptId + " cannot be carried on: another attempt is "
+                                            + "learning shape " + recorded.attempt().shape());
+        }
+    }
+
+    /// Send a parked session to the exhaustion step (A65, A76): the attempt is opened again for the
+    /// worker, which carries it on from its recorded turns and, at the first transform question it would
+    /// put to the model, takes the plan's spent transition instead — to `ADMIT`, where the plan has one.
+    /// Only a parked attempt is sent.
+    public void exhaust(final ShapeshifterAiDoc doc, final long attemptId) {
+        final Recorded recorded = attempts.byId(attemptId)
+                .orElseThrow(() -> new IllegalArgumentException("No attempt " + attemptId));
+        if (!doc.getUuid().equals(recorded.attempt().docUuid())) {
+            throw new IllegalArgumentException("Attempt " + attemptId + " belongs to document "
+                                               + recorded.attempt().docUuid() + ", not " + doc.getUuid());
+        }
+        if (recorded.status() != AttemptStatus.PARKED) {
+            throw new IllegalStateException("Attempt " + attemptId + " is not parked for a person: it is "
+                                            + recorded.status().getDisplayValue());
+        }
+        // The sending first, so that no worker takes the attempt between the reopening and it; on a
+        // parked row it stands harmlessly until the attempt is reopened and closed.
+        attempts.exhaustNext(attemptId);
         if (!attempts.reopened(attemptId, clock.millis(), claimUntil())) {
             throw new IllegalStateException("Attempt " + attemptId + " cannot be carried on: another attempt is "
                                             + "learning shape " + recorded.attempt().shape());
@@ -1272,7 +1296,8 @@ public final class Stage {
             // takes what that attempt comes to rather than learning the same thing beside it.
             return waiting.apply("Another node is learning this shape; this stream waits for what it learns");
         }
-        return carrying(doc, shape, input, opened.get(), 0L, Grant.NONE, Map.of(), advisor, false, waiting, attempt);
+        return carrying(doc, shape, input, opened.get(), 0L, Grant.NONE, false, Map.of(), advisor, false, waiting,
+                attempt);
     }
 
     /**
@@ -1285,14 +1310,15 @@ public final class Stage {
                               final long attemptId,
                               final long alreadySpent,
                               final Grant grant,
+                              final boolean exhaustNext,
                               final Map<Integer, String> answeredBefore,
                               final Advisor advisor,
                               final boolean worker,
                               final Function<String, StageRun> waiting,
                               final Function<Recorder, StageRun> attempt) {
         final long before = advisor.tokensUsed();
-        final Recorder recorder = new Recorder(doc, advisor, attemptId, alreadySpent, grant, answeredBefore,
-                answeredBy(doc));
+        final Recorder recorder = new Recorder(doc, advisor, attemptId, alreadySpent, grant, exhaustNext,
+                answeredBefore, answeredBy(doc));
         recorder.worker = worker;
         final StageRun run;
         try {
@@ -1360,6 +1386,12 @@ public final class Stage {
         private boolean worker;
         /// What a person granted the attempt beyond the document's budgets (A77).
         private final Grant grant;
+        /// The advisor's count and the clock as this carrying began: a round that follows another in the
+        /// same carrying is under the same budget, counted from here (A5).
+        private final long tokensBefore;
+        private final long startedMs;
+        /// Whether a person sent the attempt to the exhaustion step (A65).
+        private final boolean exhaustNext;
         /// The highest turn number recorded so far, and the number the current walk's turns count on from.
         private int highest;
         private int base;
@@ -1369,6 +1401,7 @@ public final class Stage {
                          final long attemptId,
                          final long alreadySpent,
                          final Grant grant,
+                         final boolean exhaustNext,
                          final Map<Integer, String> answeredBefore,
                          final String answeredBy) {
             this.doc = doc;
@@ -1376,6 +1409,9 @@ public final class Stage {
             this.attemptId = attemptId;
             this.alreadySpent = alreadySpent;
             this.grant = grant;
+            this.exhaustNext = exhaustNext;
+            this.tokensBefore = advisor.tokensUsed();
+            this.startedMs = clock.millis();
             this.answeredBefore = Map.copyOf(answeredBefore);
             this.answeredBy = answeredBy;
         }
@@ -1395,6 +1431,13 @@ public final class Stage {
         /// What this attempt had spent before it was last parked (A5): its budget is the whole of it.
         private long alreadySpent() {
             return alreadySpent;
+        }
+
+        /// What this attempt has spent so far: before it was last parked, and in this carrying up to now.
+        /// A round that follows another is under the one budget, so it starts from here and not from
+        /// nothing.
+        private long spentSoFar() {
+            return alreadySpent + Math.max(0L, advisor.tokensUsed() - tokensBefore);
         }
 
         /// The claim pushed out, before every question: an attempt held up by one slow model call would
@@ -1886,8 +1929,10 @@ public final class Stage {
         // (A28).
         final Conversation conversation = new Conversation(advisor, runners, scorecard, clock,
                 recorder::heartbeat, recorder::turn)
-                .alreadySpent(recorder.alreadySpent())
+                .alreadySpent(recorder.spentSoFar())
+                .begunAt(recorder.startedMs)
                 .granted(recorder.grant.tokens(), recorder.grant.ms())
+                .exhaustFirst(recorder.exhaustNext)
                 // The records the held stream fell short on (design 04 §4): every candidate for the
                 // transform is held to them, beyond the sample they are not in.
                 .heldTo(held)

@@ -63,6 +63,9 @@ public class SupervisorAttempt {
     private final long grantedTokens;
     @JsonProperty
     private final long grantedMs;
+    /// Whether a person sent the attempt to the exhaustion step (A65), and the worker has not yet taken it.
+    @JsonProperty
+    private final boolean exhaustNext;
     @JsonProperty
     private final long createTimeMs;
     @JsonProperty
@@ -86,6 +89,7 @@ public class SupervisorAttempt {
                              @JsonProperty("tokensSpent") final long tokensSpent,
                              @JsonProperty("grantedTokens") final long grantedTokens,
                              @JsonProperty("grantedMs") final long grantedMs,
+                             @JsonProperty("exhaustNext") final boolean exhaustNext,
                              @JsonProperty("createTimeMs") final long createTimeMs,
                              @JsonProperty("updateTimeMs") final long updateTimeMs,
                              @JsonProperty("turns") final List<SupervisorTurn> turns) {
@@ -104,6 +108,7 @@ public class SupervisorAttempt {
         this.tokensSpent = tokensSpent;
         this.grantedTokens = grantedTokens;
         this.grantedMs = grantedMs;
+        this.exhaustNext = exhaustNext;
         this.createTimeMs = createTimeMs;
         this.updateTimeMs = updateTimeMs;
         this.turns = turns == null
@@ -169,6 +174,10 @@ public class SupervisorAttempt {
 
     public long getGrantedMs() {
         return grantedMs;
+    }
+
+    public boolean isExhaustNext() {
+        return exhaustNext;
     }
 
     public long getCreateTimeMs() {

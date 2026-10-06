@@ -27,6 +27,9 @@ import java.util.List;
  */
 public sealed interface Question {
 
+    /// What joins a question's identity to how much it had been told, in its [#summary()].
+    String SHORTFALLS_AFTER = ", after ";
+
     /**
      * Diagnostics from the previous answer to the same question, if it was refused or failed. Empty the
      * first time a question is asked — unless the attempt is relearning a bound shape (A29), when the
@@ -56,6 +59,18 @@ public sealed interface Question {
     /// redacted (A17, A38), and which the raw exchange is audited with by `stroom-ai` in any case. The
     /// rendered prompt joins the record when redaction is built.
     default String summary() {
+        return identity()
+               + (feedback().isEmpty()
+                ? ""
+                : SHORTFALLS_AFTER + feedback().size() + " shortfall(s)");
+    }
+
+    /// The kind and what it is about, which is what a resumed attempt compares its re-walk against (A45):
+    /// an answer kept is an answer to this, whatever the step had been told by then. How much it had been
+    /// told is the record's to show and not the comparison's to make, since a session that bound a
+    /// fragment of its own and then parked is re-walked over the shortfalls of what it bound, which its
+    /// first questions, asked before it, were not.
+    default String identity() {
         final String about = switch (this) {
             case Chain chain -> "choose from " + chain.allowedElements();
             case Split split -> "what one record is, for " + split.elementType();
@@ -63,10 +78,15 @@ public sealed interface Question {
             case Configuration configuration -> configuration.elementType() + " "
                                                 + configuration.documentType();
         };
-        return kindOf(this).getDisplayValue() + ": " + about
-               + (feedback().isEmpty()
-                ? ""
-                : ", after " + feedback().size() + " shortfall(s)");
+        return kindOf(this).getDisplayValue() + ": " + about;
+    }
+
+    /// The [#identity()] of a question from the [#summary()] a turn recorded.
+    static String identityOf(final String summary) {
+        final int after = summary.lastIndexOf(SHORTFALLS_AFTER);
+        return after > 0 && summary.endsWith(" shortfall(s)")
+                ? summary.substring(0, after)
+                : summary;
     }
 
     /**

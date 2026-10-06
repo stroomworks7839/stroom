@@ -153,6 +153,8 @@ class TestScenario57TheSessionRunsTheHeldStreamInFullInAPipeline extends Abstrac
     @BeforeEach
     void setUp() {
         processorConfigProvider.get().setSkipEmptyFilterFetchDuration(StroomDuration.ZERO);
+        // A filter over a supervised pipeline needs the node to claim its own tasks (design 04 §7).
+        processorConfigProvider.get().setClaimTasksOnWorker(true);
         feed = FileSystemTestUtil.getUniqueTestString();
         storeCreationTool.getOrCreateFeedDoc(feed);
         document = document();

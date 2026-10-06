@@ -24,6 +24,7 @@ import stroom.util.shared.PageRequest;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -49,6 +50,7 @@ public final class InMemoryAttempts implements Attempts {
     private final Map<Long, Recorded> attempts = new LinkedHashMap<>();
     private final Map<Long, List<Turn>> turns = new LinkedHashMap<>();
     private final Map<Long, Grant> grants = new LinkedHashMap<>();
+    private final Set<Long> exhaustNext = new HashSet<>();
     private final AtomicLong nextId = new AtomicLong(1);
 
     /// One open attempt per shape is what one learner means (A45); an attempt whose expiry has passed has
@@ -161,6 +163,8 @@ public final class InMemoryAttempts implements Attempts {
             attempts.put(attemptId, new Recorded(was.id(), claim(was, 0L), status, decision, ruleUuid, score,
                     was.tokensSpent() + tokensSpent, was.createTimeMs(), System.currentTimeMillis(),
                     List.of()));
+            // A sending to the exhaustion step stands until the attempt closes (A65).
+            exhaustNext.remove(attemptId);
         }
     }
 
@@ -342,7 +346,14 @@ public final class InMemoryAttempts implements Attempts {
         return new Recorded(attempt.id(), attempt.attempt(), attempt.status(), attempt.decision(),
                 attempt.ruleUuid(), attempt.score(), attempt.tokensSpent(), attempt.createTimeMs(),
                 attempt.updateTimeMs(), List.copyOf(turns.getOrDefault(attempt.id(), List.of())),
-                grants.getOrDefault(attempt.id(), Grant.NONE));
+                grants.getOrDefault(attempt.id(), Grant.NONE), exhaustNext.contains(attempt.id()));
+    }
+
+    @Override
+    public synchronized void exhaustNext(final long attemptId) {
+        if (attempts.containsKey(attemptId)) {
+            exhaustNext.add(attemptId);
+        }
     }
 
     @Override

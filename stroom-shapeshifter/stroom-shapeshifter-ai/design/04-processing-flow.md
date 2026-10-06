@@ -881,6 +881,53 @@ deployment drops; and `Stage.run`, which a stage fed by a parser still calls fro
 sentinels a stream while another attempt learns its shape — the parser-fed stage's deferral is the open
 ruling of phase 4's note, and this is one more thing it settles.
 
+*Built 2026-10-06, the third slice: send to the exhaustion step, and worker claiming required (A65,
+A76; §7).* The Supervisor's third action on a parked session is beside the grant: send it to the
+exhaustion step. It sets `exhaust_next` on the attempt's row (migration 020) and opens the attempt again
+for the worker, which carries it on from its recorded turns and, at the first transform question it
+would put to the model — the record's turns replayed first, which the advisor says by `replaying()` — puts
+nothing and takes the step's `on spent` transition instead, as though its candidates were gone: to
+`ADMIT`, in every plan the examples give, which asks for the admitted form for what the held stream still
+cannot translate (A76 is kept: the exhaustion step is reached by the plan's transition, and a person's
+sending only brings the spending forward). A plan whose transform step has no `on spent` transition parks
+the session again, saying so. The sending stands on the row until the attempt closes: a session parked
+for its budget has no budget for the exhaustion step's own question either, so the worker parks it again
+at once, and the grant that follows reopens it with the sending still to be taken — a grant and a
+sending are two things a person says, in either order. Scenario 62 holds it at Tier 1, the DAO's test
+holds the row. And a filter over a pipeline with a Shapeshifter AI stage in it is refused where it is
+made unless the node claims its own tasks: `ProcessorFilterServiceImpl` asks every `SupervisedPipelines`
+binding — an interface in `stroom-processor-api`, bound by this module through a multibinder, read from
+the pipeline as it is merged so an inherited stage counts — and names
+`stroom.processor.claimTasksOnWorker` in the refusal. Every Tier 2 test on the real harness sets it;
+a test of its own holds the refusal, the plain pipeline that is not refused, and the supervised one that
+is made once the node claims.
+
+Two faults were found on the way, neither of this slice's making. A round that followed another in one
+carrying was under a fresh budget, since each round built a conversation whose count began at the
+advisor's count then: A5 says the budget is the attempt's, so the recorder now carries what the carrying
+has spent and when it began into every round. And a session that bound a fragment of its own in round
+one and parked in round two could not be resumed at all: the re-walk found the rule it had bound, took
+the relearning path, and its first question carried an opening shortfall that round one's, asked before
+anything was bound, had not — so the replay refused turn one as diverged. The comparison now holds a
+question's *identity* — its kind and what it is about — and leaves out how much the step had been told,
+which the summary still records for a person to read; an answer kept is an answer to the question,
+whatever feedback it was asked with.
+
+*Its own audit, 2026-10-06.* Four things changed. The sending was checked once, before the transform's
+candidates, so a session parked after the first of several candidates would have replayed that turn and
+then asked the model for the second with the sending ignored: the check is now before each candidate
+that would be put to the model, inside the loop, and scenario 62 has a third test that parks there. The
+sending was written after the reopening, which left a moment in which a worker could take the attempt
+without it: the flag is written first, since on a parked row it stands harmlessly. The import path makes
+a filter through the plain `create(ProcessorFilter)`, which had no claiming check: it has one now. And
+the migration's comment said the flag was cleared by a person's answer, which was the first design and
+not the built one. One thing noted: a pipeline that cannot be merged — a parent missing, say — fails the
+claiming check with that fault rather than being passed over, which is the right outcome and an
+unfamiliar place to meet it.
+
+What this slice does not do: grant time from the screen; show the sending on the attempt row in the
+Supervisor beyond the state it is in; or any of the phase's exit walkthrough, which is next.
+
 The tests behind the mode were rewritten rather than deleted. Scenario 30's deferred document became the
 task decision — `decide` opens the session and holds the stream on a row, the worker asks, the promotion
 wakes — and the one test that had a marked shape park a candidate while its incumbent served now holds

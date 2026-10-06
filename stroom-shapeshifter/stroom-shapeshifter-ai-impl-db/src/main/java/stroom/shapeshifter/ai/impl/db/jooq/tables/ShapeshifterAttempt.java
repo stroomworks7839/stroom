@@ -159,6 +159,11 @@ public class ShapeshifterAttempt extends TableImpl<ShapeshifterAttemptRecord> {
      */
     public final TableField<ShapeshifterAttemptRecord, Long> GRANTED_MS = createField(DSL.name("granted_ms"), SQLDataType.BIGINT.nullable(false).defaultValue(DSL.inline("0", SQLDataType.BIGINT)), this, "");
 
+    /**
+     * The column <code>stroom.shapeshifter_attempt.exhaust_next</code>.
+     */
+    public final TableField<ShapeshifterAttemptRecord, Byte> EXHAUST_NEXT = createField(DSL.name("exhaust_next"), SQLDataType.TINYINT.nullable(false).defaultValue(DSL.inline("0", SQLDataType.TINYINT)), this, "");
+
     private ShapeshifterAttempt(Name alias, Table<ShapeshifterAttemptRecord> aliased) {
         this(alias, aliased, (Field<?>[]) null, null);
     }

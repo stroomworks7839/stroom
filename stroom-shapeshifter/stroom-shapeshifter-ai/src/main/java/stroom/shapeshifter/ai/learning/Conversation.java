@@ -93,9 +93,15 @@ public final class Conversation {
     private final BiConsumer<Integer, Exchange> onTurn;
     private Budget budget;
     private long alreadySpent;
+    /// When the attempt's time budget began to run, where it is not this conversation's start: a round
+    /// that follows another in one carrying is under the one budget (A5).
+    private Long begunAtMs;
     /// What a person granted the attempt beyond the document's budgets (A77).
     private long grantedTokens;
     private long grantedMs;
+    /// Whether a person sent the attempt to the exhaustion step (A65): the next transform question that
+    /// would be put to the model is not put, and the step's spent transition is taken instead.
+    private boolean exhaustFirst;
     private Supplier<List<Given>> guidance = List::of;
     /// What [#guidance] answered for this walk, read when the walk begins.
     private List<Given> standing = List.of();
@@ -160,10 +166,30 @@ public final class Conversation {
         return this;
     }
 
+    /// Count the attempt's time budget from this moment rather than from the conversation's start (A5):
+    /// a round that follows another in one carrying is under the one budget.
+    ///
+    /// @return This conversation, to be run.
+    public Conversation begunAt(final long ms) {
+        this.begunAtMs = ms;
+        return this;
+    }
+
     /// What a person granted this attempt beyond the document's budgets (A77): added to them for this
     /// attempt alone.
     ///
     /// @return This conversation, to be run.
+    /// Send this attempt to the exhaustion step (A65): the first transform question that would be put to
+    /// the model — once the recorded turns, if any, have been replayed — is not put, and the step's spent
+    /// transition is taken instead, as though its candidates were gone. A plan whose transform step has no
+    /// spent transition abandons there, and the stage parks the session again with that reason.
+    ///
+    /// @return This conversation, to be run.
+    public Conversation exhaustFirst(final boolean exhaust) {
+        this.exhaustFirst = exhaust;
+        return this;
+    }
+
     public Conversation granted(final long tokens, final long ms) {
         this.grantedTokens = tokens;
         this.grantedMs = ms;
@@ -213,7 +239,9 @@ public final class Conversation {
         // from the start on every pass, so each pass reads it afresh and a hint given between passes is
         // carried by the one that follows.
         standing = List.copyOf(guidance.get());
-        budget = new Budget(policy, clock.millis(), advisor.tokensUsed() - alreadySpent, grantedTokens, grantedMs);
+        budget = new Budget(policy, begunAtMs != null
+                ? begunAtMs
+                : clock.millis(), advisor.tokensUsed() - alreadySpent, grantedTokens, grantedMs);
         try {
             return follow(walk);
         } catch (final BudgetExhausted e) {
@@ -322,19 +350,39 @@ public final class Conversation {
      * @param spent The reason to abandon when the candidates are gone and the step says nothing else.
      */
     private Visit candidates(final PlanStep step, final Walk walk, final Unit unit, final String spent) {
-        return candidates(step, walk, unit, spent, candidates(step, walk.policy));
+        return candidates(step, walk, unit, spent, false);
+    }
+
+    /// @param exhaustible Whether a person's sending to the exhaustion step (A65) cuts these candidates
+    ///                    short: before each one that would be put to the model — the record's turns
+    ///                    replayed first — the step goes where it would go with its candidates spent.
+    private Visit candidates(final PlanStep step,
+                             final Walk walk,
+                             final Unit unit,
+                             final String spent,
+                             final boolean exhaustible) {
+        return candidates(step, walk, unit, spent, candidates(step, walk.policy), exhaustible);
     }
 
     private Visit candidates(final PlanStep step,
                              final Walk walk,
                              final Unit unit,
                              final String spent,
-                             final int limit) {
+                             final int limit,
+                             final boolean exhaustible) {
         List<StoredError> feedback = walk.carried.isEmpty()
                 ? walk.opening
                 : walk.carried;
         walk.carried = List.of();
         for (int candidate = 1; candidate <= limit; candidate++) {
+            if (exhaustible && exhaustFirst && !advisor.replaying()) {
+                // Sent to the exhaustion step by a person (A65): this candidate is not asked for, and the
+                // step goes where it would have gone with its candidates spent. Taken once.
+                exhaustFirst = false;
+                return spent(step, feedback, "Sent to the exhaustion step by a person, and step '"
+                                             + step.effectiveId()
+                                             + "' has no 'on spent' transition to take it there");
+            }
             final Judged judged = unit.attempt(candidate, feedback);
             judge(walk.transcript, step, candidate, judged.outcome());
             if (judged.outcome() == StepOutcome.PASSED) {
@@ -350,11 +398,17 @@ public final class Conversation {
             }
             feedback = judged.feedback();
         }
+        return spent(step, feedback, spent);
+    }
+
+    /// Where a step goes with its candidates spent: the transition on spent, else the attempt is
+    /// abandoned with the reason.
+    private static Visit spent(final PlanStep step, final List<StoredError> feedback, final String reason) {
         final Transition when = step.transitionOnSpent();
         if (when != null && !when.abandons()) {
             return Visit.take(when, feedback);
         }
-        return Visit.abandon(spent, feedback);
+        return Visit.abandon(reason, feedback);
     }
 
     /**
@@ -694,6 +748,10 @@ public final class Conversation {
                 final Boundary split = carriesSplit
                         ? walk.split
                         : null;
+                // A transform's candidates are what a person's sending to the exhaustion step cuts short
+                // (A65): a parser's are not, since the exhaustion step admits what is parsed and cannot be
+                // translated, and the exhaustion step's own are not, since it is where the sending goes.
+                final boolean exhaustible = !admitting && !runner.parser();
                 final Visit asked = candidates(step, walk, (candidate, feedback) -> {
                     final String reply = ask(walk, step, candidate, new Configuration(runner.elementType(),
                             configured.get().documentType(), walk.sample, shown, walk.previous[index], split,
@@ -714,7 +772,7 @@ public final class Conversation {
                 }, (admitting
                         ? "No admission for "
                         : "No passing configuration for ") + runner.elementType() + " after "
-                    + candidates(step, walk.policy) + " attempts");
+                    + candidates(step, walk.policy) + " attempts", exhaustible);
                 // A parser whose candidates are spent is the one failure nothing can serve (A52, A54): the
                 // abandonment says so, for the stage to give the shape up rather than park.
                 visit = asked.kind() == Visit.Kind.ABANDON && runner.parser()

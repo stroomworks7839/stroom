@@ -312,6 +312,20 @@ public class ShapeshifterAttemptRecord extends UpdatableRecordImpl<ShapeshifterA
         return (Long) get(20);
     }
 
+    /**
+     * Setter for <code>stroom.shapeshifter_attempt.exhaust_next</code>.
+     */
+    public void setExhaustNext(Byte value) {
+        set(21, value);
+    }
+
+    /**
+     * Getter for <code>stroom.shapeshifter_attempt.exhaust_next</code>.
+     */
+    public Byte getExhaustNext() {
+        return (Byte) get(21);
+    }
+
     // -------------------------------------------------------------------------
     // Primary key information
     // -------------------------------------------------------------------------
@@ -335,7 +349,7 @@ public class ShapeshifterAttemptRecord extends UpdatableRecordImpl<ShapeshifterA
     /**
      * Create a detached, initialised ShapeshifterAttemptRecord
      */
-    public ShapeshifterAttemptRecord(Long id, Integer version, Long createTimeMs, Long updateTimeMs, String docUuid, String shapeHash, String shapeId, String feedName, String typeName, Long inputMetaId, String nodeName, String promotionMode, String status, String decision, String ruleUuid, Double score, Long tokensSpent, Long expiryMs, String claimKey, Long grantedTokens, Long grantedMs) {
+    public ShapeshifterAttemptRecord(Long id, Integer version, Long createTimeMs, Long updateTimeMs, String docUuid, String shapeHash, String shapeId, String feedName, String typeName, Long inputMetaId, String nodeName, String promotionMode, String status, String decision, String ruleUuid, Double score, Long tokensSpent, Long expiryMs, String claimKey, Long grantedTokens, Long grantedMs, Byte exhaustNext) {
         super(ShapeshifterAttempt.SHAPESHIFTER_ATTEMPT);
 
         setId(id);
@@ -359,6 +373,7 @@ public class ShapeshifterAttemptRecord extends UpdatableRecordImpl<ShapeshifterA
         setClaimKey(claimKey);
         setGrantedTokens(grantedTokens);
         setGrantedMs(grantedMs);
+        setExhaustNext(exhaustNext);
         resetTouchedOnNotNull();
     }
 }

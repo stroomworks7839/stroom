@@ -68,4 +68,10 @@ public interface Advisor {
     default long tokensUsed() {
         return 0;
     }
+
+    /// Whether the next question would be answered from a record rather than put to anyone (A45): true
+    /// of an advisor re-walking an attempt while its recorded turns last, false of every other.
+    default boolean replaying() {
+        return false;
+    }
 }
