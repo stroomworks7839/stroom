@@ -111,7 +111,7 @@ class TestScenario47FixedWidth {
                 .reply(Scenarios.fenced(SIX))
                 .expect(QuestionMatcher.configuration("XSLTFilter").withTargets(2)).reply(Scenarios.fenced(XSLT));
 
-        final StageRun run = scenarios.stage(script).run(doc(), stream(1, LOG));
+        final StageRun run = scenarios.process(script, doc(), stream(1, LOG)).learned();
 
         assertThat(run.decision()).describedAs(run.decision().toString()).isInstanceOf(Promoted.class);
         script.verifyExhausted();

@@ -185,7 +185,10 @@ class TestScenario54TheTaskDecision {
         final Script script = script(scenarios, TRANSLATES_BOTH);
         assertThat(scenarios.worker(script).advance(10)).isEqualTo(1);
         script.verifyExhausted();
-        assertThat(scenarios.wake.woken()).extracting(Deferral::inputId).containsExactly(2L);
+        assertThat(scenarios.wake.woken()).extracting(Deferral::inputId)
+                .describedAs("the stream the rule was first learned on, woken by its promotion; and now the "
+                             + "held stream, by the rebinding")
+                .containsExactly(1L, 2L);
         final StageRun served = task(scenarios, silent, counting).decide(doc, stream(2L, MIXED));
         assertThat(served.decision()).describedAs(served.decision().toString()).isInstanceOf(Bound.class);
         final RoutingRule rebound = ((Bound) served.decision()).rule();
@@ -245,7 +248,7 @@ class TestScenario54TheTaskDecision {
         final Scenarios scenarios = new Scenarios();
         final ShapeshifterAiDoc doc = doc().copy().promotionMode(PromotionMode.REVIEW).build();
         final Script script = script(scenarios, TRANSLATES_BOTH);
-        final StageRun drafted = scenarios.stage(document -> script, scenarios.rules).run(doc, stream(1L, MIXED));
+        final StageRun drafted = scenarios.process(script, doc, stream(1L, MIXED)).learned();
         script.verifyExhausted();
         assertThat(drafted.decision()).describedAs(drafted.decision().toString()).isInstanceOf(Drafted.class);
         final RoutingRule draft = ((Drafted) drafted.decision()).rule();
@@ -263,11 +266,15 @@ class TestScenario54TheTaskDecision {
 
         scenarios.stage(document -> silent, scenarios.rules).approve(doc, draft.getUuid());
 
-        assertThat(scenarios.wake.woken()).extracting(Deferral::inputId).containsExactly(2L);
+        assertThat(scenarios.wake.woken()).extracting(Deferral::inputId)
+                .describedAs("the stream the draft was learned on waited behind it too")
+                .containsExactly(1L, 2L);
         final StageRun served = task(scenarios, silent, null).decide(doc, stream(2L, MIXED));
         assertThat(served.decision()).describedAs(served.decision().toString()).isInstanceOf(Bound.class);
         task(scenarios, silent, null)
                 .stream(doc, ((Bound) served.decision()).rule(), stream(2L, MIXED), new TextSink());
+        task(scenarios, silent, null)
+                .stream(doc, ((Bound) served.decision()).rule(), stream(1L, MIXED), new TextSink());
         assertThat(scenarios.deferrals.forDocument(DOC)).isEmpty();
     }
 
@@ -295,7 +302,7 @@ class TestScenario54TheTaskDecision {
 
     private static RoutingRule learn(final Scenarios scenarios, final ShapeshifterAiDoc doc, final String xslt) {
         final Script script = script(scenarios, xslt);
-        final StageRun run = scenarios.stage(document -> script, scenarios.rules).run(doc, stream(1L, CSV.input()));
+        final StageRun run = scenarios.process(script, doc, stream(1L, CSV.input())).learned();
         script.verifyExhausted();
         assertThat(run.decision()).describedAs(run.decision().toString()).isInstanceOf(Promoted.class);
         return ((Promoted) run.decision()).rule();

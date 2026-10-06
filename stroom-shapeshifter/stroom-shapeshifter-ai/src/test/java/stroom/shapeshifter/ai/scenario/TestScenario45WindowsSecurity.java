@@ -96,8 +96,8 @@ class TestScenario45WindowsSecurity {
                         .withFeedbackMentioning("records name Unknown in EventDetail"))
                 .reply(Scenarios.fenced(TYPED));
 
-        final StageRun run = scenarios.stage(script).run(doc(),
-                new Input(1, "WINDOWS-SECURITY", "Raw Events", Map.of("Format", "XML"), LOG));
+        final StageRun run = scenarios.process(script, doc(),
+                new Input(1, "WINDOWS-SECURITY", "Raw Events", Map.of("Format", "XML"), LOG)).learned();
 
         assertThat(run.decision()).describedAs(run.decision().toString()).isInstanceOf(Promoted.class);
         script.verifyExhausted();

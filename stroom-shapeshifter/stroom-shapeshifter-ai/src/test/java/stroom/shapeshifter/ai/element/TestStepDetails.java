@@ -73,7 +73,7 @@ class TestStepDetails {
         final Scenarios scenarios = new Scenarios();
         final Script script = script(scenarios);
         final Stage stage = scenarios.stage(document -> script, scenarios.rules);
-        final StageRun run = stage.run(doc(), stream());
+        final StageRun run = scenarios.process(script, doc(), stream()).learned();
 
         final ShapeshifterAiStepDetails details = StepDetails.of(run, false);
 

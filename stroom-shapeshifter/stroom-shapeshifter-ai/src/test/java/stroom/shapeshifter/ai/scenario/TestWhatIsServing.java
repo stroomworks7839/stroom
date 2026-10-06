@@ -19,7 +19,6 @@ package stroom.shapeshifter.ai.scenario;
 import stroom.shapeshifter.ai.extraction.ExtractionCorpus.Golden;
 import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.Serving;
-import stroom.shapeshifter.ai.stage.Stage;
 import stroom.shapeshifter.shared.LearningMode;
 import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ScorerSetting;
@@ -56,25 +55,21 @@ class TestWhatIsServing {
     @Test
     void whatTheStageLearnsIsWhatAPersonBrowses() {
         final Scenarios scenarios = new Scenarios();
-        final Stage stage = scenarios.stage(document -> learn(scenarios), scenarios.rules);
         final ShapeshifterAiDoc doc = doc();
 
-        stage.run(doc, stream("DOOR-ACCESS", 1L));
+        final Scenarios.Processed learned = scenarios.process(learn(scenarios), doc, stream("DOOR-ACCESS", 1L));
+        assertThat(learned.served()).describedAs("the stream it was learned on, served once the wake came")
+                .isNotNull();
 
         final Serving.Page page = scenarios.serving.rules(List.of("doc-1"), null, 0L, 100);
         assertThat(page.total()).isEqualTo(1L);
         assertThat(page.rules())
                 .extracting(ServingRule::getShapeId, ServingRule::getRecords)
-                .describedAs("a rule promoted a moment ago has served nothing yet — the promotion "
-                             + "resets the shape, so its rolling memory starts from the streams it "
-                             + "serves rather than the one it was learned from — and the list shows it "
-                             + "all the same: a binding nobody has seen work is the one most worth a "
-                             + "look")
-                .containsExactly(tuple(DOOR, 0));
+                .describedAs("the promotion resets the shape, so its rolling memory starts from the streams it "
+                             + "serves: the first is the one it was learned on, which the wake serves")
+                .containsExactly(tuple(DOOR, learned.served().records()));
         assertThat(page.rules().get(0).getRollingScore())
-                .describedAs("and no rolling score at all rather than a zero, which would read as a "
-                             + "rule scoring badly")
-                .isNull();
+                .describedAs("and a rolling score, from that stream").isNotNull();
         assertThat(page.rules().get(0).getPromotedScore())
                 .describedAs("what it scored when it took over is what a rolling score is read against")
                 .isNotNull();

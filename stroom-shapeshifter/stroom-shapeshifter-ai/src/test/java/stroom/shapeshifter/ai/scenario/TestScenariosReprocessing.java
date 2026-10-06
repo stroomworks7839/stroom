@@ -19,6 +19,8 @@ package stroom.shapeshifter.ai.scenario;
 import stroom.docref.DocRef;
 import stroom.shapeshifter.ai.extraction.ExtractionCorpus.Golden;
 import stroom.shapeshifter.ai.fragment.FragmentRunner;
+import stroom.shapeshifter.ai.fragment.RecordJudge;
+import stroom.shapeshifter.ai.fragment.ServedStream;
 import stroom.shapeshifter.ai.fragment.StandInFragmentRunner;
 import stroom.shapeshifter.ai.learning.LearnedStep;
 import stroom.shapeshifter.ai.learning.StepResult;
@@ -39,7 +41,9 @@ import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 import stroom.util.shared.DocPath;
 
 import org.junit.jupiter.api.Test;
+import org.xml.sax.ContentHandler;
 
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -86,6 +90,16 @@ class TestScenariosReprocessing {
             this.runner = runner;
         }
 
+        /// Served as the runner it wraps serves: what is watched here is what a run is given.
+        @Override
+        public ServedStream serve(final DocRef fragment,
+                                  final InputStream input,
+                                  final RecordBoundary boundary,
+                                  final RecordJudge judge,
+                                  final ContentHandler downstream) {
+            return runner.serve(fragment, input, boundary, judge, downstream);
+        }
+
         @Override
         public List<Attempted> run(final DocRef fragment, final String input, final RecordBoundary boundary) {
             boundaries.add(boundary);
@@ -102,20 +116,20 @@ class TestScenariosReprocessing {
         }
     }
 
-    private static Stage stage(final Scenarios scenarios) {
-        return scenarios.stage(scenarios.script(CSV.configuration(), XSLT)
+    private static Script learning(final Scenarios scenarios) {
+        return scenarios.script(CSV.configuration(), XSLT)
                 .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter")
                 .expect(QuestionMatcher.configuration("DSParser")).reply(Scenarios.fenced(CSV.configuration()))
-                .expect(QuestionMatcher.configuration("XSLTFilter")).reply(Scenarios.fenced(XSLT)));
+                .expect(QuestionMatcher.configuration("XSLTFilter")).reply(Scenarios.fenced(XSLT));
     }
 
     @Test
     void asProcessedRunsTheFragmentThatProducedTheOutputAndNotWhatIsBoundNow() {
         final Scenarios scenarios = new Scenarios();
-        final Stage stage = stage(scenarios);
+        final Stage stage = scenarios.stage(Script.of());
 
         final ShapeshifterAiDoc doc = doc();
-        final StageRun learned = stage.run(doc, stream(1, CSV.input()));
+        final StageRun learned = scenarios.process(learning(scenarios), doc, stream(1, CSV.input())).learned();
         assertThat(learned.decision()).describedAs(learned.decision().toString())
                 .isInstanceOf(Promoted.class);
         final DocRef first = learned.bindings().fragment();
@@ -166,7 +180,7 @@ class TestScenariosReprocessing {
         final Input json = new Input(1, "API-GATEWAY", "Raw Events", Map.of("Format", "JSON"),
                 Scenarios.resource("records.json"), "pipeline-1");
 
-        final StageRun learned = stage.run(doc, json);
+        final StageRun learned = scenarios.process(document -> script, scenarios.rules, watching, doc, json).learned();
         assertThat(learned.decision()).describedAs(learned.decision().toString()).isInstanceOf(Promoted.class);
         assertThat(learned.bindings().boundary().splitDepth().orElseThrow())
                 .describedAs("the items of the array sit three elements down")

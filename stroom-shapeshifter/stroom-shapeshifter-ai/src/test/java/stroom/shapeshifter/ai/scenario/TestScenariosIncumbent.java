@@ -48,9 +48,10 @@ import static org.assertj.core.api.Assertions.assertThat;
  * that is worse on a record the rule was accepted on is not promoted either (A18); one that is better on
  * both replaces the incumbent's fragment under the same rule; and a pinned rule is never relearned.
  * <p>
- * The incumbent is the golden transform with an empty device name, which the document requires, so it
- * scores well but not perfectly and the relearn threshold, set above its score, marks the shape on the
- * first stream it serves.
+ * The incumbent is the golden transform with an empty device name, which the document weighs, so it
+ * scores well but not perfectly and its records still clear the bar. A person marks the shape for
+ * relearning, as the Supervisor's serving list would lead them to, and the next stream of it opens the
+ * session while the incumbent serves it (A100).
  */
 class TestScenariosIncumbent {
 
@@ -95,10 +96,16 @@ class TestScenariosIncumbent {
                                 new YieldParameters(1.0, YieldBasis.RECORDS)),
                         new ScorerSetting(ScorerType.SCHEMA_CONFORMANCE, 1.0, 1.0, true,
                                 new SchemaConformanceParameters("EVENTS")),
-                        new ScorerSetting(ScorerType.EXTRACTION_QUALITY, 1.0, 0.7, true,
+                        // Weighed and not a gate: the flawed incumbent's flaw is a lower score, which the
+                        // comparison weighs (A15, A18), and not a record short of the bar (design 04 §3),
+                        // which would send the stream it was learned on straight back to be learned.
+                        new ScorerSetting(ScorerType.EXTRACTION_QUALITY, 1.0, 0.7, false,
                                 new ExtractionQualityParameters(false,
                                         List.of("EventSource/User/Id", "EventSource/Device/Name"))),
-                        new ScorerSetting(ScorerType.BUSINESS_RULES, 1.0, 0.5, false,
+                        // The gate a record is held to (design 04 §3, A66): an interactive event names its
+                        // user. The incumbent clears it on every record; a candidate that leaves the user
+                        // out falls short of it, on its own stream or on a record the rule was accepted on.
+                        new ScorerSetting(ScorerType.BUSINESS_RULES, 1.0, 0.5, true,
                                 new BusinessRulesParameters(List.of(new XPathAssertion(
                                         "interactive events name the user",
                                         "not(EventDetail/Authenticate) "
@@ -144,14 +151,15 @@ class TestScenariosIncumbent {
      */
     private static StageRun incumbentMarked(final Scenarios scenarios, final String users) {
         final Script script = learning(scenarios, V1);
-        final StageRun learned = scenarios.stage(script).run(doc(), stream(1, CsvLines.lines(7, users, 0)));
+        final StageRun learned = scenarios.process(script, doc(), stream(1, CsvLines.lines(7, users, 0))).learned();
         script.verifyExhausted();
         assertThat(learned.decision()).isInstanceOf(Promoted.class);
         final double v1Score = ((Promoted) learned.decision()).score();
         assertThat(v1Score).isBetween(0.9, 0.95);
 
         final Script silent = Script.of();
-        final StageRun served = scenarios.stage(silent).run(learned.doc(), stream(2, CsvLines.lines(7, users, 0)));
+        final StageRun served = scenarios.process(silent, learned.doc(), stream(2, CsvLines.lines(7, users,
+                0))).learned();
         assertThat(served.decision()).isInstanceOf(Bound.class);
         assertThat(silent.asked()).isEmpty();
         // The score is kept for the Supervisor's list and is no longer a trigger (design 04 §6): the mark
@@ -172,7 +180,8 @@ class TestScenariosIncumbent {
         // and scores below v1 over the seven.
         final String v2 = userOnlyWhen(V1, "not(data[@name='who']/@value = 'user6')");
         final Script relearn = learning(scenarios, v2);
-        final StageRun run = scenarios.stage(relearn).run(marked.doc(), stream(3, CsvLines.lines(7, "user", 0)));
+        final StageRun run = scenarios.process(relearn, marked.doc(), stream(3, CsvLines.lines(7, "user",
+                0))).learned();
         relearn.verifyExhausted();
 
         assertThat(run.decision()).isInstanceOf(Kept.class);
@@ -198,7 +207,8 @@ class TestScenariosIncumbent {
 
         final String v2 = userOnlyWhen(XSLT, "starts-with(data[@name='who']/@value, 'staff')");
         final Script relearn = learning(scenarios, v2);
-        final StageRun run = scenarios.stage(relearn).run(marked.doc(), stream(3, CsvLines.lines(7, "staff", 0)));
+        final StageRun run = scenarios.process(relearn, marked.doc(), stream(3, CsvLines.lines(7, "staff",
+                0))).learned();
         relearn.verifyExhausted();
 
         assertThat(run.decision()).isInstanceOf(Kept.class);
@@ -214,7 +224,8 @@ class TestScenariosIncumbent {
         final RoutingRule v1 = scenarios.rules.forDocument(DOC).get(0);
 
         final Script relearn = learning(scenarios, XSLT);
-        final StageRun run = scenarios.stage(relearn).run(marked.doc(), stream(3, CsvLines.lines(7, "user", 0)));
+        final StageRun run = scenarios.process(relearn, marked.doc(), stream(3, CsvLines.lines(7, "user",
+                0))).learned();
         relearn.verifyExhausted();
 
         assertThat(run.decision()).isInstanceOf(Rebound.class);
@@ -242,13 +253,13 @@ class TestScenariosIncumbent {
     void scenario10APinnedRuleIsNeverRelearned() {
         final Scenarios scenarios = new Scenarios();
         final Script script = learning(scenarios, V1);
-        final StageRun learned = scenarios.stage(script).run(doc(), stream(1, CsvLines.lines(7)));
+        final StageRun learned = scenarios.process(script, doc(), stream(1, CsvLines.lines(7))).learned();
         final RoutingRule pinned = ((Promoted) learned.decision()).rule().copy().pinned(true).build();
         scenarios.rules.replace(DOC, pinned);
 
         final Script silent = Script.of();
         for (long id = 2; id <= 4; id++) {
-            final StageRun run = scenarios.stage(silent).run(learned.doc(), stream(id, CsvLines.lines(7)));
+            final StageRun run = scenarios.process(silent, learned.doc(), stream(id, CsvLines.lines(7))).learned();
             assertThat(run.decision()).isInstanceOf(Bound.class);
             assertThat(scenarios.rules.forDocument(DOC)).containsExactly(pinned);
         }

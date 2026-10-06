@@ -24,7 +24,6 @@ import stroom.shapeshifter.ai.learning.Question.TargetFor;
 import stroom.shapeshifter.ai.learning.TargetChecks;
 import stroom.shapeshifter.ai.stage.Decision.GivenUp;
 import stroom.shapeshifter.ai.stage.Decision.Promoted;
-import stroom.shapeshifter.ai.stage.Decision.Provisional;
 import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.StageRun;
 import stroom.shapeshifter.shared.BusinessRulesParameters;
@@ -133,7 +132,7 @@ class TestScenariosTarget {
                 .expect(QuestionMatcher.configuration("DSParser").withTargets(1)).reply(Scenarios.fenced(FOUR_FIELDS))
                 .expect(QuestionMatcher.configuration("XSLTFilter").withTargets(1)).reply(Scenarios.fenced(XSLT));
 
-        final StageRun run = scenarios.stage(script).run(doc(), stream(1, CsvLines.lines(6)));
+        final StageRun run = scenarios.process(script, doc(), stream(1, CsvLines.lines(6))).learned();
 
         script.verifyExhausted();
         assertThat(run.decision()).isInstanceOf(Promoted.class);
@@ -168,7 +167,7 @@ class TestScenariosTarget {
                 .expect(QuestionMatcher.configuration("DSParser").withTargets(1)).reply(Scenarios.fenced(FOUR_FIELDS))
                 .expect(QuestionMatcher.configuration("XSLTFilter").withTargets(1)).reply(Scenarios.fenced(XSLT));
 
-        final StageRun run = scenarios.stage(script).run(doc(), stream(1, CsvLines.lines(6)));
+        final StageRun run = scenarios.process(script, doc(), stream(1, CsvLines.lines(6))).learned();
 
         script.verifyExhausted();
         assertThat(run.decision()).isInstanceOf(Promoted.class);
@@ -199,7 +198,7 @@ class TestScenariosTarget {
                 .expect(QuestionMatcher.configuration("DSParser").withTargets(1)).reply(Scenarios.fenced(FOUR_FIELDS))
                 .expect(QuestionMatcher.configuration("XSLTFilter").withTargets(1)).reply(Scenarios.fenced(XSLT));
 
-        final StageRun run = scenarios.stage(script).run(doc, stream(1, CsvLines.lines(6)));
+        final StageRun run = scenarios.process(script, doc, stream(1, CsvLines.lines(6))).learned();
 
         script.verifyExhausted();
         assertThat(run.decision()).isInstanceOf(Promoted.class);
@@ -225,7 +224,7 @@ class TestScenariosTarget {
                 .expect(QuestionMatcher.configuration("DSParser").withTargets(1)).reply(Scenarios.fenced(FOUR_FIELDS))
                 .expect(QuestionMatcher.configuration("XSLTFilter").withTargets(1)).reply(Scenarios.fenced(XSLT));
 
-        final StageRun run = scenarios.stage(script).run(doc, stream(1, CsvLines.lines(6)));
+        final StageRun run = scenarios.process(script, doc, stream(1, CsvLines.lines(6))).learned();
 
         script.verifyExhausted();
         assertThat(run.decision()).isInstanceOf(Promoted.class);
@@ -246,7 +245,7 @@ class TestScenariosTarget {
                 .build();
         final Script script = Script.of();
 
-        final StageRun run = scenarios.stage(script).run(doc, stream(1, CsvLines.lines(6)));
+        final StageRun run = scenarios.process(script, doc, stream(1, CsvLines.lines(6))).learned();
 
         assertThat(script.asked()).isEmpty();
         assertThat(run.decision()).isInstanceOf(GivenUp.class);
@@ -267,7 +266,7 @@ class TestScenariosTarget {
                 .reply(Scenarios.fenced(FOUR_FIELDS))
                 .expect(QuestionMatcher.configuration("XSLTFilter")).reply(Scenarios.fenced(XSLT));
 
-        final StageRun run = scenarios.stage(script).run(doc(), stream(1, CsvLines.lines(6)));
+        final StageRun run = scenarios.process(script, doc(), stream(1, CsvLines.lines(6))).learned();
 
         script.verifyExhausted();
         assertThat(run.decision()).isInstanceOf(Promoted.class);
@@ -298,7 +297,7 @@ class TestScenariosTarget {
                         .withFeedbackMentioning("Produce exactly:"))
                 .reply(Scenarios.fenced(XSLT));
 
-        final StageRun run = scenarios.stage(script).run(doc(), stream(1, CsvLines.lines(6)));
+        final StageRun run = scenarios.process(script, doc(), stream(1, CsvLines.lines(6))).learned();
 
         script.verifyExhausted();
         assertThat(run.decision()).isInstanceOf(Promoted.class);
@@ -339,8 +338,8 @@ class TestScenariosTarget {
                 .expect(QuestionMatcher.configuration("DSParser")).reply(Scenarios.fenced(MULTI_LINE.configuration()))
                 .expect(QuestionMatcher.configuration("XSLTFilter")).reply(Scenarios.fenced(ONE_EVENT_PER_RECORD));
 
-        final StageRun run = scenarios.stage(script).run(doc, new Input(1, "AUDIT", "Raw Events", Map.of(),
-                MULTI_LINE.input()));
+        final StageRun run = scenarios.process(script, doc, new Input(1, "AUDIT", "Raw Events", Map.of(),
+                MULTI_LINE.input())).learned();
 
         script.verifyExhausted();
         assertThat(run.decision()).isInstanceOf(Promoted.class);
@@ -382,8 +381,8 @@ class TestScenariosTarget {
                 .reply("<entry>")
                 .expect(QuestionMatcher.configuration("XSLTFilter").withTargets(1)).reply(Scenarios.fenced(NESTED_XSL));
 
-        final StageRun run = scenarios.stage(script).run(doc,
-                new Input(1, "DOCVAULT", "Raw Events", Map.of("Format", "XML"), NESTED_XML));
+        final StageRun run = scenarios.process(script, doc,
+                new Input(1, "DOCVAULT", "Raw Events", Map.of("Format", "XML"), NESTED_XML)).learned();
 
         script.verifyExhausted();
         // The conversation learned the shape whole; the record element the split settled reaches the stage's

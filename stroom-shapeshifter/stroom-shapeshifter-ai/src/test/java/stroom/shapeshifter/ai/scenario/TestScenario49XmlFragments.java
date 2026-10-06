@@ -93,8 +93,8 @@ class TestScenario49XmlFragments {
                 .expect(QuestionMatcher.split().withoutFeedback()).reply("Event")
                 .expect(QuestionMatcher.configuration("XSLTFilter")).reply(Scenarios.fenced(TYPED));
 
-        final StageRun run = scenarios.stage(script).run(doc(),
-                new Input(1, "WINDOWS-FRAGMENTS", "Raw Events", Map.of("Format", "XML"), FRAGMENTS));
+        final StageRun run = scenarios.process(script, doc(),
+                new Input(1, "WINDOWS-FRAGMENTS", "Raw Events", Map.of("Format", "XML"), FRAGMENTS)).learned();
 
         assertThat(run.decision()).describedAs(run.decision().toString()).isInstanceOf(Promoted.class);
         script.verifyExhausted();
@@ -123,8 +123,8 @@ class TestScenario49XmlFragments {
                 .expect(QuestionMatcher.split().withoutFeedback()).reply("Event")
                 .expect(QuestionMatcher.configuration("XSLTFilter")).reply(Scenarios.fenced(TYPED));
 
-        scenarios.stage(script).run(doc(),
-                new Input(1, "WINDOWS-FRAGMENTS", "Raw Events", Map.of("Format", "XML"), FRAGMENTS));
+        scenarios.process(script, doc(),
+                new Input(1, "WINDOWS-FRAGMENTS", "Raw Events", Map.of("Format", "XML"), FRAGMENTS)).learned();
 
         assertThat(scenarios.rules.forDocument("doc-1")).hasSize(1);
         assertThat(scenarios.rules.forDocument("doc-1").getFirst().getRecordBoundary().getElement())

@@ -23,7 +23,6 @@ import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.StageRun;
 import stroom.shapeshifter.shared.BusinessRulesParameters;
 import stroom.shapeshifter.shared.ExtractionQualityParameters;
-import stroom.shapeshifter.shared.FlowExample;
 import stroom.shapeshifter.shared.LearningMode;
 import stroom.shapeshifter.shared.RoutingFields;
 import stroom.shapeshifter.shared.SchemaConformanceParameters;
@@ -85,8 +84,8 @@ class TestScenario02HeaderNamesTheParser {
                 .reply("JSONParser -> XSLTFilter")
                 .expect(QuestionMatcher.configuration("XSLTFilter").withoutFeedback()).reply(Scenarios.fenced(XSLT));
 
-        final StageRun run = scenarios.stage(script).run(doc(),
-                new Input(1, "API-GATEWAY", "Raw Events", Map.of("Format", "JSON"), LINES));
+        final StageRun run = scenarios.process(script, doc(),
+                new Input(1, "API-GATEWAY", "Raw Events", Map.of("Format", "JSON"), LINES)).learned();
 
         assertThat(run.decision()).describedAs(run.decision().toString()).isInstanceOf(Promoted.class);
         script.verifyExhausted();

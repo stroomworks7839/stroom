@@ -20,7 +20,6 @@ import stroom.shapeshifter.ai.stage.Attempts.Attempt;
 import stroom.shapeshifter.ai.stage.Attempts.Recorded;
 import stroom.shapeshifter.ai.stage.Attempts.Turn;
 import stroom.shapeshifter.ai.stage.Decision.GivenUp;
-import stroom.shapeshifter.ai.stage.Decision.Promoted;
 import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.StageRun;
 import stroom.shapeshifter.shared.AttemptCriteria;
@@ -72,7 +71,7 @@ class TestScenario31APersonAnswersATurn {
                 .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter")
                 .expect(QuestionMatcher.configuration("DSParser")).reply(Scenarios.fenced(TWO_FIELDS));
 
-        final StageRun given = scenarios.stage(script).run(doc, input);
+        final StageRun given = scenarios.process(script, doc, input).learned();
 
         script.verifyExhausted();
         assertThat(given.decision()).describedAs(given.decision().toString()).isInstanceOf(GivenUp.class);
@@ -169,7 +168,7 @@ class TestScenario31APersonAnswersATurn {
         final Script script = scenarios.script(FOUR_FIELDS, XSLT)
                 .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter")
                 .expect(QuestionMatcher.configuration("DSParser")).reply(Scenarios.fenced(TWO_FIELDS));
-        scenarios.stage(script).run(doc, stream(1L));
+        scenarios.process(script, doc, stream(1L)).learned();
         final Recorded abandoned = scenarios.attempts.forDocument(DOC, 10).get(0);
 
         assertThatThrownBy(() -> scenarios.stage(Script.of())
@@ -244,7 +243,7 @@ class TestScenario31APersonAnswersATurn {
                 .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter")
                 .expect(QuestionMatcher.configuration("DSParser")).reply(Scenarios.fenced(FOUR_FIELDS))
                 .expect(QuestionMatcher.configuration("XSLTFilter")).reply(Scenarios.fenced(XSLT));
-        scenarios.stage(model).run(doc, stream(1L));
+        scenarios.process(model, doc, stream(1L)).learned();
         final Recorded drafted = scenarios.attempts.forDocument(DOC, 10).get(0);
         assertThat(drafted.status()).isEqualTo(AttemptStatus.AWAITING_REVIEW);
         assertThat(scenarios.rules.forDocument(DOC))
@@ -273,7 +272,7 @@ class TestScenario31APersonAnswersATurn {
         final Script model = scenarios.script(FOUR_FIELDS, XSLT)
                 .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter")
                 .expect(QuestionMatcher.configuration("DSParser")).reply(Scenarios.fenced(TWO_FIELDS));
-        scenarios.stage(model).run(doc, stream(1L));
+        scenarios.process(model, doc, stream(1L)).learned();
         final Recorded abandoned = scenarios.attempts.forDocument(DOC, 10).get(0);
         // Another node takes the shape in the meantime, by opening an attempt for it.
         final long theirs = scenarios.attempts.opened(new Attempt(DOC, shape(), "DOOR-ACCESS", "Raw Events",
@@ -316,7 +315,7 @@ class TestScenario31APersonAnswersATurn {
         final Script script = scenarios.script(FOUR_FIELDS, XSLT)
                 .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter")
                 .expect(QuestionMatcher.configuration("DSParser")).reply(Scenarios.fenced(TWO_FIELDS));
-        scenarios.stage(script).run(doc, stream(1L));
+        scenarios.process(script, doc, stream(1L)).learned();
         final Recorded abandoned = scenarios.attempts.forDocument(DOC, 10).get(0);
         assertThat(abandoned.turns()).isNotEmpty();
 

@@ -131,7 +131,8 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
         // badly: it asks again, from the beginning.
         approveButton = listPresenter.add(SvgPresets.TICK.title("Approve what this attempt drafted"));
         rejectButton = listPresenter.add(SvgPresets.DISABLE.title("Reject what this attempt drafted"));
-        relearnButton = listPresenter.add(SvgPresets.RERUN.title("Learn this shape again"));
+        relearnButton = listPresenter.add(SvgPresets.RERUN.title(
+                "Learn this shape again: its next stream opens a session while the rule goes on serving it"));
         // A46's message: neither an answer to a turn nor a decision about one. It attaches to the
         // attempt's shape, so a person reading a transcript and seeing what the model did not know can
         // say so there and then, and whatever is asked next carries it.

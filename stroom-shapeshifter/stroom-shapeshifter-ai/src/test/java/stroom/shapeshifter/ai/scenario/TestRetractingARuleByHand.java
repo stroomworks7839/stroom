@@ -61,10 +61,10 @@ class TestRetractingARuleByHand {
         final Scenarios scenarios = new Scenarios();
         final Stage stage = scenarios.stage(document -> learn(scenarios), scenarios.rules);
         final ShapeshifterAiDoc doc = doc();
-        stage.run(doc, stream(1L));
+        scenarios.process(learn(scenarios), doc, stream(1L)).learned();
         final RoutingRule bound = scenarios.rules.forDocument("doc-1").get(0);
         // A second stream, so that the rule has produced something to ask for again.
-        stage.run(doc, stream(2L));
+        scenarios.process(learn(scenarios), doc, stream(2L)).learned();
         assertThat(scenarios.outputs.boundBy(bound.getUuid(), bound.getPipeline().getUuid()))
                 .describedAs("the rule has produced output rows to take back")
                 .isNotEmpty();
@@ -101,13 +101,13 @@ class TestRetractingARuleByHand {
     void theNextStreamOfTheShapeLearnsItAgain() {
         final Scenarios scenarios = new Scenarios();
         final ShapeshifterAiDoc doc = doc();
-        scenarios.stage(document -> learn(scenarios), scenarios.rules).run(doc, stream(1L));
+        scenarios.process(learn(scenarios), doc, stream(1L)).learned();
         final RoutingRule bound = scenarios.rules.forDocument("doc-1").get(0);
         scenarios.stage(document -> learn(scenarios), scenarios.rules)
                 .retract(doc, bound.getUuid(), "Wrong.", "jo");
 
         final Script asked = learn(scenarios);
-        scenarios.stage(document -> asked, scenarios.rules).run(doc, stream(3L));
+        scenarios.process(asked, doc, stream(3L)).learned();
 
         assertThat(asked.asked()).describedAs("the model is asked again, from nothing").isNotEmpty();
         assertThat(scenarios.rules.forDocument("doc-1"))
@@ -125,7 +125,7 @@ class TestRetractingARuleByHand {
         final Scenarios scenarios = new Scenarios();
         final Stage stage = scenarios.stage(document -> learn(scenarios), scenarios.rules);
         final ShapeshifterAiDoc doc = doc();
-        stage.run(doc, stream(1L));
+        scenarios.process(learn(scenarios), doc, stream(1L)).learned();
         final RoutingRule bound = scenarios.rules.forDocument("doc-1").get(0);
 
         assertThatThrownBy(() -> stage.retract(doc, "not-a-rule", "Wrong.", "jo"))
@@ -163,7 +163,7 @@ class TestRetractingARuleByHand {
         final Scenarios scenarios = new Scenarios();
         final Stage stage = scenarios.stage(document -> learn(scenarios), scenarios.rules);
         final ShapeshifterAiDoc doc = doc();
-        stage.run(doc, stream(1L));
+        scenarios.process(learn(scenarios), doc, stream(1L)).learned();
         final RoutingRule bound = scenarios.rules.forDocument("doc-1").get(0);
         assertThat(scenarios.attempts.found(new AttemptCriteria(), List.of("doc-1")).attempts())
                 .describedAs("the attempt that bound it closed promoted")

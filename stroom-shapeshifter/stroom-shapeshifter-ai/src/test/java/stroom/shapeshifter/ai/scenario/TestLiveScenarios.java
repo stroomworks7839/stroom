@@ -192,23 +192,21 @@ class TestLiveScenarios {
         // Scenario 1: the corpus's CSV with its header line, the default key.
         run("01-csv-with-header", advisor -> {
             final Scenarios scenarios = new Scenarios();
-            return List.of(scenarios.stage(advisor)
-                    .run(doc("csv-with-header", 0.8), stream(1, CSV.input())));
+            return List.of(scenarios.process(advisor, doc("csv-with-header", 0.8), stream(1, CSV.input())).learned());
         }).ifPresent(outcomes::add);
 
         // A headerless CSV against the full scorer set: does a first candidate mean something, or does
         // it fall into the degeneracy trap and get steered out of it?
         run("02-csv-meaning", advisor -> {
             final Scenarios scenarios = new Scenarios();
-            return List.of(scenarios.stage(advisor)
-                    .run(doc("csv-meaning", 0.9), stream(1, CsvLines.lines(7))));
+            return List.of(scenarios.process(advisor, doc("csv-meaning", 0.9), stream(1, CsvLines.lines(7))).learned());
         }).ifPresent(outcomes::add);
 
         // Two record kinds in one stream, coverage at 0.9: the splitter must take both.
         run("03-two-record-kinds", advisor -> {
             final Scenarios scenarios = new Scenarios();
-            return List.of(scenarios.stage(advisor).run(doc("two-kinds", 0.9),
-                    stream(1, CsvLines.lines(20, "user", 3))));
+            return List.of(scenarios.process(advisor, doc("two-kinds", 0.9),
+                    stream(1, CsvLines.lines(20, "user", 3))).learned());
         }).ifPresent(outcomes::add);
 
         // Scenario 27 live: learn the plain feed, watch the score fall when alarms appear, relearn.
@@ -216,11 +214,9 @@ class TestLiveScenarios {
             final Scenarios scenarios = new Scenarios();
             final ShapeshifterAiDoc doc = doc("relearn", 0.9).copy().relearnThreshold(0.8).build();
             final List<StageRun> runs = new ArrayList<>();
-            runs.add(scenarios.stage(advisor).run(doc, stream(1, CsvLines.lines(7))));
-            runs.add(scenarios.stage(advisor)
-                    .run(runs.get(0).doc(), stream(2, CsvLines.lines(20, "user", 3))));
-            runs.add(scenarios.stage(advisor)
-                    .run(runs.get(1).doc(), stream(3, CsvLines.lines(20, "user", 3))));
+            runs.add(scenarios.process(advisor, doc, stream(1, CsvLines.lines(7))).learned());
+            runs.add(scenarios.process(advisor, runs.get(0).doc(), stream(2, CsvLines.lines(20, "user", 3))).learned());
+            runs.add(scenarios.process(advisor, runs.get(1).doc(), stream(3, CsvLines.lines(20, "user", 3))).learned());
             return runs;
         }).ifPresent(outcomes::add);
 
@@ -231,8 +227,8 @@ class TestLiveScenarios {
                     .instructions("Lines of a number, a bracketed type and free text: a system's own log.")
                     .minRecordsPerShape(2)
                     .build();
-            return List.of(scenarios.stage(advisor).run(doc,
-                    new Input(1, "SYSLOG-LIKE", "Raw Events", Map.of(), REGEX.input())));
+            return List.of(scenarios.process(advisor, doc,
+                    new Input(1, "SYSLOG-LIKE", "Raw Events", Map.of(), REGEX.input())).learned());
         }).ifPresent(outcomes::add);
 
         // The feeds A31 was designed for (design 02 §6.3): records of several lines, where a splitter can lose
@@ -245,8 +241,8 @@ class TestLiveScenarios {
                                   + "should name the auid or uid as the user and the node as the device.")
                     .minRecordsPerShape(2)
                     .build();
-            return List.of(scenarios.stage(advisor).run(doc,
-                    new Input(1, "LINUX-AUDIT", "Raw Events", Map.of(), MULTI_LINE.input())));
+            return List.of(scenarios.process(advisor, doc,
+                    new Input(1, "LINUX-AUDIT", "Raw Events", Map.of(), MULTI_LINE.input())).learned());
         }).ifPresent(outcomes::add);
         run("07-nested-xml", advisor -> {
             final Scenarios scenarios = new Scenarios();
@@ -256,8 +252,8 @@ class TestLiveScenarios {
                                   + "opened where there is one.")
                     .minRecordsPerShape(2)
                     .build();
-            return List.of(scenarios.stage(advisor).run(doc,
-                    new Input(1, "DOCVAULT-AUDIT", "Raw Events", Map.of("Format", "XML"), NESTED_XML)));
+            return List.of(scenarios.process(advisor, doc,
+                    new Input(1, "DOCVAULT-AUDIT", "Raw Events", Map.of("Format", "XML"), NESTED_XML)).learned());
         }).ifPresent(outcomes::add);
 
         // Phase B (design 03 §3): syslog in both forms on one feed, two senders.
@@ -270,8 +266,8 @@ class TestLiveScenarios {
                                   + "the client IP address and the gateway as the device; the BSD form carries no "
                                   + "year, and the year is 2026.")
                     .build();
-            return List.of(scenarios.stage(advisor).run(doc,
-                    new Input(1, "GATEWAY-SSH", "Raw Events", Map.of("Format", "syslog"), SYSLOG)));
+            return List.of(scenarios.process(advisor, doc,
+                    new Input(1, "GATEWAY-SSH", "Raw Events", Map.of("Format", "syslog"), SYSLOG)).learned());
         }).ifPresent(outcomes::add);
 
         run("09-auditd", advisor -> {
@@ -284,8 +280,8 @@ class TestLiveScenarios {
                                   + "are the EXECVE's a0, a1… The time is seconds since the epoch.")
                     .scorers(withYield(doc("auditd", 0.9).getScorers(), YieldBasis.LINES, 0.35, 0.6))
                     .build();
-            return List.of(scenarios.stage(advisor).run(doc,
-                    new Input(1, "LINUX-AUDITD", "Raw Events", Map.of(), AUDITD)));
+            return List.of(scenarios.process(advisor, doc,
+                    new Input(1, "LINUX-AUDITD", "Raw Events", Map.of(), AUDITD)).learned());
         }).ifPresent(outcomes::add);
 
         run("10-windows-security", advisor -> {
@@ -297,8 +293,8 @@ class TestLiveScenarios {
                                   + "address and the process. The computer is the device. Map to typed events, "
                                   + "not to Data elements.")
                     .build();
-            return List.of(scenarios.stage(advisor).run(doc,
-                    new Input(1, "WINDOWS-SECURITY", "Raw Events", Map.of("Format", "XML"), WINDOWS)));
+            return List.of(scenarios.process(advisor, doc,
+                    new Input(1, "WINDOWS-SECURITY", "Raw Events", Map.of("Format", "XML"), WINDOWS)).learned());
         }).ifPresent(outcomes::add);
 
         // JSON in both shapes: the chain may choose the JSONParser, which takes no configuration.
@@ -310,8 +306,8 @@ class TestLiveScenarios {
                                   + "logouts naming the user, the host and the client. Each is an Authenticate "
                                   + "event; the host is the device.")
                     .build();
-            return List.of(scenarios.stage(advisor).run(doc,
-                    new Input(1, "API-GATEWAY", "Raw Events", Map.of("Format", "JSON"), JSON_LINES)));
+            return List.of(scenarios.process(advisor, doc,
+                    new Input(1, "API-GATEWAY", "Raw Events", Map.of("Format", "JSON"), JSON_LINES)).learned());
         }).ifPresent(outcomes::add);
         run("12-json-document", advisor -> {
             final Scenarios scenarios = new Scenarios();
@@ -321,8 +317,8 @@ class TestLiveScenarios {
                                   + "holds the records, logins and logouts naming the user, the host and the "
                                   + "client. Each is an Authenticate event; the host is the device.")
                     .build();
-            return List.of(scenarios.stage(advisor).run(doc,
-                    new Input(1, "API-GATEWAY-DOC", "Raw Events", Map.of("Format", "JSON"), JSON_DOCUMENT)));
+            return List.of(scenarios.process(advisor, doc,
+                    new Input(1, "API-GATEWAY-DOC", "Raw Events", Map.of("Format", "JSON"), JSON_DOCUMENT)).learned());
         }).ifPresent(outcomes::add);
 
         // Fixed-width: nothing to split on, and a column dropped is caught by preservation, not coverage.
@@ -339,8 +335,8 @@ class TestLiveScenarios {
                             "not(EventDetail/Authenticate) "
                             + "or EventDetail/Authenticate/Outcome/Success[. = 'true' or . = 'false']")))
                     .build();
-            return List.of(scenarios.stage(advisor).run(doc,
-                    new Input(1, "MAINFRAME-SIGNON", "Raw Events", Map.of(), FIXED_WIDTH)));
+            return List.of(scenarios.process(advisor, doc,
+                    new Input(1, "MAINFRAME-SIGNON", "Raw Events", Map.of(), FIXED_WIDTH)).learned());
         }).ifPresent(outcomes::add);
 
         // CSV with a quoted last field that holds commas, doubled quotes and line breaks: a record may span
@@ -356,8 +352,8 @@ class TestLiveScenarios {
                                   + "device.")
                     .scorers(withYield(doc("csv-multiline", 0.9).getScorers(), YieldBasis.LINES, 0.77, 0.9))
                     .build();
-            return List.of(scenarios.stage(advisor).run(doc,
-                    new Input(1, "DOCUMENT-STORE", "Raw Events", Map.of("Format", "CSV"), CSV_MULTILINE)));
+            return List.of(scenarios.process(advisor, doc,
+                    new Input(1, "DOCUMENT-STORE", "Raw Events", Map.of("Format", "CSV"), CSV_MULTILINE)).learned());
         }).ifPresent(outcomes::add);
 
         LOGGER.info("Live scenarios against {}, {}:\n{}", System.getenv(LiveAdvisor.MODEL), FLOW_UNDER_TEST,

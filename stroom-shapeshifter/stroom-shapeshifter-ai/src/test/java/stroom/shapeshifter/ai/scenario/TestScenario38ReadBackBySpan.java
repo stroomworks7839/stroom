@@ -20,6 +20,7 @@ import stroom.shapeshifter.ai.extraction.ExtractionCorpus.Golden;
 import stroom.shapeshifter.ai.stage.Decision.Promoted;
 import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.Inputs;
+import stroom.shapeshifter.ai.stage.Stage;
 import stroom.shapeshifter.ai.stage.StageRun;
 import stroom.shapeshifter.shared.LearningMode;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
@@ -65,12 +66,12 @@ class TestScenario38ReadBackBySpan {
     @Test
     void scenario38ARecordsOwnTextComesBackFromTheStreamByItsSpan() {
         final Scenarios scenarios = new Scenarios();
-        final StageRun run = scenarios.stage(scenarios.script(CSV.configuration(), XSLT)
+        final StageRun run = scenarios.process(scenarios.script(CSV.configuration(), XSLT)
                         .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter")
                         .expect(QuestionMatcher.configuration("DSParser"))
                         .reply(Scenarios.fenced(CSV.configuration()))
-                        .expect(QuestionMatcher.configuration("XSLTFilter")).reply(Scenarios.fenced(XSLT)))
-                .run(doc(), stream(1, CSV.input()));
+                        .expect(QuestionMatcher.configuration("XSLTFilter")).reply(Scenarios.fenced(XSLT)),
+                doc(), stream(1, CSV.input())).learned();
         assertThat(run.decision()).describedAs(run.decision().toString()).isInstanceOf(Promoted.class);
 
         // The spans were kept as the stream was served, one per record the parser cut.
@@ -95,12 +96,13 @@ class TestScenario38ReadBackBySpan {
         // reprocess has no parser to ask: it runs the written fragment. Knowing nothing about where the
         // records began must not erase what the run that produced the output knew.
         final Scenarios scenarios = new Scenarios();
-        final var stage = scenarios.stage(scenarios.script(CSV.configuration(), XSLT)
+        final Stage stage = scenarios.stage(Script.of());
+        final ShapeshifterAiDoc doc = doc();
+        scenarios.process(scenarios.script(CSV.configuration(), XSLT)
                 .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter")
                 .expect(QuestionMatcher.configuration("DSParser")).reply(Scenarios.fenced(CSV.configuration()))
-                .expect(QuestionMatcher.configuration("XSLTFilter")).reply(Scenarios.fenced(XSLT)));
-        final ShapeshifterAiDoc doc = doc();
-        stage.run(doc, stream(1, CSV.input()));
+                .expect(QuestionMatcher.configuration("XSLTFilter")).reply(Scenarios.fenced(XSLT)),
+                doc, stream(1, CSV.input())).learned();
         final TextRange before = scenarios.outputs.span(DOC, 1L, "pipeline-1", 1).orElseThrow();
 
         stage.reprocess(doc, stream(1, CSV.input()));

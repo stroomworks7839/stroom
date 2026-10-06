@@ -147,7 +147,7 @@ class TestScenario53TheCorpusHoldsACandidateToNoWorse {
 
     private static RoutingRule learn(final Scenarios scenarios, final ShapeshifterAiDoc doc, final String xslt) {
         final Script script = script(scenarios, xslt);
-        final StageRun run = scenarios.stage(document -> script, scenarios.rules).run(doc, stream(1L));
+        final StageRun run = scenarios.process(script, doc, stream(1L)).learned();
         script.verifyExhausted();
         assertThat(run.decision()).describedAs(run.decision().toString()).isInstanceOf(Promoted.class);
         return ((Promoted) run.decision()).rule();

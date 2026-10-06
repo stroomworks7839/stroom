@@ -21,6 +21,7 @@ import stroom.shapeshifter.ai.learning.Question;
 import stroom.shapeshifter.ai.learning.Question.Split;
 import stroom.shapeshifter.ai.learning.Question.TargetFor;
 import stroom.shapeshifter.ai.stage.Decision.GivenUp;
+import stroom.shapeshifter.ai.stage.Decision.Parked;
 import stroom.shapeshifter.ai.stage.Decision.Promoted;
 import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.StageRun;
@@ -105,8 +106,8 @@ class TestScenariosFlow {
                 .expect(QuestionMatcher.configuration("DSParser").withTargets(0)).reply(Scenarios.fenced(FOUR_FIELDS))
                 .expect(QuestionMatcher.configuration("XSLTFilter").withTargets(0)).reply(Scenarios.fenced(XSLT));
 
-        final StageRun run = scenarios.stage(script).run(doc(LearningFlow.of(FlowExample.ESCALATING)),
-                stream(1, CsvLines.lines(6)));
+        final StageRun run = scenarios.process(script, doc(LearningFlow.of(FlowExample.ESCALATING)),
+                stream(1, CsvLines.lines(6))).learned();
 
         script.verifyExhausted();
         assertThat(run.decision()).isInstanceOf(Promoted.class);
@@ -133,8 +134,8 @@ class TestScenariosFlow {
                 .expect(QuestionMatcher.configuration("DSParser").withTargets(1)).reply(Scenarios.fenced(FOUR_FIELDS))
                 .expect(QuestionMatcher.configuration("XSLTFilter").withTargets(1)).reply(Scenarios.fenced(XSLT));
 
-        final StageRun run = scenarios.stage(script).run(doc(LearningFlow.of(FlowExample.ESCALATING)),
-                stream(1, CsvLines.lines(6)));
+        final StageRun run = scenarios.process(script, doc(LearningFlow.of(FlowExample.ESCALATING)),
+                stream(1, CsvLines.lines(6))).learned();
 
         script.verifyExhausted();
         assertThat(run.decision()).isInstanceOf(Promoted.class);
@@ -168,7 +169,7 @@ class TestScenariosFlow {
                 FlowStep.parse("CONFIGURE parser"),
                 FlowStep.parse("CONFIGURE transform")));
 
-        final StageRun run = scenarios.stage(script).run(doc(flow), stream(1, CsvLines.lines(6)));
+        final StageRun run = scenarios.process(script, doc(flow), stream(1, CsvLines.lines(6))).learned();
 
         script.verifyExhausted();
         assertThat(run.decision()).describedAs(run.decision().toString()).isInstanceOf(Promoted.class);
@@ -201,8 +202,8 @@ class TestScenariosFlow {
                 .reply(Scenarios.fenced(FOUR_FIELDS))
                 .expect(QuestionMatcher.configuration("XSLTFilter")).reply(Scenarios.fenced(XSLT));
 
-        final StageRun run = scenarios.stage(script).run(doc(preservationAtTheTransform()),
-                stream(1, CsvLines.lines(6)));
+        final StageRun run = scenarios.process(script, doc(preservationAtTheTransform()),
+                stream(1, CsvLines.lines(6))).learned();
 
         script.verifyExhausted();
         assertThat(run.decision()).isInstanceOf(Promoted.class);
@@ -229,12 +230,13 @@ class TestScenariosFlow {
                 .expect(QuestionMatcher.configuration("DSParser")).reply(Scenarios.fenced(TWO_FIELDS))
                 .expect(QuestionMatcher.configuration("XSLTFilter")).reply(Scenarios.fenced(XSLT));
 
-        final StageRun run = scenarios.stage(script).run(doc(preservationAtTheTransform()),
-                stream(1, CsvLines.lines(6)));
+        final StageRun run = scenarios.process(script, doc(preservationAtTheTransform()),
+                stream(1, CsvLines.lines(6))).learned();
 
         script.verifyExhausted();
-        assertThat(run.decision()).isInstanceOf(GivenUp.class);
-        assertThat(((GivenUp) run.decision()).reason())
+        // The transform's step leaves the flow by its default exit, park (A83).
+        assertThat(run.decision()).isInstanceOf(Parked.class);
+        assertThat(((Parked) run.decision()).reason())
                 .contains("'on preservation-short goto parser' from step 'transform' a second time");
     }
 
@@ -252,14 +254,13 @@ class TestScenariosFlow {
                         .withFeedbackMentioning("the records carry no value for [logon, office]"))
                 .reply(Scenarios.fenced(FOUR_FIELDS))
                 .expect(QuestionMatcher.configuration("XSLTFilter")).reply(Scenarios.fenced(XSLT));
-        final StageRun run = scenarios.stage(script).run(
-                doc(LearningFlow.of(FlowExample.TARGET_FIRST).withSteps(List.of(
+        final StageRun run = scenarios.process(script, doc(LearningFlow.of(FlowExample.TARGET_FIRST).withSteps(List.of(
                 FlowStep.parse("CHAIN"),
                 FlowStep.parse("TARGET kinds 3"),
                 FlowStep.parse("SPLIT when xml"),
                 FlowStep.parse("CONFIGURE parser checks coverage,yield"),
                 FlowStep.parse("CONFIGURE transform checks fidelity on preservation-short goto split")))),
-                stream(1, CsvLines.lines(6)));
+                stream(1, CsvLines.lines(6))).learned();
         assertThat(run.decision()).describedAs(run.decision().toString()).isInstanceOf(Promoted.class);
         script.verifyExhausted();
         assertThat(script.asked()).noneMatch(Split.class::isInstance);
@@ -274,9 +275,9 @@ class TestScenariosFlow {
                 .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter")
                 .expect(QuestionMatcher.configuration("DSParser")).reply(Scenarios.fenced(FOUR_FIELDS))
                 .expect(QuestionMatcher.configuration("XSLTFilter")).reply(Scenarios.fenced(XSLT));
-        final StageRun run = scenarios.stage(script).run(doc(LearningFlow.of(FlowExample.DIRECT).withSteps(List.of(
+        final StageRun run = scenarios.process(script, doc(LearningFlow.of(FlowExample.DIRECT).withSteps(List.of(
                 FlowStep.parse("CHAIN"), FlowStep.parse("CONFIGURE on passed goto end"),
-                FlowStep.parse("never: CONFIGURE transform")))), stream(1, CsvLines.lines(6)));
+                FlowStep.parse("never: CONFIGURE transform")))), stream(1, CsvLines.lines(6))).learned();
         script.verifyExhausted();
         assertThat(run.decision()).isInstanceOf(Promoted.class);
         assertThat(steps(run)).containsExactly("chain", "configure", "configure");
@@ -287,9 +288,9 @@ class TestScenariosFlow {
         final Script refused = afresh.script(FOUR_FIELDS, XSLT)
                 .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter")
                 .expect(QuestionMatcher.configuration("DSParser")).reply(Scenarios.fenced(FOUR_FIELDS));
-        final StageRun abandoned = afresh.stage(refused).run(doc(LearningFlow.of(FlowExample.DIRECT).withSteps(
+        final StageRun abandoned = afresh.process(refused, doc(LearningFlow.of(FlowExample.DIRECT).withSteps(
                 List.of(FlowStep.parse("CHAIN"), FlowStep.parse("CONFIGURE parser on passed abandon"),
-                        FlowStep.parse("CONFIGURE transform")))), stream(2, CsvLines.lines(6)));
+                        FlowStep.parse("CONFIGURE transform")))), stream(2, CsvLines.lines(6))).learned();
         refused.verifyExhausted();
         assertThat(abandoned.decision()).isInstanceOf(GivenUp.class);
         assertThat(((GivenUp) abandoned.decision()).reason()).contains("on a pass of step 'parser'");
@@ -300,9 +301,9 @@ class TestScenariosFlow {
         final Script prose = fresh.script(FOUR_FIELDS, XSLT)
                 .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter")
                 .expect(QuestionMatcher.configuration("DSParser")).reply("not a configuration");
-        final StageRun atOnce = fresh.stage(prose).run(doc(LearningFlow.of(FlowExample.DIRECT).withSteps(
+        final StageRun atOnce = fresh.process(prose, doc(LearningFlow.of(FlowExample.DIRECT).withSteps(
                 List.of(FlowStep.parse("CHAIN"), FlowStep.parse("CONFIGURE on refused abandon")))),
-                stream(3, CsvLines.lines(6)));
+                stream(3, CsvLines.lines(6))).learned();
         prose.verifyExhausted();
         assertThat(((GivenUp) atOnce.decision()).reason())
                 .contains("Step 'configure' leaves the flow on refused")

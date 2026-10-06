@@ -1190,5 +1190,43 @@ What it was for, a transform over records a parser made, is now one chain the si
 whole, its parser included — `DSParser -> XSLTFilter` — since the stage is fed by the source and its
 position check refuses allowed elements that cannot parse. `Stage.run` remains as the harness's inline
 walk, which no element calls; the shared `ReplayUnit` keeps its two units, since a hand-bound fragment
-is still checked against what the document's chains can make.
+is still checked against what the document's chains can make. *Extended the same day: `Stage.run` is
+gone too.* Its last callers were the Tier 1 scenarios, which now process a stream as production does —
+`Scenarios.process`: the task decides; a session the stream opened is carried as the worker carries it,
+by `Stage.resume`; and the stream is served once its task is decided again — so a scenario can no longer
+pass on behaviour no pipeline reaches. With it went the serving logic only it reached: the inline
+promote, retract and relearn of a marked shape, and the shadow deferral rows of phase 3. Converting
+the scenarios found what the inline walk had been hiding, ruled as A100–A102, and two faults in the
+task path: a rejected draft gave its shape up without waking the streams waiting behind it, which would
+have waited for a review that was no longer coming; and the variant trial held a stream's records to
+every gate scorer on the document, where serving holds them to the record bar alone, so a disabled
+document refused a variant that would have served the stream cleanly. Both are fixed. One thing is
+noted and left: what a parser drops — lines its splitter does not match — is reported on the error
+stream but judged by nothing while a stream is served, so a feed that changes its format under a rule
+is not sent back to be learned until a person marks it (A100).
+
+**A100.** *A person's mark relearns the shape on its next stream.* When a task decides a stream of a
+shape a person marked for relearning, and the rule is neither pinned nor behind a draft, learning is
+on, no session holds the shape, and the stream brings enough records to judge a candidate on, the
+relearning session is opened and parked for the worker, opening with the mark's reason and the
+stream's verdict; the stream itself is served by the incumbent (A29). Before, a mark opened nothing
+on the task path, and only the inline walk acted on it.
+
+**A101.** *A provisional rule is not retracted by the floor.* It is held to the record bar like any
+other: a stream whose records clear it is served, one whose records fall short sends the shape back to
+be learned, and enough clean records promote it in place. The retraction of design 01 §6 is withdrawn.
+
+**A102.** *Improving a serving rule stays synchronous.* It is a person's deliberate action against the
+rule's accepted corpus, which the worker cannot read back as a stream, and its budget bounds it; it is
+the one place the model is asked outside the worker. Moving it to the worker needs the attempt to
+carry its own sample, which is a change to the attempt row for a later slice.
+
+*The conversion's own audit, the same day:* the stepper's dry run still predicted the old outcomes — a
+provisional rule below the floor "would be retracted", a stream behind a draft "would be sentinelled" —
+and now says what production does: the provisional rule serves as it stands, the stream waits on the
+review. The mark path also passes over a given-up shape, as the inline serve did, since a given-up
+shape is the ledger's to send back (A80). Comments that named the removed walk were reworded, and
+design 02's rows 13, 28 and 52 say how they changed. Noted: the mark path judges a stream's prefix on
+a node, where the task has only the prefix in hand, so a marked shape is relearned on the first stream
+whose prefix brings enough records rather than the first whose whole does.
 

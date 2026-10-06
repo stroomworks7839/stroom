@@ -64,7 +64,7 @@ class TestSupervisorGuidance {
         final long second = scenarios.guidance.given("doc-1", SHAPE,
                 "The fourth column is a terminal id, not a user.", "sam");
 
-        final StageRun learned = stage.run(doc(), stream());
+        final StageRun learned = scenarios.process(carrying, doc(), stream()).learned();
 
         assertThat(learned.bindings()).describedAs("it still learned").isNotNull();
         assertThat(carrying.carried)
@@ -92,7 +92,7 @@ class TestSupervisorGuidance {
         final Stage stage = scenarios.stage(document -> carrying, scenarios.rules);
         scenarios.guidance.given("doc-1", "Feed=TURNSTILE|Type=Raw Events", "Not about this shape.", "jo");
 
-        final StageRun learned = stage.run(doc(), stream());
+        final StageRun learned = scenarios.process(carrying, doc(), stream()).learned();
 
         assertThat(learned.bindings()).isNotNull();
         assertThat(carrying.carried)
@@ -110,7 +110,7 @@ class TestSupervisorGuidance {
         final long wrong = scenarios.guidance.given("doc-1", SHAPE, "Something mistaken.", "jo");
         scenarios.guidance.withdraw("doc-1", wrong);
 
-        stage.run(doc(), stream());
+        scenarios.process(carrying, doc(), stream()).learned();
 
         assertThat(carrying.carried)
                 .describedAs("a hint that turned out to be wrong is worse than no hint: it would be "
@@ -141,7 +141,7 @@ class TestSupervisorGuidance {
 
         final long after = scenarios.guidance.given("doc-1", SHAPE, "Said while it was parked.", "sam");
         final Stage stage = scenarios.stage(document -> resumed, scenarios.rules);
-        final StageRun learned = stage.run(doc(), stream());
+        final StageRun learned = scenarios.process(resumed, doc(), stream()).learned();
 
         assertThat(learned.bindings()).describedAs("it carried on and bound something").isNotNull();
         assertThat(carrying.carried)

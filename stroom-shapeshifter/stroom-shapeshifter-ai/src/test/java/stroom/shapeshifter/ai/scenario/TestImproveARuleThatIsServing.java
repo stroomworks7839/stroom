@@ -69,7 +69,7 @@ class TestImproveARuleThatIsServing {
         final Stage stage = scenarios.stage(document -> learning, scenarios.rules);
         final ShapeshifterAiDoc doc = doc();
 
-        final StageRun learned = stage.run(doc, stream());
+        final StageRun learned = scenarios.process(learning, doc, stream()).learned();
         final RoutingRule bound = scenarios.rules.forDocument("doc-1").get(0);
         assertThat(learned.bindings()).isNotNull();
         assertThat(bound.getShapeId())
@@ -107,7 +107,7 @@ class TestImproveARuleThatIsServing {
         final Scenarios scenarios = new Scenarios();
         final Stage stage = scenarios.stage(document -> learn(scenarios), scenarios.rules);
         final ShapeshifterAiDoc doc = doc();
-        stage.run(doc, stream());
+        scenarios.process(learn(scenarios), doc, stream()).learned();
         final RoutingRule bound = scenarios.rules.forDocument("doc-1").get(0);
 
         // Seeded by hand. What the gate is about is the entry a candidate is held to — a record the rule
@@ -141,7 +141,7 @@ class TestImproveARuleThatIsServing {
         final Scenarios scenarios = new Scenarios();
         final Stage stage = scenarios.stage(document -> learn(scenarios), scenarios.rules);
         final ShapeshifterAiDoc doc = doc();
-        stage.run(doc, stream());
+        scenarios.process(learn(scenarios), doc, stream()).learned();
         final RoutingRule bound = scenarios.rules.forDocument("doc-1").get(0);
 
         assertThatThrownBy(() -> stage.improve(doc, "not-a-rule", null, "jo"))
@@ -172,7 +172,7 @@ class TestImproveARuleThatIsServing {
         final Scenarios scenarios = new Scenarios();
         final Stage stage = scenarios.stage(document -> learn(scenarios), scenarios.rules);
         final ShapeshifterAiDoc doc = doc();
-        stage.run(doc, stream());
+        scenarios.process(learn(scenarios), doc, stream()).learned();
         final RoutingRule bound = scenarios.rules.forDocument("doc-1").get(0);
 
         scenarios.rules.replace("doc-1", bound.copy().pinned(true).build());
@@ -213,7 +213,7 @@ class TestImproveARuleThatIsServing {
         final Scenarios scenarios = new Scenarios();
         final Stage stage = scenarios.stage(document -> learn(scenarios), scenarios.rules);
         final ShapeshifterAiDoc doc = doc();
-        stage.run(doc, stream());
+        scenarios.process(learn(scenarios), doc, stream()).learned();
         final RoutingRule bound = scenarios.rules.forDocument("doc-1").get(0);
 
         final Script asking = learn(scenarios);

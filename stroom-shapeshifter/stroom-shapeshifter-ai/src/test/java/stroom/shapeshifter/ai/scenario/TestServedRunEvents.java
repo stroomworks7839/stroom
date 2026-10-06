@@ -20,6 +20,8 @@ import stroom.docref.DocRef;
 import stroom.pipeline.xml.event.EventList;
 import stroom.shapeshifter.ai.extraction.ExtractionCorpus.Golden;
 import stroom.shapeshifter.ai.fragment.FragmentRunner;
+import stroom.shapeshifter.ai.fragment.RecordJudge;
+import stroom.shapeshifter.ai.fragment.ServedStream;
 import stroom.shapeshifter.ai.fragment.StandInFragmentRunner;
 import stroom.shapeshifter.ai.scoring.Attempted;
 import stroom.shapeshifter.ai.stage.Input;
@@ -30,7 +32,9 @@ import stroom.shapeshifter.shared.RecordBoundary;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 
 import org.junit.jupiter.api.Test;
+import org.xml.sax.ContentHandler;
 
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -48,7 +52,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /// in the same call, or an earlier stream of the same pipeline scope.
 ///
 /// One stage over three streams, since a stage's runner is a stage's: a shape learned, the same shape
-/// served, and then a second shape learned behind it.
+/// stepped, and then a second shape learned behind it.
 class TestServedRunEvents {
 
     private static final String FEED = "DOOR-ACCESS";
@@ -72,20 +76,25 @@ class TestServedRunEvents {
         final Stage stage = scenarios.stage(document -> script, scenarios.rules, runner);
         final ShapeshifterAiDoc doc = doc();
 
-        final StageRun learned = stage.run(doc, stream(1, FEED));
+        final StageRun learned = scenarios.process(document -> script, scenarios.rules, runner, doc, stream(1,
+                FEED)).learned();
         assertThat(learned.bindings()).describedAs("the shape was learned and bound").isNotNull();
         assertThat(learned.events())
                 .describedAs("nothing has run the fragment it wrote, so there is nothing to serve with")
                 .isNull();
 
-        final StageRun served = stage.run(doc, stream(2, FEED));
+        // A bound stream's run, where one is still made and handed on: the stepper's (A30), which plays
+        // the run's events on to what is stepped beneath it. A task streams a bound stream instead
+        // (design 04 §3) and makes no run to carry.
+        final StageRun served = stage.dryRun(doc, stream(2, FEED), false);
         assertThat(served.bindings()).describedAs("the same shape, bound").isNotNull();
         assertThat(served.events())
                 .describedAs("judged by running the fragment, and served by that same run")
                 .isSameAs(runner.emitted.get(runner.emitted.size() - 1));
 
         // And now a second shape, behind a stage whose runner is holding the stream before it.
-        final StageRun other = stage.run(doc, stream(3, OTHER_FEED));
+        final StageRun other = scenarios.process(document -> script, scenarios.rules, runner, doc, stream(3,
+                OTHER_FEED)).learned();
         assertThat(other.bindings()).describedAs("the second shape was learned and bound").isNotNull();
         assertThat(other.events())
                 .describedAs("a chain judged as it was learned made no run, so it carries no events — "
@@ -121,6 +130,16 @@ class TestServedRunEvents {
 
         private Emitting(final FragmentRunner runner) {
             this.runner = runner;
+        }
+
+        /// Served as the runner it wraps serves: what is watched here is what a run is given.
+        @Override
+        public ServedStream serve(final DocRef fragment,
+                                  final InputStream input,
+                                  final RecordBoundary boundary,
+                                  final RecordJudge judge,
+                                  final ContentHandler downstream) {
+            return runner.serve(fragment, input, boundary, judge, downstream);
         }
 
         @Override

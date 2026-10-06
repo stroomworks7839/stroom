@@ -100,7 +100,7 @@ class TestScenario01LearnsACsvFeed {
                 .expect(QuestionMatcher.configuration("XSLTFilter").withoutFeedback())
                 .reply(Scenarios.fenced(XSLT));
 
-        final StageRun run = scenarios.stage(script).run(policy(), input());
+        final StageRun run = scenarios.process(script, policy(), input()).learned();
 
         script.verifyExhausted();
         // The transform question carried the parser's real output over the learning prefix (A21 step 2).
@@ -189,10 +189,13 @@ class TestScenario01LearnsACsvFeed {
         final Input noSystemHeader = new Input(1L, "DOOR-ACCESS", "Raw Events", Map.of("Format", "CSV"),
                 CSV.input());
 
-        final StageRun run = scenarios.stage(silent).run(keyedOnSystem, noSystemHeader);
+        final StageRun run = scenarios.process(silent, keyedOnSystem, noSystemHeader).first();
 
+        // Refused by the task (A80): an error with the reason, no session and no ledger row.
         assertThat(run.decision()).isInstanceOf(Sentinel.class);
         assertThat(((Sentinel) run.decision()).reason()).contains(RoutingFields.SYSTEM);
+        assertThat(scenarios.attempts.forDocument("policy-1", 10)).isEmpty();
+        assertThat(scenarios.ledger.isEmpty()).isTrue();
         assertThat(silent.asked()).isEmpty();
         assertThat(scenarios.stores.pipelines.list()).isEmpty();
         assertThat(scenarios.rules.forDocument("policy-1")).isEmpty();
@@ -205,19 +208,21 @@ class TestScenario01LearnsACsvFeed {
                 .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter")
                 .expect(QuestionMatcher.configuration("DSParser")).reply(Scenarios.fenced(CSV.configuration()))
                 .expect(QuestionMatcher.configuration("XSLTFilter")).reply(Scenarios.fenced(XSLT));
-        final StageRun first = scenarios.stage(script).run(policy(), input());
+        final StageRun first = scenarios.process(script, policy(), input()).learned();
         script.verifyExhausted();
 
         // Same shape again, this time with a script that must not be consulted.
         final Script silent = Script.of();
-        final StageRun second = scenarios.stage(silent).run(first.doc(), input());
+        final Input again = new Input(
+                2L, "DOOR-ACCESS", "Raw Events", Map.of("Format", "CSV", "System", "Door Access"), CSV.input());
+        final StageRun second = scenarios.process(silent, first.doc(), again).first();
 
         assertThat(second.decision()).isInstanceOf(Bound.class);
         assertThat(second.transcript()).isEmpty();
         assertThat(silent.asked()).isEmpty();
-        assertThat(second.output())
-                .describedAs("the written fragment, read back and run, produces the same translation")
-                .isEqualTo(EXPECTED_EVENTS);
-        assertThat(second.doc()).isEqualTo(first.doc());
+        assertThat(scenarios.attempts.forDocument("policy-1", 10)).describedAs("no second session").hasSize(1);
+        assertThat(Scenarios.canonical(scenarios.served(first.doc(), again).text()))
+                .describedAs("the written fragment, read back and streamed, produces the same translation")
+                .isEqualTo(Scenarios.canonical(EXPECTED_EVENTS));
     }
 }

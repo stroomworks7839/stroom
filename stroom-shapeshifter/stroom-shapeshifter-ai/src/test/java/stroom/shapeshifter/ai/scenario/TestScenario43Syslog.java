@@ -109,7 +109,7 @@ class TestScenario43Syslog {
                 .reply(Scenarios.fenced(BOTH_FORMS))
                 .expect(QuestionMatcher.configuration("XSLTFilter")).reply(Scenarios.fenced(XSLT));
 
-        final StageRun run = scenarios.stage(script).run(doc(null), stream(1, LOG));
+        final StageRun run = scenarios.process(script, doc(null), stream(1, LOG)).learned();
 
         assertThat(run.decision()).describedAs(run.decision().toString()).isInstanceOf(Promoted.class);
         script.verifyExhausted();
@@ -131,7 +131,7 @@ class TestScenario43Syslog {
                 .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter")
                 .expect(QuestionMatcher.configuration("DSParser")).reply(Scenarios.fenced(BSD_ONLY))
                 .expect(QuestionMatcher.configuration("XSLTFilter")).reply(Scenarios.fenced(XSLT));
-        final StageRun first = scenarios.stage(bsd).run(doc, stream(1, form(false)));
+        final StageRun first = scenarios.process(bsd, doc, stream(1, form(false))).learned();
         assertThat(first.decision()).describedAs(first.decision().toString()).isInstanceOf(Promoted.class);
         bsd.verifyExhausted();
 
@@ -141,7 +141,7 @@ class TestScenario43Syslog {
                 .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter")
                 .expect(QuestionMatcher.configuration("DSParser")).reply(Scenarios.fenced(BOTH_FORMS))
                 .expect(QuestionMatcher.configuration("XSLTFilter")).reply(Scenarios.fenced(XSLT));
-        final StageRun second = scenarios.stage(rfc5424).run(first.doc(), stream(2, form(true)));
+        final StageRun second = scenarios.process(rfc5424, first.doc(), stream(2, form(true))).learned();
         rfc5424.verifyExhausted();
         assertThat(second.decision()).isInstanceOf(Promoted.class);
         assertThat(second.shape().id()).isNotEqualTo(first.shape().id());

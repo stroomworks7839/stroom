@@ -17,7 +17,9 @@
 package stroom.shapeshifter.ai.scenario;
 
 import stroom.shapeshifter.ai.learning.Question;
+import stroom.shapeshifter.ai.stage.Decision.Deferred;
 import stroom.shapeshifter.ai.stage.Decision.GivenUp;
+import stroom.shapeshifter.ai.stage.Decision.Parked;
 import stroom.shapeshifter.ai.stage.Decision.Promoted;
 import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.StageRun;
@@ -138,7 +140,7 @@ class TestScenariosScoring {
                 .reply(Scenarios.fenced(FOUR_FIELDS))
                 .expect(QuestionMatcher.configuration("XSLTFilter")).reply(Scenarios.fenced(XSLT));
 
-        final StageRun run = scenarios.stage(script).run(doc(), stream(1, CsvLines.lines(6)));
+        final StageRun run = scenarios.process(script, doc(), stream(1, CsvLines.lines(6))).learned();
 
         script.verifyExhausted();
         assertThat(run.decision()).isInstanceOf(Promoted.class);
@@ -164,7 +166,7 @@ class TestScenariosScoring {
                         .withFeedbackMentioning("Required field EventSource/User/Id is present in 0 of 5 records"))
                 .reply(Scenarios.fenced(XSLT));
 
-        final StageRun run = scenarios.stage(script).run(doc(), stream(1, CsvLines.lines(6)));
+        final StageRun run = scenarios.process(script, doc(), stream(1, CsvLines.lines(6))).learned();
 
         script.verifyExhausted();
         assertThat(run.decision()).isInstanceOf(Promoted.class);
@@ -205,7 +207,7 @@ class TestScenariosScoring {
                                                 + "IDS | Malware | Network | Change | Error | Other], Severity?"))
                 .reply(Scenarios.fenced(XSLT));
 
-        final StageRun run = scenarios.stage(script).run(doc(), stream(1, CsvLines.lines(6)));
+        final StageRun run = scenarios.process(script, doc(), stream(1, CsvLines.lines(6))).learned();
 
         script.verifyExhausted();
         assertThat(run.decision()).isInstanceOf(Promoted.class);
@@ -229,7 +231,7 @@ class TestScenariosScoring {
                                                 + "xsl:stylesheet element"))
                 .reply(Scenarios.fenced(XSLT));
 
-        final StageRun run = scenarios.stage(script).run(doc(), stream(1, CsvLines.lines(6)));
+        final StageRun run = scenarios.process(script, doc(), stream(1, CsvLines.lines(6))).learned();
 
         script.verifyExhausted();
         assertThat(run.decision()).isInstanceOf(Promoted.class);
@@ -252,7 +254,7 @@ class TestScenariosScoring {
                         .withFeedbackMentioning("fails for 5 of 5 records"))
                 .reply(Scenarios.fenced(XSLT));
 
-        final StageRun run = scenarios.stage(script).run(doc(), stream(1, CsvLines.lines(6)));
+        final StageRun run = scenarios.process(script, doc(), stream(1, CsvLines.lines(6))).learned();
 
         script.verifyExhausted();
         assertThat(run.decision()).isInstanceOf(Promoted.class);
@@ -296,25 +298,28 @@ class TestScenariosScoring {
                 .expect(QuestionMatcher.admission("XSLTFilter").withFeedbackMentioning("Yield scored"))
                 .reply(Scenarios.fenced(everyOther));
 
-        final StageRun run = scenarios.stage(script).run(doc, stream(1, CsvLines.lines(6)));
+        final StageRun run = scenarios.process(script, doc, stream(1, CsvLines.lines(6))).learned();
 
         script.verifyExhausted();
         assertThat(script.scripted()).hasSize(8);
-        assertThat(run.decision()).isInstanceOf(GivenUp.class);
-        assertThat(((GivenUp) run.decision()).reason()).contains("No admission for XSLTFilter after 3");
+        // Its candidates spent, the session parks for a person (A65) rather than giving the shape up.
+        assertThat(run.decision()).isInstanceOf(Parked.class);
+        assertThat(((Parked) run.decision()).reason()).contains("No admission for XSLTFilter after 3");
         assertThat(feedback(script.scripted().get(4)))
                 .anyMatch(message -> message.contains("against an expected 1.0"));
         assertThat(scenarios.rules.forDocument(DOC)).isEmpty();
         assertThat(scenarios.stores.pipelines.list()).isEmpty();
-        assertThat(scenarios.shapes.reasonGivenUp(DOC, SHAPE)).isPresent();
-        assertThat(scenarios.ledger.rows()).extracting(row -> row.inputId()).containsExactly(1L);
+        assertThat(scenarios.shapes.reasonGivenUp(DOC, SHAPE)).isEmpty();
+        assertThat(scenarios.ledger.isEmpty()).isTrue();
+        assertThat(scenarios.deferrals.of(DOC, 1L)).describedAs("the stream waits on the parked session").isPresent();
 
-        // And the shape is not asked about again (scenario 11).
+        // And the shape is not asked about again while a person decides: the next stream waits on the same
+        // session.
         final Script silent = Script.of();
-        final StageRun again = scenarios.stage(silent).run(run.doc(), stream(2, CsvLines.lines(6)));
-        assertThat(again.decision()).isInstanceOf(stroom.shapeshifter.ai.stage.Decision.Sentinel.class);
+        final StageRun again = scenarios.process(silent, run.doc(), stream(2, CsvLines.lines(6))).learned();
+        assertThat(again.decision()).isInstanceOf(Deferred.class);
         assertThat(silent.asked()).isEmpty();
-        assertThat(scenarios.ledger.rows()).hasSize(2);
+        assertThat(scenarios.attempts.forDocument(DOC, 10)).hasSize(1);
     }
 
     @Test
@@ -331,7 +336,7 @@ class TestScenariosScoring {
                 .expect(QuestionMatcher.configuration("DSParser")).reply(Scenarios.fenced(FOUR_FIELDS))
                 .expect(QuestionMatcher.configuration("XSLTFilter")).reply(Scenarios.fenced(everyOther));
 
-        final StageRun run = scenarios.stage(script).run(doc, stream(1, CsvLines.lines(6)));
+        final StageRun run = scenarios.process(script, doc, stream(1, CsvLines.lines(6))).learned();
 
         script.verifyExhausted();
         assertThat(script.scripted()).hasSize(3);

@@ -24,7 +24,7 @@ import stroom.shapeshifter.ai.learning.Question.Configuration;
 import stroom.shapeshifter.ai.learning.Question.Split;
 import stroom.shapeshifter.ai.learning.Question.TargetFor;
 import stroom.shapeshifter.ai.stage.Decision.Bound;
-import stroom.shapeshifter.ai.stage.Decision.GivenUp;
+import stroom.shapeshifter.ai.stage.Decision.Parked;
 import stroom.shapeshifter.ai.stage.Decision.Promoted;
 import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.StageRun;
@@ -98,7 +98,7 @@ class TestScenario46Json {
                 .expect(QuestionMatcher.chain()).reply("JSONParser -> XSLTFilter")
                 .expect(QuestionMatcher.configuration("XSLTFilter").withTargets(2)).reply(Scenarios.fenced(XSLT));
 
-        final StageRun run = scenarios.stage(script).run(doc(), stream(1, LINES));
+        final StageRun run = scenarios.process(script, doc(), stream(1, LINES)).learned();
 
         assertThat(run.decision()).describedAs(run.decision().toString()).isInstanceOf(Promoted.class);
         script.verifyExhausted();
@@ -136,7 +136,7 @@ class TestScenario46Json {
                 .expect(QuestionMatcher.configuration("XSLTFilter").withoutFeedback())
                 .reply(Scenarios.fenced(firstItem));
 
-        final StageRun run = scenarios.stage(script).run(doc(), stream(1, DOCUMENT));
+        final StageRun run = scenarios.process(script, doc(), stream(1, DOCUMENT)).learned();
 
         script.verifyExhausted();
         assertThat(run.decision()).describedAs(run.decision().toString()).isInstanceOf(Promoted.class);
@@ -157,8 +157,8 @@ class TestScenario46Json {
                 .expect(QuestionMatcher.configuration("XSLTFilter").withoutFeedback())
                 .reply(Scenarios.fenced(XSLT));
 
-        final StageRun run = scenarios.stage(script).run(
-                doc().copy().flow(LearningFlow.of(FlowExample.ESCALATING)).build(), stream(1, DOCUMENT));
+        final StageRun run = scenarios.process(script,
+                doc().copy().flow(LearningFlow.of(FlowExample.ESCALATING)).build(), stream(1, DOCUMENT)).learned();
 
         script.verifyExhausted();
         assertThat(run.decision()).describedAs(run.decision().toString()).isInstanceOf(Promoted.class);
@@ -183,7 +183,7 @@ class TestScenario46Json {
                 .expect(QuestionMatcher.configuration("XSLTFilter").withTargets(2))
                 .reply(Scenarios.fenced(XSLT));
 
-        final StageRun run = scenarios.stage(script).run(doc(), stream(1, DOCUMENT));
+        final StageRun run = scenarios.process(script, doc(), stream(1, DOCUMENT)).learned();
 
         script.verifyExhausted();
         final Configuration transform = (Configuration) script.asked().stream()
@@ -208,7 +208,7 @@ class TestScenario46Json {
                 .expect(QuestionMatcher.configuration("XSLTFilter").withFeedbackMentioning("Yield scored"))
                 .reply(Scenarios.fenced(XSLT));
 
-        final StageRun run = scenarios.stage(script).run(doc(), stream(1, DOCUMENT));
+        final StageRun run = scenarios.process(script, doc(), stream(1, DOCUMENT)).learned();
 
         script.verifyExhausted();
         assertThat(run.decision()).describedAs(run.decision().toString()).isInstanceOf(Promoted.class);
@@ -240,12 +240,13 @@ class TestScenario46Json {
                 .expect(QuestionMatcher.admission("XSLTFilter"))
                 .reply(Scenarios.fenced(readsTheEnvelope));
 
-        final StageRun run = scenarios.stage(script).run(doc().copy().maxAttempts(1).build(),
-                stream(1, DOCUMENT));
+        final StageRun run = scenarios.process(script, doc().copy().maxAttempts(1).build(),
+                stream(1, DOCUMENT)).learned();
 
         script.verifyExhausted();
-        assertThat(run.decision()).describedAs(run.decision().toString()).isInstanceOf(GivenUp.class);
-        assertThat(((GivenUp) run.decision()).reason())
+        // Its candidates spent, the session parks for a person (A65): nothing is bound and the stream waits.
+        assertThat(run.decision()).describedAs(run.decision().toString()).isInstanceOf(Parked.class);
+        assertThat(((Parked) run.decision()).reason())
                 .describedAs("caught where it is written rather than at the gate: the conversation shows the "
                              + "transform one record and runs it over every record, so the envelope is "
                              + "missing the first time the candidate is judged")
@@ -264,7 +265,7 @@ class TestScenario46Json {
                 .reply("events")
                 .expect(QuestionMatcher.configuration("XSLTFilter").withTargets(2)).reply(Scenarios.fenced(XSLT));
 
-        final StageRun run = scenarios.stage(script).run(doc(), stream(1, DOCUMENT));
+        final StageRun run = scenarios.process(script, doc(), stream(1, DOCUMENT)).learned();
 
         script.verifyExhausted();
         // Learned whole; the array the split named reaches the stage's count and the yield scorer (A35): the
@@ -307,7 +308,7 @@ class TestScenario46Json {
         // 25 still owes — but a fragment it refused to run would break every bound markup feed on its
         // second stream.
         final Script silent = Script.of();
-        final StageRun served = scenarios.stage(silent).run(run.doc(), stream(2, DOCUMENT));
+        final StageRun served = scenarios.process(silent, run.doc(), stream(2, DOCUMENT)).learned();
 
         assertThat(silent.asked()).isEmpty();
         assertThat(served.decision()).describedAs(served.decision().toString()).isInstanceOf(Bound.class);

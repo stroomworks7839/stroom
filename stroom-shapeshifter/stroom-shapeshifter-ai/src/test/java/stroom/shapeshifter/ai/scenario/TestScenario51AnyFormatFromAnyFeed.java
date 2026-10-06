@@ -133,7 +133,7 @@ class TestScenario51AnyFormatFromAnyFeed {
                         "Feed=FIREWALL|Type=Raw Events",
                         "Feed=MAINFRAME|Type=Raw Events");
         // And none of the four would have waited (design 04 §7, phase 2): every record of every format
-        // cleared the bar, so the shadow deferral table has nothing to say about any of them.
+        // cleared the bar, so no stream is left waiting once its task is decided again.
         assertThat(scenarios.deferrals.forDocument(DOC))
                 .describedAs("what phase 4 would have deferred")
                 .isEmpty();
@@ -161,8 +161,7 @@ class TestScenario51AnyFormatFromAnyFeed {
                         .reply(Scenarios.fenced(JSON_XSLT)));
 
         final Script silent = Script.of();
-        final StageRun second = scenarios.stage(document -> silent, scenarios.rules)
-                .run(doc, stream(9L, "APP-EVENTS", JSON_LINES));
+        final StageRun second = scenarios.process(silent, doc, stream(9L, "APP-EVENTS", JSON_LINES)).learned();
 
         assertThat(silent.asked()).describedAs("nothing was asked: the rule serves it").isEmpty();
         assertThat(Scenarios.canonical(second.output()))
@@ -176,8 +175,8 @@ class TestScenario51AnyFormatFromAnyFeed {
                                   final String feed,
                                   final String data,
                                   final Script script) {
-        final StageRun run = scenarios.stage(document -> script, scenarios.rules)
-                .run(doc, stream(scenarios.rules.forDocument(DOC).size() + 1L, feed, data));
+        final StageRun run = scenarios.process(script, doc, stream(scenarios.rules.forDocument(DOC).size() + 1L,
+                feed, data)).learned();
         // Exhausted, or a scripted reply nobody reached would pass in silence and the run would have
         // asked something other than what this scenario says it asks.
         script.verifyExhausted();

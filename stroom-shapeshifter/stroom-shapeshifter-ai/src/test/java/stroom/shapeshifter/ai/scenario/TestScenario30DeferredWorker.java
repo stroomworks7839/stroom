@@ -143,7 +143,7 @@ class TestScenario30DeferredWorker {
         scenarios.worker(learning(scenarios)).advance(10);
 
         final Script silent = Script.of();
-        final StageRun served = scenarios.stage(silent).run(doc, stream(3L));
+        final StageRun served = scenarios.process(silent, doc, stream(3L)).learned();
 
         assertThat(served.decision()).describedAs(served.decision().toString()).isInstanceOf(Bound.class);
         assertThat(silent.asked()).isEmpty();
@@ -151,10 +151,10 @@ class TestScenario30DeferredWorker {
     }
 
     @Test
-    void aBoundShapeMarkedByHandIsStillServedByTheTask() {
-        // A29 and A60 together: a shape marked for relearning is served by its incumbent as every stream
-        // of it is, and the task asks nothing and opens nothing for the mark alone. What sends the shape
-        // back to the model is a record short of the bar (design 04 §3) or a person's improve (A46).
+    void aBoundShapeMarkedByHandIsStillServedByTheTaskWhileItsSessionOpens() {
+        // A29, A60 and A100 together: a shape a person marked for relearning is served by its incumbent as
+        // every stream of it is, and the task asks nothing; its next stream that brings enough records
+        // opens the relearning session, parked for the worker.
         final Scenarios scenarios = new Scenarios();
         final ShapeshifterAiDoc doc = scenarios.documents.put(deferred());
         scenarios.inputs.put(stream(1L));
@@ -171,7 +171,10 @@ class TestScenario30DeferredWorker {
         assertThat(served.decision()).describedAs(served.decision().toString()).isInstanceOf(Bound.class);
         assertThat(inTheTask.asked()).isEmpty();
         assertThat(scenarios.ledger.isEmpty()).describedAs("a bound shape's stream is not sentinelled").isTrue();
-        assertThat(scenarios.attempts.forDocument(DOC, 10)).describedAs("no session for the mark alone").hasSize(1);
+        assertThat(scenarios.attempts.forDocument(DOC, 10)).extracting(Recorded::status)
+                .describedAs("the session the mark opened, parked for the worker, beside the one that learned")
+                .containsExactlyInAnyOrder(AttemptStatus.PROMOTED, AttemptStatus.AWAITING_MODEL);
+        assertThat(scenarios.deferrals.of(DOC, 5L)).describedAs("the stream does not wait on it").isEmpty();
     }
 
     @Test

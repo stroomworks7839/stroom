@@ -24,9 +24,8 @@ import java.util.Optional;
 /// when. Nothing about which of its records failed and none of its text (A69): the session works that out
 /// for the one stream it learns from, and for the rest it would be stale the moment the transform moved.
 ///
-/// In phase 2 these rows are **shadow**: the stage records what it *would* defer and goes on emitting as
-/// it always has, so that the backlog can be seen before anything changes for a stream. In-memory in
-/// scenarios; a table in a node.
+/// A row is a stream that waits: its task deferred it, and a wake or a person brings it back (design 04
+/// §3, §5.3). In-memory in scenarios; a table in a node.
 public interface Deferrals {
 
     /// A stream the stage would put back, or has. A second call for the same stream and document is the

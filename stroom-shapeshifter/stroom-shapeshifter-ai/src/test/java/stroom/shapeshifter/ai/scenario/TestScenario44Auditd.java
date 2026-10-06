@@ -107,7 +107,7 @@ class TestScenario44Auditd {
                 .reply(Scenarios.fenced(BY_EVENT))
                 .expect(QuestionMatcher.configuration("XSLTFilter")).reply(Scenarios.fenced(XSLT));
 
-        final StageRun run = scenarios.stage(script).run(doc(), stream(1, LOG));
+        final StageRun run = scenarios.process(script, doc(), stream(1, LOG)).learned();
 
         assertThat(run.decision()).describedAs(run.decision().toString()).isInstanceOf(Promoted.class);
         script.verifyExhausted();
@@ -153,8 +153,8 @@ class TestScenario44Auditd {
                 .expect(QuestionMatcher.configuration("DSParser")).reply(Scenarios.fenced(BY_EVENT))
                 .expect(QuestionMatcher.configuration("XSLTFilter").withoutFeedback()).reply(Scenarios.fenced(XSLT));
 
-        final StageRun run = scenarios.stage(script).run(doc().copy().flow(FlowExample.ESCALATING).build(),
-                stream(1, LOG));
+        final StageRun run = scenarios.process(script, doc().copy().flow(FlowExample.ESCALATING).build(),
+                stream(1, LOG)).learned();
 
         assertThat(run.decision()).describedAs(run.decision().toString()).isInstanceOf(Promoted.class);
         script.verifyExhausted();

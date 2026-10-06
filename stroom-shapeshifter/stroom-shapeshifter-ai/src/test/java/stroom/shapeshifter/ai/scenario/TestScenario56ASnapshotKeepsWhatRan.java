@@ -169,8 +169,7 @@ class TestScenario56ASnapshotKeepsWhatRan {
                 .build();
         scenarios.documents.put(doc);
         final Script learning = script(scenarios, LOGON_ONLY);
-        final StageRun first = scenarios.stage(document -> learning, scenarios.rules)
-                .run(doc, stream(1L, CSV.input(), "CSV"));
+        final StageRun first = scenarios.process(learning, doc, stream(1L, CSV.input(), "CSV")).learned();
         learning.verifyExhausted();
         final RoutingRule a = ((Promoted) first.decision()).rule();
         // The neighbour, bound by looking to a's fragment.
@@ -216,7 +215,7 @@ class TestScenario56ASnapshotKeepsWhatRan {
 
     private static RoutingRule learn(final Scenarios scenarios, final ShapeshifterAiDoc doc, final String xslt) {
         final Script script = script(scenarios, xslt);
-        final StageRun run = scenarios.stage(document -> script, scenarios.rules).run(doc, stream(1L, CSV.input()));
+        final StageRun run = scenarios.process(script, doc, stream(1L, CSV.input())).learned();
         script.verifyExhausted();
         assertThat(run.decision()).describedAs(run.decision().toString()).isInstanceOf(Promoted.class);
         return ((Promoted) run.decision()).rule();

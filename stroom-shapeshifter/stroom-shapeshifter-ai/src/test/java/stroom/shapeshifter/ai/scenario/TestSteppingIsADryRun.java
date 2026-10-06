@@ -112,7 +112,7 @@ class TestSteppingIsADryRun {
         final ShapeshifterAiDoc doc = doc(LearningMode.AUTOMATIC);
 
         // Learned for real first, so that there is something to step over.
-        final StageRun learned = stage.run(doc, stream());
+        final StageRun learned = scenarios.process(script, doc, stream()).learned();
         assertThat(learned.bindings()).isNotNull();
 
         final StageRun stepped = stage.dryRun(doc, stream(), false);
@@ -127,12 +127,11 @@ class TestSteppingIsADryRun {
                 .isEmpty();
     }
 
-    /// A provisional rule is on trial (A14, design 01 §6): the first stream that brings enough records
-    /// to judge it either promotes it or retracts it. Retraction is the one branch of serving where the
-    /// stream gets *no output at all* — the rule goes, the stream is sentinelled — so a step that said
-    /// "served by rule X" and showed its output would be showing the opposite of what would happen.
+    /// A provisional rule is on trial (A14): a stream that brings enough records and clears the floor
+    /// promotes it, and one that does not is served by it as it stands — the floor no longer retracts it
+    /// (A101) — so a step shows the rule serving, and what it made of the stream.
     @Test
-    void aProvisionalRuleAboutToBeRetractedSaysSoRatherThanShowingItsOutput() {
+    void aProvisionalRuleBelowTheFloorIsShownServingAsItStands() {
         final Scenarios scenarios = new Scenarios();
         final Stage stage = scenarios.stage(document -> Script.of(), scenarios.rules);
         final ShapeshifterAiDoc doc = doc(LearningMode.AUTOMATIC);
@@ -157,13 +156,9 @@ class TestSteppingIsADryRun {
 
         final StageRun stepped = stage.dryRun(doc, stream(), false);
 
-        assertThat(stepped.decision()).isInstanceOf(Would.class);
-        assertThat(((Would) stepped.decision()).what())
-                .describedAs("what would happen to the rule, and to the stream with it")
-                .startsWith("Retract rule rule-on-trial")
-                .endsWith("and sentinel the stream");
-        assertThat(stepped.output())
-                .describedAs("and no output, because a retracted stream produces none").isNull();
+        assertThat(stepped.decision()).isInstanceOf(Bound.class);
+        assertThat(((Bound) stepped.decision()).rule().getUuid()).isEqualTo("rule-on-trial");
+        assertThat(stepped.bindings().provisional()).describedAs("still on trial").isTrue();
         assertThat(scenarios.rules.forDocument("doc-1"))
                 .describedAs("the rule is still there: a step decides nothing").hasSize(1);
     }
@@ -179,7 +174,7 @@ class TestSteppingIsADryRun {
         final ShapeshifterAiDoc doc = doc(LearningMode.AUTOMATIC);
 
         // Learned for one feed, then stepped on another: same content, so the fragment fits.
-        final StageRun learned = stage.run(doc, stream());
+        final StageRun learned = scenarios.process(script, doc, stream()).learned();
         assertThat(learned.bindings()).isNotNull();
 
         final StageRun stepped = stage.dryRun(doc, new Input(2L, FEED, "Raw Events",

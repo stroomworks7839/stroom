@@ -18,12 +18,13 @@ package stroom.shapeshifter.ai.scenario;
 
 import stroom.shapeshifter.ai.stage.Attempts.Recorded;
 import stroom.shapeshifter.ai.stage.Decision.Bound;
+import stroom.shapeshifter.ai.stage.Decision.Deferred;
 import stroom.shapeshifter.ai.stage.Decision.Drafted;
 import stroom.shapeshifter.ai.stage.Decision.Sentinel;
+import stroom.shapeshifter.ai.stage.Deferrals.Deferral;
 import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.StageRun;
 import stroom.shapeshifter.ai.state.InMemoryLedger;
-import stroom.shapeshifter.ai.state.InMemoryReprocessing;
 import stroom.shapeshifter.ai.state.InMemoryReprocessing.Request;
 import stroom.shapeshifter.shared.AttemptStatus;
 import stroom.shapeshifter.shared.FlowExample;
@@ -45,9 +46,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * Design 02 §5, scenario 22 (A25): in review mode a learned rule is a draft the router does not bind;
- * streams of the shape are sentinelled onto the ledger naming it; Approve is the promotion and releases
- * the ledger; Reject gives the shape up with the reason. And the case the catalogue leaves implicit: a
+ * Design 02 §5, scenario 22 (A25; design 04 §3): in review mode a learned rule is a draft the router does
+ * not bind; streams of the shape wait behind it, each on a deferral row naming it; Approve is the
+ * promotion and wakes them; Reject gives the shape up with the reason, and the streams that waited are
+ * woken to error. And the case the catalogue leaves implicit: a
  * relearned candidate under review is a draft behind the incumbent, which keeps serving until a person
  * decides.
  */
@@ -107,7 +109,7 @@ class TestScenario22ReviewMode {
      */
     private static StageRun drafted(final Scenarios scenarios) {
         final Script script = learning(scenarios, FOUR_FIELDS);
-        final StageRun first = scenarios.stage(script).run(review(), stream(1, lines(7, 0)));
+        final StageRun first = scenarios.process(script, review(), stream(1, lines(7, 0))).learned();
         script.verifyExhausted();
 
         assertThat(first.decision()).isInstanceOf(Drafted.class);
@@ -125,14 +127,14 @@ class TestScenario22ReviewMode {
         assertThat(scenarios.reprocessing.requests()).describedAs("a draft releases nothing").isEmpty();
 
         final Script silent = Script.of();
-        final StageRun second = scenarios.stage(silent).run(first.doc(), stream(2, lines(4, 0)));
-        assertThat(second.decision()).isInstanceOf(Sentinel.class);
-        assertThat(((Sentinel) second.decision()).reason())
+        final StageRun second = scenarios.process(silent, first.doc(), stream(2, lines(4, 0))).learned();
+        assertThat(second.decision()).isInstanceOf(Deferred.class);
+        assertThat(((Deferred) second.decision()).reason())
                 .startsWith("Awaiting review: draft rule " + draft.getUuid())
                 .contains(draft.getPipeline().getName())
                 .contains(SHAPE);
         assertThat(silent.asked()).isEmpty();
-        assertThat(scenarios.ledger.rows()).extracting(InMemoryLedger.Row::inputId).containsExactly(1L, 2L);
+        assertThat(scenarios.deferrals.of(DOC, 2L)).describedAs("the stream waits behind the draft").isPresent();
         return second;
     }
 
@@ -155,12 +157,15 @@ class TestScenario22ReviewMode {
         assertThat(scenarios.ledger.isEmpty()).isTrue();
         assertThat(scenarios.reprocessing.requests()).hasSize(1);
         final Request request = scenarios.reprocessing.requests().get(0);
-        assertThat(request.inputIds()).containsExactly(1L, 2L);
+        assertThat(request.inputIds()).describedAs("the stream that learned the draft, from the ledger")
+                .containsExactly(1L);
         assertThat(request.reason()).contains("approved").contains(SHAPE);
+        assertThat(scenarios.wake.woken()).extracting(Deferral::inputId)
+                .describedAs("and the stream that waited behind it, woken").contains(2L);
         assertThat(scenarios.regressionSet.accepted(live.getUuid())).isNotEmpty();
 
         final Script silent = Script.of();
-        final StageRun third = scenarios.stage(silent).run(waiting.doc(), stream(3, lines(7, 0)));
+        final StageRun third = scenarios.process(silent, waiting.doc(), stream(3, lines(7, 0))).learned();
         assertThat(third.decision()).isInstanceOf(Bound.class);
         assertThat(events(third.output())).isEqualTo(7);
         assertThat(silent.asked()).isEmpty();
@@ -178,9 +183,13 @@ class TestScenario22ReviewMode {
         assertThat(scenarios.regressionSet.accepted(draft.getUuid())).isEmpty();
         assertThat(scenarios.shapes.reasonGivenUp(DOC, SHAPE)).contains("Rejected: the wrong parser");
         assertThat(scenarios.ledger.rows())
-                .describedAs("the ledger keeps what it had: the streams are still waiting, because "
-                             + "nothing binds the shape now either")
-                .hasSize(2);
+                .describedAs("the ledger keeps what it had: the stream that learned the draft has no "
+                             + "binding now either")
+                .hasSize(1);
+        assertThat(scenarios.wake.woken()).extracting(Deferral::inputId)
+                .describedAs("the stream that waited behind the draft is woken, to error as a given-up "
+                             + "shape's streams do")
+                .contains(2L);
         assertThat(scenarios.ledger.rows()).extracting(InMemoryLedger.Row::reason)
                 .describedAs("but they stop saying they are waiting for somebody to review a draft "
                              + "that no longer exists — which is what the screen a person would use to "
@@ -192,11 +201,12 @@ class TestScenario22ReviewMode {
 
         // The model is not asked again: the shape is given up until an operator says otherwise.
         final Script silent = Script.of();
-        final StageRun third = scenarios.stage(silent).run(waiting.doc(), stream(3, lines(7, 0)));
+        final StageRun third = scenarios.process(silent, waiting.doc(), stream(3, lines(7, 0))).learned();
         assertThat(third.decision()).isInstanceOf(Sentinel.class);
         assertThat(((Sentinel) third.decision()).reason()).contains("Rejected: the wrong parser");
         assertThat(silent.asked()).isEmpty();
-        assertThat(scenarios.ledger.rows()).hasSize(3);
+        assertThat(scenarios.ledger.rows()).describedAs("a given-up shape's stream keeps its row (A80)")
+                .hasSize(2);
     }
 
     @Test
@@ -224,7 +234,7 @@ class TestScenario22ReviewMode {
 
         // The score falls and the shape is marked, as in scenario 27.
         final Script silent = Script.of();
-        final StageRun marked = scenarios.stage(silent).run(bound, stream(3, withAlarms));
+        final StageRun marked = scenarios.process(silent, bound, stream(3, withAlarms)).learned();
         assertThat(marked.decision()).isInstanceOf(Bound.class);
         // The score fell; the mark is a person's, from the serving list (design 04 §6), as in scenario 27.
         scenarios.shapes.markForRelearning(DOC, SHAPE, "Scored below the threshold: improve it");
@@ -232,7 +242,7 @@ class TestScenario22ReviewMode {
 
         // Relearned: the incumbent serves, and the candidate is written as a draft behind it.
         final Script relearn = learning(scenarios, FOUR_FIELDS_AND_ALARMS);
-        final StageRun relearned = scenarios.stage(relearn).run(bound, stream(4, withAlarms));
+        final StageRun relearned = scenarios.process(relearn, bound, stream(4, withAlarms)).learned();
         relearn.verifyExhausted();
         assertThat(relearned.decision()).isInstanceOf(Drafted.class);
         final RoutingRule draft = ((Drafted) relearned.decision()).rule();
@@ -244,7 +254,7 @@ class TestScenario22ReviewMode {
         assertThat(scenarios.ledger.isEmpty()).describedAs("nothing was refused").isTrue();
 
         // While the draft waits the incumbent keeps serving, the model is not asked, no second draft.
-        final StageRun meanwhile = scenarios.stage(silent).run(relearned.doc(), stream(5, withAlarms));
+        final StageRun meanwhile = scenarios.process(silent, relearned.doc(), stream(5, withAlarms)).learned();
         assertThat(meanwhile.decision()).isInstanceOf(Bound.class);
         assertThat(((Bound) meanwhile.decision()).rule()).isEqualTo(incumbent);
         assertThat(scenarios.rules.forDocument(DOC)).hasSize(2);
@@ -265,7 +275,7 @@ class TestScenario22ReviewMode {
         assertThat(scenarios.regressionSet.accepted(draft.getUuid())).isEmpty();
         assertThat(scenarios.reprocessing.requests()).describedAs("the shape's ledger was already empty").hasSize(1);
 
-        final StageRun after = scenarios.stage(silent).run(bound, stream(6, withAlarms));
+        final StageRun after = scenarios.process(silent, bound, stream(6, withAlarms)).learned();
         assertThat(events(after.output())).isEqualTo(20);
     }
 
@@ -277,11 +287,11 @@ class TestScenario22ReviewMode {
         final ShapeshifterAiDoc bound = waiting.doc();
         final RoutingRule incumbent = scenarios.rules.forDocument(DOC).get(0);
         final String withAlarms = lines(20, 3);
-        scenarios.stage(Script.of()).run(bound, stream(3, withAlarms));
+        scenarios.process(Script.of(), bound, stream(3, withAlarms)).learned();
         // The mark is a person's (design 04 §6).
         scenarios.shapes.markForRelearning(DOC, SHAPE, "Scored below the threshold: improve it");
-        final StageRun relearned = scenarios.stage(learning(scenarios, FOUR_FIELDS_AND_ALARMS))
-                .run(bound, stream(4, withAlarms));
+        final StageRun relearned = scenarios.process(learning(scenarios, FOUR_FIELDS_AND_ALARMS), bound, stream(4,
+                withAlarms)).learned();
         final RoutingRule draft = ((Drafted) relearned.decision()).rule();
 
         scenarios.stage(Script.of()).reject(relearned.doc(), draft.getUuid(), "no");
@@ -292,7 +302,7 @@ class TestScenario22ReviewMode {
         assertThat(scenarios.shapes.reasonGivenUp(DOC, SHAPE)).contains("Rejected: no");
         final Script silent = Script.of();
         for (long id = 5; id <= 7; id++) {
-            final StageRun after = scenarios.stage(silent).run(bound, stream(id, withAlarms));
+            final StageRun after = scenarios.process(silent, bound, stream(id, withAlarms)).learned();
             assertThat(after.decision()).isInstanceOf(Bound.class);
             assertThat(events(after.output())).isEqualTo(14);
         }
@@ -306,8 +316,8 @@ class TestScenario22ReviewMode {
         // goes live with the records it was judged on in its regression set (A18).
         final Scenarios scenarios = new Scenarios();
         final Script script = learning(scenarios, FOUR_FIELDS);
-        final StageRun first = scenarios.stage(script).run(review().copy().minRecordsPerShape(10).build(),
-                stream(1, lines(6, 0)));
+        final StageRun first = scenarios.process(script, review().copy().minRecordsPerShape(10).build(),
+                stream(1, lines(6, 0))).learned();
         final RoutingRule draft = ((Drafted) first.decision()).rule();
         assertThat(draft.isProvisional()).isTrue();
 
@@ -328,11 +338,11 @@ class TestScenario22ReviewMode {
         scenarios.stage(Script.of()).approve(waiting.doc(), scenarios.rules.forDocument(DOC).get(0).getUuid());
         final ShapeshifterAiDoc bound = waiting.doc();
         final String withAlarms = lines(20, 3);
-        scenarios.stage(Script.of()).run(bound, stream(3, withAlarms));
+        scenarios.process(Script.of(), bound, stream(3, withAlarms)).learned();
         // The mark is a person's (design 04 §6).
         scenarios.shapes.markForRelearning(DOC, SHAPE, "Scored below the threshold: improve it");
-        final StageRun relearned = scenarios.stage(learning(scenarios, FOUR_FIELDS_AND_ALARMS))
-                .run(bound, stream(4, withAlarms));
+        final StageRun relearned = scenarios.process(learning(scenarios, FOUR_FIELDS_AND_ALARMS), bound, stream(4,
+                withAlarms)).learned();
         final RoutingRule draft = ((Drafted) relearned.decision()).rule();
         final RoutingRule pinned = scenarios.rules.forDocument(DOC).get(0).copy().pinned(true).build();
         scenarios.rules.replace(DOC, pinned);

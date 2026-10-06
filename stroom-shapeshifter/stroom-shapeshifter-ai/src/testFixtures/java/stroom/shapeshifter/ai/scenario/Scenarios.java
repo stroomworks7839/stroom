@@ -16,6 +16,7 @@
 
 package stroom.shapeshifter.ai.scenario;
 
+import stroom.processor.api.DeferTaskException;
 import stroom.shapeshifter.ai.extraction.DataSplitterStep;
 import stroom.shapeshifter.ai.extraction.ExtractionCorpus;
 import stroom.shapeshifter.ai.extraction.ExtractionCorpus.Golden;
@@ -34,9 +35,14 @@ import stroom.shapeshifter.ai.scoring.ExtractionQualityScorer;
 import stroom.shapeshifter.ai.scoring.InputCoverageScorer;
 import stroom.shapeshifter.ai.scoring.Scorer;
 import stroom.shapeshifter.ai.scoring.YieldScorer;
+import stroom.shapeshifter.ai.stage.Attempts.Recorded;
+import stroom.shapeshifter.ai.stage.Decision.Bound;
+import stroom.shapeshifter.ai.stage.Decision.Deferred;
 import stroom.shapeshifter.ai.stage.DeferredWorker;
+import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.ai.stage.Stage;
+import stroom.shapeshifter.ai.stage.StageRun;
 import stroom.shapeshifter.ai.state.InMemoryAttempts;
 import stroom.shapeshifter.ai.state.InMemoryDeferrals;
 import stroom.shapeshifter.ai.state.InMemoryDocuments;
@@ -53,6 +59,8 @@ import stroom.shapeshifter.ai.state.InMemorySnapshots;
 import stroom.shapeshifter.ai.state.InMemorySpend;
 import stroom.shapeshifter.ai.state.InMemoryWake;
 import stroom.shapeshifter.ai.transformation.XsltStep;
+import stroom.shapeshifter.shared.AttemptStatus;
+import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 
 import java.io.IOException;
@@ -63,7 +71,9 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -101,6 +111,8 @@ public final class Scenarios {
     public final InMemoryInputs inputs = new InMemoryInputs();
     /// The serving view of A46 over the three seams above it, as a node reads it from one query.
     public final InMemoryServing serving = new InMemoryServing(rules, shapes, guidance);
+    /// As many attempts as a scenario could open, which is what one carrying takes on.
+    private static final int CARRY_AT_MOST = 100;
 
     /// A document as a scenario means it: **inline**, so that the stage learns in front of the test. The
     /// document's own default is deferred (A5), which is right for a node — an LLM call in a processing
@@ -203,6 +215,90 @@ public final class Scenarios {
                 Clock.fixed(NOW, ZoneOffset.UTC));
     }
 
+    /// What production does with a stream (design 04 §3; A60, A99): the task decides — serve, defer or
+    /// error, and never learn — and where it defers and opens a session, the session is carried as the
+    /// worker carries it ([DeferredWorker] calls [Stage#resume]), asking the given advisor. The document
+    /// and the stream are put where the worker reads them.
+    ///
+    /// @return What the task decided, the attempt it opened if it opened one, and what carrying that
+    ///         attempt came to — the learning's own run, with its decision, verdicts and output — or the
+    ///         task's decision again where nothing was carried.
+    public Processed process(final Advisor advisor, final ShapeshifterAiDoc doc, final Input input) {
+        return process(advisor, rules, doc, input);
+    }
+
+    /// The same over a given rule store: for a scenario that watches when a rule is written (A42).
+    public Processed process(final Advisor advisor,
+                             final Rules rules,
+                             final ShapeshifterAiDoc doc,
+                             final Input input) {
+        return process(document -> advisor, rules, null, doc, input);
+    }
+
+    /// The same over given advisors, rule store and fragment runner, as [#stage(Advisors, Rules,
+    /// FragmentRunner)] builds a stage over them; a null runner is the scenario's own.
+    public Processed process(final Advisors advisors,
+                             final Rules rules,
+                             final FragmentRunner fragmentRunner,
+                             final ShapeshifterAiDoc doc,
+                             final Input input) {
+        documents.put(doc);
+        inputs.put(input);
+        final Stage stage = stage(advisors, rules, fragmentRunner);
+        final StageRun first = stage.decide(doc, input);
+        // A stream a rule binds is served as it is read, by the incumbent where its shape is being
+        // relearned (A29, A100).
+        final TextSink servedAtOnce = served(stage, doc, input, first);
+        final Recorded opened = attempts.forDocument(doc.getUuid(), CARRY_AT_MOST).stream()
+                .filter(recorded -> Objects.equals(recorded.attempt().inputId(), input.id()))
+                .filter(recorded -> recorded.status() == AttemptStatus.AWAITING_MODEL)
+                .max(Comparator.comparingLong(Recorded::id))
+                .orElse(null);
+        if (opened == null) {
+            // Nothing opened on this stream: deferred on another stream's session, with learning off, or
+            // served with nothing to learn. The run returned carries what the stream was served as, so
+            // that what a scenario reads off a bound stream is what the task wrote.
+            final StageRun run = servedAtOnce == null
+                    ? first
+                    : new StageRun(first.doc(), first.decision(), first.shape(), first.bindings(),
+                            servedAtOnce.text(), first.verdicts(), first.transcript(), first.events(),
+                            first.diagnostics());
+            return new Processed(first, null, run, servedAtOnce);
+        }
+        final StageRun learned = stage.resume(doc, opened.id(), input, advisors.of(doc));
+        // What the wake makes of a stream that waited (design 04 §5.3): its task decides again, and a
+        // stream a rule now binds is served.
+        final TextSink served = servedAtOnce != null || learned.bindings() == null
+                ? servedAtOnce
+                : served(stage, doc, input, stage.decide(doc, input));
+        return new Processed(first, attempts.byId(opened.id()).orElseThrow(), learned, served);
+    }
+
+    private static TextSink served(final Stage stage,
+                                   final ShapeshifterAiDoc doc,
+                                   final Input input,
+                                   final StageRun decided) {
+        if (!(decided.decision() instanceof final Bound bound)) {
+            return null;
+        }
+        final TextSink sink = new TextSink();
+        try {
+            stage.stream(doc, bound.rule(), input, sink);
+        } catch (final DeferTaskException e) {
+            // A record short of the bar: the stream waits on the session that opened, as a task would.
+            return null;
+        }
+        return sink;
+    }
+
+    /// A stream served as a task serves one a rule binds (design 04 §3): decided, and streamed through
+    /// the bound fragment into a sink. Null where the task does not bind it.
+    public TextSink served(final ShapeshifterAiDoc doc, final Input input) {
+        inputs.put(input);
+        final Stage stage = stage(Script.of());
+        return served(stage, doc, input, stage.decide(doc, input));
+    }
+
     public static Golden corpus(final String stem) {
         return ExtractionCorpus.goldens().stream()
                 .filter(golden -> golden.stem().equals(stem))
@@ -251,5 +347,30 @@ public final class Scenarios {
      */
     public static String fenced(final String document) {
         return "Here is the configuration:\n```xml\n" + document + "\n```\n";
+    }
+
+
+    // --------------------------------------------------------------------------------
+
+
+    /// A stream processed as production processes it: what the task decided, the attempt it opened
+    /// where it opened one, what carrying that attempt came to, and what the stream was served as —
+    /// at once where a rule bound it, or once the wake made its task decide again — or null where it
+    /// was not served.
+    public record Processed(StageRun first, Recorded attempt, StageRun learned, TextSink served) {
+
+        /// The events the stream was served as, or null where it was not served.
+        public String output() {
+            return served == null
+                    ? null
+                    : served.text();
+        }
+
+        /// The status the attempt came to, or null where the stream opened none.
+        public AttemptStatus status() {
+            return attempt == null
+                    ? null
+                    : attempt.status();
+        }
     }
 }

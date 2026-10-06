@@ -93,7 +93,7 @@ class TestScenario48CsvMultiline {
                 .expect(QuestionMatcher.configuration("DSParser").withoutFeedback()).reply(Scenarios.fenced(FIELDS))
                 .expect(QuestionMatcher.configuration("XSLTFilter")).reply(Scenarios.fenced(XSLT));
 
-        final StageRun run = scenarios.stage(script).run(doc(), stream(1, CSV));
+        final StageRun run = scenarios.process(script, doc(), stream(1, CSV)).learned();
 
         assertThat(run.decision()).describedAs(run.decision().toString()).isInstanceOf(Promoted.class);
         script.verifyExhausted();
