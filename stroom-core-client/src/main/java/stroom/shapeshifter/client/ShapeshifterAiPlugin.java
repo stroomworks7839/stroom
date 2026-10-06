@@ -66,7 +66,6 @@ public class ShapeshifterAiPlugin extends DocumentPlugin<ShapeshifterAiDoc> {
         // what shows it, and does so here because the plugin is where the feature meets the client.
         // Both shapes of the stage, because both have a decision to explain (§12 item 4).
         stepDetailsRegistry.register(ShapeshifterAiElements.PARSER, stepPresenterProvider::get);
-        stepDetailsRegistry.register(ShapeshifterAiElements.FILTER, stepPresenterProvider::get);
     }
 
     @Override

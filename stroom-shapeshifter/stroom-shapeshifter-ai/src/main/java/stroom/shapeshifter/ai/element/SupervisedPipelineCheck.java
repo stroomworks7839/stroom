@@ -58,7 +58,6 @@ public class SupervisedPipelineCheck implements SupervisedPipelines {
         }
         final PipelineData merged = pipelineDataCacheProvider.get().get(doc);
         return merged != null && merged.getAddedElements().stream()
-                .anyMatch(element -> ShapeshifterAiElements.PARSER.equals(element.getType())
-                                     || ShapeshifterAiElements.FILTER.equals(element.getType()));
+                .anyMatch(element -> ShapeshifterAiElements.PARSER.equals(element.getType()));
     }
 }

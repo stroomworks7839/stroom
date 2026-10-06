@@ -1710,6 +1710,11 @@ the order they arrived. Items marked *built* already exist in `stroom-shapeshift
    transformation position end to end. With it, the element stopped running anything: a fragment run
    keeps the events its tail emitted and the stage carries them on the `StageRun` of the run it decided
    on, so a stream is transformed once and not twice. The child-task context is still not built.*
+   *Removed 2026-10-06 (A99, design 04 §10): the filter form was the one place a task still learned
+   inline, since the records a parser above it made were its stream and the worker could not read them
+   back; rather than give the attempt its own sample, the form is gone, and the stage has one shape, the
+   parser's, whose task defers. The `S1 → S2` pair goes with it; a transform over parsed records is one
+   chain the stage learns whole, its parser included.*
 5. **The scorer set of §8.4**, including the input-coverage scorer (A11) and the anti-degeneracy
    scorer (A16), which have no existing equivalent. *The SPI and the compile, coverage and yield scorers
    are built; schema conformance, extraction quality (anti-degeneracy) and business rules followed on

@@ -46,15 +46,6 @@ public enum ReplayUnit implements HasDisplayValue {
         this.displayValue = displayValue;
     }
 
-    /// Which unit a stage in this position may host (A1): a stage fed by the source hosts `STREAM`
-    /// variants, because it is given raw bytes and must parse them; a stage fed by a parser hosts
-    /// `RECORD` ones, because what reaches it is already records.
-    public static ReplayUnit forStageFedByParser(final boolean fedByParser) {
-        return fedByParser
-                ? RECORD
-                : STREAM;
-    }
-
     @Override
     public String getDisplayValue() {
         return displayValue;

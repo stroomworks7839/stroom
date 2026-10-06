@@ -35,7 +35,6 @@ public final class ShapeshifterAiElements {
     /**
      * The transformation stage: sits where a filter sits, which a parser cannot.
      */
-    public static final String FILTER = "ShapeshifterAiFilter";
 
     private ShapeshifterAiElements() {
     }

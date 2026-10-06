@@ -879,7 +879,7 @@ Two things noted: the REST layer does fail on unknown properties, so a browser t
 deployment gets a refusal from the Supervisor's filter until it is refreshed, as it would for any field a
 deployment drops; and `Stage.run`, which a stage fed by a parser still calls from a task, still
 sentinels a stream while another attempt learns its shape — the parser-fed stage's deferral is the open
-ruling of phase 4's note, and this is one more thing it settles.
+ruling of phase 4's note, and this is one more thing it settles. *Settled 2026-10-06 by removal (A99).*
 
 *Built 2026-10-06, the third slice: send to the exhaustion step, and worker claiming required (A65,
 A76; §7).* The Supervisor's third action on a parked session is beside the grant: send it to the
@@ -1181,4 +1181,14 @@ backlog; the stream goes on waiting, and nothing but giving the shape up errors 
 **A80.** *A stream of a given-up shape keeps its ledger row; every other refusal errors with its reason and
 writes none.* The ledger's purpose is the door through which a person learns a given-up shape again, and
 the row is what that asks to be processed again.
+
+**A99.** *The stage has one shape, the parser's, and a task never learns inline.* The filter form of the
+stage — the supervised stage fed by a parser (design 01 §12 item 4, scenario 50) — is removed, with the
+position walk, the record-unit stage and the inline learning path that only it took from a task. It was
+the last place a task asked the model and sentinelled a stream while another session held its shape.
+What it was for, a transform over records a parser made, is now one chain the single stage learns
+whole, its parser included — `DSParser -> XSLTFilter` — since the stage is fed by the source and its
+position check refuses allowed elements that cannot parse. `Stage.run` remains as the harness's inline
+walk, which no element calls; the shared `ReplayUnit` keeps its two units, since a hand-bound fragment
+is still checked against what the document's chains can make.
 

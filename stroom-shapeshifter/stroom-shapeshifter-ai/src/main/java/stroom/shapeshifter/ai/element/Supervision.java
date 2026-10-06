@@ -93,8 +93,6 @@ public class Supervision {
 
     private final ShapeshifterAiStore store;
     private final ElementRegistryFactory elementRegistryFactory;
-    private final PipelineStore pipelineStore;
-    private final PipelineDataCache pipelineDataCache;
     private final FeedHolder feedHolder;
     private final MetaHolder metaHolder;
     private final MetaDataHolder metaDataHolder;
@@ -121,8 +119,6 @@ public class Supervision {
 
     /// Whether each supervisor was handed the whole stream rather than one record (A1), which is what
     /// decides whether its chain's one run covered the record at the cursor or all of them.
-    private final Map<String, Boolean> givenWholeStream = new HashMap<>();
-
     /// What separates the stage's name from the fragment element's in a nested element's id. A
     /// character an element id cannot hold, so that a namespaced id can never be mistaken for one a
     /// person gave an element of the pipeline.
@@ -137,8 +133,6 @@ public class Supervision {
     @Inject
     public Supervision(final ShapeshifterAiStore store,
                        final ElementRegistryFactory elementRegistryFactory,
-                       final PipelineStore pipelineStore,
-                       final PipelineDataCache pipelineDataCache,
                        final FeedHolder feedHolder,
                        final MetaHolder metaHolder,
                        final MetaDataHolder metaDataHolder,
@@ -150,8 +144,6 @@ public class Supervision {
                        final StageFactory stageFactory) {
         this.store = store;
         this.elementRegistryFactory = elementRegistryFactory;
-        this.pipelineStore = pipelineStore;
-        this.pipelineDataCache = pipelineDataCache;
         this.feedHolder = feedHolder;
         this.metaHolder = metaHolder;
         this.metaDataHolder = metaDataHolder;
@@ -178,31 +170,19 @@ public class Supervision {
         return doc;
     }
 
-    /// What this stage may learn must match where it stands (A1, design 01 §4): a stage fed by the
-    /// source is given raw data and its chains must parse; a stage fed by a parser is given records and
-    /// its chains must not. The document's allowed elements are what a chain is chosen from, so they
-    /// are what has to agree, and the pipeline this element sits in is what says which position it is
-    /// in.
+    /// What this stage may learn must match where it stands (A1, design 01 §4): the stage is fed by the
+    /// source and given raw data, so the chains its allowed elements can make must parse. Checked as the
+    /// pipeline is built rather than when a model is asked: a document that cannot learn anything usable
+    /// should say so before it has spent a call finding out. Skipped where the document names no allowed
+    /// elements and so constrains nothing.
     ///
-    /// Checked as the pipeline is built rather than when a model is asked: a document that cannot learn
-    /// anything usable here should say so before it has spent a call finding out.
-    ///
-    /// Skipped where the answer is not knowable — the pipeline cannot be read, or the document names no
-    /// allowed elements and so constrains nothing. A check that cannot be made is not a check that
-    /// failed, and refusing on a guess would be worse than not looking.
-    ///
-    /// @param elementId The supervisor, which is what the walk starts from.
+    /// @param elementId The supervisor.
     public void checkPosition(final ShapeshifterAiDoc doc, final ElementId elementId) {
         if (NullSafe.isEmptyCollection(doc.getAllowedElements())) {
             return;
         }
-        final Optional<Boolean> fedByParser = fedByParser(elementId);
-        if (fedByParser.isEmpty()) {
-            return;
-        }
         final ReplayUnit allowed = ReplayUnits.ofElements(doc.getAllowedElements(), this::parses);
-        final ReplayUnit here = ReplayUnit.forStageFedByParser(fedByParser.get());
-        if (allowed != here) {
+        if (allowed != ReplayUnit.STREAM) {
             throw ProcessException.create(ReplayUnits.mismatch(allowed,
                     "The allowed elements of Shapeshifter AI document " + doc.getName()));
         }
@@ -220,25 +200,15 @@ public class Supervision {
     /// rather than learned. A person opening the stepper on a feed nobody has taught yet must not spend
     /// a model call and bind a rule by looking.
     ///
-    /// @param data        The stream as text: the whole of it for a stage fed by the source, one
-    ///                    record's markup for a stage fed by a parser.
-    /// @param asProcessed Which question a reprocess is asking (design 01 §7.3).
-    /// @param downstream  Where the fragment's events go.
-    public void supervise(final ShapeshifterAiDoc doc,
-                          final ElementId elementId,
-                          final boolean asProcessed,
-                          final String data,
-                          final ContentHandler downstream) throws SAXException {
-        supervise(doc, elementId, asProcessed, input(data), downstream);
-    }
-
-    /// The same, for a stage fed by the source that is given the stream itself (design 04 §3, *streams of
-    /// any size*). A step and a reprocess read the whole stream as text, as they always have: a step is
-    /// bounded by the person stepping and a reprocess asks what was done. A task reads the stream's
-    /// prefix — the shape's signature and the sample the model is shown need no more — and the rest is
-    /// read by the fragment as it serves the stream.
+    /// The stage is given the stream itself (design 04 §3, *streams of any size*). A step and a reprocess
+    /// read the whole stream as text, as they always have: a step is bounded by the person stepping and a
+    /// reprocess asks what was done. A task reads the stream's prefix — the shape's signature and the
+    /// sample the model is shown need no more — and the rest is read by the fragment as it serves the
+    /// stream.
     ///
-    /// @param source The stream.
+    /// @param asProcessed Which question a reprocess is asking (design 01 §7.3).
+    /// @param source      The stream.
+    /// @param downstream  Where the fragment's events go.
     public void supervise(final ShapeshifterAiDoc doc,
                           final ElementId elementId,
                           final boolean asProcessed,
@@ -256,21 +226,16 @@ public class Supervision {
                            final Input input,
                            final ContentHandler downstream) throws SAXException {
         final boolean stepping = pipelineContext.isStepping();
-        // A task takes the decision of design 04 §3 — emit, defer or error — and never learns, and serves
-        // a bound stream as it is read; a reprocess asks what was done; a step asks what would be. The
-        // one exception is a stage fed by a parser (design 01 §12 item 4): its stream is the records the
-        // parser above it made, which the worker cannot read back from the store, so it still learns
-        // where it stands until the attempt carries its own sample — recorded in design 04 §7 against
-        // phase 4.
-        if (!stepping && !asProcessed && !fedByParser(elementId).orElse(false)) {
+        // A task takes the decision of design 04 §3 — emit, defer or error — and never learns (A60, A99),
+        // and serves a bound stream as it is read; a reprocess asks what was done; a step asks what would
+        // be.
+        if (!stepping && !asProcessed) {
             decideAndStream(doc, elementId, input, downstream);
             return;
         }
         final StageRun run = stepping
                 ? stage.dryRun(doc, input, asProcessed)
-                : asProcessed
-                        ? stage.reprocess(doc, input)
-                        : stage.run(doc, input);
+                : stage.reprocess(doc, input);
         // What the stage pane shows for this element, kept for the capture to ask (A30). Per element,
         // because a pipeline may hold two supervised stages and each has its own decision to explain.
         stepDetails.put(elementId.getId(), StepDetails.of(run, stepping));
@@ -285,12 +250,6 @@ public class Supervision {
         fragmentRecords.put(elementId.getId(), stepping
                 ? ran
                 : List.of());
-        if (stepping) {
-            // A stage fed by a parser is handed one record and so is its chain; a stage fed by the
-            // source is handed the stream. Read once here rather than per record, since the capture
-            // asks for every record of the stream.
-            givenWholeStream.put(elementId.getId(), !fedByParser(elementId).orElse(false));
-        }
         final Bindings bindings = run.bindings();
         // What happened, or — for a step — what would have. A dry run's report is not a fault: a shape
         // nobody has taught yet is the ordinary state of the feed a person has opened the stepper on,
@@ -458,17 +417,14 @@ public class Supervision {
     public void startRecord(final ElementId elementId) {
         stepDetails.remove(elementId.getId());
         fragmentRecords.remove(elementId.getId());
-        givenWholeStream.remove(elementId.getId());
     }
 
     /// What this element last decided, as the stage pane shows it (A30), with the fragment's own
     /// elements for the record being asked about — or null where it has not run.
     ///
-    /// The decision is the stream's: a stage fed by the source routes once and then produces every
-    /// record of the stream, so every record shows the same shape, rule and verdicts. What each element
-    /// of the fragment was given and wrote is the record's, and that is what the index selects. A stage
-    /// fed by a parser is given one record at a time and runs the fragment over each, so its run holds
-    /// one record and the index finds it at zero.
+    /// The decision is the stream's: the stage routes once and then produces every record of the stream,
+    /// so every record shows the same shape, rule and verdicts. What each element of the fragment was
+    /// given and wrote is the record's, and that is what the index selects.
     ///
     /// @param recordIndex Which record of this part the capture is asking about, counted from zero.
     public ShapeshifterAiStepDetails stepDetails(final ElementId elementId, final long recordIndex) {
@@ -489,8 +445,7 @@ public class Supervision {
         // cuts the records itself and the stepper walks what came out of the far end, so every record of
         // the stream shows the same one run. Said on the row rather than left to be noticed, because
         // six records' worth of output under a cursor on the first reads as a fault otherwise.
-        final boolean wholeStream = records.size() == 1
-                                    && Boolean.TRUE.equals(givenWholeStream.get(elementId.getId()));
+        final boolean wholeStream = records.size() == 1;
         return details.withNested(under(elementId, records.get(index).elements(), wholeStream));
     }
 
@@ -602,20 +557,6 @@ public class Supervision {
                     "Part " + metaHolder.getPartIndex() + " was bound by rule " + bindings.ruleUuid()
                     + " but the stream's bindings name rule " + recorded + " from an earlier part", null);
         }
-    }
-
-    /// Whether anything above an element in its pipeline parses, or empty where the pipeline it is
-    /// running in cannot be read.
-    private Optional<Boolean> fedByParser(final ElementId elementId) {
-        final DocRef pipelineRef = pipelineHolder.getPipeline();
-        if (pipelineRef == null) {
-            return Optional.empty();
-        }
-        final PipelineDoc pipelineDoc = pipelineStore.readDocument(pipelineRef);
-        if (pipelineDoc == null) {
-            return Optional.empty();
-        }
-        return ReplayUnits.fedByParser(pipelineDataCache.get(pipelineDoc), elementId.getId(), this::parses);
     }
 
     /// Whether an element type parses, as the node's own element registry has it — the same question

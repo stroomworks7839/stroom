@@ -75,7 +75,6 @@ public class ShapeshifterAiElementModule extends PipelineElementModule {
         // given a stream; the filter is the transformation stage, given records. The pipeline editor
         // refuses a parser under a parser, so the second could not be drawn without the second shape.
         bindElement(ShapeshifterAiParser.class);
-        bindElement(ShapeshifterAiFilter.class);
         bindElement(FragmentOutputFilter.class);
         bindElement(FragmentTapFilter.class);
     }

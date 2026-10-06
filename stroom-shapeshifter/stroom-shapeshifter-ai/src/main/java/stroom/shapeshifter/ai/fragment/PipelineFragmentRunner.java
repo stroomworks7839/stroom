@@ -92,9 +92,9 @@ public final class PipelineFragmentRunner implements FragmentRunner {
     private static final String SOURCE = "Source";
 
     /// What turns the text a stage is given into the events every element of a transformation-stage
-    /// fragment expects. A fragment learned for a stage fed by a parser (A1) holds no parser of its
-    /// own — there is nothing left to parse — but it is still handed a stream of bytes here, so one
-    /// stands in front of it. It is no part of the chain: the walk that says what each element made of
+    /// fragment expects. A fragment learned over markup input (A35) holds no parser of its own — the
+    /// input is records already — but it is still handed a stream of bytes here, so one stands in front
+    /// of it. It is no part of the chain: the walk that says what each element made of
     /// the input reads the fragment as the fragment has it.
     private static final String XML_PARSER = "XMLParser";
     private static final String XML_PARSER_ID = "shapeshifterAiFragmentParser";
@@ -451,8 +451,8 @@ public final class PipelineFragmentRunner implements FragmentRunner {
 
     /// The fragment as a pipeline that can be handed a stream. Two elements are added to what the
     /// fragment itself holds, and neither belongs to the chain: a parser in front where the chain has
-    /// none, because a fragment learned for a stage fed by a parser is pushed events and is given text
-    /// here; and an output filter at the tail, so that the events the last element makes are kept.
+    /// none, because a fragment learned over markup input is given text here; and an output filter at
+    /// the tail, so that the events the last element makes are kept.
     ///
     /// The walk that says what each element made of the input reads the fragment as the fragment has
     /// it, so nothing added here is scored, re-asked or shown to anyone.

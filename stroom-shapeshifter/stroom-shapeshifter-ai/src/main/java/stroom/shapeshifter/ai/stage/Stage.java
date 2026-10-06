@@ -1276,8 +1276,8 @@ public final class Stage {
                                final Function<Recorder, StageRun> attempt) {
         // One advisor for the attempt, since the node's makes a new one per call and each counts its own
         // tokens: asking twice would read two fresh counters and record nothing spent. A task never
-        // learns (A60): it decides, and a session is opened and carried by the worker; what learns here is
-        // a stage fed by a parser, or a scenario, and both ask as they go.
+        // learns (A60, A99): it decides, and a session is opened and carried by the worker; what learns
+        // here is the harness's inline walk, which asks as it goes.
         return recording(doc, shape, input, advisors.of(doc), waiting, attempt);
     }
 

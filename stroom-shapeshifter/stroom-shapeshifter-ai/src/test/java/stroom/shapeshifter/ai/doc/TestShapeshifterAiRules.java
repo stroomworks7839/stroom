@@ -162,9 +162,9 @@ class TestShapeshifterAiRules {
 
     @Test
     void aFragmentMustBeReplayableOverWhatTheStageIsGiven() {
-        // A1, design 01 §4: a stage fed by a parser is given records and its chains must not parse; one
-        // fed by the source is given raw data and its chains must. The document's allowed elements are
-        // what a chain is chosen from, so they are what says which stage this is.
+        // A1, A99: the stage is fed by the source and its chains must parse. A fragment bound by hand must
+        // be replayable over the same unit as the chains the document's allowed elements can make, and a
+        // document whose elements cannot parse makes a different unit from a fragment that does.
         final ShapeshifterAiStore records = storeOf(List.of("XSLTFilter"));
         final ShapeshifterAiResourceImpl resource = new ShapeshifterAiResourceImpl(
                 () -> records, () -> null, () -> rules, () -> pipeline -> ReplayUnit.STREAM,
@@ -173,7 +173,7 @@ class TestShapeshifterAiRules {
         assertThatThrownBy(() -> resource.addRule(DOC, 0, rule(null)))
                 .isInstanceOf(EntityServiceException.class)
                 .hasMessageContaining("has a parser")
-                .hasMessageContaining("nothing left to parse");
+                .hasMessageContaining("expects markup it does not parse");
         assertThat(rules.forDocument(DOC)).describedAs("and nothing is bound").isEmpty();
     }
 

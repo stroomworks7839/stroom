@@ -17,14 +17,11 @@
 package stroom.shapeshifter.ai.element;
 
 import stroom.pipeline.factory.ConfigurableElement;
-import stroom.pipeline.factory.PipelineProperty;
 import stroom.pipeline.shared.data.PipelineElementType;
 import stroom.pipeline.shared.data.PipelineElementType.Category;
 
 import org.junit.jupiter.api.Test;
 
-import java.lang.reflect.Method;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 
@@ -60,34 +57,7 @@ class TestSupervisorPositions {
                 .containsAnyElementsOf(REFUSED_BELOW_A_PARSER);
     }
 
-    @Test
-    void theTransformationStageIsAFilterAndSoCanStandBelowOne() {
-        final ConfigurableElement element = ShapeshifterAiFilter.class.getAnnotation(ConfigurableElement.class);
-        assertThat(element.category()).isEqualTo(Category.FILTER);
-        assertThat(roles(element))
-                .describedAs("nothing the editor refuses below a parser, so the S1 -> S2 pair can be drawn")
-                .doesNotContainAnyElementsOf(REFUSED_BELOW_A_PARSER);
-        assertThat(roles(element))
-                .describedAs("a filter is a target of the element above and has targets of its own")
-                .contains(PipelineElementType.ROLE_TARGET, PipelineElementType.ROLE_HAS_TARGETS);
-    }
-
-    @Test
-    void bothSupervisorsTakeTheSameTwoProperties() {
-        assertThat(properties(ShapeshifterAiFilter.class))
-                .describedAs("what a stage is governed by does not depend on where it stands")
-                .isEqualTo(properties(ShapeshifterAiParser.class));
-    }
-
     private static List<String> roles(final ConfigurableElement element) {
         return List.of(element.roles());
-    }
-
-    private static List<String> properties(final Class<?> element) {
-        return Arrays.stream(element.getMethods())
-                .filter(method -> method.isAnnotationPresent(PipelineProperty.class))
-                .map(Method::getName)
-                .sorted()
-                .toList();
     }
 }

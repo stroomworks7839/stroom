@@ -91,7 +91,7 @@ final class Corpus {
             parsed = result.output();
             spans = NullSafe.list(result.recordRanges());
         } else {
-            // A stage fed by a parser is handed records already: the text is the parsed form.
+            // A chain with no parser is given markup already (A35): the text is the parsed form.
             parsed = text;
             spans = List.of();
         }

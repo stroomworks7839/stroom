@@ -43,8 +43,7 @@ import org.xml.sax.XMLReader;
  * The supervisor at the extraction stage (design 01 §3, §12 item 4): one supervised stage fed the raw
  * stream, emitting events. Sits where a parser sits, and does what the {@link Stage} decides — routes
  * the stream to a bound fragment, learns one when nothing is bound and the document allows, or refuses
- * it with an error naming the shape and the reason (A4). A stage fed by a parser is
- * {@link ShapeshifterAiFilter} instead; what the two do is the same and is in {@link Supervision}.
+ * it with an error naming the shape and the reason (A4). What it does is {@link Supervision}'s.
  * <p>
  * A bound fragment runs as a nested pipeline (A20), built by the same {@link stroom.pipeline.factory.PipelineFactory}
  * in the same pipeline scope, so its errors reach this pipeline's error stream and its events reach this

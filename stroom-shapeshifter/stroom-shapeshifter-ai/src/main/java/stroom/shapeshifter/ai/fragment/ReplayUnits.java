@@ -51,31 +51,6 @@ public final class ReplayUnits {
                 : ReplayUnit.RECORD;
     }
 
-    /// Whether anything above an element in a pipeline parses, which is what says where a stage stands
-    /// (A1): fed by the source, or fed by a parser.
-    ///
-    /// @param elementId The element to walk up from.
-    /// @return Empty where the element is not in this pipeline at all, which is not the same as being
-    /// fed by nothing: a check that cannot be made is not a check that failed.
-    public static Optional<Boolean> fedByParser(final PipelineData pipeline,
-                                                final String elementId,
-                                                final Predicate<String> isParser) {
-        final Map<String, String> types = new HashMap<>();
-        pipeline.getAddedElements().forEach(element -> types.put(element.getId(), element.getType()));
-        if (!types.containsKey(elementId)) {
-            return Optional.empty();
-        }
-        final Map<String, String> feeding = new HashMap<>();
-        pipeline.getAddedLinks().forEach(link -> feeding.put(link.getTo(), link.getFrom()));
-        final Set<String> seen = new HashSet<>();
-        for (String id = feeding.get(elementId); id != null && seen.add(id); id = feeding.get(id)) {
-            if (isParser.test(types.get(id))) {
-                return Optional.of(true);
-            }
-        }
-        return Optional.of(false);
-    }
-
     /// Why a thing of one unit cannot serve a stage of another, in the words an operator needs: what the
     /// subject has or lacks, and what the stage it would serve is given.
     ///
@@ -86,7 +61,7 @@ public final class ReplayUnits {
         return subject == ReplayUnit.RECORD
                 ? what + " has no parser, but this stage is fed by the source and is given raw data: "
                          + "something must parse it"
-                : what + " has a parser, but this stage is fed by a parser and is given records: there is "
-                         + "nothing left to parse";
+                : what + " has a parser, but the document's allowed elements have none: its stage expects "
+                         + "markup it does not parse";
     }
 }
