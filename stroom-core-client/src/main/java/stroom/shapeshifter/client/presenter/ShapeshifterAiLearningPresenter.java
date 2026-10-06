@@ -16,9 +16,6 @@
 
 package stroom.shapeshifter.client.presenter;
 
-import stroom.alert.client.event.AlertEvent;
-import stroom.alert.client.event.ConfirmEvent;
-import stroom.dispatch.client.RestFactory;
 import stroom.docref.DocRef;
 import stroom.entity.client.presenter.DocPresenter;
 import stroom.entity.client.presenter.ReadOnlyChangeHandler;
@@ -26,65 +23,36 @@ import stroom.explorer.client.presenter.DocSelectionBoxPresenter;
 import stroom.openai.shared.OpenAIModelDoc;
 import stroom.security.shared.DocumentPermission;
 import stroom.shapeshifter.client.presenter.ShapeshifterAiLearningPresenter.ShapeshifterAiLearningView;
-import stroom.shapeshifter.shared.FlowExample;
-import stroom.shapeshifter.shared.FlowStep;
-import stroom.shapeshifter.shared.LearningFlow;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
-import stroom.shapeshifter.shared.ShapeshifterAiResource;
-import stroom.shapeshifter.shared.Template;
-import stroom.widget.menu.client.presenter.Item;
-import stroom.widget.menu.client.presenter.MenuBuilder;
-import stroom.widget.menu.client.presenter.MenuPresenter;
-import stroom.widget.popup.client.event.ShowPopupEvent;
-import stroom.widget.popup.client.presenter.PopupPosition;
-import stroom.widget.popup.client.presenter.PopupType;
 
-import com.google.gwt.core.client.GWT;
 import com.google.inject.Inject;
 import com.google.web.bindery.event.shared.EventBus;
 import com.gwtplatform.mvp.client.HasUiHandlers;
 import com.gwtplatform.mvp.client.View;
 
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * The Learning tab: what the stage learns and binds on (A29), what it may ask a model and within what
  * limits — the model and its instructions, the elements the chain question may choose from (A21),
- * candidates and budgets (A5) — and how samples are prepared (A17).
+ * candidates and budgets (A5) — and how samples are prepared (A17). The flow itself, and the words of
+ * its questions, are the Flow tab's (A82).
  */
 public class ShapeshifterAiLearningPresenter
         extends DocPresenter<ShapeshifterAiLearningView, ShapeshifterAiDoc>
         implements ShapeshifterAiSettingsUiHandlers {
 
-    private static final ShapeshifterAiResource RESOURCE = GWT.create(ShapeshifterAiResource.class);
-
     private final DocSelectionBoxPresenter modelPresenter;
     private final LearningKeyPresenter learningKeyPresenter;
-    private final RestFactory restFactory;
-    private final FlowStepListPresenter flowStepListPresenter;
-    private final MenuPresenter menuPresenter;
-    /**
-     * The flow as read, for what the list does not hold: the template overrides and the built-in
-     * version they were saved against.
-     */
-    private LearningFlow flow = LearningFlow.of(FlowExample.DIRECT);
 
     @Inject
     public ShapeshifterAiLearningPresenter(final EventBus eventBus,
                                               final ShapeshifterAiLearningView view,
                                               final DocSelectionBoxPresenter modelPresenter,
-                                              final LearningKeyPresenter learningKeyPresenter,
-                                              final FlowStepListPresenter flowStepListPresenter,
-                                              final MenuPresenter menuPresenter,
-                                              final RestFactory restFactory) {
+                                              final LearningKeyPresenter learningKeyPresenter) {
         super(eventBus, view);
         this.modelPresenter = modelPresenter;
         this.learningKeyPresenter = learningKeyPresenter;
-        this.flowStepListPresenter = flowStepListPresenter;
-        this.menuPresenter = menuPresenter;
-        this.restFactory = restFactory;
         view.setUiHandlers(this);
 
         modelPresenter.setIncludedTypes(OpenAIModelDoc.TYPE);
@@ -92,85 +60,12 @@ public class ShapeshifterAiLearningPresenter
         view.setModelView(modelPresenter.getView());
         learningKeyPresenter.setUiHandlers(this);
         view.setLearningKeyView(learningKeyPresenter.getView());
-        view.setFlowStepsView(flowStepListPresenter.getView());
-        // The list is the flow now, so what it does is what makes the document dirty.
-        flowStepListPresenter.setOnChange(() -> {
-            flowChanged();
-            onChange();
-        });
-    }
-
-    /**
-     * An example flow was chosen: its steps are what the list starts from (A34). A starting point and
-     * not a setting — what is saved is the steps, which the person then edits.
-     */
-    @Override
-    public void onFlowExample(final List<FlowStep> steps) {
-        if (isReadOnly()) {
-            // The picker is disabled on a read-only document, so this should not be reachable; loading
-            // an example is still an edit, and an edit is refused here rather than only being hidden.
-            return;
-        }
-        flowStepListPresenter.read(steps, false);
-        flowChanged();
-        onChange();
-    }
-
-    /**
-     * The examples as a menu at the button: three graphs a document might start from (A34, A37), and
-     * choosing one replaces the steps in the table rather than recording anything about the document —
-     * which is why it is asked for here and not shown as a setting.
-     *
-     * <p>A flow that has steps is confirmed first. An example is one click, and the steps it would
-     * replace may be an afternoon's editing.</p>
-     */
-    @Override
-    public void onLoadExample(final int x, final int y) {
-        if (isReadOnly()) {
-            return;
-        }
-        final MenuBuilder menu = MenuBuilder.builder();
-        for (final FlowExample example : FlowExample.values()) {
-            menu.withSimpleMenuItem(item -> item
-                    .text(example.getDisplayValue())
-                    .command(() -> confirmThenLoad(example)));
-        }
-        final List<Item> items = menu.build();
-        menuPresenter.setData(items);
-        ShowPopupEvent.builder(menuPresenter)
-                .popupType(PopupType.POPUP)
-                .popupPosition(new PopupPosition(x, y))
-                .fire();
-    }
-
-    private void confirmThenLoad(final FlowExample example) {
-        final int steps = flowStepListPresenter.write().size();
-        if (steps == 0) {
-            onFlowExample(example.steps());
-            return;
-        }
-        ConfirmEvent.fire(this,
-                "Replace this flow's " + steps + " step" + (steps == 1
-                        ? ""
-                        : "s") + " with the " + example.getDisplayValue() + " example?",
-                ok -> {
-                    if (ok) {
-                        onFlowExample(example.steps());
-                    }
-                });
     }
 
     @Override
     protected void onBind() {
         super.onBind();
         registerHandler(modelPresenter.addDataSelectionHandler(e -> onChange()));
-        // The built-in text of every template, so an override is edited from the words it replaces.
-        restFactory
-                .create(RESOURCE)
-                .method(ShapeshifterAiResource::templates)
-                .onSuccess(builtIns -> getView().setBuiltInTemplates(builtIns.getTemplates(), builtIns.getVersion()))
-                .taskMonitorFactory(this)
-                .exec();
     }
 
     @Override
@@ -183,10 +78,6 @@ public class ShapeshifterAiLearningPresenter
         view.setRelearnThreshold(doc.getRelearnThreshold());
         view.setAllowedElements(doc.getAllowedElements());
         view.setInstructions(doc.getInstructions());
-        flow = doc.getFlow();
-        flowStepListPresenter.read(flow.getSteps(), readOnly);
-        flowChanged();
-        view.setTemplateOverrides(flow.getTemplates(), flow.getBuiltInVersion());
         view.setMaxAttempts(doc.getMaxAttempts());
         view.setAttemptBudgetMs(doc.getAttemptBudgetMs());
         view.setTokenBudget(doc.getTokenBudget());
@@ -204,7 +95,6 @@ public class ShapeshifterAiLearningPresenter
                 .relearnThreshold(view.getRelearnThreshold())
                 .allowedElements(view.getAllowedElements())
                 .instructions(view.getInstructions())
-                .flow(flow())
                 .maxAttempts(view.getMaxAttempts())
                 .attemptBudgetMs(view.getAttemptBudgetMs())
                 .tokenBudget(view.getTokenBudget())
@@ -213,57 +103,6 @@ public class ShapeshifterAiLearningPresenter
                 .build();
     }
 
-
-    /**
-     * The flow changed: the text beneath the list is what the list now says, what is wrong with it is
-     * shown beside it, and the document is dirty.
-     */
-    private void flowChanged() {
-        showFlowText();
-        showFlowProblem();
-    }
-
-    /**
-     * The flow as the tab shows it.
-     *
-     * <p>Nothing here can fail any more. Every step came out of a form that would not let it be written
-     * wrong, so there is no line to fail to parse and no saved steps to fall back on — which is what the
-     * editor is for (§12 item 24). What the store still checks on save is the shape of the flow as a
-     * whole: that a CHAIN comes first and a CONFIGURE last, that SPLIT and TARGET appear at most once,
-     * and that every transition names a step that is there. Those are properties of the list and not of
-     * any row in it, and they are shown beside the list as it is edited.</p>
-     */
-    private LearningFlow flow() {
-        return new LearningFlow(flowStepListPresenter.write(), getView().getTemplateOverrides(),
-                flow.getBuiltInVersion());
-    }
-
-    /**
-     * The same flow in the grammar the harness and import/export carry, beneath the list: a person
-     * reading the whole of it at once, or pasting it somewhere, wants the text.
-     */
-    private void showFlowText() {
-        getView().setFlowText(flowStepListPresenter.write().stream()
-                .map(FlowStep::format)
-                .collect(Collectors.joining("\n")));
-    }
-
-    /**
-     * What the store will refuse on save, shown as the list is edited rather than when the save comes
-     * back (§10.2): a flow is a graph, and the things that can be wrong with one are properties of the
-     * whole of it rather than of any step — which is exactly why a form per step cannot catch them.
-     */
-    private void showFlowProblem() {
-        // The flow's own check, which is the one the store runs: said in one place so that the tab and
-        // the save cannot disagree about what is wrong. Asked of the steps alone — the templates play
-        // no part in it, and reading them here would tie this to the order the tab happens to fill its
-        // fields in.
-        final List<String> problems = new LearningFlow(flowStepListPresenter.write(), null, null)
-                .problems();
-        getView().setFlowProblem(problems.isEmpty()
-                ? null
-                : String.join("; ", problems));
-    }
 
 
     // --------------------------------------------------------------------------------
@@ -312,25 +151,6 @@ public class ShapeshifterAiLearningPresenter
         long getMaxDeferralAgeMs();
 
         void setMaxDeferralAgeMs(long maxDeferralAgeMs);
-
-        /**
-         * The list the flow is edited in, in place of the text box it was typed in (§12 item 24).
-         */
-        void setFlowStepsView(View view);
-
-        /**
-         * The same flow in the grammar the harness and import/export carry, shown beneath the list and
-         * not edited.
-         */
-        void setFlowText(String text);
-
-        void setFlowProblem(String problem);
-
-        Map<Template, String> getTemplateOverrides();
-
-        void setTemplateOverrides(Map<Template, String> templates, Integer savedAgainstVersion);
-
-        void setBuiltInTemplates(Map<Template, String> templates, int version);
 
         int getSampleSizeLimit();
 

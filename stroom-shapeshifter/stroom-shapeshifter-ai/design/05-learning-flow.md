@@ -202,7 +202,23 @@ is not the step, and it makes the judging visible as an act of its own, which it
    working over the renamed model, so nothing is lost while the chart is built.
 2. **The chart, read-only.** The Flow tab with the spine drawing of the document's flow, problems
    painted, the text form beneath, and the Supervisor's path overlay. The grid stays on the tab beside
-   it until the next slice.
+   it until the next slice. *Built 2026-10-06.* `FlowChart` draws the flow as inline SVG from the steps
+   alone, with the spine layout of §3 and the mock-up; the Flow tab holds it above the table of steps,
+   a step clicked on either selected on both, the text form beneath two-way with a line that does not
+   parse reported and nothing changed (A87), and the question text moved from the Learning tab, whose
+   help says an edit to the configuration text is asked at every Configure step (A85). The flow's
+   check paints the step it names and the step's title says which. The Supervisor's turns pane has the
+   document's flow drawn beside it with the attempt's path over it (A88): `FlowPath`, in the shared
+   model with a test, says which edge each turn's judging took — `passed`, the outcome's own name where
+   the step declares a transition on it, `reask` where the next turn is the same step, `spent` otherwise
+   — and the chart highlights those edges and numbers the visits. The Learning tab keeps the model, the
+   key, the allowed elements, the instructions and the budgets. *Its own audit, the same day:* the
+   chart was drawn at a fixed width and the Supervisor's pane is narrower, so it now scales to its
+   pane; two exits leaving one decision were drawn on the same spot, so each takes the next place
+   down; and design 01's item 24 records what of it is now built. Noted and left: a step of several
+   units — a Configure over the whole chain, a Target over several kinds — records a turn per unit, and
+   a unit's pass highlights the step's `passed` edge before the step as a whole has passed; and the
+   text form is parsed when it loses focus, not on every keystroke.
 3. **Editing in the flow.** The side panel with the step's form, transitions and question text; edge
    selection and deletion; add, delete, move; the examples. The grid and the Learning tab's plan and
    template sections go.

@@ -36,6 +36,7 @@ public class ShapeshifterAiPresenter extends DocTabPresenter<LinkTabPanelView, S
 
     private static final TabData SETTINGS = new TabDataImpl("Settings");
     private static final TabData LEARNING = new TabDataImpl("Learning");
+    private static final TabData FLOW = new TabDataImpl("Flow");
     private static final TabData PROMOTION = new TabDataImpl("Promotion");
     private static final TabData SCORING = new TabDataImpl("Scoring");
     private static final TabData ROUTING = new TabDataImpl("Routing");
@@ -48,6 +49,7 @@ public class ShapeshifterAiPresenter extends DocTabPresenter<LinkTabPanelView, S
             final LinkTabPanelView view,
             final Provider<ShapeshifterAiSettingsPresenter> settingsPresenterProvider,
             final Provider<ShapeshifterAiLearningPresenter> learningPresenterProvider,
+            final Provider<ShapeshifterAiFlowPresenter> flowPresenterProvider,
             final Provider<ShapeshifterAiScoringPresenter> scoringPresenterProvider,
             final Provider<ShapeshifterAiPromotionPresenter> promotionPresenterProvider,
             final Provider<ShapeshifterAiRoutingPresenter> routingPresenterProvider,
@@ -57,6 +59,8 @@ public class ShapeshifterAiPresenter extends DocTabPresenter<LinkTabPanelView, S
 
         addTab(SETTINGS, new DocTabProvider<>(settingsPresenterProvider::get));
         addTab(LEARNING, new DocTabProvider<>(learningPresenterProvider::get));
+        // The flow after what it is asked under (A82).
+        addTab(FLOW, new DocTabProvider<>(flowPresenterProvider::get));
         addTab(SCORING, new DocTabProvider<>(scoringPresenterProvider::get));
         addTab(PROMOTION, new DocTabProvider<>(promotionPresenterProvider::get));
         addTab(ROUTING, new DocTabProvider<>(routingPresenterProvider::get));

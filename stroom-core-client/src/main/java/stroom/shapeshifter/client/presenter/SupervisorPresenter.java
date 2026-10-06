@@ -22,9 +22,12 @@ import stroom.alert.client.event.PromptEvent;
 import stroom.content.client.presenter.ContentTabPresenter;
 import stroom.data.table.client.Refreshable;
 import stroom.dispatch.client.RestFactory;
+import stroom.shapeshifter.client.view.FlowChart;
 import stroom.shapeshifter.shared.AttemptStatus;
 import stroom.shapeshifter.shared.GrantRequest;
 import stroom.shapeshifter.shared.RejectRequest;
+import stroom.shapeshifter.shared.ShapeshifterAiDoc;
+import stroom.shapeshifter.shared.ShapeshifterAiResource;
 import stroom.shapeshifter.shared.SupervisorAttempt;
 import stroom.shapeshifter.shared.SupervisorResource;
 import stroom.svg.client.IconColour;
@@ -35,10 +38,13 @@ import stroom.widget.button.client.ButtonView;
 import stroom.widget.util.client.MultiSelectionModel;
 
 import com.google.gwt.core.client.GWT;
+import com.google.gwt.user.client.ui.Widget;
 import com.google.inject.Inject;
 import com.google.web.bindery.event.shared.EventBus;
 import com.gwtplatform.mvp.client.View;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.function.Function;
 
 /**
@@ -57,6 +63,7 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
     public static final String BACKLOG = "BACKLOG";
 
     private static final SupervisorResource SUPERVISOR_RESOURCE = GWT.create(SupervisorResource.class);
+    private static final ShapeshifterAiResource DOCUMENT_RESOURCE = GWT.create(ShapeshifterAiResource.class);
 
     private final SupervisorListPresenter listPresenter;
     private final SupervisorTurnsPresenter turnsPresenter;
@@ -65,6 +72,10 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
     private final SupervisorGuidancePresenter guidancePresenter;
     private final SupervisorBacklogPresenter backlogPresenter;
     private final RestFactory restFactory;
+    /// The selected attempt's path over its document's flow (A88), drawn from the turns the pane fetched
+    /// and the flow fetched once per document.
+    private final FlowChart flowChart = new FlowChart();
+    private final Map<String, ShapeshifterAiDoc> documents = new HashMap<>();
     private final ButtonView approveButton;
     private final ButtonView rejectButton;
     private final ButtonView relearnButton;
@@ -100,6 +111,8 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
             refresh();
         });
         setInSlot(TURN_LIST, turnsPresenter);
+        turnsPresenter.setOnDetail(this::drawPath);
+        view.setFlowChart(flowChart);
         setInSlot(LEDGER, ledgerPresenter);
         // A shape sent back to be learned shows up as an attempt, so the list beside it is read again.
         ledgerPresenter.setOnLearn(() -> {
@@ -264,6 +277,31 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
         }
     }
 
+    /// The attempt's path over its document's flow (A88): the flow is fetched once per document and the
+    /// turns are the pane's; nothing is drawn where there is no attempt, or no document to draw.
+    private void drawPath(final SupervisorAttempt detail) {
+        if (detail == null || detail.getDoc() == null) {
+            flowChart.clear();
+            return;
+        }
+        final String uuid = detail.getDoc().getUuid();
+        final ShapeshifterAiDoc known = documents.get(uuid);
+        if (known != null) {
+            flowChart.show(known.getFlow().getSteps(), null, detail.getTurns(), null);
+            return;
+        }
+        restFactory
+                .create(DOCUMENT_RESOURCE)
+                .method(resource -> resource.fetch(uuid))
+                .onSuccess(doc -> {
+                    documents.put(uuid, doc);
+                    flowChart.show(doc.getFlow().getSteps(), null, detail.getTurns(), null);
+                })
+                .onFailure(error -> flowChart.clear())
+                .taskMonitorFactory(this)
+                .exec();
+    }
+
     /// The selected attempt where it is parked for a person, and null otherwise.
     private SupervisorAttempt parked() {
         final SupervisorAttempt attempt = selected();
@@ -357,5 +395,7 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
 
     public interface SupervisorView extends View {
 
+        /// The document's flow drawn beside the turns, with the attempt's path over it (A88).
+        void setFlowChart(Widget chart);
     }
 }

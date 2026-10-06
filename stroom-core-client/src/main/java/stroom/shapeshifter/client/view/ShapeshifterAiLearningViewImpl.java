@@ -17,20 +17,14 @@
 package stroom.shapeshifter.client.view;
 
 import stroom.entity.client.presenter.ReadOnlyChangeHandler;
-import stroom.item.client.SelectionBox;
 import stroom.shapeshifter.client.presenter.ShapeshifterAiLearningPresenter.ShapeshifterAiLearningView;
 import stroom.shapeshifter.client.presenter.ShapeshifterAiSettingsUiHandlers;
-import stroom.shapeshifter.shared.FlowStep;
-import stroom.shapeshifter.shared.Template;
-import stroom.widget.button.client.Button;
 import stroom.widget.valuespinner.client.ValueSpinner;
 
-import com.google.gwt.event.dom.client.ClickEvent;
 import com.google.gwt.event.logical.shared.ValueChangeEvent;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
 import com.google.gwt.uibinder.client.UiHandler;
-import com.google.gwt.user.client.ui.Label;
 import com.google.gwt.user.client.ui.SimplePanel;
 import com.google.gwt.user.client.ui.TextArea;
 import com.google.gwt.user.client.ui.Widget;
@@ -39,9 +33,7 @@ import com.gwtplatform.mvp.client.View;
 import com.gwtplatform.mvp.client.ViewWithUiHandlers;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 public class ShapeshifterAiLearningViewImpl
         extends ViewWithUiHandlers<ShapeshifterAiSettingsUiHandlers>
@@ -62,34 +54,6 @@ public class ShapeshifterAiLearningViewImpl
     @UiField
     TextArea instructions;
     @UiField
-    SimplePanel flowSteps;
-    /// Loading an example replaces the steps, so it is a button beneath the table and not a picker
-    /// above it: what it does is done once, and nothing about it describes the flow afterwards.
-    @UiField
-    Button loadExample;
-    /// The same flow in the grammar the harness and import/export carry, shown and not edited: a person
-    /// reading the whole of it at once, or pasting it somewhere, wants the text.
-    @UiField
-    TextArea flowText;
-    @UiField
-    SelectionBox<Template> template;
-    @UiField
-    TextArea templateText;
-    @UiField
-    Button resetTemplate;
-    @UiField
-    Label templateStatus;
-    @UiField
-    Label flowProblem;
-    /**
-     * This document's changed texts, by template; and the built-ins the node serves, shown where the
-     * document has not changed one.
-     */
-    private final Map<Template, String> overrides = new HashMap<>();
-    private Map<Template, String> builtIns = new HashMap<>();
-    private Integer builtInVersion;
-    private Integer savedAgainstVersion;
-    @UiField
     ValueSpinner maxAttempts;
     @UiField
     ValueSpinner attemptBudgetMs;
@@ -103,9 +67,6 @@ public class ShapeshifterAiLearningViewImpl
     @Inject
     public ShapeshifterAiLearningViewImpl(final Binder binder) {
         widget = binder.createAndBindUi(this);
-        template.addItems(Template.values());
-        template.setValue(Template.CHAIN);
-        showTemplate();
         bound(relearnThreshold, 0, PERCENT);
         bound(maxAttempts, 1, Integer.MAX_VALUE);
         bound(attemptBudgetMs, 1, Long.MAX_VALUE);
@@ -163,86 +124,6 @@ public class ShapeshifterAiLearningViewImpl
     @Override
     public void setInstructions(final String instructions) {
         this.instructions.setValue(instructions);
-    }
-
-    /// What is wrong with the steps as typed, beside them: `onWrite` runs on every dirty check, so a
-    /// fault here must not be a modal.
-    @Override
-    public void setFlowProblem(final String problem) {
-        flowProblem.setText(problem == null
-                ? ""
-                : problem);
-        flowProblem.setVisible(problem != null);
-    }
-
-    @Override
-    public void setFlowStepsView(final View view) {
-        flowSteps.setWidget(view.asWidget());
-    }
-
-    @Override
-    public void setFlowText(final String text) {
-        flowText.setValue(text);
-    }
-
-
-
-    @Override
-    public Map<Template, String> getTemplateOverrides() {
-        return new HashMap<>(overrides);
-    }
-
-    @Override
-    public void setTemplateOverrides(final Map<Template, String> templates, final Integer savedAgainstVersion) {
-        overrides.clear();
-        overrides.putAll(templates);
-        this.savedAgainstVersion = savedAgainstVersion;
-        showTemplate();
-    }
-
-    @Override
-    public void setBuiltInTemplates(final Map<Template, String> templates, final int version) {
-        builtIns = new HashMap<>(templates);
-        builtInVersion = version;
-        showTemplate();
-    }
-
-    /**
-     * The selected template as this document uses it, and where its text comes from.
-     */
-    private void showTemplate() {
-        final Template selected = template.getValue();
-        if (selected == null) {
-            return;
-        }
-        final String override = overrides.get(selected);
-        templateText.setValue(override != null
-                ? override
-                : builtIns.getOrDefault(selected, ""));
-        resetTemplate.setEnabled(override != null && !templateText.isReadOnly());
-        final StringBuilder status = new StringBuilder(override != null
-                ? "This document's own text"
-                : builtIns.containsKey(selected)
-                        ? "The built-in text"
-                        : "The built-in text has not been fetched");
-        if (builtInVersion != null) {
-            status.append("; built-in version ").append(builtInVersion);
-            if (savedAgainstVersion != null && !savedAgainstVersion.equals(builtInVersion)) {
-                status.append(", this document last saved against ").append(savedAgainstVersion);
-            }
-        }
-        status.append(". Variables: ").append(selected.getVariables().length == 0
-                ? "none"
-                : String.join(", ", variables(selected)));
-        templateStatus.setText(status.toString());
-    }
-
-    private static List<String> variables(final Template template) {
-        final List<String> names = new ArrayList<>();
-        for (final String variable : template.getVariables()) {
-            names.add("${" + variable + "}");
-        }
-        return names;
     }
 
     @Override
@@ -321,10 +202,6 @@ public class ShapeshifterAiLearningViewImpl
         relearnThreshold.setEnabled(enabled);
         allowedElements.setEnabled(enabled);
         instructions.setEnabled(enabled);
-        loadExample.setEnabled(enabled);
-        template.setEnabled(enabled);
-        templateText.setReadOnly(readOnly);
-        resetTemplate.setEnabled(enabled && overrides.containsKey(template.getValue()));
         maxAttempts.setEnabled(enabled);
         attemptBudgetMs.setEnabled(enabled);
         tokenBudget.setEnabled(enabled);
@@ -371,50 +248,6 @@ public class ShapeshifterAiLearningViewImpl
     @UiHandler("maxDeferralAgeMs")
     public void onMaxDeferralAgeMs(final ValueChangeEvent<Long> event) {
         fireChange();
-    }
-
-    /**
-     * Which example to load is asked here, where the button is; the menu of them, and what replacing a
-     * flow means, belong to whoever owns the step list.
-     */
-    @UiHandler("loadExample")
-    public void onLoadExample(final ClickEvent event) {
-        if (getUiHandlers() != null) {
-            getUiHandlers().onLoadExample(event.getClientX(), event.getClientY());
-        }
-    }
-
-    @UiHandler("template")
-    public void onTemplate(final ValueChangeEvent<Template> event) {
-        showTemplate();
-    }
-
-    /**
-     * Text equal to the built-in is no change: the document keeps following the built-in.
-     */
-    @UiHandler("templateText")
-    public void onTemplateText(final ValueChangeEvent<String> event) {
-        final Template selected = template.getValue();
-        if (selected == null) {
-            return;
-        }
-        final String text = event.getValue();
-        if (text == null || text.equals(builtIns.get(selected))) {
-            overrides.remove(selected);
-        } else {
-            overrides.put(selected, text);
-        }
-        showTemplate();
-        fireChange();
-    }
-
-    @UiHandler("resetTemplate")
-    public void onResetTemplate(final ClickEvent event) {
-        final Template selected = template.getValue();
-        if (selected != null && overrides.remove(selected) != null) {
-            showTemplate();
-            fireChange();
-        }
     }
 
     @UiHandler("sampleSizeLimit")

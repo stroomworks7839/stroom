@@ -38,6 +38,8 @@ public class SupervisorViewImpl extends ViewImpl implements SupervisorPresenter.
     SimplePanel serving;
     @UiField
     SimplePanel backlog;
+    @UiField
+    SimplePanel flow;
 
     @Inject
     public SupervisorViewImpl(final Binder binder) {
@@ -47,6 +49,11 @@ public class SupervisorViewImpl extends ViewImpl implements SupervisorPresenter.
     @Override
     public Widget asWidget() {
         return widget;
+    }
+
+    @Override
+    public void setFlowChart(final Widget chart) {
+        flow.setWidget(chart);
     }
 
     @Override

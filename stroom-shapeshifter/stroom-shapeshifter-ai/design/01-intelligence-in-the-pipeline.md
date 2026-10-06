@@ -1891,7 +1891,9 @@ the order they arrived. Items marked *built* already exist in `stroom-shapeshift
    and as what the harness and import/export carry. The risk of building ahead of the live run is
    bounded by the forms being driven from the closed lists: a value added or renamed flows through, and
    only a new field on a step would mean rework. The paths drawn over the graph from A28's attempts are
-   not built.*
+   not built.* *2026-10-06, design 05 (phase H, slices 1 and 2): the transitions are drawn, as a
+   vertical flowchart on a Flow tab of its own; the problems are painted on the step they name; and
+   the Supervisor draws an attempt's path over the flow. Editing on the chart itself is slice 3.*
 25. **The learned boundary as a `SplitFilter` in the written fragment** (A35; the owner's question,
    2026-09-22). Stroom's own shape for XML and JSON is parser, then `SplitFilter`, then the transform:
    the filter cuts the parsed stream into one document per record at a depth and count, so the

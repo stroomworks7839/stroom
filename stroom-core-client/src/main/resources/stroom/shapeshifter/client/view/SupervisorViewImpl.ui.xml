@@ -25,6 +25,9 @@
                     <g:south size="200">
                         <g:SimplePanel ui:field="backlog" styleName="max dashboard-panel"/>
                     </g:south>
+                    <g:east size="440">
+                        <g:SimplePanel ui:field="flow" styleName="max dashboard-panel"/>
+                    </g:east>
                     <g:center>
                         <g:SimplePanel ui:field="turnList" styleName="max dashboard-panel"/>
                     </g:center>

@@ -69,6 +69,7 @@ public class FlowStepListPresenter extends MyPresenterWidget<PagerView> {
     private final MultiSelectionModelImpl<FlowStep> selectionModel;
     private final Provider<FlowStepPresenter> editPresenterProvider;
     private final List<FlowStep> steps = new ArrayList<>();
+    private Consumer<Integer> onSelect;
     private final ButtonView addButton;
     private final ButtonView editButton;
     private final ButtonView copyButton;
@@ -139,6 +140,12 @@ public class FlowStepListPresenter extends MyPresenterWidget<PagerView> {
                 edit();
             }
             updateButtons();
+            if (onSelect != null) {
+                final FlowStep selected = selectionModel.getSelected();
+                onSelect.accept(selected == null
+                        ? null
+                        : at(selected));
+            }
         }));
         super.onBind();
     }
@@ -247,6 +254,21 @@ public class FlowStepListPresenter extends MyPresenterWidget<PagerView> {
     /**
      * @param onChange Told when the flow changes, so that the read-only text beside it can be redrawn.
      */
+    /// Who is told which step is selected, by its index, or null where none is.
+    public void setOnSelect(final Consumer<Integer> onSelect) {
+        this.onSelect = onSelect;
+    }
+
+    /// Select the step at an index, as a click on the chart does.
+    public void select(final Integer index) {
+        if (index == null || index < 0 || index >= steps.size()) {
+            selectionModel.clear();
+        } else {
+            selectionModel.setSelected(steps.get(index));
+        }
+        updateButtons();
+    }
+
     public void setOnChange(final Runnable onChange) {
         this.onChange = onChange;
     }

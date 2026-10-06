@@ -34,7 +34,7 @@ public interface ShapeshifterAiSettingsUiHandlers extends UiHandlers {
      * nothing.
      */
     default void onFlowExample(final List<FlowStep> steps) {
-        // Only the Learning tab holds a flow.
+        // Only the Flow tab holds a flow.
     }
 
     /**
@@ -44,7 +44,12 @@ public interface ShapeshifterAiSettingsUiHandlers extends UiHandlers {
      * @param x Where the menu of examples goes, across.
      * @param y Where the menu of examples goes, down.
      */
+    /// The flow's text form was edited (A87). Only the Flow tab holds a flow.
+    default void onFlowText(final String text) {
+        // Only the Flow tab holds a flow.
+    }
+
     default void onLoadExample(final int x, final int y) {
-        // Only the Learning tab holds a flow.
+        // Only the Flow tab holds a flow.
     }
 }

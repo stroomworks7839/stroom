@@ -70,6 +70,7 @@ public class SupervisorTurnsPresenter extends MyPresenterWidget<PagerView> {
     private SupervisorAttempt attempt;
     /// What to do when an answer has been written: the attempt has changed and the list above it with it.
     private Consumer<SupervisorAttempt> onAmended;
+    private Consumer<SupervisorAttempt> onDetail;
 
     @Inject
     public SupervisorTurnsPresenter(final EventBus eventBus,
@@ -112,6 +113,12 @@ public class SupervisorTurnsPresenter extends MyPresenterWidget<PagerView> {
     }
 
     /// Called when an answer has been written and the attempt run again from there.
+    /// Who is told the attempt's detail once it is fetched, and null when there is no attempt: the
+    /// Supervisor draws the path over the flow from the same turns this pane lists (A88).
+    public void setOnDetail(final Consumer<SupervisorAttempt> onDetail) {
+        this.onDetail = onDetail;
+    }
+
     public void setOnAmended(final Consumer<SupervisorAttempt> onAmended) {
         this.onAmended = onAmended;
     }
@@ -192,6 +199,9 @@ public class SupervisorTurnsPresenter extends MyPresenterWidget<PagerView> {
         turns.clear();
         show();
         updateButtons();
+        if (attempt == null && onDetail != null) {
+            onDetail.accept(null);
+        }
         if (attempt != null) {
             restFactory
                     .create(SUPERVISOR_RESOURCE)
@@ -201,6 +211,9 @@ public class SupervisorTurnsPresenter extends MyPresenterWidget<PagerView> {
                             turns.addAll(NullSafe.list(detail.getTurns()));
                             show();
                             updateButtons();
+                            if (onDetail != null) {
+                                onDetail.accept(detail);
+                            }
                         }
                     })
                     .onFailure(error -> {
