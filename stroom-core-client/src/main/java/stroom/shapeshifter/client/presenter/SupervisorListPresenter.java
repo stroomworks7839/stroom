@@ -93,7 +93,6 @@ public class SupervisorListPresenter extends MyPresenterWidget<PagerView> {
                         criteria.getDocUuid(),
                         criteria.getFeed(),
                         criteria.getShape(),
-                        criteria.getExecutionMode(),
                         criteria.getPromotionMode(),
                         criteria.getStatuses());
                 restFactory
@@ -222,14 +221,6 @@ public class SupervisorListPresenter extends MyPresenterWidget<PagerView> {
                 DataGridUtil.headingBuilder("Tokens")
                         .withToolTip("What the model charged for this attempt, where it says.")
                         .rightAligned()
-                        .build(),
-                ColumnSizeConstants.SMALL_COL);
-        dataGrid.addResizableColumn(
-                DataGridUtil.htmlColumnBuilder((SupervisorAttempt row) ->
-                        text(NullSafe.get(row.getExecutionMode(), mode -> mode.getDisplayValue()))).build(),
-                DataGridUtil.headingBuilder("Mode")
-                        .withToolTip("Inline: learned inside the processing task. Deferred: parked for the "
-                                     + "worker to carry on.")
                         .build(),
                 ColumnSizeConstants.SMALL_COL);
         dataGrid.addResizableColumn(

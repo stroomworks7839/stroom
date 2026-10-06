@@ -110,11 +110,6 @@ public class ShapeshifterAttempt extends TableImpl<ShapeshifterAttemptRecord> {
     public final TableField<ShapeshifterAttemptRecord, String> NODE_NAME = createField(DSL.name("node_name"), SQLDataType.VARCHAR(255), this, "");
 
     /**
-     * The column <code>stroom.shapeshifter_attempt.execution_mode</code>.
-     */
-    public final TableField<ShapeshifterAttemptRecord, String> EXECUTION_MODE = createField(DSL.name("execution_mode"), SQLDataType.VARCHAR(32).nullable(false), this, "");
-
-    /**
      * The column <code>stroom.shapeshifter_attempt.promotion_mode</code>.
      */
     public final TableField<ShapeshifterAttemptRecord, String> PROMOTION_MODE = createField(DSL.name("promotion_mode"), SQLDataType.VARCHAR(32).nullable(false), this, "");

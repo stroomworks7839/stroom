@@ -856,6 +856,39 @@ the re-walk to know when the recorded turns are exhausted before it may skip a s
 slice; grant time from the screen (the resource takes milliseconds, the button asks for tokens); and
 anything of the removals.
 
+*Built 2026-10-06, the second slice: the removals (A60, A80).* Execution mode is gone — from the document
+and its Settings tab, from the attempt row (migration 019 drops the column), from the attempt criteria and
+the Supervisor's filter and list, and from every fixture and test that set it; a task decides and never
+learns, so there was one mode left and a setting that offered a choice would have changed nothing. What
+learns inline is `Stage.run`, which a stage fed by a parser and the Tier 1 scenarios call, and it now
+always asks as it goes. The rolling score is no longer a trigger: `Stage.served` feeds it for the
+Supervisor's list of what could be better (A46) and marks nothing, since what sends a shape back to the
+model is a record short of the bar or a person. The task path's refusals — a reserved selector, a stream
+with no value for the key, a selector that cannot be built — error with the reason and write no ledger
+row, since nothing a promotion could release would change them; the one refusal that keeps its row is the
+given-up shape (A80), because the ledger is the door a person learns it again through. The ledger and
+reprocessing stay for that, and for retraction.
+
+*Its own audit, 2026-10-06, found two settings the removals had left dead.* `errorModeAfter` (A24) was
+read by nothing — A57 restated error mode as the raised flag — so it is gone from the document and the
+Settings tab, as execution mode is; a document saved with either key still reads, since the store's
+mapper ignores what it does not know. And `relearnThreshold` was read by nothing once the trigger went,
+where design 04 §6 says it becomes the serving list's criterion: the Supervisor's serving rows now carry
+`belowThreshold`, computed against the row's document as the list is read, and say so in their state.
+Two things noted: the REST layer does fail on unknown properties, so a browser tab left open across this
+deployment gets a refusal from the Supervisor's filter until it is refreshed, as it would for any field a
+deployment drops; and `Stage.run`, which a stage fed by a parser still calls from a task, still
+sentinels a stream while another attempt learns its shape — the parser-fed stage's deferral is the open
+ruling of phase 4's note, and this is one more thing it settles.
+
+The tests behind the mode were rewritten rather than deleted. Scenario 30's deferred document became the
+task decision — `decide` opens the session and holds the stream on a row, the worker asks, the promotion
+wakes — and the one test that had a marked shape park a candidate while its incumbent served now holds
+that a mark alone opens nothing. Scenario 31's "a turn an attempt stopped at is recorded unanswered"
+gets its unanswered turn from a worker with nobody to answer, since a task no longer asks. Scenario 27's
+falling rolling score is now shown and not acted on, and the relearning it goes on to test is a person's
+mark; the incumbent scenarios mark by hand likewise.
+
 ## 8. The scenarios this has to pass
 
 Numbered into design 02 §5 when the work is cut into slices.
@@ -1095,4 +1128,8 @@ attempt's row, added to the document's budgets for that attempt alone, and shown
 
 **A79.** *Raised is a flag on the row, computed from its age when read, and counted in the Supervisor's
 backlog; the stream goes on waiting, and nothing but giving the shape up errors it.*
+
+**A80.** *A stream of a given-up shape keeps its ledger row; every other refusal errors with its reason and
+writes none.* The ledger's purpose is the door through which a person learns a given-up shape again, and
+the row is what that asks to be processed again.
 

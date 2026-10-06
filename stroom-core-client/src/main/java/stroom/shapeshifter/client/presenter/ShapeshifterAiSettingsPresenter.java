@@ -20,7 +20,6 @@ import stroom.docref.DocRef;
 import stroom.entity.client.presenter.DocPresenter;
 import stroom.entity.client.presenter.ReadOnlyChangeHandler;
 import stroom.shapeshifter.client.presenter.ShapeshifterAiSettingsPresenter.ShapeshifterAiSettingsView;
-import stroom.shapeshifter.shared.ExecutionMode;
 import stroom.shapeshifter.shared.LearningMode;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 
@@ -48,18 +47,14 @@ public class ShapeshifterAiSettingsPresenter
 
     @Override
     protected void onRead(final DocRef docRef, final ShapeshifterAiDoc doc, final boolean readOnly) {
-        getView().setExecutionMode(doc.getExecutionMode());
         getView().setLearningMode(doc.getLearningMode());
-        getView().setErrorModeAfter(doc.getErrorModeAfter());
     }
 
     @Override
     protected ShapeshifterAiDoc onWrite(final ShapeshifterAiDoc doc) {
         return doc
                 .copy()
-                .executionMode(getView().getExecutionMode())
                 .learningMode(getView().getLearningMode())
-                .errorModeAfter(getView().getErrorModeAfter())
                 .build();
     }
 
@@ -70,16 +65,9 @@ public class ShapeshifterAiSettingsPresenter
     public interface ShapeshifterAiSettingsView
             extends View, ReadOnlyChangeHandler, HasUiHandlers<ShapeshifterAiSettingsUiHandlers> {
 
-        ExecutionMode getExecutionMode();
-
-        void setExecutionMode(ExecutionMode executionMode);
-
         LearningMode getLearningMode();
 
         void setLearningMode(LearningMode learningMode);
 
-        int getErrorModeAfter();
-
-        void setErrorModeAfter(int errorModeAfter);
     }
 }

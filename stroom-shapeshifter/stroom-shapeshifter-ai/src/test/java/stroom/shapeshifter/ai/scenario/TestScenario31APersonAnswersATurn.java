@@ -26,7 +26,6 @@ import stroom.shapeshifter.ai.stage.StageRun;
 import stroom.shapeshifter.shared.AttemptCriteria;
 import stroom.shapeshifter.shared.AttemptStatus;
 import stroom.shapeshifter.shared.BusinessRulesParameters;
-import stroom.shapeshifter.shared.ExecutionMode;
 import stroom.shapeshifter.shared.ExtractionQualityParameters;
 import stroom.shapeshifter.shared.LearningMode;
 import stroom.shapeshifter.shared.PlanExample;
@@ -125,11 +124,12 @@ class TestScenario31APersonAnswersATurn {
         // turn of its own, with no answer and no answerer: without it a person has nothing to answer.
         final Scenarios scenarios = new Scenarios();
         final ShapeshifterAiDoc doc = scenarios.documents.put(doc().copy()
-                .executionMode(ExecutionMode.DEFERRED)
                 .build());
         scenarios.inputs.put(stream(1L));
 
-        scenarios.stage(Script.of()).run(doc, stream(1L));
+        // The task opens the session and asks nobody (A60): it stops at the first question, recorded for
+        // whoever will answer it.
+        scenarios.stage(Script.of()).decide(doc, stream(1L));
 
         final Recorded parked = scenarios.attempts.forDocument(DOC, 10).get(0);
         assertThat(parked.status()).isEqualTo(AttemptStatus.AWAITING_MODEL);
@@ -200,10 +200,9 @@ class TestScenario31APersonAnswersATurn {
         // be told it had been taken.
         final Scenarios scenarios = new Scenarios();
         final ShapeshifterAiDoc doc = scenarios.documents.put(doc().copy()
-                .executionMode(ExecutionMode.DEFERRED)
                 .build());
         scenarios.inputs.put(stream(1L));
-        scenarios.stage(Script.of()).run(doc, stream(1L));
+        scenarios.stage(Script.of()).decide(doc, stream(1L));
         final Recorded parked = scenarios.attempts.forDocument(DOC, 10).get(0);
         // A worker takes it up, and is walking it now.
         assertThat(scenarios.attempts.claimed(parked.id(), "node-1", Scenarios.NOW.toEpochMilli(),
@@ -278,7 +277,7 @@ class TestScenario31APersonAnswersATurn {
         final Recorded abandoned = scenarios.attempts.forDocument(DOC, 10).get(0);
         // Another node takes the shape in the meantime, by opening an attempt for it.
         final long theirs = scenarios.attempts.opened(new Attempt(DOC, shape(), "DOOR-ACCESS", "Raw Events",
-                        2L, "node-2", ExecutionMode.INLINE, PromotionMode.AUTOMATIC, Long.MAX_VALUE),
+                        2L, "node-2", PromotionMode.AUTOMATIC, Long.MAX_VALUE),
                 Scenarios.NOW.toEpochMilli()).orElseThrow();
 
         assertThatThrownBy(() -> scenarios.stage(Script.of())

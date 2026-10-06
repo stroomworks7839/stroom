@@ -47,8 +47,6 @@ public class SupervisorAttempt {
     @JsonProperty
     private final String node;
     @JsonProperty
-    private final ExecutionMode executionMode;
-    @JsonProperty
     private final PromotionMode promotionMode;
     @JsonProperty
     private final AttemptStatus status;
@@ -80,7 +78,6 @@ public class SupervisorAttempt {
                              @JsonProperty("type") final String type,
                              @JsonProperty("inputId") final Long inputId,
                              @JsonProperty("node") final String node,
-                             @JsonProperty("executionMode") final ExecutionMode executionMode,
                              @JsonProperty("promotionMode") final PromotionMode promotionMode,
                              @JsonProperty("status") final AttemptStatus status,
                              @JsonProperty("decision") final String decision,
@@ -99,7 +96,6 @@ public class SupervisorAttempt {
         this.type = type;
         this.inputId = inputId;
         this.node = node;
-        this.executionMode = executionMode;
         this.promotionMode = promotionMode;
         this.status = status;
         this.decision = decision;
@@ -141,10 +137,6 @@ public class SupervisorAttempt {
 
     public String getNode() {
         return node;
-    }
-
-    public ExecutionMode getExecutionMode() {
-        return executionMode;
     }
 
     public PromotionMode getPromotionMode() {

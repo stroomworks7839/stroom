@@ -20,7 +20,6 @@ import stroom.db.util.JooqUtil;
 import stroom.shapeshifter.ai.stage.Attempts;
 import stroom.shapeshifter.shared.AttemptCriteria;
 import stroom.shapeshifter.shared.AttemptStatus;
-import stroom.shapeshifter.shared.ExecutionMode;
 import stroom.shapeshifter.shared.PromotionMode;
 import stroom.shapeshifter.shared.QuestionKind;
 import stroom.shapeshifter.shared.StepOutcome;
@@ -284,7 +283,6 @@ public class AttemptsDao implements Attempts {
                 .set(SHAPESHIFTER_ATTEMPT.TYPE_NAME, attempt.type())
                 .set(SHAPESHIFTER_ATTEMPT.INPUT_META_ID, attempt.inputId())
                 .set(SHAPESHIFTER_ATTEMPT.NODE_NAME, attempt.node())
-                .set(SHAPESHIFTER_ATTEMPT.EXECUTION_MODE, attempt.executionMode().name())
                 .set(SHAPESHIFTER_ATTEMPT.PROMOTION_MODE, attempt.promotionMode().name())
                 .set(SHAPESHIFTER_ATTEMPT.STATUS, AttemptStatus.IN_PROGRESS.name())
                 .set(SHAPESHIFTER_ATTEMPT.EXPIRY_MS, attempt.expiryMs())
@@ -483,9 +481,6 @@ public class AttemptsDao implements Attempts {
             // By hash, as every other lookup of a shape is: the id has no bound.
             conditions.add(SHAPESHIFTER_ATTEMPT.SHAPE_HASH.eq(ShapesDao.hash(criteria.getShape())));
         }
-        if (criteria.getExecutionMode() != null) {
-            conditions.add(SHAPESHIFTER_ATTEMPT.EXECUTION_MODE.eq(criteria.getExecutionMode().name()));
-        }
         if (criteria.getPromotionMode() != null) {
             conditions.add(SHAPESHIFTER_ATTEMPT.PROMOTION_MODE.eq(criteria.getPromotionMode().name()));
         }
@@ -537,7 +532,6 @@ public class AttemptsDao implements Attempts {
                 record.get(SHAPESHIFTER_ATTEMPT.TYPE_NAME),
                 record.get(SHAPESHIFTER_ATTEMPT.INPUT_META_ID),
                 record.get(SHAPESHIFTER_ATTEMPT.NODE_NAME),
-                ExecutionMode.valueOf(record.get(SHAPESHIFTER_ATTEMPT.EXECUTION_MODE)),
                 PromotionMode.valueOf(record.get(SHAPESHIFTER_ATTEMPT.PROMOTION_MODE)),
                 record.get(SHAPESHIFTER_ATTEMPT.EXPIRY_MS) == null
                         ? 0L

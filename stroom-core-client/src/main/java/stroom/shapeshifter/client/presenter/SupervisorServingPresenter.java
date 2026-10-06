@@ -414,7 +414,9 @@ public class SupervisorServingPresenter extends MyPresenterWidget<PagerView> {
                 DataGridUtil.htmlColumnBuilder((ServingRule rule) -> text(state(rule))).build(),
                 DataGridUtil.headingBuilder("State")
                         .withToolTip("Serving on a judgement, serving provisionally until enough "
-                                     + "records arrive to make one (§6), or frozen by a pin (§7.3).")
+                                     + "records arrive to make one (§6), or frozen by a pin (§7.3); and "
+                                     + "whether what it scores lately is below the document's relearn "
+                                     + "threshold, which is where to look first.")
                         .build(),
                 ColumnSizeConstants.MEDIUM_COL);
         dataGrid.addResizableColumn(
@@ -472,6 +474,11 @@ public class SupervisorServingPresenter extends MyPresenterWidget<PagerView> {
                 : "Serving");
         if (rule.isPinned()) {
             state.append(", pinned");
+        }
+        if (rule.isBelowThreshold()) {
+            // The document's relearn threshold, read here and nowhere else (design 04 §6): this rule is
+            // scoring below what its document would like, and a person may improve it.
+            state.append(", below the threshold");
         }
         return state.toString();
     }

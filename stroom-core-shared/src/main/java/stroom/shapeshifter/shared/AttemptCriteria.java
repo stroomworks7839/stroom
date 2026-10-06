@@ -41,14 +41,12 @@ public class AttemptCriteria extends BaseCriteria {
     @JsonProperty
     private final String shape;
     @JsonProperty
-    private final ExecutionMode executionMode;
-    @JsonProperty
     private final PromotionMode promotionMode;
     @JsonProperty
     private final List<AttemptStatus> statuses;
 
     public AttemptCriteria() {
-        this(null, null, null, null, null, null, null, null);
+        this(null, null, null, null, null, null, null);
     }
 
     @JsonCreator
@@ -57,14 +55,12 @@ public class AttemptCriteria extends BaseCriteria {
                            @JsonProperty("docUuid") final String docUuid,
                            @JsonProperty("feed") final String feed,
                            @JsonProperty("shape") final String shape,
-                           @JsonProperty("executionMode") final ExecutionMode executionMode,
                            @JsonProperty("promotionMode") final PromotionMode promotionMode,
                            @JsonProperty("statuses") final List<AttemptStatus> statuses) {
         super(pageRequest, sortList);
         this.docUuid = docUuid;
         this.feed = feed;
         this.shape = shape;
-        this.executionMode = executionMode;
         this.promotionMode = promotionMode;
         this.statuses = statuses == null
                 ? List.of()
@@ -81,10 +77,6 @@ public class AttemptCriteria extends BaseCriteria {
 
     public String getShape() {
         return shape;
-    }
-
-    public ExecutionMode getExecutionMode() {
-        return executionMode;
     }
 
     public PromotionMode getPromotionMode() {

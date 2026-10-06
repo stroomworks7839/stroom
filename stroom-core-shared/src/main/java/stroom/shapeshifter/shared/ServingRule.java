@@ -57,6 +57,10 @@ public class ServingRule {
     private final int records;
     @JsonProperty
     private final int guidance;
+    /// Whether what it has been scoring lately is below the document's relearn threshold: what A46's list
+    /// is for, now that the threshold triggers nothing by itself (design 04 §6).
+    @JsonProperty
+    private final boolean belowThreshold;
 
     @JsonCreator
     public ServingRule(@JsonProperty("doc") final DocRef doc,
@@ -69,7 +73,8 @@ public class ServingRule {
                        @JsonProperty("promotedTimeMs") final Long promotedTimeMs,
                        @JsonProperty("rollingScore") final Double rollingScore,
                        @JsonProperty("records") final int records,
-                       @JsonProperty("guidance") final int guidance) {
+                       @JsonProperty("guidance") final int guidance,
+                       @JsonProperty("belowThreshold") final boolean belowThreshold) {
         this.doc = doc;
         this.ruleUuid = ruleUuid;
         this.shapeId = shapeId;
@@ -81,6 +86,7 @@ public class ServingRule {
         this.rollingScore = rollingScore;
         this.records = records;
         this.guidance = guidance;
+        this.belowThreshold = belowThreshold;
     }
 
     public DocRef getDoc() {
@@ -154,6 +160,11 @@ public class ServingRule {
      */
     public int getGuidance() {
         return guidance;
+    }
+
+    /// Whether its rolling score is below the document's relearn threshold: a rule a person might improve.
+    public boolean isBelowThreshold() {
+        return belowThreshold;
     }
 
     @Override

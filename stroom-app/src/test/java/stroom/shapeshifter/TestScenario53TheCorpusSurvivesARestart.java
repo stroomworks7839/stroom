@@ -206,7 +206,6 @@ class TestScenario53TheCorpusSurvivesARestart extends AbstractProcessIntegration
         final DocRef docRef = shapeshifterAiStore.createDocument(shipped.getName());
         final ShapeshifterAiDoc configured = DemoDocument
                 .configure(shapeshifterAiStore.readDocument(docRef).copy())
-                .executionMode(shipped.getExecutionMode())
                 .heldOutFraction(0.0)
                 .build();
         shapeshifterAiStore.writeDocument(configured.copy()

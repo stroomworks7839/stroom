@@ -22,13 +22,11 @@ import stroom.query.api.ExpressionTerm.Condition;
 import stroom.shapeshifter.ai.extraction.ExtractionCorpus.Golden;
 import stroom.shapeshifter.ai.stage.Attempts.Recorded;
 import stroom.shapeshifter.ai.stage.Decision.Bound;
-import stroom.shapeshifter.ai.stage.Decision.Kept;
-import stroom.shapeshifter.ai.stage.Decision.Sentinel;
+import stroom.shapeshifter.ai.stage.Decision.Deferred;
+import stroom.shapeshifter.ai.stage.Deferrals.Deferral;
 import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.StageRun;
-import stroom.shapeshifter.ai.state.InMemoryReprocessing.Request;
 import stroom.shapeshifter.shared.AttemptStatus;
-import stroom.shapeshifter.shared.ExecutionMode;
 import stroom.shapeshifter.shared.LearningMode;
 import stroom.shapeshifter.shared.PlanExample;
 import stroom.shapeshifter.shared.RoutingRule;
@@ -63,7 +61,6 @@ class TestScenario30DeferredWorker {
                 .uuid(DOC)
                 .name("door-access")
                 .learningMode(LearningMode.AUTOMATIC)
-                .executionMode(ExecutionMode.DEFERRED)
                 .plan(PlanExample.TARGET_FIRST)
                 .allowedElements(List.of("DSParser", "XSLTFilter"))
                 .minRecordsPerShape(5)
@@ -94,11 +91,10 @@ class TestScenario30DeferredWorker {
         final Input first = scenarios.inputs.put(stream(1L));
         final Script inTheTask = Script.of();
 
-        final StageRun run = scenarios.stage(inTheTask).run(doc, first);
+        final StageRun run = scenarios.stage(inTheTask).decide(doc, first);
 
-        assertThat(run.decision()).describedAs(run.decision().toString()).isInstanceOf(Sentinel.class);
-        assertThat(((Sentinel) run.decision()).reason()).contains("Awaiting the model");
-        assertThat(inTheTask.asked()).describedAs("no model call in the task: that is what deferred means")
+        assertThat(run.decision()).describedAs(run.decision().toString()).isInstanceOf(Deferred.class);
+        assertThat(inTheTask.asked()).describedAs("no model call in the task: a task decides and never learns (A60)")
                 .isEmpty();
         assertThat(run.output()).isNull();
         final Recorded parked = scenarios.attempts.forDocument(DOC, 10).get(0);
@@ -107,14 +103,14 @@ class TestScenario30DeferredWorker {
                 .hasSize(1);
         assertThat(parked.turns().get(0).answer()).isNull();
         assertThat(parked.turns().get(0).answeredBy()).isNull();
-        assertThat(parked.attempt().executionMode()).isEqualTo(ExecutionMode.DEFERRED);
-        assertThat(scenarios.ledger.rows()).hasSize(1);
+        assertThat(scenarios.deferrals.forDocument(DOC)).describedAs("the stream waits, on a row").hasSize(1);
+        assertThat(scenarios.ledger.rows()).describedAs("and nothing is sentinelled to make it wait").isEmpty();
 
-        // A second stream of the shape while it waits: sentinelled behind the same attempt, not a second.
+        // A second stream of the shape while it waits: held behind the same attempt, not a second.
         final Input second = scenarios.inputs.put(stream(2L));
-        assertThat(scenarios.stage(Script.of()).run(doc, second).decision()).isInstanceOf(Sentinel.class);
+        assertThat(scenarios.stage(Script.of()).decide(doc, second).decision()).isInstanceOf(Deferred.class);
         assertThat(scenarios.attempts.forDocument(DOC, 10)).describedAs("one attempt for one shape").hasSize(1);
-        assertThat(scenarios.ledger.rows()).hasSize(2);
+        assertThat(scenarios.deferrals.forDocument(DOC)).hasSize(2);
 
         // The worker carries it on, against the script the task never asked.
         final Script script = learning(scenarios);
@@ -129,23 +125,21 @@ class TestScenario30DeferredWorker {
                 assertThat(turn.answer()).describedAs("and every one answered now").isNotNull());
         assertThat(scenarios.rules.forDocument(DOC)).hasSize(1);
 
-        // And the promotion releases what waited on the shape (A12).
+        // And the promotion wakes what waited on the shape.
         assertThat(scenarios.ledger.isEmpty()).isTrue();
-        assertThat(scenarios.reprocessing.requests()).hasSize(1);
-        assertThat(scenarios.reprocessing.requests().get(0).inputIds()).containsExactly(1L, 2L);
+        assertThat(scenarios.wake.woken()).extracting(Deferral::inputId).containsExactly(1L, 2L);
 
         // Nothing is left awaiting, so a second pass has nothing to do.
         assertThat(scenarios.worker(Script.of()).advance(10)).isZero();
     }
 
     @Test
-    void aStreamOfALearnedShapeIsServedInTheTaskWhateverTheMode() {
-        // Deferred is about learning, not about serving: once the shape is bound, the task binds it with
-        // no model call and no worker.
+    void aStreamOfALearnedShapeIsServedInTheTask() {
+        // Once the shape is bound, the task binds it with no model call and no worker.
         final Scenarios scenarios = new Scenarios();
         final ShapeshifterAiDoc doc = scenarios.documents.put(deferred());
         scenarios.inputs.put(stream(1L));
-        scenarios.stage(Script.of()).run(doc, stream(1L));
+        scenarios.stage(Script.of()).decide(doc, stream(1L));
         scenarios.worker(learning(scenarios)).advance(10);
 
         final Script silent = Script.of();
@@ -157,41 +151,27 @@ class TestScenario30DeferredWorker {
     }
 
     @Test
-    void aBoundShapeBeingRelearnedIsStillServedWhileItsAttemptWaits() {
-        // A29 and A5 together: a shape marked for relearning in a deferred document parks its candidate
-        // attempt like any other, and the stream in front of the stage is served by the incumbent — as it
-        // is served by every other stream until the relearning settles — rather than sentinelled onto a
-        // ledger it does not belong on.
+    void aBoundShapeMarkedByHandIsStillServedByTheTask() {
+        // A29 and A60 together: a shape marked for relearning is served by its incumbent as every stream
+        // of it is, and the task asks nothing and opens nothing for the mark alone. What sends the shape
+        // back to the model is a record short of the bar (design 04 §3) or a person's improve (A46).
         final Scenarios scenarios = new Scenarios();
         final ShapeshifterAiDoc doc = scenarios.documents.put(deferred());
         scenarios.inputs.put(stream(1L));
-        scenarios.stage(Script.of()).run(doc, stream(1L));
+        scenarios.stage(Script.of()).decide(doc, stream(1L));
         scenarios.worker(learning(scenarios)).advance(10);
         final Recorded promoted = scenarios.attempts.forDocument(DOC, 10).get(0);
         assertThat(promoted.status()).isEqualTo(AttemptStatus.PROMOTED);
-        scenarios.shapes.markForRelearning(DOC, SHAPE, "Rolling score 0.6 fell below 0.8");
+        scenarios.shapes.markForRelearning(DOC, SHAPE, "A person's reading of the serving list");
 
         final Input next = scenarios.inputs.put(stream(5L));
         final Script inTheTask = Script.of();
-        final StageRun served = scenarios.stage(inTheTask).run(doc, next);
+        final StageRun served = scenarios.stage(inTheTask).decide(doc, next);
 
-        assertThat(served.decision()).describedAs(served.decision().toString()).isInstanceOf(Kept.class);
-        assertThat(((Kept) served.decision()).reason()).contains("Awaiting the model");
+        assertThat(served.decision()).describedAs(served.decision().toString()).isInstanceOf(Bound.class);
         assertThat(inTheTask.asked()).isEmpty();
-        assertThat(served.output()).describedAs("the incumbent served it").isNotNull();
         assertThat(scenarios.ledger.isEmpty()).describedAs("a bound shape's stream is not sentinelled").isTrue();
-        final Recorded candidate = scenarios.attempts.forDocument(DOC, 10).get(0);
-        assertThat(candidate.id()).isNotEqualTo(promoted.id());
-        assertThat(candidate.status()).isEqualTo(AttemptStatus.AWAITING_MODEL);
-
-        // The worker carries the candidate on, and the rule is rebound to what it learned.
-        scenarios.worker(learning(scenarios)).advance(10);
-
-        assertThat(scenarios.attempts.byId(candidate.id()).orElseThrow().status())
-                .isEqualTo(AttemptStatus.PROMOTED);
-        assertThat(scenarios.rules.forDocument(DOC)).describedAs("one rule, rebound").hasSize(1);
-        assertThat(scenarios.shapes.relearnReason(DOC, SHAPE))
-                .describedAs("the mark is spent").isEmpty();
+        assertThat(scenarios.attempts.forDocument(DOC, 10)).describedAs("no session for the mark alone").hasSize(1);
     }
 
     @Test
@@ -202,7 +182,7 @@ class TestScenario30DeferredWorker {
         final Scenarios scenarios = new Scenarios();
         final ShapeshifterAiDoc doc = scenarios.documents.put(deferred());
         scenarios.inputs.put(stream(1L));
-        scenarios.stage(Script.of()).run(doc, stream(1L));
+        scenarios.stage(Script.of()).decide(doc, stream(1L));
         final Recorded parked = scenarios.attempts.forDocument(DOC, 10).get(0);
         scenarios.inputs.remove(1L);
 
@@ -216,7 +196,7 @@ class TestScenario30DeferredWorker {
 
         // The shape is free again: the next stream of it opens an attempt of its own.
         scenarios.inputs.put(stream(4L));
-        scenarios.stage(Script.of()).run(doc, stream(4L));
+        scenarios.stage(Script.of()).decide(doc, stream(4L));
         assertThat(scenarios.attempts.forDocument(DOC, 10)).hasSize(2);
 
         // And a document deleted while its attempt waited is the same story.
@@ -234,7 +214,7 @@ class TestScenario30DeferredWorker {
         final Scenarios scenarios = new Scenarios();
         final ShapeshifterAiDoc doc = scenarios.documents.put(deferred());
         scenarios.inputs.put(stream(1L));
-        scenarios.stage(Script.of()).run(doc, stream(1L));
+        scenarios.stage(Script.of()).decide(doc, stream(1L));
         final Recorded parked = scenarios.attempts.forDocument(DOC, 10).get(0);
         // An operator reserves the selector while it waits: this shape binds nothing, by hand.
         scenarios.rules.append(DOC, RoutingRule.builder()
@@ -263,7 +243,7 @@ class TestScenario30DeferredWorker {
         final Scenarios scenarios = new Scenarios();
         final ShapeshifterAiDoc doc = scenarios.documents.put(deferred());
         scenarios.inputs.put(stream(1L));
-        scenarios.stage(Script.of()).run(doc, stream(1L));
+        scenarios.stage(Script.of()).decide(doc, stream(1L));
         final Recorded parked = scenarios.attempts.forDocument(DOC, 10).get(0);
         scenarios.attempts.heartbeat(parked.id(), Scenarios.NOW.toEpochMilli() - 1);
 
@@ -281,7 +261,7 @@ class TestScenario30DeferredWorker {
         final Scenarios scenarios = new Scenarios();
         final ShapeshifterAiDoc doc = scenarios.documents.put(deferred());
         scenarios.inputs.put(stream(1L));
-        scenarios.stage(Script.of()).run(doc, stream(1L));
+        scenarios.stage(Script.of()).decide(doc, stream(1L));
         final Recorded first = scenarios.attempts.forDocument(DOC, 10).get(0);
         scenarios.inputs.remove(1L);
 
@@ -289,7 +269,7 @@ class TestScenario30DeferredWorker {
         final ShapeshifterAiDoc other = scenarios.documents.put(deferred().copy().uuid("doc-2").build());
         final Input fine = scenarios.inputs.put(new Input(2L, "OTHER-FEED", "Raw Events",
                 Map.of("Format", "CSV"), CSV.input()));
-        scenarios.stage(Script.of()).run(other, fine);
+        scenarios.stage(Script.of()).decide(other, fine);
 
         final int advanced = scenarios.worker(learning(scenarios)).advance(10);
 
@@ -297,6 +277,6 @@ class TestScenario30DeferredWorker {
         assertThat(scenarios.attempts.byId(first.id()).orElseThrow().status())
                 .isEqualTo(AttemptStatus.ABANDONED);
         assertThat(scenarios.rules.forDocument("doc-2")).hasSize(1);
-        assertThat(scenarios.reprocessing.requests()).extracting(Request::docUuid).containsExactly("doc-2");
+        assertThat(scenarios.wake.woken()).extracting(Deferral::inputId).containsExactly(2L);
     }
 }

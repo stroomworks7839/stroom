@@ -19,11 +19,6 @@
                         helpText="The learning key's values, as the attempt records them, e.g. Feed=SYSLOG|Type=Raw Events. Left empty, every shape.">
             <g:TextBox ui:field="shape" width="400px"/>
         </form:FormGroup>
-        <form:FormGroup identity="attemptFilterExecutionMode"
-                        label="Execution mode"
-                        helpText="Whether the attempt asked the model in the processing task or was carried on by the deferred worker.">
-            <l:SelectionBox ui:field="executionMode"/>
-        </form:FormGroup>
         <form:FormGroup identity="attemptFilterPromotionMode"
                         label="Promotion mode"
                         helpText="Whether what the attempt learned was bound automatically or held as a draft for review.">

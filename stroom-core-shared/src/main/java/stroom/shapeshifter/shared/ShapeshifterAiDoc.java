@@ -60,9 +60,7 @@ import java.util.Objects;
         "createUser",
         "updateUser",
         "description",
-        "executionMode",
         "learningMode",
-        "errorModeAfter",
         "model",
         "learningKey",
         "relearnThreshold",
@@ -88,13 +86,11 @@ public class ShapeshifterAiDoc extends AbstractDoc {
     public static final String TYPE = "ShapeshifterAi";
     public static final DocumentType DOCUMENT_TYPE = DocumentTypeRegistry.SHAPESHIFTER_AI_DOCUMENT_TYPE;
 
-    static final ExecutionMode DEFAULT_EXECUTION_MODE = ExecutionMode.DEFERRED;
     static final LearningMode DEFAULT_LEARNING_MODE = LearningMode.DISABLED;
     /**
      * Abandoned attempts or sentinelled streams in a row before a feed enters error mode (A24). Five is a
      * streak, not a bad afternoon; provisional until real feeds say otherwise (§2.1).
      */
-    static final int DEFAULT_ERROR_MODE_AFTER = 5;
     static final List<String> DEFAULT_LEARNING_KEY = RoutingFields.DEFAULT_LEARNING_KEY;
     /**
      * Below the promotion floor, so that a rule promoted at the floor is not relearned at once.
@@ -127,22 +123,11 @@ public class ShapeshifterAiDoc extends AbstractDoc {
     @JsonProperty
     private final String description;
     /**
-     * Learn inside the processing pipeline or as a deferred task. Ruling A5: a document setting, deferred
-     * by default, independent of where the model is.
-     */
-    @JsonProperty
-    private final ExecutionMode executionMode;
-    /**
      * Whether the model may be called at all. Off by default because §11 makes Shapeshifter AI opt-in per
      * document; off still selects among bound variants and promotes what clears the floor.
      */
     @JsonProperty
     private final LearningMode learningMode;
-    /**
-     * The streak of abandoned attempts or sentinelled streams on one feed that opens the breaker (A24).
-     */
-    @JsonProperty
-    private final int errorModeAfter;
     /**
      * The OpenAI-compatible model document the stage calls (§10, A13).
      */
@@ -255,9 +240,7 @@ public class ShapeshifterAiDoc extends AbstractDoc {
             @JsonProperty("createUser") final String createUser,
             @JsonProperty("updateUser") final String updateUser,
             @JsonProperty("description") final String description,
-            @JsonProperty("executionMode") final ExecutionMode executionMode,
             @JsonProperty("learningMode") final LearningMode learningMode,
-            @JsonProperty("errorModeAfter") final Integer errorModeAfter,
             @JsonProperty("model") final DocRef model,
             @JsonProperty("learningKey") final List<String> learningKey,
             @JsonProperty("relearnThreshold") final Double relearnThreshold,
@@ -278,9 +261,7 @@ public class ShapeshifterAiDoc extends AbstractDoc {
             @JsonProperty("scorers") final List<ScorerSetting> scorers) {
         super(TYPE, uuid, name, version, createTimeMs, updateTimeMs, createUser, updateUser);
         this.description = description;
-        this.executionMode = Objects.requireNonNullElse(executionMode, DEFAULT_EXECUTION_MODE);
         this.learningMode = Objects.requireNonNullElse(learningMode, DEFAULT_LEARNING_MODE);
-        this.errorModeAfter = Objects.requireNonNullElse(errorModeAfter, DEFAULT_ERROR_MODE_AFTER);
         this.model = model;
         this.learningKey = learningKey == null
                 ? DEFAULT_LEARNING_KEY
@@ -326,16 +307,8 @@ public class ShapeshifterAiDoc extends AbstractDoc {
         return description;
     }
 
-    public ExecutionMode getExecutionMode() {
-        return executionMode;
-    }
-
     public LearningMode getLearningMode() {
         return learningMode;
-    }
-
-    public int getErrorModeAfter() {
-        return errorModeAfter;
     }
 
     public DocRef getModel() {
@@ -426,14 +399,12 @@ public class ShapeshifterAiDoc extends AbstractDoc {
         return maxAttempts == that.maxAttempts &&
                attemptBudgetMs == that.attemptBudgetMs &&
                sampleSizeLimit == that.sampleSizeLimit &&
-               errorModeAfter == that.errorModeAfter &&
                Double.compare(relearnThreshold, that.relearnThreshold) == 0 &&
                Double.compare(promotionFloor, that.promotionFloor) == 0 &&
                Double.compare(heldOutFraction, that.heldOutFraction) == 0 &&
                minRecordsPerShape == that.minRecordsPerShape &&
                regressionCap == that.regressionCap &&
                Objects.equals(description, that.description) &&
-               executionMode == that.executionMode &&
                learningMode == that.learningMode &&
                Objects.equals(plan, that.plan) &&
                promotionMode == that.promotionMode &&
@@ -451,9 +422,7 @@ public class ShapeshifterAiDoc extends AbstractDoc {
     public int hashCode() {
         return Objects.hash(super.hashCode(),
                 description,
-                executionMode,
                 learningMode,
-                errorModeAfter,
                 model,
                 learningKey,
                 relearnThreshold,
@@ -478,9 +447,7 @@ public class ShapeshifterAiDoc extends AbstractDoc {
     public String toString() {
         return "ShapeshifterAiDoc{" +
                "name='" + getName() + '\'' +
-               ", executionMode=" + executionMode +
                ", learningMode=" + learningMode +
-               ", errorModeAfter=" + errorModeAfter +
                ", model=" + model +
                ", learningKey=" + learningKey +
                ", relearnThreshold=" + relearnThreshold +
@@ -515,9 +482,7 @@ public class ShapeshifterAiDoc extends AbstractDoc {
     public static final class Builder extends AbstractBuilder<ShapeshifterAiDoc, Builder> {
 
         private String description;
-        private ExecutionMode executionMode = DEFAULT_EXECUTION_MODE;
         private LearningMode learningMode = DEFAULT_LEARNING_MODE;
-        private int errorModeAfter = DEFAULT_ERROR_MODE_AFTER;
         private DocRef model;
         private List<String> learningKey = DEFAULT_LEARNING_KEY;
         private double relearnThreshold = DEFAULT_RELEARN_THRESHOLD;
@@ -543,9 +508,7 @@ public class ShapeshifterAiDoc extends AbstractDoc {
         private Builder(final ShapeshifterAiDoc doc) {
             super(doc);
             this.description = doc.description;
-            this.executionMode = doc.executionMode;
             this.learningMode = doc.learningMode;
-            this.errorModeAfter = doc.errorModeAfter;
             this.model = doc.model;
             this.learningKey = doc.learningKey;
             this.relearnThreshold = doc.relearnThreshold;
@@ -571,18 +534,8 @@ public class ShapeshifterAiDoc extends AbstractDoc {
             return self();
         }
 
-        public Builder executionMode(final ExecutionMode executionMode) {
-            this.executionMode = executionMode;
-            return self();
-        }
-
         public Builder learningMode(final LearningMode learningMode) {
             this.learningMode = learningMode;
-            return self();
-        }
-
-        public Builder errorModeAfter(final int errorModeAfter) {
-            this.errorModeAfter = errorModeAfter;
             return self();
         }
 
@@ -699,9 +652,7 @@ public class ShapeshifterAiDoc extends AbstractDoc {
                     createUser,
                     updateUser,
                     description,
-                    executionMode,
                     learningMode,
-                    errorModeAfter,
                     model,
                     learningKey,
                     relearnThreshold,

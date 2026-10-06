@@ -226,6 +226,8 @@ class TestScenario22ReviewMode {
         final Script silent = Script.of();
         final StageRun marked = scenarios.stage(silent).run(bound, stream(3, withAlarms));
         assertThat(marked.decision()).isInstanceOf(Bound.class);
+        // The score fell; the mark is a person's, from the serving list (design 04 §6), as in scenario 27.
+        scenarios.shapes.markForRelearning(DOC, SHAPE, "Scored below the threshold: improve it");
         assertThat(scenarios.shapes.relearnReason(DOC, SHAPE)).isPresent();
 
         // Relearned: the incumbent serves, and the candidate is written as a draft behind it.
@@ -276,6 +278,8 @@ class TestScenario22ReviewMode {
         final RoutingRule incumbent = scenarios.rules.forDocument(DOC).get(0);
         final String withAlarms = lines(20, 3);
         scenarios.stage(Script.of()).run(bound, stream(3, withAlarms));
+        // The mark is a person's (design 04 §6).
+        scenarios.shapes.markForRelearning(DOC, SHAPE, "Scored below the threshold: improve it");
         final StageRun relearned = scenarios.stage(learning(scenarios, FOUR_FIELDS_AND_ALARMS))
                 .run(bound, stream(4, withAlarms));
         final RoutingRule draft = ((Drafted) relearned.decision()).rule();
@@ -325,6 +329,8 @@ class TestScenario22ReviewMode {
         final ShapeshifterAiDoc bound = waiting.doc();
         final String withAlarms = lines(20, 3);
         scenarios.stage(Script.of()).run(bound, stream(3, withAlarms));
+        // The mark is a person's (design 04 §6).
+        scenarios.shapes.markForRelearning(DOC, SHAPE, "Scored below the threshold: improve it");
         final StageRun relearned = scenarios.stage(learning(scenarios, FOUR_FIELDS_AND_ALARMS))
                 .run(bound, stream(4, withAlarms));
         final RoutingRule draft = ((Drafted) relearned.decision()).rule();

@@ -19,7 +19,6 @@ package stroom.shapeshifter.client.view;
 import stroom.item.client.SelectionBox;
 import stroom.shapeshifter.client.presenter.AttemptFilterPresenter.AttemptFilterView;
 import stroom.shapeshifter.shared.AttemptStatus;
-import stroom.shapeshifter.shared.ExecutionMode;
 import stroom.shapeshifter.shared.PromotionMode;
 import stroom.widget.tickbox.client.view.CustomCheckBox;
 
@@ -56,8 +55,6 @@ public class AttemptFilterViewImpl extends ViewImpl implements AttemptFilterView
     @UiField
     TextBox shape;
     @UiField
-    SelectionBox<ExecutionMode> executionMode;
-    @UiField
     SelectionBox<PromotionMode> promotionMode;
     @UiField
     FlowPanel statuses;
@@ -65,8 +62,6 @@ public class AttemptFilterViewImpl extends ViewImpl implements AttemptFilterView
     @Inject
     public AttemptFilterViewImpl(final Binder binder) {
         widget = binder.createAndBindUi(this);
-        executionMode.setNonSelectString(ANY);
-        executionMode.addItems(ExecutionMode.values());
         promotionMode.setNonSelectString(ANY);
         promotionMode.addItems(PromotionMode.values());
         for (final AttemptStatus status : AttemptStatus.values()) {
@@ -105,16 +100,6 @@ public class AttemptFilterViewImpl extends ViewImpl implements AttemptFilterView
     @Override
     public void setShape(final String shape) {
         this.shape.setValue(shape);
-    }
-
-    @Override
-    public ExecutionMode getExecutionMode() {
-        return executionMode.getValue();
-    }
-
-    @Override
-    public void setExecutionMode(final ExecutionMode mode) {
-        this.executionMode.setValue(mode);
     }
 
     @Override

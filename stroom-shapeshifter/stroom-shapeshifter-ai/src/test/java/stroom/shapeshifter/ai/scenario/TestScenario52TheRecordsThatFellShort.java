@@ -27,7 +27,6 @@ import stroom.shapeshifter.ai.stage.Deferrals.Deferral;
 import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.Inputs;
 import stroom.shapeshifter.ai.stage.StageRun;
-import stroom.shapeshifter.shared.ExecutionMode;
 import stroom.shapeshifter.shared.ScorerType;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 import stroom.util.shared.TextRange;
@@ -150,10 +149,13 @@ class TestScenario52TheRecordsThatFellShort {
         assertThat(row.attempts()).isEqualTo(1);
         assertThat(row.taskId()).describedAs("a scenario has no task to wake").isNull();
 
-        // The shape's rolling score fell with that stream, so the next stream of the shape has the rule
-        // learned again — here with a stylesheet that translates a logoff too. The stream that brought
-        // the relearning still goes out under the incumbent, thin records and all (the rebound is for
-        // what follows), so its row stands: in phase 4 this is the stream that would have been held.
+        // The shape's rolling score fell with that stream and is kept for the Supervisor's list; the
+        // mark is a person's (design 04 §6), and the next stream of the shape has the rule learned again
+        // — here with a stylesheet that translates a logoff too. The stream that brought the relearning
+        // still goes out under the incumbent, thin records and all (the rebound is for what follows), so
+        // its row stands: in the task path this is the stream that would have been held.
+        scenarios.shapes.markForRelearning(DOC, "Feed=" + FEED + "|Type=Raw Events",
+                "Scored below the threshold: improve it");
         final Script relearn = scenarios.script(CSV.configuration(), FULL_XSLT)
                 .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter")
                 .expect(QuestionMatcher.configuration("DSParser"))
@@ -187,17 +189,16 @@ class TestScenario52TheRecordsThatFellShort {
         final ShapeshifterAiDoc doc = DemoDocument.configure(Scenarios.document())
                 .uuid(DOC)
                 .name("door-access")
-                .executionMode(ExecutionMode.DEFERRED)
                 .build();
 
-        scenarios.stage(document -> Script.of(), scenarios.rules).run(doc, stream(3L, MIXED));
+        scenarios.stage(document -> Script.of(), scenarios.rules).decide(doc, stream(3L, MIXED));
 
         final List<Deferral> rows = scenarios.deferrals.forDocument(DOC);
         assertThat(rows).hasSize(1);
         assertThat(rows.getFirst().inputId()).isEqualTo(3L);
         assertThat(rows.getFirst().failedAgainst()).isNull();
         assertThat(rows.getFirst().failingRecords()).isZero();
-        assertThat(rows.getFirst().reason()).contains("Awaiting the model");
+        assertThat(rows.getFirst().reason()).isNotBlank();
     }
 
     private static StageRun learn(final Scenarios scenarios, final ShapeshifterAiDoc doc) {

@@ -99,6 +99,8 @@ public final class InMemoryServing implements Serving {
                 rule.getPromotedTimeMs(),
                 rolling.map(Shapes.Rolling::score).orElse(null),
                 rolling.map(Shapes.Rolling::records).orElse(0),
-                guidance.standing(docUuid, rule.getShapeId()).size());
+                guidance.standing(docUuid, rule.getShapeId()).size(),
+                // Whether it is below its document's threshold is the resource's to say, which has the document.
+                false);
     }
 }

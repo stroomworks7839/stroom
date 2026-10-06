@@ -34,7 +34,6 @@ import stroom.query.api.ExpressionOperator.Op;
 import stroom.query.api.ExpressionTerm.Condition;
 import stroom.shapeshifter.ai.learning.Templates;
 import stroom.shapeshifter.ai.scenario.Scenarios;
-import stroom.shapeshifter.shared.ExecutionMode;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 import stroom.util.json.JsonUtil;
 
@@ -169,7 +168,6 @@ public final class DemoContentPack {
                         One supervised stage, pointed at four feeds of four unrelated formats and told \
                         nothing about any of them. Every parser it knows how to configure is allowed, so \
                         the first question it asks the model is which of them this feed needs.""")
-                .executionMode(ExecutionMode.INLINE)
                 .model(modelRef())
                 .build();
         // The store stamps a saved document with the built-in question text it was saved against, and a

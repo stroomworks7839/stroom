@@ -154,6 +154,9 @@ class TestScenariosIncumbent {
         final StageRun served = scenarios.stage(silent).run(learned.doc(), stream(2, CsvLines.lines(7, users, 0)));
         assertThat(served.decision()).isInstanceOf(Bound.class);
         assertThat(silent.asked()).isEmpty();
+        // The score is kept for the Supervisor's list and is no longer a trigger (design 04 §6): the mark
+        // is a person's, from reading it.
+        scenarios.shapes.markForRelearning(DOC, SHAPE, "Scored " + v1Score + " below the threshold: improve it");
         assertThat(scenarios.shapes.relearnReason(DOC, SHAPE)).isPresent();
         return served;
     }

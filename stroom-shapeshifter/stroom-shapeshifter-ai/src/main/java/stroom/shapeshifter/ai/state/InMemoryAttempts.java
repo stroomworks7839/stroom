@@ -107,7 +107,7 @@ public final class InMemoryAttempts implements Attempts {
         }
         final Attempt current = was.attempt();
         final Attempt taken = new Attempt(current.docUuid(), current.shape(), current.feed(), current.type(),
-                current.inputId(), node, current.executionMode(), current.promotionMode(), expiryMs);
+                current.inputId(), node, current.promotionMode(), expiryMs);
         attempts.put(attemptId, new Recorded(was.id(), taken, AttemptStatus.IN_PROGRESS, was.decision(),
                 was.ruleUuid(), was.score(), was.tokensSpent(), was.createTimeMs(),
                 System.currentTimeMillis(), List.of()));
@@ -311,7 +311,6 @@ public final class InMemoryAttempts implements Attempts {
         return (criteria.getDocUuid() == null || criteria.getDocUuid().equals(was.docUuid()))
                && (criteria.getFeed() == null || criteria.getFeed().equals(was.feed()))
                && (criteria.getShape() == null || criteria.getShape().equals(was.shape()))
-               && (criteria.getExecutionMode() == null || criteria.getExecutionMode() == was.executionMode())
                && (criteria.getPromotionMode() == null || criteria.getPromotionMode() == was.promotionMode())
                && (criteria.getStatuses().isEmpty() || criteria.getStatuses().contains(attempt.status()));
     }
@@ -336,7 +335,7 @@ public final class InMemoryAttempts implements Attempts {
     private static Attempt claim(final Recorded was, final long expiryMs) {
         final Attempt attempt = was.attempt();
         return new Attempt(attempt.docUuid(), attempt.shape(), attempt.feed(), attempt.type(),
-                attempt.inputId(), attempt.node(), attempt.executionMode(), attempt.promotionMode(), expiryMs);
+                attempt.inputId(), attempt.node(), attempt.promotionMode(), expiryMs);
     }
 
     private Recorded withTurns(final Recorded attempt) {

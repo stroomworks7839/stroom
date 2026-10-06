@@ -57,7 +57,6 @@ import stroom.shapeshifter.ai.stage.Ledger;
 import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.ai.stage.Shape;
 import stroom.shapeshifter.ai.transformation.XsltStep;
-import stroom.shapeshifter.shared.ExecutionMode;
 import stroom.shapeshifter.shared.LearningMode;
 import stroom.shapeshifter.shared.PlanExample;
 import stroom.shapeshifter.shared.ScorerSetting;
@@ -230,7 +229,6 @@ class TestScenario13ReleaseInAPipeline extends AbstractCoreIntegrationTest {
         shapeshifterAiStore.writeDocument(shapeshifterAiStore.readDocument(docRef)
                 .copy()
                 .learningMode(LearningMode.DISABLED)
-                .executionMode(ExecutionMode.INLINE)
                 .plan(PlanExample.TARGET_FIRST)
                 .allowedElements(List.of("DSParser", "XSLTFilter"))
                 .minRecordsPerShape(5)

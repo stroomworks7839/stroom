@@ -20,9 +20,7 @@ import stroom.entity.client.presenter.ReadOnlyChangeHandler;
 import stroom.item.client.SelectionBox;
 import stroom.shapeshifter.client.presenter.ShapeshifterAiSettingsPresenter.ShapeshifterAiSettingsView;
 import stroom.shapeshifter.client.presenter.ShapeshifterAiSettingsUiHandlers;
-import stroom.shapeshifter.shared.ExecutionMode;
 import stroom.shapeshifter.shared.LearningMode;
-import stroom.widget.valuespinner.client.ValueSpinner;
 
 import com.google.gwt.event.logical.shared.ValueChangeEvent;
 import com.google.gwt.uibinder.client.UiBinder;
@@ -39,34 +37,17 @@ public class ShapeshifterAiSettingsViewImpl
     private final Widget widget;
 
     @UiField
-    SelectionBox<ExecutionMode> executionMode;
-    @UiField
     SelectionBox<LearningMode> learningMode;
-    @UiField
-    ValueSpinner errorModeAfter;
 
     @Inject
     public ShapeshifterAiSettingsViewImpl(final Binder binder) {
         widget = binder.createAndBindUi(this);
-        executionMode.addItems(ExecutionMode.values());
         learningMode.addItems(LearningMode.values());
-        errorModeAfter.setMin(1);
-        errorModeAfter.setMax(Integer.MAX_VALUE);
     }
 
     @Override
     public Widget asWidget() {
         return widget;
-    }
-
-    @Override
-    public ExecutionMode getExecutionMode() {
-        return executionMode.getValue();
-    }
-
-    @Override
-    public void setExecutionMode(final ExecutionMode executionMode) {
-        this.executionMode.setValue(executionMode);
     }
 
     @Override
@@ -80,20 +61,8 @@ public class ShapeshifterAiSettingsViewImpl
     }
 
     @Override
-    public int getErrorModeAfter() {
-        return errorModeAfter.getIntValue();
-    }
-
-    @Override
-    public void setErrorModeAfter(final int errorModeAfter) {
-        this.errorModeAfter.setValue(errorModeAfter);
-    }
-
-    @Override
     public void onReadOnly(final boolean readOnly) {
-        executionMode.setEnabled(!readOnly);
         learningMode.setEnabled(!readOnly);
-        errorModeAfter.setEnabled(!readOnly);
     }
 
     private void fireChange() {
@@ -102,18 +71,8 @@ public class ShapeshifterAiSettingsViewImpl
         }
     }
 
-    @UiHandler("executionMode")
-    public void onExecutionMode(final ValueChangeEvent<ExecutionMode> event) {
-        fireChange();
-    }
-
     @UiHandler("learningMode")
     public void onLearningMode(final ValueChangeEvent<LearningMode> event) {
-        fireChange();
-    }
-
-    @UiHandler("errorModeAfter")
-    public void onErrorModeAfter(final ValueChangeEvent<Long> event) {
         fireChange();
     }
 

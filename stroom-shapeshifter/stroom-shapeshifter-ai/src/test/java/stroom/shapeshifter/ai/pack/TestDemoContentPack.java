@@ -75,7 +75,6 @@ class TestDemoContentPack {
                 .version(document.getVersion())
                 .name(document.getName())
                 .description(document.getDescription())
-                .executionMode(document.getExecutionMode())
                 .model(document.getModel())
                 // The stamp of the built-in question text is the store's to write, and the pack carries
                 // it because the pack is written as a saved document would be.

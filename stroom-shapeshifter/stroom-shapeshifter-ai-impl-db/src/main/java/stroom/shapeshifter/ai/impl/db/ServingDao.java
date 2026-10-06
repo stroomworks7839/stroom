@@ -159,6 +159,8 @@ public class ServingDao implements Serving {
                         : records,
                 said == null
                         ? 0
-                        : said);
+                        : said,
+                // Whether it is below its document's threshold is the resource's to say, which has the document.
+                false);
     }
 }

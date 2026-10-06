@@ -22,7 +22,6 @@ import stroom.security.shared.DocumentPermission;
 import stroom.shapeshifter.client.presenter.AttemptFilterPresenter.AttemptFilterView;
 import stroom.shapeshifter.shared.AttemptCriteria;
 import stroom.shapeshifter.shared.AttemptStatus;
-import stroom.shapeshifter.shared.ExecutionMode;
 import stroom.shapeshifter.shared.PromotionMode;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 import stroom.util.shared.NullSafe;
@@ -65,7 +64,6 @@ public class AttemptFilterPresenter extends MyPresenterWidget<AttemptFilterView>
                 : new DocRef(ShapeshifterAiDoc.TYPE, criteria.getDocUuid()), true);
         getView().setFeed(NullSafe.string(criteria.getFeed()));
         getView().setShape(NullSafe.string(criteria.getShape()));
-        getView().setExecutionMode(criteria.getExecutionMode());
         getView().setPromotionMode(criteria.getPromotionMode());
         getView().setStatuses(criteria.getStatuses());
     }
@@ -82,7 +80,6 @@ public class AttemptFilterPresenter extends MyPresenterWidget<AttemptFilterView>
                 NullSafe.get(document, DocRef::getUuid),
                 blankToNull(getView().getFeed()),
                 blankToNull(getView().getShape()),
-                getView().getExecutionMode(),
                 getView().getPromotionMode(),
                 getView().getStatuses());
     }
@@ -95,7 +92,6 @@ public class AttemptFilterPresenter extends MyPresenterWidget<AttemptFilterView>
         return criteria.getDocUuid() != null
                || criteria.getFeed() != null
                || criteria.getShape() != null
-               || criteria.getExecutionMode() != null
                || criteria.getPromotionMode() != null
                || !NullSafe.list(criteria.getStatuses()).isEmpty();
     }
@@ -122,10 +118,6 @@ public class AttemptFilterPresenter extends MyPresenterWidget<AttemptFilterView>
         String getShape();
 
         void setShape(String shape);
-
-        ExecutionMode getExecutionMode();
-
-        void setExecutionMode(ExecutionMode mode);
 
         PromotionMode getPromotionMode();
 

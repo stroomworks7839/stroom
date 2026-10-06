@@ -237,11 +237,29 @@ public class SupervisorResourceImpl implements SupervisorResource {
         final int length = pageLength(page);
         final Serving.Page found = servingProvider.get()
                 .rules(readable.keySet(), asked.getBelow(), offset, length);
-        // Each row named with its document rather than its uuid, since the view is over all of them.
+        // Each row named with its document rather than its uuid, since the view is over all of them, and
+        // held against its document's relearn threshold (design 04 §6): the threshold triggers nothing
+        // by itself now, and this list is where it is read.
+        final Map<String, Double> thresholds = new LinkedHashMap<>();
         final List<ServingRule> rows = found.rules().stream()
-                .map(rule -> named(readable.get(rule.getDoc().getUuid()), rule))
+                .map(rule -> named(readable.get(rule.getDoc().getUuid()), rule,
+                        thresholds.computeIfAbsent(rule.getDoc().getUuid(), this::relearnThreshold)))
                 .toList();
         return new ResultPage<>(rows, new PageResponse(offset, rows.size(), found.total(), true));
+    }
+
+    /// A document's relearn threshold, or none where the document cannot be read.
+    private Double relearnThreshold(final String docUuid) {
+        try {
+            final ShapeshifterAiDoc doc = storeProvider.get().readDocument(new DocRef(ShapeshifterAiDoc.TYPE, docUuid));
+            return doc == null
+                    ? null
+                    : doc.getRelearnThreshold();
+        } catch (final RuntimeException e) {
+            LOGGER.debug(() -> LogUtil.message("Document {} could not be read for its threshold: {}", docUuid,
+                    e.getMessage()));
+            return null;
+        }
     }
 
     /// Ask for a rule that is already serving to be made better (A46).
@@ -464,10 +482,13 @@ public class SupervisorResourceImpl implements SupervisorResource {
 
     /// The same row with its document named rather than merely identified: the seam answers with uuids,
     /// since it has no store to ask, and the view is over every document at once.
-    private static ServingRule named(final DocRef doc, final ServingRule rule) {
+    private static ServingRule named(final DocRef doc, final ServingRule rule, final Double threshold) {
+        final boolean below = threshold != null
+                              && rule.getRollingScore() != null
+                              && rule.getRollingScore() < threshold;
         return new ServingRule(doc, rule.getRuleUuid(), rule.getShapeId(), rule.getFragment(),
                 rule.isPinned(), rule.isProvisional(), rule.getPromotedScore(), rule.getPromotedTimeMs(),
-                rule.getRollingScore(), rule.getRecords(), rule.getGuidance());
+                rule.getRollingScore(), rule.getRecords(), rule.getGuidance(), below);
     }
 
     private ShapeshifterAiDoc document(final String docUuid) {
@@ -557,7 +578,6 @@ public class SupervisorResourceImpl implements SupervisorResource {
                 attempt.attempt().type(),
                 attempt.attempt().inputId(),
                 attempt.attempt().node(),
-                attempt.attempt().executionMode(),
                 attempt.attempt().promotionMode(),
                 attempt.status(),
                 attempt.decision(),

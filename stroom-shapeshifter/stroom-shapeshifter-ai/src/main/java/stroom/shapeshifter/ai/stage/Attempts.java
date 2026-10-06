@@ -18,7 +18,6 @@ package stroom.shapeshifter.ai.stage;
 
 import stroom.shapeshifter.shared.AttemptCriteria;
 import stroom.shapeshifter.shared.AttemptStatus;
-import stroom.shapeshifter.shared.ExecutionMode;
 import stroom.shapeshifter.shared.PromotionMode;
 import stroom.shapeshifter.shared.QuestionKind;
 import stroom.shapeshifter.shared.StepOutcome;
@@ -184,7 +183,6 @@ public interface Attempts {
                    String type,
                    Long inputId,
                    String node,
-                   ExecutionMode executionMode,
                    PromotionMode promotionMode,
                    long expiryMs) {
 

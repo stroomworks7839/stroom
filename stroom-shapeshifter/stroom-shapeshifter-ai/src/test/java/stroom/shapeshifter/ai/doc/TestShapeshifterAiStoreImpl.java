@@ -19,7 +19,6 @@ package stroom.shapeshifter.ai.doc;
 import stroom.docref.DocRef;
 import stroom.meta.shared.MetaFields;
 import stroom.shapeshifter.ai.learning.Templates;
-import stroom.shapeshifter.shared.ExecutionMode;
 import stroom.shapeshifter.shared.LearningMode;
 import stroom.shapeshifter.shared.LearningPlan;
 import stroom.shapeshifter.shared.PlanExample;
@@ -52,7 +51,6 @@ class TestShapeshifterAiStoreImpl {
         final ShapeshifterAiDoc doc = store.readDocument(docRef);
 
         assertThat(doc.getName()).isEqualTo("syslog-ai");
-        assertThat(doc.getExecutionMode()).isEqualTo(ExecutionMode.DEFERRED);
         assertThat(doc.getLearningKey()).containsExactly(MetaFields.FIELD_FEED, MetaFields.FIELD_TYPE);
         assertThat(doc.getPromotionMode()).isEqualTo(PromotionMode.AUTOMATIC);
         assertThat(doc.getLearningMode())

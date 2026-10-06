@@ -53,7 +53,6 @@ import stroom.shapeshifter.ai.state.InMemorySnapshots;
 import stroom.shapeshifter.ai.state.InMemorySpend;
 import stroom.shapeshifter.ai.state.InMemoryWake;
 import stroom.shapeshifter.ai.transformation.XsltStep;
-import stroom.shapeshifter.shared.ExecutionMode;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 
 import java.io.IOException;
@@ -108,7 +107,7 @@ public final class Scenarios {
     /// task holds a task slot — and wrong for a scenario about what learning does rather than about when
     /// it happens. Scenario 30, which *is* about when, says deferred for itself.
     public static ShapeshifterAiDoc.Builder document() {
-        return ShapeshifterAiDoc.builder().executionMode(ExecutionMode.INLINE);
+        return ShapeshifterAiDoc.builder();
     }
 
     public List<StepRunner> runners() {

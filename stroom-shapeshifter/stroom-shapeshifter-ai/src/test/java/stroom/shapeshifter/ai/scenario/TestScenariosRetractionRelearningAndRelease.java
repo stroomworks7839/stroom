@@ -164,7 +164,7 @@ class TestScenariosRetractionRelearningAndRelease {
     }
 
     @Test
-    void scenario27AFallingRollingScoreTriggersRelearningWhileTheIncumbentServes() {
+    void scenario27AFallingRollingScoreIsKeptForTheListAndAPersonMarksTheShape() {
         final Scenarios scenarios = new Scenarios();
         final ShapeshifterAiDoc doc = doc(5);
 
@@ -194,8 +194,12 @@ class TestScenariosRetractionRelearningAndRelease {
                 .isBetween(0.65, 0.7);
         assertThat(scenarios.ledger.isEmpty()).isTrue();
         assertThat(scenarios.shapes.rollingScore(DOC, SHAPE)).isLessThan(0.8);
-        assertThat(scenarios.shapes.relearnReason(DOC, SHAPE)).isPresent();
+        // The rolling score is no longer a trigger (design 04 §6): it is kept for the Supervisor's list of
+        // what could be better (A46), and a person reading it is who marks the shape.
+        assertThat(scenarios.shapes.relearnReason(DOC, SHAPE)).isEmpty();
         assertThat(second.doc()).isEqualTo(first.doc());
+        scenarios.shapes.markForRelearning(DOC, SHAPE, "Rolling score " + scenarios.shapes.rollingScore(DOC, SHAPE)
+                                                       + " is below the threshold of 0.8: improve it");
 
         // The next stream starts an attempt, opening with why the incumbent fell short: the mark's reason
         // and the coverage shortfall, on the chain question and on each element's first. The incumbent
@@ -276,9 +280,10 @@ class TestScenariosRetractionRelearningAndRelease {
         assertThat(blank.decision()).isInstanceOf(Bound.class);
         assertThat(scenarios.shapes.relearnReason(DOC, SHAPE)).isEmpty();
 
-        // The falling score marks the shape; a stream of three records cannot meet A14 for a candidate,
-        // so the incumbent serves it, the model is not asked, and the mark waits.
+        // The score falls and a person marks the shape (design 04 §6); a stream of three records cannot
+        // meet A14 for a candidate, so the incumbent serves it, the model is not asked, and the mark waits.
         scenarios.stage(silent).run(first.doc(), stream(3, lines(20, 3)));
+        scenarios.shapes.markForRelearning(DOC, SHAPE, "Scored below the threshold: improve it");
         assertThat(scenarios.shapes.relearnReason(DOC, SHAPE)).isPresent();
         final Script stillSilent = Script.of();
         final StageRun small = scenarios.stage(stillSilent).run(first.doc(), stream(4, lines(3, 3)));

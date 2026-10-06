@@ -191,13 +191,10 @@ class TestShapeshifterAiDoc {
         // The creator sees nulls for every field a stored doc predates, so the defaults must come from it
         // rather than only from the builder.
         final ShapeshifterAiDoc doc = new ShapeshifterAiDoc(
-                "uuid", "name", "1", null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null);
+                "uuid", "name", "1", null, null, null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null, null, null);
 
-        assertThat(doc.getExecutionMode()).isEqualTo(ExecutionMode.DEFERRED);
         assertThat(doc.getLearningMode()).isEqualTo(LearningMode.DISABLED);
-        assertThat(doc.getErrorModeAfter()).isEqualTo(5);
         assertThat(doc.getLearningKey())
                 .describedAs("A29: most bindings switch on feed and type alone")
                 .containsExactly(MetaFields.FIELD_FEED, MetaFields.FIELD_TYPE);
@@ -227,7 +224,7 @@ class TestShapeshifterAiDoc {
         final ShapeshifterAiDoc created = new ShapeshifterAiDoc(
                 "uuid", "name", null, null, null, null, null,
                 null, null, null, null, null, null, null, null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null);
+                null, null, null, null, null);
 
         assertThat(built).isEqualTo(created);
     }
@@ -320,9 +317,7 @@ class TestShapeshifterAiDoc {
                 .createUser("creator")
                 .updateUser("updater")
                 .description("A document")
-                .executionMode(ExecutionMode.INLINE)
                 .learningMode(LearningMode.AUTOMATIC)
-                .errorModeAfter(2)
                 .model(model)
                 .learningKey(List.of(MetaFields.FIELD_FEED, MetaFields.FIELD_TYPE, RoutingRule.SHAPE_SIGNATURE_FIELD))
                 .relearnThreshold(0.75)

@@ -56,7 +56,6 @@ import stroom.shapeshifter.ai.scenario.Script;
 import stroom.shapeshifter.ai.scenario.Structure;
 import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.ai.transformation.XsltStep;
-import stroom.shapeshifter.shared.ExecutionMode;
 import stroom.shapeshifter.shared.LearningMode;
 import stroom.shapeshifter.shared.PlanExample;
 import stroom.shapeshifter.shared.RoutingRule;
@@ -347,7 +346,6 @@ class TestScenario33SteppingIntoTheFragment extends AbstractProcessIntegrationTe
         shapeshifterAiStore.writeDocument(shapeshifterAiStore.readDocument(docRef)
                 .copy()
                 .learningMode(LearningMode.AUTOMATIC)
-                .executionMode(ExecutionMode.INLINE)
                 .plan(PlanExample.TARGET_FIRST)
                 .allowedElements(List.of("DSParser", "XSLTFilter"))
                 .minRecordsPerShape(5)

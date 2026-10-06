@@ -39,7 +39,6 @@ import stroom.shapeshifter.ai.stage.ShapeSignature;
 import stroom.shapeshifter.ai.stage.Stage;
 import stroom.shapeshifter.ai.stage.StageRun;
 import stroom.shapeshifter.shared.AttemptStatus;
-import stroom.shapeshifter.shared.ExecutionMode;
 import stroom.shapeshifter.shared.LearningMode;
 import stroom.shapeshifter.shared.PlanExample;
 import stroom.shapeshifter.shared.PromotionMode;
@@ -101,7 +100,7 @@ class TestScenariosBindingBeforeLearning {
     /// the shape finds instead of taking it.
     private static long heldByAnotherNode(final Scenarios scenarios, final long untilMs) {
         return scenarios.attempts.opened(new Attempt("doc-1", shapeX(), "DOOR-ACCESS", "Raw Events", 99L,
-                        "node-2", ExecutionMode.INLINE, PromotionMode.AUTOMATIC, untilMs),
+                        "node-2", PromotionMode.AUTOMATIC, untilMs),
                 Scenarios.NOW.toEpochMilli()).orElseThrow();
     }
 

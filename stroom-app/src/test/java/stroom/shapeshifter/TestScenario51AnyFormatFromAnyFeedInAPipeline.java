@@ -243,7 +243,6 @@ class TestScenario51AnyFormatFromAnyFeedInAPipeline extends AbstractProcessInteg
         shapeshifterAiStore.writeDocument(DemoDocument
                 .configure(shapeshifterAiStore.readDocument(docRef).copy())
                 .description(shipped.getDescription())
-                .executionMode(shipped.getExecutionMode())
                 .build());
         return docRef;
     }

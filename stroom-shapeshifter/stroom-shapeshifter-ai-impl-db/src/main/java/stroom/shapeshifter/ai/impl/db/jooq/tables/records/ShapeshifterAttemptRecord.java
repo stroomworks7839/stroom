@@ -173,157 +173,143 @@ public class ShapeshifterAttemptRecord extends UpdatableRecordImpl<ShapeshifterA
     }
 
     /**
-     * Setter for <code>stroom.shapeshifter_attempt.execution_mode</code>.
-     */
-    public void setExecutionMode(String value) {
-        set(11, value);
-    }
-
-    /**
-     * Getter for <code>stroom.shapeshifter_attempt.execution_mode</code>.
-     */
-    public String getExecutionMode() {
-        return (String) get(11);
-    }
-
-    /**
      * Setter for <code>stroom.shapeshifter_attempt.promotion_mode</code>.
      */
     public void setPromotionMode(String value) {
-        set(12, value);
+        set(11, value);
     }
 
     /**
      * Getter for <code>stroom.shapeshifter_attempt.promotion_mode</code>.
      */
     public String getPromotionMode() {
-        return (String) get(12);
+        return (String) get(11);
     }
 
     /**
      * Setter for <code>stroom.shapeshifter_attempt.status</code>.
      */
     public void setStatus(String value) {
-        set(13, value);
+        set(12, value);
     }
 
     /**
      * Getter for <code>stroom.shapeshifter_attempt.status</code>.
      */
     public String getStatus() {
-        return (String) get(13);
+        return (String) get(12);
     }
 
     /**
      * Setter for <code>stroom.shapeshifter_attempt.decision</code>.
      */
     public void setDecision(String value) {
-        set(14, value);
+        set(13, value);
     }
 
     /**
      * Getter for <code>stroom.shapeshifter_attempt.decision</code>.
      */
     public String getDecision() {
-        return (String) get(14);
+        return (String) get(13);
     }
 
     /**
      * Setter for <code>stroom.shapeshifter_attempt.rule_uuid</code>.
      */
     public void setRuleUuid(String value) {
-        set(15, value);
+        set(14, value);
     }
 
     /**
      * Getter for <code>stroom.shapeshifter_attempt.rule_uuid</code>.
      */
     public String getRuleUuid() {
-        return (String) get(15);
+        return (String) get(14);
     }
 
     /**
      * Setter for <code>stroom.shapeshifter_attempt.score</code>.
      */
     public void setScore(Double value) {
-        set(16, value);
+        set(15, value);
     }
 
     /**
      * Getter for <code>stroom.shapeshifter_attempt.score</code>.
      */
     public Double getScore() {
-        return (Double) get(16);
+        return (Double) get(15);
     }
 
     /**
      * Setter for <code>stroom.shapeshifter_attempt.tokens_spent</code>.
      */
     public void setTokensSpent(Long value) {
-        set(17, value);
+        set(16, value);
     }
 
     /**
      * Getter for <code>stroom.shapeshifter_attempt.tokens_spent</code>.
      */
     public Long getTokensSpent() {
-        return (Long) get(17);
+        return (Long) get(16);
     }
 
     /**
      * Setter for <code>stroom.shapeshifter_attempt.expiry_ms</code>.
      */
     public void setExpiryMs(Long value) {
-        set(18, value);
+        set(17, value);
     }
 
     /**
      * Getter for <code>stroom.shapeshifter_attempt.expiry_ms</code>.
      */
     public Long getExpiryMs() {
-        return (Long) get(18);
+        return (Long) get(17);
     }
 
     /**
      * Setter for <code>stroom.shapeshifter_attempt.claim_key</code>.
      */
     public void setClaimKey(String value) {
-        set(19, value);
+        set(18, value);
     }
 
     /**
      * Getter for <code>stroom.shapeshifter_attempt.claim_key</code>.
      */
     public String getClaimKey() {
-        return (String) get(19);
+        return (String) get(18);
     }
 
     /**
      * Setter for <code>stroom.shapeshifter_attempt.granted_tokens</code>.
      */
     public void setGrantedTokens(Long value) {
-        set(20, value);
+        set(19, value);
     }
 
     /**
      * Getter for <code>stroom.shapeshifter_attempt.granted_tokens</code>.
      */
     public Long getGrantedTokens() {
-        return (Long) get(20);
+        return (Long) get(19);
     }
 
     /**
      * Setter for <code>stroom.shapeshifter_attempt.granted_ms</code>.
      */
     public void setGrantedMs(Long value) {
-        set(21, value);
+        set(20, value);
     }
 
     /**
      * Getter for <code>stroom.shapeshifter_attempt.granted_ms</code>.
      */
     public Long getGrantedMs() {
-        return (Long) get(21);
+        return (Long) get(20);
     }
 
     // -------------------------------------------------------------------------
@@ -349,7 +335,7 @@ public class ShapeshifterAttemptRecord extends UpdatableRecordImpl<ShapeshifterA
     /**
      * Create a detached, initialised ShapeshifterAttemptRecord
      */
-    public ShapeshifterAttemptRecord(Long id, Integer version, Long createTimeMs, Long updateTimeMs, String docUuid, String shapeHash, String shapeId, String feedName, String typeName, Long inputMetaId, String nodeName, String executionMode, String promotionMode, String status, String decision, String ruleUuid, Double score, Long tokensSpent, Long expiryMs, String claimKey, Long grantedTokens, Long grantedMs) {
+    public ShapeshifterAttemptRecord(Long id, Integer version, Long createTimeMs, Long updateTimeMs, String docUuid, String shapeHash, String shapeId, String feedName, String typeName, Long inputMetaId, String nodeName, String promotionMode, String status, String decision, String ruleUuid, Double score, Long tokensSpent, Long expiryMs, String claimKey, Long grantedTokens, Long grantedMs) {
         super(ShapeshifterAttempt.SHAPESHIFTER_ATTEMPT);
 
         setId(id);
@@ -363,7 +349,6 @@ public class ShapeshifterAttemptRecord extends UpdatableRecordImpl<ShapeshifterA
         setTypeName(typeName);
         setInputMetaId(inputMetaId);
         setNodeName(nodeName);
-        setExecutionMode(executionMode);
         setPromotionMode(promotionMode);
         setStatus(status);
         setDecision(decision);

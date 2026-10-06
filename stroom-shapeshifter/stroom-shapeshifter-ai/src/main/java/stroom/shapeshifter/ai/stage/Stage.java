@@ -69,7 +69,6 @@ import stroom.shapeshifter.ai.stage.Decision.Would;
 import stroom.shapeshifter.ai.stage.Deferrals.Deferral;
 import stroom.shapeshifter.ai.stage.RegressionSet.Accepted;
 import stroom.shapeshifter.shared.AttemptStatus;
-import stroom.shapeshifter.shared.ExecutionMode;
 import stroom.shapeshifter.shared.LearningMode;
 import stroom.shapeshifter.shared.PromotionMode;
 import stroom.shapeshifter.shared.RecordBoundary;
@@ -919,8 +918,10 @@ public final class Stage {
         if (matched.isPresent()) {
             final RoutingRule rule = matched.get();
             if (rule.isReserved()) {
-                return sentinel(doc, shape, input, "Reserved: rule " + (table.indexOf(rule) + 1)
-                                                   + " matches and binds nothing");
+                // An operator's decision, errored with the reason and no ledger row: nothing a promotion
+                // could release would make the selector any less reserved.
+                return refused(doc, shape, "Reserved: rule " + (table.indexOf(rule) + 1)
+                                           + " matches and binds nothing");
             }
             if (rule.isDraft()) {
                 // A person has it in front of them: the stream waits for their decision rather than
@@ -935,19 +936,21 @@ public final class Stage {
         final Optional<String> givenUp = shapes.reasonGivenUp(doc.getUuid(), shape.id());
         if (givenUp.isPresent()) {
             // A stream that waited on a session that gave the shape up (A54) has reached its end: its row
-            // goes, and it errors with the reason.
+            // goes, and it errors with the reason. This is the one refusal that keeps a ledger row (A80):
+            // the ledger is the door a person learns a given-up shape again through, and the row is what
+            // that asks to be processed again.
             deferrals.released(doc.getUuid(), input.id());
             return sentinel(doc, shape, input, "Shape given up: " + givenUp.get());
         }
         if (!shape.missing().isEmpty()) {
-            return sentinel(doc, shape, input, "The learning key names '" + shape.missing().get(0)
-                                               + "' but the stream carries no value for it");
+            return refused(doc, shape, "The learning key names '" + shape.missing().get(0)
+                                       + "' but the stream carries no value for it");
         }
         final ExpressionOperator selector;
         try {
             selector = RoutingRule.learnedSelector(doc.getLearningKey(), attributes);
         } catch (final IllegalArgumentException e) {
-            return sentinel(doc, shape, input, e.getMessage());
+            return refused(doc, shape, e.getMessage());
         }
         // The variants already bound for this feed and type are tried first (design 01 §6), which costs
         // no question: one whose every record clears the bar binds the shape here and now.
@@ -1248,12 +1251,10 @@ public final class Stage {
                                final Function<String, StageRun> waiting,
                                final Function<Recorder, StageRun> attempt) {
         // One advisor for the attempt, since the node's makes a new one per call and each counts its own
-        // tokens: asking twice would read two fresh counters and record nothing spent. In deferred mode
-        // there is no advisor at all (A5): the attempt is opened and parked at its first question for the
-        // worker to carry on, so the task costs a sentinel and not a model call.
-        return recording(doc, shape, input, doc.getExecutionMode() == ExecutionMode.DEFERRED
-                ? RecordedAdvisor.awaiting()
-                : advisors.of(doc), waiting, attempt);
+        // tokens: asking twice would read two fresh counters and record nothing spent. A task never
+        // learns (A60): it decides, and a session is opened and carried by the worker; what learns here is
+        // a stage fed by a parser, or a scenario, and both ask as they go.
+        return recording(doc, shape, input, advisors.of(doc), waiting, attempt);
     }
 
     /// The same, for a caller that has already decided who answers.
@@ -1264,7 +1265,7 @@ public final class Stage {
                                final Function<String, StageRun> waiting,
                                final Function<Recorder, StageRun> attempt) {
         final Optional<Long> opened = attempts.opened(new Attempts.Attempt(doc.getUuid(), shape.id(),
-                input.feed(), input.type(), input.id(), node, doc.getExecutionMode(), doc.getPromotionMode(),
+                input.feed(), input.type(), input.id(), node, doc.getPromotionMode(),
                 claimUntil()), clock.millis());
         if (opened.isEmpty()) {
             // Another attempt holds this shape (A45): it is still learning, parked or not, and this stream
@@ -1596,13 +1597,10 @@ public final class Stage {
                     ? relearn(doc, shape, rule, input, attributes, scorecard, judged, marked.get())
                     : emit(doc, new Bound(rule), shape, input, rule, judged, List.of());
         }
-        final OptionalDouble rolling = shapes.scored(doc.getUuid(), shape.id(), judged.score(), judged.records(),
-                doc.getMinRecordsPerShape());
-        if (rolling.isPresent() && rolling.getAsDouble() < doc.getRelearnThreshold()) {
-            shapes.markForRelearning(doc.getUuid(), shape.id(), "Rolling score " + rolling.getAsDouble()
-                                                                + " fell below the relearn threshold of "
-                                                                + doc.getRelearnThreshold());
-        }
+        // The rolling score is kept for the Supervisor's list of what could be better (A46) and is no
+        // longer a trigger (design 04 §6): what sends a shape back to be learned is a record short of the
+        // bar, which holds the stream and opens a session, or a person asking.
+        shapes.scored(doc.getUuid(), shape.id(), judged.score(), judged.records(), doc.getMinRecordsPerShape());
         return emit(doc, new Bound(rule), shape, input, rule, judged, List.of());
     }
 

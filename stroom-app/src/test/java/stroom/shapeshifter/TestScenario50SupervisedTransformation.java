@@ -53,7 +53,6 @@ import stroom.shapeshifter.ai.scenario.Structure;
 import stroom.shapeshifter.ai.stage.Bindings;
 import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.ai.transformation.XsltStep;
-import stroom.shapeshifter.shared.ExecutionMode;
 import stroom.shapeshifter.shared.LearningMode;
 import stroom.shapeshifter.shared.PlanExample;
 import stroom.shapeshifter.shared.RoutingRule;
@@ -280,7 +279,6 @@ class TestScenario50SupervisedTransformation extends AbstractProcessIntegrationT
         shapeshifterAiStore.writeDocument(shapeshifterAiStore.readDocument(docRef)
                 .copy()
                 .learningMode(LearningMode.AUTOMATIC)
-                .executionMode(ExecutionMode.INLINE)
                 .plan(PlanExample.TARGET_FIRST)
                 .allowedElements(allowed)
                 .minRecordsPerShape(5)
@@ -329,7 +327,6 @@ class TestScenario50SupervisedTransformation extends AbstractProcessIntegrationT
         shapeshifterAiStore.writeDocument(shapeshifterAiStore.readDocument(docRef)
                 .copy()
                 .learningMode(LearningMode.AUTOMATIC)
-                .executionMode(ExecutionMode.INLINE)
                 .plan(PlanExample.TARGET_FIRST)
                 // The transformation stage's allowed elements: nothing that parses (A1).
                 .allowedElements(List.of("XSLTFilter"))
