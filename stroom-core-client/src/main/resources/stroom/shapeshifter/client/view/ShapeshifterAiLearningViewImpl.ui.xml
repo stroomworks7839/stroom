@@ -68,6 +68,11 @@
                         helpText="Token budget for a whole attempt. Zero means unlimited.">
             <v:ValueSpinner ui:field="tokenBudget" width="120px"/>
         </form:FormGroup>
+        <form:FormGroup identity="shapeshifterAiMaxDeferralAgeMs"
+                        label="Maximum deferral age (ms)"
+                        helpText="How long a stream may wait on a learning session before it is raised in the Supervisor's backlog. It goes on waiting; this is the flag that says somebody should look.">
+            <v:ValueSpinner ui:field="maxDeferralAgeMs" width="120px"/>
+        </form:FormGroup>
         <form:FormGroup identity="shapeshifterAiSampleSizeLimit"
                         label="Sample size limit (bytes)"
                         helpText="The largest sample sent to the model.">

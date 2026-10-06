@@ -21,7 +21,14 @@
                 </g:ThinSplitLayoutPanel>
             </g:north>
             <g:center>
-                <g:SimplePanel ui:field="turnList" styleName="max dashboard-panel"/>
+                <g:ThinSplitLayoutPanel styleName="max">
+                    <g:south size="200">
+                        <g:SimplePanel ui:field="backlog" styleName="max dashboard-panel"/>
+                    </g:south>
+                    <g:center>
+                        <g:SimplePanel ui:field="turnList" styleName="max dashboard-panel"/>
+                    </g:center>
+                </g:ThinSplitLayoutPanel>
             </g:center>
         </g:ThinSplitLayoutPanel>
     </g:SimplePanel>

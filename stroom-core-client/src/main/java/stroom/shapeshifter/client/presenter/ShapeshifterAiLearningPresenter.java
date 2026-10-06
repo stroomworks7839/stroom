@@ -190,6 +190,7 @@ public class ShapeshifterAiLearningPresenter
         view.setMaxAttempts(doc.getMaxAttempts());
         view.setAttemptBudgetMs(doc.getAttemptBudgetMs());
         view.setTokenBudget(doc.getTokenBudget());
+        view.setMaxDeferralAgeMs(doc.getMaxDeferralAgeMs());
         view.setSampleSizeLimit(doc.getSampleSizeLimit());
     }
 
@@ -207,6 +208,7 @@ public class ShapeshifterAiLearningPresenter
                 .maxAttempts(view.getMaxAttempts())
                 .attemptBudgetMs(view.getAttemptBudgetMs())
                 .tokenBudget(view.getTokenBudget())
+                .maxDeferralAgeMs(view.getMaxDeferralAgeMs())
                 .sampleSizeLimit(view.getSampleSizeLimit())
                 .build();
     }
@@ -306,6 +308,10 @@ public class ShapeshifterAiLearningPresenter
         Long getTokenBudget();
 
         void setTokenBudget(Long tokenBudget);
+
+        long getMaxDeferralAgeMs();
+
+        void setMaxDeferralAgeMs(long maxDeferralAgeMs);
 
         /**
          * The list the plan is edited in, in place of the text box it was typed in (§12 item 24).

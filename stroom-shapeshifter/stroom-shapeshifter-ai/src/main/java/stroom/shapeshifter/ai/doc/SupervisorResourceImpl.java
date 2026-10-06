@@ -27,11 +27,15 @@ import stroom.shapeshifter.ai.stage.Attempts.Page;
 import stroom.shapeshifter.ai.stage.Attempts.Recorded;
 import stroom.shapeshifter.ai.stage.Attempts.Turn;
 import stroom.shapeshifter.ai.stage.Decision;
+import stroom.shapeshifter.ai.stage.Deferrals;
+import stroom.shapeshifter.ai.stage.Deferrals.Deferral;
 import stroom.shapeshifter.ai.stage.Guidance;
 import stroom.shapeshifter.ai.stage.Ledger;
 import stroom.shapeshifter.ai.stage.Serving;
 import stroom.shapeshifter.shared.AmendTurnRequest;
 import stroom.shapeshifter.shared.AttemptCriteria;
+import stroom.shapeshifter.shared.BacklogStream;
+import stroom.shapeshifter.shared.GrantRequest;
 import stroom.shapeshifter.shared.GuidanceRequest;
 import stroom.shapeshifter.shared.ImproveOutcome;
 import stroom.shapeshifter.shared.ImproveRequest;
@@ -45,6 +49,9 @@ import stroom.shapeshifter.shared.SupervisorAttempt;
 import stroom.shapeshifter.shared.SupervisorGuidance;
 import stroom.shapeshifter.shared.SupervisorResource;
 import stroom.shapeshifter.shared.SupervisorTurn;
+import stroom.util.logging.LambdaLogger;
+import stroom.util.logging.LambdaLoggerFactory;
+import stroom.util.logging.LogUtil;
 import stroom.util.pipeline.scope.PipelineScopeRunnable;
 import stroom.util.shared.NullSafe;
 import stroom.util.shared.PageRequest;
@@ -55,6 +62,8 @@ import stroom.util.shared.ResultPage;
 import jakarta.inject.Inject;
 import jakarta.inject.Provider;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -68,6 +77,8 @@ import java.util.function.Consumer;
 /// so it is read by the document's permission and not by a permission of its own.
 @AutoLogged
 public class SupervisorResourceImpl implements SupervisorResource {
+
+    private static final LambdaLogger LOGGER = LambdaLoggerFactory.getLogger(SupervisorResourceImpl.class);
 
     /// The most rows a page of the ledger or of the serving rules may ask for, whatever it asks for.
     /// The attempts beside them have always clamped; these did not, so any person with VIEW on one
@@ -83,6 +94,7 @@ public class SupervisorResourceImpl implements SupervisorResource {
     private final Provider<Ledger> ledgerProvider;
     private final Provider<Serving> servingProvider;
     private final Provider<Guidance> guidanceProvider;
+    private final Provider<Deferrals> deferralsProvider;
 
     @Inject
     SupervisorResourceImpl(final Provider<Attempts> attemptsProvider,
@@ -92,7 +104,8 @@ public class SupervisorResourceImpl implements SupervisorResource {
                            final Provider<SecurityContext> securityContextProvider,
                            final Provider<Ledger> ledgerProvider,
                            final Provider<Serving> servingProvider,
-                           final Provider<Guidance> guidanceProvider) {
+                           final Provider<Guidance> guidanceProvider,
+                           final Provider<Deferrals> deferralsProvider) {
         this.attemptsProvider = attemptsProvider;
         this.storeProvider = storeProvider;
         this.stageFactoryProvider = stageFactoryProvider;
@@ -101,6 +114,56 @@ public class SupervisorResourceImpl implements SupervisorResource {
         this.ledgerProvider = ledgerProvider;
         this.servingProvider = servingProvider;
         this.guidanceProvider = guidanceProvider;
+        this.deferralsProvider = deferralsProvider;
+    }
+
+    /// What is waiting on a session (design 04 §6), a row per stream, the raised ones first and then the
+    /// longest waiting: the backlog an operator watches form and drain. Raised is computed as it is read,
+    /// against each document's maximum deferral age (A78, A79).
+    @Override
+    public ResultPage<BacklogStream> backlog(final String docUuid, final PageRequest pageRequest) {
+        final PageRequest page = pageRequest == null
+                ? new PageRequest(0, 100)
+                : pageRequest;
+        final Map<String, DocRef> readable = readable(docUuid);
+        final long now = System.currentTimeMillis();
+        final List<BacklogStream> all = new ArrayList<>();
+        for (final DocRef docRef : readable.values()) {
+            // A document that cannot be read — deleted since it was listed — must not take the whole
+            // backlog down with it: its rows are shown against the default age.
+            long maxAge = ShapeshifterAiDoc.builder().build().getMaxDeferralAgeMs();
+            try {
+                final ShapeshifterAiDoc doc = storeProvider.get().readDocument(docRef);
+                if (doc != null) {
+                    maxAge = doc.getMaxDeferralAgeMs();
+                }
+            } catch (final RuntimeException e) {
+                LOGGER.debug(() -> LogUtil.message("Document {} could not be read for the backlog: {}",
+                        docRef.getUuid(), e.getMessage()));
+            }
+            for (final Deferral row : deferralsProvider.get().forDocument(docRef.getUuid())) {
+                all.add(new BacklogStream(docRef, row.inputId(), row.feed(), row.type(), row.failedAgainst(),
+                        row.reason(), row.failingRecords(), row.firstDeferredMs(), row.attempts(),
+                        row.raised(maxAge, now)));
+            }
+        }
+        all.sort(Comparator.comparing(BacklogStream::isRaised).reversed()
+                .thenComparingLong(BacklogStream::getFirstDeferredMs));
+        final int offset = (int) Math.max(0L, NullSafe.getOrElse(page.getOffset(), Integer::longValue, 0L));
+        final int length = pageLength(page);
+        final List<BacklogStream> rows = all.stream().skip(offset).limit(length).toList();
+        return new ResultPage<>(rows, new PageResponse((long) offset, rows.size(), (long) all.size(), true));
+    }
+
+    /// Give a parked session more to spend (A77), and carry it on.
+    @Override
+    public SupervisorAttempt grant(final long id, final GrantRequest request) {
+        if (request == null) {
+            throw new IllegalArgumentException("Nothing was granted");
+        }
+        final Recorded attempt = change(id);
+        onStage(attempt, (stage, doc) -> stage.grant(doc, id, request.getTokens(), request.getMs()));
+        return detail(read(id));
     }
 
     @Override
@@ -501,6 +564,8 @@ public class SupervisorResourceImpl implements SupervisorResource {
                 attempt.ruleUuid(),
                 attempt.score(),
                 attempt.tokensSpent(),
+                attempt.grant().tokens(),
+                attempt.grant().ms(),
                 attempt.createTimeMs(),
                 attempt.updateTimeMs(),
                 turns);

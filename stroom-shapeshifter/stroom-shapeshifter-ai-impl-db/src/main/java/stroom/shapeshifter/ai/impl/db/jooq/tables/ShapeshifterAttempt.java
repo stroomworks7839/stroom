@@ -154,6 +154,16 @@ public class ShapeshifterAttempt extends TableImpl<ShapeshifterAttemptRecord> {
      */
     public final TableField<ShapeshifterAttemptRecord, String> CLAIM_KEY = createField(DSL.name("claim_key"), SQLDataType.VARCHAR(64), this, "");
 
+    /**
+     * The column <code>stroom.shapeshifter_attempt.granted_tokens</code>.
+     */
+    public final TableField<ShapeshifterAttemptRecord, Long> GRANTED_TOKENS = createField(DSL.name("granted_tokens"), SQLDataType.BIGINT.nullable(false).defaultValue(DSL.inline("0", SQLDataType.BIGINT)), this, "");
+
+    /**
+     * The column <code>stroom.shapeshifter_attempt.granted_ms</code>.
+     */
+    public final TableField<ShapeshifterAttemptRecord, Long> GRANTED_MS = createField(DSL.name("granted_ms"), SQLDataType.BIGINT.nullable(false).defaultValue(DSL.inline("0", SQLDataType.BIGINT)), this, "");
+
     private ShapeshifterAttempt(Name alias, Table<ShapeshifterAttemptRecord> aliased) {
         this(alias, aliased, (Field<?>[]) null, null);
     }

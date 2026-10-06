@@ -298,6 +298,34 @@ public class ShapeshifterAttemptRecord extends UpdatableRecordImpl<ShapeshifterA
         return (String) get(19);
     }
 
+    /**
+     * Setter for <code>stroom.shapeshifter_attempt.granted_tokens</code>.
+     */
+    public void setGrantedTokens(Long value) {
+        set(20, value);
+    }
+
+    /**
+     * Getter for <code>stroom.shapeshifter_attempt.granted_tokens</code>.
+     */
+    public Long getGrantedTokens() {
+        return (Long) get(20);
+    }
+
+    /**
+     * Setter for <code>stroom.shapeshifter_attempt.granted_ms</code>.
+     */
+    public void setGrantedMs(Long value) {
+        set(21, value);
+    }
+
+    /**
+     * Getter for <code>stroom.shapeshifter_attempt.granted_ms</code>.
+     */
+    public Long getGrantedMs() {
+        return (Long) get(21);
+    }
+
     // -------------------------------------------------------------------------
     // Primary key information
     // -------------------------------------------------------------------------
@@ -321,7 +349,7 @@ public class ShapeshifterAttemptRecord extends UpdatableRecordImpl<ShapeshifterA
     /**
      * Create a detached, initialised ShapeshifterAttemptRecord
      */
-    public ShapeshifterAttemptRecord(Long id, Integer version, Long createTimeMs, Long updateTimeMs, String docUuid, String shapeHash, String shapeId, String feedName, String typeName, Long inputMetaId, String nodeName, String executionMode, String promotionMode, String status, String decision, String ruleUuid, Double score, Long tokensSpent, Long expiryMs, String claimKey) {
+    public ShapeshifterAttemptRecord(Long id, Integer version, Long createTimeMs, Long updateTimeMs, String docUuid, String shapeHash, String shapeId, String feedName, String typeName, Long inputMetaId, String nodeName, String executionMode, String promotionMode, String status, String decision, String ruleUuid, Double score, Long tokensSpent, Long expiryMs, String claimKey, Long grantedTokens, Long grantedMs) {
         super(ShapeshifterAttempt.SHAPESHIFTER_ATTEMPT);
 
         setId(id);
@@ -344,6 +372,8 @@ public class ShapeshifterAttemptRecord extends UpdatableRecordImpl<ShapeshifterA
         setTokensSpent(tokensSpent);
         setExpiryMs(expiryMs);
         setClaimKey(claimKey);
+        setGrantedTokens(grantedTokens);
+        setGrantedMs(grantedMs);
         resetTouchedOnNotNull();
     }
 }

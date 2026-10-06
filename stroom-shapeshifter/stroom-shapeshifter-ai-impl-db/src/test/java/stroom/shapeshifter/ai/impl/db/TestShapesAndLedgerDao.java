@@ -19,6 +19,7 @@ package stroom.shapeshifter.ai.impl.db;
 import stroom.docref.DocRef;
 import stroom.pipeline.shared.PipelineDoc;
 import stroom.shapeshifter.ai.stage.Attempts.Attempt;
+import stroom.shapeshifter.ai.stage.Attempts.Grant;
 import stroom.shapeshifter.ai.stage.Attempts.Page;
 import stroom.shapeshifter.ai.stage.Attempts.Recorded;
 import stroom.shapeshifter.ai.stage.Attempts.Turn;
@@ -255,6 +256,25 @@ class TestShapesAndLedgerDao {
         attempts.closed(id, AttemptStatus.ABANDONED, "Given up", null, null, 0L);
         attempts.parked(id, "late", 1L);
         assertThat(attempts.byId(id).orElseThrow().status()).isEqualTo(AttemptStatus.ABANDONED);
+    }
+
+    @Test
+    void aGrantIsAddedToTheAttemptAndKeptOnItsRow() {
+        // A77: what a person grants is the attempt's alone, added up as it is granted again, and read back
+        // with the row.
+        final String shape = SHAPE + "-grant";
+        final long id = attempts.opened(new Attempt(DOC, shape, "F", "T", 1L, "node-1",
+                ExecutionMode.DEFERRED, PromotionMode.AUTOMATIC, now() + 60_000L), now()).orElseThrow();
+        assertThat(attempts.byId(id).orElseThrow().grant()).isEqualTo(Grant.NONE);
+
+        attempts.granted(id, 500L, 60_000L);
+        attempts.granted(id, 250L, 0L);
+
+        final Recorded granted = attempts.byId(id).orElseThrow();
+        assertThat(granted.grant().tokens()).isEqualTo(750L);
+        assertThat(granted.grant().ms()).isEqualTo(60_000L);
+        attempts.closed(id, AttemptStatus.PROMOTED, "Promoted", "rule-g", 1.0, 100L);
+        assertThat(attempts.byId(id).orElseThrow().grant().tokens()).describedAs("kept with the row").isEqualTo(750L);
     }
 
     @Test

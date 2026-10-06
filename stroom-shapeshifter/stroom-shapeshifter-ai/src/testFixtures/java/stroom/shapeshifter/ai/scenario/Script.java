@@ -36,6 +36,8 @@ public final class Script implements Advisor {
 
     private final List<Line> lines = new ArrayList<>();
     private final List<Question> asked = new ArrayList<>();
+    /// Tokens charged per question answered, for a scenario about a budget; zero, as a script is free.
+    private long charge;
     private final List<Structure> structures = new ArrayList<>();
     private int next;
 
@@ -66,6 +68,17 @@ public final class Script implements Advisor {
      * will give, so that the scripted lines need state only the questions the scenario is about. A line
      * that expects a split or target question explicitly still takes precedence.
      */
+    /// Charge tokens for every question answered from here on, so that a budget can be spent (A5, A77).
+    public Script charging(final long tokensPerAsk) {
+        this.charge = tokensPerAsk;
+        return this;
+    }
+
+    @Override
+    public long tokensUsed() {
+        return asked.size() * charge;
+    }
+
     public Script structure(final Structure structure) {
         this.structures.add(structure);
         return this;

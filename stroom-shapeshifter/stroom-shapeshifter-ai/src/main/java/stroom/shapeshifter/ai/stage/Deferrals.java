@@ -111,5 +111,11 @@ public interface Deferrals {
                     long firstDeferredMs,
                     int attempts) {
 
+        /// Whether the stream has waited past a document's maximum deferral age (A57, A78): raised, and
+        /// still waiting (A79). Computed when read, since age is not a thing to store.
+        public boolean raised(final long maxAgeMs, final long nowMs) {
+            return nowMs - firstDeferredMs > maxAgeMs;
+        }
+
     }
 }

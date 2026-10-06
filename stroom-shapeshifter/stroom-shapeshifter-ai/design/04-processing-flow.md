@@ -829,6 +829,33 @@ admission's record-kind value is the model's word, checked for nothing but its p
 - **Exit:** a person takes a feed from unseen to served from the UI, watching the backlog form and
   drain, with no error stream written at any point; and the full suite with the removed code gone.
 
+*Built 2026-10-06, the first slice: the backlog, the maximum deferral age, and more to spend (A77–A79).*
+The Supervisor has a backlog pane under its attempts: a row per stream waiting on a session, from the
+deferral table — document, feed and type, stream id, waiting since, how many times a task has decided it
+and held it again, the snapshot it was held against, the reason — the raised rows first and then the
+longest waiting. Raised is computed as the rows are read, against the document's new
+`maxDeferralAgeMs` (a day by default, edited on the Learning tab beside the budgets, A78): past it a
+stream is flagged and counted and goes on waiting, and nothing but giving its shape up errors it (A57,
+A79). A parked attempt takes a grant (A77): tokens, asked for beside the attempt, added to what the
+document allows that attempt alone — `granted_tokens` and `granted_ms` on its row, read into the
+conversation's budget — and the attempt is opened again for the worker, which carries it on from its
+recorded turns, replaying them for nothing and spending the grant on what remains. Scenario 61 holds the
+grant at Tier 1 with a scripted model that charges a token a question; the DAO's test holds the row; the
+raised flag has a test of its own. The demo pack was regenerated for the document's new field.
+
+*Its own audit, 2026-10-06.* Two small things changed: a document deleted between being listed and being
+read would have taken the whole backlog down with it, and its rows are now shown against the default
+age; and test B's second wave was loaded only after the first had wholly drained, which is not "while",
+so it is loaded as soon as any of the first is served. Two things noted: the backlog reads every readable
+document's rows and pages them in memory, as the first version of a view may, and a cluster with a
+backlog of thousands will want the page in the query; and "counted" is the page's total, not a count of
+the raised rows alone, which the screen does not yet show.
+
+What this slice does not do: send a parked session to the exhaustion step from the screen, which needs
+the re-walk to know when the recorded turns are exhausted before it may skip a step, and is the next
+slice; grant time from the screen (the resource takes milliseconds, the button asks for tokens); and
+anything of the removals.
+
 ## 8. The scenarios this has to pass
 
 Numbered into design 02 §5 when the work is cut into slices.
@@ -922,6 +949,19 @@ It asserts, after the backlog has drained:
 
 The invariants are checked *while* it runs as well as at the end, by sampling: a partial output that is
 later completed, or an error stream that is later deleted, is a failure the final state would hide.
+
+*Built 2026-10-06: `TestScenarioBManyStreamsManyThreads`.* Twelve streams of one shape at once, then eight
+more carrying a kind the transform has not met, loaded as soon as the promotion has served any of the
+first and so while the rest are still draining; four task threads
+claiming from the real task table under one lock and processing outside it, the learning job on a fifth
+thread, a sampler on a sixth. It asserts what §8.1 lists, and one thing more: that the race was real —
+at least half the first wave is seen `DEFERRED` by the sampler, since a test in which every stream
+happened to arrive after the promotion would prove nothing. Two sessions, both promoted; one task and one
+visible output per stream, each the whole stream's events; no task logged an error; nothing deferred,
+waiting or open at the end. Three runs in a row, 22 to 110 seconds on a box with a gigabyte free. What
+it does not assert: *no error stream at all*, since the stage says what it decided at INFO on the error
+receiver and Stroom keeps that as a stream of its own; it asserts no task produced an error or fatal
+marker instead.
 
 ---
 
@@ -1045,4 +1085,14 @@ relearning for admissions alone (§8 scenario 14).
 **A76.** *A session goes to the exhaustion step when the plan's candidates for the transform are spent
 with records of the held stream still short — by the plan's own transition, and by no other route.*
 Budgets spent before that park (A65); a person's sending a parked session there waits for the screen.
+
+The owner's, 2026-10-06, for phase 6:
+
+**A77.** *More to spend is granted to the attempt, not the document: tokens and time recorded on the
+attempt's row, added to the document's budgets for that attempt alone, and shown with it.*
+
+**A78.** *The maximum deferral age is a document setting, beside its budgets.*
+
+**A79.** *Raised is a flag on the row, computed from its age when read, and counted in the Supervisor's
+backlog; the stream goes on waiting, and nothing but giving the shape up errors it.*
 

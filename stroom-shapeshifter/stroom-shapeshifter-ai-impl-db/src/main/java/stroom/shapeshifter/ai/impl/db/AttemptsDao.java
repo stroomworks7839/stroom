@@ -552,7 +552,21 @@ public class AttemptsDao implements Attempts {
                 record.get(SHAPESHIFTER_ATTEMPT.TOKENS_SPENT),
                 record.get(SHAPESHIFTER_ATTEMPT.CREATE_TIME_MS),
                 record.get(SHAPESHIFTER_ATTEMPT.UPDATE_TIME_MS),
-                turns);
+                turns,
+                new Grant(record.get(SHAPESHIFTER_ATTEMPT.GRANTED_TOKENS),
+                        record.get(SHAPESHIFTER_ATTEMPT.GRANTED_MS)));
+    }
+
+    @Override
+    public void granted(final long attemptId, final long tokens, final long ms) {
+        JooqUtil.context(connProvider, context -> context
+                .update(SHAPESHIFTER_ATTEMPT)
+                .set(SHAPESHIFTER_ATTEMPT.GRANTED_TOKENS, SHAPESHIFTER_ATTEMPT.GRANTED_TOKENS.plus(tokens))
+                .set(SHAPESHIFTER_ATTEMPT.GRANTED_MS, SHAPESHIFTER_ATTEMPT.GRANTED_MS.plus(ms))
+                .set(SHAPESHIFTER_ATTEMPT.VERSION, SHAPESHIFTER_ATTEMPT.VERSION.plus(1))
+                .set(SHAPESHIFTER_ATTEMPT.UPDATE_TIME_MS, System.currentTimeMillis())
+                .where(SHAPESHIFTER_ATTEMPT.ID.eq(attemptId))
+                .execute());
     }
 
     /// The guidance a turn carried, as a list of ids: small, fixed-width and never queried on, so a

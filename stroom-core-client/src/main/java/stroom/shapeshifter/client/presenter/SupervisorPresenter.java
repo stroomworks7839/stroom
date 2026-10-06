@@ -16,12 +16,14 @@
 
 package stroom.shapeshifter.client.presenter;
 
+import stroom.alert.client.event.AlertEvent;
 import stroom.alert.client.event.ConfirmEvent;
 import stroom.alert.client.event.PromptEvent;
 import stroom.content.client.presenter.ContentTabPresenter;
 import stroom.data.table.client.Refreshable;
 import stroom.dispatch.client.RestFactory;
 import stroom.shapeshifter.shared.AttemptStatus;
+import stroom.shapeshifter.shared.GrantRequest;
 import stroom.shapeshifter.shared.RejectRequest;
 import stroom.shapeshifter.shared.SupervisorAttempt;
 import stroom.shapeshifter.shared.SupervisorResource;
@@ -52,6 +54,7 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
     public static final String TURN_LIST = "TURN_LIST";
     public static final String LEDGER = "LEDGER";
     public static final String SERVING = "SERVING";
+    public static final String BACKLOG = "BACKLOG";
 
     private static final SupervisorResource SUPERVISOR_RESOURCE = GWT.create(SupervisorResource.class);
 
@@ -60,11 +63,13 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
     private final SupervisorLedgerPresenter ledgerPresenter;
     private final SupervisorServingPresenter servingPresenter;
     private final SupervisorGuidancePresenter guidancePresenter;
+    private final SupervisorBacklogPresenter backlogPresenter;
     private final RestFactory restFactory;
     private final ButtonView approveButton;
     private final ButtonView rejectButton;
     private final ButtonView relearnButton;
     private final ButtonView hintButton;
+    private final ButtonView grantButton;
 
     @Inject
     public SupervisorPresenter(final EventBus eventBus,
@@ -74,6 +79,7 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
                                final SupervisorLedgerPresenter ledgerPresenter,
                                final SupervisorServingPresenter servingPresenter,
                                final SupervisorGuidancePresenter guidancePresenter,
+                               final SupervisorBacklogPresenter backlogPresenter,
                                final RestFactory restFactory) {
         super(eventBus, view);
         this.listPresenter = listPresenter;
@@ -81,6 +87,7 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
         this.ledgerPresenter = ledgerPresenter;
         this.servingPresenter = servingPresenter;
         this.guidancePresenter = guidancePresenter;
+        this.backlogPresenter = backlogPresenter;
         this.restFactory = restFactory;
 
         setInSlot(ATTEMPT_LIST, listPresenter);
@@ -101,6 +108,7 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
             servingPresenter.refresh();
         });
         setInSlot(SERVING, servingPresenter);
+        setInSlot(BACKLOG, backlogPresenter);
 
         // The decisions A28 puts beside the attempt they are about. Approve and Reject are review
         // mode's (A25), offered here as well as on the document's Routing tab because a person watching
@@ -114,6 +122,10 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
         // say so there and then, and whatever is asked next carries it.
         hintButton = listPresenter.add(SvgPresets.EDIT.title(
                 "What has been said about this attempt's shape, and say something else"));
+        // A65's first action on a session parked for a person: more to spend, granted to this attempt
+        // alone (A77), which the worker then carries on with.
+        grantButton = listPresenter.add(SvgPresets.ADD.title(
+                "Give this parked attempt more to spend, and carry it on"));
         updateButtons();
     }
 
@@ -133,6 +145,7 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
         registerHandler(rejectButton.addClickHandler(event -> reject()));
         registerHandler(relearnButton.addClickHandler(event -> relearn()));
         registerHandler(hintButton.addClickHandler(event -> hint()));
+        registerHandler(grantButton.addClickHandler(event -> grant()));
     }
 
     /// Approve what an attempt drafted (A25): the promotion it was waiting for, and the release of every
@@ -199,6 +212,43 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
         }
     }
 
+    /// Give a parked session more to spend (A65, A77): tokens, asked for here, recorded against the
+    /// attempt alone and not the document, and the worker carries the session on with them.
+    private void grant() {
+        final SupervisorAttempt attempt = parked();
+        if (attempt != null) {
+            PromptEvent.fire(this, "How many more tokens may this attempt spend? The grant is this "
+                                   + "attempt's alone; the document's budget is not changed. It has spent "
+                                   + attempt.getTokensSpent() + " and been granted " + attempt.getGrantedTokens()
+                                   + " so far.", "",
+                    tokens -> {
+                        if (NullSafe.isBlankString(tokens)) {
+                            return;
+                        }
+                        final long granted;
+                        try {
+                            granted = Long.parseLong(tokens.trim());
+                        } catch (final NumberFormatException e) {
+                            AlertEvent.fireError(this, "'" + tokens + "' is not a number of tokens", null);
+                            return;
+                        }
+                        if (granted <= 0) {
+                            AlertEvent.fireError(this, "A grant is more than nothing", null);
+                            return;
+                        }
+                        act(resource -> resource.grant(attempt.getId(), new GrantRequest(granted, 0L)));
+                    });
+        }
+    }
+
+    /// The selected attempt where it is parked for a person, and null otherwise.
+    private SupervisorAttempt parked() {
+        final SupervisorAttempt attempt = selected();
+        return attempt != null && AttemptStatus.PARKED == attempt.getStatus()
+                ? attempt
+                : null;
+    }
+
     /// One action, one call, and the list read again afterwards: an attempt decided here changes the
     /// row it was decided from, and a person watching should see it change.
     ///
@@ -246,6 +296,7 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
         rejectButton.setEnabled(review);
         relearnButton.setEnabled(selected() != null);
         hintButton.setEnabled(selected() != null);
+        grantButton.setEnabled(parked() != null);
     }
 
     @Override
@@ -273,6 +324,7 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
         listPresenter.refresh();
         ledgerPresenter.refresh();
         servingPresenter.refresh();
+        backlogPresenter.refresh();
     }
 
 

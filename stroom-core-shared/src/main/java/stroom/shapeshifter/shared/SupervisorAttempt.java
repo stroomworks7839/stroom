@@ -60,6 +60,11 @@ public class SupervisorAttempt {
     private final Double score;
     @JsonProperty
     private final long tokensSpent;
+    /// What a person granted the attempt beyond the document's budgets (A77): tokens and milliseconds.
+    @JsonProperty
+    private final long grantedTokens;
+    @JsonProperty
+    private final long grantedMs;
     @JsonProperty
     private final long createTimeMs;
     @JsonProperty
@@ -82,6 +87,8 @@ public class SupervisorAttempt {
                              @JsonProperty("ruleUuid") final String ruleUuid,
                              @JsonProperty("score") final Double score,
                              @JsonProperty("tokensSpent") final long tokensSpent,
+                             @JsonProperty("grantedTokens") final long grantedTokens,
+                             @JsonProperty("grantedMs") final long grantedMs,
                              @JsonProperty("createTimeMs") final long createTimeMs,
                              @JsonProperty("updateTimeMs") final long updateTimeMs,
                              @JsonProperty("turns") final List<SupervisorTurn> turns) {
@@ -99,6 +106,8 @@ public class SupervisorAttempt {
         this.ruleUuid = ruleUuid;
         this.score = score;
         this.tokensSpent = tokensSpent;
+        this.grantedTokens = grantedTokens;
+        this.grantedMs = grantedMs;
         this.createTimeMs = createTimeMs;
         this.updateTimeMs = updateTimeMs;
         this.turns = turns == null
@@ -160,6 +169,14 @@ public class SupervisorAttempt {
 
     public long getTokensSpent() {
         return tokensSpent;
+    }
+
+    public long getGrantedTokens() {
+        return grantedTokens;
+    }
+
+    public long getGrantedMs() {
+        return grantedMs;
     }
 
     public long getCreateTimeMs() {

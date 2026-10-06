@@ -93,6 +93,9 @@ public final class Conversation {
     private final BiConsumer<Integer, Exchange> onTurn;
     private Budget budget;
     private long alreadySpent;
+    /// What a person granted the attempt beyond the document's budgets (A77).
+    private long grantedTokens;
+    private long grantedMs;
     private Supplier<List<Given>> guidance = List::of;
     /// What [#guidance] answered for this walk, read when the walk begins.
     private List<Given> standing = List.of();
@@ -157,6 +160,16 @@ public final class Conversation {
         return this;
     }
 
+    /// What a person granted this attempt beyond the document's budgets (A77): added to them for this
+    /// attempt alone.
+    ///
+    /// @return This conversation, to be run.
+    public Conversation granted(final long tokens, final long ms) {
+        this.grantedTokens = tokens;
+        this.grantedMs = ms;
+        return this;
+    }
+
     /// What a supervisor has said about the shape being learned (A46), carried into every question.
     ///
     /// A supplier rather than a list, because guidance belongs to the shape and not to this object: an
@@ -200,7 +213,7 @@ public final class Conversation {
         // from the start on every pass, so each pass reads it afresh and a hint given between passes is
         // carried by the one that follows.
         standing = List.copyOf(guidance.get());
-        budget = new Budget(policy, clock.millis(), advisor.tokensUsed() - alreadySpent);
+        budget = new Budget(policy, clock.millis(), advisor.tokensUsed() - alreadySpent, grantedTokens, grantedMs);
         try {
             return follow(walk);
         } catch (final BudgetExhausted e) {
@@ -1137,18 +1150,28 @@ public final class Conversation {
     /**
      * The attempt's budget (A5): how long it may take and how many tokens it may spend, from where it began.
      */
-    private record Budget(ShapeshifterAiDoc policy, long startedMs, long tokensAtStart) {
+    /// @param grantedTokens What a person granted beyond the document's token budget (A77).
+    /// @param grantedMs     Likewise beyond its time budget.
+    private record Budget(ShapeshifterAiDoc policy,
+                          long startedMs,
+                          long tokensAtStart,
+                          long grantedTokens,
+                          long grantedMs) {
 
         void check(final long nowMs, final long tokensNow) {
             final long elapsed = nowMs - startedMs;
-            if (elapsed > policy.getAttemptBudgetMs()) {
-                throw new BudgetExhausted("The attempt's budget of " + policy.getAttemptBudgetMs()
+            final long allowedMs = policy.getAttemptBudgetMs() + grantedMs;
+            if (elapsed > allowedMs) {
+                throw new BudgetExhausted("The attempt's budget of " + allowedMs
                                           + " ms is spent after " + elapsed + " ms");
             }
             final long tokens = tokensNow - tokensAtStart;
-            if (policy.getTokenBudget() != null && tokens > policy.getTokenBudget()) {
-                throw new BudgetExhausted("The attempt's budget of " + policy.getTokenBudget()
-                                          + " tokens is spent after " + tokens + " tokens");
+            if (policy.getTokenBudget() != null) {
+                final long allowed = policy.getTokenBudget() + grantedTokens;
+                if (tokens > allowed) {
+                    throw new BudgetExhausted("The attempt's budget of " + allowed
+                                              + " tokens is spent after " + tokens + " tokens");
+                }
             }
         }
     }

@@ -86,6 +86,10 @@ public interface Attempts {
     /// no longer awaiting: opening the attempt that took it closed this one.
     List<Recorded> awaiting(int limit);
 
+    /// Give an attempt more to spend (A77): tokens and milliseconds added to what the document allows it,
+    /// recorded against the attempt alone and kept for as long as the row is.
+    void granted(long attemptId, long tokens, long ms);
+
     /// The attempts a node was carrying whose lease has lapsed: `IN_PROGRESS`, expiry at or before `nowMs`,
     /// oldest first. The node behind each has stopped without finishing — died, or was stopped — and the
     /// session is resumed from its recorded turns by whichever worker finds it (design 04 §4), not opened
@@ -224,6 +228,7 @@ public interface Attempts {
     }
 
     /// An attempt as it is read back: what it was, what it came to, and every turn of it.
+    /// @param grant What a person granted the attempt beyond the document's budgets (A77).
     record Recorded(long id,
                     Attempt attempt,
                     AttemptStatus status,
@@ -233,7 +238,26 @@ public interface Attempts {
                     long tokensSpent,
                     long createTimeMs,
                     long updateTimeMs,
-                    List<Turn> turns) {
+                    List<Turn> turns,
+                    Grant grant) {
 
+        public Recorded(final long id, final Attempt attempt, final AttemptStatus status, final String decision,
+                        final String ruleUuid, final Double score, final long tokensSpent, final long createTimeMs,
+                        final long updateTimeMs, final List<Turn> turns) {
+            this(id, attempt, status, decision, ruleUuid, score, tokensSpent, createTimeMs, updateTimeMs, turns,
+                    Grant.NONE);
+        }
+    }
+
+    /// What a person granted an attempt beyond the document's budgets (A77): added to them for that
+    /// attempt alone, and shown on its row.
+    record Grant(long tokens, long ms) {
+
+        public static final Grant NONE = new Grant(0L, 0L);
+
+        /// This grant with more added.
+        public Grant plus(final long moreTokens, final long moreMs) {
+            return new Grant(tokens + moreTokens, ms + moreMs);
+        }
     }
 }

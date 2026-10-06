@@ -48,6 +48,7 @@ public final class InMemoryAttempts implements Attempts {
 
     private final Map<Long, Recorded> attempts = new LinkedHashMap<>();
     private final Map<Long, List<Turn>> turns = new LinkedHashMap<>();
+    private final Map<Long, Grant> grants = new LinkedHashMap<>();
     private final AtomicLong nextId = new AtomicLong(1);
 
     /// One open attempt per shape is what one learner means (A45); an attempt whose expiry has passed has
@@ -341,6 +342,14 @@ public final class InMemoryAttempts implements Attempts {
     private Recorded withTurns(final Recorded attempt) {
         return new Recorded(attempt.id(), attempt.attempt(), attempt.status(), attempt.decision(),
                 attempt.ruleUuid(), attempt.score(), attempt.tokensSpent(), attempt.createTimeMs(),
-                attempt.updateTimeMs(), List.copyOf(turns.getOrDefault(attempt.id(), List.of())));
+                attempt.updateTimeMs(), List.copyOf(turns.getOrDefault(attempt.id(), List.of())),
+                grants.getOrDefault(attempt.id(), Grant.NONE));
+    }
+
+    @Override
+    public synchronized void granted(final long attemptId, final long tokens, final long ms) {
+        if (attempts.containsKey(attemptId)) {
+            grants.merge(attemptId, new Grant(tokens, ms), (was, more) -> was.plus(more.tokens(), more.ms()));
+        }
     }
 }

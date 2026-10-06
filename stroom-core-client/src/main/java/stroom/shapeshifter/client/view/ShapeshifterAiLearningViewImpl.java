@@ -96,6 +96,8 @@ public class ShapeshifterAiLearningViewImpl
     @UiField
     ValueSpinner tokenBudget;
     @UiField
+    ValueSpinner maxDeferralAgeMs;
+    @UiField
     ValueSpinner sampleSizeLimit;
 
     @Inject
@@ -108,6 +110,7 @@ public class ShapeshifterAiLearningViewImpl
         bound(maxAttempts, 1, Integer.MAX_VALUE);
         bound(attemptBudgetMs, 1, Long.MAX_VALUE);
         bound(tokenBudget, 0, Long.MAX_VALUE);
+        bound(maxDeferralAgeMs, 1, Long.MAX_VALUE);
         bound(sampleSizeLimit, 1, Integer.MAX_VALUE);
     }
 
@@ -279,6 +282,16 @@ public class ShapeshifterAiLearningViewImpl
     }
 
     @Override
+    public long getMaxDeferralAgeMs() {
+        return maxDeferralAgeMs.getValue();
+    }
+
+    @Override
+    public void setMaxDeferralAgeMs(final long maxDeferralAgeMs) {
+        this.maxDeferralAgeMs.setValue(maxDeferralAgeMs);
+    }
+
+    @Override
     public int getSampleSizeLimit() {
         return sampleSizeLimit.getIntValue();
     }
@@ -315,6 +328,7 @@ public class ShapeshifterAiLearningViewImpl
         maxAttempts.setEnabled(enabled);
         attemptBudgetMs.setEnabled(enabled);
         tokenBudget.setEnabled(enabled);
+        maxDeferralAgeMs.setEnabled(enabled);
         sampleSizeLimit.setEnabled(enabled);
     }
 
@@ -351,6 +365,11 @@ public class ShapeshifterAiLearningViewImpl
 
     @UiHandler("tokenBudget")
     public void onTokenBudget(final ValueChangeEvent<Long> event) {
+        fireChange();
+    }
+
+    @UiHandler("maxDeferralAgeMs")
+    public void onMaxDeferralAgeMs(final ValueChangeEvent<Long> event) {
         fireChange();
     }
 

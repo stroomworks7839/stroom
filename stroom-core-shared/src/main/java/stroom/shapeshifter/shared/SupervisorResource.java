@@ -85,6 +85,20 @@ public interface SupervisorResource extends RestResource, DirectRestService {
     SupervisorAttempt reject(@PathParam("id") long id, RejectRequest request);
 
     @POST
+    @Path("/{id}/grant")
+    @Operation(summary = "Give a parked attempt more to spend, and carry it on",
+            operationId = "grantShapeshifterAiAttempt")
+    SupervisorAttempt grant(@PathParam("id") long id, GrantRequest request);
+
+    @POST
+    @Path("/backlog")
+    @Operation(
+            summary = "What is waiting on a session, a row per stream, the raised ones first",
+            operationId = "findShapeshifterAiBacklog")
+    ResultPage<BacklogStream> backlog(@QueryParam("docUuid") String docUuid,
+                                      @Parameter(description = "page", required = true) PageRequest pageRequest);
+
+    @POST
     @Path("/ledger")
     @Operation(
             summary = "What is waiting on the ledger, a row per shape",
