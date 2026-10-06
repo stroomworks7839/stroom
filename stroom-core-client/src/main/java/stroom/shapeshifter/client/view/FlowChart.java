@@ -41,6 +41,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 /// The learning flow drawn as a flowchart (design 05 §3; A84, A89, A90): the steps down a vertical
@@ -67,13 +68,20 @@ public class FlowChart extends Composite {
     private static final int LANE_GAP = 48;
     private static final int LANE_PITCH = 30;
     private static final String DATA_STEP = "data-step";
+    private static final String DATA_EDGE = "data-edge";
+    private static final String DATA_NODE = "data-node";
+    public static final String START = "start";
+    public static final String END = "end";
 
     private final HTML html = new HTML();
     private List<FlowStep> steps = new ArrayList<>();
     private List<FlowProblem> problems = new ArrayList<>();
     private List<SupervisorTurn> turns = new ArrayList<>();
     private Integer selected;
+    private String selectedTerminal;
     private Consumer<Integer> onSelect;
+    private Consumer<String> onTerminalSelect;
+    private BiConsumer<Integer, String> onEdgeSelect;
 
     public FlowChart() {
         initWidget(html);
@@ -82,20 +90,49 @@ public class FlowChart extends Composite {
         // one, as the pathways tree does.
         html.addClickHandler(event -> {
             final Element target = event.getNativeEvent().getEventTarget().cast();
-            if (target == null || onSelect == null) {
+            if (target == null) {
+                return;
+            }
+            final Element edge = ElementUtil.findParent(target,
+                    element -> NullSafe.isNonBlankString(element.getAttribute(DATA_EDGE)), 6);
+            if (edge != null && onEdgeSelect != null) {
+                onEdgeSelect.accept(Integer.parseInt(edge.getAttribute(DATA_STEP)), edge.getAttribute(DATA_EDGE));
                 return;
             }
             final Element node = ElementUtil.findParent(target,
                     element -> NullSafe.isNonBlankString(element.getAttribute(DATA_STEP)), 6);
-            if (node != null) {
+            if (node != null && onSelect != null) {
                 onSelect.accept(Integer.parseInt(node.getAttribute(DATA_STEP)));
+                return;
+            }
+            final Element terminal = ElementUtil.findParent(target,
+                    element -> NullSafe.isNonBlankString(element.getAttribute(DATA_NODE)), 6);
+            if (terminal != null && onTerminalSelect != null) {
+                onTerminalSelect.accept(terminal.getAttribute(DATA_NODE));
             }
         });
+    }
+
+    /// Scale the drawing down to the pane's width where the pane is narrower than the drawing, as the
+    /// Supervisor's is; by default the drawing keeps its size and the pane scrolls.
+    public void fitToPane() {
+        html.addStyleName("flow-chart--fit");
     }
 
     /// Who is told which step was clicked, by its index.
     public void setOnSelect(final Consumer<Integer> onSelect) {
         this.onSelect = onSelect;
+    }
+
+    /// Who is told that Start or End was clicked: [#START] or [#END].
+    public void setOnTerminalSelect(final Consumer<String> onTerminalSelect) {
+        this.onTerminalSelect = onTerminalSelect;
+    }
+
+    /// Who is told which declared transition was clicked: the step's index and the outcome's name, or
+    /// `spent`.
+    public void setOnEdgeSelect(final BiConsumer<Integer, String> onEdgeSelect) {
+        this.onEdgeSelect = onEdgeSelect;
     }
 
     /// Draw the flow, with what is wrong with it painted on the steps it names, and a recorded attempt's
@@ -114,6 +151,14 @@ public class FlowChart extends Composite {
     /// Paint one step as the selected one, the rest as they were.
     public void setSelected(final Integer selected) {
         this.selected = selected;
+        this.selectedTerminal = null;
+        render();
+    }
+
+    /// Paint Start or End as the selected one, and no step.
+    public void setSelectedTerminal(final String terminal) {
+        this.selected = null;
+        this.selectedTerminal = terminal;
         render();
     }
 
@@ -158,12 +203,12 @@ public class FlowChart extends Composite {
         }
 
         // Start, and its edge down to the first step.
-        terminal(svg, TOP, "flow-node--start", "START  ·  a shape with no rule");
+        terminal(svg, TOP, START, "START  ·  a shape with no rule");
         if (count > 0) {
             edge(svg, "start", false, pathKeys, "M" + CX + ' ' + (TOP + TERMINAL_H) + " V" + FIRST, null, 0, 0,
                     null, CX, FIRST, "down");
         }
-        terminal(svg, endY, "flow-node--end", "END  ·  bound and served");
+        terminal(svg, endY, END, "END  ·  bound and served");
 
         int rightLane = 0;
         int leftLane = 0;
@@ -326,8 +371,12 @@ public class FlowChart extends Composite {
         return "judged by its kind’s checks";
     }
 
-    private static void terminal(final StringBuilder svg, final int y, final String cls, final String label) {
-        svg.append("<g class=\"flow-node flow-node--terminal ").append(cls).append("\"><rect class=\"flow-box\" x=\"")
+    private void terminal(final StringBuilder svg, final int y, final String which, final String label) {
+        svg.append("<g class=\"flow-node flow-node--terminal flow-node--").append(which)
+                .append(which.equals(selectedTerminal)
+                        ? " flow-node--selected"
+                        : "").append("\" ").append(DATA_NODE).append("=\"").append(which)
+                .append("\"><rect class=\"flow-box\" x=\"")
                 .append(CX - TERMINAL_HALF).append("\" y=\"").append(y).append("\" width=\"").append(TERMINAL_HALF * 2)
                 .append("\" height=\"").append(TERMINAL_H).append("\" rx=\"17\"/>");
         text(svg, CX, y + 21, "middle", "flow-title", label);
@@ -351,7 +400,9 @@ public class FlowChart extends Composite {
                 ? "flow-edge--declared"
                 : "flow-edge--implied").append(pathKeys.contains(key)
                 ? " flow-edge--onpath"
-                : "").append("\"><path d=\"").append(d).append("\"/>");
+                : "").append('"');
+        edgeData(svg, key, declared);
+        svg.append("><path d=\"").append(d).append("\"/>");
         arrow(svg, arrowX, arrowY, direction);
         if (label != null) {
             label(svg, labelX, labelY, anchor, label);
@@ -375,7 +426,9 @@ public class FlowChart extends Composite {
                 ? "flow-edge--declared"
                 : "flow-edge--implied").append(pathKeys.contains(key)
                 ? " flow-edge--onpath"
-                : "").append("\"><path d=\"M").append(x).append(' ').append(diaY).append(" L").append(ex - 8)
+                : "").append('"');
+        edgeData(svg, key, declared);
+        svg.append("><path d=\"M").append(x).append(' ').append(diaY).append(" L").append(ex - 8)
                 .append(' ').append(ey - 4).append("\"/>");
         svg.append("<g class=\"flow-exit").append(exit == FlowExit.GIVE_UP
                 ? " flow-exit--give"
@@ -386,6 +439,17 @@ public class FlowChart extends Composite {
         svg.append("</g>");
         text(svg, ex + 13, ey + 3, "start", "flow-label", label);
         svg.append("</g>");
+    }
+
+    /// A declared edge says which step and which transition it is, so that a click on it can select the
+    /// transition in the step's form.
+    private static void edgeData(final StringBuilder svg, final String key, final boolean declared) {
+        if (!declared) {
+            return;
+        }
+        final int bar = key.indexOf('|');
+        svg.append(' ').append(DATA_STEP).append("=\"").append(esc(key.substring(0, bar))).append("\" ")
+                .append(DATA_EDGE).append("=\"").append(esc(key.substring(bar + 1))).append('"');
     }
 
     private static void arrow(final StringBuilder svg, final int x, final int y, final String direction) {

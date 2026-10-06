@@ -55,6 +55,18 @@ public class FlowStepPresenter extends MyPresenterWidget<FlowStepView> {
         view.setTransitionsView(transitionListPresenter.getView());
     }
 
+    /// Who is told that a field of the form, or a transition, has changed: the Flow tab edits a step in
+    /// place beside the chart (design 05 §3), so the chart follows every change rather than an OK.
+    public void setOnChange(final Runnable onChange) {
+        getView().setOnChange(onChange);
+        transitionListPresenter.setOnChange(onChange);
+    }
+
+    /// Select the transition that fires on an outcome, or on spent, as a click on its edge does.
+    public void selectTransition(final String on) {
+        transitionListPresenter.select(on);
+    }
+
     /**
      * @param steps The ids of every step of the flow, which is what a transition may go to.
      */
@@ -139,5 +151,8 @@ public class FlowStepPresenter extends MyPresenterWidget<FlowStepView> {
         void setTransitionsView(View view);
 
         void setReadOnly(boolean readOnly);
+
+        /// Who is told that a field has changed.
+        void setOnChange(Runnable onChange);
     }
 }

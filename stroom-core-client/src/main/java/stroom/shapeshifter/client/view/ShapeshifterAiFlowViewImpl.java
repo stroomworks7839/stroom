@@ -30,6 +30,7 @@ import com.google.gwt.event.logical.shared.ValueChangeEvent;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
 import com.google.gwt.uibinder.client.UiHandler;
+import com.google.gwt.user.client.ui.FlowPanel;
 import com.google.gwt.user.client.ui.Label;
 import com.google.gwt.user.client.ui.SimplePanel;
 import com.google.gwt.user.client.ui.TextArea;
@@ -42,6 +43,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 public class ShapeshifterAiFlowViewImpl
@@ -53,16 +55,31 @@ public class ShapeshifterAiFlowViewImpl
     @UiField
     SimplePanel chartPanel;
     @UiField
-    Label flowProblem;
+    Button addStep;
     @UiField
-    SimplePanel flowSteps;
-    /// Loading an example replaces the steps, so it is a button beneath the table and not a picker
-    /// above it: what it does is done once, and nothing about it describes the flow afterwards.
+    Button copyStep;
+    @UiField
+    Button deleteStep;
+    @UiField
+    Button moveUp;
+    @UiField
+    Button moveDown;
+    /// Loading an example replaces the steps, so it is a button and not a picker: what it does is done
+    /// once, and nothing about it describes the flow afterwards.
     @UiField
     Button loadExample;
-    /// The same flow in the grammar the harness and import/export carry, two-way (A87).
     @UiField
-    TextArea flowText;
+    Label stepHeading;
+    @UiField
+    Label stepProblem;
+    @UiField
+    SimplePanel stepForm;
+    @UiField
+    Label stepDefaults;
+    @UiField
+    Label nodeNote;
+    @UiField
+    FlowPanel textSection;
     @UiField
     SelectionBox<Template> template;
     @UiField
@@ -71,6 +88,11 @@ public class ShapeshifterAiFlowViewImpl
     Button resetTemplate;
     @UiField
     Label templateStatus;
+    @UiField
+    Label flowProblem;
+    /// The same flow in the grammar the harness and import/export carry, two-way (A87).
+    @UiField
+    TextArea flowText;
 
     /// This document's changed texts, by template; and the built-ins the node serves, shown where the
     /// document has not changed one.
@@ -78,17 +100,16 @@ public class ShapeshifterAiFlowViewImpl
     private Map<Template, String> builtIns = new HashMap<>();
     private Integer builtInVersion;
     private Integer savedAgainstVersion;
-    private List<FlowStep> steps = new ArrayList<>();
-    private List<FlowProblem> problems = new ArrayList<>();
+    private boolean readOnly;
+    private boolean stepShown;
+    /// What the chart paints as selected, kept here so that a redraw after an edit keeps it.
     private Integer selectedStep;
 
     @Inject
     public ShapeshifterAiFlowViewImpl(final Binder binder) {
         widget = binder.createAndBindUi(this);
         chartPanel.setWidget(chart);
-        template.addItems(Template.values());
-        template.setValue(Template.CHAIN);
-        showTemplate();
+        showNothingSelected();
     }
 
     @Override
@@ -98,20 +119,22 @@ public class ShapeshifterAiFlowViewImpl
 
     @Override
     public void showChart(final List<FlowStep> steps, final List<FlowProblem> problems) {
-        this.steps = new ArrayList<>(steps);
-        this.problems = new ArrayList<>(problems);
         if (selectedStep != null && selectedStep >= steps.size()) {
             selectedStep = null;
         }
-        chart.show(this.steps, this.problems, null, selectedStep);
+        chart.show(steps, problems, null, selectedStep);
     }
 
     @Override
     public void setSelectedStep(final Integer index) {
-        selectedStep = index == null || index < 0
-                ? null
-                : index;
-        chart.setSelected(selectedStep);
+        selectedStep = index;
+        chart.setSelected(index);
+    }
+
+    @Override
+    public void setSelectedTerminal(final String terminal) {
+        selectedStep = null;
+        chart.setSelectedTerminal(terminal);
     }
 
     @Override
@@ -119,8 +142,93 @@ public class ShapeshifterAiFlowViewImpl
         chart.setOnSelect(onSelected);
     }
 
-    /// What is wrong with the steps, beneath the chart: `onWrite` runs on every dirty check, so a fault
-    /// here must not be a modal.
+    @Override
+    public void setOnTerminalSelected(final Consumer<String> onSelected) {
+        chart.setOnTerminalSelect(onSelected);
+    }
+
+    @Override
+    public void setOnEdgeSelected(final BiConsumer<Integer, String> onSelected) {
+        chart.setOnEdgeSelect(onSelected);
+    }
+
+    @Override
+    public void setStepFormView(final View view) {
+        stepForm.setWidget(view.asWidget());
+    }
+
+    @Override
+    public void showStep(final int number,
+                         final int of,
+                         final String title,
+                         final String defaults,
+                         final String problem) {
+        stepShown = true;
+        stepHeading.setText("Step " + number + " of " + of + "  ·  " + title);
+        setStepProblem(problem);
+        stepForm.setVisible(true);
+        stepDefaults.setText(defaults);
+        stepDefaults.setVisible(true);
+        nodeNote.setVisible(false);
+        textSection.setVisible(true);
+        updateButtons();
+    }
+
+    @Override
+    public void showStart() {
+        stepShown = false;
+        stepHeading.setText("Start");
+        setStepProblem(null);
+        stepForm.setVisible(false);
+        stepDefaults.setVisible(false);
+        nodeNote.setText("A session opens for a shape no rule binds, with a sample of the stream in hand. "
+                         + "The texts below are shared by every question: the system text they are all asked "
+                         + "under, and the rules the questions include.");
+        nodeNote.setVisible(true);
+        textSection.setVisible(true);
+        updateButtons();
+    }
+
+    @Override
+    public void showEnd() {
+        stepShown = false;
+        stepHeading.setText("End");
+        setStepProblem(null);
+        stepForm.setVisible(false);
+        stepDefaults.setVisible(false);
+        nodeNote.setText("The fragment is bound as the shape's rule, the corpus is written, and the stream "
+                         + "and every stream that waited on it are served. A session also ends by an exit: P, "
+                         + "parked for a person to grant more, answer a turn or send it to the exhaustion step; "
+                         + "G, the shape given up and its streams errored, which is a parser's default.");
+        nodeNote.setVisible(true);
+        textSection.setVisible(false);
+        updateButtons();
+    }
+
+    @Override
+    public void showNothingSelected() {
+        stepShown = false;
+        stepHeading.setText("No step selected");
+        setStepProblem(null);
+        stepForm.setVisible(false);
+        stepDefaults.setVisible(false);
+        nodeNote.setText("Click a step on the chart to edit it here, Start for the texts every question "
+                         + "shares, or add a step.");
+        nodeNote.setVisible(true);
+        textSection.setVisible(true);
+        updateButtons();
+    }
+
+    @Override
+    public void setStepProblem(final String problem) {
+        stepProblem.setText(problem == null
+                ? ""
+                : problem);
+        stepProblem.setVisible(problem != null);
+    }
+
+    /// What is wrong with the flow as a whole, beneath the chart: `onWrite` runs on every dirty check,
+    /// so a fault here must not be a modal.
     @Override
     public void setFlowProblem(final String problem) {
         flowProblem.setText(problem == null
@@ -130,13 +238,22 @@ public class ShapeshifterAiFlowViewImpl
     }
 
     @Override
-    public void setFlowStepsView(final View view) {
-        flowSteps.setWidget(view.asWidget());
+    public void setFlowText(final String text) {
+        flowText.setValue(text);
     }
 
     @Override
-    public void setFlowText(final String text) {
-        flowText.setValue(text);
+    public void setTemplateChoices(final List<Template> templates) {
+        final Template was = template.getValue();
+        template.clear();
+        template.addItems(templates);
+        template.setValue(templates.contains(was)
+                ? was
+                : templates.isEmpty()
+                        ? null
+                        : templates.get(0));
+        textSection.setVisible(!templates.isEmpty() && (stepShown || nodeNote.isVisible()));
+        showTemplate();
     }
 
     @Override
@@ -159,17 +276,21 @@ public class ShapeshifterAiFlowViewImpl
         showTemplate();
     }
 
-    /// The selected template as this document uses it, and where its text comes from.
+    /// The selected template as this document uses it, and where its text comes from. Text is per kind
+    /// of question (A85): the status says so where an edit reaches more than this step.
     private void showTemplate() {
         final Template selected = template.getValue();
         if (selected == null) {
+            templateText.setValue("");
+            templateStatus.setText("");
+            resetTemplate.setEnabled(false);
             return;
         }
         final String override = overrides.get(selected);
         templateText.setValue(override != null
                 ? override
                 : builtIns.getOrDefault(selected, ""));
-        resetTemplate.setEnabled(override != null && !templateText.isReadOnly());
+        resetTemplate.setEnabled(override != null && !readOnly);
         final StringBuilder status = new StringBuilder(override != null
                 ? "This document's own text"
                 : builtIns.containsKey(selected)
@@ -184,6 +305,9 @@ public class ShapeshifterAiFlowViewImpl
         status.append(". Variables: ").append(selected.getVariables().length == 0
                 ? "none"
                 : String.join(", ", variables(selected)));
+        if (selected == Template.CONFIGURATION) {
+            status.append(". Asked at every Configure step, parser and transform alike.");
+        }
         templateStatus.setText(status.toString());
     }
 
@@ -195,14 +319,24 @@ public class ShapeshifterAiFlowViewImpl
         return names;
     }
 
+    private void updateButtons() {
+        final boolean enabled = !readOnly;
+        addStep.setEnabled(enabled);
+        loadExample.setEnabled(enabled);
+        copyStep.setEnabled(enabled && stepShown);
+        deleteStep.setEnabled(enabled && stepShown);
+        moveUp.setEnabled(enabled && stepShown);
+        moveDown.setEnabled(enabled && stepShown);
+    }
+
     @Override
     public void onReadOnly(final boolean readOnly) {
-        final boolean enabled = !readOnly;
-        loadExample.setEnabled(enabled);
+        this.readOnly = readOnly;
         flowText.setReadOnly(readOnly);
-        template.setEnabled(enabled);
+        template.setEnabled(!readOnly);
         templateText.setReadOnly(readOnly);
-        resetTemplate.setEnabled(enabled && overrides.containsKey(template.getValue()));
+        resetTemplate.setEnabled(!readOnly && overrides.containsKey(template.getValue()));
+        updateButtons();
     }
 
     private void fireChange() {
@@ -211,8 +345,43 @@ public class ShapeshifterAiFlowViewImpl
         }
     }
 
+    @UiHandler("addStep")
+    public void onAddStep(final ClickEvent event) {
+        if (getUiHandlers() != null) {
+            getUiHandlers().onAddStep();
+        }
+    }
+
+    @UiHandler("copyStep")
+    public void onCopyStep(final ClickEvent event) {
+        if (getUiHandlers() != null) {
+            getUiHandlers().onCopyStep();
+        }
+    }
+
+    @UiHandler("deleteStep")
+    public void onDeleteStep(final ClickEvent event) {
+        if (getUiHandlers() != null) {
+            getUiHandlers().onDeleteStep();
+        }
+    }
+
+    @UiHandler("moveUp")
+    public void onMoveUp(final ClickEvent event) {
+        if (getUiHandlers() != null) {
+            getUiHandlers().onMoveStep(-1);
+        }
+    }
+
+    @UiHandler("moveDown")
+    public void onMoveDown(final ClickEvent event) {
+        if (getUiHandlers() != null) {
+            getUiHandlers().onMoveStep(1);
+        }
+    }
+
     /// Which example to load is asked here, where the button is; the menu of them, and what replacing a
-    /// flow means, belong to whoever owns the step list.
+    /// flow means, belong to the presenter.
     @UiHandler("loadExample")
     public void onLoadExample(final ClickEvent event) {
         if (getUiHandlers() != null) {

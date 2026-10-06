@@ -42,7 +42,7 @@
         <form:FormGroup identity="stepTransitions"
                         label="Transitions"
                         helpText="Where the step goes on an outcome. With none it re-asks itself on a shortfall until its candidates are gone, and a pass goes to the next step.">
-            <g:SimplePanel ui:field="transitions" width="520px" height="180px"
+            <g:SimplePanel ui:field="transitions" width="100%" height="180px"
                            styleName="dashboard-panel dock-container-vertical"/>
         </form:FormGroup>
     </g:FlowPanel>

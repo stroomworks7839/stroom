@@ -60,6 +60,7 @@ public class TransitionListPresenter extends MyPresenterWidget<PagerView> {
     /// The steps a transition may go to: the flow's own, as they stand while this step is being edited.
     private List<String> steps = List.of();
     private boolean readOnly;
+    private Runnable onChange;
 
     @Inject
     public TransitionListPresenter(final EventBus eventBus,
@@ -104,7 +105,7 @@ public class TransitionListPresenter extends MyPresenterWidget<PagerView> {
             if (!readOnly) {
                 show(new Transition(StepOutcome.PASSED, null), added -> {
                     transitions.add(added);
-                    update();
+                    changed();
                 });
             }
         }));
@@ -114,7 +115,7 @@ public class TransitionListPresenter extends MyPresenterWidget<PagerView> {
             if (!readOnly && selected != null) {
                 transitions.remove(selected);
                 selectionModel.clear();
-                update();
+                changed();
             }
         }));
         registerHandler(selectionModel.addSelectionHandler(event -> {
@@ -131,7 +132,7 @@ public class TransitionListPresenter extends MyPresenterWidget<PagerView> {
         if (!readOnly && existing != null) {
             show(existing, edited -> {
                 transitions.set(transitions.indexOf(existing), edited);
-                update();
+                changed();
             });
         }
     }
@@ -182,6 +183,32 @@ public class TransitionListPresenter extends MyPresenterWidget<PagerView> {
 
     public List<Transition> write() {
         return new ArrayList<>(transitions);
+    }
+
+    /// Who is told that a transition was added, edited or removed.
+    public void setOnChange(final Runnable onChange) {
+        this.onChange = onChange;
+    }
+
+    /// Select the transition that fires on an outcome's name, or on `spent`; none where there is none.
+    public void select(final String on) {
+        selectionModel.clear();
+        for (final Transition transition : transitions) {
+            final String name = transition.onSpent()
+                    ? Transition.SPENT
+                    : transition.getOn().getDisplayValue();
+            if (name.equals(on)) {
+                selectionModel.setSelected(transition);
+            }
+        }
+        updateButtons();
+    }
+
+    private void changed() {
+        update();
+        if (onChange != null) {
+            onChange.run();
+        }
     }
 
     private void update() {

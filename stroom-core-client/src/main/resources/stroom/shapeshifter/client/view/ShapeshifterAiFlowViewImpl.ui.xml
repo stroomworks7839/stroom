@@ -7,37 +7,40 @@
     <g:FlowPanel styleName="max form-padding form">
         <form:FormGroup identity="shapeshifterAiFlowChart"
                         label="Learning flow"
-                        helpText="The questions the stage asks the model, drawn as a flow: a step is a question of one kind — Chain, Split, Target, Configure or Admit — and the decision after it is the judging of a candidate. Solid connectors are transitions the flow declares; dashed ones are what happens by default: a pass goes down to the next step, a shortfall re-asks the step with its next candidate, spent candidates leave by the step's exit. P parks the session for a person; G gives the shape up and errors its streams. A step painted red names a problem; hover it to read which. Click a step to select it in the table.">
+                        helpText="The questions the stage asks the model, drawn as a flow: a step is a question of one kind — Chain, Split, Target, Configure or Admit — and the decision after it is the judging of a candidate. Solid connectors are transitions the flow declares; dashed ones are what happens by default: a pass goes down to the next step, a shortfall re-asks the step with its next candidate, spent candidates leave by the step's exit. P parks the session for a person; G gives the shape up and errors its streams. Click a step to edit it beside the chart, a solid connector to select that transition, or Start for the texts every question shares. A step painted red names a problem; hover it to read which.">
             <g:FlowPanel>
-                <g:SimplePanel ui:field="chartPanel" width="900px" height="560px"
-                               styleName="dashboard-panel flow-chart-panel"/>
-                <g:Label ui:field="flowProblem" visible="false"/>
-            </g:FlowPanel>
-        </form:FormGroup>
-        <form:FormGroup identity="shapeshifterAiFlowSteps"
-                        label="Steps"
-                        helpText="The steps as a table, to add, edit, copy, delete and move; the chart follows. Chain comes first and takes no transition; the flow ends with a Configure step or the Admit step; a goto names a step, 'end', 'park' or 'give-up'.">
-            <g:FlowPanel>
-                <g:SimplePanel ui:field="flowSteps" width="900px" height="260px"
-                               styleName="dashboard-panel dock-container-vertical"/>
-                <b:Button ui:field="loadExample" text="Load an example" width="140px"
-                          addStyleNames="allow-focus"/>
+                <g:FlowPanel styleName="flow-editor dashboard-panel">
+                    <g:SimplePanel ui:field="chartPanel" styleName="flow-editor-chart"/>
+                    <g:FlowPanel styleName="flow-editor-side">
+                        <g:FlowPanel styleName="flow-toolbar">
+                            <b:Button ui:field="addStep" text="Add step" addStyleNames="allow-focus"/>
+                            <b:Button ui:field="copyStep" text="Copy" addStyleNames="allow-focus"/>
+                            <b:Button ui:field="deleteStep" text="Delete" addStyleNames="allow-focus"/>
+                            <b:Button ui:field="moveUp" text="Up" addStyleNames="allow-focus"/>
+                            <b:Button ui:field="moveDown" text="Down" addStyleNames="allow-focus"/>
+                            <b:Button ui:field="loadExample" text="Load an example" addStyleNames="allow-focus"/>
+                        </g:FlowPanel>
+                        <g:Label ui:field="stepHeading" styleName="flow-heading"/>
+                        <g:Label ui:field="stepProblem" styleName="flow-problem" visible="false"/>
+                        <g:Label ui:field="nodeNote" styleName="flow-note"/>
+                        <g:SimplePanel ui:field="stepForm"/>
+                        <g:Label ui:field="stepDefaults" styleName="flow-note"/>
+                        <g:FlowPanel ui:field="textSection">
+                            <g:Label text="Question text" styleName="flow-heading"/>
+                            <l:SelectionBox ui:field="template"/>
+                            <g:TextArea ui:field="templateText" width="100%" height="200px" styleName="templateText"/>
+                            <b:Button ui:field="resetTemplate" text="Use built-in" width="120px" addStyleNames="allow-focus"/>
+                            <g:Label ui:field="templateStatus" styleName="flow-note"/>
+                        </g:FlowPanel>
+                    </g:FlowPanel>
+                </g:FlowPanel>
+                <g:Label ui:field="flowProblem" styleName="flow-problem" visible="false"/>
             </g:FlowPanel>
         </form:FormGroup>
         <form:FormGroup identity="shapeshifterAiFlowText"
                         label="As text"
-                        helpText="The same flow, one line per step, in the grammar import, export and the harness carry. Edit it and the chart and the table follow; a line that does not parse is reported and nothing changes until it does.">
-            <g:TextArea ui:field="flowText" width="900px" height="120px" styleName="flow-text"/>
-        </form:FormGroup>
-        <form:FormGroup identity="shapeshifterAiTemplate"
-                        label="Question text"
-                        helpText="The words of each question, editable. The text shown is what this document uses: the built-in text, or this document's own where it has been changed. A variable written as a dollar sign and a name in braces is filled in when the question is put; each text names the variables it may use in the built-in. 'Use built-in' drops this document's change. Text is per kind of question: an edit to the configuration text is asked at every Configure step, parser and transform alike.">
-            <g:FlowPanel>
-                <l:SelectionBox ui:field="template"/>
-                <g:TextArea ui:field="templateText" width="600px" height="240px" styleName="templateText"/>
-                <b:Button ui:field="resetTemplate" text="Use built-in" width="120px" addStyleNames="allow-focus"/>
-                <g:Label ui:field="templateStatus"/>
-            </g:FlowPanel>
+                        helpText="The same flow, one line per step, in the grammar import, export and the harness carry. Edit it and the chart follows; a line that does not parse is reported and nothing changes until it does.">
+            <g:TextArea ui:field="flowText" width="100%" height="120px" styleName="flow-text"/>
         </form:FormGroup>
     </g:FlowPanel>
 </ui:UiBinder>

@@ -65,6 +65,7 @@ public class FlowStepViewImpl extends ViewImpl implements FlowStepView {
     FlowPanel checks;
     @UiField
     SimplePanel transitions;
+    private Runnable onChange;
 
     @Inject
     public FlowStepViewImpl(final Binder binder) {
@@ -80,8 +81,28 @@ public class FlowStepViewImpl extends ViewImpl implements FlowStepView {
         }
         // The role follows the kind, and the form says so as the kind is chosen rather than when the
         // save is refused: only CONFIGURE takes one.
-        kind.addValueChangeHandler(event -> roleFollowsKind());
+        kind.addValueChangeHandler(event -> {
+            roleFollowsKind();
+            changed();
+        });
+        role.addValueChangeHandler(event -> changed());
+        when.addValueChangeHandler(event -> changed());
+        id.addValueChangeHandler(event -> changed());
+        candidates.addValueChangeHandler(event -> changed());
+        kinds.addValueChangeHandler(event -> changed());
+        checkBoxes.values().forEach(box -> box.addValueChangeHandler(event -> changed()));
         roleFollowsKind();
+    }
+
+    @Override
+    public void setOnChange(final Runnable onChange) {
+        this.onChange = onChange;
+    }
+
+    private void changed() {
+        if (onChange != null) {
+            onChange.run();
+        }
     }
 
     @Override

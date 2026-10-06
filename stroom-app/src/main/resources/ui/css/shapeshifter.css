@@ -6,13 +6,16 @@
     height: 100%;
 }
 
-/* Drawn at 780 wide; scaled down to fit a narrower pane, as the Supervisor's is. */
+/* Drawn at 780 wide and scrolled, unless the pane asks for it to fit, as the Supervisor's narrow one does. */
 .flow-chart svg {
     display: block;
+    font-family: inherit;
+}
+
+.flow-chart--fit svg {
     width: 100%;
     max-width: 780px;
     height: auto;
-    font-family: inherit;
 }
 
 .flow-node {
@@ -142,4 +145,49 @@
     fill: #ffffff;
     font-size: 9.5px;
     font-weight: 600;
+}
+
+/* The Flow tab: the chart beside the selected step's form. */
+.flow-editor {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: stretch;
+}
+
+.flow-editor-chart {
+    flex: 0 0 800px;
+    min-width: 0;
+    height: 640px;
+}
+
+.flow-editor-side {
+    flex: 1 1 360px;
+    min-width: 360px;
+    height: 640px;
+    overflow: auto;
+    padding: 6px 8px;
+}
+
+.flow-toolbar {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
+}
+
+.flow-heading {
+    font-weight: 600;
+    margin: 4px 0;
+}
+
+.flow-note {
+    color: var(--text-color--disabled);
+    font-size: 12px;
+    margin: 4px 0 8px;
+}
+
+.flow-problem {
+    color: var(--invalid);
+    margin: 4px 0;
 }

@@ -221,7 +221,23 @@ is not the step, and it makes the judging visible as an act of its own, which it
    text form is parsed when it loses focus, not on every keystroke.
 3. **Editing in the flow.** The side panel with the step's form, transitions and question text; edge
    selection and deletion; add, delete, move; the examples. The grid and the Learning tab's plan and
-   template sections go.
+   template sections go. *Built 2026-10-06.* The chart sits beside a panel: a toolbar to add a step
+   after the selected one, copy it without its id, delete it (confirmed where a transition names it)
+   and move it; the step's form, the same form the dialog had, now edited in place, every change
+   rewriting the step and redrawing the chart, with what the form cannot stop a person writing — an id
+   that is not a word, a limit below one, a name another step has — said beside it while the step keeps
+   its last good state; the step's transitions in the form, a declared edge clicked on the chart
+   selecting its transition there, and what the step does by default said beneath them (A84); the
+   question text of the step's kind beneath the form, the split's three variants belonging to one
+   step, and the status saying where an edit reaches every Configure step (A85); Start opening the
+   system text and the three rules texts (A86); End saying what ending and the exits mean. The grid is
+   gone. *Its own audit, the same day:* the chart had been made to scale to its pane for the
+   Supervisor, which would have drawn the Flow tab's at two thirds with text too small to read, so
+   scaling is now the Supervisor's to ask for and the tab's chart column is the drawing's width, the
+   panel wrapping beneath it where the screen is narrower. Noted and left: an edit the form cannot
+   read as a step is said beside the form and lost if another step is then clicked; and the exit
+   criterion of phase H — the escalating example composed on the chart from an empty flow without
+   the grammar — is for the walkthrough, since nothing here has yet been clicked in a browser.
 4. **Later, if wanted.** Per-step question text (Q5); a last-attempts overlay on the Flow tab; the
    path drawn live as a session runs.
 

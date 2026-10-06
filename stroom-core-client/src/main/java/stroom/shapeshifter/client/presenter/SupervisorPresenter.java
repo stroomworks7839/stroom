@@ -112,6 +112,7 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
         });
         setInSlot(TURN_LIST, turnsPresenter);
         turnsPresenter.setOnDetail(this::drawPath);
+        flowChart.fitToPane();
         view.setFlowChart(flowChart);
         setInSlot(LEDGER, ledgerPresenter);
         // A shape sent back to be learned shows up as an attempt, so the list beside it is read again.

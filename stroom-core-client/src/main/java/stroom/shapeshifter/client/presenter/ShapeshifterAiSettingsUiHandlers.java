@@ -49,6 +49,26 @@ public interface ShapeshifterAiSettingsUiHandlers extends UiHandlers {
         // Only the Flow tab holds a flow.
     }
 
+    /// A step is added after the selected one, or at the end. Only the Flow tab holds a flow.
+    default void onAddStep() {
+        // Only the Flow tab holds a flow.
+    }
+
+    /// The selected step is copied, without its id, after itself.
+    default void onCopyStep() {
+        // Only the Flow tab holds a flow.
+    }
+
+    /// The selected step is removed, after confirmation where a transition names it.
+    default void onDeleteStep() {
+        // Only the Flow tab holds a flow.
+    }
+
+    /// The selected step moves up (-1) or down (1).
+    default void onMoveStep(final int by) {
+        // Only the Flow tab holds a flow.
+    }
+
     default void onLoadExample(final int x, final int y) {
         // Only the Flow tab holds a flow.
     }
