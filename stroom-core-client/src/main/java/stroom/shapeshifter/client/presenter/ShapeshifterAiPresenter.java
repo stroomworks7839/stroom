@@ -16,6 +16,7 @@
 
 package stroom.shapeshifter.client.presenter;
 
+import stroom.dispatch.client.RestFactory;
 import stroom.docref.DocRef;
 import stroom.entity.client.presenter.DocTabPresenter;
 import stroom.entity.client.presenter.DocTabProvider;
@@ -23,13 +24,23 @@ import stroom.entity.client.presenter.LinkTabPanelView;
 import stroom.entity.client.presenter.MarkdownEditPresenter;
 import stroom.entity.client.presenter.MarkdownTabProvider;
 import stroom.security.client.presenter.DocumentUserPermissionsTabProvider;
+import stroom.shapeshifter.client.view.ProcessHeader;
+import stroom.shapeshifter.client.view.ProcessHeader.Stage;
+import stroom.shapeshifter.shared.AttemptCriteria;
+import stroom.shapeshifter.shared.AttemptStatus;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
+import stroom.shapeshifter.shared.ShapeshifterAiResource;
+import stroom.shapeshifter.shared.SupervisorResource;
+import stroom.util.shared.PageRequest;
 import stroom.widget.tab.client.presenter.TabData;
 import stroom.widget.tab.client.presenter.TabDataImpl;
 
+import com.google.gwt.core.client.GWT;
 import com.google.inject.Inject;
 import com.google.web.bindery.event.shared.EventBus;
+import com.gwtplatform.mvp.client.PresenterWidget;
 
+import java.util.List;
 import javax.inject.Provider;
 
 public class ShapeshifterAiPresenter extends DocTabPresenter<LinkTabPanelView, ShapeshifterAiDoc> {
@@ -42,6 +53,16 @@ public class ShapeshifterAiPresenter extends DocTabPresenter<LinkTabPanelView, S
     private static final TabData LEARN = new TabDataImpl("Learn");
     private static final TabData DOCUMENTATION = new TabDataImpl("Documentation");
     private static final TabData PERMISSIONS = new TabDataImpl("Permissions");
+    private static final ShapeshifterAiResource RESOURCE = GWT.create(ShapeshifterAiResource.class);
+    private static final SupervisorResource SUPERVISOR_RESOURCE = GWT.create(SupervisorResource.class);
+
+    /// The process across the top of the document (A98), with this document's figures from the
+    /// Supervisor. Re-added on every tab change, since the tab panel rebuilds its toolbar then.
+    private final ProcessHeader header = new ProcessHeader();
+    private final RestFactory restFactory;
+    private int asked;
+    /// What the three reads have answered so far: rules, streams waiting, sessions parked.
+    private final Long[] figures = new Long[3];
 
     @Inject
     public ShapeshifterAiPresenter(
@@ -51,8 +72,23 @@ public class ShapeshifterAiPresenter extends DocTabPresenter<LinkTabPanelView, S
             final Provider<ShapeshifterAiScorePresenter> scorePresenterProvider,
             final Provider<ShapeshifterAiRoutePresenter> routePresenterProvider,
             final Provider<MarkdownEditPresenter> markdownEditPresenterProvider,
-            final DocumentUserPermissionsTabProvider<ShapeshifterAiDoc> documentUserPermissionsTabProvider) {
+            final DocumentUserPermissionsTabProvider<ShapeshifterAiDoc> documentUserPermissionsTabProvider,
+            final RestFactory restFactory) {
         super(eventBus, view);
+        this.restFactory = restFactory;
+        header.setOnStage(stage -> {
+            switch (stage) {
+                case ROUTE:
+                    selectTab(ROUTE);
+                    break;
+                case SCORE:
+                    selectTab(SCORE);
+                    break;
+                default:
+                    selectTab(LEARN);
+                    break;
+            }
+        });
 
         addTab(ROUTE, new DocTabProvider<>(routePresenterProvider::get));
         addTab(SCORE, new DocTabProvider<>(scorePresenterProvider::get));
@@ -80,6 +116,82 @@ public class ShapeshifterAiPresenter extends DocTabPresenter<LinkTabPanelView, S
     @Override
     public String getType() {
         return ShapeshifterAiDoc.TYPE;
+    }
+
+    /// The tab panel has just rebuilt its toolbar for the tab chosen: the process goes back beneath it,
+    /// with the chosen stage highlighted, or none where the tab is not a stage.
+    @Override
+    protected void afterSelectTab(final PresenterWidget<?> content) {
+        final TabData selected = getSelectedTab();
+        header.setStage(ROUTE.equals(selected)
+                ? Stage.ROUTE
+                : SCORE.equals(selected)
+                        ? Stage.SCORE
+                        : LEARN.equals(selected)
+                                ? Stage.LEARN
+                                : null);
+        getView().addToolbar(header);
+    }
+
+    /// The figures beside the stages are this document's alone: its rules, the streams waiting on a
+    /// session of its, the sessions of its parked for a person. Read with the document, and guarded
+    /// against a slower earlier read arriving after a later one.
+    @Override
+    protected void onRead(final DocRef docRef, final ShapeshifterAiDoc document, final boolean readOnly) {
+        super.onRead(docRef, document, readOnly);
+        // Cleared as a set: a figure from the last read must not stand beside a new one until its own
+        // reply arrives.
+        figures[0] = null;
+        figures[1] = null;
+        figures[2] = null;
+        header.setFigures(null, null, null);
+        final int request = ++asked;
+        final String uuid = docRef.getUuid();
+        restFactory.create(RESOURCE)
+                .method(resource -> resource.rules(uuid))
+                .onSuccess(rules -> {
+                    if (request == asked) {
+                        figures[0] = (long) rules.size();
+                        header.setFigures(figures[0], figures[1], figures[2]);
+                    }
+                })
+                // A person who may read the document but not ask the Supervisor sees no figure, and no
+                // error for having opened a document.
+                .onFailure(error -> {
+                })
+                .taskMonitorFactory(this)
+                .exec();
+        restFactory.create(SUPERVISOR_RESOURCE)
+                .method(resource -> resource.backlog(uuid, new PageRequest(0, 1)))
+                .onSuccess(page -> {
+                    if (request == asked) {
+                        figures[1] = total(page.getPageResponse().getTotal(), page.size());
+                        header.setFigures(figures[0], figures[1], figures[2]);
+                    }
+                })
+                .onFailure(error -> {
+                })
+                .taskMonitorFactory(this)
+                .exec();
+        restFactory.create(SUPERVISOR_RESOURCE)
+                .method(resource -> resource.find(new AttemptCriteria(new PageRequest(0, 1), null, uuid, null, null,
+                        null, List.of(AttemptStatus.PARKED))))
+                .onSuccess(page -> {
+                    if (request == asked) {
+                        figures[2] = total(page.getPageResponse().getTotal(), page.size());
+                        header.setFigures(figures[0], figures[1], figures[2]);
+                    }
+                })
+                .onFailure(error -> {
+                })
+                .taskMonitorFactory(this)
+                .exec();
+    }
+
+    private static Long total(final Long total, final int size) {
+        return total != null
+                ? total
+                : (long) size;
     }
 
     @Override

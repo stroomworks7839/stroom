@@ -359,3 +359,16 @@ from memory, one and zero where the Promotion tab had zero and one, and are now 
 Chain step's box on the chart says which elements it chooses from; and design 01 §10.2's grammar line
 has the `elements` word. Found on the way: the claiming check on the import path failed an import
 whose filter arrived before its pipeline, fixed and noted in design 04.
+
+*Built 2026-10-06, slice 5: A98.* `ProcessHeader` sits beneath the document's tab strip, where the
+tab panel keeps its toolbar: the three stages in order with their captions, the open one outlined,
+each clickable to its tab, and beside each this document's figure from the Supervisor — its rules,
+the streams waiting on a session of its, the sessions of its parked for a person — read with the
+document through the resources the Supervisor itself uses, and guarded against a slower earlier read
+arriving after a later one. The figures are the document's answer to "what is happening", beside its
+own "what should happen". The tab panel rebuilds its toolbar on every tab change, so the header is
+put back after each. *Its own audit, the same day:* a figure from the last document read could have
+stood beside a new one's until its own reply arrived, so the three are cleared as a set; and a person
+who may read the document but not ask the Supervisor saw an error dialog for opening it, since the
+REST helper alerts on a failure by default, so those three reads fail quietly and show no figure.
+Checked: both pages the figures come from carry the full total, so one row is read of each.
