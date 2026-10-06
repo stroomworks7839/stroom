@@ -1128,7 +1128,7 @@ it is in:
 - *Steps* — the document's own list, one line each, in the order they are first entered:
 
   ```
-  [id:] KIND [parser|transform] [when always|text|xml|json] [candidates n] [kinds n]
+  [id:] KIND [parser|transform] [when always|text|xml|json] [candidates n] [kinds n] [elements a,b,…]
         [checks a,b,…] [on <outcome> goto <id> | abandon]… [on spent goto <id> | abandon]
   ```
 

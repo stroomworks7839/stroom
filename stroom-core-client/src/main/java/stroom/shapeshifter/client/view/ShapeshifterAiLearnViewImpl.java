@@ -17,13 +17,13 @@
 package stroom.shapeshifter.client.view;
 
 import stroom.entity.client.presenter.ReadOnlyChangeHandler;
-import stroom.item.client.SelectionBox;
-import stroom.shapeshifter.client.presenter.ShapeshifterAiFlowPresenter.ShapeshifterAiFlowView;
+import stroom.shapeshifter.client.presenter.ShapeshifterAiLearnPresenter.ShapeshifterAiLearnView;
 import stroom.shapeshifter.client.presenter.ShapeshifterAiSettingsUiHandlers;
 import stroom.shapeshifter.shared.FlowProblem;
 import stroom.shapeshifter.shared.FlowStep;
 import stroom.shapeshifter.shared.Template;
 import stroom.widget.button.client.Button;
+import stroom.widget.valuespinner.client.ValueSpinner;
 
 import com.google.gwt.event.dom.client.ClickEvent;
 import com.google.gwt.event.logical.shared.ValueChangeEvent;
@@ -41,14 +41,15 @@ import com.gwtplatform.mvp.client.ViewWithUiHandlers;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
-public class ShapeshifterAiFlowViewImpl
+public class ShapeshifterAiLearnViewImpl
         extends ViewWithUiHandlers<ShapeshifterAiSettingsUiHandlers>
-        implements ShapeshifterAiFlowView, ReadOnlyChangeHandler {
+        implements ShapeshifterAiLearnView, ReadOnlyChangeHandler {
 
     private final Widget widget;
     private final FlowChart chart = new FlowChart();
@@ -78,16 +79,26 @@ public class ShapeshifterAiFlowViewImpl
     Label stepDefaults;
     @UiField
     Label nodeNote;
+    /// The session's settings, at Start (A94).
+    @UiField
+    FlowPanel startSection;
+    @UiField
+    SimplePanel model;
+    @UiField
+    TextArea instructions;
+    @UiField
+    ValueSpinner maxAttempts;
+    @UiField
+    ValueSpinner attemptBudgetMs;
+    @UiField
+    ValueSpinner tokenBudget;
+    @UiField
+    ValueSpinner sampleSizeLimit;
     @UiField
     FlowPanel textSection;
+    /// The texts the selected node is asked with, one slot each.
     @UiField
-    SelectionBox<Template> template;
-    @UiField
-    TextArea templateText;
-    @UiField
-    Button resetTemplate;
-    @UiField
-    Label templateStatus;
+    FlowPanel texts;
     @UiField
     Label flowProblem;
     /// The same flow in the grammar the harness and import/export carry, two-way (A87).
@@ -97,6 +108,7 @@ public class ShapeshifterAiFlowViewImpl
     /// This document's changed texts, by template; and the built-ins the node serves, shown where the
     /// document has not changed one.
     private final Map<Template, String> overrides = new HashMap<>();
+    private final Map<Template, TextSlot> slots = new LinkedHashMap<>();
     private Map<Template, String> builtIns = new HashMap<>();
     private Integer builtInVersion;
     private Integer savedAgainstVersion;
@@ -106,10 +118,19 @@ public class ShapeshifterAiFlowViewImpl
     private Integer selectedStep;
 
     @Inject
-    public ShapeshifterAiFlowViewImpl(final Binder binder) {
+    public ShapeshifterAiLearnViewImpl(final Binder binder) {
         widget = binder.createAndBindUi(this);
         chartPanel.setWidget(chart);
+        bound(maxAttempts, 1, Integer.MAX_VALUE);
+        bound(attemptBudgetMs, 1, Long.MAX_VALUE);
+        bound(tokenBudget, 0, Long.MAX_VALUE);
+        bound(sampleSizeLimit, 1, Integer.MAX_VALUE);
         showNothingSelected();
+    }
+
+    private static void bound(final ValueSpinner spinner, final long min, final long max) {
+        spinner.setMin(min);
+        spinner.setMax(max);
     }
 
     @Override
@@ -158,6 +179,66 @@ public class ShapeshifterAiFlowViewImpl
     }
 
     @Override
+    public void setModelView(final View view) {
+        model.setWidget(view.asWidget());
+    }
+
+    @Override
+    public String getInstructions() {
+        return instructions.getValue();
+    }
+
+    @Override
+    public void setInstructions(final String instructions) {
+        this.instructions.setValue(instructions);
+    }
+
+    @Override
+    public int getMaxAttempts() {
+        return maxAttempts.getIntValue();
+    }
+
+    @Override
+    public void setMaxAttempts(final int maxAttempts) {
+        this.maxAttempts.setValue(maxAttempts);
+    }
+
+    @Override
+    public long getAttemptBudgetMs() {
+        return attemptBudgetMs.getValue();
+    }
+
+    @Override
+    public void setAttemptBudgetMs(final long attemptBudgetMs) {
+        this.attemptBudgetMs.setValue(attemptBudgetMs);
+    }
+
+    @Override
+    public Long getTokenBudget() {
+        final long tokens = tokenBudget.getValue();
+        return tokens == 0
+                ? null
+                : tokens;
+    }
+
+    @Override
+    public void setTokenBudget(final Long tokenBudget) {
+        this.tokenBudget.setValue(tokenBudget == null
+                ? 0
+                : tokenBudget);
+    }
+
+    @Override
+    public int getSampleSizeLimit() {
+        return sampleSizeLimit.getIntValue();
+    }
+
+    @Override
+    public void setSampleSizeLimit(final int sampleSizeLimit) {
+        this.sampleSizeLimit.setValue(sampleSizeLimit);
+    }
+
+    @Override
     public void showStep(final int number,
                          final int of,
                          final String title,
@@ -170,6 +251,7 @@ public class ShapeshifterAiFlowViewImpl
         stepDefaults.setText(defaults);
         stepDefaults.setVisible(true);
         nodeNote.setVisible(false);
+        startSection.setVisible(false);
         textSection.setVisible(true);
         updateButtons();
     }
@@ -182,9 +264,10 @@ public class ShapeshifterAiFlowViewImpl
         stepForm.setVisible(false);
         stepDefaults.setVisible(false);
         nodeNote.setText("A session opens for a shape no rule binds, with a sample of the stream in hand. "
-                         + "The texts below are shared by every question: the system text they are all asked "
-                         + "under, and the rules the questions include.");
+                         + "These are the session's own settings: the model it talks to, the instructions every "
+                         + "question carries, what it may spend, and the texts every question shares.");
         nodeNote.setVisible(true);
+        startSection.setVisible(true);
         textSection.setVisible(true);
         updateButtons();
     }
@@ -197,10 +280,11 @@ public class ShapeshifterAiFlowViewImpl
         stepForm.setVisible(false);
         stepDefaults.setVisible(false);
         nodeNote.setText("The fragment is bound as the shape's rule, the corpus is written, and the stream "
-                         + "and every stream that waited on it are served. A session also ends by an exit: P, "
-                         + "parked for a person to grant more, answer a turn or send it to the exhaustion step; "
-                         + "G, the shape given up and its streams errored, which is a parser's default.");
+                         + "and every stream that waited on it are served. A session also ends by an exit: park, "
+                         + "for a person to grant more, answer a turn or send it to the exhaustion step; give-up, "
+                         + "the shape given up and its streams errored, which is a parser's default.");
         nodeNote.setVisible(true);
+        startSection.setVisible(false);
         textSection.setVisible(false);
         updateButtons();
     }
@@ -212,10 +296,11 @@ public class ShapeshifterAiFlowViewImpl
         setStepProblem(null);
         stepForm.setVisible(false);
         stepDefaults.setVisible(false);
-        nodeNote.setText("Click a step on the chart to edit it here, Start for the texts every question "
-                         + "shares, or add a step.");
+        nodeNote.setText("Click a step on the chart to edit it here, Start for the session's settings and the "
+                         + "texts every question shares, or add a step.");
         nodeNote.setVisible(true);
-        textSection.setVisible(true);
+        startSection.setVisible(false);
+        textSection.setVisible(false);
         updateButtons();
     }
 
@@ -243,17 +328,26 @@ public class ShapeshifterAiFlowViewImpl
     }
 
     @Override
-    public void setTemplateChoices(final List<Template> templates) {
-        final Template was = template.getValue();
-        template.clear();
-        template.addItems(templates);
-        template.setValue(templates.contains(was)
-                ? was
-                : templates.isEmpty()
-                        ? null
-                        : templates.get(0));
-        textSection.setVisible(!templates.isEmpty() && (stepShown || nodeNote.isVisible()));
-        showTemplate();
+    public void setTexts(final List<Template> templates) {
+        slots.clear();
+        texts.clear();
+        for (final Template template : templates) {
+            final TextSlot slot = new TextSlot(template);
+            slots.put(template, slot);
+            texts.add(slot.widget);
+        }
+        textSection.setVisible(!templates.isEmpty());
+        showTemplates();
+    }
+
+    @Override
+    public void setText(final Template slot, final String text) {
+        if (text == null || text.equals(builtIns.get(slot))) {
+            overrides.remove(slot);
+        } else {
+            overrides.put(slot, text);
+        }
+        showTemplates();
     }
 
     @Override
@@ -266,49 +360,46 @@ public class ShapeshifterAiFlowViewImpl
         overrides.clear();
         overrides.putAll(templates);
         this.savedAgainstVersion = savedAgainstVersion;
-        showTemplate();
+        showTemplates();
     }
 
     @Override
     public void setBuiltInTemplates(final Map<Template, String> templates, final int version) {
         builtIns = new HashMap<>(templates);
         builtInVersion = version;
-        showTemplate();
+        showTemplates();
     }
 
-    /// The selected template as this document uses it, and where its text comes from. Text is per kind
-    /// of question (A85): the status says so where an edit reaches more than this step.
-    private void showTemplate() {
-        final Template selected = template.getValue();
-        if (selected == null) {
-            templateText.setValue("");
-            templateStatus.setText("");
-            resetTemplate.setEnabled(false);
-            return;
-        }
-        final String override = overrides.get(selected);
-        templateText.setValue(override != null
-                ? override
-                : builtIns.getOrDefault(selected, ""));
-        resetTemplate.setEnabled(override != null && !readOnly);
-        final StringBuilder status = new StringBuilder(override != null
-                ? "This document's own text"
-                : builtIns.containsKey(selected)
-                        ? "The built-in text"
-                        : "The built-in text has not been fetched");
-        if (builtInVersion != null) {
-            status.append("; built-in version ").append(builtInVersion);
-            if (savedAgainstVersion != null && !savedAgainstVersion.equals(builtInVersion)) {
-                status.append(", this document last saved against ").append(savedAgainstVersion);
+    /// Every slot as this document uses it, and where its text comes from. Text is per kind of question
+    /// (A85): the status says so where an edit reaches more than this step.
+    private void showTemplates() {
+        for (final TextSlot slot : slots.values()) {
+            final String override = overrides.get(slot.template);
+            slot.text.setValue(override != null
+                    ? override
+                    : builtIns.getOrDefault(slot.template, ""));
+            slot.text.setReadOnly(readOnly);
+            slot.load.setEnabled(!readOnly);
+            final StringBuilder status = new StringBuilder(override != null
+                    ? "This document's own text"
+                    : builtIns.containsKey(slot.template)
+                            ? "The built-in text"
+                            : "The built-in text has not been fetched");
+            if (builtInVersion != null) {
+                status.append(", built-in version ").append(builtInVersion);
+                if (savedAgainstVersion != null && !savedAgainstVersion.equals(builtInVersion)) {
+                    status.append(", this document last saved against ").append(savedAgainstVersion);
+                }
             }
+            if (slot.template == Template.CONFIGURATION) {
+                status.append(". Asked at every Configure step, parser and transform alike");
+            }
+            status.append('.');
+            slot.status.setText(status.toString());
+            slot.text.setTitle("Variables: " + (slot.template.getVariables().length == 0
+                    ? "none"
+                    : String.join(", ", variables(slot.template))));
         }
-        status.append(". Variables: ").append(selected.getVariables().length == 0
-                ? "none"
-                : String.join(", ", variables(selected)));
-        if (selected == Template.CONFIGURATION) {
-            status.append(". Asked at every Configure step, parser and transform alike.");
-        }
-        templateStatus.setText(status.toString());
     }
 
     private static List<String> variables(final Template template) {
@@ -323,19 +414,26 @@ public class ShapeshifterAiFlowViewImpl
         final boolean enabled = !readOnly;
         addStep.setEnabled(enabled);
         loadExample.setEnabled(enabled);
-        copyStep.setEnabled(enabled && stepShown);
-        deleteStep.setEnabled(enabled && stepShown);
-        moveUp.setEnabled(enabled && stepShown);
-        moveDown.setEnabled(enabled && stepShown);
+        copyStep.setVisible(stepShown);
+        deleteStep.setVisible(stepShown);
+        moveUp.setVisible(stepShown);
+        moveDown.setVisible(stepShown);
+        copyStep.setEnabled(enabled);
+        deleteStep.setEnabled(enabled);
+        moveUp.setEnabled(enabled);
+        moveDown.setEnabled(enabled);
     }
 
     @Override
     public void onReadOnly(final boolean readOnly) {
         this.readOnly = readOnly;
         flowText.setReadOnly(readOnly);
-        template.setEnabled(!readOnly);
-        templateText.setReadOnly(readOnly);
-        resetTemplate.setEnabled(!readOnly && overrides.containsKey(template.getValue()));
+        instructions.setEnabled(!readOnly);
+        maxAttempts.setEnabled(!readOnly);
+        attemptBudgetMs.setEnabled(!readOnly);
+        tokenBudget.setEnabled(!readOnly);
+        sampleSizeLimit.setEnabled(!readOnly);
+        showTemplates();
         updateButtons();
     }
 
@@ -389,6 +487,31 @@ public class ShapeshifterAiFlowViewImpl
         }
     }
 
+    @UiHandler("instructions")
+    public void onInstructions(final ValueChangeEvent<String> event) {
+        fireChange();
+    }
+
+    @UiHandler("maxAttempts")
+    public void onMaxAttempts(final ValueChangeEvent<Long> event) {
+        fireChange();
+    }
+
+    @UiHandler("attemptBudgetMs")
+    public void onAttemptBudgetMs(final ValueChangeEvent<Long> event) {
+        fireChange();
+    }
+
+    @UiHandler("tokenBudget")
+    public void onTokenBudget(final ValueChangeEvent<Long> event) {
+        fireChange();
+    }
+
+    @UiHandler("sampleSizeLimit")
+    public void onSampleSizeLimit(final ValueChangeEvent<Long> event) {
+        fireChange();
+    }
+
     @UiHandler("flowText")
     public void onFlowText(final ValueChangeEvent<String> event) {
         if (getUiHandlers() != null) {
@@ -398,42 +521,61 @@ public class ShapeshifterAiFlowViewImpl
         }
     }
 
-    @UiHandler("template")
-    public void onTemplate(final ValueChangeEvent<Template> event) {
-        showTemplate();
-    }
-
-    /// Text equal to the built-in is no change: the document keeps following the built-in.
-    @UiHandler("templateText")
-    public void onTemplateText(final ValueChangeEvent<String> event) {
-        final Template selected = template.getValue();
-        if (selected == null) {
-            return;
-        }
-        final String text = event.getValue();
-        if (text == null || text.equals(builtIns.get(selected))) {
-            overrides.remove(selected);
+    /// One text edited in place: words equal to the built-in are no change, and the document keeps
+    /// following the built-in.
+    private void textEdited(final Template template, final String text) {
+        if (text == null || text.equals(builtIns.get(template))) {
+            overrides.remove(template);
         } else {
-            overrides.put(selected, text);
+            overrides.put(template, text);
         }
-        showTemplate();
+        showTemplates();
         fireChange();
-    }
-
-    @UiHandler("resetTemplate")
-    public void onResetTemplate(final ClickEvent event) {
-        final Template selected = template.getValue();
-        if (selected != null && overrides.remove(selected) != null) {
-            showTemplate();
-            fireChange();
-        }
     }
 
 
     // --------------------------------------------------------------------------------
 
 
-    public interface Binder extends UiBinder<Widget, ShapeshifterAiFlowViewImpl> {
+    public interface Binder extends UiBinder<Widget, ShapeshifterAiLearnViewImpl> {
 
+    }
+
+
+    // --------------------------------------------------------------------------------
+
+
+    /// One text the selected node is asked with: its name, where its words come from, the words
+    /// themselves to edit, and a button to load a built-in's in their place.
+    private final class TextSlot {
+
+        private final Template template;
+        private final FlowPanel widget = new FlowPanel();
+        private final Label status = new Label();
+        private final TextArea text = new TextArea();
+        private final Button load = new Button();
+
+        private TextSlot(final Template template) {
+            this.template = template;
+            widget.addStyleName("flow-text-slot");
+            final Label heading = new Label(template.getDisplayValue());
+            heading.addStyleName("flow-heading");
+            status.addStyleName("flow-note");
+            text.addStyleName("templateText flow-slot-text");
+            text.setWidth("100%");
+            text.setHeight("180px");
+            text.addValueChangeHandler(event -> textEdited(template, event.getValue()));
+            load.setText("Load built-in");
+            load.addStyleName("allow-focus");
+            load.addClickHandler(event -> {
+                if (getUiHandlers() != null) {
+                    getUiHandlers().onLoadBuiltIn(template);
+                }
+            });
+            widget.add(heading);
+            widget.add(status);
+            widget.add(text);
+            widget.add(load);
+        }
     }
 }

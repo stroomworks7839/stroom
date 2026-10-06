@@ -22,12 +22,15 @@ import stroom.shapeshifter.shared.Check;
 import stroom.shapeshifter.shared.ConfigureRole;
 import stroom.shapeshifter.shared.QuestionKind;
 import stroom.shapeshifter.shared.StepGuard;
+import stroom.widget.form.client.FormGroup;
 import stroom.widget.tickbox.client.view.CustomCheckBox;
 
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
 import com.google.gwt.user.client.ui.FlowPanel;
+import com.google.gwt.user.client.ui.Label;
 import com.google.gwt.user.client.ui.SimplePanel;
+import com.google.gwt.user.client.ui.TextArea;
 import com.google.gwt.user.client.ui.TextBox;
 import com.google.gwt.user.client.ui.Widget;
 import com.google.inject.Inject;
@@ -65,6 +68,22 @@ public class FlowStepViewImpl extends ViewImpl implements FlowStepView {
     FlowPanel checks;
     @UiField
     SimplePanel transitions;
+    @UiField
+    TextArea elements;
+    @UiField
+    FormGroup roleGroup;
+    @UiField
+    FormGroup whenGroup;
+    @UiField
+    FormGroup kindsGroup;
+    @UiField
+    FormGroup elementsGroup;
+    @UiField
+    FormGroup checksGroup;
+    @UiField
+    FormGroup transitionsGroup;
+    @UiField
+    Label chainNote;
     private Runnable onChange;
 
     @Inject
@@ -83,8 +102,11 @@ public class FlowStepViewImpl extends ViewImpl implements FlowStepView {
         // save is refused: only CONFIGURE takes one.
         kind.addValueChangeHandler(event -> {
             roleFollowsKind();
+            shapeForKind();
             changed();
         });
+        elements.addValueChangeHandler(event -> changed());
+        shapeForKind();
         role.addValueChangeHandler(event -> changed());
         when.addValueChangeHandler(event -> changed());
         id.addValueChangeHandler(event -> changed());
@@ -129,6 +151,45 @@ public class FlowStepViewImpl extends ViewImpl implements FlowStepView {
     public void setKind(final QuestionKind kind) {
         this.kind.setValue(kind);
         roleFollowsKind();
+        shapeForKind();
+    }
+
+    /// Only the fields a kind of step can use are shown (A97): a greyed field says "not yours to change",
+    /// which is for a read-only document; a kind that has no such thing shows none.
+    private void shapeForKind() {
+        final QuestionKind selected = kind.getValue();
+        final boolean chain = selected == QuestionKind.CHAIN;
+        roleGroup.setVisible(selected == QuestionKind.CONFIGURE);
+        whenGroup.setVisible(!chain && selected != QuestionKind.ADMIT);
+        kindsGroup.setVisible(selected == QuestionKind.TARGET);
+        elementsGroup.setVisible(chain);
+        checksGroup.setVisible(!chain);
+        transitionsGroup.setVisible(!chain);
+        chainNote.setVisible(chain);
+    }
+
+    @Override
+    public List<String> getElements() {
+        final List<String> named = new ArrayList<>();
+        final String text = elements.getValue() == null
+                ? ""
+                : elements.getValue();
+        for (final String line : text.split("\n")) {
+            if (!line.trim().isEmpty()) {
+                named.add(line.trim());
+            }
+        }
+        return named;
+    }
+
+    @Override
+    public void setElements(final List<String> elements) {
+        this.elements.setValue(String.join("\n", elements));
+    }
+
+    @Override
+    public void setDefaultCandidates(final int candidates) {
+        this.candidates.getElement().setAttribute("placeholder", candidates + ", from Start");
     }
 
     @Override
@@ -201,6 +262,7 @@ public class FlowStepViewImpl extends ViewImpl implements FlowStepView {
         when.setEnabled(!readOnly);
         candidates.setEnabled(!readOnly);
         kinds.setEnabled(!readOnly);
+        elements.setEnabled(!readOnly);
         checkBoxes.values().forEach(box -> box.setEnabled(!readOnly));
         roleFollowsKind();
     }

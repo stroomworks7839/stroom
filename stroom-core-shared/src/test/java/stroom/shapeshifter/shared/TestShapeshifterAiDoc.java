@@ -104,6 +104,28 @@ class TestShapeshifterAiDoc {
     }
 
     @Test
+    void theChainStepNamesTheElementsTheChainQuestionChoosesFrom() {
+        // A95: elements are the Chain step's, written as a word of its line; the document derives what it
+        // allows from them, the default set where the step names none; no other step may name any.
+        final FlowStep chain = FlowStep.parse("CHAIN elements DSParser,XSLTFilter candidates 2");
+        assertThat(chain.getElements()).containsExactly("DSParser", "XSLTFilter");
+        assertThat(chain.format()).isEqualTo("CHAIN candidates 2 elements DSParser,XSLTFilter");
+        assertThat(FlowStep.parse("CHAIN").getElements()).isEmpty();
+        assertThat(FlowStep.parse("CHAIN").effectiveElements()).isEqualTo(FlowStep.DEFAULT_ELEMENTS);
+        assertThatThrownBy(() -> FlowStep.parse("CONFIGURE parser elements DSParser"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Only CHAIN names elements");
+        final ShapeshifterAiDoc doc = ShapeshifterAiDoc.builder().uuid("d").name("n")
+                .flow(LearningFlow.of(FlowExample.DIRECT).withSteps(List.of(chain, FlowStep.parse("CONFIGURE"))))
+                .build();
+        assertThat(doc.getAllowedElements()).containsExactly("DSParser", "XSLTFilter");
+        assertThat(ShapeshifterAiDoc.builder().uuid("d").name("n").build().getAllowedElements())
+                .isEqualTo(FlowStep.DEFAULT_ELEMENTS);
+        assertThat(ShapeshifterAiDoc.builder().uuid("d").name("n").allowedElements(List.of("XMLParser")).build()
+                .getFlow().getSteps().get(0).getElements()).containsExactly("XMLParser");
+    }
+
+    @Test
     void aProblemNamesTheStepItIsAbout() {
         // A88: the check says which step, where it is about one, so an editor can paint it.
         final List<FlowProblem> problems = LearningFlow.of(FlowExample.DIRECT).withSteps(List.of(
@@ -224,7 +246,7 @@ class TestShapeshifterAiDoc {
         // The creator sees nulls for every field a stored doc predates, so the defaults must come from it
         // rather than only from the builder.
         final ShapeshifterAiDoc doc = new ShapeshifterAiDoc(
-                "uuid", "name", "1", null, null, null, null, null, null, null, null, null, null, null, null,
+                "uuid", "name", "1", null, null, null, null, null, null, null, null, null, null, null,
                 null, null, null, null, null, null, null, null, null, null, null, null);
 
         assertThat(doc.getLearningMode()).isEqualTo(LearningMode.DISABLED);
@@ -257,7 +279,7 @@ class TestShapeshifterAiDoc {
         final ShapeshifterAiDoc created = new ShapeshifterAiDoc(
                 "uuid", "name", null, null, null, null, null,
                 null, null, null, null, null, null, null, null, null, null, null, null, null, null, null,
-                null, null, null, null, null);
+                null, null, null, null);
 
         assertThat(built).isEqualTo(created);
     }

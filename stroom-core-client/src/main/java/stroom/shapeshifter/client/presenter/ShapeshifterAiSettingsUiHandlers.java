@@ -17,6 +17,7 @@
 package stroom.shapeshifter.client.presenter;
 
 import stroom.shapeshifter.shared.FlowStep;
+import stroom.shapeshifter.shared.Template;
 
 import com.gwtplatform.mvp.client.UiHandlers;
 
@@ -66,6 +67,11 @@ public interface ShapeshifterAiSettingsUiHandlers extends UiHandlers {
 
     /// The selected step moves up (-1) or down (1).
     default void onMoveStep(final int by) {
+        // Only the Flow tab holds a flow.
+    }
+
+    /// A built-in text is to be loaded into one of the selected node's texts, chosen from a popup.
+    default void onLoadBuiltIn(final Template slot) {
         // Only the Flow tab holds a flow.
     }
 

@@ -237,7 +237,21 @@ is not the step, and it makes the judging visible as an act of its own, which it
    panel wrapping beneath it where the screen is narrower. Noted and left: an edit the form cannot
    read as a step is said beside the form and lost if another step is then clicked; and the exit
    criterion of phase H — the escalating example composed on the chart from an empty flow without
-   the grammar — is for the walkthrough, since nothing here has yet been clicked in a browser.
+   the grammar — is for the walkthrough, since nothing here has yet been clicked in a browser.*
+   *Seen in the browser the same day, and changed on the owner's notes:* the tab is three split panes
+   now — the chart, the step's panel beside it, the text beneath filling its pane — rather than form
+   groups of fixed size; the exits are named on the chart, *park* and *give-up*, with *(default)* where
+   the step's own default applies, in place of the letters P and G; and the panel says, where no check
+   is ticked, that the step is judged by its kind's own, since the examples tick none and a person
+   looking at the checks found none ticked. The mock-up still shows the letters. *And on a second
+   note:* the question text no longer has a picker. The panel shows every text the selected node is
+   asked with, each in its own place — one for most steps; the split's text, XML and JSON variants
+   where its guard is `always` and the stream decides, else the one the guard selects; the system text
+   and the three rules at Start — with where its words come from above it, the words themselves to
+   edit, and a *Load built-in* button that opens a popup listing the built-ins whose variables the
+   text allows, the words shown before they are loaded. Words equal to the built-in are no change, so
+   loading a text's own built-in puts the document back to following it. A85 stands: the text is
+   still per kind, and the status still says so at Configure.
 4. **Later, if wanted.** Per-step question text (Q5); a last-attempts overlay on the Flow tab; the
    path drawn live as a session runs.
 
@@ -291,3 +305,57 @@ the exits have a place to leave from that is not the step, and the judging is vi
 
 **A90.** *The chart is inline SVG drawn by a GWT widget with the spine layout of §3, no library.* The
 mock-up is written the same way and is the layout's proof.
+
+## 10. The document as the process
+
+*Ruled 2026-10-06, on the owner's reading of the built tab and a discussion of what the document is
+for.* The tabs had followed the Java: Settings, Learning, Flow, Scoring, Promotion, Routing, each the
+fields of one class. A person had to know the mechanism to know that the learning key was the gate,
+that the scorers were what sent a served stream back, and that half the Learning tab was budgets for
+the flow on the next. The document now reads as the process a stream meets, left to right.
+
+**A91.** *The tabs are Route, Score, Learn, then Documentation and Permissions.* Route is the gate: the
+learning key, which says what a shape is; the learning mode; how long a shape with no rule may wait;
+and the rules the gate routes to. Score is every score: the scorers, which are the bar a served record
+must clear and the judges of every candidate a session learns, with the promotion gate and the flag a
+serving rule raises. Learn is the flow.
+
+**A92.** *The maximum deferral age is on Route*, since it is about what happens at the gate when
+nothing serves a shape.
+
+**A93.** *The relearn threshold is on Score*, as "flag a serving rule below", since it is read against
+the rolling score and does nothing else on the document.
+
+**A94.** *The session's own settings open from Start*: the model, the instructions, the default
+candidates, the time and token budgets, the sample size limit, and the shared texts. The Learning tab
+is gone.
+
+**A95.** *The elements the chain question chooses from are the Chain step's.* Written in the grammar as
+`elements DSParser,XSLTFilter`, named on no other kind of step; empty for the default set. The
+document's own field is gone, and the store's serialiser reads it from a document saved before onto
+the Chain step. The document still answers what it allows, derived from its flow.
+
+**A96.** *A step that inherits a default shows it.* The empty candidates field shows Start's default
+as its placeholder, "3, from Start", so the inheritance is visible where it applies.
+
+**A97.** *Fields a kind of step cannot use are hidden, not greyed.* Greying is for a read-only
+document. A Chain step shows its id, candidates and elements, and one line saying it is settled first
+and takes no transition; a Split its guard, candidates, checks and transitions; a Target those and its
+kinds; a Configure its role, guard, candidates, checks and transitions; an Admit its candidates, checks
+and transitions. The step buttons that are not for Start or End are absent there.
+
+**A98.** *A process header across the tabs*, the three stages drawn small with the open one
+highlighted and the document's own Supervisor figures beside them, is wanted and comes after the
+rest, as slice 5.
+
+*Built 2026-10-06, slice 4: A91–A97.* The Route, Score and Learn presenters carry what the six tabs
+carried, with the gate's and the scores' settings above their tables in split panes; `FlowStep` has
+`elements` with its grammar word and the document derives `getAllowedElements()` from the flow, the
+builder's `allowedElements` putting them on the Chain step for the serialiser and the fixtures; the
+step form hides by kind and shows Start's default; the demo pack was regenerated. The mock-up is not
+brought up to this and stands for the chart alone. *Its own audit, the same day:* the Score tab's
+bounds for the minimum records per shape and the regression cap had been rebuilt the wrong way round
+from memory, one and zero where the Promotion tab had zero and one, and are now as they were; the
+Chain step's box on the chart says which elements it chooses from; and design 01 §10.2's grammar line
+has the `elements` word. Found on the way: the claiming check on the import path failed an import
+whose filter arrived before its pipeline, fixed and noted in design 04.

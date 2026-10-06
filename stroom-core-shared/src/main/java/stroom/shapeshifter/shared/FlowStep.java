@@ -35,19 +35,22 @@ import java.util.Objects;
 /// on each outcome. Written and read as one line:
 ///
 /// ```
-/// [id:] KIND [parser|transform] [when always|text|xml|json] [candidates n] [kinds n]
+/// [id:] KIND [parser|transform] [when always|text|xml|json] [candidates n] [kinds n] [elements a,b,…]
 ///       [checks a,b,…] [on <outcome> goto <id> | abandon]… [on spent goto <id> | abandon]
 ///
 /// A `goto` may name the reserved step `end`, the end of the flow.
 /// ```
-@JsonPropertyOrder({"id", "kind", "role", "when", "candidates", "kinds", "checks", "transitions"})
+@JsonPropertyOrder({"id", "kind", "role", "when", "candidates", "kinds", "elements", "checks", "transitions"})
 @JsonInclude(Include.NON_NULL)
 public class FlowStep {
 
     public static final int DEFAULT_KINDS = 3;
     /// A step id: a letter, then letters, digits, hyphens or underscores; matched without regard to case.
     public static final String ID = "[A-Za-z][A-Za-z0-9_-]*";
+    /// Ruling A10's initial set: what the chain question chooses from until the Chain step says otherwise.
+    public static final List<String> DEFAULT_ELEMENTS = List.of("DSParser", "JSONParser", "XMLParser", "XSLTFilter");
     private static final String WHEN = "when";
+    private static final String ELEMENTS = "elements";
     private static final String CANDIDATES = "candidates";
     private static final String KINDS = "kinds";
     private static final String CHECKS = "checks";
@@ -71,6 +74,21 @@ public class FlowStep {
     private final List<Check> checks;
     @JsonProperty
     private final List<Transition> transitions;
+    /// The element types the chain question chooses from (A21, A95): the Chain step's alone, and empty
+    /// where it chooses from [#DEFAULT_ELEMENTS]. With exactly one the question is not asked.
+    @JsonProperty
+    private final List<String> elements;
+
+    public FlowStep(final String id,
+                    final QuestionKind kind,
+                    final ConfigureRole role,
+                    final StepGuard when,
+                    final Integer candidates,
+                    final Integer kinds,
+                    final List<Check> checks,
+                    final List<Transition> transitions) {
+        this(id, kind, role, when, candidates, kinds, checks, transitions, null);
+    }
 
     @JsonCreator
     public FlowStep(@JsonProperty("id") final String id,
@@ -80,10 +98,14 @@ public class FlowStep {
                     @JsonProperty("candidates") final Integer candidates,
                     @JsonProperty("kinds") final Integer kinds,
                     @JsonProperty("checks") final List<Check> checks,
-                    @JsonProperty("transitions") final List<Transition> transitions) {
+                    @JsonProperty("transitions") final List<Transition> transitions,
+                    @JsonProperty("elements") final List<String> elements) {
         this.kind = Objects.requireNonNull(kind, "A step needs a question kind");
         if (role != null && kind != QuestionKind.CONFIGURE) {
             throw new IllegalArgumentException("Only CONFIGURE takes a role, in step " + kind.name());
+        }
+        if (elements != null && !elements.isEmpty() && kind != QuestionKind.CHAIN) {
+            throw new IllegalArgumentException("Only CHAIN names elements, in step " + kind.name());
         }
         if (candidates != null && candidates < 1) {
             throw new IllegalArgumentException("'candidates' must be at least 1, in step " + kind.name());
@@ -111,13 +133,22 @@ public class FlowStep {
         this.transitions = transitions == null
                 ? List.of()
                 : Collections.unmodifiableList(new ArrayList<>(transitions));
+        final List<String> named = new ArrayList<>();
+        if (elements != null) {
+            for (final String element : elements) {
+                if (element != null && !element.trim().isEmpty()) {
+                    named.add(element.trim());
+                }
+            }
+        }
+        this.elements = Collections.unmodifiableList(named);
     }
 
     /// A step that is only enough to be one: what a serialisation test builds, since a step with no
     /// kind is not a step and the real constructor says so.
     @SerialisationTestConstructor
     private FlowStep() {
-        this(null, QuestionKind.CHAIN, null, null, null, null, null, null);
+        this(null, QuestionKind.CHAIN, null, null, null, null, null, null, null);
     }
 
     /// A step with no id, role, checks or transitions: the form the A34 list had.
@@ -178,6 +209,23 @@ public class FlowStep {
         return transitions;
     }
 
+    /// The element types a Chain step names, or empty where it chooses from the default set.
+    public List<String> getElements() {
+        return elements;
+    }
+
+    /// The element types the chain question chooses from: the ones named, else the default set.
+    public List<String> effectiveElements() {
+        return elements.isEmpty()
+                ? DEFAULT_ELEMENTS
+                : elements;
+    }
+
+    /// This step with other elements named; only a Chain step takes any.
+    public FlowStep withElements(final List<String> elements) {
+        return new FlowStep(id, kind, role, when, candidates, kinds, checks, transitions, elements);
+    }
+
     /// The name `goto` reaches this step by: its id, or the role's word for a `CONFIGURE` with a role, or the
     /// kind's name in lower case.
     public String effectiveId() {
@@ -228,6 +276,9 @@ public class FlowStep {
         if (kinds != null) {
             text.append(' ').append(KINDS).append(' ').append(kinds);
         }
+        if (!elements.isEmpty()) {
+            text.append(' ').append(ELEMENTS).append(' ').append(String.join(",", elements));
+        }
         if (!checks.isEmpty()) {
             text.append(' ').append(CHECKS).append(' ');
             for (int i = 0; i < checks.size(); i++) {
@@ -277,6 +328,7 @@ public class FlowStep {
         Integer kinds = null;
         final List<Check> checks = new ArrayList<>();
         final List<Transition> transitions = new ArrayList<>();
+        final List<String> elements = new ArrayList<>();
         while (i < words.length) {
             final String key = words[i].toLowerCase();
             if (Transition.ON.equals(key)) {
@@ -297,6 +349,13 @@ public class FlowStep {
                 }
                 case CANDIDATES -> candidates = positive(key, value, trimmed);
                 case KINDS -> kinds = positive(key, value, trimmed);
+                case ELEMENTS -> {
+                    for (final String word : value.split(",")) {
+                        if (!word.trim().isEmpty()) {
+                            elements.add(word.trim());
+                        }
+                    }
+                }
                 case CHECKS -> {
                     for (final String word : value.split(",")) {
                         final Check check = Check.parse(word);
@@ -309,11 +368,11 @@ public class FlowStep {
                     }
                 }
                 default -> throw new IllegalArgumentException("'" + words[i] + "' is not when, candidates, kinds, "
-                                                              + "checks or on, in step '" + trimmed + "'");
+                                                              + "elements, checks or on, in step '" + trimmed + "'");
             }
             i += 2;
         }
-        return new FlowStep(id, kind, role, when, candidates, kinds, checks, transitions);
+        return new FlowStep(id, kind, role, when, candidates, kinds, checks, transitions, elements);
     }
 
     /// Reads `on <outcome|spent> goto <id>` or `on <outcome|spent> abandon` from `words[at]`.

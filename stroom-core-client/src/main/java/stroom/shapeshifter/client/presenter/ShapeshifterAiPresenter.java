@@ -34,12 +34,12 @@ import javax.inject.Provider;
 
 public class ShapeshifterAiPresenter extends DocTabPresenter<LinkTabPanelView, ShapeshifterAiDoc> {
 
-    private static final TabData SETTINGS = new TabDataImpl("Settings");
-    private static final TabData LEARNING = new TabDataImpl("Learning");
-    private static final TabData FLOW = new TabDataImpl("Flow");
-    private static final TabData PROMOTION = new TabDataImpl("Promotion");
-    private static final TabData SCORING = new TabDataImpl("Scoring");
-    private static final TabData ROUTING = new TabDataImpl("Routing");
+    // The three stages of the process, in the order a stream meets them (design 05 §10; A91): the gate
+    // that routes a shape to its rule, the scores that judge what is served and what is learned, and
+    // the flow that learns.
+    private static final TabData ROUTE = new TabDataImpl("Route");
+    private static final TabData SCORE = new TabDataImpl("Score");
+    private static final TabData LEARN = new TabDataImpl("Learn");
     private static final TabData DOCUMENTATION = new TabDataImpl("Documentation");
     private static final TabData PERMISSIONS = new TabDataImpl("Permissions");
 
@@ -47,23 +47,16 @@ public class ShapeshifterAiPresenter extends DocTabPresenter<LinkTabPanelView, S
     public ShapeshifterAiPresenter(
             final EventBus eventBus,
             final LinkTabPanelView view,
-            final Provider<ShapeshifterAiSettingsPresenter> settingsPresenterProvider,
-            final Provider<ShapeshifterAiLearningPresenter> learningPresenterProvider,
-            final Provider<ShapeshifterAiFlowPresenter> flowPresenterProvider,
-            final Provider<ShapeshifterAiScoringPresenter> scoringPresenterProvider,
-            final Provider<ShapeshifterAiPromotionPresenter> promotionPresenterProvider,
-            final Provider<ShapeshifterAiRoutingPresenter> routingPresenterProvider,
+            final Provider<ShapeshifterAiLearnPresenter> learnPresenterProvider,
+            final Provider<ShapeshifterAiScorePresenter> scorePresenterProvider,
+            final Provider<ShapeshifterAiRoutePresenter> routePresenterProvider,
             final Provider<MarkdownEditPresenter> markdownEditPresenterProvider,
             final DocumentUserPermissionsTabProvider<ShapeshifterAiDoc> documentUserPermissionsTabProvider) {
         super(eventBus, view);
 
-        addTab(SETTINGS, new DocTabProvider<>(settingsPresenterProvider::get));
-        addTab(LEARNING, new DocTabProvider<>(learningPresenterProvider::get));
-        // The flow after what it is asked under (A82).
-        addTab(FLOW, new DocTabProvider<>(flowPresenterProvider::get));
-        addTab(SCORING, new DocTabProvider<>(scoringPresenterProvider::get));
-        addTab(PROMOTION, new DocTabProvider<>(promotionPresenterProvider::get));
-        addTab(ROUTING, new DocTabProvider<>(routingPresenterProvider::get));
+        addTab(ROUTE, new DocTabProvider<>(routePresenterProvider::get));
+        addTab(SCORE, new DocTabProvider<>(scorePresenterProvider::get));
+        addTab(LEARN, new DocTabProvider<>(learnPresenterProvider::get));
         addTab(DOCUMENTATION, new MarkdownTabProvider<>(eventBus, markdownEditPresenterProvider) {
             @Override
             public void onRead(final MarkdownEditPresenter presenter,
@@ -81,7 +74,7 @@ public class ShapeshifterAiPresenter extends DocTabPresenter<LinkTabPanelView, S
             }
         });
         addTab(PERMISSIONS, documentUserPermissionsTabProvider);
-        selectTab(SETTINGS);
+        selectTab(ROUTE);
     }
 
     @Override

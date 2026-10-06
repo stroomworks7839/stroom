@@ -45,7 +45,14 @@ public class SupervisedPipelineCheck implements SupervisedPipelines {
 
     @Override
     public boolean isSupervised(final DocRef pipeline) {
-        final PipelineDoc doc = pipelineStoreProvider.get().readDocument(pipeline);
+        final PipelineDoc doc;
+        try {
+            doc = pipelineStoreProvider.get().readDocument(pipeline);
+        } catch (final RuntimeException e) {
+            // A pipeline that cannot be read cannot be judged: an import makes a filter before the
+            // pipeline it names has arrived, and a filter a person makes names one that is there.
+            return false;
+        }
         if (doc == null) {
             return false;
         }

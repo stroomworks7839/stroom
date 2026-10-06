@@ -1,0 +1,83 @@
+<!DOCTYPE ui:UiBinder SYSTEM "http://dl.google.com/gwt/DTD/xhtml.ent">
+<ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
+             xmlns:g="urn:import:com.google.gwt.user.client.ui"
+             xmlns:b="urn:import:stroom.widget.button.client"
+             xmlns:form="urn:import:stroom.widget.form.client"
+             xmlns:v="urn:import:stroom.widget.valuespinner.client">
+    <g:SimplePanel styleName="max">
+        <g:ThinSplitLayoutPanel styleName="max">
+            <g:south size="170">
+                <g:SimplePanel styleName="max dashboard-panel">
+                    <g:FlowPanel styleName="max flow-text-pane">
+                        <g:Label text="The flow as text: one line per step, in the grammar import, export and the harness carry. Edit it and the chart follows; a line that does not parse is reported and nothing changes until it does."
+                                 styleName="flow-note"/>
+                        <g:Label ui:field="flowProblem" styleName="flow-problem" visible="false"/>
+                        <g:TextArea ui:field="flowText" styleName="flow-text"/>
+                    </g:FlowPanel>
+                </g:SimplePanel>
+            </g:south>
+            <g:center>
+                <g:ThinSplitLayoutPanel styleName="max">
+                    <g:east size="480">
+                        <g:SimplePanel styleName="max dashboard-panel">
+                            <g:FlowPanel styleName="max flow-editor-side form">
+                                <g:FlowPanel styleName="flow-toolbar">
+                                    <b:Button ui:field="addStep" text="Add step" addStyleNames="allow-focus"/>
+                                    <b:Button ui:field="copyStep" text="Copy" addStyleNames="allow-focus"/>
+                                    <b:Button ui:field="deleteStep" text="Delete" addStyleNames="allow-focus"/>
+                                    <b:Button ui:field="moveUp" text="Up" addStyleNames="allow-focus"/>
+                                    <b:Button ui:field="moveDown" text="Down" addStyleNames="allow-focus"/>
+                                    <b:Button ui:field="loadExample" text="Load an example" addStyleNames="allow-focus"/>
+                                </g:FlowPanel>
+                                <g:Label ui:field="stepHeading" styleName="flow-heading"/>
+                                <g:Label ui:field="stepProblem" styleName="flow-problem" visible="false"/>
+                                <g:Label ui:field="nodeNote" styleName="flow-note"/>
+                                <g:FlowPanel ui:field="startSection">
+                                    <form:FormGroup identity="shapeshifterLearningModel"
+                                                    label="Model"
+                                                    helpText="The OpenAI-compatible model the session calls.">
+                                        <g:SimplePanel ui:field="model"/>
+                                    </form:FormGroup>
+                                    <form:FormGroup identity="shapeshifterAiInstructions"
+                                                    label="Instructions"
+                                                    helpText="Free-text instructions added to every question put to the model, through the system text.">
+                                        <g:TextArea ui:field="instructions" width="100%" height="100px"/>
+                                    </form:FormGroup>
+                                    <form:FormGroup identity="shapeshifterAiMaxAttempts"
+                                                    label="Default candidates"
+                                                    helpText="How many answers a step asks for before it is spent, where the step sets no candidates of its own.">
+                                        <v:ValueSpinner ui:field="maxAttempts" width="80px"/>
+                                    </form:FormGroup>
+                                    <form:FormGroup identity="shapeshifterAiAttemptBudgetMs"
+                                                    label="Time budget (ms)"
+                                                    helpText="Wall-clock budget for a whole session, every question included. Mandatory; there is no unlimited setting. A session that runs out parks for a person.">
+                                        <v:ValueSpinner ui:field="attemptBudgetMs" width="120px"/>
+                                    </form:FormGroup>
+                                    <form:FormGroup identity="shapeshifterAiTokenBudget"
+                                                    label="Token budget"
+                                                    helpText="Token budget for a whole session. Zero means unlimited. A session that runs out parks for a person, who may grant it more.">
+                                        <v:ValueSpinner ui:field="tokenBudget" width="120px"/>
+                                    </form:FormGroup>
+                                    <form:FormGroup identity="shapeshifterAiSampleSizeLimit"
+                                                    label="Sample size limit (bytes)"
+                                                    helpText="The largest sample of the stream shown to the model.">
+                                        <v:ValueSpinner ui:field="sampleSizeLimit" width="120px"/>
+                                    </form:FormGroup>
+                                </g:FlowPanel>
+                                <g:SimplePanel ui:field="stepForm"/>
+                                <g:Label ui:field="stepDefaults" styleName="flow-note"/>
+                                <g:FlowPanel ui:field="textSection">
+                                    <g:Label text="Question text" styleName="flow-heading flow-section"/>
+                                    <g:FlowPanel ui:field="texts"/>
+                                </g:FlowPanel>
+                            </g:FlowPanel>
+                        </g:SimplePanel>
+                    </g:east>
+                    <g:center>
+                        <g:SimplePanel ui:field="chartPanel" styleName="max dashboard-panel"/>
+                    </g:center>
+                </g:ThinSplitLayoutPanel>
+            </g:center>
+        </g:ThinSplitLayoutPanel>
+    </g:SimplePanel>
+</ui:UiBinder>

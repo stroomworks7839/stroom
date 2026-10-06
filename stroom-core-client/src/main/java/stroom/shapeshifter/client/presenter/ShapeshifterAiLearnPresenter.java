@@ -21,7 +21,10 @@ import stroom.dispatch.client.RestFactory;
 import stroom.docref.DocRef;
 import stroom.entity.client.presenter.DocPresenter;
 import stroom.entity.client.presenter.ReadOnlyChangeHandler;
-import stroom.shapeshifter.client.presenter.ShapeshifterAiFlowPresenter.ShapeshifterAiFlowView;
+import stroom.explorer.client.presenter.DocSelectionBoxPresenter;
+import stroom.openai.shared.OpenAIModelDoc;
+import stroom.security.shared.DocumentPermission;
+import stroom.shapeshifter.client.presenter.ShapeshifterAiLearnPresenter.ShapeshifterAiLearnView;
 import stroom.shapeshifter.client.view.FlowChart;
 import stroom.shapeshifter.shared.ConfigureRole;
 import stroom.shapeshifter.shared.FlowExample;
@@ -31,6 +34,7 @@ import stroom.shapeshifter.shared.LearningFlow;
 import stroom.shapeshifter.shared.QuestionKind;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 import stroom.shapeshifter.shared.ShapeshifterAiResource;
+import stroom.shapeshifter.shared.StepGuard;
 import stroom.shapeshifter.shared.StepOutcome;
 import stroom.shapeshifter.shared.Template;
 import stroom.widget.menu.client.presenter.Item;
@@ -38,6 +42,7 @@ import stroom.widget.menu.client.presenter.MenuBuilder;
 import stroom.widget.menu.client.presenter.MenuPresenter;
 import stroom.widget.popup.client.event.ShowPopupEvent;
 import stroom.widget.popup.client.presenter.PopupPosition;
+import stroom.widget.popup.client.presenter.PopupSize;
 import stroom.widget.popup.client.presenter.PopupType;
 
 import com.google.gwt.core.client.GWT;
@@ -47,11 +52,15 @@ import com.gwtplatform.mvp.client.HasUiHandlers;
 import com.gwtplatform.mvp.client.View;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
+import javax.inject.Provider;
 
 /// The Flow tab (design 05; A82): the learning flow drawn as a flowchart and edited in it. A step clicked
 /// on the chart opens in the form beside it, and every change to the form redraws the chart; its
@@ -60,8 +69,8 @@ import java.util.stream.Collectors;
 /// form. The question text each kind of step is asked with sits beneath the form (A85), and the texts
 /// every question shares open from Start (A86). The same flow as text sits beneath the chart, two-way
 /// (A87). What is wrong with the flow paints the step it names and is said beside it (A88).
-public class ShapeshifterAiFlowPresenter
-        extends DocPresenter<ShapeshifterAiFlowView, ShapeshifterAiDoc>
+public class ShapeshifterAiLearnPresenter
+        extends DocPresenter<ShapeshifterAiLearnView, ShapeshifterAiDoc>
         implements ShapeshifterAiSettingsUiHandlers {
 
     private static final ShapeshifterAiResource RESOURCE = GWT.create(ShapeshifterAiResource.class);
@@ -73,6 +82,9 @@ public class ShapeshifterAiFlowPresenter
     private final RestFactory restFactory;
     private final FlowStepPresenter stepPresenter;
     private final MenuPresenter menuPresenter;
+    private final DocSelectionBoxPresenter modelPresenter;
+    private final Provider<BuiltInTextPresenter> builtInTextPresenterProvider;
+    private Map<Template, String> builtIns = Map.of();
     private final List<FlowStep> steps = new ArrayList<>();
     /// The step open in the form, or null where Start, End or nothing is selected.
     private Integer selected;
@@ -83,14 +95,23 @@ public class ShapeshifterAiFlowPresenter
     private LearningFlow flow = LearningFlow.of(FlowExample.DIRECT);
 
     @Inject
-    public ShapeshifterAiFlowPresenter(final EventBus eventBus,
-                                       final ShapeshifterAiFlowView view,
+    public ShapeshifterAiLearnPresenter(final EventBus eventBus,
+                                       final ShapeshifterAiLearnView view,
                                        final FlowStepPresenter stepPresenter,
                                        final MenuPresenter menuPresenter,
+                                       final DocSelectionBoxPresenter modelPresenter,
+                                       final Provider<BuiltInTextPresenter> builtInTextPresenterProvider,
                                        final RestFactory restFactory) {
         super(eventBus, view);
         this.stepPresenter = stepPresenter;
         this.menuPresenter = menuPresenter;
+        this.modelPresenter = modelPresenter;
+        // The session's own settings open from Start (A94): the model it talks to, the instructions
+        // every question carries, and what it may spend.
+        modelPresenter.setIncludedTypes(OpenAIModelDoc.TYPE);
+        modelPresenter.setRequiredPermissions(DocumentPermission.USE);
+        view.setModelView(modelPresenter.getView());
+        this.builtInTextPresenterProvider = builtInTextPresenterProvider;
         this.restFactory = restFactory;
         view.setUiHandlers(this);
         view.setStepFormView(stepPresenter.getView());
@@ -219,6 +240,45 @@ public class ShapeshifterAiFlowPresenter
         select(to);
     }
 
+    /// A built-in text is loaded into one of the node's texts from a popup that lists the built-ins
+    /// whose variables the text allows, with the words shown before they are loaded.
+    @Override
+    public void onLoadBuiltIn(final Template slot) {
+        if (isReadOnly()) {
+            return;
+        }
+        final BuiltInTextPresenter presenter = builtInTextPresenterProvider.get();
+        presenter.read(slot, suitable(slot), builtIns);
+        ShowPopupEvent.builder(presenter)
+                .popupType(PopupType.OK_CANCEL_DIALOG)
+                .popupSize(PopupSize.resizable(640, 460))
+                .caption("Load a built-in text")
+                .onHideRequest(e -> {
+                    if (e.isOk()) {
+                        final String text = presenter.write();
+                        if (text != null) {
+                            getView().setText(slot, text);
+                            onChange();
+                        }
+                    }
+                    e.hide();
+                })
+                .fire();
+    }
+
+    /// The built-ins a text may be loaded from: those whose variables it allows, its own first.
+    private static List<Template> suitable(final Template slot) {
+        final Set<String> allowed = new HashSet<>(Arrays.asList(slot.getVariables()));
+        final List<Template> fits = new ArrayList<>();
+        fits.add(slot);
+        for (final Template other : Template.values()) {
+            if (other != slot && allowed.containsAll(Arrays.asList(other.getVariables()))) {
+                fits.add(other);
+            }
+        }
+        return fits;
+    }
+
     /// The text beneath the chart was edited (A87): every line is parsed, and the chart follows where
     /// every line parses. A line that does not is reported where the flow's problems are, and nothing
     /// changes until it does.
@@ -282,20 +342,21 @@ public class ShapeshifterAiFlowPresenter
         selected = index == null || index < 0 || index >= steps.size()
                 ? null
                 : index;
-        final ShapeshifterAiFlowView view = getView();
+        final ShapeshifterAiLearnView view = getView();
         view.setSelectedStep(selected);
         if (selected == null) {
             view.showNothingSelected();
-            view.setTemplateChoices(SHARED_TEXTS);
+            view.setTexts(SHARED_TEXTS);
             return;
         }
         final FlowStep step = steps.get(selected);
         readingStep = true;
+        stepPresenter.setDefaultCandidates(view.getMaxAttempts());
         stepPresenter.read(step, ids(), isReadOnly());
         readingStep = false;
         view.showStep(selected + 1, steps.size(), title(step), defaults(step),
                 problemsOf(selected));
-        view.setTemplateChoices(textsOf(step.getKind()));
+        view.setTexts(textsOf(step));
     }
 
     /// Start or End was clicked: Start opens the shared texts (A86), End says what ending means.
@@ -305,10 +366,10 @@ public class ShapeshifterAiFlowPresenter
         getView().setSelectedTerminal(terminal);
         if (FlowChart.START.equals(terminal)) {
             getView().showStart();
-            getView().setTemplateChoices(SHARED_TEXTS);
+            getView().setTexts(SHARED_TEXTS);
         } else {
             getView().showEnd();
-            getView().setTemplateChoices(List.of());
+            getView().setTexts(List.of());
         }
     }
 
@@ -338,23 +399,35 @@ public class ShapeshifterAiFlowPresenter
         flowChanged();
         onChange();
         getView().showStep(selected + 1, steps.size(), title(written), defaults(written), problemsOf(selected));
-        getView().setTemplateChoices(textsOf(written.getKind()));
+        getView().setTexts(textsOf(written));
     }
 
     @Override
     protected void onBind() {
         super.onBind();
+        registerHandler(modelPresenter.addDataSelectionHandler(e -> onChange()));
         // The built-in text of every template, so an override is edited from the words it replaces.
         restFactory
                 .create(RESOURCE)
                 .method(ShapeshifterAiResource::templates)
-                .onSuccess(builtIns -> getView().setBuiltInTemplates(builtIns.getTemplates(), builtIns.getVersion()))
+                .onSuccess(served -> {
+                    builtIns = served.getTemplates();
+                    getView().setBuiltInTemplates(served.getTemplates(), served.getVersion());
+                })
                 .taskMonitorFactory(this)
                 .exec();
     }
 
     @Override
     protected void onRead(final DocRef docRef, final ShapeshifterAiDoc doc, final boolean readOnly) {
+        final ShapeshifterAiLearnView view = getView();
+        modelPresenter.setSelectedEntityReference(doc.getModel(), true);
+        modelPresenter.setEnabled(!readOnly);
+        view.setInstructions(doc.getInstructions());
+        view.setMaxAttempts(doc.getMaxAttempts());
+        view.setAttemptBudgetMs(doc.getAttemptBudgetMs());
+        view.setTokenBudget(doc.getTokenBudget());
+        view.setSampleSizeLimit(doc.getSampleSizeLimit());
         flow = doc.getFlow();
         steps.clear();
         steps.addAll(flow.getSteps());
@@ -367,8 +440,16 @@ public class ShapeshifterAiFlowPresenter
 
     @Override
     protected ShapeshifterAiDoc onWrite(final ShapeshifterAiDoc doc) {
-        return doc.copy().flow(new LearningFlow(new ArrayList<>(steps), getView().getTemplateOverrides(),
-                flow.getBuiltInVersion())).build();
+        final ShapeshifterAiLearnView view = getView();
+        return doc.copy()
+                .model(modelPresenter.getSelectedEntityReference())
+                .instructions(view.getInstructions())
+                .maxAttempts(view.getMaxAttempts())
+                .attemptBudgetMs(view.getAttemptBudgetMs())
+                .tokenBudget(view.getTokenBudget())
+                .sampleSizeLimit(view.getSampleSizeLimit())
+                .flow(new LearningFlow(new ArrayList<>(steps), view.getTemplateOverrides(), flow.getBuiltInVersion()))
+                .build();
     }
 
     /// The flow changed: the chart and the text say what the steps now say, and what is wrong with the
@@ -420,21 +501,33 @@ public class ShapeshifterAiFlowPresenter
         }
         if (step.transitionOnSpent() == null) {
             parts.add("spent " + (step.getRole() == ConfigureRole.PARSER
-                    ? "gives the shape up (G), the parser's default"
-                    : "parks for a person (P)"));
+                    ? "gives the shape up, the parser's default"
+                    : "parks for a person"));
         }
-        return parts.isEmpty()
+        final String checks = step.getChecks().isEmpty()
+                ? " No checks are ticked, so the step is judged by its kind's own."
+                : "";
+        return (parts.isEmpty()
                 ? "Every outcome has a transition."
-                : "By default: " + String.join("; ", parts) + ".";
+                : "By default: " + String.join("; ", parts) + ".") + checks;
     }
 
-    /// The question text a kind of step is asked with (A85): the split's three variants belong to one
-    /// step, since the guard chooses among them.
-    private static List<Template> textsOf(final QuestionKind kind) {
-        switch (kind) {
+    /// The texts a step is asked with (A85): one for most kinds; for a split, the variant its guard
+    /// selects, or all three where the guard is `always` and the stream decides.
+    private static List<Template> textsOf(final FlowStep step) {
+        switch (step.getKind()) {
             case CHAIN:
                 return List.of(Template.CHAIN);
             case SPLIT:
+                if (step.getWhen() == StepGuard.XML) {
+                    return List.of(Template.SPLIT_XML);
+                }
+                if (step.getWhen() == StepGuard.JSON) {
+                    return List.of(Template.SPLIT_JSON);
+                }
+                if (step.getWhen() == StepGuard.TEXT) {
+                    return List.of(Template.SPLIT);
+                }
                 return List.of(Template.SPLIT, Template.SPLIT_XML, Template.SPLIT_JSON);
             case TARGET:
                 return List.of(Template.TARGET);
@@ -449,7 +542,7 @@ public class ShapeshifterAiFlowPresenter
     // --------------------------------------------------------------------------------
 
 
-    public interface ShapeshifterAiFlowView
+    public interface ShapeshifterAiLearnView
             extends View, ReadOnlyChangeHandler, HasUiHandlers<ShapeshifterAiSettingsUiHandlers> {
 
         /// The flow drawn, with what is wrong with it painted on the steps it names.
@@ -467,6 +560,30 @@ public class ShapeshifterAiFlowPresenter
 
         /// The form the selected step is edited in.
         void setStepFormView(View view);
+
+        /// The session's settings, shown at Start (A94).
+        void setModelView(View view);
+
+        String getInstructions();
+
+        void setInstructions(String instructions);
+
+        int getMaxAttempts();
+
+        void setMaxAttempts(int maxAttempts);
+
+        long getAttemptBudgetMs();
+
+        void setAttemptBudgetMs(long attemptBudgetMs);
+
+        /// Null when unlimited; the widget shows unlimited as zero.
+        Long getTokenBudget();
+
+        void setTokenBudget(Long tokenBudget);
+
+        int getSampleSizeLimit();
+
+        void setSampleSizeLimit(int sampleSizeLimit);
 
         /// The side panel showing a step: its place, its title, what it does by default, and what is
         /// wrong with it, or null.
@@ -486,8 +603,12 @@ public class ShapeshifterAiFlowPresenter
 
         void setFlowProblem(String problem);
 
-        /// Which texts the question-text section offers: a step's kind's, or the shared ones at Start.
-        void setTemplateChoices(List<Template> templates);
+        /// The texts the selected node is asked with, each shown and edited in its own place: a step's
+        /// kind's, or the shared ones at Start; none at End.
+        void setTexts(List<Template> templates);
+
+        /// One text replaced by words loaded from a built-in.
+        void setText(Template slot, String text);
 
         Map<Template, String> getTemplateOverrides();
 

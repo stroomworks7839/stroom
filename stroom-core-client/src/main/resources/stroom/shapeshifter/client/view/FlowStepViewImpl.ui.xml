@@ -9,12 +9,12 @@
                         helpText="What this step asks. Chain picks the elements; Split settles what one record is; Target settles what the events should look like; Configure writes one element's configuration; Admit is the exhaustion step, reached only when a transform's candidates are spent, and asks for the admitted form of what cannot be translated.">
             <l:SelectionBox ui:field="kind"/>
         </form:FormGroup>
-        <form:FormGroup identity="stepRole"
+        <form:FormGroup ui:field="roleGroup" identity="stepRole"
                         label="Role"
                         helpText="Which elements a Configure step configures: the parser, the transform, or — left empty — every element in chain order. Only a Configure step takes one.">
             <l:SelectionBox ui:field="role"/>
         </form:FormGroup>
-        <form:FormGroup identity="stepWhen"
+        <form:FormGroup ui:field="whenGroup" identity="stepWhen"
                         label="When"
                         helpText="The guard: the step runs only for input of this kind. 'always' runs it for every input.">
             <l:SelectionBox ui:field="when"/>
@@ -29,17 +29,24 @@
                         helpText="How many answers to ask for at this step before it is spent. Empty for the kind's own default.">
             <g:TextBox ui:field="candidates" width="80px"/>
         </form:FormGroup>
-        <form:FormGroup identity="stepKinds"
+        <form:FormGroup ui:field="kindsGroup" identity="stepKinds"
                         label="Kinds"
                         helpText="How many kinds of record to show the model at this step. Empty for the kind's own default.">
             <g:TextBox ui:field="kinds" width="80px"/>
         </form:FormGroup>
-        <form:FormGroup identity="stepChecks"
-                        label="Checks"
-                        helpText="What judges this step's answers, and so which outcomes it can raise. None ticked leaves the kind's own checks.">
-            <g:FlowPanel ui:field="checks" styleName="dock-container-vertical"/>
+        <form:FormGroup ui:field="elementsGroup" identity="stepElements"
+                        label="Elements"
+                        helpText="Pipeline element types, one per line, that the chain question chooses from (A21). Empty for the default set: DSParser, JSONParser, XMLParser and XSLTFilter. With a single entry the chain question is not asked.">
+            <g:TextArea ui:field="elements" width="100%" height="80px"/>
         </form:FormGroup>
-        <form:FormGroup identity="stepTransitions"
+        <g:Label ui:field="chainNote" styleName="flow-note"
+                 text="The chain is settled first, for every input, and takes no transition: its candidates are re-asked until one names a chain that runs, and nothing can run until then."/>
+        <form:FormGroup ui:field="checksGroup" identity="stepChecks"
+                        label="Checks"
+                        helpText="What judges this step's answers, and so which outcomes it can raise. None ticked is the usual case: the step is judged by its kind's own checks, which the examples all rely on. Tick checks only to narrow or widen what judges this step.">
+            <g:FlowPanel ui:field="checks" styleName="flow-checks"/>
+        </form:FormGroup>
+        <form:FormGroup ui:field="transitionsGroup" identity="stepTransitions"
                         label="Transitions"
                         helpText="Where the step goes on an outcome. With none it re-asks itself on a shortfall until its candidates are gone, and a pass goes to the next step.">
             <g:SimplePanel ui:field="transitions" width="100%" height="180px"

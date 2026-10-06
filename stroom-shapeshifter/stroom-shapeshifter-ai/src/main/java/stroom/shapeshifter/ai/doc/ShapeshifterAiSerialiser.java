@@ -22,7 +22,9 @@ import stroom.docstore.api.Serialiser2Factory;
 import stroom.importexport.api.ImportExportDocument;
 import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.shared.FlowExample;
+import stroom.shapeshifter.shared.FlowStep;
 import stroom.shapeshifter.shared.LearningFlow;
+import stroom.shapeshifter.shared.QuestionKind;
 import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 import stroom.util.json.JsonUtil;
@@ -55,6 +57,8 @@ public class ShapeshifterAiSerialiser implements DocumentSerialiser2<Shapeshifte
     /// shared class cannot carry them, since its JSON codec is generated for the client too, so they
     /// are honoured here, on the way in only.
     private static final List<String> LEGACY_FLOW = List.of("plan", "dialogue");
+    /// Where the chain question's elements were kept before A95 put them on the Chain step.
+    private static final String LEGACY_ELEMENTS = "allowedElements";
     private static final String LEGACY_PRESET = "preset";
     /// Where a document's rules were kept before A41 made them rows.
     private static final String LEGACY_RULES = "routingTable";
@@ -109,8 +113,9 @@ public class ShapeshifterAiSerialiser implements DocumentSerialiser2<Shapeshifte
     /// would change, and must not write while showing it.
     @Override
     public ShapeshifterAiDoc read(final ImportExportDocument importExportDocument) throws IOException {
-        final ShapeshifterAiDoc document = delegate.read(importExportDocument);
-        rememberLegacyRules(document, importExportDocument);
+        final ShapeshifterAiDoc read = delegate.read(importExportDocument);
+        rememberLegacyRules(read, importExportDocument);
+        final ShapeshifterAiDoc document = legacyElements(read, importExportDocument);
         // A document saved when the flow was the plan (before A81) or the conversation (before A37) reads
         // as it was written, and only where an old name occurs at all.
         final byte[] meta = importExportDocument.getExtAssetData(META);
@@ -139,6 +144,30 @@ public class ShapeshifterAiSerialiser implements DocumentSerialiser2<Shapeshifte
             flow = flow.withSteps(example(preset.asText()).steps());
         }
         return document.copy().flow(flow).build();
+    }
+
+    /// A document saved before A95 carried the chain question's elements as its own field: they go on its
+    /// Chain step, where the step names none of its own.
+    private static ShapeshifterAiDoc legacyElements(final ShapeshifterAiDoc document,
+                                                    final ImportExportDocument importExportDocument)
+            throws IOException {
+        final byte[] meta = importExportDocument.getExtAssetData(META);
+        if (document == null || meta == null
+            || !new String(meta, StandardCharsets.UTF_8).contains('"' + LEGACY_ELEMENTS + '"')) {
+            return document;
+        }
+        final JsonNode elements = JsonUtil.getMapper().readTree(meta).get(LEGACY_ELEMENTS);
+        if (elements == null || !elements.isArray() || elements.isEmpty()) {
+            return document;
+        }
+        for (final FlowStep step : document.getFlow().getSteps()) {
+            if (step.getKind() == QuestionKind.CHAIN && !step.getElements().isEmpty()) {
+                return document;
+            }
+        }
+        final List<String> named = new ArrayList<>();
+        elements.forEach(element -> named.add(element.asText()));
+        return document.copy().allowedElements(named).build();
     }
 
     @Override

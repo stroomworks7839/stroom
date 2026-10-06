@@ -125,7 +125,7 @@
     opacity: .9;
 }
 
-.flow-exit circle {
+.flow-exit rect {
     fill: var(--control__background-color);
     stroke: var(--invalid);
     stroke-width: 1.4;
@@ -147,26 +147,11 @@
     font-weight: 600;
 }
 
-/* The Flow tab: the chart beside the selected step's form. */
-.flow-editor {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    align-items: stretch;
-}
-
-.flow-editor-chart {
-    flex: 0 0 800px;
-    min-width: 0;
-    height: 640px;
-}
-
+/* The Flow tab: the chart, the selected step's form beside it, and the flow as text beneath, in split panes. */
 .flow-editor-side {
-    flex: 1 1 360px;
-    min-width: 360px;
-    height: 640px;
     overflow: auto;
-    padding: 6px 8px;
+    padding: 6px 10px;
+    box-sizing: border-box;
 }
 
 .flow-toolbar {
@@ -178,7 +163,7 @@
 
 .flow-heading {
     font-weight: 600;
-    margin: 4px 0;
+    margin: 6px 0 4px;
 }
 
 .flow-note {
@@ -190,4 +175,45 @@
 .flow-problem {
     color: var(--invalid);
     margin: 4px 0;
+}
+
+.flow-text-pane {
+    display: flex;
+    flex-direction: column;
+    padding: 6px 10px;
+    box-sizing: border-box;
+}
+
+.flow-text-pane .flow-text {
+    flex: 1 1 auto;
+    width: 100%;
+    min-height: 0;
+    box-sizing: border-box;
+    resize: none;
+    font-family: var(--font-family-monospace, monospace);
+}
+
+.flow-checks {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 14px;
+}
+
+.flow-section {
+    margin-top: 14px;
+    border-top: 1px solid var(--border-color);
+    padding-top: 8px;
+}
+
+.flow-text-slot {
+    margin-bottom: 12px;
+}
+
+.flow-text-slot .flow-note {
+    margin: 0 0 4px;
+}
+
+.flow-slot-text {
+    box-sizing: border-box;
+    margin-bottom: 4px;
 }

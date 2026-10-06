@@ -22,9 +22,11 @@ import stroom.dispatch.client.RestFactory;
 import stroom.docref.DocRef;
 import stroom.document.client.event.OpenDocumentEvent;
 import stroom.entity.client.presenter.DocPresenter;
+import stroom.entity.client.presenter.ReadOnlyChangeHandler;
 import stroom.query.client.ExpressionTreePresenter;
 import stroom.shapeshifter.client.presenter.RoutingRuleListPresenter.RoutingRow;
-import stroom.shapeshifter.client.presenter.ShapeshifterAiRoutingPresenter.ShapeshifterAiRoutingView;
+import stroom.shapeshifter.client.presenter.ShapeshifterAiRoutePresenter.ShapeshifterAiRouteView;
+import stroom.shapeshifter.shared.LearningMode;
 import stroom.shapeshifter.shared.RejectRequest;
 import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
@@ -56,12 +58,13 @@ import java.util.function.Function;
  * selected rule's selector drawn as a tree below it, and a dialog to add or edit a rule. Order is
  * specificity (A22), so moving a rule is editing the table.
  */
-public class ShapeshifterAiRoutingPresenter
-        extends DocPresenter<ShapeshifterAiRoutingView, ShapeshifterAiDoc>
+public class ShapeshifterAiRoutePresenter
+        extends DocPresenter<ShapeshifterAiRouteView, ShapeshifterAiDoc>
         implements ShapeshifterAiSettingsUiHandlers {
 
     private final RoutingRuleListPresenter listPresenter;
     private final ExpressionTreePresenter expressionPresenter;
+    private final LearningKeyPresenter learningKeyPresenter;
     private final Provider<RoutingRulePresenter> editRulePresenterProvider;
     private static final ShapeshifterAiResource RESOURCE = GWT.create(ShapeshifterAiResource.class);
 
@@ -80,18 +83,24 @@ public class ShapeshifterAiRoutingPresenter
     private final ButtonView openButton;
 
     @Inject
-    public ShapeshifterAiRoutingPresenter(final EventBus eventBus,
-                                             final ShapeshifterAiRoutingView view,
+    public ShapeshifterAiRoutePresenter(final EventBus eventBus,
+                                             final ShapeshifterAiRouteView view,
                                              final RoutingRuleListPresenter listPresenter,
                                              final ExpressionTreePresenter expressionPresenter,
+                                             final LearningKeyPresenter learningKeyPresenter,
                                              final Provider<RoutingRulePresenter> editRulePresenterProvider,
                                              final RestFactory restFactory) {
         super(eventBus, view);
         this.restFactory = restFactory;
         this.listPresenter = listPresenter;
         this.expressionPresenter = expressionPresenter;
+        this.learningKeyPresenter = learningKeyPresenter;
         this.editRulePresenterProvider = editRulePresenterProvider;
         view.setUiHandlers(this);
+        // The gate (design 05 §10; A91, A92): what a shape is, whether the stage may learn at all, and
+        // how long a shape with no rule may wait, above the rules the gate routes to.
+        learningKeyPresenter.setUiHandlers(this);
+        view.setLearningKeyView(learningKeyPresenter.getView());
         view.setTableView(listPresenter.getView());
         view.setExpressionView(expressionPresenter.getView());
 
@@ -137,6 +146,10 @@ public class ShapeshifterAiRoutingPresenter
      */
     @Override
     protected void onRead(final DocRef docRef, final ShapeshifterAiDoc doc, final boolean readOnly) {
+        getView().setLearningMode(doc.getLearningMode());
+        learningKeyPresenter.read(doc.getLearningKey());
+        learningKeyPresenter.setReadOnly(readOnly);
+        getView().setMaxDeferralAgeMs(doc.getMaxDeferralAgeMs());
         docUuid = docRef.getUuid();
         rules.clear();
         listPresenter.getSelectionModel().clear();
@@ -159,7 +172,11 @@ public class ShapeshifterAiRoutingPresenter
      */
     @Override
     protected ShapeshifterAiDoc onWrite(final ShapeshifterAiDoc doc) {
-        return doc;
+        return doc.copy()
+                .learningMode(getView().getLearningMode())
+                .learningKey(learningKeyPresenter.write())
+                .maxDeferralAgeMs(getView().getMaxDeferralAgeMs())
+                .build();
     }
 
     /**
@@ -399,8 +416,18 @@ public class ShapeshifterAiRoutingPresenter
     // --------------------------------------------------------------------------------
 
 
-    public interface ShapeshifterAiRoutingView
-            extends View, HasUiHandlers<ShapeshifterAiSettingsUiHandlers> {
+    public interface ShapeshifterAiRouteView
+            extends View, ReadOnlyChangeHandler, HasUiHandlers<ShapeshifterAiSettingsUiHandlers> {
+
+        LearningMode getLearningMode();
+
+        void setLearningMode(LearningMode learningMode);
+
+        void setLearningKeyView(View view);
+
+        long getMaxDeferralAgeMs();
+
+        void setMaxDeferralAgeMs(long maxDeferralAgeMs);
 
         void setTableView(View view);
 

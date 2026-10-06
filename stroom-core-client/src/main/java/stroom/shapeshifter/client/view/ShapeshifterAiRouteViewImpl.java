@@ -1,48 +1,45 @@
-/*
- * Copyright 2016-2026 Crown Copyright
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package stroom.shapeshifter.client.view;
 
 import stroom.entity.client.presenter.ReadOnlyChangeHandler;
 import stroom.item.client.SelectionBox;
-import stroom.shapeshifter.client.presenter.ShapeshifterAiSettingsPresenter.ShapeshifterAiSettingsView;
+import stroom.shapeshifter.client.presenter.ShapeshifterAiRoutePresenter.ShapeshifterAiRouteView;
 import stroom.shapeshifter.client.presenter.ShapeshifterAiSettingsUiHandlers;
 import stroom.shapeshifter.shared.LearningMode;
+import stroom.widget.valuespinner.client.ValueSpinner;
 
 import com.google.gwt.event.logical.shared.ValueChangeEvent;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
 import com.google.gwt.uibinder.client.UiHandler;
+import com.google.gwt.user.client.ui.SimplePanel;
 import com.google.gwt.user.client.ui.Widget;
 import com.google.inject.Inject;
+import com.gwtplatform.mvp.client.View;
 import com.gwtplatform.mvp.client.ViewWithUiHandlers;
 
-public class ShapeshifterAiSettingsViewImpl
+public class ShapeshifterAiRouteViewImpl
         extends ViewWithUiHandlers<ShapeshifterAiSettingsUiHandlers>
-        implements ShapeshifterAiSettingsView, ReadOnlyChangeHandler {
+        implements ShapeshifterAiRouteView, ReadOnlyChangeHandler {
 
     private final Widget widget;
 
     @UiField
     SelectionBox<LearningMode> learningMode;
+    @UiField
+    SimplePanel learningKey;
+    @UiField
+    ValueSpinner maxDeferralAgeMs;
+    @UiField
+    SimplePanel table;
+    @UiField
+    SimplePanel expression;
 
     @Inject
-    public ShapeshifterAiSettingsViewImpl(final Binder binder) {
+    public ShapeshifterAiRouteViewImpl(final Binder binder) {
         widget = binder.createAndBindUi(this);
         learningMode.addItems(LearningMode.values());
+        maxDeferralAgeMs.setMin(1);
+        maxDeferralAgeMs.setMax(Long.MAX_VALUE);
     }
 
     @Override
@@ -61,8 +58,34 @@ public class ShapeshifterAiSettingsViewImpl
     }
 
     @Override
+    public void setLearningKeyView(final View view) {
+        learningKey.setWidget(view.asWidget());
+    }
+
+    @Override
+    public long getMaxDeferralAgeMs() {
+        return maxDeferralAgeMs.getValue();
+    }
+
+    @Override
+    public void setMaxDeferralAgeMs(final long maxDeferralAgeMs) {
+        this.maxDeferralAgeMs.setValue(maxDeferralAgeMs);
+    }
+
+    @Override
+    public void setTableView(final View view) {
+        table.setWidget(view.asWidget());
+    }
+
+    @Override
+    public void setExpressionView(final View view) {
+        expression.setWidget(view.asWidget());
+    }
+
+    @Override
     public void onReadOnly(final boolean readOnly) {
         learningMode.setEnabled(!readOnly);
+        maxDeferralAgeMs.setEnabled(!readOnly);
     }
 
     private void fireChange() {
@@ -76,11 +99,16 @@ public class ShapeshifterAiSettingsViewImpl
         fireChange();
     }
 
+    @UiHandler("maxDeferralAgeMs")
+    public void onMaxDeferralAgeMs(final ValueChangeEvent<Long> event) {
+        fireChange();
+    }
+
 
     // --------------------------------------------------------------------------------
 
 
-    public interface Binder extends UiBinder<Widget, ShapeshifterAiSettingsViewImpl> {
+    public interface Binder extends UiBinder<Widget, ShapeshifterAiRouteViewImpl> {
 
     }
 }

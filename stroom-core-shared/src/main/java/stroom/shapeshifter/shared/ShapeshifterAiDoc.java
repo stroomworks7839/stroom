@@ -23,6 +23,7 @@ import stroom.docstore.shared.DocumentType;
 import stroom.docstore.shared.DocumentTypeRegistry;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -64,7 +65,6 @@ import java.util.Objects;
         "model",
         "learningKey",
         "relearnThreshold",
-        "allowedElements",
         "instructions",
         "flow",
         "maxAttempts",
@@ -97,11 +97,6 @@ public class ShapeshifterAiDoc extends AbstractDoc {
      */
     static final double DEFAULT_RELEARN_THRESHOLD = 0.8;
     static final PromotionMode DEFAULT_PROMOTION_MODE = PromotionMode.AUTOMATIC;
-    /**
-     * Ruling A10's initial set: what the AI may be asked to write until a Shapeshifter AI document says otherwise.
-     */
-    static final List<String> DEFAULT_ALLOWED_ELEMENTS =
-            List.of("DSParser", "JSONParser", "XMLParser", "XSLTFilter");
     /**
      * Five, not three: the first live run (design 02 §6.2) found three right for a simple feed and one short
      * for a transform that needs a rarer schema branch; the attempt budget is the real bound (A5).
@@ -146,12 +141,6 @@ public class ShapeshifterAiDoc extends AbstractDoc {
      */
     @JsonProperty
     private final double relearnThreshold;
-    /**
-     * Pipeline element type names the chain question may choose from (A21); A10's initial set by default.
-     * With exactly one entry the chain question is not asked.
-     */
-    @JsonProperty
-    private final List<String> allowedElements;
     /**
      * Free-text instructions prepended to the prompt contract of §10.
      */
@@ -244,7 +233,6 @@ public class ShapeshifterAiDoc extends AbstractDoc {
             @JsonProperty("model") final DocRef model,
             @JsonProperty("learningKey") final List<String> learningKey,
             @JsonProperty("relearnThreshold") final Double relearnThreshold,
-            @JsonProperty("allowedElements") final List<String> allowedElements,
             @JsonProperty("instructions") final String instructions,
             @JsonProperty("flow") final LearningFlow flow,
             @JsonProperty("maxAttempts") final Integer maxAttempts,
@@ -267,9 +255,6 @@ public class ShapeshifterAiDoc extends AbstractDoc {
                 ? DEFAULT_LEARNING_KEY
                 : List.copyOf(learningKey);
         this.relearnThreshold = Objects.requireNonNullElse(relearnThreshold, DEFAULT_RELEARN_THRESHOLD);
-        this.allowedElements = allowedElements == null
-                ? DEFAULT_ALLOWED_ELEMENTS
-                : List.copyOf(allowedElements);
         this.instructions = instructions;
         // A document written before the flow was named so carried it as "plan" (A81): the store's
         // serialiser reads that key as this one, since the client's codec cannot.
@@ -325,8 +310,12 @@ public class ShapeshifterAiDoc extends AbstractDoc {
         return relearnThreshold;
     }
 
+    /// Pipeline element type names the chain question may choose from (A21): the flow's Chain step's since
+    /// A95, A10's initial set where it names none. With exactly one the chain question is not asked. Not
+    /// a property of the document any more, so not written.
+    @JsonIgnore
     public List<String> getAllowedElements() {
-        return allowedElements;
+        return flow.allowedElements();
     }
 
     public String getInstructions() {
@@ -412,7 +401,6 @@ public class ShapeshifterAiDoc extends AbstractDoc {
                promotionMode == that.promotionMode &&
                Objects.equals(model, that.model) &&
                Objects.equals(learningKey, that.learningKey) &&
-               Objects.equals(allowedElements, that.allowedElements) &&
                Objects.equals(instructions, that.instructions) &&
                Objects.equals(tokenBudget, that.tokenBudget) &&
                maxDeferralAgeMs == that.maxDeferralAgeMs &&
@@ -428,7 +416,6 @@ public class ShapeshifterAiDoc extends AbstractDoc {
                 model,
                 learningKey,
                 relearnThreshold,
-                allowedElements,
                 instructions,
                 flow,
                 maxAttempts,
@@ -453,7 +440,6 @@ public class ShapeshifterAiDoc extends AbstractDoc {
                ", model=" + model +
                ", learningKey=" + learningKey +
                ", relearnThreshold=" + relearnThreshold +
-               ", allowedElements=" + allowedElements +
                ", flow=" + flow +
                ", maxAttempts=" + maxAttempts +
                ", attemptBudgetMs=" + attemptBudgetMs +
@@ -488,7 +474,6 @@ public class ShapeshifterAiDoc extends AbstractDoc {
         private DocRef model;
         private List<String> learningKey = DEFAULT_LEARNING_KEY;
         private double relearnThreshold = DEFAULT_RELEARN_THRESHOLD;
-        private List<String> allowedElements = DEFAULT_ALLOWED_ELEMENTS;
         private String instructions;
         private LearningFlow flow = DEFAULT_FLOW;
         private int maxAttempts = DEFAULT_MAX_ATTEMPTS;
@@ -514,7 +499,6 @@ public class ShapeshifterAiDoc extends AbstractDoc {
             this.model = doc.model;
             this.learningKey = doc.learningKey;
             this.relearnThreshold = doc.relearnThreshold;
-            this.allowedElements = doc.allowedElements;
             this.instructions = doc.instructions;
             this.flow = doc.flow;
             this.maxAttempts = doc.maxAttempts;
@@ -556,8 +540,11 @@ public class ShapeshifterAiDoc extends AbstractDoc {
             return self();
         }
 
+        /// The elements the chain question chooses from, which are the flow's Chain step's (A95): named
+        /// here, they are put on that step. Kept for the store's reading of documents saved before A95, and
+        /// for the fixtures that set them.
         public Builder allowedElements(final List<String> allowedElements) {
-            this.allowedElements = allowedElements;
+            this.flow = flow.withChainElements(allowedElements);
             return self();
         }
 
@@ -658,7 +645,6 @@ public class ShapeshifterAiDoc extends AbstractDoc {
                     model,
                     learningKey,
                     relearnThreshold,
-                    allowedElements,
                     instructions,
                     flow,
                     maxAttempts,

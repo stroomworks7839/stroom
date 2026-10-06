@@ -20,7 +20,9 @@ import stroom.alert.client.event.AlertEvent;
 import stroom.alert.client.event.ConfirmEvent;
 import stroom.docref.DocRef;
 import stroom.entity.client.presenter.DocPresenter;
-import stroom.shapeshifter.client.presenter.ShapeshifterAiScoringPresenter.ShapeshifterAiScoringView;
+import stroom.entity.client.presenter.ReadOnlyChangeHandler;
+import stroom.shapeshifter.client.presenter.ShapeshifterAiScorePresenter.ShapeshifterAiScoreView;
+import stroom.shapeshifter.shared.PromotionMode;
 import stroom.shapeshifter.shared.ScorerSetting;
 import stroom.shapeshifter.shared.ScorerType;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
@@ -49,8 +51,8 @@ import java.util.function.Consumer;
  * applies
  * each scorer at most once, so the set is keyed by scorer type and the dialog refuses a duplicate.
  */
-public class ShapeshifterAiScoringPresenter
-        extends DocPresenter<ShapeshifterAiScoringView, ShapeshifterAiDoc>
+public class ShapeshifterAiScorePresenter
+        extends DocPresenter<ShapeshifterAiScoreView, ShapeshifterAiDoc>
         implements ShapeshifterAiSettingsUiHandlers {
 
     private final ScorerListPresenter listPresenter;
@@ -62,8 +64,8 @@ public class ShapeshifterAiScoringPresenter
     private final ButtonView deleteButton;
 
     @Inject
-    public ShapeshifterAiScoringPresenter(final EventBus eventBus,
-                                             final ShapeshifterAiScoringView view,
+    public ShapeshifterAiScorePresenter(final EventBus eventBus,
+                                             final ShapeshifterAiScoreView view,
                                              final ScorerListPresenter listPresenter,
                                              final Provider<ScorerSettingPresenter> editPresenterProvider) {
         super(eventBus, view);
@@ -90,6 +92,16 @@ public class ShapeshifterAiScoringPresenter
 
     @Override
     protected void onRead(final DocRef docRef, final ShapeshifterAiDoc doc, final boolean readOnly) {
+        // The scores (design 05 §10; A91, A93): the gate a learned fragment must pass, the flag a serving
+        // rule raises, and beneath them the scorers that are the bar and the judges.
+        final ShapeshifterAiScoreView view = getView();
+        view.setPromotionMode(doc.getPromotionMode());
+        view.setPromotionFloor(doc.getPromotionFloor());
+        view.setHeldOutFraction(doc.getHeldOutFraction());
+        view.setMinRecordsPerShape(doc.getMinRecordsPerShape());
+        view.setRegressionCap(doc.getRegressionCap());
+        view.setRegressionRetentionDays(doc.getRegressionRetentionDays());
+        view.setRelearnThreshold(doc.getRelearnThreshold());
         scorers.clear();
         scorers.addAll(doc.getScorers());
         listPresenter.getSelectionModel().clear();
@@ -98,7 +110,17 @@ public class ShapeshifterAiScoringPresenter
 
     @Override
     protected ShapeshifterAiDoc onWrite(final ShapeshifterAiDoc doc) {
-        return doc.copy().scorers(new ArrayList<>(scorers)).build();
+        final ShapeshifterAiScoreView view = getView();
+        return doc.copy()
+                .scorers(new ArrayList<>(scorers))
+                .promotionMode(view.getPromotionMode())
+                .promotionFloor(view.getPromotionFloor())
+                .heldOutFraction(view.getHeldOutFraction())
+                .minRecordsPerShape(view.getMinRecordsPerShape())
+                .regressionCap(view.getRegressionCap())
+                .regressionRetentionDays(view.getRegressionRetentionDays())
+                .relearnThreshold(view.getRelearnThreshold())
+                .build();
     }
 
     private void onAdd(final ClickEvent event) {
@@ -225,9 +247,41 @@ public class ShapeshifterAiScoringPresenter
     // --------------------------------------------------------------------------------
 
 
-    public interface ShapeshifterAiScoringView
-            extends View, HasUiHandlers<ShapeshifterAiSettingsUiHandlers> {
+    public interface ShapeshifterAiScoreView
+            extends View, ReadOnlyChangeHandler, HasUiHandlers<ShapeshifterAiSettingsUiHandlers> {
 
         void setTableView(View view);
+
+        PromotionMode getPromotionMode();
+
+        void setPromotionMode(PromotionMode promotionMode);
+
+        /// A fraction in [0, 1]; the widget shows it as a whole percentage.
+        double getPromotionFloor();
+
+        void setPromotionFloor(double promotionFloor);
+
+        /// A fraction in [0, 1]; the widget shows it as a whole percentage.
+        double getHeldOutFraction();
+
+        void setHeldOutFraction(double heldOutFraction);
+
+        int getMinRecordsPerShape();
+
+        void setMinRecordsPerShape(int minRecordsPerShape);
+
+        int getRegressionCap();
+
+        void setRegressionCap(int regressionCap);
+
+        /// Null when the feed's own retention applies; the widget shows that as zero.
+        Integer getRegressionRetentionDays();
+
+        void setRegressionRetentionDays(Integer regressionRetentionDays);
+
+        /// A fraction in [0, 1]; the widget shows it as a whole percentage.
+        double getRelearnThreshold();
+
+        void setRelearnThreshold(double relearnThreshold);
     }
 }

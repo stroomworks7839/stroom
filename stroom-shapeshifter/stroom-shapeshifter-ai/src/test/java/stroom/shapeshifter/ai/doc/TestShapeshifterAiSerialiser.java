@@ -82,6 +82,23 @@ class TestShapeshifterAiSerialiser {
     }
 
     @Test
+    void aDocumentSavedWithItsOwnAllowedElementsPutsThemOnItsChainStep() throws IOException {
+        // A95: the field is read onto the Chain step, and the written document carries it there alone.
+        final ShapeshifterAiDoc doc = ShapeshifterAiDoc.builder().uuid("d").name("door").build();
+        final ImportExportDocument written = serialiser.write(doc);
+        final String json = new String(written.getExtAssetData("meta"), StandardCharsets.UTF_8);
+        assertThat(json).doesNotContain("\"allowedElements\"");
+        written.removeExtAsset("meta");
+        written.addExtAsset(new ByteArrayImportExportAsset("meta", DocDataType.JSON,
+                json.replaceFirst("\\{", "{\"allowedElements\":[\"XMLParser\",\"XSLTFilter\"],")
+                        .getBytes(StandardCharsets.UTF_8)));
+
+        final ShapeshifterAiDoc read = serialiser.read(written);
+        assertThat(read.getAllowedElements()).containsExactly("XMLParser", "XSLTFilter");
+        assertThat(read.getFlow().getSteps().get(0).format()).isEqualTo("CHAIN elements XMLParser,XSLTFilter");
+    }
+
+    @Test
     void aDocumentWithoutItsMetaReadsAsTheDelegateReadsIt() throws IOException {
         final ImportExportDocument written = serialiser.write(
                 ShapeshifterAiDoc.builder().uuid("d").name("door").build());

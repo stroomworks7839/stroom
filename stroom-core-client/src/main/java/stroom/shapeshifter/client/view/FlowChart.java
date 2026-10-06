@@ -281,7 +281,7 @@ public class FlowChart extends Composite {
             int stubs = 0;
             if (onSpent == null) {
                 exitStub(svg, FlowPath.edgeKey(i, FlowPath.SPENT), false, pathKeys, diaY, stubs++,
-                        defaultExit(step), FlowPath.SPENT);
+                        defaultExit(step), FlowPath.SPENT, true);
             }
             // The transitions the flow declares.
             for (final Transition transition : step.getTransitions()) {
@@ -293,9 +293,7 @@ public class FlowChart extends Composite {
                     final FlowExit named = transition.namedExit();
                     exitStub(svg, key, named != null, pathKeys, diaY, stubs++, named != null
                             ? named
-                            : defaultExit(step), name + " → " + (named != null
-                            ? named.getDisplayValue()
-                            : Transition.ABANDON));
+                            : defaultExit(step), name, named == null);
                     continue;
                 }
                 if (Transition.END.equals(transition.getGoTo())) {
@@ -357,6 +355,11 @@ public class FlowChart extends Composite {
     }
 
     private static String subtitle(final FlowStep step) {
+        if (step.getKind() == QuestionKind.CHAIN) {
+            return step.getElements().isEmpty()
+                    ? "chooses from the default elements"
+                    : "chooses from " + String.join(", ", step.getElements());
+        }
         if (!step.getChecks().isEmpty()) {
             final List<String> names = new ArrayList<>();
             step.getChecks().forEach(check -> names.add(check.getDisplayValue()));
@@ -410,7 +413,8 @@ public class FlowChart extends Composite {
         svg.append("</g>");
     }
 
-    /// A short line from the decision to a connector symbol: P parks, G gives up.
+    /// A short line from the decision to the exit, named: park, or give-up. Where the exit is the step's
+    /// own default rather than one the flow names, the name says so.
     private static void exitStub(final StringBuilder svg,
                                  final String key,
                                  final boolean declared,
@@ -418,10 +422,15 @@ public class FlowChart extends Composite {
                                  final int diaY,
                                  final int place,
                                  final FlowExit exit,
-                                 final String label) {
+                                 final String label,
+                                 final boolean byDefault) {
         final int x = CX + DIA + 8;
         final int ex = x + 46 + place * 12;
         final int ey = diaY + 26 + place * 22;
+        final String name = exit.getDisplayValue() + (byDefault
+                ? " (default)"
+                : "");
+        final int width = (int) (name.length() * 6.2) + 14;
         svg.append("<g class=\"flow-edge ").append(declared
                 ? "flow-edge--declared"
                 : "flow-edge--implied").append(pathKeys.contains(key)
@@ -432,12 +441,11 @@ public class FlowChart extends Composite {
                 .append(' ').append(ey - 4).append("\"/>");
         svg.append("<g class=\"flow-exit").append(exit == FlowExit.GIVE_UP
                 ? " flow-exit--give"
-                : "").append("\"><circle cx=\"").append(ex).append("\" cy=\"").append(ey).append("\" r=\"9\"/>");
-        text(svg, ex, ey + 3, "middle", "flow-exit-text", exit == FlowExit.GIVE_UP
-                ? "G"
-                : "P");
+                : "").append("\"><rect x=\"").append(ex - 6).append("\" y=\"").append(ey - 9).append("\" width=\"")
+                .append(width).append("\" height=\"18\" rx=\"9\"/>");
+        text(svg, ex - 6 + width / 2, ey + 3, "middle", "flow-exit-text", name);
         svg.append("</g>");
-        text(svg, ex + 13, ey + 3, "start", "flow-label", label);
+        text(svg, ex - 6 + width + 6, ey + 3, "start", "flow-label", label);
         svg.append("</g>");
     }
 

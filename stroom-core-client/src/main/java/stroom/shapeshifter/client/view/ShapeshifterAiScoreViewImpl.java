@@ -1,24 +1,8 @@
-/*
- * Copyright 2016-2026 Crown Copyright
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package stroom.shapeshifter.client.view;
 
 import stroom.entity.client.presenter.ReadOnlyChangeHandler;
 import stroom.item.client.SelectionBox;
-import stroom.shapeshifter.client.presenter.ShapeshifterAiPromotionPresenter.ShapeshifterAiPromotionView;
+import stroom.shapeshifter.client.presenter.ShapeshifterAiScorePresenter.ShapeshifterAiScoreView;
 import stroom.shapeshifter.client.presenter.ShapeshifterAiSettingsUiHandlers;
 import stroom.shapeshifter.shared.PromotionMode;
 import stroom.widget.valuespinner.client.ValueSpinner;
@@ -27,13 +11,15 @@ import com.google.gwt.event.logical.shared.ValueChangeEvent;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
 import com.google.gwt.uibinder.client.UiHandler;
+import com.google.gwt.user.client.ui.SimplePanel;
 import com.google.gwt.user.client.ui.Widget;
 import com.google.inject.Inject;
+import com.gwtplatform.mvp.client.View;
 import com.gwtplatform.mvp.client.ViewWithUiHandlers;
 
-public class ShapeshifterAiPromotionViewImpl
+public class ShapeshifterAiScoreViewImpl
         extends ViewWithUiHandlers<ShapeshifterAiSettingsUiHandlers>
-        implements ShapeshifterAiPromotionView, ReadOnlyChangeHandler {
+        implements ShapeshifterAiScoreView, ReadOnlyChangeHandler {
 
     private static final int PERCENT = 100;
 
@@ -51,9 +37,13 @@ public class ShapeshifterAiPromotionViewImpl
     ValueSpinner regressionCap;
     @UiField
     ValueSpinner regressionRetentionDays;
+    @UiField
+    ValueSpinner relearnThreshold;
+    @UiField
+    SimplePanel table;
 
     @Inject
-    public ShapeshifterAiPromotionViewImpl(final Binder binder) {
+    public ShapeshifterAiScoreViewImpl(final Binder binder) {
         widget = binder.createAndBindUi(this);
         promotionMode.addItems(PromotionMode.values());
         bound(promotionFloor, 0, PERCENT);
@@ -61,6 +51,7 @@ public class ShapeshifterAiPromotionViewImpl
         bound(minRecordsPerShape, 1, Integer.MAX_VALUE);
         bound(regressionCap, 0, Integer.MAX_VALUE);
         bound(regressionRetentionDays, 0, Integer.MAX_VALUE);
+        bound(relearnThreshold, 0, PERCENT);
     }
 
     private static void bound(final ValueSpinner spinner, final long min, final long max) {
@@ -71,6 +62,11 @@ public class ShapeshifterAiPromotionViewImpl
     @Override
     public Widget asWidget() {
         return widget;
+    }
+
+    @Override
+    public void setTableView(final View view) {
+        table.setWidget(view.asWidget());
     }
 
     @Override
@@ -85,22 +81,22 @@ public class ShapeshifterAiPromotionViewImpl
 
     @Override
     public double getPromotionFloor() {
-        return fromPercent(promotionFloor);
+        return promotionFloor.getIntValue() / (double) PERCENT;
     }
 
     @Override
     public void setPromotionFloor(final double promotionFloor) {
-        toPercent(this.promotionFloor, promotionFloor);
+        this.promotionFloor.setValue(Math.round(promotionFloor * PERCENT));
     }
 
     @Override
     public double getHeldOutFraction() {
-        return fromPercent(heldOutFraction);
+        return heldOutFraction.getIntValue() / (double) PERCENT;
     }
 
     @Override
     public void setHeldOutFraction(final double heldOutFraction) {
-        toPercent(this.heldOutFraction, heldOutFraction);
+        this.heldOutFraction.setValue(Math.round(heldOutFraction * PERCENT));
     }
 
     @Override
@@ -133,23 +129,19 @@ public class ShapeshifterAiPromotionViewImpl
 
     @Override
     public void setRegressionRetentionDays(final Integer regressionRetentionDays) {
-        // The spinner cannot show "unset"; zero stands for the feed's own retention.
         this.regressionRetentionDays.setValue(regressionRetentionDays == null
                 ? 0
                 : regressionRetentionDays);
     }
 
-    /**
-     * The fractions are shown as whole percentages because there is no double-valued spinner. A value
-     * that is not a whole percentage — only possible by editing the JSON by hand — is rounded on read
-     * and so shows the doc as dirty as soon as it is opened.
-     */
-    private static double fromPercent(final ValueSpinner spinner) {
-        return spinner.getIntValue() / (double) PERCENT;
+    @Override
+    public double getRelearnThreshold() {
+        return relearnThreshold.getIntValue() / (double) PERCENT;
     }
 
-    private static void toPercent(final ValueSpinner spinner, final double fraction) {
-        spinner.setValue((int) Math.round(fraction * PERCENT));
+    @Override
+    public void setRelearnThreshold(final double relearnThreshold) {
+        this.relearnThreshold.setValue(Math.round(relearnThreshold * PERCENT));
     }
 
     @Override
@@ -161,6 +153,7 @@ public class ShapeshifterAiPromotionViewImpl
         minRecordsPerShape.setEnabled(enabled);
         regressionCap.setEnabled(enabled);
         regressionRetentionDays.setEnabled(enabled);
+        relearnThreshold.setEnabled(enabled);
     }
 
     private void fireChange() {
@@ -199,11 +192,16 @@ public class ShapeshifterAiPromotionViewImpl
         fireChange();
     }
 
+    @UiHandler("relearnThreshold")
+    public void onRelearnThreshold(final ValueChangeEvent<Long> event) {
+        fireChange();
+    }
+
 
     // --------------------------------------------------------------------------------
 
 
-    public interface Binder extends UiBinder<Widget, ShapeshifterAiPromotionViewImpl> {
+    public interface Binder extends UiBinder<Widget, ShapeshifterAiScoreViewImpl> {
 
     }
 }

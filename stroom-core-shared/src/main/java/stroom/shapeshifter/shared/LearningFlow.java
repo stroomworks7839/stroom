@@ -194,6 +194,34 @@ public class LearningFlow {
         return FlowProblem.messages(check());
     }
 
+    /// The element types the chain question chooses from (A21, A95): the Chain step's, or the default set
+    /// where it names none or the flow has no Chain step.
+    public List<String> allowedElements() {
+        for (final FlowStep step : steps) {
+            if (step.getKind() == QuestionKind.CHAIN) {
+                return step.effectiveElements();
+            }
+        }
+        return FlowStep.DEFAULT_ELEMENTS;
+    }
+
+    /// This flow with its Chain step naming other elements; a flow with no Chain step is returned as it is.
+    public LearningFlow withChainElements(final List<String> elements) {
+        final List<FlowStep> changed = new ArrayList<>();
+        boolean found = false;
+        for (final FlowStep step : steps) {
+            if (!found && step.getKind() == QuestionKind.CHAIN) {
+                changed.add(step.withElements(elements));
+                found = true;
+            } else {
+                changed.add(step);
+            }
+        }
+        return found
+                ? new LearningFlow(changed, templates, builtInVersion)
+                : this;
+    }
+
     /// This flow with other steps.
     public LearningFlow withSteps(final List<FlowStep> steps) {
         return new LearningFlow(steps, templates, builtInVersion);

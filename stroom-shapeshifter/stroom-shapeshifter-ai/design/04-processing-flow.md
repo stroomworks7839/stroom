@@ -919,7 +919,9 @@ then asked the model for the second with the sending ignored: the check is now b
 that would be put to the model, inside the loop, and scenario 62 has a third test that parks there. The
 sending was written after the reopening, which left a moment in which a worker could take the attempt
 without it: the flag is written first, since on a parked row it stands harmlessly. The import path makes
-a filter through the plain `create(ProcessorFilter)`, which had no claiming check: it has one now. And
+a filter through the plain `create(ProcessorFilter)`, which had no claiming check: it has one now,
+and a pipeline the check cannot read, as an import's filter may name before its pipeline has
+arrived, is not judged rather than failing the import (found by the pack's import test, 2026-10-06). And
 the migration's comment said the flag was cleared by a person's answer, which was the first design and
 not the built one. One thing noted: a pipeline that cannot be merged — a parent missing, say — fails the
 claiming check with that fault rather than being passed over, which is the right outcome and an

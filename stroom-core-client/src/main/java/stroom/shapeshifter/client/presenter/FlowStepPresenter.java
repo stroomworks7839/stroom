@@ -78,6 +78,7 @@ public class FlowStepPresenter extends MyPresenterWidget<FlowStepView> {
         getView().setCandidates(step.getCandidates());
         getView().setKinds(step.getKinds());
         getView().setChecks(step.getChecks());
+        getView().setElements(step.getElements());
         // Read after the kind, since the form follows it: only a CONFIGURE step takes a role, and the
         // form greys the role out rather than letting a person set one the constructor will refuse.
         getView().setReadOnly(readOnly);
@@ -105,7 +106,15 @@ public class FlowStepPresenter extends MyPresenterWidget<FlowStepView> {
                 getView().getCandidates(),
                 getView().getKinds(),
                 getView().getChecks(),
-                transitionListPresenter.write());
+                transitionListPresenter.write(),
+                QuestionKind.CHAIN == getView().getKind()
+                        ? getView().getElements()
+                        : null);
+    }
+
+    /// The candidates a step with none of its own uses (A96): Start's default, shown in the empty field.
+    public void setDefaultCandidates(final int candidates) {
+        getView().setDefaultCandidates(candidates);
     }
 
 
@@ -147,6 +156,13 @@ public class FlowStepPresenter extends MyPresenterWidget<FlowStepView> {
         List<Check> getChecks();
 
         void setChecks(List<Check> checks);
+
+        /// The element types a Chain step names, one per line in the widget; empty for the default set.
+        List<String> getElements();
+
+        void setElements(List<String> elements);
+
+        void setDefaultCandidates(int candidates);
 
         void setTransitionsView(View view);
 
