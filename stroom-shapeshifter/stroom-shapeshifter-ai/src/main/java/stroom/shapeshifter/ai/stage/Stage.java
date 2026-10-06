@@ -1747,7 +1747,10 @@ public final class Stage {
                           final List<StoredError> opening,
                           final List<String> held,
                           final Recorder recorder) {
-        final Advisor advisor = recorder.advisor();
+        // Kept alive while a question is with the model as well as between questions (A45): one call
+        // longer than the lease would otherwise let another node take the attempt mid-call.
+        final Advisor advisor = new HeartbeatingAdvisor(recorder.advisor(), recorder::heartbeat,
+                HeartbeatingAdvisor.intervalFor(lease));
         recorder.walkBegins();
         // The attempt's claim is pushed out before every question (A45), and every turn is recorded as it
         // is answered and again as it is judged, so an attempt still running shows what it had got to

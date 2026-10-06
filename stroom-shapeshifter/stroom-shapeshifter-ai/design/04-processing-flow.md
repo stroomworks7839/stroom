@@ -1054,6 +1054,13 @@ marker instead.
 - **Learning in stepping mode**, which the owner has said is a different discussion.
 - **How long a snapshot is kept** (A61). It must outlive every output that names it, so it follows the
   retention of the feed's processed data; the rule for that is not written.
+- **Whether deferred tasks count against a filter's task budget** (raised 2026-10-06). Creation bounds
+  itself on `countTasksForFilter(filter, CREATED)` (§5.2), so `DEFERRED` tasks are outside the budget:
+  the deferred population is bounded by what arrives, and a wake or a sweep can return a backlog to
+  `CREATED` far past the limit, after which creation pauses until it drains. Options: count `CREATED`
+  and `DEFERRED` together, which brings back the stall §5.2 avoided; or a separate per-filter cap on
+  deferred tasks past which creation pauses. Left as it is until the real-scale trial shows whether the
+  deferred population matters.
 - ~~**That a marked Unknown validates.**~~ Checked, 2026-10-05: `Unknown` holds any number of `Data`
   items, each with a required `Name` and an optional `Value`, so the marker of A62 validates as written.
 
@@ -1220,6 +1227,17 @@ be learned, and enough clean records promote it in place. The retraction of desi
 rule's accepted corpus, which the worker cannot read back as a stream, and its budget bounds it; it is
 the one place the model is asked outside the worker. Moving it to the worker needs the attempt to
 carry its own sample, which is a change to the attempt row for a later slice.
+
+*The claim during a model call, 2026-10-06.* A session's claim was pushed out before every question and
+after every answer, but not while a question was with the model, so one call longer than the lease let
+another node take the attempt and ask the same question again. `HeartbeatingAdvisor` wraps the advisor
+the conversation is given: while a question is out, it pushes the claim out every third of the lease on
+one daemon thread for the node, so two beats can be missed before the claim lapses, and it stops the
+moment the answer or a failure comes back. A heartbeat is one short write and already logs rather than
+throws, so a failed write on the timer thread fails nothing. *Its audit:* cancelling a beat does not wait for one that is running, so a beat
+could have landed after the question returned — on a session that had since parked, rewriting its
+never-lapsing claim. Nothing reads a parked claim's expiry, but each question's beats now run under a lock
+the question takes as it returns, so once it has returned none is running and none can start.
 
 *The conversion's own audit, the same day:* the stepper's dry run still predicted the old outcomes — a
 provisional rule below the floor "would be retracted", a stream behind a draft "would be sentinelled" —
