@@ -32,9 +32,10 @@ import stroom.shapeshifter.ai.scoring.Verdict;
 import stroom.shapeshifter.ai.stage.Guidance.Given;
 import stroom.shapeshifter.shared.Check;
 import stroom.shapeshifter.shared.ConfigureRole;
+import stroom.shapeshifter.shared.FlowExit;
+import stroom.shapeshifter.shared.FlowStep;
 import stroom.shapeshifter.shared.LearnedUnknown;
-import stroom.shapeshifter.shared.LearningPlan;
-import stroom.shapeshifter.shared.PlanStep;
+import stroom.shapeshifter.shared.LearningFlow;
 import stroom.shapeshifter.shared.QuestionKind;
 import stroom.shapeshifter.shared.RecordBoundary;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
@@ -61,24 +62,24 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 /**
- * One attempt, following the document's learning plan (A21, A31, A33, A37; design 01 §10.2). The plan is
- * a graph of typed questions: settle the chain; where the plan asks, settle what one record is
+ * One attempt, following the document's learning flow (A21, A31, A33, A37; design 01 §10.2). The flow is
+ * a graph of typed questions: settle the chain; where the flow asks, settle what one record is
  * (<i>Split</i>) and propose what each kind of record should become (<i>Target</i>), validated at once;
  * and ask for each element's configuration, running the chain as far as it has been built so that the
  * next question carries real input, the parser held to preserving what the targets need and the
  * transform to reproducing them.
  * <p>
  * This class holds the question kinds with their reply grammars and judges, and the outcomes judging can
- * end in; the plan says which questions are asked, in what order, judged by which checks, and where to go
+ * end in; the flow says which questions are asked, in what order, judged by which checks, and where to go
  * on each outcome. A step re-asks itself with the feedback of what fell short until its candidates are
  * spent; a transition the step declares on an outcome leaves at once, and one on {@code spent} says where
  * to go when the candidates are gone, abandoning unless told. A pass goes to the next line unless the step
- * says {@code on passed goto}; {@code end} names the end of the plan. Each transition is taken at most once
- * per attempt, so every plan ends. The interpreter knows nothing of which plan it is walking.
+ * says {@code on passed goto}; {@code end} names the end of the flow. Each transition is taken at most once
+ * per attempt, so every flow ends. The interpreter knows nothing of which flow it is walking.
  * <p>
  * The chain is chosen from the document's allowed elements that this conversation can actually run: offering
  * the model an element there is no runner for would be a trap. A document that allows nothing runnable,
- * or whose plan cannot be held, is abandoned before the model is asked anything, naming what is wrong.
+ * or whose flow cannot be held, is abandoned before the model is asked anything, naming what is wrong.
  */
 public final class Conversation {
 
@@ -181,7 +182,7 @@ public final class Conversation {
     /// @return This conversation, to be run.
     /// Send this attempt to the exhaustion step (A65): the first transform question that would be put to
     /// the model — once the recorded turns, if any, have been replayed — is not put, and the step's spent
-    /// transition is taken instead, as though its candidates were gone. A plan whose transform step has no
+    /// transition is taken instead, as though its candidates were gone. A flow whose transform step has no
     /// spent transition abandons there, and the stage parks the session again with that reason.
     ///
     /// @return This conversation, to be run.
@@ -260,14 +261,14 @@ public final class Conversation {
             return abandoned("The document allows no element this conversation can run: "
                              + policy.getAllowedElements(), List.of(), walk.transcript);
         }
-        final LearningPlan plan = policy.getPlan();
-        final List<String> problems = new ArrayList<>(plan.problems());
-        problems.addAll(Templates.problems(plan));
+        final LearningFlow flow = policy.getFlow();
+        final List<String> problems = new ArrayList<>(flow.problems());
+        problems.addAll(Templates.problems(flow));
         if (!problems.isEmpty()) {
-            return abandoned("The document's plan cannot be held (see its Learning tab): "
+            return abandoned("The document's flow cannot be held (see its Learning tab): "
                              + String.join("; ", problems), List.of(), walk.transcript);
         }
-        final List<PlanStep> steps = plan.getSteps();
+        final List<FlowStep> steps = flow.getSteps();
 
         int at = 0;
         // Whether the step at `at` was reached by a transition rather than by the step before it ending:
@@ -275,7 +276,7 @@ public final class Conversation {
         // step's candidates are spent and never because the step above it passed.
         boolean jumped = false;
         while (at < steps.size()) {
-            final PlanStep step = steps.get(at);
+            final FlowStep step = steps.get(at);
             final Visit visit = step.getKind() == QuestionKind.ADMIT && !jumped
                     ? Visit.next()
                     : enter(step, allowed, walk);
@@ -286,12 +287,14 @@ public final class Conversation {
                 case NEXT -> at++;
                 case ABANDON -> {
                     return new Abandoned(visit.reason(), List.copyOf(visit.feedback()), List.copyOf(walk.transcript),
-                            visit.parse());
+                            visit.exit() == null
+                                    ? FlowExit.PARK
+                                    : visit.exit());
                 }
                 case GOTO -> {
                     final String edge = step.effectiveId() + " " + visit.transition().format();
                     if (!walk.taken.add(edge)) {
-                        return abandoned("The plan would take '" + visit.transition().format() + "' from step '"
+                        return abandoned("The flow would take '" + visit.transition().format() + "' from step '"
                                          + step.effectiveId() + "' a second time; a transition is taken once "
                                          + "per attempt", visit.feedback(), walk.transcript);
                     }
@@ -305,7 +308,7 @@ public final class Conversation {
         }
         for (int i = 0; i < walk.chain.size(); i++) {
             if (walk.learned[i] == null) {
-                return abandoned(walk.chain.get(i) + " was never configured; the plan ended without a CONFIGURE "
+                return abandoned(walk.chain.get(i) + " was never configured; the flow ended without a CONFIGURE "
                                  + "step for it", List.of(), walk.transcript);
             }
         }
@@ -315,7 +318,7 @@ public final class Conversation {
                 : walk.split.shared());
     }
 
-    private static int indexOf(final List<PlanStep> steps, final String id) {
+    private static int indexOf(final List<FlowStep> steps, final String id) {
         for (int i = 0; i < steps.size(); i++) {
             if (steps.get(i).effectiveId().equals(id)) {
                 return i;
@@ -326,9 +329,9 @@ public final class Conversation {
     }
 
     /**
-     * One step of the plan: asked and judged by its kind, under its guard and its checks.
+     * One step of the flow: asked and judged by its kind, under its guard and its checks.
      */
-    private Visit enter(final PlanStep step, final List<String> allowed, final Walk walk) {
+    private Visit enter(final FlowStep step, final List<String> allowed, final Walk walk) {
         if (walk.chain != null && step.getWhen() != StepGuard.ALWAYS
             && !walk.kind.name().equals(step.getWhen().name())) {
             return Visit.next();
@@ -349,14 +352,14 @@ public final class Conversation {
      * @param unit  Asks and judges one candidate, given the feedback of the last.
      * @param spent The reason to abandon when the candidates are gone and the step says nothing else.
      */
-    private Visit candidates(final PlanStep step, final Walk walk, final Unit unit, final String spent) {
+    private Visit candidates(final FlowStep step, final Walk walk, final Unit unit, final String spent) {
         return candidates(step, walk, unit, spent, false);
     }
 
     /// @param exhaustible Whether a person's sending to the exhaustion step (A65) cuts these candidates
     ///                    short: before each one that would be put to the model — the record's turns
     ///                    replayed first — the step goes where it would go with its candidates spent.
-    private Visit candidates(final PlanStep step,
+    private Visit candidates(final FlowStep step,
                              final Walk walk,
                              final Unit unit,
                              final String spent,
@@ -364,7 +367,7 @@ public final class Conversation {
         return candidates(step, walk, unit, spent, candidates(step, walk.policy), exhaustible);
     }
 
-    private Visit candidates(final PlanStep step,
+    private Visit candidates(final FlowStep step,
                              final Walk walk,
                              final Unit unit,
                              final String spent,
@@ -390,10 +393,10 @@ public final class Conversation {
             }
             final Transition at = step.transitionOn(judged.outcome());
             if (at != null) {
-                return at.abandons()
-                        ? Visit.abandon("Step '" + step.effectiveId() + "' abandons the attempt on "
-                                        + judged.outcome().getDisplayValue() + ", as the plan says: " + at.format(),
-                                judged.feedback())
+                return at.exits()
+                        ? Visit.abandon("Step '" + step.effectiveId() + "' leaves the flow on "
+                                        + judged.outcome().getDisplayValue() + ", as the flow says: " + at.format(),
+                                judged.feedback(), at.namedExit())
                         : Visit.take(at, judged.feedback());
             }
             feedback = judged.feedback();
@@ -403,12 +406,14 @@ public final class Conversation {
 
     /// Where a step goes with its candidates spent: the transition on spent, else the attempt is
     /// abandoned with the reason.
-    private static Visit spent(final PlanStep step, final List<StoredError> feedback, final String reason) {
+    private static Visit spent(final FlowStep step, final List<StoredError> feedback, final String reason) {
         final Transition when = step.transitionOnSpent();
-        if (when != null && !when.abandons()) {
+        if (when != null && !when.exits()) {
             return Visit.take(when, feedback);
         }
-        return Visit.abandon(reason, feedback);
+        return Visit.abandon(reason, feedback, when == null
+                ? null
+                : when.namedExit());
     }
 
     /**
@@ -416,16 +421,22 @@ public final class Conversation {
      * failed: the transition on its outcome, else the one on spent, since its candidates are gone; else the
      * attempt is abandoned with the reason.
      */
-    private static Visit runOnly(final PlanStep step, final Judged judged, final String reason) {
+    private static Visit runOnly(final FlowStep step, final Judged judged, final String reason) {
         final Transition at = step.transitionOn(judged.outcome());
-        if (at != null && !at.abandons()) {
+        if (at != null && !at.exits()) {
             return Visit.take(at, judged.feedback());
         }
         final Transition when = step.transitionOnSpent();
-        if (at == null && when != null && !when.abandons()) {
+        if (at == null && when != null && !when.exits()) {
             return Visit.take(when, judged.feedback());
         }
-        return Visit.abandon(reason, judged.feedback());
+        // The exit the step names on this outcome, else on spent, else its default.
+        final Transition exiting = at != null
+                ? at
+                : when;
+        return Visit.abandon(reason, judged.feedback(), exiting == null
+                ? null
+                : exiting.namedExit());
     }
 
     /**
@@ -433,7 +444,7 @@ public final class Conversation {
      * {@code on passed}. A step of several units — a CONFIGURE over the whole chain, a TARGET over several
      * kinds — passes as a whole, not at its first unit.
      */
-    private static Visit passed(final PlanStep step, final Visit last) {
+    private static Visit passed(final FlowStep step, final Visit last) {
         if (last.kind() != Visit.Kind.NEXT) {
             return last;
         }
@@ -441,16 +452,16 @@ public final class Conversation {
         if (at == null) {
             return Visit.next();
         }
-        return at.abandons()
-                ? Visit.abandon("The plan abandons the attempt on a pass of step '" + step.effectiveId() + "': "
-                                + at.format(), List.of())
+        return at.exits()
+                ? Visit.abandon("The flow leaves on a pass of step '" + step.effectiveId() + "': " + at.format(),
+                        List.of(), at.namedExit())
                 : Visit.take(at, List.of());
     }
 
     /**
      * With one element there is nothing to choose, so the question is not asked (A21).
      */
-    private Visit chain(final PlanStep step, final List<String> allowed, final Walk walk) {
+    private Visit chain(final FlowStep step, final List<String> allowed, final Walk walk) {
         if (allowed.size() == 1) {
             walk.chosen(allowed, runners);
             return passed(step, Visit.next());
@@ -475,7 +486,7 @@ public final class Conversation {
      * is asked which element is one record (A35), judged by whether those elements exist, are not the
      * root, and together hold the document whole.
      */
-    private Visit split(final PlanStep step, final Walk walk) {
+    private Visit split(final FlowStep step, final Walk walk) {
         final StepRunner first = walk.first(runners);
         final Set<Check> checks = checks(step, SPLIT_CHECKS);
         final String spent = "No record boundary after " + candidates(step, walk.policy) + " candidates";
@@ -551,7 +562,7 @@ public final class Conversation {
      * the model names the array whose items are the records by its key, or {@code root} where each top-level
      * value is one — judged by whether such an array occurs and whether its items hold the document whole.
      */
-    private Visit splitJson(final PlanStep step,
+    private Visit splitJson(final FlowStep step,
                             final Walk walk,
                             final StepRunner first,
                             final Set<Check> checks,
@@ -606,12 +617,12 @@ public final class Conversation {
      * seen more than once is what the feed exists to report, so its first {@code none} is questioned and
      * only its second taken (design 02 §6.3). Questioning a none is not a candidate spent.
      */
-    private Visit target(final PlanStep step, final Walk walk) {
+    private Visit target(final FlowStep step, final Walk walk) {
         final List<String> over = walk.records == null
                 ? recordsOf(walk, runners)
                 : walk.records;
         final int kinds = step.getKinds() == null
-                ? PlanStep.DEFAULT_KINDS
+                ? FlowStep.DEFAULT_KINDS
                 : step.getKinds();
         final Scorecard meaning = step.getChecks().isEmpty()
                 ? scorecard.meaning()
@@ -668,11 +679,11 @@ public final class Conversation {
      * and against the targets (A31): a parser must preserve what they need, the chain's last element must
      * reproduce them. A role the chain does not have is skipped.
      */
-    private Visit configure(final PlanStep step, final Walk walk, final boolean admitting) {
+    private Visit configure(final FlowStep step, final Walk walk, final boolean admitting) {
         final Set<Check> checks = checks(step, EnumSet.allOf(Check.class));
         final Scorecard over = scorecard.only(checks);
         // The exhaustion step (design 04 §4) is the transform's configuration asked for once more, with
-        // the admitted form in it: the transform alone, whatever the plan wrote for its role.
+        // the admitted form in it: the transform alone, whatever the flow wrote for its role.
         final ConfigureRole role = admitting
                 ? ConfigureRole.TRANSFORM
                 : step.getRole();
@@ -707,7 +718,7 @@ public final class Conversation {
             final String shown = oneAtATime
                     ? perRecord.get(0)
                     : input;
-            // A47: one record of each kind, where the plan has not settled its targets yet. Where it has,
+            // A47: one record of each kind, where the flow has not settled its targets yet. Where it has,
             // the targets show a record of each kind beside the event it must become, and showing them
             // here as well is a budget (A44) spent saying the same thing twice.
             final List<String> otherKinds = oneAtATime && walk.targets.isEmpty()
@@ -773,17 +784,24 @@ public final class Conversation {
                         ? "No admission for "
                         : "No passing configuration for ") + runner.elementType() + " after "
                     + candidates(step, walk.policy) + " attempts", exhaustible);
-                // A parser whose candidates are spent is the one failure nothing can serve (A52, A54): the
-                // abandonment says so, for the stage to give the shape up rather than park.
-                visit = asked.kind() == Visit.Kind.ABANDON && runner.parser()
-                        ? asked.asParse()
+                // Where the flow names no exit, the step's own default (A83): a parser whose candidates
+                // are spent is the one failure nothing can serve (A52, A54), so its shape is given up;
+                // any other step parks for a person (A65).
+                visit = asked.kind() == Visit.Kind.ABANDON
+                        ? asked.withDefaultExit(runner.parser()
+                                ? FlowExit.GIVE_UP
+                                : FlowExit.PARK)
                         : asked;
             }
             if (visit.kind() != Visit.Kind.NEXT) {
                 return visit;
             }
         }
-        return passed(step, Visit.next());
+        // A step that leaves on its pass by `abandon` takes its own default exit too (A83): give-up where
+        // the step is the parser's, park otherwise.
+        return passed(step, Visit.next()).withDefaultExit(step.getRole() == ConfigureRole.PARSER
+                ? FlowExit.GIVE_UP
+                : FlowExit.PARK);
     }
 
     /// A candidate run over each record the held stream fell short on, judged one at a time: the outcome
@@ -835,7 +853,7 @@ public final class Conversation {
      * The gate of §8.1 first — a step that did not run has nothing to score — then the scorecard, then
      * the targets (A31): a parser must preserve what they need, a transform must reproduce them. A
      * transform that cannot reproduce a target because its input lacks the value is the parser's
-     * shortfall, not its own, and is reported as such (§10.1 rule 6) for the plan to route.
+     * shortfall, not its own, and is reported as such (§10.1 rule 6) for the flow to route.
      */
     private Judged judge(final Scorecard over,
                          final Set<Check> checks,
@@ -914,7 +932,7 @@ public final class Conversation {
         };
     }
 
-    private static int candidates(final PlanStep step, final ShapeshifterAiDoc policy) {
+    private static int candidates(final FlowStep step, final ShapeshifterAiDoc policy) {
         return step.getCandidates() == null
                 ? policy.getMaxAttempts()
                 : step.getCandidates();
@@ -923,7 +941,7 @@ public final class Conversation {
     /**
      * The checks that judge a step: those it names, or the kind's own.
      */
-    private static Set<Check> checks(final PlanStep step, final Set<Check> defaults) {
+    private static Set<Check> checks(final FlowStep step, final Set<Check> defaults) {
         return step.getChecks().isEmpty()
                 ? defaults
                 : EnumSet.copyOf(step.getChecks());
@@ -1008,7 +1026,7 @@ public final class Conversation {
                 : null;
     }
 
-    private String ask(final Walk walk, final PlanStep step, final int candidate, final Question question) {
+    private String ask(final Walk walk, final FlowStep step, final int candidate, final Question question) {
         budget.check(clock.millis(), advisor.tokensUsed());
         heartbeat.run();
         final String reply;
@@ -1035,7 +1053,7 @@ public final class Conversation {
      * not yet judged.
      */
     private void judge(final List<Exchange> transcript,
-                       final PlanStep step,
+                       final FlowStep step,
                        final int candidate,
                        final StepOutcome outcome) {
         for (int i = transcript.size() - 1; i >= 0; i--) {
@@ -1090,16 +1108,20 @@ public final class Conversation {
      * Where a step's visit leaves the walk: at the next step, at the step a transition names, or abandoned.
      */
     /// @param parse Whether an abandonment is the parser's candidates spent (A54).
+    /// @param exit Where an abandonment leaves to (A83), or null where the step's default is still to apply.
     private record Visit(Kind kind, Transition transition, String reason, List<StoredError> feedback,
-                         boolean parse) {
+                         FlowExit exit) {
 
         Visit(final Kind kind, final Transition transition, final String reason, final List<StoredError> feedback) {
-            this(kind, transition, reason, feedback, false);
+            this(kind, transition, reason, feedback, null);
         }
 
-        /// This abandonment, as the parser's.
-        Visit asParse() {
-            return new Visit(kind, transition, reason, feedback, true);
+        /// This abandonment with the step's default exit, where the flow named none; any other visit as
+        /// it is.
+        Visit withDefaultExit(final FlowExit fallback) {
+            return kind == Kind.ABANDON && exit == null
+                    ? new Visit(kind, transition, reason, feedback, fallback)
+                    : this;
         }
 
         static Visit next() {
@@ -1114,6 +1136,10 @@ public final class Conversation {
             return new Visit(Kind.ABANDON, null, reason, feedback);
         }
 
+        static Visit abandon(final String reason, final List<StoredError> feedback, final FlowExit exit) {
+            return new Visit(Kind.ABANDON, null, reason, feedback, exit);
+        }
+
         enum Kind {
             NEXT,
             GOTO,
@@ -1122,7 +1148,7 @@ public final class Conversation {
     }
 
     /**
-     * The state of one attempt as the plan is walked: what has been settled, learned and carried so far.
+     * The state of one attempt as the flow is walked: what has been settled, learned and carried so far.
      */
     private static final class Walk {
 
@@ -1179,7 +1205,7 @@ public final class Conversation {
 
         /**
          * An element learned, or learned again: what the elements after it produced was over its old output
-         * and is forgotten, so that a plan which stops re-configuring them is caught at the end.
+         * and is forgotten, so that a flow which stops re-configuring them is caught at the end.
          */
         private void learn(final int index, final LearnedStep step) {
             learned[index] = step;

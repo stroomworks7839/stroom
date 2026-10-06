@@ -25,8 +25,8 @@ import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.StageRun;
 import stroom.shapeshifter.shared.BusinessRulesParameters;
 import stroom.shapeshifter.shared.ExtractionQualityParameters;
+import stroom.shapeshifter.shared.FlowExample;
 import stroom.shapeshifter.shared.LearningMode;
-import stroom.shapeshifter.shared.PlanExample;
 import stroom.shapeshifter.shared.SchemaConformanceParameters;
 import stroom.shapeshifter.shared.ScorerSetting;
 import stroom.shapeshifter.shared.ScorerType;
@@ -65,7 +65,7 @@ class TestScenario49XmlFragments {
                 .uuid("doc-1")
                 .name("windows-fragments")
                 .learningMode(LearningMode.AUTOMATIC)
-                .plan(PlanExample.TARGET_FIRST)
+                .flow(FlowExample.TARGET_FIRST)
                 .allowedElements(List.of("XMLFragmentParser", "XSLTFilter"))
                 .minRecordsPerShape(5)
                 .scorers(List.of(

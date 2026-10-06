@@ -90,7 +90,7 @@ public interface RegressionSet {
     ///                   from.
     /// @param attemptId  The attempt that accepted it, where one was open.
     /// @param acceptedMs When it was accepted.
-    /// @param target     What the plan said this kind of record should become (A31), where it settled one.
+    /// @param target     What the flow said this kind of record should become (A31), where it settled one.
     record Accepted(String record,
                     String text,
                     String preamble,

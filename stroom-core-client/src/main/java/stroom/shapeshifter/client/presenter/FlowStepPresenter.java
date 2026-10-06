@@ -16,10 +16,10 @@
 
 package stroom.shapeshifter.client.presenter;
 
-import stroom.shapeshifter.client.presenter.PlanStepPresenter.PlanStepView;
+import stroom.shapeshifter.client.presenter.FlowStepPresenter.FlowStepView;
 import stroom.shapeshifter.shared.Check;
 import stroom.shapeshifter.shared.ConfigureRole;
-import stroom.shapeshifter.shared.PlanStep;
+import stroom.shapeshifter.shared.FlowStep;
 import stroom.shapeshifter.shared.QuestionKind;
 import stroom.shapeshifter.shared.StepGuard;
 import stroom.util.shared.NullSafe;
@@ -32,7 +32,7 @@ import com.gwtplatform.mvp.client.View;
 import java.util.List;
 
 /**
- * One step of a learning plan as a form (A37, design 01 §10.2, §12 item 24).
+ * One step of a learning flow as a form (A37, design 01 §10.2, §12 item 24).
  * <p>
  * Everything that has a closed list is chosen from it — the kind, the role, the guard, the checks, and
  * both ends of every transition — so that nothing can be typed here that the server would refuse. That
@@ -42,13 +42,13 @@ import java.util.List;
  * Two things are still typed, and both are checked: the id, which is a word, and the two limits, which
  * are numbers with a floor of one.
  */
-public class PlanStepPresenter extends MyPresenterWidget<PlanStepView> {
+public class FlowStepPresenter extends MyPresenterWidget<FlowStepView> {
 
     private final TransitionListPresenter transitionListPresenter;
 
     @Inject
-    public PlanStepPresenter(final EventBus eventBus,
-                             final PlanStepView view,
+    public FlowStepPresenter(final EventBus eventBus,
+                             final FlowStepView view,
                              final TransitionListPresenter transitionListPresenter) {
         super(eventBus, view);
         this.transitionListPresenter = transitionListPresenter;
@@ -56,9 +56,9 @@ public class PlanStepPresenter extends MyPresenterWidget<PlanStepView> {
     }
 
     /**
-     * @param steps The ids of every step of the plan, which is what a transition may go to.
+     * @param steps The ids of every step of the flow, which is what a transition may go to.
      */
-    public void read(final PlanStep step, final List<String> steps, final boolean readOnly) {
+    public void read(final FlowStep step, final List<String> steps, final boolean readOnly) {
         getView().setId(NullSafe.string(step.getId()));
         getView().setKind(step.getKind());
         getView().setRole(step.getRole());
@@ -75,13 +75,13 @@ public class PlanStepPresenter extends MyPresenterWidget<PlanStepView> {
     /**
      * The step as the form has it.
      *
-     * @throws IllegalArgumentException As {@link PlanStep}'s own constructor does, for anything the form
+     * @throws IllegalArgumentException As {@link FlowStep}'s own constructor does, for anything the form
      *                                  cannot stop a person writing — an id that is not a word, a limit
      *                                  below one. The caller shows it beside the field.
      */
-    public PlanStep write() {
+    public FlowStep write() {
         final String id = getView().getId().trim();
-        return new PlanStep(
+        return new FlowStep(
                 id.isEmpty()
                         ? null
                         : id,
@@ -100,7 +100,7 @@ public class PlanStepPresenter extends MyPresenterWidget<PlanStepView> {
     // --------------------------------------------------------------------------------
 
 
-    public interface PlanStepView extends View {
+    public interface FlowStepView extends View {
 
         String getId();
 

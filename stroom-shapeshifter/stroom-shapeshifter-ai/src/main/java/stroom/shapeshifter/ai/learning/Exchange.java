@@ -22,7 +22,7 @@ import java.util.List;
 
 /**
  * One turn of the conversation: a question as put, the reply as given, and — once judged — which step of the
- * plan asked it, which candidate it was, and how it ended (A28, A37). The outcome is null until the
+ * flow asked it, which candidate it was, and how it ended (A28, A37). The outcome is null until the
  * candidate is judged, and stays null for a turn that was never judged, such as a reply the budget cut off.
  *
  * @param carried The ids of the guidance this question was asked with (A46), so that a re-walk (A45)
@@ -40,7 +40,7 @@ public record Exchange(Question question,
     }
 
     /**
-     * A turn not yet placed in a plan: as an advisor is given its transcript.
+     * A turn not yet placed in a flow: as an advisor is given its transcript.
      */
     public Exchange(final Question question, final String reply) {
         this(question, reply, null, 0, null, List.of());

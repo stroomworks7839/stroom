@@ -19,7 +19,7 @@ package stroom.shapeshifter.shared;
 import stroom.docref.HasDisplayValue;
 
 /**
- * The texts of the plan's questions a document may override (design 01 §10.2): the system text, the four questions, and
+ * The texts of the flow's questions a document may override (design 01 §10.2): the system text, the four questions, and
  * the three passages of rules the questions share. Each names the variables it may use; the built-in text and
  * the rendering are the server's ({@code QuestionText}).
  */

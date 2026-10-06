@@ -128,7 +128,7 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
         grantButton = listPresenter.add(SvgPresets.ADD.title(
                 "Give this parked attempt more to spend, and carry it on"));
         // A65's other action on a parked session: no more trying — the next transform question is not
-        // put, and the plan goes to its exhaustion step, where what cannot be translated is admitted.
+        // put, and the flow goes to its exhaustion step, where what cannot be translated is admitted.
         exhaustButton = listPresenter.add(SvgPresets.FAST_FORWARD_BLUE.title(
                 "Send this parked attempt to the exhaustion step, and carry it on"));
         updateButtons();

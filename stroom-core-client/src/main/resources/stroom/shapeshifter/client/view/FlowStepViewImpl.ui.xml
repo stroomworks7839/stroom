@@ -6,7 +6,7 @@
     <g:FlowPanel styleName="max form-padding form">
         <form:FormGroup identity="stepKind"
                         label="Kind"
-                        helpText="What this step asks. Chain picks the elements; Split settles what one record is; Target settles what the events should look like; Configure writes one element's configuration.">
+                        helpText="What this step asks. Chain picks the elements; Split settles what one record is; Target settles what the events should look like; Configure writes one element's configuration; Admit is the exhaustion step, reached only when a transform's candidates are spent, and asks for the admitted form of what cannot be translated.">
             <l:SelectionBox ui:field="kind"/>
         </form:FormGroup>
         <form:FormGroup identity="stepRole"

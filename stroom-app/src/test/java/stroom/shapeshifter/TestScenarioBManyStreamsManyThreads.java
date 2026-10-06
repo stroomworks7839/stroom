@@ -66,8 +66,8 @@ import stroom.shapeshifter.ai.stage.Deferrals;
 import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.ai.transformation.XsltStep;
 import stroom.shapeshifter.shared.AttemptStatus;
-import stroom.shapeshifter.shared.LearningPlan;
-import stroom.shapeshifter.shared.PlanStep;
+import stroom.shapeshifter.shared.FlowStep;
+import stroom.shapeshifter.shared.LearningFlow;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 import stroom.test.AbstractCoreIntegrationTest;
 import stroom.test.CommonTranslationTestHelper;
@@ -397,16 +397,16 @@ class TestScenarioBManyStreamsManyThreads extends AbstractCoreIntegrationTest {
     private DocRef document() {
         final ShapeshifterAiDoc shipped = DemoContentPack.document();
         final DocRef docRef = shapeshifterAiStore.createDocument(shipped.getName() + " " + feed);
-        // The pack's settings under a plan whose transform has one candidate before the exhaustion step
+        // The pack's settings under a flow whose transform has one candidate before the exhaustion step
         // (design 04 §4), so that the scripted model's one refusal of the unseen kind is what sends the
         // session there.
         shapeshifterAiStore.writeDocument(DemoDocument
                 .configure(shapeshifterAiStore.readDocument(docRef).copy())
-                .plan(new LearningPlan(List.of(
-                        PlanStep.parse("CHAIN"),
-                        PlanStep.parse("CONFIGURE parser"),
-                        PlanStep.parse("CONFIGURE transform candidates 1 on spent goto admit"),
-                        PlanStep.parse("ADMIT candidates 1")), null, null))
+                .flow(new LearningFlow(List.of(
+                        FlowStep.parse("CHAIN"),
+                        FlowStep.parse("CONFIGURE parser"),
+                        FlowStep.parse("CONFIGURE transform candidates 1 on spent goto admit"),
+                        FlowStep.parse("ADMIT candidates 1")), null, null))
                 .build());
         return docRef;
     }

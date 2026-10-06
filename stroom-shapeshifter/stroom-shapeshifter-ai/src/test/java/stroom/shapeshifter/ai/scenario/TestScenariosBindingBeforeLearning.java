@@ -39,8 +39,8 @@ import stroom.shapeshifter.ai.stage.ShapeSignature;
 import stroom.shapeshifter.ai.stage.Stage;
 import stroom.shapeshifter.ai.stage.StageRun;
 import stroom.shapeshifter.shared.AttemptStatus;
+import stroom.shapeshifter.shared.FlowExample;
 import stroom.shapeshifter.shared.LearningMode;
-import stroom.shapeshifter.shared.PlanExample;
 import stroom.shapeshifter.shared.PromotionMode;
 import stroom.shapeshifter.shared.QuestionKind;
 import stroom.shapeshifter.shared.RoutingFields;
@@ -82,7 +82,7 @@ class TestScenariosBindingBeforeLearning {
                 .uuid("doc-1")
                 .name("door-access")
                 .learningMode(LearningMode.AUTOMATIC)
-                .plan(PlanExample.TARGET_FIRST)
+                .flow(FlowExample.TARGET_FIRST)
                 .learningKey(List.of(MetaFields.FIELD_FEED, MetaFields.FIELD_TYPE, RoutingFields.FORMAT))
                 .allowedElements(List.of("DSParser", "XSLTFilter"))
                 .minRecordsPerShape(5)

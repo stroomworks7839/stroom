@@ -19,8 +19,8 @@ package stroom.shapeshifter.shared;
 import stroom.docref.HasDisplayValue;
 
 /**
- * The four typed questions a plan is made of (design 01 §10.2): each is a reply grammar and a judge, and
- * they are the vocabulary a learning plan's steps are written in. A new kind is new code.
+ * The four typed questions a flow is made of (design 01 §10.2): each is a reply grammar and a judge, and
+ * they are the vocabulary a learning flow's steps are written in. A new kind is new code.
  */
 public enum QuestionKind implements HasDisplayValue {
     /**

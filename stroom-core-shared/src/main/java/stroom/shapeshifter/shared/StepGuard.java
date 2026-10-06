@@ -19,7 +19,7 @@ package stroom.shapeshifter.shared;
 import stroom.docref.HasDisplayValue;
 
 /**
- * When a step of the plan is asked (design 01 §10.2): always; only where the input is raw text and the first
+ * When a step of the flow is asked (design 01 §10.2): always; only where the input is raw text and the first
  * element is a parser with a configuration to write; or only where the input is already records.
  */
 public enum StepGuard implements HasDisplayValue {

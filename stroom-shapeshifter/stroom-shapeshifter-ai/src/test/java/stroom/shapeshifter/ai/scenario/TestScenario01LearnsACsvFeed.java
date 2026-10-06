@@ -29,8 +29,8 @@ import stroom.shapeshifter.ai.stage.Decision.Sentinel;
 import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.RegressionSet.Kind;
 import stroom.shapeshifter.ai.stage.StageRun;
+import stroom.shapeshifter.shared.FlowExample;
 import stroom.shapeshifter.shared.LearningMode;
-import stroom.shapeshifter.shared.PlanExample;
 import stroom.shapeshifter.shared.RoutingFields;
 import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ScorerSetting;
@@ -66,7 +66,7 @@ class TestScenario01LearnsACsvFeed {
                 .uuid("policy-1")
                 .name("door-access")
                 .learningMode(LearningMode.AUTOMATIC)
-                .plan(PlanExample.TARGET_FIRST)
+                .flow(FlowExample.TARGET_FIRST)
                 .allowedElements(List.of("DSParser", "XSLTFilter"))
                 .minRecordsPerShape(5)
                 // The golden splitter reads the header line into a variable, which coverage counts as

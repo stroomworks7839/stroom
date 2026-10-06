@@ -119,7 +119,7 @@ public final class RecordedAdvisor implements Advisor {
 
 
     /// Raised where a resumed walk asks something other than what the record says it asked at that turn
-    /// (A45): the plan, the document or the sample has changed under the attempt, so the answers kept are
+    /// (A45): the flow, the document or the sample has changed under the attempt, so the answers kept are
     /// not answers to the questions now being put. The attempt is refused rather than carried on, since an
     /// answer given to the wrong question would be judged, configured and possibly bound.
     public static final class ReplayDiverged extends RuntimeException {

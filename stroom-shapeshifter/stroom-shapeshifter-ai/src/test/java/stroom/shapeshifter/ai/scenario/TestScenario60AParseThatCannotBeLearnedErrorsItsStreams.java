@@ -25,8 +25,8 @@ import stroom.shapeshifter.ai.stage.Deferrals.Deferral;
 import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.StageRun;
 import stroom.shapeshifter.shared.AttemptStatus;
-import stroom.shapeshifter.shared.LearningPlan;
-import stroom.shapeshifter.shared.PlanStep;
+import stroom.shapeshifter.shared.FlowStep;
+import stroom.shapeshifter.shared.LearningFlow;
 import stroom.shapeshifter.shared.ScorerSetting;
 import stroom.shapeshifter.shared.ScorerType;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
@@ -70,10 +70,10 @@ class TestScenario60AParseThatCannotBeLearnedErrorsItsStreams {
         final ShapeshifterAiDoc doc = DemoDocument.configure(Scenarios.document()).uuid(DOC).name("door")
                 .heldOutFraction(0.0)
                 .scorers(scorers)
-                .plan(new LearningPlan(List.of(
-                        PlanStep.parse("CHAIN"),
-                        PlanStep.parse("CONFIGURE parser candidates 1"),
-                        PlanStep.parse("CONFIGURE transform")), null, null))
+                .flow(new LearningFlow(List.of(
+                        FlowStep.parse("CHAIN"),
+                        FlowStep.parse("CONFIGURE parser candidates 1"),
+                        FlowStep.parse("CONFIGURE transform")), null, null))
                 .build();
         scenarios.documents.put(doc);
         scenarios.inputs.put(input(1L));

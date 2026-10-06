@@ -1128,7 +1128,7 @@ it is in:
 - *Steps* — the document's own list, one line each, in the order they are first entered:
 
   ```
-  [id:] KIND [parser|transform] [when always|text|xml] [candidates n] [kinds n]
+  [id:] KIND [parser|transform] [when always|text|xml|json] [candidates n] [kinds n]
         [checks a,b,…] [on <outcome> goto <id> | abandon]… [on spent goto <id> | abandon]
   ```
 
@@ -1157,8 +1157,10 @@ it is in:
   step takes `on run-failed goto` or else `on spent goto`, and abandons otherwise.
 
   Constraints, checked on save and again before the model is asked: `CHAIN` first, once and with no
-  transition, since nothing can run until the chain is settled; ids unique and none `end`; every `goto` names a step or `end`; `SPLIT` and `TARGET` at most once each;
-  the last step a `CONFIGURE`. A target asked before any split is proposed from the sample's lines (raw text) or the
+  transition, since nothing can run until the chain is settled; ids unique and none `end`, `park` or
+  `give-up`; every `goto` names a step, `end`, or an exit (`park`, `give-up`; A83); `SPLIT` and
+  `TARGET` at most once each; the last step a `CONFIGURE` or the `ADMIT` step, which only `on spent`
+  may reach (A76). *Revised 2026-10-06 for `ADMIT` (phase 5) and the exits of design 05.* A target asked before any split is proposed from the sample's lines (raw text) or the
   root's children (XML) or the parser's records (JSON); a split asked of XML input asks for the element
   that is one record (A35), and of JSON for the key of the array whose items are records, or `root`
   where each top-level value is one, as JSON lines are. A new document starts with the *direct*
@@ -2639,6 +2641,13 @@ including the degeneracy trap (§8.3) that changes the scoring model and propose
   multi-line CSV. Slice 12 is phase A; phase B is a slice per format.
 
 ---
+
+**2026-10-06.** The plan becomes the learning flow (design 05; A81–A90, ruled the same day on ten
+questions put with recommendations): renamed in code and on the document with the old key still read;
+the exits `park` and `give-up` beside `end`, with `abandon` read as the step's default; the flow's check
+naming the step each problem is about; `on spent` selectable in the transition dialog, which it was not;
+and the help text and §10.2's constraints brought up to `ADMIT`. The chart, the Flow tab and the
+Supervisor's path overlay follow as phase H's later slices.
 
 ## 15. Future work
 

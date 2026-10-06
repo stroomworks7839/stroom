@@ -17,8 +17,8 @@
 package stroom.shapeshifter.ai.pack;
 
 import stroom.shapeshifter.shared.ExtractionQualityParameters;
+import stroom.shapeshifter.shared.FlowExample;
 import stroom.shapeshifter.shared.LearningMode;
-import stroom.shapeshifter.shared.PlanExample;
 import stroom.shapeshifter.shared.SchemaConformanceParameters;
 import stroom.shapeshifter.shared.ScorerSetting;
 import stroom.shapeshifter.shared.ScorerType;
@@ -91,8 +91,8 @@ public final class DemoDocument {
 
     /// The settings themselves, applied to a builder the caller has already given a uuid and a name.
     ///
-    /// The plan is the escalating one (A37): direct for a feed that gives its meaning up easily, and a
-    /// target only where the transform falls short — which is what makes a single plan reasonable for
+    /// The flow is the escalating one (A37): direct for a feed that gives its meaning up easily, and a
+    /// target only where the transform falls short — which is what makes a single flow reasonable for
     /// formats nobody has seen yet. `minRecordsPerShape` is five rather than the default ten so that
     /// the small demo files are judged rather than bound provisionally, and the floor is 0.85 rather
     /// than 0.9 so that a good first attempt on an awkward format is promoted rather than retried.
@@ -102,7 +102,7 @@ public final class DemoDocument {
     public static ShapeshifterAiDoc.Builder configure(final ShapeshifterAiDoc.Builder builder) {
         return builder
                 .learningMode(LearningMode.AUTOMATIC)
-                .plan(PlanExample.ESCALATING)
+                .flow(FlowExample.ESCALATING)
                 .allowedElements(ALLOWED_ELEMENTS)
                 .instructions(INSTRUCTIONS)
                 .minRecordsPerShape(5)

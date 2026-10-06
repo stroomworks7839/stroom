@@ -29,7 +29,7 @@ import java.util.Objects;
 /// fires at once, on the first candidate that has it; a transition on `spent` fires when the step's
 /// candidates are gone, where the default is to abandon. Self re-ask on a shortfall needs no transition:
 /// it is what a step does until it is spent, and a pass goes to the next line unless `on passed goto`
-/// says otherwise. The step named [#END] is the end of the plan.
+/// says otherwise. The step named [#END] is the end of the flow.
 @JsonPropertyOrder({"on", "goTo"})
 @JsonInclude(Include.NON_NULL)
 public class Transition {
@@ -38,13 +38,16 @@ public class Transition {
     public static final String ON = "on";
     public static final String GOTO = "goto";
     public static final String ABANDON = "abandon";
-    /// The reserved step name a `goto` reaches when the plan is complete.
+    /// The reserved step name a `goto` reaches when the flow is complete.
     public static final String END = "end";
+    /// The reserved names of the two exits (A83): `goto park` and `goto give-up`.
+    public static final String PARK = "park";
+    public static final String GIVE_UP = "give-up";
 
     /// The outcome this fires on, or null for `spent`.
     @JsonProperty
     private final StepOutcome on;
-    /// The id of the step to go to, or null to abandon the attempt.
+    /// The id of the step to go to, `end`, `park` or `give-up`; or null where the step's default exit is taken.
     @JsonProperty
     private final String goTo;
 
@@ -63,7 +66,7 @@ public class Transition {
         return on;
     }
 
-    /// @return The id of the step to go to, or null where the attempt is abandoned.
+    /// @return The step, `end` or exit to go to, or null where the step's default exit is taken.
     public String getGoTo() {
         return goTo;
     }
@@ -73,9 +76,28 @@ public class Transition {
         return on == null;
     }
 
-    /// Whether this abandons the attempt rather than going to a step.
-    public boolean abandons() {
-        return goTo == null;
+    /// Whether this leaves the flow without binding, rather than going to a step or to `end`: written
+    /// `abandon`, which is the step's own default exit, or `goto park` or `goto give-up` (A83).
+    public boolean exits() {
+        return goTo == null || PARK.equals(goTo) || GIVE_UP.equals(goTo);
+    }
+
+    /// The exit this names, or null where it is written `abandon` and the step's default applies: give-up
+    /// for a parser, whose spent candidates are the one failure nothing can serve (A52, A54), and park for
+    /// any other step (A65).
+    public FlowExit namedExit() {
+        if (PARK.equals(goTo)) {
+            return FlowExit.PARK;
+        }
+        if (GIVE_UP.equals(goTo)) {
+            return FlowExit.GIVE_UP;
+        }
+        return null;
+    }
+
+    /// Whether a name is one of the flow's own places, which no step may take: `end` and the two exits.
+    public static boolean isReserved(final String id) {
+        return END.equals(id) || PARK.equals(id) || GIVE_UP.equals(id);
     }
 
     /// The transition as it is written: `on coverage-short goto parser`, `on spent abandon`.

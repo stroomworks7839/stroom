@@ -23,7 +23,7 @@ import stroom.data.grid.client.MyDataGrid;
 import stroom.data.grid.client.PagerView;
 import stroom.shapeshifter.shared.Check;
 import stroom.shapeshifter.shared.ConfigureRole;
-import stroom.shapeshifter.shared.PlanStep;
+import stroom.shapeshifter.shared.FlowStep;
 import stroom.shapeshifter.shared.QuestionKind;
 import stroom.shapeshifter.shared.StepGuard;
 import stroom.shapeshifter.shared.StepOutcome;
@@ -49,46 +49,46 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 /**
- * The learning plan as a list of steps (A37, design 01 §10.2, §12 item 24), in place of the text box.
+ * The learning flow as a list of steps (A37, design 01 §10.2, §12 item 24), in place of the text box.
  * <p>
- * The plan is a graph over typed outcomes, and its text grammar is exact: a person learning it by having
+ * The flow is a graph over typed outcomes, and its text grammar is exact: a person learning it by having
  * a save rejected is a person learning it the hard way. Here the order is the list's, every closed list
  * is a picker, and a transition may only go to a step that is there — so most of what the grammar can
  * get wrong cannot be written at all.
  * <p>
  * The order matters: a pass goes to the next step unless a transition says otherwise, so where a step
- * sits is part of what the plan means. Rows move with the same buttons as the routing table's, and for
+ * sits is part of what the flow means. Rows move with the same buttons as the routing table's, and for
  * the same reason.
  * <p>
  * The text grammar has not gone. It is what the harness and import/export carry, and it is still shown —
- * read-only — beside the list, so that a person can read the whole plan at once and paste it somewhere.
+ * read-only — beside the list, so that a person can read the whole flow at once and paste it somewhere.
  */
-public class PlanStepListPresenter extends MyPresenterWidget<PagerView> {
+public class FlowStepListPresenter extends MyPresenterWidget<PagerView> {
 
-    private final MyDataGrid<PlanStep> dataGrid;
-    private final MultiSelectionModelImpl<PlanStep> selectionModel;
-    private final Provider<PlanStepPresenter> editPresenterProvider;
-    private final List<PlanStep> steps = new ArrayList<>();
+    private final MyDataGrid<FlowStep> dataGrid;
+    private final MultiSelectionModelImpl<FlowStep> selectionModel;
+    private final Provider<FlowStepPresenter> editPresenterProvider;
+    private final List<FlowStep> steps = new ArrayList<>();
     private final ButtonView addButton;
     private final ButtonView editButton;
     private final ButtonView copyButton;
     private final ButtonView deleteButton;
     private final ButtonView moveUpButton;
     private final ButtonView moveDownButton;
-    /// Told when the plan changes, so that the tab can redraw the text the list is a picture of.
+    /// Told when the flow changes, so that the tab can redraw the text the list is a picture of.
     private Runnable onChange;
     private boolean readOnly;
 
     @Inject
-    public PlanStepListPresenter(final EventBus eventBus,
+    public FlowStepListPresenter(final EventBus eventBus,
                                  final PagerView view,
-                                 final Provider<PlanStepPresenter> editPresenterProvider) {
+                                 final Provider<FlowStepPresenter> editPresenterProvider) {
         super(eventBus, view);
         this.editPresenterProvider = editPresenterProvider;
         // The table is a control in a form, so it is drawn as one.
         view.asWidget().addStyleName("form-control-background form-control-border");
         dataGrid = new MyDataGrid<>(this);
-        dataGrid.setTableName("Plan");
+        dataGrid.setTableName("Flow");
         selectionModel = dataGrid.addDefaultSelectionModel(true);
         view.setDataWidget(dataGrid);
         initTableColumns();
@@ -105,9 +105,9 @@ public class PlanStepListPresenter extends MyPresenterWidget<PagerView> {
     protected void onBind() {
         registerHandler(addButton.addClickHandler(event -> {
             if (!readOnly) {
-                show(PlanStep.of(QuestionKind.CONFIGURE), added -> {
+                show(FlowStep.of(QuestionKind.CONFIGURE), added -> {
                     // After the selected step, as the routing table adds a rule: where a step sits is
-                    // part of what the plan means, so a person adding one while looking at another
+                    // part of what the flow means, so a person adding one while looking at another
                     // means it to go there. With nothing selected it goes at the end.
                     final int after = at(selectionModel.getSelected());
                     if (after < 0) {
@@ -121,11 +121,11 @@ public class PlanStepListPresenter extends MyPresenterWidget<PagerView> {
         }));
         registerHandler(editButton.addClickHandler(event -> edit()));
         registerHandler(copyButton.addClickHandler(event -> {
-            final PlanStep selected = selectionModel.getSelected();
+            final FlowStep selected = selectionModel.getSelected();
             if (!readOnly && at(selected) >= 0) {
-                // Without its id: two steps of one name is a plan whose transitions cannot say which
+                // Without its id: two steps of one name is a flow whose transitions cannot say which
                 // they mean, and the copy is the one that should be renamed.
-                steps.add(at(selected) + 1, new PlanStep(null, selected.getKind(),
+                steps.add(at(selected) + 1, new FlowStep(null, selected.getKind(),
                         selected.getRole(), selected.getWhen(), selected.getCandidates(),
                         selected.getKinds(), selected.getChecks(), selected.getTransitions()));
                 changed();
@@ -144,10 +144,10 @@ public class PlanStepListPresenter extends MyPresenterWidget<PagerView> {
     }
 
     /// A step nothing else points at goes without ceremony; one a transition names is confirmed with
-    /// what would be left pointing at nothing, because the store refuses a plan whose `goto` names no
+    /// what would be left pointing at nothing, because the store refuses a flow whose `goto` names no
     /// step and the refusal arrives a long way from the delete that caused it.
     private void remove() {
-        final PlanStep selected = selectionModel.getSelected();
+        final FlowStep selected = selectionModel.getSelected();
         if (readOnly || at(selected) < 0) {
             return;
         }
@@ -156,7 +156,7 @@ public class PlanStepListPresenter extends MyPresenterWidget<PagerView> {
                 .filter(step -> step != selected)
                 .filter(step -> step.getTransitions().stream()
                         .anyMatch(transition -> id.equals(transition.getGoTo())))
-                .map(PlanStep::effectiveId)
+                .map(FlowStep::effectiveId)
                 .toList();
         if (pointing.isEmpty()) {
             steps.remove(at(selected));
@@ -166,7 +166,7 @@ public class PlanStepListPresenter extends MyPresenterWidget<PagerView> {
         }
         ConfirmEvent.fire(this,
                 "Remove step '" + id + "'? " + String.join(", ", pointing)
-                + " goes to it, and a plan whose transition names no step is refused on save.",
+                + " goes to it, and a flow whose transition names no step is refused on save.",
                 ok -> {
                     if (ok) {
                         steps.remove(at(selected));
@@ -177,7 +177,7 @@ public class PlanStepListPresenter extends MyPresenterWidget<PagerView> {
     }
 
     private void move(final int by) {
-        final PlanStep selected = selectionModel.getSelected();
+        final FlowStep selected = selectionModel.getSelected();
         if (readOnly || at(selected) < 0) {
             return;
         }
@@ -192,7 +192,7 @@ public class PlanStepListPresenter extends MyPresenterWidget<PagerView> {
     }
 
     private void edit() {
-        final PlanStep existing = selectionModel.getSelected();
+        final FlowStep existing = selectionModel.getSelected();
         if (!readOnly && at(existing) >= 0) {
             show(existing, edited -> {
                 // Looked up again on the way back, not captured: the dialog is not modal to the list
@@ -210,19 +210,19 @@ public class PlanStepListPresenter extends MyPresenterWidget<PagerView> {
     /// The form, and the two faults it cannot stop a person writing: an id that is not a word, which the
     /// step's own constructor refuses, and an id another step already has, which nothing refuses until a
     /// transition tries to name one of them.
-    private void show(final PlanStep step, final Consumer<PlanStep> onOk) {
-        final PlanStepPresenter presenter = editPresenterProvider.get();
+    private void show(final FlowStep step, final Consumer<FlowStep> onOk) {
+        final FlowStepPresenter presenter = editPresenterProvider.get();
         presenter.read(step, ids(), readOnly);
         ShowPopupEvent.builder(presenter)
                 .popupType(PopupType.OK_CANCEL_DIALOG)
                 .popupSize(PopupSize.resizable(700, 720))
-                .caption("Plan step")
+                .caption("Flow step")
                 .onHideRequest(e -> {
                     if (!e.isOk()) {
                         e.hide();
                         return;
                     }
-                    final PlanStep written;
+                    final FlowStep written;
                     try {
                         written = presenter.write();
                     } catch (final RuntimeException fault) {
@@ -245,13 +245,13 @@ public class PlanStepListPresenter extends MyPresenterWidget<PagerView> {
     }
 
     /**
-     * @param onChange Told when the plan changes, so that the read-only text beside it can be redrawn.
+     * @param onChange Told when the flow changes, so that the read-only text beside it can be redrawn.
      */
     public void setOnChange(final Runnable onChange) {
         this.onChange = onChange;
     }
 
-    public void read(final List<PlanStep> steps, final boolean readOnly) {
+    public void read(final List<FlowStep> steps, final boolean readOnly) {
         this.readOnly = readOnly;
         this.steps.clear();
         this.steps.addAll(steps);
@@ -259,7 +259,7 @@ public class PlanStepListPresenter extends MyPresenterWidget<PagerView> {
         update();
     }
 
-    public List<PlanStep> write() {
+    public List<FlowStep> write() {
         return new ArrayList<>(steps);
     }
 
@@ -280,7 +280,7 @@ public class PlanStepListPresenter extends MyPresenterWidget<PagerView> {
     ///
     /// The grid's rows are the very objects in this list, so identity is the right question and the
     /// only one that distinguishes them.
-    private int at(final PlanStep step) {
+    private int at(final FlowStep step) {
         if (step == null) {
             return -1;
         }
@@ -294,7 +294,7 @@ public class PlanStepListPresenter extends MyPresenterWidget<PagerView> {
 
     /// Every step's name, which is what a transition may go to.
     private List<String> ids() {
-        return steps.stream().map(PlanStep::effectiveId).toList();
+        return steps.stream().map(FlowStep::effectiveId).toList();
     }
 
     private void update() {
@@ -304,7 +304,7 @@ public class PlanStepListPresenter extends MyPresenterWidget<PagerView> {
     }
 
     private void updateButtons() {
-        final PlanStep selected = selectionModel.getSelected();
+        final FlowStep selected = selectionModel.getSelected();
         final boolean one = selected != null;
         final int index = one
                 ? at(selected)
@@ -319,23 +319,23 @@ public class PlanStepListPresenter extends MyPresenterWidget<PagerView> {
 
     private void initTableColumns() {
         dataGrid.addResizableColumn(
-                DataGridUtil.htmlColumnBuilder((PlanStep step) ->
+                DataGridUtil.htmlColumnBuilder((FlowStep step) ->
                         SafeHtmlUtils.fromString(Integer.toString(at(step) + 1)))
                         .rightAligned().build(),
                 DataGridUtil.headingBuilder("#")
                         .withToolTip("Where the step sits. A pass goes to the next one unless a "
-                                     + "transition says otherwise, so the order is part of the plan.")
+                                     + "transition says otherwise, so the order is part of the flow.")
                         .rightAligned().build(),
                 40);
         dataGrid.addResizableColumn(
-                DataGridUtil.htmlColumnBuilder((PlanStep step) ->
+                DataGridUtil.htmlColumnBuilder((FlowStep step) ->
                         SafeHtmlUtils.fromString(step.effectiveId())).build(),
                 DataGridUtil.headingBuilder("Id")
                         .withToolTip("The step's name for a transition to go to.")
                         .build(),
                 ColumnSizeConstants.MEDIUM_COL);
         dataGrid.addResizableColumn(
-                DataGridUtil.htmlColumnBuilder((PlanStep step) -> SafeHtmlUtils.fromString(
+                DataGridUtil.htmlColumnBuilder((FlowStep step) -> SafeHtmlUtils.fromString(
                         step.getKind().getDisplayValue()
                         + NullSafe.getOrElse(step.getRole(),
                                 role -> " (" + role.getDisplayValue() + ")", ""))).build(),
@@ -344,14 +344,14 @@ public class PlanStepListPresenter extends MyPresenterWidget<PagerView> {
                         .build(),
                 ColumnSizeConstants.MEDIUM_COL);
         dataGrid.addResizableColumn(
-                DataGridUtil.htmlColumnBuilder((PlanStep step) -> SafeHtmlUtils.fromString(
+                DataGridUtil.htmlColumnBuilder((FlowStep step) -> SafeHtmlUtils.fromString(
                         NullSafe.getOrElse(step.getWhen(), StepGuard::getDisplayValue, ""))).build(),
                 DataGridUtil.headingBuilder("When")
                         .withToolTip("The input this step runs for.")
                         .build(),
                 80);
         dataGrid.addResizableColumn(
-                DataGridUtil.htmlColumnBuilder((PlanStep step) -> SafeHtmlUtils.fromString(
+                DataGridUtil.htmlColumnBuilder((FlowStep step) -> SafeHtmlUtils.fromString(
                         limits(step))).build(),
                 DataGridUtil.headingBuilder("Limits")
                         .withToolTip("How many answers to ask for, and how many kinds of record to show. "
@@ -359,7 +359,7 @@ public class PlanStepListPresenter extends MyPresenterWidget<PagerView> {
                         .build(),
                 ColumnSizeConstants.MEDIUM_COL);
         dataGrid.addResizableColumn(
-                DataGridUtil.htmlColumnBuilder((PlanStep step) -> SafeHtmlUtils.fromString(
+                DataGridUtil.htmlColumnBuilder((FlowStep step) -> SafeHtmlUtils.fromString(
                         step.getChecks().stream().map(Check::getDisplayValue)
                                 .collect(Collectors.joining(", ")))).build(),
                 DataGridUtil.headingBuilder("Checks")
@@ -367,8 +367,8 @@ public class PlanStepListPresenter extends MyPresenterWidget<PagerView> {
                         .build(),
                 ColumnSizeConstants.BIG_COL);
         dataGrid.addResizableColumn(
-                DataGridUtil.htmlColumnBuilder((PlanStep step) -> SafeHtmlUtils.fromString(
-                        step.getTransitions().stream().map(PlanStepListPresenter::describe)
+                DataGridUtil.htmlColumnBuilder((FlowStep step) -> SafeHtmlUtils.fromString(
+                        step.getTransitions().stream().map(FlowStepListPresenter::describe)
                                 .collect(Collectors.joining(", ")))).build(),
                 DataGridUtil.headingBuilder("Goes to")
                         .withToolTip("Where the step goes on an outcome. Blank re-asks itself until its "
@@ -377,7 +377,7 @@ public class PlanStepListPresenter extends MyPresenterWidget<PagerView> {
                 ColumnSizeConstants.BIG_COL);
     }
 
-    private static String limits(final PlanStep step) {
+    private static String limits(final FlowStep step) {
         final String candidates = NullSafe.getOrElse(step.getCandidates(),
                 value -> value + " candidate" + (value == 1
                         ? ""

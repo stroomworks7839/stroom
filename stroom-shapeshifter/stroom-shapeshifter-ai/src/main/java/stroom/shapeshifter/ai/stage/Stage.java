@@ -340,7 +340,7 @@ public final class Stage {
 
     /// Send a parked session to the exhaustion step (A65, A76): the attempt is opened again for the
     /// worker, which carries it on from its recorded turns and, at the first transform question it would
-    /// put to the model, takes the plan's spent transition instead — to `ADMIT`, where the plan has one.
+    /// put to the model, takes the flow's spent transition instead — to `ADMIT`, where the flow has one.
     /// Only a parked attempt is sent.
     public void exhaust(final ShapeshifterAiDoc doc, final long attemptId) {
         final Recorded recorded = attempts.byId(attemptId)
@@ -1554,10 +1554,11 @@ public final class Stage {
         // Learn on a prefix, judge on the whole stream.
         final Outcome outcome = learn(doc, shape, input, attributes, scorecard, List.of(), List.of(), recorder);
         if (outcome instanceof final Abandoned abandoned) {
-            if (abandoned.parse()) {
-                // The one failure nothing can serve (A52, A54): the stream cannot be cut into records that
-                // meet the document's gates. The shape is given up, and the streams waiting on it are
-                // woken to error with the reason, as a given-up shape's streams do.
+            if (abandoned.givesUp()) {
+                // The flow's exit is give-up (A83): a parser's default, since a stream that cannot be cut
+                // into records that meet the gates is the one failure nothing can serve (A52, A54), or
+                // any step's where the flow says so. The shape is given up, and the streams waiting on it
+                // are woken to error with the reason, as a given-up shape's streams do.
                 final StageRun givenUp = givenUp(doc, shape, input, abandoned.reason(), abandoned.reason(),
                         abandoned.diagnostics(), List.of(), outcome.transcript());
                 wake(doc, input.feed(), input.type());
@@ -1750,6 +1751,8 @@ public final class Stage {
         // fixed would be relearned on every stream.
         shapes.reset(doc.getUuid(), shape.id());
         if (outcome instanceof final Abandoned abandoned) {
+            // Whatever exit the flow named (A83): a shape a rule is serving is not given up, since that
+            // would error streams that are being served.
             if (recorder.worker()) {
                 // As a first learning does (A65): the incumbent serves what it can, the held stream waits.
                 return parked(doc, shape, abandoned.reason(), outcome.transcript());
@@ -2329,7 +2332,7 @@ public final class Stage {
         return new StageRun(doc, new Parked(reason), shape, null, null, List.of(), transcript, null, List.of());
     }
 
-    /// What one record is for a learned chain: the boundary the plan settled, or for a chain that begins
+    /// What one record is for a learned chain: the boundary the flow settled, or for a chain that begins
     /// with the Data Splitter — whose output is always `records` over `record` — one record per `record`,
     /// one deep. Settled here and not left empty because an empty boundary is a fragment with no
     /// `SplitFilter`, whose transform is given the whole parsed stream as one document and holds it

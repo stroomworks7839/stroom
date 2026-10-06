@@ -45,7 +45,7 @@ import java.util.function.Consumer;
  * Where one step goes, outcome by outcome (A37, design 01 §10.2): the edges out of it.
  * <p>
  * Each is taken at most once, and a step with none re-asks itself on a shortfall until its candidates
- * are gone — which is the default and needs no row here. What the rows are for is escalation: the plan
+ * are gone — which is the default and needs no row here. What the rows are for is escalation: the flow
  * that goes to a target question when the direct one came back short.
  */
 public class TransitionListPresenter extends MyPresenterWidget<PagerView> {
@@ -57,7 +57,7 @@ public class TransitionListPresenter extends MyPresenterWidget<PagerView> {
     private final ButtonView addButton;
     private final ButtonView editButton;
     private final ButtonView deleteButton;
-    /// The steps a transition may go to: the plan's own, as they stand while this step is being edited.
+    /// The steps a transition may go to: the flow's own, as they stand while this step is being edited.
     private List<String> steps = List.of();
     private boolean readOnly;
 
@@ -88,7 +88,8 @@ public class TransitionListPresenter extends MyPresenterWidget<PagerView> {
                                 ? Transition.ABANDON
                                 : row.getGoTo())).build(),
                 DataGridUtil.headingBuilder("Go to")
-                        .withToolTip("The step it goes to, the end of the plan, or giving the attempt up.")
+                        .withToolTip("The step it goes to, the end of the flow, or an exit: park, give-up, "
+                                     + "or abandon for the step's own default.")
                         .build(),
                 ColumnSizeConstants.MEDIUM_COL);
         addButton = view.addButton(SvgPresets.ADD.title("Add transition"));
@@ -136,7 +137,7 @@ public class TransitionListPresenter extends MyPresenterWidget<PagerView> {
     }
 
     /// Each outcome may be gone to once: a step with two transitions on one outcome would take whichever
-    /// the reader happened to find first, which is not a plan but a coin toss. Said here rather than
+    /// the reader happened to find first, which is not a flow but a coin toss. Said here rather than
     /// left to the store's refusal on save, so that a person is told where they typed it.
     private void show(final Transition transition, final Consumer<Transition> onOk) {
         final TransitionPresenter presenter = editPresenterProvider.get();
@@ -168,7 +169,7 @@ public class TransitionListPresenter extends MyPresenterWidget<PagerView> {
     }
 
     /**
-     * @param steps The ids of the plan's steps, which is what a transition may go to.
+     * @param steps The ids of the flow's steps, which is what a transition may go to.
      */
     public void read(final List<Transition> transitions, final List<String> steps, final boolean readOnly) {
         this.readOnly = readOnly;

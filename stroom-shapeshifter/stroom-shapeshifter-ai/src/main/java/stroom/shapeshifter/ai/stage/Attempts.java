@@ -86,7 +86,7 @@ public interface Attempts {
     List<Recorded> awaiting(int limit);
 
     /// Send an attempt to the exhaustion step (A65): the worker carrying it on puts no further transform
-    /// question to the model and takes the plan's spent transition instead. Stands until the attempt is
+    /// question to the model and takes the flow's spent transition instead. Stands until the attempt is
     /// [#closed]: a park on the way — for the budget the exhaustion step's own question needs — and the
     /// grant that reopens it leave the sending to be taken by the walk that follows.
     void exhaustNext(long attemptId);
@@ -234,7 +234,7 @@ public interface Attempts {
     /// An attempt as it is read back: what it was, what it came to, and every turn of it.
     /// @param grant       What a person granted the attempt beyond the document's budgets (A77).
     /// @param exhaustNext Whether a person sent the attempt to the exhaustion step (A65): the next transform
-    ///                    question that would be put to the model is not put, and the plan's spent
+    ///                    question that would be put to the model is not put, and the flow's spent
     ///                    transition is taken instead. Stands until the attempt closes, through any park
     ///                    and grant between.
     record Recorded(long id,

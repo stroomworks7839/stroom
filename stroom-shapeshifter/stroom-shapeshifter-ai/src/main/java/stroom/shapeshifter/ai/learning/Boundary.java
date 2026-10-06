@@ -18,7 +18,7 @@ package stroom.shapeshifter.ai.learning;
 
 import stroom.shapeshifter.shared.RecordBoundary;
 
-/// The record boundary a plan settles (A31, A35): for raw text the parser configuration that cuts one
+/// The record boundary a flow settles (A31, A35): for raw text the parser configuration that cuts one
 /// record per unit and emits it whole; for input that is already XML the local name of the element that is
 /// one record; for JSON the key of the array whose items are records, or [#ROOT] where each top-level value
 /// is one. Exactly one of the three is set.

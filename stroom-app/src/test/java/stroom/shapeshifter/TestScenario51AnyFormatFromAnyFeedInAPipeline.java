@@ -188,9 +188,9 @@ class TestScenario51AnyFormatFromAnyFeedInAPipeline extends AbstractProcessInteg
                     .describedAs("what it learned is a pipeline anyone can open")
                     .isNotNull();
         });
-        assertThat(shapeshifterAiStore.readDocument(document).getPlan())
+        assertThat(shapeshifterAiStore.readDocument(document).getFlow())
                 .describedAs("A41: learning writes rules, not documents — the demo document is untouched")
-                .isEqualTo(DemoContentPack.document().getPlan());
+                .isEqualTo(DemoContentPack.document().getFlow());
 
         // And a second stream of a format already learned is served by its rule without the model being
         // asked. The one that matters here is JSON, since it is the only format whose parser the demo

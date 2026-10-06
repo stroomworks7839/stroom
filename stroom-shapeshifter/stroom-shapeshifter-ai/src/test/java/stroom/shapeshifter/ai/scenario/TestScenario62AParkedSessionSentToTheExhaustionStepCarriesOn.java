@@ -26,8 +26,8 @@ import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.RegressionSet.Accepted;
 import stroom.shapeshifter.ai.stage.RegressionSet.Kind;
 import stroom.shapeshifter.shared.AttemptStatus;
-import stroom.shapeshifter.shared.LearningPlan;
-import stroom.shapeshifter.shared.PlanStep;
+import stroom.shapeshifter.shared.FlowStep;
+import stroom.shapeshifter.shared.LearningFlow;
 import stroom.shapeshifter.shared.QuestionKind;
 import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
@@ -47,10 +47,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 ///
 /// A session out of its token budget parks for a person with records of the held stream still short. A
 /// person sends it to the exhaustion step: the worker carries it on from the turns already recorded, puts
-/// no further transform question to the model, and takes the plan's spent transition instead — to the
+/// no further transform question to the model, and takes the flow's spent transition instead — to the
 /// `ADMIT` step, where what the stream still cannot translate is admitted as marked Unknown events. A
 /// sending stands on the row until the attempt closes — through the park on the way for the budget the
-/// exhaustion step's own question needs, and the grant that reopens it. A plan with nowhere to send it to
+/// exhaustion step's own question needs, and the grant that reopens it. A flow with nowhere to send it to
 /// parks the session again, saying so. A sending to anything but a parked attempt is refused.
 class TestScenario62AParkedSessionSentToTheExhaustionStepCarriesOn {
 
@@ -69,7 +69,7 @@ class TestScenario62AParkedSessionSentToTheExhaustionStepCarriesOn {
         final Scenarios scenarios = new Scenarios();
         // Four tokens at a token a question, the budget being the attempt's across its rounds (A5): round
         // one's three questions and round two's chain, and the parser's second question is over it.
-        final ShapeshifterAiDoc doc = doc(PlanStep.parse("CONFIGURE transform candidates 1 on spent goto admit"))
+        final ShapeshifterAiDoc doc = doc(FlowStep.parse("CONFIGURE transform candidates 1 on spent goto admit"))
                 .copy().tokenBudget(4L).build();
         scenarios.documents.put(doc);
         scenarios.inputs.put(streamed(1L));
@@ -110,7 +110,7 @@ class TestScenario62AParkedSessionSentToTheExhaustionStepCarriesOn {
 
         // Granted enough to finish, the sending stands through that too: the recorded turns — round
         // one, and round two's chain and parser, whose answers were recorded before the budget refused
-        // them — are replayed for nothing, the transform's question is not put, and the plan goes to the
+        // them — are replayed for nothing, the transform's question is not put, and the flow goes to the
         // exhaustion step, which asks for the admitted form and gets it. The sending is taken, and the
         // closed row no longer carries it.
         scenarios.stage(silent).grant(doc, parked.id(), 10L, 0L);
@@ -135,9 +135,9 @@ class TestScenario62AParkedSessionSentToTheExhaustionStepCarriesOn {
     }
 
     @Test
-    void aPlanWithNoSpentTransitionParksTheSessionAgainAndSaysSo() {
+    void aFlowWithNoSpentTransitionParksTheSessionAgainAndSaysSo() {
         final Scenarios scenarios = new Scenarios();
-        final ShapeshifterAiDoc doc = doc(PlanStep.parse("CONFIGURE transform candidates 1"))
+        final ShapeshifterAiDoc doc = doc(FlowStep.parse("CONFIGURE transform candidates 1"))
                 .copy().tokenBudget(4L).build();
         scenarios.documents.put(doc);
         scenarios.inputs.put(streamed(1L));
@@ -178,7 +178,7 @@ class TestScenario62AParkedSessionSentToTheExhaustionStepCarriesOn {
         // step, where a replayed first would hide it — and the exhaustion step admits what the first
         // candidate, which does not compile, could not.
         final Scenarios scenarios = new Scenarios();
-        final ShapeshifterAiDoc doc = doc(PlanStep.parse("CONFIGURE transform candidates 2 on spent goto admit"))
+        final ShapeshifterAiDoc doc = doc(FlowStep.parse("CONFIGURE transform candidates 2 on spent goto admit"))
                 .copy().tokenBudget(2L).build();
         scenarios.documents.put(doc);
         scenarios.inputs.put(streamed(1L));
@@ -212,17 +212,17 @@ class TestScenario62AParkedSessionSentToTheExhaustionStepCarriesOn {
         assertThat(finished.turns()).extracting(Turn::kind).contains(QuestionKind.ADMIT);
     }
 
-    /// The demo document under a plan whose transform step is as given, and whose sample holds the header
+    /// The demo document under a flow whose transform step is as given, and whose sample holds the header
     /// and a few logons.
-    private static ShapeshifterAiDoc doc(final PlanStep transform) {
+    private static ShapeshifterAiDoc doc(final FlowStep transform) {
         return DemoDocument.configure(Scenarios.document()).uuid(DOC).name("door")
                 .heldOutFraction(0.0)
                 .sampleSizeLimit(200)
-                .plan(new LearningPlan(List.of(
-                        PlanStep.parse("CHAIN"),
-                        PlanStep.parse("CONFIGURE parser"),
+                .flow(new LearningFlow(List.of(
+                        FlowStep.parse("CHAIN"),
+                        FlowStep.parse("CONFIGURE parser"),
                         transform,
-                        PlanStep.parse("ADMIT candidates 1")), null, null))
+                        FlowStep.parse("ADMIT candidates 1")), null, null))
                 .build();
     }
 

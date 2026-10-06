@@ -31,8 +31,8 @@ import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.Stage;
 import stroom.shapeshifter.ai.stage.StageRun;
 import stroom.shapeshifter.ai.transformation.XsltStep;
+import stroom.shapeshifter.shared.FlowExample;
 import stroom.shapeshifter.shared.LearningMode;
-import stroom.shapeshifter.shared.PlanExample;
 import stroom.shapeshifter.shared.RecordBoundary;
 import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
@@ -161,7 +161,7 @@ class TestScenariosReprocessing {
         final ShapeshifterAiDoc doc = doc().copy()
                 .allowedElements(List.of("JSONParser", "XSLTFilter"))
                 // The split question is what settles the boundary, and target-first asks it of every input.
-                .plan(PlanExample.TARGET_FIRST)
+                .flow(FlowExample.TARGET_FIRST)
                 .build();
         final Input json = new Input(1, "API-GATEWAY", "Raw Events", Map.of("Format", "JSON"),
                 Scenarios.resource("records.json"), "pipeline-1");

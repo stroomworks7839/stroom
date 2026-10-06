@@ -74,7 +74,7 @@ class TestDemoContentPackImports extends AbstractCoreIntegrationTest {
         // The stage calls the model that came with it, not one that happens to be named the same.
         assertThat(document.getModel()).isNotNull();
         assertThat(document.getModel().getUuid()).isEqualTo(DemoContentPack.MODEL_UUID);
-        assertThat(document.getPlan().getSteps()).isNotEmpty();
+        assertThat(document.getFlow().getSteps()).isNotEmpty();
 
         final PipelineDoc pipeline = pipelineStore.readDocument(DemoContentPack.pipelineRef());
         assertThat(pipeline).isNotNull();

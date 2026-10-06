@@ -18,7 +18,7 @@ package stroom.shapeshifter.shared;
 
 import stroom.docref.HasDisplayValue;
 
-/// The checks that judge a step, as a plan names them (A37; design 01 §10.2): the closed list a step's
+/// The checks that judge a step, as a flow names them (A37; design 01 §10.2): the closed list a step's
 /// `checks` may draw from, and the source of every `<check>-short` outcome. Seven wrap the scorers of
 /// §8.4; `WHOLENESS`, `PRESERVATION` and `FIDELITY` are the checks of §10.1 that have nothing to weight
 /// or threshold. A new check is new code.

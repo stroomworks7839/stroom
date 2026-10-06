@@ -24,7 +24,7 @@ import stroom.shapeshifter.ai.learning.Question.TargetFor;
 import stroom.shapeshifter.shared.BusinessRulesParameters;
 import stroom.shapeshifter.shared.ExtractionQualityParameters;
 import stroom.shapeshifter.shared.LearnedUnknown;
-import stroom.shapeshifter.shared.LearningPlan;
+import stroom.shapeshifter.shared.LearningFlow;
 import stroom.shapeshifter.shared.ScorerSetting;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 import stroom.shapeshifter.shared.Template;
@@ -79,12 +79,12 @@ public final class QuestionText {
     }
 
     /**
-     * The words of a document's plan: its templates, and a system text carrying its instructions
+     * The words of a document's flow: its templates, and a system text carrying its instructions
      * and what its scorers will demand of every event — the fields required and the rules asserted —
      * said up front, so the model aims at them rather than learning them from a shortfall.
      */
     public static QuestionText of(final ShapeshifterAiDoc doc) {
-        final Templates templates = Templates.of(doc.getPlan());
+        final Templates templates = Templates.of(doc.getFlow());
         final StringBuilder demands = new StringBuilder();
         for (final ScorerSetting setting : doc.getScorers()) {
             if (setting.getParameters() instanceof final ExtractionQualityParameters quality
@@ -116,8 +116,8 @@ public final class QuestionText {
                 Map.of("instructions", instructions(instructions), "demands", "")));
     }
 
-    public static QuestionText of(final LearningPlan plan) {
-        return of(ShapeshifterAiDoc.builder().uuid("plan").name("plan").plan(plan).build());
+    public static QuestionText of(final LearningFlow flow) {
+        return of(ShapeshifterAiDoc.builder().uuid("flow").name("flow").flow(flow).build());
     }
 
     private static String instructions(final String instructions) {
@@ -315,7 +315,7 @@ public final class QuestionText {
     }
 
     /// The stream's other kinds of record, one apiece (A47): the configuration is run over every record,
-    /// and one written from a login alone drops the logouts. Shown only where the plan has not settled
+    /// and one written from a login alone drops the logouts. Shown only where the flow has not settled
     /// its targets, since those already carry a record of each kind beside the event it must become.
     ///
     /// Said after the one-record instruction and not before it: these are examples of the *other* runs

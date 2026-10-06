@@ -30,9 +30,9 @@ import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.StageRun;
 import stroom.shapeshifter.shared.BusinessRulesParameters;
 import stroom.shapeshifter.shared.ExtractionQualityParameters;
+import stroom.shapeshifter.shared.FlowExample;
+import stroom.shapeshifter.shared.LearningFlow;
 import stroom.shapeshifter.shared.LearningMode;
-import stroom.shapeshifter.shared.LearningPlan;
-import stroom.shapeshifter.shared.PlanExample;
 import stroom.shapeshifter.shared.RecordBoundary;
 import stroom.shapeshifter.shared.SchemaConformanceParameters;
 import stroom.shapeshifter.shared.ScorerSetting;
@@ -67,7 +67,7 @@ class TestScenario46Json {
                 .uuid("doc-1")
                 .name("api-gateway")
                 .learningMode(LearningMode.AUTOMATIC)
-                .plan(PlanExample.TARGET_FIRST)
+                .flow(FlowExample.TARGET_FIRST)
                 .allowedElements(List.of("JSONParser", "XSLTFilter"))
                 .minRecordsPerShape(5)
                 .scorers(List.of(
@@ -145,8 +145,8 @@ class TestScenario46Json {
     }
 
     @Test
-    void whereThePlanHasNoTargetsYetTheTransformIsShownOneRecordOfEachKind() {
-        // A47: the escalating plan asks for a configuration before any target exists, so a stream of
+    void whereTheFlowHasNoTargetsYetTheTransformIsShownOneRecordOfEachKind() {
+        // A47: the escalating flow asks for a configuration before any target exists, so a stream of
         // logins and logouts would otherwise show the model a login and a sentence saying the rest
         // differ. Saying a second kind exists is not the same as showing it, and a stylesheet written
         // from a login alone drops the logouts.
@@ -158,7 +158,7 @@ class TestScenario46Json {
                 .reply(Scenarios.fenced(XSLT));
 
         final StageRun run = scenarios.stage(script).run(
-                doc().copy().plan(LearningPlan.of(PlanExample.ESCALATING)).build(), stream(1, DOCUMENT));
+                doc().copy().flow(LearningFlow.of(FlowExample.ESCALATING)).build(), stream(1, DOCUMENT));
 
         script.verifyExhausted();
         assertThat(run.decision()).describedAs(run.decision().toString()).isInstanceOf(Promoted.class);
@@ -235,7 +235,7 @@ class TestScenario46Json {
                 .expect(QuestionMatcher.split()).reply("events")
                 .expect(QuestionMatcher.configuration("XSLTFilter"))
                 .reply(Scenarios.fenced(readsTheEnvelope))
-                // The candidate spent, the plan's exhaustion step asks once more (design 04 §4): the same
+                // The candidate spent, the flow's exhaustion step asks once more (design 04 §4): the same
                 // stylesheet fails the same way, and that is the end of it.
                 .expect(QuestionMatcher.admission("XSLTFilter"))
                 .reply(Scenarios.fenced(readsTheEnvelope));

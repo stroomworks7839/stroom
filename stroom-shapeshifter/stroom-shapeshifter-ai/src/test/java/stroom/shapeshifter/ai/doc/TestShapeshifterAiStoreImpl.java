@@ -19,10 +19,10 @@ package stroom.shapeshifter.ai.doc;
 import stroom.docref.DocRef;
 import stroom.meta.shared.MetaFields;
 import stroom.shapeshifter.ai.learning.Templates;
+import stroom.shapeshifter.shared.FlowExample;
+import stroom.shapeshifter.shared.FlowStep;
+import stroom.shapeshifter.shared.LearningFlow;
 import stroom.shapeshifter.shared.LearningMode;
-import stroom.shapeshifter.shared.LearningPlan;
-import stroom.shapeshifter.shared.PlanExample;
-import stroom.shapeshifter.shared.PlanStep;
 import stroom.shapeshifter.shared.PromotionMode;
 import stroom.shapeshifter.shared.QuestionKind;
 import stroom.shapeshifter.shared.RoutingRule;
@@ -92,44 +92,44 @@ class TestShapeshifterAiStoreImpl {
     }
 
     @Test
-    void saveRefusesAPlanTheStageCannotHoldAndStampsTheBuiltInVersion() {
+    void saveRefusesAFlowTheStageCannotHoldAndStampsTheBuiltInVersion() {
         // Scenarios 39 and 40 (A33): the rule and the variable are named where the editor cannot check them;
         // a definition that holds is saved against the built-in text of the day.
         final DocRef docRef = store.createDocument("syslog-ai");
         assertThatThrownBy(() -> store.writeDocument(store.readDocument(docRef).copy()
-                .plan(LearningPlan.of(PlanExample.DIRECT).withSteps(List.of(
-                        PlanStep.of(QuestionKind.CONFIGURE), PlanStep.of(QuestionKind.CHAIN))))
+                .flow(LearningFlow.of(FlowExample.DIRECT).withSteps(List.of(
+                        FlowStep.of(QuestionKind.CONFIGURE), FlowStep.of(QuestionKind.CHAIN))))
                 .build()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("The first step must be CHAIN")
                 .hasMessageContaining("The last step must be CONFIGURE");
         assertThatThrownBy(() -> store.writeDocument(store.readDocument(docRef).copy()
-                .plan(LearningPlan.of(PlanExample.DIRECT).withSteps(List.of(
-                        PlanStep.of(QuestionKind.CHAIN), PlanStep.of(QuestionKind.SPLIT),
-                        PlanStep.of(QuestionKind.SPLIT), PlanStep.of(QuestionKind.CONFIGURE))))
+                .flow(LearningFlow.of(FlowExample.DIRECT).withSteps(List.of(
+                        FlowStep.of(QuestionKind.CHAIN), FlowStep.of(QuestionKind.SPLIT),
+                        FlowStep.of(QuestionKind.SPLIT), FlowStep.of(QuestionKind.CONFIGURE))))
                 .build()))
                 .hasMessageContaining("SPLIT may appear once");
         assertThatThrownBy(() -> store.writeDocument(store.readDocument(docRef).copy()
-                .plan(LearningPlan.of(PlanExample.DIRECT).withSteps(List.of(
-                        PlanStep.parse("CHAIN"), PlanStep.parse("CONFIGURE parser on spent goto nowhere"),
-                        PlanStep.parse("CONFIGURE parser"))))
+                .flow(LearningFlow.of(FlowExample.DIRECT).withSteps(List.of(
+                        FlowStep.parse("CHAIN"), FlowStep.parse("CONFIGURE parser on spent goto nowhere"),
+                        FlowStep.parse("CONFIGURE parser"))))
                 .build()))
                 .hasMessageContaining("Two steps are named 'parser'")
                 .hasMessageContaining("'on spent goto nowhere' in step 'parser' names no step");
         assertThatThrownBy(() -> store.writeDocument(store.readDocument(docRef).copy()
-                .plan(LearningPlan.of(PlanExample.DIRECT)
+                .flow(LearningFlow.of(FlowExample.DIRECT)
                         .withTemplates(Map.of(Template.TARGET, "Become ${nothing}")))
                 .build()))
                 .hasMessageContaining("The target question template names ${nothing}");
 
         store.writeDocument(store.readDocument(docRef).copy()
-                .plan(LearningPlan.of(PlanExample.TARGET_FIRST)
+                .flow(LearningFlow.of(FlowExample.TARGET_FIRST)
                         .withTemplates(Map.of(Template.CHAIN, "Pick: ${elements}\n${sample}")))
                 .build());
-        final LearningPlan saved = store.readDocument(docRef).getPlan();
+        final LearningFlow saved = store.readDocument(docRef).getFlow();
         assertThat(saved.getBuiltInVersion()).isEqualTo(Templates.VERSION);
         assertThat(saved.getTemplates()).containsOnlyKeys(Template.CHAIN);
-        assertThat(saved.getSteps()).isEqualTo(PlanExample.TARGET_FIRST.steps());
+        assertThat(saved.getSteps()).isEqualTo(FlowExample.TARGET_FIRST.steps());
     }
 
     @Test

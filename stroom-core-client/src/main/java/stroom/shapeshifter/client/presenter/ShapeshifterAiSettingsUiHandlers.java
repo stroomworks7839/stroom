@@ -16,7 +16,7 @@
 
 package stroom.shapeshifter.client.presenter;
 
-import stroom.shapeshifter.shared.PlanStep;
+import stroom.shapeshifter.shared.FlowStep;
 
 import com.gwtplatform.mvp.client.UiHandlers;
 
@@ -27,24 +27,24 @@ public interface ShapeshifterAiSettingsUiHandlers extends UiHandlers {
     void onChange();
 
     /**
-     * An example plan was chosen, and its steps are the ones to start from (A34, design 01 §10.2).
+     * An example flow was chosen, and its steps are the ones to start from (A34, design 01 §10.2).
      * <p>
-     * An example is a starting point and not a setting: what it loads is the plan's steps, which the
+     * An example is a starting point and not a setting: what it loads is the flow's steps, which the
      * person then edits. The tab that owns the step list takes them; every other tab has none and does
      * nothing.
      */
-    default void onPlanExample(final List<PlanStep> steps) {
-        // Only the Learning tab holds a plan.
+    default void onFlowExample(final List<FlowStep> steps) {
+        // Only the Learning tab holds a flow.
     }
 
     /**
-     * The button beneath the plan was pressed, at this point on the screen: which examples there are to
-     * load, and what replacing a plan that has been edited means, belong to the tab that owns the plan.
+     * The button beneath the flow was pressed, at this point on the screen: which examples there are to
+     * load, and what replacing a flow that has been edited means, belong to the tab that owns the flow.
      *
      * @param x Where the menu of examples goes, across.
      * @param y Where the menu of examples goes, down.
      */
     default void onLoadExample(final int x, final int y) {
-        // Only the Learning tab holds a plan.
+        // Only the Learning tab holds a flow.
     }
 }

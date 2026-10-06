@@ -54,7 +54,7 @@ public interface ShapeshifterAiResource
     @GET
     @Path("/templates")
     @Operation(
-            summary = "The built-in text of the plan's templates and its version",
+            summary = "The built-in text of the flow's templates and its version",
             operationId = "fetchShapeshifterAiTemplates")
     BuiltInTemplates templates();
 

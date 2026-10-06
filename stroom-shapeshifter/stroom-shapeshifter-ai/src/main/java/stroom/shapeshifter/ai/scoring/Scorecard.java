@@ -66,7 +66,7 @@ public final class Scorecard {
                 List.copyOf(scorers.values()));
     }
 
-    /// This scorecard with only the scorers a plan step names as its checks (A37), and the compile gate,
+    /// This scorecard with only the scorers a flow step names as its checks (A37), and the compile gate,
     /// which is not a check but the floor every step stands on.
     public Scorecard only(final Collection<Check> checks) {
         return new Scorecard(settings.stream()

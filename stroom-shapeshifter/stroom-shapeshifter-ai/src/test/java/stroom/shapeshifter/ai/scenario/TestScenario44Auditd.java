@@ -25,8 +25,8 @@ import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.StageRun;
 import stroom.shapeshifter.shared.BusinessRulesParameters;
 import stroom.shapeshifter.shared.ExtractionQualityParameters;
+import stroom.shapeshifter.shared.FlowExample;
 import stroom.shapeshifter.shared.LearningMode;
-import stroom.shapeshifter.shared.PlanExample;
 import stroom.shapeshifter.shared.SchemaConformanceParameters;
 import stroom.shapeshifter.shared.ScorerSetting;
 import stroom.shapeshifter.shared.ScorerType;
@@ -63,7 +63,7 @@ class TestScenario44Auditd {
                 .uuid("doc-1")
                 .name("linux-auditd")
                 .learningMode(LearningMode.AUTOMATIC)
-                .plan(PlanExample.TARGET_FIRST)
+                .flow(FlowExample.TARGET_FIRST)
                 .allowedElements(List.of("DSParser", "XSLTFilter"))
                 .minRecordsPerShape(5)
                 .scorers(List.of(
@@ -137,8 +137,8 @@ class TestScenario44Auditd {
     }
 
     @Test
-    void underTheEscalatingPlanAParserThatCutsPerLineGoesBackToTheSplit() {
-        // Run 7 (design 02 §6.3): with no split step the escalating plan's parser had to cut and extract at
+    void underTheEscalatingFlowAParserThatCutsPerLineGoesBackToTheSplit() {
+        // Run 7 (design 02 §6.3): with no split step the escalating flow's parser had to cut and extract at
         // once and gave up. Now the split is asked first (A39), and a parser refused on yield — one record
         // per line against the 0.35 the document states — goes back to the split rather than being re-asked
         // blind (A40); the split holds, and the parser asked again is held to it.
@@ -153,7 +153,7 @@ class TestScenario44Auditd {
                 .expect(QuestionMatcher.configuration("DSParser")).reply(Scenarios.fenced(BY_EVENT))
                 .expect(QuestionMatcher.configuration("XSLTFilter").withoutFeedback()).reply(Scenarios.fenced(XSLT));
 
-        final StageRun run = scenarios.stage(script).run(doc().copy().plan(PlanExample.ESCALATING).build(),
+        final StageRun run = scenarios.stage(script).run(doc().copy().flow(FlowExample.ESCALATING).build(),
                 stream(1, LOG));
 
         assertThat(run.decision()).describedAs(run.decision().toString()).isInstanceOf(Promoted.class);

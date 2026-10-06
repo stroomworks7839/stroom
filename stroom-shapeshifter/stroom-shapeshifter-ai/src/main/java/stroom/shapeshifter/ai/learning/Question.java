@@ -53,7 +53,7 @@ public sealed interface Question {
     /// This question in one line: the kind, what it was about, and how much the step had been told when
     /// it was asked. This is what a turn records as the question asked (A28), which a person reads and a
     /// resumed attempt compares its re-walk against (A45) — everything in it is re-derived by walking the
-    /// same plan over the same sample, so two walks that have reached the same place write the same line.
+    /// same flow over the same sample, so two walks that have reached the same place write the same line.
     ///
     /// Not the rendered prompt: that carries the stream's own text, which may not be stored until it is
     /// redacted (A17, A38), and which the raw exchange is audited with by `stroom-ai` in any case. The
@@ -154,7 +154,7 @@ public sealed interface Question {
      * @param previousConfiguration The configuration this question is asking to improve on, or null.
      * @param split                 The record boundary already settled (A31, A35): the configuration that
      *                              cuts it, for the parser that must extract within it, or the element
-     *                              that is one record, for a transform over XML; null where the plan has
+     *                              that is one record, for a transform over XML; null where the flow has
      *                              no split or it does not concern this element.
      * @param targets               What each kind of record must become (A31): the parser's records must
      *                              carry every value these need, the transform must produce exactly
@@ -167,7 +167,7 @@ public sealed interface Question {
      *                              where the input is one of them: one record shown is one record's
      *                              worth of evidence, and a configuration written for it is run over all
      *                              of them, so what it is not being shown is said rather than hidden.
-     * @param otherKinds            One record of each *other* kind the split found (A47), where the plan
+     * @param otherKinds            One record of each *other* kind the split found (A47), where the flow
      *                              has not yet settled its targets. Saying a second kind exists is not
      *                              the same as showing it, and a configuration written from a login
      *                              alone drops the logouts. Empty where the targets already show a

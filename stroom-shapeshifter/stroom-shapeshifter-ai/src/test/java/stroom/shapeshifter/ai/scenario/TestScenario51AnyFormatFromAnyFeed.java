@@ -46,7 +46,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 ///
 /// Four feeds, four formats, four shapes, four rules, each serving its own traffic: delimited text with
 /// a header, JSON lines, syslog in two forms, and fixed-width columns with nothing to split on. One
-/// learning key, one plan, one set of scorers.
+/// learning key, one flow, one set of scorers.
 ///
 /// **What a scripted model can and cannot prove.** The replies here are canned, so the *choice* of
 /// parser is this scenario's and not a model's. What is proved is everything around that choice: that

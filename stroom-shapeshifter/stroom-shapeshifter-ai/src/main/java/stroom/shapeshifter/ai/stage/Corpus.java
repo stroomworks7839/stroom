@@ -62,7 +62,7 @@ final class Corpus {
     /// @param text      The stream, or the sample of it the model was shown.
     /// @param which     The indices of the records that were learned for, in the parser's order; null for
     ///                  every record of the text, which is a first learning, where every record was.
-    /// @param targets   What the plan said each kind of record should become (A31), where it settled any.
+    /// @param targets   What the flow said each kind of record should become (A31), where it settled any.
     /// @param score     The candidate's score on the stream it was accepted from.
     /// @param attemptId The attempt that accepted them, where one was open.
     /// @param now       When.
@@ -253,7 +253,7 @@ final class Corpus {
 
     /// The target settled for this record's kind (A31): a target names a representative record as the
     /// split yielded it — its text for a text format, its markup otherwise — and a record is of its kind
-    /// by the same skeleton the plan chose representatives by.
+    /// by the same skeleton the flow chose representatives by.
     private static String targetFor(final List<Target> targets, final String record, final String text) {
         if (targets.isEmpty()) {
             return null;

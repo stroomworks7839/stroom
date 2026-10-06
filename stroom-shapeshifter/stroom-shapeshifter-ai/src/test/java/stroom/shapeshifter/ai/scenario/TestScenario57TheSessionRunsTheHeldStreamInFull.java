@@ -27,7 +27,7 @@ import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.Stage;
 import stroom.shapeshifter.ai.stage.StageRun;
 import stroom.shapeshifter.shared.AttemptStatus;
-import stroom.shapeshifter.shared.PlanExample;
+import stroom.shapeshifter.shared.FlowExample;
 import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 
@@ -123,8 +123,8 @@ class TestScenario57TheSessionRunsTheHeldStreamInFull {
     @Test
     void aSessionOutOfCandidatesParksForAPersonAndHoldsItsShape() {
         final Scenarios scenarios = new Scenarios();
-        // The direct plan with one candidate a step: the session has one try at the transform.
-        final ShapeshifterAiDoc doc = doc().copy().plan(PlanExample.DIRECT).maxAttempts(1).build();
+        // The direct flow with one candidate a step: the session has one try at the transform.
+        final ShapeshifterAiDoc doc = doc().copy().flow(FlowExample.DIRECT).maxAttempts(1).build();
         scenarios.documents.put(doc);
         scenarios.inputs.put(input(1L, STREAM));
         final Script silent = Script.of();

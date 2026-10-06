@@ -16,7 +16,7 @@
 
 package stroom.shapeshifter.ai.learning;
 
-/// What the stage's input is, as the plan's guards read it and the split question is put (A31, A35): raw
+/// What the stage's input is, as the flow's guards read it and the split question is put (A31, A35): raw
 /// text a parser with a configuration cuts; XML that is already records; or JSON a run-only parser turns into
 /// records. Settled by the chain: its first element says which.
 public enum InputKind {

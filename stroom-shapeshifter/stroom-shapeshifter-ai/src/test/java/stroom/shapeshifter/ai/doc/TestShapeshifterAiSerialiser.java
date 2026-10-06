@@ -23,8 +23,8 @@ import stroom.importexport.api.ByteArrayImportExportAsset;
 import stroom.importexport.api.ImportExportDocument;
 import stroom.pipeline.shared.PipelineDoc;
 import stroom.shapeshifter.ai.state.InMemoryRules;
-import stroom.shapeshifter.shared.LearningPlan;
-import stroom.shapeshifter.shared.PlanExample;
+import stroom.shapeshifter.shared.FlowExample;
+import stroom.shapeshifter.shared.LearningFlow;
 import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 import stroom.shapeshifter.shared.Template;
@@ -47,21 +47,38 @@ class TestShapeshifterAiSerialiser {
             new ShapeshifterAiSerialiser(new Serialiser2FactoryImpl(), () -> rules);
 
     @Test
-    void aDocumentSavedWhenThePlanWasTheConversationReadsAsItWasWritten() throws IOException {
-        final LearningPlan plan = LearningPlan.of(PlanExample.TARGET_FIRST)
+    void aDocumentSavedWhenTheFlowWasTheConversationReadsAsItWasWritten() throws IOException {
+        final LearningFlow flow = LearningFlow.of(FlowExample.TARGET_FIRST)
                 .withTemplates(Map.of(Template.CHAIN, "Pick: ${elements}\n${sample}"));
-        final ShapeshifterAiDoc doc = ShapeshifterAiDoc.builder().uuid("d").name("door").plan(plan).build();
+        final ShapeshifterAiDoc doc = ShapeshifterAiDoc.builder().uuid("d").name("door").flow(flow).build();
         final ImportExportDocument written = serialiser.write(doc);
         final String json = new String(written.getExtAssetData("meta"), StandardCharsets.UTF_8);
-        assertThat(json).contains("\"plan\"");
+        assertThat(json).contains("\"flow\"");
 
         written.removeExtAsset("meta");
         written.addExtAsset(new ByteArrayImportExportAsset("meta", DocDataType.JSON,
-                json.replace("\"plan\"", "\"dialogue\"").getBytes(StandardCharsets.UTF_8)));
+                json.replace("\"flow\"", "\"dialogue\"").getBytes(StandardCharsets.UTF_8)));
 
         final ShapeshifterAiDoc read = serialiser.read(written);
-        assertThat(read.getPlan()).isEqualTo(plan);
-        assertThat(serialiser.read(serialiser.write(doc)).getPlan()).isEqualTo(plan);
+        assertThat(read.getFlow()).isEqualTo(flow);
+        assertThat(serialiser.read(serialiser.write(doc)).getFlow()).isEqualTo(flow);
+    }
+
+    @Test
+    void aDocumentSavedWhenTheFlowWasThePlanReadsAsItWasWritten() throws IOException {
+        // A81: "plan" is a name in stored data, read as the flow and never written again.
+        final LearningFlow flow = LearningFlow.of(FlowExample.ESCALATING);
+        final ShapeshifterAiDoc doc = ShapeshifterAiDoc.builder().uuid("d").name("door").flow(flow).build();
+        final ImportExportDocument written = serialiser.write(doc);
+        final String json = new String(written.getExtAssetData("meta"), StandardCharsets.UTF_8);
+        written.removeExtAsset("meta");
+        written.addExtAsset(new ByteArrayImportExportAsset("meta", DocDataType.JSON,
+                json.replace("\"flow\"", "\"plan\"").getBytes(StandardCharsets.UTF_8)));
+
+        final ShapeshifterAiDoc read = serialiser.read(written);
+        assertThat(read.getFlow()).isEqualTo(flow);
+        assertThat(new String(serialiser.write(read).getExtAssetData("meta"), StandardCharsets.UTF_8))
+                .contains("\"flow\"").doesNotContain("\"plan\"");
     }
 
     @Test
@@ -78,7 +95,7 @@ class TestShapeshifterAiSerialiser {
         final ImportExportDocument written = serialiser.write(
                 ShapeshifterAiDoc.builder().uuid("d").name("door").build());
         final ObjectNode json = (ObjectNode) JsonUtil.getMapper().readTree(written.getExtAssetData("meta"));
-        json.remove("plan");
+        json.remove("flow");
         final ObjectNode legacy = json.putObject("dialogue");
         legacy.put("preset", "TARGET_FIRST");
         legacy.putObject("templates").put("CHAIN", "Pick");
@@ -86,8 +103,8 @@ class TestShapeshifterAiSerialiser {
         written.addExtAsset(new ByteArrayImportExportAsset("meta", DocDataType.JSON,
                 JsonUtil.getMapper().writeValueAsBytes(json)));
 
-        final LearningPlan read = serialiser.read(written).getPlan();
-        assertThat(read.getSteps()).isEqualTo(PlanExample.TARGET_FIRST.steps());
+        final LearningFlow read = serialiser.read(written).getFlow();
+        assertThat(read.getSteps()).isEqualTo(FlowExample.TARGET_FIRST.steps());
         assertThat(read.getTemplates()).containsEntry(Template.CHAIN, "Pick");
     }
 
@@ -131,11 +148,11 @@ class TestShapeshifterAiSerialiser {
     @Test
     void aPresetThisBuildDoesNotKnowLeavesTheDocumentOpenable() throws IOException {
         // A renamed example or a hand-edited document must not make a document unopenable, and so
-        // unrepairable; its steps are the default plan's until it is saved again.
+        // unrepairable; its steps are the default flow's until it is saved again.
         final ImportExportDocument written = serialiser.write(
                 ShapeshifterAiDoc.builder().uuid("d").name("door").build());
         final ObjectNode json = (ObjectNode) JsonUtil.getMapper().readTree(written.getExtAssetData("meta"));
-        json.remove("plan");
+        json.remove("flow");
         json.putObject("dialogue").put("preset", "SOME_EXAMPLE_THAT_WENT_AWAY");
         written.removeExtAsset("meta");
         written.addExtAsset(new ByteArrayImportExportAsset("meta", DocDataType.JSON,
@@ -143,6 +160,6 @@ class TestShapeshifterAiSerialiser {
 
         final ShapeshifterAiDoc read = serialiser.read(written);
 
-        assertThat(read.getPlan().getSteps()).isEqualTo(PlanExample.DIRECT.steps());
+        assertThat(read.getFlow().getSteps()).isEqualTo(FlowExample.DIRECT.steps());
     }
 }

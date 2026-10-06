@@ -29,9 +29,9 @@ import stroom.shapeshifter.ai.stage.RegressionSet.Kind;
 import stroom.shapeshifter.ai.stage.Stage;
 import stroom.shapeshifter.ai.stage.StageRun;
 import stroom.shapeshifter.shared.AttemptStatus;
+import stroom.shapeshifter.shared.FlowStep;
 import stroom.shapeshifter.shared.LearnedUnknown;
-import stroom.shapeshifter.shared.LearningPlan;
-import stroom.shapeshifter.shared.PlanStep;
+import stroom.shapeshifter.shared.LearningFlow;
 import stroom.shapeshifter.shared.QuestionKind;
 import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
@@ -50,7 +50,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /// design 04 §4 and its §8 scenarios 4 and 14).
 ///
 /// A session whose transform candidates are spent with records of the held stream still short reaches
-/// the plan's exhaustion step, which asks for the transform once more with the admitted form in it: an
+/// the flow's exhaustion step, which asks for the transform once more with the admitted form in it: an
 /// `EventDetail/Unknown` carrying the marker. The candidate is held to the records that fell short as
 /// every transform candidate is, the marked Unknown clears the bar where a bare one does not, the corpus
 /// holds the admitted records as admissions, and the stream is served with marked Unknown events among
@@ -79,7 +79,7 @@ class TestScenario59AnExhaustedSessionAdmitsAMarkedUnknown {
         // Round one learns from the sample of logons and is promoted; the full pass finds the logoffs.
         // Round two is held to them: the model offers the admitted form at the transform's own question —
         // which the sample, holding no logoff, would never have shown — and is refused for it, which
-        // spends the transform's one candidate; the plan goes to the exhaustion step, whose question
+        // spends the transform's one candidate; the flow goes to the exhaustion step, whose question
         // carries the refusal and the admitted form, and the admission clears there.
         final Script script = scenarios.script(CSV.configuration(), LOGON_ONLY)
                 .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter")
@@ -160,17 +160,17 @@ class TestScenario59AnExhaustedSessionAdmitsAMarkedUnknown {
                 .extracting(Turn::outcome).containsExactly(StepOutcome.PASSED);
     }
 
-    /// The demo document under a plan whose transform has one candidate before the exhaustion step, and
+    /// The demo document under a flow whose transform has one candidate before the exhaustion step, and
     /// whose sample holds the header and a few logons.
     private static ShapeshifterAiDoc doc() {
         return DemoDocument.configure(Scenarios.document()).uuid(DOC).name("door")
                 .heldOutFraction(0.0)
                 .sampleSizeLimit(200)
-                .plan(new LearningPlan(List.of(
-                        PlanStep.parse("CHAIN"),
-                        PlanStep.parse("CONFIGURE parser"),
-                        PlanStep.parse("CONFIGURE transform candidates 1 on spent goto admit"),
-                        PlanStep.parse("ADMIT candidates 1")), null, null))
+                .flow(new LearningFlow(List.of(
+                        FlowStep.parse("CHAIN"),
+                        FlowStep.parse("CONFIGURE parser"),
+                        FlowStep.parse("CONFIGURE transform candidates 1 on spent goto admit"),
+                        FlowStep.parse("ADMIT candidates 1")), null, null))
                 .build();
     }
 

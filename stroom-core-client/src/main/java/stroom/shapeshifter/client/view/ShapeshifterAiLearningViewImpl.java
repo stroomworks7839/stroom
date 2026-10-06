@@ -20,7 +20,7 @@ import stroom.entity.client.presenter.ReadOnlyChangeHandler;
 import stroom.item.client.SelectionBox;
 import stroom.shapeshifter.client.presenter.ShapeshifterAiLearningPresenter.ShapeshifterAiLearningView;
 import stroom.shapeshifter.client.presenter.ShapeshifterAiSettingsUiHandlers;
-import stroom.shapeshifter.shared.PlanStep;
+import stroom.shapeshifter.shared.FlowStep;
 import stroom.shapeshifter.shared.Template;
 import stroom.widget.button.client.Button;
 import stroom.widget.valuespinner.client.ValueSpinner;
@@ -62,15 +62,15 @@ public class ShapeshifterAiLearningViewImpl
     @UiField
     TextArea instructions;
     @UiField
-    SimplePanel planSteps;
+    SimplePanel flowSteps;
     /// Loading an example replaces the steps, so it is a button beneath the table and not a picker
-    /// above it: what it does is done once, and nothing about it describes the plan afterwards.
+    /// above it: what it does is done once, and nothing about it describes the flow afterwards.
     @UiField
     Button loadExample;
-    /// The same plan in the grammar the harness and import/export carry, shown and not edited: a person
+    /// The same flow in the grammar the harness and import/export carry, shown and not edited: a person
     /// reading the whole of it at once, or pasting it somewhere, wants the text.
     @UiField
-    TextArea planText;
+    TextArea flowText;
     @UiField
     SelectionBox<Template> template;
     @UiField
@@ -80,7 +80,7 @@ public class ShapeshifterAiLearningViewImpl
     @UiField
     Label templateStatus;
     @UiField
-    Label planProblem;
+    Label flowProblem;
     /**
      * This document's changed texts, by template; and the built-ins the node serves, shown where the
      * document has not changed one.
@@ -168,21 +168,21 @@ public class ShapeshifterAiLearningViewImpl
     /// What is wrong with the steps as typed, beside them: `onWrite` runs on every dirty check, so a
     /// fault here must not be a modal.
     @Override
-    public void setPlanProblem(final String problem) {
-        planProblem.setText(problem == null
+    public void setFlowProblem(final String problem) {
+        flowProblem.setText(problem == null
                 ? ""
                 : problem);
-        planProblem.setVisible(problem != null);
+        flowProblem.setVisible(problem != null);
     }
 
     @Override
-    public void setPlanStepsView(final View view) {
-        planSteps.setWidget(view.asWidget());
+    public void setFlowStepsView(final View view) {
+        flowSteps.setWidget(view.asWidget());
     }
 
     @Override
-    public void setPlanText(final String text) {
-        planText.setValue(text);
+    public void setFlowText(final String text) {
+        flowText.setValue(text);
     }
 
 
@@ -375,7 +375,7 @@ public class ShapeshifterAiLearningViewImpl
 
     /**
      * Which example to load is asked here, where the button is; the menu of them, and what replacing a
-     * plan means, belong to whoever owns the step list.
+     * flow means, belong to whoever owns the step list.
      */
     @UiHandler("loadExample")
     public void onLoadExample(final ClickEvent event) {

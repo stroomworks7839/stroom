@@ -17,7 +17,7 @@
 
 package stroom.shapeshifter.ai.learning;
 
-import stroom.shapeshifter.shared.LearningPlan;
+import stroom.shapeshifter.shared.LearningFlow;
 import stroom.shapeshifter.shared.Template;
 
 import java.util.ArrayList;
@@ -261,10 +261,10 @@ public final class Templates {
     }
 
     /**
-     * The templates a document's plan reads by: its overrides over the built-ins.
+     * The templates a document's flow reads by: its overrides over the built-ins.
      */
-    public static Templates of(final LearningPlan plan) {
-        return new Templates(plan.getTemplates());
+    public static Templates of(final LearningFlow flow) {
+        return new Templates(flow.getTemplates());
     }
 
     public static Templates builtIn() {
@@ -319,9 +319,9 @@ public final class Templates {
      * What is wrong with a definition's templates: a slot naming a variable the template does not have.
      * Empty where every override renders.
      */
-    public static List<String> problems(final LearningPlan plan) {
+    public static List<String> problems(final LearningFlow flow) {
         final List<String> problems = new ArrayList<>();
-        plan.getTemplates().forEach((template, text) -> {
+        flow.getTemplates().forEach((template, text) -> {
             final Set<String> allowed = Set.of(template.getVariables());
             for (final String name : slots(text)) {
                 if (!allowed.contains(name)) {

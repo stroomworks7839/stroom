@@ -32,16 +32,16 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
-/// The learning plan (A33, A34, A37; design 01 §10.2): the graph of questions, checks and transitions the
-/// Shapeshifter AI document holds, and the templates it overrides. An attempt follows the plan; what it
-/// says and hears is its conversation. A document naming no steps is read as [PlanExample#DIRECT]'s.
+/// The learning flow (A33, A34, A37; design 01 §10.2): the graph of questions, checks and transitions the
+/// Shapeshifter AI document holds, and the templates it overrides. An attempt follows the flow; what it
+/// says and hears is its conversation. A document naming no steps is read as [FlowExample#DIRECT]'s.
 @JsonPropertyOrder({"steps", "templates", "builtInVersion"})
 @JsonInclude(Include.NON_NULL)
-public class LearningPlan {
+public class LearningFlow {
 
     /// The document's own steps, in the order they are first entered.
     @JsonProperty
-    private final List<PlanStep> steps;
+    private final List<FlowStep> steps;
     /// Only the templates this document changes.
     @JsonProperty
     private final Map<Template, String> templates;
@@ -51,11 +51,11 @@ public class LearningPlan {
     private final Integer builtInVersion;
 
     @JsonCreator
-    public LearningPlan(@JsonProperty("steps") final List<PlanStep> steps,
+    public LearningFlow(@JsonProperty("steps") final List<FlowStep> steps,
                         @JsonProperty("templates") final Map<Template, String> templates,
                         @JsonProperty("builtInVersion") final Integer builtInVersion) {
         this.steps = Collections.unmodifiableList(new ArrayList<>(steps == null
-                ? PlanExample.DIRECT.steps()
+                ? FlowExample.DIRECT.steps()
                 : steps));
         final Map<Template, String> overrides = new EnumMap<>(Template.class);
         if (templates != null) {
@@ -70,13 +70,13 @@ public class LearningPlan {
         this.builtInVersion = builtInVersion;
     }
 
-    /// A plan with an example's steps as its own and the built-in text.
-    public static LearningPlan of(final PlanExample example) {
-        return new LearningPlan(example.steps(), null, null);
+    /// A flow with an example's steps as its own and the built-in text.
+    public static LearningFlow of(final FlowExample example) {
+        return new LearningFlow(example.steps(), null, null);
     }
 
     /// @return The steps in the order they are first entered.
-    public List<PlanStep> getSteps() {
+    public List<FlowStep> getSteps() {
         return steps;
     }
 
@@ -91,8 +91,8 @@ public class LearningPlan {
     }
 
     /// The step `goto` reaches by a name, or null where no step has it.
-    public PlanStep step(final String id) {
-        for (final PlanStep step : steps) {
+    public FlowStep step(final String id) {
+        for (final FlowStep step : steps) {
             if (step.effectiveId().equals(id)) {
                 return step;
             }
@@ -100,99 +100,113 @@ public class LearningPlan {
         return null;
     }
 
-    /// What is wrong with the steps, structurally: CHAIN first, once and without transitions, CONFIGURE last,
-    /// SPLIT and TARGET at most once each, every id unique and every `goto` naming a step or `end`. Empty where
-    /// the steps are a plan the stage can hold. The templates' variables are the server's to check, since it
-    /// holds the built-in text.
-    public List<String> problems() {
-        final List<String> problems = new ArrayList<>();
+    /// What is wrong with the steps, structurally: CHAIN first, once and without transitions, CONFIGURE or
+    /// ADMIT last, SPLIT and TARGET at most once each, every id unique and none a reserved name, every `goto`
+    /// naming a step, `end` or an exit. Empty where the steps are a flow the stage can hold. Each problem
+    /// names the step it is about where it is about one (A88). The templates' variables are the server's
+    /// to check, since it holds the built-in text.
+    public List<FlowProblem> check() {
+        final List<FlowProblem> problems = new ArrayList<>();
         if (steps.isEmpty()) {
-            problems.add("The plan has no steps");
+            problems.add(new FlowProblem(null, "The flow has no steps"));
             return problems;
         }
         if (steps.get(0).getKind() != QuestionKind.CHAIN) {
-            problems.add("The first step must be CHAIN");
+            problems.add(new FlowProblem(0, "The first step must be CHAIN"));
         }
-        final QuestionKind lastKind = steps.get(steps.size() - 1).getKind();
+        final int last = steps.size() - 1;
+        final QuestionKind lastKind = steps.get(last).getKind();
         if (lastKind != QuestionKind.CONFIGURE && lastKind != QuestionKind.ADMIT) {
-            problems.add("The last step must be CONFIGURE or ADMIT");
+            problems.add(new FlowProblem(last, "The last step must be CONFIGURE or ADMIT"));
         }
         for (final QuestionKind kind : QuestionKind.values()) {
             int count = 0;
-            for (final PlanStep step : steps) {
+            for (final FlowStep step : steps) {
                 if (step.getKind() == kind) {
                     count++;
                 }
             }
             if (count > 1 && kind != QuestionKind.CONFIGURE) {
-                problems.add(kind.name() + " may appear once, not " + count + " times");
+                problems.add(new FlowProblem(null, kind.name() + " may appear once, not " + count + " times"));
             }
             if (count == 0 && (kind == QuestionKind.CHAIN || kind == QuestionKind.CONFIGURE)) {
-                problems.add(kind.name() + " must appear");
+                problems.add(new FlowProblem(null, kind.name() + " must appear"));
             }
         }
-        final Map<String, PlanStep> ids = new HashMap<>();
-        for (final PlanStep step : steps) {
+        final Map<String, FlowStep> ids = new HashMap<>();
+        for (int i = 0; i < steps.size(); i++) {
+            final FlowStep step = steps.get(i);
             if (Transition.END.equals(step.effectiveId())) {
-                problems.add("'" + Transition.END + "' is the end of the plan and cannot name a step");
+                problems.add(new FlowProblem(i, "'" + Transition.END + "' is the end of the flow and cannot name a "
+                                                + "step"));
+            } else if (Transition.isReserved(step.effectiveId())) {
+                problems.add(new FlowProblem(i, "'" + step.effectiveId() + "' is an exit of the flow and cannot "
+                                                + "name a step"));
             }
-            final PlanStep first = ids.putIfAbsent(step.effectiveId(), step);
+            final FlowStep first = ids.putIfAbsent(step.effectiveId(), step);
             // Two of a kind that may appear once have been reported above, unless one was named on purpose.
             final boolean reported = first != null && first.getKind() == step.getKind()
                                      && step.getKind() != QuestionKind.CONFIGURE
                                      && first.getId() == null && step.getId() == null;
             if (first != null && !reported) {
-                problems.add("Two steps are named '" + step.effectiveId() + "'; give one an id");
+                problems.add(new FlowProblem(i, "Two steps are named '" + step.effectiveId() + "'; give one an id"));
             }
         }
-        for (final PlanStep step : steps) {
+        for (int i = 0; i < steps.size(); i++) {
+            final FlowStep step = steps.get(i);
             final Set<String> fired = new HashSet<>();
             for (final Transition transition : step.getTransitions()) {
                 final String on = transition.onSpent()
                         ? Transition.SPENT
                         : transition.getOn().getDisplayValue();
                 if (!fired.add(on)) {
-                    problems.add("Step '" + step.effectiveId() + "' says 'on " + on + "' twice; the first would "
-                                 + "be taken and the second never");
+                    problems.add(new FlowProblem(i, "Step '" + step.effectiveId() + "' says 'on " + on + "' twice; "
+                                                    + "the first would be taken and the second never"));
                 }
             }
             if (step.getKind() == QuestionKind.CHAIN && !step.getTransitions().isEmpty()) {
                 // No later step can run without a chain: a refused chain is re-asked, and one whose candidates
                 // are spent abandons.
-                problems.add("CHAIN takes no transition; nothing can run until the chain is settled");
+                problems.add(new FlowProblem(i, "CHAIN takes no transition; nothing can run until the chain is "
+                                                + "settled"));
             }
             for (final Transition transition : step.getTransitions()) {
-                if (!transition.abandons() && !ids.containsKey(transition.getGoTo())
-                    && !Transition.END.equals(transition.getGoTo())) {
-                    problems.add("'" + transition.format() + "' in step '" + step.effectiveId()
-                                 + "' names no step");
-                } else if (!transition.abandons() && !Transition.END.equals(transition.getGoTo())
-                           && ids.get(transition.getGoTo()).getKind() == QuestionKind.ADMIT
-                           && !transition.onSpent()) {
+                if (transition.exits() || Transition.END.equals(transition.getGoTo())) {
+                    continue;
+                }
+                if (!ids.containsKey(transition.getGoTo())) {
+                    problems.add(new FlowProblem(i, "'" + transition.format() + "' in step '" + step.effectiveId()
+                                                    + "' names no step"));
+                } else if (ids.get(transition.getGoTo()).getKind() == QuestionKind.ADMIT && !transition.onSpent()) {
                     // The exhaustion step is reached when the candidates are spent and by no other route
-                    // (design 04 §4): a plan that sent a model there sooner would be asking for the
+                    // (design 04 §4): a flow that sent a model there sooner would be asking for the
                     // admitted form before the trying was done.
-                    problems.add("'" + transition.format() + "' in step '" + step.effectiveId()
-                                 + "' goes to ADMIT, which only 'on spent' may");
+                    problems.add(new FlowProblem(i, "'" + transition.format() + "' in step '" + step.effectiveId()
+                                                    + "' goes to ADMIT, which only 'on spent' may"));
                 }
             }
         }
         return problems;
     }
 
-    /// This plan with other steps.
-    public LearningPlan withSteps(final List<PlanStep> steps) {
-        return new LearningPlan(steps, templates, builtInVersion);
+    /// The messages of [#check()], in order.
+    public List<String> problems() {
+        return FlowProblem.messages(check());
     }
 
-    /// This plan with other template overrides.
-    public LearningPlan withTemplates(final Map<Template, String> templates) {
-        return new LearningPlan(steps, templates, builtInVersion);
+    /// This flow with other steps.
+    public LearningFlow withSteps(final List<FlowStep> steps) {
+        return new LearningFlow(steps, templates, builtInVersion);
     }
 
-    /// This plan stamped with the built-in text's version it is saved against.
-    public LearningPlan withBuiltInVersion(final int version) {
-        return new LearningPlan(steps, templates, version);
+    /// This flow with other template overrides.
+    public LearningFlow withTemplates(final Map<Template, String> templates) {
+        return new LearningFlow(steps, templates, builtInVersion);
+    }
+
+    /// This flow stamped with the built-in text's version it is saved against.
+    public LearningFlow withBuiltInVersion(final int version) {
+        return new LearningFlow(steps, templates, version);
     }
 
     @Override
@@ -203,7 +217,7 @@ public class LearningPlan {
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
-        final LearningPlan that = (LearningPlan) o;
+        final LearningFlow that = (LearningFlow) o;
         return Objects.equals(steps, that.steps) && Objects.equals(templates, that.templates)
                && Objects.equals(builtInVersion, that.builtInVersion);
     }
@@ -215,7 +229,7 @@ public class LearningPlan {
 
     @Override
     public String toString() {
-        return "LearningPlan{steps=" + steps + ", templates=" + templates.keySet()
+        return "LearningFlow{steps=" + steps + ", templates=" + templates.keySet()
                + ", builtInVersion=" + builtInVersion + '}';
     }
 }

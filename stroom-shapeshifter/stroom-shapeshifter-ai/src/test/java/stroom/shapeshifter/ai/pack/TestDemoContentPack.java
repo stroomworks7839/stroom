@@ -78,10 +78,10 @@ class TestDemoContentPack {
                 .model(document.getModel())
                 // The stamp of the built-in question text is the store's to write, and the pack carries
                 // it because the pack is written as a saved document would be.
-                .plan(document.getPlan().withBuiltInVersion(Templates.VERSION))
+                .flow(document.getFlow().withBuiltInVersion(Templates.VERSION))
                 .build();
         assertThat(document).isEqualTo(scenario);
-        assertThat(document.getPlan().getBuiltInVersion())
+        assertThat(document.getFlow().getBuiltInVersion())
                 .describedAs("and a document that arrived without the stamp would say its templates "
                              + "were of no known version until someone saved it")
                 .isEqualTo(Templates.VERSION);

@@ -23,8 +23,8 @@ import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.StageRun;
 import stroom.shapeshifter.shared.BusinessRulesParameters;
 import stroom.shapeshifter.shared.ExtractionQualityParameters;
+import stroom.shapeshifter.shared.FlowExample;
 import stroom.shapeshifter.shared.LearningMode;
-import stroom.shapeshifter.shared.PlanExample;
 import stroom.shapeshifter.shared.SchemaConformanceParameters;
 import stroom.shapeshifter.shared.ScorerSetting;
 import stroom.shapeshifter.shared.ScorerType;
@@ -97,7 +97,7 @@ class TestScenariosScoring {
                 .uuid(DOC)
                 .name("door-access")
                 .learningMode(LearningMode.AUTOMATIC)
-                .plan(PlanExample.TARGET_FIRST)
+                .flow(FlowExample.TARGET_FIRST)
                 .allowedElements(List.of("DSParser", "XSLTFilter"))
                 .minRecordsPerShape(5)
                 .scorers(List.of(
@@ -287,7 +287,7 @@ class TestScenariosScoring {
                 .reply(Scenarios.fenced(everyOther))
                 .expect(QuestionMatcher.configuration("XSLTFilter").withFeedbackMentioning("Yield scored"))
                 .reply(Scenarios.fenced(everyOther))
-                // The candidates spent, the plan's exhaustion step asks for the transform as many times
+                // The candidates spent, the flow's exhaustion step asks for the transform as many times
                 // again (design 04 §4); a stylesheet that still drops every other record fails there too.
                 .expect(QuestionMatcher.admission("XSLTFilter").withFeedbackMentioning("Yield scored"))
                 .reply(Scenarios.fenced(everyOther))

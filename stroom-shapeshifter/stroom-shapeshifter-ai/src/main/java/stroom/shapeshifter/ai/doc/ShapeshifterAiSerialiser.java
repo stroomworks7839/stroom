@@ -21,8 +21,8 @@ import stroom.docstore.api.Serialiser2;
 import stroom.docstore.api.Serialiser2Factory;
 import stroom.importexport.api.ImportExportDocument;
 import stroom.shapeshifter.ai.stage.Rules;
-import stroom.shapeshifter.shared.LearningPlan;
-import stroom.shapeshifter.shared.PlanExample;
+import stroom.shapeshifter.shared.FlowExample;
+import stroom.shapeshifter.shared.LearningFlow;
 import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 import stroom.util.json.JsonUtil;
@@ -48,12 +48,13 @@ public class ShapeshifterAiSerialiser implements DocumentSerialiser2<Shapeshifte
 
     /// The asset the delegate keeps the document's JSON in.
     private static final String META = "meta";
-    private static final String PLAN = "plan";
-    /// The name the plan was saved under before A37 renamed it, which is a name in **stored data** and
-    /// so can never be renamed: a document written then has `"dialogue"` in its JSON whatever this
-    /// feature decides to call the thing today. Left behind by the 2026-09-24 rename, which took it
-    /// with everything else and would have made every pre-A37 document silently lose its plan.
-    private static final String LEGACY_PLAN = "dialogue";
+    private static final String FLOW = "flow";
+    /// The names the flow was saved under before it was named so, newest first: `plan` until A81, and
+    /// `dialogue` before A37. These are names in **stored data** and so can never be renamed: a document
+    /// written then has them in its JSON whatever this feature decides to call the thing today. The
+    /// shared class cannot carry them, since its JSON codec is generated for the client too, so they
+    /// are honoured here, on the way in only.
+    private static final List<String> LEGACY_FLOW = List.of("plan", "dialogue");
     private static final String LEGACY_PRESET = "preset";
     /// Where a document's rules were kept before A41 made them rows.
     private static final String LEGACY_RULES = "routingTable";
@@ -110,28 +111,34 @@ public class ShapeshifterAiSerialiser implements DocumentSerialiser2<Shapeshifte
     public ShapeshifterAiDoc read(final ImportExportDocument importExportDocument) throws IOException {
         final ShapeshifterAiDoc document = delegate.read(importExportDocument);
         rememberLegacyRules(document, importExportDocument);
-        // A document saved when the plan was called the conversation (before A37) reads as it was written. The
-        // shared class cannot carry the old name — its JSON is generated for the client too — so it is
-        // honoured here, on the way in only, and only where the old name occurs at all.
+        // A document saved when the flow was the plan (before A81) or the conversation (before A37) reads
+        // as it was written, and only where an old name occurs at all.
         final byte[] meta = importExportDocument.getExtAssetData(META);
-        if (document == null || meta == null
-            || !new String(meta, StandardCharsets.UTF_8).contains('"' + LEGACY_PLAN + '"')) {
+        if (document == null || meta == null) {
+            return document;
+        }
+        final String text = new String(meta, StandardCharsets.UTF_8);
+        final String name = LEGACY_FLOW.stream()
+                .filter(legacyName -> text.contains('"' + legacyName + '"'))
+                .findFirst()
+                .orElse(null);
+        if (name == null) {
             return document;
         }
         final JsonNode json = JsonUtil.getMapper().readTree(meta);
-        final JsonNode legacy = json.get(LEGACY_PLAN);
-        if (legacy == null || legacy.isNull() || json.get(PLAN) != null) {
+        final JsonNode legacy = json.get(name);
+        if (legacy == null || legacy.isNull() || json.get(FLOW) != null) {
             return document;
         }
-        LearningPlan plan = JsonUtil.getMapper().treeToValue(legacy, LearningPlan.class);
+        LearningFlow flow = JsonUtil.getMapper().treeToValue(legacy, LearningFlow.class);
         // Before A34 the section carried a preset in place of steps; a document that chose one gets its steps.
         final JsonNode preset = legacy.get(LEGACY_PRESET);
         if (preset != null && !preset.isNull() && (legacy.get("steps") == null || legacy.get("steps").isNull())) {
             // A preset this build does not know — a renamed example, a hand-edited document — leaves the
             // steps as the default rather than making the document unopenable, and so unrepairable.
-            plan = plan.withSteps(example(preset.asText()).steps());
+            flow = flow.withSteps(example(preset.asText()).steps());
         }
-        return document.copy().plan(plan).build();
+        return document.copy().flow(flow).build();
     }
 
     @Override
@@ -184,16 +191,16 @@ public class ShapeshifterAiSerialiser implements DocumentSerialiser2<Shapeshifte
                                           + "they are rows now (A41)", document.getUuid(), legacy.size()));
     }
 
-    private static PlanExample example(final String name) {
-        for (final PlanExample example : PlanExample.values()) {
+    private static FlowExample example(final String name) {
+        for (final FlowExample example : FlowExample.values()) {
             if (example.name().equalsIgnoreCase(name)) {
                 return example;
             }
         }
-        LOGGER.warn(() -> LogUtil.message("Plan example '{}' is not one this build knows: {}. The document's "
-                                          + "steps are the default plan's until it is saved again.",
-                name, Arrays.toString(PlanExample.values())));
-        return PlanExample.DIRECT;
+        LOGGER.warn(() -> LogUtil.message("Flow example '{}' is not one this build knows: {}. The document's "
+                                          + "steps are the default flow's until it is saved again.",
+                name, Arrays.toString(FlowExample.values())));
+        return FlowExample.DIRECT;
     }
 
 

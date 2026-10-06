@@ -32,16 +32,18 @@ import java.util.List;
  * Where a step goes on one outcome (A37, design 01 §10.2): {@code on <outcome> goto <step>}.
  * <p>
  * Both ends are chosen and neither is typed. The outcomes are a closed list the checks produce, and the
- * targets are the plan's own steps — so a transition cannot name an outcome nothing raises or a step
+ * targets are the flow's own steps — so a transition cannot name an outcome nothing raises or a step
  * that is not there, which is the whole point of editing the graph rather than its text.
  */
 public class TransitionPresenter extends MyPresenterWidget<TransitionView> {
 
     /**
-     * What a transition may go to besides a step: the end of the plan, and giving the attempt up. Both
+     * What a transition may go to besides a step: the end of the flow, and giving the attempt up. Both
      * are places rather than steps, so they are offered beside the step ids rather than among them.
      */
     public static final String END = Transition.END;
+    public static final String PARK = Transition.PARK;
+    public static final String GIVE_UP = Transition.GIVE_UP;
     public static final String ABANDON = Transition.ABANDON;
 
     @Inject
@@ -50,19 +52,20 @@ public class TransitionPresenter extends MyPresenterWidget<TransitionView> {
     }
 
     /**
-     * @param steps The ids of the plan's steps, which is what a target may be.
+     * @param steps The ids of the flow's steps, which is what a target may be.
      */
     public void read(final Transition transition, final List<String> steps) {
         final String target = transition.getGoTo() == null
                 ? ABANDON
                 : transition.getGoTo();
         final List<String> targets = new ArrayList<>(steps);
-        if (!END.equals(target) && !ABANDON.equals(target) && !targets.contains(target)) {
+        if (!END.equals(target) && !PARK.equals(target) && !GIVE_UP.equals(target) && !ABANDON.equals(target)
+            && !targets.contains(target)) {
             // A step this transition names that is not there any more — renamed, or removed. Offered
             // anyway, so that opening the transition shows what it says: dropped from the list it would
             // come back blank, and a blank target is *abandon*, so merely looking at a dangling
             // transition would quietly turn it into one that gives the attempt up. It stays wrong, the
-            // plan's own check goes on saying so, and the person decides what it should be.
+            // flow's own check goes on saying so, and the person decides what it should be.
             targets.add(target);
         }
         getView().setTargets(targets);
@@ -88,7 +91,7 @@ public class TransitionPresenter extends MyPresenterWidget<TransitionView> {
         void setOutcome(StepOutcome outcome);
 
         /**
-         * The steps this transition may go to: the plan's own, plus the end of it and giving up.
+         * The steps this transition may go to: the flow's own, plus the end of it and giving up.
          */
         void setTargets(List<String> steps);
 

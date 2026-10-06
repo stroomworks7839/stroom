@@ -174,7 +174,7 @@ public final class DemoContentPack {
         // document that arrived without the stamp would say its templates were of no known version until
         // someone saved it. The pack is written as a saved document, so it carries the stamp.
         return configured.copy()
-                .plan(configured.getPlan().withBuiltInVersion(Templates.VERSION))
+                .flow(configured.getFlow().withBuiltInVersion(Templates.VERSION))
                 .build();
     }
 
@@ -499,7 +499,7 @@ public final class DemoContentPack {
 
                 - **Allowed elements** is every parser the stage knows how to configure. Narrowing it is
                   how you would tell the stage what a feed is; the demo deliberately does not.
-                - **The plan** is the escalating one: ask directly first, and only propose a target event
+                - **The flow** is the escalating one: ask directly first, and only propose a target event
                   when the transform falls short. It is a graph of steps and you can edit it.
                 - **The scorers** gate on compiling, on the output validating against the schema, and on
                   the extraction being worth having — the last of these is what refuses a transform that

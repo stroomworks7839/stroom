@@ -20,6 +20,7 @@ import stroom.item.client.SelectionBox;
 import stroom.shapeshifter.client.presenter.TransitionPresenter;
 import stroom.shapeshifter.client.presenter.TransitionPresenter.TransitionView;
 import stroom.shapeshifter.shared.StepOutcome;
+import stroom.shapeshifter.shared.Transition;
 
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
@@ -42,6 +43,8 @@ public class TransitionViewImpl extends ViewImpl implements TransitionView {
     @Inject
     public TransitionViewImpl(final Binder binder) {
         widget = binder.createAndBindUi(this);
+        // No outcome chosen is 'spent': the transition that fires when the step's candidates are gone.
+        outcome.setNonSelectString(Transition.SPENT);
         outcome.addItems(StepOutcome.values());
     }
 
@@ -63,8 +66,11 @@ public class TransitionViewImpl extends ViewImpl implements TransitionView {
     @Override
     public void setTargets(final List<String> steps) {
         final List<String> targets = new ArrayList<>(steps);
-        // The two places that are not steps, last: the end of the plan, and giving the attempt up.
+        // The places that are not steps, last: the end of the flow, the two exits, and the step's own
+        // default exit (A83).
         targets.add(TransitionPresenter.END);
+        targets.add(TransitionPresenter.PARK);
+        targets.add(TransitionPresenter.GIVE_UP);
         targets.add(TransitionPresenter.ABANDON);
         target.clear();
         target.addItems(targets);

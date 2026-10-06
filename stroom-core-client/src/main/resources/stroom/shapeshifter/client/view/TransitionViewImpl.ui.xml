@@ -6,12 +6,12 @@
     <g:FlowPanel styleName="max form-padding form">
         <form:FormGroup identity="transitionOutcome"
                         label="On"
-                        helpText="The outcome this fires on. A transition on an outcome fires at once, on the first candidate that has it.">
+                        helpText="The outcome this fires on. A transition on an outcome fires at once, on the first candidate that has it; 'spent' fires when the step's candidates are gone.">
             <l:SelectionBox ui:field="outcome"/>
         </form:FormGroup>
         <form:FormGroup identity="transitionTarget"
                         label="Go to"
-                        helpText="The step to go to. 'end' completes the plan; 'abandon' gives the attempt up.">
+                        helpText="The step to go to. 'end' completes the flow and binds what was learned; 'park' parks the session for a person; 'give-up' gives the shape up and errors its streams; 'abandon' takes the step's own default: give-up for a parser, park for any other step.">
             <l:SelectionBox ui:field="target"/>
         </form:FormGroup>
     </g:FlowPanel>

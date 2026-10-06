@@ -66,7 +66,7 @@ public class ShapeshifterAiStoreImpl
     /**
      * What the editor cannot check is checked on save, with the fault named, rather than at run time by the
      * supervisor: the learning key may name only fields a selector can be written against (A29), and the
-     * plan must be one the stage can hold (A33). The rules are rows since A41, so the resource checks
+     * flow must be one the stage can hold (A33). The rules are rows since A41, so the resource checks
      * their fragments (A20) where this once did.
      */
     @Override
@@ -81,15 +81,15 @@ public class ShapeshifterAiStoreImpl
         if (document.getLearningKey().isEmpty()) {
             throw new IllegalArgumentException("The learning key must name at least one field");
         }
-        // A33: a plan the stage cannot hold is refused here, naming the rule, rather than found when
+        // A33: a flow the stage cannot hold is refused here, naming the rule, rather than found when
         // the first stream arrives; and the document is stamped with the built-in text it was saved against.
-        final List<String> problems = new ArrayList<>(document.getPlan().problems());
-        problems.addAll(Templates.problems(document.getPlan()));
+        final List<String> problems = new ArrayList<>(document.getFlow().problems());
+        problems.addAll(Templates.problems(document.getFlow()));
         if (!problems.isEmpty()) {
-            throw new IllegalArgumentException("The plan cannot be held: " + String.join("; ", problems));
+            throw new IllegalArgumentException("The flow cannot be held: " + String.join("; ", problems));
         }
         return super.writeDocument(document.copy()
-                .plan(document.getPlan().withBuiltInVersion(Templates.VERSION))
+                .flow(document.getFlow().withBuiltInVersion(Templates.VERSION))
                 .build());
     }
 

@@ -29,10 +29,10 @@ import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.StageRun;
 import stroom.shapeshifter.shared.BusinessRulesParameters;
 import stroom.shapeshifter.shared.ExtractionQualityParameters;
+import stroom.shapeshifter.shared.FlowExample;
+import stroom.shapeshifter.shared.FlowStep;
+import stroom.shapeshifter.shared.LearningFlow;
 import stroom.shapeshifter.shared.LearningMode;
-import stroom.shapeshifter.shared.LearningPlan;
-import stroom.shapeshifter.shared.PlanExample;
-import stroom.shapeshifter.shared.PlanStep;
 import stroom.shapeshifter.shared.RecordBoundary;
 import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.SchemaConformanceParameters;
@@ -98,7 +98,7 @@ class TestScenariosTarget {
                 .uuid(DOC)
                 .name("door-access")
                 .learningMode(LearningMode.AUTOMATIC)
-                .plan(PlanExample.TARGET_FIRST)
+                .flow(FlowExample.TARGET_FIRST)
                 .allowedElements(List.of("DSParser", "XSLTFilter"))
                 .minRecordsPerShape(5)
                 .scorers(List.of(
@@ -152,7 +152,7 @@ class TestScenariosTarget {
         // The targets went with the promotion, as the regression set's goldens.
         final RoutingRule rule = ((Promoted) run.decision()).rule();
         assertThat(scenarios.regressionSet.accepted(rule.getUuid()))
-                .describedAs("each entry carries what the plan said its kind of record should become")
+                .describedAs("each entry carries what the flow said its kind of record should become")
                 .isNotEmpty()
                 .allSatisfy(entry -> assertThat(entry.target()).isNotNull());
     }
@@ -188,9 +188,9 @@ class TestScenariosTarget {
         final Scenarios scenarios = new Scenarios();
         // With one candidate: the questioning of the first none is not a candidate spent.
         final ShapeshifterAiDoc doc = doc().copy()
-                .plan(LearningPlan.of(PlanExample.TARGET_FIRST).withSteps(List.of(
-                        PlanStep.parse("CHAIN"), PlanStep.parse("SPLIT when text"),
-                        PlanStep.parse("TARGET candidates 1"), PlanStep.parse("CONFIGURE"))))
+                .flow(LearningFlow.of(FlowExample.TARGET_FIRST).withSteps(List.of(
+                        FlowStep.parse("CHAIN"), FlowStep.parse("SPLIT when text"),
+                        FlowStep.parse("TARGET candidates 1"), FlowStep.parse("CONFIGURE"))))
                 .build();
         final Script script = scenarios.script(FOUR_FIELDS, XSLT)
                 .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter")
@@ -211,14 +211,14 @@ class TestScenariosTarget {
     }
 
     @Test
-    void scenario39ThePlanIsTheDocuments() {
+    void scenario39TheFlowIsTheDocuments() {
         final Scenarios scenarios = new Scenarios();
         // A target from the raw sample, no split: the target's record is a line of the sample, and the split
         // question is never asked. One kind, so one target.
         final ShapeshifterAiDoc doc = doc().copy()
-                .plan(LearningPlan.of(PlanExample.TARGET_FIRST).withSteps(List.of(
-                        PlanStep.parse("CHAIN"), PlanStep.parse("TARGET kinds 1"),
-                        PlanStep.parse("CONFIGURE"))))
+                .flow(LearningFlow.of(FlowExample.TARGET_FIRST).withSteps(List.of(
+                        FlowStep.parse("CHAIN"), FlowStep.parse("TARGET kinds 1"),
+                        FlowStep.parse("CONFIGURE"))))
                 .build();
         final Script script = scenarios.script(FOUR_FIELDS, XSLT)
                 .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter")
@@ -237,12 +237,12 @@ class TestScenariosTarget {
     }
 
     @Test
-    void scenario39APlanTheStageCannotHoldIsAbandonedBeforeTheModelIsAsked() {
+    void scenario39AFlowTheStageCannotHoldIsAbandonedBeforeTheModelIsAsked() {
         final Scenarios scenarios = new Scenarios();
         // The store refuses this on save; a document that reaches the stage with it anyway asks nothing.
         final ShapeshifterAiDoc doc = doc().copy()
-                .plan(LearningPlan.of(PlanExample.DIRECT).withSteps(List.of(
-                        PlanStep.parse("CONFIGURE"), PlanStep.parse("CHAIN"))))
+                .flow(LearningFlow.of(FlowExample.DIRECT).withSteps(List.of(
+                        FlowStep.parse("CONFIGURE"), FlowStep.parse("CHAIN"))))
                 .build();
         final Script script = Script.of();
 
@@ -251,7 +251,7 @@ class TestScenariosTarget {
         assertThat(script.asked()).isEmpty();
         assertThat(run.decision()).isInstanceOf(GivenUp.class);
         assertThat(((GivenUp) run.decision()).reason())
-                .contains("The document's plan cannot be held (see its Learning tab)")
+                .contains("The document's flow cannot be held (see its Learning tab)")
                 .contains("The first step must be CHAIN");
     }
 

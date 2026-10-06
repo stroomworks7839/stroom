@@ -18,11 +18,11 @@ package stroom.shapeshifter.shared;
 
 import stroom.docref.HasDisplayValue;
 
-/// How judging one candidate ended (A37; design 01 §10.2): the closed vocabulary a plan's transitions are
+/// How judging one candidate ended (A37; design 01 §10.2): the closed vocabulary a flow's transitions are
 /// written over. `PASSED` goes to the next step; `REFUSED` is a reply outside the question's grammar;
 /// `COMPILE_FAILED` a configuration that did not compile, `RUN_FAILED` an element that raised errors on its
 /// input; and one shortfall per [Check]. The attempt's budget is not an outcome — it ends the attempt from
-/// outside the plan.
+/// outside the flow.
 public enum StepOutcome implements HasDisplayValue {
     PASSED("passed"),
     REFUSED("refused"),

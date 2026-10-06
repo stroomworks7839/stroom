@@ -26,7 +26,7 @@ import java.util.List;
 /// has to be timed, nothing is refused for arriving at the wrong moment, and a hint outlives the attempt
 /// that first used it. The relearning of A29, months later, carries it too.
 ///
-/// It is neither a question nor an answer. The plan's grammar (A37) is untouched: guidance is an input
+/// It is neither a question nor an answer. The flow's grammar (A37) is untouched: guidance is an input
 /// every question carries, and a question kind it is not.
 ///
 /// In-memory in scenarios; the {@code shapeshifter_guidance} table in a node.

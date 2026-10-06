@@ -16,6 +16,7 @@
 
 package stroom.shapeshifter.ai.learning;
 
+import stroom.shapeshifter.shared.FlowExit;
 import stroom.shapeshifter.shared.RecordBoundary;
 import stroom.util.shared.StoredError;
 
@@ -46,22 +47,25 @@ public sealed interface Outcome {
 
     }
 
-    /**
-     * @param diagnostics What the last failing step reported, if a step failed; the last question's
-     *                    feedback otherwise never reached a question, so it is kept here.
-     */
+    /// The attempt could not be carried through: the reason, what was learned about why, the turns so
+    /// far, and where it leaves to (A83): parked for a person, or the shape given up and its streams
+    /// errored, which is a parser's default (A52, A54) and any step's where the flow says `goto give-up`.
     ///
-    /// @param parse Whether what was spent was the parser's candidates: the stream could not be cut into
-    ///              records that meet the document's gates, which is the one failure nothing can serve
-    ///              (A52, A54). False for every other reason.
+    /// @param diagnostics What the last failing step reported, if a step failed; the last question's
+    ///                    feedback otherwise never reached a question, so it is kept here.
     record Abandoned(String reason,
                      List<StoredError> diagnostics,
                      List<Exchange> transcript,
-                     boolean parse) implements Outcome {
+                     FlowExit exit) implements Outcome {
 
         public Abandoned(final String reason, final List<StoredError> diagnostics,
                          final List<Exchange> transcript) {
-            this(reason, diagnostics, transcript, false);
+            this(reason, diagnostics, transcript, FlowExit.PARK);
+        }
+
+        /// Whether the shape is to be given up and its streams errored.
+        public boolean givesUp() {
+            return exit == FlowExit.GIVE_UP;
         }
     }
 }

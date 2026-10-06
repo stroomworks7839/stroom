@@ -24,8 +24,8 @@ import stroom.shapeshifter.ai.learning.Question.Split;
 import stroom.shapeshifter.ai.scoring.Records;
 import stroom.shapeshifter.shared.BusinessRulesParameters;
 import stroom.shapeshifter.shared.ExtractionQualityParameters;
-import stroom.shapeshifter.shared.LearningPlan;
-import stroom.shapeshifter.shared.PlanExample;
+import stroom.shapeshifter.shared.FlowExample;
+import stroom.shapeshifter.shared.LearningFlow;
 import stroom.shapeshifter.shared.ScorerSetting;
 import stroom.shapeshifter.shared.ScorerType;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
@@ -222,9 +222,9 @@ class TestQuestionText {
     @Test
     void aTemplateOverrideIsRenderedWithItsBlocksAndTheRestFollowsTheBuiltIn() {
         // Scenario 40: the chain question in the document's own words; every other question as built in.
-        final LearningPlan plan = LearningPlan.of(PlanExample.TARGET_FIRST)
+        final LearningFlow flow = LearningFlow.of(FlowExample.TARGET_FIRST)
                 .withTemplates(Map.of(Template.CHAIN, "Pick from:\n${elements}\nGiven:\n${sample}${feedback}"));
-        final QuestionText words = QuestionText.of(plan);
+        final QuestionText words = QuestionText.of(flow);
         final Chain chain = new Chain(SAMPLE, List.of("DSParser", "XSLTFilter"), List.of());
 
         assertThat(words.render(chain))
@@ -237,14 +237,14 @@ class TestQuestionText {
 
     @Test
     void aTemplateNamingAVariableItDoesNotHaveIsRefused() {
-        final LearningPlan plan = LearningPlan.of(PlanExample.DIRECT)
+        final LearningFlow flow = LearningFlow.of(FlowExample.DIRECT)
                 .withTemplates(Map.of(Template.CHAIN, "${sample} then ${targets}",
                         Template.EXTRACTION_RULES, "Rules ${nothing}"));
-        assertThat(Templates.problems(plan)).containsExactlyInAnyOrder(
+        assertThat(Templates.problems(flow)).containsExactlyInAnyOrder(
                 "The chain question template names ${targets}, which it does not have; it may use ${elements}, "
                 + "${feedback}, ${headers}, ${sample}",
                 "The extraction rules template names ${nothing}, which it does not have; it may use no variables");
-        assertThat(Templates.problems(LearningPlan.of(PlanExample.DIRECT))).isEmpty();
+        assertThat(Templates.problems(LearningFlow.of(FlowExample.DIRECT))).isEmpty();
     }
 
     @Test

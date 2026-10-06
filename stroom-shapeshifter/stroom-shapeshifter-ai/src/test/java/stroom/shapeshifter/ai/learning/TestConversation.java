@@ -30,9 +30,9 @@ import stroom.shapeshifter.ai.scenario.Scenarios;
 import stroom.shapeshifter.ai.scoring.CompileScorer;
 import stroom.shapeshifter.ai.scoring.Scorecard;
 import stroom.shapeshifter.ai.transformation.XsltStep;
-import stroom.shapeshifter.shared.LearningPlan;
-import stroom.shapeshifter.shared.PlanExample;
-import stroom.shapeshifter.shared.PlanStep;
+import stroom.shapeshifter.shared.FlowExample;
+import stroom.shapeshifter.shared.FlowStep;
+import stroom.shapeshifter.shared.LearningFlow;
 import stroom.shapeshifter.shared.ScorerSetting;
 import stroom.shapeshifter.shared.ScorerType;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
@@ -356,7 +356,7 @@ class TestConversation {
     @Test
     void aRunOnlyElementThatFailsIsARunFailureAndItsStepMayRouteOnSpent() {
         // No configuration was asked for, so nothing failed to compile: the outcome is run-failed, and the one
-        // run is the step's only candidate, so 'on spent' is where the plan says to go from it.
+        // run is the step's only candidate, so 'on spent' is where the flow says to go from it.
         final StepRunner failing = new StepRunner() {
             @Override
             public String elementType() {
@@ -386,24 +386,24 @@ class TestConversation {
         };
         for (final String transition : List.of("on run-failed goto end", "on spent goto end")) {
             final CannedAdvisor model = new CannedAdvisor("XMLParser, XSLTFilter");
-            final ShapeshifterAiDoc doc = policy().copy().plan(LearningPlan.of(PlanExample.DIRECT).withSteps(List.of(
-                    PlanStep.parse("CHAIN"), PlanStep.parse("CONFIGURE parser " + transition),
-                    PlanStep.parse("CONFIGURE transform")))).build();
+            final ShapeshifterAiDoc doc = policy().copy().flow(LearningFlow.of(FlowExample.DIRECT).withSteps(List.of(
+                    FlowStep.parse("CHAIN"), FlowStep.parse("CONFIGURE parser " + transition),
+                    FlowStep.parse("CONFIGURE transform")))).build();
             final Conversation conversation = new Conversation(model, List.of(failing, new XsltStep()),
                     new Scorecard(List.of(), List.of()), Clock.systemUTC());
 
             final Outcome outcome = conversation.run(doc, SAMPLE);
 
-            // The transition fired: the plan ended at 'end', where the unconfigured elements are found out,
+            // The transition fired: the flow ended at 'end', where the unconfigured elements are found out,
             // rather than abandoning at the parser.
             assertThat(outcome).describedAs(transition).isInstanceOf(Abandoned.class);
             assertThat(((Abandoned) outcome).reason()).describedAs(transition)
-                    .contains("was never configured; the plan ended without a CONFIGURE step");
+                    .contains("was never configured; the flow ended without a CONFIGURE step");
         }
         final CannedAdvisor model = new CannedAdvisor("XMLParser, XSLTFilter");
-        final ShapeshifterAiDoc doc = policy().copy().plan(LearningPlan.of(PlanExample.DIRECT).withSteps(List.of(
-                PlanStep.parse("CHAIN"), PlanStep.parse("CONFIGURE parser on compile-failed goto end"),
-                PlanStep.parse("CONFIGURE transform")))).build();
+        final ShapeshifterAiDoc doc = policy().copy().flow(LearningFlow.of(FlowExample.DIRECT).withSteps(List.of(
+                FlowStep.parse("CHAIN"), FlowStep.parse("CONFIGURE parser on compile-failed goto end"),
+                FlowStep.parse("CONFIGURE transform")))).build();
         final Outcome outcome = new Conversation(model, List.of(failing, new XsltStep()),
                 new Scorecard(List.of(), List.of()), Clock.systemUTC()).run(doc, SAMPLE);
         assertThat(((Abandoned) outcome).reason()).describedAs("nothing was compiled, so compile-failed is not it")
@@ -442,9 +442,9 @@ class TestConversation {
         };
         final CannedAdvisor model = new CannedAdvisor("XMLParser, XSLTFilter", "not a stylesheet",
                 Scenarios.fenced(XSLT));
-        final ShapeshifterAiDoc doc = policy().copy().plan(LearningPlan.of(PlanExample.DIRECT).withSteps(List.of(
-                PlanStep.parse("CHAIN"), PlanStep.parse("CONFIGURE parser"),
-                PlanStep.parse("CONFIGURE transform on refused goto parser")))).build();
+        final ShapeshifterAiDoc doc = policy().copy().flow(LearningFlow.of(FlowExample.DIRECT).withSteps(List.of(
+                FlowStep.parse("CHAIN"), FlowStep.parse("CONFIGURE parser"),
+                FlowStep.parse("CONFIGURE transform on refused goto parser")))).build();
         final Conversation conversation = new Conversation(model, List.of(passThrough, new XsltStep()),
                 new Scorecard(List.of(), List.of()), Clock.systemUTC());
 

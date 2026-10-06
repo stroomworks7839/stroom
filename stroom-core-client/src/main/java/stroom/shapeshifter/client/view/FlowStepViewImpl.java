@@ -17,7 +17,7 @@
 package stroom.shapeshifter.client.view;
 
 import stroom.item.client.SelectionBox;
-import stroom.shapeshifter.client.presenter.PlanStepPresenter.PlanStepView;
+import stroom.shapeshifter.client.presenter.FlowStepPresenter.FlowStepView;
 import stroom.shapeshifter.shared.Check;
 import stroom.shapeshifter.shared.ConfigureRole;
 import stroom.shapeshifter.shared.QuestionKind;
@@ -39,7 +39,7 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 
-public class PlanStepViewImpl extends ViewImpl implements PlanStepView {
+public class FlowStepViewImpl extends ViewImpl implements FlowStepView {
 
     private final Widget widget;
     /**
@@ -67,7 +67,7 @@ public class PlanStepViewImpl extends ViewImpl implements PlanStepView {
     SimplePanel transitions;
 
     @Inject
-    public PlanStepViewImpl(final Binder binder) {
+    public FlowStepViewImpl(final Binder binder) {
         widget = binder.createAndBindUi(this);
         kind.addItems(QuestionKind.values());
         role.addItems(ConfigureRole.values());
@@ -223,7 +223,7 @@ public class PlanStepViewImpl extends ViewImpl implements PlanStepView {
     // --------------------------------------------------------------------------------
 
 
-    public interface Binder extends UiBinder<Widget, PlanStepViewImpl> {
+    public interface Binder extends UiBinder<Widget, FlowStepViewImpl> {
 
     }
 }

@@ -30,7 +30,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
-/// One step of a learning plan (A33, A37; design 01 §10.2): a question kind with what governs its asking —
+/// One step of a learning flow (A33, A37; design 01 §10.2): a question kind with what governs its asking —
 /// an id for `goto`, a role for `CONFIGURE`, a guard, its limits, the checks that judge it and where it goes
 /// on each outcome. Written and read as one line:
 ///
@@ -38,11 +38,11 @@ import java.util.Objects;
 /// [id:] KIND [parser|transform] [when always|text|xml|json] [candidates n] [kinds n]
 ///       [checks a,b,…] [on <outcome> goto <id> | abandon]… [on spent goto <id> | abandon]
 ///
-/// A `goto` may name the reserved step `end`, the end of the plan.
+/// A `goto` may name the reserved step `end`, the end of the flow.
 /// ```
 @JsonPropertyOrder({"id", "kind", "role", "when", "candidates", "kinds", "checks", "transitions"})
 @JsonInclude(Include.NON_NULL)
-public class PlanStep {
+public class FlowStep {
 
     public static final int DEFAULT_KINDS = 3;
     /// A step id: a letter, then letters, digits, hyphens or underscores; matched without regard to case.
@@ -73,7 +73,7 @@ public class PlanStep {
     private final List<Transition> transitions;
 
     @JsonCreator
-    public PlanStep(@JsonProperty("id") final String id,
+    public FlowStep(@JsonProperty("id") final String id,
                     @JsonProperty("kind") final QuestionKind kind,
                     @JsonProperty("role") final ConfigureRole role,
                     @JsonProperty("when") final StepGuard when,
@@ -116,12 +116,12 @@ public class PlanStep {
     /// A step that is only enough to be one: what a serialisation test builds, since a step with no
     /// kind is not a step and the real constructor says so.
     @SerialisationTestConstructor
-    private PlanStep() {
+    private FlowStep() {
         this(null, QuestionKind.CHAIN, null, null, null, null, null, null);
     }
 
     /// A step with no id, role, checks or transitions: the form the A34 list had.
-    public PlanStep(final QuestionKind kind,
+    public FlowStep(final QuestionKind kind,
                     final StepGuard when,
                     final Integer candidates,
                     final Integer kinds) {
@@ -129,13 +129,13 @@ public class PlanStep {
     }
 
     /// A step of a kind alone, asked always, with the document's limits.
-    public static PlanStep of(final QuestionKind kind) {
-        return new PlanStep(kind, StepGuard.ALWAYS, null, null);
+    public static FlowStep of(final QuestionKind kind) {
+        return new FlowStep(kind, StepGuard.ALWAYS, null, null);
     }
 
     /// A step of a kind under a guard, with the document's limits.
-    public static PlanStep of(final QuestionKind kind, final StepGuard when) {
-        return new PlanStep(kind, when, null, null);
+    public static FlowStep of(final QuestionKind kind, final StepGuard when) {
+        return new FlowStep(kind, when, null, null);
     }
 
     /// @return The id as written, or null where the step goes by [#effectiveId()].
@@ -245,7 +245,7 @@ public class PlanStep {
     /// One line back into a step.
     ///
     /// @throws IllegalArgumentException Naming what is wrong with the line.
-    public static PlanStep parse(final String line) {
+    public static FlowStep parse(final String line) {
         final String trimmed = line.trim();
         final String[] words = trimmed.split("\\s+");
         if (words.length == 0 || words[0].isEmpty()) {
@@ -313,7 +313,7 @@ public class PlanStep {
             }
             i += 2;
         }
-        return new PlanStep(id, kind, role, when, candidates, kinds, checks, transitions);
+        return new FlowStep(id, kind, role, when, candidates, kinds, checks, transitions);
     }
 
     /// Reads `on <outcome|spent> goto <id>` or `on <outcome|spent> abandon` from `words[at]`.
@@ -366,7 +366,7 @@ public class PlanStep {
             }
         }
         throw new IllegalArgumentException("'" + word + "' is not a question kind; the kinds are CHAIN, SPLIT, "
-                                           + "TARGET and CONFIGURE");
+                                           + "TARGET, CONFIGURE and ADMIT");
     }
 
     private static int positive(final String key, final String value, final String line) {
@@ -390,7 +390,7 @@ public class PlanStep {
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
-        final PlanStep that = (PlanStep) o;
+        final FlowStep that = (FlowStep) o;
         return Objects.equals(id, that.id) && kind == that.kind && role == that.role && when == that.when
                && Objects.equals(candidates, that.candidates) && Objects.equals(kinds, that.kinds)
                && checks.equals(that.checks) && transitions.equals(that.transitions);

@@ -25,8 +25,8 @@ import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.StageRun;
 import stroom.shapeshifter.shared.BusinessRulesParameters;
 import stroom.shapeshifter.shared.ExtractionQualityParameters;
+import stroom.shapeshifter.shared.FlowExample;
 import stroom.shapeshifter.shared.LearningMode;
-import stroom.shapeshifter.shared.PlanExample;
 import stroom.shapeshifter.shared.SchemaConformanceParameters;
 import stroom.shapeshifter.shared.ScorerSetting;
 import stroom.shapeshifter.shared.ScorerType;
@@ -44,9 +44,9 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /// Design 02 §5, scenario 47 (design 03 §3): a sign-on log of six columns by position and no delimiter, under
-/// the escalating plan. A parser that captures four columns and matches the rest of the line consumes every
+/// the escalating flow. A parser that captures four columns and matches the rest of the line consumes every
 /// character, so coverage is full and says nothing; the transform written over it cannot state an outcome,
-/// the business rule refuses it twice, and the plan escalates to a target. Asked again against the targets,
+/// the business rule refuses it twice, and the flow escalates to a target. Asked again against the targets,
 /// the four-column parser is caught by preservation — the records carry no value for the reason the target
 /// event states — and the six-column parser is promoted.
 class TestScenario47FixedWidth {
@@ -63,7 +63,7 @@ class TestScenario47FixedWidth {
                 .uuid("doc-1")
                 .name("mainframe-sign-on")
                 .learningMode(LearningMode.AUTOMATIC)
-                .plan(PlanExample.ESCALATING)
+                .flow(FlowExample.ESCALATING)
                 .allowedElements(List.of("DSParser", "XSLTFilter"))
                 .minRecordsPerShape(5)
                 .scorers(List.of(
