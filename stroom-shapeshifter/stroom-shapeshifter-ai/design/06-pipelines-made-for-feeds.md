@@ -323,6 +323,21 @@ matching `-impl-db` module with its own Flyway migration and jOOQ code.
    `ProcessorFilterService.create`. Tests against the database for the documents and filter made,
    their names and places, and a name a key value would make unreadable. The documents are made as the
    factory's run-as user (A123), and a test shows a user without permission on the folder makes nothing.
+
+   *Built 2026-10-07.* `PipelineMaker` makes the folder, the pipeline and its filter as the run-as user.
+   It refuses a property on an element the merged template lacks, or one that does not take text,
+   before anything is made. If the processor refuses the filter, for example an AI template on a node
+   that does not claim its own tasks, it deletes the pipeline again so a retry makes one, not two. A
+   `Pipeline` key is matched by UUID and named by the pipeline's name. The application's integration
+   tests run under a security context that allows everything, so the run-as refusal is shown by a
+   unit test with a mocked context instead.
+
+   *Audit, 2026-10-07.* The template was read only when the factory wrote properties, so a factory
+   without them would have made a pipeline inheriting nothing. That was caught only by accident, by the
+   processor's own check on supervised pipelines refusing the filter. The maker now reads and merges the
+   template before making anything, and a missing one is refused with its name. Left as they are: a key
+   value holding `/` makes nested folders, and a name a person already used in the folder is used again,
+   since the explorer allows it and the factory's own record (slice 3) stops it repeating itself.
 3. **What it remembers, and the job.** The table of §3.4 with its unique key, the meta-id high-water
    mark, the incremental scan of §3.2, and the scheduled job under a cluster lock. Tests: a second run
    makes nothing twice, a deleted pipeline is not made again, *forget* lets it be made afresh, a
