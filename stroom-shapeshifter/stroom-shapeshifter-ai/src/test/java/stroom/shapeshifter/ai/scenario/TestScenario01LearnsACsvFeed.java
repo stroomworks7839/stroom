@@ -16,7 +16,6 @@
 
 package stroom.shapeshifter.ai.scenario;
 
-import stroom.meta.shared.MetaFields;
 import stroom.shapeshifter.ai.extraction.ExtractionCorpus.Golden;
 import stroom.shapeshifter.ai.learning.Question;
 import stroom.shapeshifter.ai.learning.Question.Chain;
@@ -25,13 +24,11 @@ import stroom.shapeshifter.ai.scoring.Judgement;
 import stroom.shapeshifter.ai.stage.Bindings;
 import stroom.shapeshifter.ai.stage.Decision.Bound;
 import stroom.shapeshifter.ai.stage.Decision.Promoted;
-import stroom.shapeshifter.ai.stage.Decision.Sentinel;
 import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.RegressionSet.Kind;
 import stroom.shapeshifter.ai.stage.StageRun;
 import stroom.shapeshifter.shared.FlowExample;
 import stroom.shapeshifter.shared.LearningMode;
-import stroom.shapeshifter.shared.RoutingFields;
 import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ScorerSetting;
 import stroom.shapeshifter.shared.ScorerType;
@@ -143,14 +140,12 @@ class TestScenario01LearnsACsvFeed {
                 .containsExactly(1.0, 1.0);
         assertThat(promoted.score()).isGreaterThanOrEqualTo(policy().getPromotionFloor());
 
-        // The routing table gained exactly the learned rule (A22, A29): the default learning key, Feed AND
-        // Type, and nothing wider — the signature is not in the key, so it is not in the rule.
+        // The document gained exactly the learned rule, the binding of the shape it was learned for: its feed
+        // and type (A49).
         assertThat(scenarios.rules.forDocument("policy-1")).hasSize(1);
         final RoutingRule rule = scenarios.rules.forDocument("policy-1").get(0);
         assertThat(rule).isEqualTo(promoted.rule());
-        assertThat(rule.getExpression())
-                .isEqualTo(RoutingRule.learnedSelector(RoutingFields.DEFAULT_LEARNING_KEY,
-                        Map.of(MetaFields.FIELD_FEED, "DOOR-ACCESS", MetaFields.FIELD_TYPE, "Raw Events")));
+        assertThat(rule.getShapeId()).isEqualTo("Feed=DOOR-ACCESS|Type=Raw Events");
         assertThat(rule.getUuid()).describedAs("A26: a learned rule is named stably").isNotNull();
         assertThat(rule.isDraft()).isFalse();
         assertThat(rule.getPromotedTimeMs()).isEqualTo(Scenarios.NOW.toEpochMilli());
@@ -175,30 +170,6 @@ class TestScenario01LearnsACsvFeed {
                     assertThat(entry.text()).describedAs("the record's own text, by the parser's span").isNotBlank();
                     assertThat(entry.output()).contains("<Event>");
                 });
-    }
-
-    @Test
-    void aStreamLackingAKeyFieldIsSentinelledBeforeAnyQuestionOrDocument() {
-        // Design 01 §3: a stream with no value for a key field has no shape under that key. It is refused
-        // up front — no model call, nothing written — rather than bound wider than the key.
-        final Scenarios scenarios = new Scenarios();
-        final Script silent = Script.of();
-        final ShapeshifterAiDoc keyedOnSystem = policy().copy()
-                .learningKey(List.of(MetaFields.FIELD_FEED, MetaFields.FIELD_TYPE, RoutingFields.SYSTEM))
-                .build();
-        final Input noSystemHeader = new Input(1L, "DOOR-ACCESS", "Raw Events", Map.of("Format", "CSV"),
-                CSV.input());
-
-        final StageRun run = scenarios.process(silent, keyedOnSystem, noSystemHeader).first();
-
-        // Refused by the task (A80): an error with the reason, no session and no ledger row.
-        assertThat(run.decision()).isInstanceOf(Sentinel.class);
-        assertThat(((Sentinel) run.decision()).reason()).contains(RoutingFields.SYSTEM);
-        assertThat(scenarios.attempts.forDocument("policy-1", 10)).isEmpty();
-        assertThat(scenarios.ledger.isEmpty()).isTrue();
-        assertThat(silent.asked()).isEmpty();
-        assertThat(scenarios.stores.pipelines.list()).isEmpty();
-        assertThat(scenarios.rules.forDocument("policy-1")).isEmpty();
     }
 
     @Test

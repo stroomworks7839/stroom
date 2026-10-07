@@ -22,7 +22,6 @@ import stroom.docstore.api.DependencyRemapFunction;
 import stroom.docstore.api.StoreFactory;
 import stroom.security.api.SecurityContext;
 import stroom.shapeshifter.ai.learning.Templates;
-import stroom.shapeshifter.shared.RoutingFields;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 
 import jakarta.inject.Inject;
@@ -65,22 +64,10 @@ public class ShapeshifterAiStoreImpl
 
     /**
      * What the editor cannot check is checked on save, with the fault named, rather than at run time by the
-     * supervisor: the learning key may name only fields a selector can be written against (A29), and the
-     * flow must be one the stage can hold (A33). The rules are rows since A41, so the resource checks
-     * their fragments (A20) where this once did.
+     * supervisor: the flow must be one the stage can hold (A33).
      */
     @Override
     public ShapeshifterAiDoc writeDocument(final ShapeshifterAiDoc document) {
-        final List<String> unknown = document.getLearningKey().stream()
-                .filter(field -> !RoutingFields.NAMES.contains(field))
-                .toList();
-        if (!unknown.isEmpty()) {
-            throw new IllegalArgumentException("The learning key names fields a selector cannot match: "
-                                               + unknown + ". Choose from " + RoutingFields.NAMES);
-        }
-        if (document.getLearningKey().isEmpty()) {
-            throw new IllegalArgumentException("The learning key must name at least one field");
-        }
         // A33: a flow the stage cannot hold is refused here, naming the rule, rather than found when
         // the first stream arrives; and the document is stamped with the built-in text it was saved against.
         final List<String> problems = new ArrayList<>(document.getFlow().problems());

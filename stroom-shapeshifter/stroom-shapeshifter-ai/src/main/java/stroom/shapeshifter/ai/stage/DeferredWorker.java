@@ -47,6 +47,7 @@ public final class DeferredWorker {
 
     private final Stage stage;
     private final Attempts attempts;
+    private final Deferrals deferrals;
     private final Documents documents;
     private final Inputs inputs;
     private final Advisors advisors;
@@ -54,12 +55,14 @@ public final class DeferredWorker {
 
     public DeferredWorker(final Stage stage,
                           final Attempts attempts,
+                          final Deferrals deferrals,
                           final Documents documents,
                           final Inputs inputs,
                           final Advisors advisors,
                           final Clock clock) {
         this.stage = stage;
         this.attempts = attempts;
+        this.deferrals = deferrals;
         this.documents = documents;
         this.inputs = inputs;
         this.advisors = advisors;
@@ -94,7 +97,22 @@ public final class DeferredWorker {
         final int carried = advanced;
         LOGGER.debug(() -> LogUtil.message("Carried on {} of {} attempts awaiting the model or lapsed",
                 carried, waiting.size()));
+        wakeSuperseded();
         return advanced;
+    }
+
+    /// After the attempts, so that what this pass promoted is in force: the streams that wait against a
+    /// transform since replaced, which no promotion's wake could reach (see [Stage#wakeSuperseded]).
+    private void wakeSuperseded() {
+        for (final String docUuid : deferrals.documentsWaiting()) {
+            try {
+                documents.byUuid(docUuid).ifPresent(stage::wakeSuperseded);
+            } catch (final RuntimeException e) {
+                // One document's rows are its own: the sweep goes on to the next.
+                LOGGER.error(() -> LogUtil.message("Waiting streams of document {} could not be woken: {}",
+                        docUuid, e.getMessage()), e);
+            }
+        }
     }
 
     private boolean carry(final Recorded attempt) {
@@ -113,7 +131,7 @@ public final class DeferredWorker {
         }
         try {
             // A sentinel means the attempt was not this pass's to carry: another node had taken it, or
-            // the shape has been reserved, drafted, given up or turned off while it waited. The stage has
+            // the shape has been drafted, given up or turned off while it waited. The stage has
             // said so against the attempt; this pass simply did not advance it.
             final StageRun run = stage.resume(doc.get(), attempt.id(), input.get(), advisors.of(doc.get()));
             return !(run.decision() instanceof Sentinel);

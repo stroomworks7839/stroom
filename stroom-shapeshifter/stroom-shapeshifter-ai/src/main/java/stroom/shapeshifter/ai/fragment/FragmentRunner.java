@@ -115,7 +115,7 @@ public interface FragmentRunner {
     /// **Taken**, not read: the capture is handed over once and the runner is left holding nothing.
     ///
     /// That is the whole of the method's safety. A stage decides many things without running a fragment
-    /// at all — a reserved rule, a draft awaiting review, a shape given up, a shape nothing binds — and
+    /// at all — a draft awaiting review, a shape given up, a shape nothing binds — and
     /// a caller that merely *read* the last capture would be handed the previous stream's chain and
     /// show it as this one's. Taking it means the second ask finds nothing, which is the truth.
     ///

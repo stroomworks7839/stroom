@@ -85,16 +85,6 @@ public class ShapeshifterRule extends TableImpl<ShapeshifterRuleRecord> {
     public final TableField<ShapeshifterRuleRecord, String> RULE_UUID = createField(DSL.name("rule_uuid"), SQLDataType.VARCHAR(255).nullable(false), this, "");
 
     /**
-     * The column <code>stroom.shapeshifter_rule.sort_order</code>.
-     */
-    public final TableField<ShapeshifterRuleRecord, Integer> SORT_ORDER = createField(DSL.name("sort_order"), SQLDataType.INTEGER.nullable(false), this, "");
-
-    /**
-     * The column <code>stroom.shapeshifter_rule.expression</code>.
-     */
-    public final TableField<ShapeshifterRuleRecord, String> EXPRESSION = createField(DSL.name("expression"), SQLDataType.CLOB, this, "");
-
-    /**
      * The column <code>stroom.shapeshifter_rule.pipeline_type</code>.
      */
     public final TableField<ShapeshifterRuleRecord, String> PIPELINE_TYPE = createField(DSL.name("pipeline_type"), SQLDataType.VARCHAR(255), this, "");
@@ -200,7 +190,7 @@ public class ShapeshifterRule extends TableImpl<ShapeshifterRuleRecord> {
 
     @Override
     public List<Index> getIndexes() {
-        return Arrays.asList(Indexes.SHAPESHIFTER_RULE_SHAPESHIFTER_RULE_DOC_SHAPE, Indexes.SHAPESHIFTER_RULE_SHAPESHIFTER_RULE_DOC_UUID_SORT_ORDER);
+        return Arrays.asList(Indexes.SHAPESHIFTER_RULE_SHAPESHIFTER_RULE_DOC_SHAPE);
     }
 
     @Override

@@ -18,7 +18,6 @@ package stroom.shapeshifter.client.gin;
 
 import stroom.shapeshifter.client.ShapeshifterAiPlugin;
 import stroom.shapeshifter.client.presenter.ShapeshifterAiPresenter;
-import stroom.shapeshifter.client.presenter.ShapeshifterAiRoutePresenter;
 import stroom.shapeshifter.client.presenter.ShapeshifterAiScorePresenter;
 
 import com.google.gwt.inject.client.AsyncProvider;
@@ -29,7 +28,6 @@ public interface ShapeshifterAiGinjector {
 
     AsyncProvider<ShapeshifterAiPresenter> getShapeshifterAiPresenter();
 
-    AsyncProvider<ShapeshifterAiRoutePresenter> getShapeshifterAiRoutePresenter();
 
     AsyncProvider<ShapeshifterAiScorePresenter> getShapeshifterAiScorePresenter();
 }

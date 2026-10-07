@@ -90,19 +90,6 @@ public class CachedRules implements Rules, Clearable, EntityEvent.Handler {
     }
 
     @Override
-    public RoutingRule insert(final String docUuid, final RoutingRule rule, final int at) {
-        final RoutingRule inserted = rows.insert(docUuid, rule, at);
-        changed(docUuid);
-        return inserted;
-    }
-
-    @Override
-    public void move(final String docUuid, final String ruleUuid, final int to) {
-        rows.move(docUuid, ruleUuid, to);
-        changed(docUuid);
-    }
-
-    @Override
     public void replace(final String docUuid, final RoutingRule rule) {
         rows.replace(docUuid, rule);
         changed(docUuid);

@@ -17,10 +17,12 @@
 package stroom.shapeshifter.client.view;
 
 import stroom.entity.client.presenter.ReadOnlyChangeHandler;
+import stroom.item.client.SelectionBox;
 import stroom.shapeshifter.client.presenter.ShapeshifterAiLearnPresenter.ShapeshifterAiLearnView;
 import stroom.shapeshifter.client.presenter.ShapeshifterAiSettingsUiHandlers;
 import stroom.shapeshifter.shared.FlowProblem;
 import stroom.shapeshifter.shared.FlowStep;
+import stroom.shapeshifter.shared.LearningMode;
 import stroom.shapeshifter.shared.Template;
 import stroom.widget.button.client.Button;
 import stroom.widget.valuespinner.client.ValueSpinner;
@@ -91,6 +93,10 @@ public class ShapeshifterAiLearnViewImpl
     @UiField
     ValueSpinner attemptBudgetMs;
     @UiField
+    SelectionBox<LearningMode> learningMode;
+    @UiField
+    ValueSpinner maxDeferralAgeMs;
+    @UiField
     ValueSpinner tokenBudget;
     @UiField
     ValueSpinner sampleSizeLimit;
@@ -123,6 +129,8 @@ public class ShapeshifterAiLearnViewImpl
         chartPanel.setWidget(chart);
         bound(maxAttempts, 1, Integer.MAX_VALUE);
         bound(attemptBudgetMs, 1, Long.MAX_VALUE);
+        bound(maxDeferralAgeMs, 1, Long.MAX_VALUE);
+        learningMode.addItems(LearningMode.values());
         bound(tokenBudget, 0, Long.MAX_VALUE);
         bound(sampleSizeLimit, 1, Integer.MAX_VALUE);
         showNothingSelected();
@@ -201,6 +209,26 @@ public class ShapeshifterAiLearnViewImpl
     @Override
     public void setMaxAttempts(final int maxAttempts) {
         this.maxAttempts.setValue(maxAttempts);
+    }
+
+    @Override
+    public LearningMode getLearningMode() {
+        return learningMode.getValue();
+    }
+
+    @Override
+    public void setLearningMode(final LearningMode learningMode) {
+        this.learningMode.setValue(learningMode);
+    }
+
+    @Override
+    public long getMaxDeferralAgeMs() {
+        return maxDeferralAgeMs.getValue();
+    }
+
+    @Override
+    public void setMaxDeferralAgeMs(final long maxDeferralAgeMs) {
+        this.maxDeferralAgeMs.setValue(maxDeferralAgeMs);
     }
 
     @Override
@@ -431,6 +459,8 @@ public class ShapeshifterAiLearnViewImpl
         instructions.setEnabled(!readOnly);
         maxAttempts.setEnabled(!readOnly);
         attemptBudgetMs.setEnabled(!readOnly);
+        learningMode.setEnabled(!readOnly);
+        maxDeferralAgeMs.setEnabled(!readOnly);
         tokenBudget.setEnabled(!readOnly);
         sampleSizeLimit.setEnabled(!readOnly);
         showTemplates();
@@ -499,6 +529,16 @@ public class ShapeshifterAiLearnViewImpl
 
     @UiHandler("attemptBudgetMs")
     public void onAttemptBudgetMs(final ValueChangeEvent<Long> event) {
+        fireChange();
+    }
+
+    @UiHandler("learningMode")
+    public void onLearningMode(final ValueChangeEvent<LearningMode> event) {
+        fireChange();
+    }
+
+    @UiHandler("maxDeferralAgeMs")
+    public void onMaxDeferralAgeMs(final ValueChangeEvent<Long> event) {
         fireChange();
     }
 

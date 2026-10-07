@@ -16,7 +16,6 @@
 
 package stroom.shapeshifter.ai.stage;
 
-import stroom.docref.DocRef;
 import stroom.shapeshifter.shared.RoutingRule;
 import stroom.util.shared.StoredError;
 
@@ -101,9 +100,9 @@ public sealed interface Decision {
     }
 
     /**
-     * The stream was not processed and the model was not consulted: the shape is given up, reserved by
-     * a rule, awaiting review as a draft, lacks a value for a key field, or learning is disabled and no
-     * bound variant fits. The stream is sentinelled — an error stream and a ledger row (A4).
+     * The stream was not processed and the model was not consulted: the shape is given up, awaiting
+     * review as a draft, or lacks a value for a key field. The stream is sentinelled — an error stream
+     * and a ledger row (A4).
      */
     record Sentinel(String reason) implements Decision {
 
@@ -132,11 +131,8 @@ public sealed interface Decision {
     /// Stepping routes and serves and does nothing else, so a shape no rule binds is reported here
     /// rather than learned, sentinelled or given up.
     ///
-    /// @param what      What would happen, in the words the stage would have used had it done it.
-    /// @param candidate The fragment it would have used, where one already exists — a variant learned
-    ///                  for a neighbouring shape (design 01 §6) — and null where it would have had to
-    ///                  learn one or would have bound nothing at all.
-    record Would(String what, DocRef candidate) implements Decision {
+    /// @param what What would happen, in the words the stage would have used had it done it.
+    record Would(String what) implements Decision {
 
         /// The clause as a person reads it — *would learn a fragment for this shape* — so that every
         /// surface says it the same way and only a decision that is hypothetical reads as one.

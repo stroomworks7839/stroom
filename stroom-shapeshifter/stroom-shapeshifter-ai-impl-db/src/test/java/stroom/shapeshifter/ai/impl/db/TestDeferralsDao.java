@@ -111,4 +111,23 @@ class TestDeferralsDao {
         assertThat(deferrals.forDocument(DOC)).extracting(Deferral::inputId).containsExactly(9L);
         assertThat(deferrals.forDocument(OTHER_DOC)).extracting(Deferral::inputId).containsExactly(7L);
     }
+
+    /// Each document with a stream waiting, once however many it has; one with none is not named. The
+    /// table is shared with whatever else has run against the database, so only these two are looked at.
+    @Test
+    void theDocumentsWaitingAreEachNamedOnce() {
+        deferrals.deferred(LEARNER, DOC, 7L, "DOOR-ACCESS", "Raw Events", 100L, 5, "frag:1", "short", 2);
+        deferrals.deferred(LEARNER, DOC, 9L, "LIFT", "Raw Events", 102L, 5, null, "no rule", 0);
+        deferrals.deferred(OTHER_LEARNER, OTHER_DOC, 7L, "DOOR-ACCESS", "Raw Events", 103L, 6, "frag:9", "short", 1);
+
+        assertThat(deferrals.documentsWaiting())
+                .filteredOn(doc -> doc.equals(DOC) || doc.equals(OTHER_DOC))
+                .containsExactlyInAnyOrder(DOC, OTHER_DOC);
+
+        deferrals.released(OTHER_LEARNER, 7L);
+
+        assertThat(deferrals.documentsWaiting())
+                .filteredOn(doc -> doc.equals(DOC) || doc.equals(OTHER_DOC))
+                .containsExactly(DOC);
+    }
 }

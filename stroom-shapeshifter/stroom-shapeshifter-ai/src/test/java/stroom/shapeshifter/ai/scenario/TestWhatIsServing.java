@@ -112,20 +112,19 @@ class TestWhatIsServing {
                 .containsExactly(2);
     }
 
-    /// The three kinds of rule the view does not show, each for its own reason. A button offered on a
+    /// The two kinds of rule the view does not show, each for its own reason. A button offered on a
     /// row that cannot take it is a button that lies.
     @Test
     void whatCannotBeImprovedIsNotInTheList() {
         final Scenarios scenarios = new Scenarios();
         scenarios.rules.append("doc-1", rule("serving", DOOR));
         scenarios.rules.append("doc-1", rule("draft", LIFT).copy().draft(true).build());
-        scenarios.rules.append("doc-1", RoutingRule.builder().uuid("reserved").shapeId(LIFT).build());
         scenarios.rules.append("doc-1", rule("by-hand", null));
 
         assertThat(scenarios.serving.rules(List.of("doc-1"), null, 0L, 100).rules())
                 .extracting(ServingRule::getRuleUuid)
-                .describedAs("a draft is decided rather than improved (A25), a reserved rule binds "
-                             + "nothing, and a rule written by hand came from no shape")
+                .describedAs("a draft is decided rather than improved (A25), and a rule with no shape "
+                             + "has nothing to learn again")
                 .containsExactly("serving");
     }
 

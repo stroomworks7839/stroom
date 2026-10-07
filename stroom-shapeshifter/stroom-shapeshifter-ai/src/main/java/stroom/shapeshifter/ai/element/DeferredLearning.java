@@ -20,6 +20,7 @@ import stroom.security.api.SecurityContext;
 import stroom.shapeshifter.ai.ShapeshifterAiConfig;
 import stroom.shapeshifter.ai.learning.Advisors;
 import stroom.shapeshifter.ai.stage.Attempts;
+import stroom.shapeshifter.ai.stage.Deferrals;
 import stroom.shapeshifter.ai.stage.DeferredWorker;
 import stroom.shapeshifter.ai.stage.Documents;
 import stroom.shapeshifter.ai.stage.Inputs;
@@ -53,6 +54,7 @@ public class DeferredLearning {
     private final Provider<StageFactory> stageFactory;
     private final PipelineScopeRunnable pipelineScope;
     private final Attempts attempts;
+    private final Deferrals deferrals;
     private final Documents documents;
     private final Inputs inputs;
     private final Advisors advisors;
@@ -63,6 +65,7 @@ public class DeferredLearning {
     public DeferredLearning(final Provider<StageFactory> stageFactory,
                             final PipelineScopeRunnable pipelineScope,
                             final Attempts attempts,
+                            final Deferrals deferrals,
                             final Documents documents,
                             final Inputs inputs,
                             final Advisors advisors,
@@ -71,6 +74,7 @@ public class DeferredLearning {
         this.stageFactory = stageFactory;
         this.pipelineScope = pipelineScope;
         this.attempts = attempts;
+        this.deferrals = deferrals;
         this.documents = documents;
         this.inputs = inputs;
         this.advisors = advisors;
@@ -83,8 +87,8 @@ public class DeferredLearning {
             // In a pipeline scope, though there is no pipeline: what a stage runs on — the Data Splitter
             // compiler, the schema scorer — reports through the scoped error receiver, and a candidate
             // configuration is compiled and run here exactly as it is in a task.
-            final DeferredWorker worker = new DeferredWorker(stageFactory.get().create(), attempts, documents,
-                    inputs, advisors, Clock.systemUTC());
+            final DeferredWorker worker = new DeferredWorker(stageFactory.get().create(), attempts, deferrals,
+                    documents, inputs, advisors, Clock.systemUTC());
             final int carried = worker.advance(configProvider.get().getDeferredLearningBatchSize());
             if (carried > 0) {
                 LOGGER.info(() -> LogUtil.message("Carried on {} attempt(s) awaiting the model", carried));

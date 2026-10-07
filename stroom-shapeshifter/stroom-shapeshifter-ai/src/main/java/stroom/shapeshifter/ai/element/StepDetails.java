@@ -61,9 +61,7 @@ public final class StepDetails {
         final Bindings bindings = run.bindings();
         final DocRef fragment = bindings != null
                 ? bindings.fragment()
-                : run.decision() instanceof final Would would
-                        ? would.candidate()
-                        : null;
+                : null;
         return new ShapeshifterAiStepDetails(
                 dryRun,
                 document(run.doc()),

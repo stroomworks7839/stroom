@@ -244,7 +244,7 @@ public class Supervision {
         // stage ran can be stepped beneath it. Only when stepping: nothing else asks, and holding a
         // record's worth of text per record of a production stream would be a leak with no reader.
         // Taken rather than read, so that a decision this run made without running a fragment at all —
-        // a reserved rule, a draft awaiting review, a shape given up — cannot be shown the chain of the
+        // a draft awaiting review, a shape given up — cannot be shown the chain of the
         // run before it. The take happens whether or not this is a step, because a run that is not
         // being stepped must still clear what the last step left.
         final List<FragmentRecord> ran = stage.takeFragment();

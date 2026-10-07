@@ -17,9 +17,6 @@
 package stroom.shapeshifter.ai.impl.db;
 
 import stroom.docref.DocRef;
-import stroom.meta.shared.MetaFields;
-import stroom.query.api.ExpressionOperator;
-import stroom.query.api.ExpressionTerm.Condition;
 import stroom.shapeshifter.shared.RecordBoundary;
 import stroom.shapeshifter.shared.RoutingRule;
 
@@ -76,11 +73,9 @@ class TestRulesDao {
     }
 
     @Test
-    void aRuleSurvivesTheRoundTripWholeAndInItsOrder() {
+    void aRuleSurvivesTheRoundTripWhole() {
         final RoutingRule learned = RoutingRule.builder()
-                .expression(ExpressionOperator.builder()
-                        .addTerm(MetaFields.FIELD_FEED, Condition.EQUALS, "DOOR-ACCESS")
-                        .build())
+                .shapeId("Feed=DOOR-ACCESS|Type=Raw Events")
                 .pipeline(new DocRef("Pipeline", "fragment-1", "door-v1"))
                 .provisional(true)
                 .promotedTimeMs(1_700_000_000_000L)
@@ -94,50 +89,16 @@ class TestRulesDao {
         final List<RoutingRule> read = rules.forDocument(DOC);
         assertThat(read).hasSize(1);
         assertThat(read.get(0)).isEqualTo(stored);
-        assertThat(read.get(0).getExpression()).isEqualTo(learned.getExpression());
+        assertThat(read.get(0).getShapeId()).isEqualTo("Feed=DOOR-ACCESS|Type=Raw Events");
         assertThat(read.get(0).getRecordBoundary()).isEqualTo(RecordBoundary.ofArray("events"));
         assertThat(read.get(0).getScore()).isEqualTo(0.97);
         assertThat(read.get(0).isProvisional()).isTrue();
         assertThat(rules.byUuid(DOC, stored.getUuid())).contains(stored);
         assertThat(rules.byUuid(DOC, "no-such-rule")).isEmpty();
-        // A rule with nothing set — the reserved rule of §3 — reads back as one.
-        final RoutingRule reserved = rules.append(DOC, RoutingRule.builder().build());
-        assertThat(rules.byUuid(DOC, reserved.getUuid()).orElseThrow().isReserved()).isTrue();
     }
 
     @Test
-    void anOperatorsRuleSitsWhereTheyPutItAndTheLearnedOnesShuffleDown() {
-        final String first = rules.append(DOC, named("learned-1")).getUuid();
-        final String second = rules.append(DOC, named("learned-2")).getUuid();
-
-        final RoutingRule top = rules.insert(DOC, named("operator"), 0);
-
-        assertThat(uuids()).containsExactly(top.getUuid(), first, second);
-        // Past the end appends; a negative position is the top.
-        final RoutingRule last = rules.insert(DOC, named("last"), 99);
-        final RoutingRule zeroth = rules.insert(DOC, named("zeroth"), -3);
-        assertThat(uuids()).containsExactly(zeroth.getUuid(), top.getUuid(), first, second, last.getUuid());
-    }
-
-    @Test
-    void aRuleMovesAndTheOthersCloseBehindIt() {
-        final String a = rules.append(DOC, named("a")).getUuid();
-        final String b = rules.append(DOC, named("b")).getUuid();
-        final String c = rules.append(DOC, named("c")).getUuid();
-
-        rules.move(DOC, c, 0);
-        assertThat(uuids()).containsExactly(c, a, b);
-        rules.move(DOC, c, 2);
-        assertThat(uuids()).containsExactly(a, b, c);
-        rules.move(DOC, a, 99);
-        assertThat(uuids()).describedAs("past the end is the end").containsExactly(b, c, a);
-        rules.move(DOC, "no-such-rule", 0);
-        assertThat(uuids()).describedAs("a rule the document does not have moves nothing")
-                .containsExactly(b, c, a);
-    }
-
-    @Test
-    void replacingARuleKeepsItsPlaceAndPromotingOneThatWentPutsItBack() {
+    void replacingARuleKeepsItAndPromotingOneThatWentPutsItBack() {
         final String a = rules.append(DOC, named("a")).getUuid();
         final String b = rules.append(DOC, named("b")).getUuid();
 
@@ -163,23 +124,6 @@ class TestRulesDao {
         rules.remove(DOC, rules.forDocument(OTHER).get(0).getUuid());
         assertThat(rules.forDocument(OTHER)).describedAs("another document's rule is not ours to remove")
                 .hasSize(1);
-    }
-
-    @Test
-    void removingARuleClosesThePositionBehindIt() {
-        // insert and move read a position as a place in a list, as the in-memory rules do, so a hole would
-        // put an appended rule above the last one and make a move a no-op.
-        final String a = rules.append(DOC, named("a")).getUuid();
-        final String b = rules.append(DOC, named("b")).getUuid();
-        final String c = rules.append(DOC, named("c")).getUuid();
-
-        rules.remove(DOC, a);
-
-        final RoutingRule appended = rules.insert(DOC, named("appended"), rules.forDocument(DOC).size());
-        assertThat(uuids()).containsExactly(b, c, appended.getUuid());
-        rules.move(DOC, b, rules.forDocument(DOC).size() - 1);
-        assertThat(uuids()).describedAs("and a move to the end is not a no-op")
-                .containsExactly(c, appended.getUuid(), b);
     }
 
     private List<String> uuids() {

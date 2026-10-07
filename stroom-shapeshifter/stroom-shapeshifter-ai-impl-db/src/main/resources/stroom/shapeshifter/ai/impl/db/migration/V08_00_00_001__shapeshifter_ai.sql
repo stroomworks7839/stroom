@@ -67,9 +67,9 @@ CREATE TABLE IF NOT EXISTS shapeshifter_ledger (
 ) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
 
 --
--- A document's routing rules, in order. The pipeline_* columns name the fragment a rule binds. Keyed by
--- the document until phase J slice 2.
---
+-- What serves a document's shapes: one row per rule, each the binding of the shape it was learned for
+-- (design 06 phase J slice 2a). The pipeline_* columns name the fragment a rule binds. Keyed by the
+-- document until phase J slice 2b.
 CREATE TABLE IF NOT EXISTS shapeshifter_rule (
     id                    bigint NOT NULL AUTO_INCREMENT,
     version               int NOT NULL,
@@ -77,8 +77,6 @@ CREATE TABLE IF NOT EXISTS shapeshifter_rule (
     update_time_ms        bigint NOT NULL,
     doc_uuid              varchar(255) NOT NULL,
     rule_uuid             varchar(255) NOT NULL,
-    sort_order            int NOT NULL,
-    expression            longtext DEFAULT NULL,
     pipeline_type         varchar(255) DEFAULT NULL,
     pipeline_uuid         varchar(255) DEFAULT NULL,
     pipeline_name         varchar(255) DEFAULT NULL,
@@ -95,7 +93,6 @@ CREATE TABLE IF NOT EXISTS shapeshifter_rule (
     snapshot_id           varchar(255) DEFAULT NULL,
     PRIMARY KEY           (id),
     UNIQUE KEY            shapeshifter_rule_doc_uuid_rule_uuid (doc_uuid, rule_uuid),
-    KEY                   shapeshifter_rule_doc_uuid_sort_order (doc_uuid, sort_order),
     KEY                   shapeshifter_rule_doc_shape (doc_uuid, shape_hash)
 ) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
 

@@ -31,6 +31,7 @@ import stroom.shapeshifter.shared.FlowExample;
 import stroom.shapeshifter.shared.FlowProblem;
 import stroom.shapeshifter.shared.FlowStep;
 import stroom.shapeshifter.shared.LearningFlow;
+import stroom.shapeshifter.shared.LearningMode;
 import stroom.shapeshifter.shared.QuestionKind;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 import stroom.shapeshifter.shared.ShapeshifterAiResource;
@@ -426,6 +427,8 @@ public class ShapeshifterAiLearnPresenter
         view.setInstructions(doc.getInstructions());
         view.setMaxAttempts(doc.getMaxAttempts());
         view.setAttemptBudgetMs(doc.getAttemptBudgetMs());
+        view.setLearningMode(doc.getLearningMode());
+        view.setMaxDeferralAgeMs(doc.getMaxDeferralAgeMs());
         view.setTokenBudget(doc.getTokenBudget());
         view.setSampleSizeLimit(doc.getSampleSizeLimit());
         flow = doc.getFlow();
@@ -446,6 +449,8 @@ public class ShapeshifterAiLearnPresenter
                 .instructions(view.getInstructions())
                 .maxAttempts(view.getMaxAttempts())
                 .attemptBudgetMs(view.getAttemptBudgetMs())
+                .learningMode(view.getLearningMode())
+                .maxDeferralAgeMs(view.getMaxDeferralAgeMs())
                 .tokenBudget(view.getTokenBudget())
                 .sampleSizeLimit(view.getSampleSizeLimit())
                 .flow(new LearningFlow(new ArrayList<>(steps), view.getTemplateOverrides(), flow.getBuiltInVersion()))
@@ -571,6 +576,14 @@ public class ShapeshifterAiLearnPresenter
         int getMaxAttempts();
 
         void setMaxAttempts(int maxAttempts);
+
+        LearningMode getLearningMode();
+
+        void setLearningMode(LearningMode learningMode);
+
+        long getMaxDeferralAgeMs();
+
+        void setMaxDeferralAgeMs(long maxDeferralAgeMs);
 
         long getAttemptBudgetMs();
 

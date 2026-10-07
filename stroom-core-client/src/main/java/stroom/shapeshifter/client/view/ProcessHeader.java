@@ -26,9 +26,9 @@ import java.util.Map;
 import java.util.function.Consumer;
 
 /// The process a stream meets, drawn small across the top of the document (design 05 §10; A98): the
-/// three stages in the order they happen, the open one highlighted, each clickable to its tab, and
-/// beside each the document's own figure from the Supervisor — the rules the gate routes to, the
-/// streams waiting on a session, the sessions parked for a person. The document says what should
+/// stages in the order they happen, the open one highlighted, each clickable to its tab, and
+/// beside each the document's own figure from the Supervisor — the streams waiting on a session, the
+/// sessions parked for a person. The document says what should
 /// happen; these say what is happening.
 public class ProcessHeader extends Composite {
 
@@ -81,12 +81,7 @@ public class ProcessHeader extends Composite {
     }
 
     /// The document's figures from the Supervisor; null clears one.
-    public void setFigures(final Long rules, final Long waiting, final Long parked) {
-        figures.get(Stage.ROUTE).setText(rules == null
-                ? ""
-                : rules + (rules == 1
-                        ? " rule"
-                        : " rules"));
+    public void setFigures(final Long waiting, final Long parked) {
         figures.get(Stage.SCORE).setText(waiting == null
                 ? ""
                 : waiting + (waiting == 1
@@ -103,9 +98,9 @@ public class ProcessHeader extends Composite {
     // --------------------------------------------------------------------------------
 
 
-    /// The three stages, in the order a stream meets them.
+    /// The two stages, in the order a stream meets them (A110): which streams reach the document is its
+    /// pipelines' filters' to say.
     public enum Stage {
-        ROUTE("Route", "the gate: a shape to its rule"),
         SCORE("Score", "the bar, and the gate to a rule"),
         LEARN("Learn", "the flow a session walks");
 

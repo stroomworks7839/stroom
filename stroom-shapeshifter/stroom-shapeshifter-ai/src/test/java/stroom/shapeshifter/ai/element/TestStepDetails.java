@@ -162,7 +162,7 @@ class TestStepDetails {
                 new Sentinel("nothing binds this shape"),
                 new Deferred("waiting on a session"),
                 new Parked("the attempt's budget is spent"),
-                new Would("learn a fragment for this shape", null));
+                new Would("learn a fragment for this shape"));
 
         assertThat(all).allSatisfy(decision -> assertThat(StepDetails.describe(decision))
                 .describedAs(decision.getClass().getSimpleName() + " says nothing for itself")

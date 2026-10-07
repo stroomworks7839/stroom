@@ -20,23 +20,18 @@ import stroom.docref.DocRef;
 import stroom.docstore.impl.Serialiser2FactoryImpl;
 import stroom.docstore.impl.StoreFactoryImpl;
 import stroom.docstore.impl.memory.MemoryPersistence;
-import stroom.meta.shared.MetaFields;
 import stroom.openai.shared.OpenAIModelDoc;
 import stroom.pipeline.shared.PipelineDoc;
-import stroom.query.api.ExpressionOperator;
-import stroom.query.api.ExpressionTerm.Condition;
 import stroom.security.mock.MockSecurityContext;
 import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.ai.state.InMemoryRules;
 import stroom.shapeshifter.shared.BusinessRulesParameters;
-import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ScorerSetting;
 import stroom.shapeshifter.shared.ScorerType;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 import stroom.shapeshifter.shared.XPathAssertion;
 
 import java.util.List;
-import java.util.Map;
 
 /**
  * What the document store tests share: a store over the real {@code StoreImpl} and in-memory persistence,
@@ -53,24 +48,6 @@ final class ShapeshifterAiFixture {
             new ScorerSetting(ScorerType.INPUT_COVERAGE, 2.0, 0.8, false, null),
             new ScorerSetting(ScorerType.BUSINESS_RULES, 1.0, 1.0, false, new BusinessRulesParameters(
                     List.of(new XPathAssertion("has a time", "EventTime/TimeCreated != ''")), true)));
-
-    static final RoutingRule BOUND_RULE = RoutingRule.builder()
-            .uuid("rule-1")
-            .expression(RoutingRule.learnedSelector(
-                    List.of(MetaFields.FIELD_FEED, MetaFields.FIELD_TYPE, RoutingRule.SHAPE_SIGNATURE_FIELD),
-                    Map.of(MetaFields.FIELD_FEED, "SYSLOG",
-                            MetaFields.FIELD_TYPE, "Raw Events",
-                            RoutingRule.SHAPE_SIGNATURE_FIELD, "rfc5424")))
-            .pipeline(FRAGMENT)
-            .score(0.97)
-            .build();
-
-    static final RoutingRule UNBOUND_RULE = RoutingRule.builder()
-            .uuid("rule-2")
-            .expression(ExpressionOperator.builder()
-                    .addTerm(MetaFields.FIELD_FEED, Condition.EQUALS, "SYSLOG")
-                    .build())
-            .build();
 
     private ShapeshifterAiFixture() {
     }

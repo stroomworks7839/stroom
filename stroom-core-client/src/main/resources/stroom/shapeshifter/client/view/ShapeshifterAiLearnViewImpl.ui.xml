@@ -3,7 +3,8 @@
              xmlns:g="urn:import:com.google.gwt.user.client.ui"
              xmlns:b="urn:import:stroom.widget.button.client"
              xmlns:form="urn:import:stroom.widget.form.client"
-             xmlns:v="urn:import:stroom.widget.valuespinner.client">
+             xmlns:v="urn:import:stroom.widget.valuespinner.client"
+             xmlns:l="urn:import:stroom.item.client">
     <g:SimplePanel styleName="max">
         <g:ThinSplitLayoutPanel styleName="max">
             <g:south size="170">
@@ -33,6 +34,11 @@
                                 <g:Label ui:field="stepProblem" styleName="flow-problem" visible="false"/>
                                 <g:Label ui:field="nodeNote" styleName="flow-note"/>
                                 <g:FlowPanel ui:field="startSection">
+                                    <form:FormGroup identity="shapeshifterAiLearningMode"
+                                                    label="Learning mode"
+                                                    helpText="Whether a session may call the model at all. Disabled by default; Shapeshifter AI is opt-in per document. Disabled still serves the shapes already bound, and a shape with nothing to serve it waits.">
+                                        <l:SelectionBox ui:field="learningMode"/>
+                                    </form:FormGroup>
                                     <form:FormGroup identity="shapeshifterLearningModel"
                                                     label="Model"
                                                     helpText="The OpenAI-compatible model the session calls.">
@@ -62,6 +68,11 @@
                                                     label="Sample size limit (bytes)"
                                                     helpText="The largest sample of the stream shown to the model.">
                                         <v:ValueSpinner ui:field="sampleSizeLimit" width="120px"/>
+                                    </form:FormGroup>
+                                    <form:FormGroup identity="shapeshifterAiMaxDeferralAgeMs"
+                                                    label="Maximum deferral age (ms)"
+                                                    helpText="How long a stream may wait on a learning session before it is raised in the Supervisor's backlog. It goes on waiting; this is the flag that says somebody should look.">
+                                        <v:ValueSpinner ui:field="maxDeferralAgeMs" width="120px"/>
                                     </form:FormGroup>
                                 </g:FlowPanel>
                                 <g:SimplePanel ui:field="stepForm"/>

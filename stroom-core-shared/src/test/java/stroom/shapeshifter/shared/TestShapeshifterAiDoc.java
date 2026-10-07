@@ -17,13 +17,7 @@
 package stroom.shapeshifter.shared;
 
 import stroom.docref.DocRef;
-import stroom.meta.shared.MetaFields;
 import stroom.openai.shared.OpenAIModelDoc;
-import stroom.pipeline.shared.PipelineDoc;
-import stroom.query.api.ExpressionOperator;
-import stroom.query.api.ExpressionOperator.Op;
-import stroom.query.api.ExpressionTerm;
-import stroom.query.api.ExpressionTerm.Condition;
 import stroom.util.json.JsonUtil;
 import stroom.util.shared.Severity;
 
@@ -247,12 +241,9 @@ class TestShapeshifterAiDoc {
         // rather than only from the builder.
         final ShapeshifterAiDoc doc = new ShapeshifterAiDoc(
                 "uuid", "name", "1", null, null, null, null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null, null, null);
 
         assertThat(doc.getLearningMode()).isEqualTo(LearningMode.DISABLED);
-        assertThat(doc.getLearningKey())
-                .describedAs("A29: most bindings switch on feed and type alone")
-                .containsExactly(MetaFields.FIELD_FEED, MetaFields.FIELD_TYPE);
         assertThat(doc.getRelearnThreshold()).isEqualTo(0.8);
         assertThat(doc.getAllowedElements())
                 .describedAs("A10's initial set until a document narrows it")
@@ -279,9 +270,24 @@ class TestShapeshifterAiDoc {
         final ShapeshifterAiDoc created = new ShapeshifterAiDoc(
                 "uuid", "name", null, null, null, null, null,
                 null, null, null, null, null, null, null, null, null, null, null, null, null, null, null,
-                null, null, null, null);
+                null, null, null);
 
         assertThat(built).isEqualTo(created);
+    }
+
+    /// A document written before the learning key went (design 06 phase J slice 2a) still reads, the key
+    /// dropped: a stored or imported document must not fail to open because of a setting that no longer
+    /// exists.
+    @Test
+    void aDocumentWithALearningKeyStillReads() {
+        final String json = "{\"uuid\":\"uuid\",\"name\":\"old\",\"learningMode\":\"AUTOMATIC\","
+                            + "\"learningKey\":[\"Feed\",\"Type\",\"Format\"]}";
+
+        final ShapeshifterAiDoc read = JsonUtil.readValue(json, ShapeshifterAiDoc.class);
+
+        assertThat(read.getUuid()).isEqualTo("uuid");
+        assertThat(read.getLearningMode()).isEqualTo(LearningMode.AUTOMATIC);
+        assertThat(JsonUtil.writeValueAsString(read)).doesNotContain("learningKey");
     }
 
     @Test
@@ -310,41 +316,6 @@ class TestShapeshifterAiDoc {
     }
 
     @Test
-    void aLearnedSelectorIsExactlyTheLearningKey() {
-        // A22, A29: the supervisor writes the narrowest selector the variant was validated on — the
-        // document's learning key, in its order — and nothing wider, whatever else the stream carries.
-        final Map<String, Object> stream = Map.of(
-                MetaFields.FIELD_FEED, "SYSLOG",
-                MetaFields.FIELD_TYPE, "Raw Events",
-                RoutingFields.SYSTEM, "Door Access",
-                RoutingRule.SHAPE_SIGNATURE_FIELD, "rfc5424");
-        final ExpressionOperator selector = RoutingRule.learnedSelector(
-                List.of(MetaFields.FIELD_FEED, MetaFields.FIELD_TYPE, RoutingRule.SHAPE_SIGNATURE_FIELD), stream);
-
-        assertThat(selector.getChildren()).hasSize(3);
-        assertThat(selector.getChildren())
-                .extracting(child -> ((ExpressionTerm) child).getField(), child -> ((ExpressionTerm) child).getValue())
-                .containsExactly(
-                        tuple(MetaFields.FIELD_FEED, "SYSLOG"),
-                        tuple(MetaFields.FIELD_TYPE, "Raw Events"),
-                        tuple(RoutingRule.SHAPE_SIGNATURE_FIELD, "rfc5424"));
-        assertThat(selector.getChildren())
-                .allMatch(child -> ((ExpressionTerm) child).getCondition() == Condition.EQUALS);
-        assertThat(selector.op()).isEqualTo(Op.AND);
-    }
-
-    @Test
-    void aLearnedSelectorRefusesAKeyFieldTheStreamLacks() {
-        // A stream without a value for a key field has no shape under that key; binding on the fields it
-        // does carry would widen the rule to every value of the missing one, which §7.4 never validated.
-        assertThatThrownBy(() -> RoutingRule.learnedSelector(
-                List.of(MetaFields.FIELD_FEED, RoutingFields.SYSTEM),
-                Map.of(MetaFields.FIELD_FEED, "SYSLOG")))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining(RoutingFields.SYSTEM);
-    }
-
-    @Test
     void aRuleDefaultsToActiveWithNoUuid() {
         // The store assigns the uuid on save and the supervisor on creation; the client never does, so a
         // rule built without one is not yet identified and is neither a draft nor provisional.
@@ -353,16 +324,10 @@ class TestShapeshifterAiDoc {
         assertThat(rule.getUuid()).isNull();
         assertThat(rule.isDraft()).isFalse();
         assertThat(rule.isProvisional()).isFalse();
-        assertThat(rule.isReserved()).describedAs("no fragment: a reserved rule").isTrue();
     }
 
     static ShapeshifterAiDoc populated() {
         final DocRef model = OpenAIModelDoc.buildDocRef().uuid("model-uuid").name("local-model").build();
-        final DocRef fragment = PipelineDoc.buildDocRef().uuid("fragment-uuid").name("syslog-v3").build();
-        final Map<String, Object> stream = Map.of(
-                MetaFields.FIELD_FEED, "SYSLOG",
-                MetaFields.FIELD_TYPE, "Raw Events",
-                RoutingRule.SHAPE_SIGNATURE_FIELD, "rfc5424");
         return ShapeshifterAiDoc.builder()
                 .uuid("doc-uuid")
                 .name("syslog-ai")
@@ -374,7 +339,6 @@ class TestShapeshifterAiDoc {
                 .description("A document")
                 .learningMode(LearningMode.AUTOMATIC)
                 .model(model)
-                .learningKey(List.of(MetaFields.FIELD_FEED, MetaFields.FIELD_TYPE, RoutingRule.SHAPE_SIGNATURE_FIELD))
                 .relearnThreshold(0.75)
                 .allowedElements(List.of("XSLTFilter"))
                 .instructions("Prefer named fields.")

@@ -112,9 +112,9 @@ class TestServingDao {
                 .isEqualTo(1L);
     }
 
-    /// The three kinds of rule the view does not show, each for its own reason.
+    /// The two kinds of rule the view does not show, each for its own reason.
     @Test
-    void aDraftAReservedRuleAndAHandWrittenOneAreNotServingRules() {
+    void aDraftAndARuleWithNoShapeAreNotServingRules() {
         bound(rules, DOC, "busy", BUSY);
         rules.append(DOC, RoutingRule.builder()
                 .uuid("a-draft")
@@ -122,7 +122,6 @@ class TestServingDao {
                 .pipeline(new DocRef("Pipeline", "draft-fragment", "draft"))
                 .draft(true)
                 .build());
-        rules.append(DOC, RoutingRule.builder().uuid("reserved").shapeId(NEW).build());
         rules.append(DOC, RoutingRule.builder()
                 .uuid("by-hand")
                 .pipeline(new DocRef("Pipeline", "hand-fragment", "by hand"))
@@ -130,8 +129,8 @@ class TestServingDao {
 
         assertThat(serving.rules(List.of(DOC), null, 0L, 100).rules())
                 .extracting(ServingRule::getRuleUuid)
-                .describedAs("a draft is decided rather than improved, a reserved rule binds nothing, and "
-                             + "a rule written by hand came from no shape")
+                .describedAs("a draft is decided rather than improved, and a rule with no shape has "
+                             + "nothing to learn again")
                 .containsExactly("busy");
     }
 

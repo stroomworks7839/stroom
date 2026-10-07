@@ -64,7 +64,7 @@ import static org.assertj.core.api.Assertions.tuple;
 /// on each stream emits it. A stream a rule serves with a record short of the bar waits too, against the
 /// transform in force, and is not scored again while that transform stands; a stream of the same shape
 /// whose records all clear flows meanwhile. What errors is what nothing will ever learn: a shape given
-/// up, a reserved selector.
+/// up.
 class TestScenario54TheTaskDecision {
 
     private static final String DOC = "doc-1";
@@ -190,8 +190,10 @@ class TestScenario54TheTaskDecision {
         script.verifyExhausted();
         assertThat(scenarios.wake.woken()).extracting(Deferral::inputId)
                 .describedAs("the stream the rule was first learned on, woken by its promotion; and now the "
-                             + "held stream, by the rebinding")
-                .containsExactly(1L, 2L);
+                             + "held stream, by the rebinding, and again by the pass's sweep of what waits "
+                             + "against a replaced transform — nothing in a scenario has run its task, where "
+                             + "in a node the task is no longer deferred and the second wake finds nothing")
+                .containsExactly(1L, 2L, 2L);
         final StageRun served = task(scenarios, silent, counting).decide(doc, Scenarios.LEARNER, stream(2L, MIXED));
         assertThat(served.decision()).describedAs(served.decision().toString()).isInstanceOf(Bound.class);
         final RoutingRule rebound = ((Bound) served.decision()).rule();

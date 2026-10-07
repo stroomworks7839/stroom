@@ -16,9 +16,6 @@
 
 package stroom.shapeshifter.ai.scenario;
 
-import stroom.meta.shared.MetaFields;
-import stroom.query.api.ExpressionOperator;
-import stroom.query.api.ExpressionTerm.Condition;
 import stroom.shapeshifter.ai.extraction.ExtractionCorpus.Golden;
 import stroom.shapeshifter.ai.stage.Attempts.Recorded;
 import stroom.shapeshifter.ai.stage.Decision.Bound;
@@ -29,7 +26,6 @@ import stroom.shapeshifter.ai.stage.StageRun;
 import stroom.shapeshifter.shared.AttemptStatus;
 import stroom.shapeshifter.shared.FlowExample;
 import stroom.shapeshifter.shared.LearningMode;
-import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ScorerSetting;
 import stroom.shapeshifter.shared.ScorerType;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
@@ -213,7 +209,7 @@ class TestScenario30DeferredWorker {
     @Test
     void aShapeNobodyWantsLearnedAnyMoreIsNotLearnedByTheWorker() {
         // An attempt may wait a long while, and the shape is not as it left it: an operator may have
-        // reserved the selector or turned learning off, or it may have been given up. Whatever the attempt
+        // turned learning off, or it may have been given up. Whatever the attempt
         // was learning towards is not wanted now, so it is closed rather than carried on into a rule
         // nobody asked for.
         final Scenarios scenarios = new Scenarios();
@@ -221,13 +217,8 @@ class TestScenario30DeferredWorker {
         scenarios.inputs.put(stream(1L));
         scenarios.stage(Script.of()).decide(doc, Scenarios.LEARNER, stream(1L));
         final Recorded parked = scenarios.attempts.forDocument(DOC, 10).get(0);
-        // An operator reserves the selector while it waits: this shape binds nothing, by hand.
-        scenarios.rules.append(DOC, RoutingRule.builder()
-                .uuid("reserved-1")
-                .expression(ExpressionOperator.builder()
-                        .addTerm(MetaFields.FIELD_FEED, Condition.EQUALS, "DOOR-ACCESS")
-                        .build())
-                .build());
+        // A person gives the shape up while it waits.
+        scenarios.shapes.giveUp(DOC, parked.attempt().shape(), "Not wanted");
 
         final Script script = learning(scenarios);
         assertThat(scenarios.worker(script).advance(10)).isZero();
@@ -235,9 +226,8 @@ class TestScenario30DeferredWorker {
         assertThat(script.asked()).describedAs("the model is not asked for a shape nobody wants").isEmpty();
         final Recorded closed = scenarios.attempts.byId(parked.id()).orElseThrow();
         assertThat(closed.status()).isEqualTo(AttemptStatus.ABANDONED);
-        assertThat(closed.decision()).contains("Reserved");
-        assertThat(scenarios.rules.forDocument(DOC))
-                .describedAs("and no second rule was appended beside the reserved one").hasSize(1);
+        assertThat(closed.decision()).contains("Shape given up: Not wanted");
+        assertThat(scenarios.rules.forDocument(DOC)).describedAs("and no rule was written").isEmpty();
     }
 
     @Test

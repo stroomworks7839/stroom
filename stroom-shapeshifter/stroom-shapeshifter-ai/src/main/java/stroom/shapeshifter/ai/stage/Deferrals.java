@@ -66,6 +66,12 @@ public interface Deferrals {
     /// @return Its rows.
     List<Deferral> forDocument(String docUuid);
 
+    /// The documents that have a stream waiting: what the learning job sweeps for rows a promotion's wake
+    /// could not reach (see [Stage#wakeSuperseded]).
+    ///
+    /// @return Their uuids, each once.
+    List<String> documentsWaiting();
+
     /// One stream's row, where it has one.
     ///
     /// @param learner The learner it waits on.

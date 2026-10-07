@@ -77,11 +77,10 @@ public class ServingDao implements Serving {
                 .where(SHAPESHIFTER_GUIDANCE.DOC_UUID.in(docUuids))
                 .groupBy(SHAPESHIFTER_GUIDANCE.DOC_UUID, SHAPESHIFTER_GUIDANCE.SHAPE_HASH)
                 .asTable("guidance");
-        // A draft is decided rather than improved (A25); a rule binding nothing is a reserved one; and a
-        // rule with no shape was written by hand, so there is nothing to learn again for it.
+        // A draft is decided rather than improved (A25), and a rule with no shape has nothing to learn
+        // again.
         final Condition serving = SHAPESHIFTER_RULE.DOC_UUID.in(docUuids)
                 .and(SHAPESHIFTER_RULE.DRAFT.isFalse())
-                .and(SHAPESHIFTER_RULE.PIPELINE_UUID.isNotNull())
                 .and(SHAPESHIFTER_RULE.SHAPE_HASH.isNotNull());
         // A shape that has served nothing is not below anything: it has no score to be below one.
         final Condition matching = below == null

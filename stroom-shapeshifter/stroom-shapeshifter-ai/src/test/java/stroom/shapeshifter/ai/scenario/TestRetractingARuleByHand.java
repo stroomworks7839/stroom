@@ -118,7 +118,7 @@ class TestRetractingARuleByHand {
                 .isNotEqualTo(bound.getUuid());
     }
 
-    /// The three states in which retracting must refuse rather than proceed, each of which would undo
+    /// The two states in which retracting must refuse rather than proceed, each of which would undo
     /// something somebody else decided.
     @Test
     void whatCannotBeRetractedSaysSoRatherThanGuessing() {
@@ -131,12 +131,6 @@ class TestRetractingARuleByHand {
         assertThatThrownBy(() -> stage.retract(doc, "not-a-rule", "Wrong.", "jo"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("not a rule of this document");
-
-        scenarios.rules.append("doc-1", RoutingRule.builder().uuid("reserved").build());
-        assertThatThrownBy(() -> stage.retract(doc, "reserved", "Wrong.", "jo"))
-                .describedAs("a reserved rule binds nothing, so nothing is serving to be taken back")
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("binds nothing");
 
         scenarios.rules.append("doc-1", bound.copy().uuid("a-draft").draft(true).build());
         assertThatThrownBy(() -> stage.retract(doc, "a-draft", "Wrong.", "jo"))

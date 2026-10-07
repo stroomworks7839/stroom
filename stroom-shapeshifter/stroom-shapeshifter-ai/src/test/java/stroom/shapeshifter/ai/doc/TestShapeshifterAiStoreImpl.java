@@ -17,7 +17,6 @@
 package stroom.shapeshifter.ai.doc;
 
 import stroom.docref.DocRef;
-import stroom.meta.shared.MetaFields;
 import stroom.shapeshifter.ai.learning.Templates;
 import stroom.shapeshifter.shared.FlowExample;
 import stroom.shapeshifter.shared.FlowStep;
@@ -25,7 +24,6 @@ import stroom.shapeshifter.shared.LearningFlow;
 import stroom.shapeshifter.shared.LearningMode;
 import stroom.shapeshifter.shared.PromotionMode;
 import stroom.shapeshifter.shared.QuestionKind;
-import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 import stroom.shapeshifter.shared.Template;
 
@@ -51,7 +49,6 @@ class TestShapeshifterAiStoreImpl {
         final ShapeshifterAiDoc doc = store.readDocument(docRef);
 
         assertThat(doc.getName()).isEqualTo("syslog-ai");
-        assertThat(doc.getLearningKey()).containsExactly(MetaFields.FIELD_FEED, MetaFields.FIELD_TYPE);
         assertThat(doc.getPromotionMode()).isEqualTo(PromotionMode.AUTOMATIC);
         assertThat(doc.getLearningMode())
                 .describedAs("Shapeshifter AI is opt-in per document (§11), so a new document must not call the model")
@@ -73,22 +70,6 @@ class TestShapeshifterAiStoreImpl {
         assertThat(read.getScorers().get(2).getParameters())
                 .describedAs("polymorphic parameters survive the store")
                 .isEqualTo(ShapeshifterAiFixture.SCORERS.get(2).getParameters());
-    }
-
-    @Test
-    void saveRefusesAKeyASelectorCannotMatch() {
-        // A29: the learning key is validated where the editor cannot validate it. Rules are no longer part
-        // of the document (A41), so the store has nothing to say about them.
-        final DocRef docRef = store.createDocument("syslog-ai");
-        assertThatThrownBy(() -> store.writeDocument(store.readDocument(docRef).copy()
-                .learningKey(List.of(MetaFields.FIELD_FEED, "X-Sender-Token"))
-                .build()))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("X-Sender-Token");
-        assertThatThrownBy(() -> store.writeDocument(store.readDocument(docRef).copy()
-                .learningKey(List.of())
-                .build()))
-                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test

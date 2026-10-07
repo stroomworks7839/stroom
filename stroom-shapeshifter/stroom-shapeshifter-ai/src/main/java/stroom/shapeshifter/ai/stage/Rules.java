@@ -33,31 +33,22 @@ import java.util.Optional;
 /// through a cache; these are the writes and the cache's source (design 01 §11.4).
 public interface Rules {
 
-    /// The document's rules, in the order the router should try them.
+    /// The document's rules, oldest first. A shape is served by its own rule, so their order decides
+    /// nothing (design 06 phase J slice 2a).
     List<RoutingRule> forDocument(String docUuid);
 
     /// The rule with this uuid, if the document has it.
     Optional<RoutingRule> byUuid(String docUuid, String ruleUuid);
 
-    /// Append a rule to the end of the document's table, giving it a uuid where it has none.
+    /// Add a rule to the document's, giving it a uuid where it has none.
     ///
     /// @return The rule as stored, with its uuid.
     RoutingRule append(String docUuid, RoutingRule rule);
 
-    /// Put a rule at this position in the document's table, giving it a uuid where it has none; a position
-    /// past the end appends. An operator's rule goes above the learned ones, and the router takes the first
-    /// match, so where a rule sits is what decides whose rule wins.
-    ///
-    /// @return The rule as stored, with its uuid.
-    RoutingRule insert(String docUuid, RoutingRule rule, int at);
-
-    /// Move a rule to this position, the others closing behind it.
-    void move(String docUuid, String ruleUuid, int to);
-
-    /// Replace the rule of the same uuid, keeping its position; a rule the document does not have is
-    /// appended, since a promotion must not be lost because its row was pruned.
+    /// Replace the rule of the same uuid; a rule the document does not have is added, since a promotion
+    /// must not be lost because its row was pruned.
     void replace(String docUuid, RoutingRule rule);
 
-    /// Remove a rule — a draft rejected, a learned rule an operator discards.
+    /// Remove a rule: a draft rejected, a rule retracted.
     void remove(String docUuid, String ruleUuid);
 }

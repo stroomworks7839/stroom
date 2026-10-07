@@ -17,7 +17,6 @@
 package stroom.shapeshifter.ai.scenario;
 
 import stroom.docref.DocRef;
-import stroom.meta.shared.MetaFields;
 import stroom.pipeline.shared.XsltDoc;
 import stroom.pipeline.shared.data.PipelineProperty;
 import stroom.processor.api.DeferTaskException;
@@ -25,6 +24,7 @@ import stroom.shapeshifter.ai.extraction.ExtractionCorpus.Golden;
 import stroom.shapeshifter.ai.pack.DemoDocument;
 import stroom.shapeshifter.ai.stage.Decision.Bound;
 import stroom.shapeshifter.ai.stage.Decision.Promoted;
+import stroom.shapeshifter.ai.stage.Deferrals.Deferral;
 import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.Snapshots.Snapshot;
 import stroom.shapeshifter.ai.stage.Stage;
@@ -34,6 +34,9 @@ import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 
 import org.junit.jupiter.api.Test;
+import org.xml.sax.Attributes;
+import org.xml.sax.ContentHandler;
+import org.xml.sax.helpers.DefaultHandler;
 
 import java.util.List;
 import java.util.Map;
@@ -109,6 +112,71 @@ class TestScenario56ASnapshotKeepsWhatRan {
         assertThat(sink.text()).contains("<Action>Logoff</Action>");
     }
 
+    /// A task that judged its stream against the snapshot a relearning has just replaced finds its record
+    /// short of a bar the shape no longer stands at. It neither marks the shape nor opens a session — that
+    /// would relearn what has just been learned, and ask the model for it — but waits against the old
+    /// stamp; and since the promotion's wake came before its row was written, the learning job's pass is
+    /// what wakes it, to be scored against the new snapshot.
+    @Test
+    void aStreamJudgedAgainstAReplacedSnapshotIsTriedAgainRatherThanRelearned() {
+        final Scenarios scenarios = new Scenarios();
+        final ShapeshifterAiDoc doc = doc();
+        scenarios.documents.put(doc);
+        scenarios.inputs.put(stream(2L, MIXED));
+        scenarios.inputs.put(stream(3L, MIXED));
+        final RoutingRule learned = learn(scenarios, doc, LOGON_ONLY);
+        final Script silent = Script.of();
+        assertThatThrownBy(() -> task(scenarios, silent).stream(doc, Scenarios.LEARNER, learned, stream(2L, MIXED),
+                new TextSink()))
+                .isInstanceOf(DeferTaskException.class);
+        final int attempts = scenarios.attempts.forDocument(DOC, 10).size();
+
+        // A task serves stream 3 under the snapshot in force, and while it runs — the records before the
+        // logoff already handed on — the worker relearns and promotes. The logoff then falls short of the
+        // bar the shape stood at when the run began.
+        final Script relearning = script(scenarios, TRANSLATES_BOTH);
+        final ContentHandler relearnedMidRun = new DefaultHandler() {
+            private boolean relearned;
+
+            @Override
+            public void startElement(final String uri, final String localName, final String qName,
+                                     final Attributes attributes) {
+                if (!relearned) {
+                    relearned = true;
+                    assertThat(scenarios.worker(relearning).advance(10)).isEqualTo(1);
+                }
+            }
+        };
+        assertThatThrownBy(() -> task(scenarios, silent).stream(doc, Scenarios.LEARNER, learned, stream(3L, MIXED),
+                relearnedMidRun))
+                .isInstanceOf(DeferTaskException.class)
+                .hasMessageContaining("since replaced");
+        relearning.verifyExhausted();
+        final RoutingRule rebound = scenarios.rules.forDocument(DOC).get(0);
+        assertThat(rebound.getSnapshot()).isNotEqualTo(learned.getSnapshot());
+        assertThat(silent.asked()).isEmpty();
+        assertThat(scenarios.shapes.relearnReason(DOC, rebound.getShapeId()))
+                .describedAs("the shape is not marked on a stale judgement")
+                .isEmpty();
+        assertThat(scenarios.attempts.forDocument(DOC, 10))
+                .describedAs("no session opened beyond the relearning")
+                .hasSize(attempts);
+        assertThat(scenarios.deferrals.of(Scenarios.LEARNER, 3L).orElseThrow().failedAgainst())
+                .isEqualTo(learned.getSnapshot());
+        assertThat(scenarios.wake.woken())
+                .describedAs("the promotion woke what waited before the row was written")
+                .extracting(Deferral::inputId)
+                .doesNotContain(3L);
+
+        // The learning job's pass wakes it, and it clears under the snapshot in force.
+        assertThat(scenarios.worker(Script.of()).advance(10)).isZero();
+        assertThat(scenarios.wake.woken()).extracting(Deferral::inputId).contains(3L);
+        final StageRun decided = task(scenarios, silent).decide(doc, Scenarios.LEARNER, stream(3L, MIXED));
+        assertThat(decided.decision()).describedAs(decided.decision().toString()).isInstanceOf(Bound.class);
+        assertThat(task(scenarios, silent).stream(doc, Scenarios.LEARNER, ((Bound) decided.decision()).rule(),
+                stream(3L, MIXED), new TextSink()).clear()).isTrue();
+    }
+
     @Test
     void anAsProcessedReprocessRunsTheSnapshotThatProducedTheOutput() {
         final Scenarios scenarios = new Scenarios();
@@ -163,50 +231,8 @@ class TestScenario56ASnapshotKeepsWhatRan {
         assertThat(scenarios.snapshots.forRule(learned.getUuid())).hasSize(2);
     }
 
-    /// A fragment bound for two shapes — one learned, one bound by looking (design 01 §6) — is not either
-    /// rule's alone: a relearning for the second writes it a fragment of its own, and the first goes on
-    /// serving with what it had.
-    @Test
-    void aFragmentSharedWithANeighbouringShapeIsNotEditedInPlace() {
-        final Scenarios scenarios = new Scenarios();
-        final ShapeshifterAiDoc doc = doc().copy()
-                .learningKey(List.of(MetaFields.FIELD_FEED, MetaFields.FIELD_TYPE, RoutingFields.FORMAT))
-                .build();
-        scenarios.documents.put(doc);
-        final Script learning = script(scenarios, LOGON_ONLY);
-        final StageRun first = scenarios.process(learning, doc, stream(1L, CSV.input(), "CSV")).learned();
-        learning.verifyExhausted();
-        final RoutingRule a = ((Promoted) first.decision()).rule();
-        // The neighbour, bound by looking to a's fragment.
-        final Script silent = Script.of();
-        final StageRun second = task(scenarios, silent).decide(doc, Scenarios.LEARNER, stream(2L, CSV.input(),
-                "CSV-v2"));
-        final RoutingRule b = ((Promoted) second.decision()).rule();
-        assertThat(b.getPipeline()).isEqualTo(a.getPipeline());
-        assertThat(b.getSnapshot())
-                .describedAs("its own snapshot of the shared fragment")
-                .isNotEqualTo(a.getSnapshot());
-
-        // A mixed stream of the neighbour's shape falls short; the worker relearns the neighbour.
-        scenarios.inputs.put(stream(3L, MIXED, "CSV-v2"));
-        assertThatThrownBy(() -> task(scenarios, silent).stream(doc, Scenarios.LEARNER, b, stream(3L, MIXED,
-                "CSV-v2"), new TextSink()))
-                .isInstanceOf(DeferTaskException.class);
-        final Script relearning = script(scenarios, TRANSLATES_BOTH);
-        assertThat(scenarios.worker(relearning).advance(10)).isEqualTo(1);
-        relearning.verifyExhausted();
-
-        final RoutingRule rebound = scenarios.rules.forDocument(DOC).stream()
-                .filter(rule -> rule.getUuid().equals(b.getUuid()))
-                .findFirst()
-                .orElseThrow();
-        assertThat(rebound.getPipeline()).describedAs("a fragment of its own").isNotEqualTo(a.getPipeline());
-        assertThat(stylesheet(scenarios, a.getPipeline()))
-                .describedAs("the neighbour's fragment is as it was")
-                .isEqualTo(LOGON_ONLY);
-        assertThat(stylesheet(scenarios, rebound.getPipeline())).isEqualTo(TRANSLATES_BOTH);
-        assertThat(scenarios.stores.pipelines.list()).hasSize(2);
-    }
+    // A fragment shared with a neighbouring shape is retired with binding by looking (design 06 phase J
+    // slice 2a): a shape is its feed and type, so no second shape can come to share the first's fragment.
 
     @Test
     void aRetractedRuleTakesItsSnapshotsWithIt() {

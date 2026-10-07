@@ -16,8 +16,6 @@
 
 package stroom.shapeshifter.ai.scenario;
 
-import stroom.meta.shared.MetaFields;
-import stroom.query.api.ExpressionOperator;
 import stroom.query.api.ExpressionTerm.Condition;
 import stroom.shapeshifter.ai.extraction.ExtractionCorpus.Golden;
 import stroom.shapeshifter.ai.learning.Advisor;
@@ -45,7 +43,6 @@ import stroom.shapeshifter.shared.FlowExample;
 import stroom.shapeshifter.shared.LearningMode;
 import stroom.shapeshifter.shared.PromotionMode;
 import stroom.shapeshifter.shared.QuestionKind;
-import stroom.shapeshifter.shared.RoutingFields;
 import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ScorerSetting;
 import stroom.shapeshifter.shared.ScorerType;
@@ -65,7 +62,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * Design 02 §5, scenarios 14, 25, 26 and 29, and the draft-rule sentinel of 22: what the stage does
+ * Design 02 §5, scenarios 14 and 29, and the draft-rule sentinel of 22: what the stage does
  * with a stream before — or instead of — asking the model. Every scenario here runs with an empty
  * script: a question asked is the failure.
  */
@@ -75,17 +72,14 @@ class TestScenariosBindingBeforeLearning {
     private static final String XSLT = Scenarios.resource("csv-logon.xsl");
     private static final String EXPECTED_EVENTS = Scenarios.resource("csv-logon.events.xml");
 
-    /**
-     * Keyed on {@code Format} as well, so that the same CSV under another format label is a new shape
-     * the existing splitter happens to consume.
-     */
-    private static ShapeshifterAiDoc keyedOnFormat() {
+    /// The document every scenario here runs: learning automatically, keyed as every document now is on
+    /// feed and type (design 06 phase J slice 2a).
+    private static ShapeshifterAiDoc doorAccess() {
         return Scenarios.document()
                 .uuid("doc-1")
                 .name("door-access")
                 .learningMode(LearningMode.AUTOMATIC)
                 .flow(FlowExample.TARGET_FIRST)
-                .learningKey(List.of(MetaFields.FIELD_FEED, MetaFields.FIELD_TYPE, RoutingFields.FORMAT))
                 .allowedElements(List.of("DSParser", "XSLTFilter"))
                 .minRecordsPerShape(5)
                 .promotionFloor(0.85)
@@ -97,7 +91,6 @@ class TestScenariosBindingBeforeLearning {
                 .build();
     }
 
-    /// The shape a CSV stream of this feed and type makes, under the document's learning key.
     /// Another node already learning this shape, as the claim of A45 has it: the row that a stage meeting
     /// the shape finds instead of taking it.
     private static long heldByAnotherNode(final Scenarios scenarios, final long untilMs) {
@@ -108,7 +101,7 @@ class TestScenariosBindingBeforeLearning {
     }
 
     private static String shapeX() {
-        return Shape.of(keyedOnFormat().getLearningKey(),
+        return Shape.of(Shape.KEY,
                 stream("CSV").routingAttributes(ShapeSignature.of(CSV.input()))).id();
     }
 
@@ -130,81 +123,28 @@ class TestScenariosBindingBeforeLearning {
         return run;
     }
 
-    @Test
-    void scenario25AnExistingBindingFitsANewShapeWithoutAQuestion() {
-        final Scenarios scenarios = new Scenarios();
-        final StageRun learned = learnShapeX(scenarios, keyedOnFormat());
-        final RoutingRule v1 = ((Promoted) learned.decision()).rule();
-
-        final Script silent = Script.of();
-        final StageRun run = scenarios.process(silent, learned.doc(), stream("CSV-v2")).learned();
-
-        assertThat(silent.asked()).isEmpty();
-        assertThat(run.decision()).isInstanceOf(Promoted.class);
-        final RoutingRule bound = ((Promoted) run.decision()).rule();
-        assertThat(bound.getPipeline())
-                .describedAs("v1's fragment, not a new one: no document was written")
-                .isEqualTo(v1.getPipeline());
-        assertThat(bound.getUuid()).isNotEqualTo(v1.getUuid());
-        assertThat(bound.getExpression().toString()).contains("Format = CSV-v2");
-        assertThat(run.shape().id()).isEqualTo("Feed=DOOR-ACCESS|Type=Raw Events|Format=CSV-v2");
-        assertThat(run.output()).isEqualTo(EXPECTED_EVENTS);
-        assertThat(scenarios.rules.forDocument("doc-1")).hasSize(2);
-        assertThat(scenarios.stores.pipelines.list()).hasSize(1);
-        assertThat(scenarios.regressionSet.accepted(bound.getUuid()))
-                .describedAs("nothing was learned for (A56): the variant was bound by looking, and the "
-                             + "corpus is what a session had to learn")
-                .isEmpty();
-    }
+    // Scenarios 25 and 26 are retired with routing (design 06 phase J slice 2a): a shape is its feed and
+    // type, so there is no neighbouring shape for an existing binding to fit, and no rule to reserve one.
 
     @Test
-    void scenario29DisabledStillSelectsAmongBoundVariants() {
+    void scenario29DisabledLearnsNothingAndTheStreamWaits() {
         final Scenarios scenarios = new Scenarios();
-        final StageRun learned = learnShapeX(scenarios, keyedOnFormat());
-        final ShapeshifterAiDoc disabled = learned.doc().copy().learningMode(LearningMode.DISABLED).build();
+        final ShapeshifterAiDoc disabled = doorAccess().copy().learningMode(LearningMode.DISABLED).build();
 
+        // A stream nothing serves waits for a person (design 04 §3, the kill switch): no session opens and
+        // the model is never asked.
         final Script silent = Script.of();
-        final StageRun fits = scenarios.process(silent, disabled, stream("CSV-v2")).learned();
-        assertThat(fits.decision()).isInstanceOf(Promoted.class);
-        assertThat(silent.asked()).isEmpty();
-
-        // A stream nothing bound can handle waits for a person (design 04 §3, the kill switch): no session
-        // opens and the model is never asked.
-        final Input unlike = new Input(2L, "DOOR-ACCESS", "Raw Events", Map.of("Format", "JSON"),
-                "{\"not\": \"csv\"}\n");
-        final StageRun waiting = scenarios.process(silent, fits.doc(), unlike).learned();
+        final StageRun waiting = scenarios.process(silent, disabled, stream("CSV")).learned();
         assertThat(waiting.decision()).isInstanceOf(Deferred.class);
         assertThat(((Deferred) waiting.decision()).reason()).contains("disabled");
         assertThat(silent.asked()).isEmpty();
-        assertThat(scenarios.attempts.forDocument("doc-1", 10)).describedAs("no session opened").hasSize(1);
-    }
-
-    @Test
-    void scenario26AReservedRuleGivesTheShapeUp() {
-        final Scenarios scenarios = new Scenarios();
-        final RoutingRule reserved = RoutingRule.builder()
-                .uuid("reserved-1")
-                .expression(ExpressionOperator.builder()
-                        .addTerm(MetaFields.FIELD_FEED, Condition.EQUALS, "DOOR-ACCESS")
-                        .build())
-                .build();
-        final ShapeshifterAiDoc doc = keyedOnFormat();
-        scenarios.rules.append("doc-1", reserved);
-
-        final Script silent = Script.of();
-        final StageRun run = scenarios.process(silent, doc, stream("CSV")).learned();
-
-        assertThat(run.decision()).isInstanceOf(Sentinel.class);
-        assertThat(((Sentinel) run.decision()).reason()).startsWith("Reserved: rule 1");
-        assertThat(silent.asked()).isEmpty();
-        assertThat(scenarios.rules.forDocument("doc-1")).containsExactly(reserved);
-        assertThat(scenarios.stores.pipelines.list()).isEmpty();
+        assertThat(scenarios.attempts.forDocument("doc-1", 10)).describedAs("no session opened").isEmpty();
     }
 
     @Test
     void scenario14TooFewRecordsBindsProvisionallyThenPromotesWhenEnoughArrive() {
         final Scenarios scenarios = new Scenarios();
-        final ShapeshifterAiDoc doc = keyedOnFormat().copy().minRecordsPerShape(10).build();
+        final ShapeshifterAiDoc doc = doorAccess().copy().minRecordsPerShape(10).build();
         final Script script = scenarios.script(CSV.configuration(), XSLT)
                 .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter")
                 .expect(QuestionMatcher.configuration("DSParser")).reply(Scenarios.fenced(CSV.configuration()))
@@ -263,7 +203,7 @@ class TestScenariosBindingBeforeLearning {
         // The routing half of scenario 22 (A25; design 04 §3): the router does not bind a draft; a stream of
         // its shape waits behind it, naming it, and the model is not asked again.
         final Scenarios scenarios = new Scenarios();
-        final StageRun learned = learnShapeX(scenarios, keyedOnFormat());
+        final StageRun learned = learnShapeX(scenarios, doorAccess());
         final RoutingRule live = ((Promoted) learned.decision()).rule();
         final RoutingRule draft = live.copy().draft(true).build();
         scenarios.rules.replace("doc-1", draft);
@@ -288,7 +228,7 @@ class TestScenariosBindingBeforeLearning {
 
         final Script silent = Script.of();
         scenarios.node = "node-1";
-        final StageRun run = scenarios.process(silent, keyedOnFormat(), stream("CSV")).learned();
+        final StageRun run = scenarios.process(silent, doorAccess(), stream("CSV")).learned();
 
         assertThat(run.decision()).isInstanceOf(Deferred.class);
         assertThat(((Deferred) run.decision()).reason()).contains("Another node is learning this shape");
@@ -300,7 +240,7 @@ class TestScenariosBindingBeforeLearning {
 
         // That attempt over, the next stream of the shape learns, and the stream that waited is woken.
         scenarios.attempts.closed(held, AttemptStatus.ABANDONED, "The other node gave up", null, null, 0L);
-        final StageRun learned = learnShapeX(scenarios, keyedOnFormat());
+        final StageRun learned = learnShapeX(scenarios, doorAccess());
 
         assertThat(learned.decision()).describedAs(learned.decision().toString()).isInstanceOf(Promoted.class);
         assertThat(scenarios.wake.woken()).extracting(Deferral::inputId).contains(1L);
@@ -313,7 +253,7 @@ class TestScenariosBindingBeforeLearning {
         // for itself. The first holds it until its rule is written — a second node that took it in between
         // would find no rule for the shape, learn it again, and append a second rule for one selector.
         final Scenarios scenarios = new Scenarios();
-        final ShapeshifterAiDoc doc = keyedOnFormat();
+        final ShapeshifterAiDoc doc = doorAccess();
         final Script watching = Script.of();
         scenarios.node = "node-2";
         final Stage other = scenarios.stage(watching);
@@ -346,16 +286,6 @@ class TestScenariosBindingBeforeLearning {
             }
 
             @Override
-            public RoutingRule insert(final String docUuid, final RoutingRule rule, final int at) {
-                return scenarios.rules.insert(docUuid, rule, at);
-            }
-
-            @Override
-            public void move(final String docUuid, final String ruleUuid, final int to) {
-                scenarios.rules.move(docUuid, ruleUuid, to);
-            }
-
-            @Override
             public void replace(final String docUuid, final RoutingRule rule) {
                 scenarios.rules.replace(docUuid, rule);
             }
@@ -384,7 +314,7 @@ class TestScenariosBindingBeforeLearning {
         final long held = heldByAnotherNode(scenarios, Scenarios.NOW.toEpochMilli() - 1);
         final Script silent = Script.of();
 
-        final StageRun run = scenarios.process(silent, keyedOnFormat(), stream("CSV")).learned();
+        final StageRun run = scenarios.process(silent, doorAccess(), stream("CSV")).learned();
 
         assertThat(run.decision()).describedAs(run.decision().toString()).isNotInstanceOf(Promoted.class);
         assertThat(silent.asked()).describedAs("nothing is learned over it").isEmpty();
@@ -399,7 +329,7 @@ class TestScenariosBindingBeforeLearning {
         // for redaction (A17, A38).
         final Scenarios scenarios = new Scenarios();
 
-        final StageRun learned = learnShapeX(scenarios, keyedOnFormat());
+        final StageRun learned = learnShapeX(scenarios, doorAccess());
 
         final List<Recorded> recorded = scenarios.attempts.forDocument("doc-1", 10);
         assertThat(recorded).hasSize(1);
@@ -430,7 +360,7 @@ class TestScenariosBindingBeforeLearning {
     void anAttemptThatBoundNothingSaysSoAndOneWhoseShapeIsTakenOpensNone() {
         final Scenarios scenarios = new Scenarios();
         // Nothing to learn with: the attempt is opened, abandoned and recorded as abandoned.
-        final ShapeshifterAiDoc nothingRunnable = keyedOnFormat().copy()
+        final ShapeshifterAiDoc nothingRunnable = doorAccess().copy()
                 .allowedElements(List.of("JSONParser"))
                 .build();
 
@@ -443,7 +373,7 @@ class TestScenariosBindingBeforeLearning {
 
         // A node that does not take the shape opens no attempt of its own: it did not learn anything.
         heldByAnotherNode(scenarios, Long.MAX_VALUE);
-        scenarios.process(Script.of(), keyedOnFormat(), stream("CSV")).learned();
+        scenarios.process(Script.of(), doorAccess(), stream("CSV")).learned();
 
         assertThat(scenarios.attempts.forDocument("doc-1", 10))
                 .describedAs("two: the abandoned one and the other node's, and none for the loser")
@@ -462,7 +392,7 @@ class TestScenariosBindingBeforeLearning {
         // A fresh advisor per call, as the node's does, each charging as it is asked.
         final Advisors fresh = document -> new CountingAdvisor(script);
 
-        final StageRun run = scenarios.process(fresh, scenarios.rules, null, keyedOnFormat(), stream("CSV")).learned();
+        final StageRun run = scenarios.process(fresh, scenarios.rules, null, doorAccess(), stream("CSV")).learned();
 
         assertThat(run.decision()).describedAs(run.decision().toString()).isInstanceOf(Promoted.class);
         assertThat(scenarios.attempts.forDocument("doc-1", 10).get(0).tokensSpent())
@@ -487,7 +417,7 @@ class TestScenariosBindingBeforeLearning {
                     throw new IllegalStateException("the model fell over");
                 });
 
-        assertThatThrownBy(() -> scenarios.process(script, keyedOnFormat(), stream("CSV")).learned())
+        assertThatThrownBy(() -> scenarios.process(script, doorAccess(), stream("CSV")).learned())
                 .isInstanceOf(IllegalStateException.class);
 
         final Recorded attempt = scenarios.attempts.forDocument("doc-1", 10).get(0);
@@ -504,7 +434,7 @@ class TestScenariosBindingBeforeLearning {
         // already has are not asked again. The conversation keeps no state of its own — it is re-walked with
         // those answers, which re-derives what they produced.
         final Scenarios scenarios = new Scenarios();
-        final ShapeshifterAiDoc doc = keyedOnFormat();
+        final ShapeshifterAiDoc doc = doorAccess();
         scenarios.documents.put(doc);
         scenarios.inputs.put(stream("CSV"));
 
@@ -555,7 +485,7 @@ class TestScenariosBindingBeforeLearning {
         // another shape would answer questions never asked about it from a record of questions about
         // something else.
         final Scenarios scenarios = new Scenarios();
-        final ShapeshifterAiDoc doc = keyedOnFormat();
+        final ShapeshifterAiDoc doc = doorAccess();
         final Script started = scenarios.script(CSV.configuration(), XSLT)
                 .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter");
         scenarios.process(new StoppingAdvisor(started, 1), doc, stream("CSV")).learned();
@@ -578,7 +508,8 @@ class TestScenariosBindingBeforeLearning {
         // Another shape's stream, whoever asks.
         scenarios.node = "node-1";
         final Stage stage = scenarios.stage(Script.of());
-        assertThatThrownBy(() -> stage.resume(doc, waiting.id(), stream("JSON"), Script.of()))
+        final Input otherType = new Input(1L, "DOOR-ACCESS", "Other Events", Map.of(), CSV.input());
+        assertThatThrownBy(() -> stage.resume(doc, waiting.id(), otherType, Script.of()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("was learning shape");
 
@@ -594,7 +525,7 @@ class TestScenariosBindingBeforeLearning {
         // different questions, and answering those from the record would judge, configure and possibly
         // bind an answer given to something else.
         final Scenarios scenarios = new Scenarios();
-        final ShapeshifterAiDoc doc = keyedOnFormat();
+        final ShapeshifterAiDoc doc = doorAccess();
         final Script started = scenarios.script(CSV.configuration(), XSLT)
                 .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter");
         scenarios.process(new StoppingAdvisor(started, 1), doc, stream("CSV")).learned();

@@ -107,6 +107,14 @@ public class DeferralsDao implements Deferrals {
     }
 
     @Override
+    public List<String> documentsWaiting() {
+        return JooqUtil.contextResult(connProvider, context -> context
+                .selectDistinct(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.DOC_UUID)
+                .from(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL)
+                .fetch(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.DOC_UUID));
+    }
+
+    @Override
     public Optional<Deferral> of(final Learner learner, final long inputId) {
         return JooqUtil.contextResult(connProvider, context -> context
                 .selectFrom(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL)

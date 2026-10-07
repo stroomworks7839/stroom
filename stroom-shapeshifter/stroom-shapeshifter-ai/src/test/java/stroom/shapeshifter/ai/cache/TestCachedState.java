@@ -199,15 +199,7 @@ class TestCachedState {
             return delegate.append(docUuid, rule);
         }
 
-        @Override
-        public RoutingRule insert(final String docUuid, final RoutingRule rule, final int at) {
-            return delegate.insert(docUuid, rule, at);
-        }
 
-        @Override
-        public void move(final String docUuid, final String ruleUuid, final int to) {
-            delegate.move(docUuid, ruleUuid, to);
-        }
 
         @Override
         public void replace(final String docUuid, final RoutingRule rule) {

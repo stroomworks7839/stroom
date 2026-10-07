@@ -453,7 +453,58 @@ The largest phase. Its slices keep the build and the scenarios green at each ste
    two would write rules into one document's table, the newer winning. Slice 2's record, per learner,
    makes them two learners with a record each.
 
-2. **One record, no rules (A117).** The rule table and the shape table become the element's record.
+2. **Routing goes, then the rekey (A124, A125).** Cut on 2026-10-07 into two slices, routing first,
+   since once nothing selects a rule a rule is just the binding a document's shape is served by, and
+   what is left to rekey is then (document, shape) to (learner, shape) throughout, as mechanical as
+   slice 1.
+
+   *2a, routing.* The router and the selector go: a stream is served by its shape's serving binding,
+   the non-draft rule whose shape is the stream's — the older, where two pipelines under one document
+   have each bound it (slice 1's audit), until 2b keys rules by learner. A rule written by hand, a reserved rule, the
+   order of the table and the learning key go with them, a shape being a feed and a type until slice 3
+   removes it. The resource's add, edit, move and delete of a rule go, and with them the Route tab,
+   which held nothing else but the learning mode, the learning key and the maximum deferral age:
+   phase L's first slice is done here, the learning mode and the deferral age moving to the Learn tab
+   (A118) and the process header showing Score and Learn (A110).
+
+   *2a built 2026-10-07.* A shape's binding is its non-draft rule, or failing that its draft. Binding by
+   looking (design 01 §6) — trying a fragment learned for a neighbouring shape before asking the model —
+   goes with routing: a shape is a feed and a type, so there is no neighbour, and every rule of the same
+   feed and type is the shape's own. So the variant trial goes from the decision and from stepping, a
+   relearning no longer asks whether its fragment is shared with another rule, and a dry run's *would*
+   names no candidate fragment. With learning off, a stream nothing serves waits for a person. The rule
+   table loses its order and its selector, in the rewritten `V08_00_00_001` migration, so a development
+   database must again drop the Shapeshifter AI tables first. Retired with what they exercised: design 02
+   scenarios 25 (a binding fits a new shape) and 26 (a reserved rule), scenario 56's shared fragment, the
+   stepped variant, the signature-keyed shape of 43, and the reserved cases of retracting and the
+   Supervisor's list. The demo content pack is regenerated, its document no longer carrying a learning
+   key.
+
+   *A race found on the way.* Test B (many streams, many threads) failed on every run, with a third
+   learning event where two were scripted. Its cause is in J1's code as much as this slice's; this
+   slice's timing made it certain. Two windows let a stream judged against the transform a relearning
+   was replacing mark the shape for relearning *after* the relearning had spent the mark: between the
+   mark being spent and the rebinding, and after the rebinding by a stream that had read the rule before
+   it. The mark then outlived the promotion, and the next stream the new transform served cleanly opened a
+   relearning of a shape just learned, and asked the model for it. Fixed three ways. A relearning spends
+   the mark again once its rebinding is in force. A stream whose judgement was against a transform no
+   longer in force neither marks the shape nor opens a session: it waits against the stamp it failed.
+   And, since that row is written after the promotion's wake, and its task is deferred after that, the
+   learning job's pass now wakes every row waiting against a transform no longer in force
+   (`Stage.wakeSuperseded`, over `Deferrals.documentsWaiting`). The pass reads every waiting row of every
+   document with one, which slice 4's wake by pipeline should revisit. Scenario 56 has the
+   mid-run promotion as a regression test, and test B passes on repeated runs.
+
+   *2b, the rekey.* Rules, shapes, the ledger, guidance, outputs, the corpus and snapshots are keyed by
+   learner and shape, as attempts and deferrals already are; `Attempts.learnerOf` and waking by
+   document go. The document resource's `rules`, `approveRule` and `rejectRule` go too, ruled on
+   2026-10-07 at 2a's audit: nothing calls them once the Route tab has gone, the Supervisor approving and
+   rejecting through the attempt, and phase L reads the learner's record if its screens need it. With slice 3 removing the shape, the shape's row becomes the learner's record (A117,
+   A124), pointing at its serving binding and any draft.
+
+   The text of the original slice 2 follows.
+
+   **One record, no rules (A117).** The rule table and the shape table become the element's record.
    The routing table, the reserved rule and the selector code go, and the learning key leaves the
    document; its serialiser drops the old key on read. The deferral, snapshot and wake read the record.
 3. **`Shape` goes.** The stage stops computing one. What the model is shown of the feed and type comes
@@ -687,3 +738,15 @@ it makes run as that user too. Made documents take their folder's permissions. A
 may not make is recorded as failed and retried, so granting the permission is enough to let it
 through. *The owner first chose the factory's owner over the processing user; since Stroom's Owner is
 a permission several users or groups may hold, the owner then ruled for the run-as user.*
+
+**A124.** *A learner's record points at its bindings.* The record of A117 is one row per learner holding
+its learning state — given up, marked to learn again, its rolling score — and pointing at the binding
+that serves it and at any draft awaiting review. A binding is a fragment and its snapshot, with its
+score, whether it is provisional or pinned, and its record boundary: what a rule was, without its
+selector, order or reserved flag. Snapshots, the corpus and outputs stay attached to a binding, so
+approving a draft and improving a binding work as they do. *Ruled 2026-10-07, over a single table with
+the serving and draft bindings inlined.*
+
+**A125.** *Slice 2 of phase J is two slices.* Routing goes in one and the rekey by learner in the other,
+each keeping every scenario passing. *Ruled 2026-10-07; done routing first, since the rekey is then
+mechanical.*

@@ -217,7 +217,7 @@ public final class Scenarios {
     /// job that carries on the attempts a deferred document parks. The stage is one of this scenario's,
     /// since a stage holds nothing of a stream between calls.
     public DeferredWorker worker(final Advisor answerer) {
-        return new DeferredWorker(stage(answerer), attempts, documents, inputs, document -> answerer,
+        return new DeferredWorker(stage(answerer), attempts, deferrals, documents, inputs, document -> answerer,
                 Clock.fixed(NOW, ZoneOffset.UTC));
     }
 

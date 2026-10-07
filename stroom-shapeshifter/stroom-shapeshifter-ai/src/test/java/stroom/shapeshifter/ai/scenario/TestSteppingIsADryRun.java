@@ -25,6 +25,7 @@ import stroom.shapeshifter.ai.scoring.Verdict;
 import stroom.shapeshifter.ai.stage.Decision.Bound;
 import stroom.shapeshifter.ai.stage.Decision.Would;
 import stroom.shapeshifter.ai.stage.Input;
+import stroom.shapeshifter.ai.stage.Shape;
 import stroom.shapeshifter.ai.stage.Stage;
 import stroom.shapeshifter.ai.stage.StageRun;
 import stroom.shapeshifter.ai.transformation.XsltStep;
@@ -79,8 +80,6 @@ class TestSteppingIsADryRun {
                 .describedAs("the hypothetical is in the decision, so that every surface reads it the "
                              + "same way and only a decision that is hypothetical reads as one")
                 .isEqualTo("Would learn a fragment for this shape");
-        assertThat(((Would) stepped.decision()).candidate())
-                .describedAs("there is no fragment it could have used").isNull();
         assertThat(script.asked()).describedAs("the model was not asked").isEmpty();
         assertThat(scenarios.rules.forDocument("doc-1")).describedAs("no rule was bound").isEmpty();
         assertThat(scenarios.attempts.forDocument("doc-1", 10)).describedAs("no attempt was recorded").isEmpty();
@@ -98,8 +97,8 @@ class TestSteppingIsADryRun {
         final StageRun stepped = stage.dryRun(doc(LearningMode.DISABLED), stream(), false);
 
         assertThat(((Would) stepped.decision()).what())
-                .isEqualTo("Sentinel the stream: Shapeshifter AI is disabled for this document and no "
-                           + "bound variant fits");
+                .isEqualTo("Wait: Shapeshifter AI is disabled for this document and nothing serves this "
+                           + "shape");
         assertThat(scenarios.ledger.release("doc-1", stepped.shape().id()))
                 .describedAs("a sentinel a person only asked to see is not a sentinel").isEmpty();
     }
@@ -147,9 +146,8 @@ class TestSteppingIsADryRun {
                 null);
         scenarios.rules.append("doc-1", RoutingRule.builder()
                 .uuid("rule-on-trial")
-                .expression(RoutingRule.learnedSelector(doc.getLearningKey(),
-                        Map.of(MetaFields.FIELD_FEED, FEED, MetaFields.FIELD_TYPE, "Raw Events",
-                                "Format", "CSV")))
+                .shapeId(Shape.of(Shape.KEY,
+                        Map.of(MetaFields.FIELD_FEED, FEED, MetaFields.FIELD_TYPE, "Raw Events")).id())
                 .pipeline(fragment)
                 .provisional(true)
                 .build());
@@ -163,38 +161,8 @@ class TestSteppingIsADryRun {
                 .describedAs("the rule is still there: a step decides nothing").hasSize(1);
     }
 
-    /// A shape nothing binds may still be served by a fragment learned for its neighbour (design 01 §6),
-    /// and trying one costs no question. A step says it would bind it — and shows what it made of the
-    /// stream, because a fragment's output is what the person opening the stepper came to see.
-    @Test
-    void aVariantThatWouldBeBoundShowsWhatItProduced() {
-        final Scenarios scenarios = new Scenarios();
-        final Script script = script(scenarios);
-        final Stage stage = scenarios.stage(document -> script, scenarios.rules);
-        final ShapeshifterAiDoc doc = doc(LearningMode.AUTOMATIC);
-
-        // Learned for one feed, then stepped on another: same content, so the fragment fits.
-        final StageRun learned = scenarios.process(script, doc, stream()).learned();
-        assertThat(learned.bindings()).isNotNull();
-
-        final StageRun stepped = stage.dryRun(doc, new Input(2L, FEED, "Raw Events",
-                Map.of("Format", "TEXT"), CSV.input(), "pipeline-1"), false);
-
-        assertThat(stepped.decision()).isInstanceOf(Would.class);
-        assertThat(((Would) stepped.decision()).what()).startsWith("Bind ");
-        assertThat(((Would) stepped.decision()).candidate())
-                .describedAs("named, so that the pane can offer it as a link")
-                .isEqualTo(learned.bindings().fragment());
-        assertThat(stepped.output())
-                .describedAs("what the variant made of this stream, which is what the panes show")
-                .isEqualTo(learned.output());
-        assertThat(stepped.bindings())
-                .describedAs("and no bindings, because nothing was bound: what is served follows the "
-                             + "run's events and not its bindings")
-                .isNull();
-        assertThat(scenarios.rules.forDocument("doc-1"))
-                .describedAs("nothing was bound for the new shape").hasSize(1);
-    }
+    // A variant that would be bound is retired with routing (design 06 phase J slice 2a): a shape is its
+    // feed and type, so no fragment is learned for a neighbouring shape to be tried on this one.
 
     private Script script(final Scenarios scenarios) {
         return scenarios.script(CSV.configuration(), XSLT)
@@ -209,9 +177,6 @@ class TestSteppingIsADryRun {
                 .uuid("doc-1")
                 .name("door-access")
                 .learningMode(mode)
-                // Format as well as feed and type, so that two streams of one feed can be two shapes —
-                // which is what makes a variant learned for the neighbour worth trying (design 01 §6).
-                .learningKey(List.of(MetaFields.FIELD_FEED, MetaFields.FIELD_TYPE, "Format"))
                 .allowedElements(List.of("DSParser", "XSLTFilter"))
                 .minRecordsPerShape(1)
                 .promotionFloor(0.85)

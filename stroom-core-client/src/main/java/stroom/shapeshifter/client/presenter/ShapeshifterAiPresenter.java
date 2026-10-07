@@ -29,7 +29,6 @@ import stroom.shapeshifter.client.view.ProcessHeader.Stage;
 import stroom.shapeshifter.shared.AttemptCriteria;
 import stroom.shapeshifter.shared.AttemptStatus;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
-import stroom.shapeshifter.shared.ShapeshifterAiResource;
 import stroom.shapeshifter.shared.SupervisorResource;
 import stroom.util.shared.PageRequest;
 import stroom.widget.tab.client.presenter.TabData;
@@ -45,15 +44,13 @@ import javax.inject.Provider;
 
 public class ShapeshifterAiPresenter extends DocTabPresenter<LinkTabPanelView, ShapeshifterAiDoc> {
 
-    // The three stages of the process, in the order a stream meets them (design 05 §10; A91): the gate
-    // that routes a shape to its rule, the scores that judge what is served and what is learned, and
-    // the flow that learns.
-    private static final TabData ROUTE = new TabDataImpl("Route");
+    // The two stages of the process, in the order a stream meets them (design 06, A110): the scores that
+    // judge what is served and what is learned, and the flow that learns. Which streams reach the
+    // document is its pipelines' filters' to say.
     private static final TabData SCORE = new TabDataImpl("Score");
     private static final TabData LEARN = new TabDataImpl("Learn");
     private static final TabData DOCUMENTATION = new TabDataImpl("Documentation");
     private static final TabData PERMISSIONS = new TabDataImpl("Permissions");
-    private static final ShapeshifterAiResource RESOURCE = GWT.create(ShapeshifterAiResource.class);
     private static final SupervisorResource SUPERVISOR_RESOURCE = GWT.create(SupervisorResource.class);
 
     /// The process across the top of the document (A98), with this document's figures from the
@@ -61,8 +58,8 @@ public class ShapeshifterAiPresenter extends DocTabPresenter<LinkTabPanelView, S
     private final ProcessHeader header = new ProcessHeader();
     private final RestFactory restFactory;
     private int asked;
-    /// What the three reads have answered so far: rules, streams waiting, sessions parked.
-    private final Long[] figures = new Long[3];
+    /// What the two reads have answered so far: streams waiting, sessions parked.
+    private final Long[] figures = new Long[2];
 
     @Inject
     public ShapeshifterAiPresenter(
@@ -70,27 +67,19 @@ public class ShapeshifterAiPresenter extends DocTabPresenter<LinkTabPanelView, S
             final LinkTabPanelView view,
             final Provider<ShapeshifterAiLearnPresenter> learnPresenterProvider,
             final Provider<ShapeshifterAiScorePresenter> scorePresenterProvider,
-            final Provider<ShapeshifterAiRoutePresenter> routePresenterProvider,
             final Provider<MarkdownEditPresenter> markdownEditPresenterProvider,
             final DocumentUserPermissionsTabProvider<ShapeshifterAiDoc> documentUserPermissionsTabProvider,
             final RestFactory restFactory) {
         super(eventBus, view);
         this.restFactory = restFactory;
         header.setOnStage(stage -> {
-            switch (stage) {
-                case ROUTE:
-                    selectTab(ROUTE);
-                    break;
-                case SCORE:
-                    selectTab(SCORE);
-                    break;
-                default:
-                    selectTab(LEARN);
-                    break;
+            if (stage == Stage.SCORE) {
+                selectTab(SCORE);
+            } else {
+                selectTab(LEARN);
             }
         });
 
-        addTab(ROUTE, new DocTabProvider<>(routePresenterProvider::get));
         addTab(SCORE, new DocTabProvider<>(scorePresenterProvider::get));
         addTab(LEARN, new DocTabProvider<>(learnPresenterProvider::get));
         addTab(DOCUMENTATION, new MarkdownTabProvider<>(eventBus, markdownEditPresenterProvider) {
@@ -110,7 +99,7 @@ public class ShapeshifterAiPresenter extends DocTabPresenter<LinkTabPanelView, S
             }
         });
         addTab(PERMISSIONS, documentUserPermissionsTabProvider);
-        selectTab(ROUTE);
+        selectTab(SCORE);
     }
 
     @Override
@@ -123,18 +112,16 @@ public class ShapeshifterAiPresenter extends DocTabPresenter<LinkTabPanelView, S
     @Override
     protected void afterSelectTab(final PresenterWidget<?> content) {
         final TabData selected = getSelectedTab();
-        header.setStage(ROUTE.equals(selected)
-                ? Stage.ROUTE
-                : SCORE.equals(selected)
-                        ? Stage.SCORE
-                        : LEARN.equals(selected)
-                                ? Stage.LEARN
-                                : null);
+        header.setStage(SCORE.equals(selected)
+                ? Stage.SCORE
+                : LEARN.equals(selected)
+                        ? Stage.LEARN
+                        : null);
         getView().addToolbar(header);
     }
 
-    /// The figures beside the stages are this document's alone: its rules, the streams waiting on a
-    /// session of its, the sessions of its parked for a person. Read with the document, and guarded
+    /// The figures beside the stages are this document's alone: the streams waiting on a session of its,
+    /// and the sessions of its parked for a person. Read with the document, and guarded
     /// against a slower earlier read arriving after a later one.
     @Override
     protected void onRead(final DocRef docRef, final ShapeshifterAiDoc document, final boolean readOnly) {
@@ -143,30 +130,15 @@ public class ShapeshifterAiPresenter extends DocTabPresenter<LinkTabPanelView, S
         // reply arrives.
         figures[0] = null;
         figures[1] = null;
-        figures[2] = null;
-        header.setFigures(null, null, null);
+        header.setFigures(null, null);
         final int request = ++asked;
         final String uuid = docRef.getUuid();
-        restFactory.create(RESOURCE)
-                .method(resource -> resource.rules(uuid))
-                .onSuccess(rules -> {
-                    if (request == asked) {
-                        figures[0] = (long) rules.size();
-                        header.setFigures(figures[0], figures[1], figures[2]);
-                    }
-                })
-                // A person who may read the document but not ask the Supervisor sees no figure, and no
-                // error for having opened a document.
-                .onFailure(error -> {
-                })
-                .taskMonitorFactory(this)
-                .exec();
         restFactory.create(SUPERVISOR_RESOURCE)
                 .method(resource -> resource.backlog(uuid, new PageRequest(0, 1)))
                 .onSuccess(page -> {
                     if (request == asked) {
-                        figures[1] = total(page.getPageResponse().getTotal(), page.size());
-                        header.setFigures(figures[0], figures[1], figures[2]);
+                        figures[0] = total(page.getPageResponse().getTotal(), page.size());
+                        header.setFigures(figures[0], figures[1]);
                     }
                 })
                 .onFailure(error -> {
@@ -178,8 +150,8 @@ public class ShapeshifterAiPresenter extends DocTabPresenter<LinkTabPanelView, S
                         null, List.of(AttemptStatus.PARKED))))
                 .onSuccess(page -> {
                     if (request == asked) {
-                        figures[2] = total(page.getPageResponse().getTotal(), page.size());
-                        header.setFigures(figures[0], figures[1], figures[2]);
+                        figures[1] = total(page.getPageResponse().getTotal(), page.size());
+                        header.setFigures(figures[0], figures[1]);
                     }
                 })
                 .onFailure(error -> {

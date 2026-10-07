@@ -17,39 +17,30 @@
 package stroom.shapeshifter.shared;
 
 import stroom.docref.DocRef;
-import stroom.query.api.ExpressionOperator;
-import stroom.query.api.ExpressionTerm.Condition;
 import stroom.util.shared.SerialisationTestConstructor;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
-import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 
 /**
- * One row of the routing table (design §3, §7.3): a selector and the variant it resolves to — a pipeline
- * fragment, referenced by DocRef (proposed ruling A20). The selector is an expression over the stream's
- * metadata and attribute map with the record shape signature as one more field (proposed ruling A22),
- * evaluated as receive rules are. Rules are ordered and the first whose expression matches binds; the
- * table's order is its specificity, so a rule has no ordinal of its own.
+ * What serves a shape (design 06 phase J slice 2a, A124): a pipeline fragment, referenced by DocRef
+ * (A20), learned for one shape and bound to it. Nothing selects among rules any more: a rule is the
+ * binding of the shape it was learned for, and a shape is served by its rule, or waits on its draft.
  * <p>
- * The routing table is the only part of a Shapeshifter AI document the supervisor rewrites (§7.3
- * rule 2), so a rule also carries the little history that rewriting needs: when the variant was
- * promoted, the score it was promoted on, whether an operator has pinned it against further promotion,
- * and the two states a learned rule passes through before it is simply bound — a <em>draft</em> the
- * router skips until a person approves it (A25), and a <em>provisional</em> binding that serves streams
- * while held-out validation waits for records (A5, §6). A rule has a {@code uuid} so that the runtime
- * state of A26 can name it stably; the store assigns one to any rule saved without.
+ * A rule carries the little history rebinding needs: when the fragment was promoted, the score it was
+ * promoted on, whether an operator has pinned it against further promotion, and the two states a learned
+ * rule passes through before it is simply bound — a <em>draft</em> the shape's streams wait on until a
+ * person approves it (A25), and a <em>provisional</em> binding that serves streams while held-out
+ * validation waits for records (A5, §6). A rule has a {@code uuid} so that the runtime state of A26 can
+ * name it stably.
  */
 @JsonPropertyOrder({
         "uuid",
-        "expression",
         "pipeline",
         "pinned",
         "draft",
@@ -71,20 +62,14 @@ public class RoutingRule {
     @JsonProperty
     private final String uuid;
     /**
-     * Null matches every stream: the catch-all that ends a table when there is one.
-     */
-    @JsonProperty
-    private final ExpressionOperator expression;
-    /**
-     * The fragment: a Pipeline document with no destination. Null is a <em>reserved</em> rule: a match
-     * gives the shape up by operator decision rather than learning it (§3).
+     * The fragment: a Pipeline document with no destination.
      */
     @JsonProperty
     private final DocRef pipeline;
     @JsonProperty
     private final boolean pinned;
     /**
-     * Written by a stage in review mode and skipped by the router until Approve clears it (A25). This
+     * Written by a stage in review mode; the shape's streams wait on it until Approve clears it (A25). This
      * flag is authoritative; the shape's own status mirrors it.
      */
     @JsonProperty
@@ -116,7 +101,6 @@ public class RoutingRule {
 
     @JsonCreator
     public RoutingRule(@JsonProperty("uuid") final String uuid,
-                       @JsonProperty("expression") final ExpressionOperator expression,
                        @JsonProperty("pipeline") final DocRef pipeline,
                        @JsonProperty("pinned") final Boolean pinned,
                        @JsonProperty("draft") final Boolean draft,
@@ -127,7 +111,6 @@ public class RoutingRule {
                        @JsonProperty("shapeId") final String shapeId,
                        @JsonProperty("snapshot") final String snapshot) {
         this.uuid = uuid;
-        this.expression = expression;
         this.pipeline = pipeline;
         this.pinned = Objects.requireNonNullElse(pinned, false);
         this.draft = Objects.requireNonNullElse(draft, false);
@@ -141,62 +124,11 @@ public class RoutingRule {
 
     @SerialisationTestConstructor
     private RoutingRule() {
-        this(null, null, null, null, null, null, null, null, null, null, null);
-    }
-
-    /**
-     * The selector the supervisor writes at promotion: exactly the document's learning key (A29) — the
-     * terms the variant was validated on (A14, A15) — and nothing wider. Operators widen by hand.
-     *
-     * @param learningKey The field names, in the document's order.
-     * @param values      The stream's routing attributes; every key field must be present, since a stream
-     *                    that lacks a field the key names has no value to bind on.
-     * @throws IllegalArgumentException If a key field is absent from {@code values}, or a value holds a
-     *                                  {@code *}, which the matcher reads as a wildcard and cannot be told
-     *                                  to take literally.
-     */
-    public static ExpressionOperator learnedSelector(final List<String> learningKey,
-                                                     final Map<String, ?> values) {
-        final ExpressionOperator.Builder builder = ExpressionOperator.builder();
-        for (final String field : learningKey) {
-            final Object value = values.get(field);
-            if (value == null) {
-                throw new IllegalArgumentException(
-                        "The learning key names '" + field + "' but the stream carries no value for it");
-            }
-            builder.addTerm(field, Condition.EQUALS, literal(field, value.toString()));
-        }
-        return builder.build();
-    }
-
-    /**
-     * A term value that matches exactly one string under {@code ExpressionMatcher}, which reads a value as
-     * a case-insensitive regular expression with {@code *} standing for anything: every other character
-     * the regex would take as syntax is escaped. A value that is empty or holds a {@code *} cannot be
-     * written exactly and is refused.
-     */
-    static String literal(final String field, final String value) {
-        if (value.isEmpty() || value.indexOf('*') >= 0) {
-            throw new IllegalArgumentException("The stream's " + field + " value '" + value
-                                               + "' cannot be bound exactly: it is empty or contains '*'");
-        }
-        final StringBuilder escaped = new StringBuilder(value.length() + 8);
-        for (int i = 0; i < value.length(); i++) {
-            final char c = value.charAt(i);
-            if ("\\^$.|?+()[]{}".indexOf(c) >= 0) {
-                escaped.append('\\');
-            }
-            escaped.append(c);
-        }
-        return escaped.toString();
+        this(null, null, null, null, null, null, null, null, null, null);
     }
 
     public String getUuid() {
         return uuid;
-    }
-
-    public ExpressionOperator getExpression() {
-        return expression;
     }
 
     public DocRef getPipeline() {
@@ -213,14 +145,6 @@ public class RoutingRule {
 
     public boolean isProvisional() {
         return provisional;
-    }
-
-    /**
-     * A rule with no fragment: matching it gives the shape up rather than learning it.
-     */
-    @JsonIgnore
-    public boolean isReserved() {
-        return pipeline == null;
     }
 
     public Long getPromotedTimeMs() {
@@ -260,7 +184,6 @@ public class RoutingRule {
                draft == that.draft &&
                provisional == that.provisional &&
                Objects.equals(uuid, that.uuid) &&
-               Objects.equals(expression, that.expression) &&
                Objects.equals(pipeline, that.pipeline) &&
                Objects.equals(promotedTimeMs, that.promotedTimeMs) &&
                Objects.equals(score, that.score) &&
@@ -271,7 +194,7 @@ public class RoutingRule {
 
     @Override
     public int hashCode() {
-        return Objects.hash(uuid, expression, pipeline, pinned, draft, provisional, promotedTimeMs, score,
+        return Objects.hash(uuid, pipeline, pinned, draft, provisional, promotedTimeMs, score,
                 recordBoundary, shapeId, snapshot);
     }
 
@@ -279,7 +202,6 @@ public class RoutingRule {
     public String toString() {
         return "RoutingRule{" +
                "uuid='" + uuid + '\'' +
-               ", expression=" + expression +
                ", pipeline=" + pipeline +
                ", pinned=" + pinned +
                ", draft=" + draft +
@@ -305,7 +227,6 @@ public class RoutingRule {
     public static final class Builder {
 
         private String uuid;
-        private ExpressionOperator expression;
         private DocRef pipeline;
         private boolean pinned;
         private boolean draft;
@@ -321,7 +242,6 @@ public class RoutingRule {
 
         private Builder(final RoutingRule rule) {
             this.uuid = rule.uuid;
-            this.expression = rule.expression;
             this.pipeline = rule.pipeline;
             this.pinned = rule.pinned;
             this.draft = rule.draft;
@@ -335,11 +255,6 @@ public class RoutingRule {
 
         public Builder uuid(final String uuid) {
             this.uuid = uuid;
-            return this;
-        }
-
-        public Builder expression(final ExpressionOperator expression) {
-            this.expression = expression;
             return this;
         }
 
@@ -392,7 +307,7 @@ public class RoutingRule {
         }
 
         public RoutingRule build() {
-            return new RoutingRule(uuid, expression, pipeline, pinned, draft, provisional, promotedTimeMs, score,
+            return new RoutingRule(uuid, pipeline, pinned, draft, provisional, promotedTimeMs, score,
                     recordBoundary, shapeId, snapshot);
         }
     }

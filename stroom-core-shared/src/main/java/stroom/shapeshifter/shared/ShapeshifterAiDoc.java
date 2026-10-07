@@ -63,7 +63,6 @@ import java.util.Objects;
         "description",
         "learningMode",
         "model",
-        "learningKey",
         "relearnThreshold",
         "instructions",
         "flow",
@@ -87,11 +86,6 @@ public class ShapeshifterAiDoc extends AbstractDoc {
     public static final DocumentType DOCUMENT_TYPE = DocumentTypeRegistry.SHAPESHIFTER_AI_DOCUMENT_TYPE;
 
     static final LearningMode DEFAULT_LEARNING_MODE = LearningMode.DISABLED;
-    /**
-     * Abandoned attempts or sentinelled streams in a row before a feed enters error mode (A24). Five is a
-     * streak, not a bad afternoon; provisional until real feeds say otherwise (§2.1).
-     */
-    static final List<String> DEFAULT_LEARNING_KEY = RoutingFields.DEFAULT_LEARNING_KEY;
     /**
      * Below the promotion floor, so that a rule promoted at the floor is not relearned at once.
      */
@@ -119,7 +113,7 @@ public class ShapeshifterAiDoc extends AbstractDoc {
     private final String description;
     /**
      * Whether the model may be called at all. Off by default because §11 makes Shapeshifter AI opt-in per
-     * document; off still selects among bound variants and promotes what clears the floor.
+     * document; off still serves what is bound and promotes what clears the floor.
      */
     @JsonProperty
     private final LearningMode learningMode;
@@ -128,13 +122,6 @@ public class ShapeshifterAiDoc extends AbstractDoc {
      */
     @JsonProperty
     private final DocRef model;
-    /**
-     * The fields a learned rule binds on and the chain question sees, in order (A29): names from
-     * {@link RoutingFields#NAMES}. A shape is one value of this key. Feed and type by default; the shape
-     * signature is added where one feed carries several kinds of record.
-     */
-    @JsonProperty
-    private final List<String> learningKey;
     /**
      * The rolling per-record score below which a bound shape is marked for relearning (A29, §5), so that a
      * new kind of record inside a bound shape — which never misses the routing table — is still learned.
@@ -231,7 +218,6 @@ public class ShapeshifterAiDoc extends AbstractDoc {
             @JsonProperty("description") final String description,
             @JsonProperty("learningMode") final LearningMode learningMode,
             @JsonProperty("model") final DocRef model,
-            @JsonProperty("learningKey") final List<String> learningKey,
             @JsonProperty("relearnThreshold") final Double relearnThreshold,
             @JsonProperty("instructions") final String instructions,
             @JsonProperty("flow") final LearningFlow flow,
@@ -251,9 +237,6 @@ public class ShapeshifterAiDoc extends AbstractDoc {
         this.description = description;
         this.learningMode = Objects.requireNonNullElse(learningMode, DEFAULT_LEARNING_MODE);
         this.model = model;
-        this.learningKey = learningKey == null
-                ? DEFAULT_LEARNING_KEY
-                : List.copyOf(learningKey);
         this.relearnThreshold = Objects.requireNonNullElse(relearnThreshold, DEFAULT_RELEARN_THRESHOLD);
         this.instructions = instructions;
         // A document written before the flow was named so carried it as "plan" (A81): the store's
@@ -300,10 +283,6 @@ public class ShapeshifterAiDoc extends AbstractDoc {
 
     public DocRef getModel() {
         return model;
-    }
-
-    public List<String> getLearningKey() {
-        return learningKey;
     }
 
     public double getRelearnThreshold() {
@@ -400,7 +379,6 @@ public class ShapeshifterAiDoc extends AbstractDoc {
                Objects.equals(flow, that.flow) &&
                promotionMode == that.promotionMode &&
                Objects.equals(model, that.model) &&
-               Objects.equals(learningKey, that.learningKey) &&
                Objects.equals(instructions, that.instructions) &&
                Objects.equals(tokenBudget, that.tokenBudget) &&
                maxDeferralAgeMs == that.maxDeferralAgeMs &&
@@ -414,7 +392,6 @@ public class ShapeshifterAiDoc extends AbstractDoc {
                 description,
                 learningMode,
                 model,
-                learningKey,
                 relearnThreshold,
                 instructions,
                 flow,
@@ -438,7 +415,6 @@ public class ShapeshifterAiDoc extends AbstractDoc {
                "name='" + getName() + '\'' +
                ", learningMode=" + learningMode +
                ", model=" + model +
-               ", learningKey=" + learningKey +
                ", relearnThreshold=" + relearnThreshold +
                ", flow=" + flow +
                ", maxAttempts=" + maxAttempts +
@@ -472,7 +448,6 @@ public class ShapeshifterAiDoc extends AbstractDoc {
         private String description;
         private LearningMode learningMode = DEFAULT_LEARNING_MODE;
         private DocRef model;
-        private List<String> learningKey = DEFAULT_LEARNING_KEY;
         private double relearnThreshold = DEFAULT_RELEARN_THRESHOLD;
         private String instructions;
         private LearningFlow flow = DEFAULT_FLOW;
@@ -497,7 +472,6 @@ public class ShapeshifterAiDoc extends AbstractDoc {
             this.description = doc.description;
             this.learningMode = doc.learningMode;
             this.model = doc.model;
-            this.learningKey = doc.learningKey;
             this.relearnThreshold = doc.relearnThreshold;
             this.instructions = doc.instructions;
             this.flow = doc.flow;
@@ -527,11 +501,6 @@ public class ShapeshifterAiDoc extends AbstractDoc {
 
         public Builder model(final DocRef model) {
             this.model = model;
-            return self();
-        }
-
-        public Builder learningKey(final List<String> learningKey) {
-            this.learningKey = learningKey;
             return self();
         }
 
@@ -643,8 +612,7 @@ public class ShapeshifterAiDoc extends AbstractDoc {
                     description,
                     learningMode,
                     model,
-                    learningKey,
-                    relearnThreshold,
+                        relearnThreshold,
                     instructions,
                     flow,
                     maxAttempts,

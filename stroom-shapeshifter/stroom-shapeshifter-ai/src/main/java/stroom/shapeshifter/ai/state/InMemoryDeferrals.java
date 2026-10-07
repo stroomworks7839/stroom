@@ -74,6 +74,14 @@ public final class InMemoryDeferrals implements Deferrals {
     }
 
     @Override
+    public synchronized List<String> documentsWaiting() {
+        return rows.stream()
+                .map(Deferral::docUuid)
+                .distinct()
+                .toList();
+    }
+
+    @Override
     public synchronized List<Deferral> forDocument(final String docUuid) {
         return rows.stream()
                 .filter(row -> row.docUuid().equals(docUuid))

@@ -78,10 +78,9 @@ public final class InMemoryServing implements Serving {
     }
 
     /// One rule as the view shows it, or null where it is not one the view shows: a draft is decided
-    /// rather than improved (A25), a reserved rule binds nothing, and a rule an operator wrote by hand
-    /// came from no shape and has nothing to learn again.
+    /// rather than improved (A25), and a rule with no shape has nothing to learn again.
     private ServingRule serving(final String docUuid, final RoutingRule rule, final Double below) {
-        if (rule.isDraft() || rule.isReserved() || NullSafe.isBlankString(rule.getShapeId())) {
+        if (rule.isDraft() || NullSafe.isBlankString(rule.getShapeId())) {
             return null;
         }
         final Optional<Shapes.Rolling> rolling = shapes.rolling(docUuid, rule.getShapeId());

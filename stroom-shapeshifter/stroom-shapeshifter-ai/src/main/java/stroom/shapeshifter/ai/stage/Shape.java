@@ -16,6 +16,8 @@
 
 package stroom.shapeshifter.ai.stage;
 
+import stroom.meta.shared.MetaFields;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -34,6 +36,11 @@ import java.util.Map;
  *                value of the missing one.
  */
 public record Shape(Map<String, String> values, List<String> missing) {
+
+    /// What a shape is the values of (A49): a feed and a type. A document no longer chooses (design 06
+    /// phase J slice 2a), since a learner's pipeline already says which streams it takes, and slice 3
+    /// removes the shape altogether.
+    public static final List<String> KEY = List.of(MetaFields.FIELD_FEED, MetaFields.FIELD_TYPE);
 
     public Shape {
         values = Collections.unmodifiableMap(new LinkedHashMap<>(values));

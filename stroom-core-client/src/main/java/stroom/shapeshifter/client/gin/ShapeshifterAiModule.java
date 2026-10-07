@@ -25,15 +25,11 @@ import stroom.shapeshifter.client.presenter.BuiltInTextPresenter;
 import stroom.shapeshifter.client.presenter.BuiltInTextPresenter.BuiltInTextView;
 import stroom.shapeshifter.client.presenter.FlowStepPresenter;
 import stroom.shapeshifter.client.presenter.FlowStepPresenter.FlowStepView;
-import stroom.shapeshifter.client.presenter.RoutingRulePresenter;
-import stroom.shapeshifter.client.presenter.RoutingRulePresenter.RoutingRuleView;
 import stroom.shapeshifter.client.presenter.ScorerSettingPresenter;
 import stroom.shapeshifter.client.presenter.ScorerSettingPresenter.ScorerSettingView;
 import stroom.shapeshifter.client.presenter.ShapeshifterAiLearnPresenter;
 import stroom.shapeshifter.client.presenter.ShapeshifterAiLearnPresenter.ShapeshifterAiLearnView;
 import stroom.shapeshifter.client.presenter.ShapeshifterAiPresenter;
-import stroom.shapeshifter.client.presenter.ShapeshifterAiRoutePresenter;
-import stroom.shapeshifter.client.presenter.ShapeshifterAiRoutePresenter.ShapeshifterAiRouteView;
 import stroom.shapeshifter.client.presenter.ShapeshifterAiScorePresenter;
 import stroom.shapeshifter.client.presenter.ShapeshifterAiScorePresenter.ShapeshifterAiScoreView;
 import stroom.shapeshifter.client.presenter.ShapeshifterAiStepPresenter;
@@ -50,10 +46,8 @@ import stroom.shapeshifter.client.presenter.XPathAssertionPresenter.XPathAsserti
 import stroom.shapeshifter.client.view.AttemptFilterViewImpl;
 import stroom.shapeshifter.client.view.BuiltInTextViewImpl;
 import stroom.shapeshifter.client.view.FlowStepViewImpl;
-import stroom.shapeshifter.client.view.RoutingRuleViewImpl;
 import stroom.shapeshifter.client.view.ScorerSettingViewImpl;
 import stroom.shapeshifter.client.view.ShapeshifterAiLearnViewImpl;
-import stroom.shapeshifter.client.view.ShapeshifterAiRouteViewImpl;
 import stroom.shapeshifter.client.view.ShapeshifterAiScoreViewImpl;
 import stroom.shapeshifter.client.view.ShapeshifterAiStepViewImpl;
 import stroom.shapeshifter.client.view.SupervisorViewImpl;
@@ -85,12 +79,6 @@ public class ShapeshifterAiModule extends PluginModule {
         bindPresenterWidget(ShapeshifterAiLearnPresenter.class,
                 ShapeshifterAiLearnView.class,
                 ShapeshifterAiLearnViewImpl.class);
-        bindPresenterWidget(ShapeshifterAiRoutePresenter.class,
-                ShapeshifterAiRouteView.class,
-                ShapeshifterAiRouteViewImpl.class);
-        bindPresenterWidget(RoutingRulePresenter.class,
-                RoutingRuleView.class,
-                RoutingRuleViewImpl.class);
         bindPresenterWidget(ShapeshifterAiScorePresenter.class,
                 ShapeshifterAiScoreView.class,
                 ShapeshifterAiScoreViewImpl.class);

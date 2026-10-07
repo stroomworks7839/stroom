@@ -247,7 +247,7 @@ class TestScenario22ReviewMode {
         relearn.verifyExhausted();
         assertThat(relearned.decision()).isInstanceOf(Drafted.class);
         final RoutingRule draft = ((Drafted) relearned.decision()).rule();
-        assertThat(draft.getExpression()).isEqualTo(incumbent.getExpression());
+        assertThat(draft.getShapeId()).isEqualTo(incumbent.getShapeId());
         assertThat(draft.getUuid()).isNotEqualTo(incumbent.getUuid());
         assertThat(scenarios.rules.forDocument(DOC)).containsExactly(incumbent, draft);
         assertThat(events(relearned.output())).describedAs("the incumbent served").isEqualTo(14);
