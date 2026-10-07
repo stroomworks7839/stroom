@@ -1,0 +1,571 @@
+# Design 06 — Pipelines made for feeds: one pipeline per feed and type, made by a job
+
+*Drafted and ruled 2026-10-07. The ten questions of §8 were put with recommendations. Eight
+recommendations were taken; on Q6 the owner ruled that a Pipeline Factory offers every processor filter
+setting, and on Q8 that the process header drops its first stage. The rulings are A103–A112 in §10. A113 to A117
+were added after them, from the owner's points on naming, the key and the Supervisor, and A118 to A123
+from the gaps of §9.*
+
+---
+
+## 1. What is wrong now
+
+One supervising pipeline, with one processor filter, takes every stream the document is pointed at.
+Inside it the stage resolves each stream to a shape (a feed and type by default, A49), routes the shape
+through the document's own table of rules (A22) and runs the learned fragment for it as a nested
+pipeline (A20). Every feed the document learns is processed by that one filter.
+
+That puts the learned pipelines outside everything Stroom uses to control processing:
+
+| Control | Where Stroom keeps it | What a learned shape gets |
+|---|---|---|
+| Enabled or paused | The processor filter | Only all-or-nothing, over every feed the filter takes |
+| Priority | The processor filter | One priority for every feed |
+| Maximum processing tasks | The processor filter | One limit shared by every feed |
+| Node group and time periods | The filter's processor profile | One profile for every feed |
+| Run-as user | The processor filter | One user for every feed |
+| Progress, tracker, task counts | The processor filter | One set of figures for every feed |
+| Reprocessing | A filter over a pipeline | A reprocess filter the stage builds itself |
+
+It also makes the deferred-task budget unsolvable (ISSUES item 1). Task creation bounds itself on a
+filter's `CREATED` tasks. Counting `DEFERRED` ones as well would let one feed's learning session stall
+creation for every other feed on the filter, so they are not counted, and the deferred population is
+bounded only by what arrives. Every stream of every unlearned feed becomes a deferred task row.
+
+And a person has two routing systems to understand: Stroom's processor filters, which decide what
+reaches the supervising pipeline, and the document's Route tab, which decides what happens inside it.
+
+**None of this is a bug in the stage.** It follows from making one pipeline stand for many feeds.
+
+---
+
+## 2. The proposal
+
+Split the work in two.
+
+1. **A general feature that makes pipelines for feeds**, with nothing to do with AI. A job finds
+   streams matching a stream filter, picks out the feed and type combinations it has not met, and for
+   each one makes a pipeline from a template and a processor filter for it, enabled, with default
+   settings taken from its configuration. It could make any kind of pipeline.
+2. **AI translation becomes one kind of pipeline it makes.** An AI translation pipeline serves exactly
+   what its processor filter gives it: one feed and type. It defers, learns, scores and serves as now,
+   but it has no shapes and no routing table. The pipeline is the unit of learning.
+
+```mermaid
+flowchart TB
+    subgraph Job["Pipeline creation job (any kind of pipeline)"]
+        Scan["Scan new streams\nmatching the stream filter"] --> New{"Feed and type\nalready made?"}
+        New -->|no| Make["Make pipeline from template\n+ processor filter, enabled"]
+        New -->|yes| Skip["Nothing"]
+    end
+
+    Make --> P1["Pipeline: SYSLOG / Raw Events\nfilter: Feed=SYSLOG AND Type=Raw Events"]
+    Make --> P2["Pipeline: AUDIT-JSON / Raw Events\nfilter: Feed=AUDIT-JSON AND Type=Raw Events"]
+
+    subgraph AI["Each AI pipeline, as now but for one feed"]
+        Decide{"Something learned\nand every record clears the bar?"} -->|yes| Emit["Emit"]
+        Decide -->|no| Defer["Defer the task\nand open a session"]
+        Defer --> Worker["Worker learns"]
+        Worker -->|promotes| Wake["Wake this pipeline's\ndeferred tasks"]
+    end
+
+    P1 --> Decide
+```
+
+What a person sees after it: a folder of ordinary pipelines, one per feed, each with an ordinary
+processor filter they can pause, prioritise, put on a node group or reprocess, and the Supervisor
+listing the AI ones with their learning state.
+
+---
+
+## 3. What the job does
+
+### 3.1 Its document
+
+A new document type, the **Pipeline Factory** (A103), holds one factory's configuration.
+
+| Setting | What it is |
+|---|---|
+| Stream filter | An expression over meta, e.g. `Type = Raw Events`, saying which streams it looks at |
+| Key | The meta fields that make one pipeline: `Feed` and `Type` by default, any meta fields allowed (A106) |
+| Template | The pipeline every made pipeline inherits from |
+| Folder pattern | Where a made pipeline goes in the explorer, e.g. `Feeds/${feed}` (A113) |
+| Name pattern | How a made pipeline is named, e.g. `${feed} ${type}` (A113) |
+| Element property patterns | Values the factory writes onto elements of each made pipeline, with the key's values substituted, e.g. the AI element's folder and name for what it learns (A113) |
+| Run-as user | The user the job makes documents as, and the filters it makes run as (A123) |
+| Filter settings | Every setting a processor filter has that is not about one filter's identity (A108): priority, maximum processing tasks, processor profile (its node group and time periods), minimum and maximum meta create time, maximum task creation delay, enabled |
+| Enabled | Whether the job runs this factory at all |
+
+### 3.2 Finding new combinations
+
+The job keeps a high-water mark of meta ids per factory, as a processor filter's tracker does. Each run
+reads the distinct key values among streams above the mark that match the stream filter, in batches,
+and moves the mark on. This is incremental and cheap, and never rescans the whole meta table.
+
+It runs as a scheduled Stroom job on one node at a time, under a cluster lock, so two nodes never make
+the same pipeline twice. A unique key on the record of what was made backs that up.
+
+### 3.3 What it makes
+
+For each new combination:
+
+- **A pipeline** in the folder and under the name its patterns give, whose `parentPipeline` is the
+  template (A105). It holds nothing of its own beyond the element property values the factory
+  substitutes (A113). Every other change to the template reaches every made pipeline.
+- **A processor filter** on that pipeline whose expression is the factory's stream filter `AND` the
+  key's values, e.g. `Type = Raw Events AND Feed = SYSLOG`. Its settings are the factory's filter
+  settings, as written there.
+
+### 3.4 What it remembers
+
+One row per combination: factory, key values, the pipeline made, the filter made, when, and a state.
+
+- **A made pipeline a person deletes is not made again.** The row stays and says so. The factory's
+  screen offers *forget*, which lets the next stream of that combination make it afresh.
+- **A filter a person pauses stays paused.** The job never touches a pipeline or filter after making
+  it. From then on they are a person's to change.
+
+### 3.5 Its screen
+
+The document's settings, and beneath them the combinations it has made: key values, links to the
+pipeline and filter, when, and state, with *forget* on a row.
+
+---
+
+## 4. What the AI pipeline becomes
+
+### 4.1 The template
+
+The AI translation template is a pipeline holding the Shapeshifter AI element first, pointed at a
+Shapeshifter AI document, and the usual writer and destination after it:
+
+```
+Source → Shapeshifter AI (parser) → XMLWriter → StreamAppender
+```
+
+The Shapeshifter AI element is a parser-category element, so it takes the raw stream straight from the
+source. The parser, text converter and XSLT it learns are **not** elements of the made pipeline: they
+live in the fragment the element runs inside itself (A107). So inheritance has nothing to reconcile
+with learning. The made pipeline inherits the chain above unchanged, and what is learned for its feed
+is a separate fragment pipeline with its own text converter and XSLT, which the element's record
+points at by snapshot (A61). A change to the template, such as a different destination, reaches every made
+pipeline without touching anything learned.
+
+**Where learned content goes** is the element's to know, through two properties: the folder and the
+name for what it learns. The factory writes them onto each made pipeline from its patterns (A113), e.g.
+folder `Feeds/${feed}` and name `${feed} ${type}`, so a feed's pipeline, fragment, text converter and
+XSLT sit together and share a name. A pipeline made by hand sets them by hand. Where they are unset,
+learned content goes beside the pipeline under the pipeline's name. This replaces the fixed
+`Shapeshifter/<document name>` folder and the `<shape>-<time>` names the stage uses now. The document stays what it
+is: settings shared by every pipeline made from the template. The flow, scorers, budgets, model and
+instructions are written once.
+
+### 4.2 The unit of learning is the pipeline
+
+Every runtime table is keyed today by document and shape (`doc_uuid, shape_hash`). It is keyed instead
+by the pipeline the stage runs in (A104). A pipeline has one record of what it has learned, one
+attempt at a time, one corpus, one regression set and one set of snapshots.
+
+**There are no rules.** A rule was a selector binding a shape to a fragment, and with one pipeline per
+filter there is nothing left to select. What remains of the rule and the shape's state is one
+**record per pipeline and element** (§4.7): its learning state, the snapshot that serves it if
+anything has been learned, the snapshot awaiting review if one was drafted, its rolling score and the
+mark that sends it back to be learned. Today's rule table and shape table become that one table.
+
+The stage no longer computes a shape. It does not need to know what feed it serves, except to show
+the model the feed and type it is learning, which it reads from the stream's meta as now.
+
+### 4.3 What goes
+
+- **The Route stage**: the document's rules table and every notion of a rule, the learning key, `Shape`, the reserved rule
+  (A22, A29). A pipeline's filter is its route. A reserved shape becomes a paused or deleted filter.
+- **The claim per shape** becomes the claim per pipeline.
+- **The wake by feed and type** becomes the wake by pipeline: on promotion, move the `DEFERRED` tasks
+  of every filter on the pipeline back to `CREATED`. A pipeline may have more than one filter, such as
+  a reprocess filter beside the one the factory made, and they share the element's record. This is
+  simpler than the present wake.
+- **The stage's own reprocess filter** (`PipelineReprocessing`) becomes an ordinary reprocess filter on
+  the pipeline, made the same way a person makes one.
+
+### 4.4 What stays
+
+Deferral as a task status (A59), the session and worker, the learning flow, scoring and the record bar,
+the corpus, snapshots (A61), the Supervisor, grants and the exhaustion step. All of it is unchanged in
+what it does. Only its key changes.
+
+### 4.5 The task budget, settled
+
+With one feed per filter, deferred tasks can count against the filter's budget (ISSUES item 1). While
+a session learns, the filter creates up to its limit of tasks, they defer, and creation for that feed
+pauses until the session promotes or someone acts. No other feed waits, because no other feed shares
+the filter. The deferred population is bounded by the number of AI pipelines times their limit.
+
+The count changes for every filter in Stroom (A109), but only AI pipelines defer, so for every other
+filter the number is the same as now.
+
+### 4.6 What knows about what
+
+Nothing outside the element knows a pipeline is an AI pipeline. The Pipeline Factory makes pipelines
+from a template and knows nothing of AI. The processor runs the pipeline as it runs any other. A
+pipeline is an AI pipeline only because its chain holds a Shapeshifter AI element, and that element
+points at the Shapeshifter AI document for its learning and scoring settings. The one place the two
+features meet is A113's element properties, which the factory writes as it would write any property.
+
+### 4.7 The key (A114, A117)
+
+A learning session belongs to **the pipeline and the element within it**: the made pipeline's UUID,
+which the element already reads from `PipelineHolder` while it runs, and the element's id in the
+chain. The pipeline is the one the processor filter runs, never its template. The element id costs
+nothing and keeps a pipeline with two AI elements possible, such as design 01's extraction stage
+followed by a transformation stage.
+
+The document is not part of the key. It is the settings a session ran under, recorded on each
+attempt. A person who points a pipeline's element at another document keeps what was learned.
+
+The record for the pipeline and element is written the first time the element meets a stream. No
+record means nothing has been learned and no session has been opened: the element writes the record,
+defers the stream and opens the first session. Until then the Supervisor shows nothing for
+that pipeline. A made pipeline that has not yet met a stream shows on its factory's screen and in the
+processing screens.
+
+---
+
+## 5. What a person sees
+
+| Before | After |
+|---|---|
+| One supervising pipeline and filter | One pipeline and filter per feed, in a folder |
+| Route tab: a table of shapes and rules | Gone. The factory's list of what it made, and the filters |
+| Pause one feed: not possible | Pause its filter |
+| Feed priority, node group: not possible | Its filter's settings |
+| Supervisor: attempts, shapes, serving rules and backlog side by side | Supervisor: pipelines, then their sessions, then one session's flow and transcript (§5.1) |
+| Process header: Route, Score, Learn | Score, Learn (A110) |
+
+### 5.1 The Supervisor (A115, A116)
+
+Three levels, each a pane, master to detail, top to bottom:
+
+```
++-------------------------------------------------------------------------------------------+
+| Learning pipelines                                       [relearn] [guidance] [improve]   |
+| Pipeline (link)      | Document | State             | Serving      | Waiting | Last session|
+| SYSLOG Raw Events    | Syslog   | Serving           | snap 14, 0.94|       0 | 2 days ago  |
+| AUDIT-JSON Raw Events| Audit    | Waiting for person| -            |     212 | 3 hours ago |
++-------------------------------------------------------------------------------------------+
+| [Sessions] [Waiting streams]                  [approve] [reject] [grant] [exhaust]        |
+| Started   | Ended     | Outcome             | Turns | Tokens | Time  | Granted            |
+| 10:02     | -         | Parked: out of tokens|   23 | 40,000 | 6m    | -                  |
+| yesterday | yesterday | Promoted, snap 3    |    11 | 12,500 | 2m    | -                  |
++-------------------------------------------------------------------------------------------+
+| Learning flow, path drawn       | Transcript                                              |
+|   [Start]                       | 1  Chain   asked ...   answered ...   passed            |
+|      |                          | 2  Parse   asked ...   answered ...   0.41, re-asked    |
+|   <Parse>--re-ask               | 3  Parse   asked ...   answered ...   0.88, passed      |
+|      |                          | ...                                                     |
++-------------------------------------------------------------------------------------------+
+```
+
+- **Learning pipelines.** One row per pipeline and element that has ever learned. Its state is one of
+  learning, waiting for a person, serving, given up, or learning off. Beside it are the serving
+  snapshot and score, the streams waiting, the oldest wait if raised (A57), and when it last learned.
+  Pipeline-level actions sit here: relearn, guidance, improve, give up.
+- **Sessions,** for the selected pipeline: every attempt, current and historical, newest first. The
+  session-level actions sit here: approve, reject, grant, exhaust. A second tab beside it lists the
+  pipeline's waiting streams, which is today's backlog pane narrowed to one pipeline.
+- **The selected session:** the learning flow with the session's path drawn over it (A88), and the whole
+  conversation as a transcript, turn by turn. Clicking a turn lights its step on the chart. Clicking a
+  step scrolls the transcript to its turns.
+
+What goes: the ledger of shapes and the serving rules pane, since each is now a column of the pipeline
+row; and the five-pane layout.
+
+---
+
+## 6. The costs, stated
+
+- **One processor filter per feed, and one small pipeline beside the fragment.** The documents are not
+  new: learning was always per feed and type, and each already gets its own fragment pipeline and
+  stylesheet (A58). What is new is a filter per feed where there was one in all, and a made pipeline
+  per feed that inherits everything and holds nothing. Task creation already walks every enabled
+  filter, and installations with hundreds of filters exist. The real-scale trial (ISSUES item 11)
+  should still watch the filter count.
+- **The runtime tables are rekeyed.** Their migrations are on this branch only and not released, so
+  they are rewritten rather than migrated (A111). A development database drops the tables and their
+  Flyway rows.
+- **Scenario tests churn.** Every scenario builds a stage for a document and feeds it streams of
+  several shapes. Each becomes a stage per pipeline. The production path the scenarios now share
+  (A99) makes this mechanical rather than a redesign.
+- **Two factories may make two pipelines for one feed.** That is sometimes what is wanted, e.g. a raw
+  store and an AI translation. The factory does not look at pipelines it did not make.
+
+---
+
+## 7. The plan, in phases
+
+Five phases, each cut into slices that build, pass checkstyle and their tests, and can be audited and
+committed alone. Phase I touches nothing of the AI work and can be committed before J begins. Phase K
+must not land before J: counting deferred tasks while one filter still serves many feeds brings back
+the stall of design 04 §5.2.
+
+### Phase I — The Pipeline Factory *(new modules; nothing about AI)*
+
+New modules beside the others of their kind: the document and its resource in `stroom-core-shared`,
+the store, job and service in a `stroom-pipeline-factory` implementation module, and its table in a
+matching `-impl-db` module with its own Flyway migration and jOOQ code.
+
+1. **The document and its store.** `PipelineFactoryDoc` with the settings of §3.1, its serialiser,
+   store, import and export, and explorer registration. Unit tests for the document's round trip and
+   its validation: a template that is not a pipeline, a key field a processor filter cannot query
+   (refused on import, A119), a pattern naming a field the key lacks.
+2. **Making one pipeline.** Given a factory and one set of key values, make the folder, the pipeline
+   inheriting the template with the substituted property values, and the processor filter with the
+   factory's settings and the combined expression. Reuse `ExplorerService`, the pipeline store and
+   `ProcessorFilterService.create`. Tests against the database for the documents and filter made,
+   their names and places, and a name a key value would make unreadable. The documents are made as the
+   factory's run-as user (A123), and a test shows a user without permission on the folder makes nothing.
+3. **What it remembers, and the job.** The table of §3.4 with its unique key, the meta-id high-water
+   mark, the incremental scan of §3.2, and the scheduled job under a cluster lock. Tests: a second run
+   makes nothing twice, a deleted pipeline is not made again, *forget* lets it be made afresh, a
+   creation that fails (a permission, a template deleted) is recorded and retried on the next run.
+4. **Its screen.** The document's settings tab, using the standard expression editor and document
+   pickers, with a key picker offering only the fields a processor filter can query (A119), and the list of combinations made with links and *forget*. `gwtCompile`.
+5. **Audit and walkthrough.** A factory over `Raw Events` with an ordinary template makes a pipeline
+   and filter per feed as data arrives, and each processes.
+
+### Phase J — The AI element keyed by pipeline *(the feature)*
+
+The largest phase. Its slices keep the build and the scenarios green at each step.
+
+1. **The key moves under the stage.** Every runtime table's `(doc_uuid, shape_hash)` becomes
+   `(pipeline_uuid, element_id)`, with the document recorded on the attempt (A114). The migrations are
+   rewritten (A111) and the jOOQ code regenerated. The stage takes its key from `PipelineHolder` and the
+   element. The scenario fixture gives each scenario's feed its own pipeline. Shapes still exist in the
+   code but are now one per key, so behaviour is unchanged and every scenario must pass unaltered in
+   what it asserts.
+2. **One record, no rules (A117).** The rule table and the shape table become the element's record.
+   The routing table, the reserved rule and the selector code go, and the learning key leaves the
+   document; its serialiser drops the old key on read. The deferral, snapshot and wake read the record.
+3. **`Shape` goes.** The stage stops computing one. What the model is shown of the feed and type comes
+   from the stream's meta. The claim is the key.
+4. **The wake by pipeline, and the stage's reprocess filter retired.** The wake moves every filter's
+   deferred tasks on the pipeline (§4.3). `PipelineReprocessing` goes; reprocessing is a person's
+   reprocess filter on the pipeline, and a scenario proves a reprocess filter's deferred task wakes.
+   Stepping the pipeline reads the record and writes nothing (A121), with a test.
+5. **Where learned content goes (A113).** The element's folder and name properties, defaulting to
+   beside the pipeline under its name, replace the fixed folder and the timestamped names.
+6. **A deleted pipeline's learning.** Its record is marked deleted and its sessions age out under the
+   retention job (A120).
+7. **Audit.** Including a search for every remaining use of shape, rule and learning key in the module,
+   its tests, the shared model and the client.
+
+### Phase K — Deferred tasks count *(`stroom-processor`; closes ISSUES item 1)*
+
+1. **Task creation counts `DEFERRED` with `CREATED` (A109).** One change in
+   `ProcessorTaskCreatorImpl` and its DAO count, with a test that a filter whose tasks are all deferred
+   creates no more, and one that a filter with none deferred creates as before.
+
+### Phase L — What a person sees *(the client)*
+
+1. **The document's tabs.** The Route tab goes, and the process header shows Score and Learn (A110).
+   The maximum deferral age moves to the Learn tab (A118). Wording that still says rule or shape
+   changes, such as the Score tab's "Flag a serving rule below".
+2. **The Supervisor's pipelines and sessions (A115).** The learning pipelines list and the sessions
+   list beneath it, the waiting streams on a second tab, and each action moved to the level it acts on.
+   The resource's endpoints take the key instead of document and shape. ISSUES item 11's paging is done
+   here, in the database, now that the list is per pipeline.
+3. **The session's flow and conversation (A116).** The transcript reading down beside the chart, each
+   choosing the other. ISSUES items 6 and 9 are fixed here: the exhaustion mark on a session, and a
+   multi-part step lit only when its last unit passes.
+4. **The grant dialog.** ISSUES item 5, on the ruling ISSUES item 17 owes.
+5. **Audit.** `gwtCompile` and a look in the browser.
+
+### Phase M — The walkthrough
+
+A factory over `Raw Events` with the AI template takes three feeds from unseen to served from the UI.
+Each feed is paused, prioritised and put on a node group through its own filter, and one is
+reprocessed. Its learning shows in the Supervisor from its first session. This replaces ISSUES item
+15, phase 6's exit, which assumed the supervising pipeline. Then ISSUES items 12 to 14: the full
+build, the Docker images, one live-model run and the changelog entry.
+
+### What else changes
+
+- **The earlier designs** keep their history. Design 01 §3 and §5, design 02's scenarios and design 04
+  §2 and §5.2 each gain a note where this design supersedes them, rather than being rewritten.
+- **ISSUES.md** loses item 1 to phase K, items 5, 6, 9 and 11 to phase L, and item 15 to phase M.
+
+---
+
+## 8. Questions, with recommendations, as put
+
+**Q1. What is the feature called?** It needs a document type name. Options: *Pipeline Factory*,
+*Auto Pipeline*, *Feed Onboarding*. *Recommended: Pipeline Factory*, since it says what it makes, not
+what feeds it.
+
+**Q2. What is the unit of learning: the pipeline, or the pipeline and feed?** If a person points one AI
+pipeline's filter at several feeds by hand, either it learns one transform for all of them, or it
+quietly keeps shapes inside the pipeline. *Recommended: the pipeline, whatever its filter takes.* The
+filter says what the pipeline is for, and one transform with matches per kind of record is how A49
+already treats variety within a feed.
+
+**Q3. Does a made pipeline inherit the template or copy it?** Inheriting means a template change
+reaches every made pipeline. Copying means each can drift. *Recommended: inherit.* Per-feed content can
+use `${feed}` where elements already substitute it, as file destinations do.
+
+**Q4. Is the key configurable?** *Recommended: yes, feed and type by default, any meta fields allowed*,
+as the learning key is today (A29). It is the learning key moved out of the AI document into the
+factory, where it decides pipelines rather than shapes.
+
+**Q5. Where does the learned transform live?** It stays a fragment the stage runs, referenced from the
+pipeline's runtime rule, or learning writes the parser and XSLT into the made pipeline itself.
+*Recommended: a fragment, as now.* The stage must still judge every stream against the bar and defer,
+which needs the transform run under it, and a snapshot (A61) must name what processed a stream. Writing
+into the made pipeline is a later step once a feed is settled (Q10).
+
+**Q6. Does a new filter process the combination's history?** *Recommended: from the first stream the
+factory met*, by setting the filter's minimum meta create time. An option on the factory allows all
+history.
+
+**Q7. Does deferred counting apply to every filter, or is it a filter setting?** *Recommended: every
+filter.* Only AI pipelines defer, so nothing else changes, and a setting is one more thing to get wrong.
+
+**Q8. Does the process header keep three stages?** *Recommended: yes, Find, Score, Learn*, with Find
+naming the factories whose template points at this document.
+
+**Q9. Rewrite the runtime migrations, or add new ones?** *Recommended: rewrite*, since none has been
+released, so a reader of the schema sees the pipeline key from the first migration.
+
+**Q10. Does a settled AI pipeline ever stop being AI?** A feed served for months with no deferrals
+could be turned into a plain pipeline holding its learned parser and XSLT, with no stage. *Recommended:
+not now; record it as future work.* The stage's judging of each stream is what catches a format change
+(ISSUES item 2).
+
+---
+
+## 9. Gaps found on review, with recommendations
+
+Found on reading the ruled design end to end, 2026-10-07. None changes a ruling; each is a detail the
+rulings leave open. All six were put with recommendations the same day: four were taken, and on G2 and
+G6 the owner chose otherwise. The rulings are A118–A123.
+
+**G1. Where does the maximum deferral age go?** It sits on the Route tab (A92), which goes. *Recommended:
+the Learn tab*, since a stream now waits only on a session.
+
+**G2. A factory's key must be fields a processor filter can query.** Feed and type always are. A
+receipt header is only if it is one of the meta values Stroom keeps for searching. *Recommended: the
+factory refuses to save a key field a filter cannot query, and says why.*
+
+**G3. What happens to a pipeline's learning when the pipeline is deleted?** The element's record, its
+sessions, corpus and snapshots outlive it, keyed by a UUID nothing holds. *Recommended: the record is
+marked deleted and stays visible in the Supervisor under a filter, and the attempt retention job
+(design 04) removes it with its sessions once they age out.* A factory's *forget* makes a new pipeline
+with a new UUID, which learns afresh.
+
+**G4. Stepping a made pipeline.** The stepper runs the element under the pipeline's own UUID, so it
+would key into the live record. *Recommended: stepping reads the record and the serving snapshot but
+writes nothing, opens no session and defers nothing*, as the stage's dry run already behaves.
+
+**G5. Changing a factory after it has made pipelines.** A change of template, patterns or filter
+settings applies to what it makes next. What it made before is a person's, by §3.4. *Recommended: so
+stated on the factory's screen; an "apply to all made" action is future work.*
+
+**G6. Which user makes the documents.** *Recommended: the job runs as the processing user, made
+documents take their folder's permissions (`PermissionInheritance.DESTINATION`, as learned content
+already does), and filters run as the factory's run-as user.*
+
+## 10. Rulings
+
+**A103.** *The feature is the Pipeline Factory.* A document type of that name holds a factory's
+configuration, and a job runs every enabled factory.
+
+**A104.** *The pipeline is the unit of learning.* An AI pipeline learns one transform for whatever its
+processor filter takes. Shapes, the learning key in the AI document and the routing table are removed.
+Variety within what a filter takes is match treatment in the transform, as A49 has it for a feed.
+
+**A105.** *A made pipeline inherits its template.* Its `parentPipeline` is the template and it holds
+nothing of its own beyond the property values of A113, so every other change to the template reaches
+every pipeline made from it. For an AI pipeline the template starts with the Shapeshifter AI element,
+and what it learns lives in a fragment outside the made pipeline (§4.1), so nothing learned is
+inherited or overridden.
+
+**A106.** *A factory's key is configurable.* It is `Feed` and `Type` by default and may be any meta
+fields. It is the learning key of A29, moved from the AI document to the factory, where it decides
+pipelines rather than shapes.
+
+**A107.** *The learned transform stays a fragment the stage runs.* The made pipeline holds the stage,
+not the transform, so the stage can judge every stream against the bar and defer, and a snapshot
+(A61) names what processed each stream.
+
+**A108.** *A factory offers every processor filter setting.* Priority, maximum processing tasks,
+processor profile with its node group and time periods, run-as user, minimum and maximum meta create
+time, maximum task creation delay and enabled are set on the factory and written to each filter it
+makes. There is no factory-only notion of where processing starts; the meta create times say it.
+
+**A109.** *Every filter's task budget counts `DEFERRED` with `CREATED`.* Only AI pipelines defer, so no
+other filter's count changes. This closes ISSUES item 1.
+
+**A110.** *The AI document's process header shows Score and Learn.* Routing is no longer the
+document's: a stream reaches it through its pipeline's filter.
+
+**A111.** *The runtime migrations are rewritten, not added to.* None has been released, so the schema
+carries the pipeline key from its first migration.
+
+**A112.** *A settled AI pipeline does not become a plain one.* Turning a long-served feed into a pipeline
+holding its learned parser and XSLT without the stage is future work. The stage's judging of each
+stream is what will catch a format change (ISSUES item 2).
+
+**A113.** *Names and locations are the factory's to configure.* A factory has a folder pattern and a
+name pattern for the pipelines it makes, and patterns for element property values, all with the key's
+values substituted. The Shapeshifter AI element gains properties for the folder and name of what it
+learns, which an AI factory sets from its patterns, so the fragment, text converter and XSLT are named
+and placed as the factory says. Unset, they go beside the pipeline under its name. *Added 2026-10-07
+after the questions: the owner asked for naming to be configurable; the mechanism, substituted element
+properties, is the design's.*
+
+**A114.** *A learning session and its record are keyed by the pipeline and the element.* The key is
+the made pipeline's UUID, as the element reads it from `PipelineHolder`, never its template's, and the
+element's id in the chain, so a pipeline may hold more than one Shapeshifter AI element. The document
+is not part of the key: each attempt records the document it ran under, and a pipeline whose element
+is pointed at another document keeps what it learned.
+
+**A115.** *The Supervisor is three levels, master to detail.* Learning pipelines, one row per pipeline
+and element with its state and the pipeline-level actions; beneath it the selected pipeline's
+sessions, current and past, with the session-level actions, and beside them on a second tab the
+pipeline's waiting streams; beneath that the selected session. The ledger of shapes and the serving
+rules pane are removed.
+
+**A116.** *A session shows as its flow and its conversation.* The learning flow with the session's path
+drawn on it (A88), beside the whole conversation reading down turn by turn: step, question, answer,
+score and outcome, a turn's full text opening on click. Choosing a turn lights its step on the chart,
+and choosing a step brings its turns into view.
+
+**A117.** *There are no rules.* With one pipeline per filter nothing is left to select, so the rule
+table, the shape table and every notion of a rule go. One record per pipeline and element holds the
+learning state, the serving snapshot, any snapshot awaiting review, the rolling score and the relearn
+mark. It is written the first time the element meets a stream: no record means nothing has been
+learned, so the element writes it, defers the stream and opens the first session.
+
+**A118.** *The maximum deferral age is on the Learn tab.* The Route tab goes (A110), and a stream now
+waits only on a session.
+
+**A119.** *A factory's key offers only fields a processor filter can query.* The key picker lists feed,
+type and the meta values Stroom keeps for searching, and no others. A factory imported with a key field
+a filter cannot query is refused, naming the field. *The owner chose this over refusing on save.*
+
+**A120.** *A deleted pipeline's learning is marked and ages out.* The element's record is marked
+deleted and stays visible in the Supervisor under a filter. The attempt retention job removes it with
+its sessions, corpus and snapshots once they age out.
+
+**A121.** *Stepping is read only.* Stepping a pipeline reads the element's record and serving snapshot
+but writes nothing, opens no session and defers nothing, as the stage's dry run already behaves.
+
+**A122.** *A factory's changes apply to what it makes next.* A change of template, patterns or filter
+settings leaves what it made before alone, since those are a person's (§3.4). The factory's screen
+says so. An "apply to all made" action is future work.
+
+**A123.** *A factory makes its documents as its run-as user.* A factory has one run-as user, chosen
+as a processor filter's is, from the users the person editing it may pick. The job makes the folder,
+pipeline and filter as that user, so a factory makes only what that user could make, and the filters
+it makes run as that user too. Made documents take their folder's permissions. A creation the user
+may not make is recorded as failed and retried, so granting the permission is enough to let it
+through. *The owner first chose the factory's owner over the processing user; since Stroom's Owner is
+a permission several users or groups may hold, the owner then ruled for the run-as user.*

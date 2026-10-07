@@ -6,7 +6,8 @@ the commit or ruling that closed it, rather than deleting it.
 
 ## Needs a ruling
 
-1. **Whether deferred tasks count against a filter's task budget.** Task creation bounds itself on
+1. ~~**Whether deferred tasks count against a filter's task budget.**~~ *Ruled 2026-10-07: every filter counts `DEFERRED` with
+   `CREATED` (A109), made safe by one filter per feed and type (A104); built in design 06 phase K.* Task creation bounds itself on
    `countTasksForFilter(filter, CREATED)`, so `DEFERRED` tasks are outside the budget: the deferred
    population is bounded by what arrives, and a wake or a sweep can return a backlog to `CREATED` far
    past the limit, after which creation pauses until it drains. Options: count `CREATED` and `DEFERRED`
@@ -24,6 +25,16 @@ the commit or ruling that closed it, rather than deleting it.
    worker cannot read back as a stream. Moving it to the worker needs the attempt to carry its own
    sample — a change to the attempt row. *Design 04 §10, A102.*
 
+17. **Whether an attempt's time budget is per carrying or per attempt.** Tokens are counted over the
+    attempt's life: each carrying starts from what was already spent. Time is counted from when the
+    carrying began (`Recorder.startedMs`), so a session parked for running out of time gets a full
+    `attemptBudgetMs` again on its next carrying. Any grant reopens it, even one of tokens alone, and
+    the person granting is not told the clock restarts. A time grant only matters to a single carrying
+    longer than the whole budget. Options: keep time per carrying, which bounds how long one run holds a
+    worker, and say so in the Supervisor and the grant dialog; or count it per attempt, which needs the
+    attempt's start or time spent kept on the attempt row. Recommended: per carrying, said plainly.
+    *Design 04, A5 and A77; item 5.*
+
 ## Small fixes
 
 4. ~~**The lease can lapse during a long model call.**~~ *Closed 2026-10-06: `HeartbeatingAdvisor` pushes
@@ -33,7 +44,9 @@ the commit or ruling that closed it, rather than deleting it.
    it. Worth doing before anything runs unattended. *Design 04 §4.*
 
 5. **Grant asks for tokens only.** The resource takes tokens and milliseconds; the Supervisor's button
-   prompts for tokens. *Design 04, phase 6 first slice (A77).*
+   prompts for tokens and always sends no time. Fix: a two-field grant dialog, tokens and minutes,
+   after the built-in text popup. What its time field means waits on item 17. *Design 04, phase 6
+   first slice (A77).*
 
 6. **A session sent to the exhaustion step shows no mark** on its row in the Supervisor beyond its state,
    though the attempt carries the flag. *Design 04, phase 6 third slice (A65).*
