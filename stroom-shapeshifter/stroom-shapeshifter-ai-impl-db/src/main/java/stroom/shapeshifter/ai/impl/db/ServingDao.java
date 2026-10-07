@@ -19,6 +19,7 @@ package stroom.shapeshifter.ai.impl.db;
 import stroom.db.util.JooqUtil;
 import stroom.docref.DocRef;
 import stroom.shapeshifter.ai.stage.Serving;
+import stroom.shapeshifter.shared.LearnerRef;
 import stroom.shapeshifter.shared.ServingRule;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 import stroom.util.shared.NullSafe;
@@ -72,10 +73,12 @@ public class ServingDao implements Serving {
         // How much a supervisor has said about each shape, grouped once rather than counted per row.
         final Field<Integer> said = DSL.count().as("said");
         final Table<?> guidance = DSL
-                .select(SHAPESHIFTER_GUIDANCE.DOC_UUID, SHAPESHIFTER_GUIDANCE.SHAPE_HASH, said)
+                .select(SHAPESHIFTER_GUIDANCE.PIPELINE_UUID, SHAPESHIFTER_GUIDANCE.ELEMENT_ID,
+                        SHAPESHIFTER_GUIDANCE.SHAPE_HASH, said)
                 .from(SHAPESHIFTER_GUIDANCE)
                 .where(SHAPESHIFTER_GUIDANCE.DOC_UUID.in(docUuids))
-                .groupBy(SHAPESHIFTER_GUIDANCE.DOC_UUID, SHAPESHIFTER_GUIDANCE.SHAPE_HASH)
+                .groupBy(SHAPESHIFTER_GUIDANCE.PIPELINE_UUID, SHAPESHIFTER_GUIDANCE.ELEMENT_ID,
+                        SHAPESHIFTER_GUIDANCE.SHAPE_HASH)
                 .asTable("guidance");
         // A draft is decided rather than improved (A25), and a rule with no shape has nothing to learn
         // again.
@@ -95,11 +98,13 @@ public class ServingDao implements Serving {
         return JooqUtil.contextResult(connProvider, context -> {
             final List<ServingRule> rules = context
                     .select(SHAPESHIFTER_RULE.DOC_UUID,
+                            SHAPESHIFTER_RULE.PIPELINE_UUID,
+                            SHAPESHIFTER_RULE.ELEMENT_ID,
                             SHAPESHIFTER_RULE.RULE_UUID,
                             SHAPESHIFTER_RULE.SHAPE_ID,
-                            SHAPESHIFTER_RULE.PIPELINE_TYPE,
-                            SHAPESHIFTER_RULE.PIPELINE_UUID,
-                            SHAPESHIFTER_RULE.PIPELINE_NAME,
+                            SHAPESHIFTER_RULE.FRAGMENT_TYPE,
+                            SHAPESHIFTER_RULE.FRAGMENT_UUID,
+                            SHAPESHIFTER_RULE.FRAGMENT_NAME,
                             SHAPESHIFTER_RULE.PINNED,
                             SHAPESHIFTER_RULE.PROVISIONAL,
                             SHAPESHIFTER_RULE.SCORE,
@@ -109,10 +114,12 @@ public class ServingDao implements Serving {
                             guidance.field(said))
                     .from(SHAPESHIFTER_RULE)
                     .leftJoin(SHAPESHIFTER_SHAPE)
-                    .on(SHAPESHIFTER_SHAPE.DOC_UUID.eq(SHAPESHIFTER_RULE.DOC_UUID))
+                    .on(SHAPESHIFTER_SHAPE.PIPELINE_UUID.eq(SHAPESHIFTER_RULE.PIPELINE_UUID))
+                    .and(SHAPESHIFTER_SHAPE.ELEMENT_ID.eq(SHAPESHIFTER_RULE.ELEMENT_ID))
                     .and(SHAPESHIFTER_SHAPE.SHAPE_HASH.eq(SHAPESHIFTER_RULE.SHAPE_HASH))
                     .leftJoin(guidance)
-                    .on(guidance.field(SHAPESHIFTER_GUIDANCE.DOC_UUID).eq(SHAPESHIFTER_RULE.DOC_UUID))
+                    .on(guidance.field(SHAPESHIFTER_GUIDANCE.PIPELINE_UUID).eq(SHAPESHIFTER_RULE.PIPELINE_UUID))
+                    .and(guidance.field(SHAPESHIFTER_GUIDANCE.ELEMENT_ID).eq(SHAPESHIFTER_RULE.ELEMENT_ID))
                     .and(guidance.field(SHAPESHIFTER_GUIDANCE.SHAPE_HASH).eq(SHAPESHIFTER_RULE.SHAPE_HASH))
                     .where(matching)
                     .orderBy(traffic.desc(), SHAPESHIFTER_RULE.RULE_UUID.asc())
@@ -122,7 +129,8 @@ public class ServingDao implements Serving {
                     .select(DSL.count())
                     .from(SHAPESHIFTER_RULE)
                     .leftJoin(SHAPESHIFTER_SHAPE)
-                    .on(SHAPESHIFTER_SHAPE.DOC_UUID.eq(SHAPESHIFTER_RULE.DOC_UUID))
+                    .on(SHAPESHIFTER_SHAPE.PIPELINE_UUID.eq(SHAPESHIFTER_RULE.PIPELINE_UUID))
+                    .and(SHAPESHIFTER_SHAPE.ELEMENT_ID.eq(SHAPESHIFTER_RULE.ELEMENT_ID))
                     .and(SHAPESHIFTER_SHAPE.SHAPE_HASH.eq(SHAPESHIFTER_RULE.SHAPE_HASH))
                     .where(matching)
                     .fetchOptional()
@@ -139,11 +147,12 @@ public class ServingDao implements Serving {
         final Integer said = row.get("said", Integer.class);
         return new ServingRule(
                 ShapeshifterAiDoc.buildDocRef().uuid(row.get(SHAPESHIFTER_RULE.DOC_UUID)).build(),
+                new LearnerRef(row.get(SHAPESHIFTER_RULE.PIPELINE_UUID), row.get(SHAPESHIFTER_RULE.ELEMENT_ID)),
                 row.get(SHAPESHIFTER_RULE.RULE_UUID),
                 row.get(SHAPESHIFTER_RULE.SHAPE_ID),
-                new DocRef(row.get(SHAPESHIFTER_RULE.PIPELINE_TYPE),
-                        row.get(SHAPESHIFTER_RULE.PIPELINE_UUID),
-                        row.get(SHAPESHIFTER_RULE.PIPELINE_NAME)),
+                new DocRef(row.get(SHAPESHIFTER_RULE.FRAGMENT_TYPE),
+                        row.get(SHAPESHIFTER_RULE.FRAGMENT_UUID),
+                        row.get(SHAPESHIFTER_RULE.FRAGMENT_NAME)),
                 row.get(SHAPESHIFTER_RULE.PINNED),
                 row.get(SHAPESHIFTER_RULE.PROVISIONAL),
                 row.get(SHAPESHIFTER_RULE.SCORE),

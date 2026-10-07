@@ -17,6 +17,8 @@
 package stroom.shapeshifter.ai.impl.db;
 
 import stroom.docref.DocRef;
+import stroom.shapeshifter.ai.stage.Learner;
+import stroom.shapeshifter.ai.stage.Rules.Held;
 import stroom.shapeshifter.shared.RecordBoundary;
 import stroom.shapeshifter.shared.RoutingRule;
 
@@ -26,15 +28,19 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/// The rules of A41 as rows: what the seam promises, against a real database. Order is what these watch,
-/// since the router takes the first rule that matches and an operator's rule sits above the learned ones.
+/// The bindings of A41 as rows: what the seam promises, against a real database. A binding is a
+/// learner's (design 06 phase J slice 2b), and its uuid names it across every learner. The database
+/// outlives a run, so every uuid and learner here is made fresh for it.
 class TestRulesDao {
 
-    private static final String DOC = "doc-" + System.nanoTime();
-    private static final String OTHER = "other-" + System.nanoTime();
+    private static final String RUN = String.valueOf(System.nanoTime());
+    private static final String DOC = "doc-" + RUN;
+    private static final Learner LEARNER = new Learner("pipeline-" + RUN, "shapeshifterAi");
+    private static final Learner OTHER = new Learner("pipeline-" + RUN, "shapeshifterAi2");
 
     @Inject
     private RulesDao rules;
@@ -42,8 +48,9 @@ class TestRulesDao {
     @BeforeEach
     void setUp() {
         Guice.createInjector(new TestModule()).injectMembers(this);
-        rules.forDocument(DOC).forEach(rule -> rules.remove(DOC, rule.getUuid()));
-        rules.forDocument(OTHER).forEach(rule -> rules.remove(OTHER, rule.getUuid()));
+        for (final Learner learner : List.of(LEARNER, OTHER)) {
+            rules.forLearner(learner).forEach(rule -> rules.remove(learner, rule.getUuid()));
+        }
     }
 
     @Test
@@ -51,17 +58,16 @@ class TestRulesDao {
         // §12 item 25: the fragment a rule binds splits at a depth, and the depth is part of the boundary
         // rather than derivable from it. A rule read back without it would write a fragment that splits in
         // the wrong place, and equals ignores the depth, so nothing else would notice.
-        final String doc = "doc-" + System.nanoTime();
-        rules.append(doc, RoutingRule.builder()
-                .uuid("rule-1")
+        rules.append(LEARNER, DOC, RoutingRule.builder()
+                .uuid(fresh("array"))
                 .recordBoundary(RecordBoundary.ofArray("events").atDepth(3))
                 .build());
-        rules.append(doc, RoutingRule.builder()
-                .uuid("rule-2")
+        rules.append(LEARNER, DOC, RoutingRule.builder()
+                .uuid(fresh("element"))
                 .recordBoundary(RecordBoundary.ofElement("Event"))
                 .build());
 
-        final List<RoutingRule> read = rules.forDocument(doc);
+        final List<RoutingRule> read = rules.forLearner(LEARNER);
 
         assertThat(read.get(0).getRecordBoundary().getArray()).isEqualTo("events");
         assertThat(read.get(0).getRecordBoundary().splitDepth())
@@ -73,7 +79,7 @@ class TestRulesDao {
     }
 
     @Test
-    void aRuleSurvivesTheRoundTripWhole() {
+    void aRuleSurvivesTheRoundTripWholeAndSaysWhoseItIs() {
         final RoutingRule learned = RoutingRule.builder()
                 .shapeId("Feed=DOOR-ACCESS|Type=Raw Events")
                 .pipeline(new DocRef("Pipeline", "fragment-1", "door-v1"))
@@ -83,69 +89,88 @@ class TestRulesDao {
                 .recordBoundary(RecordBoundary.ofArray("events"))
                 .build();
 
-        final RoutingRule stored = rules.append(DOC, learned);
+        final RoutingRule stored = rules.append(LEARNER, DOC, learned);
 
         assertThat(stored.getUuid()).describedAs("a rule without one is named on the way in").isNotNull();
-        final List<RoutingRule> read = rules.forDocument(DOC);
+        final List<RoutingRule> read = rules.forLearner(LEARNER);
         assertThat(read).hasSize(1);
         assertThat(read.get(0)).isEqualTo(stored);
         assertThat(read.get(0).getShapeId()).isEqualTo("Feed=DOOR-ACCESS|Type=Raw Events");
+        assertThat(read.get(0).getPipeline()).isEqualTo(new DocRef("Pipeline", "fragment-1", "door-v1"));
         assertThat(read.get(0).getRecordBoundary()).isEqualTo(RecordBoundary.ofArray("events"));
         assertThat(read.get(0).getScore()).isEqualTo(0.97);
         assertThat(read.get(0).isProvisional()).isTrue();
-        assertThat(rules.byUuid(DOC, stored.getUuid())).contains(stored);
-        assertThat(rules.byUuid(DOC, "no-such-rule")).isEmpty();
+        assertThat(rules.byUuid(stored.getUuid())).contains(new Held(LEARNER, DOC, stored));
+        assertThat(rules.byUuid(fresh("no-such-rule"))).isEmpty();
     }
 
     @Test
     void replacingARuleKeepsItAndPromotingOneThatWentPutsItBack() {
-        final String a = rules.append(DOC, named("a")).getUuid();
-        final String b = rules.append(DOC, named("b")).getUuid();
+        final String a = rules.append(LEARNER, DOC, named("a")).getUuid();
+        final String b = rules.append(LEARNER, DOC, named("b")).getUuid();
 
-        rules.replace(DOC, rules.byUuid(DOC, a).orElseThrow().copy().pinned(true).score(1.0).build());
+        rules.replace(LEARNER, DOC, rule(a).copy().pinned(true).score(1.0).build());
 
         assertThat(uuids()).containsExactly(a, b);
-        assertThat(rules.byUuid(DOC, a).orElseThrow().isPinned()).isTrue();
-        assertThat(rules.byUuid(DOC, a).orElseThrow().getScore()).isEqualTo(1.0);
+        assertThat(rule(a).isPinned()).isTrue();
+        assertThat(rule(a).getScore()).isEqualTo(1.0);
 
         // A promotion must not be lost because its row was pruned between the run and the write.
-        rules.remove(DOC, a);
-        rules.replace(DOC, RoutingRule.builder().uuid(a).score(0.95).build());
+        rules.remove(LEARNER, a);
+        rules.replace(LEARNER, DOC, RoutingRule.builder().uuid(a).score(0.95).build());
         assertThat(uuids()).containsExactly(b, a);
     }
 
+    /// A row records the document the learner runs under, and a replacement brings it up to date: a
+    /// pipeline whose element is pointed at another document keeps what it learned, under the new one.
     @Test
-    void oneDocumentsRulesAreItsOwn() {
-        final String mine = rules.append(DOC, named("mine")).getUuid();
-        rules.append(OTHER, named("theirs"));
+    void aReplacementRecordsTheDocumentTheLearnerNowRunsUnder() {
+        final String a = rules.append(LEARNER, DOC, named("a")).getUuid();
+
+        rules.replace(LEARNER, "moved-" + RUN, rule(a).copy().score(0.9).build());
+
+        assertThat(rules.byUuid(a)).map(Held::docUuid).contains("moved-" + RUN);
+    }
+
+    @Test
+    void oneLearnersRulesAreItsOwn() {
+        final String mine = rules.append(LEARNER, DOC, named("mine")).getUuid();
+        final String theirs = rules.append(OTHER, DOC, named("theirs")).getUuid();
 
         assertThat(uuids()).containsExactly(mine);
-        assertThat(rules.byUuid(DOC, rules.forDocument(OTHER).get(0).getUuid())).isEmpty();
-        rules.remove(DOC, rules.forDocument(OTHER).get(0).getUuid());
-        assertThat(rules.forDocument(OTHER)).describedAs("another document's rule is not ours to remove")
+        assertThat(rules.byUuid(theirs)).map(Held::learner).contains(OTHER);
+        rules.remove(LEARNER, theirs);
+        assertThat(rules.forLearner(OTHER)).describedAs("another learner's rule is not ours to remove")
                 .hasSize(1);
     }
 
+    /// The snapshot a rule serves with (A61) goes round the trip, and moves with a replacement.
+    @Test
+    void aRuleKeepsItsSnapshotAndTakesTheNextOnReplacement() {
+        rules.append(LEARNER, DOC, RoutingRule.builder().uuid(fresh("snapshot")).snapshot("snap-1").build());
+
+        assertThat(rules.forLearner(LEARNER).get(0).getSnapshot()).isEqualTo("snap-1");
+
+        rules.replace(LEARNER, DOC, rules.forLearner(LEARNER).get(0).copy().snapshot("snap-2").build());
+        assertThat(rules.forLearner(LEARNER).get(0).getSnapshot()).isEqualTo("snap-2");
+    }
+
     private List<String> uuids() {
-        return rules.forDocument(DOC).stream().map(RoutingRule::getUuid).toList();
+        return rules.forLearner(LEARNER).stream().map(RoutingRule::getUuid).toList();
+    }
+
+    private RoutingRule rule(final String uuid) {
+        final Optional<Held> held = rules.byUuid(uuid);
+        return held.orElseThrow().rule();
+    }
+
+    private static String fresh(final String name) {
+        return name + "-" + RUN;
     }
 
     private static RoutingRule named(final String name) {
         return RoutingRule.builder()
                 .pipeline(new DocRef("Pipeline", "fragment-" + name, name))
                 .build();
-    }
-
-    /// The snapshot a rule serves with (A61) goes round the trip, and moves with a replacement.
-    @Test
-    void aRuleKeepsItsSnapshotAndTakesTheNextOnReplacement() {
-        final String doc = "doc-snapshot-" + System.nanoTime();
-        rules.append(doc, RoutingRule.builder().uuid("rule-s").snapshot("snap-1").build());
-
-        assertThat(rules.forDocument(doc).get(0).getSnapshot()).isEqualTo("snap-1");
-
-        rules.replace(doc, rules.forDocument(doc).get(0).copy().snapshot("snap-2").build());
-        assertThat(rules.forDocument(doc).get(0).getSnapshot()).isEqualTo("snap-2");
-        rules.forDocument(doc).forEach(rule -> rules.remove(doc, rule.getUuid()));
     }
 }

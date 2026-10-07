@@ -126,8 +126,8 @@ class TestScenario49XmlFragments {
         scenarios.process(script, doc(),
                 new Input(1, "WINDOWS-FRAGMENTS", "Raw Events", Map.of("Format", "XML"), FRAGMENTS)).learned();
 
-        assertThat(scenarios.rules.forDocument("doc-1")).hasSize(1);
-        assertThat(scenarios.rules.forDocument("doc-1").getFirst().getRecordBoundary().getElement())
+        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).hasSize(1);
+        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER).getFirst().getRecordBoundary().getElement())
                 .isEqualTo("Event");
     }
 }

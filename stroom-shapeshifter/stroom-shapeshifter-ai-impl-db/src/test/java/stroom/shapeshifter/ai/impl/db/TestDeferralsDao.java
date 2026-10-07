@@ -93,11 +93,14 @@ class TestDeferralsDao {
 
         assertThat(deferrals.of(LEARNER, 9L)).isPresent().get().extracting(Deferral::reason).isEqualTo("no rule");
         assertThat(deferrals.of(LEARNER, 99L)).isEmpty();
-        assertThat(deferrals.waiting(DOC, "DOOR-ACCESS", "Raw Events"))
+        assertThat(deferrals.waiting(LEARNER, "DOOR-ACCESS", "Raw Events"))
                 .extracting(Deferral::inputId)
                 .containsExactly(7L, 9L);
-        assertThat(deferrals.waiting(DOC, "LIFT", "Raw Events")).extracting(Deferral::inputId).containsExactly(8L);
-        assertThat(deferrals.waiting(DOC, "LIFT", "Events")).isEmpty();
+        assertThat(deferrals.waiting(LEARNER, "LIFT", "Raw Events")).extracting(Deferral::inputId).containsExactly(8L);
+        assertThat(deferrals.waiting(LEARNER, "LIFT", "Events")).isEmpty();
+        assertThat(deferrals.waiting(OTHER_LEARNER, "DOOR-ACCESS", "Raw Events"))
+                .describedAs("what a promotion wakes is its own learner's streams")
+                .isEmpty();
     }
 
     @Test

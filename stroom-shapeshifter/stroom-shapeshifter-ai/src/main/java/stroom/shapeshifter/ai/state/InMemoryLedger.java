@@ -16,9 +16,11 @@
 
 package stroom.shapeshifter.ai.state;
 
+import stroom.shapeshifter.ai.stage.Learner;
 import stroom.shapeshifter.ai.stage.Ledger;
 import stroom.shapeshifter.ai.stage.Ledger.Page;
 import stroom.shapeshifter.ai.stage.Replayable;
+import stroom.shapeshifter.shared.LearnerRef;
 import stroom.shapeshifter.shared.LedgerShape;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 
@@ -39,40 +41,50 @@ public final class InMemoryLedger implements Ledger {
     private final List<Row> rows = new ArrayList<>();
 
     @Override
-    public synchronized void sentinelled(final String docUuid,
+    public synchronized void sentinelled(final Learner learner,
+                                         final String docUuid,
                                          final String shape,
                                          final long inputId,
-                                         final String pipeline,
                                          final String reason) {
         // A stream sentinelled twice for one shape is one row, as the table has it: it must not be
         // replayed twice when the shape settles.
-        if (rows.stream().noneMatch(row -> row.docUuid().equals(docUuid)
+        if (rows.stream().noneMatch(row -> row.learner().equals(learner)
                                            && row.shape().equals(shape)
                                            && row.inputId() == inputId)) {
-            rows.add(new Row(docUuid, shape, inputId, pipeline, reason, System.currentTimeMillis()));
+            rows.add(new Row(learner, docUuid, shape, inputId, reason, System.currentTimeMillis()));
         }
     }
 
     @Override
-    public synchronized void restate(final String docUuid, final String shape, final String reason) {
+    public synchronized void restate(final Learner learner, final String shape, final String reason) {
         for (int i = 0; i < rows.size(); i++) {
             final Row row = rows.get(i);
-            if (row.docUuid().equals(docUuid) && row.shape().equals(shape)) {
+            if (row.learner().equals(learner) && row.shape().equals(shape)) {
                 // The time it was sentinelled is kept: the stream has been waiting since it arrived,
                 // and a new reason does not make it newly late.
-                rows.set(i, new Row(row.docUuid(), row.shape(), row.inputId(), row.pipeline(), reason,
+                rows.set(i, new Row(row.learner(), row.docUuid(), row.shape(), row.inputId(), reason,
                         row.timeMs()));
             }
         }
     }
 
+    /// The learner's rows brought to the document it runs under (see [InMemoryLearners]).
+    ///
+    /// @param learner The learner.
+    /// @param docUuid The document.
+    public synchronized void runsUnder(final Learner learner, final String docUuid) {
+        rows.replaceAll(row -> row.learner().equals(learner)
+                ? new Row(learner, docUuid, row.shape(), row.inputId(), row.reason(), row.timeMs())
+                : row);
+    }
+
     @Override
-    public synchronized List<Replayable> release(final String docUuid, final String shape) {
+    public synchronized List<Replayable> release(final Learner learner, final String shape) {
         final List<Replayable> released = new ArrayList<>();
         rows.removeIf(row -> {
-            final boolean match = row.docUuid().equals(docUuid) && row.shape().equals(shape);
+            final boolean match = row.learner().equals(learner) && row.shape().equals(shape);
             if (match) {
-                released.add(new Replayable(row.inputId(), row.pipeline()));
+                released.add(new Replayable(row.inputId(), learner.pipelineUuid()));
             }
             return match;
         });
@@ -85,8 +97,8 @@ public final class InMemoryLedger implements Ledger {
         final Map<String, List<Row>> byShape = new LinkedHashMap<>();
         rows.stream()
                 .filter(row -> docUuids.contains(row.docUuid()))
-                // By document as well as shape: two documents may have shapes of the same name.
-                .forEach(row -> byShape.computeIfAbsent(row.docUuid() + '\u0000' + row.shape(),
+                // By learner as well as shape: two learners may have shapes of the same name.
+                .forEach(row -> byShape.computeIfAbsent(row.learner() + "\u0000" + row.shape(),
                         key -> new ArrayList<>()).add(row));
         // Newest first, and the tiebreaker the table uses: where two shapes were last added to in the
         // same millisecond, the one whose newest row was written last.
@@ -113,6 +125,7 @@ public final class InMemoryLedger implements Ledger {
         final Row newest = newest(group);
         return new LedgerShape(
                 ShapeshifterAiDoc.buildDocRef().uuid(newest.docUuid()).build(),
+                new LearnerRef(newest.learner().pipelineUuid(), newest.learner().elementId()),
                 newest.shape(),
                 group.size(),
                 group.stream().mapToLong(Row::timeMs).min().orElse(newest.timeMs()),
@@ -128,10 +141,10 @@ public final class InMemoryLedger implements Ledger {
         return rows.isEmpty();
     }
 
-    public record Row(String docUuid,
+    public record Row(Learner learner,
+                      String docUuid,
                       String shape,
                       long inputId,
-                      String pipeline,
                       String reason,
                       long timeMs) {
 

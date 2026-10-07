@@ -105,7 +105,7 @@ class TestScenario38ReadBackBySpan {
                 doc, stream(1, CSV.input())).learned();
         final TextRange before = scenarios.outputs.span(DOC, 1L, "pipeline-1", 1).orElseThrow();
 
-        stage.reprocess(doc, stream(1, CSV.input()));
+        stage.reprocess(doc, Scenarios.LEARNER, stream(1, CSV.input()));
 
         assertThat(scenarios.outputs.span(DOC, 1L, "pipeline-1", 1))
                 .describedAs("still there, and the same span")

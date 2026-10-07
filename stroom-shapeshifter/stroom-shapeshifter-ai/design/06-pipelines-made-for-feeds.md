@@ -502,6 +502,36 @@ The largest phase. Its slices keep the build and the scenarios green at each ste
    rejecting through the attempt, and phase L reads the learner's record if its screens need it. With slice 3 removing the shape, the shape's row becomes the learner's record (A117,
    A124), pointing at its serving binding and any draft.
 
+   *2b built 2026-10-07.* Rules, shapes, the ledger and guidance are the learner's: their rows carry
+   the pipeline and element as their key, and the document beside it for the Supervisor's lists and its
+   permissions. A rule's uuid names it across every learner, so an action that
+   begins from a rule — approve, reject, accept, retract, improve — reads its learner from the rule's
+   row and refuses one of another document; `Attempts.learnerOf` is gone. Until slice 3 removes it, a
+   `Shape` carries its learner, which is what kept the stage's change to the places a shape is made.
+   The Supervisor's rows carry the learner (`LearnerRef`), and a request about one — guidance, learning
+   a shape again — sends it back. A promotion wakes its learner's streams of the feed and type. The
+   ledger replays a released stream through the learner's pipeline, which is the one that sentinelled
+   it. The rule and shape caches are keyed by learner and cleared across the cluster by an entity event
+   of their own type naming the pipeline, since a `CLEAR_CACHE` on the pipeline's own type would clear
+   every node's merged pipeline data. The document resource's rule endpoints go (ruled at 2a's audit), and
+   with them the import of rules a document carried before A41, which named no learner and had nowhere
+   to go: such a document reads without them. The rule table names its fragment `fragment_*`, its
+   `pipeline_uuid` now being the learner's; the deferral index by document, feed and type becomes one by
+   document. A development database must again drop the Shapeshifter AI tables first.
+
+   *2b audited 2026-10-07.* Two gaps closed. A Supervisor request names its learner and its document
+   separately and is permitted on the document, so the learner is now held to it: the pipeline, read as
+   merged, must name that document on the element (`LearnerDocuments`), or guidance, learning a shape
+   again, and amending or relearning an attempt are refused — before, a person who could edit one
+   document could act on another's learner by naming it. And a pipeline pointed at another document
+   takes what it learned with it: the task decision brings every row of the learner (bindings, shapes,
+   ledger, guidance, deferrals) to the document it runs under (`Learners`), once per learner per node
+   until it moves again, where before only a row rewritten since moved, leaving the new document's
+   Supervisor blind to what served its pipeline and the old one's editors able to retract it. Attempts
+   stay with the document they learned for, as history; an attempt opened before the move and carried
+   on by the worker after it writes under the old document until the learner is next brought, which
+   slice 3's record, read from the learner rather than the attempt, removes.
+
    The text of the original slice 2 follows.
 
    **One record, no rules (A117).** The rule table and the shape table become the element's record.

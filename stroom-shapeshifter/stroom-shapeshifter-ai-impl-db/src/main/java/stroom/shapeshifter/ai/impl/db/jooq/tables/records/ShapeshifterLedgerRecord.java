@@ -47,87 +47,101 @@ public class ShapeshifterLedgerRecord extends UpdatableRecordImpl<ShapeshifterLe
     }
 
     /**
-     * Setter for <code>stroom.shapeshifter_ledger.doc_uuid</code>.
-     */
-    public void setDocUuid(String value) {
-        set(2, value);
-    }
-
-    /**
-     * Getter for <code>stroom.shapeshifter_ledger.doc_uuid</code>.
-     */
-    public String getDocUuid() {
-        return (String) get(2);
-    }
-
-    /**
-     * Setter for <code>stroom.shapeshifter_ledger.shape_hash</code>.
-     */
-    public void setShapeHash(String value) {
-        set(3, value);
-    }
-
-    /**
-     * Getter for <code>stroom.shapeshifter_ledger.shape_hash</code>.
-     */
-    public String getShapeHash() {
-        return (String) get(3);
-    }
-
-    /**
-     * Setter for <code>stroom.shapeshifter_ledger.shape_id</code>.
-     */
-    public void setShapeId(String value) {
-        set(4, value);
-    }
-
-    /**
-     * Getter for <code>stroom.shapeshifter_ledger.shape_id</code>.
-     */
-    public String getShapeId() {
-        return (String) get(4);
-    }
-
-    /**
-     * Setter for <code>stroom.shapeshifter_ledger.input_meta_id</code>.
-     */
-    public void setInputMetaId(Long value) {
-        set(5, value);
-    }
-
-    /**
-     * Getter for <code>stroom.shapeshifter_ledger.input_meta_id</code>.
-     */
-    public Long getInputMetaId() {
-        return (Long) get(5);
-    }
-
-    /**
-     * Setter for <code>stroom.shapeshifter_ledger.reason</code>.
-     */
-    public void setReason(String value) {
-        set(6, value);
-    }
-
-    /**
-     * Getter for <code>stroom.shapeshifter_ledger.reason</code>.
-     */
-    public String getReason() {
-        return (String) get(6);
-    }
-
-    /**
      * Setter for <code>stroom.shapeshifter_ledger.pipeline_uuid</code>.
      */
     public void setPipelineUuid(String value) {
-        set(7, value);
+        set(2, value);
     }
 
     /**
      * Getter for <code>stroom.shapeshifter_ledger.pipeline_uuid</code>.
      */
     public String getPipelineUuid() {
-        return (String) get(7);
+        return (String) get(2);
+    }
+
+    /**
+     * Setter for <code>stroom.shapeshifter_ledger.element_id</code>.
+     */
+    public void setElementId(String value) {
+        set(3, value);
+    }
+
+    /**
+     * Getter for <code>stroom.shapeshifter_ledger.element_id</code>.
+     */
+    public String getElementId() {
+        return (String) get(3);
+    }
+
+    /**
+     * Setter for <code>stroom.shapeshifter_ledger.doc_uuid</code>.
+     */
+    public void setDocUuid(String value) {
+        set(4, value);
+    }
+
+    /**
+     * Getter for <code>stroom.shapeshifter_ledger.doc_uuid</code>.
+     */
+    public String getDocUuid() {
+        return (String) get(4);
+    }
+
+    /**
+     * Setter for <code>stroom.shapeshifter_ledger.shape_hash</code>.
+     */
+    public void setShapeHash(String value) {
+        set(5, value);
+    }
+
+    /**
+     * Getter for <code>stroom.shapeshifter_ledger.shape_hash</code>.
+     */
+    public String getShapeHash() {
+        return (String) get(5);
+    }
+
+    /**
+     * Setter for <code>stroom.shapeshifter_ledger.shape_id</code>.
+     */
+    public void setShapeId(String value) {
+        set(6, value);
+    }
+
+    /**
+     * Getter for <code>stroom.shapeshifter_ledger.shape_id</code>.
+     */
+    public String getShapeId() {
+        return (String) get(6);
+    }
+
+    /**
+     * Setter for <code>stroom.shapeshifter_ledger.input_meta_id</code>.
+     */
+    public void setInputMetaId(Long value) {
+        set(7, value);
+    }
+
+    /**
+     * Getter for <code>stroom.shapeshifter_ledger.input_meta_id</code>.
+     */
+    public Long getInputMetaId() {
+        return (Long) get(7);
+    }
+
+    /**
+     * Setter for <code>stroom.shapeshifter_ledger.reason</code>.
+     */
+    public void setReason(String value) {
+        set(8, value);
+    }
+
+    /**
+     * Getter for <code>stroom.shapeshifter_ledger.reason</code>.
+     */
+    public String getReason() {
+        return (String) get(8);
     }
 
     // -------------------------------------------------------------------------
@@ -153,17 +167,18 @@ public class ShapeshifterLedgerRecord extends UpdatableRecordImpl<ShapeshifterLe
     /**
      * Create a detached, initialised ShapeshifterLedgerRecord
      */
-    public ShapeshifterLedgerRecord(Long id, Long createTimeMs, String docUuid, String shapeHash, String shapeId, Long inputMetaId, String reason, String pipelineUuid) {
+    public ShapeshifterLedgerRecord(Long id, Long createTimeMs, String pipelineUuid, String elementId, String docUuid, String shapeHash, String shapeId, Long inputMetaId, String reason) {
         super(ShapeshifterLedger.SHAPESHIFTER_LEDGER);
 
         setId(id);
         setCreateTimeMs(createTimeMs);
+        setPipelineUuid(pipelineUuid);
+        setElementId(elementId);
         setDocUuid(docUuid);
         setShapeHash(shapeHash);
         setShapeId(shapeId);
         setInputMetaId(inputMetaId);
         setReason(reason);
-        setPipelineUuid(pipelineUuid);
         resetTouchedOnNotNull();
     }
 }

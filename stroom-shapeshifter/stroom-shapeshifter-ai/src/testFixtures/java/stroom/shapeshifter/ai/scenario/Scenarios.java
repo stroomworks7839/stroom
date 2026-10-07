@@ -49,6 +49,7 @@ import stroom.shapeshifter.ai.state.InMemoryDeferrals;
 import stroom.shapeshifter.ai.state.InMemoryDocuments;
 import stroom.shapeshifter.ai.state.InMemoryGuidance;
 import stroom.shapeshifter.ai.state.InMemoryInputs;
+import stroom.shapeshifter.ai.state.InMemoryLearners;
 import stroom.shapeshifter.ai.state.InMemoryLedger;
 import stroom.shapeshifter.ai.state.InMemoryOutputs;
 import stroom.shapeshifter.ai.state.InMemoryRegressionSet;
@@ -93,10 +94,10 @@ public final class Scenarios {
     public static final Duration LEASE = Duration.ofMinutes(10);
     public static final long SEED = 42L;
     /// What a scenario's stage learns as (A114): one pipeline's Shapeshifter AI element. A scenario sends
-    /// every feed through the one stage, as a supervising pipeline did before design 06, and that changes
-    /// nothing while shapes remain: a claim is the learner's on one shape, and a deferral the learner's on
-    /// one stream.
-    public static final Learner LEARNER = new Learner("scenario-pipeline", "shapeshifterAi");
+    /// every feed through the one stage, as a supervising pipeline did before design 06, and everything the
+    /// stage keeps is this learner's (design 06 phase J slice 2b). Its pipeline is the one a scenario's
+    /// streams name, since what a learner releases is put through again by its own pipeline.
+    public static final Learner LEARNER = new Learner("pipeline-1", "shapeshifterAi");
 
     private static final NodeFixture NODE = new NodeFixture();
 
@@ -117,6 +118,8 @@ public final class Scenarios {
     public final InMemoryInputs inputs = new InMemoryInputs();
     /// The serving view of A46 over the three seams above it, as a node reads it from one query.
     public final InMemoryServing serving = new InMemoryServing(rules, shapes, guidance);
+    /// What brings a learner's rows to the document it runs under, over the rows above.
+    public final InMemoryLearners learners = new InMemoryLearners(rules, ledger, guidance, deferrals);
     /// As many attempts as a scenario could open, which is what one carrying takes on.
     private static final int CARRY_AT_MOST = 100;
 
@@ -204,6 +207,7 @@ public final class Scenarios {
                 reprocessing,
                 regressionSet,
                 deferrals,
+                learners,
                 wake,
                 snapshots,
                 stores.codes(),
@@ -241,6 +245,15 @@ public final class Scenarios {
         return process(document -> advisor, rules, null, doc, input);
     }
 
+    /// The same as another learner: a second pipeline, or a second element of one, meeting its streams
+    /// (design 06 phase J slice 2b).
+    public Processed process(final Advisor advisor,
+                             final Learner learner,
+                             final ShapeshifterAiDoc doc,
+                             final Input input) {
+        return process(document -> advisor, rules, null, learner, doc, input);
+    }
+
     /// The same over given advisors, rule store and fragment runner, as [#stage(Advisors, Rules,
     /// FragmentRunner)] builds a stage over them; a null runner is the scenario's own.
     public Processed process(final Advisors advisors,
@@ -248,13 +261,22 @@ public final class Scenarios {
                              final FragmentRunner fragmentRunner,
                              final ShapeshifterAiDoc doc,
                              final Input input) {
+        return process(advisors, rules, fragmentRunner, LEARNER, doc, input);
+    }
+
+    private Processed process(final Advisors advisors,
+                              final Rules rules,
+                              final FragmentRunner fragmentRunner,
+                              final Learner learner,
+                              final ShapeshifterAiDoc doc,
+                              final Input input) {
         documents.put(doc);
         inputs.put(input);
         final Stage stage = stage(advisors, rules, fragmentRunner);
-        final StageRun first = stage.decide(doc, LEARNER, input);
+        final StageRun first = stage.decide(doc, learner, input);
         // A stream a rule binds is served as it is read, by the incumbent where its shape is being
         // relearned (A29, A100).
-        final TextSink servedAtOnce = served(stage, doc, input, first);
+        final TextSink servedAtOnce = served(stage, learner, doc, input, first);
         final Recorded opened = attempts.forDocument(doc.getUuid(), CARRY_AT_MOST).stream()
                 .filter(recorded -> Objects.equals(recorded.attempt().inputId(), input.id()))
                 .filter(recorded -> recorded.status() == AttemptStatus.AWAITING_MODEL)
@@ -276,11 +298,12 @@ public final class Scenarios {
         // stream a rule now binds is served.
         final TextSink served = servedAtOnce != null || learned.bindings() == null
                 ? servedAtOnce
-                : served(stage, doc, input, stage.decide(doc, LEARNER, input));
+                : served(stage, learner, doc, input, stage.decide(doc, learner, input));
         return new Processed(first, attempts.byId(opened.id()).orElseThrow(), learned, served);
     }
 
     private static TextSink served(final Stage stage,
+                                   final Learner learner,
                                    final ShapeshifterAiDoc doc,
                                    final Input input,
                                    final StageRun decided) {
@@ -289,7 +312,7 @@ public final class Scenarios {
         }
         final TextSink sink = new TextSink();
         try {
-            stage.stream(doc, LEARNER, bound.rule(), input, sink);
+            stage.stream(doc, learner, bound.rule(), input, sink);
         } catch (final DeferTaskException e) {
             // A record short of the bar: the stream waits on the session that opened, as a task would.
             return null;
@@ -302,7 +325,7 @@ public final class Scenarios {
     public TextSink served(final ShapeshifterAiDoc doc, final Input input) {
         inputs.put(input);
         final Stage stage = stage(Script.of());
-        return served(stage, doc, input, stage.decide(doc, LEARNER, input));
+        return served(stage, LEARNER, doc, input, stage.decide(doc, LEARNER, input));
     }
 
     public static Golden corpus(final String stem) {

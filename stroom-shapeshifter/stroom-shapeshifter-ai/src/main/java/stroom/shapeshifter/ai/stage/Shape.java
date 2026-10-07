@@ -23,19 +23,16 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
-/**
- * One value of a document's learning key (design 01 §5, ruling A29): what the stage learns, binds,
- * gives up and validates on. With the default key a shape is a feed and type; with the signature in
- * the key, a kind of record within them.
- *
- * @param values  The key's fields and the stream's values for them, in key order; a field the stream
- *                lacks is absent.
- * @param missing The key fields the stream carries no value for. A shape with any is not learnable
- *                under this key (§3): binding on the fields present would widen the rule to every
- *                value of the missing one.
- */
-public record Shape(Map<String, String> values, List<String> missing) {
+/// What a learner learns, binds, gives up and validates on (design 01 §5, A29): a feed and a type of the
+/// streams one learner meets (A49). Until design 06 phase J slice 3 removes it, it carries its learner, so
+/// that what is kept about it is the learner's and not the document's (A124).
+///
+/// @param learner The learner it is a shape of.
+/// @param values  The feed and the type, in that order; a field the stream lacks is absent.
+/// @param missing The fields the stream carries no value for. A shape with any is not learnable (§3).
+public record Shape(Learner learner, Map<String, String> values, List<String> missing) {
 
     /// What a shape is the values of (A49): a feed and a type. A document no longer chooses (design 06
     /// phase J slice 2a), since a learner's pipeline already says which streams it takes, and slice 3
@@ -43,14 +40,19 @@ public record Shape(Map<String, String> values, List<String> missing) {
     public static final List<String> KEY = List.of(MetaFields.FIELD_FEED, MetaFields.FIELD_TYPE);
 
     public Shape {
+        Objects.requireNonNull(learner, "learner");
         values = Collections.unmodifiableMap(new LinkedHashMap<>(values));
         missing = List.copyOf(missing);
     }
 
-    public static Shape of(final List<String> learningKey, final Map<String, ?> attributes) {
+    /// The shape a stream of these attributes makes for a learner.
+    ///
+    /// @param learner    The learner meeting the stream.
+    /// @param attributes The stream's attributes, from which the feed and type are read.
+    public static Shape of(final Learner learner, final Map<String, ?> attributes) {
         final Map<String, String> values = new LinkedHashMap<>();
         final List<String> missing = new ArrayList<>();
-        for (final String field : learningKey) {
+        for (final String field : KEY) {
             final Object value = attributes.get(field);
             if (value == null) {
                 missing.add(field);
@@ -58,17 +60,20 @@ public record Shape(Map<String, String> values, List<String> missing) {
                 values.put(field, value.toString());
             }
         }
-        return new Shape(values, missing);
+        return new Shape(learner, values, missing);
     }
 
-    /// A shape read back from the id it was recorded under, for a path that begins from a *rule* rather
-    /// than from a stream (A46's improvement): the stream whose values made the id is long gone, and the
-    /// id is what keys the ledger, the shape's state and an attempt's claim.
+    /// A shape read back from the id it was recorded under, for a path that begins from a *rule* or a
+    /// row rather than from a stream (A46's improvement): the stream whose values made the id is long
+    /// gone, and the id is what keys the ledger, the shape's state and an attempt's claim.
     ///
     /// Splitting the id back up is exact for every value that can be told apart by it in the first
     /// place. A value holding a `|` or an `=` would mis-split here — and would already have made two
     /// different shapes share one id, which is the worse of the two problems and not this method's.
-    public static Shape parse(final String id) {
+    ///
+    /// @param learner The learner the id was recorded for.
+    /// @param id      The id.
+    public static Shape parse(final Learner learner, final String id) {
         final Map<String, String> values = new LinkedHashMap<>();
         if (id != null && !id.isBlank()) {
             for (final String field : id.split("\\|")) {
@@ -78,7 +83,7 @@ public record Shape(Map<String, String> values, List<String> missing) {
                 }
             }
         }
-        return new Shape(values, List.of());
+        return new Shape(learner, values, List.of());
     }
 
     /**

@@ -161,7 +161,7 @@ class TestScenario54TheTaskDecision {
         assertThat(row.failingRecords())
                 .describedAs("the one the run stopped at; nothing after it was read")
                 .isEqualTo(1);
-        assertThat(scenarios.shapes.relearnReason(DOC, SHAPE)).isPresent();
+        assertThat(scenarios.shapes.relearnReason(Scenarios.LEARNER, SHAPE)).isPresent();
         assertThat(scenarios.attempts.forDocument(DOC, 10))
                 .describedAs("a relearning session, opened and parked, beside the one that learned the rule")
                 .extracting(Recorded::status)
@@ -208,7 +208,7 @@ class TestScenario54TheTaskDecision {
     void whatNothingWillLearnErrorsRatherThanWaits() {
         final Scenarios scenarios = new Scenarios();
         final ShapeshifterAiDoc doc = doc();
-        scenarios.shapes.giveUp(DOC, SHAPE, "the parse could not be learned");
+        scenarios.shapes.giveUp(Scenarios.LEARNER, DOC, SHAPE, "the parse could not be learned");
 
         final StageRun errored = scenarios.stage(document -> Script.of(), scenarios.rules)
                 .decide(doc, Scenarios.LEARNER, stream(1L, MIXED));
@@ -225,7 +225,7 @@ class TestScenario54TheTaskDecision {
         final Scenarios scenarios = new Scenarios();
         final ShapeshifterAiDoc doc = doc();
         final RoutingRule learned = learn(scenarios, doc, LOGON_ONLY);
-        scenarios.rules.replace(DOC, learned.copy().pinned(true).build());
+        scenarios.rules.replace(Scenarios.LEARNER, DOC, learned.copy().pinned(true).build());
 
         final StageRun served = scenarios.stage(document -> Script.of(), scenarios.rules)
                 .decide(doc, Scenarios.LEARNER, stream(2L, MIXED));
@@ -291,7 +291,7 @@ class TestScenario54TheTaskDecision {
         final ShapeshifterAiDoc doc = doc();
         learn(scenarios, doc, LOGON_ONLY);
         final Script silent = Script.of();
-        final RoutingRule rule = scenarios.rules.forDocument(DOC).get(0);
+        final RoutingRule rule = scenarios.rules.forLearner(Scenarios.LEARNER).get(0);
         assertThatThrownBy(() -> task(scenarios, silent, null).stream(doc, Scenarios.LEARNER, rule, stream(2L,
                 MIXED), new TextSink()))
                 .isInstanceOf(DeferTaskException.class);

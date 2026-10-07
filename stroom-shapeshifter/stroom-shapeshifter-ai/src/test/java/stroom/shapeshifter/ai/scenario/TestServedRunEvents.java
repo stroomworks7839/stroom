@@ -86,7 +86,7 @@ class TestServedRunEvents {
         // A bound stream's run, where one is still made and handed on: the stepper's (A30), which plays
         // the run's events on to what is stepped beneath it. A task streams a bound stream instead
         // (design 04 §3) and makes no run to carry.
-        final StageRun served = stage.dryRun(doc, stream(2, FEED), false);
+        final StageRun served = stage.dryRun(doc, Scenarios.LEARNER, stream(2, FEED), false);
         assertThat(served.bindings()).describedAs("the same shape, bound").isNotNull();
         assertThat(served.events())
                 .describedAs("judged by running the fragment, and served by that same run")

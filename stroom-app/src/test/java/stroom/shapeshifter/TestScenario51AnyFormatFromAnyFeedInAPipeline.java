@@ -47,6 +47,7 @@ import stroom.shapeshifter.ai.scenario.Scenarios;
 import stroom.shapeshifter.ai.scenario.Script;
 import stroom.shapeshifter.ai.scenario.Structure;
 import stroom.shapeshifter.ai.stage.Bindings;
+import stroom.shapeshifter.ai.stage.Learner;
 import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.ai.transformation.XsltStep;
 import stroom.shapeshifter.shared.RoutingRule;
@@ -105,6 +106,9 @@ class TestScenario51AnyFormatFromAnyFeedInAPipeline extends AbstractProcessInteg
     private static final String FIXED_DS3 = Scenarios.resource("fixed-width.ds3.xml");
     private static final String FIXED_XSLT = Scenarios.resource("fixed-width.xsl");
     private static final String FIXED_EVENTS = Scenarios.resource("fixed-width.events.xml");
+
+    /// The learner the test's pipeline is: its Shapeshifter AI element (design 06 phase J slice 2b).
+    private Learner learner;
 
     @Inject
     private StoreCreationTool storeCreationTool;
@@ -173,7 +177,7 @@ class TestScenario51AnyFormatFromAnyFeedInAPipeline extends AbstractProcessInteg
 
         // One document, one table, a rule per feed — and every rule bound to a fragment that is a real
         // pipeline document in the store.
-        final List<RoutingRule> table = rules.forDocument(document.getUuid());
+        final List<RoutingRule> table = rules.forLearner(learner);
         assertThat(table).hasSize(DemoContentPack.FEEDS.size());
         assertThat(table).extracting(RoutingRule::getShapeId)
                 .containsExactlyInAnyOrderElementsOf(DemoContentPack.FEEDS.stream()
@@ -204,7 +208,7 @@ class TestScenario51AnyFormatFromAnyFeedInAPipeline extends AbstractProcessInteg
         assertThat(served.getMarkerCount(Severity.ERROR, Severity.FATAL_ERROR)).isZero();
         assertThat(canonical(data(outputs().get(outputs().size() - 1))))
                 .isEqualTo(canonical(JSON_EVENTS));
-        assertThat(rules.forDocument(document.getUuid()))
+        assertThat(rules.forLearner(learner))
                 .describedAs("and no second rule was written for a shape already bound")
                 .hasSize(DemoContentPack.FEEDS.size());
     }
@@ -253,6 +257,7 @@ class TestScenario51AnyFormatFromAnyFeedInAPipeline extends AbstractProcessInteg
         pipelineStore.writeDocument(pipeline.copy()
                 .pipelineData(DemoContentPack.pipelineData(document))
                 .build());
+        learner = new Learner(pipelineRef.getUuid(), DemoContentPack.STAGE_ELEMENT);
         return pipelineRef;
     }
 

@@ -37,6 +37,8 @@ public class LedgerShape {
     @JsonProperty
     private final DocRef doc;
     @JsonProperty
+    private final LearnerRef learner;
+    @JsonProperty
     private final String shapeId;
     @JsonProperty
     private final int waiting;
@@ -49,12 +51,14 @@ public class LedgerShape {
 
     @JsonCreator
     public LedgerShape(@JsonProperty("doc") final DocRef doc,
+                       @JsonProperty("learner") final LearnerRef learner,
                        @JsonProperty("shapeId") final String shapeId,
                        @JsonProperty("waiting") final int waiting,
                        @JsonProperty("oldestTimeMs") final Long oldestTimeMs,
                        @JsonProperty("newestTimeMs") final Long newestTimeMs,
                        @JsonProperty("reason") final String reason) {
         this.doc = doc;
+        this.learner = learner;
         this.shapeId = shapeId;
         this.waiting = waiting;
         this.oldestTimeMs = oldestTimeMs;
@@ -68,6 +72,11 @@ public class LedgerShape {
      */
     public DocRef getDoc() {
         return doc;
+    }
+
+    /// The learner whose row it is (design 06 phase J slice 2b): what a request about it sends back.
+    public LearnerRef getLearner() {
+        return learner;
     }
 
     /**

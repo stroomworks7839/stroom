@@ -122,7 +122,7 @@ class TestScenario51AnyFormatFromAnyFeed {
         assertPromoted(fixed, FIXED_EVENTS);
 
         // One document, one table, a rule per shape — and each names the parser its own format needed.
-        final List<RoutingRule> table = scenarios.rules.forDocument(DOC);
+        final List<RoutingRule> table = scenarios.rules.forLearner(Scenarios.LEARNER);
         assertThat(table)
                 .describedAs("a rule per feed, each bound to what was learned for it (A41)")
                 .hasSize(4);
@@ -167,7 +167,7 @@ class TestScenario51AnyFormatFromAnyFeed {
         assertThat(Scenarios.canonical(second.output()))
                 .describedAs("and what it writes is what was learned")
                 .isEqualTo(Scenarios.canonical(JSON_EVENTS));
-        assertThat(scenarios.rules.forDocument(DOC)).hasSize(1);
+        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).hasSize(1);
     }
 
     private static StageRun learn(final Scenarios scenarios,
@@ -175,8 +175,8 @@ class TestScenario51AnyFormatFromAnyFeed {
                                   final String feed,
                                   final String data,
                                   final Script script) {
-        final StageRun run = scenarios.process(script, doc, stream(scenarios.rules.forDocument(DOC).size() + 1L,
-                feed, data)).learned();
+        final long next = scenarios.rules.forLearner(Scenarios.LEARNER).size() + 1L;
+        final StageRun run = scenarios.process(script, doc, stream(next, feed, data)).learned();
         // Exhausted, or a scripted reply nobody reached would pass in silence and the run would have
         // asked something other than what this scenario says it asks.
         script.verifyExhausted();

@@ -20,16 +20,18 @@ import java.util.Optional;
 import java.util.OptionalDouble;
 
 /**
- * The shape rows of ruling A26, one per document and learning-key value: whether the shape is given up
- * and why, whether it is marked for relearning and why, the rolling per-record score of design 01 §5
- * that decides the mark, and the draft rule awaiting review for it (A25). In-memory in scenarios; the
- * {@code shapeshifter_shape} table in a node.
+ * The shape rows of ruling A26, one per learner and shape (design 06 phase J slice 2b): whether the
+ * shape is given up and why, whether it is marked for relearning and why, the rolling per-record score
+ * of design 01 §5 that decides the mark, and the draft rule awaiting review for it (A25). A row records
+ * the document the learner ran under when it was written, for the Supervisor. Reads name the learner;
+ * writes name the document as well. In-memory in scenarios; the {@code shapeshifter_shape} table in a
+ * node.
  */
 public interface Shapes {
 
-    Optional<String> reasonGivenUp(String docUuid, String shape);
+    Optional<String> reasonGivenUp(Learner learner, String shape);
 
-    void giveUp(String docUuid, String shape, String reason);
+    void giveUp(Learner learner, String docUuid, String shape, String reason);
 
     /**
      * Fold one served stream into the shape's rolling score. The score counts once per record the stream
@@ -39,32 +41,32 @@ public interface Shapes {
      * @return The rolling score, once the shape has brought at least {@code memory} records since the row
      * was last reset; empty before that, when it would rest on too little to act on.
      */
-    OptionalDouble scored(String docUuid, String shape, double score, int records, int memory);
+    OptionalDouble scored(Learner learner, String docUuid, String shape, double score, int records, int memory);
 
-    Optional<String> relearnReason(String docUuid, String shape);
+    Optional<String> relearnReason(Learner learner, String shape);
 
-    void markForRelearning(String docUuid, String shape, String reason);
+    void markForRelearning(Learner learner, String docUuid, String shape, String reason);
 
     /**
      * A draft rule was written for the shape and waits for Approve or Reject (A25).
      */
-    void awaitReview(String docUuid, String shape, String ruleUuid);
+    void awaitReview(Learner learner, String docUuid, String shape, String ruleUuid);
 
     /**
      * @return The draft rule awaiting review for the shape, if there is one.
      */
-    Optional<String> draftAwaiting(String docUuid, String shape);
+    Optional<String> draftAwaiting(Learner learner, String shape);
 
     /**
      * @return The shape whose draft this rule is, if it is one.
      */
-    Optional<String> shapeAwaiting(String docUuid, String ruleUuid);
+    Optional<String> shapeAwaiting(Learner learner, String ruleUuid);
 
     /**
      * The shape is bound, or unknown again: not given up, not marked, nothing awaiting review, and its
      * rolling score starts afresh.
      */
-    void reset(String docUuid, String shape);
+    void reset(Learner learner, String shape);
 
     /**
      * What the shape has been scoring lately and over how many records, for a person reading a list of
@@ -75,7 +77,7 @@ public interface Shapes {
      *
      * @return Empty where the shape has no row, or has one that has never been scored.
      */
-    Optional<Rolling> rolling(String docUuid, String shape);
+    Optional<Rolling> rolling(Learner learner, String shape);
 
 
     // --------------------------------------------------------------------------------

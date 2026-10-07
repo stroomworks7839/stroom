@@ -152,6 +152,8 @@ public interface SupervisorResource extends RestResource, DirectRestService {
             summary = "What a supervisor has told the learning about a shape",
             operationId = "fetchShapeshifterAiGuidance")
     List<SupervisorGuidance> guidance(@PathParam("docUuid") String docUuid,
+                                      @QueryParam("pipelineUuid") String pipelineUuid,
+                                      @QueryParam("elementId") String elementId,
                                       @QueryParam("shapeId") String shapeId);
 
     @POST
@@ -168,6 +170,8 @@ public interface SupervisorResource extends RestResource, DirectRestService {
             operationId = "withdrawShapeshifterAiGuidance")
     List<SupervisorGuidance> withdraw(@PathParam("docUuid") String docUuid,
                                       @PathParam("id") long id,
+                                      @QueryParam("pipelineUuid") String pipelineUuid,
+                                      @QueryParam("elementId") String elementId,
                                       @QueryParam("shapeId") String shapeId);
 
     @POST

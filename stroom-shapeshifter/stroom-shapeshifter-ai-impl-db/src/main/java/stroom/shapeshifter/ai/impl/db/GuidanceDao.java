@@ -18,6 +18,7 @@ package stroom.shapeshifter.ai.impl.db;
 
 import stroom.db.util.JooqUtil;
 import stroom.shapeshifter.ai.stage.Guidance;
+import stroom.shapeshifter.ai.stage.Learner;
 
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
@@ -42,10 +43,16 @@ public class GuidanceDao implements Guidance {
     }
 
     @Override
-    public long given(final String docUuid, final String shape, final String message, final String author) {
+    public long given(final Learner learner,
+                      final String docUuid,
+                      final String shape,
+                      final String message,
+                      final String author) {
         return JooqUtil.contextResult(connProvider, context -> context
                 .insertInto(SHAPESHIFTER_GUIDANCE)
                 .set(SHAPESHIFTER_GUIDANCE.CREATE_TIME_MS, System.currentTimeMillis())
+                .set(SHAPESHIFTER_GUIDANCE.PIPELINE_UUID, learner.pipelineUuid())
+                .set(SHAPESHIFTER_GUIDANCE.ELEMENT_ID, learner.elementId())
                 .set(SHAPESHIFTER_GUIDANCE.DOC_UUID, docUuid)
                 .set(SHAPESHIFTER_GUIDANCE.SHAPE_HASH, ShapesDao.hash(shape))
                 .set(SHAPESHIFTER_GUIDANCE.SHAPE_ID, shape)
@@ -58,14 +65,15 @@ public class GuidanceDao implements Guidance {
     /// Oldest first: the order a person wrote them in is the order they should be read in, and a later
     /// hint that corrects an earlier one only reads as a correction if it comes after it.
     @Override
-    public List<Given> standing(final String docUuid, final String shape) {
+    public List<Given> standing(final Learner learner, final String shape) {
         return JooqUtil.contextResult(connProvider, context -> context
                 .select(SHAPESHIFTER_GUIDANCE.ID,
                         SHAPESHIFTER_GUIDANCE.MESSAGE,
                         SHAPESHIFTER_GUIDANCE.AUTHOR,
                         SHAPESHIFTER_GUIDANCE.CREATE_TIME_MS)
                 .from(SHAPESHIFTER_GUIDANCE)
-                .where(SHAPESHIFTER_GUIDANCE.DOC_UUID.eq(docUuid))
+                .where(SHAPESHIFTER_GUIDANCE.PIPELINE_UUID.eq(learner.pipelineUuid()))
+                .and(SHAPESHIFTER_GUIDANCE.ELEMENT_ID.eq(learner.elementId()))
                 .and(SHAPESHIFTER_GUIDANCE.SHAPE_HASH.eq(ShapesDao.hash(shape)))
                 .orderBy(SHAPESHIFTER_GUIDANCE.ID)
                 .fetch(row -> new Given(

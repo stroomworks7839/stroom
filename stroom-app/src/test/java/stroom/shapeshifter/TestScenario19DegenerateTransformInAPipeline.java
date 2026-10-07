@@ -48,6 +48,7 @@ import stroom.shapeshifter.ai.scenario.Scenarios;
 import stroom.shapeshifter.ai.scenario.Script;
 import stroom.shapeshifter.ai.scenario.Structure;
 import stroom.shapeshifter.ai.stage.Bindings;
+import stroom.shapeshifter.ai.stage.Learner;
 import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.ai.transformation.XsltStep;
 import stroom.shapeshifter.shared.ExtractionQualityParameters;
@@ -93,6 +94,9 @@ class TestScenario19DegenerateTransformInAPipeline extends AbstractProcessIntegr
     private static final String XSLT = Scenarios.resource("csv-logon.xsl");
     private static final String DEGENERATE = Scenarios.resource("csv-degenerate.xsl");
     private static final String EXPECTED_EVENTS = Scenarios.resource("csv-logon.events.xml");
+
+    /// The learner the test's pipeline is: its Shapeshifter AI element (design 06 phase J slice 2b).
+    private Learner learner;
 
     @Inject
     private StoreCreationTool storeCreationTool;
@@ -156,8 +160,8 @@ class TestScenario19DegenerateTransformInAPipeline extends AbstractProcessIntegr
                 .noneMatch(error -> error.getMessage().startsWith("Schema conformance"));
         assertThat(result.getMarkerCount(Severity.ERROR, Severity.FATAL_ERROR)).isZero();
         assertThat(result.getWritten()).isEqualTo(6);
-        assertThat(rules.forDocument(doc.getUuid())).hasSize(1);
-        final RoutingRule rule = rules.forDocument(doc.getUuid()).get(0);
+        assertThat(rules.forLearner(learner)).hasSize(1);
+        final RoutingRule rule = rules.forLearner(learner).get(0);
         final Meta output = outputs().get(0);
         assertThat(canonical(data(output))).isEqualTo(canonical(EXPECTED_EVENTS));
         assertThat(streamStore.getAttributes(output.getId())).containsEntry(Bindings.RULE_ATTRIBUTE, rule.getUuid());
@@ -227,6 +231,7 @@ class TestScenario19DegenerateTransformInAPipeline extends AbstractProcessIntegr
                 .build();
         final DocRef pipelineRef = pipelineStore.createDocument("DOOR-ACCESS supervised");
         pipelineStore.writeDocument(pipelineStore.readDocument(pipelineRef).copy().pipelineData(data).build());
+        learner = new Learner(pipelineRef.getUuid(), "shapeshifterAi");
         return pipelineRef;
     }
 

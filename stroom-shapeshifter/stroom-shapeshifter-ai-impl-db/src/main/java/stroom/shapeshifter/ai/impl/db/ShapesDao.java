@@ -17,10 +17,12 @@
 package stroom.shapeshifter.ai.impl.db;
 
 import stroom.db.util.JooqUtil;
+import stroom.shapeshifter.ai.stage.Learner;
 import stroom.shapeshifter.ai.stage.Shapes;
 
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import org.jooq.Condition;
 import org.jooq.DSLContext;
 
 import java.nio.charset.StandardCharsets;
@@ -32,7 +34,8 @@ import java.util.OptionalDouble;
 
 import static stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterShape.SHAPESHIFTER_SHAPE;
 
-/// The shape state of A26 as rows: one per `(doc, shape)`, holding what the stage knows about it — given
+/// The shape state of A26 as rows: one per learner and shape (design 06 phase J slice 2b), recording the
+/// document the learner ran under, holding what the stage knows about it — given
 /// up, marked for relearning, awaiting review — and its rolling score. The row is made on first mention
 /// and kept until a prune job removes what nothing references.
 @Singleton
@@ -46,20 +49,20 @@ public class ShapesDao implements Shapes {
     }
 
     @Override
-    public Optional<String> reasonGivenUp(final String docUuid, final String shape) {
-        return text(docUuid, shape, SHAPESHIFTER_SHAPE.GIVEN_UP_REASON);
+    public Optional<String> reasonGivenUp(final Learner learner, final String shape) {
+        return text(learner, shape, SHAPESHIFTER_SHAPE.GIVEN_UP_REASON);
     }
 
     @Override
-    public void giveUp(final String docUuid, final String shape, final String reason) {
+    public void giveUp(final Learner learner, final String docUuid, final String shape, final String reason) {
         JooqUtil.context(connProvider, context -> {
-            row(context, docUuid, shape);
+            row(context, learner, docUuid, shape);
             context.update(SHAPESHIFTER_SHAPE)
                     .set(SHAPESHIFTER_SHAPE.GIVEN_UP_REASON, reason)
                     .set(SHAPESHIFTER_SHAPE.VERSION, SHAPESHIFTER_SHAPE.VERSION.plus(1))
                     .set(SHAPESHIFTER_SHAPE.UPDATE_TIME_MS, System.currentTimeMillis())
-                    .where(SHAPESHIFTER_SHAPE.DOC_UUID.eq(docUuid))
-                    .and(SHAPESHIFTER_SHAPE.SHAPE_HASH.eq(hash(shape)))
+                    .set(SHAPESHIFTER_SHAPE.DOC_UUID, docUuid)
+                    .where(key(learner, shape))
                     .execute();
         });
     }
@@ -67,18 +70,18 @@ public class ShapesDao implements Shapes {
     /// The rolling score of §5, folded in one transaction so that two nodes serving the same shape at once
     /// do not each read the old mean and write over the other's.
     @Override
-    public OptionalDouble scored(final String docUuid,
+    public OptionalDouble scored(final Learner learner,
+                                 final String docUuid,
                                  final String shape,
                                  final double score,
                                  final int records,
                                  final int memory) {
         return JooqUtil.transactionResult(connProvider, context -> {
-            row(context, docUuid, shape);
+            row(context, learner, docUuid, shape);
             final var current = context
                     .select(SHAPESHIFTER_SHAPE.ROLLING_SCORE, SHAPESHIFTER_SHAPE.ROLLING_RECORDS)
                     .from(SHAPESHIFTER_SHAPE)
-                    .where(SHAPESHIFTER_SHAPE.DOC_UUID.eq(docUuid))
-                    .and(SHAPESHIFTER_SHAPE.SHAPE_HASH.eq(hash(shape)))
+                    .where(key(learner, shape))
                     .forUpdate()
                     .fetchOne();
             final double was = current.get(SHAPESHIFTER_SHAPE.ROLLING_SCORE) == null
@@ -94,8 +97,8 @@ public class ShapesDao implements Shapes {
                     .set(SHAPESHIFTER_SHAPE.ROLLING_RECORDS, held)
                     .set(SHAPESHIFTER_SHAPE.VERSION, SHAPESHIFTER_SHAPE.VERSION.plus(1))
                     .set(SHAPESHIFTER_SHAPE.UPDATE_TIME_MS, System.currentTimeMillis())
-                    .where(SHAPESHIFTER_SHAPE.DOC_UUID.eq(docUuid))
-                    .and(SHAPESHIFTER_SHAPE.SHAPE_HASH.eq(hash(shape)))
+                    .set(SHAPESHIFTER_SHAPE.DOC_UUID, docUuid)
+                    .where(key(learner, shape))
                     .execute();
             return held >= memory
                     ? OptionalDouble.of(now)
@@ -104,39 +107,46 @@ public class ShapesDao implements Shapes {
     }
 
     @Override
-    public Optional<String> relearnReason(final String docUuid, final String shape) {
-        return text(docUuid, shape, SHAPESHIFTER_SHAPE.RELEARN_REASON);
+    public Optional<String> relearnReason(final Learner learner, final String shape) {
+        return text(learner, shape, SHAPESHIFTER_SHAPE.RELEARN_REASON);
     }
 
     @Override
-    public void markForRelearning(final String docUuid, final String shape, final String reason) {
-        set(docUuid, shape, SHAPESHIFTER_SHAPE.RELEARN_REASON, reason);
+    public void markForRelearning(final Learner learner,
+                                  final String docUuid,
+                                  final String shape,
+                                  final String reason) {
+        set(learner, docUuid, shape, SHAPESHIFTER_SHAPE.RELEARN_REASON, reason);
     }
 
     @Override
-    public void awaitReview(final String docUuid, final String shape, final String ruleUuid) {
-        set(docUuid, shape, SHAPESHIFTER_SHAPE.AWAITING_RULE_UUID, ruleUuid);
+    public void awaitReview(final Learner learner,
+                            final String docUuid,
+                            final String shape,
+                            final String ruleUuid) {
+        set(learner, docUuid, shape, SHAPESHIFTER_SHAPE.AWAITING_RULE_UUID, ruleUuid);
     }
 
     @Override
-    public Optional<String> draftAwaiting(final String docUuid, final String shape) {
-        return text(docUuid, shape, SHAPESHIFTER_SHAPE.AWAITING_RULE_UUID);
+    public Optional<String> draftAwaiting(final Learner learner, final String shape) {
+        return text(learner, shape, SHAPESHIFTER_SHAPE.AWAITING_RULE_UUID);
     }
 
     @Override
-    public Optional<String> shapeAwaiting(final String docUuid, final String ruleUuid) {
+    public Optional<String> shapeAwaiting(final Learner learner, final String ruleUuid) {
         return JooqUtil.contextResult(connProvider, context -> context
                 .select(SHAPESHIFTER_SHAPE.SHAPE_ID)
                 .from(SHAPESHIFTER_SHAPE)
-                .where(SHAPESHIFTER_SHAPE.DOC_UUID.eq(docUuid))
+                .where(SHAPESHIFTER_SHAPE.PIPELINE_UUID.eq(learner.pipelineUuid()))
+                .and(SHAPESHIFTER_SHAPE.ELEMENT_ID.eq(learner.elementId()))
                 .and(SHAPESHIFTER_SHAPE.AWAITING_RULE_UUID.eq(ruleUuid))
                 .fetchOptional(SHAPESHIFTER_SHAPE.SHAPE_ID));
     }
 
+    /// Nothing is made for a shape with no row: it has nothing to forget.
     @Override
-    public void reset(final String docUuid, final String shape) {
+    public void reset(final Learner learner, final String shape) {
         JooqUtil.context(connProvider, context -> {
-            row(context, docUuid, shape);
             context.update(SHAPESHIFTER_SHAPE)
                     .setNull(SHAPESHIFTER_SHAPE.GIVEN_UP_REASON)
                     .setNull(SHAPESHIFTER_SHAPE.RELEARN_REASON)
@@ -145,8 +155,7 @@ public class ShapesDao implements Shapes {
                     .set(SHAPESHIFTER_SHAPE.ROLLING_RECORDS, 0)
                     .set(SHAPESHIFTER_SHAPE.VERSION, SHAPESHIFTER_SHAPE.VERSION.plus(1))
                     .set(SHAPESHIFTER_SHAPE.UPDATE_TIME_MS, System.currentTimeMillis())
-                    .where(SHAPESHIFTER_SHAPE.DOC_UUID.eq(docUuid))
-                    .and(SHAPESHIFTER_SHAPE.SHAPE_HASH.eq(hash(shape)))
+                    .where(key(learner, shape))
                     .execute();
         });
     }
@@ -154,12 +163,11 @@ public class ShapesDao implements Shapes {
     /// Whatever the row holds, scored or not; a row that has never been scored reads as nothing, so that
     /// a list shows no score rather than showing zero, which would read as a shape scoring badly.
     @Override
-    public Optional<Rolling> rolling(final String docUuid, final String shape) {
+    public Optional<Rolling> rolling(final Learner learner, final String shape) {
         return JooqUtil.contextResult(connProvider, context -> context
                 .select(SHAPESHIFTER_SHAPE.ROLLING_SCORE, SHAPESHIFTER_SHAPE.ROLLING_RECORDS)
                 .from(SHAPESHIFTER_SHAPE)
-                .where(SHAPESHIFTER_SHAPE.DOC_UUID.eq(docUuid))
-                .and(SHAPESHIFTER_SHAPE.SHAPE_HASH.eq(hash(shape)))
+                .where(key(learner, shape))
                 .fetchOptional()
                 .filter(row -> row.get(SHAPESHIFTER_SHAPE.ROLLING_RECORDS) > 0)
                 .map(row -> new Rolling(
@@ -169,32 +177,39 @@ public class ShapesDao implements Shapes {
                         row.get(SHAPESHIFTER_SHAPE.ROLLING_RECORDS))));
     }
 
-    private Optional<String> text(final String docUuid,
+    private Optional<String> text(final Learner learner,
                                   final String shape,
                                   final org.jooq.TableField<?, String> column) {
         return JooqUtil.contextResult(connProvider, context -> context
                 .select(column)
                 .from(SHAPESHIFTER_SHAPE)
-                .where(SHAPESHIFTER_SHAPE.DOC_UUID.eq(docUuid))
-                .and(SHAPESHIFTER_SHAPE.SHAPE_HASH.eq(hash(shape)))
+                .where(key(learner, shape))
                 .fetchOptional(column)
                 .filter(value -> value != null));
     }
 
-    private void set(final String docUuid,
+    private void set(final Learner learner,
+                     final String docUuid,
                      final String shape,
                      final org.jooq.TableField<?, String> column,
                      final String value) {
         JooqUtil.context(connProvider, context -> {
-            row(context, docUuid, shape);
+            row(context, learner, docUuid, shape);
             context.update(SHAPESHIFTER_SHAPE)
                     .set((org.jooq.Field<String>) column, value)
                     .set(SHAPESHIFTER_SHAPE.VERSION, SHAPESHIFTER_SHAPE.VERSION.plus(1))
                     .set(SHAPESHIFTER_SHAPE.UPDATE_TIME_MS, System.currentTimeMillis())
-                    .where(SHAPESHIFTER_SHAPE.DOC_UUID.eq(docUuid))
-                    .and(SHAPESHIFTER_SHAPE.SHAPE_HASH.eq(hash(shape)))
+                    .set(SHAPESHIFTER_SHAPE.DOC_UUID, docUuid)
+                    .where(key(learner, shape))
                     .execute();
         });
+    }
+
+    /// The row of one learner's shape.
+    private static Condition key(final Learner learner, final String shape) {
+        return SHAPESHIFTER_SHAPE.PIPELINE_UUID.eq(learner.pipelineUuid())
+                .and(SHAPESHIFTER_SHAPE.ELEMENT_ID.eq(learner.elementId()))
+                .and(SHAPESHIFTER_SHAPE.SHAPE_HASH.eq(hash(shape)));
     }
 
     /// A shape's id is as long as its learning key makes it — a key may name a sender-supplied header — so
@@ -214,10 +229,12 @@ public class ShapesDao implements Shapes {
     /// looked for first, so that the steady path — the row exists — never leaves the shared lock an
     /// `INSERT ... ON DUPLICATE KEY IGNORE` takes on a duplicate, which a following `FOR UPDATE` would have
     /// to upgrade, and two nodes doing that at once deadlock.
-    private static void row(final DSLContext context, final String docUuid, final String shape) {
+    private static void row(final DSLContext context,
+                            final Learner learner,
+                            final String docUuid,
+                            final String shape) {
         final boolean exists = context.fetchExists(context.selectFrom(SHAPESHIFTER_SHAPE)
-                .where(SHAPESHIFTER_SHAPE.DOC_UUID.eq(docUuid))
-                .and(SHAPESHIFTER_SHAPE.SHAPE_HASH.eq(hash(shape))));
+                .where(key(learner, shape)));
         if (exists) {
             return;
         }
@@ -226,6 +243,8 @@ public class ShapesDao implements Shapes {
                 .set(SHAPESHIFTER_SHAPE.VERSION, 1)
                 .set(SHAPESHIFTER_SHAPE.CREATE_TIME_MS, now)
                 .set(SHAPESHIFTER_SHAPE.UPDATE_TIME_MS, now)
+                .set(SHAPESHIFTER_SHAPE.PIPELINE_UUID, learner.pipelineUuid())
+                .set(SHAPESHIFTER_SHAPE.ELEMENT_ID, learner.elementId())
                 .set(SHAPESHIFTER_SHAPE.DOC_UUID, docUuid)
                 .set(SHAPESHIFTER_SHAPE.SHAPE_HASH, hash(shape))
                 .set(SHAPESHIFTER_SHAPE.SHAPE_ID, shape)

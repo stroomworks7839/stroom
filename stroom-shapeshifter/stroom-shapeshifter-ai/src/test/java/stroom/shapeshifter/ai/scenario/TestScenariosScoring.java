@@ -307,9 +307,9 @@ class TestScenariosScoring {
         assertThat(((Parked) run.decision()).reason()).contains("No admission for XSLTFilter after 3");
         assertThat(feedback(script.scripted().get(4)))
                 .anyMatch(message -> message.contains("against an expected 1.0"));
-        assertThat(scenarios.rules.forDocument(DOC)).isEmpty();
+        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).isEmpty();
         assertThat(scenarios.stores.pipelines.list()).isEmpty();
-        assertThat(scenarios.shapes.reasonGivenUp(DOC, SHAPE)).isEmpty();
+        assertThat(scenarios.shapes.reasonGivenUp(Scenarios.LEARNER, SHAPE)).isEmpty();
         assertThat(scenarios.ledger.isEmpty()).isTrue();
         assertThat(scenarios.deferrals.of(Scenarios.LEARNER,
                 1L)).describedAs("the stream waits on the parked session").isPresent();
@@ -343,8 +343,9 @@ class TestScenariosScoring {
         assertThat(script.scripted()).hasSize(3);
         assertThat(run.decision()).isInstanceOf(GivenUp.class);
         assertThat(((GivenUp) run.decision()).reason()).isEqualTo("Below the promotion floor");
-        assertThat(scenarios.shapes.reasonGivenUp(DOC, SHAPE).orElseThrow()).contains("against a floor of 0.95");
-        assertThat(scenarios.rules.forDocument(DOC)).isEmpty();
+        assertThat(scenarios.shapes.reasonGivenUp(Scenarios.LEARNER, SHAPE).orElseThrow())
+                .contains("against a floor of 0.95");
+        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).isEmpty();
         assertThat(scenarios.stores.pipelines.list()).describedAs("nothing written below the floor").isEmpty();
     }
 }

@@ -11,6 +11,7 @@ import java.util.List;
 import org.jooq.Condition;
 import org.jooq.Field;
 import org.jooq.Identity;
+import org.jooq.Index;
 import org.jooq.Name;
 import org.jooq.PlainSQL;
 import org.jooq.QueryPart;
@@ -26,6 +27,7 @@ import org.jooq.impl.DSL;
 import org.jooq.impl.SQLDataType;
 import org.jooq.impl.TableImpl;
 
+import stroom.shapeshifter.ai.impl.db.jooq.Indexes;
 import stroom.shapeshifter.ai.impl.db.jooq.Keys;
 import stroom.shapeshifter.ai.impl.db.jooq.Stroom;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.records.ShapeshifterShapeRecord;
@@ -71,6 +73,16 @@ public class ShapeshifterShape extends TableImpl<ShapeshifterShapeRecord> {
      * The column <code>stroom.shapeshifter_shape.update_time_ms</code>.
      */
     public final TableField<ShapeshifterShapeRecord, Long> UPDATE_TIME_MS = createField(DSL.name("update_time_ms"), SQLDataType.BIGINT.nullable(false), this, "");
+
+    /**
+     * The column <code>stroom.shapeshifter_shape.pipeline_uuid</code>.
+     */
+    public final TableField<ShapeshifterShapeRecord, String> PIPELINE_UUID = createField(DSL.name("pipeline_uuid"), SQLDataType.VARCHAR(255).nullable(false), this, "");
+
+    /**
+     * The column <code>stroom.shapeshifter_shape.element_id</code>.
+     */
+    public final TableField<ShapeshifterShapeRecord, String> ELEMENT_ID = createField(DSL.name("element_id"), SQLDataType.VARCHAR(255).nullable(false), this, "");
 
     /**
      * The column <code>stroom.shapeshifter_shape.doc_uuid</code>.
@@ -147,6 +159,11 @@ public class ShapeshifterShape extends TableImpl<ShapeshifterShapeRecord> {
     }
 
     @Override
+    public List<Index> getIndexes() {
+        return Arrays.asList(Indexes.SHAPESHIFTER_SHAPE_SHAPESHIFTER_SHAPE_DOC_UUID);
+    }
+
+    @Override
     public Identity<ShapeshifterShapeRecord, Long> getIdentity() {
         return (Identity<ShapeshifterShapeRecord, Long>) super.getIdentity();
     }
@@ -158,7 +175,7 @@ public class ShapeshifterShape extends TableImpl<ShapeshifterShapeRecord> {
 
     @Override
     public List<UniqueKey<ShapeshifterShapeRecord>> getUniqueKeys() {
-        return Arrays.asList(Keys.KEY_SHAPESHIFTER_SHAPE_SHAPESHIFTER_SHAPE_DOC_UUID_SHAPE_HASH);
+        return Arrays.asList(Keys.KEY_SHAPESHIFTER_SHAPE_SHAPESHIFTER_SHAPE_LEARNER_SHAPE);
     }
 
     @Override

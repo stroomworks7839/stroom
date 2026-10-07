@@ -17,9 +17,10 @@
 package stroom.shapeshifter.ai.state;
 
 import stroom.shapeshifter.ai.stage.Guidance;
-import stroom.shapeshifter.ai.stage.Rules;
+import stroom.shapeshifter.ai.stage.Rules.Held;
 import stroom.shapeshifter.ai.stage.Serving;
 import stroom.shapeshifter.ai.stage.Shapes;
+import stroom.shapeshifter.shared.LearnerRef;
 import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ServingRule;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
@@ -37,17 +38,17 @@ import java.util.Optional;
  * The serving view over the three in-memory seams: what a node's query does as a join, done here in
  * Java. The node reads the same answer from one statement, and an agreement test holds the two to it.
  * <p>
- * Every rule of every named document is walked, which is what makes this the in-memory one: the point of
+ * Every rule of every learner is walked, which is what makes this the in-memory one: the point of
  * the node's query is that it never does that.
  */
 public final class InMemoryServing implements Serving {
 
-    private final Rules rules;
+    private final InMemoryRules rules;
     private final Shapes shapes;
     private final Guidance guidance;
 
     @Inject
-    public InMemoryServing(final Rules rules, final Shapes shapes, final Guidance guidance) {
+    public InMemoryServing(final InMemoryRules rules, final Shapes shapes, final Guidance guidance) {
         this.rules = rules;
         this.shapes = shapes;
         this.guidance = guidance;
@@ -59,9 +60,9 @@ public final class InMemoryServing implements Serving {
             return new Page(List.of(), 0L);
         }
         final List<ServingRule> matched = new ArrayList<>();
-        for (final String docUuid : docUuids) {
-            for (final RoutingRule rule : rules.forDocument(docUuid)) {
-                final ServingRule serving = serving(docUuid, rule, below);
+        for (final Held held : rules.all()) {
+            if (docUuids.contains(held.docUuid())) {
+                final ServingRule serving = serving(held, below);
                 if (serving != null) {
                     matched.add(serving);
                 }
@@ -79,16 +80,18 @@ public final class InMemoryServing implements Serving {
 
     /// One rule as the view shows it, or null where it is not one the view shows: a draft is decided
     /// rather than improved (A25), and a rule with no shape has nothing to learn again.
-    private ServingRule serving(final String docUuid, final RoutingRule rule, final Double below) {
+    private ServingRule serving(final Held held, final Double below) {
+        final RoutingRule rule = held.rule();
         if (rule.isDraft() || NullSafe.isBlankString(rule.getShapeId())) {
             return null;
         }
-        final Optional<Shapes.Rolling> rolling = shapes.rolling(docUuid, rule.getShapeId());
+        final Optional<Shapes.Rolling> rolling = shapes.rolling(held.learner(), rule.getShapeId());
         if (below != null && (rolling.isEmpty() || rolling.get().score() >= below)) {
             return null;
         }
         return new ServingRule(
-                ShapeshifterAiDoc.buildDocRef().uuid(docUuid).build(),
+                ShapeshifterAiDoc.buildDocRef().uuid(held.docUuid()).build(),
+                new LearnerRef(held.learner().pipelineUuid(), held.learner().elementId()),
                 rule.getUuid(),
                 rule.getShapeId(),
                 rule.getPipeline(),
@@ -98,7 +101,7 @@ public final class InMemoryServing implements Serving {
                 rule.getPromotedTimeMs(),
                 rolling.map(Shapes.Rolling::score).orElse(null),
                 rolling.map(Shapes.Rolling::records).orElse(0),
-                guidance.standing(docUuid, rule.getShapeId()).size(),
+                guidance.standing(held.learner(), rule.getShapeId()).size(),
                 // Whether it is below its document's threshold is the resource's to say, which has the document.
                 false);
     }

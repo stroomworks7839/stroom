@@ -79,16 +79,14 @@ public interface Deferrals {
     /// @return Its row.
     Optional<Deferral> of(Learner learner, long inputId);
 
-    /// What is waiting on one shape (A49: a feed and a type), oldest first: what a promotion wakes.
+    /// What is waiting on one of a learner's shapes (A49: a feed and a type), oldest first: what a
+    /// promotion wakes.
     ///
-    /// Every learner of a document is woken for the shape: a document's shapes are its own until design
-    /// 06 phase J slice 2 gives each learner its record.
-    ///
-    /// @param docUuid The document.
+    /// @param learner The learner.
     /// @param feed    The feed.
     /// @param type    The type.
     /// @return Its rows.
-    List<Deferral> waiting(String docUuid, String feed, String type);
+    List<Deferral> waiting(Learner learner, String feed, String type);
 
     // --------------------------------------------------------------------------------
 

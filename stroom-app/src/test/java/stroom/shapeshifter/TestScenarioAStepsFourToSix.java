@@ -63,6 +63,7 @@ import stroom.shapeshifter.ai.scenario.Structure;
 import stroom.shapeshifter.ai.stage.Attempts;
 import stroom.shapeshifter.ai.stage.Attempts.Recorded;
 import stroom.shapeshifter.ai.stage.Deferrals;
+import stroom.shapeshifter.ai.stage.Learner;
 import stroom.shapeshifter.ai.stage.RegressionSet;
 import stroom.shapeshifter.ai.stage.RegressionSet.Accepted;
 import stroom.shapeshifter.ai.stage.RegressionSet.Kind;
@@ -133,6 +134,9 @@ class TestScenarioAStepsFourToSix extends AbstractCoreIntegrationTest {
     private static final Pattern ADMITTED = Pattern.compile("Name=\"" + LearnedUnknown.MARKER
                                                             + "\" Value=\"badge-fault\"");
 
+    /// The learner the test's pipeline is: its Shapeshifter AI element (design 06 phase J slice 2b).
+    private Learner learner;
+
     @Inject
     private StoreCreationTool storeCreationTool;
     @Inject
@@ -199,7 +203,7 @@ class TestScenarioAStepsFourToSix extends AbstractCoreIntegrationTest {
         advisor.set(silent);
         commonTranslationTestHelper.process(tasks(1).get(0));
         assertThat(statusByInput()).containsEntry(first.getId(), TaskStatus.COMPLETE);
-        final RoutingRule learned = rules.forDocument(document.getUuid()).get(0);
+        final RoutingRule learned = rules.forLearner(learner).get(0);
 
         // Step 4: a stream with two kinds the transform has not met defers, and one session opens.
         final Meta mixed = rawStream(EVERY_KIND);
@@ -225,7 +229,7 @@ class TestScenarioAStepsFourToSix extends AbstractCoreIntegrationTest {
         relearning.verifyExhausted();
         final Recorded session = attempts.byId(open.get(0).id()).orElseThrow();
         assertThat(session.status()).describedAs(String.valueOf(session.decision())).isEqualTo(AttemptStatus.PROMOTED);
-        final List<RoutingRule> now = rules.forDocument(document.getUuid());
+        final List<RoutingRule> now = rules.forLearner(learner);
         assertThat(now).hasSize(1);
         assertThat(now.get(0).getUuid()).isEqualTo(learned.getUuid());
         assertThat(now.get(0).getPipeline()).describedAs("the same pipeline, improved in place (A58)")
@@ -313,6 +317,7 @@ class TestScenarioAStepsFourToSix extends AbstractCoreIntegrationTest {
         pipelineStore.writeDocument(pipeline.copy()
                 .pipelineData(DemoContentPack.pipelineData(document))
                 .build());
+        learner = new Learner(pipelineRef.getUuid(), DemoContentPack.STAGE_ELEMENT);
         return pipelineRef;
     }
 

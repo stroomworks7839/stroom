@@ -20,8 +20,8 @@ import stroom.cache.api.CacheManager;
 import stroom.cache.api.LoadingStroomCache;
 import stroom.docref.DocRef;
 import stroom.shapeshifter.ai.ShapeshifterAiConfig;
+import stroom.shapeshifter.ai.stage.Learner;
 import stroom.shapeshifter.ai.stage.Shapes;
-import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 import stroom.util.entityevent.EntityAction;
 import stroom.util.entityevent.EntityEvent;
 import stroom.util.entityevent.EntityEventBus;
@@ -45,7 +45,7 @@ import java.util.OptionalDouble;
 /// wrong the moment another node served a stream, and caching a counter that every stream writes saves
 /// nothing.
 @Singleton
-@EntityEventHandler(type = ShapeshifterAiDoc.TYPE)
+@EntityEventHandler(type = Learner.EVENT_TYPE)
 public class CachedShapes implements Shapes, Clearable, EntityEvent.Handler {
 
     private static final String CACHE_NAME = "Shapeshifter AI Shape State";
@@ -65,68 +65,74 @@ public class CachedShapes implements Shapes, Clearable, EntityEvent.Handler {
                 CACHE_NAME,
                 () -> configProvider.get().getShapeCache(),
                 key -> new Settled(
-                        rows.reasonGivenUp(key.docUuid(), key.shape()),
-                        rows.relearnReason(key.docUuid(), key.shape()),
-                        rows.draftAwaiting(key.docUuid(), key.shape())));
+                        rows.reasonGivenUp(key.learner(), key.shape()),
+                        rows.relearnReason(key.learner(), key.shape()),
+                        rows.draftAwaiting(key.learner(), key.shape())));
     }
 
     @Override
-    public Optional<String> reasonGivenUp(final String docUuid, final String shape) {
-        return cache.get(new Key(docUuid, shape)).givenUp();
+    public Optional<String> reasonGivenUp(final Learner learner, final String shape) {
+        return cache.get(new Key(learner, shape)).givenUp();
     }
 
     @Override
-    public Optional<String> relearnReason(final String docUuid, final String shape) {
-        return cache.get(new Key(docUuid, shape)).relearn();
+    public Optional<String> relearnReason(final Learner learner, final String shape) {
+        return cache.get(new Key(learner, shape)).relearn();
     }
 
     @Override
-    public Optional<String> draftAwaiting(final String docUuid, final String shape) {
-        return cache.get(new Key(docUuid, shape)).draft();
+    public Optional<String> draftAwaiting(final Learner learner, final String shape) {
+        return cache.get(new Key(learner, shape)).draft();
     }
 
     @Override
-    public void giveUp(final String docUuid, final String shape, final String reason) {
-        rows.giveUp(docUuid, shape, reason);
-        changed(docUuid, shape);
+    public void giveUp(final Learner learner, final String docUuid, final String shape, final String reason) {
+        rows.giveUp(learner, docUuid, shape, reason);
+        changed(learner, shape);
     }
 
     @Override
-    public void markForRelearning(final String docUuid, final String shape, final String reason) {
-        rows.markForRelearning(docUuid, shape, reason);
-        changed(docUuid, shape);
+    public void markForRelearning(final Learner learner,
+                                  final String docUuid,
+                                  final String shape,
+                                  final String reason) {
+        rows.markForRelearning(learner, docUuid, shape, reason);
+        changed(learner, shape);
     }
 
     @Override
-    public void awaitReview(final String docUuid, final String shape, final String ruleUuid) {
-        rows.awaitReview(docUuid, shape, ruleUuid);
-        changed(docUuid, shape);
+    public void awaitReview(final Learner learner,
+                            final String docUuid,
+                            final String shape,
+                            final String ruleUuid) {
+        rows.awaitReview(learner, docUuid, shape, ruleUuid);
+        changed(learner, shape);
     }
 
     @Override
-    public void reset(final String docUuid, final String shape) {
-        rows.reset(docUuid, shape);
-        changed(docUuid, shape);
+    public void reset(final Learner learner, final String shape) {
+        rows.reset(learner, shape);
+        changed(learner, shape);
     }
 
     /// Straight to the rows: a count every served stream adds to, which no node may hold its own copy
     /// of, and which changes none of what is cached.
     @Override
-    public OptionalDouble scored(final String docUuid, final String shape, final double score,
-                                 final int records, final int memory) {
-        return rows.scored(docUuid, shape, score, records, memory);
+    public OptionalDouble scored(final Learner learner, final String docUuid, final String shape,
+                                 final double score, final int records, final int memory) {
+        return rows.scored(learner, docUuid, shape, score, records, memory);
     }
 
     /// Straight to the rows, for the same reason [#scored] is: a count every served stream adds to.
     @Override
-    public Optional<Rolling> rolling(final String docUuid, final String shape) {
-        return rows.rolling(docUuid, shape);
+    public Optional<Rolling> rolling(final Learner learner, final String shape) {
+        return rows.rolling(learner, shape);
     }
 
     /// A reverse lookup for a person approving or rejecting a draft, not for the hot path.
     @Override
-    public Optional<String> shapeAwaiting(final String docUuid, final String ruleUuid) {
-        return rows.shapeAwaiting(docUuid, ruleUuid);
+    public Optional<String> shapeAwaiting(final Learner learner, final String ruleUuid) {
+        return rows.shapeAwaiting(learner, ruleUuid);
     }
 
     @Override
@@ -136,32 +142,32 @@ public class CachedShapes implements Shapes, Clearable, EntityEvent.Handler {
 
     @Override
     public void onChange(final EntityEvent event) {
-        // One document's worth at a time, not one shape's: a document's shapes are few enough to drop
+        // One pipeline's worth at a time, not one shape's: a pipeline's shapes are few enough to drop
         // together, and the event that says one settled cannot name which without an event per settling.
-        final String docUuid = event.getDocRef() == null
+        final String pipelineUuid = event.getDocRef() == null
                 ? null
                 : event.getDocRef().getUuid();
-        if (docUuid == null) {
+        if (pipelineUuid == null) {
             clear();
         } else {
-            cache.invalidateEntries((key, settled) -> key.docUuid().equals(docUuid));
+            cache.invalidateEntries((key, settled) -> key.learner().pipelineUuid().equals(pipelineUuid));
         }
     }
 
-    /// `CLEAR_CACHE` and not `UPDATE`, which means the document itself changed: what a shape has settled
-    /// into is a row of the feature's own, and telling the product the document changed would re-index it
-    /// on every node each time a shape was marked.
-    private void changed(final String docUuid, final String shape) {
-        cache.invalidate(new Key(docUuid, shape));
+    /// An event of the learner's own type, naming its pipeline: what a shape has settled into is a row of
+    /// the feature's own, and an event on the pipeline would have every node drop its merged pipeline
+    /// data each time a shape was marked.
+    private void changed(final Learner learner, final String shape) {
+        cache.invalidate(new Key(learner, shape));
         entityEventBus.fire(new EntityEvent(
-                new DocRef(ShapeshifterAiDoc.TYPE, docUuid), EntityAction.CLEAR_CACHE));
+                new DocRef(Learner.EVENT_TYPE, learner.pipelineUuid()), EntityAction.CLEAR_CACHE));
     }
 
 
     // --------------------------------------------------------------------------------
 
 
-    private record Key(String docUuid, String shape) {
+    private record Key(Learner learner, String shape) {
 
     }
 

@@ -251,7 +251,7 @@ class TestScenario46Json {
                              + "transform one record and runs it over every record, so the envelope is "
                              + "missing the first time the candidate is judged")
                 .isEqualTo("No admission for XSLTFilter after 1 attempts");
-        assertThat(scenarios.rules.forDocument("doc-1")).describedAs("and nothing was bound").isEmpty();
+        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).describedAs("and nothing was bound").isEmpty();
     }
 
     @Test

@@ -38,6 +38,8 @@ public class ServingRule {
     @JsonProperty
     private final DocRef doc;
     @JsonProperty
+    private final LearnerRef learner;
+    @JsonProperty
     private final String ruleUuid;
     @JsonProperty
     private final String shapeId;
@@ -64,6 +66,7 @@ public class ServingRule {
 
     @JsonCreator
     public ServingRule(@JsonProperty("doc") final DocRef doc,
+                       @JsonProperty("learner") final LearnerRef learner,
                        @JsonProperty("ruleUuid") final String ruleUuid,
                        @JsonProperty("shapeId") final String shapeId,
                        @JsonProperty("fragment") final DocRef fragment,
@@ -76,6 +79,7 @@ public class ServingRule {
                        @JsonProperty("guidance") final int guidance,
                        @JsonProperty("belowThreshold") final boolean belowThreshold) {
         this.doc = doc;
+        this.learner = learner;
         this.ruleUuid = ruleUuid;
         this.shapeId = shapeId;
         this.fragment = fragment;
@@ -91,6 +95,11 @@ public class ServingRule {
 
     public DocRef getDoc() {
         return doc;
+    }
+
+    /// The learner whose row it is (design 06 phase J slice 2b): what a request about it sends back.
+    public LearnerRef getLearner() {
+        return learner;
     }
 
     public String getRuleUuid() {

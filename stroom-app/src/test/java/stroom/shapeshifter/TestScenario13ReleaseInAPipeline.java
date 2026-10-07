@@ -53,6 +53,7 @@ import stroom.shapeshifter.ai.scenario.Script;
 import stroom.shapeshifter.ai.scenario.Structure;
 import stroom.shapeshifter.ai.stage.Deferrals;
 import stroom.shapeshifter.ai.stage.Deferrals.Deferral;
+import stroom.shapeshifter.ai.stage.Learner;
 import stroom.shapeshifter.ai.stage.Ledger;
 import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.ai.stage.Shape;
@@ -97,6 +98,9 @@ class TestScenario13ReleaseInAPipeline extends AbstractCoreIntegrationTest {
     private static final String FEED = "DOOR-ACCESS-RELEASED";
     private static final Golden CSV = Scenarios.corpus("001_csv_with_header");
     private static final String XSLT = Scenarios.resource("csv-logon.xsl");
+
+    /// The learner the test's pipeline is: its Shapeshifter AI element (design 06 phase J slice 2b).
+    private Learner learner;
 
     @Inject
     private StoreCreationTool storeCreationTool;
@@ -166,8 +170,8 @@ class TestScenario13ReleaseInAPipeline extends AbstractCoreIntegrationTest {
         processOne();
         deferredLearning.exec();
         script.verifyExhausted();
-        assertThat(rules.forDocument(doc.getUuid())).hasSize(1);
-        assertThat(ledger.release(doc.getUuid(), shape()))
+        assertThat(rules.forLearner(learner)).hasSize(1);
+        assertThat(ledger.release(learner, shape()))
                 .describedAs("the ledger holds nothing: nothing was sentinelled")
                 .isEmpty();
 
@@ -200,11 +204,11 @@ class TestScenario13ReleaseInAPipeline extends AbstractCoreIntegrationTest {
                 .describedAs("released as-current (A12): the rule that settled the shape served it, and "
                              + "the model was not asked again")
                 .isEmpty();
-        assertThat(rules.forDocument(doc.getUuid())).hasSize(1);
+        assertThat(rules.forLearner(learner)).hasSize(1);
     }
 
     private String shape() {
-        return Shape.of(List.of(MetaFields.FIELD_FEED, MetaFields.FIELD_TYPE),
+        return Shape.of(learner,
                 Map.of(MetaFields.FIELD_FEED, FEED, MetaFields.FIELD_TYPE, StreamTypeNames.RAW_EVENTS)).id();
     }
 
@@ -272,6 +276,7 @@ class TestScenario13ReleaseInAPipeline extends AbstractCoreIntegrationTest {
                 .build();
         final DocRef pipelineRef = pipelineStore.createDocument(FEED + " supervised");
         pipelineStore.writeDocument(pipelineStore.readDocument(pipelineRef).copy().pipelineData(data).build());
+        learner = new Learner(pipelineRef.getUuid(), "shapeshifterAi");
         return pipelineRef;
     }
 

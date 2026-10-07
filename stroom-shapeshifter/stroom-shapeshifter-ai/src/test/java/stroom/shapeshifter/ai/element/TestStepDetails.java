@@ -85,7 +85,7 @@ class TestStepDetails {
                 .containsExactly(Map.entry("Feed", FEED), Map.entry("Type", "Raw Events"));
         assertThat(details.getDecision()).isEqualTo("Promoted");
         assertThat(details.getReason()).startsWith("Promoted rule ");
-        assertThat(details.getRuleUuid()).isEqualTo(scenarios.rules.forDocument("doc-1").get(0).getUuid());
+        assertThat(details.getRuleUuid()).isEqualTo(scenarios.rules.forLearner(Scenarios.LEARNER).get(0).getUuid());
         assertThat(details.getFragment())
                 .describedAs("carried as a reference so the pane can offer it as a link")
                 .isEqualTo(run.bindings().fragment());
@@ -119,7 +119,7 @@ class TestStepDetails {
     void aSteppedUnknownShapeSaysWhatItWouldDoAndNamesNoRule() {
         final Scenarios scenarios = new Scenarios();
         final Stage stage = scenarios.stage(document -> Script.of(), scenarios.rules);
-        final StageRun run = stage.dryRun(doc(), stream(), false);
+        final StageRun run = stage.dryRun(doc(), Scenarios.LEARNER, stream(), false);
 
         final ShapeshifterAiStepDetails details = StepDetails.of(run, true);
 

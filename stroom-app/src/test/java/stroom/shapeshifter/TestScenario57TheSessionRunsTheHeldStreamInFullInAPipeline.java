@@ -63,6 +63,7 @@ import stroom.shapeshifter.ai.stage.Attempts;
 import stroom.shapeshifter.ai.stage.Attempts.Recorded;
 import stroom.shapeshifter.ai.stage.Deferrals;
 import stroom.shapeshifter.ai.stage.Input;
+import stroom.shapeshifter.ai.stage.Learner;
 import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.ai.transformation.XsltStep;
 import stroom.shapeshifter.shared.AttemptStatus;
@@ -111,6 +112,9 @@ class TestScenario57TheSessionRunsTheHeldStreamInFullInAPipeline extends Abstrac
     private static final Pattern LOGOFF = Pattern.compile("<Action>Logoff</Action>");
     private static final int LOGONS = 1_800;
     private static final int LOGOFFS = 4;
+    /// The learner the test's pipeline is: its Shapeshifter AI element (design 06 phase J slice 2b).
+    private Learner learner;
+
     @Inject
     private StoreCreationTool storeCreationTool;
     @Inject
@@ -208,7 +212,7 @@ class TestScenario57TheSessionRunsTheHeldStreamInFullInAPipeline extends Abstrac
         final Recorded carried = attempts.byId(open.get(0).id()).orElseThrow();
         assertThat(carried.status()).describedAs(String.valueOf(carried.decision())).isEqualTo(AttemptStatus.PROMOTED);
         assertThat(attempts.forDocument(document.getUuid(), 10)).describedAs("one session to its end").hasSize(1);
-        assertThat(rules.forDocument(document.getUuid())).hasSize(1);
+        assertThat(rules.forLearner(learner)).hasSize(1);
         assertThat(statusByInput()).containsEntry(input.getId(), TaskStatus.CREATED);
 
         // The woken task serves the stream in full.
@@ -286,6 +290,7 @@ class TestScenario57TheSessionRunsTheHeldStreamInFullInAPipeline extends Abstrac
         pipelineStore.writeDocument(pipeline.copy()
                 .pipelineData(DemoContentPack.pipelineData(document))
                 .build());
+        learner = new Learner(pipelineRef.getUuid(), DemoContentPack.STAGE_ELEMENT);
         return pipelineRef;
     }
 

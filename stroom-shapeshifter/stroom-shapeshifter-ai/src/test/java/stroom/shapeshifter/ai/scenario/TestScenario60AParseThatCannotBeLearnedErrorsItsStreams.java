@@ -94,9 +94,9 @@ class TestScenario60AParseThatCannotBeLearnedErrorsItsStreams {
 
         final Recorded session = scenarios.attempts.forDocument(DOC, 10).get(0);
         assertThat(session.status()).describedAs(String.valueOf(session.decision())).isEqualTo(AttemptStatus.ABANDONED);
-        assertThat(scenarios.shapes.reasonGivenUp(DOC, SHAPE)).isPresent()
+        assertThat(scenarios.shapes.reasonGivenUp(Scenarios.LEARNER, SHAPE)).isPresent()
                 .get().asString().contains("No passing configuration for DSParser");
-        assertThat(scenarios.rules.forDocument(DOC)).isEmpty();
+        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).isEmpty();
         assertThat(scenarios.wake.woken()).extracting(Deferral::inputId)
                 .describedAs("every waiting stream is woken to error").contains(1L, 2L);
 

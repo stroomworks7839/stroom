@@ -101,7 +101,7 @@ class TestScenario59AnExhaustedSessionAdmitsAMarkedUnknown {
         final Recorded session = attempts.get(0);
         assertThat(session.status()).describedAs(String.valueOf(session.decision())).isEqualTo(AttemptStatus.PROMOTED);
         assertThat(session.turns()).extracting(Turn::kind).contains(QuestionKind.ADMIT);
-        final RoutingRule rule = scenarios.rules.forDocument(DOC).get(0);
+        final RoutingRule rule = scenarios.rules.forLearner(Scenarios.LEARNER).get(0);
         final List<Accepted> corpus = scenarios.regressionSet.accepted(rule.getUuid());
         assertThat(corpus).filteredOn(entry -> entry.kind() == Kind.UNKNOWN)
                 .describedAs("the admitted records are in the corpus as admissions (A75)")

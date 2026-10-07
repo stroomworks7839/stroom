@@ -20,12 +20,10 @@ import stroom.docstore.api.DocumentSerialiser2;
 import stroom.docstore.api.Serialiser2;
 import stroom.docstore.api.Serialiser2Factory;
 import stroom.importexport.api.ImportExportDocument;
-import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.shared.FlowExample;
 import stroom.shapeshifter.shared.FlowStep;
 import stroom.shapeshifter.shared.LearningFlow;
 import stroom.shapeshifter.shared.QuestionKind;
-import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 import stroom.util.json.JsonUtil;
 import stroom.util.logging.LambdaLogger;
@@ -33,7 +31,6 @@ import stroom.util.logging.LambdaLoggerFactory;
 import stroom.util.logging.LogUtil;
 
 import jakarta.inject.Inject;
-import jakarta.inject.Provider;
 import tools.jackson.databind.JsonNode;
 
 import java.io.IOException;
@@ -41,8 +38,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 
 public class ShapeshifterAiSerialiser implements DocumentSerialiser2<ShapeshifterAiDoc> {
 
@@ -60,61 +55,20 @@ public class ShapeshifterAiSerialiser implements DocumentSerialiser2<Shapeshifte
     /// Where the chain question's elements were kept before A95 put them on the Chain step.
     private static final String LEGACY_ELEMENTS = "allowedElements";
     private static final String LEGACY_PRESET = "preset";
-    /// Where a document's rules were kept before A41 made them rows.
-    private static final String LEGACY_RULES = "routingTable";
 
     private final Serialiser2<ShapeshifterAiDoc> delegate;
-    private final Provider<Rules> rulesProvider;
-    /// The documents this node has already had the chance to migrate, so that a read is a read.
-    private final Set<String> migrated = ConcurrentHashMap.newKeySet();
-    /// What the read on *this thread* found, for the store to migrate on the same thread and at once.
-    ///
-    /// Per thread, and that is the whole of its correctness. There is one `read` for every reason a
-    /// document is deserialised, and an import's confirmation screen deserialises the **incoming pack**
-    /// to show what it would change — a pack whose document carries the same uuid as the local one it
-    /// would replace. Held in a map keyed by uuid, the pack's rules would sit there waiting, and the
-    /// next ordinary read of the *local* document would take them and write them into its table, even
-    /// if the person cancelled the import.
-    ///
-    /// The store reads and migrates in one call on one thread ([ShapeshifterAiStoreImpl#readDocument]),
-    /// so what it carried is what it drains. Every other read leaves its carry on its own thread, where
-    /// the next read overwrites it and nothing ever reads it. That also ends the map's unbounded growth:
-    /// a document read but never opened kept its rules for the life of the node.
-    private final ThreadLocal<Carried> carried = new ThreadLocal<>();
 
     @Inject
-    ShapeshifterAiSerialiser(final Serialiser2Factory serialiser2Factory, final Provider<Rules> rulesProvider) {
+    ShapeshifterAiSerialiser(final Serialiser2Factory serialiser2Factory) {
         this.delegate = serialiser2Factory.createSerialiser(ShapeshifterAiDoc.class);
-        this.rulesProvider = rulesProvider;
     }
 
-    /// The rules a document carried before A41, in their order, or empty where it carried none: what the
-    /// store hands to [stroom.shapeshifter.ai.stage.Rules] the first time such a document is read, so that a
-    /// feed that has already learned is not learned again.
-    public static List<RoutingRule> legacyRules(final ImportExportDocument importExportDocument)
-            throws IOException {
-        final byte[] meta = importExportDocument.getExtAssetData(META);
-        if (meta == null || !new String(meta, StandardCharsets.UTF_8).contains('"' + LEGACY_RULES + '"')) {
-            return List.of();
-        }
-        final JsonNode rules = JsonUtil.getMapper().readTree(meta).get(LEGACY_RULES);
-        if (rules == null || !rules.isArray()) {
-            return List.of();
-        }
-        final List<RoutingRule> read = new ArrayList<>();
-        for (final JsonNode rule : rules) {
-            read.add(JsonUtil.getMapper().treeToValue(rule, RoutingRule.class));
-        }
-        return List.copyOf(read);
-    }
-
-    /// A read is a read: what it finds of a pre-A41 document's rules is remembered for the store to put
-    /// where it belongs, and nothing is written here. An import's confirmation screen reads to show what
-    /// would change, and must not write while showing it.
+    /// A read is a read: nothing is written here. A document's rules from before A41 are not carried over
+    /// (design 06 phase J slice 2b): they named no learner, and selected by a selector that no longer
+    /// means anything, so they have nowhere to go; the document reads without them.
     @Override
     public ShapeshifterAiDoc read(final ImportExportDocument importExportDocument) throws IOException {
         final ShapeshifterAiDoc read = delegate.read(importExportDocument);
-        rememberLegacyRules(read, importExportDocument);
         final ShapeshifterAiDoc document = legacyElements(read, importExportDocument);
         // A document saved when the flow was the plan (before A81) or the conversation (before A37) reads
         // as it was written, and only where an old name occurs at all.
@@ -175,51 +129,6 @@ public class ShapeshifterAiSerialiser implements DocumentSerialiser2<Shapeshifte
         return delegate.write(document);
     }
 
-    /**
-     * What a read found of a pre-A41 document's rules, kept until the store asks for it: every other read
-     * costs one {@code contains} over bytes already in hand.
-     */
-    private void rememberLegacyRules(final ShapeshifterAiDoc document,
-                                     final ImportExportDocument importExportDocument) throws IOException {
-        if (document == null || document.getUuid() == null || migrated.contains(document.getUuid())) {
-            return;
-        }
-        final List<RoutingRule> legacy = legacyRules(importExportDocument);
-        if (legacy.isEmpty()) {
-            // Cleared and not left: what this thread carried from the read before must not be taken for
-            // this document's.
-            carried.remove();
-        } else {
-            carried.set(new Carried(document.getUuid(), legacy));
-        }
-    }
-
-    /**
-     * A document that learned before A41 carried its rules; they are rows now, so the store's first read of
-     * such a document puts them where they belong — once per node, and only where the rows have none, so a
-     * table an operator has since emptied is theirs and not the old document's to refill. The A26 module
-     * will do this as a migration of its own, over every document, rather than on the read of each.
-     */
-    public void migrateRules(final ShapeshifterAiDoc document) {
-        if (document == null || document.getUuid() == null) {
-            return;
-        }
-        final Carried found = carried.get();
-        carried.remove();
-        if (found == null || !found.docUuid().equals(document.getUuid())
-            || !migrated.add(document.getUuid())) {
-            return;
-        }
-        final List<RoutingRule> legacy = found.rules();
-        final Rules rules = rulesProvider.get();
-        if (!rules.forDocument(document.getUuid()).isEmpty()) {
-            return;
-        }
-        legacy.forEach(rule -> rules.append(document.getUuid(), rule));
-        LOGGER.info(() -> LogUtil.message("Document {} carried {} routing rule(s) from before they were rows; "
-                                          + "they are rows now (A41)", document.getUuid(), legacy.size()));
-    }
-
     private static FlowExample example(final String name) {
         for (final FlowExample example : FlowExample.values()) {
             if (example.name().equalsIgnoreCase(name)) {
@@ -230,16 +139,5 @@ public class ShapeshifterAiSerialiser implements DocumentSerialiser2<Shapeshifte
                                           + "steps are the default flow's until it is saved again.",
                 name, Arrays.toString(FlowExample.values())));
         return FlowExample.DIRECT;
-    }
-
-
-    // --------------------------------------------------------------------------------
-
-
-    /// The rules one read found, and which document they were read for. The uuid is checked on the way
-    /// out as well as in: a thread that read one document and migrated another would otherwise carry
-    /// the first's rules into the second.
-    private record Carried(String docUuid, List<RoutingRule> rules) {
-
     }
 }

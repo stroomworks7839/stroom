@@ -63,6 +63,7 @@ import stroom.shapeshifter.ai.stage.Attempts;
 import stroom.shapeshifter.ai.stage.Attempts.Recorded;
 import stroom.shapeshifter.ai.stage.Deferrals;
 import stroom.shapeshifter.ai.stage.Deferrals.Deferral;
+import stroom.shapeshifter.ai.stage.Learner;
 import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.ai.transformation.XsltStep;
 import stroom.shapeshifter.shared.AttemptStatus;
@@ -109,6 +110,9 @@ class TestScenarioAFromNothingToServed extends AbstractCoreIntegrationTest {
     private static final String MIXED = Scenarios.resource("csv-mixed.csv");
     private static final String TRANSLATES_BOTH = Scenarios.resource("csv-logon.xsl");
     private static final Pattern EVENT = Pattern.compile("<Event>");
+
+    /// The learner the test's pipeline is: its Shapeshifter AI element (design 06 phase J slice 2b).
+    private Learner learner;
 
     @Inject
     private StoreCreationTool storeCreationTool;
@@ -190,7 +194,7 @@ class TestScenarioAFromNothingToServed extends AbstractCoreIntegrationTest {
             assertThat(row.taskId()).describedAs("the task a wake will move").isNotNull();
             assertThat(row.failedAgainst()).describedAs("no rule to have failed against").isNull();
         });
-        assertThat(rules.forDocument(document.getUuid())).isEmpty();
+        assertThat(rules.forLearner(learner)).isEmpty();
 
         // Step 2: the worker carries the session on the stream it was raised on. The promotion writes
         // the pipeline and wakes both tasks: back to CREATED ahead of the retry delay.
@@ -199,7 +203,7 @@ class TestScenarioAFromNothingToServed extends AbstractCoreIntegrationTest {
         deferredLearning.exec();
         script.verifyExhausted();
         assertThat(attempts.byId(open.get(0).id()).orElseThrow().status()).isEqualTo(AttemptStatus.PROMOTED);
-        assertThat(rules.forDocument(document.getUuid())).hasSize(1);
+        assertThat(rules.forLearner(learner)).hasSize(1);
         assertThat(statusByInput()).containsEntry(first.getId(), TaskStatus.CREATED)
                 .containsEntry(second.getId(), TaskStatus.CREATED);
 
@@ -273,6 +277,7 @@ class TestScenarioAFromNothingToServed extends AbstractCoreIntegrationTest {
         pipelineStore.writeDocument(pipeline.copy()
                 .pipelineData(DemoContentPack.pipelineData(document))
                 .build());
+        learner = new Learner(pipelineRef.getUuid(), DemoContentPack.STAGE_ELEMENT);
         return pipelineRef;
     }
 

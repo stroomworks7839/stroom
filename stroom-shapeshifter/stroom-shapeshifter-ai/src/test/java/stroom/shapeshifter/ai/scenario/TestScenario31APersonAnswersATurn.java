@@ -77,7 +77,7 @@ class TestScenario31APersonAnswersATurn {
         assertThat(given.decision()).describedAs(given.decision().toString()).isInstanceOf(GivenUp.class);
         final Recorded abandoned = scenarios.attempts.forDocument(DOC, 10).get(0);
         assertThat(abandoned.status()).isEqualTo(AttemptStatus.ABANDONED);
-        assertThat(scenarios.shapes.reasonGivenUp(DOC, shape())).isPresent();
+        assertThat(scenarios.shapes.reasonGivenUp(Scenarios.LEARNER, shape())).isPresent();
         final Turn theirs = abandoned.turns().get(abandoned.turns().size() - 1);
         assertThat(theirs.kind()).describedAs("the turn the attempt came apart on")
                 .isEqualTo(QuestionKind.CONFIGURE);
@@ -98,7 +98,7 @@ class TestScenario31APersonAnswersATurn {
         assertThat(waiting.turns()).describedAs("the turns up to and including the one answered")
                 .hasSize(theirs.number());
         assertThat(waiting.turns().get(theirs.number() - 1).answeredBy()).isEqualTo(OPERATOR);
-        assertThat(scenarios.shapes.reasonGivenUp(DOC, shape()))
+        assertThat(scenarios.shapes.reasonGivenUp(Scenarios.LEARNER, shape()))
                 .describedAs("re-running says the shape is not settled after all").isEmpty();
 
         // The worker carries it on: everything before the person's turn is replayed, their answer is
@@ -111,7 +111,7 @@ class TestScenario31APersonAnswersATurn {
         final Recorded promoted = scenarios.attempts.byId(abandoned.id()).orElseThrow();
         assertThat(promoted.status()).describedAs(String.valueOf(promoted.decision()))
                 .isEqualTo(AttemptStatus.PROMOTED);
-        assertThat(scenarios.rules.forDocument(DOC)).hasSize(1);
+        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).hasSize(1);
         assertThat(promoted.turns()).extracting(Turn::answeredBy)
                 .describedAs("the transcript says who answered each turn (A28)")
                 .containsSubsequence(model, OPERATOR, model);
@@ -246,18 +246,18 @@ class TestScenario31APersonAnswersATurn {
         scenarios.process(model, doc, stream(1L)).learned();
         final Recorded drafted = scenarios.attempts.forDocument(DOC, 10).get(0);
         assertThat(drafted.status()).isEqualTo(AttemptStatus.AWAITING_REVIEW);
-        assertThat(scenarios.rules.forDocument(DOC))
+        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER))
                 .describedAs("review mode wrote a draft for somebody to decide (A25)")
                 .anySatisfy(rule -> assertThat(rule.isDraft()).isTrue());
 
         scenarios.stage(Script.of()).amend(doc, drafted.id(), 1, "DSParser -> XSLTFilter", OPERATOR);
 
-        assertThat(scenarios.rules.forDocument(DOC))
+        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER))
                 .describedAs("the draft goes with the answer that produced it, or it is a draft nothing "
                              + "awaits: unapprovable, unrejectable, and sentinelling every stream of its "
                              + "shape until somebody deletes the rule by hand")
                 .noneSatisfy(rule -> assertThat(rule.isDraft()).isTrue());
-        assertThat(scenarios.shapes.draftAwaiting(DOC, shape()))
+        assertThat(scenarios.shapes.draftAwaiting(Scenarios.LEARNER, shape()))
                 .describedAs("and nothing is waiting for one")
                 .isEmpty();
     }

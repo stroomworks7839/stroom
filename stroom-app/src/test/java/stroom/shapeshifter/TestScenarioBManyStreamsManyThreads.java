@@ -63,6 +63,7 @@ import stroom.shapeshifter.ai.scenario.Structure;
 import stroom.shapeshifter.ai.stage.Attempts;
 import stroom.shapeshifter.ai.stage.Attempts.Recorded;
 import stroom.shapeshifter.ai.stage.Deferrals;
+import stroom.shapeshifter.ai.stage.Learner;
 import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.ai.transformation.XsltStep;
 import stroom.shapeshifter.shared.AttemptStatus;
@@ -131,6 +132,9 @@ class TestScenarioBManyStreamsManyThreads extends AbstractCoreIntegrationTest {
     private static final int SECOND_WAVE = 8;
     private static final int THREADS = 4;
     private static final Duration PATIENCE = Duration.ofMinutes(4);
+
+    /// The learner the test's pipeline is: its Shapeshifter AI element (design 06 phase J slice 2b).
+    private Learner learner;
 
     @Inject
     private StoreCreationTool storeCreationTool;
@@ -233,7 +237,7 @@ class TestScenarioBManyStreamsManyThreads extends AbstractCoreIntegrationTest {
         final List<Recorded> sessions = attempts.forDocument(document.getUuid(), 100);
         assertThat(sessions).describedAs(String.valueOf(sessions)).hasSize(2);
         assertThat(sessions).allSatisfy(session -> assertThat(session.status()).isEqualTo(AttemptStatus.PROMOTED));
-        assertThat(rules.forDocument(document.getUuid())).hasSize(1);
+        assertThat(rules.forLearner(learner)).hasSize(1);
 
         // Every stream processed exactly once, in full, and nothing left behind.
         final Map<Long, List<ProcessorTask>> tasksByInput = processorTaskService.find(new ExpressionCriteria())
@@ -417,6 +421,7 @@ class TestScenarioBManyStreamsManyThreads extends AbstractCoreIntegrationTest {
         pipelineStore.writeDocument(pipeline.copy()
                 .pipelineData(DemoContentPack.pipelineData(document))
                 .build());
+        learner = new Learner(pipelineRef.getUuid(), DemoContentPack.STAGE_ELEMENT);
         return pipelineRef;
     }
 

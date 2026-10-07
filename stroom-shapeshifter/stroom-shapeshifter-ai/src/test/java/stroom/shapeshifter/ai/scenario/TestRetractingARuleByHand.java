@@ -62,7 +62,7 @@ class TestRetractingARuleByHand {
         final Stage stage = scenarios.stage(document -> learn(scenarios), scenarios.rules);
         final ShapeshifterAiDoc doc = doc();
         scenarios.process(learn(scenarios), doc, stream(1L)).learned();
-        final RoutingRule bound = scenarios.rules.forDocument("doc-1").get(0);
+        final RoutingRule bound = scenarios.rules.forLearner(Scenarios.LEARNER).get(0);
         // A second stream, so that the rule has produced something to ask for again.
         scenarios.process(learn(scenarios), doc, stream(2L)).learned();
         assertThat(scenarios.outputs.boundBy(bound.getUuid(), bound.getPipeline().getUuid()))
@@ -72,14 +72,14 @@ class TestRetractingARuleByHand {
         stage.retract(doc, bound.getUuid(), "The timestamps are being read as UTC and the feed is local.",
                 "jo");
 
-        assertThat(scenarios.rules.forDocument("doc-1"))
+        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER))
                 .describedAs("the rule is out of the table")
                 .isEmpty();
-        assertThat(scenarios.shapes.reasonGivenUp("doc-1", SHAPE))
+        assertThat(scenarios.shapes.reasonGivenUp(Scenarios.LEARNER, SHAPE))
                 .describedAs("and the shape is unknown again rather than given up: the rule was wrong, "
                              + "the shape is not, so the next stream of it learns afresh")
                 .isEmpty();
-        assertThat(scenarios.shapes.rollingScore("doc-1", SHAPE))
+        assertThat(scenarios.shapes.rollingScore(Scenarios.LEARNER, SHAPE))
                 .describedAs("with nothing of what the retracted rule scored carried into what comes next")
                 .isZero();
         assertThat(scenarios.reprocessing.requests())
@@ -102,7 +102,7 @@ class TestRetractingARuleByHand {
         final Scenarios scenarios = new Scenarios();
         final ShapeshifterAiDoc doc = doc();
         scenarios.process(learn(scenarios), doc, stream(1L)).learned();
-        final RoutingRule bound = scenarios.rules.forDocument("doc-1").get(0);
+        final RoutingRule bound = scenarios.rules.forLearner(Scenarios.LEARNER).get(0);
         scenarios.stage(document -> learn(scenarios), scenarios.rules)
                 .retract(doc, bound.getUuid(), "Wrong.", "jo");
 
@@ -110,10 +110,10 @@ class TestRetractingARuleByHand {
         scenarios.process(asked, doc, stream(3L)).learned();
 
         assertThat(asked.asked()).describedAs("the model is asked again, from nothing").isNotEmpty();
-        assertThat(scenarios.rules.forDocument("doc-1"))
+        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER))
                 .describedAs("and a rule is bound again")
                 .hasSize(1);
-        assertThat(scenarios.rules.forDocument("doc-1").get(0).getUuid())
+        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER).get(0).getUuid())
                 .describedAs("a new one: the retracted rule is gone, not rebound")
                 .isNotEqualTo(bound.getUuid());
     }
@@ -126,19 +126,19 @@ class TestRetractingARuleByHand {
         final Stage stage = scenarios.stage(document -> learn(scenarios), scenarios.rules);
         final ShapeshifterAiDoc doc = doc();
         scenarios.process(learn(scenarios), doc, stream(1L)).learned();
-        final RoutingRule bound = scenarios.rules.forDocument("doc-1").get(0);
+        final RoutingRule bound = scenarios.rules.forLearner(Scenarios.LEARNER).get(0);
 
         assertThatThrownBy(() -> stage.retract(doc, "not-a-rule", "Wrong.", "jo"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("not a rule of this document");
 
-        scenarios.rules.append("doc-1", bound.copy().uuid("a-draft").draft(true).build());
+        scenarios.rules.append(Scenarios.LEARNER, "doc-1", bound.copy().uuid("a-draft").draft(true).build());
         assertThatThrownBy(() -> stage.retract(doc, "a-draft", "Wrong.", "jo"))
                 .describedAs("a draft served nothing, so deciding it is Approve or Reject (A25)")
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("draft awaiting review");
 
-        scenarios.rules.replace("doc-1", bound.copy().pinned(true).build());
+        scenarios.rules.replace(Scenarios.LEARNER, "doc-1", bound.copy().pinned(true).build());
         assertThatThrownBy(() -> stage.retract(doc, bound.getUuid(), "Wrong.", "jo"))
                 .describedAs("§7.3 rule 2: a pin freezes a rule — served, never promoted, retracted or "
                              + "relearned")
@@ -158,7 +158,7 @@ class TestRetractingARuleByHand {
         final Stage stage = scenarios.stage(document -> learn(scenarios), scenarios.rules);
         final ShapeshifterAiDoc doc = doc();
         scenarios.process(learn(scenarios), doc, stream(1L)).learned();
-        final RoutingRule bound = scenarios.rules.forDocument("doc-1").get(0);
+        final RoutingRule bound = scenarios.rules.forLearner(Scenarios.LEARNER).get(0);
         assertThat(scenarios.attempts.found(new AttemptCriteria(), List.of("doc-1")).attempts())
                 .describedAs("the attempt that bound it closed promoted")
                 .anySatisfy(attempt -> assertThat(attempt.status()).isEqualTo(AttemptStatus.PROMOTED));
@@ -186,19 +186,19 @@ class TestRetractingARuleByHand {
         final Stage stage = scenarios.stage(document -> learn(scenarios), scenarios.rules);
         final ShapeshifterAiDoc doc = doc();
         // Given up, with streams waiting on the ledger because nothing bound it.
-        scenarios.shapes.giveUp("doc-1", SHAPE, "The model could not make sense of it");
-        scenarios.ledger.sentinelled("doc-1", SHAPE, 1L, "pipeline-1", "Shape given up");
-        scenarios.ledger.sentinelled("doc-1", SHAPE, 2L, "pipeline-1", "Shape given up");
+        scenarios.shapes.giveUp(Scenarios.LEARNER, "doc-1", SHAPE, "The model could not make sense of it");
+        scenarios.ledger.sentinelled(Scenarios.LEARNER, "doc-1", SHAPE, 1L, "Shape given up");
+        scenarios.ledger.sentinelled(Scenarios.LEARNER, "doc-1", SHAPE, 2L, "Shape given up");
 
-        final int asked = stage.learnAgain(doc, SHAPE, "The feed has been fixed.", "jo");
+        final int asked = stage.learnAgain(doc, Scenarios.LEARNER, SHAPE, "The feed has been fixed.", "jo");
 
         assertThat(asked)
                 .describedAs("the streams waiting on it are the traffic that will learn it")
                 .isEqualTo(2);
-        assertThat(scenarios.shapes.reasonGivenUp("doc-1", SHAPE))
+        assertThat(scenarios.shapes.reasonGivenUp(Scenarios.LEARNER, SHAPE))
                 .describedAs("the give-up goes, or the mark below it would never be reached")
                 .isEmpty();
-        assertThat(scenarios.shapes.relearnReason("doc-1", SHAPE))
+        assertThat(scenarios.shapes.relearnReason(Scenarios.LEARNER, SHAPE))
                 .describedAs("and the shape is marked, so the next stream of it learns rather than binds")
                 .isPresent();
         assertThat(scenarios.reprocessing.requests())
@@ -208,13 +208,14 @@ class TestRetractingARuleByHand {
                         .contains("Sent back to be learned again by jo")
                         .contains("feed has been fixed"));
         assertThatThrownBy(() -> scenarios.stage(document -> learn(scenarios), scenarios.rules)
-                .learnAgain(doc().copy().learningMode(LearningMode.DISABLED).build(), SHAPE, "Why.", "jo"))
+                .learnAgain(doc().copy().learningMode(LearningMode.DISABLED).build(), Scenarios.LEARNER, SHAPE,
+                        "Why.", "jo"))
                 .describedAs("the kill switch is a kill switch here too")
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("disabled");
 
-        scenarios.shapes.awaitReview("doc-1", SHAPE, "a-draft");
-        assertThatThrownBy(() -> stage.learnAgain(doc, SHAPE, "Why.", "jo"))
+        scenarios.shapes.awaitReview(Scenarios.LEARNER, "doc-1", SHAPE, "a-draft");
+        assertThatThrownBy(() -> stage.learnAgain(doc, Scenarios.LEARNER, SHAPE, "Why.", "jo"))
                 .describedAs("a shape whose draft is waiting needs a decision, not another attempt: "
                              + "asked for anyway it would release the streams, reprocess them, meet the "
                              + "draft and sentinel them again — the same rows back and nothing learned")
@@ -231,7 +232,7 @@ class TestRetractingARuleByHand {
         final Scenarios scenarios = new Scenarios();
         final Stage stage = scenarios.stage(document -> learn(scenarios), scenarios.rules);
         final ShapeshifterAiDoc doc = doc();
-        scenarios.rules.append("doc-1", RoutingRule.builder()
+        scenarios.rules.append(Scenarios.LEARNER, "doc-1", RoutingRule.builder()
                 .uuid("provisional")
                 .shapeId(SHAPE)
                 .pipeline(stroom.docref.DocRef.builder()
@@ -242,7 +243,7 @@ class TestRetractingARuleByHand {
 
         stage.accept(doc, "provisional", "jo");
 
-        final RoutingRule accepted = scenarios.rules.forDocument("doc-1").get(0);
+        final RoutingRule accepted = scenarios.rules.forLearner(Scenarios.LEARNER).get(0);
         assertThat(accepted.isProvisional())
                 .describedAs("it serves on the score it was bound at, no longer marked as waiting")
                 .isFalse();
@@ -255,7 +256,7 @@ class TestRetractingARuleByHand {
                 .describedAs("a rule already serving on a judgement has nothing to accept")
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("not a provisional binding");
-        scenarios.rules.replace("doc-1", accepted.copy().provisional(true).pinned(true).build());
+        scenarios.rules.replace(Scenarios.LEARNER, "doc-1", accepted.copy().provisional(true).pinned(true).build());
         assertThatThrownBy(() -> stage.accept(doc, "provisional", "jo"))
                 .describedAs("§7.3 rule 2: a pin freezes a rule — served, never promoted")
                 .isInstanceOf(IllegalStateException.class)

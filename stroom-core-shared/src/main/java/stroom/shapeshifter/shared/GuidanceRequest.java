@@ -35,12 +35,16 @@ public class GuidanceRequest {
     @JsonProperty
     private final String shapeId;
     @JsonProperty
+    private final LearnerRef learner;
+    @JsonProperty
     private final String message;
 
     @JsonCreator
     public GuidanceRequest(@JsonProperty("shapeId") final String shapeId,
+                           @JsonProperty("learner") final LearnerRef learner,
                            @JsonProperty("message") final String message) {
         this.shapeId = shapeId;
+        this.learner = learner;
         this.message = message;
     }
 
@@ -49,6 +53,11 @@ public class GuidanceRequest {
      */
     public String getShapeId() {
         return shapeId;
+    }
+
+    /// The learner the shape is one of (design 06 phase J slice 2b), as the row the person acted on named it.
+    public LearnerRef getLearner() {
+        return learner;
     }
 
     public String getMessage() {

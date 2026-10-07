@@ -80,6 +80,9 @@ class TestScenario20SentinelInAPipeline extends AbstractCoreIntegrationTest {
     private static final String FEED = "DOOR-ACCESS-UNBOUND";
     private static final Golden CSV = Scenarios.corpus("001_csv_with_header");
 
+    /// The learner the test's pipeline is: its Shapeshifter AI element (design 06 phase J slice 2b).
+    private Learner learner;
+
     @Inject
     private StoreCreationTool storeCreationTool;
     @Inject
@@ -149,12 +152,12 @@ class TestScenario20SentinelInAPipeline extends AbstractCoreIntegrationTest {
         assertThat(metaService.find(FindMetaCriteria.createWithType(StreamTypeNames.EVENTS)).getValues())
                 .describedAs("no output stream: the stage bound nothing")
                 .isEmpty();
-        assertThat(rules.forDocument(doc.getUuid())).describedAs("and wrote no rule").isEmpty();
+        assertThat(rules.forLearner(learner)).describedAs("and wrote no rule").isEmpty();
 
         // The deferral names the input, in a row: the task a promotion would wake (design 04 §5.3).
-        final String shape = Shape.of(List.of(MetaFields.FIELD_FEED, MetaFields.FIELD_TYPE),
+        final String shape = Shape.of(learner,
                 Map.of(MetaFields.FIELD_FEED, FEED, MetaFields.FIELD_TYPE, StreamTypeNames.RAW_EVENTS)).id();
-        assertThat(ledger.release(doc.getUuid(), shape))
+        assertThat(ledger.release(learner, shape))
                 .describedAs("nothing is sentinelled to make it wait, so the ledger holds nothing")
                 .isEmpty();
         assertThat(deferrals).isInstanceOf(DeferralsDao.class);
@@ -198,6 +201,7 @@ class TestScenario20SentinelInAPipeline extends AbstractCoreIntegrationTest {
                 .build();
         final DocRef pipelineRef = pipelineStore.createDocument(FEED + " supervised");
         pipelineStore.writeDocument(pipelineStore.readDocument(pipelineRef).copy().pipelineData(data).build());
+        learner = new Learner(pipelineRef.getUuid(), "shapeshifterAi");
         return pipelineRef;
     }
 

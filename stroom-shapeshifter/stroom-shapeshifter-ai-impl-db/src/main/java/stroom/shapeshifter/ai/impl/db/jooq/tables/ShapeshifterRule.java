@@ -75,6 +75,16 @@ public class ShapeshifterRule extends TableImpl<ShapeshifterRuleRecord> {
     public final TableField<ShapeshifterRuleRecord, Long> UPDATE_TIME_MS = createField(DSL.name("update_time_ms"), SQLDataType.BIGINT.nullable(false), this, "");
 
     /**
+     * The column <code>stroom.shapeshifter_rule.pipeline_uuid</code>.
+     */
+    public final TableField<ShapeshifterRuleRecord, String> PIPELINE_UUID = createField(DSL.name("pipeline_uuid"), SQLDataType.VARCHAR(255).nullable(false), this, "");
+
+    /**
+     * The column <code>stroom.shapeshifter_rule.element_id</code>.
+     */
+    public final TableField<ShapeshifterRuleRecord, String> ELEMENT_ID = createField(DSL.name("element_id"), SQLDataType.VARCHAR(255).nullable(false), this, "");
+
+    /**
      * The column <code>stroom.shapeshifter_rule.doc_uuid</code>.
      */
     public final TableField<ShapeshifterRuleRecord, String> DOC_UUID = createField(DSL.name("doc_uuid"), SQLDataType.VARCHAR(255).nullable(false), this, "");
@@ -85,19 +95,19 @@ public class ShapeshifterRule extends TableImpl<ShapeshifterRuleRecord> {
     public final TableField<ShapeshifterRuleRecord, String> RULE_UUID = createField(DSL.name("rule_uuid"), SQLDataType.VARCHAR(255).nullable(false), this, "");
 
     /**
-     * The column <code>stroom.shapeshifter_rule.pipeline_type</code>.
+     * The column <code>stroom.shapeshifter_rule.fragment_type</code>.
      */
-    public final TableField<ShapeshifterRuleRecord, String> PIPELINE_TYPE = createField(DSL.name("pipeline_type"), SQLDataType.VARCHAR(255), this, "");
+    public final TableField<ShapeshifterRuleRecord, String> FRAGMENT_TYPE = createField(DSL.name("fragment_type"), SQLDataType.VARCHAR(255), this, "");
 
     /**
-     * The column <code>stroom.shapeshifter_rule.pipeline_uuid</code>.
+     * The column <code>stroom.shapeshifter_rule.fragment_uuid</code>.
      */
-    public final TableField<ShapeshifterRuleRecord, String> PIPELINE_UUID = createField(DSL.name("pipeline_uuid"), SQLDataType.VARCHAR(255), this, "");
+    public final TableField<ShapeshifterRuleRecord, String> FRAGMENT_UUID = createField(DSL.name("fragment_uuid"), SQLDataType.VARCHAR(255), this, "");
 
     /**
-     * The column <code>stroom.shapeshifter_rule.pipeline_name</code>.
+     * The column <code>stroom.shapeshifter_rule.fragment_name</code>.
      */
-    public final TableField<ShapeshifterRuleRecord, String> PIPELINE_NAME = createField(DSL.name("pipeline_name"), SQLDataType.VARCHAR(255), this, "");
+    public final TableField<ShapeshifterRuleRecord, String> FRAGMENT_NAME = createField(DSL.name("fragment_name"), SQLDataType.VARCHAR(255), this, "");
 
     /**
      * The column <code>stroom.shapeshifter_rule.pinned</code>.
@@ -190,7 +200,7 @@ public class ShapeshifterRule extends TableImpl<ShapeshifterRuleRecord> {
 
     @Override
     public List<Index> getIndexes() {
-        return Arrays.asList(Indexes.SHAPESHIFTER_RULE_SHAPESHIFTER_RULE_DOC_SHAPE);
+        return Arrays.asList(Indexes.SHAPESHIFTER_RULE_SHAPESHIFTER_RULE_DOC_UUID, Indexes.SHAPESHIFTER_RULE_SHAPESHIFTER_RULE_LEARNER_SHAPE);
     }
 
     @Override
@@ -205,7 +215,7 @@ public class ShapeshifterRule extends TableImpl<ShapeshifterRuleRecord> {
 
     @Override
     public List<UniqueKey<ShapeshifterRuleRecord>> getUniqueKeys() {
-        return Arrays.asList(Keys.KEY_SHAPESHIFTER_RULE_SHAPESHIFTER_RULE_DOC_UUID_RULE_UUID);
+        return Arrays.asList(Keys.KEY_SHAPESHIFTER_RULE_SHAPESHIFTER_RULE_RULE_UUID);
     }
 
     @Override

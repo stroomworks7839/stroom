@@ -24,6 +24,7 @@ import stroom.shapeshifter.ai.stage.Attempts;
 import stroom.shapeshifter.ai.stage.CorpusIndex;
 import stroom.shapeshifter.ai.stage.Deferrals;
 import stroom.shapeshifter.ai.stage.Guidance;
+import stroom.shapeshifter.ai.stage.Learners;
 import stroom.shapeshifter.ai.stage.Ledger;
 import stroom.shapeshifter.ai.stage.Outputs;
 import stroom.shapeshifter.ai.stage.Rules;
@@ -63,6 +64,7 @@ public class ShapeshifterAiDaoModule extends AbstractModule {
         bind(Outputs.class).to(OutputsDao.class);
         bind(Serving.class).to(ServingDao.class);
         bind(Deferrals.class).to(DeferralsDao.class);
+        bind(Learners.class).to(LearnersDao.class);
         bind(CorpusIndex.class).to(CorpusIndexDao.class);
         bind(Snapshots.class).to(SnapshotsDao.class);
         // The two the hot path reads for every stream are bound as the rows behind a cache, and the cache

@@ -17,6 +17,7 @@
 package stroom.shapeshifter.ai.state;
 
 import stroom.shapeshifter.ai.stage.Guidance;
+import stroom.shapeshifter.ai.stage.Learner;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -33,19 +34,20 @@ public final class InMemoryGuidance implements Guidance {
     private final AtomicLong nextId = new AtomicLong(1L);
 
     @Override
-    public synchronized long given(final String docUuid,
+    public synchronized long given(final Learner learner,
+                                   final String docUuid,
                                    final String shape,
                                    final String message,
                                    final String author) {
         final long id = nextId.getAndIncrement();
-        rows.add(new Row(id, docUuid, shape, new Given(id, message, author, System.currentTimeMillis())));
+        rows.add(new Row(id, learner, docUuid, shape, new Given(id, message, author, System.currentTimeMillis())));
         return id;
     }
 
     @Override
-    public synchronized List<Given> standing(final String docUuid, final String shape) {
+    public synchronized List<Given> standing(final Learner learner, final String shape) {
         return rows.stream()
-                .filter(row -> row.docUuid().equals(docUuid) && row.shape().equals(shape))
+                .filter(row -> row.learner().equals(learner) && row.shape().equals(shape))
                 .map(Row::given)
                 .toList();
     }
@@ -55,11 +57,22 @@ public final class InMemoryGuidance implements Guidance {
         rows.removeIf(row -> row.docUuid().equals(docUuid) && row.given().id() == id);
     }
 
+    /// What has been said about the learner's shapes, brought to the document it runs under (see
+    /// [InMemoryLearners]).
+    ///
+    /// @param learner The learner.
+    /// @param docUuid The document.
+    public synchronized void runsUnder(final Learner learner, final String docUuid) {
+        rows.replaceAll(row -> row.learner().equals(learner)
+                ? new Row(row.id(), learner, docUuid, row.shape(), row.given())
+                : row);
+    }
+
 
     // --------------------------------------------------------------------------------
 
 
-    private record Row(long id, String docUuid, String shape, Given given) {
+    private record Row(long id, Learner learner, String docUuid, String shape, Given given) {
 
     }
 }

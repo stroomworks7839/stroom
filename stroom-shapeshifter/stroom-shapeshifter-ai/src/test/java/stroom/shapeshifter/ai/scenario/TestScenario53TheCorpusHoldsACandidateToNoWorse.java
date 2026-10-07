@@ -100,7 +100,7 @@ class TestScenario53TheCorpusHoldsACandidateToNoWorse {
         assertThat(((Kept) improved.decision()).reason())
                 .contains("turns a record that translated into an Unknown")
                 .contains("record 3 of 6 in the corpus");
-        assertThat(scenarios.rules.forDocument(DOC).get(0).getPipeline())
+        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER).get(0).getPipeline())
                 .describedAs("the incumbent serves on")
                 .isEqualTo(rule.getPipeline());
         assertThat(scenarios.regressionSet.accepted(rule.getUuid()))

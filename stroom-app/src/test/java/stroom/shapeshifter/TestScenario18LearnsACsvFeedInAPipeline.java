@@ -48,6 +48,7 @@ import stroom.shapeshifter.ai.scenario.Scenarios;
 import stroom.shapeshifter.ai.scenario.Script;
 import stroom.shapeshifter.ai.scenario.Structure;
 import stroom.shapeshifter.ai.stage.Bindings;
+import stroom.shapeshifter.ai.stage.Learner;
 import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.ai.transformation.XsltStep;
 import stroom.shapeshifter.shared.FlowExample;
@@ -90,6 +91,9 @@ class TestScenario18LearnsACsvFeedInAPipeline extends AbstractProcessIntegration
     private static final Golden CSV = Scenarios.corpus("001_csv_with_header");
     private static final String XSLT = Scenarios.resource("csv-logon.xsl");
     private static final String EXPECTED_EVENTS = Scenarios.resource("csv-logon.events.xml");
+
+    /// The learner the test's pipeline is: its Shapeshifter AI element (design 06 phase J slice 2b).
+    private Learner learner;
 
     @Inject
     private StoreCreationTool storeCreationTool;
@@ -155,8 +159,8 @@ class TestScenario18LearnsACsvFeedInAPipeline extends AbstractProcessIntegration
         assertThat(first.getWritten()).isEqualTo(6);
         // The rules are rows, not part of the document (A41): the supervisor wrote one and left the
         // document alone.
-        assertThat(rules.forDocument(doc.getUuid())).hasSize(1);
-        final RoutingRule rule = rules.forDocument(doc.getUuid()).get(0);
+        assertThat(rules.forLearner(learner)).hasSize(1);
+        final RoutingRule rule = rules.forLearner(learner).get(0);
         assertThat(shapeshifterAiStore.readDocument(doc))
                 .describedAs("the document the operator authored is untouched by learning")
                 .isEqualTo(shapeshifterAiStore.readDocument(doc));
@@ -190,7 +194,7 @@ class TestScenario18LearnsACsvFeedInAPipeline extends AbstractProcessIntegration
         assertThat(second.getWritten()).isEqualTo(6);
         assertThat(outputs()).hasSize(2);
         assertThat(canonical(data(outputs().get(1)))).isEqualTo(canonical(EXPECTED_EVENTS));
-        assertThat(rules.forDocument(doc.getUuid())).hasSize(1);
+        assertThat(rules.forLearner(learner)).hasSize(1);
     }
 
     /**
@@ -253,6 +257,7 @@ class TestScenario18LearnsACsvFeedInAPipeline extends AbstractProcessIntegration
                 .build();
         final DocRef pipelineRef = pipelineStore.createDocument("DOOR-ACCESS supervised");
         pipelineStore.writeDocument(pipelineStore.readDocument(pipelineRef).copy().pipelineData(data).build());
+        learner = new Learner(pipelineRef.getUuid(), "shapeshifterAi");
         return pipelineRef;
     }
 

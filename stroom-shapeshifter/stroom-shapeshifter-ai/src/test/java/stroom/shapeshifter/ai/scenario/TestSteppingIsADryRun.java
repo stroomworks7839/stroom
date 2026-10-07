@@ -72,7 +72,7 @@ class TestSteppingIsADryRun {
         final Script script = script(scenarios);
         final Stage stage = scenarios.stage(document -> script, scenarios.rules);
 
-        final StageRun stepped = stage.dryRun(doc(LearningMode.AUTOMATIC), stream(), false);
+        final StageRun stepped = stage.dryRun(doc(LearningMode.AUTOMATIC), Scenarios.LEARNER, stream(), false);
 
         assertThat(stepped.decision()).isInstanceOf(Would.class);
         assertThat(((Would) stepped.decision()).what()).isEqualTo("Learn a fragment for this shape");
@@ -81,9 +81,9 @@ class TestSteppingIsADryRun {
                              + "same way and only a decision that is hypothetical reads as one")
                 .isEqualTo("Would learn a fragment for this shape");
         assertThat(script.asked()).describedAs("the model was not asked").isEmpty();
-        assertThat(scenarios.rules.forDocument("doc-1")).describedAs("no rule was bound").isEmpty();
+        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).describedAs("no rule was bound").isEmpty();
         assertThat(scenarios.attempts.forDocument("doc-1", 10)).describedAs("no attempt was recorded").isEmpty();
-        assertThat(scenarios.ledger.release("doc-1", stepped.shape().id()))
+        assertThat(scenarios.ledger.release(Scenarios.LEARNER, stepped.shape().id()))
                 .describedAs("and the stream was not sentinelled onto the ledger").isEmpty();
         assertThat(scenarios.outputs.asProcessed("doc-1", 1L, "pipeline-1"))
                 .describedAs("nor recorded as having produced anything").isEmpty();
@@ -94,12 +94,12 @@ class TestSteppingIsADryRun {
         final Scenarios scenarios = new Scenarios();
         final Stage stage = scenarios.stage(document -> Script.of(), scenarios.rules);
 
-        final StageRun stepped = stage.dryRun(doc(LearningMode.DISABLED), stream(), false);
+        final StageRun stepped = stage.dryRun(doc(LearningMode.DISABLED), Scenarios.LEARNER, stream(), false);
 
         assertThat(((Would) stepped.decision()).what())
                 .isEqualTo("Wait: Shapeshifter AI is disabled for this document and nothing serves this "
                            + "shape");
-        assertThat(scenarios.ledger.release("doc-1", stepped.shape().id()))
+        assertThat(scenarios.ledger.release(Scenarios.LEARNER, stepped.shape().id()))
                 .describedAs("a sentinel a person only asked to see is not a sentinel").isEmpty();
     }
 
@@ -114,7 +114,7 @@ class TestSteppingIsADryRun {
         final StageRun learned = scenarios.process(script, doc, stream()).learned();
         assertThat(learned.bindings()).isNotNull();
 
-        final StageRun stepped = stage.dryRun(doc, stream(), false);
+        final StageRun stepped = stage.dryRun(doc, Scenarios.LEARNER, stream(), false);
 
         assertThat(stepped.decision()).isInstanceOf(Bound.class);
         assertThat(stepped.output())
@@ -144,20 +144,20 @@ class TestSteppingIsADryRun {
                         new LearnedStep(new XsltStep(), YIELDS_NOTHING,
                                 new StepResult("<Events/>", List.of()), UNSCORED)),
                 null);
-        scenarios.rules.append("doc-1", RoutingRule.builder()
+        scenarios.rules.append(Scenarios.LEARNER, "doc-1", RoutingRule.builder()
                 .uuid("rule-on-trial")
-                .shapeId(Shape.of(Shape.KEY,
+                .shapeId(Shape.of(Scenarios.LEARNER,
                         Map.of(MetaFields.FIELD_FEED, FEED, MetaFields.FIELD_TYPE, "Raw Events")).id())
                 .pipeline(fragment)
                 .provisional(true)
                 .build());
 
-        final StageRun stepped = stage.dryRun(doc, stream(), false);
+        final StageRun stepped = stage.dryRun(doc, Scenarios.LEARNER, stream(), false);
 
         assertThat(stepped.decision()).isInstanceOf(Bound.class);
         assertThat(((Bound) stepped.decision()).rule().getUuid()).isEqualTo("rule-on-trial");
         assertThat(stepped.bindings().provisional()).describedAs("still on trial").isTrue();
-        assertThat(scenarios.rules.forDocument("doc-1"))
+        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER))
                 .describedAs("the rule is still there: a step decides nothing").hasSize(1);
     }
 

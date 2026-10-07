@@ -70,7 +70,7 @@ class TestImproveARuleThatIsServing {
         final ShapeshifterAiDoc doc = doc();
 
         final StageRun learned = scenarios.process(learning, doc, stream()).learned();
-        final RoutingRule bound = scenarios.rules.forDocument("doc-1").get(0);
+        final RoutingRule bound = scenarios.rules.forLearner(Scenarios.LEARNER).get(0);
         assertThat(learned.bindings()).isNotNull();
         assertThat(bound.getShapeId())
                 .describedAs("a learned rule records the shape it was learned for, which is what an "
@@ -90,12 +90,12 @@ class TestImproveARuleThatIsServing {
         assertThat(improved.decision())
                 .describedAs("a candidate that is no worse on what the rule was accepted on takes over")
                 .isInstanceOf(Rebound.class);
-        assertThat(scenarios.rules.forDocument("doc-1"))
+        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER))
                 .describedAs("the same rule, rebound: it keeps its uuid and its history (§7.3 rule 2)")
                 .hasSize(1)
                 .first()
                 .satisfies(rule -> assertThat(rule.getUuid()).isEqualTo(bound.getUuid()));
-        assertThat(scenarios.guidance.standing("doc-1", SHAPE))
+        assertThat(scenarios.guidance.standing(Scenarios.LEARNER, SHAPE))
                 .describedAs("the message is guidance for the shape, so it is carried into this attempt "
                              + "and stands for the relearning after it")
                 .extracting(given -> given.message() + " (" + given.author() + ")")
@@ -108,7 +108,7 @@ class TestImproveARuleThatIsServing {
         final Stage stage = scenarios.stage(document -> learn(scenarios), scenarios.rules);
         final ShapeshifterAiDoc doc = doc();
         scenarios.process(learn(scenarios), doc, stream()).learned();
-        final RoutingRule bound = scenarios.rules.forDocument("doc-1").get(0);
+        final RoutingRule bound = scenarios.rules.forLearner(Scenarios.LEARNER).get(0);
 
         // Seeded by hand. What the gate is about is the entry a candidate is held to — a record the rule
         // was accepted on that the candidate makes less of is not an improvement (A66) — and an entry
@@ -131,7 +131,7 @@ class TestImproveARuleThatIsServing {
         assertThat(((Kept) improved.decision()).reason())
                 .contains("makes nothing of a record that yielded an event")
                 .contains("record 1 of 1 in the corpus, accepted by attempt 7");
-        assertThat(scenarios.rules.forDocument("doc-1").get(0).getPipeline())
+        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER).get(0).getPipeline())
                 .describedAs("and the incumbent is still bound, having served throughout")
                 .isEqualTo(bound.getPipeline());
     }
@@ -142,13 +142,13 @@ class TestImproveARuleThatIsServing {
         final Stage stage = scenarios.stage(document -> learn(scenarios), scenarios.rules);
         final ShapeshifterAiDoc doc = doc();
         scenarios.process(learn(scenarios), doc, stream()).learned();
-        final RoutingRule bound = scenarios.rules.forDocument("doc-1").get(0);
+        final RoutingRule bound = scenarios.rules.forLearner(Scenarios.LEARNER).get(0);
 
         assertThatThrownBy(() -> stage.improve(doc, "not-a-rule", null, "jo"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("not a rule of this document");
 
-        scenarios.rules.append("doc-1", RoutingRule.builder().uuid("by-hand")
+        scenarios.rules.append(Scenarios.LEARNER, "doc-1", RoutingRule.builder().uuid("by-hand")
                 .pipeline(bound.getPipeline()).build());
         assertThatThrownBy(() -> stage.improve(doc, "by-hand", null, "jo"))
                 .describedAs("a rule an operator wrote by hand did not come from a shape, and there is "
@@ -173,15 +173,15 @@ class TestImproveARuleThatIsServing {
         final Stage stage = scenarios.stage(document -> learn(scenarios), scenarios.rules);
         final ShapeshifterAiDoc doc = doc();
         scenarios.process(learn(scenarios), doc, stream()).learned();
-        final RoutingRule bound = scenarios.rules.forDocument("doc-1").get(0);
+        final RoutingRule bound = scenarios.rules.forLearner(Scenarios.LEARNER).get(0);
 
-        scenarios.rules.replace("doc-1", bound.copy().pinned(true).build());
+        scenarios.rules.replace(Scenarios.LEARNER, "doc-1", bound.copy().pinned(true).build());
         assertThatThrownBy(() -> stage.improve(doc, bound.getUuid(), null, "jo"))
                 .describedAs("a pin freezes a rule (§7.3 rule 2), and an improvement rebinds it — which "
                              + "is exactly what the pin is there to stop")
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("pinned");
-        scenarios.rules.replace("doc-1", bound.copy().pinned(false).build());
+        scenarios.rules.replace(Scenarios.LEARNER, "doc-1", bound.copy().pinned(false).build());
 
         assertThatThrownBy(() -> stage.improve(doc().copy().learningMode(LearningMode.DISABLED).build(),
                 bound.getUuid(), null, "jo"))
@@ -190,18 +190,18 @@ class TestImproveARuleThatIsServing {
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("disabled");
 
-        scenarios.shapes.awaitReview("doc-1", SHAPE, "some-draft");
+        scenarios.shapes.awaitReview(Scenarios.LEARNER, "doc-1", SHAPE, "some-draft");
         assertThatThrownBy(() -> stage.improve(doc, bound.getUuid(), null, "jo"))
                 .describedAs("one draft per shape: a second would overwrite the pointer that says which "
                              + "is awaiting review, leaving the first undecidable")
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("already awaiting review");
-        scenarios.shapes.reset("doc-1", SHAPE);
+        scenarios.shapes.reset(Scenarios.LEARNER, SHAPE);
 
         // And a shape marked for relearning has been learned again by hand: the mark is spent.
-        scenarios.shapes.markForRelearning("doc-1", SHAPE, "drifting");
+        scenarios.shapes.markForRelearning(Scenarios.LEARNER, "doc-1", SHAPE, "drifting");
         stage.improve(doc, bound.getUuid(), null, "jo");
-        assertThat(scenarios.shapes.relearnReason("doc-1", SHAPE))
+        assertThat(scenarios.shapes.relearnReason(Scenarios.LEARNER, SHAPE))
                 .describedAs("or the next stream would relearn the rule somebody has only now improved")
                 .isEmpty();
     }
@@ -214,7 +214,7 @@ class TestImproveARuleThatIsServing {
         final Stage stage = scenarios.stage(document -> learn(scenarios), scenarios.rules);
         final ShapeshifterAiDoc doc = doc();
         scenarios.process(learn(scenarios), doc, stream()).learned();
-        final RoutingRule bound = scenarios.rules.forDocument("doc-1").get(0);
+        final RoutingRule bound = scenarios.rules.forLearner(Scenarios.LEARNER).get(0);
 
         final Script asking = learn(scenarios);
         final StageRun improved = scenarios.stage(document -> asking, scenarios.rules)

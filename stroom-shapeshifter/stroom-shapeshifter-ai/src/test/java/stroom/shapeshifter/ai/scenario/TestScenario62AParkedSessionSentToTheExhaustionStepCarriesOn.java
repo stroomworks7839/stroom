@@ -129,7 +129,7 @@ class TestScenario62AParkedSessionSentToTheExhaustionStepCarriesOn {
         assertThat(finished.turns()).filteredOn(turn -> turn.kind() == QuestionKind.CONFIGURE
                                                         && turn.question().contains("XSLTFilter"))
                 .describedAs("the transform was asked once, in round one").hasSize(1);
-        final RoutingRule rule = scenarios.rules.forDocument(DOC).get(0);
+        final RoutingRule rule = scenarios.rules.forLearner(Scenarios.LEARNER).get(0);
         final List<Accepted> corpus = scenarios.regressionSet.accepted(rule.getUuid());
         assertThat(corpus).filteredOn(entry -> entry.kind() == Kind.UNKNOWN).hasSize(LOGOFFS);
         assertThat(scenarios.wake.woken()).extracting(Deferral::inputId).contains(1L);
@@ -167,7 +167,9 @@ class TestScenario62AParkedSessionSentToTheExhaustionStepCarriesOn {
         assertThat(again.decision()).contains("Sent to the exhaustion step by a person")
                 .contains("no 'on spent' transition");
         assertThat(nothing.asked()).describedAs("no transform's question").isEmpty();
-        assertThat(scenarios.rules.forDocument(DOC)).describedAs("round one's fragment stays bound").hasSize(1);
+        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER))
+                .describedAs("round one's fragment stays bound")
+                .hasSize(1);
         assertThat(scenarios.deferrals.of(Scenarios.LEARNER, 1L)).describedAs("and the stream waits").isPresent();
     }
 

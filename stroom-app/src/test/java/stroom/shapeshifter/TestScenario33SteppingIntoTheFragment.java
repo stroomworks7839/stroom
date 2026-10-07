@@ -54,6 +54,7 @@ import stroom.shapeshifter.ai.scenario.QuestionMatcher;
 import stroom.shapeshifter.ai.scenario.Scenarios;
 import stroom.shapeshifter.ai.scenario.Script;
 import stroom.shapeshifter.ai.scenario.Structure;
+import stroom.shapeshifter.ai.stage.Learner;
 import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.ai.transformation.XsltStep;
 import stroom.shapeshifter.shared.FlowExample;
@@ -105,6 +106,9 @@ class TestScenario33SteppingIntoTheFragment extends AbstractProcessIntegrationTe
     private static final String FEED = "DOOR-ACCESS";
     private static final Golden CSV = Scenarios.corpus("001_csv_with_header");
     private static final String XSLT = Scenarios.resource("csv-logon.xsl");
+
+    /// The learner the test's pipeline is: its Shapeshifter AI element (design 06 phase J slice 2b).
+    private Learner learner;
 
     @Inject
     private StoreCreationTool storeCreationTool;
@@ -263,7 +267,7 @@ class TestScenario33SteppingIntoTheFragment extends AbstractProcessIntegrationTe
         assertThat(details.getNested())
                 .describedAs("with no chain beneath it, because no chain ran")
                 .isEmpty();
-        assertThat(rules.forDocument(doc.getUuid()))
+        assertThat(rules.forLearner(learner))
                 .describedAs("and nothing was bound by opening the stepper on it")
                 .isEmpty();
     }
@@ -318,7 +322,7 @@ class TestScenario33SteppingIntoTheFragment extends AbstractProcessIntegrationTe
         script.verifyExhausted();
         final ProcessorResult result = processOne();
         assertThat(result.getMarkerCount(Severity.ERROR, Severity.FATAL_ERROR)).isZero();
-        final List<RoutingRule> table = rules.forDocument(doc.getUuid());
+        final List<RoutingRule> table = rules.forLearner(learner);
         assertThat(table).hasSize(1);
         final PipelineDoc fragment = pipelineStore.readDocument(table.get(0).getPipeline());
         assertThat(fragment.getPipelineData().getAddedElements())
@@ -389,6 +393,7 @@ class TestScenario33SteppingIntoTheFragment extends AbstractProcessIntegrationTe
                 .build();
         final DocRef pipelineRef = pipelineStore.createDocument("DOOR-ACCESS supervised");
         pipelineStore.writeDocument(pipelineStore.readDocument(pipelineRef).copy().pipelineData(data).build());
+        learner = new Learner(pipelineRef.getUuid(), "shapeshifterAi");
         return pipelineRef;
     }
 

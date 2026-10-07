@@ -102,7 +102,7 @@ class TestScenario57TheSessionRunsTheHeldStreamInFull {
                 .containsExactlyElementsOf(IntStream.rangeClosed(1, turns.size()).boxed().toList());
         assertThat(turns).filteredOn(turn -> turn.question().startsWith("Configure: XSLTFilter"))
                 .describedAs("the transform was asked for in each round").hasSize(2);
-        final RoutingRule rule = scenarios.rules.forDocument(DOC).get(0);
+        final RoutingRule rule = scenarios.rules.forLearner(Scenarios.LEARNER).get(0);
         assertThat(scenarios.stores.pipelines.list()).describedAs("one fragment, edited in place").hasSize(1);
         assertThat(scenarios.snapshots.forRule(rule.getUuid())).describedAs("two promotions").hasSize(2);
         assertThat(scenarios.wake.woken()).extracting(Deferral::inputId).contains(1L);
@@ -144,8 +144,10 @@ class TestScenario57TheSessionRunsTheHeldStreamInFull {
         final Recorded parked = scenarios.attempts.forDocument(DOC, 10).get(0);
         assertThat(parked.status()).describedAs(String.valueOf(parked.decision())).isEqualTo(AttemptStatus.PARKED);
         assertThat(parked.decision()).isNotBlank();
-        assertThat(scenarios.rules.forDocument(DOC)).describedAs("nothing was bound").isEmpty();
-        assertThat(scenarios.shapes.reasonGivenUp(DOC, SHAPE)).describedAs("and the shape is not given up").isEmpty();
+        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).describedAs("nothing was bound").isEmpty();
+        assertThat(scenarios.shapes.reasonGivenUp(Scenarios.LEARNER, SHAPE))
+                .describedAs("and the shape is not given up")
+                .isEmpty();
         assertThat(scenarios.deferrals.of(Scenarios.LEARNER, 1L)).describedAs("the stream waits").isPresent();
 
         // The worker leaves it alone; a task of the shape waits on it and opens no second session.
@@ -164,7 +166,7 @@ class TestScenario57TheSessionRunsTheHeldStreamInFull {
         assertThat(silent.asked()).describedAs("nothing is asked again: the turns are replayed").isEmpty();
         final Recorded carried = scenarios.attempts.byId(parked.id()).orElseThrow();
         assertThat(carried.status()).describedAs(String.valueOf(carried.decision())).isEqualTo(AttemptStatus.PROMOTED);
-        assertThat(scenarios.rules.forDocument(DOC)).hasSize(1);
+        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).hasSize(1);
         assertThat(scenarios.wake.woken()).extracting(Deferral::inputId).contains(1L, 2L);
     }
 

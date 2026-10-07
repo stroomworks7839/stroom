@@ -249,18 +249,6 @@ public class AttemptsDao implements Attempts {
                 .map(record -> recorded(record, turns(record.get(SHAPESHIFTER_ATTEMPT.ID))));
     }
 
-    @Override
-    public Optional<Learner> learnerOf(final String docUuid, final String shape) {
-        return JooqUtil.contextResult(connProvider, context -> context
-                .select(SHAPESHIFTER_ATTEMPT.PIPELINE_UUID, SHAPESHIFTER_ATTEMPT.ELEMENT_ID)
-                .from(SHAPESHIFTER_ATTEMPT)
-                .where(SHAPESHIFTER_ATTEMPT.DOC_UUID.eq(docUuid))
-                .and(SHAPESHIFTER_ATTEMPT.SHAPE_HASH.eq(ShapesDao.hash(shape)))
-                .orderBy(SHAPESHIFTER_ATTEMPT.ID.desc())
-                .limit(1)
-                .fetchOptional(row -> new Learner(row.value1(), row.value2())));
-    }
-
     /// A parked attempt keeps its shape: it is still learning, and its expiry is pushed out by the same
     /// heartbeat that would have extended it (A45).
     @Override

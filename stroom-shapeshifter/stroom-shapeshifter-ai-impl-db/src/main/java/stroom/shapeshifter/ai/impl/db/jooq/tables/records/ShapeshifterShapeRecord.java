@@ -75,115 +75,143 @@ public class ShapeshifterShapeRecord extends UpdatableRecordImpl<ShapeshifterSha
     }
 
     /**
+     * Setter for <code>stroom.shapeshifter_shape.pipeline_uuid</code>.
+     */
+    public void setPipelineUuid(String value) {
+        set(4, value);
+    }
+
+    /**
+     * Getter for <code>stroom.shapeshifter_shape.pipeline_uuid</code>.
+     */
+    public String getPipelineUuid() {
+        return (String) get(4);
+    }
+
+    /**
+     * Setter for <code>stroom.shapeshifter_shape.element_id</code>.
+     */
+    public void setElementId(String value) {
+        set(5, value);
+    }
+
+    /**
+     * Getter for <code>stroom.shapeshifter_shape.element_id</code>.
+     */
+    public String getElementId() {
+        return (String) get(5);
+    }
+
+    /**
      * Setter for <code>stroom.shapeshifter_shape.doc_uuid</code>.
      */
     public void setDocUuid(String value) {
-        set(4, value);
+        set(6, value);
     }
 
     /**
      * Getter for <code>stroom.shapeshifter_shape.doc_uuid</code>.
      */
     public String getDocUuid() {
-        return (String) get(4);
+        return (String) get(6);
     }
 
     /**
      * Setter for <code>stroom.shapeshifter_shape.shape_hash</code>.
      */
     public void setShapeHash(String value) {
-        set(5, value);
+        set(7, value);
     }
 
     /**
      * Getter for <code>stroom.shapeshifter_shape.shape_hash</code>.
      */
     public String getShapeHash() {
-        return (String) get(5);
+        return (String) get(7);
     }
 
     /**
      * Setter for <code>stroom.shapeshifter_shape.shape_id</code>.
      */
     public void setShapeId(String value) {
-        set(6, value);
+        set(8, value);
     }
 
     /**
      * Getter for <code>stroom.shapeshifter_shape.shape_id</code>.
      */
     public String getShapeId() {
-        return (String) get(6);
+        return (String) get(8);
     }
 
     /**
      * Setter for <code>stroom.shapeshifter_shape.given_up_reason</code>.
      */
     public void setGivenUpReason(String value) {
-        set(7, value);
+        set(9, value);
     }
 
     /**
      * Getter for <code>stroom.shapeshifter_shape.given_up_reason</code>.
      */
     public String getGivenUpReason() {
-        return (String) get(7);
+        return (String) get(9);
     }
 
     /**
      * Setter for <code>stroom.shapeshifter_shape.relearn_reason</code>.
      */
     public void setRelearnReason(String value) {
-        set(8, value);
+        set(10, value);
     }
 
     /**
      * Getter for <code>stroom.shapeshifter_shape.relearn_reason</code>.
      */
     public String getRelearnReason() {
-        return (String) get(8);
+        return (String) get(10);
     }
 
     /**
      * Setter for <code>stroom.shapeshifter_shape.awaiting_rule_uuid</code>.
      */
     public void setAwaitingRuleUuid(String value) {
-        set(9, value);
+        set(11, value);
     }
 
     /**
      * Getter for <code>stroom.shapeshifter_shape.awaiting_rule_uuid</code>.
      */
     public String getAwaitingRuleUuid() {
-        return (String) get(9);
+        return (String) get(11);
     }
 
     /**
      * Setter for <code>stroom.shapeshifter_shape.rolling_score</code>.
      */
     public void setRollingScore(Double value) {
-        set(10, value);
+        set(12, value);
     }
 
     /**
      * Getter for <code>stroom.shapeshifter_shape.rolling_score</code>.
      */
     public Double getRollingScore() {
-        return (Double) get(10);
+        return (Double) get(12);
     }
 
     /**
      * Setter for <code>stroom.shapeshifter_shape.rolling_records</code>.
      */
     public void setRollingRecords(Integer value) {
-        set(11, value);
+        set(13, value);
     }
 
     /**
      * Getter for <code>stroom.shapeshifter_shape.rolling_records</code>.
      */
     public Integer getRollingRecords() {
-        return (Integer) get(11);
+        return (Integer) get(13);
     }
 
     // -------------------------------------------------------------------------
@@ -209,13 +237,15 @@ public class ShapeshifterShapeRecord extends UpdatableRecordImpl<ShapeshifterSha
     /**
      * Create a detached, initialised ShapeshifterShapeRecord
      */
-    public ShapeshifterShapeRecord(Long id, Integer version, Long createTimeMs, Long updateTimeMs, String docUuid, String shapeHash, String shapeId, String givenUpReason, String relearnReason, String awaitingRuleUuid, Double rollingScore, Integer rollingRecords) {
+    public ShapeshifterShapeRecord(Long id, Integer version, Long createTimeMs, Long updateTimeMs, String pipelineUuid, String elementId, String docUuid, String shapeHash, String shapeId, String givenUpReason, String relearnReason, String awaitingRuleUuid, Double rollingScore, Integer rollingRecords) {
         super(ShapeshifterShape.SHAPESHIFTER_SHAPE);
 
         setId(id);
         setVersion(version);
         setCreateTimeMs(createTimeMs);
         setUpdateTimeMs(updateTimeMs);
+        setPipelineUuid(pipelineUuid);
+        setElementId(elementId);
         setDocUuid(docUuid);
         setShapeHash(shapeHash);
         setShapeId(shapeId);

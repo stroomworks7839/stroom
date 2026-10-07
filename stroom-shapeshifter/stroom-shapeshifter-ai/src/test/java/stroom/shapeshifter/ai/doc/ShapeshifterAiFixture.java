@@ -23,8 +23,6 @@ import stroom.docstore.impl.memory.MemoryPersistence;
 import stroom.openai.shared.OpenAIModelDoc;
 import stroom.pipeline.shared.PipelineDoc;
 import stroom.security.mock.MockSecurityContext;
-import stroom.shapeshifter.ai.stage.Rules;
-import stroom.shapeshifter.ai.state.InMemoryRules;
 import stroom.shapeshifter.shared.BusinessRulesParameters;
 import stroom.shapeshifter.shared.ScorerSetting;
 import stroom.shapeshifter.shared.ScorerType;
@@ -53,16 +51,11 @@ final class ShapeshifterAiFixture {
     }
 
     static ShapeshifterAiStoreImpl store() {
-        return store(new InMemoryRules());
-    }
-
-    /// The store over a given rule store, for the tests that watch what a read puts there (A41).
-    static ShapeshifterAiStoreImpl store(final Rules rules) {
         final MockSecurityContext securityContext = new MockSecurityContext();
         return new ShapeshifterAiStoreImpl(
                 new StoreFactoryImpl(new MemoryPersistence(), null, securityContext, null, () -> null),
                 securityContext,
-                new ShapeshifterAiSerialiser(new Serialiser2FactoryImpl(), () -> rules));
+                new ShapeshifterAiSerialiser(new Serialiser2FactoryImpl()));
     }
 
     static ShapeshifterAiDoc.Builder configured(final ShapeshifterAiDoc doc) {

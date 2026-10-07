@@ -103,7 +103,7 @@ class TestScenario43Syslog {
         assertThat(run.output()).isEqualTo(EVENTS);
         // One shape — feed and type — so one rule, and one variant that handles both forms.
         assertThat(run.shape().id()).isEqualTo("Feed=" + FEED + "|Type=Raw Events");
-        assertThat(scenarios.rules.forDocument("doc-1")).hasSize(1);
+        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).hasSize(1);
         // The two forms are two kinds of record, so two targets were proposed and both configurations carried them.
         assertThat(script.asked()).filteredOn(TargetFor.class::isInstance).hasSize(2);
         assertThat(script.scripted()).hasSize(4);

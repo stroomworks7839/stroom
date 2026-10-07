@@ -34,12 +34,16 @@ public class LearnShapeRequest {
     @JsonProperty
     private final String shapeId;
     @JsonProperty
+    private final LearnerRef learner;
+    @JsonProperty
     private final String reason;
 
     @JsonCreator
     public LearnShapeRequest(@JsonProperty("shapeId") final String shapeId,
+                             @JsonProperty("learner") final LearnerRef learner,
                              @JsonProperty("reason") final String reason) {
         this.shapeId = shapeId;
+        this.learner = learner;
         this.reason = reason;
     }
 
@@ -48,6 +52,11 @@ public class LearnShapeRequest {
      */
     public String getShapeId() {
         return shapeId;
+    }
+
+    /// The learner the shape is one of (design 06 phase J slice 2b), as the ledger row named it.
+    public LearnerRef getLearner() {
+        return learner;
     }
 
     /**

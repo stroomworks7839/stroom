@@ -72,15 +72,6 @@ public final class InMemoryAttempts implements Attempts {
     /// The newest, as the rows are read: an attempt superseded by a later one for the same shape is not
     /// what a node picks up.
     @Override
-    public synchronized Optional<Learner> learnerOf(final String docUuid, final String shape) {
-        return attempts.values().stream()
-                .filter(attempt -> attempt.attempt().docUuid().equals(docUuid)
-                                   && attempt.attempt().shape().equals(shape))
-                .max(Comparator.comparingLong(Recorded::id))
-                .map(attempt -> attempt.attempt().learner());
-    }
-
-    @Override
     public synchronized Optional<Recorded> open(final Learner learner, final String shape, final long nowMs) {
         return attempts.values().stream()
                 .filter(attempt -> attempt.attempt().learner().equals(learner)

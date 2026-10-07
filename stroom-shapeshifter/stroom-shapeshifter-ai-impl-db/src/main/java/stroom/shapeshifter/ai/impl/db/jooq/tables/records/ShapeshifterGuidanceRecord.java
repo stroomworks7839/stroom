@@ -47,73 +47,101 @@ public class ShapeshifterGuidanceRecord extends UpdatableRecordImpl<Shapeshifter
     }
 
     /**
+     * Setter for <code>stroom.shapeshifter_guidance.pipeline_uuid</code>.
+     */
+    public void setPipelineUuid(String value) {
+        set(2, value);
+    }
+
+    /**
+     * Getter for <code>stroom.shapeshifter_guidance.pipeline_uuid</code>.
+     */
+    public String getPipelineUuid() {
+        return (String) get(2);
+    }
+
+    /**
+     * Setter for <code>stroom.shapeshifter_guidance.element_id</code>.
+     */
+    public void setElementId(String value) {
+        set(3, value);
+    }
+
+    /**
+     * Getter for <code>stroom.shapeshifter_guidance.element_id</code>.
+     */
+    public String getElementId() {
+        return (String) get(3);
+    }
+
+    /**
      * Setter for <code>stroom.shapeshifter_guidance.doc_uuid</code>.
      */
     public void setDocUuid(String value) {
-        set(2, value);
+        set(4, value);
     }
 
     /**
      * Getter for <code>stroom.shapeshifter_guidance.doc_uuid</code>.
      */
     public String getDocUuid() {
-        return (String) get(2);
+        return (String) get(4);
     }
 
     /**
      * Setter for <code>stroom.shapeshifter_guidance.shape_hash</code>.
      */
     public void setShapeHash(String value) {
-        set(3, value);
+        set(5, value);
     }
 
     /**
      * Getter for <code>stroom.shapeshifter_guidance.shape_hash</code>.
      */
     public String getShapeHash() {
-        return (String) get(3);
+        return (String) get(5);
     }
 
     /**
      * Setter for <code>stroom.shapeshifter_guidance.shape_id</code>.
      */
     public void setShapeId(String value) {
-        set(4, value);
+        set(6, value);
     }
 
     /**
      * Getter for <code>stroom.shapeshifter_guidance.shape_id</code>.
      */
     public String getShapeId() {
-        return (String) get(4);
+        return (String) get(6);
     }
 
     /**
      * Setter for <code>stroom.shapeshifter_guidance.message</code>.
      */
     public void setMessage(String value) {
-        set(5, value);
+        set(7, value);
     }
 
     /**
      * Getter for <code>stroom.shapeshifter_guidance.message</code>.
      */
     public String getMessage() {
-        return (String) get(5);
+        return (String) get(7);
     }
 
     /**
      * Setter for <code>stroom.shapeshifter_guidance.author</code>.
      */
     public void setAuthor(String value) {
-        set(6, value);
+        set(8, value);
     }
 
     /**
      * Getter for <code>stroom.shapeshifter_guidance.author</code>.
      */
     public String getAuthor() {
-        return (String) get(6);
+        return (String) get(8);
     }
 
     // -------------------------------------------------------------------------
@@ -139,11 +167,13 @@ public class ShapeshifterGuidanceRecord extends UpdatableRecordImpl<Shapeshifter
     /**
      * Create a detached, initialised ShapeshifterGuidanceRecord
      */
-    public ShapeshifterGuidanceRecord(Long id, Long createTimeMs, String docUuid, String shapeHash, String shapeId, String message, String author) {
+    public ShapeshifterGuidanceRecord(Long id, Long createTimeMs, String pipelineUuid, String elementId, String docUuid, String shapeHash, String shapeId, String message, String author) {
         super(ShapeshifterGuidance.SHAPESHIFTER_GUIDANCE);
 
         setId(id);
         setCreateTimeMs(createTimeMs);
+        setPipelineUuid(pipelineUuid);
+        setElementId(elementId);
         setDocUuid(docUuid);
         setShapeHash(shapeHash);
         setShapeId(shapeId);

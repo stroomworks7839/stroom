@@ -23,6 +23,7 @@ import stroom.data.grid.client.MyDataGrid;
 import stroom.data.grid.client.PagerView;
 import stroom.dispatch.client.RestFactory;
 import stroom.shapeshifter.shared.GuidanceRequest;
+import stroom.shapeshifter.shared.LearnerRef;
 import stroom.shapeshifter.shared.SupervisorGuidance;
 import stroom.shapeshifter.shared.SupervisorResource;
 import stroom.svg.client.SvgPresets;
@@ -67,6 +68,7 @@ public class SupervisorGuidancePresenter extends MyPresenterWidget<PagerView> {
     private final ButtonView addButton;
     private final ButtonView removeButton;
     private String docUuid;
+    private LearnerRef learner;
     private String shapeId;
     private Runnable onChange;
 
@@ -99,12 +101,17 @@ public class SupervisorGuidancePresenter extends MyPresenterWidget<PagerView> {
     /**
      * Show what has been said about a shape.
      *
-     * @param shapeId  The learning key's values, as a rule or an attempt names them.
+     * @param learner  The learner whose shape it is, as the row names it.
+     * @param shapeId  The shape, as a rule or an attempt names it.
      * @param onChange Run when something is said or taken back, so that the count on the row the dialog
      *                 was opened from is read again.
      */
-    public void show(final String docUuid, final String shapeId, final Runnable onChange) {
+    public void show(final String docUuid,
+                     final LearnerRef learner,
+                     final String shapeId,
+                     final Runnable onChange) {
         this.docUuid = docUuid;
+        this.learner = learner;
         this.shapeId = shapeId;
         this.onChange = onChange;
         read(said -> {
@@ -121,6 +128,7 @@ public class SupervisorGuidancePresenter extends MyPresenterWidget<PagerView> {
         // Which shape this is about, taken now rather than when OK is pressed: the dialog can be
         // reopened on another shape while a prompt is up.
         final String about = shapeId;
+        final LearnerRef whose = learner;
         final String onDocument = docUuid;
         PromptEvent.fire(this,
                 "What should the learning know about this shape? It is kept against the shape, so every "
@@ -133,7 +141,7 @@ public class SupervisorGuidancePresenter extends MyPresenterWidget<PagerView> {
                     restFactory
                             .create(SUPERVISOR_RESOURCE)
                             .method(resource -> resource.hint(onDocument,
-                                    new GuidanceRequest(about, message)))
+                                    new GuidanceRequest(about, whose, message)))
                             .onSuccess(this::changed)
                             .taskMonitorFactory(this)
                             .exec();
@@ -148,6 +156,7 @@ public class SupervisorGuidancePresenter extends MyPresenterWidget<PagerView> {
             return;
         }
         final String about = shapeId;
+        final LearnerRef whose = learner;
         final String onDocument = docUuid;
         ConfirmEvent.fire(this,
                 "Take this back? It stops being carried into what is asked about this shape. The turns "
@@ -156,7 +165,8 @@ public class SupervisorGuidancePresenter extends MyPresenterWidget<PagerView> {
                     if (ok) {
                         restFactory
                                 .create(SUPERVISOR_RESOURCE)
-                                .method(resource -> resource.withdraw(onDocument, said.getId(), about))
+                                .method(resource -> resource.withdraw(onDocument, said.getId(),
+                                        whose.getPipelineUuid(), whose.getElementId(), about))
                                 .onSuccess(this::changed)
                                 .taskMonitorFactory(this)
                                 .exec();
@@ -175,7 +185,8 @@ public class SupervisorGuidancePresenter extends MyPresenterWidget<PagerView> {
     private void read(final Consumer<List<SupervisorGuidance>> consumer) {
         restFactory
                 .create(SUPERVISOR_RESOURCE)
-                .method(resource -> resource.guidance(docUuid, shapeId))
+                .method(resource -> resource.guidance(docUuid, learner.getPipelineUuid(),
+                        learner.getElementId(), shapeId))
                 .onSuccess(consumer::accept)
                 .taskMonitorFactory(this)
                 .exec();

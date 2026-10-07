@@ -92,7 +92,7 @@ class TestScenario56ASnapshotKeepsWhatRan {
         final Script relearning = script(scenarios, TRANSLATES_BOTH);
         assertThat(scenarios.worker(relearning).advance(10)).isEqualTo(1);
         relearning.verifyExhausted();
-        final RoutingRule rebound = scenarios.rules.forDocument(DOC).get(0);
+        final RoutingRule rebound = scenarios.rules.forLearner(Scenarios.LEARNER).get(0);
         assertThat(rebound.getUuid()).isEqualTo(learned.getUuid());
         assertThat(rebound.getPipeline()).describedAs("the same fragment").isEqualTo(learned.getPipeline());
         assertThat(rebound.getSnapshot()).describedAs("a new snapshot").isNotEqualTo(first);
@@ -152,10 +152,10 @@ class TestScenario56ASnapshotKeepsWhatRan {
                 .isInstanceOf(DeferTaskException.class)
                 .hasMessageContaining("since replaced");
         relearning.verifyExhausted();
-        final RoutingRule rebound = scenarios.rules.forDocument(DOC).get(0);
+        final RoutingRule rebound = scenarios.rules.forLearner(Scenarios.LEARNER).get(0);
         assertThat(rebound.getSnapshot()).isNotEqualTo(learned.getSnapshot());
         assertThat(silent.asked()).isEmpty();
-        assertThat(scenarios.shapes.relearnReason(DOC, rebound.getShapeId()))
+        assertThat(scenarios.shapes.relearnReason(Scenarios.LEARNER, rebound.getShapeId()))
                 .describedAs("the shape is not marked on a stale judgement")
                 .isEmpty();
         assertThat(scenarios.attempts.forDocument(DOC, 10))
@@ -198,7 +198,7 @@ class TestScenario56ASnapshotKeepsWhatRan {
         // As processed: the first stream goes back through the code that produced its output — the
         // logon-only stylesheet — though the fragment now translates both.
         final StageRun again = scenarios.stage(document -> silent, scenarios.rules)
-                .reprocess(doc, stream(1L, CSV.input()));
+                .reprocess(doc, Scenarios.LEARNER, stream(1L, CSV.input()));
         assertThat(again.decision()).describedAs(again.decision().toString()).isInstanceOf(Bound.class);
         assertThat(again.bindings().snapshotId()).isEqualTo(learned.getSnapshot());
         assertThat(again.output()).doesNotContain("Logoff");
@@ -217,7 +217,7 @@ class TestScenario56ASnapshotKeepsWhatRan {
 
         final RoutingRule fresh = ((Bound) decided.decision()).rule();
         assertThat(fresh.getSnapshot()).describedAs("a promotion by hand (A72)").isNotEqualTo(learned.getSnapshot());
-        assertThat(scenarios.rules.forDocument(DOC).get(0).getSnapshot()).isEqualTo(fresh.getSnapshot());
+        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER).get(0).getSnapshot()).isEqualTo(fresh.getSnapshot());
         assertThat(scenarios.snapshots.byId(fresh.getSnapshot()).orElseThrow().code().values())
                 .anySatisfy(code -> assertThat(code).isEqualTo(LOGON_ONLY));
         // And the edit is what serves: the logoffs fall short, against the new stamp.

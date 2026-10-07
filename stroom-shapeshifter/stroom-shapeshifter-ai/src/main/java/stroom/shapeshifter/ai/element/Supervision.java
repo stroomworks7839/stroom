@@ -235,8 +235,8 @@ public class Supervision {
             return;
         }
         final StageRun run = stepping
-                ? stage.dryRun(doc, input, asProcessed)
-                : stage.reprocess(doc, input);
+                ? stage.dryRun(doc, learner(elementId), input, asProcessed)
+                : stage.reprocess(doc, learner(elementId), input);
         // What the stage pane shows for this element, kept for the capture to ask (A30). Per element,
         // because a pipeline may hold two supervised stages and each has its own decision to explain.
         stepDetails.put(elementId.getId(), StepDetails.of(run, stepping));

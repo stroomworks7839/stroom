@@ -18,6 +18,7 @@ package stroom.shapeshifter.ai.impl.db;
 
 import stroom.db.util.JooqUtil;
 import stroom.docref.DocRef;
+import stroom.shapeshifter.ai.stage.Learner;
 import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.shared.RecordBoundary;
 import stroom.shapeshifter.shared.RoutingRule;
@@ -34,9 +35,9 @@ import java.util.UUID;
 
 import static stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterRule.SHAPESHIFTER_RULE;
 
-/// The rules of A41 as rows: one per rule, each the binding of the shape it was learned for (design 06
-/// phase J slice 2a). A promotion is one insert and a rebinding one update, so two nodes promoting two
-/// shapes of one document do not contend.
+/// The bindings of A41 as rows: one per binding, each a learner's for the shape it was learned for
+/// (design 06 phase J slices 2a and 2b). A promotion is one insert and a rebinding one update, so two
+/// nodes promoting two shapes do not contend.
 @Singleton
 public class RulesDao implements Rules {
 
@@ -48,51 +49,55 @@ public class RulesDao implements Rules {
     }
 
     @Override
-    public List<RoutingRule> forDocument(final String docUuid) {
+    public List<RoutingRule> forLearner(final Learner learner) {
         return JooqUtil.contextResult(connProvider, context -> context
                 .select()
                 .from(SHAPESHIFTER_RULE)
-                .where(SHAPESHIFTER_RULE.DOC_UUID.eq(docUuid))
+                .where(SHAPESHIFTER_RULE.PIPELINE_UUID.eq(learner.pipelineUuid()))
+                .and(SHAPESHIFTER_RULE.ELEMENT_ID.eq(learner.elementId()))
                 .orderBy(SHAPESHIFTER_RULE.ID)
                 .fetch()
                 .map(RulesDao::rule));
     }
 
     @Override
-    public Optional<RoutingRule> byUuid(final String docUuid, final String ruleUuid) {
+    public Optional<Held> byUuid(final String ruleUuid) {
         return JooqUtil.contextResult(connProvider, context -> context
                 .select()
                 .from(SHAPESHIFTER_RULE)
-                .where(SHAPESHIFTER_RULE.DOC_UUID.eq(docUuid))
-                .and(SHAPESHIFTER_RULE.RULE_UUID.eq(ruleUuid))
+                .where(SHAPESHIFTER_RULE.RULE_UUID.eq(ruleUuid))
                 .fetchOptional()
-                .map(RulesDao::rule));
+                .map(record -> new Held(
+                        new Learner(record.get(SHAPESHIFTER_RULE.PIPELINE_UUID),
+                                record.get(SHAPESHIFTER_RULE.ELEMENT_ID)),
+                        record.get(SHAPESHIFTER_RULE.DOC_UUID),
+                        rule(record))));
     }
 
     @Override
-    public RoutingRule append(final String docUuid, final RoutingRule rule) {
-        return JooqUtil.contextResult(connProvider, context -> write(context, docUuid, rule));
+    public RoutingRule append(final Learner learner, final String docUuid, final RoutingRule rule) {
+        return JooqUtil.contextResult(connProvider, context -> write(context, learner, docUuid, rule));
     }
 
-    /// A rule the document does not have is appended rather than lost: a promotion must not be dropped
+    /// A rule the learner does not have is appended rather than lost: a promotion must not be dropped
     /// because its row was pruned between the run and the write. Two writers of one rule — a supervisor
     /// rebinding it while a person pins it — are serialised on the row, the second seeing what the first
     /// wrote rather than both succeeding blind.
     @Override
-    public void replace(final String docUuid, final RoutingRule rule) {
+    public void replace(final Learner learner, final String docUuid, final RoutingRule rule) {
         JooqUtil.transaction(connProvider, context -> {
             context.select(SHAPESHIFTER_RULE.ID)
                     .from(SHAPESHIFTER_RULE)
-                    .where(SHAPESHIFTER_RULE.DOC_UUID.eq(docUuid))
-                    .and(SHAPESHIFTER_RULE.RULE_UUID.eq(rule.getUuid()))
+                    .where(SHAPESHIFTER_RULE.RULE_UUID.eq(rule.getUuid()))
                     .forUpdate()
                     .fetchOptional();
             final int updated = context.update(SHAPESHIFTER_RULE)
                     .set(SHAPESHIFTER_RULE.VERSION, SHAPESHIFTER_RULE.VERSION.plus(1))
                     .set(SHAPESHIFTER_RULE.UPDATE_TIME_MS, System.currentTimeMillis())
-                    .set(SHAPESHIFTER_RULE.PIPELINE_TYPE, type(rule))
-                    .set(SHAPESHIFTER_RULE.PIPELINE_UUID, uuid(rule))
-                    .set(SHAPESHIFTER_RULE.PIPELINE_NAME, name(rule))
+                    .set(SHAPESHIFTER_RULE.DOC_UUID, docUuid)
+                    .set(SHAPESHIFTER_RULE.FRAGMENT_TYPE, type(rule))
+                    .set(SHAPESHIFTER_RULE.FRAGMENT_UUID, uuid(rule))
+                    .set(SHAPESHIFTER_RULE.FRAGMENT_NAME, name(rule))
                     .set(SHAPESHIFTER_RULE.PINNED, rule.isPinned())
                     .set(SHAPESHIFTER_RULE.DRAFT, rule.isDraft())
                     .set(SHAPESHIFTER_RULE.PROVISIONAL, rule.isProvisional())
@@ -104,25 +109,28 @@ public class RulesDao implements Rules {
                     .set(SHAPESHIFTER_RULE.SHAPE_ID, rule.getShapeId())
                     .set(SHAPESHIFTER_RULE.SHAPE_HASH, shapeHash(rule))
                     .set(SHAPESHIFTER_RULE.SNAPSHOT_ID, rule.getSnapshot())
-                    .where(SHAPESHIFTER_RULE.DOC_UUID.eq(docUuid))
+                    .where(SHAPESHIFTER_RULE.PIPELINE_UUID.eq(learner.pipelineUuid()))
+                    .and(SHAPESHIFTER_RULE.ELEMENT_ID.eq(learner.elementId()))
                     .and(SHAPESHIFTER_RULE.RULE_UUID.eq(rule.getUuid()))
                     .execute();
             if (updated == 0) {
-                write(context, docUuid, rule);
+                write(context, learner, docUuid, rule);
             }
         });
     }
 
     @Override
-    public void remove(final String docUuid, final String ruleUuid) {
+    public void remove(final Learner learner, final String ruleUuid) {
         JooqUtil.context(connProvider, context -> context
                 .deleteFrom(SHAPESHIFTER_RULE)
-                .where(SHAPESHIFTER_RULE.DOC_UUID.eq(docUuid))
+                .where(SHAPESHIFTER_RULE.PIPELINE_UUID.eq(learner.pipelineUuid()))
+                .and(SHAPESHIFTER_RULE.ELEMENT_ID.eq(learner.elementId()))
                 .and(SHAPESHIFTER_RULE.RULE_UUID.eq(ruleUuid))
                 .execute());
     }
 
     private static RoutingRule write(final DSLContext context,
+                                     final Learner learner,
                                      final String docUuid,
                                      final RoutingRule rule) {
         final RoutingRule stored = rule.getUuid() == null
@@ -133,11 +141,13 @@ public class RulesDao implements Rules {
                 .set(SHAPESHIFTER_RULE.VERSION, 1)
                 .set(SHAPESHIFTER_RULE.CREATE_TIME_MS, now)
                 .set(SHAPESHIFTER_RULE.UPDATE_TIME_MS, now)
+                .set(SHAPESHIFTER_RULE.PIPELINE_UUID, learner.pipelineUuid())
+                .set(SHAPESHIFTER_RULE.ELEMENT_ID, learner.elementId())
                 .set(SHAPESHIFTER_RULE.DOC_UUID, docUuid)
                 .set(SHAPESHIFTER_RULE.RULE_UUID, stored.getUuid())
-                .set(SHAPESHIFTER_RULE.PIPELINE_TYPE, type(stored))
-                .set(SHAPESHIFTER_RULE.PIPELINE_UUID, uuid(stored))
-                .set(SHAPESHIFTER_RULE.PIPELINE_NAME, name(stored))
+                .set(SHAPESHIFTER_RULE.FRAGMENT_TYPE, type(stored))
+                .set(SHAPESHIFTER_RULE.FRAGMENT_UUID, uuid(stored))
+                .set(SHAPESHIFTER_RULE.FRAGMENT_NAME, name(stored))
                 .set(SHAPESHIFTER_RULE.PINNED, stored.isPinned())
                 .set(SHAPESHIFTER_RULE.DRAFT, stored.isDraft())
                 .set(SHAPESHIFTER_RULE.PROVISIONAL, stored.isProvisional())
@@ -154,16 +164,16 @@ public class RulesDao implements Rules {
     }
 
     private static RoutingRule rule(final Record record) {
-        final String pipelineUuid = record.get(SHAPESHIFTER_RULE.PIPELINE_UUID);
+        final String fragmentUuid = record.get(SHAPESHIFTER_RULE.FRAGMENT_UUID);
         final String boundaryElement = record.get(SHAPESHIFTER_RULE.BOUNDARY_ELEMENT);
         final String boundaryArray = record.get(SHAPESHIFTER_RULE.BOUNDARY_ARRAY);
         final Integer boundaryDepth = record.get(SHAPESHIFTER_RULE.BOUNDARY_DEPTH);
         return RoutingRule.builder()
                 .uuid(record.get(SHAPESHIFTER_RULE.RULE_UUID))
-                .pipeline(pipelineUuid == null
+                .pipeline(fragmentUuid == null
                         ? null
-                        : new DocRef(record.get(SHAPESHIFTER_RULE.PIPELINE_TYPE), pipelineUuid,
-                                record.get(SHAPESHIFTER_RULE.PIPELINE_NAME)))
+                        : new DocRef(record.get(SHAPESHIFTER_RULE.FRAGMENT_TYPE), fragmentUuid,
+                                record.get(SHAPESHIFTER_RULE.FRAGMENT_NAME)))
                 .pinned(record.get(SHAPESHIFTER_RULE.PINNED))
                 .draft(record.get(SHAPESHIFTER_RULE.DRAFT))
                 .provisional(record.get(SHAPESHIFTER_RULE.PROVISIONAL))

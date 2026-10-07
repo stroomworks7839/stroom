@@ -59,6 +59,19 @@ public final class InMemoryDeferrals implements Deferrals {
         rows.removeIf(row -> row.learner().equals(learner) && row.inputId() == inputId);
     }
 
+    /// The streams waiting on the learner, brought to the document it runs under (see
+    /// [InMemoryLearners]).
+    ///
+    /// @param learner The learner.
+    /// @param docUuid The document.
+    public synchronized void runsUnder(final Learner learner, final String docUuid) {
+        rows.replaceAll(row -> row.learner().equals(learner)
+                ? new Deferral(learner, docUuid, row.inputId(), row.feed(), row.type(), row.taskId(),
+                        row.filterId(), row.failedAgainst(), row.reason(), row.failingRecords(),
+                        row.firstDeferredMs(), row.attempts())
+                : row);
+    }
+
     @Override
     public synchronized Optional<Deferral> of(final Learner learner, final long inputId) {
         return rows.stream()
@@ -67,9 +80,10 @@ public final class InMemoryDeferrals implements Deferrals {
     }
 
     @Override
-    public synchronized List<Deferral> waiting(final String docUuid, final String feed, final String type) {
-        return forDocument(docUuid).stream()
-                .filter(row -> row.feed().equals(feed) && row.type().equals(type))
+    public synchronized List<Deferral> waiting(final Learner learner, final String feed, final String type) {
+        return rows.stream()
+                .filter(row -> row.learner().equals(learner) && row.feed().equals(feed) && row.type().equals(type))
+                .sorted(Comparator.comparingLong(Deferral::firstDeferredMs).thenComparingLong(Deferral::inputId))
                 .toList();
     }
 

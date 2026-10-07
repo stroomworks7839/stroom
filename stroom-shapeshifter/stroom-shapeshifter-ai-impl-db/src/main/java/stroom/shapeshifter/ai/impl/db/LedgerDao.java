@@ -17,15 +17,18 @@
 package stroom.shapeshifter.ai.impl.db;
 
 import stroom.db.util.JooqUtil;
+import stroom.shapeshifter.ai.stage.Learner;
 import stroom.shapeshifter.ai.stage.Ledger;
 import stroom.shapeshifter.ai.stage.Ledger.Page;
 import stroom.shapeshifter.ai.stage.Replayable;
+import stroom.shapeshifter.shared.LearnerRef;
 import stroom.shapeshifter.shared.LedgerShape;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 import stroom.util.shared.NullSafe;
 
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import org.jooq.Condition;
 import org.jooq.Field;
 import org.jooq.Record1;
 import org.jooq.Table;
@@ -37,7 +40,8 @@ import java.util.List;
 import static stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterLedger.SHAPESHIFTER_LEDGER;
 
 /// The ledger of §5.2 as rows: one per sentinelled input, so that promotion can name what to replay.
-/// Nothing is held — the row says which stream to reprocess, not what it held.
+/// Nothing is held — the row says which stream to reprocess, not what it held. A row is a learner's
+/// (design 06 phase J slice 2b), and its pipeline is the one a released stream is put through again.
 @Singleton
 public class LedgerDao implements Ledger {
 
@@ -49,19 +53,20 @@ public class LedgerDao implements Ledger {
     }
 
     @Override
-    public void sentinelled(final String docUuid,
+    public void sentinelled(final Learner learner,
+                            final String docUuid,
                             final String shape,
                             final long inputId,
-                            final String pipeline,
                             final String reason) {
         JooqUtil.context(connProvider, context -> context
                 .insertInto(SHAPESHIFTER_LEDGER)
                 .set(SHAPESHIFTER_LEDGER.CREATE_TIME_MS, System.currentTimeMillis())
+                .set(SHAPESHIFTER_LEDGER.PIPELINE_UUID, learner.pipelineUuid())
+                .set(SHAPESHIFTER_LEDGER.ELEMENT_ID, learner.elementId())
                 .set(SHAPESHIFTER_LEDGER.DOC_UUID, docUuid)
                 .set(SHAPESHIFTER_LEDGER.SHAPE_HASH, ShapesDao.hash(shape))
                 .set(SHAPESHIFTER_LEDGER.SHAPE_ID, shape)
                 .set(SHAPESHIFTER_LEDGER.INPUT_META_ID, inputId)
-                .set(SHAPESHIFTER_LEDGER.PIPELINE_UUID, pipeline)
                 .set(SHAPESHIFTER_LEDGER.REASON, reason)
                 // A stream sentinelled twice for one shape is one row: it must not be replayed twice.
                 .onDuplicateKeyIgnore()
@@ -74,31 +79,28 @@ public class LedgerDao implements Ledger {
     /// sentinelled is left alone — a stream has been waiting since it arrived, and a new reason does not
     /// make it newly late — which is also what keeps the view's "waiting since" honest.
     @Override
-    public void restate(final String docUuid, final String shape, final String reason) {
+    public void restate(final Learner learner, final String shape, final String reason) {
         JooqUtil.context(connProvider, context -> context
                 .update(SHAPESHIFTER_LEDGER)
                 .set(SHAPESHIFTER_LEDGER.REASON, reason)
-                .where(SHAPESHIFTER_LEDGER.DOC_UUID.eq(docUuid))
-                .and(SHAPESHIFTER_LEDGER.SHAPE_HASH.eq(ShapesDao.hash(shape)))
+                .where(key(learner, shape))
                 .execute());
     }
 
     @Override
-    public List<Replayable> release(final String docUuid, final String shape) {
+    public List<Replayable> release(final Learner learner, final String shape) {
         return JooqUtil.transactionResult(connProvider, context -> {
             final List<Replayable> inputs = context
                     .select(SHAPESHIFTER_LEDGER.INPUT_META_ID, SHAPESHIFTER_LEDGER.PIPELINE_UUID)
                     .from(SHAPESHIFTER_LEDGER)
-                    .where(SHAPESHIFTER_LEDGER.DOC_UUID.eq(docUuid))
-                    .and(SHAPESHIFTER_LEDGER.SHAPE_HASH.eq(ShapesDao.hash(shape)))
+                    .where(key(learner, shape))
                     .orderBy(SHAPESHIFTER_LEDGER.ID)
                     .forUpdate()
                     .fetch(row -> new Replayable(row.get(SHAPESHIFTER_LEDGER.INPUT_META_ID),
                             row.get(SHAPESHIFTER_LEDGER.PIPELINE_UUID)));
             if (!inputs.isEmpty()) {
                 context.deleteFrom(SHAPESHIFTER_LEDGER)
-                        .where(SHAPESHIFTER_LEDGER.DOC_UUID.eq(docUuid))
-                        .and(SHAPESHIFTER_LEDGER.SHAPE_HASH.eq(ShapesDao.hash(shape)))
+                        .where(key(learner, shape))
                         .execute();
             }
             return List.copyOf(inputs);
@@ -120,18 +122,21 @@ public class LedgerDao implements Ledger {
         final Field<Long> oldest = DSL.min(SHAPESHIFTER_LEDGER.CREATE_TIME_MS).as("oldest");
         final Field<Long> newest = DSL.max(SHAPESHIFTER_LEDGER.CREATE_TIME_MS).as("newest");
         final Field<Long> newestId = DSL.max(SHAPESHIFTER_LEDGER.ID).as("newest_id");
-        // Grouped by document as well as shape: the view is over every document (A28), and two
-        // documents may have shapes of the same name that settle separately.
+        // Grouped by learner as well as shape: the view is over every document (A28), and two learners
+        // may have shapes of the same name that settle separately.
         final Table<?> grouped = DSL
-                .select(SHAPESHIFTER_LEDGER.DOC_UUID, SHAPESHIFTER_LEDGER.SHAPE_HASH,
-                        waiting, oldest, newest, newestId)
+                .select(SHAPESHIFTER_LEDGER.PIPELINE_UUID, SHAPESHIFTER_LEDGER.ELEMENT_ID,
+                        SHAPESHIFTER_LEDGER.SHAPE_HASH, waiting, oldest, newest, newestId)
                 .from(SHAPESHIFTER_LEDGER)
                 .where(SHAPESHIFTER_LEDGER.DOC_UUID.in(docUuids))
-                .groupBy(SHAPESHIFTER_LEDGER.DOC_UUID, SHAPESHIFTER_LEDGER.SHAPE_HASH)
+                .groupBy(SHAPESHIFTER_LEDGER.PIPELINE_UUID, SHAPESHIFTER_LEDGER.ELEMENT_ID,
+                        SHAPESHIFTER_LEDGER.SHAPE_HASH)
                 .asTable("grouped");
         return JooqUtil.contextResult(connProvider, context -> {
             final List<LedgerShape> shapes = context
                     .select(SHAPESHIFTER_LEDGER.DOC_UUID,
+                            SHAPESHIFTER_LEDGER.PIPELINE_UUID,
+                            SHAPESHIFTER_LEDGER.ELEMENT_ID,
                             SHAPESHIFTER_LEDGER.SHAPE_ID,
                             SHAPESHIFTER_LEDGER.REASON,
                             grouped.field(waiting),
@@ -149,6 +154,8 @@ public class LedgerDao implements Ledger {
                             ShapeshifterAiDoc.buildDocRef()
                                     .uuid(row.get(SHAPESHIFTER_LEDGER.DOC_UUID))
                                     .build(),
+                            new LearnerRef(row.get(SHAPESHIFTER_LEDGER.PIPELINE_UUID),
+                                    row.get(SHAPESHIFTER_LEDGER.ELEMENT_ID)),
                             row.get(SHAPESHIFTER_LEDGER.SHAPE_ID),
                             row.get(grouped.field(waiting)),
                             row.get(grouped.field(oldest)),
@@ -156,7 +163,8 @@ public class LedgerDao implements Ledger {
                             row.get(SHAPESHIFTER_LEDGER.REASON)));
             // How many shapes in all, so that a pager can say how far there is to go.
             final long total = context
-                    .select(DSL.countDistinct(SHAPESHIFTER_LEDGER.DOC_UUID, SHAPESHIFTER_LEDGER.SHAPE_HASH))
+                    .select(DSL.countDistinct(SHAPESHIFTER_LEDGER.PIPELINE_UUID, SHAPESHIFTER_LEDGER.ELEMENT_ID,
+                            SHAPESHIFTER_LEDGER.SHAPE_HASH))
                     .from(SHAPESHIFTER_LEDGER)
                     .where(SHAPESHIFTER_LEDGER.DOC_UUID.in(docUuids))
                     .fetchOptional()
@@ -164,5 +172,12 @@ public class LedgerDao implements Ledger {
                     .orElse(0);
             return new Page(shapes, total);
         });
+    }
+
+    /// The rows of one learner's shape.
+    private static Condition key(final Learner learner, final String shape) {
+        return SHAPESHIFTER_LEDGER.PIPELINE_UUID.eq(learner.pipelineUuid())
+                .and(SHAPESHIFTER_LEDGER.ELEMENT_ID.eq(learner.elementId()))
+                .and(SHAPESHIFTER_LEDGER.SHAPE_HASH.eq(ShapesDao.hash(shape)));
     }
 }

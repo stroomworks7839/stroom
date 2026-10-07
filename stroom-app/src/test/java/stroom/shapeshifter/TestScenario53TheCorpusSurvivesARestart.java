@@ -50,6 +50,7 @@ import stroom.shapeshifter.ai.scenario.Structure;
 import stroom.shapeshifter.ai.stage.Decision;
 import stroom.shapeshifter.ai.stage.Decision.Kept;
 import stroom.shapeshifter.ai.stage.Decision.Rebound;
+import stroom.shapeshifter.ai.stage.Learner;
 import stroom.shapeshifter.ai.stage.RegressionSet;
 import stroom.shapeshifter.ai.stage.RegressionSet.Accepted;
 import stroom.shapeshifter.ai.stage.RegressionSet.Kind;
@@ -101,6 +102,9 @@ class TestScenario53TheCorpusSurvivesARestart extends AbstractProcessIntegration
     private static final String TRANSLATES_BOTH = Scenarios.resource("csv-logon.xsl");
     private static final String ADMITS_LOGOFF = Scenarios.resource("csv-logon-unknown.xsl");
 
+    /// The learner the test's pipeline is: its Shapeshifter AI element (design 06 phase J slice 2b).
+    private Learner learner;
+
     @Inject
     private StoreCreationTool storeCreationTool;
     @Inject
@@ -143,7 +147,7 @@ class TestScenario53TheCorpusSurvivesARestart extends AbstractProcessIntegration
         deferredLearning.exec();
         final ProcessorResult result = processOne();
         assertThat(result.getMarkerCount(Severity.ERROR, Severity.FATAL_ERROR)).isZero();
-        final RoutingRule rule = rules.forDocument(document.getUuid()).get(0);
+        final RoutingRule rule = rules.forLearner(learner).get(0);
 
         // Where a node keeps it: one stream of the corpus's type on the source feed, a line per entry.
         final List<Meta> corpusStreams = corpusStreams();
@@ -171,13 +175,13 @@ class TestScenario53TheCorpusSurvivesARestart extends AbstractProcessIntegration
 
         // And one more, that would turn a record that now translates back into an admission: refused by
         // the corpus, naming the entry, and the rule serves on as it was.
-        final RoutingRule rebound = rules.forDocument(document.getUuid()).get(0);
+        final RoutingRule rebound = rules.forLearner(learner).get(0);
         final Decision worse = improve(document, rebound, ADMITS_LOGOFF);
         assertThat(worse).describedAs(worse.toString()).isInstanceOf(Kept.class);
         assertThat(((Kept) worse).reason())
                 .contains("turns a record that translated into an Unknown")
                 .contains("record 9 of 12 in the corpus");
-        assertThat(rules.forDocument(document.getUuid()).get(0).getPipeline()).isEqualTo(rebound.getPipeline());
+        assertThat(rules.forLearner(learner).get(0).getPipeline()).isEqualTo(rebound.getPipeline());
         assertThat(corpusStreams()).hasSize(2);
     }
 
@@ -225,6 +229,7 @@ class TestScenario53TheCorpusSurvivesARestart extends AbstractProcessIntegration
         pipelineStore.writeDocument(pipeline.copy()
                 .pipelineData(DemoContentPack.pipelineData(document))
                 .build());
+        learner = new Learner(pipelineRef.getUuid(), DemoContentPack.STAGE_ELEMENT);
         return pipelineRef;
     }
 

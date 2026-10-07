@@ -65,6 +65,16 @@ public class ShapeshifterLedger extends TableImpl<ShapeshifterLedgerRecord> {
     public final TableField<ShapeshifterLedgerRecord, Long> CREATE_TIME_MS = createField(DSL.name("create_time_ms"), SQLDataType.BIGINT.nullable(false), this, "");
 
     /**
+     * The column <code>stroom.shapeshifter_ledger.pipeline_uuid</code>.
+     */
+    public final TableField<ShapeshifterLedgerRecord, String> PIPELINE_UUID = createField(DSL.name("pipeline_uuid"), SQLDataType.VARCHAR(255).nullable(false), this, "");
+
+    /**
+     * The column <code>stroom.shapeshifter_ledger.element_id</code>.
+     */
+    public final TableField<ShapeshifterLedgerRecord, String> ELEMENT_ID = createField(DSL.name("element_id"), SQLDataType.VARCHAR(255).nullable(false), this, "");
+
+    /**
      * The column <code>stroom.shapeshifter_ledger.doc_uuid</code>.
      */
     public final TableField<ShapeshifterLedgerRecord, String> DOC_UUID = createField(DSL.name("doc_uuid"), SQLDataType.VARCHAR(255).nullable(false), this, "");
@@ -88,11 +98,6 @@ public class ShapeshifterLedger extends TableImpl<ShapeshifterLedgerRecord> {
      * The column <code>stroom.shapeshifter_ledger.reason</code>.
      */
     public final TableField<ShapeshifterLedgerRecord, String> REASON = createField(DSL.name("reason"), SQLDataType.CLOB.nullable(false), this, "");
-
-    /**
-     * The column <code>stroom.shapeshifter_ledger.pipeline_uuid</code>.
-     */
-    public final TableField<ShapeshifterLedgerRecord, String> PIPELINE_UUID = createField(DSL.name("pipeline_uuid"), SQLDataType.VARCHAR(255), this, "");
 
     private ShapeshifterLedger(Name alias, Table<ShapeshifterLedgerRecord> aliased) {
         this(alias, aliased, (Field<?>[]) null, null);
@@ -130,7 +135,7 @@ public class ShapeshifterLedger extends TableImpl<ShapeshifterLedgerRecord> {
 
     @Override
     public List<Index> getIndexes() {
-        return Arrays.asList(Indexes.SHAPESHIFTER_LEDGER_SHAPESHIFTER_LEDGER_INPUT_META_ID);
+        return Arrays.asList(Indexes.SHAPESHIFTER_LEDGER_SHAPESHIFTER_LEDGER_DOC_UUID, Indexes.SHAPESHIFTER_LEDGER_SHAPESHIFTER_LEDGER_INPUT_META_ID);
     }
 
     @Override
@@ -145,7 +150,7 @@ public class ShapeshifterLedger extends TableImpl<ShapeshifterLedgerRecord> {
 
     @Override
     public List<UniqueKey<ShapeshifterLedgerRecord>> getUniqueKeys() {
-        return Arrays.asList(Keys.KEY_SHAPESHIFTER_LEDGER_SHAPESHIFTER_LEDGER_DOC_SHAPE_INPUT);
+        return Arrays.asList(Keys.KEY_SHAPESHIFTER_LEDGER_SHAPESHIFTER_LEDGER_LEARNER_SHAPE_INPUT);
     }
 
     @Override

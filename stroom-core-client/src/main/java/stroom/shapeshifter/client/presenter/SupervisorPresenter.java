@@ -228,7 +228,7 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
     private void hint() {
         final SupervisorAttempt attempt = selected();
         if (attempt != null) {
-            guidancePresenter.show(attempt.getDoc().getUuid(), attempt.getShape(),
+            guidancePresenter.show(attempt.getDoc().getUuid(), attempt.getLearner(), attempt.getShape(),
                     servingPresenter::refresh);
         }
     }

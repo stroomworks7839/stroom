@@ -153,7 +153,7 @@ public class SupervisorLedgerPresenter extends MyPresenterWidget<PagerView> {
                     restFactory
                             .create(SUPERVISOR_RESOURCE)
                             .method(resource -> resource.learn(shape.getDoc().getUuid(),
-                                    new LearnShapeRequest(shape.getShapeId(), reason)))
+                                    new LearnShapeRequest(shape.getShapeId(), shape.getLearner(), reason)))
                             .onSuccess(asked -> AlertEvent.fireInfo(this, asked == null || asked == 0
                                     ? "The shape will be learned when its feed next ships: nothing was "
                                       + "waiting on it."

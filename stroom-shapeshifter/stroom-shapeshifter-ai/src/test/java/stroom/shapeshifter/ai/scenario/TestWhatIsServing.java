@@ -82,10 +82,10 @@ class TestWhatIsServing {
     @Test
     void theBusiestRuleComesFirstAndTheScoreOnlyFilters() {
         final Scenarios scenarios = new Scenarios();
-        scenarios.rules.append("doc-1", rule("busy", DOOR));
-        scenarios.rules.append("doc-1", rule("quiet", LIFT));
-        scenarios.shapes.scored("doc-1", DOOR, 0.93, 40, 100);
-        scenarios.shapes.scored("doc-1", LIFT, 0.71, 3, 100);
+        scenarios.rules.append(Scenarios.LEARNER, "doc-1", rule("busy", DOOR));
+        scenarios.rules.append(Scenarios.LEARNER, "doc-1", rule("quiet", LIFT));
+        scenarios.shapes.scored(Scenarios.LEARNER, "doc-1", DOOR, 0.93, 40, 100);
+        scenarios.shapes.scored(Scenarios.LEARNER, "doc-1", LIFT, 0.71, 3, 100);
 
         assertThat(scenarios.serving.rules(List.of("doc-1"), null, 0L, 100).rules())
                 .extracting(ServingRule::getRuleUuid)
@@ -103,9 +103,9 @@ class TestWhatIsServing {
     @Test
     void aRowSaysHowMuchHasBeenSaidAboutItsShape() {
         final Scenarios scenarios = new Scenarios();
-        scenarios.rules.append("doc-1", rule("busy", DOOR));
-        scenarios.guidance.given("doc-1", DOOR, "Timestamps are local, not UTC.", "jo");
-        scenarios.guidance.given("doc-1", DOOR, "Column four is a terminal id.", "sam");
+        scenarios.rules.append(Scenarios.LEARNER, "doc-1", rule("busy", DOOR));
+        scenarios.guidance.given(Scenarios.LEARNER, "doc-1", DOOR, "Timestamps are local, not UTC.", "jo");
+        scenarios.guidance.given(Scenarios.LEARNER, "doc-1", DOOR, "Column four is a terminal id.", "sam");
 
         assertThat(scenarios.serving.rules(List.of("doc-1"), null, 0L, 100).rules())
                 .extracting(ServingRule::getGuidance)
@@ -117,9 +117,9 @@ class TestWhatIsServing {
     @Test
     void whatCannotBeImprovedIsNotInTheList() {
         final Scenarios scenarios = new Scenarios();
-        scenarios.rules.append("doc-1", rule("serving", DOOR));
-        scenarios.rules.append("doc-1", rule("draft", LIFT).copy().draft(true).build());
-        scenarios.rules.append("doc-1", rule("by-hand", null));
+        scenarios.rules.append(Scenarios.LEARNER, "doc-1", rule("serving", DOOR));
+        scenarios.rules.append(Scenarios.LEARNER, "doc-1", rule("draft", LIFT).copy().draft(true).build());
+        scenarios.rules.append(Scenarios.LEARNER, "doc-1", rule("by-hand", null));
 
         assertThat(scenarios.serving.rules(List.of("doc-1"), null, 0L, 100).rules())
                 .extracting(ServingRule::getRuleUuid)
@@ -133,8 +133,8 @@ class TestWhatIsServing {
     @Test
     void aDocumentNobodyNamedIsNotInTheAnswer() {
         final Scenarios scenarios = new Scenarios();
-        scenarios.rules.append("doc-1", rule("ours", DOOR));
-        scenarios.rules.append("doc-2", rule("theirs", DOOR));
+        scenarios.rules.append(Scenarios.LEARNER, "doc-1", rule("ours", DOOR));
+        scenarios.rules.append(Scenarios.LEARNER, "doc-2", rule("theirs", DOOR));
 
         assertThat(scenarios.serving.rules(List.of("doc-1"), null, 0L, 100).rules())
                 .extracting(ServingRule::getRuleUuid).containsExactly("ours");

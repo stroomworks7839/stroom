@@ -120,7 +120,7 @@ class TestScenario01LearnsACsvFeed {
         final Promoted promoted = (Promoted) run.decision();
         assertThat(run.output()).isEqualTo(EXPECTED_EVENTS);
         assertThat(run.transcript()).hasSize(6);
-        assertThat(scenarios.shapes.reasonGivenUp(run.doc().getUuid(), run.shape().id())).isEmpty();
+        assertThat(scenarios.shapes.reasonGivenUp(Scenarios.LEARNER, run.shape().id())).isEmpty();
         assertThat(scenarios.ledger.isEmpty()).isTrue();
         assertThat(run.bindings())
                 .describedAs("design 01 §7.3 rule 3: the output records what produced it")
@@ -142,8 +142,8 @@ class TestScenario01LearnsACsvFeed {
 
         // The document gained exactly the learned rule, the binding of the shape it was learned for: its feed
         // and type (A49).
-        assertThat(scenarios.rules.forDocument("policy-1")).hasSize(1);
-        final RoutingRule rule = scenarios.rules.forDocument("policy-1").get(0);
+        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).hasSize(1);
+        final RoutingRule rule = scenarios.rules.forLearner(Scenarios.LEARNER).get(0);
         assertThat(rule).isEqualTo(promoted.rule());
         assertThat(rule.getShapeId()).isEqualTo("Feed=DOOR-ACCESS|Type=Raw Events");
         assertThat(rule.getUuid()).describedAs("A26: a learned rule is named stably").isNotNull();

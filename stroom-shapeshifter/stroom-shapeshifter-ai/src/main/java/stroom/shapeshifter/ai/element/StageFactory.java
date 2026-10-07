@@ -46,6 +46,7 @@ import stroom.shapeshifter.ai.scoring.YieldScorer;
 import stroom.shapeshifter.ai.stage.Attempts;
 import stroom.shapeshifter.ai.stage.Deferrals;
 import stroom.shapeshifter.ai.stage.Guidance;
+import stroom.shapeshifter.ai.stage.Learners;
 import stroom.shapeshifter.ai.stage.Ledger;
 import stroom.shapeshifter.ai.stage.Outputs;
 import stroom.shapeshifter.ai.stage.RegressionSet;
@@ -104,6 +105,7 @@ public class StageFactory {
     private final Reprocessing reprocessing;
     private final RegressionSet regressionSet;
     private final Deferrals deferrals;
+    private final Learners learners;
     private final Wake wake;
     private final Snapshots snapshots;
     private final FragmentCodes codes;
@@ -135,6 +137,7 @@ public class StageFactory {
                         final Reprocessing reprocessing,
                         final RegressionSet regressionSet,
                         final Deferrals deferrals,
+                        final Learners learners,
                         final Wake wake,
                         final Snapshots snapshots,
                         final FragmentCodes codes,
@@ -164,6 +167,7 @@ public class StageFactory {
         this.reprocessing = reprocessing;
         this.regressionSet = regressionSet;
         this.deferrals = deferrals;
+        this.learners = learners;
         this.wake = wake;
         this.snapshots = snapshots;
         this.codes = codes;
@@ -208,6 +212,7 @@ public class StageFactory {
                 reprocessing,
                 regressionSet,
                 deferrals,
+                learners,
                 wake,
                 snapshots,
                 codes,

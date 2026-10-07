@@ -18,6 +18,7 @@ package stroom.shapeshifter.ai.impl.db;
 
 import stroom.docref.DocRef;
 import stroom.shapeshifter.ai.stage.Guidance;
+import stroom.shapeshifter.ai.stage.Learner;
 import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.ai.stage.Serving;
 import stroom.shapeshifter.ai.stage.Shapes;
@@ -48,6 +49,10 @@ class TestServingDao {
     private static final String QUIET = "Feed=TURNSTILE|Type=Raw Events";
     private static final String NEW = "Feed=LIFT|Type=Raw Events";
     private static final int MEMORY = 10;
+    /// The rule uuids these tests write. A uuid names a binding across every learner, and the database
+    /// outlives a run, so each is cleared by its uuid before a test writes it again.
+    private static final List<String> RULES = List.of("busy", "quiet", "new", "a-draft", "by-hand", "theirs",
+            "a-busy", "b-quiet", "c-new", "d-blank");
 
     @Inject
     private RulesDao rules;
@@ -61,8 +66,9 @@ class TestServingDao {
     @BeforeEach
     void setUp() {
         Guice.createInjector(new TestModule()).injectMembers(this);
-        clear(rules, shapes, guidance, DOC);
-        clear(rules, shapes, guidance, OTHER_DOC);
+        RULES.forEach(uuid -> rules.byUuid(uuid).ifPresent(held -> rules.remove(held.learner(), uuid)));
+        clear(shapes, guidance, DOC);
+        clear(shapes, guidance, OTHER_DOC);
     }
 
     /// Ordered by traffic, because A46's question — could this be better? — is worth asking first about
@@ -116,13 +122,13 @@ class TestServingDao {
     @Test
     void aDraftAndARuleWithNoShapeAreNotServingRules() {
         bound(rules, DOC, "busy", BUSY);
-        rules.append(DOC, RoutingRule.builder()
+        rules.append(learner(DOC), DOC, RoutingRule.builder()
                 .uuid("a-draft")
                 .shapeId(QUIET)
                 .pipeline(new DocRef("Pipeline", "draft-fragment", "draft"))
                 .draft(true)
                 .build());
-        rules.append(DOC, RoutingRule.builder()
+        rules.append(learner(DOC), DOC, RoutingRule.builder()
                 .uuid("by-hand")
                 .pipeline(new DocRef("Pipeline", "hand-fragment", "by hand"))
                 .build());
@@ -140,13 +146,13 @@ class TestServingDao {
     void aRowSaysHowMuchHasBeenSaidAboutItsShape() {
         bound(rules, DOC, "busy", BUSY);
         bound(rules, DOC, "quiet", QUIET);
-        guidance.given(DOC, BUSY, "Timestamps are local, not UTC.", "jo");
-        guidance.given(DOC, BUSY, "Column four is a terminal id.", "sam");
-        guidance.given(OTHER_DOC, BUSY, "A different document's shape of the same name.", "jo");
+        guidance.given(learner(DOC), DOC, BUSY, "Timestamps are local, not UTC.", "jo");
+        guidance.given(learner(DOC), DOC, BUSY, "Column four is a terminal id.", "sam");
+        guidance.given(learner(OTHER_DOC), OTHER_DOC, BUSY, "Another learner's shape of the same name.", "jo");
 
         assertThat(serving.rules(List.of(DOC), null, 0L, 100).rules())
                 .extracting(ServingRule::getShapeId, ServingRule::getGuidance)
-                .describedAs("counted per document as well as per shape, since two documents may learn "
+                .describedAs("counted per learner as well as per shape, since two learners may learn "
                              + "shapes of the same name")
                 .containsExactlyInAnyOrder(tuple(BUSY, 2), tuple(QUIET, 0));
     }
@@ -190,10 +196,10 @@ class TestServingDao {
             scored(seam, DOC, BUSY, 0.93, 8);
             scored(seam, DOC, QUIET, 0.71, 2);
         });
-        bothGuidance.forEach(seam -> seam.given(DOC, BUSY, "Timestamps are local.", "jo"));
+        bothGuidance.forEach(seam -> seam.given(learner(DOC), DOC, BUSY, "Timestamps are local.", "jo"));
         // A rule whose shape id is blank rather than absent: both must read it as having come from no
         // shape, or one lists a row whose improve button the other's stage refuses.
-        bothRules.forEach(seam -> seam.append(DOC, RoutingRule.builder()
+        bothRules.forEach(seam -> seam.append(learner(DOC), DOC, RoutingRule.builder()
                 .uuid("d-blank")
                 .shapeId("  ")
                 .pipeline(new DocRef("Pipeline", "blank-uuid", "blank-fragment"))
@@ -226,7 +232,7 @@ class TestServingDao {
                                      final String docUuid,
                                      final String ruleUuid,
                                      final String shapeId) {
-        return rules.append(docUuid, RoutingRule.builder()
+        return rules.append(learner(docUuid), docUuid, RoutingRule.builder()
                 .uuid(ruleUuid)
                 .shapeId(shapeId)
                 .pipeline(new DocRef("Pipeline", ruleUuid + "-uuid", ruleUuid + "-fragment"))
@@ -242,17 +248,20 @@ class TestServingDao {
                                final String shapeId,
                                final double score,
                                final int records) {
-        shapes.scored(docUuid, shapeId, score, records, MEMORY);
+        shapes.scored(learner(docUuid), docUuid, shapeId, score, records, MEMORY);
     }
 
-    private static void clear(final Rules rules,
-                              final Shapes shapes,
+    private static void clear(final Shapes shapes,
                               final Guidance guidance,
                               final String docUuid) {
-        rules.forDocument(docUuid).forEach(rule -> rules.remove(docUuid, rule.getUuid()));
         List.of(BUSY, QUIET, NEW).forEach(shape -> {
-            shapes.reset(docUuid, shape);
-            guidance.standing(docUuid, shape).forEach(given -> guidance.withdraw(docUuid, given.id()));
+            shapes.reset(learner(docUuid), shape);
+            guidance.standing(learner(docUuid), shape).forEach(given -> guidance.withdraw(docUuid, given.id()));
         });
+    }
+
+    /// The learner whose rows a document's are in these tests: each document its own pipeline's.
+    private static Learner learner(final String docUuid) {
+        return new Learner("pipeline-" + docUuid, "shapeshifterAi");
     }
 }

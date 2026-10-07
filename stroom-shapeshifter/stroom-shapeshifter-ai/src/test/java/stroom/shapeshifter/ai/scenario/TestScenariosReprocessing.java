@@ -137,7 +137,7 @@ class TestScenariosReprocessing {
         // The rule is rebound to another fragment, as an improvement does (§7.3 rule 2). The second
         // fragment is a real one: an as-current run would succeed with it and produce other events,
         // which is what makes the two modes tell apart.
-        final RoutingRule rule = scenarios.rules.forDocument("doc-1").getFirst();
+        final RoutingRule rule = scenarios.rules.forLearner(Scenarios.LEARNER).getFirst();
         final DocRef second = scenarios.stores.writer().write(
                 DocPath.fromParts("Shapeshifter", FEED), "improved-v2",
                 List.of(new LearnedStep(scenarios.runners().getFirst(), CSV.configuration(),
@@ -145,10 +145,10 @@ class TestScenariosReprocessing {
                         new LearnedStep(new XsltStep(), DEGENERATE,
                                 new StepResult("<Events/>", List.of()), UNSCORED)),
                 rule.getRecordBoundary());
-        scenarios.rules.replace("doc-1", rule.copy().pipeline(second).build());
+        scenarios.rules.replace(Scenarios.LEARNER, "doc-1", rule.copy().pipeline(second).build());
 
         // As-processed: the stream goes back through the fragment that made its output.
-        final StageRun again = stage.reprocess(doc, stream(1, CSV.input()));
+        final StageRun again = stage.reprocess(doc, Scenarios.LEARNER, stream(1, CSV.input()));
 
         assertThat(again.decision()).describedAs(again.decision().toString()).isInstanceOf(Bound.class);
         assertThat(again.bindings().fragment().getUuid())
@@ -187,13 +187,13 @@ class TestScenariosReprocessing {
                 .isEqualTo(3);
 
         // The rule is rebound with a boundary that would cut somewhere else entirely.
-        final RoutingRule rule = scenarios.rules.forDocument("doc-1").getFirst();
-        scenarios.rules.replace("doc-1", rule.copy()
+        final RoutingRule rule = scenarios.rules.forLearner(Scenarios.LEARNER).getFirst();
+        scenarios.rules.replace(Scenarios.LEARNER, "doc-1", rule.copy()
                 .recordBoundary(RecordBoundary.ofArray("events").atDepth(1))
                 .build());
 
         watching.boundaries.clear();
-        final StageRun again = stage.reprocess(doc, json);
+        final StageRun again = stage.reprocess(doc, Scenarios.LEARNER, json);
 
         assertThat(again.decision()).describedAs(again.decision().toString()).isInstanceOf(Bound.class);
         assertThat(watching.boundaries)
@@ -207,7 +207,7 @@ class TestScenariosReprocessing {
         final Scenarios scenarios = new Scenarios();
         final Stage stage = scenarios.stage(scenarios.script(DEGENERATE, DEGENERATE));
 
-        final StageRun run = stage.reprocess(doc(), stream(99, CSV.input()));
+        final StageRun run = stage.reprocess(doc(), Scenarios.LEARNER, stream(99, CSV.input()));
 
         assertThat(run.decision()).isInstanceOf(Sentinel.class);
         assertThat(((Sentinel) run.decision()).reason())

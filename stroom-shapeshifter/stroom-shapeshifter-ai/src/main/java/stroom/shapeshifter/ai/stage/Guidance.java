@@ -21,10 +21,11 @@ import java.util.List;
 /// What a supervisor has told the learning about a shape (ruling A46, design 01 §12 item 29): a hint, a
 /// correction, or a fact about the feed that the sample does not show.
 ///
-/// It attaches to the **shape**, not to a turn and not to an attempt, and that is the whole of A46's
-/// first decision. What a person knows is about the feed, not about turn 7 of attempt 412 — so nothing
-/// has to be timed, nothing is refused for arriving at the wrong moment, and a hint outlives the attempt
-/// that first used it. The relearning of A29, months later, carries it too.
+/// It attaches to the learner's **shape** (design 06 phase J slice 2b), not to a turn and not to an
+/// attempt, and that is the whole of A46's first decision. What a person knows is about the feed, not
+/// about turn 7 of attempt 412 — so nothing has to be timed, nothing is refused for arriving at the
+/// wrong moment, and a hint outlives the attempt that first used it. The relearning of A29, months
+/// later, carries it too.
 ///
 /// It is neither a question nor an answer. The flow's grammar (A37) is untouched: guidance is an input
 /// every question carries, and a question kind it is not.
@@ -34,13 +35,17 @@ public interface Guidance {
 
     /// Record what a person has said about a shape.
     ///
-    /// @param author Who said it. A person reading a hint a year later needs to know whose it was.
+    /// @param learner The learner whose shape it is about.
+    /// @param docUuid The document the learner runs under, which decides who may see and change it.
+    /// @param shape   The shape.
+    /// @param message What was said.
+    /// @param author  Who said it. A person reading a hint a year later needs to know whose it was.
     /// @return The row's id, which is what a turn records having carried.
-    long given(String docUuid, String shape, String message, String author);
+    long given(Learner learner, String docUuid, String shape, String message, String author);
 
     /// Everything standing for a shape, oldest first — which is the order a reader wants and the order
     /// a model should be told them in.
-    List<Given> standing(String docUuid, String shape);
+    List<Given> standing(Learner learner, String shape);
 
     /// Take one back. A hint that turned out to be wrong is worse than no hint: it is carried into every
     /// question about the shape from then on.

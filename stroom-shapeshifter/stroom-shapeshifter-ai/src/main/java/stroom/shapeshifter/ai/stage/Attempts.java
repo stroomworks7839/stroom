@@ -52,16 +52,6 @@ public interface Attempts {
     /// of taking it, and what a stream of the shape waits on.
     Optional<Recorded> open(Learner learner, String shape, long nowMs);
 
-    /// The learner that last learned a shape of a document: what an action that begins from a rule
-    /// rather than a stream claims the shape as (design 06 phase J slice 1). Every learned rule came
-    /// from an attempt, and the attempt's row says whose. Phase J slice 2 gives a rule its learner and
-    /// removes this.
-    ///
-    /// @param docUuid The document.
-    /// @param shape   The shape, as the learning key writes it.
-    /// @return The learner of the newest attempt on the shape; empty where nothing has learned it.
-    Optional<Learner> learnerOf(String docUuid, String shape);
-
     /// Park an attempt until whoever will answer its next question does (A28): it keeps its claim on the
     /// shape, since it is still learning, and its expiry is pushed out by the same heartbeat. What it has
     /// spent so far is added to what it had spent before, since a resumed attempt's cost is the whole of

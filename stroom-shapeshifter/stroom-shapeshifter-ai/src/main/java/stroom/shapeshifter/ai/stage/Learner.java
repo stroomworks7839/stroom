@@ -30,6 +30,11 @@ import java.util.Objects;
 /// @param elementId    The element's id in that pipeline's chain.
 public record Learner(String pipelineUuid, String elementId) {
 
+    /// The type of the entity event that says a learner's rows have changed, so that every node drops what
+    /// it holds of them. A type of its own rather than the pipeline's, since a `CLEAR_CACHE` on a pipeline
+    /// clears every node's merged pipeline data; the event's uuid is the learner's pipeline.
+    public static final String EVENT_TYPE = "ShapeshifterAiLearner";
+
     public Learner {
         Objects.requireNonNull(pipelineUuid, "pipelineUuid");
         Objects.requireNonNull(elementId, "elementId");

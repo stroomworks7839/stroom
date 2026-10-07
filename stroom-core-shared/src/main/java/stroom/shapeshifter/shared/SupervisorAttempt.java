@@ -37,6 +37,8 @@ public class SupervisorAttempt {
     @JsonProperty
     private final DocRef doc;
     @JsonProperty
+    private final LearnerRef learner;
+    @JsonProperty
     private final String shape;
     @JsonProperty
     private final String feed;
@@ -76,6 +78,7 @@ public class SupervisorAttempt {
     @JsonCreator
     public SupervisorAttempt(@JsonProperty("id") final long id,
                              @JsonProperty("doc") final DocRef doc,
+                             @JsonProperty("learner") final LearnerRef learner,
                              @JsonProperty("shape") final String shape,
                              @JsonProperty("feed") final String feed,
                              @JsonProperty("type") final String type,
@@ -95,6 +98,7 @@ public class SupervisorAttempt {
                              @JsonProperty("turns") final List<SupervisorTurn> turns) {
         this.id = id;
         this.doc = doc;
+        this.learner = learner;
         this.shape = shape;
         this.feed = feed;
         this.type = type;
@@ -122,6 +126,11 @@ public class SupervisorAttempt {
 
     public DocRef getDoc() {
         return doc;
+    }
+
+    /// The learner the attempt is learning for (design 06 phase J slice 2b): what guidance about its shape is kept by.
+    public LearnerRef getLearner() {
+        return learner;
     }
 
     public String getShape() {

@@ -22,7 +22,6 @@ import stroom.docstore.shared.DocDataType;
 import stroom.importexport.api.ByteArrayImportExportAsset;
 import stroom.importexport.api.ImportExportDocument;
 import stroom.pipeline.shared.PipelineDoc;
-import stroom.shapeshifter.ai.state.InMemoryRules;
 import stroom.shapeshifter.shared.FlowExample;
 import stroom.shapeshifter.shared.LearningFlow;
 import stroom.shapeshifter.shared.RoutingRule;
@@ -42,9 +41,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class TestShapeshifterAiSerialiser {
 
-    private final InMemoryRules rules = new InMemoryRules();
-    private final ShapeshifterAiSerialiser serialiser =
-            new ShapeshifterAiSerialiser(new Serialiser2FactoryImpl(), () -> rules);
+    private final ShapeshifterAiSerialiser serialiser = new ShapeshifterAiSerialiser(new Serialiser2FactoryImpl());
 
     @Test
     void aDocumentSavedWhenTheFlowWasTheConversationReadsAsItWasWritten() throws IOException {
@@ -125,10 +122,11 @@ class TestShapeshifterAiSerialiser {
         assertThat(read.getTemplates()).containsEntry(Template.CHAIN, "Pick");
     }
 
+    /// A document that learned before its rules were rows (A41) carried them in its JSON. They selected
+    /// by a selector that no longer means anything and named no learner, so they have nowhere to go
+    /// (design 06 phase J slice 2b): the document reads without them, rather than failing to open.
     @Test
-    void aDocumentThatLearnedBeforeItsRulesWereRowsHasThemPutWhereTheyBelong() throws IOException {
-        // A41: the table left the document. A document that had learned must not lose what it learned, or
-        // every shape is unknown again and relearned at the model's expense.
+    void aDocumentThatCarriedItsRulesReadsWithoutThem() throws IOException {
         final ImportExportDocument written = serialiser.write(
                 ShapeshifterAiDoc.builder().uuid("d").name("door").build());
         final ObjectNode json = (ObjectNode) JsonUtil.getMapper().readTree(written.getExtAssetData("meta"));
@@ -138,28 +136,14 @@ class TestShapeshifterAiSerialiser {
                 .pipeline(new DocRef(PipelineDoc.TYPE, "fragment-1", "door-v1"))
                 .score(0.97)
                 .build()));
-        table.add(JsonUtil.getMapper().valueToTree(RoutingRule.builder().uuid("rule-2").build()));
         written.removeExtAsset("meta");
         written.addExtAsset(new ByteArrayImportExportAsset("meta", DocDataType.JSON,
                 JsonUtil.getMapper().writeValueAsBytes(json)));
 
         final ShapeshifterAiDoc read = serialiser.read(written);
-        assertThat(rules.forDocument("d")).describedAs("a read is a read: nothing is written by it").isEmpty();
-        serialiser.migrateRules(read);
 
         assertThat(read.getUuid()).isEqualTo("d");
-        assertThat(rules.forDocument("d")).extracting(RoutingRule::getUuid)
-                .describedAs("in the order the document had them: the router takes the first match")
-                .containsExactly("rule-1", "rule-2");
-        assertThat(rules.forDocument("d").get(0).getScore()).isEqualTo(0.97);
-
-        // Read again: the rows are not doubled, and a table an operator has since emptied is not refilled.
-        rules.remove("d", "rule-2");
-        serialiser.migrateRules(serialiser.read(written));
-        assertThat(rules.forDocument("d")).extracting(RoutingRule::getUuid).containsExactly("rule-1");
-        rules.remove("d", "rule-1");
-        serialiser.migrateRules(serialiser.read(written));
-        assertThat(rules.forDocument("d")).describedAs("emptied on purpose, and left empty").isEmpty();
+        assertThat(read.getName()).isEqualTo("door");
     }
 
     @Test

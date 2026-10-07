@@ -120,7 +120,7 @@ class TestScenario30DeferredWorker {
         assertThat(finished.turns()).describedAs("every turn of it, asked by the worker").isNotEmpty();
         assertThat(finished.turns()).allSatisfy(turn ->
                 assertThat(turn.answer()).describedAs("and every one answered now").isNotNull());
-        assertThat(scenarios.rules.forDocument(DOC)).hasSize(1);
+        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).hasSize(1);
 
         // And the promotion wakes what waited on the shape.
         assertThat(scenarios.ledger.isEmpty()).isTrue();
@@ -159,7 +159,7 @@ class TestScenario30DeferredWorker {
         scenarios.worker(learning(scenarios)).advance(10);
         final Recorded promoted = scenarios.attempts.forDocument(DOC, 10).get(0);
         assertThat(promoted.status()).isEqualTo(AttemptStatus.PROMOTED);
-        scenarios.shapes.markForRelearning(DOC, SHAPE, "A person's reading of the serving list");
+        scenarios.shapes.markForRelearning(Scenarios.LEARNER, DOC, SHAPE, "A person's reading of the serving list");
 
         final Input next = scenarios.inputs.put(stream(5L));
         final Script inTheTask = Script.of();
@@ -218,7 +218,7 @@ class TestScenario30DeferredWorker {
         scenarios.stage(Script.of()).decide(doc, Scenarios.LEARNER, stream(1L));
         final Recorded parked = scenarios.attempts.forDocument(DOC, 10).get(0);
         // A person gives the shape up while it waits.
-        scenarios.shapes.giveUp(DOC, parked.attempt().shape(), "Not wanted");
+        scenarios.shapes.giveUp(Scenarios.LEARNER, DOC, parked.attempt().shape(), "Not wanted");
 
         final Script script = learning(scenarios);
         assertThat(scenarios.worker(script).advance(10)).isZero();
@@ -227,7 +227,7 @@ class TestScenario30DeferredWorker {
         final Recorded closed = scenarios.attempts.byId(parked.id()).orElseThrow();
         assertThat(closed.status()).isEqualTo(AttemptStatus.ABANDONED);
         assertThat(closed.decision()).contains("Shape given up: Not wanted");
-        assertThat(scenarios.rules.forDocument(DOC)).describedAs("and no rule was written").isEmpty();
+        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).describedAs("and no rule was written").isEmpty();
     }
 
     @Test
@@ -271,7 +271,7 @@ class TestScenario30DeferredWorker {
         assertThat(advanced).describedAs("the good one behind the bad").isEqualTo(1);
         assertThat(scenarios.attempts.byId(first.id()).orElseThrow().status())
                 .isEqualTo(AttemptStatus.ABANDONED);
-        assertThat(scenarios.rules.forDocument("doc-2")).hasSize(1);
+        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).hasSize(1);
         assertThat(scenarios.wake.woken()).extracting(Deferral::inputId).containsExactly(2L);
     }
 }

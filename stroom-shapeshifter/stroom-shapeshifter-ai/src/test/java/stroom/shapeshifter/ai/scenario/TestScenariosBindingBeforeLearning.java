@@ -33,6 +33,7 @@ import stroom.shapeshifter.ai.stage.Decision.Provisional;
 import stroom.shapeshifter.ai.stage.Decision.Sentinel;
 import stroom.shapeshifter.ai.stage.Deferrals.Deferral;
 import stroom.shapeshifter.ai.stage.Input;
+import stroom.shapeshifter.ai.stage.Learner;
 import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.ai.stage.Shape;
 import stroom.shapeshifter.ai.stage.ShapeSignature;
@@ -101,7 +102,7 @@ class TestScenariosBindingBeforeLearning {
     }
 
     private static String shapeX() {
-        return Shape.of(Shape.KEY,
+        return Shape.of(Scenarios.LEARNER,
                 stream("CSV").routingAttributes(ShapeSignature.of(CSV.input()))).id();
     }
 
@@ -184,11 +185,11 @@ class TestScenariosBindingBeforeLearning {
         // Served by the provisional rule, which the stream promotes in place as it is served (design 04 §3).
         assertThat(second.decision()).isInstanceOf(Bound.class);
         assertThat(second.output()).describedAs("served").isNotNull();
-        final RoutingRule promoted = scenarios.rules.forDocument("doc-1").get(0);
+        final RoutingRule promoted = scenarios.rules.forLearner(Scenarios.LEARNER).get(0);
         assertThat(promoted.getUuid()).isEqualTo(provisional.rule().getUuid());
         assertThat(promoted.isProvisional()).isFalse();
         assertThat(promoted.getPromotedTimeMs()).isEqualTo(Scenarios.NOW.toEpochMilli());
-        assertThat(scenarios.rules.forDocument("doc-1")).containsExactly(promoted);
+        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).containsExactly(promoted);
         assertThat(scenarios.regressionSet.accepted(promoted.getUuid()))
                 .describedAs("a stream that merely brought enough records learned nothing, and adds nothing")
                 .hasSize(5);
@@ -206,7 +207,7 @@ class TestScenariosBindingBeforeLearning {
         final StageRun learned = learnShapeX(scenarios, doorAccess());
         final RoutingRule live = ((Promoted) learned.decision()).rule();
         final RoutingRule draft = live.copy().draft(true).build();
-        scenarios.rules.replace("doc-1", draft);
+        scenarios.rules.replace(Scenarios.LEARNER, "doc-1", draft);
 
         final Script silent = Script.of();
         final StageRun run = scenarios.process(silent, learned.doc(), stream("CSV")).learned();
@@ -236,7 +237,7 @@ class TestScenariosBindingBeforeLearning {
                 .isEmpty();
         assertThat(scenarios.ledger.isEmpty()).describedAs("waiting is not a refusal (A80)").isTrue();
         assertThat(scenarios.deferrals.of(Scenarios.LEARNER, 1L)).isPresent();
-        assertThat(scenarios.rules.forDocument("doc-1")).isEmpty();
+        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).isEmpty();
 
         // That attempt over, the next stream of the shape learns, and the stream that waited is woken.
         scenarios.attempts.closed(held, AttemptStatus.ABANDONED, "The other node gave up", null, null, 0L);
@@ -267,39 +268,39 @@ class TestScenariosBindingBeforeLearning {
         // so a lease released when the conversation ended would be free, and it would learn the shape again.
         final Rules watched = new Rules() {
             @Override
-            public List<RoutingRule> forDocument(final String docUuid) {
-                return scenarios.rules.forDocument(docUuid);
+            public List<RoutingRule> forLearner(final Learner learner) {
+                return scenarios.rules.forLearner(learner);
             }
 
             @Override
-            public Optional<RoutingRule> byUuid(final String docUuid, final String ruleUuid) {
-                return scenarios.rules.byUuid(docUuid, ruleUuid);
+            public Optional<Held> byUuid(final String ruleUuid) {
+                return scenarios.rules.byUuid(ruleUuid);
             }
 
             @Override
-            public RoutingRule append(final String docUuid, final RoutingRule rule) {
+            public RoutingRule append(final Learner learner, final String docUuid, final RoutingRule rule) {
                 final StageRun meanwhile = scenarios.process(watching, doc, stream("CSV")).learned();
                 assertThat(meanwhile.decision()).describedAs(meanwhile.decision().toString())
                         .isInstanceOf(Deferred.class);
                 assertThat(watching.asked()).describedAs("it did not ask the model").isEmpty();
-                return scenarios.rules.append(docUuid, rule);
+                return scenarios.rules.append(learner, docUuid, rule);
             }
 
             @Override
-            public void replace(final String docUuid, final RoutingRule rule) {
-                scenarios.rules.replace(docUuid, rule);
+            public void replace(final Learner learner, final String docUuid, final RoutingRule rule) {
+                scenarios.rules.replace(learner, docUuid, rule);
             }
 
             @Override
-            public void remove(final String docUuid, final String ruleUuid) {
-                scenarios.rules.remove(docUuid, ruleUuid);
+            public void remove(final Learner learner, final String ruleUuid) {
+                scenarios.rules.remove(learner, ruleUuid);
             }
         };
 
         final StageRun run = scenarios.process(script, watched, doc, stream("CSV")).learned();
 
         assertThat(run.decision()).describedAs(run.decision().toString()).isInstanceOf(Promoted.class);
-        assertThat(scenarios.rules.forDocument("doc-1"))
+        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER))
                 .describedAs("one selector, one rule: the loser did not write a second")
                 .hasSize(1);
         assertThat(scenarios.stores.pipelines.list()).describedAs("and no orphaned fragment").hasSize(1);
@@ -446,7 +447,7 @@ class TestScenariosBindingBeforeLearning {
         assertThat(waiting.turns()).describedAs("the question it stopped at").hasSize(1);
         assertThat(waiting.turns().get(0).answer())
                 .describedAs("which nobody has answered, so a person can (A28)").isNull();
-        assertThat(scenarios.rules.forDocument("doc-1")).isEmpty();
+        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).isEmpty();
 
         // While it waits it holds the shape: another stream of it learns nothing beside it.
         final Script other = Script.of();
@@ -468,7 +469,7 @@ class TestScenariosBindingBeforeLearning {
         assertThat(resumed.decision()).describedAs(resumed.decision().toString()).isInstanceOf(Promoted.class);
         assertThat(carrying.asked()).describedAs("the chain was not asked again")
                 .noneMatch(Question.Chain.class::isInstance);
-        assertThat(scenarios.rules.forDocument("doc-1")).hasSize(1);
+        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).hasSize(1);
         final Recorded finished = scenarios.attempts.byId(waiting.id()).orElseThrow();
         assertThat(finished.status()).isEqualTo(AttemptStatus.PROMOTED);
         assertThat(finished.turns()).describedAs("every turn, the replayed one and the new")
@@ -503,7 +504,7 @@ class TestScenariosBindingBeforeLearning {
         assertThat(refused.decision()).describedAs(refused.decision().toString()).isInstanceOf(Sentinel.class);
         assertThat(((Sentinel) refused.decision()).reason()).contains("not this node's to carry on");
         assertThat(elsewhere.asked()).isEmpty();
-        assertThat(scenarios.rules.forDocument("doc-1")).isEmpty();
+        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).isEmpty();
 
         // Another shape's stream, whoever asks.
         scenarios.node = "node-1";
@@ -544,7 +545,7 @@ class TestScenariosBindingBeforeLearning {
                 .hasMessageContaining("cannot be resumed");
 
         assertThat(carrying.asked()).describedAs("nothing was asked beyond the record either").isEmpty();
-        assertThat(scenarios.rules.forDocument("doc-1")).isEmpty();
+        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).isEmpty();
         final Recorded refused = scenarios.attempts.byId(waiting.id()).orElseThrow();
         assertThat(refused.status()).describedAs("and the attempt says why it could not go on")
                 .isEqualTo(AttemptStatus.ERROR);

@@ -20,9 +20,9 @@ import stroom.cache.api.CacheManager;
 import stroom.cache.api.LoadingStroomCache;
 import stroom.docref.DocRef;
 import stroom.shapeshifter.ai.ShapeshifterAiConfig;
+import stroom.shapeshifter.ai.stage.Learner;
 import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.shared.RoutingRule;
-import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 import stroom.util.entityevent.EntityAction;
 import stroom.util.entityevent.EntityEvent;
 import stroom.util.entityevent.EntityEventBus;
@@ -36,23 +36,24 @@ import jakarta.inject.Singleton;
 import java.util.List;
 import java.util.Optional;
 
-/// The routing table of a document, in front of the rows (design 01 §12 item 8). Every stream of every
-/// shape is routed against it, and it changes only when something is learned or an operator edits it, so
-/// reading it from the database on the hot path would be a query per stream per node — at hundreds of
+/// A learner's bindings, in front of the rows (design 01 §12 item 8). Every stream a learner meets is
+/// served by one of them, and they change only when something is learned, approved or taken back, so
+/// reading them from the database on the hot path would be a query per stream per node — at hundreds of
 /// threads a node, the first thing to give.
 ///
-/// Held until what writes it says otherwise: every write goes to the rows and then fires an entity event
-/// for the document, which clears the entry on *every* node, since the node that learns a rule is rarely
-/// the only node routing against it. The expiry in the configuration is a backstop and not the mechanism.
+/// Held until what writes them says otherwise: every write goes to the rows and then fires an event for
+/// the learner's pipeline, which clears that pipeline's entries on *every* node, since the node that
+/// learns a binding is rarely the only node serving with it. The expiry in the configuration is a
+/// backstop and not the mechanism.
 @Singleton
-@EntityEventHandler(type = ShapeshifterAiDoc.TYPE)
+@EntityEventHandler(type = Learner.EVENT_TYPE)
 public class CachedRules implements Rules, Clearable, EntityEvent.Handler {
 
     private static final String CACHE_NAME = "Shapeshifter AI Routing Rules";
 
     private final Rules rows;
     private final EntityEventBus entityEventBus;
-    private final LoadingStroomCache<String, List<RoutingRule>> cache;
+    private final LoadingStroomCache<Learner, List<RoutingRule>> cache;
 
     @Inject
     public CachedRules(@Rows final Rules rows,
@@ -65,40 +66,39 @@ public class CachedRules implements Rules, Clearable, EntityEvent.Handler {
                 CACHE_NAME,
                 () -> configProvider.get().getRuleCache(),
                 // Copied, because the rows hand back a list of their own making and this one is shared
-                // by every routing thread on the node until something invalidates it: a caller that
-                // sorted or added to what it was given would corrupt the routing of every stream.
-                docUuid -> List.copyOf(rows.forDocument(docUuid)));
+                // by every serving thread on the node until something invalidates it: a caller that
+                // sorted or added to what it was given would corrupt the serving of every stream.
+                learner -> List.copyOf(rows.forLearner(learner)));
     }
 
     @Override
-    public List<RoutingRule> forDocument(final String docUuid) {
-        return cache.get(docUuid);
+    public List<RoutingRule> forLearner(final Learner learner) {
+        return cache.get(learner);
+    }
+
+    /// From the rows: a binding looked up by its uuid is a person's act on the Supervisor, not a stream.
+    @Override
+    public Optional<Held> byUuid(final String ruleUuid) {
+        return rows.byUuid(ruleUuid);
     }
 
     @Override
-    public RoutingRule append(final String docUuid, final RoutingRule rule) {
-        final RoutingRule appended = rows.append(docUuid, rule);
-        changed(docUuid);
+    public RoutingRule append(final Learner learner, final String docUuid, final RoutingRule rule) {
+        final RoutingRule appended = rows.append(learner, docUuid, rule);
+        changed(learner);
         return appended;
     }
 
     @Override
-    public Optional<RoutingRule> byUuid(final String docUuid, final String ruleUuid) {
-        return forDocument(docUuid).stream()
-                .filter(rule -> rule.getUuid().equals(ruleUuid))
-                .findFirst();
+    public void replace(final Learner learner, final String docUuid, final RoutingRule rule) {
+        rows.replace(learner, docUuid, rule);
+        changed(learner);
     }
 
     @Override
-    public void replace(final String docUuid, final RoutingRule rule) {
-        rows.replace(docUuid, rule);
-        changed(docUuid);
-    }
-
-    @Override
-    public void remove(final String docUuid, final String ruleUuid) {
-        rows.remove(docUuid, ruleUuid);
-        changed(docUuid);
+    public void remove(final Learner learner, final String ruleUuid) {
+        rows.remove(learner, ruleUuid);
+        changed(learner);
     }
 
     @Override
@@ -108,25 +108,21 @@ public class CachedRules implements Rules, Clearable, EntityEvent.Handler {
 
     @Override
     public void onChange(final EntityEvent event) {
-        final String docUuid = event.getDocRef() == null
+        final String pipelineUuid = event.getDocRef() == null
                 ? null
                 : event.getDocRef().getUuid();
-        if (docUuid == null) {
+        if (pipelineUuid == null) {
             clear();
         } else {
-            cache.invalidate(docUuid);
+            cache.invalidateEntries((learner, bindings) -> learner.pipelineUuid().equals(pipelineUuid));
         }
     }
 
     /// What was learned here must be known everywhere: this node's entry goes at once, and the others'
     /// go when the event reaches them.
-    ///
-    /// `CLEAR_CACHE` and not `UPDATE`, which means the document itself changed: the document did not —
-    /// its rules are rows of their own (A41) — and saying it did would have every node re-index it and
-    /// drop its name caches for a rule nobody authored.
-    private void changed(final String docUuid) {
-        cache.invalidate(docUuid);
+    private void changed(final Learner learner) {
+        cache.invalidate(learner);
         entityEventBus.fire(new EntityEvent(
-                new DocRef(ShapeshifterAiDoc.TYPE, docUuid), EntityAction.CLEAR_CACHE));
+                new DocRef(Learner.EVENT_TYPE, learner.pipelineUuid()), EntityAction.CLEAR_CACHE));
     }
 }

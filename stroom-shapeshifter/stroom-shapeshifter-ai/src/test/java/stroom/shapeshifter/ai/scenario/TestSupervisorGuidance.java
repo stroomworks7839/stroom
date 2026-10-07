@@ -59,9 +59,9 @@ class TestSupervisorGuidance {
         final Carrying carrying = new Carrying(script);
         final Stage stage = scenarios.stage(document -> carrying, scenarios.rules);
 
-        final long first = scenarios.guidance.given("doc-1", SHAPE,
+        final long first = scenarios.guidance.given(Scenarios.LEARNER, "doc-1", SHAPE,
                 "This feed's timestamps are local, not UTC.", "jo");
-        final long second = scenarios.guidance.given("doc-1", SHAPE,
+        final long second = scenarios.guidance.given(Scenarios.LEARNER, "doc-1", SHAPE,
                 "The fourth column is a terminal id, not a user.", "sam");
 
         final StageRun learned = scenarios.process(carrying, doc(), stream()).learned();
@@ -90,7 +90,8 @@ class TestSupervisorGuidance {
         final Scenarios scenarios = new Scenarios();
         final Carrying carrying = new Carrying(script(scenarios));
         final Stage stage = scenarios.stage(document -> carrying, scenarios.rules);
-        scenarios.guidance.given("doc-1", "Feed=TURNSTILE|Type=Raw Events", "Not about this shape.", "jo");
+        scenarios.guidance.given(Scenarios.LEARNER, "doc-1", "Feed=TURNSTILE|Type=Raw Events",
+                "Not about this shape.", "jo");
 
         final StageRun learned = scenarios.process(carrying, doc(), stream()).learned();
 
@@ -107,7 +108,7 @@ class TestSupervisorGuidance {
         final Scenarios scenarios = new Scenarios();
         final Carrying carrying = new Carrying(script(scenarios));
         final Stage stage = scenarios.stage(document -> carrying, scenarios.rules);
-        final long wrong = scenarios.guidance.given("doc-1", SHAPE, "Something mistaken.", "jo");
+        final long wrong = scenarios.guidance.given(Scenarios.LEARNER, "doc-1", SHAPE, "Something mistaken.", "jo");
         scenarios.guidance.withdraw("doc-1", wrong);
 
         scenarios.process(carrying, doc(), stream()).learned();
@@ -130,7 +131,8 @@ class TestSupervisorGuidance {
                 .expect(QuestionMatcher.configuration("DSParser")).reply(Scenarios.fenced(CSV.configuration()))
                 .expect(QuestionMatcher.configuration("XSLTFilter")).reply(Scenarios.fenced(XSLT));
         final Carrying carrying = new Carrying(script);
-        final long before = scenarios.guidance.given("doc-1", SHAPE, "Said before anything was asked.", "jo");
+        final long before = scenarios.guidance.given(Scenarios.LEARNER, "doc-1", SHAPE,
+                "Said before anything was asked.", "jo");
 
         // One turn already answered, as a parked attempt has: the record answers it, the model is asked
         // the rest.
@@ -139,7 +141,8 @@ class TestSupervisorGuidance {
                 List.of(before));
         final RecordedAdvisor resumed = new RecordedAdvisor(List.of(answered), carrying);
 
-        final long after = scenarios.guidance.given("doc-1", SHAPE, "Said while it was parked.", "sam");
+        final long after = scenarios.guidance.given(Scenarios.LEARNER, "doc-1", SHAPE,
+                "Said while it was parked.", "sam");
         final Stage stage = scenarios.stage(document -> resumed, scenarios.rules);
         final StageRun learned = scenarios.process(resumed, doc(), stream()).learned();
 

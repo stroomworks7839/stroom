@@ -234,7 +234,7 @@ public class SupervisorServingPresenter extends MyPresenterWidget<PagerView> {
             // has already been said, or the same hint is given three times and a wrong one is never
             // taken back. The row's count is read again when anything changes.
             // Only the count on the row changes, so the row a person is reading stays selected.
-            guidancePresenter.show(rule.getDoc().getUuid(), rule.getShapeId(), this::refresh);
+            guidancePresenter.show(rule.getDoc().getUuid(), rule.getLearner(), rule.getShapeId(), this::refresh);
         }
     }
 

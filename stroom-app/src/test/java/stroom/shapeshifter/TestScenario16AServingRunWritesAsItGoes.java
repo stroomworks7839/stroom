@@ -114,6 +114,9 @@ class TestScenario16AServingRunWritesAsItGoes extends AbstractCoreIntegrationTes
     private static final String TRANSLATES_BOTH = Scenarios.resource("csv-logon.xsl");
     private static final Pattern EVENT = Pattern.compile("<Event>");
 
+    /// The learner the test's pipeline is: its Shapeshifter AI element (design 06 phase J slice 2b).
+    private Learner learner;
+
     @Inject
     private StoreCreationTool storeCreationTool;
     @Inject
@@ -196,7 +199,7 @@ class TestScenario16AServingRunWritesAsItGoes extends AbstractCoreIntegrationTes
         assertThat(row.reason()).startsWith("Record 3 fell short of the bar");
         assertThat(row.failedAgainst())
                 .describedAs("stamped with the snapshot in force (A61)")
-                .isEqualTo(rules.forDocument(document.getUuid()).get(0).getSnapshot());
+                .isEqualTo(rules.forLearner(learner).get(0).getSnapshot());
         final List<Recorded> open = attempts.forDocument(document.getUuid(), 10).stream()
                 .filter(attempt -> attempt.status() == AttemptStatus.AWAITING_MODEL)
                 .toList();
@@ -273,6 +276,7 @@ class TestScenario16AServingRunWritesAsItGoes extends AbstractCoreIntegrationTes
         pipelineStore.writeDocument(pipeline.copy()
                 .pipelineData(DemoContentPack.pipelineData(document))
                 .build());
+        learner = new Learner(pipelineRef.getUuid(), DemoContentPack.STAGE_ELEMENT);
         return pipelineRef;
     }
 

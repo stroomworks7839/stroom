@@ -20,6 +20,7 @@ import stroom.docref.DocRef;
 import stroom.event.logging.rs.api.AutoLogged;
 import stroom.security.api.SecurityContext;
 import stroom.security.shared.DocumentPermission;
+import stroom.shapeshifter.ai.element.LearnerDocuments;
 import stroom.shapeshifter.ai.element.StageFactory;
 import stroom.shapeshifter.ai.element.StepDetails;
 import stroom.shapeshifter.ai.stage.Attempts;
@@ -30,6 +31,7 @@ import stroom.shapeshifter.ai.stage.Decision;
 import stroom.shapeshifter.ai.stage.Deferrals;
 import stroom.shapeshifter.ai.stage.Deferrals.Deferral;
 import stroom.shapeshifter.ai.stage.Guidance;
+import stroom.shapeshifter.ai.stage.Learner;
 import stroom.shapeshifter.ai.stage.Ledger;
 import stroom.shapeshifter.ai.stage.Serving;
 import stroom.shapeshifter.shared.AmendTurnRequest;
@@ -40,6 +42,7 @@ import stroom.shapeshifter.shared.GuidanceRequest;
 import stroom.shapeshifter.shared.ImproveOutcome;
 import stroom.shapeshifter.shared.ImproveRequest;
 import stroom.shapeshifter.shared.LearnShapeRequest;
+import stroom.shapeshifter.shared.LearnerRef;
 import stroom.shapeshifter.shared.LedgerShape;
 import stroom.shapeshifter.shared.RejectRequest;
 import stroom.shapeshifter.shared.ServingCriteria;
@@ -95,6 +98,7 @@ public class SupervisorResourceImpl implements SupervisorResource {
     private final Provider<Serving> servingProvider;
     private final Provider<Guidance> guidanceProvider;
     private final Provider<Deferrals> deferralsProvider;
+    private final Provider<LearnerDocuments> learnerDocumentsProvider;
 
     @Inject
     SupervisorResourceImpl(final Provider<Attempts> attemptsProvider,
@@ -105,7 +109,8 @@ public class SupervisorResourceImpl implements SupervisorResource {
                            final Provider<Ledger> ledgerProvider,
                            final Provider<Serving> servingProvider,
                            final Provider<Guidance> guidanceProvider,
-                           final Provider<Deferrals> deferralsProvider) {
+                           final Provider<Deferrals> deferralsProvider,
+                           final Provider<LearnerDocuments> learnerDocumentsProvider) {
         this.attemptsProvider = attemptsProvider;
         this.storeProvider = storeProvider;
         this.stageFactoryProvider = stageFactoryProvider;
@@ -115,6 +120,7 @@ public class SupervisorResourceImpl implements SupervisorResource {
         this.servingProvider = servingProvider;
         this.guidanceProvider = guidanceProvider;
         this.deferralsProvider = deferralsProvider;
+        this.learnerDocumentsProvider = learnerDocumentsProvider;
     }
 
     /// What is waiting on a session (design 04 §6), a row per stream, the raised ones first and then the
@@ -215,6 +221,7 @@ public class SupervisorResourceImpl implements SupervisorResource {
         final List<LedgerShape> rows = found.shapes().stream()
                 .map(shape -> new LedgerShape(
                         readable.get(shape.getDoc().getUuid()),
+                        shape.getLearner(),
                         shape.getShapeId(),
                         shape.getWaiting(),
                         shape.getOldestTimeMs(),
@@ -363,20 +370,24 @@ public class SupervisorResourceImpl implements SupervisorResource {
             throw new PermissionException(securityContextProvider.get().getUserRef(),
                     "You do not have permission to change how this document learns");
         }
+        final Learner learner = learnerOf(docUuid, request.getLearner());
         final String by = securityContextProvider.get().getUserIdentityForAudit();
         final ShapeshifterAiDoc doc = document(docUuid);
         return pipelineScopeProvider.get().scopeResult(() -> stageFactoryProvider.get().create()
-                .learnAgain(doc, request.getShapeId(), request.getReason(), by));
+                .learnAgain(doc, learner, request.getShapeId(), request.getReason(), by));
     }
 
     /// What has been said about a shape (A46), oldest first.
     @Override
-    public List<SupervisorGuidance> guidance(final String docUuid, final String shapeId) {
+    public List<SupervisorGuidance> guidance(final String docUuid,
+                                             final String pipelineUuid,
+                                             final String elementId,
+                                             final String shapeId) {
         if (!may(docUuid, DocumentPermission.VIEW)) {
             throw new PermissionException(securityContextProvider.get().getUserRef(),
                     "You do not have permission to read this document");
         }
-        return said(docUuid, shapeId);
+        return said(learnerOf(docUuid, new LearnerRef(pipelineUuid, elementId)), shapeId);
     }
 
     /// Tell the learning something about a shape, without asking for anything to be run.
@@ -395,9 +406,10 @@ public class SupervisorResourceImpl implements SupervisorResource {
             throw new PermissionException(securityContextProvider.get().getUserRef(),
                     "You do not have permission to change how this document learns");
         }
-        guidanceProvider.get().given(docUuid, request.getShapeId(), request.getMessage(),
+        final Learner learner = learnerOf(docUuid, request.getLearner());
+        guidanceProvider.get().given(learner, docUuid, request.getShapeId(), request.getMessage(),
                 securityContextProvider.get().getUserIdentityForAudit());
-        return said(docUuid, request.getShapeId());
+        return said(learner, request.getShapeId());
     }
 
     /// Take back something said about a shape. A hint that turned out to be wrong is worse than no hint:
@@ -406,13 +418,18 @@ public class SupervisorResourceImpl implements SupervisorResource {
     /// The turns that already carried it still say they did (A45), which is what a re-walk replays: what
     /// was withdrawn stops being carried, and does not stop having been.
     @Override
-    public List<SupervisorGuidance> withdraw(final String docUuid, final long id, final String shapeId) {
+    public List<SupervisorGuidance> withdraw(final String docUuid,
+                                             final long id,
+                                             final String pipelineUuid,
+                                             final String elementId,
+                                             final String shapeId) {
         if (!may(docUuid, DocumentPermission.EDIT)) {
             throw new PermissionException(securityContextProvider.get().getUserRef(),
                     "You do not have permission to change how this document learns");
         }
+        final Learner learner = learnerOf(docUuid, new LearnerRef(pipelineUuid, elementId));
         guidanceProvider.get().withdraw(docUuid, id);
-        return said(docUuid, shapeId);
+        return said(learner, shapeId);
     }
 
     @Override
@@ -425,7 +442,7 @@ public class SupervisorResourceImpl implements SupervisorResource {
         if (request == null) {
             throw new IllegalArgumentException("No answer was given for turn " + number);
         }
-        final Recorded attempt = change(id);
+        final Recorded attempt = stillUnder(change(id));
         final String answeredBy = securityContextProvider.get().getUserIdentityForAudit();
         onStage(attempt, (stage, doc) -> stage.amend(doc, id, number, request.getAnswer(), answeredBy));
         return detail(read(id));
@@ -448,11 +465,11 @@ public class SupervisorResourceImpl implements SupervisorResource {
         return detail(read(id));
     }
 
-    private List<SupervisorGuidance> said(final String docUuid, final String shapeId) {
+    private List<SupervisorGuidance> said(final Learner learner, final String shapeId) {
         if (NullSafe.isBlankString(shapeId)) {
             return List.of();
         }
-        return guidanceProvider.get().standing(docUuid, shapeId).stream()
+        return guidanceProvider.get().standing(learner, shapeId).stream()
                 .map(given -> new SupervisorGuidance(given.id(), shapeId, given.message(), given.author(),
                         given.timeMs()))
                 .toList();
@@ -460,10 +477,10 @@ public class SupervisorResourceImpl implements SupervisorResource {
 
     @Override
     public SupervisorAttempt relearn(final long id) {
-        final Recorded attempt = change(id);
+        final Recorded attempt = stillUnder(change(id));
         final String who = securityContextProvider.get().getUserIdentityForAudit();
-        onStage(attempt, (stage, doc) -> stage.relearn(doc, attempt.attempt().shape(),
-                "Sent back to be learned again by " + who));
+        onStage(attempt, (stage, doc) -> stage.relearn(doc, attempt.attempt().learner(),
+                attempt.attempt().shape(), "Sent back to be learned again by " + who));
         return detail(read(id));
     }
 
@@ -494,9 +511,52 @@ public class SupervisorResourceImpl implements SupervisorResource {
         final boolean below = threshold != null
                               && rule.getRollingScore() != null
                               && rule.getRollingScore() < threshold;
-        return new ServingRule(doc, rule.getRuleUuid(), rule.getShapeId(), rule.getFragment(),
+        return new ServingRule(doc, rule.getLearner(), rule.getRuleUuid(), rule.getShapeId(), rule.getFragment(),
                 rule.isPinned(), rule.isProvisional(), rule.getPromotedScore(), rule.getPromotedTimeMs(),
                 rule.getRollingScore(), rule.getRecords(), rule.getGuidance(), below);
+    }
+
+    /// The learner a request names, as the row it was made from carried it (design 06 phase J slice 2b).
+    private static Learner learner(final LearnerRef ref) {
+        if (ref == null || NullSafe.isBlankString(ref.getPipelineUuid())
+            || NullSafe.isBlankString(ref.getElementId())) {
+            throw new IllegalArgumentException("A shape is a learner's: say which pipeline and element");
+        }
+        return new Learner(ref.getPipelineUuid(), ref.getElementId());
+    }
+
+    /// The learner a request names, held to the document the request was permitted on. The request names
+    /// the two separately and the permission was the document's: without this, a person who may edit one
+    /// document could act on another's learner by naming it.
+    private Learner learnerOf(final String docUuid, final LearnerRef ref) {
+        final Learner learner = learner(ref);
+        if (!runsUnder(learner, docUuid)) {
+            throw new IllegalArgumentException("Element " + learner.elementId() + " of pipeline "
+                                               + learner.pipelineUuid() + " does not run under this document");
+        }
+        return learner;
+    }
+
+    /// An attempt whose learner still runs under the document it was learning for. An attempt is history
+    /// and keeps its document, but a change made from one is a change to its learner: once the pipeline
+    /// has been pointed at another document, the old document's editors are no longer the ones to make it.
+    private Recorded stillUnder(final Recorded attempt) {
+        if (!runsUnder(attempt.attempt().learner(), attempt.attempt().docUuid())) {
+            throw new IllegalStateException("Attempt " + attempt.id() + " was learning for a pipeline that no "
+                                            + "longer runs under its document; act on it from the document "
+                                            + "the pipeline names now");
+        }
+        return attempt;
+    }
+
+    private boolean runsUnder(final Learner learner, final String docUuid) {
+        return learnerDocumentsProvider.get().documentOf(learner)
+                .filter(docUuid::equals)
+                .isPresent();
+    }
+
+    private static LearnerRef ref(final Learner learner) {
+        return new LearnerRef(learner.pipelineUuid(), learner.elementId());
     }
 
     private ShapeshifterAiDoc document(final String docUuid) {
@@ -581,6 +641,7 @@ public class SupervisorResourceImpl implements SupervisorResource {
         return new SupervisorAttempt(
                 attempt.id(),
                 new DocRef(ShapeshifterAiDoc.TYPE, attempt.attempt().docUuid()),
+                ref(attempt.attempt().learner()),
                 attempt.attempt().shape(),
                 attempt.attempt().feed(),
                 attempt.attempt().type(),

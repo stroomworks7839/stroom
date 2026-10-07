@@ -167,7 +167,7 @@ public class ShapeshifterDeferral extends TableImpl<ShapeshifterDeferralRecord> 
 
     @Override
     public List<Index> getIndexes() {
-        return Arrays.asList(Indexes.SHAPESHIFTER_DEFERRAL_SHAPESHIFTER_DEFERRAL_DOC_FEED_TYPE);
+        return Arrays.asList(Indexes.SHAPESHIFTER_DEFERRAL_SHAPESHIFTER_DEFERRAL_DOC_UUID);
     }
 
     @Override

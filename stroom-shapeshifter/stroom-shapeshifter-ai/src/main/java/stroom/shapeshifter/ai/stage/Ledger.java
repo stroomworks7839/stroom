@@ -22,24 +22,30 @@ import java.util.Collection;
 import java.util.List;
 
 /**
- * The ledger of design 01 §5.2 (ruling A26): which input streams were sentinelled for which document and
- * shape, and why. Nothing is held — the input stays in the store and the ledger names it — so releasing
- * a shape is taking its inputs off the ledger and asking for them to be processed again (A12).
+ * The ledger of design 01 §5.2 (ruling A26): which input streams were sentinelled for which learner and
+ * shape, and why (design 06 phase J slice 2b), each row recording the document the learner ran under.
+ * Nothing is held — the input stays in the store and the ledger names it — so releasing a shape is taking
+ * its inputs off the ledger and asking for them to be processed again (A12).
  * In-memory in scenarios; the {@code shapeshifter_ledger} table in a node.
  */
 public interface Ledger {
 
-    /// @param pipeline The uuid of the pipeline that was processing the input, where one was: a released
-    ///                 input is replayed through the pipeline that sentinelled it, which may be neither
-    ///                 the pipeline nor the node that releases it.
-    void sentinelled(String docUuid, String shape, long inputId, String pipeline, String reason);
+    /// A stream put on the ledger. A released stream is replayed through the learner's pipeline, which is
+    /// the one that sentinelled it, whichever node releases it.
+    ///
+    /// @param learner The learner that sentinelled it.
+    /// @param docUuid The document the learner runs under.
+    /// @param shape   The shape.
+    /// @param inputId The stream's meta id.
+    /// @param reason  Why.
+    void sentinelled(Learner learner, String docUuid, String shape, long inputId, String reason);
 
     /**
      * Take the shape's inputs off the ledger.
      *
      * @return The inputs that were on it, oldest first, each with the pipeline that sentinelled it.
      */
-    List<Replayable> release(String docUuid, String shape);
+    List<Replayable> release(Learner learner, String shape);
 
     /// Say something else about why every stream waiting on a shape is waiting, without releasing any
     /// of them (§5.2).
@@ -53,7 +59,7 @@ public interface Ledger {
     ///
     /// Nothing is released and nothing is replayed. The streams are still waiting, and still where they
     /// always were; only the reason changes.
-    void restate(String docUuid, String shape, String reason);
+    void restate(Learner learner, String shape, String reason);
 
     /// What is on the ledger, a row per shape, most recently added first — for the view of A28 §11.6,
     /// and for anybody who wants to know what a promotion would release.

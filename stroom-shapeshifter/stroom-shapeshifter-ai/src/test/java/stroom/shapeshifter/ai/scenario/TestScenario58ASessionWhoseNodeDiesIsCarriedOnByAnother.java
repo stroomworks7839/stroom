@@ -103,7 +103,7 @@ class TestScenario58ASessionWhoseNodeDiesIsCarriedOnByAnother {
         assertThat(finished.attempt().node()).describedAs("under the node that finished it").isEqualTo("node-2");
         assertThat(finished.turns()).extracting(Turn::number).isSorted();
         assertThat(finished.turns().size()).describedAs("the replayed turns and the one asked").isEqualTo(recorded + 1);
-        assertThat(scenarios.rules.forDocument(DOC)).hasSize(1);
+        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).hasSize(1);
         assertThat(scenarios.wake.woken()).extracting(Deferral::inputId)
                 .describedAs("every stream that waited on it is woken").contains(1L, 2L);
         assertThat(scenarios.attempts.lapsed(Scenarios.NOW.toEpochMilli(), 10)).isEmpty();

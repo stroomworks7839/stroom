@@ -21,34 +21,60 @@ import stroom.shapeshifter.shared.RoutingRule;
 import java.util.List;
 import java.util.Optional;
 
-/// The routing rules of a document (A41): rows, not a field on the document, so that two nodes promoting
-/// two shapes of one document write two rows rather than racing to rewrite one document, and so that a
-/// document with ten thousand shapes is a table. The document holds only what a person authors.
+/// The bindings of A41 and A124, as rows: each the fragment a learner's shape is served by, or a draft
+/// awaiting review for it. Rows rather than a field on the document, so that two nodes promoting two shapes
+/// write two rows rather than racing to rewrite one document.
 ///
-/// Order matters: the router takes the first rule whose selector matches, so an operator's rule above the
-/// learned ones keeps its precedence (design 02 §4). A rule is appended at the end and moved by an
-/// operator; the implementation keeps the order it was given.
-///
-/// Every method names the document, since one implementation serves them all. The serving path reads
+/// A row is the learner's (design 06 phase J slice 2b), and records the document the learner ran under
+/// when it was written, for the Supervisor to show and to decide who may see it. The serving path reads
 /// through a cache; these are the writes and the cache's source (design 01 §11.4).
 public interface Rules {
 
-    /// The document's rules, oldest first. A shape is served by its own rule, so their order decides
+    /// The learner's bindings, oldest first. A shape is served by its own binding, so their order decides
     /// nothing (design 06 phase J slice 2a).
-    List<RoutingRule> forDocument(String docUuid);
-
-    /// The rule with this uuid, if the document has it.
-    Optional<RoutingRule> byUuid(String docUuid, String ruleUuid);
-
-    /// Add a rule to the document's, giving it a uuid where it has none.
     ///
-    /// @return The rule as stored, with its uuid.
-    RoutingRule append(String docUuid, RoutingRule rule);
+    /// @param learner The learner.
+    /// @return Its bindings.
+    List<RoutingRule> forLearner(Learner learner);
 
-    /// Replace the rule of the same uuid; a rule the document does not have is added, since a promotion
+    /// The binding with this uuid, with whose it is.
+    ///
+    /// @param ruleUuid The binding's uuid, which is unique across learners.
+    /// @return The row, if there is one.
+    Optional<Held> byUuid(String ruleUuid);
+
+    /// Add a binding to the learner's, giving it a uuid where it has none.
+    ///
+    /// @param learner The learner.
+    /// @param docUuid The document the learner runs under.
+    /// @param rule    The binding.
+    /// @return The binding as stored, with its uuid.
+    RoutingRule append(Learner learner, String docUuid, RoutingRule rule);
+
+    /// Replace the binding of the same uuid; one the learner does not have is added, since a promotion
     /// must not be lost because its row was pruned.
-    void replace(String docUuid, RoutingRule rule);
+    ///
+    /// @param learner The learner.
+    /// @param docUuid The document the learner runs under.
+    /// @param rule    The binding.
+    void replace(Learner learner, String docUuid, RoutingRule rule);
 
-    /// Remove a rule: a draft rejected, a rule retracted.
-    void remove(String docUuid, String ruleUuid);
+    /// Remove a binding: a draft rejected, a binding retracted.
+    ///
+    /// @param learner  The learner whose binding it is.
+    /// @param ruleUuid The binding's uuid.
+    void remove(Learner learner, String ruleUuid);
+
+
+    // --------------------------------------------------------------------------------
+
+
+    /// A binding and whose it is.
+    ///
+    /// @param learner The learner whose binding it is.
+    /// @param docUuid The document the learner ran under when it was written.
+    /// @param rule    The binding.
+    record Held(Learner learner, String docUuid, RoutingRule rule) {
+
+    }
 }

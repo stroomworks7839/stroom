@@ -49,6 +49,7 @@ import stroom.shapeshifter.ai.scenario.Script;
 import stroom.shapeshifter.ai.scenario.Structure;
 import stroom.shapeshifter.ai.stage.Attempts;
 import stroom.shapeshifter.ai.stage.Attempts.Recorded;
+import stroom.shapeshifter.ai.stage.Learner;
 import stroom.shapeshifter.ai.stage.Ledger;
 import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.ai.stage.Shape;
@@ -92,6 +93,9 @@ class TestScenario30DeferredWorkerInAPipeline extends AbstractProcessIntegration
     private static final String FEED = "DOOR-ACCESS-DEFERRED";
     private static final Golden CSV = Scenarios.corpus("001_csv_with_header");
     private static final String XSLT = Scenarios.resource("csv-logon.xsl");
+
+    /// The learner the test's pipeline is: its Shapeshifter AI element (design 06 phase J slice 2b).
+    private Learner learner;
 
     @Inject
     private StoreCreationTool storeCreationTool;
@@ -151,7 +155,7 @@ class TestScenario30DeferredWorkerInAPipeline extends AbstractProcessIntegration
                 .describedAs("the stream waits, and nothing is sentinelled to make it (design 04 §8.7)").isZero();
         assertThat(task.getWritten()).isZero();
         assertThat(outputs()).isEmpty();
-        assertThat(rules.forDocument(doc.getUuid())).isEmpty();
+        assertThat(rules.forLearner(learner)).isEmpty();
         final Recorded parked = attempts.forDocument(doc.getUuid(), 10).get(0);
         assertThat(parked.status()).isEqualTo(AttemptStatus.AWAITING_MODEL);
         assertThat(parked.turns()).describedAs("the question it stopped at, asked of nobody").hasSize(1);
@@ -176,13 +180,13 @@ class TestScenario30DeferredWorkerInAPipeline extends AbstractProcessIntegration
         final Recorded finished = attempts.byId(parked.id()).orElseThrow();
         assertThat(finished.status()).describedAs(String.valueOf(finished.decision()))
                 .isEqualTo(AttemptStatus.PROMOTED);
-        assertThat(rules.forDocument(doc.getUuid())).describedAs("one rule, written by the job").hasSize(1);
-        final RoutingRule rule = rules.forDocument(doc.getUuid()).get(0);
+        assertThat(rules.forLearner(learner)).describedAs("one rule, written by the job").hasSize(1);
+        final RoutingRule rule = rules.forLearner(learner).get(0);
         assertThat(pipelineStore.readDocument(rule.getPipeline()))
                 .describedAs("and the fragment it learned is a pipeline document").isNotNull();
-        final String shape = Shape.of(List.of(MetaFields.FIELD_FEED, MetaFields.FIELD_TYPE),
+        final String shape = Shape.of(learner,
                 Map.of(MetaFields.FIELD_FEED, FEED, MetaFields.FIELD_TYPE, StreamTypeNames.RAW_EVENTS)).id();
-        assertThat(ledger.release(doc.getUuid(), shape))
+        assertThat(ledger.release(learner, shape))
                 .describedAs("the ledger holds nothing: what waited was deferred, not sentinelled")
                 .isEmpty();
         // Scenario 13's substance in a node: *both* streams waited on this shape and one promotion
@@ -257,6 +261,7 @@ class TestScenario30DeferredWorkerInAPipeline extends AbstractProcessIntegration
                 .build();
         final DocRef pipelineRef = pipelineStore.createDocument(FEED + " supervised");
         pipelineStore.writeDocument(pipelineStore.readDocument(pipelineRef).copy().pipelineData(data).build());
+        learner = new Learner(pipelineRef.getUuid(), "shapeshifterAi");
         return pipelineRef;
     }
 
