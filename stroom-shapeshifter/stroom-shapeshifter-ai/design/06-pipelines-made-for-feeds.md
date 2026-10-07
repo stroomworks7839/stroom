@@ -371,6 +371,28 @@ matching `-impl-db` module with its own Flyway migration and jOOQ code.
 5. **Audit and walkthrough.** A factory over `Raw Events` with an ordinary template makes a pipeline
    and filter per feed as data arrives, and each processes.
 
+   *Built 2026-10-07.* The document opens on five tabs. **Settings** holds whether the factory runs, the
+   key as a tick box per field a filter can sort by, the template, the folder and name patterns, the
+   run-as user, the stream filter in the standard expression editor, and the property values as a table
+   with an edit dialog. What is wrong with the factory is shown above the form as it is edited, from
+   the same checks the store refuses a save with. **Filter** holds every filter setting, laid out as
+   the processing screen lays out a filter. **Made** lists every combination met, newest first: its
+   values, whether its pipeline was made and is still there, the pipeline, tries, when, and why the last
+   try failed. It opens a pipeline and forgets a combination, warning that a pipeline still there will
+   be joined by a second. Then **Documentation** and **Permissions**. Two resource calls serve the Made
+   tab: the list needs VIEW on the factory and forgetting needs EDIT. The icon is a green box sending out
+   three blue arrows. Regenerating the icon enum drops `DOCUMENT_DATA_GEN`, an entry master added to
+   the generated file by hand, so the factory's entry was added as the generator writes it and nothing
+   else was regenerated.
+
+   *Audit, 2026-10-07.* A tab marks its document changed by comparing what it would write with what it
+   read, and a reference compares by UUID alone, so a template renamed since the factory was saved does
+   not mark it changed when the picker shows the new name. A factory saved with an empty stream filter,
+   rather than none, did: the tab wrote none in its place. It now keeps whichever the document had. Left
+   as they are: the Made tab shows a `Pipeline` key's value as the pipeline's UUID, since that value is
+   also what forgetting the combination sends; and the expression editor has no read-only form, so a
+   person who may only view a factory can change its stream filter on screen, though not save it.
+
 ### Phase J — The AI element keyed by pipeline *(the feature)*
 
 The largest phase. Its slices keep the build and the scenarios green at each step.

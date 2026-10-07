@@ -25,12 +25,16 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
 import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import org.fusesource.restygwt.client.DirectRestService;
+
+import java.util.List;
+import java.util.Map;
 
 /// The Pipeline Factory document's resource (design 06 §3).
 @Tag(name = "Pipeline Factories")
@@ -60,4 +64,27 @@ public interface PipelineFactoryResource
     PipelineFactoryDoc update(
             @PathParam("uuid") String uuid,
             @Parameter(description = "doc", required = true) PipelineFactoryDoc doc);
+
+    /// @param uuid The factory's UUID.
+    /// @return Every combination the factory has met, oldest first.
+    @GET
+    @Path("/{uuid}/combinations")
+    @Operation(
+            summary = "The combinations a Pipeline Factory has met and what it made for each",
+            operationId = "fetchPipelineFactoryCombinations")
+    List<PipelineFactoryCombination> combinations(@PathParam("uuid") String uuid);
+
+    /// Forget a combination, so that its next stream makes its pipeline afresh. The pipeline already made,
+    /// if any, is left alone.
+    ///
+    /// @param uuid   The factory's UUID.
+    /// @param values The combination's key values.
+    /// @return Whether the factory had met it.
+    @POST
+    @Path("/{uuid}/forget")
+    @Operation(
+            summary = "Forget a combination, so that its next stream makes its pipeline afresh",
+            operationId = "forgetPipelineFactoryCombination")
+    Boolean forget(@PathParam("uuid") String uuid,
+                   @Parameter(description = "values", required = true) Map<String, String> values);
 }

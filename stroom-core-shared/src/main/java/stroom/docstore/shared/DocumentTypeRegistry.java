@@ -59,7 +59,7 @@ public class DocumentTypeRegistry {
             DocumentTypeGroup.DATA_PROCESSING,
             "PipelineFactory",
             "Pipeline Factory",
-            SvgImage.DOCUMENT_PIPELINE);
+            SvgImage.DOCUMENT_PIPELINE_FACTORY);
     public static final DocumentType SHAPESHIFTER_AI_DOCUMENT_TYPE = new DocumentType(
             DocumentTypeGroup.CONFIGURATION,
             "ShapeshifterAi",

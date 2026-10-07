@@ -19,6 +19,7 @@ package stroom.pipelinefactory.impl;
 import stroom.docref.DocRef;
 import stroom.docstore.api.DocumentResourceHelper;
 import stroom.event.logging.rs.api.AutoLogged;
+import stroom.pipelinefactory.shared.PipelineFactoryCombination;
 import stroom.pipelinefactory.shared.PipelineFactoryDoc;
 import stroom.pipelinefactory.shared.PipelineFactoryResource;
 import stroom.util.shared.EntityServiceException;
@@ -26,19 +27,25 @@ import stroom.util.shared.EntityServiceException;
 import jakarta.inject.Inject;
 import jakarta.inject.Provider;
 
+import java.util.List;
+import java.util.Map;
+
 /// The Pipeline Factory document's resource: fetch and save, the save going through the store's
-/// checks.
+/// checks; and what the factory has met, through [PipelineFactoryService].
 @AutoLogged
 public class PipelineFactoryResourceImpl implements PipelineFactoryResource {
 
     private final Provider<PipelineFactoryStore> storeProvider;
     private final Provider<DocumentResourceHelper> documentResourceHelperProvider;
+    private final Provider<PipelineFactoryService> serviceProvider;
 
     @Inject
     PipelineFactoryResourceImpl(final Provider<PipelineFactoryStore> storeProvider,
-                                final Provider<DocumentResourceHelper> documentResourceHelperProvider) {
+                                final Provider<DocumentResourceHelper> documentResourceHelperProvider,
+                                final Provider<PipelineFactoryService> serviceProvider) {
         this.storeProvider = storeProvider;
         this.documentResourceHelperProvider = documentResourceHelperProvider;
+        this.serviceProvider = serviceProvider;
     }
 
     @Override
@@ -52,6 +59,16 @@ public class PipelineFactoryResourceImpl implements PipelineFactoryResource {
             throw new EntityServiceException("The document UUID must match the update UUID");
         }
         return documentResourceHelperProvider.get().update(storeProvider.get(), doc);
+    }
+
+    @Override
+    public List<PipelineFactoryCombination> combinations(final String uuid) {
+        return serviceProvider.get().combinations(uuid);
+    }
+
+    @Override
+    public Boolean forget(final String uuid, final Map<String, String> values) {
+        return serviceProvider.get().forget(uuid, values);
     }
 
     private static DocRef docRefOf(final String uuid) {
