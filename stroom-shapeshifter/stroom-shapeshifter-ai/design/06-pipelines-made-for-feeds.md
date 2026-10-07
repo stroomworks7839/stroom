@@ -87,7 +87,7 @@ A new document type, the **Pipeline Factory** (A103), holds one factory's config
 | Setting | What it is |
 |---|---|
 | Stream filter | An expression over meta, e.g. `Type = Raw Events`, saying which streams it looks at |
-| Key | The meta fields that make one pipeline: `Feed` and `Type` by default, any meta fields allowed (A106) |
+| Key | The meta fields that make one pipeline: `Feed` and `Type` by default; `Feed`, `Type` and `Pipeline` allowed (A106, A119) |
 | Template | The pipeline every made pipeline inherits from |
 | Folder pattern | Where a made pipeline goes in the explorer, e.g. `Feeds/${feed}` (A113) |
 | Name pattern | How a made pipeline is named, e.g. `${feed} ${type}` (A113) |
@@ -550,6 +550,13 @@ waits only on a session.
 **A119.** *A factory's key offers only fields a processor filter can query.* The key picker lists feed,
 type and the meta values Stroom keeps for searching, and no others. A factory imported with a key field
 a filter cannot query is refused, naming the field. *The owner chose this over refusing on save.*
+
+*Found in phase I slice 1, 2026-10-07:* a processor filter queries only Stroom's fixed meta fields. A
+receipt header is never one of them, and the "meta values Stroom keeps for searching" are the counts and
+sizes of a stream. So the fields a key may name are `Feed`, `Type` and `Pipeline`: the queryable fields
+that sort streams into kinds. An id, a time, a count or a size is queryable but would make a pipeline per
+stream. Splitting one feed by a receipt header, which A29 allowed for a shape, is not possible for a
+pipeline, because no filter could select it.
 
 **A120.** *A deleted pipeline's learning is marked and ages out.* The element's record is marked
 deleted and stays visible in the Supervisor under a filter. The attempt retention job removes it with
