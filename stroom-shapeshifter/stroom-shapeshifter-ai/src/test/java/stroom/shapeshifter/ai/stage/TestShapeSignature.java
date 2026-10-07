@@ -47,7 +47,7 @@ class TestShapeSignature {
     @Test
     void anXmlSignatureIsTheFirstRecordsSkeletonNotTheStreams() {
         // Design 01 §5: stable under value variation and record count, sensitive to structure — otherwise
-        // every stream is a new shape and no selector, ledger row or regression set is ever hit twice.
+        // every stream is a new shape and no selector, deferral or regression set is ever hit twice.
         assertThat(ShapeSignature.of(ONE_RECORD)).isEqualTo(ShapeSignature.of(THREE_RECORDS));
         assertThat(ShapeSignature.of(ONE_RECORD)).isNotEqualTo(ShapeSignature.of(OTHER_SHAPE));
         assertThat(ShapeSignature.xmlSkeleton(THREE_RECORDS))

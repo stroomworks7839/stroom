@@ -17,7 +17,6 @@ import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterCorpus;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterDeferral;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterGuidance;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterLearnerState;
-import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterLedger;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterOutput;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterRule;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterSnapshot;
@@ -62,11 +61,6 @@ public class Stroom extends SchemaImpl {
      * The table <code>stroom.shapeshifter_learner_state</code>.
      */
     public final ShapeshifterLearnerState SHAPESHIFTER_LEARNER_STATE = ShapeshifterLearnerState.SHAPESHIFTER_LEARNER_STATE;
-
-    /**
-     * The table <code>stroom.shapeshifter_ledger</code>.
-     */
-    public final ShapeshifterLedger SHAPESHIFTER_LEDGER = ShapeshifterLedger.SHAPESHIFTER_LEDGER;
 
     /**
      * The table <code>stroom.shapeshifter_output</code>.
@@ -114,7 +108,6 @@ public class Stroom extends SchemaImpl {
             ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL,
             ShapeshifterGuidance.SHAPESHIFTER_GUIDANCE,
             ShapeshifterLearnerState.SHAPESHIFTER_LEARNER_STATE,
-            ShapeshifterLedger.SHAPESHIFTER_LEDGER,
             ShapeshifterOutput.SHAPESHIFTER_OUTPUT,
             ShapeshifterRule.SHAPESHIFTER_RULE,
             ShapeshifterSnapshot.SHAPESHIFTER_SNAPSHOT,

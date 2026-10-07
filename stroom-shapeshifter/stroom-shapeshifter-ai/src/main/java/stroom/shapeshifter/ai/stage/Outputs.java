@@ -55,7 +55,7 @@ public interface Outputs {
 
     /**
      * What one binding produced: the inputs whose output this rule made *with this fragment*, oldest
-     * first, each with the pipeline that made it — what a retraction asks to be processed again (§6).
+     * first, each with the pipeline that made it — what a retraction counts (§6, A129).
      * <p>
      * By fragment as well as rule, because a rule keeps its uuid when it is rebound (§7.3 rule 3): a
      * retraction is of the binding in front of us, and the streams an earlier generation of the same

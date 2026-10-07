@@ -530,8 +530,8 @@ public class Supervision {
                         : meta.getTypeName(),
                 attributes,
                 data,
-                // Which pipeline is processing it: what the ledger keeps, so that a stream sentinelled
-                // here is replayed here when its learner settles — wherever that happens (A12).
+                // Which pipeline is processing it: what an output row records, so that what a rule
+                // produced can be counted by where it was produced (§6).
                 pipelineHolder.getPipeline() == null
                         ? null
                         : pipelineHolder.getPipeline().getUuid(),

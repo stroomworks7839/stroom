@@ -66,11 +66,12 @@ public interface Deferrals {
     /// @return Its rows.
     List<Deferral> forDocument(String docUuid);
 
-    /// The documents that have a stream waiting: what the learning job sweeps for rows a promotion's wake
-    /// could not reach (see [Stage#wakeSuperseded]).
+    /// The learners with a stream waiting against a transform, and the transforms they wait against, each
+    /// pair once: what the learning job sweeps for streams a promotion's wake could not reach (A130, see
+    /// [Stage#wakeSuperseded]). As many as there are learners and transforms, not streams.
     ///
-    /// @return Their uuids, each once.
-    List<String> documentsWaiting();
+    /// @return The pairs.
+    List<Stamp> stampsWaiting();
 
     /// One stream's row, where it has one.
     ///
@@ -79,11 +80,6 @@ public interface Deferrals {
     /// @return Its row.
     Optional<Deferral> of(Learner learner, long inputId);
 
-    /// What is waiting on a learner, oldest first: what a promotion wakes.
-    ///
-    /// @param learner The learner.
-    /// @return Its rows.
-    List<Deferral> waiting(Learner learner);
 
     // --------------------------------------------------------------------------------
 
@@ -124,6 +120,18 @@ public interface Deferrals {
         public String pipeline() {
             return learner.pipelineUuid();
         }
+
+    }
+
+
+    // --------------------------------------------------------------------------------
+
+
+    /// A transform a learner's streams wait against.
+    ///
+    /// @param learner       The learner.
+    /// @param failedAgainst The stamp of the transform they fell short of.
+    record Stamp(Learner learner, String failedAgainst) {
 
     }
 }

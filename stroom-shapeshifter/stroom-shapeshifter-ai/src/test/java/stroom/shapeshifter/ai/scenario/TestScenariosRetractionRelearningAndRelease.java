@@ -42,10 +42,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Design 02 §5, scenarios 28, 27 and 13: what happens to a binding after it is made. A provisional
- * rule that fails the gate is retracted and its outputs' inputs are requested again; a bound shape
- * whose rolling score falls is relearned while the incumbent serves; binding a shape releases its
- * ledger as a reprocess request. The feed is a headerless CSV of four fields, so that a regex splitter
- * can be right about it and then wrong when the feed changes.
+ * rule that fails the gate is retracted; a bound shape whose rolling score falls is relearned while the
+ * incumbent serves; binding a shape wakes the streams that waited for it. The feed is a headerless CSV
+ * of four fields, so that a regex splitter can be right about it and then wrong when the feed changes.
  */
 class TestScenariosRetractionRelearningAndRelease {
 
@@ -137,8 +136,6 @@ class TestScenariosRetractionRelearningAndRelease {
         assertThat(third.decision()).isInstanceOf(Bound.class);
         assertThat(events(third.output())).isZero();
         assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).containsExactly(provisional);
-        assertThat(scenarios.reprocessing.requests()).isEmpty();
-        assertThat(scenarios.ledger.isEmpty()).isTrue();
     }
 
     @Test
@@ -156,7 +153,7 @@ class TestScenariosRetractionRelearningAndRelease {
 
         // Twenty records of which six are a second kind the splitter does not match. No new shape: the
         // rule still binds, the fourteen that parse become events, the six are errors on the way — not
-        // sentinels, so not on the ledger — and the shape's rolling score falls below the threshold.
+        // sentinels — and the shape's rolling score falls below the threshold.
         final String withAlarms = lines(20, 3);
         final Script silent = Script.of();
         final StageRun second = scenarios.process(silent, first.doc(), stream(2, withAlarms)).learned();
@@ -164,7 +161,6 @@ class TestScenariosRetractionRelearningAndRelease {
         assertThat(silent.asked()).isEmpty();
         assertThat(second.decision()).isInstanceOf(Bound.class);
         assertThat(events(second.output())).isEqualTo(14);
-        assertThat(scenarios.ledger.isEmpty()).isTrue();
         // The score is no trigger (design 04 §6): it is kept for the Supervisor's list of what could be
         // better (A46), and a person reading the stream's errors is who marks the shape (A100).
         assertThat(scenarios.states.relearnReason(Scenarios.LEARNER)).isEmpty();
@@ -233,8 +229,6 @@ class TestScenariosRetractionRelearningAndRelease {
 
         assertThat(run.decision()).isInstanceOf(Bound.class);
         assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).containsExactly(pinned);
-        assertThat(scenarios.reprocessing.requests()).isEmpty();
-        assertThat(scenarios.ledger.isEmpty()).isTrue();
         assertThat(silent.asked()).isEmpty();
     }
 
@@ -273,7 +267,7 @@ class TestScenariosRetractionRelearningAndRelease {
     void scenario13BindingAShapeWakesTheStreamsThatWaitedForIt() {
         final Scenarios scenarios = new Scenarios();
         // Two streams arrive while learning is disabled: each waits for a person (design 04 §3, the kill
-        // switch), on a row, with no session opened and nothing on the ledger.
+        // switch), on a row, with no session opened.
         final ShapeshifterAiDoc disabled = doc(5).copy().learningMode(LearningMode.DISABLED).build();
         final Script silent = Script.of();
         for (long id = 11; id <= 12; id++) {
@@ -282,7 +276,6 @@ class TestScenariosRetractionRelearningAndRelease {
             assertThat(scenarios.deferrals.of(Scenarios.LEARNER, id)).isPresent();
         }
         assertThat(silent.asked()).isEmpty();
-        assertThat(scenarios.ledger.isEmpty()).isTrue();
         assertThat(scenarios.attempts.forDocument(DOC, 10)).isEmpty();
 
         // Learning is switched on and the next stream learns the shape: the promotion wakes the two that
@@ -293,7 +286,5 @@ class TestScenariosRetractionRelearningAndRelease {
 
         assertThat(run.decision()).isInstanceOf(Promoted.class);
         assertThat(scenarios.wake.woken()).extracting(Deferral::inputId).contains(11L, 12L);
-        assertThat(scenarios.reprocessing.requests()).isEmpty();
-        assertThat(scenarios.ledger.isEmpty()).isTrue();
     }
 }

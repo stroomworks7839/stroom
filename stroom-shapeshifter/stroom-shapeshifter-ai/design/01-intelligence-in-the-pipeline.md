@@ -456,6 +456,8 @@ grouped by shape, ordered by how much data each shape is costing.
 
 ### 5.2 Leaving the quarantine
 
+> *Superseded in part by design 06 A131 (2026-10-07): there is no ledger. Every learning session is an attempt, a person sends a learner back from it, and a stream a failed session errored is an ordinary error stream, reprocessed on the pipeline.* The ledger this section describes, and the release of it, are gone; what waits now waits as a deferred task, which a promotion wakes (design 06 A129).
+
 **Ruling A12.** *Promoting a variant whose selector covers a quarantined shape automatically triggers
 reprocessing of the quarantined records for that shape. Recovery does not depend on anyone
 remembering to go back for it.*
@@ -2014,7 +2016,7 @@ prototype (§15) — gives in its §7 the order the rest of the MVP is built in 
 | A1 | Replay unit per variant, derived from its fragment; scoring granularity follows the chain (§4) | **Ruled**; revised 2026-09-17 — the unit is the fragment's, not the document's |
 | A2 | Write-back model — branch rather than mutate; §7.3 as proposed | **Ruled** |
 | A3 | Stage configuration is a Stroom document type, not a separate database | **Ruled** |
-| A4 | The supervisor emits the sentinel; a sentinel is an error-stream entry plus a ledger row | **Ruled**; restated 2026-09-17 with §5.2 |
+| A4 | The supervisor emits the sentinel; a sentinel is an error-stream entry plus a ledger row | **Ruled**; restated 2026-09-17 with §5.2; **the ledger row superseded by A131** (design 06, 2026-10-07): a sentinel is an error stream alone |
 | A5 | Execution mode is a document setting, deferred by default, with a mandatory per-attempt budget; independent of where the model is; existing bindings are tried before any model call | **Ruled** 2026-09-17; a candidate that clears the floor handles the current stream under a provisional binding until A14 can be met |
 | A6 | Shape signature normalisation | **Open** — needs real feeds |
 | A7 | Whether to propose document version history over `doc_data_snapshot` separately | **Open** |
@@ -2022,7 +2024,7 @@ prototype (§15) — gives in its §7 the order the rest of the MVP is built in 
 | A9 | Promotion is automatic on score improvement; no human gate | **Ruled** against the recommendation; §7.4 is the compensating guard. A25 adds a per-document review mode as an option, not a replacement |
 | A10 | Variant model generic over element types; DS3/XSLT/JSON/XML initially | **Ruled**; A20 proposes the unit that carries it |
 | A11 | Extraction scored on yield **and input coverage** | **Ruled**; coverage's measure settled by A36 |
-| A12 | Promotion automatically releases the matching quarantine | **Ruled**; restated 2026-09-17 — the quarantine is a ledger of inputs, release is a reprocess filter, nothing is held (§5.2) |
+| A12 | Promotion automatically releases the matching quarantine | **Ruled**; restated 2026-09-17 — the quarantine is a ledger of inputs, release is a reprocess filter, nothing is held (§5.2); **superseded by A129 and A131** (design 06, 2026-10-07): a promotion wakes its pipeline's deferred tasks, and there is no ledger |
 | A13 | The model is reached as an OpenAI-compatible endpoint through langchain4j, whatever the model is and wherever it runs | **Ruled**; **restated 2026-09-23 by the owner**: the protocol is the ruling and where the endpoint runs is not. No vendor's client library, and no code that knows which vendor answered — `stroom-ai`'s `OpenAIModelDoc` and the `ChatModel` it builds are the whole of it. The live harness tests a vendor-neutral client against whatever endpoint the environment names |
 | A14 | Promotion measured on a held-out sample the model never saw | **Ruled** |
 | A15 | Absolute floor **and** no regression against the incumbent | **Ruled** |
@@ -2036,7 +2038,7 @@ prototype (§15) — gives in its §7 the order the rest of the MVP is built in 
 | A23 | **Deferred — §15.2.** An AI review scorer samples single records asynchronously; advisory and a relearn trigger, never a gate; its critique feeds the next candidate | **Proposed, §8.4** — the owner's, 2026-09-17 |
 | A24 | **Partly built; the rest deferred — §15.2.** The circuit breaker's open state is an error mode per document and feed: fatal error streams, no model calls, operator reset with optional half-open retry | **Proposed, §11.2** — the owner's, 2026-09-17 |
 | A25 | Promotion mode per document, automatic or review; a reviewed rule is a draft the router skips, its shape erroring into the ledger until Approve promotes it and reprocesses | **Proposed, §11.3** — the owner's, 2026-09-17; an option beside A9, not a revision of it |
-| A26 | Runtime state — shape status (unknown, learning, provisional, bound, awaiting review, given up), lease and rolling scores, the ledger, feed error-mode state — is three tables in a `stroom-shapeshifter-ai-impl-db` module; routing rules get a `uuid`; a job prunes | **Proposed, §11.4** — the owner's, 2026-09-17 |
+| A26 | Runtime state — shape status (unknown, learning, provisional, bound, awaiting review, given up), lease and rolling scores, the ledger, feed error-mode state — is three tables in a `stroom-shapeshifter-ai-impl-db` module; routing rules get a `uuid`; a job prunes | **Proposed, §11.4** — the owner's, 2026-09-17; the ledger since removed by A131 (design 06) |
 | A27 | **Deferred — §15.2.** Processor filters may depend on a Shapeshifter AI document and create no tasks for a feed while its feed-state row is `ERROR` or a shape of it is `AWAITING_REVIEW`; per (doc, feed); the intended mechanism for waiting, sequenced last because it touches `stroom-processor` | **Proposed, §11.5** — the owner's, 2026-09-17 |
 | A28 | Every attempt is a durable, resumable record in its own tables; a cross-document Supervisor view lists all attempts in every mode, with pending ones decidable and any turn amendable; the job advancing attempts awaiting the model is deferred mode's worker | **Proposed, §11.6** — the owner's, 2026-09-17; makes A25 and deferred A5 usable |
 | A29 | The learning key — the fields a learned rule binds on and the chain question sees — is a document setting, default `Feed AND Type`, with attribute-map fields and the shape signature choosable; a shape is one value of the key; shown means bound; a bound shape whose rolling per-record score falls below the document's relearn threshold is relearned | **Ruled** 2026-09-17 — the owner's; replaces the fixed `Feed AND Type AND Shape Signature` of the first A22 decisions |

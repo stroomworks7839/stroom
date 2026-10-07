@@ -42,7 +42,7 @@ import java.util.Objects;
  * justification, to be revised once real feeds have been measured. Each field's javadoc names the section
  * or ruling it serves.
  * <p>
- * Runtime state deliberately does not live here: shape status, the ledger, regression records,
+ * Runtime state deliberately does not live here: learner state, deferrals, regression records,
  * per-stream bindings, learning leases and error-mode state are rows (A26) or streams. The routing
  * table is the one part the supervisor rewrites (§7.3 rule 2). The replay unit is not a setting either:
  * it is a property of the fragment a rule binds, fixed by the stage's position (A1 as revised).

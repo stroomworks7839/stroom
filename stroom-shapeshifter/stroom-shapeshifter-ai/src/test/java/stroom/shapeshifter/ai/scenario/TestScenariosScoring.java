@@ -21,6 +21,7 @@ import stroom.shapeshifter.ai.stage.Decision.Deferred;
 import stroom.shapeshifter.ai.stage.Decision.GivenUp;
 import stroom.shapeshifter.ai.stage.Decision.Parked;
 import stroom.shapeshifter.ai.stage.Decision.Promoted;
+import stroom.shapeshifter.ai.stage.Decision.Sentinel;
 import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.StageRun;
 import stroom.shapeshifter.shared.BusinessRulesParameters;
@@ -309,7 +310,6 @@ class TestScenariosScoring {
         assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).isEmpty();
         assertThat(scenarios.stores.pipelines.list()).isEmpty();
         assertThat(scenarios.states.reasonGivenUp(Scenarios.LEARNER)).isEmpty();
-        assertThat(scenarios.ledger.isEmpty()).isTrue();
         assertThat(scenarios.deferrals.of(Scenarios.LEARNER,
                 1L)).describedAs("the stream waits on the parked session").isPresent();
 
@@ -346,5 +346,11 @@ class TestScenariosScoring {
                 .contains("against a floor of 0.95");
         assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).isEmpty();
         assertThat(scenarios.stores.pipelines.list()).describedAs("nothing written below the floor").isEmpty();
+        // The worker gave up on a stream it read back out of the store, so it errors nothing: the stream's
+        // task is woken to error it, as for the flow's give-up.
+        assertThat(scenarios.wake.pipelines()).containsExactly(Scenarios.LEARNER.pipelineUuid());
+        final StageRun woken = scenarios.stage(Script.of()).decide(doc, Scenarios.LEARNER,
+                stream(1, CsvLines.lines(6)));
+        assertThat(woken.decision()).isInstanceOf(Sentinel.class);
     }
 }

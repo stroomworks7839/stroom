@@ -17,7 +17,6 @@
 package stroom.shapeshifter.ai.element;
 
 import stroom.processor.api.ProcessorTaskService;
-import stroom.shapeshifter.ai.stage.Deferrals.Deferral;
 import stroom.shapeshifter.ai.stage.Wake;
 import stroom.util.logging.LambdaLogger;
 import stroom.util.logging.LambdaLoggerFactory;
@@ -26,13 +25,8 @@ import stroom.util.logging.LogUtil;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
-
-/// The wake in a node (design 04 §5.3): the deferred tasks of each filter, for the streams waiting, back
-/// to `CREATED` through the processor task service. Rows with no task are streams nothing is processing
-/// — a stream put back by hand through the stepper has none — and are left where they are.
+/// The wake in a node (design 04 §5.3, design 06 §4.3): the deferred tasks of every filter on the
+/// pipeline back to `CREATED` through the processor task service.
 @Singleton
 public class TaskWake implements Wake {
 
@@ -46,17 +40,9 @@ public class TaskWake implements Wake {
     }
 
     @Override
-    public int wake(final List<Deferral> waiting) {
-        final Map<Integer, List<Long>> byFilter = waiting.stream()
-                .filter(row -> row.filterId() != null && row.taskId() != null)
-                .collect(Collectors.groupingBy(Deferral::filterId,
-                        Collectors.mapping(Deferral::inputId, Collectors.toList())));
-        int woken = 0;
-        for (final Map.Entry<Integer, List<Long>> filter : byFilter.entrySet()) {
-            woken += processorTaskService.wakeDeferredTasks(filter.getKey(), filter.getValue());
-        }
-        final int count = woken;
-        LOGGER.debug(() -> LogUtil.message("Woke {} task(s) for {} waiting stream(s)", count, waiting.size()));
+    public int wake(final String pipelineUuid) {
+        final int woken = processorTaskService.wakeDeferredTasks(pipelineUuid);
+        LOGGER.debug(() -> LogUtil.message("Woke {} task(s) of pipeline {}", woken, pipelineUuid));
         return woken;
     }
 }

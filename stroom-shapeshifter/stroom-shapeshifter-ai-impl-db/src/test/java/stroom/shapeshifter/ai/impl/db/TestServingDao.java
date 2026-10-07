@@ -153,7 +153,7 @@ class TestServingDao {
                 .containsExactlyInAnyOrder(tuple(ref(BUSY), 2), tuple(ref(QUIET), 0));
     }
 
-    /// The documents a person may read go into the query, as they do for the ledger: a total taken
+    /// The documents a person may read go into the query, as they do for the attempts: a total taken
     /// before the filtering would count rules they may not see.
     @Test
     void aDocumentNobodyNamedIsNotInTheAnswer() {

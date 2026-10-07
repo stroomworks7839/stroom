@@ -116,7 +116,7 @@ public class SupervisorServingPresenter extends MyPresenterWidget<PagerView> {
         filterButton = view.addButton(SvgPresets.FILTER.title(
                 "Show only the rules whose learner has been scoring below a figure"));
 
-        // Paged, like the attempts and the ledger beside it. One rule per learner means a busy document
+        // Paged, like the attempts beside it. One rule per learner means a busy document
         // has as many rules as it has pipelines, and a grid handed all of them shows the first
         // page and loses the rest.
         dataProvider = new RestDataProvider<ServingRule, ResultPage<ServingRule>>(eventBus) {
@@ -277,11 +277,12 @@ public class SupervisorServingPresenter extends MyPresenterWidget<PagerView> {
     }
 
     /// Take a rule back out of the table (A28): what it produced was produced by a binding that is
-    /// being withdrawn, so all of it is asked to be processed again as it would be now (A12).
+    /// being withdrawn. It is counted, not put through again (A129): reprocessing it as it would be now
+    /// is a filter the person makes on the pipeline.
     ///
-    /// Confirmed and reasoned, because it is the most consequential thing on this screen: a backlog goes
-    /// through the pipeline and a feed stops being processed until its learner learns again. The
-    /// reason is asked for rather than assumed — it travels with every stream it asks for.
+    /// Confirmed and reasoned, because it is the most consequential thing on this screen: a feed stops
+    /// being served until its learner learns again. The reason is asked for rather than assumed — it is
+    /// recorded against the attempt that bound the rule.
     private void retract() {
         final ServingRule rule = selected();
         if (rule == null) {
@@ -289,13 +290,14 @@ public class SupervisorServingPresenter extends MyPresenterWidget<PagerView> {
         }
         if (rule.isPinned()) {
             AlertEvent.fireWarn(this, "This rule is pinned, which keeps it serving exactly as it is. "
-                                      + "Unpin it on the document's Routing tab before retracting it.", null);
+                                      + "Unpin it before retracting it.", null);
             return;
         }
         PromptEvent.fire(this,
-                "Why is this rule being taken back? It goes out of the table, its learner learns again "
-                + "from the next stream, and everything it has produced is asked to be processed again "
-                + "as it would be now. The reason travels with every one of those streams.", "",
+                "Why is this rule being taken back? It goes out of the table and its learner learns again "
+                + "from the next stream. What it produced stands as it made it: you are told how many "
+                + "streams that is, to reprocess on the pipeline if you want them as they would be now.",
+                "",
                 reason -> {
                     // Null is Cancel; empty is no reason, and this one is not offered without one.
                     if (NullSafe.isBlankString(reason)) {
@@ -305,17 +307,17 @@ public class SupervisorServingPresenter extends MyPresenterWidget<PagerView> {
                             .create(SUPERVISOR_RESOURCE)
                             .method(resource -> resource.retract(rule.getDoc().getUuid(),
                                     rule.getRuleUuid(), new RejectRequest(reason)))
-                            .onSuccess(asked -> {
-                                // What a person cannot see for themselves: how much is now going
-                                // through the pipeline again because of what they just pressed.
-                                AlertEvent.fireInfo(this, asked == null || asked == 0
-                                        ? "The rule is out of the table. It had produced nothing, so "
-                                          + "nothing is being processed again."
-                                        : "The rule is out of the table, and " + asked + " stream"
-                                          + (asked == 1
-                                                  ? " it produced is"
-                                                  : "s it produced are")
-                                          + " asked to be processed again.", this::acted);
+                            .onSuccess(produced -> {
+                                // What a person cannot see for themselves: how much stands as the
+                                // withdrawn rule made it.
+                                AlertEvent.fireInfo(this, produced == null || produced == 0
+                                        ? "The rule is out of the table. It had produced nothing."
+                                        : "The rule is out of the table. " + produced + " stream"
+                                          + (produced == 1
+                                                  ? " it produced stands"
+                                                  : "s it produced stand")
+                                          + " as it made them; reprocess them on the pipeline to put "
+                                          + "them through what serves now.", this::acted);
                             })
                             .taskMonitorFactory(this)
                             .exec();

@@ -25,6 +25,7 @@ import stroom.shapeshifter.ai.scoring.Verdict;
 import stroom.shapeshifter.ai.stage.Decision.Bound;
 import stroom.shapeshifter.ai.stage.Decision.Would;
 import stroom.shapeshifter.ai.stage.Input;
+import stroom.shapeshifter.ai.stage.LearnerStates.Rolling;
 import stroom.shapeshifter.ai.stage.Stage;
 import stroom.shapeshifter.ai.stage.StageRun;
 import stroom.shapeshifter.ai.transformation.XsltStep;
@@ -41,11 +42,12 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /// Design 01 §11.7 and A30: **stepping is a dry run**. The stage routes and serves, and does nothing
-/// else — no model asked, no fragment written, no rule bound, no ledger row, no output row, no rolling
+/// else — no model asked, no fragment written, no rule bound, no output row, no rolling
 /// score and no reprocess request. A shape no rule binds is reported rather than learned.
 ///
 /// The case that makes it matter is the ordinary one: a person opens the stepper on a feed nobody has
@@ -82,14 +84,42 @@ class TestSteppingIsADryRun {
         assertThat(script.asked()).describedAs("the model was not asked").isEmpty();
         assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).describedAs("no rule was bound").isEmpty();
         assertThat(scenarios.attempts.forDocument("doc-1", 10)).describedAs("no attempt was recorded").isEmpty();
-        assertThat(scenarios.ledger.release(Scenarios.LEARNER))
-                .describedAs("and the stream was not sentinelled onto the ledger").isEmpty();
         assertThat(scenarios.outputs.asProcessed("doc-1", 1L, "pipeline-1"))
                 .describedAs("nor recorded as having produced anything").isEmpty();
+        assertThat(scenarios.states.isEmpty()).describedAs("nor anything the learner settled into").isTrue();
+        assertThat(scenarios.deferrals.forPipeline(Scenarios.LEARNER.pipelineUuid()))
+                .describedAs("nor left waiting").isEmpty();
+        assertThat(scenarios.wake.pipelines()).describedAs("and no pipeline was woken").isEmpty();
+    }
+
+    /// Design 06 A121: a step is not the learner running. A pipeline stepped under another document than
+    /// the one its learner's rows were written under leaves them there — only a stream processed moves
+    /// them — and a stream served in a step is not scored into the learner's rolling score.
+    @Test
+    void aStepMovesNoRowsAndScoresNothing() {
+        final Scenarios scenarios = new Scenarios();
+        final Script script = script(scenarios);
+        final Stage stage = scenarios.stage(document -> script, scenarios.rules);
+        scenarios.process(script, doc(LearningMode.AUTOMATIC), stream()).learned();
+        final String ruleUuid = scenarios.rules.forLearner(Scenarios.LEARNER).getFirst().getUuid();
+        final Optional<Rolling> scoredBefore = scenarios.states.rolling(Scenarios.LEARNER);
+
+        final StageRun stepped = stage.dryRun(doc(LearningMode.AUTOMATIC).copy().uuid("doc-2").build(),
+                Scenarios.LEARNER, stream(), false);
+
+        assertThat(stepped.decision()).isInstanceOf(Bound.class);
+        assertThat(scenarios.rules.byUuid(ruleUuid).orElseThrow().docUuid())
+                .describedAs("the rule is still under the document it was learned under")
+                .isEqualTo("doc-1");
+        assertThat(scenarios.states.rolling(Scenarios.LEARNER))
+                .describedAs("and the step added nothing to the rolling score")
+                .isEqualTo(scoredBefore);
+        assertThat(scenarios.wake.pipelines()).describedAs("the promotion's wake, and none from the step")
+                .containsExactly(Scenarios.LEARNER.pipelineUuid());
     }
 
     @Test
-    void aDisabledDocumentSaysWhatItWouldDoAndWritesNoLedgerRow() {
+    void aDisabledDocumentSaysWhatItWouldDoAndWritesNothing() {
         final Scenarios scenarios = new Scenarios();
         final Stage stage = scenarios.stage(document -> Script.of(), scenarios.rules);
 
@@ -98,8 +128,9 @@ class TestSteppingIsADryRun {
         assertThat(((Would) stepped.decision()).what())
                 .isEqualTo("Wait: Shapeshifter AI is disabled for this document and nothing serves this "
                            + "learner");
-        assertThat(scenarios.ledger.release(Scenarios.LEARNER))
-                .describedAs("a sentinel a person only asked to see is not a sentinel").isEmpty();
+        assertThat(scenarios.deferrals.forPipeline(Scenarios.LEARNER.pipelineUuid()))
+                .describedAs("a wait a person only asked to see is not a wait").isEmpty();
+        assertThat(scenarios.states.isEmpty()).isTrue();
     }
 
     @Test

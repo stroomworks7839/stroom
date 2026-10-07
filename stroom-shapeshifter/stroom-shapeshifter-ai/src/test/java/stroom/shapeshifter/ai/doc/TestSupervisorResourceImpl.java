@@ -23,7 +23,6 @@ import stroom.shapeshifter.ai.stage.Guidance;
 import stroom.shapeshifter.ai.stage.Learner;
 import stroom.shapeshifter.ai.state.InMemoryGuidance;
 import stroom.shapeshifter.shared.GuidanceRequest;
-import stroom.shapeshifter.shared.LearnAgainRequest;
 import stroom.shapeshifter.shared.LearnerRef;
 
 import org.junit.jupiter.api.Test;
@@ -69,9 +68,6 @@ class TestSupervisorResourceImpl {
                 THEIRS.getElementId()))
                 .describedAs("or read by way of withdrawing")
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> resource.learn("doc-1", new LearnAgainRequest(THEIRS, "Again.")))
-                .describedAs("or sent back to be learned")
-                .isInstanceOf(IllegalArgumentException.class);
 
         assertThat(guidance.standing(learner(THEIRS)))
                 .describedAs("and nothing planted on it")
@@ -89,7 +85,6 @@ class TestSupervisorResourceImpl {
                 () -> null,
                 () -> null,
                 MockSecurityContext::new,
-                () -> null,
                 () -> null,
                 () -> guidance,
                 () -> null,

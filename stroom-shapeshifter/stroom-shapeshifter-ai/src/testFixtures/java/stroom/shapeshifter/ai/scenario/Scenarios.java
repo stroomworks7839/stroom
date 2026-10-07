@@ -51,10 +51,8 @@ import stroom.shapeshifter.ai.state.InMemoryGuidance;
 import stroom.shapeshifter.ai.state.InMemoryInputs;
 import stroom.shapeshifter.ai.state.InMemoryLearnerStates;
 import stroom.shapeshifter.ai.state.InMemoryLearners;
-import stroom.shapeshifter.ai.state.InMemoryLedger;
 import stroom.shapeshifter.ai.state.InMemoryOutputs;
 import stroom.shapeshifter.ai.state.InMemoryRegressionSet;
-import stroom.shapeshifter.ai.state.InMemoryReprocessing;
 import stroom.shapeshifter.ai.state.InMemoryRules;
 import stroom.shapeshifter.ai.state.InMemoryServing;
 import stroom.shapeshifter.ai.state.InMemorySnapshots;
@@ -106,20 +104,18 @@ public final class Scenarios {
     public final InMemoryRules rules = new InMemoryRules();
     public final InMemorySpend spend = new InMemorySpend();
     public final InMemoryLearnerStates states = new InMemoryLearnerStates();
-    public final InMemoryLedger ledger = new InMemoryLedger();
     public final InMemoryGuidance guidance = new InMemoryGuidance();
     public final InMemoryOutputs outputs = new InMemoryOutputs();
-    public final InMemoryReprocessing reprocessing = new InMemoryReprocessing();
     public final InMemoryRegressionSet regressionSet = new InMemoryRegressionSet();
     public final InMemoryDeferrals deferrals = new InMemoryDeferrals();
-    public final InMemoryWake wake = new InMemoryWake();
+    public final InMemoryWake wake = new InMemoryWake(deferrals);
     public final InMemorySnapshots snapshots = new InMemorySnapshots();
     public final InMemoryDocuments documents = new InMemoryDocuments();
     public final InMemoryInputs inputs = new InMemoryInputs();
     /// The serving view of A46 over the three seams above it, as a node reads it from one query.
     public final InMemoryServing serving = new InMemoryServing(rules, states, guidance);
     /// What brings a learner's rows to the document it runs under, over the rows above.
-    public final InMemoryLearners learners = new InMemoryLearners(rules, ledger, guidance, deferrals);
+    public final InMemoryLearners learners = new InMemoryLearners(rules, guidance, deferrals);
     /// As many attempts as a scenario could open, which is what one carrying takes on.
     private static final int CARRY_AT_MOST = 100;
 
@@ -201,10 +197,8 @@ public final class Scenarios {
                 rules,
                 states,
                 spend,
-                ledger,
                 guidance,
                 outputs,
-                reprocessing,
                 regressionSet,
                 deferrals,
                 learners,
@@ -221,7 +215,7 @@ public final class Scenarios {
     /// job that carries on the attempts a deferred document parks. The stage is one of this scenario's,
     /// since a stage holds nothing of a stream between calls.
     public DeferredWorker worker(final Advisor answerer) {
-        return new DeferredWorker(stage(answerer), attempts, deferrals, documents, inputs, document -> answerer,
+        return new DeferredWorker(stage(answerer), attempts, documents, inputs, document -> answerer,
                 Clock.fixed(NOW, ZoneOffset.UTC));
     }
 

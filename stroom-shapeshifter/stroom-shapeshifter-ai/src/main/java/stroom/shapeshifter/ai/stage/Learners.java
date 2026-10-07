@@ -18,7 +18,7 @@
 package stroom.shapeshifter.ai.stage;
 
 /// Which document a learner's rows are kept under (design 06 phase J slice 2b). What a learner keeps is
-/// its own — its bindings, its state, its ledger, what has been said to it and the streams
+/// its own — its bindings, its state, what has been said to it and the streams
 /// waiting on it — and each row records the document the learner runs under beside it, since that is
 /// what the Supervisor lists by and what decides who may see and act on a row.
 ///

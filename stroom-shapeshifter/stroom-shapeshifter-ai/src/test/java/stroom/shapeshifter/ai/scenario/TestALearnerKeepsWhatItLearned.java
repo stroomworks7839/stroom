@@ -86,7 +86,6 @@ class TestALearnerKeepsWhatItLearned {
         scenarios.process(learn(scenarios), before, stream(1L, Scenarios.LEARNER)).learned();
         final RoutingRule bound = scenarios.rules.forLearner(Scenarios.LEARNER).get(0);
         final long hint = scenarios.guidance.given(Scenarios.LEARNER, "doc-1", "Times are local.", "jo");
-        scenarios.ledger.sentinelled(Scenarios.LEARNER, "doc-1", 7L, "Given up");
 
         // The element now names another document, and its next stream is served under it.
         final Script silent = Script.of();
@@ -105,9 +104,6 @@ class TestALearnerKeepsWhatItLearned {
         assertThat(scenarios.serving.rules(List.of("doc-1"), null, 0, 10).rules())
                 .describedAs("and the old one's no longer does")
                 .isEmpty();
-        assertThat(scenarios.ledger.waiting(List.of("doc-2"), 0, 10).learners())
-                .describedAs("with the streams waiting on it")
-                .hasSize(1);
         scenarios.guidance.withdraw("doc-2", hint);
         assertThat(scenarios.guidance.standing(Scenarios.LEARNER))
                 .describedAs("and what was said about its shapes, withdrawn by the document it is under now")

@@ -156,10 +156,10 @@ class TestDeferredTask extends AbstractCoreIntegrationTest {
         commonTranslationTestHelper.process(theOnlyTask());
         assertThat(taskStatus()).isEqualTo(TaskStatus.DEFERRED);
 
-        // A wake names the filter and the stream; a stream not named stays deferred.
-        assertThat(processorTaskDao.wakeDeferredTasks(filter.getId(), List.of(input.getId() + 1_000_000))).isZero();
+        // A wake names the pipeline; another pipeline's wake leaves the task deferred.
+        assertThat(processorTaskDao.wakeDeferredTasks("another-pipeline")).isZero();
         assertThat(taskStatus()).isEqualTo(TaskStatus.DEFERRED);
-        assertThat(processorTaskDao.wakeDeferredTasks(filter.getId(), List.of(input.getId()))).isEqualTo(1);
+        assertThat(processorTaskDao.wakeDeferredTasks(pipeline.getUuid())).isEqualTo(1);
         assertThat(taskStatus()).isEqualTo(TaskStatus.CREATED);
 
         commonTranslationTestHelper.process(theOnlyTask());
@@ -175,7 +175,7 @@ class TestDeferredTask extends AbstractCoreIntegrationTest {
     void aReprocessThatDefersLeavesTheEarlierOutputStanding(final boolean claimTasksOnWorker) {
         processorTaskTestHelper.setClaimTasksOnWorker(claimTasksOnWorker);
         commonTranslationTestHelper.process(theOnlyTask());
-        processorTaskDao.wakeDeferredTasks(filter.getId(), List.of(input.getId()));
+        processorTaskDao.wakeDeferredTasks(pipeline.getUuid());
         commonTranslationTestHelper.process(theOnlyTask());
         assertThat(standingChildrenOfInput()).hasSize(1);
         final long earlier = standingChildrenOfInput().get(0).getId();
@@ -193,7 +193,7 @@ class TestDeferredTask extends AbstractCoreIntegrationTest {
                 .containsExactly(earlier);
 
         // And when it finally runs, the earlier output is superseded as a reprocess supersedes it.
-        processorTaskDao.wakeDeferredTasks(again.getId(), List.of(input.getId()));
+        processorTaskDao.wakeDeferredTasks(pipeline.getUuid());
         commonTranslationTestHelper.process(theOnlyClaimableTask());
         assertThat(standingChildrenOfInput())
                 .describedAs(everyStream())

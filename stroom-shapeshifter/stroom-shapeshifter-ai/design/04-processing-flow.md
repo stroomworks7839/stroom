@@ -94,7 +94,7 @@ three outcomes — emit, defer, or error.
 | A rule serves it, and any record falls short | **Defer.** Emit nothing. Write the deferral row against the transform in force — one small row, and nothing about which records failed. Open the session if no attempt holds the shape. |
 | No rule, and no attempt holds the shape | **Defer**, and open the session with this stream as its subject. |
 | No rule, and an attempt holds the shape | **Defer.** |
-| The shape is given up — a session found the parse unlearnable, or a person gave it up | **Error the stream**, with the ledger saying so. |
+| The shape is given up — a session found the parse unlearnable, or a person gave it up | **Error the stream**, with the reason. (With the ledger saying so until design 06 A131 removed it.) |
 
 Learning never happens here. A session is the worker's, and the only thing a task does about it is open
 it and stand aside. Nor does a task decide that a parse is hopeless: that is a session's conclusion
@@ -1187,7 +1187,9 @@ backlog; the stream goes on waiting, and nothing but giving the shape up errors 
 
 **A80.** *A stream of a given-up shape keeps its ledger row; every other refusal errors with its reason and
 writes none.* The ledger's purpose is the door through which a person learns a given-up shape again, and
-the row is what that asks to be processed again.
+the row is what that asks to be processed again. *Superseded by design 06 A131 (2026-10-07): there is no
+ledger. The given-up shape's stream errors with its reason and nothing else is written; the door is the
+attempt that gave up.*
 
 **A99.** *The stage has one shape, the parser's, and a task never learns inline.* The filter form of the
 stage — the supervised stage fed by a parser (design 01 §12 item 4, scenario 50) — is removed, with the

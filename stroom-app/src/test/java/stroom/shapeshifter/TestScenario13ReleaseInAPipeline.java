@@ -54,7 +54,6 @@ import stroom.shapeshifter.ai.scenario.Structure;
 import stroom.shapeshifter.ai.stage.Deferrals;
 import stroom.shapeshifter.ai.stage.Deferrals.Deferral;
 import stroom.shapeshifter.ai.stage.Learner;
-import stroom.shapeshifter.ai.stage.Ledger;
 import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.ai.transformation.XsltStep;
 import stroom.shapeshifter.shared.FlowExample;
@@ -84,14 +83,12 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 
-/// Design 02 §5, scenario 13, in tier 2 against a real database: **promotion releases the ledger, and
-/// what is released is actually processed**.
+/// Design 02 §5, scenario 13, in tier 2 against a real database: **promotion wakes what waited, and what
+/// is woken is actually processed**.
 ///
-/// Tier 1 records the reprocess request; this is the other half, owed out of phase C, where the request
-/// is a reprocess filter over real streams and task creation turns it back into the inputs that waited.
 /// It is what "nothing is held" (design 01 §5.2) means in practice: a stream that arrives before its
-/// shape is known is not parked anywhere, it is processed to an error stream and remembered, and the
-/// promotion that settles the shape puts it back through the pipeline as-current (A12).
+/// learner has learned is not parked anywhere — its task is deferred — and the promotion that settles the
+/// learner puts the deferred tasks back in the queue, to run through what now serves (A129).
 class TestScenario13ReleaseInAPipeline extends AbstractCoreIntegrationTest {
 
     private static final String FEED = "DOOR-ACCESS-RELEASED";
@@ -125,8 +122,6 @@ class TestScenario13ReleaseInAPipeline extends AbstractCoreIntegrationTest {
     private DeferredLearning deferredLearning;
     @Inject
     private Rules rules;
-    @Inject
-    private Ledger ledger;
     @Inject
     private Provider<DS3ParserFactory> parserFactories;
 
@@ -170,9 +165,6 @@ class TestScenario13ReleaseInAPipeline extends AbstractCoreIntegrationTest {
         deferredLearning.exec();
         script.verifyExhausted();
         assertThat(rules.forLearner(learner)).hasSize(1);
-        assertThat(ledger.release(learner))
-                .describedAs("the ledger holds nothing: nothing was sentinelled")
-                .isEmpty();
 
         // And the wake is real: both tasks are back in the queue ahead of the retry delay, and run again
         // through the rule that settled the shape — bound, not learned again.

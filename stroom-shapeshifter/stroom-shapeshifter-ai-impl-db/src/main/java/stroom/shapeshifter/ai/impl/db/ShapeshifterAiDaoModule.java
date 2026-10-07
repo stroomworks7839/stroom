@@ -26,7 +26,6 @@ import stroom.shapeshifter.ai.stage.Deferrals;
 import stroom.shapeshifter.ai.stage.Guidance;
 import stroom.shapeshifter.ai.stage.LearnerStates;
 import stroom.shapeshifter.ai.stage.Learners;
-import stroom.shapeshifter.ai.stage.Ledger;
 import stroom.shapeshifter.ai.stage.Outputs;
 import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.ai.stage.Serving;
@@ -58,7 +57,6 @@ public class ShapeshifterAiDaoModule extends AbstractModule {
         requireBinding(EntityEventBus.class);
 
         bind(Attempts.class).to(AttemptsDao.class);
-        bind(Ledger.class).to(LedgerDao.class);
         bind(Guidance.class).to(GuidanceDao.class);
         bind(Spend.class).to(SpendDao.class);
         bind(Outputs.class).to(OutputsDao.class);

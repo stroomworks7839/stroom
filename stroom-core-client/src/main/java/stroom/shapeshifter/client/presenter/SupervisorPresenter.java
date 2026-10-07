@@ -58,7 +58,6 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
     public static final String TAB_TYPE = "ShapeshifterAiSupervisor";
     public static final String ATTEMPT_LIST = "ATTEMPT_LIST";
     public static final String TURN_LIST = "TURN_LIST";
-    public static final String LEDGER = "LEDGER";
     public static final String SERVING = "SERVING";
     public static final String BACKLOG = "BACKLOG";
 
@@ -67,7 +66,6 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
 
     private final SupervisorListPresenter listPresenter;
     private final SupervisorTurnsPresenter turnsPresenter;
-    private final SupervisorLedgerPresenter ledgerPresenter;
     private final SupervisorServingPresenter servingPresenter;
     private final SupervisorGuidancePresenter guidancePresenter;
     private final SupervisorBacklogPresenter backlogPresenter;
@@ -88,7 +86,6 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
                                final SupervisorView view,
                                final SupervisorListPresenter listPresenter,
                                final SupervisorTurnsPresenter turnsPresenter,
-                               final SupervisorLedgerPresenter ledgerPresenter,
                                final SupervisorServingPresenter servingPresenter,
                                final SupervisorGuidancePresenter guidancePresenter,
                                final SupervisorBacklogPresenter backlogPresenter,
@@ -96,7 +93,6 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
         super(eventBus, view);
         this.listPresenter = listPresenter;
         this.turnsPresenter = turnsPresenter;
-        this.ledgerPresenter = ledgerPresenter;
         this.servingPresenter = servingPresenter;
         this.guidancePresenter = guidancePresenter;
         this.backlogPresenter = backlogPresenter;
@@ -114,14 +110,6 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
         turnsPresenter.setOnDetail(this::drawPath);
         flowChart.fitToPane();
         view.setFlowChart(flowChart);
-        setInSlot(LEDGER, ledgerPresenter);
-        // A learner sent back to learn shows up as an attempt, so the list beside it is read again.
-        ledgerPresenter.setOnLearn(() -> {
-            listPresenter.getSelectionModel().clear();
-            updateButtons();
-            listPresenter.refresh();
-            servingPresenter.refresh();
-        });
         setInSlot(SERVING, servingPresenter);
         setInSlot(BACKLOG, backlogPresenter);
 
@@ -176,7 +164,7 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
         if (attempt != null) {
             ConfirmEvent.fire(this,
                     "Approve what this attempt drafted? It binds the fragment for its learner, and every "
-                    + "stream that waited for it is processed again.",
+                    + "stream that waited for it is tried again.",
                     ok -> {
                         if (ok) {
                             act(resource -> resource.approve(attempt.getId()));
@@ -206,8 +194,10 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
     private void relearn() {
         final SupervisorAttempt attempt = selected();
         if (attempt != null) {
-            ConfirmEvent.fire(this, "Learn again? The model is asked afresh, and what is "
-                                    + "bound now keeps serving until it answers.",
+            ConfirmEvent.fire(this, "Learn again? The learner learns afresh from its next stream, "
+                                    + "and what is bound now keeps serving until then. Streams that "
+                                    + "errored while it had given up are ordinary error streams: "
+                                    + "reprocess them on the pipeline to put them through.",
                     ok -> {
                         if (ok) {
                             act(resource -> resource.relearn(attempt.getId()));
@@ -329,8 +319,7 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
                     listPresenter.getSelectionModel().clear();
                     updateButtons();
                     turnsPresenter.read(decided);
-                    // The ledger with it: approving a draft releases the streams that waited for its
-                    // learner, so the row they were counted in goes.
+                    // What serves with it: approving a draft puts a rule in front of its learner.
                     refresh();
                 })
                 .taskMonitorFactory(this)
@@ -386,7 +375,6 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
     @Override
     public void refresh() {
         listPresenter.refresh();
-        ledgerPresenter.refresh();
         servingPresenter.refresh();
         backlogPresenter.refresh();
     }

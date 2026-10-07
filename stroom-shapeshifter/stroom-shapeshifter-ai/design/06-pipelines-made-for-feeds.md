@@ -580,6 +580,51 @@ The largest phase. Its slices keep the build and the scenarios green at each ste
    deferred tasks on the pipeline (§4.3). `PipelineReprocessing` goes; reprocessing is a person's
    reprocess filter on the pipeline, and a scenario proves a reprocess filter's deferred task wakes.
    Stepping the pipeline reads the record and writes nothing (A121), with a test.
+
+   *Built 2026-10-07.* A wake names a pipeline (`Wake.wake(pipelineUuid)`), and the processor wakes the
+   deferred tasks of every filter on it (`ProcessorTaskService.wakeDeferredTasks(pipelineUuid)`, which
+   replaces the filter and stream ids): the live filter's and any reprocess filter a person made, which
+   an app scenario shows promoted together. The stage asks for nothing to be reprocessed (A129):
+   `Reprocessing`, its in-memory form and `PipelineReprocessing` are gone. Promotion and approval clear
+   the learner's ledger and wake its pipeline. Learning again and retracting return how many streams a
+   person has to reprocess, and the Supervisor's prompts say so instead of promising a reprocess. The
+   learning job's sweep reads distinct learner-and-transform stamps (`Deferrals.stampsWaiting`) and
+   wakes each pipeline with a stream waiting on a replaced transform once (A130); a learner behind a
+   draft, or with nothing serving it, is left. A step was already a dry run; a test now holds it to
+   moving no rows to the document it is stepped under, adding nothing to the rolling score, and leaving
+   no state, deferral or wake.
+
+   The mock harness's wake needed one thing the table has for free: the mock queue makes each task
+   from a filter's tracker and stores none, so the mock task DAO now keeps the deferred ones it is told
+   of until they are woken, and the waking task service winds each filter's tracker back to the oldest
+   stream woken on it.
+
+   *4 audited 2026-10-07.* The ledger is gone (A131). Since A129 it had nothing left to do, and the audit
+   found it doing harm. The worker wrote rows for streams it had only read back out of the store while
+   their own tasks waited, so a person sending a learner back would have been told to reprocess streams
+   that would also run of themselves. The draft's "Awaiting review" row named a stream that was deferred,
+   not errored. A learner sent back from the attempt list kept its rows, and its next promotion cleared
+   them unread, now that a promotion no longer reprocessed them. What it held is held elsewhere: every
+   session, successful or not, is an attempt; a person sends a learner back from the attempt; and the
+   streams that errored are the pipeline's error streams, reprocessed with a reprocess filter like any
+   others. The `Ledger` seam, its table, its in-memory form, the Supervisor's ledger panel, its two
+   endpoints and `LedgerLearner` and `LearnAgainRequest` go; the table is taken out of the unreleased
+   migration, so a development database must again drop the Shapeshifter AI tables first. A sentinel is
+   an error stream and nothing more.
+
+   Three faults closed on the way. A give-up below the promotion floor did not wake the learner's
+   pipeline, as the flow's give-up does, so its waiting streams sat until the retry delay; it wakes now.
+   The in-memory learner states made a row on every read, so a test could not tell a read from a write.
+   And the mock task DAO now keeps the deferred tasks of the mock queue, which stores none, so that the
+   app harness can wake a pipeline. Left for slice 7: a deferral's `task_id` and `filter_id` are written
+   and no longer read, since the wake names the pipeline.
+
+   The removal audited the same day. The tests whose ledger assertions went were read for what they
+   still prove; the dry run's disabled-document test had lost its point and asserts again that it writes
+   nothing. A scenario now drives the one way back: a learner that gave up, sent back from its attempt,
+   learns from the stream that errored when a person reprocesses it, and serves the next. Learn again's
+   confirmation says what becomes of the streams that errored. Designs 01, 02, 03 and 04 mark where the
+   ledger they describe is superseded by A131.
 5. **Where learned content goes (A113).** The element's folder and name properties, defaulting to
    beside the pipeline under its name, replace the fixed folder and the timestamped names.
 6. **A deleted pipeline's learning.** Its record is marked deleted and its sessions age out under the
@@ -832,3 +877,20 @@ says which learner each goes to, rather than the fixture deriving one from the s
 **A128.** *The Supervisor's rows and requests name the learner, not a shape.* Guidance and learning
 again need only the learner; a row shows it, and an attempt the feed and type of the stream it learned
 from. *Ruled 2026-10-07.*
+
+**A129.** *The stage asks for nothing to be reprocessed.* Streams wait as deferred tasks and the wake by
+pipeline replays them, so a promotion or an approval has nothing to release. What the stage errors — a
+learner that gave up, a binding retracted — it says rather than replays: learning again and retracting
+report how many streams are affected, and a person makes a reprocess filter on the pipeline as they make
+any other. `Reprocessing` and `PipelineReprocessing` go. *Ruled 2026-10-07, over keeping the stage's
+requests for learning again and retracting.*
+
+**A130.** *The sweep for streams waiting on a replaced transform is per learner.* The learning job's pass
+reads the distinct learners and stamps of the waiting rows, not every row, and wakes the pipeline of a
+learner whose stamp is no longer its binding's. *Ruled 2026-10-07.*
+
+**A131.** *There is no ledger.* Every learning session, successful or not, is an attempt, and the attempt
+is the record a person acts from: they send its learner back from it. A stream a failed session errored
+is an ordinary error stream, reprocessed on the pipeline as any other is; nothing else is written for
+it. The ledger of design 01 §5.2 and its table, view and endpoints go. *Ruled 2026-10-07, in the audit
+of slice 4: since A129 the ledger bought nothing but complexity.*

@@ -107,11 +107,17 @@ public class DeferralsDao implements Deferrals {
     }
 
     @Override
-    public List<String> documentsWaiting() {
+    public List<Stamp> stampsWaiting() {
         return JooqUtil.contextResult(connProvider, context -> context
-                .selectDistinct(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.DOC_UUID)
+                .selectDistinct(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.PIPELINE_UUID,
+                        ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.ELEMENT_ID,
+                        ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.FAILED_AGAINST)
                 .from(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL)
-                .fetch(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.DOC_UUID));
+                .where(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.FAILED_AGAINST.isNotNull())
+                .fetch(row -> new Stamp(
+                        new Learner(row.get(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.PIPELINE_UUID),
+                                row.get(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.ELEMENT_ID)),
+                        row.get(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.FAILED_AGAINST))));
     }
 
     @Override
@@ -122,18 +128,6 @@ public class DeferralsDao implements Deferrals {
                 .and(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.ELEMENT_ID.eq(learner.elementId()))
                 .and(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.META_ID.eq(inputId))
                 .fetchOptional(DeferralsDao::deferral));
-    }
-
-    @Override
-    public List<Deferral> waiting(final Learner learner) {
-        // On the learner's prefix of the unique key.
-        return JooqUtil.contextResult(connProvider, context -> context
-                .selectFrom(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL)
-                .where(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.PIPELINE_UUID.eq(learner.pipelineUuid()))
-                .and(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.ELEMENT_ID.eq(learner.elementId()))
-                .orderBy(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.FIRST_DEFERRED_MS.asc(),
-                        ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.META_ID.asc())
-                .fetch(DeferralsDao::deferral));
     }
 
     private static Deferral deferral(final Record row) {

@@ -121,7 +121,6 @@ class TestScenario01LearnsACsvFeed {
         assertThat(run.output()).isEqualTo(EXPECTED_EVENTS);
         assertThat(run.transcript()).hasSize(6);
         assertThat(scenarios.states.reasonGivenUp(Scenarios.LEARNER)).isEmpty();
-        assertThat(scenarios.ledger.isEmpty()).isTrue();
         assertThat(run.bindings())
                 .describedAs("design 01 §7.3 rule 3: the output records what produced it")
                 .isEqualTo(new Bindings(run.doc().getUuid(), promoted.rule().getUuid(),

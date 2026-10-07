@@ -17,38 +17,45 @@
 package stroom.test;
 
 import stroom.processor.api.ProcessorFilterService;
-import stroom.processor.impl.ProcessorTaskDao;
+import stroom.processor.impl.MockProcessorTaskDao;
 import stroom.processor.mock.MockProcessorTaskService;
+import stroom.processor.shared.ProcessorTask;
 
 import jakarta.inject.Inject;
 
-import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /// The mock task service with one thing real: a wake, over the mock task DAO. The mock harness runs
-/// tasks it creates itself, and a promotion in Shapeshifter AI wakes the deferred ones through the task
-/// service (design 04 §5.3), so a harness whose wake did nothing would leave every deferred stream asleep.
+/// tasks it creates itself, and a promotion in Shapeshifter AI wakes its pipeline's deferred tasks
+/// through the task service (design 06 A129), so a harness whose wake did nothing would leave every
+/// deferred stream asleep.
 public class WakingMockProcessorTaskService extends MockProcessorTaskService {
 
-    private final ProcessorTaskDao processorTaskDao;
+    private final MockProcessorTaskDao processorTaskDao;
     private final ProcessorFilterService processorFilterService;
 
     @Inject
-    public WakingMockProcessorTaskService(final ProcessorTaskDao processorTaskDao,
+    public WakingMockProcessorTaskService(final MockProcessorTaskDao processorTaskDao,
                                           final ProcessorFilterService processorFilterService) {
         this.processorTaskDao = processorTaskDao;
         this.processorFilterService = processorFilterService;
     }
 
     @Override
-    public int wakeDeferredTasks(final int filterId, final Collection<Long> metaIds) {
+    public int wakeDeferredTasks(final String pipelineUuid) {
         // The mock queue offers each stream once, from the filter's tracker onward, whatever the task
-        // rows say: a wake here is the tracker wound back to the oldest stream woken, so that the next
-        // assignment offers it again.
-        final int woken = processorTaskDao.wakeDeferredTasks(filterId, metaIds);
-        processorFilterService.fetch(filterId).ifPresent(filter -> metaIds.stream()
-                .min(Long::compare)
-                .ifPresent(oldest -> filter.getProcessorFilterTracker().setMinMetaId(
+        // rows say: a wake here is each filter's tracker wound back to the oldest stream woken on it, so
+        // that the next assignment offers it again.
+        final List<ProcessorTask> deferred = processorTaskDao.deferred(pipelineUuid);
+        final int woken = processorTaskDao.wakeDeferredTasks(pipelineUuid);
+        final Map<Integer, Long> oldestByFilter = deferred.stream()
+                .collect(Collectors.toMap(task -> task.getProcessorFilter().getId(), ProcessorTask::getMetaId,
+                        Math::min));
+        oldestByFilter.forEach((filterId, oldest) -> processorFilterService.fetch(filterId)
+                .ifPresent(filter -> filter.getProcessorFilterTracker().setMinMetaId(
                         Math.min(filter.getProcessorFilterTracker().getMinMetaId(), oldest))));
-        return Math.max(woken, metaIds.size());
+        return woken;
     }
 }

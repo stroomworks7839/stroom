@@ -26,14 +26,10 @@ import stroom.shapeshifter.ai.stage.Attempts.Turn;
 import stroom.shapeshifter.ai.stage.Bindings;
 import stroom.shapeshifter.ai.stage.Guidance.Given;
 import stroom.shapeshifter.ai.stage.Learner;
-import stroom.shapeshifter.ai.stage.Ledger;
 import stroom.shapeshifter.ai.stage.Replayable;
 import stroom.shapeshifter.ai.stage.Spend.Spent;
-import stroom.shapeshifter.ai.state.InMemoryLedger;
 import stroom.shapeshifter.shared.AttemptCriteria;
 import stroom.shapeshifter.shared.AttemptStatus;
-import stroom.shapeshifter.shared.LearnerRef;
-import stroom.shapeshifter.shared.LedgerLearner;
 import stroom.shapeshifter.shared.PromotionMode;
 import stroom.shapeshifter.shared.QuestionKind;
 import stroom.shapeshifter.shared.RecordBoundary;
@@ -54,8 +50,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
 
-/// The learner state of A117 and A124, the ledger of §5.2, the attempts and guidance as rows.
-class TestLearnerStatesAndLedgerDao {
+/// The learner state of A117 and A124, the attempts and guidance as rows.
+class TestLearnerStatesAndAttemptsDao {
 
     private static final String DOC = "doc-" + System.nanoTime();
     private static final Learner LEARNER = learner("door");
@@ -64,8 +60,6 @@ class TestLearnerStatesAndLedgerDao {
 
     @Inject
     private LearnerStatesDao states;
-    @Inject
-    private LedgerDao ledger;
     @Inject
     private GuidanceDao guidance;
     @Inject
@@ -79,11 +73,6 @@ class TestLearnerStatesAndLedgerDao {
     void setUp() {
         Guice.createInjector(new TestModule()).injectMembers(this);
         states.reset(LEARNER);
-        ledger.release(LEARNER);
-        // Every learner these tests write, not just the one most of them use: a test that fails partway
-        // leaves its rows behind, and the next test would then report that the table and the heap had
-        // diverged when what had actually happened is that the table started with more in it.
-        ledger.release(OTHER);
     }
 
     /// A learner of this run's own, so that rows a failed run left behind are not this one's.
@@ -125,38 +114,6 @@ class TestLearnerStatesAndLedgerDao {
         // Reset starts it afresh, as a promotion or a retraction does.
         states.reset(LEARNER);
         assertThat(states.scored(LEARNER, DOC, 1.0, 1, 1)).hasValue(1.0);
-    }
-
-    @Test
-    void theLedgerNamesWhatToReplayAndWhereAndReleasesItOnce() {
-        final Learner neighbour = OTHER;
-        ledger.sentinelled(LEARNER, DOC, 1L, "Nothing serves this learner");
-        ledger.sentinelled(LEARNER, DOC, 2L, "Nothing serves this learner");
-        ledger.sentinelled(neighbour, DOC, 3L, "Nothing serves this learner");
-
-        final List<Replayable> released = ledger.release(LEARNER);
-
-        assertThat(released).extracting(Replayable::inputId)
-                .describedAs("oldest first, and only this learner's: the backlog is replayed in order")
-                .containsExactly(1L, 2L);
-        assertThat(released).extracting(Replayable::pipeline)
-                .describedAs("each through the learner's pipeline, which sentinelled it, whichever node "
-                             + "releases it")
-                .containsOnly(LEARNER.pipelineUuid());
-        assertThat(ledger.release(LEARNER))
-                .describedAs("a second release finds nothing: two nodes must not both replay it")
-                .isEmpty();
-        assertThat(ledger.release(neighbour)).extracting(Replayable::inputId)
-                .describedAs("another learner's streams settle on their own")
-                .containsExactly(3L);
-    }
-
-    @Test
-    void aStreamSentinelledTwiceIsReplayedOnce() {
-        ledger.sentinelled(LEARNER, DOC, 1L, "Nothing serves this learner");
-        ledger.sentinelled(LEARNER, DOC, 1L, "Nothing serves this learner, again");
-
-        assertThat(ledger.release(LEARNER)).extracting(Replayable::inputId).containsExactly(1L);
     }
 
     @Test
@@ -693,106 +650,6 @@ class TestLearnerStatesAndLedgerDao {
     private static long now() {
         return System.currentTimeMillis();
     }
-
-    /// The ledger read rather than released (A28 §11.6): a row per learner, what is waiting and since
-    /// when, and the newest stream's reason standing for the learner.
-    ///
-    /// Reading takes nothing off. A view that answered by releasing would put a backlog through the
-    /// pipeline because somebody opened a screen, which is the opposite of what the screen is for.
-    @Test
-    void theLedgerIsReadWithoutBeingSpent() {
-        ledger.sentinelled(LEARNER, DOC, 1L, "Nothing serves this learner");
-        ledger.sentinelled(LEARNER, DOC, 2L, "Being learned on another node");
-        ledger.sentinelled(OTHER, DOC, 3L, "Awaiting review");
-
-        assertThat(ledger.waiting(List.of(DOC), 0L, 100).learners())
-                .describedAs("a row per learner, most recently added first")
-                .extracting(LedgerLearner::getLearner, LedgerLearner::getWaiting, LedgerLearner::getReason)
-                .containsExactly(
-                        tuple(ref(OTHER), 1, "Awaiting review"),
-                        tuple(ref(LEARNER), 2, "Being learned on another node"));
-        assertThat(ledger.waiting(List.of(DOC), 0L, 100).learners().get(1))
-                .describedAs("and how long it has been waiting")
-                .satisfies(row -> assertThat(row.getOldestTimeMs()).isLessThanOrEqualTo(row.getNewestTimeMs()));
-        assertThat(ledger.waiting(List.of(DOC, "another-document"), 0L, 100).total())
-                .describedAs("every document a person may see, for a view that is over all of them")
-                .isEqualTo(2L);
-        assertThat(ledger.waiting(List.of(DOC), 0L, 1).learners())
-                .describedAs("a page is a page, and the total says how much there is beyond it")
-                .hasSize(1);
-        assertThat(ledger.waiting(List.of(DOC), 0L, 1).total()).isEqualTo(2L);
-        assertThat(ledger.waiting(List.of(), 0L, 100).learners())
-                .describedAs("no documents to read is nothing to read, not everything")
-                .isEmpty();
-        assertThat(ledger.waiting(List.of("no-such-document"), 0L, 100).learners()).isEmpty();
-
-        assertThat(ledger.waiting(List.of(DOC), 0L, 100).learners())
-                .describedAs("read twice is read twice: nothing was taken off by the reading")
-                .hasSize(2);
-        assertThat(ledger.release(LEARNER))
-                .describedAs("and the release still has everything to release")
-                .hasSize(2);
-        assertThat(ledger.waiting(List.of(DOC), 0L, 100).learners())
-                .describedAs("which is the one thing that does take a learner off")
-                .extracting(LedgerLearner::getLearner).containsExactly(ref(OTHER));
-
-        ledger.release(OTHER);
-    }
-
-
-    /// The table and the heap answer the same question the same way.
-    ///
-    /// Two implementations of the ledger exist — the rows a node keeps and the list the scenarios run
-    /// on — and a view written against one and served by the other is a view that lies. The grouping
-    /// key and the order are the two things that would drift silently, so they are the two things held.
-    @Test
-    void theLedgerInMemoryAgreesWithTheLedgerInRows() {
-        final InMemoryLedger inMemory = new InMemoryLedger();
-        final List<Ledger> both = List.of(ledger, inMemory);
-        both.forEach(seam -> {
-            seam.sentinelled(LEARNER, DOC, 1L, "Nothing serves this learner");
-            seam.sentinelled(LEARNER, DOC, 1L, "Nothing serves this learner");
-            seam.sentinelled(OTHER, DOC, 2L, "Awaiting review");
-            seam.sentinelled(LEARNER, DOC, 3L, "Being learned on another node");
-        });
-
-        assertThat(summarise(inMemory.waiting(List.of(DOC), 0L, 100).learners()))
-                .describedAs("the same learners, the same counts, the same reasons, in the same order")
-                .isEqualTo(summarise(ledger.waiting(List.of(DOC), 0L, 100).learners()));
-        assertThat(summarise(inMemory.waiting(List.of(DOC), 0L, 100).learners()))
-                .describedAs("a stream sentinelled twice is one waiting stream, not two")
-                .containsExactly(ref(LEARNER) + " x2: Being learned on another node",
-                        ref(OTHER) + " x1: Awaiting review");
-
-        // Saying something else about why a learner's streams wait, without releasing any of them: what
-        // rejecting a draft does, so that the rows stop naming a draft that no longer exists.
-        both.forEach(seam -> seam.restate(OTHER, "Rejected: the wrong parser"));
-        assertThat(summarise(inMemory.waiting(List.of(DOC), 0L, 100).learners()))
-                .describedAs("the table and the heap restate the same rows the same way, and leave the "
-                             + "other learner's alone")
-                .isEqualTo(summarise(ledger.waiting(List.of(DOC), 0L, 100).learners()));
-        assertThat(summarise(ledger.waiting(List.of(DOC), 0L, 100).learners()))
-                .contains(ref(OTHER) + " x1: Rejected: the wrong parser");
-        assertThat(ledger.waiting(List.of(DOC), 0L, 100).learners())
-                .describedAs("and nothing is released: the streams are still waiting, and still waiting "
-                             + "since they arrived")
-                .filteredOn(row -> ref(OTHER).equals(row.getLearner()))
-                .allSatisfy(row -> assertThat(row.getWaiting()).isEqualTo(1));
-
-        ledger.release(LEARNER);
-        ledger.release(OTHER);
-    }
-
-    private static List<String> summarise(final List<LedgerLearner> rows) {
-        return rows.stream()
-                .map(row -> row.getLearner() + " x" + row.getWaiting() + ": " + row.getReason())
-                .toList();
-    }
-
-    private static LearnerRef ref(final Learner learner) {
-        return new LearnerRef(learner.pipelineUuid(), learner.elementId());
-    }
-
 
     /// A supervisor's messages as rows (A46): kept per learner, read oldest first, and taken back by id.
     ///

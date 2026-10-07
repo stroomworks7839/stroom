@@ -105,14 +105,6 @@ public interface SupervisorResource extends RestResource, DirectRestService {
                                       @Parameter(description = "page", required = true) PageRequest pageRequest);
 
     @POST
-    @Path("/ledger")
-    @Operation(
-            summary = "What is waiting on the ledger, a row per learner",
-            operationId = "findShapeshifterAiLedger")
-    ResultPage<LedgerLearner> ledger(@QueryParam("docUuid") String docUuid,
-                                     @Parameter(description = "page", required = true) PageRequest pageRequest);
-
-    @POST
     @Path("/serving")
     @Operation(
             summary = "The rules that are serving, ordered by the traffic each carries",
@@ -139,8 +131,8 @@ public interface SupervisorResource extends RestResource, DirectRestService {
     @POST
     @Path("/serving/{docUuid}/{ruleUuid}/retract")
     @Operation(
-            summary = "Take a rule that is serving back out of the table, and ask for what it produced "
-                      + "to be processed again",
+            summary = "Take a rule that is serving back out of the table, and say how many streams it "
+                      + "produced output for",
             operationId = "retractShapeshifterAiRule")
     Integer retract(@PathParam("docUuid") String docUuid,
                     @PathParam("ruleUuid") String ruleUuid,
@@ -171,14 +163,6 @@ public interface SupervisorResource extends RestResource, DirectRestService {
                                       @PathParam("id") long id,
                                       @QueryParam("pipelineUuid") String pipelineUuid,
                                       @QueryParam("elementId") String elementId);
-
-    @POST
-    @Path("/ledger/{docUuid}/learn")
-    @Operation(
-            summary = "Ask for a learner to learn now, and for the streams waiting on it to be "
-                      + "processed again",
-            operationId = "learnShapeshifterAiLearner")
-    Integer learn(@PathParam("docUuid") String docUuid, LearnAgainRequest request);
 
     @POST
     @Path("/{id}/relearn")

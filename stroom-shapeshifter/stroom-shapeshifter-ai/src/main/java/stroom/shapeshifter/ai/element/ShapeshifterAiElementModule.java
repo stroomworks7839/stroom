@@ -24,7 +24,6 @@ import stroom.shapeshifter.ai.learning.Advisors;
 import stroom.shapeshifter.ai.stage.Documents;
 import stroom.shapeshifter.ai.stage.Inputs;
 import stroom.shapeshifter.ai.stage.RegressionSet;
-import stroom.shapeshifter.ai.stage.Reprocessing;
 import stroom.shapeshifter.ai.stage.Wake;
 import stroom.util.RunnableWrapper;
 import stroom.util.shared.scheduler.CronExpressions;
@@ -45,10 +44,9 @@ public class ShapeshifterAiElementModule extends PipelineElementModule {
     protected void configure() {
         super.configure();
         OptionalBinder.newOptionalBinder(binder(), Advisors.class).setDefault().to(ModelAdvisors.class);
-        bind(Reprocessing.class).to(PipelineReprocessing.class).in(Scopes.SINGLETON);
         // The corpus is streams on the source feed with an index the impl-db module binds (design 04 §4.1).
         bind(RegressionSet.class).to(StoredRegressionSet.class).in(Scopes.SINGLETON);
-        // A promotion wakes the tasks waiting on its shape (design 04 §5.3).
+        // A promotion wakes the deferred tasks of its learner's pipeline (design 04 §5.3, design 06 §4.3).
         bind(Wake.class).to(TaskWake.class).in(Scopes.SINGLETON);
         // What deferred mode's worker needs and a processing task is handed: the document an attempt
         // names, and the stream it was raised on (A5, A28).

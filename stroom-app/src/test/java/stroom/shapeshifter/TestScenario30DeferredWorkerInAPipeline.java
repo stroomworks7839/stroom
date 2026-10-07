@@ -50,7 +50,6 @@ import stroom.shapeshifter.ai.scenario.Structure;
 import stroom.shapeshifter.ai.stage.Attempts;
 import stroom.shapeshifter.ai.stage.Attempts.Recorded;
 import stroom.shapeshifter.ai.stage.Learner;
-import stroom.shapeshifter.ai.stage.Ledger;
 import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.ai.transformation.XsltStep;
 import stroom.shapeshifter.shared.AttemptStatus;
@@ -106,8 +105,6 @@ class TestScenario30DeferredWorkerInAPipeline extends AbstractProcessIntegration
     private ShapeshifterAiStore shapeshifterAiStore;
     @Inject
     private Rules rules;
-    @Inject
-    private Ledger ledger;
     @Inject
     private Attempts attempts;
     @Inject
@@ -183,13 +180,8 @@ class TestScenario30DeferredWorkerInAPipeline extends AbstractProcessIntegration
         final RoutingRule rule = rules.forLearner(learner).get(0);
         assertThat(pipelineStore.readDocument(rule.getPipeline()))
                 .describedAs("and the fragment it learned is a pipeline document").isNotNull();
-        assertThat(ledger.release(learner))
-                .describedAs("the ledger holds nothing: what waited was deferred, not sentinelled")
-                .isEmpty();
-        // Scenario 13's substance in a node: *both* streams waited on this shape and one promotion
-        // released them together. That the release then becomes a reprocess filter is what this harness
-        // cannot show — it binds a mock ProcessorFilterService whose reprocess does nothing — and is
-        // owed against the DB-backed processor service (design 02 §6.1).
+        // Scenario 13's substance in a node: *both* streams waited on this learner and one promotion
+        // woke them together, as the pipeline's deferred tasks (design 06 A129).
 
         // The next stream of the shape is bound in the task, with no model call and no worker.
         final Script silent = Script.of();

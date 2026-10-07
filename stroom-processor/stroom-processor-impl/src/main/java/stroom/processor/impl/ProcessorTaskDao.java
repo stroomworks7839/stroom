@@ -174,14 +174,13 @@ public interface ProcessorTaskDao {
     long sweepDeferredTasks(Instant statusOlderThan);
 
     /**
-     * Return the DEFERRED tasks of a filter whose streams are named to CREATED now, rather than when
-     * the sweep next finds them: whatever they were waiting for has arrived.
+     * Return the DEFERRED tasks of every filter on a pipeline to CREATED now, rather than when the sweep
+     * next finds them: whatever they were waiting for has arrived.
      *
-     * @param filterId The filter whose tasks they are.
-     * @param metaIds  The streams whose tasks are to be woken.
+     * @param pipelineUuid The pipeline whose filters' tasks they are.
      * @return The number of tasks returned to CREATED.
      */
-    int wakeDeferredTasks(int filterId, Collection<Long> metaIds);
+    int wakeDeferredTasks(String pipelineUuid);
 
     /**
      * Count the current number of tasks for a filter matching the specified status.

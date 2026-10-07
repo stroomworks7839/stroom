@@ -24,8 +24,6 @@ import stroom.shapeshifter.ai.stage.Decision.Sentinel;
 import stroom.shapeshifter.ai.stage.Deferrals.Deferral;
 import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.StageRun;
-import stroom.shapeshifter.ai.state.InMemoryLedger;
-import stroom.shapeshifter.ai.state.InMemoryReprocessing.Request;
 import stroom.shapeshifter.shared.AttemptStatus;
 import stroom.shapeshifter.shared.FlowExample;
 import stroom.shapeshifter.shared.LearningMode;
@@ -120,10 +118,6 @@ class TestScenario22ReviewMode {
         assertThat(first.output()).describedAs("nothing is produced under a draft").isNull();
         assertThat(first.bindings()).isNull();
         assertThat(scenarios.stores.pipelines.list()).describedAs("the fragment is written all the same").hasSize(1);
-        assertThat(scenarios.ledger.rows()).extracting(InMemoryLedger.Row::inputId).containsExactly(1L);
-        assertThat(scenarios.ledger.rows().get(0).reason())
-                .contains("Awaiting review").contains(draft.getUuid());
-        assertThat(scenarios.reprocessing.requests()).describedAs("a draft releases nothing").isEmpty();
 
         final Script silent = Script.of();
         final StageRun second = scenarios.process(silent, first.doc(), stream(2, lines(4, 0))).learned();
@@ -153,12 +147,6 @@ class TestScenario22ReviewMode {
         assertThat(live.getPromotedTimeMs()).isEqualTo(Scenarios.NOW.toEpochMilli());
         assertThat(live.getPipeline()).isEqualTo(draft.getPipeline());
         assertThat(live.getScore()).isEqualTo(draft.getScore());
-        assertThat(scenarios.ledger.isEmpty()).isTrue();
-        assertThat(scenarios.reprocessing.requests()).hasSize(1);
-        final Request request = scenarios.reprocessing.requests().get(0);
-        assertThat(request.inputIds()).describedAs("the stream that learned the draft, from the ledger")
-                .containsExactly(1L);
-        assertThat(request.reason()).contains("approved").contains(draft.getUuid());
         assertThat(scenarios.wake.woken()).extracting(Deferral::inputId)
                 .describedAs("and the stream that waited behind it, woken").contains(2L);
         assertThat(scenarios.regressionSet.accepted(live.getUuid())).isNotEmpty();
@@ -181,22 +169,10 @@ class TestScenario22ReviewMode {
         assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).isEmpty();
         assertThat(scenarios.regressionSet.accepted(draft.getUuid())).isEmpty();
         assertThat(scenarios.states.reasonGivenUp(Scenarios.LEARNER)).contains("Rejected: the wrong parser");
-        assertThat(scenarios.ledger.rows())
-                .describedAs("the ledger keeps what it had: the stream that learned the draft has no "
-                             + "binding now either")
-                .hasSize(1);
         assertThat(scenarios.wake.woken()).extracting(Deferral::inputId)
                 .describedAs("the stream that waited behind the draft is woken, to error as a given-up "
-                             + "shape's streams do")
+                             + "learner's streams do")
                 .contains(2L);
-        assertThat(scenarios.ledger.rows()).extracting(InMemoryLedger.Row::reason)
-                .describedAs("but they stop saying they are waiting for somebody to review a draft "
-                             + "that no longer exists — which is what the screen a person would use to "
-                             + "start the shape learning again would otherwise have told them")
-                .allMatch(reason -> reason.contains("Rejected: the wrong parser"));
-        assertThat(scenarios.reprocessing.requests())
-                .describedAs("and nothing is released or replayed: only the reason changed")
-                .isEmpty();
 
         // The model is not asked again: the shape is given up until an operator says otherwise.
         final Script silent = Script.of();
@@ -204,8 +180,6 @@ class TestScenario22ReviewMode {
         assertThat(third.decision()).isInstanceOf(Sentinel.class);
         assertThat(((Sentinel) third.decision()).reason()).contains("Rejected: the wrong parser");
         assertThat(silent.asked()).isEmpty();
-        assertThat(scenarios.ledger.rows()).describedAs("a given-up shape's stream keeps its row (A80)")
-                .hasSize(2);
     }
 
     @Test
@@ -337,7 +311,6 @@ class TestScenario22ReviewMode {
         assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).containsExactly(incumbent, draft);
         assertThat(events(relearned.output())).describedAs("the incumbent served").isEqualTo(14);
         assertThat(relearned.bindings().fragment()).isEqualTo(incumbent.getPipeline());
-        assertThat(scenarios.ledger.isEmpty()).describedAs("nothing was refused").isTrue();
 
         // While the draft waits the incumbent keeps serving, the model is not asked, no second draft.
         final StageRun meanwhile = scenarios.process(silent, relearned.doc(), stream(5, withAlarms)).learned();
@@ -359,7 +332,6 @@ class TestScenario22ReviewMode {
                 .describedAs("the draft's records, learned for in its session, now follow the incumbent's")
                 .hasSizeGreaterThan(incumbentHeld);
         assertThat(scenarios.regressionSet.accepted(draft.getUuid())).isEmpty();
-        assertThat(scenarios.reprocessing.requests()).describedAs("the shape's ledger was already empty").hasSize(1);
 
         final StageRun after = scenarios.process(silent, bound, stream(6, withAlarms)).learned();
         assertThat(events(after.output())).isEqualTo(20);

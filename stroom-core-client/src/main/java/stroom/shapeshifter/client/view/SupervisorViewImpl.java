@@ -33,8 +33,6 @@ public class SupervisorViewImpl extends ViewImpl implements SupervisorPresenter.
     @UiField
     SimplePanel turnList;
     @UiField
-    SimplePanel ledger;
-    @UiField
     SimplePanel serving;
     @UiField
     SimplePanel backlog;
@@ -62,8 +60,6 @@ public class SupervisorViewImpl extends ViewImpl implements SupervisorPresenter.
             attemptList.setWidget(content);
         } else if (SupervisorPresenter.TURN_LIST.equals(slot)) {
             turnList.setWidget(content);
-        } else if (SupervisorPresenter.LEDGER.equals(slot)) {
-            ledger.setWidget(content);
         } else if (SupervisorPresenter.SERVING.equals(slot)) {
             serving.setWidget(content);
         } else if (SupervisorPresenter.BACKLOG.equals(slot)) {

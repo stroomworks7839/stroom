@@ -137,31 +137,35 @@ class TestProcessorTaskDaoImpl extends AbstractProcessorTest {
     }
 
     /**
-     * Design 04 §5.3. A wake returns the deferred tasks of one filter whose streams are named, now,
-     * whatever their age; a task of another filter over the same stream, a stream not named, and a task
-     * of the filter that is not deferred are all left alone.
+     * Design 04 §5.3, design 06 §4.3. A wake returns the deferred tasks of every filter on a pipeline,
+     * now, whatever their age — a reprocess filter's as well as the one that feeds it; a task of another
+     * pipeline's filter, and a task that is not deferred, are left alone.
      */
     @Test
     void testWakeDeferredTasks() {
         processor1 = createProcessor();
         processorFilter1a = createProcessorFilter(processor1);
         processorFilter1b = createProcessorFilter(processor1);
+        final Processor processor2 = createProcessor();
+        final ProcessorFilter otherPipelines = createProcessorFilter(processor2);
         final Instant now = Instant.now();
-        final long named = createProcessorTask(processorFilter1a, TaskStatus.DEFERRED, null, FEED, now, 1L);
-        final long alsoNamed = createProcessorTask(processorFilter1a, TaskStatus.DEFERRED, null, FEED, now, 2L);
-        final long notNamed = createProcessorTask(processorFilter1a, TaskStatus.DEFERRED, null, FEED, now, 3L);
-        final long otherFilter = createProcessorTask(processorFilter1b, TaskStatus.DEFERRED, null, FEED, now, 1L);
-        final long notDeferred = createProcessorTask(processorFilter1a, TaskStatus.COMPLETE, NODE1, FEED, now, 1L);
+        final long deferred = createProcessorTask(processorFilter1a, TaskStatus.DEFERRED, null, FEED, now, 1L);
+        final long alsoDeferred = createProcessorTask(processorFilter1a, TaskStatus.DEFERRED, null, FEED, now, 2L);
+        final long secondFilter = createProcessorTask(processorFilter1b, TaskStatus.DEFERRED, null, FEED, now, 1L);
+        final long otherPipeline = createProcessorTask(otherPipelines, TaskStatus.DEFERRED, null, FEED, now, 1L);
+        final long notDeferred = createProcessorTask(processorFilter1a, TaskStatus.COMPLETE, NODE1, FEED, now, 3L);
 
-        final int woken = processorTaskDao.wakeDeferredTasks(processorFilter1a.getId(), List.of(1L, 2L, 99L));
+        final int woken = processorTaskDao.wakeDeferredTasks(processor1.getPipelineUuid());
 
-        assertThat(woken).isEqualTo(2);
-        assertThat(getTaskStatus(named)).isEqualTo(TaskStatus.CREATED);
-        assertThat(getTaskStatus(alsoNamed)).isEqualTo(TaskStatus.CREATED);
-        assertThat(getTaskStatus(notNamed)).isEqualTo(TaskStatus.DEFERRED);
-        assertThat(getTaskStatus(otherFilter)).isEqualTo(TaskStatus.DEFERRED);
+        assertThat(woken).isEqualTo(3);
+        assertThat(getTaskStatus(deferred)).isEqualTo(TaskStatus.CREATED);
+        assertThat(getTaskStatus(alsoDeferred)).isEqualTo(TaskStatus.CREATED);
+        assertThat(getTaskStatus(secondFilter))
+                .describedAs("every filter on the pipeline, not only the one that feeds it")
+                .isEqualTo(TaskStatus.CREATED);
+        assertThat(getTaskStatus(otherPipeline)).isEqualTo(TaskStatus.DEFERRED);
         assertThat(getTaskStatus(notDeferred)).isEqualTo(TaskStatus.COMPLETE);
-        assertThat(processorTaskDao.wakeDeferredTasks(processorFilter1a.getId(), List.of())).isZero();
+        assertThat(processorTaskDao.wakeDeferredTasks("no-such-pipeline")).isZero();
     }
 
     /**

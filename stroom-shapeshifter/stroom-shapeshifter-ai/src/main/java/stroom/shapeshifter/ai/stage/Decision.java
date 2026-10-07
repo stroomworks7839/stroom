@@ -61,8 +61,8 @@ public sealed interface Decision {
     /**
      * The document is in review mode (A25): a candidate that would have been bound is written as a draft
      * rule that serves nothing, and waits for Approve or Reject. For a learner nothing served the stream
-     * is sentinelled and on the ledger, released when the draft is approved; for a relearning one the
-     * incumbent served the stream and the draft sits behind it in the table.
+     * waits behind the draft, woken when it is approved; for a relearning one the incumbent served the
+     * stream and the draft sits behind it in the table.
      */
     record Drafted(RoutingRule rule, double score) implements Decision {
 
@@ -100,9 +100,9 @@ public sealed interface Decision {
     }
 
     /**
-     * The stream was not processed and the model was not consulted: the learner has given up, or is
-     * awaiting review of a draft. The stream is sentinelled — an error stream
-     * and a ledger row (A4).
+     * The stream was not processed and the model was not consulted: the learner has given up, or the
+     * attempt the worker carried could go no further. The stream is sentinelled — an error stream, and
+     * nothing else (A4, A131).
      */
     record Sentinel(String reason) implements Decision {
 

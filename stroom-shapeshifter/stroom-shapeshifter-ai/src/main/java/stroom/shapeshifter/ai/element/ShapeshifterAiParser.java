@@ -50,7 +50,7 @@ import org.xml.sax.XMLReader;
  * element's targets. It runs once: the run the stage judged is the run that is served. The bindings that
  * produced the output (§7.3 rule 3) go into the output stream's attributes through {@link MetaData}.
  * <p>
- * The stage's runtime state — shapes, ledger, outputs, requests, regression set — is whatever the node
+ * The stage's runtime state — learners, outputs, deferrals, regression set — is whatever the node
  * binds for the seams of A26; until the module of §12 item 8 exists that is in-memory and node-local.
  */
 @ConfigurableElement(

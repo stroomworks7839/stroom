@@ -229,7 +229,6 @@ class TestScenariosBindingBeforeLearning {
         assertThat(((Deferred) run.decision()).reason()).contains("Another node is learning for this pipeline");
         assertThat(silent.asked()).describedAs("the model is asked once for a shape, not once per node")
                 .isEmpty();
-        assertThat(scenarios.ledger.isEmpty()).describedAs("waiting is not a refusal (A80)").isTrue();
         assertThat(scenarios.deferrals.of(Scenarios.LEARNER, 1L)).isPresent();
         assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).isEmpty();
 
@@ -239,7 +238,6 @@ class TestScenariosBindingBeforeLearning {
 
         assertThat(learned.decision()).describedAs(learned.decision().toString()).isInstanceOf(Promoted.class);
         assertThat(scenarios.wake.woken()).extracting(Deferral::inputId).contains(1L);
-        assertThat(scenarios.reprocessing.requests()).isEmpty();
     }
 
     @Test

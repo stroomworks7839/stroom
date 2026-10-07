@@ -21,19 +21,18 @@ import stroom.processor.shared.ProcessorTask;
 import stroom.processor.shared.ProcessorTaskSummary;
 import stroom.util.shared.ResultPage;
 
-import java.util.Collection;
-
 public interface ProcessorTaskService {
 
     ResultPage<ProcessorTask> find(final ExpressionCriteria criteria);
 
     ResultPage<ProcessorTaskSummary> findSummary(final ExpressionCriteria criteria);
 
-    /// Wake the deferred tasks of a filter for the given streams: back to `CREATED` ahead of the retry
-    /// delay, because what they were waiting for has happened (design 04 §5.3).
+    /// Wake the deferred tasks of every filter on a pipeline: back to `CREATED` ahead of the retry delay,
+    /// because what they were waiting for has happened (design 04 §5.3, design 06 §4.3). Every filter,
+    /// since a reprocess filter a person made beside the one that feeds the pipeline waits on the same
+    /// thing.
     ///
-    /// @param filterId The filter the tasks belong to.
-    /// @param metaIds  The streams whose tasks are to be woken.
+    /// @param pipelineUuid The pipeline.
     /// @return How many were woken.
-    int wakeDeferredTasks(int filterId, Collection<Long> metaIds);
+    int wakeDeferredTasks(String pipelineUuid);
 }

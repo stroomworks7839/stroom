@@ -213,9 +213,5 @@ class TestScenariosReprocessing {
         assertThat(((Sentinel) run.decision()).reason())
                 .contains("Nothing is recorded for input 99")
                 .contains("as-current");
-        assertThat(scenarios.ledger.isEmpty())
-                .describedAs("and it is not ledgered: the ledger is what a shape's settling releases, and "
-                             + "no promotion can answer an input nothing remembers")
-                .isTrue();
     }
 }

@@ -32,7 +32,6 @@ import stroom.shapeshifter.ai.stage.Deferrals;
 import stroom.shapeshifter.ai.stage.Deferrals.Deferral;
 import stroom.shapeshifter.ai.stage.Guidance;
 import stroom.shapeshifter.ai.stage.Learner;
-import stroom.shapeshifter.ai.stage.Ledger;
 import stroom.shapeshifter.ai.stage.Serving;
 import stroom.shapeshifter.shared.AmendTurnRequest;
 import stroom.shapeshifter.shared.AttemptCriteria;
@@ -41,9 +40,7 @@ import stroom.shapeshifter.shared.GrantRequest;
 import stroom.shapeshifter.shared.GuidanceRequest;
 import stroom.shapeshifter.shared.ImproveOutcome;
 import stroom.shapeshifter.shared.ImproveRequest;
-import stroom.shapeshifter.shared.LearnAgainRequest;
 import stroom.shapeshifter.shared.LearnerRef;
-import stroom.shapeshifter.shared.LedgerLearner;
 import stroom.shapeshifter.shared.RejectRequest;
 import stroom.shapeshifter.shared.ServingCriteria;
 import stroom.shapeshifter.shared.ServingRule;
@@ -83,7 +80,7 @@ public class SupervisorResourceImpl implements SupervisorResource {
 
     private static final LambdaLogger LOGGER = LambdaLoggerFactory.getLogger(SupervisorResourceImpl.class);
 
-    /// The most rows a page of the ledger or of the serving rules may ask for, whatever it asks for.
+    /// The most rows a page of the serving rules may ask for, whatever it asks for.
     /// The attempts beside them have always clamped; these did not, so any person with VIEW on one
     /// document could ask for the whole table in one request, and a negative length reached the database
     /// as `LIMIT -1`.
@@ -94,7 +91,6 @@ public class SupervisorResourceImpl implements SupervisorResource {
     private final Provider<StageFactory> stageFactoryProvider;
     private final Provider<PipelineScopeRunnable> pipelineScopeProvider;
     private final Provider<SecurityContext> securityContextProvider;
-    private final Provider<Ledger> ledgerProvider;
     private final Provider<Serving> servingProvider;
     private final Provider<Guidance> guidanceProvider;
     private final Provider<Deferrals> deferralsProvider;
@@ -106,7 +102,6 @@ public class SupervisorResourceImpl implements SupervisorResource {
                            final Provider<StageFactory> stageFactoryProvider,
                            final Provider<PipelineScopeRunnable> pipelineScopeProvider,
                            final Provider<SecurityContext> securityContextProvider,
-                           final Provider<Ledger> ledgerProvider,
                            final Provider<Serving> servingProvider,
                            final Provider<Guidance> guidanceProvider,
                            final Provider<Deferrals> deferralsProvider,
@@ -116,7 +111,6 @@ public class SupervisorResourceImpl implements SupervisorResource {
         this.stageFactoryProvider = stageFactoryProvider;
         this.pipelineScopeProvider = pipelineScopeProvider;
         this.securityContextProvider = securityContextProvider;
-        this.ledgerProvider = ledgerProvider;
         this.servingProvider = servingProvider;
         this.guidanceProvider = guidanceProvider;
         this.deferralsProvider = deferralsProvider;
@@ -198,38 +192,6 @@ public class SupervisorResourceImpl implements SupervisorResource {
         return new ResultPage<>(rows, new PageResponse(offset, rows.size(), page.total(), true));
     }
 
-    /// What is waiting on the ledger (§5.2, A28), a row per learner, beside the attempts.
-    ///
-    /// Nothing is held: every stream named here was processed to an error stream and is where it always
-    /// was, so this is a list of what a promotion *would* release rather than a queue of anything being
-    /// kept. Reading it releases nothing — a surface that answered by releasing would put a backlog
-    /// through the pipeline because somebody looked at it.
-    ///
-    /// The documents this person may see go into the query rather than filtering its answer, as they do
-    /// for [#find]: a total taken before the filtering would say how many learners wait on documents they
-    /// may not see, and the pages they turned would come back short.
-    @Override
-    public ResultPage<LedgerLearner> ledger(final String docUuid, final PageRequest pageRequest) {
-        final PageRequest page = pageRequest == null
-                ? new PageRequest(0, 100)
-                : pageRequest;
-        final Map<String, DocRef> readable = readable(docUuid);
-        final long offset = Math.max(0L, NullSafe.getOrElse(page.getOffset(), Integer::longValue, 0L));
-        final int length = pageLength(page);
-        final Ledger.Page found = ledgerProvider.get().waiting(readable.keySet(), offset, length);
-        // Each row named with its document rather than its uuid, since the view is over all of them.
-        final List<LedgerLearner> rows = found.learners().stream()
-                .map(row -> new LedgerLearner(
-                        readable.get(row.getDoc().getUuid()),
-                        row.getLearner(),
-                        row.getWaiting(),
-                        row.getOldestTimeMs(),
-                        row.getNewestTimeMs(),
-                        row.getReason()))
-                .toList();
-        return new ResultPage<>(rows, new PageResponse(offset, rows.size(), found.total(), true));
-    }
-
     /// The rules that are serving (A46), ordered by the traffic each carries.
     ///
     /// Not an alert list. A rule serving at 0.93 is above every threshold and nothing is wrong with it;
@@ -237,7 +199,7 @@ public class SupervisorResourceImpl implements SupervisorResource {
     /// on whatever carries the most streams.
     ///
     /// The documents this person may read go into the query rather than filtering its answer, as they do
-    /// for [#find] and [#ledger].
+    /// for [#find].
     @Override
     public ResultPage<ServingRule> serving(final ServingCriteria criteria) {
         final ServingCriteria asked = criteria == null
@@ -326,19 +288,17 @@ public class SupervisorResourceImpl implements SupervisorResource {
 
     /// Take a rule that is serving back out of the table (A28, design 01 §11.6).
     ///
-    /// The reason is asked for rather than assumed: it goes on the request to process again everything
-    /// the rule produced, so a stream asked for a week later says what asked for it.
+    /// The reason is asked for rather than assumed: it is recorded against the attempt that bound the rule.
     ///
-    /// Answers how many streams were asked for again, which is the one consequence the person cannot
-    /// see for themselves.
+    /// Answers how many streams the rule produced output for, which is the one consequence the person
+    /// cannot see for themselves, and what they would reprocess (A129).
     ///
-    /// Held to EDIT, as approving a draft is: it changes the document's routing and puts a backlog
-    /// through the pipeline.
+    /// Held to EDIT, as approving a draft is: it changes what serves the document's pipelines.
     @Override
     public Integer retract(final String docUuid, final String ruleUuid, final RejectRequest request) {
         if (request == null || NullSafe.isBlankString(request.getReason())) {
-            throw new IllegalArgumentException("A retraction says why: the reason is carried on every "
-                                               + "stream it asks to be processed again");
+            throw new IllegalArgumentException("A retraction says why: the reason is recorded against "
+                                               + "the attempt that bound the rule");
         }
         if (!may(docUuid, DocumentPermission.EDIT)) {
             throw new PermissionException(securityContextProvider.get().getUserRef(),
@@ -348,29 +308,6 @@ public class SupervisorResourceImpl implements SupervisorResource {
         final ShapeshifterAiDoc doc = document(docUuid);
         return pipelineScopeProvider.get().scopeResult(() ->
                 stageFactoryProvider.get().create().retract(doc, ruleUuid, request.getReason(), by));
-    }
-
-    /// Ask for a learner to learn now (A28), and for the streams waiting on it to be processed again —
-    /// which is what A28 means by raising an attempt for a given-up shape from this screen.
-    ///
-    /// Held to EDIT, as the other acts that spend a model's tokens and change the document's routing
-    /// are: this one overrides a decision to stop, whether the stage's or a person's.
-    @Override
-    public Integer learn(final String docUuid, final LearnAgainRequest request) {
-        if (request == null || NullSafe.isBlankString(request.getReason())) {
-            throw new IllegalArgumentException("A learner sent back to learn says why: the reason "
-                                               + "opens the next attempt and travels with every stream "
-                                               + "asked for");
-        }
-        if (!may(docUuid, DocumentPermission.EDIT)) {
-            throw new PermissionException(securityContextProvider.get().getUserRef(),
-                    "You do not have permission to change how this document learns");
-        }
-        final Learner learner = learnerOf(docUuid, request.getLearner());
-        final String by = securityContextProvider.get().getUserIdentityForAudit();
-        final ShapeshifterAiDoc doc = document(docUuid);
-        return pipelineScopeProvider.get().scopeResult(() -> stageFactoryProvider.get().create()
-                .learnAgain(doc, learner, request.getReason(), by));
     }
 
     /// What has been said to a learner (A46), oldest first.

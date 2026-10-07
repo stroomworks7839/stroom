@@ -21,7 +21,6 @@ import stroom.db.util.JooqUtil;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterDeferral;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterGuidance;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterLearnerState;
-import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterLedger;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterRule;
 import stroom.shapeshifter.ai.stage.Learner;
 import stroom.shapeshifter.ai.stage.Learners;
@@ -62,13 +61,11 @@ public class LearnersDao implements Learners {
         }
         final ShapeshifterRule rule = ShapeshifterRule.SHAPESHIFTER_RULE;
         final ShapeshifterLearnerState state = ShapeshifterLearnerState.SHAPESHIFTER_LEARNER_STATE;
-        final ShapeshifterLedger ledger = ShapeshifterLedger.SHAPESHIFTER_LEDGER;
         final ShapeshifterGuidance guidance = ShapeshifterGuidance.SHAPESHIFTER_GUIDANCE;
         final ShapeshifterDeferral deferral = ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL;
         JooqUtil.transaction(connProvider, context -> {
             bring(context, rule, rule.PIPELINE_UUID, rule.ELEMENT_ID, rule.DOC_UUID, learner, docUuid);
             bring(context, state, state.PIPELINE_UUID, state.ELEMENT_ID, state.DOC_UUID, learner, docUuid);
-            bring(context, ledger, ledger.PIPELINE_UUID, ledger.ELEMENT_ID, ledger.DOC_UUID, learner, docUuid);
             bring(context, guidance, guidance.PIPELINE_UUID, guidance.ELEMENT_ID, guidance.DOC_UUID, learner,
                     docUuid);
             bring(context, deferral, deferral.PIPELINE_UUID, deferral.ELEMENT_ID, deferral.DOC_UUID, learner,

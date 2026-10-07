@@ -40,14 +40,12 @@ import stroom.shapeshifter.ai.doc.ShapeshifterAiStore;
 import stroom.shapeshifter.ai.element.ShapeshifterAiParser;
 import stroom.shapeshifter.ai.extraction.ExtractionCorpus.Golden;
 import stroom.shapeshifter.ai.impl.db.DeferralsDao;
-import stroom.shapeshifter.ai.impl.db.LedgerDao;
 import stroom.shapeshifter.ai.impl.db.RulesDao;
 import stroom.shapeshifter.ai.scenario.AdvisorHolder;
 import stroom.shapeshifter.ai.scenario.Scenarios;
 import stroom.shapeshifter.ai.scenario.Script;
 import stroom.shapeshifter.ai.stage.Deferrals;
 import stroom.shapeshifter.ai.stage.Learner;
-import stroom.shapeshifter.ai.stage.Ledger;
 import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.shared.LearningMode;
 import stroom.test.AbstractCoreIntegrationTest;
@@ -70,10 +68,10 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/// Design 02 §5, scenario 20, in tier 2 against a real database (design 03, phase C): a stream whose shape
-/// has no binding produces no output, an error stream naming the shape and the reason, and a row in the
-/// ledger naming the input — the row being a row now, in `shapeshifter_ledger` (A26), and not a map in one
-/// node's heap. Nothing is held: what the ledger names is what promotion would replay.
+/// Design 02 §5, scenario 20, in tier 2 against a real database (design 03, phase C): a stream whose
+/// learner has no binding produces no output and waits, on a row naming the input — the row being a row
+/// now, in `shapeshifter_deferral` (A26), and not a map in one node's heap. Nothing is held: the stream
+/// stays in the store, and the task the row names is what a promotion wakes.
 class TestScenario20SentinelInAPipeline extends AbstractCoreIntegrationTest {
 
     private static final String FEED = "DOOR-ACCESS-UNBOUND";
@@ -104,8 +102,6 @@ class TestScenario20SentinelInAPipeline extends AbstractCoreIntegrationTest {
     @Rows
     private Rules ruleRows;
     @Inject
-    private Ledger ledger;
-    @Inject
     private Provider<ProcessorConfig> processorConfigProvider;
 
     @BeforeEach
@@ -115,10 +111,9 @@ class TestScenario20SentinelInAPipeline extends AbstractCoreIntegrationTest {
     }
 
     @Test
-    void scenario20TheSentinelIsAnErrorStreamAndTheLedgerIsARow() {
+    void scenario20AStreamNothingServesWaitsOnARow() {
         // This harness is the node's own wiring, so the seams are the tables of A26 and not one node's
         // heap — the routing table behind the cache a node reads it through (design 01 §12 item 8).
-        assertThat(ledger).isInstanceOf(LedgerDao.class);
         assertThat(rules).isInstanceOf(CachedRules.class);
         assertThat(ruleRows).isInstanceOf(RulesDao.class);
         final DocRef feed = storeCreationTool.getOrCreateFeedDoc(FEED);
@@ -154,9 +149,6 @@ class TestScenario20SentinelInAPipeline extends AbstractCoreIntegrationTest {
         assertThat(rules.forLearner(learner)).describedAs("and wrote no rule").isEmpty();
 
         // The deferral names the input, in a row: the task a promotion would wake (design 04 §5.3).
-        assertThat(ledger.release(learner))
-                .describedAs("nothing is sentinelled to make it wait, so the ledger holds nothing")
-                .isEmpty();
         assertThat(deferrals).isInstanceOf(DeferralsDao.class);
         assertThat(deferrals.of(new Learner(pipeline.getUuid(), "shapeshifterAi"), raw.getId()))
                 .describedAs("the deferral row is a row in the database, not a map in one node's heap")

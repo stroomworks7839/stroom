@@ -16,7 +16,6 @@ import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterCorpus;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterDeferral;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterGuidance;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterLearnerState;
-import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterLedger;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterOutput;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterRule;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterSnapshot;
@@ -27,7 +26,6 @@ import stroom.shapeshifter.ai.impl.db.jooq.tables.records.ShapeshifterCorpusReco
 import stroom.shapeshifter.ai.impl.db.jooq.tables.records.ShapeshifterDeferralRecord;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.records.ShapeshifterGuidanceRecord;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.records.ShapeshifterLearnerStateRecord;
-import stroom.shapeshifter.ai.impl.db.jooq.tables.records.ShapeshifterLedgerRecord;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.records.ShapeshifterOutputRecord;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.records.ShapeshifterRuleRecord;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.records.ShapeshifterSnapshotRecord;
@@ -54,8 +52,6 @@ public class Keys {
     public static final UniqueKey<ShapeshifterGuidanceRecord> KEY_SHAPESHIFTER_GUIDANCE_PRIMARY = Internal.createUniqueKey(ShapeshifterGuidance.SHAPESHIFTER_GUIDANCE, DSL.name("KEY_shapeshifter_guidance_PRIMARY"), new TableField[] { ShapeshifterGuidance.SHAPESHIFTER_GUIDANCE.ID }, true);
     public static final UniqueKey<ShapeshifterLearnerStateRecord> KEY_SHAPESHIFTER_LEARNER_STATE_PRIMARY = Internal.createUniqueKey(ShapeshifterLearnerState.SHAPESHIFTER_LEARNER_STATE, DSL.name("KEY_shapeshifter_learner_state_PRIMARY"), new TableField[] { ShapeshifterLearnerState.SHAPESHIFTER_LEARNER_STATE.ID }, true);
     public static final UniqueKey<ShapeshifterLearnerStateRecord> KEY_SHAPESHIFTER_LEARNER_STATE_SHAPESHIFTER_LEARNER_STATE_LEARNER = Internal.createUniqueKey(ShapeshifterLearnerState.SHAPESHIFTER_LEARNER_STATE, DSL.name("KEY_shapeshifter_learner_state_shapeshifter_learner_state_learner"), new TableField[] { ShapeshifterLearnerState.SHAPESHIFTER_LEARNER_STATE.PIPELINE_UUID, ShapeshifterLearnerState.SHAPESHIFTER_LEARNER_STATE.ELEMENT_ID }, true);
-    public static final UniqueKey<ShapeshifterLedgerRecord> KEY_SHAPESHIFTER_LEDGER_PRIMARY = Internal.createUniqueKey(ShapeshifterLedger.SHAPESHIFTER_LEDGER, DSL.name("KEY_shapeshifter_ledger_PRIMARY"), new TableField[] { ShapeshifterLedger.SHAPESHIFTER_LEDGER.ID }, true);
-    public static final UniqueKey<ShapeshifterLedgerRecord> KEY_SHAPESHIFTER_LEDGER_SHAPESHIFTER_LEDGER_LEARNER_INPUT = Internal.createUniqueKey(ShapeshifterLedger.SHAPESHIFTER_LEDGER, DSL.name("KEY_shapeshifter_ledger_shapeshifter_ledger_learner_input"), new TableField[] { ShapeshifterLedger.SHAPESHIFTER_LEDGER.PIPELINE_UUID, ShapeshifterLedger.SHAPESHIFTER_LEDGER.ELEMENT_ID, ShapeshifterLedger.SHAPESHIFTER_LEDGER.INPUT_META_ID }, true);
     public static final UniqueKey<ShapeshifterOutputRecord> KEY_SHAPESHIFTER_OUTPUT_PRIMARY = Internal.createUniqueKey(ShapeshifterOutput.SHAPESHIFTER_OUTPUT, DSL.name("KEY_shapeshifter_output_PRIMARY"), new TableField[] { ShapeshifterOutput.SHAPESHIFTER_OUTPUT.ID }, true);
     public static final UniqueKey<ShapeshifterOutputRecord> KEY_SHAPESHIFTER_OUTPUT_SHAPESHIFTER_OUTPUT_RULE_INPUT_PIPELINE = Internal.createUniqueKey(ShapeshifterOutput.SHAPESHIFTER_OUTPUT, DSL.name("KEY_shapeshifter_output_shapeshifter_output_rule_input_pipeline"), new TableField[] { ShapeshifterOutput.SHAPESHIFTER_OUTPUT.RULE_UUID, ShapeshifterOutput.SHAPESHIFTER_OUTPUT.INPUT_META_ID, ShapeshifterOutput.SHAPESHIFTER_OUTPUT.PIPELINE_UUID }, true);
     public static final UniqueKey<ShapeshifterRuleRecord> KEY_SHAPESHIFTER_RULE_PRIMARY = Internal.createUniqueKey(ShapeshifterRule.SHAPESHIFTER_RULE, DSL.name("KEY_shapeshifter_rule_PRIMARY"), new TableField[] { ShapeshifterRule.SHAPESHIFTER_RULE.ID }, true);

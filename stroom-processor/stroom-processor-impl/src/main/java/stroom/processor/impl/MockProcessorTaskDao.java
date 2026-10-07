@@ -46,10 +46,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Singleton
 public class MockProcessorTaskDao implements ProcessorTaskDao, Clearable {
 
+    /// The deferred tasks the mock queue made, by filter and stream: see [#deferred].
+    private final Map<String, ProcessorTask> deferredUnsaved = new ConcurrentHashMap<>();
     private final MockIntCrud<ProcessorTask> dao = new MockIntCrud<>(
             (processorTask, integer) -> processorTask.copy().id(integer).build(),
             processorTask -> (int) processorTask.getId());
@@ -190,10 +193,39 @@ public class MockProcessorTaskDao implements ProcessorTaskDao, Clearable {
     }
 
     @Override
-    public int wakeDeferredTasks(final int filterId, final Collection<Long> metaIds) {
-        return (int) wake(task -> task.getProcessorFilter() != null
-                                  && Objects.equals(task.getProcessorFilter().getId(), filterId)
-                                  && metaIds.contains(task.getMetaId()));
+    public synchronized int wakeDeferredTasks(final String pipelineUuid) {
+        final List<String> unsaved = deferredUnsaved.entrySet().stream()
+                .filter(entry -> isOn(entry.getValue(), pipelineUuid))
+                .map(Map.Entry::getKey)
+                .toList();
+        unsaved.forEach(deferredUnsaved::remove);
+        return (int) wake(task -> isOn(task, pipelineUuid)) + unsaved.size();
+    }
+
+    /// The deferred tasks of a pipeline's filters, including those the mock queue made without a row: it
+    /// builds each task afresh from a filter's tracker, so a task it hands out is told it deferred and is
+    /// found nowhere else.
+    ///
+    /// @param pipelineUuid The pipeline.
+    /// @return Its deferred tasks.
+    public synchronized List<ProcessorTask> deferred(final String pipelineUuid) {
+        final List<ProcessorTask> deferred = new ArrayList<>();
+        dao.getMap().values().stream()
+                .filter(task -> TaskStatus.DEFERRED.equals(task.getStatus()) && isOn(task, pipelineUuid))
+                .forEach(deferred::add);
+        deferredUnsaved.values().stream()
+                .filter(task -> isOn(task, pipelineUuid))
+                .forEach(deferred::add);
+        return deferred;
+    }
+
+    private static boolean isOn(final ProcessorTask task, final String pipelineUuid) {
+        return task.getProcessorFilter() != null
+               && Objects.equals(task.getProcessorFilter().getPipelineUuid(), pipelineUuid);
+    }
+
+    private static String key(final ProcessorTask task) {
+        return NullSafe.get(task.getProcessorFilter(), ProcessorFilter::getId) + ":" + task.getMetaId();
     }
 
     private long wake(final java.util.function.Predicate<ProcessorTask> due) {
@@ -268,13 +300,23 @@ public class MockProcessorTaskDao implements ProcessorTaskDao, Clearable {
                                           final TaskStatus status,
                                           final Long startTime,
                                           final Long endTime) {
-        return processorTask.copy()
+        final ProcessorTask changed = processorTask.copy()
                 .nodeName(nodeName)
                 .status(status)
                 .statusTimeMs(System.currentTimeMillis())
                 .startTimeMs(startTime)
                 .endTimeMs(endTime)
                 .build();
+        // Kept, as the table keeps it: a wake finds the deferred tasks by their status. A task the mock queue
+        // made has no row, so a deferred one is kept beside the rows until it is woken or runs again.
+        if (dao.getMap().containsKey((int) changed.getId())) {
+            dao.update(changed);
+        } else if (TaskStatus.DEFERRED.equals(status)) {
+            deferredUnsaved.put(key(changed), changed);
+        } else {
+            deferredUnsaved.remove(key(changed));
+        }
+        return changed;
     }
 
     @Override
@@ -317,6 +359,7 @@ public class MockProcessorTaskDao implements ProcessorTaskDao, Clearable {
 
     @Override
     public void clear() {
+        deferredUnsaved.clear();
         dao.clear();
     }
 

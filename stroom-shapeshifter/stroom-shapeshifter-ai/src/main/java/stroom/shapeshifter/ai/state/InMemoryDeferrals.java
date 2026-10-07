@@ -80,18 +80,23 @@ public final class InMemoryDeferrals implements Deferrals {
     }
 
     @Override
-    public synchronized List<Deferral> waiting(final Learner learner) {
+    public synchronized List<Stamp> stampsWaiting() {
         return rows.stream()
-                .filter(row -> row.learner().equals(learner))
-                .sorted(Comparator.comparingLong(Deferral::firstDeferredMs).thenComparingLong(Deferral::inputId))
+                .filter(row -> row.failedAgainst() != null)
+                .map(row -> new Stamp(row.learner(), row.failedAgainst()))
+                .distinct()
                 .toList();
     }
 
-    @Override
-    public synchronized List<String> documentsWaiting() {
+    /// What waits on the learners of a pipeline, oldest first: what waking the pipeline wakes (see
+    /// [InMemoryWake]).
+    ///
+    /// @param pipelineUuid The pipeline.
+    /// @return Its rows.
+    public synchronized List<Deferral> forPipeline(final String pipelineUuid) {
         return rows.stream()
-                .map(Deferral::docUuid)
-                .distinct()
+                .filter(row -> row.learner().pipelineUuid().equals(pipelineUuid))
+                .sorted(Comparator.comparingLong(Deferral::firstDeferredMs).thenComparingLong(Deferral::inputId))
                 .toList();
     }
 

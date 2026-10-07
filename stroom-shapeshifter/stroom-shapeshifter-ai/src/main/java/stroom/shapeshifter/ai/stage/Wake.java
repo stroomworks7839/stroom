@@ -16,18 +16,16 @@
 
 package stroom.shapeshifter.ai.stage;
 
-import stroom.shapeshifter.ai.stage.Deferrals.Deferral;
-
-import java.util.List;
-
-/// What a promotion does for the streams waiting on its learner (design 04 §5.3): their tasks go back to
-/// `CREATED` ahead of the retry delay, and ordinary FIFO by task id processes them oldest first. In a
-/// node this is the processor task service's wake; in a scenario it is a list of what was woken.
+/// What a promotion does for the streams waiting on its learner (design 04 §5.3, design 06 §4.3): the
+/// deferred tasks of every filter on the learner's pipeline go back to `CREATED` ahead of the retry
+/// delay, and ordinary FIFO by task id processes them oldest first. Every filter, since a reprocess
+/// filter a person made beside the one that feeds the pipeline waits on the same thing. In a node this is
+/// the processor task service's wake; in a scenario it is a record of what was woken.
 public interface Wake {
 
-    /// Wake the tasks behind these rows. A row with no task — a stream nothing is processing — is left.
+    /// Wake the deferred tasks of a pipeline's filters.
     ///
-    /// @param waiting The rows.
+    /// @param pipelineUuid The pipeline.
     /// @return How many tasks were woken.
-    int wake(List<Deferral> waiting);
+    int wake(String pipelineUuid);
 }

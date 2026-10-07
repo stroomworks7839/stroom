@@ -13,7 +13,7 @@
                                  styleName="flow-note"/>
                         <form:FormGroup identity="shapeshifterAiPromotionMode"
                                         label="Promotion mode"
-                                        helpText="Automatic: a candidate that passes the gate goes live. Review: it is appended as a draft rule the router skips, and streams of its shape wait in the ledger until a person approves it.">
+                                        helpText="Automatic: a candidate that passes the gate goes live. Review: it is appended as a draft rule the router skips, and the streams of its learner wait until a person approves it.">
                             <l:SelectionBox ui:field="promotionMode"/>
                         </form:FormGroup>
                         <form:FormGroup identity="shapeshifterAiPromotionFloor"

@@ -75,7 +75,7 @@ public class ShapeshifterAiConfig extends AbstractConfig implements IsStroomConf
     @Override
     @JsonProperty("db")
     @JsonPropertyDescription("The database holding the runtime state of A26: the shapes a document has met, "
-                             + "its routing rules, the ledger of sentinelled streams, each feed's error-mode "
+                             + "its routing rules, the streams waiting on a learner, each feed's error-mode "
                              + "state and the cluster's spend.")
     public ShapeshifterAiDbConfig getDbConfig() {
         return dbConfig;

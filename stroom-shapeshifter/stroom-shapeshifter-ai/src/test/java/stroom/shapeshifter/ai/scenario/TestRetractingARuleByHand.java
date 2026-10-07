@@ -68,8 +68,8 @@ class TestRetractingARuleByHand {
                 .describedAs("the rule has produced output rows to take back")
                 .isNotEmpty();
 
-        stage.retract(doc, bound.getUuid(), "The timestamps are being read as UTC and the feed is local.",
-                "jo");
+        final int produced = stage.retract(doc, bound.getUuid(),
+                "The timestamps are being read as UTC and the feed is local.", "jo");
 
         assertThat(scenarios.rules.forLearner(Scenarios.LEARNER))
                 .describedAs("the rule is out of the table")
@@ -81,13 +81,10 @@ class TestRetractingARuleByHand {
         assertThat(scenarios.states.rollingScore(Scenarios.LEARNER))
                 .describedAs("with nothing of what the retracted rule scored carried into what comes next")
                 .isZero();
-        assertThat(scenarios.reprocessing.requests())
-                .describedAs("and everything the rule produced is asked to be processed again as it "
-                             + "would be now (A12), saying who asked and why")
-                .isNotEmpty()
-                .allSatisfy(request -> assertThat(request.reason())
-                        .contains("Retracted by jo")
-                        .contains("read as UTC"));
+        assertThat(produced)
+                .describedAs("and what the rule produced is counted for the person to reprocess, not asked "
+                             + "for (A129): both streams it served")
+                .isEqualTo(2);
         assertThat(scenarios.regressionSet.accepted(bound.getUuid()))
                 .describedAs("the records it was accepted on go with it: they are what it was judged "
                              + "against, and it is not being judged again")
@@ -172,8 +169,8 @@ class TestRetractingARuleByHand {
                 });
     }
 
-    /// A shape that was given up is learned again when somebody asks, and the streams waiting on it are
-    /// what learns it (A28, design 01 §11.6).
+    /// A shape that was given up is learned again when somebody asks, from its next stream (A28, design 01
+    /// §11.6).
     ///
     /// This is the door the ruling leans on — "they raise an attempt for a given-up shape from the same
     /// screen, so no on-request learning mode is needed". Marking the shape is not enough on its own:
@@ -183,42 +180,20 @@ class TestRetractingARuleByHand {
     void aGivenUpShapeIsLearnedAgainWhenSomebodyAsks() {
         final Scenarios scenarios = new Scenarios();
         final Stage stage = scenarios.stage(document -> learn(scenarios), scenarios.rules);
-        final ShapeshifterAiDoc doc = doc();
-        // Given up, with streams waiting on the ledger because nothing bound it.
         scenarios.states.giveUp(Scenarios.LEARNER, "doc-1", "The model could not make sense of it");
-        scenarios.ledger.sentinelled(Scenarios.LEARNER, "doc-1", 1L, "Shape given up");
-        scenarios.ledger.sentinelled(Scenarios.LEARNER, "doc-1", 2L, "Shape given up");
 
-        final int asked = stage.learnAgain(doc, Scenarios.LEARNER, "The feed has been fixed.", "jo");
+        // Sent back from the attempt that gave up (A28). The streams that errored are ordinary error
+        // streams, reprocessed on the pipeline as any others are (A129, A131): this counts none of them.
+        stage.relearn(doc(), Scenarios.LEARNER, "Sent back to be learned again by jo: the feed has been fixed");
 
-        assertThat(asked)
-                .describedAs("the streams waiting on it are the traffic that will learn it")
-                .isEqualTo(2);
         assertThat(scenarios.states.reasonGivenUp(Scenarios.LEARNER))
                 .describedAs("the give-up goes, or the mark below it would never be reached")
                 .isEmpty();
         assertThat(scenarios.states.relearnReason(Scenarios.LEARNER))
-                .describedAs("and the shape is marked, so the next stream of it learns rather than binds")
-                .isPresent();
-        assertThat(scenarios.reprocessing.requests())
-                .describedAs("with who asked and why on every stream asked for")
-                .isNotEmpty()
-                .allSatisfy(request -> assertThat(request.reason())
+                .describedAs("and the learner is marked, with who asked and why, which opens the next attempt")
+                .hasValueSatisfying(reason -> assertThat(reason)
                         .contains("Sent back to be learned again by jo")
                         .contains("feed has been fixed"));
-        assertThatThrownBy(() -> scenarios.stage(document -> learn(scenarios), scenarios.rules)
-                .learnAgain(doc().copy().learningMode(LearningMode.DISABLED).build(), Scenarios.LEARNER, "Why.", "jo"))
-                .describedAs("the kill switch is a kill switch here too")
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("disabled");
-
-        scenarios.states.awaitReview(Scenarios.LEARNER, "doc-1", "a-draft");
-        assertThatThrownBy(() -> stage.learnAgain(doc, Scenarios.LEARNER, "Why.", "jo"))
-                .describedAs("a shape whose draft is waiting needs a decision, not another attempt: "
-                             + "asked for anyway it would release the streams, reprocess them, meet the "
-                             + "draft and sentinel them again — the same rows back and nothing learned")
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("awaiting review");
     }
 
     /// A provisional binding may be accepted rather than waited out (design 01 §6, §11.6).

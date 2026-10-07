@@ -22,7 +22,6 @@ import stroom.shapeshifter.ai.stage.Deferrals;
 import stroom.shapeshifter.ai.stage.Guidance;
 import stroom.shapeshifter.ai.stage.LearnerStates;
 import stroom.shapeshifter.ai.stage.Learners;
-import stroom.shapeshifter.ai.stage.Ledger;
 import stroom.shapeshifter.ai.stage.Outputs;
 import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.ai.stage.Serving;
@@ -45,8 +44,6 @@ public class InMemoryStateModule extends AbstractModule {
         // brings a learner's rows to its document reaches past the seams to the rows behind them.
         bind(InMemoryRules.class).in(Scopes.SINGLETON);
         bind(Rules.class).to(InMemoryRules.class);
-        bind(InMemoryLedger.class).in(Scopes.SINGLETON);
-        bind(Ledger.class).to(InMemoryLedger.class);
         bind(InMemoryGuidance.class).in(Scopes.SINGLETON);
         bind(Guidance.class).to(InMemoryGuidance.class);
         bind(InMemoryDeferrals.class).in(Scopes.SINGLETON);

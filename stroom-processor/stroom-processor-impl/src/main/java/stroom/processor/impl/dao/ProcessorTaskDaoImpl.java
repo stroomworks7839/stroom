@@ -478,30 +478,33 @@ class ProcessorTaskDaoImpl implements ProcessorTaskDao {
         return count;
     }
 
+    /// The pipeline's filters first, then their deferred tasks, so that the update runs on the index of
+    /// filter and status rather than joining through the processor for every task.
     @Override
-    public int wakeDeferredTasks(final int filterId, final Collection<Long> metaIds) {
-        if (NullSafe.isEmptyCollection(metaIds)) {
+    public int wakeDeferredTasks(final String pipelineUuid) {
+        if (pipelineUuid == null) {
+            return 0;
+        }
+        final List<Integer> filterIds = JooqUtil.contextResult(processorDbConnProvider, context -> context
+                .select(PROCESSOR_FILTER.ID)
+                .from(PROCESSOR_FILTER)
+                .join(PROCESSOR).on(PROCESSOR.ID.eq(PROCESSOR_FILTER.FK_PROCESSOR_ID))
+                .where(PROCESSOR.PIPELINE_UUID.eq(pipelineUuid))
+                .fetch(PROCESSOR_FILTER.ID));
+        if (filterIds.isEmpty()) {
             return 0;
         }
         final long nowMs = System.currentTimeMillis();
-        int count = 0;
-        // Chunked, as getTaskAvailability is, so that a long backlog cannot produce an unbounded IN list.
-        final List<Long> remaining = new ArrayList<>(metaIds);
-        for (int from = 0; from < remaining.size(); from += BATCH_SIZE) {
-            final List<Long> chunk = remaining.subList(from, Math.min(from + BATCH_SIZE, remaining.size()));
-            count += JooqUtil.contextResult(processorDbConnProvider, context -> changeStatus(
-                    context,
-                    null,
-                    TaskStatus.CREATED,
-                    nowMs,
-                    PROCESSOR_TASK.STATUS.eq(TaskStatus.DEFERRED.getPrimitiveValue())
-                            .and(PROCESSOR_TASK.FK_PROCESSOR_FILTER_ID.eq(filterId))
-                            .and(PROCESSOR_TASK.META_ID.in(chunk))));
-        }
-        final int woken = count;
-        LOGGER.debug(() -> LogUtil.message("wakeDeferredTasks - filterId: {}, metaIds: {}, woken: {}",
-                filterId, metaIds.size(), woken));
-        return count;
+        final int woken = JooqUtil.contextResult(processorDbConnProvider, context -> changeStatus(
+                context,
+                null,
+                TaskStatus.CREATED,
+                nowMs,
+                PROCESSOR_TASK.STATUS.eq(TaskStatus.DEFERRED.getPrimitiveValue())
+                        .and(PROCESSOR_TASK.FK_PROCESSOR_FILTER_ID.in(filterIds))));
+        LOGGER.debug(() -> LogUtil.message("wakeDeferredTasks - pipelineUuid: {}, filters: {}, woken: {}",
+                pipelineUuid, filterIds, woken));
+        return woken;
     }
 
     @Override

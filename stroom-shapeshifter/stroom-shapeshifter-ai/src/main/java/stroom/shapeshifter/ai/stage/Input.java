@@ -29,15 +29,14 @@ import java.util.function.Supplier;
 /**
  * One stream as the stage receives it: the metadata a selector may match on (A22) and the data.
  *
- * @param id         What names the stream in the ledger and a reprocess request: its meta id in a node.
+ * @param id         What names the stream in a deferral and an output row: its meta id in a node.
  * @param feed       The feed name.
  * @param type       The stream type, e.g. {@code Raw Events}.
  * @param attributes The stream's attribute map — the receipt headers.
  * @param data       The stream's content.
- * @param pipeline   The uuid of the pipeline processing it, where one is: what a stream sentinelled now
- *                   is replayed through when its learner settles (A12), which the ledger keeps because the
- *                   settling may happen in another task, on another node, or with nobody there at all.
- *                   Null where nothing is processing it — a worker re-walking an attempt, a scenario.
+ * @param pipeline   The uuid of the pipeline processing it, where one is: what an output row records, so
+ *                   that what a rule produced is counted where it was produced. Null where nothing is
+ *                   processing it — a worker re-walking an attempt, a scenario.
  * @param taskId     The processor task processing it, where one is: what a deferral wakes (design 04 §5.3).
  * @param filterId   That task's filter, where one is.
  * @param opener     Where the whole stream is read from, where `data` is only its prefix (design 04 §3);

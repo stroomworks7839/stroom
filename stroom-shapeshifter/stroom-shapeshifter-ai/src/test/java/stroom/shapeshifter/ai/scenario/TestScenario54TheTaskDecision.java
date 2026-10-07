@@ -35,7 +35,6 @@ import stroom.shapeshifter.ai.stage.Deferrals.Deferral;
 import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.Stage;
 import stroom.shapeshifter.ai.stage.StageRun;
-import stroom.shapeshifter.ai.state.InMemoryLedger;
 import stroom.shapeshifter.shared.AttemptStatus;
 import stroom.shapeshifter.shared.PromotionMode;
 import stroom.shapeshifter.shared.RecordBoundary;
@@ -91,7 +90,6 @@ class TestScenario54TheTaskDecision {
         assertThat(((Deferred) first.decision()).reason()).contains("Awaiting the model");
         assertThat(silent.asked()).describedAs("no model call in the task").isEmpty();
         assertThat(first.output()).isNull();
-        assertThat(scenarios.ledger.isEmpty()).describedAs("nothing is sentinelled to make it wait (§8.7)").isTrue();
         final List<Recorded> attempts = scenarios.attempts.forDocument(DOC, 10);
         assertThat(attempts).hasSize(1);
         assertThat(attempts.get(0).status()).isEqualTo(AttemptStatus.AWAITING_MODEL);
@@ -264,10 +262,6 @@ class TestScenario54TheTaskDecision {
         assertThat(waiting.decision()).isInstanceOf(Deferred.class);
         assertThat(((Deferred) waiting.decision()).reason()).contains("Awaiting review");
         assertThat(scenarios.deferrals.of(Scenarios.LEARNER, 2L)).isPresent();
-        assertThat(scenarios.ledger.rows())
-                .describedAs("the stream that was drafted on is on the ledger, as a session's is; this one is not")
-                .extracting(InMemoryLedger.Row::inputId)
-                .doesNotContain(2L);
 
         scenarios.stage(document -> silent, scenarios.rules).approve(doc, draft.getUuid());
 

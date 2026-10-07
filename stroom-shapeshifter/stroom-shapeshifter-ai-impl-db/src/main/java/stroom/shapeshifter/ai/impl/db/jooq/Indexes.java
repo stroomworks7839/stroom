@@ -14,7 +14,6 @@ import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterCorpus;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterDeferral;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterGuidance;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterLearnerState;
-import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterLedger;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterOutput;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterRule;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterSnapshot;
@@ -39,8 +38,6 @@ public class Indexes {
     public static final Index SHAPESHIFTER_GUIDANCE_SHAPESHIFTER_GUIDANCE_DOC_UUID = Internal.createIndex(DSL.name("shapeshifter_guidance_doc_uuid"), ShapeshifterGuidance.SHAPESHIFTER_GUIDANCE, new OrderField[] { ShapeshifterGuidance.SHAPESHIFTER_GUIDANCE.DOC_UUID }, false);
     public static final Index SHAPESHIFTER_GUIDANCE_SHAPESHIFTER_GUIDANCE_LEARNER = Internal.createIndex(DSL.name("shapeshifter_guidance_learner"), ShapeshifterGuidance.SHAPESHIFTER_GUIDANCE, new OrderField[] { ShapeshifterGuidance.SHAPESHIFTER_GUIDANCE.PIPELINE_UUID, ShapeshifterGuidance.SHAPESHIFTER_GUIDANCE.ELEMENT_ID }, false);
     public static final Index SHAPESHIFTER_LEARNER_STATE_SHAPESHIFTER_LEARNER_STATE_DOC_UUID = Internal.createIndex(DSL.name("shapeshifter_learner_state_doc_uuid"), ShapeshifterLearnerState.SHAPESHIFTER_LEARNER_STATE, new OrderField[] { ShapeshifterLearnerState.SHAPESHIFTER_LEARNER_STATE.DOC_UUID }, false);
-    public static final Index SHAPESHIFTER_LEDGER_SHAPESHIFTER_LEDGER_DOC_UUID = Internal.createIndex(DSL.name("shapeshifter_ledger_doc_uuid"), ShapeshifterLedger.SHAPESHIFTER_LEDGER, new OrderField[] { ShapeshifterLedger.SHAPESHIFTER_LEDGER.DOC_UUID }, false);
-    public static final Index SHAPESHIFTER_LEDGER_SHAPESHIFTER_LEDGER_INPUT_META_ID = Internal.createIndex(DSL.name("shapeshifter_ledger_input_meta_id"), ShapeshifterLedger.SHAPESHIFTER_LEDGER, new OrderField[] { ShapeshifterLedger.SHAPESHIFTER_LEDGER.INPUT_META_ID }, false);
     public static final Index SHAPESHIFTER_OUTPUT_SHAPESHIFTER_OUTPUT_DOC_UUID = Internal.createIndex(DSL.name("shapeshifter_output_doc_uuid"), ShapeshifterOutput.SHAPESHIFTER_OUTPUT, new OrderField[] { ShapeshifterOutput.SHAPESHIFTER_OUTPUT.DOC_UUID }, false);
     public static final Index SHAPESHIFTER_RULE_SHAPESHIFTER_RULE_DOC_UUID = Internal.createIndex(DSL.name("shapeshifter_rule_doc_uuid"), ShapeshifterRule.SHAPESHIFTER_RULE, new OrderField[] { ShapeshifterRule.SHAPESHIFTER_RULE.DOC_UUID }, false);
     public static final Index SHAPESHIFTER_RULE_SHAPESHIFTER_RULE_LEARNER = Internal.createIndex(DSL.name("shapeshifter_rule_learner"), ShapeshifterRule.SHAPESHIFTER_RULE, new OrderField[] { ShapeshifterRule.SHAPESHIFTER_RULE.PIPELINE_UUID, ShapeshifterRule.SHAPESHIFTER_RULE.ELEMENT_ID }, false);

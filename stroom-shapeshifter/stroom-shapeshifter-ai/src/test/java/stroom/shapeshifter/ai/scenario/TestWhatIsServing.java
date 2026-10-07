@@ -130,7 +130,7 @@ class TestWhatIsServing {
                 .containsExactly("serving");
     }
 
-    /// The documents a person may read go into the query, as they do for the ledger: naming none
+    /// The documents a person may read go into the query, as they do for the attempts: naming none
     /// answers nothing rather than everything.
     @Test
     void aDocumentNobodyNamedIsNotInTheAnswer() {

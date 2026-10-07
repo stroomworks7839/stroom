@@ -43,8 +43,6 @@ class TestLearnersDao {
     @Inject
     private LearnerStatesDao states;
     @Inject
-    private LedgerDao ledger;
-    @Inject
     private GuidanceDao guidance;
     @Inject
     private DeferralsDao deferrals;
@@ -63,7 +61,6 @@ class TestLearnersDao {
                     .uuid("rule-" + each.pipelineUuid())
                     .build());
             states.giveUp(each, before, "Nothing to learn");
-            ledger.sentinelled(each, before, 7L, "Shape given up");
             deferrals.deferred(each, before, 8L, "DOOR-ACCESS", "Raw Events", null, null, null, "waiting", 0);
         }
         final long hint = guidance.given(learner, before, "Times are local.", "jo");
@@ -73,10 +70,6 @@ class TestLearnersDao {
         assertThat(rules.byUuid("rule-" + learner.pipelineUuid()))
                 .hasValueSatisfying(held -> assertThat(held.docUuid()).isEqualTo(after));
         assertThat(documentsOfStates(learner)).containsExactly(after);
-        assertThat(ledger.waiting(List.of(after), 0, 10).learners())
-                .singleElement()
-                .satisfies(row -> assertThat(row.getLearner().getPipelineUuid())
-                        .isEqualTo(learner.pipelineUuid()));
         assertThat(deferrals.forDocument(after))
                 .singleElement()
                 .satisfies(row -> assertThat(row.learner()).isEqualTo(learner));

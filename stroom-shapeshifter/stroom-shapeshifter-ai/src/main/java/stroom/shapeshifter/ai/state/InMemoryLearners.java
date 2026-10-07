@@ -27,17 +27,14 @@ import jakarta.inject.Inject;
 public final class InMemoryLearners implements Learners {
 
     private final InMemoryRules rules;
-    private final InMemoryLedger ledger;
     private final InMemoryGuidance guidance;
     private final InMemoryDeferrals deferrals;
 
     @Inject
     public InMemoryLearners(final InMemoryRules rules,
-                            final InMemoryLedger ledger,
                             final InMemoryGuidance guidance,
                             final InMemoryDeferrals deferrals) {
         this.rules = rules;
-        this.ledger = ledger;
         this.guidance = guidance;
         this.deferrals = deferrals;
     }
@@ -45,7 +42,6 @@ public final class InMemoryLearners implements Learners {
     @Override
     public void runsUnder(final Learner learner, final String docUuid) {
         rules.runsUnder(learner, docUuid);
-        ledger.runsUnder(learner, docUuid);
         guidance.runsUnder(learner, docUuid);
         deferrals.runsUnder(learner, docUuid);
     }

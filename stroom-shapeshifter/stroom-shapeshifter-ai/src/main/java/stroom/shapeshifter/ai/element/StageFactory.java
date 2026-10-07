@@ -48,10 +48,8 @@ import stroom.shapeshifter.ai.stage.Deferrals;
 import stroom.shapeshifter.ai.stage.Guidance;
 import stroom.shapeshifter.ai.stage.LearnerStates;
 import stroom.shapeshifter.ai.stage.Learners;
-import stroom.shapeshifter.ai.stage.Ledger;
 import stroom.shapeshifter.ai.stage.Outputs;
 import stroom.shapeshifter.ai.stage.RegressionSet;
-import stroom.shapeshifter.ai.stage.Reprocessing;
 import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.ai.stage.Snapshots;
 import stroom.shapeshifter.ai.stage.Spend;
@@ -99,10 +97,8 @@ public class StageFactory {
     private final Rules rules;
     private final LearnerStates states;
     private final Spend spend;
-    private final Ledger ledger;
     private final Guidance guidance;
     private final Outputs outputs;
-    private final Reprocessing reprocessing;
     private final RegressionSet regressionSet;
     private final Deferrals deferrals;
     private final Learners learners;
@@ -131,10 +127,8 @@ public class StageFactory {
                         final Rules rules,
                         final LearnerStates states,
                         final Spend spend,
-                        final Ledger ledger,
                         final Guidance guidance,
                         final Outputs outputs,
-                        final Reprocessing reprocessing,
                         final RegressionSet regressionSet,
                         final Deferrals deferrals,
                         final Learners learners,
@@ -161,10 +155,8 @@ public class StageFactory {
         this.rules = rules;
         this.states = states;
         this.spend = spend;
-        this.ledger = ledger;
         this.guidance = guidance;
         this.outputs = outputs;
-        this.reprocessing = reprocessing;
         this.regressionSet = regressionSet;
         this.deferrals = deferrals;
         this.learners = learners;
@@ -206,10 +198,8 @@ public class StageFactory {
                 rules,
                 states,
                 spend,
-                ledger,
                 guidance,
                 outputs,
-                reprocessing,
                 regressionSet,
                 deferrals,
                 learners,

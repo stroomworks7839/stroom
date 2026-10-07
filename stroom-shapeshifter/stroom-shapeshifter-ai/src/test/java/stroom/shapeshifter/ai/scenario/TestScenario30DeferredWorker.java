@@ -43,8 +43,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Design 02 §5, scenario 30 (A5, A28): deferred learning. A stream of an unknown shape in a deferred
  * document costs its task a sentinel and no model call — the attempt is opened and parked at its first
- * question — and the worker carries it on outside the task. What it promotes releases the ledger as any
- * other promotion does, so the streams that waited are reprocessed.
+ * question — and the worker carries it on outside the task. What it promotes wakes its pipeline as any
+ * other promotion does, so the streams that waited are tried again.
  */
 class TestScenario30DeferredWorker {
 
@@ -100,7 +100,6 @@ class TestScenario30DeferredWorker {
         assertThat(parked.turns().get(0).answer()).isNull();
         assertThat(parked.turns().get(0).answeredBy()).isNull();
         assertThat(scenarios.deferrals.forDocument(DOC)).describedAs("the stream waits, on a row").hasSize(1);
-        assertThat(scenarios.ledger.rows()).describedAs("and nothing is sentinelled to make it wait").isEmpty();
 
         // A second stream of the shape while it waits: held behind the same attempt, not a second.
         final Input second = scenarios.inputs.put(stream(2L));
@@ -123,7 +122,6 @@ class TestScenario30DeferredWorker {
         assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).hasSize(1);
 
         // And the promotion wakes what waited on the shape.
-        assertThat(scenarios.ledger.isEmpty()).isTrue();
         assertThat(scenarios.wake.woken()).extracting(Deferral::inputId).containsExactly(1L, 2L);
 
         // Nothing is left awaiting, so a second pass has nothing to do.
@@ -167,7 +165,6 @@ class TestScenario30DeferredWorker {
 
         assertThat(served.decision()).describedAs(served.decision().toString()).isInstanceOf(Bound.class);
         assertThat(inTheTask.asked()).isEmpty();
-        assertThat(scenarios.ledger.isEmpty()).describedAs("a bound shape's stream is not sentinelled").isTrue();
         assertThat(scenarios.attempts.forDocument(DOC, 10)).extracting(Recorded::status)
                 .describedAs("the session the mark opened, parked for the worker, beside the one that learned")
                 .containsExactlyInAnyOrder(AttemptStatus.PROMOTED, AttemptStatus.AWAITING_MODEL);

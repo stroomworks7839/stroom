@@ -30,11 +30,14 @@ import java.util.OptionalDouble;
 /// many earlier records. Every method is synchronised: one node's tasks share it.
 public final class InMemoryLearnerStates implements LearnerStates {
 
+    /// What a learner nothing was written of reads as. Never written to: only [#row] hands out a row to write.
+    private static final Row NONE = new Row();
+
     private final Map<Learner, Row> rows = new HashMap<>();
 
     @Override
     public synchronized Optional<String> reasonGivenUp(final Learner learner) {
-        return Optional.ofNullable(row(learner).givenUp);
+        return Optional.ofNullable(read(learner).givenUp);
     }
 
     @Override
@@ -61,7 +64,7 @@ public final class InMemoryLearnerStates implements LearnerStates {
 
     @Override
     public synchronized Optional<String> relearnReason(final Learner learner) {
-        return Optional.ofNullable(row(learner).relearn);
+        return Optional.ofNullable(read(learner).relearn);
     }
 
     @Override
@@ -76,7 +79,7 @@ public final class InMemoryLearnerStates implements LearnerStates {
 
     @Override
     public synchronized Optional<String> draftAwaiting(final Learner learner) {
-        return Optional.ofNullable(row(learner).draft);
+        return Optional.ofNullable(read(learner).draft);
     }
 
     /// What was learned is forgotten; who is learning is not. A promotion resets the state while the
@@ -105,12 +108,16 @@ public final class InMemoryLearnerStates implements LearnerStates {
     /// @param learner The learner.
     /// @return Its rolling score, nought where it has none.
     public synchronized double rollingScore(final Learner learner) {
-        return row(learner).score;
+        return read(learner).score;
     }
 
-    /// @return Whether no learner has a state.
+    /// @return Whether no learner has a state: nothing was written of any, since a read makes no row.
     public synchronized boolean isEmpty() {
         return rows.isEmpty();
+    }
+
+    private Row read(final Learner learner) {
+        return rows.getOrDefault(learner, NONE);
     }
 
     private Row row(final Learner learner) {

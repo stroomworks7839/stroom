@@ -96,6 +96,7 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -118,10 +119,10 @@ import java.util.stream.Stream;
  * do not yet exist, the learning sample is a prefix and the whole stream is held out, as §7 also says;
  * the seeded shuffle applies once the replay unit is a record and is not needed by the first scenarios.
  * <p>
- * Runtime state is what the stage is given (A26): the learners' states, the ledger, the outputs' bindings,
- * the reprocess requests and the regression set. A sentinel is an error and a ledger row (A4); binding a
- * learner releases its ledger as a reprocess request (A12); retracting a provisional rule requests its
- * outputs' inputs the same way (§6). In review mode (A25) a binding is a draft until {@link #approve}
+ * Runtime state is what the stage is given (A26): the learners' states, the outputs' bindings and the
+ * regression set. A sentinel is an error stream and nothing more (A131): the attempt that gave up is the
+ * record of why. Binding a learner wakes its pipeline, which puts its waiting streams through, and asks
+ * for nothing to be reprocessed (A129). In review mode (A25) a binding is a draft until {@link #approve}
  * makes it the promotion or {@link #reject} discards it.
  */
 public final class Stage {
@@ -147,10 +148,8 @@ public final class Stage {
     private final Rules rules;
     private final LearnerStates states;
     private final Spend spend;
-    private final Ledger ledger;
     private final Guidance guidance;
     private final Outputs outputs;
-    private final Reprocessing reprocessing;
     private final RegressionSet regressionSet;
     private final Deferrals deferrals;
     private final Learners learners;
@@ -180,10 +179,8 @@ public final class Stage {
                  final Rules rules,
                  final LearnerStates states,
                  final Spend spend,
-                 final Ledger ledger,
                  final Guidance guidance,
                  final Outputs outputs,
-                 final Reprocessing reprocessing,
                  final RegressionSet regressionSet,
                  final Deferrals deferrals,
                  final Learners learners,
@@ -203,10 +200,8 @@ public final class Stage {
         this.rules = rules;
         this.states = states;
         this.spend = spend;
-        this.ledger = ledger;
         this.guidance = guidance;
         this.outputs = outputs;
-        this.reprocessing = reprocessing;
         this.regressionSet = regressionSet;
         this.deferrals = deferrals;
         this.learners = learners;
@@ -234,6 +229,9 @@ public final class Stage {
      * the answers. What is asked beyond the record is asked of {@code answerer}: the model, for the worker
      * advancing a deferred attempt; nothing, for one that is to stop again.
      *
+     * Whatever becomes of the attempt, the stream is not errored here: it was read back out of the store,
+     * and its own task is deferred behind the attempt, which errors it or serves it when it next runs.
+     *
      * @param input The stream the attempt was raised on, which the attempt's row names.
      */
     public StageRun resume(final ShapeshifterAiDoc doc, final long attemptId, final Input input,
@@ -245,8 +243,8 @@ public final class Stage {
         // Carrying it on is taking it (A45): an attempt that has finished is not resumed, and one another
         // node has taken since is that node's until its claim lapses.
         if (!attempts.claimed(attemptId, node, clock.millis(), claimUntil())) {
-            return sentinel(doc, learner, input, "Attempt " + attemptId + " is not this node's to carry on: it "
-                                               + "has finished, or another node holds it");
+            return refused(doc, learner, "Attempt " + attemptId + " is not this node's to carry on: it has "
+                                         + "finished, or another node holds it");
         }
         // An attempt may have waited a long time, and the learner is not as it left it: an operator may
         // have turned learning off, a person may have a draft of it in front of them, or it may have been
@@ -256,7 +254,7 @@ public final class Stage {
         final Optional<String> stop = whyNotToCarryOn(doc, learner, matched);
         if (stop.isPresent()) {
             record(() -> attempts.closed(attemptId, AttemptStatus.ABANDONED, stop.get(), null, null, 0L));
-            return sentinel(doc, learner, input, stop.get());
+            return refused(doc, learner, stop.get());
         }
         final Scorecard scorecard = new Scorecard(doc.getScorers(), scorers);
         final RecordedAdvisor replay = new RecordedAdvisor(recorded.turns(), answerer);
@@ -284,7 +282,7 @@ public final class Stage {
         }
         return carrying(doc, learner, input, attemptId, recorded.tokensSpent(), recorded.grant(),
                 recorded.exhaustNext(), answeredBefore, replay, true,
-                reason -> sentinel(doc, learner, input, reason),
+                reason -> refused(doc, learner, reason),
                 recorder -> settle(doc, learner, input, attributes, scorecard, recorder,
                         learnAndBind(doc, learner, input, attributes, scorecard, recorder)));
     }
@@ -631,50 +629,6 @@ public final class Stage {
         states.markForRelearning(learner, doc.getUuid(), reason);
     }
 
-    /// Ask for a learner to learn now, rather than when its feed next ships (A28, design 01 §11.6).
-    ///
-    /// This is what the ruling means by raising an attempt for a given-up shape from the Supervisor (A28),
-    /// and why it says no on-request learning mode is needed. [#relearn] marks a learner and waits for
-    /// traffic; a learner that gave up has streams waiting on the ledger *because* nothing served them,
-    /// and they are the traffic. So they are asked for again, exactly as a promotion asks for them
-    /// (A12), and the first of them through learns.
-    ///
-    /// Nothing is held and nothing is lost: every stream named here was processed to an error stream
-    /// and is where it always was, and a learner that fails to learn sentinels them again as it did
-    /// before.
-    ///
-    /// @param learner The learner.
-    /// @param reason  Why, in the person's words: it opens the next attempt and travels with every
-    ///                stream asked for.
-    /// @param by      Who asked, since this overrides a decision — theirs or the stage's — to stop.
-    /// @return How many streams were asked to be processed again. None means the learner has nothing
-    /// waiting, and it learns when its feed next ships.
-    public int learnAgain(final ShapeshifterAiDoc doc,
-                          final Learner learner,
-                          final String reason,
-                          final String by) {
-        if (doc.getLearningMode() == LearningMode.DISABLED) {
-            // The kill switch is a kill switch, as it is for an improvement: a button that asked anyway
-            // would be a way round it.
-            throw new IllegalStateException("Shapeshifter AI is disabled for this document");
-        }
-        final Optional<String> awaiting = states.draftAwaiting(learner);
-        if (awaiting.isPresent()) {
-            // A learner whose draft is waiting for somebody has already learned; what it needs is a
-            // decision, not another attempt. Asked for anyway it would spin: the streams would be
-            // released, reprocessed, meet the draft, and be sentinelled by it again — the same rows
-            // back on the ledger and nothing learned.
-            throw new IllegalStateException("Draft rule " + awaiting.get() + " is awaiting review for "
-                                            + "this learner; approve or reject it rather than learning "
-                                            + "again");
-        }
-        final String said = "Sent back to be learned again by " + by + ": " + reason;
-        relearn(doc, learner, said);
-        final List<Replayable> waiting = ledger.release(learner);
-        replay(doc, waiting, said);
-        return waiting.size();
-    }
-
     /**
      * Why an attempt that stopped is not to be carried on, if it is not: the learner's state as it stands
      * now, read as a task's decision reads it for a stream. Empty where the attempt may go on.
@@ -711,8 +665,8 @@ public final class Stage {
     /// The rules as they stand are not consulted and nothing is learned, scored or relearned. A rule that has
     /// since been rebound, retracted or given up makes no difference: what ran is what runs, because an
     /// improvement is a new document and the old one cannot have changed (§7.3 rule 1). For the other
-    /// question — what serves the learner today — the answer is a task's [#decide], which
-    /// is what a release (A12) reprocesses through.
+    /// question — what serves the learner today — the answer is a task's [#decide], which is what an
+    /// ordinary reprocess filter puts a stream through.
     ///
     /// @param learner The learner whose pipeline the input is processed again through.
     /// @param input   The input.
@@ -778,7 +732,7 @@ public final class Stage {
     /// Stepping is a dry run. What serves the learner is found and a bound fragment is run, because a
     /// fragment's output is what the person stepping the pipeline came to see — and nothing else
     /// happens at all: no model is asked, no fragment written, no rule bound, promoted, retracted or
-    /// relearned, no rolling score, no output row, no ledger row and no reprocess request. A learner no
+    /// relearned, no rolling score, no output row and no wake. A learner no
     /// rule serves is *reported*, as [Decision.Would], rather than learned.
     ///
     /// It is a separate walk rather than a flag through [#decide] because every branch of that walk writes
@@ -872,7 +826,7 @@ public final class Stage {
     ///   and the session opened if none holds the learner's claim. A row whose stamp is still the
     ///   transform in force defers again without running anything.
     /// - No rule: deferred, with the session opened on this stream.
-    /// - The learner has given up: errored, with the ledger saying so — the only outcome that errors.
+    /// - The learner has given up: errored with the reason — the only outcome that errors.
     ///
     /// A pinned rule is frozen (design 01 §7.3 rule 2): its streams are served whatever the bar says,
     /// since nothing will relearn it and a person has said *this, exactly*.
@@ -898,11 +852,10 @@ public final class Stage {
         final Optional<String> givenUp = states.reasonGivenUp(learner);
         if (givenUp.isPresent()) {
             // A stream that waited on a session that gave up (A54) has reached its end: its row goes, and
-            // it errors with the reason. This is the one refusal that keeps a ledger row (A80): the ledger
-            // is the door a person sends a learner that gave up back through, and the row is what that
-            // asks to be processed again.
+            // it errors with the reason. A person sends the learner back from the attempt that gave up,
+            // and reprocesses its error streams as they would any others (A129, A131).
             deferrals.released(learner, input.id());
-            return sentinel(doc, learner, input, "Given up: " + givenUp.get());
+            return refused(doc, learner, "Given up: " + givenUp.get());
         }
         if (doc.getLearningMode() == LearningMode.DISABLED) {
             // The kill switch: no session can open, so the stream waits for a person to turn learning on
@@ -951,7 +904,7 @@ public final class Stage {
     /// A learner a person marked for relearning (A100) relearns on its next stream that brings enough
     /// records to judge a candidate on: the session is opened here and parked for the worker, while the
     /// stream itself is served by the incumbent, as it would be without the mark (A29). A pinned rule is
-    /// never relearned; a learner behind a draft waits for the review; one that gave up is the ledger's to
+    /// never relearned; a learner behind a draft waits for the review; one that gave up is a person's to
     /// send back (A80); with learning off nothing opens; and
     /// where a session already holds the claim — one the mark or a short record opened — the stream
     /// simply flows.
@@ -1148,36 +1101,37 @@ public final class Stage {
                 : rule.getPipeline().getUuid();
     }
 
-    /// A promotion wakes what waits on its learner (design 04 §5.3): every row of the learner's, whose
-    /// tasks go back to the queue ahead of the retry delay. The rows stay until each stream is served.
+    /// A promotion wakes what waits on its learner (design 04 §5.3, design 06 §4.3): the deferred tasks of
+    /// every filter on the learner's pipeline go back to the queue ahead of the retry delay. The rows
+    /// stay until each stream is served.
     private void wake(final Learner learner) {
-        final List<Deferral> waiting = deferrals.waiting(learner);
-        if (!waiting.isEmpty()) {
-            wake.wake(waiting);
-        }
+        wake.wake(learner.pipelineUuid());
     }
 
-    /// Wake the streams of a document that wait against a transform no longer in force: what the learning
-    /// job does on every pass (design 04 §5.3). A promotion wakes the rows of its learner as they stand, but
-    /// a stream judged against the old transform while the promotion was being made writes its row after
-    /// that wake, and its task is not deferred until after the row is written, so nothing the promotion
-    /// did can reach it. Such a row is not waiting on anything: the next try scores it against the
-    /// transform now in force. A row whose task is still running is not woken, and the next pass tries
-    /// again; a learner behind a draft waits for the review, as its streams do.
+    /// Wake the pipelines whose streams wait against a transform no longer in force: what the learning job
+    /// does on every pass (design 04 §5.3, A130). A promotion wakes its learner's pipeline, but a stream
+    /// judged against the old transform while the promotion was being made writes its row after that wake,
+    /// and its task is not deferred until after the row is written, so nothing the promotion did can reach
+    /// it. Such a row is not waiting on anything: the next try scores it against the transform now in
+    /// force. A task still running when the pass comes is not woken, and the next pass tries again; a
+    /// learner behind a draft waits for the review, as its streams do.
     ///
-    /// @param doc The document.
+    /// Read by learner and transform, not by row: as many as there are learners waiting, however many
+    /// streams wait on each.
+    ///
     /// @return How many tasks were woken.
-    public int wakeSuperseded(final ShapeshifterAiDoc doc) {
-        final List<Deferral> superseded = deferrals.forDocument(doc.getUuid()).stream()
-                .filter(row -> row.failedAgainst() != null)
-                .filter(row -> bindingFor(row.learner())
-                        .filter(rule -> !rule.isDraft())
-                        .map(rule -> !row.failedAgainst().equals(stamp(rule)))
-                        .orElse(false))
-                .toList();
-        return superseded.isEmpty()
-                ? 0
-                : wake.wake(superseded);
+    public int wakeSuperseded() {
+        final Set<String> pipelines = new LinkedHashSet<>();
+        for (final Deferrals.Stamp waiting : deferrals.stampsWaiting()) {
+            final boolean replaced = bindingFor(waiting.learner())
+                    .filter(rule -> !rule.isDraft())
+                    .map(rule -> !waiting.failedAgainst().equals(stamp(rule)))
+                    .orElse(false);
+            if (replaced) {
+                pipelines.add(waiting.learner().pipelineUuid());
+            }
+        }
+        return pipelines.stream().mapToInt(wake::wake).sum();
     }
 
     /// One attempt, recorded (A28): a row when this node commits to learning, a turn for every
@@ -1186,7 +1140,8 @@ public final class Stage {
     ///
     /// @param waiting What becomes of *this stream* where the attempt is not this stage's to carry to an
     ///                end — another node holds the claim, or the attempt has parked awaiting an answer.
-    ///                Where nothing serves the learner that is a sentinel and the ledger; where a rule
+    ///                In a task where nothing serves the learner the stream is deferred; in the worker it
+    ///                is refused, since its own task is the one deferred; where a rule
     ///                already serves it, it is that rule serving the stream as it serves every other.
     private StageRun recording(final ShapeshifterAiDoc doc,
                                final Learner learner,
@@ -1478,8 +1433,8 @@ public final class Stage {
                 // into records that meet the gates is the one failure nothing can serve (A52, A54), or
                 // any step's where the flow says so. The learner gives up, and the streams waiting on it
                 // are woken to error with the reason, as a given-up learner's streams do.
-                final StageRun givenUp = givenUp(doc, learner, input, abandoned.reason(), abandoned.reason(),
-                        abandoned.diagnostics(), List.of(), outcome.transcript());
+                final StageRun givenUp = givenUp(doc, learner, abandoned.reason(),
+                        abandoned.reason(), abandoned.diagnostics(), List.of(), outcome.transcript());
                 wake(learner);
                 return givenUp;
             }
@@ -1488,8 +1443,8 @@ public final class Stage {
                 // streams go on waiting, and nothing is baked because money or candidates ran out.
                 return parked(doc, learner, abandoned.reason(), outcome.transcript());
             }
-            return givenUp(doc, learner, input, abandoned.reason(), abandoned.reason(), abandoned.diagnostics(),
-                    List.of(), outcome.transcript());
+            return givenUp(doc, learner, abandoned.reason(), abandoned.reason(),
+                    abandoned.diagnostics(), List.of(), outcome.transcript());
         }
         final Learned learned = (Learned) outcome;
 
@@ -1497,10 +1452,14 @@ public final class Stage {
         // records for one, and the floor a provisional binding must clear where there are not.
         final Judged judged = asLearned(rerun(learned.chain(), input.data(), boundary(learned)), scorecard);
         if (!judged.clearsFloor(doc)) {
-            return givenUp(doc, learner, input, "Below the promotion floor",
+            // Woken, as for the flow's give-up: the streams waiting on the learner error with the reason
+            // now, rather than after the retry delay.
+            final StageRun givenUp = givenUp(doc, learner, "Below the promotion floor",
                     "Candidate scored " + judged.score() + " against a floor of " + doc.getPromotionFloor(),
                     judged.verdicts().stream().flatMap(verdict -> verdict.feedback().stream()).toList(),
                     judged.verdicts(), learned.transcript());
+            wake(learner);
+            return givenUp;
         }
         final DocRef fragment = write(doc, input, learned);
         // What goes in the corpus (A56): the sample the model was shown, every record of it, since a
@@ -1641,11 +1600,9 @@ public final class Stage {
 
     /**
      * Bind a fragment that cleared the floor: a new rule for the learner, promoted if the stream had
-     * enough records for a held-out judgement and provisional otherwise; the learner's ledger
-     * released as a reprocess request (A12) — under a provisional rule too, since those inputs are the
-     * records the rule is waiting on to meet A14, and its outputs are retracted if it does not; and the
-     * stream's output emitted. In review mode (A25) the rule is a draft instead: the learner's streams wait
-     * on it, nothing is released, and this stream joins the ledger for Approve to release.
+     * enough records for a held-out judgement and provisional otherwise; the learner's pipeline woken,
+     * which is what puts its waiting streams through; and the stream's output emitted. In review mode (A25)
+     * the rule is a draft instead, and the learner's streams wait on it, this one with them.
      */
     private StageRun bind(final ShapeshifterAiDoc doc,
                           final Learner learner,
@@ -1680,16 +1637,9 @@ public final class Stage {
         states.reset(learner);
         if (draft) {
             states.awaitReview(learner, doc.getUuid(), rule.getUuid());
-            ledger.sentinelled(learner, doc.getUuid(), input.id(),
-                    "Awaiting review: draft rule " + rule.getUuid() + " binds " + fragment.getName());
             return new StageRun(doc, new Drafted(rule, judged.score()), learner, null,
                     null, judged.verdicts(), transcript, null, List.of());
         }
-        replay(doc, ledger.release(learner),
-                "Bound by rule " + rule.getUuid()
-                + (provisional
-                        ? " (provisional)"
-                        : ""));
         wake(learner);
         final Decision decision = provisional
                 ? new Provisional(rule, judged.score(), judged.records(), doc.getMinRecordsPerShape())
@@ -1746,9 +1696,8 @@ public final class Stage {
     /**
      * Approve a draft (A25): the promotion. Where a rule already serves the learner — the draft came of
      * relearning — that rule is rebound to the draft's fragment and keeps its {@code uuid} and its
-     * history; otherwise the draft itself goes live. Either way the learner's ledger is released as a
-     * reprocess request (A12).
-     *
+     * history; otherwise the draft itself goes live. Either way the learner's pipeline is woken, which puts
+     * what waited for the review through.
      */
     public void approve(final ShapeshifterAiDoc doc, final String ruleUuid) {
         final Rules.Held held = draft(doc, ruleUuid);
@@ -1782,26 +1731,9 @@ public final class Stage {
         states.reset(learner);
         // The attempt that wrote the draft is no longer awaiting review (A28).
         record(() -> attempts.decided(doc.getUuid(), ruleUuid, AttemptStatus.PROMOTED, "Approved"));
-        // And what waited for the review is woken (design 04 §5.3).
+        // And what waited for the review is woken (design 04 §5.3), which is all it needs: its tasks were
+        // deferred, not errored.
         wake(learner);
-        replay(doc, ledger.release(learner), "Draft rule " + ruleUuid + " approved");
-    }
-
-    /**
-     * Ask for what waited on a learner to be processed again (A12), each input through the pipeline that
-     * sentinelled it: one document may be used by several pipelines, and a stream replayed through a
-     * pipeline that never saw it would produce something nobody asked for. A stream sentinelled by no
-     * pipeline at all — a harness, a worker — is released and nothing is asked for it.
-     */
-    private void replay(final ShapeshifterAiDoc doc, final List<Replayable> released, final String reason) {
-        // A map rather than a grouping collector: a stream sentinelled by no pipeline has a null key, and
-        // it is asked for like any other. What can be done about a request that names no pipeline is the
-        // implementation's business, not this stage's.
-        final Map<String, List<Long>> byPipeline = new LinkedHashMap<>();
-        released.forEach(row -> byPipeline.computeIfAbsent(row.pipeline(), key -> new ArrayList<>())
-                .add(row.inputId()));
-        byPipeline.forEach((pipeline, inputIds) -> reprocessing.request(doc.getUuid(), pipeline, reason,
-                inputIds));
     }
 
     /// Accept a provisional binding now, rather than waiting for the records that would promote it
@@ -1856,9 +1788,9 @@ public final class Stage {
     ///
     /// The automatic retraction of §6 is what a provisional rule gets when it fails the gate; this is the
     /// same act for a reason no gate can see — a person has read what the rule is producing and decided
-    /// it should not be. What follows is identical, and deliberately so: the rule goes, the learner
-    /// knows nothing again, and everything the rule produced is asked to be processed again *as it would be
-    /// now* (A12), because what it produced was produced by a binding that has been withdrawn.
+    /// it should not be. The rule goes and the learner knows nothing again. What the rule produced was
+    /// produced by a binding that has been withdrawn, and is counted rather than asked for (A129): a
+    /// person who wants it as it would be now makes a reprocess filter on the pipeline.
     ///
     /// Not a removal, which is what it says: a row taken out of a table. Removing a learned rule leaves the
     /// learner thinking it is bound and leaves the streams it produced standing as though they were right.
@@ -1868,11 +1800,11 @@ public final class Stage {
     /// gives the learner up so it does not learn again. A retracted learner *does* learn again: its next
     /// stream starts afresh, which is the point — the rule was wrong, the feed is not.
     ///
-    /// @param reason Why, in the person's words. It goes on the reprocess request and on the attempt, so
-    ///               that a stream asked for again a week later says what asked for it.
+    /// @param reason Why, in the person's words. It goes on the attempt, so that a person reading it a week
+    ///               later knows what took the rule back.
     /// @param by     Who retracted it, since this overrides what the gate decided.
-    /// @return How many streams were asked to be processed again, which is the one consequence a person
-    /// retracting a rule cannot see for themselves and the one worth telling them.
+    /// @return How many streams the rule produced output for: what a person would reprocess, the one
+    /// consequence a person retracting a rule cannot see for themselves and the one worth telling them.
     public int retract(final ShapeshifterAiDoc doc, final String ruleUuid, final String reason, final String by) {
         final Rules.Held held = held(doc, ruleUuid);
         final Learner learner = held.learner();
@@ -1895,13 +1827,11 @@ public final class Stage {
         // next stream learns afresh — unless a draft awaits review, which is still the learner's candidate
         // and a person's to decide.
         resetKeepingDraft(doc, learner);
-        // Each through the pipeline that produced it, which the rows remember, and by the fragment as
-        // well as the rule: a rule keeps its uuid when it is rebound (§7.3 rule 3), and what an earlier
-        // generation produced was produced correctly by what was bound then.
+        // By the fragment as well as the rule: a rule keeps its uuid when it is rebound (§7.3 rule 3), and
+        // what an earlier generation produced was produced correctly by what was bound then.
         final List<Replayable> produced = outputs.boundBy(rule.getUuid(), rule.getPipeline() == null
                 ? null
                 : rule.getPipeline().getUuid());
-        replay(doc, produced, said);
         record(() -> attempts.settled(doc.getUuid(), ruleUuid, AttemptStatus.RETRACTED, said));
         return produced.size();
     }
@@ -1922,11 +1852,6 @@ public final class Stage {
         snapshots.discard(draft.getUuid());
         states.reset(learner);
         states.giveUp(learner, doc.getUuid(), "Rejected: " + reason);
-        // And the streams that were waiting for somebody to review it stop saying they are. They are
-        // still waiting — nothing serves the learner now — but a ledger row that goes on naming a draft
-        // that no longer exists is the screen a person would use to start the learner learning again,
-        // telling them to review something instead.
-        ledger.restate(learner, "Rejected: " + reason);
         record(() -> attempts.decided(doc.getUuid(), ruleUuid, AttemptStatus.REJECTED, "Rejected: " + reason));
         // The streams waiting behind the draft (design 04 §3) are woken to error, as a given-up learner's
         // always are (A52, A80): left waiting, they would wait for a review that is no longer coming.
@@ -2165,27 +2090,8 @@ public final class Stage {
                 judged.events(), judged.diagnostics());
     }
 
-    /// The stream is not processed and nothing is waiting for it to be: an error naming the reason,
-    /// and **no ledger row**.
-    ///
-    /// The ledger is what a learner's settling releases (A12): a row goes on it because a promotion will
-    /// one day take it off. A refusal no promotion can answer — an as-processed reprocess of an input
-    /// nothing remembers — would go on and stay on, and every later release of that learner would ask for
-    /// it again, be refused again, and write the row again.
+    /// The stream is not processed here: an error naming the reason, and nothing else written (A131).
     private StageRun refused(final ShapeshifterAiDoc doc, final Learner learner, final String reason) {
-        return new StageRun(doc, new Sentinel(reason), learner, null, null, List.of(), List.of(), null,
-                List.of());
-    }
-
-    /**
-     * The stream is not processed and the model was not consulted: an error naming the reason, and a
-     * ledger row (A4).
-     */
-    private StageRun sentinel(final ShapeshifterAiDoc doc,
-                              final Learner learner,
-                              final Input input,
-                              final String reason) {
-        ledger.sentinelled(learner, doc.getUuid(), input.id(), reason);
         return new StageRun(doc, new Sentinel(reason), learner, null, null, List.of(), List.of(), null,
                 List.of());
     }
@@ -2196,14 +2102,12 @@ public final class Stage {
      */
     private StageRun givenUp(final ShapeshifterAiDoc doc,
                              final Learner learner,
-                             final Input input,
                              final String decision,
                              final String reason,
                              final List<StoredError> diagnostics,
                              final List<Verdict> verdicts,
                              final List<Exchange> transcript) {
         states.giveUp(learner, doc.getUuid(), reason);
-        ledger.sentinelled(learner, doc.getUuid(), input.id(), reason);
         return new StageRun(doc, new GivenUp(decision, diagnostics), learner, null, null, verdicts, transcript,
                 null, List.of());
     }

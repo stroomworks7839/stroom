@@ -49,25 +49,6 @@ CREATE TABLE IF NOT EXISTS shapeshifter_learner_state (
 ) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
 
 --
--- The streams a learner gave up on, kept to be put through again if it learns after all. One row per
--- stream per learner, so a stream recorded twice is not replayed twice. The learner's pipeline is the one
--- that was processing the stream, and the one it is put through again.
---
-CREATE TABLE IF NOT EXISTS shapeshifter_ledger (
-    id                    bigint NOT NULL AUTO_INCREMENT,
-    create_time_ms        bigint NOT NULL,
-    pipeline_uuid         varchar(255) NOT NULL,
-    element_id            varchar(255) NOT NULL,
-    doc_uuid              varchar(255) NOT NULL,
-    input_meta_id         bigint NOT NULL,
-    reason                longtext NOT NULL,
-    PRIMARY KEY           (id),
-    UNIQUE KEY            shapeshifter_ledger_learner_input (pipeline_uuid, element_id, input_meta_id),
-    KEY                   shapeshifter_ledger_doc_uuid (doc_uuid),
-    KEY                   shapeshifter_ledger_input_meta_id (input_meta_id)
-) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
-
---
 -- What serves a learner (A124): its binding, and any draft awaiting review to take its place.
 -- pipeline_uuid and element_id are the learner (A114); the fragment_* columns name the fragment the
 -- binding runs. The document the learner runs under is kept for the Supervisor.

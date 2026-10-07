@@ -17,6 +17,7 @@
 package stroom.shapeshifter.ai.impl.db;
 
 import stroom.shapeshifter.ai.stage.Deferrals.Deferral;
+import stroom.shapeshifter.ai.stage.Deferrals.Stamp;
 import stroom.shapeshifter.ai.stage.Learner;
 
 import com.google.inject.Guice;
@@ -86,21 +87,14 @@ class TestDeferralsDao {
     }
 
     @Test
-    void oneStreamsRowComesBackByItsIdAndALearnersRowsComeBackOldestFirst() {
+    void oneStreamsRowComesBackByItsId() {
         deferrals.deferred(LEARNER, DOC, 7L, "DOOR-ACCESS", "Raw Events", 100L, 5, "frag:1", "short", 2);
         deferrals.deferred(LEARNER, DOC, 9L, "DOOR-ACCESS", "Raw Events", 102L, 5, null, "no rule", 0);
         deferrals.deferred(OTHER_LEARNER, OTHER_DOC, 8L, "LIFT", "Raw Events", 101L, 5, null, "no rule", 0);
 
         assertThat(deferrals.of(LEARNER, 9L)).isPresent().get().extracting(Deferral::reason).isEqualTo("no rule");
         assertThat(deferrals.of(LEARNER, 99L)).isEmpty();
-        assertThat(deferrals.waiting(LEARNER))
-                .describedAs("oldest first: what a promotion wakes")
-                .extracting(Deferral::inputId)
-                .containsExactly(7L, 9L);
-        assertThat(deferrals.waiting(OTHER_LEARNER))
-                .describedAs("and only its own learner's streams")
-                .extracting(Deferral::inputId)
-                .containsExactly(8L);
+        assertThat(deferrals.of(OTHER_LEARNER, 9L)).describedAs("another learner's stream of that id").isEmpty();
     }
 
     @Test
@@ -115,22 +109,24 @@ class TestDeferralsDao {
         assertThat(deferrals.forDocument(OTHER_DOC)).extracting(Deferral::inputId).containsExactly(7L);
     }
 
-    /// Each document with a stream waiting, once however many it has; one with none is not named. The
-    /// table is shared with whatever else has run against the database, so only these two are looked at.
+    /// What the learning job sweeps (A130): each learner and the transform its streams wait against, once
+    /// however many streams wait on it; a stream that waits on no transform is not named. The table is
+    /// shared with whatever else has run against the database, so only these two learners are looked at.
     @Test
-    void theDocumentsWaitingAreEachNamedOnce() {
+    void eachLearnerAndTransformWaitedAgainstIsNamedOnce() {
         deferrals.deferred(LEARNER, DOC, 7L, "DOOR-ACCESS", "Raw Events", 100L, 5, "frag:1", "short", 2);
+        deferrals.deferred(LEARNER, DOC, 8L, "DOOR-ACCESS", "Raw Events", 101L, 5, "frag:1", "short", 1);
         deferrals.deferred(LEARNER, DOC, 9L, "LIFT", "Raw Events", 102L, 5, null, "no rule", 0);
         deferrals.deferred(OTHER_LEARNER, OTHER_DOC, 7L, "DOOR-ACCESS", "Raw Events", 103L, 6, "frag:9", "short", 1);
 
-        assertThat(deferrals.documentsWaiting())
-                .filteredOn(doc -> doc.equals(DOC) || doc.equals(OTHER_DOC))
-                .containsExactlyInAnyOrder(DOC, OTHER_DOC);
+        assertThat(deferrals.stampsWaiting())
+                .filteredOn(stamp -> stamp.learner().equals(LEARNER) || stamp.learner().equals(OTHER_LEARNER))
+                .containsExactlyInAnyOrder(new Stamp(LEARNER, "frag:1"), new Stamp(OTHER_LEARNER, "frag:9"));
 
         deferrals.released(OTHER_LEARNER, 7L);
 
-        assertThat(deferrals.documentsWaiting())
-                .filteredOn(doc -> doc.equals(DOC) || doc.equals(OTHER_DOC))
-                .containsExactly(DOC);
+        assertThat(deferrals.stampsWaiting())
+                .filteredOn(stamp -> stamp.learner().equals(LEARNER) || stamp.learner().equals(OTHER_LEARNER))
+                .containsExactly(new Stamp(LEARNER, "frag:1"));
     }
 }
