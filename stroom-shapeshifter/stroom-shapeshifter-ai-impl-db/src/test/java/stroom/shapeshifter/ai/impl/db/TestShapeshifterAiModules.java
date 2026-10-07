@@ -20,11 +20,11 @@ import stroom.cache.api.CacheManager;
 import stroom.cache.impl.CacheManagerImpl;
 import stroom.db.util.DataSourceFactory;
 import stroom.shapeshifter.ai.ShapeshifterAiDbConfig;
+import stroom.shapeshifter.ai.cache.CachedLearnerStates;
 import stroom.shapeshifter.ai.cache.CachedRules;
-import stroom.shapeshifter.ai.cache.CachedShapes;
 import stroom.shapeshifter.ai.cache.Rows;
+import stroom.shapeshifter.ai.stage.LearnerStates;
 import stroom.shapeshifter.ai.stage.Rules;
-import stroom.shapeshifter.ai.stage.Shapes;
 import stroom.util.entityevent.EntityEventBus;
 
 import com.google.inject.AbstractModule;
@@ -57,7 +57,7 @@ class TestShapeshifterAiModules {
         final Injector injector = Guice.createInjector(new ShapeshifterAiDbModule(), bootstrap());
 
         assertThat(injector.getExistingBinding(Key.get(Rules.class))).isNull();
-        assertThat(injector.getExistingBinding(Key.get(Shapes.class))).isNull();
+        assertThat(injector.getExistingBinding(Key.get(LearnerStates.class))).isNull();
     }
 
     @Test
@@ -65,9 +65,10 @@ class TestShapeshifterAiModules {
         final Injector injector = Guice.createInjector(new ShapeshifterAiDaoModule(), application());
 
         assertThat(injector.getInstance(Key.get(Rules.class, Rows.class))).isInstanceOf(RulesDao.class);
-        assertThat(injector.getInstance(Key.get(Shapes.class, Rows.class))).isInstanceOf(ShapesDao.class);
+        assertThat(injector.getInstance(Key.get(LearnerStates.class, Rows.class)))
+                .isInstanceOf(LearnerStatesDao.class);
         assertThat(injector.getInstance(Rules.class)).isInstanceOf(CachedRules.class);
-        assertThat(injector.getInstance(Shapes.class)).isInstanceOf(CachedShapes.class);
+        assertThat(injector.getInstance(LearnerStates.class)).isInstanceOf(CachedLearnerStates.class);
     }
 
     /// What the bootstrap injector brings: the module's configuration, and the factory it would make a

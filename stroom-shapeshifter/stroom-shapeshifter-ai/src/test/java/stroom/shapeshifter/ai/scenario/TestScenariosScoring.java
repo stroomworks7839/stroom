@@ -57,7 +57,6 @@ class TestScenariosScoring {
     private static final String XSLT = Scenarios.resource("csv-logon.xsl");
     private static final String DEGENERATE = Scenarios.resource("csv-degenerate.xsl");
     private static final String DOC = "doc-1";
-    private static final String SHAPE = "Feed=DOOR-ACCESS|Type=Raw Events";
     private static final String AUTHENTICATE_USER_ID = String.join("\n",
             "            <Id><xsl:value-of select=\"data[@name='who']/@value\"/></Id>",
             "          </User>",
@@ -309,7 +308,7 @@ class TestScenariosScoring {
                 .anyMatch(message -> message.contains("against an expected 1.0"));
         assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).isEmpty();
         assertThat(scenarios.stores.pipelines.list()).isEmpty();
-        assertThat(scenarios.shapes.reasonGivenUp(Scenarios.LEARNER, SHAPE)).isEmpty();
+        assertThat(scenarios.states.reasonGivenUp(Scenarios.LEARNER)).isEmpty();
         assertThat(scenarios.ledger.isEmpty()).isTrue();
         assertThat(scenarios.deferrals.of(Scenarios.LEARNER,
                 1L)).describedAs("the stream waits on the parked session").isPresent();
@@ -343,7 +342,7 @@ class TestScenariosScoring {
         assertThat(script.scripted()).hasSize(3);
         assertThat(run.decision()).isInstanceOf(GivenUp.class);
         assertThat(((GivenUp) run.decision()).reason()).isEqualTo("Below the promotion floor");
-        assertThat(scenarios.shapes.reasonGivenUp(Scenarios.LEARNER, SHAPE).orElseThrow())
+        assertThat(scenarios.states.reasonGivenUp(Scenarios.LEARNER).orElseThrow())
                 .contains("against a floor of 0.95");
         assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).isEmpty();
         assertThat(scenarios.stores.pipelines.list()).describedAs("nothing written below the floor").isEmpty();

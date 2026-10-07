@@ -17,6 +17,7 @@
 package stroom.shapeshifter.ai.element;
 
 import stroom.docref.DocRef;
+import stroom.meta.shared.MetaFields;
 import stroom.shapeshifter.ai.learning.Exchange;
 import stroom.shapeshifter.ai.learning.Question;
 import stroom.shapeshifter.ai.scoring.Judgement;
@@ -35,6 +36,7 @@ import stroom.shapeshifter.ai.stage.Decision.Rebound;
 import stroom.shapeshifter.ai.stage.Decision.Retracted;
 import stroom.shapeshifter.ai.stage.Decision.Sentinel;
 import stroom.shapeshifter.ai.stage.Decision.Would;
+import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.StageRun;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 import stroom.shapeshifter.shared.ShapeshifterAiStepDetails;
@@ -44,7 +46,9 @@ import stroom.shapeshifter.shared.SupervisorTurn;
 import stroom.util.shared.NullSafe;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /// The stage pane's contents, from what the stage decided (A30, design 01 §11.7).
 ///
@@ -57,7 +61,7 @@ public final class StepDetails {
     private StepDetails() {
     }
 
-    public static ShapeshifterAiStepDetails of(final StageRun run, final boolean dryRun) {
+    public static ShapeshifterAiStepDetails of(final StageRun run, final Input input, final boolean dryRun) {
         final Bindings bindings = run.bindings();
         final DocRef fragment = bindings != null
                 ? bindings.fragment()
@@ -65,8 +69,7 @@ public final class StepDetails {
         return new ShapeshifterAiStepDetails(
                 dryRun,
                 document(run.doc()),
-                run.shape().id(),
-                run.shape().values(),
+                stream(input),
                 run.decision().getClass().getSimpleName(),
                 describe(run.decision()),
                 bindings == null
@@ -85,6 +88,18 @@ public final class StepDetails {
                 // Attached per record by [Supervision], since the decision is the stream's and what each
                 // of the fragment's elements made of the input is each record's.
                 List.of());
+    }
+
+    /// The stream's feed and type, in that order, where it has them: what the model is shown of it.
+    private static Map<String, String> stream(final Input input) {
+        final Map<String, String> stream = new LinkedHashMap<>();
+        if (input.feed() != null) {
+            stream.put(MetaFields.FIELD_FEED, input.feed());
+        }
+        if (input.type() != null) {
+            stream.put(MetaFields.FIELD_TYPE, input.type());
+        }
+        return stream;
     }
 
     private static DocRef document(final ShapeshifterAiDoc doc) {
@@ -116,7 +131,7 @@ public final class StepDetails {
             case Drafted drafted -> "Awaiting review: draft rule " + drafted.rule().getUuid() + " binds "
                                     + drafted.rule().getPipeline().getName();
             case Retracted retracted -> retracted.reason();
-            case GivenUp givenUp -> "Shape given up: " + givenUp.reason();
+            case GivenUp givenUp -> "Given up: " + givenUp.reason();
             case Sentinel sentinel -> sentinel.reason();
             case Deferred deferred -> "Deferred: " + deferred.reason();
             case Parked parked -> "Parked for a person: " + parked.reason();

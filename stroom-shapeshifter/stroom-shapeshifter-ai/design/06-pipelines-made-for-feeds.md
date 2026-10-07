@@ -539,6 +539,43 @@ The largest phase. Its slices keep the build and the scenarios green at each ste
    document; its serialiser drops the old key on read. The deferral, snapshot and wake read the record.
 3. **`Shape` goes.** The stage stops computing one. What the model is shown of the feed and type comes
    from the stream's meta. The claim is the key.
+
+   *Built 2026-10-07, as one slice.* `Shape` is gone, and with it every key that was a shape. The shape
+   table becomes `shapeshifter_learner_state`, one row per learner (A117, A124): given up, marked to
+   learn again, the draft awaiting review and the rolling score, behind `LearnerStates` (in memory, as
+   rows, and cached). The binding that serves a learner is its one binding that is not a draft; the rule
+   table keeps its bindings, without shape columns. The ledger and guidance are a learner's, and an
+   attempt's claim is the learner's (`claimed`, unique with the learner while open). A promotion wakes
+   every stream waiting on its learner.
+
+   A learner does not know its feed (A126): a stream of any feed is scored against what serves, and
+   nothing guards a pipeline fed several feeds by hand. The model is shown the stream's feed and type
+   (`Sample.SHOWN`); an improvement, which has no stream, is shown the corpus alone. A fragment is named
+   for the feed and type of the stream it was learned on until slice 5 names it for its pipeline. The
+   Supervisor's rows and requests name the learner and no shape (A128): `LedgerLearner` and
+   `LearnAgainRequest` replace `LedgerShape` and `LearnShapeRequest`, the attempt list's shape column
+   and filter go, and the stage pane shows the stream's feed and type. The scenarios that passed several
+   feeds through one learner now give each feed its own (A127). The demo content pack ships a pipeline
+   and a processor filter per feed, as the factory would make them, and is regenerated. A development
+   database must again drop the Shapeshifter AI tables first.
+
+   Left for slice 7's audit, which searches for every remaining shape and rule: the names `RoutingRule`,
+   `Rules` and `shapeshifter_rule` for what are now bindings, `ShapeSignature` and `RoutingFields`'
+   signature field, the document's `minRecordsPerShape` and the `shapeCache` setting, and test names
+   that still speak of shapes.
+
+   *3 audited 2026-10-07.* Three faults closed. An improvement has no stream, so after this slice it
+   kept what it learned for on no feed: a node's corpus is a stream on the source feed, and the write
+   would have failed or landed nowhere — the scenarios' corpus took any feed, and the node's mock store
+   any too. The corpus now says which feed a rule's records are kept on (`RegressionSet.feedOf`), an
+   improvement keeps its records there, and both corpora refuse a record kept on no feed. And two older
+   faults, found on the way, that left a draft nothing awaited: retracting the binding a draft would
+   replace, or accepting or promoting a provisional one, reset the learner's state and with it the
+   pointer to the draft awaiting review; and a stream the incumbent fell short on while a draft awaited
+   opened a second relearning behind the person reviewing, whose reset did the same. Either way the
+   draft went on serving the learner's streams a wait that approve and reject both refused to end. A
+   reset that decides nothing about a draft now keeps it awaiting, and such a stream waits for the
+   review, as a marked learner's streams already did.
 4. **The wake by pipeline, and the stage's reprocess filter retired.** The wake moves every filter's
    deferred tasks on the pipeline (§4.3). `PipelineReprocessing` goes; reprocessing is a person's
    reprocess filter on the pipeline, and a scenario proves a reprocess filter's deferred task wakes.
@@ -780,3 +817,18 @@ the serving and draft bindings inlined.*
 **A125.** *Slice 2 of phase J is two slices.* Routing goes in one and the rekey by learner in the other,
 each keeping every scenario passing. *Ruled 2026-10-07; done routing first, since the rekey is then
 mechanical.*
+
+**A126.** *A learner does not know its feed.* With `Shape` gone a learner keeps no feed or type: a
+stream of any feed is scored against what serves, and one that falls short defers and marks the learner
+as any other does. A pipeline fed several feeds by hand may learn a translation for one that breaks
+another; that is dealt with if it happens, perhaps by trying earlier bindings, and is not guarded
+against now. *Ruled 2026-10-07, over keeping the learned feed and type on the record and deferring
+another's streams with a reason.*
+
+**A127.** *The scenarios name their learners.* A scenario that passes several feeds through the stage
+says which learner each goes to, rather than the fixture deriving one from the stream. *Ruled
+2026-10-07.*
+
+**A128.** *The Supervisor's rows and requests name the learner, not a shape.* Guidance and learning
+again need only the learner; a row shows it, and an attempt the feed and type of the stream it learned
+from. *Ruled 2026-10-07.*

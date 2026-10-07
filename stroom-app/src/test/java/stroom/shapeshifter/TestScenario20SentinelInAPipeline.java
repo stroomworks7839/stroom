@@ -49,7 +49,6 @@ import stroom.shapeshifter.ai.stage.Deferrals;
 import stroom.shapeshifter.ai.stage.Learner;
 import stroom.shapeshifter.ai.stage.Ledger;
 import stroom.shapeshifter.ai.stage.Rules;
-import stroom.shapeshifter.ai.stage.Shape;
 import stroom.shapeshifter.shared.LearningMode;
 import stroom.test.AbstractCoreIntegrationTest;
 import stroom.test.CommonTranslationTestHelper;
@@ -155,9 +154,7 @@ class TestScenario20SentinelInAPipeline extends AbstractCoreIntegrationTest {
         assertThat(rules.forLearner(learner)).describedAs("and wrote no rule").isEmpty();
 
         // The deferral names the input, in a row: the task a promotion would wake (design 04 §5.3).
-        final String shape = Shape.of(learner,
-                Map.of(MetaFields.FIELD_FEED, FEED, MetaFields.FIELD_TYPE, StreamTypeNames.RAW_EVENTS)).id();
-        assertThat(ledger.release(learner, shape))
+        assertThat(ledger.release(learner))
                 .describedAs("nothing is sentinelled to make it wait, so the ledger holds nothing")
                 .isEmpty();
         assertThat(deferrals).isInstanceOf(DeferralsDao.class);

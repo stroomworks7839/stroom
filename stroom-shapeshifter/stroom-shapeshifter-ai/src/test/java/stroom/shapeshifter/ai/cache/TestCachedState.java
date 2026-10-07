@@ -20,10 +20,10 @@ import stroom.cache.impl.CacheManagerImpl;
 import stroom.docref.DocRef;
 import stroom.shapeshifter.ai.ShapeshifterAiConfig;
 import stroom.shapeshifter.ai.stage.Learner;
+import stroom.shapeshifter.ai.stage.LearnerStates;
 import stroom.shapeshifter.ai.stage.Rules;
-import stroom.shapeshifter.ai.stage.Shapes;
+import stroom.shapeshifter.ai.state.InMemoryLearnerStates;
 import stroom.shapeshifter.ai.state.InMemoryRules;
-import stroom.shapeshifter.ai.state.InMemoryShapes;
 import stroom.shapeshifter.shared.RoutingRule;
 import stroom.util.entityevent.EntityAction;
 import stroom.util.entityevent.EntityEvent;
@@ -41,8 +41,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * Design 01 §12 item 8: what a node holds in front of the rows. A learner's bindings and what its shapes
- * have settled into are read for every stream and written only when something is learned, so they are
+ * Design 01 §12 item 8: what a node holds in front of the rows. A learner's bindings and what it has
+ * settled into are read for every stream and written only when something is learned, so they are
  * cached and cleared by what writes them — on this node at once, and on every other node by the event
  * that write fires, which names the learner's pipeline (design 06 phase J slice 2b). The rolling scores
  * are not cached at all: they are counted across the cluster.
@@ -52,15 +52,14 @@ class TestCachedState {
     private static final String DOC = "doc-1";
     private static final Learner LEARNER = new Learner("pipeline-1", "shapeshifterAi");
     private static final Learner NEIGHBOUR = new Learner("pipeline-2", "shapeshifterAi");
-    private static final String SHAPE = "Feed=DOOR-ACCESS|Type=Raw Events";
 
     private final List<EntityEvent> fired = new ArrayList<>();
     private final EntityEventBus bus = new RecordingBus(fired);
     private final CacheManagerImpl cacheManager = new CacheManagerImpl();
     private final CountingRules rows = new CountingRules();
-    private final CountingShapes shapeRows = new CountingShapes();
+    private final CountingStates stateRows = new CountingStates();
     private final CachedRules rules = new CachedRules(rows, cacheManager, bus, ShapeshifterAiConfig::new);
-    private final CachedShapes shapes = new CachedShapes(shapeRows, cacheManager, bus,
+    private final CachedLearnerStates states = new CachedLearnerStates(stateRows, cacheManager, bus,
             ShapeshifterAiConfig::new);
 
     @Test
@@ -109,31 +108,31 @@ class TestCachedState {
     }
 
     @Test
-    void whatAShapeSettledIntoIsHeldAndTheRollingScoreIsNot() {
-        assertThat(shapes.reasonGivenUp(LEARNER, SHAPE)).isEmpty();
-        assertThat(shapes.relearnReason(LEARNER, SHAPE)).isEmpty();
-        assertThat(shapes.draftAwaiting(LEARNER, SHAPE)).isEmpty();
-        final int afterFirst = shapeRows.reads;
+    void whatALearnerSettledIntoIsHeldAndTheRollingScoreIsNot() {
+        assertThat(states.reasonGivenUp(LEARNER)).isEmpty();
+        assertThat(states.relearnReason(LEARNER)).isEmpty();
+        assertThat(states.draftAwaiting(LEARNER)).isEmpty();
+        final int afterFirst = stateRows.reads;
 
-        assertThat(shapes.reasonGivenUp(LEARNER, SHAPE)).isEmpty();
-        assertThat(shapes.relearnReason(LEARNER, SHAPE)).isEmpty();
+        assertThat(states.reasonGivenUp(LEARNER)).isEmpty();
+        assertThat(states.relearnReason(LEARNER)).isEmpty();
 
-        assertThat(shapeRows.reads).describedAs("all three answers were read together, once")
+        assertThat(stateRows.reads).describedAs("all three answers were read together, once")
                 .isEqualTo(afterFirst);
 
         // Scored on every served stream: never cached, and it does not disturb what is.
-        shapes.scored(LEARNER, DOC, SHAPE, 1.0, 6, 10);
-        shapes.scored(LEARNER, DOC, SHAPE, 1.0, 6, 10);
-        assertThat(shapeRows.scores).isEqualTo(2);
-        assertThat(shapeRows.reads).describedAs("and reads nothing back through the cache")
+        states.scored(LEARNER, DOC, 1.0, 6, 10);
+        states.scored(LEARNER, DOC, 1.0, 6, 10);
+        assertThat(stateRows.scores).isEqualTo(2);
+        assertThat(stateRows.reads).describedAs("and reads nothing back through the cache")
                 .isEqualTo(afterFirst);
 
-        // Giving the shape up is a write: this node sees it, and every other is told.
+        // Giving up is a write: this node sees it, and every other is told.
         fired.clear();
-        shapes.giveUp(LEARNER, DOC, SHAPE, "Rejected");
+        states.giveUp(LEARNER, DOC, "Rejected");
 
-        assertThat(shapes.reasonGivenUp(LEARNER, SHAPE)).contains("Rejected");
-        assertThat(shapes.reasonGivenUp(NEIGHBOUR, SHAPE)).describedAs("another learner's shape is its own")
+        assertThat(states.reasonGivenUp(LEARNER)).contains("Rejected");
+        assertThat(states.reasonGivenUp(NEIGHBOUR)).describedAs("another learner's state is its own")
                 .isEmpty();
         assertThat(fired).extracting(event -> event.getDocRef().getUuid()).containsExactly(LEARNER.pipelineUuid());
     }
@@ -143,7 +142,7 @@ class TestCachedState {
         // Of the learner's own type: an event on the pipeline would have every node drop its merged
         // pipeline data. And CLEAR_CACHE, since nothing a person authored has changed.
         rules.append(LEARNER, DOC, RoutingRule.builder().uuid("rule-1").build());
-        shapes.giveUp(LEARNER, DOC, SHAPE, "Rejected");
+        states.giveUp(LEARNER, DOC, "Rejected");
 
         assertThat(fired).extracting(EntityEvent::getAction)
                 .containsExactly(EntityAction.CLEAR_CACHE, EntityAction.CLEAR_CACHE);
@@ -229,65 +228,58 @@ class TestCachedState {
     // --------------------------------------------------------------------------------
 
 
-    private static final class CountingShapes implements Shapes {
+    private static final class CountingStates implements LearnerStates {
 
-        private final InMemoryShapes delegate = new InMemoryShapes();
+        private final InMemoryLearnerStates delegate = new InMemoryLearnerStates();
         private int reads;
         private int scores;
 
         @Override
-        public Optional<String> reasonGivenUp(final Learner learner, final String shape) {
+        public Optional<String> reasonGivenUp(final Learner learner) {
             reads++;
-            return delegate.reasonGivenUp(learner, shape);
+            return delegate.reasonGivenUp(learner);
         }
 
         @Override
-        public OptionalDouble scored(final Learner learner, final String docUuid, final String shape,
-                                     final double score, final int records, final int memory) {
+        public OptionalDouble scored(final Learner learner, final String docUuid, final double score,
+                                     final int records, final int memory) {
             scores++;
-            return delegate.scored(learner, docUuid, shape, score, records, memory);
+            return delegate.scored(learner, docUuid, score, records, memory);
         }
 
         @Override
-        public void giveUp(final Learner learner, final String docUuid, final String shape, final String reason) {
-            delegate.giveUp(learner, docUuid, shape, reason);
+        public void giveUp(final Learner learner, final String docUuid, final String reason) {
+            delegate.giveUp(learner, docUuid, reason);
         }
 
         @Override
-        public Optional<String> relearnReason(final Learner learner, final String shape) {
-            return delegate.relearnReason(learner, shape);
+        public Optional<String> relearnReason(final Learner learner) {
+            return delegate.relearnReason(learner);
         }
 
         @Override
-        public void markForRelearning(final Learner learner, final String docUuid, final String shape,
-                                      final String reason) {
-            delegate.markForRelearning(learner, docUuid, shape, reason);
+        public void markForRelearning(final Learner learner, final String docUuid, final String reason) {
+            delegate.markForRelearning(learner, docUuid, reason);
         }
 
         @Override
-        public void awaitReview(final Learner learner, final String docUuid, final String shape,
-                                final String ruleUuid) {
-            delegate.awaitReview(learner, docUuid, shape, ruleUuid);
+        public void awaitReview(final Learner learner, final String docUuid, final String ruleUuid) {
+            delegate.awaitReview(learner, docUuid, ruleUuid);
         }
 
         @Override
-        public Optional<String> draftAwaiting(final Learner learner, final String shape) {
-            return delegate.draftAwaiting(learner, shape);
+        public Optional<String> draftAwaiting(final Learner learner) {
+            return delegate.draftAwaiting(learner);
         }
 
         @Override
-        public Optional<String> shapeAwaiting(final Learner learner, final String ruleUuid) {
-            return delegate.shapeAwaiting(learner, ruleUuid);
+        public void reset(final Learner learner) {
+            delegate.reset(learner);
         }
 
         @Override
-        public void reset(final Learner learner, final String shape) {
-            delegate.reset(learner, shape);
-        }
-
-        @Override
-        public Optional<Rolling> rolling(final Learner learner, final String shape) {
-            return delegate.rolling(learner, shape);
+        public Optional<Rolling> rolling(final Learner learner) {
+            return delegate.rolling(learner);
         }
     }
 }

@@ -32,7 +32,8 @@ import stroom.shapeshifter.ai.stage.Spend.Spent;
 import stroom.shapeshifter.ai.state.InMemoryLedger;
 import stroom.shapeshifter.shared.AttemptCriteria;
 import stroom.shapeshifter.shared.AttemptStatus;
-import stroom.shapeshifter.shared.LedgerShape;
+import stroom.shapeshifter.shared.LearnerRef;
+import stroom.shapeshifter.shared.LedgerLearner;
 import stroom.shapeshifter.shared.PromotionMode;
 import stroom.shapeshifter.shared.QuestionKind;
 import stroom.shapeshifter.shared.RecordBoundary;
@@ -53,16 +54,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
 
-/// The shape state of A26 and the ledger of §5.2 as rows.
-class TestShapesAndLedgerDao {
+/// The learner state of A117 and A124, the ledger of §5.2, the attempts and guidance as rows.
+class TestLearnerStatesAndLedgerDao {
 
     private static final String DOC = "doc-" + System.nanoTime();
-    private static final Learner LEARNER = new Learner("pipeline-" + DOC, "shapeshifterAi");
-    private static final String SHAPE = "Feed=DOOR-ACCESS|Type=Raw Events";
-    private static final String OTHER_SHAPE = "Feed=TURNSTILE|Type=Raw Events";
+    private static final Learner LEARNER = learner("door");
+    /// A neighbouring learner under the same document: another pipeline's element.
+    private static final Learner OTHER = learner("turnstile");
 
     @Inject
-    private ShapesDao shapes;
+    private LearnerStatesDao states;
     @Inject
     private LedgerDao ledger;
     @Inject
@@ -77,59 +78,63 @@ class TestShapesAndLedgerDao {
     @BeforeEach
     void setUp() {
         Guice.createInjector(new TestModule()).injectMembers(this);
-        shapes.reset(LEARNER, SHAPE);
-        ledger.release(LEARNER, SHAPE);
-        // Every shape these tests write, not just the one most of them use: a test that fails partway
+        states.reset(LEARNER);
+        ledger.release(LEARNER);
+        // Every learner these tests write, not just the one most of them use: a test that fails partway
         // leaves its rows behind, and the next test would then report that the table and the heap had
         // diverged when what had actually happened is that the table started with more in it.
-        ledger.release(LEARNER, OTHER_SHAPE);
+        ledger.release(OTHER);
+    }
+
+    /// A learner of this run's own, so that rows a failed run left behind are not this one's.
+    private static Learner learner(final String name) {
+        return new Learner("pipeline-" + DOC + "-" + name, "shapeshifterAi");
     }
 
     @Test
-    void aShapeRemembersWhyItWasGivenUpMarkedOrHeldForReview() {
-        assertThat(shapes.reasonGivenUp(LEARNER, SHAPE)).describedAs("a shape nothing has said anything about")
+    void aLearnerRemembersWhyItGaveUpWasMarkedOrIsHeldForReview() {
+        assertThat(states.reasonGivenUp(LEARNER)).describedAs("a learner nothing has said anything about")
                 .isEmpty();
 
-        shapes.giveUp(LEARNER, DOC, SHAPE, "Rejected: the wrong parser");
-        shapes.markForRelearning(LEARNER, DOC, SHAPE, "Rolling score 0.6 fell below 0.8");
-        shapes.awaitReview(LEARNER, DOC, SHAPE, "rule-1");
+        states.giveUp(LEARNER, DOC, "Rejected: the wrong parser");
+        states.markForRelearning(LEARNER, DOC, "Rolling score 0.6 fell below 0.8");
+        states.awaitReview(LEARNER, DOC, "rule-1");
 
-        assertThat(shapes.reasonGivenUp(LEARNER, SHAPE)).contains("Rejected: the wrong parser");
-        assertThat(shapes.relearnReason(LEARNER, SHAPE)).contains("Rolling score 0.6 fell below 0.8");
-        assertThat(shapes.draftAwaiting(LEARNER, SHAPE)).contains("rule-1");
-        assertThat(shapes.shapeAwaiting(LEARNER, "rule-1")).contains(SHAPE);
-        assertThat(shapes.shapeAwaiting(LEARNER, "rule-2")).isEmpty();
+        assertThat(states.reasonGivenUp(LEARNER)).contains("Rejected: the wrong parser");
+        assertThat(states.relearnReason(LEARNER)).contains("Rolling score 0.6 fell below 0.8");
+        assertThat(states.draftAwaiting(LEARNER)).contains("rule-1");
+        assertThat(states.reasonGivenUp(OTHER)).describedAs("a neighbour's state is its own").isEmpty();
 
-        shapes.reset(LEARNER, SHAPE);
-        assertThat(shapes.reasonGivenUp(LEARNER, SHAPE)).isEmpty();
-        assertThat(shapes.relearnReason(LEARNER, SHAPE)).isEmpty();
-        assertThat(shapes.draftAwaiting(LEARNER, SHAPE)).isEmpty();
+        states.reset(LEARNER);
+        assertThat(states.reasonGivenUp(LEARNER)).isEmpty();
+        assertThat(states.relearnReason(LEARNER)).isEmpty();
+        assertThat(states.draftAwaiting(LEARNER)).isEmpty();
     }
 
     @Test
-    void theRollingScoreIsOfWhatTheShapeHasDoneLately() {
-        // Nothing is said until the shape has brought enough records to rest a judgement on.
-        assertThat(shapes.scored(LEARNER, DOC, SHAPE, 1.0, 4, 10)).isEmpty();
-        assertThat(shapes.scored(LEARNER, DOC, SHAPE, 1.0, 4, 10)).isEmpty();
+    void theRollingScoreIsOfWhatTheLearnerHasDoneLately() {
+        // Nothing is said until the learner has brought enough records to rest a judgement on.
+        assertThat(states.scored(LEARNER, DOC, 1.0, 4, 10)).isEmpty();
+        assertThat(states.scored(LEARNER, DOC, 1.0, 4, 10)).isEmpty();
 
-        final OptionalDouble rolling = shapes.scored(LEARNER, DOC, SHAPE, 0.0, 4, 10);
+        final OptionalDouble rolling = states.scored(LEARNER, DOC, 0.0, 4, 10);
 
         assertThat(rolling).isPresent();
         assertThat(rolling.getAsDouble()).describedAs("eight good records, then four bad, remembering ten")
                 .isEqualTo(8.0 / 12);
         // Reset starts it afresh, as a promotion or a retraction does.
-        shapes.reset(LEARNER, SHAPE);
-        assertThat(shapes.scored(LEARNER, DOC, SHAPE, 1.0, 1, 1)).hasValue(1.0);
+        states.reset(LEARNER);
+        assertThat(states.scored(LEARNER, DOC, 1.0, 1, 1)).hasValue(1.0);
     }
 
     @Test
     void theLedgerNamesWhatToReplayAndWhereAndReleasesItOnce() {
-        final Learner neighbour = new Learner("pipeline-other-" + DOC, "shapeshifterAi");
-        ledger.sentinelled(LEARNER, DOC, SHAPE, 1L, "Unknown shape");
-        ledger.sentinelled(LEARNER, DOC, SHAPE, 2L, "Unknown shape");
-        ledger.sentinelled(neighbour, DOC, SHAPE, 3L, "Unknown shape");
+        final Learner neighbour = OTHER;
+        ledger.sentinelled(LEARNER, DOC, 1L, "Nothing serves this learner");
+        ledger.sentinelled(LEARNER, DOC, 2L, "Nothing serves this learner");
+        ledger.sentinelled(neighbour, DOC, 3L, "Nothing serves this learner");
 
-        final List<Replayable> released = ledger.release(LEARNER, SHAPE);
+        final List<Replayable> released = ledger.release(LEARNER);
 
         assertThat(released).extracting(Replayable::inputId)
                 .describedAs("oldest first, and only this learner's: the backlog is replayed in order")
@@ -138,59 +143,42 @@ class TestShapesAndLedgerDao {
                 .describedAs("each through the learner's pipeline, which sentinelled it, whichever node "
                              + "releases it")
                 .containsOnly(LEARNER.pipelineUuid());
-        assertThat(ledger.release(LEARNER, SHAPE))
+        assertThat(ledger.release(LEARNER))
                 .describedAs("a second release finds nothing: two nodes must not both replay it")
                 .isEmpty();
-        assertThat(ledger.release(neighbour, SHAPE)).extracting(Replayable::inputId)
-                .describedAs("another learner's shape of the same name settles on its own")
+        assertThat(ledger.release(neighbour)).extracting(Replayable::inputId)
+                .describedAs("another learner's streams settle on their own")
                 .containsExactly(3L);
     }
 
     @Test
     void aStreamSentinelledTwiceIsReplayedOnce() {
-        ledger.sentinelled(LEARNER, DOC, SHAPE, 1L, "Unknown shape");
-        ledger.sentinelled(LEARNER, DOC, SHAPE, 1L, "Unknown shape, again");
+        ledger.sentinelled(LEARNER, DOC, 1L, "Nothing serves this learner");
+        ledger.sentinelled(LEARNER, DOC, 1L, "Nothing serves this learner, again");
 
-        assertThat(ledger.release(LEARNER, SHAPE)).extracting(Replayable::inputId).containsExactly(1L);
+        assertThat(ledger.release(LEARNER)).extracting(Replayable::inputId).containsExactly(1L);
     }
 
     @Test
-    void aShapeIdLongerThanAColumnIsStillOneShape() {
-        // A learning key may name a sender-supplied header, so an id has no bound; rows are found by its
-        // hash and the id is kept as written.
-        final String long1 = SHAPE + "|RemoteFile=" + "a".repeat(2000);
-        final String long2 = SHAPE + "|RemoteFile=" + "b".repeat(2000);
-
-        shapes.giveUp(LEARNER, DOC, long1, "too long to lose");
-        ledger.sentinelled(LEARNER, DOC, long1, 7L, "Unknown shape");
-
-        assertThat(shapes.reasonGivenUp(LEARNER, long1)).contains("too long to lose");
-        assertThat(shapes.reasonGivenUp(LEARNER, long2)).describedAs("a different long id is a different shape")
-                .isEmpty();
-        assertThat(ledger.release(LEARNER, long1)).extracting(Replayable::inputId).containsExactly(7L);
-        shapes.reset(LEARNER, long1);
-    }
-
-    @Test
-    void resettingAShapeLeavesTheAttemptLearningItAlone() {
-        // Reset is about what was learned, not about who is learning: a promotion resets the shape while
-        // the attempt that promoted it is still open, and must not hand the shape to another node (A45).
-        final String shape = SHAPE + "-reset";
-        attempts.opened(new Attempt(LEARNER, DOC, shape, "F", "T", 1L, "node-1",
+    void resettingALearnerLeavesTheAttemptLearningAlone() {
+        // Reset is about what was learned, not about who is learning: a promotion resets the learner while
+        // the attempt that promoted it is still open, and must not hand its claim to another node (A45).
+        final Learner learner = learner("reset");
+        attempts.opened(new Attempt(learner, DOC, "F", "T", 1L, "node-1",
                 PromotionMode.AUTOMATIC, now() + 60_000L), now()).orElseThrow();
 
-        shapes.reset(LEARNER, shape);
+        states.reset(learner);
 
-        assertThat(attempts.opened(new Attempt(LEARNER, DOC, shape, "F", "T", 2L, "node-2",
+        assertThat(attempts.opened(new Attempt(learner, DOC, "F", "T", 2L, "node-2",
                 PromotionMode.AUTOMATIC, now() + 60_000L), now())).isEmpty();
     }
 
     @Test
     void anAttemptIsCarriedOnByItsOwnNodeOrByWhoeverFindsItLapsed() {
-        // A45: taking an attempt up is taking its shape. The heartbeat is what keeps a slow model call
-        // from costing a node the shape it is learning.
-        final String shape = SHAPE + "-resume";
-        final long id = attempts.opened(new Attempt(LEARNER, DOC, shape, "F", "T", 1L, "node-1",
+        // A45: taking an attempt up is taking its learner's claim. The heartbeat is what keeps a slow model
+        // call from costing a node the claim it is learning under.
+        final Learner learner = learner("resume");
+        final long id = attempts.opened(new Attempt(learner, DOC, "F", "T", 1L, "node-1",
                 PromotionMode.AUTOMATIC, now() + 60_000L), now()).orElseThrow();
         attempts.parked(id, AttemptStatus.AWAITING_MODEL, now() + 60_000L, 500L);
 
@@ -207,12 +195,12 @@ class TestShapesAndLedgerDao {
                 .describedAs("which carries it on").isTrue();
 
         attempts.heartbeat(id, now() - 1);
-        assertThat(attempts.open(LEARNER, shape, now())).describedAs("lapsed, and it still holds its shape: the "
+        assertThat(attempts.open(learner, now())).describedAs("lapsed, and it still holds its claim: the "
                                                                  + "session is resumed, not replaced (design 04 §4)")
                 .map(Recorded::id).contains(id);
         assertThat(attempts.lapsed(now(), 10)).extracting(Recorded::id)
                 .describedAs("which is what the next worker finds it by").contains(id);
-        assertThat(attempts.opened(new Attempt(LEARNER, DOC, shape, "F", "T", 2L, "node-2",
+        assertThat(attempts.opened(new Attempt(learner, DOC, "F", "T", 2L, "node-2",
                 PromotionMode.AUTOMATIC, now() + 60_000L), now()))
                 .describedAs("so no attempt opens beside it").isEmpty();
         assertThat(attempts.claimed(id, "node-1", now(), now() + 60_000L))
@@ -235,10 +223,10 @@ class TestShapesAndLedgerDao {
 
     @Test
     void anAttemptParkedForAPersonKeepsItsShapeAndIsNobodysToCarry() {
-        // A65: the worker leaves it alone, no task of the shape opens another, and its lease does not
+        // A65: the worker leaves it alone, no task of the learner opens another, and its lease does not
         // lapse — until a person acts, which is not the DAO's to do.
-        final String shape = SHAPE + "-parked";
-        final long id = attempts.opened(new Attempt(LEARNER, DOC, shape, "F", "T", 1L, "node-1",
+        final Learner learner = learner("parked");
+        final long id = attempts.opened(new Attempt(learner, DOC, "F", "T", 1L, "node-1",
                 PromotionMode.AUTOMATIC, now() + 60_000L), now()).orElseThrow();
         attempts.claimed(id, "node-1", now(), now() + 60_000L);
 
@@ -251,9 +239,9 @@ class TestShapesAndLedgerDao {
         assertThat(attempts.awaiting(10)).extracting(Recorded::id).describedAs("not the worker's").doesNotContain(id);
         assertThat(attempts.claimed(id, "node-2", now() + 1_000_000_000L, now() + 1_000_060_000L))
                 .describedAs("nobody's to carry, however long it has stood").isFalse();
-        assertThat(attempts.open(LEARNER, shape, now() + 1_000_000_000L)).describedAs("and it keeps its shape")
+        assertThat(attempts.open(learner, now() + 1_000_000_000L)).describedAs("and it keeps its claim")
                 .map(Recorded::id).contains(id);
-        assertThat(attempts.opened(new Attempt(LEARNER, DOC, shape, "F", "T", 2L, "node-2",
+        assertThat(attempts.opened(new Attempt(learner, DOC, "F", "T", 2L, "node-2",
                 PromotionMode.AUTOMATIC, now() + 60_000L), now() + 1_000_000_000L))
                 .describedAs("so no second attempt opens for it").isEmpty();
 
@@ -267,8 +255,8 @@ class TestShapesAndLedgerDao {
     void aGrantIsAddedToTheAttemptAndKeptOnItsRow() {
         // A77: what a person grants is the attempt's alone, added up as it is granted again, and read back
         // with the row.
-        final String shape = SHAPE + "-grant";
-        final long id = attempts.opened(new Attempt(LEARNER, DOC, shape, "F", "T", 1L, "node-1",
+        final Learner learner = learner("grant");
+        final long id = attempts.opened(new Attempt(learner, DOC, "F", "T", 1L, "node-1",
                 PromotionMode.AUTOMATIC, now() + 60_000L), now()).orElseThrow();
         assertThat(attempts.byId(id).orElseThrow().grant()).isEqualTo(Grant.NONE);
 
@@ -286,8 +274,8 @@ class TestShapesAndLedgerDao {
     void aSendingToTheExhaustionStepStandsOnTheRowUntilTheAttemptCloses() {
         // A65: a person's sending is read back with the row for the worker to take, stands through a park
         // and the reopening that follows, and is cleared when the attempt closes.
-        final String shape = SHAPE + "-exhaust";
-        final long id = attempts.opened(new Attempt(LEARNER, DOC, shape, "F", "T", 1L, "node-1",
+        final Learner learner = learner("exhaust");
+        final long id = attempts.opened(new Attempt(learner, DOC, "F", "T", 1L, "node-1",
                 PromotionMode.AUTOMATIC, now() + 60_000L), now()).orElseThrow();
         assertThat(attempts.byId(id).orElseThrow().exhaustNext()).isFalse();
 
@@ -331,7 +319,7 @@ class TestShapesAndLedgerDao {
     void anAttemptAndItsTurnsAreRowsThatOutliveTheNode() {
         // A28: what was asked and answered survives the node that asked it, and the turns are readable in
         // the order they were put.
-        final long id = attempts.opened(new Attempt(LEARNER, DOC, SHAPE, "DOOR-ACCESS", "Raw Events", 42L, "node-1",
+        final long id = attempts.opened(new Attempt(LEARNER, DOC, "DOOR-ACCESS", "Raw Events", 42L, "node-1",
                 PromotionMode.AUTOMATIC, now() + 60_000L), now()).orElseThrow();
         attempts.turn(id, new Turn(1, "chain", 1, QuestionKind.CHAIN, "CHAIN: choose from [DSParser]",
                 "DSParser -> XSLTFilter", "local-model", StepOutcome.PASSED));
@@ -346,7 +334,7 @@ class TestShapesAndLedgerDao {
         assertThat(read.ruleUuid()).isEqualTo("rule-1");
         assertThat(read.score()).isEqualTo(0.97);
         assertThat(read.tokensSpent()).isEqualTo(1_234L);
-        assertThat(read.attempt().shape()).isEqualTo(SHAPE);
+        assertThat(read.attempt().feed()).isEqualTo("DOOR-ACCESS");
         assertThat(read.attempt().inputId()).isEqualTo(42L);
         assertThat(read.attempt().expiryMs())
                 .describedAs("a claim that has ended holds nothing (A45)").isZero();
@@ -355,45 +343,45 @@ class TestShapesAndLedgerDao {
         assertThat(read.turns().get(1).outcome()).isEqualTo(StepOutcome.COVERAGE_SHORT);
         assertThat(read.turns().get(0).answeredBy()).isEqualTo("local-model");
 
-        // A shape with an id longer than any column is still one attempt, found by its hash.
-        final String long1 = SHAPE + "|RemoteFile=" + "a".repeat(2000);
-        final long longId = attempts.opened(new Attempt(LEARNER, DOC, long1, null, null, null, "node-1",
+        // The learner's next attempt, once this one has closed, with no stream behind it.
+        final long nextId = attempts.opened(new Attempt(LEARNER, DOC, null, null, null, "node-1",
                 PromotionMode.REVIEW, now()), now()).orElseThrow();
-        assertThat(attempts.byId(longId).orElseThrow().attempt().shape()).isEqualTo(long1);
+        assertThat(attempts.byId(nextId).orElseThrow().attempt().feed()).isNull();
         assertThat(attempts.forDocument(DOC, 10)).extracting(Recorded::id)
                 .describedAs("newest first, for the Supervisor view")
-                .startsWith(longId, id);
+                .startsWith(nextId, id);
+        attempts.closed(nextId, AttemptStatus.ABANDONED, "done with", null, null, 0L);
     }
 
     @Test
-    void oneOpenAttemptPerShapeIsWhatOneLearnerMeans() {
+    void oneOpenAttemptPerLearner() {
         // A45: the attempt row is the claim. A parked attempt is still learning, and one whose expiry has
         // passed has lapsed and is still learning too: it is resumed, not replaced (design 04 §4).
-        final String shape = SHAPE + "-claim";
-        final long mine = attempts.opened(new Attempt(LEARNER, DOC, shape, "F", "T", 1L, "node-1",
+        final Learner learner = learner("claim");
+        final long mine = attempts.opened(new Attempt(learner, DOC, "F", "T", 1L, "node-1",
                 PromotionMode.AUTOMATIC, now() + 60_000L), now()).orElseThrow();
 
-        assertThat(attempts.opened(new Attempt(LEARNER, DOC, shape, "F", "T", 2L, "node-2",
+        assertThat(attempts.opened(new Attempt(learner, DOC, "F", "T", 2L, "node-2",
                 PromotionMode.AUTOMATIC, now() + 60_000L), now()))
-                .describedAs("one learner per shape").isEmpty();
-        assertThat(attempts.open(LEARNER, shape, now()).orElseThrow().id()).isEqualTo(mine);
+                .describedAs("one attempt at a time per learner").isEmpty();
+        assertThat(attempts.open(learner, now()).orElseThrow().id()).isEqualTo(mine);
 
-        // Parked awaiting the model, it keeps the shape.
+        // Parked awaiting the model, it keeps the claim.
         attempts.parked(mine, AttemptStatus.AWAITING_MODEL, now() + 60_000L, 0L);
-        assertThat(attempts.open(LEARNER, shape, now())).isPresent();
-        assertThat(attempts.opened(new Attempt(LEARNER, DOC, shape, "F", "T", 3L, "node-2",
+        assertThat(attempts.open(learner, now())).isPresent();
+        assertThat(attempts.opened(new Attempt(learner, DOC, "F", "T", 3L, "node-2",
                 PromotionMode.AUTOMATIC, now() + 60_000L), now())).isEmpty();
 
-        // Lapsed, it still holds the shape: nobody opens beside it.
+        // Lapsed, it still holds the claim: nobody opens beside it.
         attempts.parked(mine, AttemptStatus.AWAITING_MODEL, now() - 1, 0L);
-        assertThat(attempts.open(LEARNER, shape, now())).map(Recorded::id).contains(mine);
-        assertThat(attempts.opened(new Attempt(LEARNER, DOC, shape, "F", "T", 4L, "node-2",
+        assertThat(attempts.open(learner, now())).map(Recorded::id).contains(mine);
+        assertThat(attempts.opened(new Attempt(learner, DOC, "F", "T", 4L, "node-2",
                 PromotionMode.AUTOMATIC, now() + 60_000L), now())).isEmpty();
 
-        // Closed, it holds nothing, and the shape is free for the attempt after it.
+        // Closed, it holds nothing, and the learner is free for the attempt after it.
         attempts.closed(mine, AttemptStatus.PROMOTED, "Promoted 1.0", "rule-2", 1.0, 0L);
-        assertThat(attempts.open(LEARNER, shape, now())).isEmpty();
-        assertThat(attempts.opened(new Attempt(LEARNER, DOC, shape, "F", "T", 5L, "node-3",
+        assertThat(attempts.open(learner, now())).isEmpty();
+        assertThat(attempts.opened(new Attempt(learner, DOC, "F", "T", 5L, "node-3",
                 PromotionMode.AUTOMATIC, now() + 60_000L), now())).isPresent();
     }
 
@@ -401,8 +389,8 @@ class TestShapesAndLedgerDao {
     void aPersonsAnswerReplacesATurnsAndWhatFollowedItGoes() {
         // A28: *answer instead* and *edit and re-run from here*. What came after the turn answered is a
         // consequence of an answer that has changed, and the walk derives it again.
-        final String shape = SHAPE + "-amend";
-        final long id = attempts.opened(new Attempt(LEARNER, DOC, shape, "F", "T", 1L, "node-1",
+        final Learner learner = learner("amend");
+        final long id = attempts.opened(new Attempt(learner, DOC, "F", "T", 1L, "node-1",
                 PromotionMode.AUTOMATIC, now() + 60_000L), now()).orElseThrow();
         attempts.turn(id, new Turn(1, "chain", 1, QuestionKind.CHAIN, "Chain: choose from [DSParser]",
                 "DSParser", "local-model", StepOutcome.PASSED));
@@ -412,12 +400,12 @@ class TestShapesAndLedgerDao {
                 "<dataSplitter/>", "local-model", StepOutcome.COVERAGE_SHORT));
         attempts.closed(id, AttemptStatus.ABANDONED, "No passing configuration", null, null, 10L);
 
-        // Opened again, it takes its shape back.
+        // Opened again, it takes its claim back.
         assertThat(attempts.reopened(id, now(), now() + 60_000L)).isTrue();
         assertThat(attempts.byId(id).orElseThrow().status()).isEqualTo(AttemptStatus.AWAITING_MODEL);
         assertThat(attempts.byId(id).orElseThrow().decision())
                 .describedAs("what it came to before is not what it has come to now").isNull();
-        assertThat(attempts.opened(new Attempt(LEARNER, DOC, shape, "F", "T", 2L, "node-2",
+        assertThat(attempts.opened(new Attempt(learner, DOC, "F", "T", 2L, "node-2",
                 PromotionMode.AUTOMATIC, now() + 60_000L), now()))
                 .describedAs("and holds it against another").isEmpty();
         assertThat(attempts.reopened(id, now(), now() + 60_000L))
@@ -445,14 +433,14 @@ class TestShapesAndLedgerDao {
 
     @Test
     void anAttemptIsOpenedAgainDespiteAClaimNobodyIsBehind() {
-        // A45: an attempt whose node died holds its shape, and a person may still answer it and run it
+        // A45: an attempt whose node died holds its claim, and a person may still answer it and run it
         // again. The claim of the attempt reopened is pushed out, or a worker would find it lapsed and
         // take it before the answer was recorded against it.
-        final String shape = SHAPE + "-lapsed";
-        final long dead = attempts.opened(new Attempt(LEARNER, DOC, shape, "F", "T", 1L, "node-dead",
+        final Learner learner = learner("lapsed");
+        final long dead = attempts.opened(new Attempt(learner, DOC, "F", "T", 1L, "node-dead",
                 PromotionMode.AUTOMATIC, now() - 1), now() - 2).orElseThrow();
         attempts.closed(dead, AttemptStatus.PROMOTED, "Promoted", "rule-x", 1.0, 0L);
-        final long mine = attempts.opened(new Attempt(LEARNER, DOC, shape, "F", "T", 2L, "node-1",
+        final long mine = attempts.opened(new Attempt(learner, DOC, "F", "T", 2L, "node-1",
                 PromotionMode.AUTOMATIC, now() - 1), now() - 2).orElseThrow();
         attempts.turn(mine, new Turn(1, "chain", 1, QuestionKind.CHAIN, "Chain: choose from [DSParser]",
                 "DSParser", "local-model", StepOutcome.PASSED));
@@ -465,14 +453,14 @@ class TestShapesAndLedgerDao {
         final Recorded reopened = attempts.byId(mine).orElseThrow();
         assertThat(reopened.status()).isEqualTo(AttemptStatus.AWAITING_MODEL);
         assertThat(reopened.attempt().expiryMs()).isGreaterThan(now());
-        assertThat(attempts.open(LEARNER, shape, now()).orElseThrow().id()).isEqualTo(mine);
+        assertThat(attempts.open(learner, now()).orElseThrow().id()).isEqualTo(mine);
         attempts.closed(mine, AttemptStatus.ABANDONED, "done with", null, null, 0L);
     }
 
     @Test
     void anAttemptBeingWalkedNowIsNotOpenedAgain() {
-        final String shape = SHAPE + "-walking";
-        final long id = attempts.opened(new Attempt(LEARNER, DOC, shape, "F", "T", 1L, "node-1",
+        final Learner learner = learner("walking");
+        final long id = attempts.opened(new Attempt(learner, DOC, "F", "T", 1L, "node-1",
                 PromotionMode.AUTOMATIC, now() + 60_000L), now()).orElseThrow();
 
         assertThat(attempts.reopened(id, now(), now() + 60_000L))
@@ -487,19 +475,19 @@ class TestShapesAndLedgerDao {
 
     @Test
     void anAttemptCannotBeOpenedAgainWhileAnotherHoldsItsShape() {
-        final String shape = SHAPE + "-contended";
-        final long mine = attempts.opened(new Attempt(LEARNER, DOC, shape, "F", "T", 1L, "node-1",
+        final Learner learner = learner("contended");
+        final long mine = attempts.opened(new Attempt(learner, DOC, "F", "T", 1L, "node-1",
                 PromotionMode.AUTOMATIC, now() + 60_000L), now()).orElseThrow();
         attempts.closed(mine, AttemptStatus.PROMOTED, "Promoted 1.0", "rule-9", 1.0, 0L);
-        final long theirs = attempts.opened(new Attempt(LEARNER, DOC, shape, "F", "T", 2L, "node-2",
+        final long theirs = attempts.opened(new Attempt(learner, DOC, "F", "T", 2L, "node-2",
                 PromotionMode.AUTOMATIC, now() + 60_000L), now()).orElseThrow();
 
         assertThat(attempts.reopened(mine, now(), now() + 60_000L))
-                .describedAs("a person is told rather than two attempts learning one shape").isFalse();
+                .describedAs("a person is told rather than two attempts learning for one learner").isFalse();
         assertThat(attempts.byId(mine).orElseThrow().status()).isEqualTo(AttemptStatus.PROMOTED);
         attempts.closed(theirs, AttemptStatus.ABANDONED, "done with", null, null, 0L);
         assertThat(attempts.reopened(mine, now(), now() + 60_000L))
-                .describedAs("and may run again once the shape is free").isTrue();
+                .describedAs("and may run again once the learner is free").isTrue();
         attempts.closed(mine, AttemptStatus.ABANDONED, "done with", null, null, 0L);
     }
 
@@ -615,17 +603,16 @@ class TestShapesAndLedgerDao {
         // things a person looking for an attempt would know.
         final String doc = "doc-" + System.nanoTime();
         final String other = "doc-" + System.nanoTime() + "-other";
-        final long first = attempts.opened(new Attempt(new Learner("pipeline-" + doc, "shapeshifterAi"), doc, SHAPE,
-                "DOOR-ACCESS", "Raw Events", 1L, "node-1",
-                PromotionMode.AUTOMATIC, now() + 60_000L), now()).orElseThrow();
-        attempts.closed(first, AttemptStatus.PROMOTED, "Promoted 1.0", "rule-1", 1.0, 10L);
-        final long second = attempts.opened(new Attempt(new Learner("pipeline-" + doc, "shapeshifterAi"), doc,
-                SHAPE + "-b", "OTHER-FEED", "Raw Events", 2L,
-                "node-2", PromotionMode.REVIEW, now() + 60_000L), now()).orElseThrow();
-        final long elsewhere = attempts.opened(new Attempt(new Learner("pipeline-" + other, "shapeshifterAi"), other,
-                SHAPE, "DOOR-ACCESS", "Raw Events", 3L,
-                "node-1", PromotionMode.AUTOMATIC, now() + 60_000L), now())
+        final long first = attempts.opened(new Attempt(new Learner("pipeline-" + doc, "shapeshifterAi"), doc,
+                "DOOR-ACCESS", "Raw Events", 1L, "node-1", PromotionMode.AUTOMATIC, now() + 60_000L), now())
                 .orElseThrow();
+        attempts.closed(first, AttemptStatus.PROMOTED, "Promoted 1.0", "rule-1", 1.0, 10L);
+        final long second = attempts.opened(new Attempt(new Learner("pipeline-" + doc + "-other-feed",
+                "shapeshifterAi"), doc, "OTHER-FEED", "Raw Events", 2L, "node-2", PromotionMode.REVIEW,
+                now() + 60_000L), now()).orElseThrow();
+        final long elsewhere = attempts.opened(new Attempt(new Learner("pipeline-" + other, "shapeshifterAi"),
+                other, "DOOR-ACCESS", "Raw Events", 3L, "node-1", PromotionMode.AUTOMATIC, now() + 60_000L),
+                now()).orElseThrow();
 
         assertThat(attempts.found(new AttemptCriteria(), List.of(doc, other)).attempts())
                 .extracting(Recorded::id)
@@ -638,22 +625,19 @@ class TestShapesAndLedgerDao {
                 .doesNotContain(first, second);
         assertThat(attempts.found(new AttemptCriteria(), List.of()).total())
                 .describedAs("nor counted, or the count says how many exist elsewhere").isZero();
-        assertThat(found(new AttemptCriteria(null, null, doc, null, null, null, null)))
+        assertThat(found(new AttemptCriteria(null, null, doc, null, null, null)))
                 .containsExactly(second, first);
-        assertThat(found(new AttemptCriteria(null, null, doc, "OTHER-FEED", null, null, null)))
+        assertThat(found(new AttemptCriteria(null, null, doc, "OTHER-FEED", null, null)))
                 .containsExactly(second);
-        assertThat(found(new AttemptCriteria(null, null, doc, null, SHAPE, null, null)))
-                .describedAs("by shape, whose id has no bound and is matched by its hash")
-                .containsExactly(first);
-        assertThat(found(new AttemptCriteria(null, null, doc, null, null, PromotionMode.REVIEW, null)))
+        assertThat(found(new AttemptCriteria(null, null, doc, null, PromotionMode.REVIEW, null)))
                 .containsExactly(second);
-        assertThat(found(new AttemptCriteria(null, null, doc, null, null, null,
+        assertThat(found(new AttemptCriteria(null, null, doc, null, null,
                 List.of(AttemptStatus.PROMOTED))))
                 .describedAs("and by what it came to").containsExactly(first);
 
         // A page, and how many there are to page through.
         final Page page = attempts.found(new AttemptCriteria(new PageRequest(0, 1), null, doc, null, null,
-                null, null), List.of(doc, other));
+                null), List.of(doc, other));
         assertThat(page.attempts()).hasSize(1);
         assertThat(page.total()).isEqualTo(2);
         assertThat(page.attempts().get(0).turns())
@@ -674,23 +658,23 @@ class TestShapesAndLedgerDao {
         // feature writes. An attempt still learning, still waiting for the model, or waiting for a person
         // to decide is never pruned however old it is: age is not what says an attempt is over.
         final String doc = "doc-" + System.nanoTime() + "-prune";
-        final long finished = attempts.opened(new Attempt(new Learner("pipeline-" + doc, "shapeshifterAi"), doc,
-                SHAPE + "-a", "F", "T", 1L, "node-1",
-                PromotionMode.AUTOMATIC, now() + 60_000L), now()).orElseThrow();
+        final long finished = attempts.opened(new Attempt(
+                new Learner("pipeline-" + doc + "-finished", "shapeshifterAi"),
+                doc, "F", "T", 1L, "node-1", PromotionMode.AUTOMATIC, now() + 60_000L), now()).orElseThrow();
         attempts.turn(finished, new Turn(1, "chain", 1, QuestionKind.CHAIN, "Chain: choose", "DSParser",
                 "local-model", StepOutcome.PASSED));
         attempts.closed(finished, AttemptStatus.PROMOTED, "Promoted", "rule-1", 1.0, 0L);
-        final long waiting = attempts.opened(new Attempt(new Learner("pipeline-" + doc, "shapeshifterAi"), doc,
-                SHAPE + "-b", "F", "T", 2L, "node-1",
-                PromotionMode.AUTOMATIC, now() + 60_000L), now()).orElseThrow();
+        final long waiting = attempts.opened(new Attempt(
+                new Learner("pipeline-" + doc + "-waiting", "shapeshifterAi"),
+                doc, "F", "T", 2L, "node-1", PromotionMode.AUTOMATIC, now() + 60_000L), now()).orElseThrow();
         attempts.parked(waiting, AttemptStatus.AWAITING_MODEL, now() + 60_000L, 0L);
-        final long reviewing = attempts.opened(new Attempt(new Learner("pipeline-" + doc, "shapeshifterAi"), doc,
-                SHAPE + "-c", "F", "T", 3L, "node-1",
-                PromotionMode.REVIEW, now() + 60_000L), now()).orElseThrow();
+        final long reviewing = attempts.opened(new Attempt(
+                new Learner("pipeline-" + doc + "-reviewing", "shapeshifterAi"),
+                doc, "F", "T", 3L, "node-1", PromotionMode.REVIEW, now() + 60_000L), now()).orElseThrow();
         attempts.closed(reviewing, AttemptStatus.AWAITING_REVIEW, "Drafted", "rule-2", 0.9, 0L);
-        final long learning = attempts.opened(new Attempt(new Learner("pipeline-" + doc, "shapeshifterAi"), doc,
-                SHAPE + "-d", "F", "T", 4L, "node-1",
-                PromotionMode.AUTOMATIC, now() + 60_000L), now()).orElseThrow();
+        final long learning = attempts.opened(new Attempt(
+                new Learner("pipeline-" + doc + "-learning", "shapeshifterAi"),
+                doc, "F", "T", 4L, "node-1", PromotionMode.AUTOMATIC, now() + 60_000L), now()).orElseThrow();
 
         assertThat(attempts.prune(now() - 60_000L)).describedAs("nothing is old enough yet").isZero();
         final int pruned = attempts.prune(now() + 60_000L);
@@ -710,51 +694,49 @@ class TestShapesAndLedgerDao {
         return System.currentTimeMillis();
     }
 
-    /// The ledger read rather than released (A28 §11.6): a row per shape, what is waiting and since
-    /// when, and the newest stream's reason standing for the shape.
+    /// The ledger read rather than released (A28 §11.6): a row per learner, what is waiting and since
+    /// when, and the newest stream's reason standing for the learner.
     ///
     /// Reading takes nothing off. A view that answered by releasing would put a backlog through the
     /// pipeline because somebody opened a screen, which is the opposite of what the screen is for.
     @Test
     void theLedgerIsReadWithoutBeingSpent() {
-        final String other = OTHER_SHAPE;
-        ledger.sentinelled(LEARNER, DOC, SHAPE, 1L, "Nothing binds this shape");
-        ledger.sentinelled(LEARNER, DOC, SHAPE, 2L, "Being learned on another node");
-        ledger.sentinelled(LEARNER, DOC, other, 3L, "Awaiting review");
+        ledger.sentinelled(LEARNER, DOC, 1L, "Nothing serves this learner");
+        ledger.sentinelled(LEARNER, DOC, 2L, "Being learned on another node");
+        ledger.sentinelled(OTHER, DOC, 3L, "Awaiting review");
 
-        assertThat(ledger.waiting(List.of(DOC), 0L, 100).shapes())
-                .describedAs("a row per shape, most recently added first")
-                .extracting(LedgerShape::getShapeId, LedgerShape::getWaiting, LedgerShape::getReason)
+        assertThat(ledger.waiting(List.of(DOC), 0L, 100).learners())
+                .describedAs("a row per learner, most recently added first")
+                .extracting(LedgerLearner::getLearner, LedgerLearner::getWaiting, LedgerLearner::getReason)
                 .containsExactly(
-                        tuple(other, 1, "Awaiting review"),
-                        tuple(SHAPE, 2, "Being learned on another node"));
-        assertThat(ledger.waiting(List.of(DOC), 0L, 100).shapes().get(1))
+                        tuple(ref(OTHER), 1, "Awaiting review"),
+                        tuple(ref(LEARNER), 2, "Being learned on another node"));
+        assertThat(ledger.waiting(List.of(DOC), 0L, 100).learners().get(1))
                 .describedAs("and how long it has been waiting")
-                .satisfies(shape -> assertThat(shape.getOldestTimeMs())
-                        .isLessThanOrEqualTo(shape.getNewestTimeMs()));
+                .satisfies(row -> assertThat(row.getOldestTimeMs()).isLessThanOrEqualTo(row.getNewestTimeMs()));
         assertThat(ledger.waiting(List.of(DOC, "another-document"), 0L, 100).total())
                 .describedAs("every document a person may see, for a view that is over all of them")
                 .isEqualTo(2L);
-        assertThat(ledger.waiting(List.of(DOC), 0L, 1).shapes())
+        assertThat(ledger.waiting(List.of(DOC), 0L, 1).learners())
                 .describedAs("a page is a page, and the total says how much there is beyond it")
                 .hasSize(1);
         assertThat(ledger.waiting(List.of(DOC), 0L, 1).total()).isEqualTo(2L);
-        assertThat(ledger.waiting(List.of(), 0L, 100).shapes())
+        assertThat(ledger.waiting(List.of(), 0L, 100).learners())
                 .describedAs("no documents to read is nothing to read, not everything")
                 .isEmpty();
-        assertThat(ledger.waiting(List.of("no-such-document"), 0L, 100).shapes()).isEmpty();
+        assertThat(ledger.waiting(List.of("no-such-document"), 0L, 100).learners()).isEmpty();
 
-        assertThat(ledger.waiting(List.of(DOC), 0L, 100).shapes())
+        assertThat(ledger.waiting(List.of(DOC), 0L, 100).learners())
                 .describedAs("read twice is read twice: nothing was taken off by the reading")
                 .hasSize(2);
-        assertThat(ledger.release(LEARNER, SHAPE))
+        assertThat(ledger.release(LEARNER))
                 .describedAs("and the release still has everything to release")
                 .hasSize(2);
-        assertThat(ledger.waiting(List.of(DOC), 0L, 100).shapes())
-                .describedAs("which is the one thing that does take a shape off")
-                .extracting(LedgerShape::getShapeId).containsExactly(other);
+        assertThat(ledger.waiting(List.of(DOC), 0L, 100).learners())
+                .describedAs("which is the one thing that does take a learner off")
+                .extracting(LedgerLearner::getLearner).containsExactly(ref(OTHER));
 
-        ledger.release(LEARNER, other);
+        ledger.release(OTHER);
     }
 
 
@@ -765,85 +747,88 @@ class TestShapesAndLedgerDao {
     /// key and the order are the two things that would drift silently, so they are the two things held.
     @Test
     void theLedgerInMemoryAgreesWithTheLedgerInRows() {
-        final String other = OTHER_SHAPE;
         final InMemoryLedger inMemory = new InMemoryLedger();
         final List<Ledger> both = List.of(ledger, inMemory);
         both.forEach(seam -> {
-            seam.sentinelled(LEARNER, DOC, SHAPE, 1L, "Nothing binds this shape");
-            seam.sentinelled(LEARNER, DOC, SHAPE, 1L, "Nothing binds this shape");
-            seam.sentinelled(LEARNER, DOC, other, 2L, "Awaiting review");
-            seam.sentinelled(LEARNER, DOC, SHAPE, 3L, "Being learned on another node");
+            seam.sentinelled(LEARNER, DOC, 1L, "Nothing serves this learner");
+            seam.sentinelled(LEARNER, DOC, 1L, "Nothing serves this learner");
+            seam.sentinelled(OTHER, DOC, 2L, "Awaiting review");
+            seam.sentinelled(LEARNER, DOC, 3L, "Being learned on another node");
         });
 
-        assertThat(summarise(inMemory.waiting(List.of(DOC), 0L, 100).shapes()))
-                .describedAs("the same shapes, the same counts, the same reasons, in the same order")
-                .isEqualTo(summarise(ledger.waiting(List.of(DOC), 0L, 100).shapes()));
-        assertThat(summarise(inMemory.waiting(List.of(DOC), 0L, 100).shapes()))
-                .describedAs("a stream sentinelled twice for one shape is one waiting stream, not two")
-                .containsExactly(SHAPE + " x2: Being learned on another node",
-                        other + " x1: Awaiting review");
+        assertThat(summarise(inMemory.waiting(List.of(DOC), 0L, 100).learners()))
+                .describedAs("the same learners, the same counts, the same reasons, in the same order")
+                .isEqualTo(summarise(ledger.waiting(List.of(DOC), 0L, 100).learners()));
+        assertThat(summarise(inMemory.waiting(List.of(DOC), 0L, 100).learners()))
+                .describedAs("a stream sentinelled twice is one waiting stream, not two")
+                .containsExactly(ref(LEARNER) + " x2: Being learned on another node",
+                        ref(OTHER) + " x1: Awaiting review");
 
-        // Saying something else about why a shape's streams wait, without releasing any of them: what
+        // Saying something else about why a learner's streams wait, without releasing any of them: what
         // rejecting a draft does, so that the rows stop naming a draft that no longer exists.
-        both.forEach(seam -> seam.restate(LEARNER, other, "Rejected: the wrong parser"));
-        assertThat(summarise(inMemory.waiting(List.of(DOC), 0L, 100).shapes()))
+        both.forEach(seam -> seam.restate(OTHER, "Rejected: the wrong parser"));
+        assertThat(summarise(inMemory.waiting(List.of(DOC), 0L, 100).learners()))
                 .describedAs("the table and the heap restate the same rows the same way, and leave the "
-                             + "other shape's alone")
-                .isEqualTo(summarise(ledger.waiting(List.of(DOC), 0L, 100).shapes()));
-        assertThat(summarise(ledger.waiting(List.of(DOC), 0L, 100).shapes()))
-                .contains(other + " x1: Rejected: the wrong parser");
-        assertThat(ledger.waiting(List.of(DOC), 0L, 100).shapes())
+                             + "other learner's alone")
+                .isEqualTo(summarise(ledger.waiting(List.of(DOC), 0L, 100).learners()));
+        assertThat(summarise(ledger.waiting(List.of(DOC), 0L, 100).learners()))
+                .contains(ref(OTHER) + " x1: Rejected: the wrong parser");
+        assertThat(ledger.waiting(List.of(DOC), 0L, 100).learners())
                 .describedAs("and nothing is released: the streams are still waiting, and still waiting "
                              + "since they arrived")
-                .filteredOn(row -> other.equals(row.getShapeId()))
+                .filteredOn(row -> ref(OTHER).equals(row.getLearner()))
                 .allSatisfy(row -> assertThat(row.getWaiting()).isEqualTo(1));
 
-        ledger.release(LEARNER, SHAPE);
-        ledger.release(LEARNER, other);
+        ledger.release(LEARNER);
+        ledger.release(OTHER);
     }
 
-    private static List<String> summarise(final List<LedgerShape> shapes) {
-        return shapes.stream()
-                .map(shape -> shape.getShapeId() + " x" + shape.getWaiting() + ": " + shape.getReason())
+    private static List<String> summarise(final List<LedgerLearner> rows) {
+        return rows.stream()
+                .map(row -> row.getLearner() + " x" + row.getWaiting() + ": " + row.getReason())
                 .toList();
     }
 
+    private static LearnerRef ref(final Learner learner) {
+        return new LearnerRef(learner.pipelineUuid(), learner.elementId());
+    }
 
-    /// A supervisor's messages as rows (A46): kept per shape, read oldest first, and taken back by id.
+
+    /// A supervisor's messages as rows (A46): kept per learner, read oldest first, and taken back by id.
     ///
-    /// Per shape and not per attempt, which is the ruling's first decision: what a person knows is about
-    /// the feed, so a hint outlives the attempt that first used it and the relearning of A29 months
+    /// Per learner and not per attempt, which is the ruling's first decision: what a person knows is
+    /// about the feed, so a hint outlives the attempt that first used it and the relearning of A29 months
     /// later carries it too.
     @Test
-    void whatASupervisorSaysIsKeptAgainstTheShape() {
-        final long first = guidance.given(LEARNER, DOC, SHAPE, "Timestamps are local, not UTC.", "jo");
-        final long second = guidance.given(LEARNER, DOC, SHAPE, "Column four is a terminal id.", "sam");
-        guidance.given(LEARNER, DOC, OTHER_SHAPE, "Nothing to do with the door.", "jo");
+    void whatASupervisorSaysIsKeptAgainstTheLearner() {
+        final long first = guidance.given(LEARNER, DOC, "Timestamps are local, not UTC.", "jo");
+        final long second = guidance.given(LEARNER, DOC, "Column four is a terminal id.", "sam");
+        guidance.given(OTHER, DOC, "Nothing to do with the door.", "jo");
 
-        assertThat(guidance.standing(LEARNER, SHAPE))
+        assertThat(guidance.standing(LEARNER))
                 .describedAs("oldest first, so that a later hint correcting an earlier one reads as one")
                 .extracting(Given::id, Given::message, Given::author)
                 .containsExactly(
                         tuple(first, "Timestamps are local, not UTC.", "jo"),
                         tuple(second, "Column four is a terminal id.", "sam"));
-        assertThat(guidance.standing(LEARNER, SHAPE).get(0).timeMs()).isPositive();
-        assertThat(guidance.standing(LEARNER, OTHER_SHAPE))
-                .describedAs("a hint is about one shape, and a neighbour's is not this one's")
+        assertThat(guidance.standing(LEARNER).get(0).timeMs()).isPositive();
+        assertThat(guidance.standing(OTHER))
+                .describedAs("a hint is said to one learner, and a neighbour's is not this one's")
                 .hasSize(1);
-        assertThat(guidance.standing(LEARNER, "Feed=NOBODY|Type=Raw Events")).isEmpty();
+        assertThat(guidance.standing(learner("nobody"))).isEmpty();
 
         guidance.withdraw(DOC, first);
-        assertThat(guidance.standing(LEARNER, SHAPE))
+        assertThat(guidance.standing(LEARNER))
                 .describedAs("a hint that turned out to be wrong is worse than no hint")
                 .extracting(Given::id).containsExactly(second);
         guidance.withdraw("another-document", second);
-        assertThat(guidance.standing(LEARNER, SHAPE))
+        assertThat(guidance.standing(LEARNER))
                 .describedAs("and taking one back is by document as well as id, so a mistyped id cannot "
                              + "take back somebody else's")
                 .hasSize(1);
 
         guidance.withdraw(DOC, second);
-        guidance.standing(LEARNER, OTHER_SHAPE).forEach(given -> guidance.withdraw(DOC, given.id()));
+        guidance.standing(OTHER).forEach(given -> guidance.withdraw(DOC, given.id()));
     }
 
 }

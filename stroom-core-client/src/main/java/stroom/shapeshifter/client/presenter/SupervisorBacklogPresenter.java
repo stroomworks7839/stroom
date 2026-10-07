@@ -44,7 +44,7 @@ import java.util.function.Consumer;
 /// The Supervisor's backlog (design 04 §6): what is waiting on a session, a row per stream — on which
 /// transform it fell short, since when, how many times it has been tried — with the streams that have
 /// waited past their document's maximum deferral age raised to the top and marked (A57, A78, A79). Nothing
-/// here is an action: a stream waits until its session promotes, or its shape is given up, and both are
+/// here is an action: a stream waits until its session promotes, or its learner gives up, and both are
 /// done from beside the attempts.
 public class SupervisorBacklogPresenter extends MyPresenterWidget<PagerView> {
 
@@ -129,7 +129,7 @@ public class SupervisorBacklogPresenter extends MyPresenterWidget<PagerView> {
                         text(NullSafe.getOrElse(stream.getFailedAgainst(), v -> v, "nothing bound"))).build(),
                 DataGridUtil.headingBuilder("Held against")
                         .withToolTip("The snapshot of the transform the stream was run through and fell "
-                                     + "short of. A promotion of that shape moves it on.")
+                                     + "short of. A promotion moves it on.")
                         .build(),
                 ColumnSizeConstants.MEDIUM_COL);
         dataGrid.addResizableColumn(

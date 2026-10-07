@@ -13,10 +13,10 @@ import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterAttempt;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterCorpus;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterDeferral;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterGuidance;
+import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterLearnerState;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterLedger;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterOutput;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterRule;
-import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterShape;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterSnapshot;
 
 
@@ -32,18 +32,17 @@ public class Indexes {
 
     public static final Index SHAPESHIFTER_ATTEMPT_SHAPESHIFTER_ATTEMPT_CREATE_TIME_MS = Internal.createIndex(DSL.name("shapeshifter_attempt_create_time_ms"), ShapeshifterAttempt.SHAPESHIFTER_ATTEMPT, new OrderField[] { ShapeshifterAttempt.SHAPESHIFTER_ATTEMPT.CREATE_TIME_MS }, false);
     public static final Index SHAPESHIFTER_ATTEMPT_SHAPESHIFTER_ATTEMPT_DOC_UUID = Internal.createIndex(DSL.name("shapeshifter_attempt_doc_uuid"), ShapeshifterAttempt.SHAPESHIFTER_ATTEMPT, new OrderField[] { ShapeshifterAttempt.SHAPESHIFTER_ATTEMPT.DOC_UUID }, false);
-    public static final Index SHAPESHIFTER_ATTEMPT_SHAPESHIFTER_ATTEMPT_LEARNER_SHAPE = Internal.createIndex(DSL.name("shapeshifter_attempt_learner_shape"), ShapeshifterAttempt.SHAPESHIFTER_ATTEMPT, new OrderField[] { ShapeshifterAttempt.SHAPESHIFTER_ATTEMPT.PIPELINE_UUID, ShapeshifterAttempt.SHAPESHIFTER_ATTEMPT.ELEMENT_ID, ShapeshifterAttempt.SHAPESHIFTER_ATTEMPT.SHAPE_HASH }, false);
     public static final Index SHAPESHIFTER_ATTEMPT_SHAPESHIFTER_ATTEMPT_STATUS = Internal.createIndex(DSL.name("shapeshifter_attempt_status"), ShapeshifterAttempt.SHAPESHIFTER_ATTEMPT, new OrderField[] { ShapeshifterAttempt.SHAPESHIFTER_ATTEMPT.STATUS }, false);
     public static final Index SHAPESHIFTER_CORPUS_SHAPESHIFTER_CORPUS_META = Internal.createIndex(DSL.name("shapeshifter_corpus_meta"), ShapeshifterCorpus.SHAPESHIFTER_CORPUS, new OrderField[] { ShapeshifterCorpus.SHAPESHIFTER_CORPUS.META_ID }, false);
     public static final Index SHAPESHIFTER_CORPUS_SHAPESHIFTER_CORPUS_RULE = Internal.createIndex(DSL.name("shapeshifter_corpus_rule"), ShapeshifterCorpus.SHAPESHIFTER_CORPUS, new OrderField[] { ShapeshifterCorpus.SHAPESHIFTER_CORPUS.RULE_UUID, ShapeshifterCorpus.SHAPESHIFTER_CORPUS.ID }, false);
     public static final Index SHAPESHIFTER_DEFERRAL_SHAPESHIFTER_DEFERRAL_DOC_UUID = Internal.createIndex(DSL.name("shapeshifter_deferral_doc_uuid"), ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL, new OrderField[] { ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.DOC_UUID }, false);
     public static final Index SHAPESHIFTER_GUIDANCE_SHAPESHIFTER_GUIDANCE_DOC_UUID = Internal.createIndex(DSL.name("shapeshifter_guidance_doc_uuid"), ShapeshifterGuidance.SHAPESHIFTER_GUIDANCE, new OrderField[] { ShapeshifterGuidance.SHAPESHIFTER_GUIDANCE.DOC_UUID }, false);
-    public static final Index SHAPESHIFTER_GUIDANCE_SHAPESHIFTER_GUIDANCE_LEARNER_SHAPE = Internal.createIndex(DSL.name("shapeshifter_guidance_learner_shape"), ShapeshifterGuidance.SHAPESHIFTER_GUIDANCE, new OrderField[] { ShapeshifterGuidance.SHAPESHIFTER_GUIDANCE.PIPELINE_UUID, ShapeshifterGuidance.SHAPESHIFTER_GUIDANCE.ELEMENT_ID, ShapeshifterGuidance.SHAPESHIFTER_GUIDANCE.SHAPE_HASH }, false);
+    public static final Index SHAPESHIFTER_GUIDANCE_SHAPESHIFTER_GUIDANCE_LEARNER = Internal.createIndex(DSL.name("shapeshifter_guidance_learner"), ShapeshifterGuidance.SHAPESHIFTER_GUIDANCE, new OrderField[] { ShapeshifterGuidance.SHAPESHIFTER_GUIDANCE.PIPELINE_UUID, ShapeshifterGuidance.SHAPESHIFTER_GUIDANCE.ELEMENT_ID }, false);
+    public static final Index SHAPESHIFTER_LEARNER_STATE_SHAPESHIFTER_LEARNER_STATE_DOC_UUID = Internal.createIndex(DSL.name("shapeshifter_learner_state_doc_uuid"), ShapeshifterLearnerState.SHAPESHIFTER_LEARNER_STATE, new OrderField[] { ShapeshifterLearnerState.SHAPESHIFTER_LEARNER_STATE.DOC_UUID }, false);
     public static final Index SHAPESHIFTER_LEDGER_SHAPESHIFTER_LEDGER_DOC_UUID = Internal.createIndex(DSL.name("shapeshifter_ledger_doc_uuid"), ShapeshifterLedger.SHAPESHIFTER_LEDGER, new OrderField[] { ShapeshifterLedger.SHAPESHIFTER_LEDGER.DOC_UUID }, false);
     public static final Index SHAPESHIFTER_LEDGER_SHAPESHIFTER_LEDGER_INPUT_META_ID = Internal.createIndex(DSL.name("shapeshifter_ledger_input_meta_id"), ShapeshifterLedger.SHAPESHIFTER_LEDGER, new OrderField[] { ShapeshifterLedger.SHAPESHIFTER_LEDGER.INPUT_META_ID }, false);
     public static final Index SHAPESHIFTER_OUTPUT_SHAPESHIFTER_OUTPUT_DOC_UUID = Internal.createIndex(DSL.name("shapeshifter_output_doc_uuid"), ShapeshifterOutput.SHAPESHIFTER_OUTPUT, new OrderField[] { ShapeshifterOutput.SHAPESHIFTER_OUTPUT.DOC_UUID }, false);
     public static final Index SHAPESHIFTER_RULE_SHAPESHIFTER_RULE_DOC_UUID = Internal.createIndex(DSL.name("shapeshifter_rule_doc_uuid"), ShapeshifterRule.SHAPESHIFTER_RULE, new OrderField[] { ShapeshifterRule.SHAPESHIFTER_RULE.DOC_UUID }, false);
-    public static final Index SHAPESHIFTER_RULE_SHAPESHIFTER_RULE_LEARNER_SHAPE = Internal.createIndex(DSL.name("shapeshifter_rule_learner_shape"), ShapeshifterRule.SHAPESHIFTER_RULE, new OrderField[] { ShapeshifterRule.SHAPESHIFTER_RULE.PIPELINE_UUID, ShapeshifterRule.SHAPESHIFTER_RULE.ELEMENT_ID, ShapeshifterRule.SHAPESHIFTER_RULE.SHAPE_HASH }, false);
-    public static final Index SHAPESHIFTER_SHAPE_SHAPESHIFTER_SHAPE_DOC_UUID = Internal.createIndex(DSL.name("shapeshifter_shape_doc_uuid"), ShapeshifterShape.SHAPESHIFTER_SHAPE, new OrderField[] { ShapeshifterShape.SHAPESHIFTER_SHAPE.DOC_UUID }, false);
+    public static final Index SHAPESHIFTER_RULE_SHAPESHIFTER_RULE_LEARNER = Internal.createIndex(DSL.name("shapeshifter_rule_learner"), ShapeshifterRule.SHAPESHIFTER_RULE, new OrderField[] { ShapeshifterRule.SHAPESHIFTER_RULE.PIPELINE_UUID, ShapeshifterRule.SHAPESHIFTER_RULE.ELEMENT_ID }, false);
     public static final Index SHAPESHIFTER_SNAPSHOT_SHAPESHIFTER_SNAPSHOT_RULE = Internal.createIndex(DSL.name("shapeshifter_snapshot_rule"), ShapeshifterSnapshot.SHAPESHIFTER_SNAPSHOT, new OrderField[] { ShapeshifterSnapshot.SHAPESHIFTER_SNAPSHOT.RULE_UUID, ShapeshifterSnapshot.SHAPESHIFTER_SNAPSHOT.ID }, false);
 }

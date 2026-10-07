@@ -36,18 +36,17 @@ public final class InMemoryGuidance implements Guidance {
     @Override
     public synchronized long given(final Learner learner,
                                    final String docUuid,
-                                   final String shape,
                                    final String message,
                                    final String author) {
         final long id = nextId.getAndIncrement();
-        rows.add(new Row(id, learner, docUuid, shape, new Given(id, message, author, System.currentTimeMillis())));
+        rows.add(new Row(id, learner, docUuid, new Given(id, message, author, System.currentTimeMillis())));
         return id;
     }
 
     @Override
-    public synchronized List<Given> standing(final Learner learner, final String shape) {
+    public synchronized List<Given> standing(final Learner learner) {
         return rows.stream()
-                .filter(row -> row.learner().equals(learner) && row.shape().equals(shape))
+                .filter(row -> row.learner().equals(learner))
                 .map(Row::given)
                 .toList();
     }
@@ -57,14 +56,14 @@ public final class InMemoryGuidance implements Guidance {
         rows.removeIf(row -> row.docUuid().equals(docUuid) && row.given().id() == id);
     }
 
-    /// What has been said about the learner's shapes, brought to the document it runs under (see
+    /// What has been said to the learner, brought to the document it runs under (see
     /// [InMemoryLearners]).
     ///
     /// @param learner The learner.
     /// @param docUuid The document.
     public synchronized void runsUnder(final Learner learner, final String docUuid) {
         rows.replaceAll(row -> row.learner().equals(learner)
-                ? new Row(row.id(), learner, docUuid, row.shape(), row.given())
+                ? new Row(row.id(), learner, docUuid, row.given())
                 : row);
     }
 
@@ -72,7 +71,7 @@ public final class InMemoryGuidance implements Guidance {
     // --------------------------------------------------------------------------------
 
 
-    private record Row(long id, Learner learner, String docUuid, String shape, Given given) {
+    private record Row(long id, Learner learner, String docUuid, Given given) {
 
     }
 }

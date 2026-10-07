@@ -30,7 +30,6 @@ import stroom.processor.shared.ProcessorFilter;
 import stroom.processor.shared.ProcessorType;
 import stroom.processor.shared.QueryData;
 import stroom.query.api.ExpressionOperator;
-import stroom.query.api.ExpressionOperator.Op;
 import stroom.query.api.ExpressionTerm.Condition;
 import stroom.shapeshifter.ai.learning.Templates;
 import stroom.shapeshifter.ai.scenario.Scenarios;
@@ -53,14 +52,16 @@ import java.util.zip.ZipOutputStream;
 /// learn a feed, as a zip Stroom will import.
 ///
 /// Without it, seeing the feature work means building a Shapeshifter AI document, a model reference,
-/// four feeds, a pipeline and a processor filter by hand, and getting every reference between them
+/// four feeds, a pipeline and a processor filter for each by hand, and getting every reference between them
 /// right. That is an afternoon before anything happens, and an afternoon in which a demo can fail for
 /// reasons that have nothing to do with what is being demonstrated.
 ///
 /// The settings come from [DemoDocument], which is also what design 02 §5 scenario 51 is run with, so
 /// the pack ships a configuration that has been seen to learn four unrelated formats rather than a
 /// plausible one. What the pack adds is the wiring the scenario has no need of: the model the stage
-/// calls, the feeds to point it at, the pipeline the stage sits in and the filter that processes them.
+/// calls, the feeds to point it at, and for each feed the pipeline the stage sits in and the filter
+/// that processes it: one pipeline per feed, as the Pipeline Factory makes them (A103, A126), since a
+/// learner learns one translation for whatever its pipeline is given.
 ///
 /// **The written form** is the import/export format Stroom has always read: one `.node` file naming a
 /// document's uuid, type, name and explorer path, beside the document's own assets under the same
@@ -74,7 +75,6 @@ public final class DemoContentPack {
     public static final String FOLDER = "Shapeshifter AI Demo";
     public static final String DOCUMENT_NAME = "Any feed";
     public static final String MODEL_NAME = "Learning model";
-    public static final String PIPELINE_NAME = "Any feed supervised";
 
     /// The name of a stored secret holding the API key. The pack carries the name; the key is the
     /// person's own and is never in source control.
@@ -87,12 +87,26 @@ public final class DemoContentPack {
     /// Fixed so that importing the pack twice updates the same documents rather than making a second set.
     public static final String DOCUMENT_UUID = "bbc4cf72-ad52-463c-b6e8-e5cfd37f77a0";
     public static final String MODEL_UUID = "871334dc-5286-4409-8179-a5c27e4e2044";
-    public static final String PIPELINE_UUID = "898e3818-672a-4c2f-afd5-a72ef811c414";
-    public static final String FILTER_UUID = "2cf19cba-6d01-44d2-90d7-a53514fbab43";
-    /// The uuid of the processor the filter runs under. An exported filter names its processor, and the
-    /// importer makes the processor from that name where the installation has none; without it the
-    /// import of the filter fails on a null uuid.
-    public static final String PROCESSOR_UUID = "0f1b9f8c-6d61-4f0c-9d0e-3a57ec5e3e9d";
+    /// Each feed's pipeline, in the order of [#FEEDS].
+    private static final List<String> PIPELINE_UUIDS = List.of(
+            "898e3818-672a-4c2f-afd5-a72ef811c414",
+            "11a98fbc-add1-4f91-b9ae-2ef1f2387bd4",
+            "0a8aa433-33f0-44ec-8bb0-9e61a35ddb09",
+            "46a38abf-4eda-4ae1-b787-53325cbdf858");
+    /// Each feed's processor filter, in the order of [#FEEDS].
+    private static final List<String> FILTER_UUIDS = List.of(
+            "2cf19cba-6d01-44d2-90d7-a53514fbab43",
+            "7a391b6b-8132-4c3b-a364-43e6dda83e72",
+            "c83eb45c-c8ee-4063-9ae2-4e7f0fa4e78e",
+            "433c53ed-6f3e-4d1d-b62c-9cb88cd1654a");
+    /// The processor each feed's filter runs under, in the order of [#FEEDS]. An exported filter names
+    /// its processor, and the importer makes the processor from that name where the installation has
+    /// none; without it the import of the filter fails on a null uuid.
+    private static final List<String> PROCESSOR_UUIDS = List.of(
+            "0f1b9f8c-6d61-4f0c-9d0e-3a57ec5e3e9d",
+            "9bfcb071-5082-4dd0-84d2-286d2c3885ff",
+            "866168e8-ede7-457b-82d4-5b4a707cf9cd",
+            "7189ecf5-6e9f-4745-915e-f4167afd64ed");
     private static final List<String> FEED_UUIDS = List.of(
             "757e9412-9c2a-4cc4-b46c-ecc16893cdec",
             "52ce424f-0d18-433e-9808-aa771f7d5171",
@@ -165,8 +179,9 @@ public final class DemoContentPack {
                 .version(VERSION)
                 .name(DOCUMENT_NAME)
                 .description("""
-                        One supervised stage, pointed at four feeds of four unrelated formats and told \
-                        nothing about any of them. Every parser it knows how to configure is allowed, so \
+                        One supervised stage's settings, used by a pipeline for each of four feeds of \
+                        four unrelated formats and told nothing about any of them. Every parser it knows \
+                        how to configure is allowed, so \
                         the first question it asks the model is which of them this feed needs.""")
                 .model(modelRef())
                 .build();
@@ -191,15 +206,38 @@ public final class DemoContentPack {
     /// A filter has no name of its own; Stroom's exporter gives it one made of the pipeline it runs and
     /// the head of its uuid, and this is that name, so the pack is written as an export of it would be.
     ///
-    /// @return A reference to the processor filter.
-    public static DocRef filterRef() {
-        return new DocRef(ProcessorFilter.ENTITY_TYPE, FILTER_UUID,
-                PIPELINE_NAME + " " + ProcessorFilter.ENTITY_TYPE + " " + FILTER_UUID.substring(0, 7));
+    /// @param feed One of [#FEEDS].
+    /// @return A reference to the feed's processor filter.
+    public static DocRef filterRef(final String feed) {
+        final String uuid = FILTER_UUIDS.get(index(feed));
+        return new DocRef(ProcessorFilter.ENTITY_TYPE, uuid,
+                pipelineName(feed) + " " + ProcessorFilter.ENTITY_TYPE + " " + uuid.substring(0, 7));
     }
 
-    /// @return A reference to the pipeline the stage sits in.
-    public static DocRef pipelineRef() {
-        return new DocRef(PipelineDoc.TYPE, PIPELINE_UUID, PIPELINE_NAME);
+    /// @param feed One of [#FEEDS].
+    /// @return A reference to the pipeline the feed's stage sits in.
+    public static DocRef pipelineRef(final String feed) {
+        return new DocRef(PipelineDoc.TYPE, PIPELINE_UUIDS.get(index(feed)), pipelineName(feed));
+    }
+
+    /// @param feed A feed.
+    /// @return The name of the pipeline that serves it.
+    public static String pipelineName(final String feed) {
+        return feed + " supervised";
+    }
+
+    /// @param feed One of [#FEEDS].
+    /// @return The uuid of the processor the feed's filter runs under.
+    public static String processorUuid(final String feed) {
+        return PROCESSOR_UUIDS.get(index(feed));
+    }
+
+    private static int index(final String feed) {
+        final int index = FEEDS.indexOf(feed);
+        if (index < 0) {
+            throw new IllegalArgumentException("The pack has no feed " + feed + "; it has " + FEEDS);
+        }
+        return index;
     }
 
     /// The model reference. The base URL and model id are a starting point to be edited for whatever
@@ -239,8 +277,8 @@ public final class DemoContentPack {
     /// StreamAppender`: the supervised stage standing where a parser and its translation would be, and
     /// the ordinary tail of an event pipeline after it.
     ///
-    /// The appender names no feed, so each feed's events are written back to the feed they came from and
-    /// one pipeline serves all four.
+    /// The appender names no feed, so a feed's events are written back to the feed they came from. Each
+    /// feed has a pipeline of these, as the Pipeline Factory would make from a template.
     ///
     /// @param document The Shapeshifter AI document the stage is configured by.
     /// @return The pipeline's elements, links and properties.
@@ -269,40 +307,38 @@ public final class DemoContentPack {
                 .build();
     }
 
-    /// @return The pipeline document, without its elements, which travel in their own asset.
-    public static PipelineDoc pipeline() {
+    /// @param feed One of [#FEEDS].
+    /// @return The feed's pipeline document, without its elements, which travel in their own asset.
+    public static PipelineDoc pipeline(final String feed) {
         return PipelineDoc.builder()
-                .uuid(PIPELINE_UUID)
+                .uuid(PIPELINE_UUIDS.get(index(feed)))
                 .version(VERSION)
-                .name(PIPELINE_NAME)
-                .description("The supervised stage where a parser and its translation would be.")
+                .name(pipelineName(feed))
+                .description("The supervised stage where " + feed + "'s parser and translation would be.")
                 .build();
     }
 
-    /// One filter over all four feeds' raw events, so that posting data is the only thing left to do.
+    /// A filter over one feed's raw events, so that posting data is the only thing left to do.
     ///
-    /// It carries no id, no processor and no tracker: those belong to the installation that imports it,
-    /// and a filter that carried them would be refused on import.
+    /// It carries no id and no tracker: those belong to the installation that imports it, and a filter
+    /// that carried them would be refused on import. It names its processor, which the importer makes.
     ///
-    /// @return The processor filter.
-    public static ProcessorFilter filter() {
-        // A term per feed rather than one term listing them: it is what a person editing the filter in
-        // the UI would see, and it is the form every part of Stroom agrees on.
-        final ExpressionOperator.Builder anyOfTheFeeds = ExpressionOperator.builder().op(Op.OR);
-        FEEDS.forEach(feed -> anyOfTheFeeds.addTextTerm(MetaFields.FEED, Condition.EQUALS, feed));
-        final ExpressionOperator feeds = ExpressionOperator.builder()
-                .addOperator(anyOfTheFeeds.build())
+    /// @param feed One of [#FEEDS].
+    /// @return The feed's processor filter.
+    public static ProcessorFilter filter(final String feed) {
+        final ExpressionOperator expression = ExpressionOperator.builder()
+                .addTextTerm(MetaFields.FEED, Condition.EQUALS, feed)
                 .addTextTerm(MetaFields.TYPE, Condition.EQUALS, StreamTypeNames.RAW_EVENTS)
                 .build();
         return ProcessorFilter.builder()
-                .uuid(FILTER_UUID)
+                .uuid(FILTER_UUIDS.get(index(feed)))
                 .processorType(ProcessorType.PIPELINE)
-                .processorUuid(PROCESSOR_UUID)
-                .pipelineUuid(PIPELINE_UUID)
-                .pipelineName(PIPELINE_NAME)
+                .processorUuid(processorUuid(feed))
+                .pipelineUuid(PIPELINE_UUIDS.get(index(feed)))
+                .pipelineName(pipelineName(feed))
                 .queryData(QueryData.builder()
                         .dataSource(MetaFields.STREAM_STORE_DOC_REF)
-                        .expression(feeds)
+                        .expression(expression)
                         .build())
                 .priority(10)
                 .maxProcessingTasks(0)
@@ -318,14 +354,16 @@ public final class DemoContentPack {
         SAMPLES.forEach((name, resource) -> files.put("data/" + name, utf8(resource.get())));
         add(files, documentRef(), Map.of(META, json(document())));
         add(files, modelRef(), Map.of(META, json(model())));
-        final Map<String, byte[]> pipelineAssets = new LinkedHashMap<>();
-        pipelineAssets.put(META, json(pipeline()));
-        pipelineAssets.put(JSON, json(pipelineData(documentRef())));
-        add(files, pipelineRef(), pipelineAssets);
+        FEEDS.forEach(feed -> {
+            final Map<String, byte[]> pipelineAssets = new LinkedHashMap<>();
+            pipelineAssets.put(META, json(pipeline(feed)));
+            pipelineAssets.put(JSON, json(pipelineData(documentRef())));
+            add(files, pipelineRef(feed), pipelineAssets);
+        });
         feeds().forEach(feed -> add(files,
                 new DocRef(FeedDoc.TYPE, feed.getUuid(), feed.getName()),
                 Map.of(META, json(feed))));
-        add(files, filterRef(), Map.of(META, json(filter())));
+        FEEDS.forEach(feed -> add(files, filterRef(feed), Map.of(META, json(filter(feed)))));
         return files;
     }
 
@@ -443,8 +481,9 @@ public final class DemoContentPack {
         return """
                 # Shapeshifter AI demo
 
-                One Shapeshifter AI document, four feeds of four unrelated formats, and nothing telling it
-                what any of them is. Import this pack, give it a model and post some data.
+                One Shapeshifter AI document, four feeds of four unrelated formats, a pipeline for each,
+                and nothing telling any of them what its format is. Import this pack, give it a model and
+                post some data.
 
                 Import it from **Tools -> Import**, or drop the zip into the `content_pack_import`
                 directory of an instance with `stroom.contentPackImport.enabled` set.
@@ -454,10 +493,12 @@ public final class DemoContentPack {
                 - **`%s`** — the supervised stage's configuration: what it may learn with, how
                   candidates are scored, and when one is promoted.
                 - **`%s`** — the model the stage asks. Edit it before running anything.
-                - **`%s`** — `Source -> Shapeshifter AI -> Schema filter -> ... -> Stream appender`.
-                - **`%s`** — four feeds. The pack tells the stage nothing about their formats.
+                - **`<feed> supervised`** — a pipeline for each feed, `Source -> Shapeshifter AI -> Schema
+                  filter -> ... -> Stream appender`, each learning its own feed (one pipeline per feed, as
+                  the Pipeline Factory makes them).
+                - **`%s`** — four feeds. The pack tells the stages nothing about their formats.
 
-                A processor filter over those four feeds comes with the pipeline. Importing from
+                A processor filter over each feed comes with its pipeline. Importing from
                 **Tools -> Import** leaves it switched off unless you tick **Enable Processor Filters**
                 on the confirmation screen; a pack dropped in `content_pack_import` arrives with it on.
                 Set the model up before posting anything, or the first stream will fail for want of an
@@ -483,15 +524,14 @@ public final class DemoContentPack {
                 | `FIREWALL` | `data/firewall.log` | Syslog, in two forms from two senders. |
                 | `MAINFRAME` | `data/mainframe.log` | Fixed-width columns with nothing to split on. |
 
-                The stage will find no rule for the
-                shape, ask the model which parser the format needs, learn a configuration for it, score
-                what comes back and — if it clears the floor — write a rule and translate the stream with
-                what it just learned. The next stream of that shape is served by the rule without the
-                model being asked again.
+                The feed's pipeline will find nothing learned yet, ask the model which parser the format
+                needs, learn a configuration for it, score what comes back and — if it clears the floor —
+                bind it and translate the stream with what it just learned. The feed's next stream is
+                served by that binding without the model being asked again.
 
-                Watch it happen in the document's **Supervisor** tab: the attempts, what each question
-                was and what came back, the scores each candidate got and why a candidate was refused.
-                The **Routing** tab shows the rules as they are written.
+                Watch it happen in the **Supervisor**: the attempts, what each question was and what came
+                back, the scores each candidate got and why a candidate was refused, and what is serving
+                each pipeline.
 
                 ## What the settings mean
 
@@ -504,14 +544,14 @@ public final class DemoContentPack {
                 - **The scorers** gate on compiling, on the output validating against the schema, and on
                   the extraction being worth having — the last of these is what refuses a transform that
                   validates while saying nothing.
-                - **Promotion floor** is the score a candidate must reach before its rule goes live.
+                - **Promotion floor** is the score a candidate must reach before its binding goes live.
 
                 ## The formats it was proved on
 
                 Design 02 §5 scenario 51 runs exactly these settings over delimited text with a header,
                 JSON lines, syslog in two forms, and fixed-width columns with nothing to split on. The
                 sample data under `data/` in this pack is that scenario's, one file per feed.
-                """.formatted(DOCUMENT_NAME, MODEL_NAME, PIPELINE_NAME, String.join("`, `", FEEDS),
-                MODEL_NAME, API_KEY_NAME);
+                """.formatted(DOCUMENT_NAME, MODEL_NAME, String.join("`, `", FEEDS), MODEL_NAME,
+                API_KEY_NAME);
     }
 }

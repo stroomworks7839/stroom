@@ -24,6 +24,7 @@ import stroom.shapeshifter.ai.learning.RecordedAdvisor;
 import stroom.shapeshifter.ai.stage.Attempts.Turn;
 import stroom.shapeshifter.ai.stage.Guidance.Given;
 import stroom.shapeshifter.ai.stage.Input;
+import stroom.shapeshifter.ai.stage.Learner;
 import stroom.shapeshifter.ai.stage.Stage;
 import stroom.shapeshifter.ai.stage.StageRun;
 import stroom.shapeshifter.shared.LearningMode;
@@ -50,7 +51,6 @@ class TestSupervisorGuidance {
     private static final String FEED = "DOOR-ACCESS";
     private static final String XSLT = Scenarios.resource("csv-logon.xsl");
     private static final Golden CSV = Scenarios.corpus("001_csv_with_header");
-    private static final String SHAPE = "Feed=DOOR-ACCESS|Type=Raw Events";
 
     @Test
     void everyQuestionCarriesWhatASupervisorHasSaidAboutTheShape() {
@@ -59,9 +59,9 @@ class TestSupervisorGuidance {
         final Carrying carrying = new Carrying(script);
         final Stage stage = scenarios.stage(document -> carrying, scenarios.rules);
 
-        final long first = scenarios.guidance.given(Scenarios.LEARNER, "doc-1", SHAPE,
+        final long first = scenarios.guidance.given(Scenarios.LEARNER, "doc-1",
                 "This feed's timestamps are local, not UTC.", "jo");
-        final long second = scenarios.guidance.given(Scenarios.LEARNER, "doc-1", SHAPE,
+        final long second = scenarios.guidance.given(Scenarios.LEARNER, "doc-1",
                 "The fourth column is a terminal id, not a user.", "sam");
 
         final StageRun learned = scenarios.process(carrying, doc(), stream()).learned();
@@ -86,18 +86,18 @@ class TestSupervisorGuidance {
     }
 
     @Test
-    void aShapeNobodyHasSaidAnythingAboutCarriesNothing() {
+    void aLearnerNobodyHasSaidAnythingToCarriesNothing() {
         final Scenarios scenarios = new Scenarios();
         final Carrying carrying = new Carrying(script(scenarios));
         final Stage stage = scenarios.stage(document -> carrying, scenarios.rules);
-        scenarios.guidance.given(Scenarios.LEARNER, "doc-1", "Feed=TURNSTILE|Type=Raw Events",
-                "Not about this shape.", "jo");
+        scenarios.guidance.given(new Learner("pipeline-2", Scenarios.LEARNER.elementId()), "doc-1",
+                "Said to another pipeline's learner.", "jo");
 
         final StageRun learned = scenarios.process(carrying, doc(), stream()).learned();
 
         assertThat(learned.bindings()).isNotNull();
         assertThat(carrying.carried)
-                .describedAs("a hint is about one shape, and a neighbour's is not this one's")
+                .describedAs("a hint is said to one learner, and a neighbour's is not this one's")
                 .isNotEmpty()
                 .allSatisfy(carried -> assertThat(carried).isEmpty());
         assertThat(learned.transcript()).allSatisfy(turn -> assertThat(turn.carried()).isEmpty());
@@ -108,7 +108,7 @@ class TestSupervisorGuidance {
         final Scenarios scenarios = new Scenarios();
         final Carrying carrying = new Carrying(script(scenarios));
         final Stage stage = scenarios.stage(document -> carrying, scenarios.rules);
-        final long wrong = scenarios.guidance.given(Scenarios.LEARNER, "doc-1", SHAPE, "Something mistaken.", "jo");
+        final long wrong = scenarios.guidance.given(Scenarios.LEARNER, "doc-1", "Something mistaken.", "jo");
         scenarios.guidance.withdraw("doc-1", wrong);
 
         scenarios.process(carrying, doc(), stream()).learned();
@@ -131,7 +131,7 @@ class TestSupervisorGuidance {
                 .expect(QuestionMatcher.configuration("DSParser")).reply(Scenarios.fenced(CSV.configuration()))
                 .expect(QuestionMatcher.configuration("XSLTFilter")).reply(Scenarios.fenced(XSLT));
         final Carrying carrying = new Carrying(script);
-        final long before = scenarios.guidance.given(Scenarios.LEARNER, "doc-1", SHAPE,
+        final long before = scenarios.guidance.given(Scenarios.LEARNER, "doc-1",
                 "Said before anything was asked.", "jo");
 
         // One turn already answered, as a parked attempt has: the record answers it, the model is asked
@@ -141,8 +141,7 @@ class TestSupervisorGuidance {
                 List.of(before));
         final RecordedAdvisor resumed = new RecordedAdvisor(List.of(answered), carrying);
 
-        final long after = scenarios.guidance.given(Scenarios.LEARNER, "doc-1", SHAPE,
-                "Said while it was parked.", "sam");
+        final long after = scenarios.guidance.given(Scenarios.LEARNER, "doc-1", "Said while it was parked.", "sam");
         final Stage stage = scenarios.stage(document -> resumed, scenarios.rules);
         final StageRun learned = scenarios.process(resumed, doc(), stream()).learned();
 

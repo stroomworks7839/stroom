@@ -22,7 +22,6 @@ import stroom.shapeshifter.shared.RoutingFields;
 
 import org.junit.jupiter.api.Test;
 
-import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -42,19 +41,24 @@ class TestSample {
     }
 
     @Test
-    void keepsOnlyTheLearningKeysValuesInKeyOrder() {
-        // A29: shown means bound. The stream carries more than the key names; only the key travels, in the
-        // key's order, and a key field the stream lacks is simply absent.
+    void keepsOnlyTheFeedAndTheType() {
+        // A126: the stream carries more than its feed and type, and only they travel, the feed first.
         final Sample sample = Sample.of("text",
-                List.of(StandardHeaderArguments.FORMAT, MetaFields.FIELD_FEED, StandardHeaderArguments.SCHEMA),
                 Map.of(
                         StandardHeaderArguments.SYSTEM, "Door Access",
+                        MetaFields.FIELD_TYPE, "Raw Events",
                         MetaFields.FIELD_FEED, "SYSLOG",
-                        StandardHeaderArguments.FORMAT, "CSV",
                         "X-Sender-Token", "s3cret"));
 
         assertThat(sample.headers()).containsExactly(
-                Map.entry(StandardHeaderArguments.FORMAT, "CSV"),
-                Map.entry(MetaFields.FIELD_FEED, "SYSLOG"));
+                Map.entry(MetaFields.FIELD_FEED, "SYSLOG"),
+                Map.entry(MetaFields.FIELD_TYPE, "Raw Events"));
+    }
+
+    @Test
+    void aFieldTheStreamLacksIsAbsent() {
+        final Sample sample = Sample.of("text", Map.of(MetaFields.FIELD_TYPE, "Raw Events"));
+
+        assertThat(sample.headers()).containsExactly(Map.entry(MetaFields.FIELD_TYPE, "Raw Events"));
     }
 }

@@ -54,7 +54,6 @@ class TestRetractingARuleByHand {
     private static final String FEED = "DOOR-ACCESS";
     private static final String XSLT = Scenarios.resource("csv-logon.xsl");
     private static final Golden CSV = Scenarios.corpus("001_csv_with_header");
-    private static final String SHAPE = "Feed=DOOR-ACCESS|Type=Raw Events";
 
     @Test
     void theRuleGoesTheShapeIsUnknownAgainAndWhatItProducedIsAskedForAgain() {
@@ -75,11 +74,11 @@ class TestRetractingARuleByHand {
         assertThat(scenarios.rules.forLearner(Scenarios.LEARNER))
                 .describedAs("the rule is out of the table")
                 .isEmpty();
-        assertThat(scenarios.shapes.reasonGivenUp(Scenarios.LEARNER, SHAPE))
+        assertThat(scenarios.states.reasonGivenUp(Scenarios.LEARNER))
                 .describedAs("and the shape is unknown again rather than given up: the rule was wrong, "
                              + "the shape is not, so the next stream of it learns afresh")
                 .isEmpty();
-        assertThat(scenarios.shapes.rollingScore(Scenarios.LEARNER, SHAPE))
+        assertThat(scenarios.states.rollingScore(Scenarios.LEARNER))
                 .describedAs("with nothing of what the retracted rule scored carried into what comes next")
                 .isZero();
         assertThat(scenarios.reprocessing.requests())
@@ -186,19 +185,19 @@ class TestRetractingARuleByHand {
         final Stage stage = scenarios.stage(document -> learn(scenarios), scenarios.rules);
         final ShapeshifterAiDoc doc = doc();
         // Given up, with streams waiting on the ledger because nothing bound it.
-        scenarios.shapes.giveUp(Scenarios.LEARNER, "doc-1", SHAPE, "The model could not make sense of it");
-        scenarios.ledger.sentinelled(Scenarios.LEARNER, "doc-1", SHAPE, 1L, "Shape given up");
-        scenarios.ledger.sentinelled(Scenarios.LEARNER, "doc-1", SHAPE, 2L, "Shape given up");
+        scenarios.states.giveUp(Scenarios.LEARNER, "doc-1", "The model could not make sense of it");
+        scenarios.ledger.sentinelled(Scenarios.LEARNER, "doc-1", 1L, "Shape given up");
+        scenarios.ledger.sentinelled(Scenarios.LEARNER, "doc-1", 2L, "Shape given up");
 
-        final int asked = stage.learnAgain(doc, Scenarios.LEARNER, SHAPE, "The feed has been fixed.", "jo");
+        final int asked = stage.learnAgain(doc, Scenarios.LEARNER, "The feed has been fixed.", "jo");
 
         assertThat(asked)
                 .describedAs("the streams waiting on it are the traffic that will learn it")
                 .isEqualTo(2);
-        assertThat(scenarios.shapes.reasonGivenUp(Scenarios.LEARNER, SHAPE))
+        assertThat(scenarios.states.reasonGivenUp(Scenarios.LEARNER))
                 .describedAs("the give-up goes, or the mark below it would never be reached")
                 .isEmpty();
-        assertThat(scenarios.shapes.relearnReason(Scenarios.LEARNER, SHAPE))
+        assertThat(scenarios.states.relearnReason(Scenarios.LEARNER))
                 .describedAs("and the shape is marked, so the next stream of it learns rather than binds")
                 .isPresent();
         assertThat(scenarios.reprocessing.requests())
@@ -208,14 +207,13 @@ class TestRetractingARuleByHand {
                         .contains("Sent back to be learned again by jo")
                         .contains("feed has been fixed"));
         assertThatThrownBy(() -> scenarios.stage(document -> learn(scenarios), scenarios.rules)
-                .learnAgain(doc().copy().learningMode(LearningMode.DISABLED).build(), Scenarios.LEARNER, SHAPE,
-                        "Why.", "jo"))
+                .learnAgain(doc().copy().learningMode(LearningMode.DISABLED).build(), Scenarios.LEARNER, "Why.", "jo"))
                 .describedAs("the kill switch is a kill switch here too")
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("disabled");
 
-        scenarios.shapes.awaitReview(Scenarios.LEARNER, "doc-1", SHAPE, "a-draft");
-        assertThatThrownBy(() -> stage.learnAgain(doc, Scenarios.LEARNER, SHAPE, "Why.", "jo"))
+        scenarios.states.awaitReview(Scenarios.LEARNER, "doc-1", "a-draft");
+        assertThatThrownBy(() -> stage.learnAgain(doc, Scenarios.LEARNER, "Why.", "jo"))
                 .describedAs("a shape whose draft is waiting needs a decision, not another attempt: "
                              + "asked for anyway it would release the streams, reprocess them, meet the "
                              + "draft and sentinel them again — the same rows back and nothing learned")
@@ -234,7 +232,6 @@ class TestRetractingARuleByHand {
         final ShapeshifterAiDoc doc = doc();
         scenarios.rules.append(Scenarios.LEARNER, "doc-1", RoutingRule.builder()
                 .uuid("provisional")
-                .shapeId(SHAPE)
                 .pipeline(stroom.docref.DocRef.builder()
                         .type("Pipeline").uuid("fragment-1").name("door-v1").build())
                 .provisional(true)

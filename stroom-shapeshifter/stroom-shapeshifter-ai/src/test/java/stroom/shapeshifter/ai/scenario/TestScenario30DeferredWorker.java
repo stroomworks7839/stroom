@@ -22,6 +22,7 @@ import stroom.shapeshifter.ai.stage.Decision.Bound;
 import stroom.shapeshifter.ai.stage.Decision.Deferred;
 import stroom.shapeshifter.ai.stage.Deferrals.Deferral;
 import stroom.shapeshifter.ai.stage.Input;
+import stroom.shapeshifter.ai.stage.Learner;
 import stroom.shapeshifter.ai.stage.StageRun;
 import stroom.shapeshifter.shared.AttemptStatus;
 import stroom.shapeshifter.shared.FlowExample;
@@ -50,7 +51,6 @@ class TestScenario30DeferredWorker {
     private static final Golden CSV = Scenarios.corpus("001_csv_with_header");
     private static final String XSLT = Scenarios.resource("csv-logon.xsl");
     private static final String DOC = "doc-1";
-    private static final String SHAPE = "Feed=DOOR-ACCESS|Type=Raw Events";
 
     private static ShapeshifterAiDoc deferred() {
         return ShapeshifterAiDoc.builder()
@@ -159,7 +159,7 @@ class TestScenario30DeferredWorker {
         scenarios.worker(learning(scenarios)).advance(10);
         final Recorded promoted = scenarios.attempts.forDocument(DOC, 10).get(0);
         assertThat(promoted.status()).isEqualTo(AttemptStatus.PROMOTED);
-        scenarios.shapes.markForRelearning(Scenarios.LEARNER, DOC, SHAPE, "A person's reading of the serving list");
+        scenarios.states.markForRelearning(Scenarios.LEARNER, DOC, "A person's reading of the serving list");
 
         final Input next = scenarios.inputs.put(stream(5L));
         final Script inTheTask = Script.of();
@@ -218,7 +218,7 @@ class TestScenario30DeferredWorker {
         scenarios.stage(Script.of()).decide(doc, Scenarios.LEARNER, stream(1L));
         final Recorded parked = scenarios.attempts.forDocument(DOC, 10).get(0);
         // A person gives the shape up while it waits.
-        scenarios.shapes.giveUp(Scenarios.LEARNER, DOC, parked.attempt().shape(), "Not wanted");
+        scenarios.states.giveUp(Scenarios.LEARNER, DOC, "Not wanted");
 
         final Script script = learning(scenarios);
         assertThat(scenarios.worker(script).advance(10)).isZero();
@@ -226,7 +226,7 @@ class TestScenario30DeferredWorker {
         assertThat(script.asked()).describedAs("the model is not asked for a shape nobody wants").isEmpty();
         final Recorded closed = scenarios.attempts.byId(parked.id()).orElseThrow();
         assertThat(closed.status()).isEqualTo(AttemptStatus.ABANDONED);
-        assertThat(closed.decision()).contains("Shape given up: Not wanted");
+        assertThat(closed.decision()).contains("Given up: Not wanted");
         assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).describedAs("and no rule was written").isEmpty();
     }
 
@@ -252,7 +252,7 @@ class TestScenario30DeferredWorker {
     @Test
     void oneBadAttemptDoesNotStopThePass() {
         // A job that stopped at the first attempt it could not carry on would never reach the ones behind
-        // it, and a shape that cannot be learned would hold up every other.
+        // it, and a learner that cannot learn would hold up every other.
         final Scenarios scenarios = new Scenarios();
         final ShapeshifterAiDoc doc = scenarios.documents.put(deferred());
         scenarios.inputs.put(stream(1L));
@@ -260,18 +260,20 @@ class TestScenario30DeferredWorker {
         final Recorded first = scenarios.attempts.forDocument(DOC, 10).get(0);
         scenarios.inputs.remove(1L);
 
-        // A second document, a second shape, and an attempt that can be carried on.
+        // A second document, a second pipeline and so a second learner (A127), and an attempt that can be
+        // carried on.
+        final Learner second = new Learner("pipeline-2", Scenarios.LEARNER.elementId());
         final ShapeshifterAiDoc other = scenarios.documents.put(deferred().copy().uuid("doc-2").build());
         final Input fine = scenarios.inputs.put(new Input(2L, "OTHER-FEED", "Raw Events",
-                Map.of("Format", "CSV"), CSV.input()));
-        scenarios.stage(Script.of()).decide(other, Scenarios.LEARNER, fine);
+                Map.of("Format", "CSV"), CSV.input(), second.pipelineUuid()));
+        scenarios.stage(Script.of()).decide(other, second, fine);
 
         final int advanced = scenarios.worker(learning(scenarios)).advance(10);
 
         assertThat(advanced).describedAs("the good one behind the bad").isEqualTo(1);
         assertThat(scenarios.attempts.byId(first.id()).orElseThrow().status())
                 .isEqualTo(AttemptStatus.ABANDONED);
-        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).hasSize(1);
+        assertThat(scenarios.rules.forLearner(second)).hasSize(1);
         assertThat(scenarios.wake.woken()).extracting(Deferral::inputId).containsExactly(2L);
     }
 }

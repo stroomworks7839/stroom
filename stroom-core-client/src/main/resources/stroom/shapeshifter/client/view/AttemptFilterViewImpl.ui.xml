@@ -14,11 +14,6 @@
                         helpText="The feed the stream came from, matched exactly. Left empty, every feed.">
             <g:TextBox ui:field="feed" width="300px"/>
         </form:FormGroup>
-        <form:FormGroup identity="attemptFilterShape"
-                        label="Shape"
-                        helpText="The learning key's values, as the attempt records them, e.g. Feed=SYSLOG|Type=Raw Events. Left empty, every shape.">
-            <g:TextBox ui:field="shape" width="400px"/>
-        </form:FormGroup>
         <form:FormGroup identity="attemptFilterPromotionMode"
                         label="Promotion mode"
                         helpText="Whether what the attempt learned was bound automatically or held as a draft for review.">

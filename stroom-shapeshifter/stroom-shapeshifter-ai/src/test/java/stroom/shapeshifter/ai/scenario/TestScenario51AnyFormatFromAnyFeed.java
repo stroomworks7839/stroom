@@ -21,6 +21,7 @@ import stroom.shapeshifter.ai.learning.Question.Chain;
 import stroom.shapeshifter.ai.pack.DemoDocument;
 import stroom.shapeshifter.ai.stage.Decision.Promoted;
 import stroom.shapeshifter.ai.stage.Input;
+import stroom.shapeshifter.ai.stage.Learner;
 import stroom.shapeshifter.ai.stage.StageRun;
 import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
@@ -44,9 +45,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 /// that document, and it is the configuration the demo content pack ships — proved here first, so the
 /// pack is a thing that has been seen to work rather than a plausible arrangement of settings.
 ///
-/// Four feeds, four formats, four shapes, four rules, each serving its own traffic: delimited text with
-/// a header, JSON lines, syslog in two forms, and fixed-width columns with nothing to split on. One
-/// learning key, one flow, one set of scorers.
+/// Four feeds, four formats, four pipelines, four rules, each serving its own traffic: delimited text
+/// with a header, JSON lines, syslog in two forms, and fixed-width columns with nothing to split on.
+/// Each feed has its pipeline, as the Pipeline Factory makes them, and so its learner (A114, A127); one
+/// document, one flow, one set of scorers.
 ///
 /// **What a scripted model can and cannot prove.** The replies here are canned, so the *choice* of
 /// parser is this scenario's and not a model's. What is proved is everything around that choice: that
@@ -79,7 +81,7 @@ class TestScenario51AnyFormatFromAnyFeed {
 
     /// Each feed learns its own rule, and each rule writes the format's golden events.
     ///
-    /// The document is the same one throughout — the routing table grows a rule per shape (A41) and each
+    /// The document is the same one throughout — each feed's learner binds its own rule (A124) and each
     /// serves its own feed — so what is proved is not four documents that each work but *one* that works
     /// four times over, on inputs that share nothing but the schema they must end at.
     @Test
@@ -121,17 +123,15 @@ class TestScenario51AnyFormatFromAnyFeed {
                         .reply(Scenarios.fenced(FIXED_XSLT)));
         assertPromoted(fixed, FIXED_EVENTS);
 
-        // One document, one table, a rule per shape — and each names the parser its own format needed.
-        final List<RoutingRule> table = scenarios.rules.forLearner(Scenarios.LEARNER);
-        assertThat(table)
-                .describedAs("a rule per feed, each bound to what was learned for it (A41)")
-                .hasSize(4);
-        assertThat(table).extracting(RoutingRule::getShapeId)
-                .containsExactlyInAnyOrder(
-                        "Feed=DOOR-ACCESS|Type=Raw Events",
-                        "Feed=APP-EVENTS|Type=Raw Events",
-                        "Feed=FIREWALL|Type=Raw Events",
-                        "Feed=MAINFRAME|Type=Raw Events");
+        // One document, a learner per feed, and a rule for each learner.
+        final List<RoutingRule> table = List.of("DOOR-ACCESS", "APP-EVENTS", "FIREWALL", "MAINFRAME").stream()
+                .map(feed -> {
+                    assertThat(scenarios.rules.forLearner(learner(feed)))
+                            .describedAs("a rule for " + feed + "'s learner, bound to what it learned (A124)")
+                            .hasSize(1);
+                    return scenarios.rules.forLearner(learner(feed)).get(0);
+                })
+                .toList();
         // And none of the four would have waited (design 04 §7, phase 2): every record of every format
         // cleared the bar, so no stream is left waiting once its task is decided again.
         assertThat(scenarios.deferrals.forDocument(DOC))
@@ -161,13 +161,14 @@ class TestScenario51AnyFormatFromAnyFeed {
                         .reply(Scenarios.fenced(JSON_XSLT)));
 
         final Script silent = Script.of();
-        final StageRun second = scenarios.process(silent, doc, stream(9L, "APP-EVENTS", JSON_LINES)).learned();
+        final StageRun second = scenarios.process(silent, learner("APP-EVENTS"), doc,
+                stream(9L, "APP-EVENTS", JSON_LINES)).learned();
 
         assertThat(silent.asked()).describedAs("nothing was asked: the rule serves it").isEmpty();
         assertThat(Scenarios.canonical(second.output()))
                 .describedAs("and what it writes is what was learned")
                 .isEqualTo(Scenarios.canonical(JSON_EVENTS));
-        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).hasSize(1);
+        assertThat(scenarios.rules.forLearner(learner("APP-EVENTS"))).hasSize(1);
     }
 
     private static StageRun learn(final Scenarios scenarios,
@@ -175,8 +176,8 @@ class TestScenario51AnyFormatFromAnyFeed {
                                   final String feed,
                                   final String data,
                                   final Script script) {
-        final long next = scenarios.rules.forLearner(Scenarios.LEARNER).size() + 1L;
-        final StageRun run = scenarios.process(script, doc, stream(next, feed, data)).learned();
+        final long next = scenarios.rules.all().size() + 1L;
+        final StageRun run = scenarios.process(script, learner(feed), doc, stream(next, feed, data)).learned();
         // Exhausted, or a scripted reply nobody reached would pass in silence and the run would have
         // asked something other than what this scenario says it asks.
         script.verifyExhausted();
@@ -206,7 +207,12 @@ class TestScenario51AnyFormatFromAnyFeed {
                 .build();
     }
 
+    /// The learner of a feed's own pipeline.
+    private static Learner learner(final String feed) {
+        return new Learner("pipeline-" + feed, Scenarios.LEARNER.elementId());
+    }
+
     private static Input stream(final long id, final String feed, final String data) {
-        return new Input(id, feed, "Raw Events", Map.of(), data);
+        return new Input(id, feed, "Raw Events", Map.of(), data, learner(feed).pipelineUuid());
     }
 }

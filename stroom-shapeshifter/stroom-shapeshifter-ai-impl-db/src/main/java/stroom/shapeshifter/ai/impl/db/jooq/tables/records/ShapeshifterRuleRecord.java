@@ -285,45 +285,17 @@ public class ShapeshifterRuleRecord extends UpdatableRecordImpl<ShapeshifterRule
     }
 
     /**
-     * Setter for <code>stroom.shapeshifter_rule.shape_id</code>.
-     */
-    public void setShapeId(String value) {
-        set(19, value);
-    }
-
-    /**
-     * Getter for <code>stroom.shapeshifter_rule.shape_id</code>.
-     */
-    public String getShapeId() {
-        return (String) get(19);
-    }
-
-    /**
-     * Setter for <code>stroom.shapeshifter_rule.shape_hash</code>.
-     */
-    public void setShapeHash(String value) {
-        set(20, value);
-    }
-
-    /**
-     * Getter for <code>stroom.shapeshifter_rule.shape_hash</code>.
-     */
-    public String getShapeHash() {
-        return (String) get(20);
-    }
-
-    /**
      * Setter for <code>stroom.shapeshifter_rule.snapshot_id</code>.
      */
     public void setSnapshotId(String value) {
-        set(21, value);
+        set(19, value);
     }
 
     /**
      * Getter for <code>stroom.shapeshifter_rule.snapshot_id</code>.
      */
     public String getSnapshotId() {
-        return (String) get(21);
+        return (String) get(19);
     }
 
     // -------------------------------------------------------------------------
@@ -349,7 +321,7 @@ public class ShapeshifterRuleRecord extends UpdatableRecordImpl<ShapeshifterRule
     /**
      * Create a detached, initialised ShapeshifterRuleRecord
      */
-    public ShapeshifterRuleRecord(Long id, Integer version, Long createTimeMs, Long updateTimeMs, String pipelineUuid, String elementId, String docUuid, String ruleUuid, String fragmentType, String fragmentUuid, String fragmentName, Boolean pinned, Boolean draft, Boolean provisional, Long promotedTimeMs, Double score, String boundaryElement, String boundaryArray, Integer boundaryDepth, String shapeId, String shapeHash, String snapshotId) {
+    public ShapeshifterRuleRecord(Long id, Integer version, Long createTimeMs, Long updateTimeMs, String pipelineUuid, String elementId, String docUuid, String ruleUuid, String fragmentType, String fragmentUuid, String fragmentName, Boolean pinned, Boolean draft, Boolean provisional, Long promotedTimeMs, Double score, String boundaryElement, String boundaryArray, Integer boundaryDepth, String snapshotId) {
         super(ShapeshifterRule.SHAPESHIFTER_RULE);
 
         setId(id);
@@ -371,8 +343,6 @@ public class ShapeshifterRuleRecord extends UpdatableRecordImpl<ShapeshifterRule
         setBoundaryElement(boundaryElement);
         setBoundaryArray(boundaryArray);
         setBoundaryDepth(boundaryDepth);
-        setShapeId(shapeId);
-        setShapeHash(shapeHash);
         setSnapshotId(snapshotId);
         resetTouchedOnNotNull();
     }

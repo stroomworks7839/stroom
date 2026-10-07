@@ -24,22 +24,20 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * One shape's place on the ledger (design 01 §5.2, A26, A28): how many streams are waiting for it to
- * settle, since when, and what the last of them was told.
+ * One learner's place on the ledger (design 01 §5.2, A26, A28): how many streams are waiting for it to
+ * learn, since when, and what the last of them was told.
  * <p>
  * Nothing is held — every stream on the ledger was processed to an error stream and is where it always
  * was — so this is a list of what a promotion would release, not a queue of anything being kept. Grouped
- * by shape because that is the unit that settles: one promotion takes a whole shape off.
+ * by learner because that is the unit that settles: one promotion takes a learner's streams off (A128).
  */
 @JsonInclude(Include.NON_NULL)
-public class LedgerShape {
+public class LedgerLearner {
 
     @JsonProperty
     private final DocRef doc;
     @JsonProperty
     private final LearnerRef learner;
-    @JsonProperty
-    private final String shapeId;
     @JsonProperty
     private final int waiting;
     @JsonProperty
@@ -50,16 +48,14 @@ public class LedgerShape {
     private final String reason;
 
     @JsonCreator
-    public LedgerShape(@JsonProperty("doc") final DocRef doc,
-                       @JsonProperty("learner") final LearnerRef learner,
-                       @JsonProperty("shapeId") final String shapeId,
-                       @JsonProperty("waiting") final int waiting,
-                       @JsonProperty("oldestTimeMs") final Long oldestTimeMs,
-                       @JsonProperty("newestTimeMs") final Long newestTimeMs,
-                       @JsonProperty("reason") final String reason) {
+    public LedgerLearner(@JsonProperty("doc") final DocRef doc,
+                         @JsonProperty("learner") final LearnerRef learner,
+                         @JsonProperty("waiting") final int waiting,
+                         @JsonProperty("oldestTimeMs") final Long oldestTimeMs,
+                         @JsonProperty("newestTimeMs") final Long newestTimeMs,
+                         @JsonProperty("reason") final String reason) {
         this.doc = doc;
         this.learner = learner;
-        this.shapeId = shapeId;
         this.waiting = waiting;
         this.oldestTimeMs = oldestTimeMs;
         this.newestTimeMs = newestTimeMs;
@@ -67,23 +63,15 @@ public class LedgerShape {
     }
 
     /**
-     * Whose ledger it is. The view is over every document (A28), so a shape's document is part of what
-     * it is: two documents may have shapes of the same name and they settle separately.
+     * The document the learner runs under, which decides who may see the row.
      */
     public DocRef getDoc() {
         return doc;
     }
 
-    /// The learner whose row it is (design 06 phase J slice 2b): what a request about it sends back.
+    /// The learner whose streams they are: what a request about the row sends back.
     public LearnerRef getLearner() {
         return learner;
-    }
-
-    /**
-     * The shape as the ledger keys it: the learning key's values, e.g. {@code Feed=SYSLOG|Type=Raw Events}.
-     */
-    public String getShapeId() {
-        return shapeId;
     }
 
     /**
@@ -94,7 +82,7 @@ public class LedgerShape {
     }
 
     /**
-     * When the first of them was sentinelled, which is how long this shape has been waiting.
+     * When the first of them was sentinelled, which is how long this learner has been waiting.
      */
     public Long getOldestTimeMs() {
         return oldestTimeMs;
@@ -105,8 +93,8 @@ public class LedgerShape {
     }
 
     /**
-     * What the most recent of them was told: the shape is unknown, is being learned elsewhere, is given
-     * up, or has a draft awaiting review (A4, A25).
+     * What the most recent of them was told: nothing serves the learner, it is learning elsewhere, it has
+     * given up, or a draft awaits review (A4, A25).
      */
     public String getReason() {
         return reason;
@@ -114,6 +102,6 @@ public class LedgerShape {
 
     @Override
     public String toString() {
-        return shapeId + ": " + waiting + " waiting";
+        return learner + ": " + waiting + " waiting";
     }
 }

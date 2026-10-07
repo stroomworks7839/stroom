@@ -21,40 +21,29 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * Ask for a shape to be learned now (A28, design 01 §11.6), rather than when its feed next ships.
+ * Ask for a learner to learn now (A28, design 01 §11.6), rather than when its feed next ships.
  * <p>
- * This is what the ruling means by raising an attempt for a given-up shape from the Supervisor, and why
- * it says no on-request learning mode is needed: the shape is sent back to be learned, and the streams
- * waiting on the ledger for it — which are waiting precisely because nothing bound it — are asked to be
- * processed again, so the first of them through learns it.
+ * This is what the ruling means by raising an attempt for a learner that gave up from the Supervisor, and
+ * why it says no on-request learning mode is needed: the learner is sent back to learn, and the streams
+ * waiting on the ledger for it — which are waiting precisely because nothing served them — are asked to
+ * be processed again, so the first of them through learns.
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class LearnShapeRequest {
+public class LearnAgainRequest {
 
-    @JsonProperty
-    private final String shapeId;
     @JsonProperty
     private final LearnerRef learner;
     @JsonProperty
     private final String reason;
 
     @JsonCreator
-    public LearnShapeRequest(@JsonProperty("shapeId") final String shapeId,
-                             @JsonProperty("learner") final LearnerRef learner,
+    public LearnAgainRequest(@JsonProperty("learner") final LearnerRef learner,
                              @JsonProperty("reason") final String reason) {
-        this.shapeId = shapeId;
         this.learner = learner;
         this.reason = reason;
     }
 
-    /**
-     * Which shape: the learning key's values, as the ledger names them.
-     */
-    public String getShapeId() {
-        return shapeId;
-    }
-
-    /// The learner the shape is one of (design 06 phase J slice 2b), as the ledger row named it.
+    /// The learner to learn again (A128), as the ledger row named it.
     public LearnerRef getLearner() {
         return learner;
     }

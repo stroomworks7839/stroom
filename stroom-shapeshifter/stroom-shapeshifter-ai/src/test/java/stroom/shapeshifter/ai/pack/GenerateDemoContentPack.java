@@ -23,8 +23,8 @@ import java.nio.file.Paths;
 ///
 /// The pack is a deliverable, not a test, so it is written by running this rather than as a side effect
 /// of a test run. What proves it is `TestScenario51AnyFormatFromAnyFeedInAPipeline`, which runs the same
-/// document, pipeline and filter over four formats in a real pipeline, and [TestDemoContentPack], which
-/// reads every file back.
+/// document, and a pipeline and filter per feed, over four formats in real pipelines, and
+/// [TestDemoContentPack], which reads every file back.
 ///
 /// Run it with no arguments to write `build/content/shapeshifter-ai-demo-v1.0.zip`, or give it a path to
 /// write it somewhere else — the root of the repository, where the pack is committed, or the

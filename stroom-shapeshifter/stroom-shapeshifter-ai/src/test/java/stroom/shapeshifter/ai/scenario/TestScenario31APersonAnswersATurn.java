@@ -77,7 +77,7 @@ class TestScenario31APersonAnswersATurn {
         assertThat(given.decision()).describedAs(given.decision().toString()).isInstanceOf(GivenUp.class);
         final Recorded abandoned = scenarios.attempts.forDocument(DOC, 10).get(0);
         assertThat(abandoned.status()).isEqualTo(AttemptStatus.ABANDONED);
-        assertThat(scenarios.shapes.reasonGivenUp(Scenarios.LEARNER, shape())).isPresent();
+        assertThat(scenarios.states.reasonGivenUp(Scenarios.LEARNER)).isPresent();
         final Turn theirs = abandoned.turns().get(abandoned.turns().size() - 1);
         assertThat(theirs.kind()).describedAs("the turn the attempt came apart on")
                 .isEqualTo(QuestionKind.CONFIGURE);
@@ -98,7 +98,7 @@ class TestScenario31APersonAnswersATurn {
         assertThat(waiting.turns()).describedAs("the turns up to and including the one answered")
                 .hasSize(theirs.number());
         assertThat(waiting.turns().get(theirs.number() - 1).answeredBy()).isEqualTo(OPERATOR);
-        assertThat(scenarios.shapes.reasonGivenUp(Scenarios.LEARNER, shape()))
+        assertThat(scenarios.states.reasonGivenUp(Scenarios.LEARNER))
                 .describedAs("re-running says the shape is not settled after all").isEmpty();
 
         // The worker carries it on: everything before the person's turn is replayed, their answer is
@@ -257,7 +257,7 @@ class TestScenario31APersonAnswersATurn {
                              + "awaits: unapprovable, unrejectable, and sentinelling every stream of its "
                              + "shape until somebody deletes the rule by hand")
                 .noneSatisfy(rule -> assertThat(rule.isDraft()).isTrue());
-        assertThat(scenarios.shapes.draftAwaiting(Scenarios.LEARNER, shape()))
+        assertThat(scenarios.states.draftAwaiting(Scenarios.LEARNER))
                 .describedAs("and nothing is waiting for one")
                 .isEmpty();
     }
@@ -275,7 +275,7 @@ class TestScenario31APersonAnswersATurn {
         scenarios.process(model, doc, stream(1L)).learned();
         final Recorded abandoned = scenarios.attempts.forDocument(DOC, 10).get(0);
         // Another node takes the shape in the meantime, by opening an attempt for it.
-        final long theirs = scenarios.attempts.opened(new Attempt(Scenarios.LEARNER, DOC, shape(), "DOOR-ACCESS",
+        final long theirs = scenarios.attempts.opened(new Attempt(Scenarios.LEARNER, DOC, "DOOR-ACCESS",
                 "Raw Events",
                         2L, "node-2", PromotionMode.AUTOMATIC, Long.MAX_VALUE),
                 Scenarios.NOW.toEpochMilli()).orElseThrow();

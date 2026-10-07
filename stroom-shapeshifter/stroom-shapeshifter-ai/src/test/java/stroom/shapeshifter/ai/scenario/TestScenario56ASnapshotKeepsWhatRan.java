@@ -155,7 +155,7 @@ class TestScenario56ASnapshotKeepsWhatRan {
         final RoutingRule rebound = scenarios.rules.forLearner(Scenarios.LEARNER).get(0);
         assertThat(rebound.getSnapshot()).isNotEqualTo(learned.getSnapshot());
         assertThat(silent.asked()).isEmpty();
-        assertThat(scenarios.shapes.relearnReason(Scenarios.LEARNER, rebound.getShapeId()))
+        assertThat(scenarios.states.relearnReason(Scenarios.LEARNER))
                 .describedAs("the shape is not marked on a stale judgement")
                 .isEmpty();
         assertThat(scenarios.attempts.forDocument(DOC, 10))

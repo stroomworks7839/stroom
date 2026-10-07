@@ -21,10 +21,10 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * One thing a supervisor has said about a shape (A46): a hint, a correction, or a fact about the feed
- * that no sample of it shows.
+ * One thing a supervisor has told a learner (A46): a hint, a correction, or a fact about the feed that
+ * no sample of it shows.
  * <p>
- * It belongs to the shape and not to a turn or an attempt, so nothing has to be timed and nothing is
+ * It belongs to the learner and not to a turn or an attempt, so nothing has to be timed and nothing is
  * refused for arriving at the wrong moment. A hint given while an attempt is running is carried by the
  * next question that attempt asks, and outlives it either way.
  */
@@ -34,8 +34,6 @@ public class SupervisorGuidance {
     @JsonProperty
     private final long id;
     @JsonProperty
-    private final String shapeId;
-    @JsonProperty
     private final String message;
     @JsonProperty
     private final String author;
@@ -44,12 +42,10 @@ public class SupervisorGuidance {
 
     @JsonCreator
     public SupervisorGuidance(@JsonProperty("id") final long id,
-                              @JsonProperty("shapeId") final String shapeId,
                               @JsonProperty("message") final String message,
                               @JsonProperty("author") final String author,
                               @JsonProperty("timeMs") final long timeMs) {
         this.id = id;
-        this.shapeId = shapeId;
         this.message = message;
         this.author = author;
         this.timeMs = timeMs;
@@ -57,10 +53,6 @@ public class SupervisorGuidance {
 
     public long getId() {
         return id;
-    }
-
-    public String getShapeId() {
-        return shapeId;
     }
 
     public String getMessage() {

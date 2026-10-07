@@ -103,7 +103,7 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
         this.restFactory = restFactory;
 
         setInSlot(ATTEMPT_LIST, listPresenter);
-        // A turn answered reopens the attempt and takes its shape back (A28), so the row it was
+        // A turn answered reopens the attempt and takes its claim back (A28), so the row it was
         // answered from is showing a status that is no longer true.
         turnsPresenter.setOnAmended(amended -> {
             listPresenter.getSelectionModel().clear();
@@ -115,7 +115,7 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
         flowChart.fitToPane();
         view.setFlowChart(flowChart);
         setInSlot(LEDGER, ledgerPresenter);
-        // A shape sent back to be learned shows up as an attempt, so the list beside it is read again.
+        // A learner sent back to learn shows up as an attempt, so the list beside it is read again.
         ledgerPresenter.setOnLearn(() -> {
             listPresenter.getSelectionModel().clear();
             updateButtons();
@@ -127,17 +127,17 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
 
         // The decisions A28 puts beside the attempt they are about. Approve and Reject are review
         // mode's (A25), offered here as well as on the document's Routing tab because a person watching
-        // the feature meets the draft here first. Re-learn is for a shape that was given up or bound
+        // the feature meets the draft here first. Re-learn is for a learner that gave up or bound
         // badly: it asks again, from the beginning.
         approveButton = listPresenter.add(SvgPresets.TICK.title("Approve what this attempt drafted"));
         rejectButton = listPresenter.add(SvgPresets.DISABLE.title("Reject what this attempt drafted"));
         relearnButton = listPresenter.add(SvgPresets.RERUN.title(
-                "Learn this shape again: its next stream opens a session while the rule goes on serving it"));
+                "Learn again: the next stream opens a session while the rule goes on serving it"));
         // A46's message: neither an answer to a turn nor a decision about one. It attaches to the
-        // attempt's shape, so a person reading a transcript and seeing what the model did not know can
+        // attempt's learner, so a person reading a transcript and seeing what the model did not know can
         // say so there and then, and whatever is asked next carries it.
         hintButton = listPresenter.add(SvgPresets.EDIT.title(
-                "What has been said about this attempt's shape, and say something else"));
+                "What has been said to this attempt's learner, and say something else"));
         // A65's first action on a session parked for a person: more to spend, granted to this attempt
         // alone (A77), which the worker then carries on with.
         grantButton = listPresenter.add(SvgPresets.ADD.title(
@@ -175,7 +175,7 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
         final SupervisorAttempt attempt = awaitingReview();
         if (attempt != null) {
             ConfirmEvent.fire(this,
-                    "Approve what this attempt drafted? It binds the fragment for its shape, and every "
+                    "Approve what this attempt drafted? It binds the fragment for its learner, and every "
                     + "stream that waited for it is processed again.",
                     ok -> {
                         if (ok) {
@@ -185,12 +185,12 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
         }
     }
 
-    /// Reject what an attempt drafted (A25): the rule goes and the shape is given up with the reason.
-    /// The reason is asked for rather than assumed — it is what the shape carries afterwards.
+    /// Reject what an attempt drafted (A25): the rule goes and the learner gives up with the reason.
+    /// The reason is asked for rather than assumed — it is what the learner carries afterwards.
     private void reject() {
         final SupervisorAttempt attempt = awaitingReview();
         if (attempt != null) {
-            PromptEvent.fire(this, "Why is this being rejected? Its shape is given up with the reason, "
+            PromptEvent.fire(this, "Why is this being rejected? Its learner gives up with the reason, "
                                    + "and not learned again until somebody says otherwise.", "",
                     reason -> {
                         if (!NullSafe.isBlankString(reason)) {
@@ -200,14 +200,14 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
         }
     }
 
-    /// Ask again, from the beginning (A28): for a shape that was given up, or bound something a person
-    /// is not content with. What the attempt learned before is not thrown away — it is a record — but
-    /// the shape is asked afresh.
+    /// Ask again, from the beginning (A28): for a learner that gave up, or bound something a person is
+    /// not content with. What the attempt learned before is not thrown away — it is a record — but the
+    /// learner is asked afresh.
     private void relearn() {
         final SupervisorAttempt attempt = selected();
         if (attempt != null) {
-            ConfirmEvent.fire(this, "Learn this shape again? The model is asked afresh, and what is "
-                                    + "bound for the shape now keeps serving until it answers.",
+            ConfirmEvent.fire(this, "Learn again? The model is asked afresh, and what is "
+                                    + "bound now keeps serving until it answers.",
                     ok -> {
                         if (ok) {
                             act(resource -> resource.relearn(attempt.getId()));
@@ -216,9 +216,9 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
         }
     }
 
-    /// Tell the learning something about the selected attempt's shape (A46).
+    /// Tell the selected attempt's learner something (A46).
     ///
-    /// It attaches to the shape and not to the attempt, which is the ruling's first decision: what a
+    /// It attaches to the learner and not to the attempt, which is the ruling's first decision: what a
     /// person knows is about the feed, not about turn 7 of attempt 412. So nothing has to be timed,
     /// nothing is refused for arriving at the wrong moment, and a hint outlives the attempt it was
     /// written from — the relearning of A29, months later, carries it too.
@@ -228,7 +228,7 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
     private void hint() {
         final SupervisorAttempt attempt = selected();
         if (attempt != null) {
-            guidancePresenter.show(attempt.getDoc().getUuid(), attempt.getLearner(), attempt.getShape(),
+            guidancePresenter.show(attempt.getDoc().getUuid(), attempt.getLearner(),
                     servingPresenter::refresh);
         }
     }
@@ -319,7 +319,7 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
     /// made from, and refreshing the list builds new ones without touching it — so an attempt that has
     /// just been approved would still answer `AWAITING_REVIEW` to the guard that decides whether Reject
     /// is offered, and rejecting it would take the rule that was just promoted out of the routing table
-    /// and give its shape up. What is shown afterwards is the decided attempt, which is what the person
+    /// and give its learner up. What is shown afterwards is the decided attempt, which is what the person
     /// was looking at; what is *selected* is nothing, until they choose again from the list as it now is.
     private void act(final Function<SupervisorResource, SupervisorAttempt> call) {
         restFactory
@@ -330,7 +330,7 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
                     updateButtons();
                     turnsPresenter.read(decided);
                     // The ledger with it: approving a draft releases the streams that waited for its
-                    // shape, so the row they were counted in goes.
+                    // learner, so the row they were counted in goes.
                     refresh();
                 })
                 .taskMonitorFactory(this)

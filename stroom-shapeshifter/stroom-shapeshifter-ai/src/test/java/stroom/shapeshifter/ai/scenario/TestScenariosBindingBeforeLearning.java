@@ -35,7 +35,6 @@ import stroom.shapeshifter.ai.stage.Deferrals.Deferral;
 import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.Learner;
 import stroom.shapeshifter.ai.stage.Rules;
-import stroom.shapeshifter.ai.stage.Shape;
 import stroom.shapeshifter.ai.stage.ShapeSignature;
 import stroom.shapeshifter.ai.stage.Stage;
 import stroom.shapeshifter.ai.stage.StageRun;
@@ -95,15 +94,10 @@ class TestScenariosBindingBeforeLearning {
     /// Another node already learning this shape, as the claim of A45 has it: the row that a stage meeting
     /// the shape finds instead of taking it.
     private static long heldByAnotherNode(final Scenarios scenarios, final long untilMs) {
-        return scenarios.attempts.opened(new Attempt(Scenarios.LEARNER, "doc-1", shapeX(), "DOOR-ACCESS",
+        return scenarios.attempts.opened(new Attempt(Scenarios.LEARNER, "doc-1", "DOOR-ACCESS",
                 "Raw Events", 99L,
                         "node-2", PromotionMode.AUTOMATIC, untilMs),
                 Scenarios.NOW.toEpochMilli()).orElseThrow();
-    }
-
-    private static String shapeX() {
-        return Shape.of(Scenarios.LEARNER,
-                stream("CSV").routingAttributes(ShapeSignature.of(CSV.input()))).id();
     }
 
     private static Input stream(final String format) {
@@ -232,7 +226,7 @@ class TestScenariosBindingBeforeLearning {
         final StageRun run = scenarios.process(silent, doorAccess(), stream("CSV")).learned();
 
         assertThat(run.decision()).isInstanceOf(Deferred.class);
-        assertThat(((Deferred) run.decision()).reason()).contains("Another node is learning this shape");
+        assertThat(((Deferred) run.decision()).reason()).contains("Another node is learning for this pipeline");
         assertThat(silent.asked()).describedAs("the model is asked once for a shape, not once per node")
                 .isEmpty();
         assertThat(scenarios.ledger.isEmpty()).describedAs("waiting is not a refusal (A80)").isTrue();
@@ -338,7 +332,6 @@ class TestScenariosBindingBeforeLearning {
         assertThat(attempt.status()).isEqualTo(AttemptStatus.PROMOTED);
         assertThat(attempt.ruleUuid()).isEqualTo(((Promoted) learned.decision()).rule().getUuid());
         assertThat(attempt.score()).isEqualTo(((Promoted) learned.decision()).score());
-        assertThat(attempt.attempt().shape()).isEqualTo(shapeX());
         assertThat(attempt.attempt().feed()).isEqualTo("DOOR-ACCESS");
         assertThat(attempt.attempt().node()).isEqualTo("node-1");
         assertThat(attempt.turns()).hasSameSizeAs(learned.transcript());
@@ -479,12 +472,10 @@ class TestScenariosBindingBeforeLearning {
     }
 
     @Test
-    void anAttemptIsOnlyCarriedOnByWhoeverHoldsItAndOnlyOverItsOwnShape() {
-        // A45: carrying an attempt on is taking its shape. A parked attempt is nobody's — no thread is
-        // behind it — so any node's worker may take it; one that is *running* on another node, or one
-        // that has finished, would learn beside the node that is learning. Resuming over a stream of
-        // another shape would answer questions never asked about it from a record of questions about
-        // something else.
+    void anAttemptIsOnlyCarriedOnByWhoeverHoldsIt() {
+        // A45: carrying an attempt on is taking its learner's claim. A parked attempt is nobody's — no
+        // thread is behind it — so any node's worker may take it; one that is *running* on another node,
+        // or one that has finished, would learn beside the node that is learning.
         final Scenarios scenarios = new Scenarios();
         final ShapeshifterAiDoc doc = doorAccess();
         final Script started = scenarios.script(CSV.configuration(), XSLT)
@@ -506,15 +497,9 @@ class TestScenariosBindingBeforeLearning {
         assertThat(elsewhere.asked()).isEmpty();
         assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).isEmpty();
 
-        // Another shape's stream, whoever asks.
+        // Finished, and not carried on either.
         scenarios.node = "node-1";
         final Stage stage = scenarios.stage(Script.of());
-        final Input otherType = new Input(1L, "DOOR-ACCESS", "Other Events", Map.of(), CSV.input());
-        assertThatThrownBy(() -> stage.resume(doc, waiting.id(), otherType, Script.of()))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("was learning shape");
-
-        // Finished, and not carried on either.
         scenarios.attempts.closed(waiting.id(), AttemptStatus.ABANDONED, "Given up", null, null, 0L);
         assertThat(stage.resume(doc, waiting.id(), stream("CSV"), Script.of()).decision())
                 .isInstanceOf(Sentinel.class);

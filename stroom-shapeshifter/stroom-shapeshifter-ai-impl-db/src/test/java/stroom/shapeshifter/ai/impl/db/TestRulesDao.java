@@ -81,7 +81,6 @@ class TestRulesDao {
     @Test
     void aRuleSurvivesTheRoundTripWholeAndSaysWhoseItIs() {
         final RoutingRule learned = RoutingRule.builder()
-                .shapeId("Feed=DOOR-ACCESS|Type=Raw Events")
                 .pipeline(new DocRef("Pipeline", "fragment-1", "door-v1"))
                 .provisional(true)
                 .promotedTimeMs(1_700_000_000_000L)
@@ -95,7 +94,6 @@ class TestRulesDao {
         final List<RoutingRule> read = rules.forLearner(LEARNER);
         assertThat(read).hasSize(1);
         assertThat(read.get(0)).isEqualTo(stored);
-        assertThat(read.get(0).getShapeId()).isEqualTo("Feed=DOOR-ACCESS|Type=Raw Events");
         assertThat(read.get(0).getPipeline()).isEqualTo(new DocRef("Pipeline", "fragment-1", "door-v1"));
         assertThat(read.get(0).getRecordBoundary()).isEqualTo(RecordBoundary.ofArray("events"));
         assertThat(read.get(0).getScore()).isEqualTo(0.97);

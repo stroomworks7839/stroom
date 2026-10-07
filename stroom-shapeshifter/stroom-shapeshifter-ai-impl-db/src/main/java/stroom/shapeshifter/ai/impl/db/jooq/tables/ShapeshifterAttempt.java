@@ -90,16 +90,6 @@ public class ShapeshifterAttempt extends TableImpl<ShapeshifterAttemptRecord> {
     public final TableField<ShapeshifterAttemptRecord, String> DOC_UUID = createField(DSL.name("doc_uuid"), SQLDataType.VARCHAR(255).nullable(false), this, "");
 
     /**
-     * The column <code>stroom.shapeshifter_attempt.shape_hash</code>.
-     */
-    public final TableField<ShapeshifterAttemptRecord, String> SHAPE_HASH = createField(DSL.name("shape_hash"), SQLDataType.VARCHAR(64).nullable(false), this, "");
-
-    /**
-     * The column <code>stroom.shapeshifter_attempt.shape_id</code>.
-     */
-    public final TableField<ShapeshifterAttemptRecord, String> SHAPE_ID = createField(DSL.name("shape_id"), SQLDataType.CLOB.nullable(false), this, "");
-
-    /**
      * The column <code>stroom.shapeshifter_attempt.feed_name</code>.
      */
     public final TableField<ShapeshifterAttemptRecord, String> FEED_NAME = createField(DSL.name("feed_name"), SQLDataType.VARCHAR(255), this, "");
@@ -155,9 +145,9 @@ public class ShapeshifterAttempt extends TableImpl<ShapeshifterAttemptRecord> {
     public final TableField<ShapeshifterAttemptRecord, Long> EXPIRY_MS = createField(DSL.name("expiry_ms"), SQLDataType.BIGINT, this, "");
 
     /**
-     * The column <code>stroom.shapeshifter_attempt.claim_key</code>.
+     * The column <code>stroom.shapeshifter_attempt.claimed</code>.
      */
-    public final TableField<ShapeshifterAttemptRecord, String> CLAIM_KEY = createField(DSL.name("claim_key"), SQLDataType.VARCHAR(64), this, "");
+    public final TableField<ShapeshifterAttemptRecord, Byte> CLAIMED = createField(DSL.name("claimed"), SQLDataType.TINYINT, this, "");
 
     /**
      * The column <code>stroom.shapeshifter_attempt.granted_tokens</code>.
@@ -212,7 +202,7 @@ public class ShapeshifterAttempt extends TableImpl<ShapeshifterAttemptRecord> {
 
     @Override
     public List<Index> getIndexes() {
-        return Arrays.asList(Indexes.SHAPESHIFTER_ATTEMPT_SHAPESHIFTER_ATTEMPT_CREATE_TIME_MS, Indexes.SHAPESHIFTER_ATTEMPT_SHAPESHIFTER_ATTEMPT_DOC_UUID, Indexes.SHAPESHIFTER_ATTEMPT_SHAPESHIFTER_ATTEMPT_LEARNER_SHAPE, Indexes.SHAPESHIFTER_ATTEMPT_SHAPESHIFTER_ATTEMPT_STATUS);
+        return Arrays.asList(Indexes.SHAPESHIFTER_ATTEMPT_SHAPESHIFTER_ATTEMPT_CREATE_TIME_MS, Indexes.SHAPESHIFTER_ATTEMPT_SHAPESHIFTER_ATTEMPT_DOC_UUID, Indexes.SHAPESHIFTER_ATTEMPT_SHAPESHIFTER_ATTEMPT_STATUS);
     }
 
     @Override

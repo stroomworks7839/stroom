@@ -69,7 +69,6 @@ class TestScenario54TheTaskDecision {
 
     private static final String DOC = "doc-1";
     private static final String FEED = "DOOR-ACCESS";
-    private static final String SHAPE = "Feed=DOOR-ACCESS|Type=Raw Events";
 
     private static final Golden CSV = Scenarios.corpus("001_csv_with_header");
     private static final String MIXED = Scenarios.resource("csv-mixed.csv");
@@ -161,7 +160,7 @@ class TestScenario54TheTaskDecision {
         assertThat(row.failingRecords())
                 .describedAs("the one the run stopped at; nothing after it was read")
                 .isEqualTo(1);
-        assertThat(scenarios.shapes.relearnReason(Scenarios.LEARNER, SHAPE)).isPresent();
+        assertThat(scenarios.states.relearnReason(Scenarios.LEARNER)).isPresent();
         assertThat(scenarios.attempts.forDocument(DOC, 10))
                 .describedAs("a relearning session, opened and parked, beside the one that learned the rule")
                 .extracting(Recorded::status)
@@ -208,13 +207,13 @@ class TestScenario54TheTaskDecision {
     void whatNothingWillLearnErrorsRatherThanWaits() {
         final Scenarios scenarios = new Scenarios();
         final ShapeshifterAiDoc doc = doc();
-        scenarios.shapes.giveUp(Scenarios.LEARNER, DOC, SHAPE, "the parse could not be learned");
+        scenarios.states.giveUp(Scenarios.LEARNER, DOC, "the parse could not be learned");
 
         final StageRun errored = scenarios.stage(document -> Script.of(), scenarios.rules)
                 .decide(doc, Scenarios.LEARNER, stream(1L, MIXED));
 
         assertThat(errored.decision()).isInstanceOf(Sentinel.class);
-        assertThat(((Sentinel) errored.decision()).reason()).contains("given up");
+        assertThat(((Sentinel) errored.decision()).reason()).contains("Given up");
         assertThat(scenarios.deferrals.forDocument(DOC)).isEmpty();
         assertThat(scenarios.attempts.forDocument(DOC, 10)).isEmpty();
     }
@@ -300,11 +299,11 @@ class TestScenario54TheTaskDecision {
 
         assertThat(((Deferred) again.decision()).reason())
                 .startsWith("Record 3 fell short of the bar: ")
-                .contains("learning this shape");
+                .contains("learning for this pipeline");
         assertThat(scenarios.deferrals.of(Scenarios.LEARNER, 2L).orElseThrow().reason())
                 .describedAs("the row keeps why, not what each try found")
                 .startsWith("Record 3 fell short of the bar: ")
-                .doesNotContain("learning this shape");
+                .doesNotContain("learning for this pipeline");
     }
 
     private static RoutingRule learn(final Scenarios scenarios, final ShapeshifterAiDoc doc, final String xslt) {

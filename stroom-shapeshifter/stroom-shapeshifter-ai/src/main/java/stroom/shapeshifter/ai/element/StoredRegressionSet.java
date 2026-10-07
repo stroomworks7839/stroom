@@ -23,6 +23,7 @@ import stroom.data.store.api.Store;
 import stroom.data.store.api.Target;
 import stroom.meta.api.MetaProperties;
 import stroom.meta.api.MetaService;
+import stroom.meta.shared.Meta;
 import stroom.shapeshifter.ai.stage.CorpusIndex;
 import stroom.shapeshifter.ai.stage.CorpusIndex.Row;
 import stroom.shapeshifter.ai.stage.RegressionSet;
@@ -42,6 +43,8 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 
 /// The corpus as a node keeps it (A18; design 04 §4.1): the entries of each promotion as one stream on
 /// the **source feed**, of its own type, one entry per segment; and a row per entry in the index naming
@@ -107,6 +110,9 @@ public class StoredRegressionSet implements RegressionSet {
         if (entries.isEmpty()) {
             return;
         }
+        // Said here rather than by the store, which would make a stream on no feed or fail somewhere less
+        // telling.
+        Objects.requireNonNull(feed, "The feed to keep rule " + ruleUuid + "'s records on");
         final long metaId = write(feed, entries);
         final List<Row> rows = new ArrayList<>();
         for (int segment = 0; segment < entries.size(); segment++) {
@@ -116,6 +122,17 @@ public class StoredRegressionSet implements RegressionSet {
         }
         index.add(rows);
         delete(index.trim(ruleUuid, cap));
+    }
+
+    /// The feed of the stream the rule's newest entry is in.
+    @Override
+    public Optional<String> feedOf(final String ruleUuid) {
+        final List<Row> rows = index.rows(ruleUuid);
+        if (rows.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(metaService.getMeta(rows.getLast().metaId(), true))
+                .map(Meta::getFeedName);
     }
 
     @Override

@@ -35,7 +35,7 @@ import java.util.function.Supplier;
  * @param attributes The stream's attribute map — the receipt headers.
  * @param data       The stream's content.
  * @param pipeline   The uuid of the pipeline processing it, where one is: what a stream sentinelled now
- *                   is replayed through when its shape settles (A12), which the ledger keeps because the
+ *                   is replayed through when its learner settles (A12), which the ledger keeps because the
  *                   settling may happen in another task, on another node, or with nobody there at all.
  *                   Null where nothing is processing it — a worker re-walking an attempt, a scenario.
  * @param taskId     The processor task processing it, where one is: what a deferral wakes (design 04 §5.3).

@@ -88,7 +88,7 @@ public class ShapeshifterAiStepPresenter
     private static SafeHtml summary(final ShapeshifterAiStepDetails stage) {
         final SafeHtmlBuilder html = new SafeHtmlBuilder();
         html.appendHtmlConstant("<dl class=\"shapeshifterStep-summary\">");
-        for (final Entry<String, String> field : NullSafe.map(stage.getShape()).entrySet()) {
+        for (final Entry<String, String> field : NullSafe.map(stage.getStream()).entrySet()) {
             term(html, field.getKey(), field.getValue());
         }
         if (stage.getDocument() != null) {

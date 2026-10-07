@@ -43,13 +43,14 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
 /// Checks every document the demo content pack is made of.
 ///
 /// The pack itself is written by [GenerateDemoContentPack], not here: what this is for is the documents
 /// and how they name each other. What the *arrangement* does is
-/// `TestScenario51AnyFormatFromAnyFeedInAPipeline`, which runs the pack's own document, pipeline and
-/// filter over four formats in a real pipeline.
+/// `TestScenario51AnyFormatFromAnyFeedInAPipeline`, which runs the pack's own document, and a pipeline and
+/// filter per feed, over four formats in real pipelines.
 ///
 /// **What this can prove and what it cannot.** Every file is read back with the very classes Stroom's
 /// importer reads it with, so a property name that does not exist, a document that will not
@@ -101,8 +102,13 @@ class TestDemoContentPack {
                     assertThat(model.getBaseUrl()).isNotBlank();
                     assertThat(model.getModelId()).isNotBlank();
                 });
-        assertThat(read(PipelineDoc.TYPE, PipelineDoc.class).getUuid())
-                .isEqualTo(DemoContentPack.PIPELINE_UUID);
+        assertThat(readAll(PipelineDoc.TYPE, PipelineDoc.class))
+                .describedAs("a pipeline per feed, as the Pipeline Factory makes them (A126)")
+                .extracting(PipelineDoc::getUuid, PipelineDoc::getName)
+                .containsExactlyInAnyOrderElementsOf(DemoContentPack.FEEDS.stream()
+                        .map(DemoContentPack::pipelineRef)
+                        .map(ref -> tuple(ref.getUuid(), ref.getName()))
+                        .toList());
 
         final Map<String, byte[]> files = DemoContentPack.files();
         final List<String> feedFiles = files.keySet().stream()
@@ -114,12 +120,17 @@ class TestDemoContentPack {
                 .isIn(DemoContentPack.FEEDS));
     }
 
-    /// The pipeline's elements travel in their own asset, and the one thing that would make the demo do
-    /// nothing at all is the stage being attached to no document.
+    /// A pipeline's elements travel in their own asset, and the one thing that would make the demo do
+    /// nothing at all is a stage being attached to no document.
     @Test
-    void theStageIsAttachedToTheDocument() {
-        final PipelineData data = JsonUtil.readValue(
-                DemoContentPack.files().get(pathFor(PipelineDoc.TYPE, ".json")), PipelineData.class);
+    void everyStageIsAttachedToTheDocument() {
+        final List<String> elements = pathsFor(PipelineDoc.TYPE, ".json");
+        assertThat(elements).hasSize(DemoContentPack.FEEDS.size());
+        elements.forEach(path -> assertTheStageIsAttached(
+                JsonUtil.readValue(DemoContentPack.files().get(path), PipelineData.class)));
+    }
+
+    private static void assertTheStageIsAttached(final PipelineData data) {
         assertThat(data.getAddedElements())
                 .extracting(element -> element.getType())
                 .containsExactly("Source", "ShapeshifterAi", "SchemaFilter", "RecordOutputFilter",
@@ -140,19 +151,36 @@ class TestDemoContentPack {
     /// A filter carrying an id, a processor or a tracker is refused on import, and the pack would then
     /// need a filter building by hand — which is most of what it exists to save.
     @Test
-    void theFilterIsOneThatCanBeImported() {
-        final ProcessorFilter filter = read(ProcessorFilter.ENTITY_TYPE, ProcessorFilter.class);
+    void everyFilterIsOneThatCanBeImported() {
+        final List<ProcessorFilter> filters = readAll(ProcessorFilter.ENTITY_TYPE, ProcessorFilter.class);
+        assertThat(filters).extracting(ProcessorFilter::getPipelineUuid)
+                .describedAs("a filter per feed's pipeline")
+                .containsExactlyInAnyOrderElementsOf(DemoContentPack.FEEDS.stream()
+                        .map(feed -> DemoContentPack.pipelineRef(feed).getUuid())
+                        .toList());
+        DemoContentPack.FEEDS.forEach(feed -> assertImportable(filters.stream()
+                .filter(filter -> DemoContentPack.pipelineRef(feed).getUuid().equals(filter.getPipelineUuid()))
+                .findFirst()
+                .orElseThrow(), feed));
+    }
+
+    private static void assertImportable(final ProcessorFilter filter, final String feed) {
         assertThat(ProcessorFilterUtil.shouldImport(filter)).isTrue();
         assertThat(filter.getId()).isNull();
         assertThat(filter.getProcessor()).isNull();
         assertThat(filter.getProcessorFilterTracker()).isNull();
         assertThat(filter.getPipelineUuid())
                 .describedAs("the importer finds the filter's pipeline by this")
-                .isEqualTo(DemoContentPack.PIPELINE_UUID);
+                .isEqualTo(DemoContentPack.pipelineRef(feed).getUuid());
         assertThat(filter.getProcessorUuid())
                 .describedAs("and it makes the processor from this; a filter naming none fails on a "
                              + "null uuid while the rest of the pack lands")
-                .isEqualTo(DemoContentPack.PROCESSOR_UUID);
+                .isEqualTo(DemoContentPack.processorUuid(feed));
+        assertThat(filter.getQueryData().getExpression().toString())
+                .describedAs("and it takes its own feed's streams, and no other's")
+                .contains(feed)
+                .doesNotContain(DemoContentPack.FEEDS.stream().filter(other -> !other.equals(feed)).findFirst()
+                        .orElseThrow());
     }
 
     /// A document with no version cannot be written at all — the column it lands in does not take null —
@@ -166,7 +194,8 @@ class TestDemoContentPack {
                 // A processor filter is not a document in the store and has a version of its own kind.
                 .filter(name -> !name.contains("." + ProcessorFilter.ENTITY_TYPE + "."))
                 .toList();
-        assertThat(documents).hasSize(3 + DemoContentPack.FEEDS.size());
+        assertThat(documents).describedAs("the document, the model, and a pipeline and a feed per feed")
+                .hasSize(2 + 2 * DemoContentPack.FEEDS.size());
         assertThat(documents).allSatisfy(name -> assertThat(
                         JsonUtil.readValue(files.get(name), Map.class).get("version"))
                 .describedAs(name)
@@ -179,7 +208,8 @@ class TestDemoContentPack {
     void everyAssetIsAnnouncedByANodeFile() {
         final Map<String, byte[]> files = DemoContentPack.files();
         final List<String> nodes = files.keySet().stream().filter(name -> name.endsWith(".node")).toList();
-        assertThat(nodes).hasSize(4 + DemoContentPack.FEEDS.size());
+        assertThat(nodes).describedAs("and a filter per feed besides")
+                .hasSize(2 + 3 * DemoContentPack.FEEDS.size());
 
         for (final String node : nodes) {
             final String prefix = node.substring(0, node.length() - ".node".length());
@@ -280,6 +310,18 @@ class TestDemoContentPack {
 
     private static <T> T read(final String type, final Class<T> clazz) {
         return JsonUtil.readValue(DemoContentPack.files().get(pathFor(type, ".meta")), clazz);
+    }
+
+    private static <T> List<T> readAll(final String type, final Class<T> clazz) {
+        return pathsFor(type, ".meta").stream()
+                .map(path -> JsonUtil.readValue(DemoContentPack.files().get(path), clazz))
+                .toList();
+    }
+
+    private static List<String> pathsFor(final String type, final String extension) {
+        return DemoContentPack.files().keySet().stream()
+                .filter(name -> name.contains("." + type + ".") && name.endsWith(extension))
+                .toList();
     }
 
     private static String pathFor(final String type, final String extension) {

@@ -76,51 +76,59 @@ class TestDemoContentPackImports extends AbstractCoreIntegrationTest {
         assertThat(document.getModel().getUuid()).isEqualTo(DemoContentPack.MODEL_UUID);
         assertThat(document.getFlow().getSteps()).isNotEmpty();
 
-        final PipelineDoc pipeline = pipelineStore.readDocument(DemoContentPack.pipelineRef());
-        assertThat(pipeline).isNotNull();
-        assertThat(pipeline.getPipelineData().getElements().getAdd())
-                .anySatisfy(element -> assertThat(element.getId()).isEqualTo(DemoContentPack.STAGE_ELEMENT));
+        DemoContentPack.FEEDS.forEach(feed -> {
+            final PipelineDoc pipeline = pipelineStore.readDocument(DemoContentPack.pipelineRef(feed));
+            assertThat(pipeline).describedAs(feed + "'s pipeline").isNotNull();
+            assertThat(pipeline.getPipelineData().getElements().getAdd())
+                    .anySatisfy(element -> assertThat(element.getId()).isEqualTo(DemoContentPack.STAGE_ELEMENT));
+        });
 
         assertThat(feedStore.list().stream().map(DocRef::getName).toList())
                 .containsAll(DemoContentPack.FEEDS);
     }
 
-    /// The filter is what makes posting data the only thing left to do. It arrives over the pipeline the
-    /// pack ships and names every one of the demo's feeds — but switched off, because an import enables
-    /// filters only when it is told to, which on the import screen is the **Enable Processor Filters**
-    /// tick. The pack's README says so, and this says what the README has to say.
+    /// The filters are what make posting data the only thing left to do. Each arrives over its feed's
+    /// pipeline and names its feed — but switched off, because an import enables filters only when it is
+    /// told to, which on the import screen is the **Enable Processor Filters** tick. The pack's README says
+    /// so, and this says what the README has to say.
     @Test
-    void theFilterArrivesOverTheRightPipelineAndNamesEveryFeed() {
+    void eachFilterArrivesOverItsFeedsPipelineAndNamesItsFeed() {
         importThePack(false);
 
-        final ProcessorFilter filter = onlyFilter();
-        assertThat(filter.getUuid()).isEqualTo(DemoContentPack.FILTER_UUID);
-        assertThat(filter.isEnabled()).isFalse();
-        assertThat(filter.getQueryData().getExpression().toString()).contains(DemoContentPack.FEEDS);
+        DemoContentPack.FEEDS.forEach(feed -> {
+            final ProcessorFilter filter = onlyFilter(feed);
+            assertThat(filter.getUuid()).isEqualTo(DemoContentPack.filterRef(feed).getUuid());
+            assertThat(filter.isEnabled()).isFalse();
+            assertThat(filter.getQueryData().getExpression().toString()).contains(feed);
+        });
     }
 
     @Test
-    void andItIsMakingTasksWhenTheImportIsToldToEnableFilters() {
+    void andTheyAreMakingTasksWhenTheImportIsToldToEnableFilters() {
         importThePack(true);
 
-        assertThat(onlyFilter().isEnabled()).isTrue();
+        DemoContentPack.FEEDS.forEach(feed -> assertThat(onlyFilter(feed).isEnabled()).isTrue());
     }
 
-    private ProcessorFilter onlyFilter() {
+    private ProcessorFilter onlyFilter(final String feed) {
         final List<ProcessorFilter> filters = processorFilterService
-                .find(DemoContentPack.pipelineRef())
+                .find(DemoContentPack.pipelineRef(feed))
                 .getValues();
-        assertThat(filters).hasSize(1);
+        assertThat(filters).describedAs(feed + "'s pipeline has its filter").hasSize(1);
         return filters.getFirst();
     }
 
-    /// The document the demo is pointed at must be the one the pipeline's stage names, or a person who
+    /// The document the demo is pointed at must be the one each pipeline's stage names, or a person who
     /// posts data gets a stage configured by nothing.
     @Test
-    void theStageInThePipelineNamesTheDocumentThatWasImported() {
+    void theStageInEachPipelineNamesTheDocumentThatWasImported() {
         importThePack();
 
-        final PipelineDoc pipeline = pipelineStore.readDocument(DemoContentPack.pipelineRef());
+        DemoContentPack.FEEDS.forEach(feed -> assertTheStageNamesTheDocument(feed));
+    }
+
+    private void assertTheStageNamesTheDocument(final String feed) {
+        final PipelineDoc pipeline = pipelineStore.readDocument(DemoContentPack.pipelineRef(feed));
         final DocRef named = pipeline.getPipelineData().getProperties().getAdd().stream()
                 .filter(property -> DemoContentPack.STAGE_ELEMENT.equals(property.getElement()))
                 .filter(property -> "shapeshifterAi".equals(property.getName()))

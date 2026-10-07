@@ -29,7 +29,7 @@ import java.util.List;
 /**
  * Which attempts the Supervisor view is asking for (A28): across every document by default, and
  * narrowed by any of the things a person looking for one would know — which document, which feed, which
- * shape, which mode it ran in, or what it came to. Newest first, a page at a time.
+ * mode it ran in, or what it came to. Newest first, a page at a time.
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class AttemptCriteria extends BaseCriteria {
@@ -39,14 +39,12 @@ public class AttemptCriteria extends BaseCriteria {
     @JsonProperty
     private final String feed;
     @JsonProperty
-    private final String shape;
-    @JsonProperty
     private final PromotionMode promotionMode;
     @JsonProperty
     private final List<AttemptStatus> statuses;
 
     public AttemptCriteria() {
-        this(null, null, null, null, null, null, null);
+        this(null, null, null, null, null, null);
     }
 
     @JsonCreator
@@ -54,13 +52,11 @@ public class AttemptCriteria extends BaseCriteria {
                            @JsonProperty("sortList") final List<CriteriaFieldSort> sortList,
                            @JsonProperty("docUuid") final String docUuid,
                            @JsonProperty("feed") final String feed,
-                           @JsonProperty("shape") final String shape,
                            @JsonProperty("promotionMode") final PromotionMode promotionMode,
                            @JsonProperty("statuses") final List<AttemptStatus> statuses) {
         super(pageRequest, sortList);
         this.docUuid = docUuid;
         this.feed = feed;
-        this.shape = shape;
         this.promotionMode = promotionMode;
         this.statuses = statuses == null
                 ? List.of()
@@ -73,10 +69,6 @@ public class AttemptCriteria extends BaseCriteria {
 
     public String getFeed() {
         return feed;
-    }
-
-    public String getShape() {
-        return shape;
     }
 
     public PromotionMode getPromotionMode() {

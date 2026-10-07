@@ -33,8 +33,8 @@ import java.util.Map;
  * contents, built from the {@code StageRun} the element made.
  * <p>
  * A supervisor has no single document to show as code — the Shapeshifter AI document is edited in its
- * own editor — and what a person selecting it needs to see is not text but the decision: which shape
- * this stream has, which rule matched, what was bound, what the scorers made of it, and what was said
+ * own editor — and what a person selecting it needs to see is not text but the decision: which feed and
+ * type this stream has, which rule served it, what was bound, what the scorers made of it, and what was said
  * to the model where it was learned. The fragment and the document are carried as {@link DocRef}s so
  * that the pane can offer them as links rather than as names.
  */
@@ -46,9 +46,7 @@ public class ShapeshifterAiStepDetails extends ElementStepDetails {
     @JsonProperty
     private final DocRef document;
     @JsonProperty
-    private final String shapeId;
-    @JsonProperty
-    private final Map<String, String> shape;
+    private final Map<String, String> stream;
     @JsonProperty
     private final String decision;
     @JsonProperty
@@ -73,8 +71,7 @@ public class ShapeshifterAiStepDetails extends ElementStepDetails {
     @JsonCreator
     public ShapeshifterAiStepDetails(@JsonProperty("dryRun") final boolean dryRun,
                                      @JsonProperty("document") final DocRef document,
-                                     @JsonProperty("shapeId") final String shapeId,
-                                     @JsonProperty("shape") final Map<String, String> shape,
+                                     @JsonProperty("stream") final Map<String, String> stream,
                                      @JsonProperty("decision") final String decision,
                                      @JsonProperty("reason") final String reason,
                                      @JsonProperty("ruleUuid") final String ruleUuid,
@@ -87,8 +84,7 @@ public class ShapeshifterAiStepDetails extends ElementStepDetails {
                                      @JsonProperty("nested") final List<NestedElementData> nested) {
         this.dryRun = dryRun;
         this.document = document;
-        this.shapeId = shapeId;
-        this.shape = shape;
+        this.stream = stream;
         this.decision = decision;
         this.reason = reason;
         this.ruleUuid = ruleUuid;
@@ -121,13 +117,13 @@ public class ShapeshifterAiStepDetails extends ElementStepDetails {
      * record's.
      */
     public ShapeshifterAiStepDetails withNested(final List<NestedElementData> elements) {
-        return new ShapeshifterAiStepDetails(dryRun, document, shapeId, shape, decision, reason, ruleUuid,
+        return new ShapeshifterAiStepDetails(dryRun, document, stream, decision, reason, ruleUuid,
                 fragment, provisional, score, recordBoundary, verdicts, transcript, elements);
     }
 
     /**
      * Whether this was a step rather than a run (A30). Stepping routes and serves and does nothing else,
-     * so what a stage pane shows for an unbound shape is what the stage <em>would</em> have done.
+     * so what a stage pane shows for a stream nothing serves is what the stage <em>would</em> have done.
      */
     public boolean isDryRun() {
         return dryRun;
@@ -137,15 +133,11 @@ public class ShapeshifterAiStepDetails extends ElementStepDetails {
         return document;
     }
 
-    public String getShapeId() {
-        return shapeId;
-    }
-
     /**
-     * The learning key's values for this stream (design 01 §3): what makes it the shape it is.
+     * The stream's feed and type: what the model is shown of it when it learns.
      */
-    public Map<String, String> getShape() {
-        return shape;
+    public Map<String, String> getStream() {
+        return stream;
     }
 
     /**

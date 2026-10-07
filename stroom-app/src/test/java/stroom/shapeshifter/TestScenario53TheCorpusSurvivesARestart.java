@@ -156,6 +156,9 @@ class TestScenario53TheCorpusSurvivesARestart extends AbstractProcessIntegration
         assertThat(data(corpusStreams.get(0)).lines()).hasSize(6);
         final List<Accepted> accepted = regressionSet.accepted(rule.getUuid());
         assertThat(accepted).hasSize(6);
+        assertThat(regressionSet.feedOf(rule.getUuid()))
+                .describedAs("what an improvement, with no stream of its own, keeps its records on")
+                .contains(FEED);
         assertThat(accepted).extracting(Accepted::kind).containsExactly(
                 Kind.TRANSLATION, Kind.TRANSLATION, Kind.UNKNOWN, Kind.TRANSLATION, Kind.UNKNOWN, Kind.TRANSLATION);
         assertThat(accepted).allSatisfy(entry -> {
@@ -169,6 +172,10 @@ class TestScenario53TheCorpusSurvivesARestart extends AbstractProcessIntegration
         final Decision better = improve(document, rule, TRANSLATES_BOTH);
         assertThat(better).describedAs(better.toString()).isInstanceOf(Rebound.class);
         assertThat(corpusStreams()).describedAs("a second promotion, a second stream").hasSize(2);
+        assertThat(corpusStreams()).extracting(Meta::getFeedName)
+                .describedAs("and on the source feed too, though no stream of it was in hand: a learner does "
+                             + "not know its feed (A126), but its records do")
+                .containsOnly(FEED);
         final List<Accepted> grown = regressionSet.accepted(rule.getUuid());
         assertThat(grown).hasSize(12);
         assertThat(grown.subList(6, 12)).extracting(Accepted::kind).containsOnly(Kind.TRANSLATION);
@@ -224,7 +231,7 @@ class TestScenario53TheCorpusSurvivesARestart extends AbstractProcessIntegration
     }
 
     private DocRef pipeline(final DocRef document) {
-        final DocRef pipelineRef = pipelineStore.createDocument(DemoContentPack.PIPELINE_NAME);
+        final DocRef pipelineRef = pipelineStore.createDocument(DemoContentPack.pipelineName(FEED));
         final PipelineDoc pipeline = pipelineStore.readDocument(pipelineRef);
         pipelineStore.writeDocument(pipeline.copy()
                 .pipelineData(DemoContentPack.pipelineData(document))
@@ -234,7 +241,7 @@ class TestScenario53TheCorpusSurvivesARestart extends AbstractProcessIntegration
     }
 
     private void filter(final DocRef pipeline) {
-        final ProcessorFilter shipped = DemoContentPack.filter();
+        final ProcessorFilter shipped = DemoContentPack.filter(FEED);
         final QueryData queryData = shipped.getQueryData().copy()
                 .dataSource(MetaFields.STREAM_STORE_DOC_REF)
                 .build();

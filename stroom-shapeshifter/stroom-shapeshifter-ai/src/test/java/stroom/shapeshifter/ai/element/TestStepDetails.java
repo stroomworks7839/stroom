@@ -69,19 +69,18 @@ class TestStepDetails {
     private static final Golden CSV = Scenarios.corpus("001_csv_with_header");
 
     @Test
-    void aLearnedStreamShowsItsShapeDecisionFragmentScoresAndTranscript() {
+    void aLearnedStreamShowsItsFeedDecisionFragmentScoresAndTranscript() {
         final Scenarios scenarios = new Scenarios();
         final Script script = script(scenarios);
         final Stage stage = scenarios.stage(document -> script, scenarios.rules);
         final StageRun run = scenarios.process(script, doc(), stream()).learned();
 
-        final ShapeshifterAiStepDetails details = StepDetails.of(run, false);
+        final ShapeshifterAiStepDetails details = StepDetails.of(run, stream(), false);
 
         assertThat(details.isDryRun()).isFalse();
         assertThat(details.getDocument().getUuid()).isEqualTo("doc-1");
-        assertThat(details.getShapeId()).isEqualTo("Feed=DOOR-ACCESS|Type=Raw Events");
-        assertThat(details.getShape())
-                .describedAs("the learning key's values are what make it this shape")
+        assertThat(details.getStream())
+                .describedAs("the feed and type are what the model is shown of the stream")
                 .containsExactly(Map.entry("Feed", FEED), Map.entry("Type", "Raw Events"));
         assertThat(details.getDecision()).isEqualTo("Promoted");
         assertThat(details.getReason()).startsWith("Promoted rule ");
@@ -116,12 +115,12 @@ class TestStepDetails {
     }
 
     @Test
-    void aSteppedUnknownShapeSaysWhatItWouldDoAndNamesNoRule() {
+    void aSteppedStreamNothingServesSaysWhatItWouldDoAndNamesNoRule() {
         final Scenarios scenarios = new Scenarios();
         final Stage stage = scenarios.stage(document -> Script.of(), scenarios.rules);
         final StageRun run = stage.dryRun(doc(), Scenarios.LEARNER, stream(), false);
 
-        final ShapeshifterAiStepDetails details = StepDetails.of(run, true);
+        final ShapeshifterAiStepDetails details = StepDetails.of(run, stream(), true);
 
         assertThat(details.isDryRun())
                 .describedAs("the pane has to say that this is what would happen, not what did")
@@ -129,8 +128,8 @@ class TestStepDetails {
         assertThat(details.getDecision()).isEqualTo("Would");
         assertThat(details.getReason())
                 .describedAs("the hypothetical is in the decision itself, not put there by the pane: a "
-                             + "step over a shape a rule binds really does run the fragment")
-                .isEqualTo("Would learn a fragment for this shape");
+                             + "step over a learner a rule serves really does run the fragment")
+                .isEqualTo("Would learn a fragment for this learner");
         assertThat(details.getRuleUuid()).isNull();
         assertThat(details.getFragment()).isNull();
         assertThat(details.getVerdicts()).isEmpty();
@@ -159,10 +158,10 @@ class TestStepDetails {
                 new Drafted(rule, 0.9),
                 new Retracted(rule, 0.2, "it failed the gate"),
                 new GivenUp("nothing passed", List.of()),
-                new Sentinel("nothing binds this shape"),
+                new Sentinel("nothing serves this learner"),
                 new Deferred("waiting on a session"),
                 new Parked("the attempt's budget is spent"),
-                new Would("learn a fragment for this shape"));
+                new Would("learn a fragment for this learner"));
 
         assertThat(all).allSatisfy(decision -> assertThat(StepDetails.describe(decision))
                 .describedAs(decision.getClass().getSimpleName() + " says nothing for itself")

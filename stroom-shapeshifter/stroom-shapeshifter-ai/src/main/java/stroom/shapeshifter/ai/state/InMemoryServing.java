@@ -17,9 +17,9 @@
 package stroom.shapeshifter.ai.state;
 
 import stroom.shapeshifter.ai.stage.Guidance;
+import stroom.shapeshifter.ai.stage.LearnerStates;
 import stroom.shapeshifter.ai.stage.Rules.Held;
 import stroom.shapeshifter.ai.stage.Serving;
-import stroom.shapeshifter.ai.stage.Shapes;
 import stroom.shapeshifter.shared.LearnerRef;
 import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ServingRule;
@@ -44,13 +44,13 @@ import java.util.Optional;
 public final class InMemoryServing implements Serving {
 
     private final InMemoryRules rules;
-    private final Shapes shapes;
+    private final LearnerStates states;
     private final Guidance guidance;
 
     @Inject
-    public InMemoryServing(final InMemoryRules rules, final Shapes shapes, final Guidance guidance) {
+    public InMemoryServing(final InMemoryRules rules, final LearnerStates states, final Guidance guidance) {
         this.rules = rules;
-        this.shapes = shapes;
+        this.states = states;
         this.guidance = guidance;
     }
 
@@ -79,13 +79,13 @@ public final class InMemoryServing implements Serving {
     }
 
     /// One rule as the view shows it, or null where it is not one the view shows: a draft is decided
-    /// rather than improved (A25), and a rule with no shape has nothing to learn again.
+    /// rather than improved (A25).
     private ServingRule serving(final Held held, final Double below) {
         final RoutingRule rule = held.rule();
-        if (rule.isDraft() || NullSafe.isBlankString(rule.getShapeId())) {
+        if (rule.isDraft()) {
             return null;
         }
-        final Optional<Shapes.Rolling> rolling = shapes.rolling(held.learner(), rule.getShapeId());
+        final Optional<LearnerStates.Rolling> rolling = states.rolling(held.learner());
         if (below != null && (rolling.isEmpty() || rolling.get().score() >= below)) {
             return null;
         }
@@ -93,15 +93,14 @@ public final class InMemoryServing implements Serving {
                 ShapeshifterAiDoc.buildDocRef().uuid(held.docUuid()).build(),
                 new LearnerRef(held.learner().pipelineUuid(), held.learner().elementId()),
                 rule.getUuid(),
-                rule.getShapeId(),
                 rule.getPipeline(),
                 rule.isPinned(),
                 rule.isProvisional(),
                 rule.getScore(),
                 rule.getPromotedTimeMs(),
-                rolling.map(Shapes.Rolling::score).orElse(null),
-                rolling.map(Shapes.Rolling::records).orElse(0),
-                guidance.standing(held.learner(), rule.getShapeId()).size(),
+                rolling.map(LearnerStates.Rolling::score).orElse(null),
+                rolling.map(LearnerStates.Rolling::records).orElse(0),
+                guidance.standing(held.learner()).size(),
                 // Whether it is below its document's threshold is the resource's to say, which has the document.
                 false);
     }

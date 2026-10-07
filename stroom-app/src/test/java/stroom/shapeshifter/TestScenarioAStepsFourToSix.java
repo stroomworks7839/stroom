@@ -312,7 +312,7 @@ class TestScenarioAStepsFourToSix extends AbstractCoreIntegrationTest {
     }
 
     private DocRef pipeline(final DocRef document) {
-        final DocRef pipelineRef = pipelineStore.createDocument(DemoContentPack.PIPELINE_NAME + " " + feed);
+        final DocRef pipelineRef = pipelineStore.createDocument(DemoContentPack.pipelineName(feed));
         final PipelineDoc pipeline = pipelineStore.readDocument(pipelineRef);
         pipelineStore.writeDocument(pipeline.copy()
                 .pipelineData(DemoContentPack.pipelineData(document))

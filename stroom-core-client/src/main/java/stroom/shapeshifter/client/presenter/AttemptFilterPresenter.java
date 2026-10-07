@@ -35,7 +35,7 @@ import java.util.List;
 
 /**
  * Which attempts the Supervisor is showing (A28, design 01 §11.6): the six things the ruling says a
- * person may narrow by — document, feed, shape, execution mode, promotion mode and status.
+ * person may narrow by — document, feed, execution mode, promotion mode and status.
  * <p>
  * Every one of them goes into the query rather than filtering its answer, as the page's total already
  * does: a filter applied afterwards would leave the pager promising pages that are not there.
@@ -63,7 +63,6 @@ public class AttemptFilterPresenter extends MyPresenterWidget<AttemptFilterView>
                 ? null
                 : new DocRef(ShapeshifterAiDoc.TYPE, criteria.getDocUuid()), true);
         getView().setFeed(NullSafe.string(criteria.getFeed()));
-        getView().setShape(NullSafe.string(criteria.getShape()));
         getView().setPromotionMode(criteria.getPromotionMode());
         getView().setStatuses(criteria.getStatuses());
     }
@@ -79,7 +78,6 @@ public class AttemptFilterPresenter extends MyPresenterWidget<AttemptFilterView>
                 opened.getSortList(),
                 NullSafe.get(document, DocRef::getUuid),
                 blankToNull(getView().getFeed()),
-                blankToNull(getView().getShape()),
                 getView().getPromotionMode(),
                 getView().getStatuses());
     }
@@ -91,7 +89,6 @@ public class AttemptFilterPresenter extends MyPresenterWidget<AttemptFilterView>
     public static boolean isFiltering(final AttemptCriteria criteria) {
         return criteria.getDocUuid() != null
                || criteria.getFeed() != null
-               || criteria.getShape() != null
                || criteria.getPromotionMode() != null
                || !NullSafe.list(criteria.getStatuses()).isEmpty();
     }
@@ -114,10 +111,6 @@ public class AttemptFilterPresenter extends MyPresenterWidget<AttemptFilterView>
         String getFeed();
 
         void setFeed(String feed);
-
-        String getShape();
-
-        void setShape(String shape);
 
         PromotionMode getPromotionMode();
 

@@ -17,19 +17,19 @@
 package stroom.shapeshifter.ai.impl.db;
 
 import stroom.cache.api.CacheManager;
+import stroom.shapeshifter.ai.cache.CachedLearnerStates;
 import stroom.shapeshifter.ai.cache.CachedRules;
-import stroom.shapeshifter.ai.cache.CachedShapes;
 import stroom.shapeshifter.ai.cache.Rows;
 import stroom.shapeshifter.ai.stage.Attempts;
 import stroom.shapeshifter.ai.stage.CorpusIndex;
 import stroom.shapeshifter.ai.stage.Deferrals;
 import stroom.shapeshifter.ai.stage.Guidance;
+import stroom.shapeshifter.ai.stage.LearnerStates;
 import stroom.shapeshifter.ai.stage.Learners;
 import stroom.shapeshifter.ai.stage.Ledger;
 import stroom.shapeshifter.ai.stage.Outputs;
 import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.ai.stage.Serving;
-import stroom.shapeshifter.ai.stage.Shapes;
 import stroom.shapeshifter.ai.stage.Snapshots;
 import stroom.shapeshifter.ai.stage.Spend;
 import stroom.util.entityevent.EntityEvent;
@@ -72,14 +72,14 @@ public class ShapeshifterAiDaoModule extends AbstractModule {
         // once per stream per node is the first thing to give at volume. Nothing but the cache asks the
         // database, and what writes through it tells every node to let go of its copy.
         bind(Rules.class).annotatedWith(Rows.class).to(RulesDao.class);
-        bind(Shapes.class).annotatedWith(Rows.class).to(ShapesDao.class);
+        bind(LearnerStates.class).annotatedWith(Rows.class).to(LearnerStatesDao.class);
         bind(Rules.class).to(CachedRules.class).in(Scopes.SINGLETON);
-        bind(Shapes.class).to(CachedShapes.class).in(Scopes.SINGLETON);
+        bind(LearnerStates.class).to(CachedLearnerStates.class).in(Scopes.SINGLETON);
         GuiceUtil.buildMultiBinder(binder(), EntityEvent.Handler.class)
                 .addBinding(CachedRules.class)
-                .addBinding(CachedShapes.class);
+                .addBinding(CachedLearnerStates.class);
         GuiceUtil.buildMultiBinder(binder(), Clearable.class)
                 .addBinding(CachedRules.class)
-                .addBinding(CachedShapes.class);
+                .addBinding(CachedLearnerStates.class);
     }
 }

@@ -79,14 +79,11 @@ public interface Deferrals {
     /// @return Its row.
     Optional<Deferral> of(Learner learner, long inputId);
 
-    /// What is waiting on one of a learner's shapes (A49: a feed and a type), oldest first: what a
-    /// promotion wakes.
+    /// What is waiting on a learner, oldest first: what a promotion wakes.
     ///
     /// @param learner The learner.
-    /// @param feed    The feed.
-    /// @param type    The type.
     /// @return Its rows.
-    List<Deferral> waiting(Learner learner, String feed, String type);
+    List<Deferral> waiting(Learner learner);
 
     // --------------------------------------------------------------------------------
 

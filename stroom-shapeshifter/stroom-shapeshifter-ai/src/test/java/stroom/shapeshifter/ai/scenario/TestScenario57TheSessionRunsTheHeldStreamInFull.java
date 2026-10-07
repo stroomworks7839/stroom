@@ -56,7 +56,6 @@ class TestScenario57TheSessionRunsTheHeldStreamInFull {
 
     private static final String DOC = "doc-1";
     private static final String FEED = "DOOR-ACCESS";
-    private static final String SHAPE = "Feed=DOOR-ACCESS|Type=Raw Events";
 
     private static final Golden CSV = Scenarios.corpus("001_csv_with_header");
     private static final String TRANSLATES_BOTH = Scenarios.resource("csv-logon.xsl");
@@ -145,7 +144,7 @@ class TestScenario57TheSessionRunsTheHeldStreamInFull {
         assertThat(parked.status()).describedAs(String.valueOf(parked.decision())).isEqualTo(AttemptStatus.PARKED);
         assertThat(parked.decision()).isNotBlank();
         assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).describedAs("nothing was bound").isEmpty();
-        assertThat(scenarios.shapes.reasonGivenUp(Scenarios.LEARNER, SHAPE))
+        assertThat(scenarios.states.reasonGivenUp(Scenarios.LEARNER))
                 .describedAs("and the shape is not given up")
                 .isEmpty();
         assertThat(scenarios.deferrals.of(Scenarios.LEARNER, 1L)).describedAs("the stream waits").isPresent();

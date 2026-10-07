@@ -32,14 +32,14 @@ import java.util.List;
 import java.util.Optional;
 
 /// Deferred mode's worker (A5, A28): the job that advances the attempts waiting for the model. A stream
-/// of an unknown shape in a deferred document costs its task a sentinel and no model call — the attempt
+/// of a learner nothing serves in a deferred document costs its task a sentinel and no model call — the attempt
 /// is opened and parked at its first question — and this is what carries it on, outside the task, at
-/// whatever pace the model answers. The promotion it reaches releases the shape's ledger as A12
+/// whatever pace the model answers. The promotion it reaches releases the learner's ledger as A12
 /// releases any other, so the streams that waited are reprocessed.
 ///
 /// A parked attempt is nobody's until a worker takes it (A45), so any node's may; taking it is taking
-/// its shape, and the attempt is that node's until it finishes or lapses. Nothing here is a loop over a
-/// shape: one pass advances each waiting attempt once, and an attempt that parks again is advanced by
+/// its learner's claim, and the attempt is that node's until it finishes or lapses. Nothing here is a loop over a
+/// learner's streams: one pass advances each waiting attempt once, and an attempt that parks again is advanced by
 /// the next pass.
 public final class DeferredWorker {
 
@@ -78,7 +78,7 @@ public final class DeferredWorker {
     /// attempt would never reach the good ones behind it.
     ///
     /// @return How many attempts this pass carried to an end. An attempt another node took first, or one
-    /// the shape no longer wants, is not one of them: nothing was learned for it here.
+    /// the learner no longer wants, is not one of them: nothing was learned for it here.
     public int advance(final int limit) {
         // Oldest first across both kinds: a lapsed session has streams waiting on it as a parked attempt
         // has, and a cluster with a full batch of parked attempts must not leave it behind for ever.
@@ -131,7 +131,7 @@ public final class DeferredWorker {
         }
         try {
             // A sentinel means the attempt was not this pass's to carry: another node had taken it, or
-            // the shape has been drafted, given up or turned off while it waited. The stage has
+            // a draft awaits review, the learner gave up, or learning was turned off while it waited. The stage has
             // said so against the attempt; this pass simply did not advance it.
             final StageRun run = stage.resume(doc.get(), attempt.id(), input.get(), advisors.of(doc.get()));
             return !(run.decision() instanceof Sentinel);

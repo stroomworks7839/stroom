@@ -27,13 +27,12 @@ import java.util.List;
 /**
  * Everything a scenario asserts on after one run (design 02 §1).
  *
- * @param doc            The document as it stands afterwards: the routing table rewritten if a promotion
- *                       happened, otherwise as given.
+ * @param doc            The document the stage ran under.
  * @param decision       What was decided.
- * @param shape          The stream's shape under the document's learning key, as the ledger keys it.
+ * @param learner        The learner that met the stream (A114).
  * @param bindings       What produced the output (design 01 §7.3 rule 3); null when there is none.
  * @param output         What the bound or promoted fragment produced over the whole stream; null for a
- *                       sentinel or a given-up shape.
+ *                       sentinel or a learner that gave up.
  * @param verdicts       The scorecard's verdicts on the fragment over the whole stream, one per step, in
  *                       chain order; empty when nothing ran.
  * @param transcript     Every exchange with the model, oldest first; empty when it was not consulted.
@@ -50,7 +49,7 @@ import java.util.List;
  */
 public record StageRun(ShapeshifterAiDoc doc,
                        Decision decision,
-                       Shape shape,
+                       Learner learner,
                        Bindings bindings,
                        String output,
                        List<Verdict> verdicts,

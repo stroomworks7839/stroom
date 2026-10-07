@@ -25,8 +25,8 @@ import stroom.data.grid.client.PagerView;
 import stroom.dispatch.client.RestErrorHandler;
 import stroom.dispatch.client.RestFactory;
 import stroom.docref.DocRef;
-import stroom.shapeshifter.shared.LearnShapeRequest;
-import stroom.shapeshifter.shared.LedgerShape;
+import stroom.shapeshifter.shared.LearnAgainRequest;
+import stroom.shapeshifter.shared.LedgerLearner;
 import stroom.shapeshifter.shared.SupervisorResource;
 import stroom.svg.client.SvgPresets;
 import stroom.util.client.DataGridUtil;
@@ -48,11 +48,11 @@ import com.gwtplatform.mvp.client.MyPresenterWidget;
 import java.util.function.Consumer;
 
 /**
- * What is waiting on the ledger (design 01 §5.2, A28 §11.6), a row per shape, beside the attempts.
+ * What is waiting on the ledger (design 01 §5.2, A28 §11.6), a row per learner, beside the attempts.
  * <p>
  * Nothing is held: every stream counted here was processed to an error stream and is where it always
  * was, so this is a list of what a promotion <em>would</em> release rather than a queue of anything
- * being kept. Grouped by shape because that is what settles — one promotion takes a whole shape off —
+ * being kept. Grouped by learner because that is what settles — one promotion takes a learner's streams off —
  * and a feed that has been unknown for a week is one row saying how many streams that is, not a page
  * of them.
  * <p>
@@ -63,12 +63,12 @@ public class SupervisorLedgerPresenter extends MyPresenterWidget<PagerView> {
 
     private static final SupervisorResource SUPERVISOR_RESOURCE = GWT.create(SupervisorResource.class);
 
-    private final RestDataProvider<LedgerShape, ResultPage<LedgerShape>> dataProvider;
-    private final MyDataGrid<LedgerShape> dataGrid;
-    private final MultiSelectionModel<LedgerShape> selectionModel;
+    private final RestDataProvider<LedgerLearner, ResultPage<LedgerLearner>> dataProvider;
+    private final MyDataGrid<LedgerLearner> dataGrid;
+    private final MultiSelectionModel<LedgerLearner> selectionModel;
     private final RestFactory restFactory;
     private final ButtonView learnButton;
-    /// Told when a shape has been sent back to be learned, so that the attempts beside this can be read
+    /// Told when a learner has been sent back to learn, so that the attempts beside this can be read
     /// again: what was asked for will show up there.
     private Runnable onLearn;
 
@@ -85,12 +85,12 @@ public class SupervisorLedgerPresenter extends MyPresenterWidget<PagerView> {
         view.setDataWidget(dataGrid);
         initTableColumns();
 
-        // Paged, like the attempts beside it. A document may have more waiting shapes than anybody
+        // Paged, like the attempts beside it. A document may have more waiting learners than anybody
         // wants to scroll, and a grid handed all of them shows the first page and loses the rest.
-        dataProvider = new RestDataProvider<LedgerShape, ResultPage<LedgerShape>>(eventBus) {
+        dataProvider = new RestDataProvider<LedgerLearner, ResultPage<LedgerLearner>>(eventBus) {
             @Override
             protected void exec(final Range range,
-                                final Consumer<ResultPage<LedgerShape>> dataConsumer,
+                                final Consumer<ResultPage<LedgerLearner>> dataConsumer,
                                 final RestErrorHandler errorHandler) {
                 restFactory
                         .create(SUPERVISOR_RESOURCE)
@@ -103,10 +103,10 @@ public class SupervisorLedgerPresenter extends MyPresenterWidget<PagerView> {
             }
         };
         dataProvider.addDataDisplay(dataGrid);
-        // A28's way of starting learning rather than merely approving it: a shape waiting here is
-        // waiting because nothing bound it, and this asks for it to be learned now.
+        // A28's way of starting learning rather than merely approving it: a learner waiting here is
+        // waiting because nothing served its streams, and this asks for it to learn now.
         learnButton = view.addButton(SvgPresets.RERUN.title(
-                "Learn this shape now, and process the streams waiting on it again"));
+                "Learn now, and process the streams waiting on this learner again"));
         updateButtons();
     }
 
@@ -118,31 +118,31 @@ public class SupervisorLedgerPresenter extends MyPresenterWidget<PagerView> {
     }
 
     /**
-     * Told when a shape has been sent back to be learned.
+     * Told when a learner has been sent back to learn.
      */
     public void setOnLearn(final Runnable onLearn) {
         this.onLearn = onLearn;
     }
 
-    /// Ask for the selected shape to be learned now (A28).
+    /// Ask for the selected learner to learn now (A28).
     ///
     /// This is the door the ruling leans on — "they raise an attempt for a given-up shape from the same
-    /// screen, so no on-request learning mode is needed". A shape given up stays given up until
-    /// somebody says otherwise, and this is saying otherwise: the give-up goes, the shape is sent back,
+    /// screen, so no on-request learning mode is needed". A learner that gave up stays given up until
+    /// somebody says otherwise, and this is saying otherwise: the give-up goes, the learner is sent back,
     /// and the streams waiting on it are asked to be processed again so that the first of them through
-    /// learns it.
+    /// learns.
     ///
     /// The reason is asked for rather than assumed. It opens the next attempt — the model is told why
     /// it is being asked again — and travels with every stream asked for.
     private void learn() {
-        final LedgerShape shape = selectionModel.getSelected();
-        if (shape == null || shape.getDoc() == null) {
+        final LedgerLearner row = selectionModel.getSelected();
+        if (row == null || row.getDoc() == null) {
             return;
         }
         PromptEvent.fire(this,
-                "Why is this shape being learned again? The model is told, and every stream waiting on "
-                + "it is asked to be processed again — " + shape.getWaiting()
-                + (shape.getWaiting() == 1
+                "Why is this learner learning again? The model is told, and every stream waiting on "
+                + "it is asked to be processed again — " + row.getWaiting()
+                + (row.getWaiting() == 1
                         ? " stream."
                         : " streams."), "",
                 reason -> {
@@ -152,16 +152,16 @@ public class SupervisorLedgerPresenter extends MyPresenterWidget<PagerView> {
                     }
                     restFactory
                             .create(SUPERVISOR_RESOURCE)
-                            .method(resource -> resource.learn(shape.getDoc().getUuid(),
-                                    new LearnShapeRequest(shape.getShapeId(), shape.getLearner(), reason)))
+                            .method(resource -> resource.learn(row.getDoc().getUuid(),
+                                    new LearnAgainRequest(row.getLearner(), reason)))
                             .onSuccess(asked -> AlertEvent.fireInfo(this, asked == null || asked == 0
-                                    ? "The shape will be learned when its feed next ships: nothing was "
+                                    ? "It will learn when its feed next ships: nothing was "
                                       + "waiting on it."
                                     : asked + (asked == 1
                                             ? " stream is"
                                             : " streams are")
                                       + " asked to be processed again, and the first of them through "
-                                      + "learns the shape.", this::learned))
+                                      + "learns.", this::learned))
                             .taskMonitorFactory(getView())
                             .exec();
                 });
@@ -169,7 +169,7 @@ public class SupervisorLedgerPresenter extends MyPresenterWidget<PagerView> {
 
     private void learned() {
         // The row has just been released — the streams it counted are being processed again — so the
-        // selection is on a shape that is no longer waiting, and the button would stay lit for it.
+        // selection is on a learner that is no longer waiting, and the button would stay lit for it.
         selectionModel.clear();
         updateButtons();
         refresh();
@@ -183,7 +183,7 @@ public class SupervisorLedgerPresenter extends MyPresenterWidget<PagerView> {
     }
 
     /**
-     * Read the ledger again: what is waiting changes when a shape settles.
+     * Read the ledger again: what is waiting changes when a learner settles.
      */
     public void refresh() {
         dataProvider.refresh();
@@ -191,43 +191,42 @@ public class SupervisorLedgerPresenter extends MyPresenterWidget<PagerView> {
 
     private void initTableColumns() {
         dataGrid.addResizableColumn(
-                DataGridUtil.htmlColumnBuilder((LedgerShape shape) ->
-                        text(NullSafe.get(shape.getDoc(), DocRef::getName))).build(),
+                DataGridUtil.htmlColumnBuilder((LedgerLearner row) ->
+                        text(NullSafe.get(row.getDoc(), DocRef::getName))).build(),
                 DataGridUtil.headingBuilder("Document")
-                        .withToolTip("Whose ledger it is. Two documents may have shapes of the same name "
-                                     + "and they settle separately.")
+                        .withToolTip("The document the learner runs under.")
                         .build(),
                 ColumnSizeConstants.MEDIUM_COL);
         dataGrid.addResizableColumn(
-                DataGridUtil.htmlColumnBuilder((LedgerShape shape) -> text(shape.getShapeId())).build(),
-                DataGridUtil.headingBuilder("Shape")
-                        .withToolTip("The learning key's values for the streams that are waiting.")
+                DataGridUtil.htmlColumnBuilder((LedgerLearner row) -> text(String.valueOf(row.getLearner())))
+                        .build(),
+                DataGridUtil.headingBuilder("Learner")
+                        .withToolTip("The pipeline and the element in it whose streams are waiting.")
                         .build(),
                 ColumnSizeConstants.BIG_COL);
         dataGrid.addResizableColumn(
-                DataGridUtil.htmlColumnBuilder((LedgerShape shape) ->
-                        text(Integer.toString(shape.getWaiting()))).rightAligned().build(),
+                DataGridUtil.htmlColumnBuilder((LedgerLearner row) ->
+                        text(Integer.toString(row.getWaiting()))).rightAligned().build(),
                 DataGridUtil.headingBuilder("Waiting")
                         .withToolTip("How many streams. Nothing is held: each was processed to an error "
                                      + "stream and is where it always was. This is what a promotion of "
-                                     + "the shape would ask to be processed again.")
+                                     + "the learner would ask to be processed again.")
                         .rightAligned()
                         .build(),
                 80);
         dataGrid.addResizableColumn(
-                DataGridUtil.htmlColumnBuilder((LedgerShape shape) ->
-                        text(ClientDateUtil.toISOString(shape.getOldestTimeMs()))).build(),
+                DataGridUtil.htmlColumnBuilder((LedgerLearner row) ->
+                        text(ClientDateUtil.toISOString(row.getOldestTimeMs()))).build(),
                 DataGridUtil.headingBuilder("Waiting since")
-                        .withToolTip("When the first of them arrived, which is how long this shape has "
+                        .withToolTip("When the first of them arrived, which is how long this learner has "
                                      + "been going unprocessed.")
                         .build(),
                 ColumnSizeConstants.DATE_COL);
         dataGrid.addResizableColumn(
-                DataGridUtil.htmlColumnBuilder((LedgerShape shape) -> text(shape.getReason())).build(),
+                DataGridUtil.htmlColumnBuilder((LedgerLearner row) -> text(row.getReason())).build(),
                 DataGridUtil.headingBuilder("Reason")
-                        .withToolTip("What the most recent stream of this shape was told: nothing binds "
-                                     + "it, it is being learned, it has been given up, or a draft awaits "
-                                     + "review.")
+                        .withToolTip("What the most recent of its streams was told: nothing serves it, it "
+                                     + "is learning, it has given up, or a draft awaits review.")
                         .build(),
                 ColumnSizeConstants.BIG_COL);
     }

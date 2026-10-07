@@ -26,7 +26,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
-/// Every attempt at learning a shape, as a record that outlives the node that made it (A28): its turns,
+/// Every attempt at learning, as a record that outlives the node that made it (A28): its turns,
 /// what each was answered with and by whom, and what the attempt came to. The same record whichever mode
 /// produced it — an automatic attempt differs from a deferred or reviewed one only in who answered and
 /// when — so that one view can show them all, a person can see what was said, and a resumed attempt
@@ -35,31 +35,31 @@ import java.util.Optional;
 /// This is the record; the resuming is slice 25's.
 public interface Attempts {
 
-    /// Open an attempt for a shape. The row is the claim on the shape (A45): one open attempt per
-    /// learner and shape is what one session at a time means, and an attempt parked awaiting the model or a person is
-    /// still learning.
+    /// Open an attempt for a learner. The row is the learner's claim (A45): one open attempt per learner
+    /// is what one session at a time means, and an attempt parked awaiting the model or a person is still
+    /// learning.
     ///
-    /// An open attempt whose lease has lapsed holds its shape still: its node has stopped, and the session
+    /// An open attempt whose lease has lapsed holds its claim still: its node has stopped, and the session
     /// is resumed from its recorded turns by the next worker to find it (design 04 §4), not replaced.
     ///
     /// @param nowMs What the caller's clock says now, which the record keeps beside the claim's expiry;
     ///              the two must come from one clock.
-    /// @return The attempt's id, or empty where another is open for the shape — the caller has not taken
-    /// the shape and must not learn it.
+    /// @return The attempt's id, or empty where another is open for the learner — the caller has not
+    /// taken the claim and must not learn.
     Optional<Long> opened(Attempt attempt, long nowMs);
 
-    /// The attempt open for a shape, if one is — lapsed or not: what a node meeting the shape finds instead
-    /// of taking it, and what a stream of the shape waits on.
-    Optional<Recorded> open(Learner learner, String shape, long nowMs);
+    /// The attempt open for a learner, if one is — lapsed or not: what a node meeting the learner finds
+    /// instead of taking the claim, and what a stream of the learner waits on.
+    Optional<Recorded> open(Learner learner, long nowMs);
 
-    /// Park an attempt until whoever will answer its next question does (A28): it keeps its claim on the
-    /// shape, since it is still learning, and its expiry is pushed out by the same heartbeat. What it has
+    /// Park an attempt until whoever will answer its next question does (A28): it keeps its learner's
+    /// claim, since it is still learning, and its expiry is pushed out by the same heartbeat. What it has
     /// spent so far is added to what it had spent before, since a resumed attempt's cost is the whole of
     /// it and not its last leg.
     void parked(long attemptId, AttemptStatus status, long expiryMs, long tokensSpent);
 
     /// Park an attempt for a person (A65): out of budget or out of candidates before its stream cleared
-    /// the bar. It keeps its claim on the shape with a lease that does not lapse, the worker leaves it
+    /// the bar. It keeps its learner's claim with a lease that does not lapse, the worker leaves it
     /// alone, and what it stopped on is recorded as its decision for the Supervisor to show.
     ///
     /// @param attemptId   The attempt.
@@ -81,7 +81,7 @@ public interface Attempts {
     /// The attempts waiting for the model, oldest first: what deferred mode's worker advances (A5, A28).
     /// Whether a parked attempt's claim has lapsed does not matter here — nobody is carrying it, so there
     /// is nothing to take it from, and a worker that was down while it lapsed must still pick it up or
-    /// the shape waits for a stream that may never come. A parked attempt that *has* been taken over is
+    /// the learner waits for a stream that may never come. A parked attempt that *has* been taken over is
     /// no longer awaiting: opening the attempt that took it closed this one.
     List<Recorded> awaiting(int limit);
 
@@ -105,7 +105,7 @@ public interface Attempts {
     List<Recorded> lapsed(long nowMs, int limit);
 
     /// Push a running attempt's claim out, as the conversation asks each question (A45): the heartbeat that
-    /// keeps a slow model call from costing a node the shape it is learning.
+    /// keeps a slow model call from costing a node the claim it is learning under.
     void heartbeat(long attemptId, long expiryMs);
 
     /// Write a turn of an attempt, by its number: as it is answered, and again when it is judged. An
@@ -125,10 +125,10 @@ public interface Attempts {
     void amended(long attemptId, int turnNumber, String answer, String answeredBy);
 
     /// Open an attempt again, so that it may be run from a turn a person has changed (A28). It takes its
-    /// shape back and its claim is pushed out, as opening one does (A45), whether it had finished, was
+    /// learner's claim back and the claim is pushed out, as opening one does (A45), whether it had finished, was
     /// parked, or was being walked by a node that has since stopped.
     ///
-    /// @return Whether it was opened. False where another attempt holds the shape now — lapsed or not,
+    /// @return Whether it was opened. False where another attempt holds the claim now — lapsed or not,
     /// since a lapsed one is resumed and not replaced — and false where a node is walking this one at this
     /// moment: its answers are that walk's to give, and a person's would be overwritten by the next turn
     /// it records. Either way the person is told rather than the answer being lost.
@@ -181,13 +181,13 @@ public interface Attempts {
 
     /// @param learner  What is learning: the pipeline and element whose claim the attempt is (A114).
     /// @param docUuid  The document it learns under.
-    /// @param shape    The shape being learned, as the learning key writes it.
+    /// @param feed     The feed of the stream it opened on.
+    /// @param type     The type of the stream it opened on.
     /// @param inputId  The stream that raised the attempt, so a person can see what it was learning from.
     /// @param node     Which node opened it.
     /// @param expiryMs When the claim lapses if nothing heartbeats it (A45).
     record Attempt(Learner learner,
                    String docUuid,
-                   String shape,
                    String feed,
                    String type,
                    Long inputId,

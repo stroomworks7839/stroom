@@ -21,17 +21,16 @@ import stroom.shapeshifter.shared.RoutingRule;
 import java.util.List;
 import java.util.Optional;
 
-/// The bindings of A41 and A124, as rows: each the fragment a learner's shape is served by, or a draft
-/// awaiting review for it. Rows rather than a field on the document, so that two nodes promoting two shapes
-/// write two rows rather than racing to rewrite one document.
+/// The bindings of A41 and A124, as rows: the fragment a learner is served by, and any draft awaiting review
+/// to take its place. Rows rather than a field on the document, so that two nodes promoting for two
+/// learners write two rows rather than racing to rewrite one document.
 ///
 /// A row is the learner's (design 06 phase J slice 2b), and records the document the learner ran under
 /// when it was written, for the Supervisor to show and to decide who may see it. The serving path reads
 /// through a cache; these are the writes and the cache's source (design 01 §11.4).
 public interface Rules {
 
-    /// The learner's bindings, oldest first. A shape is served by its own binding, so their order decides
-    /// nothing (design 06 phase J slice 2a).
+    /// The learner's bindings, oldest first: the one that serves it, and any draft (A124).
     ///
     /// @param learner The learner.
     /// @return Its bindings.

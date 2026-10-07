@@ -41,9 +41,9 @@ import stroom.shapeshifter.shared.GrantRequest;
 import stroom.shapeshifter.shared.GuidanceRequest;
 import stroom.shapeshifter.shared.ImproveOutcome;
 import stroom.shapeshifter.shared.ImproveRequest;
-import stroom.shapeshifter.shared.LearnShapeRequest;
+import stroom.shapeshifter.shared.LearnAgainRequest;
 import stroom.shapeshifter.shared.LearnerRef;
-import stroom.shapeshifter.shared.LedgerShape;
+import stroom.shapeshifter.shared.LedgerLearner;
 import stroom.shapeshifter.shared.RejectRequest;
 import stroom.shapeshifter.shared.ServingCriteria;
 import stroom.shapeshifter.shared.ServingRule;
@@ -198,7 +198,7 @@ public class SupervisorResourceImpl implements SupervisorResource {
         return new ResultPage<>(rows, new PageResponse(offset, rows.size(), page.total(), true));
     }
 
-    /// What is waiting on the ledger (§5.2, A28), a row per shape, beside the attempts.
+    /// What is waiting on the ledger (§5.2, A28), a row per learner, beside the attempts.
     ///
     /// Nothing is held: every stream named here was processed to an error stream and is where it always
     /// was, so this is a list of what a promotion *would* release rather than a queue of anything being
@@ -206,10 +206,10 @@ public class SupervisorResourceImpl implements SupervisorResource {
     /// through the pipeline because somebody looked at it.
     ///
     /// The documents this person may see go into the query rather than filtering its answer, as they do
-    /// for [#find]: a total taken before the filtering would say how many shapes wait on documents they
+    /// for [#find]: a total taken before the filtering would say how many learners wait on documents they
     /// may not see, and the pages they turned would come back short.
     @Override
-    public ResultPage<LedgerShape> ledger(final String docUuid, final PageRequest pageRequest) {
+    public ResultPage<LedgerLearner> ledger(final String docUuid, final PageRequest pageRequest) {
         final PageRequest page = pageRequest == null
                 ? new PageRequest(0, 100)
                 : pageRequest;
@@ -218,15 +218,14 @@ public class SupervisorResourceImpl implements SupervisorResource {
         final int length = pageLength(page);
         final Ledger.Page found = ledgerProvider.get().waiting(readable.keySet(), offset, length);
         // Each row named with its document rather than its uuid, since the view is over all of them.
-        final List<LedgerShape> rows = found.shapes().stream()
-                .map(shape -> new LedgerShape(
-                        readable.get(shape.getDoc().getUuid()),
-                        shape.getLearner(),
-                        shape.getShapeId(),
-                        shape.getWaiting(),
-                        shape.getOldestTimeMs(),
-                        shape.getNewestTimeMs(),
-                        shape.getReason()))
+        final List<LedgerLearner> rows = found.learners().stream()
+                .map(row -> new LedgerLearner(
+                        readable.get(row.getDoc().getUuid()),
+                        row.getLearner(),
+                        row.getWaiting(),
+                        row.getOldestTimeMs(),
+                        row.getNewestTimeMs(),
+                        row.getReason()))
                 .toList();
         return new ResultPage<>(rows, new PageResponse(offset, rows.size(), found.total(), true));
     }
@@ -351,18 +350,15 @@ public class SupervisorResourceImpl implements SupervisorResource {
                 stageFactoryProvider.get().create().retract(doc, ruleUuid, request.getReason(), by));
     }
 
-    /// Ask for a shape to be learned now (A28), and for the streams waiting on it to be processed
-    /// again — which is what raising an attempt for a given-up shape from this screen means.
+    /// Ask for a learner to learn now (A28), and for the streams waiting on it to be processed again —
+    /// which is what A28 means by raising an attempt for a given-up shape from this screen.
     ///
     /// Held to EDIT, as the other acts that spend a model's tokens and change the document's routing
     /// are: this one overrides a decision to stop, whether the stage's or a person's.
     @Override
-    public Integer learn(final String docUuid, final LearnShapeRequest request) {
-        if (request == null || NullSafe.isBlankString(request.getShapeId())) {
-            throw new IllegalArgumentException("Learning is about a shape: say which");
-        }
-        if (NullSafe.isBlankString(request.getReason())) {
-            throw new IllegalArgumentException("A shape sent back to be learned says why: the reason "
+    public Integer learn(final String docUuid, final LearnAgainRequest request) {
+        if (request == null || NullSafe.isBlankString(request.getReason())) {
+            throw new IllegalArgumentException("A learner sent back to learn says why: the reason "
                                                + "opens the next attempt and travels with every stream "
                                                + "asked for");
         }
@@ -374,32 +370,28 @@ public class SupervisorResourceImpl implements SupervisorResource {
         final String by = securityContextProvider.get().getUserIdentityForAudit();
         final ShapeshifterAiDoc doc = document(docUuid);
         return pipelineScopeProvider.get().scopeResult(() -> stageFactoryProvider.get().create()
-                .learnAgain(doc, learner, request.getShapeId(), request.getReason(), by));
+                .learnAgain(doc, learner, request.getReason(), by));
     }
 
-    /// What has been said about a shape (A46), oldest first.
+    /// What has been said to a learner (A46), oldest first.
     @Override
     public List<SupervisorGuidance> guidance(final String docUuid,
                                              final String pipelineUuid,
-                                             final String elementId,
-                                             final String shapeId) {
+                                             final String elementId) {
         if (!may(docUuid, DocumentPermission.VIEW)) {
             throw new PermissionException(securityContextProvider.get().getUserRef(),
                     "You do not have permission to read this document");
         }
-        return said(learnerOf(docUuid, new LearnerRef(pipelineUuid, elementId)), shapeId);
+        return said(learnerOf(docUuid, new LearnerRef(pipelineUuid, elementId)));
     }
 
-    /// Tell the learning something about a shape, without asking for anything to be run.
+    /// Tell a learner something, without asking for anything to be run.
     ///
-    /// Held to EDIT rather than VIEW: what is written here is carried into every question asked about
-    /// the shape from now on, which is a change to how the document learns.
+    /// Held to EDIT rather than VIEW: what is written here is carried into every question the learner
+    /// asks from now on, which is a change to how the document learns.
     @Override
     public List<SupervisorGuidance> hint(final String docUuid, final GuidanceRequest request) {
-        if (request == null || NullSafe.isBlankString(request.getShapeId())) {
-            throw new IllegalArgumentException("Guidance is about a shape: say which");
-        }
-        if (NullSafe.isBlankString(request.getMessage())) {
+        if (request == null || NullSafe.isBlankString(request.getMessage())) {
             throw new IllegalArgumentException("There is nothing to record: the message is empty");
         }
         if (!may(docUuid, DocumentPermission.EDIT)) {
@@ -407,13 +399,13 @@ public class SupervisorResourceImpl implements SupervisorResource {
                     "You do not have permission to change how this document learns");
         }
         final Learner learner = learnerOf(docUuid, request.getLearner());
-        guidanceProvider.get().given(learner, docUuid, request.getShapeId(), request.getMessage(),
+        guidanceProvider.get().given(learner, docUuid, request.getMessage(),
                 securityContextProvider.get().getUserIdentityForAudit());
-        return said(learner, request.getShapeId());
+        return said(learner);
     }
 
-    /// Take back something said about a shape. A hint that turned out to be wrong is worse than no hint:
-    /// it is carried into every question about the shape until it is withdrawn.
+    /// Take back something said to a learner. A hint that turned out to be wrong is worse than no hint:
+    /// it is carried into every question the learner asks until it is withdrawn.
     ///
     /// The turns that already carried it still say they did (A45), which is what a re-walk replays: what
     /// was withdrawn stops being carried, and does not stop having been.
@@ -421,15 +413,14 @@ public class SupervisorResourceImpl implements SupervisorResource {
     public List<SupervisorGuidance> withdraw(final String docUuid,
                                              final long id,
                                              final String pipelineUuid,
-                                             final String elementId,
-                                             final String shapeId) {
+                                             final String elementId) {
         if (!may(docUuid, DocumentPermission.EDIT)) {
             throw new PermissionException(securityContextProvider.get().getUserRef(),
                     "You do not have permission to change how this document learns");
         }
         final Learner learner = learnerOf(docUuid, new LearnerRef(pipelineUuid, elementId));
         guidanceProvider.get().withdraw(docUuid, id);
-        return said(learner, shapeId);
+        return said(learner);
     }
 
     @Override
@@ -458,19 +449,16 @@ public class SupervisorResourceImpl implements SupervisorResource {
     @Override
     public SupervisorAttempt reject(final long id, final RejectRequest request) {
         if (request == null || request.getReason() == null || request.getReason().isBlank()) {
-            throw new IllegalArgumentException("A rejection says why: the shape is given up with the reason");
+            throw new IllegalArgumentException("A rejection says why: the learner gives up with the reason");
         }
         final Recorded attempt = change(id);
         onStage(attempt, (stage, doc) -> stage.reject(doc, ruleOf(attempt), request.getReason()));
         return detail(read(id));
     }
 
-    private List<SupervisorGuidance> said(final Learner learner, final String shapeId) {
-        if (NullSafe.isBlankString(shapeId)) {
-            return List.of();
-        }
-        return guidanceProvider.get().standing(learner, shapeId).stream()
-                .map(given -> new SupervisorGuidance(given.id(), shapeId, given.message(), given.author(),
+    private List<SupervisorGuidance> said(final Learner learner) {
+        return guidanceProvider.get().standing(learner).stream()
+                .map(given -> new SupervisorGuidance(given.id(), given.message(), given.author(),
                         given.timeMs()))
                 .toList();
     }
@@ -480,7 +468,7 @@ public class SupervisorResourceImpl implements SupervisorResource {
         final Recorded attempt = stillUnder(change(id));
         final String who = securityContextProvider.get().getUserIdentityForAudit();
         onStage(attempt, (stage, doc) -> stage.relearn(doc, attempt.attempt().learner(),
-                attempt.attempt().shape(), "Sent back to be learned again by " + who));
+                "Sent back to be learned again by " + who));
         return detail(read(id));
     }
 
@@ -511,7 +499,7 @@ public class SupervisorResourceImpl implements SupervisorResource {
         final boolean below = threshold != null
                               && rule.getRollingScore() != null
                               && rule.getRollingScore() < threshold;
-        return new ServingRule(doc, rule.getLearner(), rule.getRuleUuid(), rule.getShapeId(), rule.getFragment(),
+        return new ServingRule(doc, rule.getLearner(), rule.getRuleUuid(), rule.getFragment(),
                 rule.isPinned(), rule.isProvisional(), rule.getPromotedScore(), rule.getPromotedTimeMs(),
                 rule.getRollingScore(), rule.getRecords(), rule.getGuidance(), below);
     }
@@ -520,7 +508,7 @@ public class SupervisorResourceImpl implements SupervisorResource {
     private static Learner learner(final LearnerRef ref) {
         if (ref == null || NullSafe.isBlankString(ref.getPipelineUuid())
             || NullSafe.isBlankString(ref.getElementId())) {
-            throw new IllegalArgumentException("A shape is a learner's: say which pipeline and element");
+            throw new IllegalArgumentException("Say which learner: its pipeline and element");
         }
         return new Learner(ref.getPipelineUuid(), ref.getElementId());
     }
@@ -575,7 +563,7 @@ public class SupervisorResourceImpl implements SupervisorResource {
         return permitted(id, DocumentPermission.VIEW);
     }
 
-    /// An attempt a person may change. Approving a draft binds a rule, rejecting one gives a shape up,
+    /// An attempt a person may change. Approving a draft binds a rule, rejecting one gives a learner up,
     /// and running an attempt again spends a model's tokens: these are edits of the document's routing
     /// and are held to the same permission as editing its routing table by hand.
     private Recorded change(final long id) {
@@ -642,7 +630,6 @@ public class SupervisorResourceImpl implements SupervisorResource {
                 attempt.id(),
                 new DocRef(ShapeshifterAiDoc.TYPE, attempt.attempt().docUuid()),
                 ref(attempt.attempt().learner()),
-                attempt.attempt().shape(),
                 attempt.attempt().feed(),
                 attempt.attempt().type(),
                 attempt.attempt().inputId(),

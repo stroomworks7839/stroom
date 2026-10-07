@@ -80,9 +80,9 @@ public final class InMemoryDeferrals implements Deferrals {
     }
 
     @Override
-    public synchronized List<Deferral> waiting(final Learner learner, final String feed, final String type) {
+    public synchronized List<Deferral> waiting(final Learner learner) {
         return rows.stream()
-                .filter(row -> row.learner().equals(learner) && row.feed().equals(feed) && row.type().equals(type))
+                .filter(row -> row.learner().equals(learner))
                 .sorted(Comparator.comparingLong(Deferral::firstDeferredMs).thenComparingLong(Deferral::inputId))
                 .toList();
     }

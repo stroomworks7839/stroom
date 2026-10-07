@@ -125,15 +125,12 @@ public class DeferralsDao implements Deferrals {
     }
 
     @Override
-    public List<Deferral> waiting(final Learner learner, final String feed, final String type) {
-        // On the learner's prefix of the unique key: a learner's waiting streams are few, and a key that
-        // went on to the feed and type would be longer than an index may be.
+    public List<Deferral> waiting(final Learner learner) {
+        // On the learner's prefix of the unique key.
         return JooqUtil.contextResult(connProvider, context -> context
                 .selectFrom(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL)
                 .where(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.PIPELINE_UUID.eq(learner.pipelineUuid()))
                 .and(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.ELEMENT_ID.eq(learner.elementId()))
-                .and(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.FEED_NAME.eq(feed))
-                .and(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.TYPE_NAME.eq(type))
                 .orderBy(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.FIRST_DEFERRED_MS.asc(),
                         ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.META_ID.asc())
                 .fetch(DeferralsDao::deferral));

@@ -17,6 +17,7 @@
 package stroom.shapeshifter.ai.learning;
 
 import stroom.meta.api.StandardHeaderArguments;
+import stroom.meta.shared.MetaFields;
 import stroom.shapeshifter.ai.extraction.DataSplitterStep;
 import stroom.shapeshifter.ai.extraction.ExtractionCorpus;
 import stroom.shapeshifter.ai.extraction.ExtractionCorpus.Failing;
@@ -67,13 +68,13 @@ class TestConversation {
     private static final String XSLT = Scenarios.resource("csv-logon.xsl");
     private static final String EXPECTED_EVENTS = Scenarios.resource("csv-logon.events.xml");
     /**
-     * The sample as the supervisor would build it: the text plus the learning key's values, with a
-     * sender-set header present to show that what the key does not name is left behind (A29).
+     * The sample as the supervisor would build it: the text plus the stream's feed and type, with a
+     * sender-set header present to show that anything else is left behind (A126).
      */
     private static final Sample SAMPLE = Sample.of(CSV.input(),
-            List.of(StandardHeaderArguments.FORMAT, StandardHeaderArguments.SYSTEM),
             Map.of(
-                    StandardHeaderArguments.FORMAT, "CSV",
+                    MetaFields.FIELD_FEED, "DOOR-ACCESS",
+                    MetaFields.FIELD_TYPE, "Raw Events",
                     StandardHeaderArguments.SYSTEM, "Door Access",
                     "X-Sender-Token", "s3cret"));
 
@@ -183,10 +184,10 @@ class TestConversation {
                 .containsExactly("DSParser", "XSLTFilter");
         assertThat(shape.sample().text()).isEqualTo(CSV.input());
         assertThat(shape.sample().headers())
-                .describedAs("only the learning key's values reach the model")
+                .describedAs("only the feed and type reach the model")
                 .containsExactly(
-                        Map.entry(StandardHeaderArguments.FORMAT, "CSV"),
-                        Map.entry(StandardHeaderArguments.SYSTEM, "Door Access"));
+                        Map.entry(MetaFields.FIELD_FEED, "DOOR-ACCESS"),
+                        Map.entry(MetaFields.FIELD_TYPE, "Raw Events"));
 
         final Configuration parser = (Configuration) model.questions().get(1);
         assertThat(parser.elementType()).isEqualTo("DSParser");

@@ -53,8 +53,6 @@ public class AttemptFilterViewImpl extends ViewImpl implements AttemptFilterView
     @UiField
     TextBox feed;
     @UiField
-    TextBox shape;
-    @UiField
     SelectionBox<PromotionMode> promotionMode;
     @UiField
     FlowPanel statuses;
@@ -90,16 +88,6 @@ public class AttemptFilterViewImpl extends ViewImpl implements AttemptFilterView
     @Override
     public void setFeed(final String feed) {
         this.feed.setValue(feed);
-    }
-
-    @Override
-    public String getShape() {
-        return shape.getValue();
-    }
-
-    @Override
-    public void setShape(final String shape) {
-        this.shape.setValue(shape);
     }
 
     @Override

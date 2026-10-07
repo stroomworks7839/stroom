@@ -18,7 +18,7 @@
 package stroom.shapeshifter.ai.impl.db;
 
 import stroom.db.util.JooqUtil;
-import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterShape;
+import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterLearnerState;
 import stroom.shapeshifter.ai.stage.Learner;
 import stroom.shapeshifter.shared.RoutingRule;
 
@@ -35,14 +35,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 class TestLearnersDao {
 
     private static final String RUN = String.valueOf(System.nanoTime());
-    private static final String SHAPE = "Feed=DOOR-ACCESS|Type=Raw Events";
 
     @Inject
     private LearnersDao learners;
     @Inject
     private RulesDao rules;
     @Inject
-    private ShapesDao shapes;
+    private LearnerStatesDao states;
     @Inject
     private LedgerDao ledger;
     @Inject
@@ -62,20 +61,19 @@ class TestLearnersDao {
         for (final Learner each : List.of(learner, neighbour)) {
             rules.append(each, before, RoutingRule.builder()
                     .uuid("rule-" + each.pipelineUuid())
-                    .shapeId(SHAPE)
                     .build());
-            shapes.giveUp(each, before, SHAPE, "Nothing to learn");
-            ledger.sentinelled(each, before, SHAPE, 7L, "Shape given up");
+            states.giveUp(each, before, "Nothing to learn");
+            ledger.sentinelled(each, before, 7L, "Shape given up");
             deferrals.deferred(each, before, 8L, "DOOR-ACCESS", "Raw Events", null, null, null, "waiting", 0);
         }
-        final long hint = guidance.given(learner, before, SHAPE, "Times are local.", "jo");
+        final long hint = guidance.given(learner, before, "Times are local.", "jo");
 
         learners.runsUnder(learner, after);
 
         assertThat(rules.byUuid("rule-" + learner.pipelineUuid()))
                 .hasValueSatisfying(held -> assertThat(held.docUuid()).isEqualTo(after));
-        assertThat(documentsOfShapes(learner)).containsExactly(after);
-        assertThat(ledger.waiting(List.of(after), 0, 10).shapes())
+        assertThat(documentsOfStates(learner)).containsExactly(after);
+        assertThat(ledger.waiting(List.of(after), 0, 10).learners())
                 .singleElement()
                 .satisfies(row -> assertThat(row.getLearner().getPipelineUuid())
                         .isEqualTo(learner.pipelineUuid()));
@@ -83,14 +81,14 @@ class TestLearnersDao {
                 .singleElement()
                 .satisfies(row -> assertThat(row.learner()).isEqualTo(learner));
         guidance.withdraw(after, hint);
-        assertThat(guidance.standing(learner, SHAPE))
+        assertThat(guidance.standing(learner))
                 .describedAs("withdrawn by the document it is under now, which is who may change it")
                 .isEmpty();
 
         assertThat(rules.byUuid("rule-" + neighbour.pipelineUuid()))
                 .describedAs("the neighbour runs under the old document still, and stays there")
                 .hasValueSatisfying(held -> assertThat(held.docUuid()).isEqualTo(before));
-        assertThat(documentsOfShapes(neighbour)).containsExactly(before);
+        assertThat(documentsOfStates(neighbour)).containsExactly(before);
         assertThat(deferrals.forDocument(before))
                 .singleElement()
                 .satisfies(row -> assertThat(row.learner()).isEqualTo(neighbour));
@@ -103,30 +101,30 @@ class TestLearnersDao {
     void aNodeBringsALearnerOnceUntilItMovesAgain() {
         Guice.createInjector(new TestModule()).injectMembers(this);
         final Learner learner = new Learner("pipeline-once-" + RUN, "shapeshifterAi");
-        shapes.giveUp(learner, "first-" + RUN, SHAPE, "Nothing to learn");
+        states.giveUp(learner, "first-" + RUN, "Nothing to learn");
         learners.runsUnder(learner, "second-" + RUN);
-        shapes.giveUp(learner, "first-" + RUN, SHAPE, "Written under the old document again");
+        states.giveUp(learner, "first-" + RUN, "Written under the old document again");
 
         learners.runsUnder(learner, "second-" + RUN);
 
-        assertThat(documentsOfShapes(learner))
+        assertThat(documentsOfStates(learner))
                 .describedAs("remembered, so not asked of the database again")
                 .containsExactly("first-" + RUN);
 
         learners.runsUnder(learner, "third-" + RUN);
 
-        assertThat(documentsOfShapes(learner))
+        assertThat(documentsOfStates(learner))
                 .describedAs("and brought as soon as it moves")
                 .containsExactly("third-" + RUN);
     }
 
-    private List<String> documentsOfShapes(final Learner learner) {
-        final ShapeshifterShape shape = ShapeshifterShape.SHAPESHIFTER_SHAPE;
+    private List<String> documentsOfStates(final Learner learner) {
+        final ShapeshifterLearnerState state = ShapeshifterLearnerState.SHAPESHIFTER_LEARNER_STATE;
         return JooqUtil.contextResult(connProvider, context -> context
-                .select(shape.DOC_UUID)
-                .from(shape)
-                .where(shape.PIPELINE_UUID.eq(learner.pipelineUuid()))
-                .and(shape.ELEMENT_ID.eq(learner.elementId()))
-                .fetch(shape.DOC_UUID));
+                .select(state.DOC_UUID)
+                .from(state)
+                .where(state.PIPELINE_UUID.eq(learner.pipelineUuid()))
+                .and(state.ELEMENT_ID.eq(learner.elementId()))
+                .fetch(state.DOC_UUID));
     }
 }

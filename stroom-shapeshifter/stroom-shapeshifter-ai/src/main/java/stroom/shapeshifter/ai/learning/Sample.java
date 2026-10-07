@@ -16,29 +16,34 @@
 
 package stroom.shapeshifter.ai.learning;
 
+import stroom.meta.shared.MetaFields;
+
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 /**
- * What an attempt is about: the input to learn from and the values of the document's learning key that
- * describe the stream (A29).
+ * What an attempt is about: the input to learn from and the stream's feed and type (A29, A126).
  * <p>
- * Shown means bound: the model sees every field in the key and nothing else, so what it was told and
- * what the learned rule requires cannot drift apart, and the attribute map's sender-set entries —
- * hostnames, paths, tokens — never travel unless an operator put that header in the key. Both text and
+ * The model sees the feed and the type and nothing else of the stream's attributes, so the attribute
+ * map's sender-set entries — hostnames, paths, tokens — never travel. Both text and
  * values are subject to the redaction of A17 before they reach a model; that redaction is not yet built,
  * so today they travel as they arrive — and the document says nothing about it, since a setting that
  * promised redaction while none happened was worse than no setting (design 02 §6.1).
  *
  * @param text    The input sample, as the first element of the chain will receive it.
- * @param headers The learning key's values present on the stream, in key order.
+ * @param headers The feed and type the stream carries, in that order.
  */
 public record Sample(String text, Map<String, String> headers) {
 
+    /**
+     * What the model is shown of a stream's attributes: its feed and its type.
+     */
+    public static final List<String> SHOWN = List.of(MetaFields.FIELD_FEED, MetaFields.FIELD_TYPE);
+
     public Sample {
-        // Order is kept: a prompt lists the values in key order, strongest signal first.
+        // Order is kept: a prompt lists the values in order, strongest signal first.
         headers = Collections.unmodifiableMap(new LinkedHashMap<>(headers));
     }
 
@@ -47,12 +52,11 @@ public record Sample(String text, Map<String, String> headers) {
     }
 
     /**
-     * @param learningKey The document's learning key, in order.
-     * @param values      The stream's routing attributes, of which only the key's fields are kept.
+     * @param values The stream's routing attributes, of which only those {@link #SHOWN} are kept.
      */
-    public static Sample of(final String text, final List<String> learningKey, final Map<String, ?> values) {
+    public static Sample of(final String text, final Map<String, ?> values) {
         final Map<String, String> headers = new LinkedHashMap<>();
-        for (final String field : learningKey) {
+        for (final String field : SHOWN) {
             final Object value = values.get(field);
             if (value != null) {
                 headers.put(field, value.toString());

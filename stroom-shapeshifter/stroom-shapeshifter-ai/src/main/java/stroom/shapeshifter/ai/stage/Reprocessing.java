@@ -19,7 +19,7 @@ package stroom.shapeshifter.ai.stage;
 import java.util.List;
 
 /**
- * Requests to process inputs again, as-current (design 01 §7.3): the release of ruling A12 when a shape
+ * Requests to process inputs again, as-current (design 01 §7.3): the release of ruling A12 when a learner
  * is bound, and the same on retraction of a provisional rule (§6). In-memory in scenarios, which inspect
  * the requests; a reprocess filter through {@code ProcessorFilterService} in a node.
  */

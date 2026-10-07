@@ -92,7 +92,7 @@ class TestScenario02HeaderNamesTheParser {
         final Configuration transform = (Configuration) script.asked().get(1);
         assertThat(transform.input()).startsWith("<?xml").contains("http://www.w3.org/2013/XSL/json");
         assertThat(run.output()).isEqualTo(EVENTS);
-        assertThat(run.shape().id()).isEqualTo("Feed=API-GATEWAY|Type=Raw Events");
+        assertThat(run.learner()).isEqualTo(Scenarios.LEARNER);
         // The fragment holds the parser with no document: its one property-bearing element is the transform.
         assertThat(scenarios.stores.pipelines.list()).hasSize(1);
         assertThat(scenarios.stores.textConverters.list()).isEmpty();

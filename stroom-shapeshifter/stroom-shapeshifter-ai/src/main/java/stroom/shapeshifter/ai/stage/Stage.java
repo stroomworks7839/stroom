@@ -107,6 +107,7 @@ import java.util.TreeSet;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * One supervised stage over one stream, as design 02 §4 spells it out: route, learn, judge, write,
@@ -117,9 +118,9 @@ import java.util.stream.Collectors;
  * do not yet exist, the learning sample is a prefix and the whole stream is held out, as §7 also says;
  * the seeded shuffle applies once the replay unit is a record and is not needed by the first scenarios.
  * <p>
- * Runtime state is what the stage is given (A26): the shape rows, the ledger, the outputs' bindings, the
- * reprocess requests and the regression set. A sentinel is an error and a ledger row (A4); binding a
- * shape releases its ledger as a reprocess request (A12); retracting a provisional rule requests its
+ * Runtime state is what the stage is given (A26): the learners' states, the ledger, the outputs' bindings,
+ * the reprocess requests and the regression set. A sentinel is an error and a ledger row (A4); binding a
+ * learner releases its ledger as a reprocess request (A12); retracting a provisional rule requests its
  * outputs' inputs the same way (§6). In review mode (A25) a binding is a draft until {@link #approve}
  * makes it the promotion or {@link #reject} discards it.
  */
@@ -144,7 +145,7 @@ public final class Stage {
     private final FragmentRunner fragmentRunner;
     private final Attempts attempts;
     private final Rules rules;
-    private final Shapes shapes;
+    private final LearnerStates states;
     private final Spend spend;
     private final Ledger ledger;
     private final Guidance guidance;
@@ -177,7 +178,7 @@ public final class Stage {
                  final FragmentRunner fragmentRunner,
                  final Attempts attempts,
                  final Rules rules,
-                 final Shapes shapes,
+                 final LearnerStates states,
                  final Spend spend,
                  final Ledger ledger,
                  final Guidance guidance,
@@ -200,7 +201,7 @@ public final class Stage {
         this.fragmentRunner = fragmentRunner;
         this.attempts = attempts;
         this.rules = rules;
-        this.shapes = shapes;
+        this.states = states;
         this.spend = spend;
         this.ledger = ledger;
         this.guidance = guidance;
@@ -240,29 +241,22 @@ public final class Stage {
         final Recorded recorded = attempts.byId(attemptId)
                 .orElseThrow(() -> new IllegalArgumentException("No attempt " + attemptId));
         final Map<String, Object> attributes = input.routingAttributes(ShapeSignature.of(input.data()));
-        final Shape shape = Shape.of(recorded.attempt().learner(), attributes);
-        // The replay only re-derives what the attempt saw if it is walked over the same sample: a stream
-        // of another shape would be answered from a record of questions never asked about it.
-        if (!shape.id().equals(recorded.attempt().shape())) {
-            throw new IllegalArgumentException("Attempt " + attemptId + " was learning shape "
-                                               + recorded.attempt().shape() + ", and this stream is shape "
-                                               + shape.id());
-        }
+        final Learner learner = recorded.attempt().learner();
         // Carrying it on is taking it (A45): an attempt that has finished is not resumed, and one another
         // node has taken since is that node's until its claim lapses.
         if (!attempts.claimed(attemptId, node, clock.millis(), claimUntil())) {
-            return sentinel(doc, shape, input, "Attempt " + attemptId + " is not this node's to carry on: it "
+            return sentinel(doc, learner, input, "Attempt " + attemptId + " is not this node's to carry on: it "
                                                + "has finished, or another node holds it");
         }
-        // An attempt may have waited a long time, and the shape is not as it left it: an operator may
+        // An attempt may have waited a long time, and the learner is not as it left it: an operator may
         // have turned learning off, a person may have a draft of it in front of them, or it may have been
         // given up. Whatever the attempt was learning towards, it is not wanted
         // now, so it is closed rather than carried on into a rule nobody asked for.
-        final Optional<RoutingRule> matched = bindingFor(shape);
-        final Optional<String> stop = whyNotToCarryOn(doc, shape, matched);
+        final Optional<RoutingRule> matched = bindingFor(learner);
+        final Optional<String> stop = whyNotToCarryOn(doc, learner, matched);
         if (stop.isPresent()) {
             record(() -> attempts.closed(attemptId, AttemptStatus.ABANDONED, stop.get(), null, null, 0L));
-            return sentinel(doc, shape, input, stop.get());
+            return sentinel(doc, learner, input, stop.get());
         }
         final Scorecard scorecard = new Scorecard(doc.getScorers(), scorers);
         final RecordedAdvisor replay = new RecordedAdvisor(recorded.turns(), answerer);
@@ -272,27 +266,27 @@ public final class Stage {
                 .filter(turn -> turn.answeredBy() != null)
                 .collect(Collectors.toMap(Attempts.Turn::number, Attempts.Turn::answeredBy,
                         (first, second) -> first));
-        // What the attempt is doing is not stored either: it is read from the rules as they stand. A shape
-        // a rule already binds is being relearned (A29), and carrying the attempt on as though it were
-        // learning the shape afresh would append a second rule for one shape and orphan a fragment
-        // behind the first.
+        // What the attempt is doing is not stored either: it is read from the rules as they stand. A learner
+        // a rule already serves is being relearned (A29), and carrying the attempt on as though it were
+        // learning afresh would append a second binding for one learner and orphan a fragment behind the
+        // first.
         if (matched.isPresent()) {
             final RoutingRule rule = matched.get();
             final Judged served = judge(scorecard, rule.getPipeline(), input.data(), rule.getRecordBoundary());
-            final String marked = shapes.relearnReason(shape.learner(), shape.id())
-                    .orElse("the shape was marked for relearning");
-            return carrying(doc, shape, input, attemptId, recorded.tokensSpent(), recorded.grant(),
+            final String marked = states.relearnReason(learner)
+                    .orElse("the learner was marked to learn again");
+            return carrying(doc, learner, input, attemptId, recorded.tokensSpent(), recorded.grant(),
                     recorded.exhaustNext(), answeredBefore, replay, true,
-                    reason -> emit(doc, new Kept(rule, reason), shape, input, rule, served, List.of()),
-                    recorder -> settle(doc, shape, input, attributes, scorecard, recorder,
-                            relearnUnderClaim(doc, shape, rule, input, attributes, scorecard, served, marked,
+                    reason -> emit(doc, new Kept(rule, reason), learner, input, rule, served, List.of()),
+                    recorder -> settle(doc, learner, input, attributes, scorecard, recorder,
+                            relearnUnderClaim(doc, learner, rule, input, attributes, scorecard, served, marked,
                                     recorder)));
         }
-        return carrying(doc, shape, input, attemptId, recorded.tokensSpent(), recorded.grant(),
+        return carrying(doc, learner, input, attemptId, recorded.tokensSpent(), recorded.grant(),
                 recorded.exhaustNext(), answeredBefore, replay, true,
-                reason -> sentinel(doc, shape, input, reason),
-                recorder -> settle(doc, shape, input, attributes, scorecard, recorder,
-                        learnAndBind(doc, shape, input, attributes, scorecard, recorder)));
+                reason -> sentinel(doc, learner, input, reason),
+                recorder -> settle(doc, learner, input, attributes, scorecard, recorder,
+                        learnAndBind(doc, learner, input, attributes, scorecard, recorder)));
     }
 
     /**
@@ -303,7 +297,7 @@ public final class Stage {
      * <p>
      * The turns after the one answered are discarded: what they were is a consequence of an answer that
      * has changed, and re-walking derives them again (A45). An attempt that had finished is opened again
-     * and takes its shape back, which fails where another attempt holds the shape — and an attempt a node
+     * and takes its learner's claim back, which fails where another attempt holds it — and an attempt a node
      * is walking right now is refused, since its answers are that walk's to give and a person's answer
      * would be overwritten by the turn it is about to record.
      *
@@ -334,7 +328,7 @@ public final class Stage {
         attempts.granted(attemptId, tokens, ms);
         if (!attempts.reopened(attemptId, clock.millis(), claimUntil())) {
             throw new IllegalStateException("Attempt " + attemptId + " cannot be carried on: another attempt is "
-                                            + "learning shape " + recorded.attempt().shape());
+                                            + "learning for " + recorded.attempt().learner());
         }
     }
 
@@ -358,7 +352,7 @@ public final class Stage {
         attempts.exhaustNext(attemptId);
         if (!attempts.reopened(attemptId, clock.millis(), claimUntil())) {
             throw new IllegalStateException("Attempt " + attemptId + " cannot be carried on: another attempt is "
-                                            + "learning shape " + recorded.attempt().shape());
+                                            + "learning for " + recorded.attempt().learner());
         }
     }
 
@@ -381,15 +375,15 @@ public final class Stage {
         }
         if (!attempts.reopened(attemptId, clock.millis(), claimUntil())) {
             throw new IllegalStateException("Attempt " + attemptId + " cannot be run again: it is being "
-                                            + "carried on now, or another attempt is learning shape "
-                                            + recorded.attempt().shape());
+                                            + "carried on now, or another attempt is learning for "
+                                            + recorded.attempt().learner());
         }
         attempts.amended(attemptId, turnNumber, answer, answeredBy);
         // What the attempt drafted goes with the answer that produced it. The turns after the one
         // answered are discarded for exactly this reason — they are a consequence of an answer that has
         // changed — and a draft rule is the last of those consequences. Left in the table it would be a
-        // draft nothing awaits: the reset below clears the pointer that says which shape is waiting for
-        // it, so approving or rejecting it would throw, every stream of the shape would be sentinelled
+        // draft nothing awaits: the reset below clears the pointer that says the learner is waiting for
+        // it, so approving or rejecting it would throw, every stream of the learner would be sentinelled
         // by it, and the only way out would be deleting the rule by hand.
         if (recorded.ruleUuid() != null) {
             rules.byUuid(recorded.ruleUuid())
@@ -401,10 +395,10 @@ public final class Stage {
                         snapshots.discard(draft.getUuid());
                     });
         }
-        // A person re-running an attempt is saying the shape is not settled: whatever this attempt
+        // A person re-running an attempt is saying the learner is not settled: whatever this attempt
         // concluded about it — given up, marked, a draft awaiting someone — is undone, or the re-run would
         // be refused by the state its own first run left behind (A28).
-        shapes.reset(recorded.attempt().learner(), recorded.attempt().shape());
+        states.reset(recorded.attempt().learner());
     }
 
     /// What each of the fragment's own elements made of the stream on the run this stage just made, a
@@ -412,7 +406,7 @@ public final class Stage {
     ///
     /// **Taken**, not read, and taken immediately after the run it belongs to: the runner is left
     /// holding nothing, so a later run that decided without running a fragment at all — a draft awaiting
-    /// review, a shape given up — finds nothing here rather than the chain of the run
+    /// review, a learner that gave up — finds nothing here rather than the chain of the run
     /// before it (see [FragmentRunner#takeRecords]).
     ///
     /// Empty where the fragment was walked by a stand-in rather than run as a pipeline, and where
@@ -423,7 +417,7 @@ public final class Stage {
 
     /// Ask for a rule that is already serving to be made **better** (A46, §12 item 29).
     ///
-    /// Not `relearn`, which marks a shape and waits for the next stream to carry the work. An
+    /// Not `relearn`, which marks a learner and waits for the next stream to carry the work. An
     /// improvement does not wait for traffic: the records the rule was accepted on are kept per rule
     /// (A18) with the score each achieved, so an attempt has both a sample to learn from and the bar to
     /// beat without a stream arriving. A feed that ships once a day can be improved at eleven in the
@@ -434,12 +428,11 @@ public final class Stage {
     /// throughout (A29): a candidate takes over only through the ordinary gate (A15, A18, §7.4). So
     /// nothing waits for a person and a person waits for nothing.
     ///
-    /// The message is recorded as guidance for the shape (A46) before the attempt opens, which is what
+    /// The message is recorded as guidance for the learner (A46) before the attempt opens, which is what
     /// carries it into every question the attempt asks — and leaves it standing for the relearning after
     /// this one, because what a person knows about a feed does not stop being true.
     ///
-    /// @param ruleUuid The rule to improve: one that is serving. A draft is decided, not improved; a rule
-    ///                 with no shape did not come from one.
+    /// @param ruleUuid The rule to improve: one that is serving. A draft is decided, not improved.
     /// @param message  What the person wants better, in their words. Optional: asking again from the
     ///                 incumbent is itself worth something.
     /// @param by       Who asked, for the guidance and for the attempt.
@@ -457,10 +450,6 @@ public final class Stage {
             throw new IllegalArgumentException("Rule " + ruleUuid + " binds nothing, so there is nothing to "
                                                + "improve");
         }
-        if (NullSafe.isBlankString(incumbent.getShapeId())) {
-            throw new IllegalArgumentException("Rule " + ruleUuid + " did not come from a learned shape, so "
-                                               + "there is no shape to learn again");
-        }
         if (incumbent.isPinned()) {
             // §7.3 rule 2: a pin freezes a rule — served, never promoted, retracted or relearned. An
             // improvement rebinds it, which is exactly what the pin is there to stop.
@@ -471,16 +460,14 @@ public final class Stage {
             // button that asked anyway would be a way round it.
             throw new IllegalStateException("Shapeshifter AI is disabled for this document");
         }
-        // The shape the rule was learned for, read back from what the rule recorded: an improvement
-        // begins from a rule and there is no stream to take a shape from. Its learner is the rule's, since
-        // an improvement is that learner learning the shape better.
-        final Shape shape = Shape.parse(held.learner(), incumbent.getShapeId());
-        final Optional<String> awaiting = shapes.draftAwaiting(shape.learner(), shape.id());
+        // The rule's learner, since an improvement is that learner learning better.
+        final Learner learner = held.learner();
+        final Optional<String> awaiting = states.draftAwaiting(learner);
         if (awaiting.isPresent()) {
-            // One draft per shape: a second would overwrite the pointer that says which one is awaiting
+            // One draft per learner: a second would overwrite the pointer that says which one is awaiting
             // review, leaving the first in the table with nothing to approve or reject it by.
             throw new IllegalStateException("Draft rule " + awaiting.get() + " is already awaiting review "
-                                            + "for this shape; decide it before asking for another");
+                                            + "for this learner; decide it before asking for another");
         }
         final List<Accepted> accepted = regressionSet.accepted(ruleUuid);
         if (accepted.isEmpty()) {
@@ -488,10 +475,15 @@ public final class Stage {
             // Said rather than guessed at: an improvement judged on nothing would be a promotion in
             // disguise.
             throw new IllegalArgumentException("Rule " + ruleUuid + " has no accepted records to improve "
-                                               + "against; relearn its shape instead");
+                                               + "against; learn again instead");
         }
+        // Where what it learns for is kept: on the feed its records already are (A18), since there is no
+        // stream here to keep them on.
+        final String corpusFeed = regressionSet.feedOf(ruleUuid)
+                .orElseThrow(() -> new IllegalStateException("Rule " + ruleUuid + "'s records are kept on no "
+                                                             + "feed that can be read"));
         if (!NullSafe.isBlankString(message)) {
-            guidance.given(shape.learner(), doc.getUuid(), shape.id(), message, by);
+            guidance.given(learner, doc.getUuid(), message, by);
         }
 
         // The stream to learn from is the corpus itself, put back together: every record as it was
@@ -500,14 +492,10 @@ public final class Stage {
         final String sample = Corpus.stream(accepted)
                 .orElseThrow(() -> new IllegalArgumentException("Rule " + ruleUuid + " was accepted on records "
                                                                 + "that cannot be put back through its parser; "
-                                                                + "relearn its shape instead"));
-        // The shape's own values, so that the model is asked about the feed it is improving rather than
-        // about an unnamed sample: the headers are what a question carries and what A29's "shown means
-        // bound" rests on. They come from the rule, since there is no stream here to read them off.
-        final Input input = new Input(-1L,
-                shape.values().get(MetaFields.FIELD_FEED),
-                shape.values().get(MetaFields.FIELD_TYPE),
-                shape.values(), sample, null);
+                                                                + "learn again instead"));
+        // No feed and no type: there is no stream here to read them off, and a learner does not know its
+        // feed (A126), so the model is shown the corpus alone.
+        final Input input = new Input(-1L, null, null, Map.of(), sample, null);
         final Map<String, Object> attributes = input.routingAttributes(ShapeSignature.of(sample));
         final Scorecard scorecard = new Scorecard(doc.getScorers(), scorers);
         // Asked where it was asked from, whatever the document's execution mode. Deferred mode exists
@@ -516,38 +504,39 @@ public final class Stage {
         // who asked. Carrying one on from the worker would need the attempt to remember that it is an
         // improvement and to find its sample in the regression set rather than in the stream store,
         // which is not built.
-        return recording(doc, shape.learner(), shape, input, advisors.of(doc),
-                reason -> refused(doc, shape, "Rule " + ruleUuid + " is not being improved: " + reason),
-                recorder -> improveUnderClaim(doc, shape, incumbent, input, attributes, scorecard, accepted,
-                        recorder));
+        return recording(doc, learner, input, advisors.of(doc),
+                reason -> refused(doc, learner, "Rule " + ruleUuid + " is not being improved: " + reason),
+                recorder -> improveUnderClaim(doc, learner, incumbent, input, attributes, scorecard, accepted,
+                        corpusFeed, recorder));
     }
 
-    /// The improvement itself, under the attempt's claim on the shape (A42, A45).
+    /// The improvement itself, under the attempt's claim (A42, A45).
     ///
     /// The model opens with what the incumbent is and what it scores, so that it improves something
     /// rather than starting again in ignorance; and the gate is the accepted records themselves — every
     /// one of them, since there is no stream to be better on. A candidate that is worse on any record
     /// the rule was accepted on is not an improvement whatever else it does (A18).
     private StageRun improveUnderClaim(final ShapeshifterAiDoc doc,
-                                       final Shape shape,
+                                       final Learner learner,
                                        final RoutingRule incumbent,
                                        final Input input,
                                        final Map<String, Object> attributes,
                                        final Scorecard scorecard,
                                        final List<Accepted> accepted,
+                                       final String corpusFeed,
                                        final Recorder recorder) {
         final List<StoredError> opening = new ArrayList<>();
         opening.add(new StoredError(Severity.ERROR, null, STAGE,
-                "Improving " + incumbent.getPipeline().getName() + ", which is serving this shape and scored "
+                "Improving " + incumbent.getPipeline().getName() + ", which is serving and scored "
                 + incumbent.getScore() + " when it was promoted. It is not failing: make it better."));
-        final Outcome outcome = learn(doc, shape, input, attributes, scorecard, opening, List.of(), recorder);
+        final Outcome outcome = learn(doc, learner, input, attributes, scorecard, opening, List.of(), recorder);
         if (outcome instanceof final Abandoned abandoned) {
-            return kept(doc, shape, incumbent, "No candidate: " + abandoned.reason(), outcome.transcript());
+            return kept(doc, learner, incumbent, "No candidate: " + abandoned.reason(), outcome.transcript());
         }
         final Learned learned = (Learned) outcome;
         final Judged candidate = asLearned(rerun(learned.chain(), input.data(), boundary(learned)), scorecard);
         if (!candidate.clearsFloor(doc)) {
-            return kept(doc, shape, incumbent, "Candidate scored " + candidate.score() + " against a floor of "
+            return kept(doc, learner, incumbent, "Candidate scored " + candidate.score() + " against a floor of "
                                                + doc.getPromotionFloor(), learned.transcript());
         }
         // Every accepted record, not one: an improvement asked for out of the blue has no stream to be
@@ -559,7 +548,7 @@ public final class Stage {
             final Optional<String> shortfall = Corpus.shortfall(record, onRecord.verdicts(),
                     Corpus.outputFor(transforms, record.record(), boundary(learned)));
             if (shortfall.isPresent()) {
-                return kept(doc, shape, incumbent, "Candidate " + shortfall.get() + " — "
+                return kept(doc, learner, incumbent, "Candidate " + shortfall.get() + " — "
                                                    + Corpus.name(i + 1, accepted.size(), record),
                         learned.transcript());
             }
@@ -573,11 +562,11 @@ public final class Stage {
         // In place (A58), unless a person is to review it first: a draft is its own fragment until Approve
         // rebinds the incumbent to it.
         final DocRef fragment = doc.getPromotionMode() == PromotionMode.REVIEW
-                ? write(doc, shape, learned)
+                ? write(doc, input, learned)
                 : rewrite(doc, incumbent, learned);
-        // A shape marked for relearning has just been learned again, by hand: the mark is spent, or the
-        // next stream of the shape would relearn the rule somebody has only now improved.
-        shapes.reset(shape.learner(), shape.id());
+        // A learner marked to learn again has just done so, by hand: the mark is spent, or its next stream
+        // would relearn the rule somebody has only now improved.
+        states.reset(learner);
         if (doc.getPromotionMode() == PromotionMode.REVIEW) {
             // Behind the incumbent, which keeps serving until somebody approves this (A25).
             final String draftUuid = UUID.randomUUID().toString();
@@ -587,14 +576,13 @@ public final class Stage {
                     .draft(true)
                     .score(candidate.score())
                     .recordBoundary(boundary(learned))
-                    .shapeId(shape.id())
                     .snapshot(snapshot(doc, draftUuid, fragment))
                     .build();
-            rules.append(shape.learner(), doc.getUuid(), draft);
-            regressionSet.accept(doc.getUuid(), draft.getUuid(), input.feed(), input.type(), entries,
+            rules.append(learner, doc.getUuid(), draft);
+            regressionSet.accept(doc.getUuid(), draft.getUuid(), corpusFeed, null, entries,
                     doc.getRegressionCap());
-            shapes.awaitReview(shape.learner(), doc.getUuid(), shape.id(), draft.getUuid());
-            return new StageRun(doc, new Drafted(draft, candidate.score()), shape, null, candidate.output(),
+            states.awaitReview(learner, doc.getUuid(), draft.getUuid());
+            return new StageRun(doc, new Drafted(draft, candidate.score()), learner, null, candidate.output(),
                     candidate.verdicts(), learned.transcript(), null, List.of());
         }
         final RoutingRule rebound = incumbent.copy()
@@ -603,13 +591,12 @@ public final class Stage {
                 .promotedTimeMs(clock.millis())
                 .score(candidate.score())
                 .recordBoundary(boundary(learned))
-                .shapeId(shape.id())
                 .build();
-        regressionSet.accept(doc.getUuid(), rebound.getUuid(), input.feed(), input.type(), entries,
+        regressionSet.accept(doc.getUuid(), rebound.getUuid(), corpusFeed, null, entries,
                     doc.getRegressionCap());
-        rules.replace(shape.learner(), doc.getUuid(), rebound);
-        wake(shape.learner(), input.feed(), input.type());
-        return new StageRun(doc, new Rebound(incumbent, rebound, candidate.score()), shape,
+        rules.replace(learner, doc.getUuid(), rebound);
+        wake(learner);
+        return new StageRun(doc, new Rebound(incumbent, rebound, candidate.score()), learner,
                 new Bindings(doc.getUuid(), rebound.getUuid(), fragment, boundary(learned), false,
                         candidate.score()),
                 candidate.output(), candidate.verdicts(), learned.transcript(), null, List.of());
@@ -617,57 +604,53 @@ public final class Stage {
 
     /// The incumbent goes on serving, and why it was not replaced is said rather than swallowed.
     private StageRun kept(final ShapeshifterAiDoc doc,
-                          final Shape shape,
+                          final Learner learner,
                           final RoutingRule incumbent,
                           final String reason,
                           final List<Exchange> transcript) {
-        return new StageRun(doc, new Kept(incumbent, reason), shape, null, null, List.of(), transcript, null,
+        return new StageRun(doc, new Kept(incumbent, reason), learner, null, null, List.of(), transcript, null,
                 List.of());
     }
 
     /**
-     * Send a shape back to be learned afresh (A28): what a person does to an attempt they are reading
-     * when the rule it wrote is not the rule they want and no particular turn is to blame. The next
-     * stream of the shape relearns it, with the incumbent serving until the relearning settles (A29).
+     * Send a learner back to learn afresh (A28): what a person does to an attempt they are reading when
+     * the rule it wrote is not the rule they want and no particular turn is to blame. The learner's next
+     * stream relearns, with the incumbent serving until the relearning settles (A29).
      *
-     * @param learner The learner whose shape it is.
-     * @param shape   The shape.
+     * @param learner The learner.
      * @param reason  Why, in the words a person gave: the model opens its next attempt with it.
      */
-    public void relearn(final ShapeshifterAiDoc doc, final Learner learner, final String shape,
-                        final String reason) {
-        if (shapes.reasonGivenUp(learner, shape).isPresent()) {
-            // A shape that was given up stays given up until something says otherwise, and a mark alone
+    public void relearn(final ShapeshifterAiDoc doc, final Learner learner, final String reason) {
+        if (states.reasonGivenUp(learner).isPresent()) {
+            // A learner that gave up stays given up until something says otherwise, and a mark alone
             // says nothing: every path reads the give-up first and sentinels the stream before it ever
-            // looks at the mark. Sending a shape back *is* saying otherwise, so the give-up goes — and
-            // with it the rest of what was concluded about the shape, since it is being started afresh.
-            shapes.reset(learner, shape);
+            // looks at the mark. Sending a learner back *is* saying otherwise, so the give-up goes — and
+            // with it the rest of what was concluded, since it is being started afresh.
+            states.reset(learner);
         }
-        shapes.markForRelearning(learner, doc.getUuid(), shape, reason);
+        states.markForRelearning(learner, doc.getUuid(), reason);
     }
 
-    /// Ask for a shape to be learned now, rather than when its feed next ships (A28, design 01 §11.6).
+    /// Ask for a learner to learn now, rather than when its feed next ships (A28, design 01 §11.6).
     ///
-    /// This is what the ruling means by raising an attempt for a given-up shape from the Supervisor,
-    /// and why it says no on-request learning mode is needed. [#relearn] marks a shape and waits for
-    /// traffic; a shape that was given up has streams waiting on the ledger *because* nothing bound it,
+    /// This is what the ruling means by raising an attempt for a given-up shape from the Supervisor (A28),
+    /// and why it says no on-request learning mode is needed. [#relearn] marks a learner and waits for
+    /// traffic; a learner that gave up has streams waiting on the ledger *because* nothing served them,
     /// and they are the traffic. So they are asked for again, exactly as a promotion asks for them
-    /// (A12), and the first of them through learns the shape.
+    /// (A12), and the first of them through learns.
     ///
     /// Nothing is held and nothing is lost: every stream named here was processed to an error stream
-    /// and is where it always was, and a shape that fails to learn is sentinelled again as it was
+    /// and is where it always was, and a learner that fails to learn sentinels them again as it did
     /// before.
     ///
-    /// @param learner The learner whose shape it is.
-    /// @param shape   The shape.
+    /// @param learner The learner.
     /// @param reason  Why, in the person's words: it opens the next attempt and travels with every
     ///                stream asked for.
     /// @param by      Who asked, since this overrides a decision — theirs or the stage's — to stop.
-    /// @return How many streams were asked to be processed again. None means the shape has nothing
-    /// waiting, and it will be learned when its feed next ships.
+    /// @return How many streams were asked to be processed again. None means the learner has nothing
+    /// waiting, and it learns when its feed next ships.
     public int learnAgain(final ShapeshifterAiDoc doc,
                           final Learner learner,
-                          final String shape,
                           final String reason,
                           final String by) {
         if (doc.getLearningMode() == LearningMode.DISABLED) {
@@ -675,45 +658,45 @@ public final class Stage {
             // would be a way round it.
             throw new IllegalStateException("Shapeshifter AI is disabled for this document");
         }
-        final Optional<String> awaiting = shapes.draftAwaiting(learner, shape);
+        final Optional<String> awaiting = states.draftAwaiting(learner);
         if (awaiting.isPresent()) {
-            // A shape whose draft is waiting for somebody has already been learned; what it needs is a
+            // A learner whose draft is waiting for somebody has already learned; what it needs is a
             // decision, not another attempt. Asked for anyway it would spin: the streams would be
             // released, reprocessed, meet the draft, and be sentinelled by it again — the same rows
             // back on the ledger and nothing learned.
             throw new IllegalStateException("Draft rule " + awaiting.get() + " is awaiting review for "
-                                            + "this shape; approve or reject it rather than learning it "
+                                            + "this learner; approve or reject it rather than learning "
                                             + "again");
         }
         final String said = "Sent back to be learned again by " + by + ": " + reason;
-        relearn(doc, learner, shape, said);
-        final List<Replayable> waiting = ledger.release(learner, shape);
+        relearn(doc, learner, said);
+        final List<Replayable> waiting = ledger.release(learner);
         replay(doc, waiting, said);
         return waiting.size();
     }
 
     /**
-     * Why an attempt that stopped is not to be carried on, if it is not: the shape's state as it stands
+     * Why an attempt that stopped is not to be carried on, if it is not: the learner's state as it stands
      * now, read as a task's decision reads it for a stream. Empty where the attempt may go on.
      */
     private Optional<String> whyNotToCarryOn(final ShapeshifterAiDoc doc,
-                                             final Shape shape,
+                                             final Learner learner,
                                              final Optional<RoutingRule> matched) {
         if (matched.isPresent() && matched.get().isDraft()) {
             return Optional.of("Awaiting review: draft rule " + matched.get().getUuid()
-                               + " already binds shape " + shape.id());
+                               + " already serves this learner");
         }
         if (matched.isPresent() && matched.get().isPinned()) {
             // §7.3 rule 2: a pin freezes a rule — served, never promoted, retracted or relearned. Every
             // other path that would rebind one checks; carrying an attempt on did not, so a rule pinned
             // while a deferred attempt was parked would be rebound by the relearning the attempt
             // resumes into.
-            return Optional.of("Rule " + matched.get().getUuid() + " is pinned, so what it binds for "
-                               + "shape " + shape.id() + " is not to be changed");
+            return Optional.of("Rule " + matched.get().getUuid() + " is pinned, so what it binds is not "
+                               + "to be changed");
         }
-        final Optional<String> givenUp = shapes.reasonGivenUp(shape.learner(), shape.id());
+        final Optional<String> givenUp = states.reasonGivenUp(learner);
         if (givenUp.isPresent()) {
-            return Optional.of("Shape given up: " + givenUp.get());
+            return Optional.of("Given up: " + givenUp.get());
         }
         if (doc.getLearningMode() == LearningMode.DISABLED) {
             return Optional.of("Shapeshifter AI is disabled for this document");
@@ -728,7 +711,7 @@ public final class Stage {
     /// The rules as they stand are not consulted and nothing is learned, scored or relearned. A rule that has
     /// since been rebound, retracted or given up makes no difference: what ran is what runs, because an
     /// improvement is a new document and the old one cannot have changed (§7.3 rule 1). For the other
-    /// question — what binds the shape today — the answer is a task's [#decide], which
+    /// question — what serves the learner today — the answer is a task's [#decide], which
     /// is what a release (A12) reprocesses through.
     ///
     /// @param learner The learner whose pipeline the input is processed again through.
@@ -738,10 +721,9 @@ public final class Stage {
     /// would answer a question nobody asked.
     public StageRun reprocess(final ShapeshifterAiDoc doc, final Learner learner, final Input input) {
         final Map<String, Object> attributes = input.routingAttributes(ShapeSignature.of(input.data()));
-        final Shape shape = Shape.of(learner, attributes);
         final Optional<Bindings> recorded = outputs.asProcessed(doc.getUuid(), input.id(), input.pipeline());
         if (recorded.isEmpty()) {
-            return refused(doc, shape, "Nothing is recorded for input " + input.id()
+            return refused(doc, learner, "Nothing is recorded for input " + input.id()
                                        + " on this pipeline, so it cannot be processed again as it was; "
                                        + "reprocess it as-current instead");
         }
@@ -764,12 +746,12 @@ public final class Stage {
         if (output == null) {
             // The fragment is still there and still immutable, so this is the content having gone — a
             // document deleted by hand, or a fragment that never ran cleanly. Said rather than served.
-            return refused(doc, shape, "The fragment " + bindings.fragment().getUuid()
+            return refused(doc, learner, "The fragment " + bindings.fragment().getUuid()
                                        + " that produced input " + input.id() + " produced nothing this time");
         }
         // Recorded again, because this output carries the same bindings as the one it replaces.
         outputs.emitted(input.id(), input.pipeline(), bindings);
-        return new StageRun(doc, new Bound(rule.orElse(null)), shape, bindings, output, List.of(), List.of(),
+        return new StageRun(doc, new Bound(rule.orElse(null)), learner, bindings, output, List.of(), List.of(),
                 events, attempted.stream().flatMap(step -> step.result().diagnostics().stream()).toList());
     }
 
@@ -777,7 +759,7 @@ public final class Stage {
     /// and a [StageRun] that carried none.
     ///
     /// A chain is judged as it is learned — step by step, over the element runners, before it has been
-    /// written anywhere — so the stream a shape was *learned* on has an output and no events to serve it
+    /// written anywhere — so the stream a learner *learned* on has an output and no events to serve it
     /// with. The fragment it became is run once here, which is the run that stream would have made had a
     /// rule already bound it, and not a second one: nothing has run this fragment yet.
     ///
@@ -793,42 +775,41 @@ public final class Stage {
     /// What this stage would do with a stream, and what it would produce, without doing any of it
     /// (A30, design 01 §11.7).
     ///
-    /// Stepping is a dry run. What binds the shape is found and a bound fragment is run, because a
+    /// Stepping is a dry run. What serves the learner is found and a bound fragment is run, because a
     /// fragment's output is what the person stepping the pipeline came to see — and nothing else
     /// happens at all: no model is asked, no fragment written, no rule bound, promoted, retracted or
-    /// relearned, no rolling score, no output row, no ledger row and no reprocess request. A shape no
-    /// rule binds is *reported*, as [Decision.Would], rather than learned.
+    /// relearned, no rolling score, no output row, no ledger row and no reprocess request. A learner no
+    /// rule serves is *reported*, as [Decision.Would], rather than learned.
     ///
     /// It is a separate walk rather than a flag through [#decide] because every branch of that walk writes
     /// something, and a flag threaded through all of them would be one `if` away from a stepping
-    /// session that learned a shape and bound it.
+    /// session that learned and bound something.
     ///
     /// @param learner     The learner whose pipeline is being stepped.
     /// @param asProcessed As [#reprocess]: the fragment that produced this input's output before,
-    ///                    rather than whatever binds the shape today.
+    ///                    rather than whatever serves the learner today.
     public StageRun dryRun(final ShapeshifterAiDoc doc,
                            final Learner learner,
                            final Input input,
                            final boolean asProcessed) {
         final Map<String, Object> attributes = input.routingAttributes(ShapeSignature.of(input.data()));
-        final Shape shape = Shape.of(learner, attributes);
         final Scorecard scorecard = new Scorecard(doc.getScorers(), scorers);
 
         if (asProcessed) {
             final Optional<Bindings> recorded = outputs.asProcessed(doc.getUuid(), input.id(), input.pipeline());
             return recorded
-                    .map(bindings -> served(doc, new Bound(null), shape, bindings,
+                    .map(bindings -> served(doc, new Bound(null), learner, bindings,
                             judge(scorecard, bindings.fragment(), input.data(), bindings.boundary())))
-                    .orElseGet(() -> would(doc, shape, "Refuse the stream: nothing is recorded for input "
+                    .orElseGet(() -> would(doc, learner, "Refuse the stream: nothing is recorded for input "
                                                        + input.id() + " on this pipeline, so it cannot be "
                                                        + "processed again as it was"));
         }
 
-        final Optional<RoutingRule> matched = bindingFor(shape);
+        final Optional<RoutingRule> matched = bindingFor(learner);
         if (matched.isPresent()) {
             final RoutingRule rule = matched.get();
             if (rule.isDraft()) {
-                return would(doc, shape, "Wait: draft rule " + rule.getUuid() + " binds "
+                return would(doc, learner, "Wait: draft rule " + rule.getUuid() + " binds "
                                          + rule.getPipeline().getName() + " and awaits review");
             }
             final Judged judged = judge(scorecard, rule.getPipeline(), input.data(), rule.getRecordBoundary());
@@ -840,63 +821,58 @@ public final class Stage {
                 return new StageRun(doc, new Would("Promote rule " + rule.getUuid() + ", which scored "
                                                    + judged.score() + " on the " + judged.records()
                                                    + " records this stream brings"),
-                        shape,
+                        learner,
                         new Bindings(doc.getUuid(), rule.getUuid(), rule.getPipeline(),
                                 rule.getRecordBoundary(), rule.isProvisional(), judged.score()),
                         judged.output(), judged.verdicts(), List.of(), judged.events(),
                         judged.diagnostics());
             }
-            return served(doc, new Bound(rule), shape,
+            return served(doc, new Bound(rule), learner,
                     new Bindings(doc.getUuid(), rule.getUuid(), rule.getPipeline(), rule.getRecordBoundary(),
                             rule.isProvisional(), judged.score()),
                     judged);
         }
 
-        final Optional<String> givenUp = shapes.reasonGivenUp(shape.learner(), shape.id());
+        final Optional<String> givenUp = states.reasonGivenUp(learner);
         if (givenUp.isPresent()) {
-            return would(doc, shape, "Sentinel the stream: shape given up: " + givenUp.get());
-        }
-        if (!shape.missing().isEmpty()) {
-            return would(doc, shape, "Sentinel the stream: the learning key names '"
-                                     + shape.missing().get(0) + "' but the stream carries no value for it");
+            return would(doc, learner, "Sentinel the stream: given up: " + givenUp.get());
         }
 
         if (doc.getLearningMode() == LearningMode.DISABLED) {
-            return would(doc, shape, "Wait: Shapeshifter AI is disabled for this document and nothing "
-                                     + "serves this shape");
+            return would(doc, learner, "Wait: Shapeshifter AI is disabled for this document and nothing "
+                                       + "serves this learner");
         }
-        return would(doc, shape, "Learn a fragment for this shape");
+        return would(doc, learner, "Learn a fragment for this learner");
     }
 
     /// A bound fragment's run, as a dry run reports it: what it produced and what the scorers made of
     /// it, and nothing recorded anywhere.
     private StageRun served(final ShapeshifterAiDoc doc,
                             final Decision decision,
-                            final Shape shape,
+                            final Learner learner,
                             final Bindings bindings,
                             final Judged judged) {
-        return new StageRun(doc, decision, shape, bindings, judged.output(), judged.verdicts(), List.of(),
+        return new StageRun(doc, decision, learner, bindings, judged.output(), judged.verdicts(), List.of(),
                 judged.events(), judged.diagnostics());
     }
 
     private StageRun would(final ShapeshifterAiDoc doc,
-                           final Shape shape,
+                           final Learner learner,
                            final String what) {
-        return new StageRun(doc, new Would(what), shape, null, null, List.of(), List.of(), null,
+        return new StageRun(doc, new Would(what), learner, null, null, List.of(), List.of(), null,
                 List.of());
     }
 
     /// The task decision (design 04 §3): emit, defer or error, and never learn. Every task does the same
-    /// cheap thing — resolve the shape, consult what is known, take one of three outcomes — and a session
+    /// cheap thing — consult what the learner knows, take one of three outcomes — and a session
     /// is the worker's: the only thing a task does about one is open it and stand aside.
     ///
-    /// - A rule serves the shape and every record clears the bar: emitted.
+    /// - A rule serves the learner and every record clears the bar: emitted.
     /// - A rule serves it and any record falls short: deferred, with a row against the transform in force,
-    ///   and the session opened if none holds the shape. A row whose stamp is still the transform in
-    ///   force defers again without running anything.
+    ///   and the session opened if none holds the learner's claim. A row whose stamp is still the
+    ///   transform in force defers again without running anything.
     /// - No rule: deferred, with the session opened on this stream.
-    /// - The shape is given up, or has no value for the key: errored, with the ledger saying
-    ///   so — the only outcomes that error.
+    /// - The learner has given up: errored, with the ledger saying so — the only outcome that errors.
     ///
     /// A pinned rule is frozen (design 01 §7.3 rule 2): its streams are served whatever the bar says,
     /// since nothing will relearn it and a person has said *this, exactly*.
@@ -905,53 +881,46 @@ public final class Stage {
         // Supervisor shows what serves its pipeline and no other document's editors can act on it.
         learners.runsUnder(learner, doc.getUuid());
         final Map<String, Object> attributes = input.routingAttributes(ShapeSignature.of(input.data()));
-        final Shape shape = Shape.of(learner, attributes);
         final Scorecard scorecard = new Scorecard(doc.getScorers(), scorers);
-        final Optional<RoutingRule> matched = bindingFor(shape);
+        final Optional<RoutingRule> matched = bindingFor(learner);
 
         if (matched.isPresent()) {
             final RoutingRule rule = matched.get();
             if (rule.isDraft()) {
                 // A person has it in front of them: the stream waits for their decision rather than
                 // erroring behind it, and Approve or Reject is what moves it.
-                return deferred(doc, learner, shape, input, null, 0, "Awaiting review: draft rule " + rule.getUuid()
-                                                             + " binds " + rule.getPipeline().getName()
-                                                             + " for shape " + shape.id());
+                return deferred(doc, learner, input, null, 0, "Awaiting review: draft rule " + rule.getUuid()
+                                                             + " binds " + rule.getPipeline().getName());
             }
-            return decideServed(doc, learner, shape, rule, input, attributes, scorecard);
+            return decideServed(doc, learner, rule, input, attributes, scorecard);
         }
 
-        final Optional<String> givenUp = shapes.reasonGivenUp(shape.learner(), shape.id());
+        final Optional<String> givenUp = states.reasonGivenUp(learner);
         if (givenUp.isPresent()) {
-            // A stream that waited on a session that gave the shape up (A54) has reached its end: its row
-            // goes, and it errors with the reason. This is the one refusal that keeps a ledger row (A80):
-            // the ledger is the door a person learns a given-up shape again through, and the row is what
-            // that asks to be processed again.
+            // A stream that waited on a session that gave up (A54) has reached its end: its row goes, and
+            // it errors with the reason. This is the one refusal that keeps a ledger row (A80): the ledger
+            // is the door a person sends a learner that gave up back through, and the row is what that
+            // asks to be processed again.
             deferrals.released(learner, input.id());
-            return sentinel(doc, shape, input, "Shape given up: " + givenUp.get());
-        }
-        if (!shape.missing().isEmpty()) {
-            return refused(doc, shape, "The learning key names '" + shape.missing().get(0)
-                                       + "' but the stream carries no value for it");
+            return sentinel(doc, learner, input, "Given up: " + givenUp.get());
         }
         if (doc.getLearningMode() == LearningMode.DISABLED) {
             // The kill switch: no session can open, so the stream waits for a person to turn learning on
             // and the deferral age (A57) is what raises it if nobody does.
-            return deferred(doc, learner, shape, input, null, 0,
-                    "Shapeshifter AI is disabled for this document and nothing serves this shape");
+            return deferred(doc, learner, input, null, 0,
+                    "Shapeshifter AI is disabled for this document and nothing serves this learner");
         }
         // Learning leaves the task (A60, A64): the session is opened on this stream and parked at its
         // first question for the worker, and the stream waits on it. Where an attempt already holds the
-        // shape, this stream waits on that one.
-        return recording(doc, learner, shape, input, RecordedAdvisor.awaiting(),
-                reason -> deferred(doc, learner, shape, input, null, 0, reason),
-                recorder -> learnAndBind(doc, shape, input, attributes, scorecard, recorder));
+        // learner's claim, this stream waits on that one.
+        return recording(doc, learner, input, RecordedAdvisor.awaiting(),
+                reason -> deferred(doc, learner, input, null, 0, reason),
+                recorder -> learnAndBind(doc, learner, input, attributes, scorecard, recorder));
     }
 
-    /// The task decision for a shape a rule serves.
+    /// The task decision for a learner a rule serves.
     private StageRun decideServed(final ShapeshifterAiDoc doc,
                                   final Learner learner,
-                                  final Shape shape,
                                   final RoutingRule matched,
                                   final Input input,
                                   final Map<String, Object> attributes,
@@ -964,62 +933,61 @@ public final class Stage {
             final Optional<Deferral> row = deferrals.of(learner, input.id());
             if (row.isPresent() && stamp.equals(row.get().failedAgainst())) {
                 // Version-stamped (design 04 §3): the transform it failed against is still the one in
-                // force, so nothing is run. The session is opened if none holds the shape — the last may
+                // force, so nothing is run. The session is opened if none holds the claim — the last may
                 // have lapsed or failed — or the stream would be waiting on nothing.
-                return session(doc, learner, shape, rule, input, attributes, scorecard, null, row.get().reason(), stamp,
+                return session(doc, learner, rule, input, attributes, scorecard, null, row.get().reason(), stamp,
                         row.get().failingRecords());
             }
         }
         // Served as it is read (design 04 §3, *streams of any size*): nothing is run here. The caller
         // streams the fragment over the stream with [#stream], which judges each record as the fragment
         // writes it, and what the stream came to is decided there.
-        final StageRun bound = new StageRun(doc, new Bound(rule), shape, bindingsOf(doc, rule), null, List.of(),
+        final StageRun bound = new StageRun(doc, new Bound(rule), learner, bindingsOf(doc, rule), null, List.of(),
                 List.of(), null, List.of());
-        relearnOnMark(doc, learner, shape, rule, input, attributes, scorecard);
+        relearnOnMark(doc, learner, rule, input, attributes, scorecard);
         return bound;
     }
 
-    /// A shape a person marked for relearning (A100) is relearned on its next stream that brings enough
+    /// A learner a person marked for relearning (A100) relearns on its next stream that brings enough
     /// records to judge a candidate on: the session is opened here and parked for the worker, while the
     /// stream itself is served by the incumbent, as it would be without the mark (A29). A pinned rule is
-    /// never relearned; a shape behind a draft waits for the review; a shape given up is the ledger's to
+    /// never relearned; a learner behind a draft waits for the review; one that gave up is the ledger's to
     /// send back (A80); with learning off nothing opens; and
-    /// where a session already holds the shape — one the mark or a short record opened — the stream
+    /// where a session already holds the claim — one the mark or a short record opened — the stream
     /// simply flows.
     private void relearnOnMark(final ShapeshifterAiDoc doc,
                                final Learner learner,
-                               final Shape shape,
                                final RoutingRule rule,
                                final Input input,
                                final Map<String, Object> attributes,
                                final Scorecard scorecard) {
-        final Optional<String> marked = shapes.relearnReason(shape.learner(), shape.id());
+        final Optional<String> marked = states.relearnReason(learner);
         if (marked.isEmpty()
             || rule.isPinned()
             || doc.getLearningMode() == LearningMode.DISABLED
-            || shapes.draftAwaiting(shape.learner(), shape.id()).isPresent()
-            || shapes.reasonGivenUp(shape.learner(), shape.id()).isPresent()
-            || attempts.open(learner, shape.id(), clock.millis()).isPresent()) {
+            || states.draftAwaiting(learner).isPresent()
+            || states.reasonGivenUp(learner).isPresent()
+            || attempts.open(learner, clock.millis()).isPresent()) {
             return;
         }
         final Judged judged = judge(scorecard, rule.getPipeline(), input.data(), rule.getRecordBoundary());
         if (judged.records() < doc.getMinRecordsPerShape()) {
             return;
         }
-        recording(doc, learner, shape, input, RecordedAdvisor.awaiting(),
+        recording(doc, learner, input, RecordedAdvisor.awaiting(),
                 waiting -> null,
-                recorder -> relearnUnderClaim(doc, shape, rule, input, attributes, scorecard, judged, marked.get(),
+                recorder -> relearnUnderClaim(doc, learner, rule, input, attributes, scorecard, judged, marked.get(),
                         recorder));
     }
 
     /// Serve a stream a rule binds, as it is read (design 04 §3): the fragment runs over the whole stream
     /// once, each record of its output is judged by the gates that judge a record as it is produced, and
     /// each that clears the bar is handed on to the downstream. The first record short of the bar stops
-    /// the run: the stream is deferred — a row stamped against the fragment in force, the shape marked,
-    /// a relearning session opened where none holds the shape — and the deferral is thrown, so that the
+    /// the run: the stream is deferred — a row stamped against the fragment in force, the learner marked,
+    /// a relearning session opened where none holds the claim — and the deferral is thrown, so that the
     /// task ends deferred and what the downstream wrote of the records before it is discarded.
     ///
-    /// A stream that clears in full is served: its row goes, the shape's rolling score is fed, a
+    /// A stream that clears in full is served: its row goes, the learner's rolling score is fed, a
     /// provisional rule that has now seen enough records is promoted, and the output is recorded against
     /// the bindings that produced it. A pinned rule's stream is handed on whatever each record scores.
     ///
@@ -1034,7 +1002,6 @@ public final class Stage {
                                final Input input,
                                final ContentHandler downstream) {
         final Map<String, Object> attributes = input.routingAttributes(ShapeSignature.of(input.data()));
-        final Shape shape = Shape.of(learner, attributes);
         final Scorecard bar = recordBar(doc);
         final RecordJudge judge = rule.isPinned()
                 ? (index, record, parsed) -> new Verdict(List.of(), 1.0)
@@ -1049,27 +1016,27 @@ public final class Stage {
                                           .map(StoredError::getMessage)
                                           .findFirst()
                                           .orElse("a gate failed");
-            final StageRun deferred = session(doc, learner, shape, rule, input, attributes,
+            final StageRun deferred = session(doc, learner, rule, input, attributes,
                     new Scorecard(doc.getScorers(), scorers), Judged.shortOf(served, short_), reason, stamp(rule), 1);
             throw new DeferTaskException(((Deferred) deferred.decision()).reason());
         }
         deferrals.released(learner, input.id());
         if (rule.isProvisional()) {
-            // Promoted the first time the shape brings enough records and they clear the floor (A14,
+            // Promoted the first time the learner brings enough records and they clear the floor (A14,
             // design 01 §6): what [#promote] does, less the output, which the downstream has.
             if (served.records() >= doc.getMinRecordsPerShape() && served.meanTotal() >= doc.getPromotionFloor()) {
-                rules.replace(shape.learner(), doc.getUuid(), rule.copy()
+                rules.replace(learner, doc.getUuid(), rule.copy()
                         .provisional(false)
                         .promotedTimeMs(clock.millis())
                         .score(served.meanTotal())
                         .build());
-                shapes.reset(shape.learner(), shape.id());
+                resetKeepingDraft(doc, learner);
             }
         } else if (!rule.isPinned() && served.records() > 0) {
             // The rolling score goes on being kept for the Supervisor's list of what could be better
             // (A46), and triggers nothing here. A run that made nothing is said on the error stream by the
             // caller and scores nothing.
-            shapes.scored(shape.learner(), doc.getUuid(), shape.id(), served.meanTotal(), served.records(),
+            states.scored(learner, doc.getUuid(), served.meanTotal(), served.records(),
                     doc.getMinRecordsPerShape());
         }
         outputs.emitted(input.id(), input.pipeline(), bindingsOf(doc, rule), List.of());
@@ -1093,15 +1060,14 @@ public final class Stage {
     }
 
     /// A stream under a rule waits for the rule to be learned again: the row is written against the
-    /// transform in force, the shape is marked with why, and the session is opened and parked for the
-    /// worker where none holds the shape (A69: one session, every waiting stream tried again when it
+    /// transform in force, the learner is marked with why, and the session is opened and parked for the
+    /// worker where none holds the claim (A69: one session, every waiting stream tried again when it
     /// promotes).
     ///
     /// @param judged The stream as the rule's fragment judged it, or null where the stamp said not to run
     ///               it.
     private StageRun session(final ShapeshifterAiDoc doc,
                              final Learner learner,
-                             final Shape shape,
                              final RoutingRule rule,
                              final Input input,
                              final Map<String, Object> attributes,
@@ -1111,33 +1077,41 @@ public final class Stage {
                              final String stamp,
                              final int failingRecords) {
         // A stream judged against a transform that a relearning has since replaced says nothing about the
-        // one in force (A69): marking the shape on its word would relearn what has just been learned. It
+        // one in force (A69): marking the learner on its word would relearn what has just been learned. It
         // waits against the stamp it failed, which is no longer in force, so its next try is scored
         // against the new transform rather than deferred again.
-        final Optional<RoutingRule> inForce = bindingFor(shape);
+        final Optional<RoutingRule> inForce = bindingFor(learner);
         if (inForce.isPresent() && !stamp.equals(stamp(inForce.get()))) {
-            return deferred(doc, learner, shape, input, stamp, failingRecords, reason,
+            return deferred(doc, learner, input, stamp, failingRecords, reason,
                     reason + " (against a transform since replaced; it is tried again against the new one)");
         }
-        if (shapes.relearnReason(shape.learner(), shape.id()).isEmpty()) {
-            shapes.markForRelearning(shape.learner(), doc.getUuid(), shape.id(), reason);
+        // A draft awaiting review is the learner's answer already, and a person has it in front of them
+        // (A25): the stream waits for their decision, as a marked learner's streams do. A session opened
+        // here would relearn behind them, and its reset would forget the draft awaiting them.
+        final Optional<String> awaiting = states.draftAwaiting(learner);
+        if (awaiting.isPresent()) {
+            return deferred(doc, learner, input, stamp, failingRecords, reason,
+                    reason + " (Awaiting review: draft rule " + awaiting.get() + ")");
+        }
+        if (states.relearnReason(learner).isEmpty()) {
+            states.markForRelearning(learner, doc.getUuid(), reason);
         }
         if (doc.getLearningMode() == LearningMode.DISABLED) {
-            return deferred(doc, learner, shape, input, stamp, failingRecords,
+            return deferred(doc, learner, input, stamp, failingRecords,
                     reason + "; Shapeshifter AI is disabled for this document, so the stream waits for a person");
         }
-        return recording(doc, learner, shape, input, RecordedAdvisor.awaiting(),
-                waiting -> deferred(doc, learner, shape, input, stamp, failingRecords, reason,
+        return recording(doc, learner, input, RecordedAdvisor.awaiting(),
+                waiting -> deferred(doc, learner, input, stamp, failingRecords, reason,
                         reason + " (" + waiting + ")"),
                 recorder -> {
                     // Opened in the task only to be parked: the worker re-walks it as a relearning, since
-                    // a rule binds the shape (resume reads that from the rules as they stand). The stream
+                    // a rule serves the learner (resume reads that from the rules as they stand). The stream
                     // was judged once, where it fell short; a stamped stream that found no session open
                     // is judged here, since the session's opening needs to say what fell short.
                     final Judged served = judged != null
                             ? judged
                             : judge(scorecard, rule.getPipeline(), input.data(), rule.getRecordBoundary());
-                    return relearnUnderClaim(doc, shape, rule, input, attributes, scorecard, served, reason,
+                    return relearnUnderClaim(doc, learner, rule, input, attributes, scorecard, served, reason,
                             recorder);
                 });
     }
@@ -1145,19 +1119,17 @@ public final class Stage {
     /// The stream waits: its row is written — or brought up to date — and nothing else is.
     private StageRun deferred(final ShapeshifterAiDoc doc,
                               final Learner learner,
-                              final Shape shape,
                               final Input input,
                               final String failedAgainst,
                               final int failingRecords,
                               final String reason) {
-        return deferred(doc, learner, shape, input, failedAgainst, failingRecords, reason, reason);
+        return deferred(doc, learner, input, failedAgainst, failingRecords, reason, reason);
     }
 
     /// The same, where the decision has more to say than the row keeps: the row holds why the stream
     /// waits, which is the same each time it is tried, and not what each try found the session doing.
     private StageRun deferred(final ShapeshifterAiDoc doc,
                               final Learner learner,
-                              final Shape shape,
                               final Input input,
                               final String failedAgainst,
                               final int failingRecords,
@@ -1165,7 +1137,7 @@ public final class Stage {
                               final String said) {
         deferrals.deferred(learner, doc.getUuid(), input.id(), input.feed(), input.type(), input.taskId(),
                 input.filterId(), failedAgainst, reason, failingRecords);
-        return new StageRun(doc, new Deferred(said), shape, null, null, List.of(), List.of(), null, List.of());
+        return new StageRun(doc, new Deferred(said), learner, null, null, List.of(), List.of(), null, List.of());
     }
 
     /// What a deferral row is stamped with: the transform in force — the rule's snapshot (A61), or for a
@@ -1176,31 +1148,29 @@ public final class Stage {
                 : rule.getPipeline().getUuid();
     }
 
-    /// A promotion wakes what waits on its shape (design 04 §5.3): every row of the learner's of that feed
-    /// and type, whose tasks go back to the queue ahead of the retry delay. The rows stay until each stream
-    /// is served.
-    private void wake(final Learner learner, final String feed, final String type) {
-        final List<Deferral> waiting = deferrals.waiting(learner, feed, type);
+    /// A promotion wakes what waits on its learner (design 04 §5.3): every row of the learner's, whose
+    /// tasks go back to the queue ahead of the retry delay. The rows stay until each stream is served.
+    private void wake(final Learner learner) {
+        final List<Deferral> waiting = deferrals.waiting(learner);
         if (!waiting.isEmpty()) {
             wake.wake(waiting);
         }
     }
 
     /// Wake the streams of a document that wait against a transform no longer in force: what the learning
-    /// job does on every pass (design 04 §5.3). A promotion wakes the rows of its shape as they stand, but
+    /// job does on every pass (design 04 §5.3). A promotion wakes the rows of its learner as they stand, but
     /// a stream judged against the old transform while the promotion was being made writes its row after
     /// that wake, and its task is not deferred until after the row is written, so nothing the promotion
     /// did can reach it. Such a row is not waiting on anything: the next try scores it against the
     /// transform now in force. A row whose task is still running is not woken, and the next pass tries
-    /// again; a shape behind a draft waits for the review, as its streams do.
+    /// again; a learner behind a draft waits for the review, as its streams do.
     ///
     /// @param doc The document.
     /// @return How many tasks were woken.
     public int wakeSuperseded(final ShapeshifterAiDoc doc) {
         final List<Deferral> superseded = deferrals.forDocument(doc.getUuid()).stream()
                 .filter(row -> row.failedAgainst() != null)
-                .filter(row -> bindingFor(Shape.of(row.learner(),
-                        Map.of(MetaFields.FIELD_FEED, row.feed(), MetaFields.FIELD_TYPE, row.type())))
+                .filter(row -> bindingFor(row.learner())
                         .filter(rule -> !rule.isDraft())
                         .map(rule -> !row.failedAgainst().equals(stamp(rule)))
                         .orElse(false))
@@ -1210,17 +1180,16 @@ public final class Stage {
                 : wake.wake(superseded);
     }
 
-    /// One attempt, recorded (A28): a row when this node commits to learning a shape, a turn for every
+    /// One attempt, recorded (A28): a row when this node commits to learning, a turn for every
     /// question as the transcript has them, and what it came to. The record outlives the node that made
     /// it, which is what lets a person read back what was said and another node pick the attempt up (A45).
     ///
     /// @param waiting What becomes of *this stream* where the attempt is not this stage's to carry to an
-    ///                end — another node holds the shape, or the attempt has parked awaiting an answer.
-    ///                For an unknown shape that is a sentinel and the ledger; for a shape a rule already
-    ///                binds, it is that rule serving the stream as it serves every other.
+    ///                end — another node holds the claim, or the attempt has parked awaiting an answer.
+    ///                Where nothing serves the learner that is a sentinel and the ledger; where a rule
+    ///                already serves it, it is that rule serving the stream as it serves every other.
     private StageRun recording(final ShapeshifterAiDoc doc,
                                final Learner learner,
-                               final Shape shape,
                                final Input input,
                                final Function<String, StageRun> waiting,
                                final Function<Recorder, StageRun> attempt) {
@@ -1228,26 +1197,26 @@ public final class Stage {
         // tokens: asking twice would read two fresh counters and record nothing spent. A task never
         // learns (A60, A99): it decides, and a session is opened and carried by the worker, or by a
         // person's improve (A102), which asks as it goes.
-        return recording(doc, learner, shape, input, advisors.of(doc), waiting, attempt);
+        return recording(doc, learner, input, advisors.of(doc), waiting, attempt);
     }
 
     /// The same, for a caller that has already decided who answers.
     private StageRun recording(final ShapeshifterAiDoc doc,
                                final Learner learner,
-                               final Shape shape,
                                final Input input,
                                final Advisor advisor,
                                final Function<String, StageRun> waiting,
                                final Function<Recorder, StageRun> attempt) {
-        final Optional<Long> opened = attempts.opened(new Attempts.Attempt(learner, doc.getUuid(), shape.id(),
+        final Optional<Long> opened = attempts.opened(new Attempts.Attempt(learner, doc.getUuid(),
                 input.feed(), input.type(), input.id(), node, doc.getPromotionMode(),
                 claimUntil()), clock.millis());
         if (opened.isEmpty()) {
-            // Another attempt holds this shape (A45): it is still learning, parked or not, and this stream
-            // takes what that attempt comes to rather than learning the same thing beside it.
-            return waiting.apply("Another node is learning this shape; this stream waits for what it learns");
+            // Another attempt holds the learner's claim (A45): it is still learning, parked or not, and
+            // this stream takes what that attempt comes to rather than learning the same thing beside it.
+            return waiting.apply("Another node is learning for this pipeline; this stream waits for what it "
+                                 + "learns");
         }
-        return carrying(doc, shape, input, opened.get(), 0L, Grant.NONE, false, Map.of(), advisor, false, waiting,
+        return carrying(doc, learner, input, opened.get(), 0L, Grant.NONE, false, Map.of(), advisor, false, waiting,
                 attempt);
     }
 
@@ -1256,7 +1225,7 @@ public final class Stage {
      * it or picked it up where another stopped.
      */
     private StageRun carrying(final ShapeshifterAiDoc doc,
-                              final Shape shape,
+                              final Learner learner,
                               final Input input,
                               final long attemptId,
                               final long alreadySpent,
@@ -1276,8 +1245,8 @@ public final class Stage {
             run = attempt.apply(recorder);
         } catch (final AwaitingAnswer awaiting) {
             // The attempt has reached a question nobody present can answer: it stops here, keeps its claim
-            // on the shape, and waits for the worker or a person (A28, A45). The stream is sentinelled, as
-            // an unknown shape's is, and released when the attempt finishes.
+            // on the learner, and waits for the worker or a person (A28, A45). The stream is sentinelled, as
+            // an unknown learner's is, and released when the attempt finishes.
             // The question it stopped at is recorded unanswered (A28), so that a person can see what is
             // being waited for and answer it instead, and so that the replay has something to check its
             // re-walk against when they do.
@@ -1297,7 +1266,7 @@ public final class Stage {
             throw e;
         }
         if (run.decision() instanceof final Parked parked) {
-            // Parked for a person (A65): the attempt keeps its shape with a lease that does not lapse, and
+            // Parked for a person (A65): the attempt keeps its claim with a lease that does not lapse, and
             // the worker leaves it alone. Not closed — a person's answer carries it on.
             record(() -> attempts.parked(attemptId, parked.reason(), Math.max(0L, advisor.tokensUsed() - before)));
             return run;
@@ -1333,7 +1302,7 @@ public final class Stage {
         private final Map<Integer, String> answeredBefore;
         private final String answeredBy;
         /// Whether this is the worker carrying a session (A64): a session that cannot finish parks for a
-        /// person (A65) rather than giving its shape up, and runs its held stream in full before it ends.
+        /// person (A65) rather than giving up, and runs its held stream in full before it ends.
         private boolean worker;
         /// What a person granted the attempt beyond the document's budgets (A77).
         private final Grant grant;
@@ -1392,7 +1361,7 @@ public final class Stage {
         }
 
         /// The claim pushed out, before every question: an attempt held up by one slow model call would
-        /// otherwise run past its expiry and have its shape learned again by another node (A45).
+        /// otherwise run past its expiry and have its learner's work taken up by another node (A45).
         private void heartbeat() {
             record(() -> attempts.heartbeat(attemptId, claimUntil()));
         }
@@ -1496,30 +1465,30 @@ public final class Stage {
     }
 
     private StageRun learnAndBind(final ShapeshifterAiDoc doc,
-                                  final Shape shape,
+                                  final Learner learner,
                                   final Input input,
                                   final Map<String, Object> attributes,
                                   final Scorecard scorecard,
                                   final Recorder recorder) {
         // Learn on a prefix, judge on the whole stream.
-        final Outcome outcome = learn(doc, shape, input, attributes, scorecard, List.of(), List.of(), recorder);
+        final Outcome outcome = learn(doc, learner, input, attributes, scorecard, List.of(), List.of(), recorder);
         if (outcome instanceof final Abandoned abandoned) {
             if (abandoned.givesUp()) {
                 // The flow's exit is give-up (A83): a parser's default, since a stream that cannot be cut
                 // into records that meet the gates is the one failure nothing can serve (A52, A54), or
-                // any step's where the flow says so. The shape is given up, and the streams waiting on it
-                // are woken to error with the reason, as a given-up shape's streams do.
-                final StageRun givenUp = givenUp(doc, shape, input, abandoned.reason(), abandoned.reason(),
+                // any step's where the flow says so. The learner gives up, and the streams waiting on it
+                // are woken to error with the reason, as a given-up learner's streams do.
+                final StageRun givenUp = givenUp(doc, learner, input, abandoned.reason(), abandoned.reason(),
                         abandoned.diagnostics(), List.of(), outcome.transcript());
-                wake(shape.learner(), input.feed(), input.type());
+                wake(learner);
                 return givenUp;
             }
             if (recorder.worker()) {
-                // A session that cannot finish parks for a person (A65) rather than giving its shape up: its
+                // A session that cannot finish parks for a person (A65) rather than giving up: its
                 // streams go on waiting, and nothing is baked because money or candidates ran out.
-                return parked(doc, shape, abandoned.reason(), outcome.transcript());
+                return parked(doc, learner, abandoned.reason(), outcome.transcript());
             }
-            return givenUp(doc, shape, input, abandoned.reason(), abandoned.reason(), abandoned.diagnostics(),
+            return givenUp(doc, learner, input, abandoned.reason(), abandoned.reason(), abandoned.diagnostics(),
                     List.of(), outcome.transcript());
         }
         final Learned learned = (Learned) outcome;
@@ -1528,23 +1497,23 @@ public final class Stage {
         // records for one, and the floor a provisional binding must clear where there are not.
         final Judged judged = asLearned(rerun(learned.chain(), input.data(), boundary(learned)), scorecard);
         if (!judged.clearsFloor(doc)) {
-            return givenUp(doc, shape, input, "Below the promotion floor",
+            return givenUp(doc, learner, input, "Below the promotion floor",
                     "Candidate scored " + judged.score() + " against a floor of " + doc.getPromotionFloor(),
                     judged.verdicts().stream().flatMap(verdict -> verdict.feedback().stream()).toList(),
                     judged.verdicts(), learned.transcript());
         }
-        final DocRef fragment = write(doc, shape, learned);
+        final DocRef fragment = write(doc, input, learned);
         // What goes in the corpus (A56): the sample the model was shown, every record of it, since a
         // first learning learned for all of them.
         final List<Accepted> entries = Corpus.entries(learned.chain(), boundary(learned),
                 learningPrefix(input.data(), doc), null, learned.targets(), judged.score(), recorder.attemptId(),
                 clock.millis(), doc.getRegressionCap());
-        return bind(doc, shape, input, fragment, judged, entries, learned.transcript(),
+        return bind(doc, learner, input, fragment, judged, entries, learned.transcript(),
                 boundary(learned));
     }
 
     private StageRun relearnUnderClaim(final ShapeshifterAiDoc doc,
-                                       final Shape shape,
+                                       final Learner learner,
                                        final RoutingRule incumbent,
                                        final Input input,
                                        final Map<String, Object> attributes,
@@ -1561,32 +1530,32 @@ public final class Stage {
         // parser cut them and as the transform left them (A64): what the model has to see to learn for
         // a record that lay beyond the sample.
         opening.addAll(served.diagnostics());
-        final Outcome outcome = learn(doc, shape, input, attributes, scorecard, opening, served.held(), recorder);
+        final Outcome outcome = learn(doc, learner, input, attributes, scorecard, opening, served.held(), recorder);
         // The mark is spent now that the relearning has happened, and not before: an attempt that parks
-        // at a question (A5) is carried on by the worker, which must find the shape as this walk found it
-        // or ask something else (A45). Spent whatever the candidate came to, or a shape that cannot be
+        // at a question (A5) is carried on by the worker, which must find the learner as this walk found it
+        // or ask something else (A45). Spent whatever the candidate came to, or a learner that cannot be
         // fixed would be relearned on every stream.
-        shapes.reset(shape.learner(), shape.id());
+        states.reset(learner);
         if (outcome instanceof final Abandoned abandoned) {
-            // Whatever exit the flow named (A83): a shape a rule is serving is not given up, since that
+            // Whatever exit the flow named (A83): a learner a rule is serving does not give up, since that
             // would error streams that are being served.
             if (recorder.worker()) {
                 // As a first learning does (A65): the incumbent serves what it can, the held stream waits.
-                return parked(doc, shape, abandoned.reason(), outcome.transcript());
+                return parked(doc, learner, abandoned.reason(), outcome.transcript());
             }
-            return emit(doc, new Kept(incumbent, "No candidate: " + abandoned.reason()), shape, input, incumbent,
+            return emit(doc, new Kept(incumbent, "No candidate: " + abandoned.reason()), learner, input, incumbent,
                     served, outcome.transcript());
         }
         final Learned learned = (Learned) outcome;
         final Judged candidate = asLearned(rerun(learned.chain(), input.data(), boundary(learned)), scorecard);
         if (!candidate.clearsFloor(doc)) {
             return emit(doc, new Kept(incumbent, "Candidate scored " + candidate.score() + " against a floor of "
-                                                 + doc.getPromotionFloor()), shape, input, incumbent, served,
+                                                 + doc.getPromotionFloor()), learner, input, incumbent, served,
                     learned.transcript());
         }
         if (candidate.score() < served.score()) {
             return emit(doc, new Kept(incumbent, "Candidate scored " + candidate.score() + " against the incumbent's "
-                                                 + served.score() + " on this stream"), shape, input, incumbent,
+                                                 + served.score() + " on this stream"), learner, input, incumbent,
                     served, learned.transcript());
         }
         // Held to the corpus, to no worse (A66): every record the rule was accepted on, run through the
@@ -1603,11 +1572,11 @@ public final class Stage {
             if (shortfall.isPresent()) {
                 return emit(doc, new Kept(incumbent, "Candidate " + shortfall.get() + " — "
                                                      + Corpus.name(i + 1, corpus.size(), accepted)),
-                        shape, input, incumbent, served, learned.transcript());
+                        learner, input, incumbent, served, learned.transcript());
             }
         }
         // What this session learned for (A56): the records of the stream that fell short under the
-        // incumbent, with what the candidate makes of them. A relearning that names no record — the shape
+        // incumbent, with what the candidate makes of them. A relearning that names no record — the stream
         // fell short on yield or coverage, which are measures of the stream and lay nothing at a record —
         // learned for the sample it was shown, as a first learning does.
         final Set<Integer> fellShort = served.failingRecords();
@@ -1629,7 +1598,7 @@ public final class Stage {
         // In place (A58), unless a person is to review it first: a draft is its own fragment until Approve
         // rebinds the incumbent to it.
         final DocRef fragment = doc.getPromotionMode() == PromotionMode.REVIEW
-                ? write(doc, shape, learned)
+                ? write(doc, input, learned)
                 : rewrite(doc, incumbent, learned);
         if (doc.getPromotionMode() == PromotionMode.REVIEW) {
             // Behind the incumbent, which keeps matching first; Approve rebinds the incumbent to this
@@ -1641,14 +1610,13 @@ public final class Stage {
                     .draft(true)
                     .score(candidate.score())
                     .recordBoundary(boundary(learned))
-                    .shapeId(shape.id())
                     .snapshot(snapshot(doc, draftUuid, fragment))
                     .build();
-            rules.append(shape.learner(), doc.getUuid(), draft);
+            rules.append(learner, doc.getUuid(), draft);
             regressionSet.accept(doc.getUuid(), draft.getUuid(), input.feed(), input.type(), entries,
                     doc.getRegressionCap());
-            shapes.awaitReview(shape.learner(), doc.getUuid(), shape.id(), draft.getUuid());
-            return emit(doc, new Drafted(draft, candidate.score()), shape, input,
+            states.awaitReview(learner, doc.getUuid(), draft.getUuid());
+            return emit(doc, new Drafted(draft, candidate.score()), learner, input,
                     incumbent, served, learned.transcript());
         }
         final RoutingRule rebound = incumbent.copy()
@@ -1660,27 +1628,27 @@ public final class Stage {
                 .build();
         regressionSet.accept(doc.getUuid(), rebound.getUuid(), input.feed(), input.type(), entries,
                     doc.getRegressionCap());
-        rules.replace(shape.learner(), doc.getUuid(), rebound);
+        rules.replace(learner, doc.getUuid(), rebound);
         // Spent again now the new transform is in force: a stream that fell short of the incumbent while
-        // the session ran marked the shape after it was spent above, and a mark left standing would
-        // relearn a shape that has just been learned. A stream that falls short from here on was judged
+        // the session ran marked the learner after it was spent above, and a mark left standing would
+        // relearn what has just been learned. A stream that falls short from here on was judged
         // against a transform since replaced, and does not mark it (see [#session]).
-        shapes.reset(shape.learner(), shape.id());
-        wake(shape.learner(), input.feed(), input.type());
-        return emit(doc, new Rebound(incumbent, rebound, candidate.score()), shape,
+        states.reset(learner);
+        wake(learner);
+        return emit(doc, new Rebound(incumbent, rebound, candidate.score()), learner,
                 input, incumbent, served, learned.transcript());
     }
 
     /**
-     * Bind a fragment that cleared the floor on this shape: a new rule on the learning key, promoted if
-     * the shape has enough records for a held-out judgement and provisional otherwise; the shape's ledger
+     * Bind a fragment that cleared the floor: a new rule for the learner, promoted if the stream had
+     * enough records for a held-out judgement and provisional otherwise; the learner's ledger
      * released as a reprocess request (A12) — under a provisional rule too, since those inputs are the
      * records the rule is waiting on to meet A14, and its outputs are retracted if it does not; and the
-     * stream's output emitted. In review mode (A25) the rule is a draft instead: streams of the shape wait
+     * stream's output emitted. In review mode (A25) the rule is a draft instead: the learner's streams wait
      * on it, nothing is released, and this stream joins the ledger for Approve to release.
      */
     private StageRun bind(final ShapeshifterAiDoc doc,
-                          final Shape shape,
+                          final Learner learner,
                           final Input input,
                           final DocRef fragment,
                           final Judged judged,
@@ -1700,44 +1668,37 @@ public final class Stage {
                         : clock.millis())
                 .score(judged.score())
                 .recordBoundary(boundary)
-                // Which shape it was learned for (A46): what an improvement claims its attempt against,
-                // and what a view of serving rules shows beside each one.
-                .shapeId(shape.id())
                 // The configuration it serves with, kept (A61).
                 .snapshot(snapshot(doc, ruleUuid, fragment))
                 .build();
-        // Appended, not prepended (design 02 §4): learned rules are exclusive by key, so order among them
-        // is moot, and an operator's more specific rule above them keeps its precedence.
-        rules.append(shape.learner(), doc.getUuid(), rule);
+        rules.append(learner, doc.getUuid(), rule);
         // What was learned for goes in now, under a draft or a provisional rule too (A56): the records are
         // what the session put to the model whether or not the stream brought enough of them or a person
         // has yet approved what it made of them. Reject and retraction take them out again.
         regressionSet.accept(doc.getUuid(), rule.getUuid(), input.feed(), input.type(), entries,
                 doc.getRegressionCap());
-        shapes.reset(shape.learner(), shape.id());
+        states.reset(learner);
         if (draft) {
-            shapes.awaitReview(shape.learner(), doc.getUuid(), shape.id(), rule.getUuid());
-            ledger.sentinelled(shape.learner(), doc.getUuid(), shape.id(), input.id(),
-                    "Awaiting review: draft rule " + rule.getUuid()
-                                                                      + " binds " + fragment.getName()
-                                                                      + " for shape " + shape.id());
-            return new StageRun(doc, new Drafted(rule, judged.score()), shape, null,
+            states.awaitReview(learner, doc.getUuid(), rule.getUuid());
+            ledger.sentinelled(learner, doc.getUuid(), input.id(),
+                    "Awaiting review: draft rule " + rule.getUuid() + " binds " + fragment.getName());
+            return new StageRun(doc, new Drafted(rule, judged.score()), learner, null,
                     null, judged.verdicts(), transcript, null, List.of());
         }
-        replay(doc, ledger.release(shape.learner(), shape.id()),
-                "Shape " + shape.id() + " bound by rule " + rule.getUuid()
+        replay(doc, ledger.release(learner),
+                "Bound by rule " + rule.getUuid()
                 + (provisional
                         ? " (provisional)"
                         : ""));
-        wake(shape.learner(), input.feed(), input.type());
+        wake(learner);
         final Decision decision = provisional
                 ? new Provisional(rule, judged.score(), judged.records(), doc.getMinRecordsPerShape())
                 : new Promoted(rule, judged.score());
-        return emit(doc, decision, shape, input, rule, judged, transcript);
+        return emit(doc, decision, learner, input, rule, judged, transcript);
     }
 
     private Outcome learn(final ShapeshifterAiDoc doc,
-                          final Shape shape,
+                          final Learner learner,
                           final Input input,
                           final Map<String, Object> attributes,
                           final Scorecard scorecard,
@@ -1761,11 +1722,11 @@ public final class Stage {
                 // The records the held stream fell short on (design 04 §4): every candidate for the
                 // transform is held to them, beyond the sample they are not in.
                 .heldTo(held)
-                // What a supervisor has said about this shape (A46), read afresh before every question
+                // What a supervisor has said to this learner (A46), read afresh before every question
                 // so that a hint given while the attempt was parked is carried by the turn that
                 // resumes it.
-                .guidedBy(() -> guidance.standing(shape.learner(), shape.id()));
-        final Sample sample = Sample.of(learningPrefix(input.data(), doc), Shape.KEY, attributes);
+                .guidedBy(() -> guidance.standing(learner));
+        final Sample sample = Sample.of(learningPrefix(input.data(), doc), attributes);
         final long before = advisor.tokensUsed();
         final List<Exchange> asked = new ArrayList<>();
         try {
@@ -1783,58 +1744,51 @@ public final class Stage {
     }
 
     /**
-     * Approve a draft (A25): the promotion. Where an active rule already serves the same shape — the
-     * draft came of relearning — that rule is rebound to the draft's fragment and keeps its {@code uuid}
-     * and its history; otherwise the draft itself goes live. Either way the shape's ledger is released as
-     * a reprocess request (A12).
+     * Approve a draft (A25): the promotion. Where a rule already serves the learner — the draft came of
+     * relearning — that rule is rebound to the draft's fragment and keeps its {@code uuid} and its
+     * history; otherwise the draft itself goes live. Either way the learner's ledger is released as a
+     * reprocess request (A12).
      *
      */
     public void approve(final ShapeshifterAiDoc doc, final String ruleUuid) {
         final Rules.Held held = draft(doc, ruleUuid);
         final RoutingRule draft = held.rule();
-        final Shape shape = Shape.parse(held.learner(), shapeAwaiting(doc, held));
-        final Optional<RoutingRule> incumbent = incumbentOf(rules.forLearner(held.learner()), draft);
+        final Learner learner = awaitingReview(doc, held);
+        final Optional<RoutingRule> incumbent = incumbentOf(rules.forLearner(learner));
         if (incumbent.isPresent()) {
             if (incumbent.get().isPinned()) {
                 // Design 01 §7.3 rule 2: a pin exempts a rule from rebinding until it is unpinned.
                 throw new IllegalStateException("Rule " + incumbent.get().getUuid() + " is pinned; unpin it before "
                                                 + "approving draft " + ruleUuid + " in its place");
             }
-            rules.replace(shape.learner(), doc.getUuid(), incumbent.get().copy()
+            rules.replace(learner, doc.getUuid(), incumbent.get().copy()
                     .pipeline(draft.getPipeline())
                     .snapshot(draft.getSnapshot())
                     .provisional(false)
                     .promotedTimeMs(clock.millis())
                     .score(draft.getScore())
                     .recordBoundary(draft.getRecordBoundary())
-                    // The draft knows its shape and the incumbent may predate the column (A46): taking
-                    // it over is how a rule written before then stops being one that cannot be improved.
-                    .shapeId(draft.getShapeId() == null
-                            ? incumbent.get().getShapeId()
-                            : draft.getShapeId())
                     .build());
-            rules.remove(shape.learner(), draft.getUuid());
+            rules.remove(learner, draft.getUuid());
             regressionSet.move(draft.getUuid(), incumbent.get().getUuid(), doc.getRegressionCap());
             snapshots.move(draft.getUuid(), incumbent.get().getUuid());
         } else {
-            rules.replace(shape.learner(), doc.getUuid(), draft.copy()
+            rules.replace(learner, doc.getUuid(), draft.copy()
                     .draft(false)
                     .provisional(false)
                     .promotedTimeMs(clock.millis())
                     .build());
         }
-        shapes.reset(shape.learner(), shape.id());
+        states.reset(learner);
         // The attempt that wrote the draft is no longer awaiting review (A28).
         record(() -> attempts.decided(doc.getUuid(), ruleUuid, AttemptStatus.PROMOTED, "Approved"));
-        // And what waited for the review is woken (design 04 §5.3): the shape is a feed and a type, which
-        // the draft's shape id carries.
-        wake(shape.learner(), shape.values().get(MetaFields.FIELD_FEED), shape.values().get(MetaFields.FIELD_TYPE));
-        replay(doc, ledger.release(shape.learner(), shape.id()),
-                "Draft rule " + ruleUuid + " approved for shape " + shape.id());
+        // And what waited for the review is woken (design 04 §5.3).
+        wake(learner);
+        replay(doc, ledger.release(learner), "Draft rule " + ruleUuid + " approved");
     }
 
     /**
-     * Ask for what waited on a shape to be processed again (A12), each input through the pipeline that
+     * Ask for what waited on a learner to be processed again (A12), each input through the pipeline that
      * sentinelled it: one document may be used by several pipelines, and a stream replayed through a
      * pipeline that never saw it would produce something nobody asked for. A stream sentinelled by no
      * pipeline at all — a harness, a worker — is released and nothing is asked for it.
@@ -1894,9 +1848,7 @@ public final class Stage {
                 .build());
         // The rolling score starts from here, as it does for a rule the gate promotes: what it scored
         // while provisional was scored on too few records to mean anything.
-        if (!NullSafe.isBlankString(rule.getShapeId())) {
-            shapes.reset(learner, rule.getShapeId());
-        }
+        resetKeepingDraft(doc, learner);
         record(() -> attempts.settled(doc.getUuid(), ruleUuid, AttemptStatus.PROMOTED, said));
     }
 
@@ -1904,17 +1856,17 @@ public final class Stage {
     ///
     /// The automatic retraction of §6 is what a provisional rule gets when it fails the gate; this is the
     /// same act for a reason no gate can see — a person has read what the rule is producing and decided
-    /// it should not be. What follows is identical, and deliberately so: the rule goes, the shape is
-    /// unknown again, and everything the rule produced is asked to be processed again *as it would be
+    /// it should not be. What follows is identical, and deliberately so: the rule goes, the learner
+    /// knows nothing again, and everything the rule produced is asked to be processed again *as it would be
     /// now* (A12), because what it produced was produced by a binding that has been withdrawn.
     ///
     /// Not a removal, which is what it says: a row taken out of a table. Removing a learned rule leaves the
-    /// shape thinking it is bound and leaves the streams it produced standing as though they were right.
+    /// learner thinking it is bound and leaves the streams it produced standing as though they were right.
     /// Retracting says they were not.
     ///
     /// Not `reject` either, which is A25's decision about a draft that never served anything, and which
-    /// gives the shape up so it is not learned again. A retracted shape *is* learned again: the next
-    /// stream of it starts afresh, which is the point — the rule was wrong, the shape is not.
+    /// gives the learner up so it does not learn again. A retracted learner *does* learn again: its next
+    /// stream starts afresh, which is the point — the rule was wrong, the feed is not.
     ///
     /// @param reason Why, in the person's words. It goes on the reprocess request and on the attempt, so
     ///               that a stream asked for again a week later says what asked for it.
@@ -1939,12 +1891,10 @@ public final class Stage {
         rules.remove(learner, rule.getUuid());
         regressionSet.discard(rule.getUuid());
         snapshots.discard(rule.getUuid());
-        if (!NullSafe.isBlankString(rule.getShapeId())) {
-            // The shape is unknown again rather than given up: the rule was wrong, not the shape, and the
-            // next stream of it learns afresh. A rule with no shape came from none, and there is nothing
-            // to forget.
-            shapes.reset(learner, rule.getShapeId());
-        }
+        // The learner knows nothing again rather than giving up: the rule was wrong, not the feed, and the
+        // next stream learns afresh — unless a draft awaits review, which is still the learner's candidate
+        // and a person's to decide.
+        resetKeepingDraft(doc, learner);
         // Each through the pipeline that produced it, which the rows remember, and by the fragment as
         // well as the rule: a rule keeps its uuid when it is rebound (§7.3 rule 3), and what an earlier
         // generation produced was produced correctly by what was bound then.
@@ -1958,29 +1908,39 @@ public final class Stage {
 
     /**
      * Reject a draft (A25): the rule goes, with its records; its documents stay, as every document does.
-     * The shape is given up with the reason, so the model is not asked the same question again until an
-     * operator says otherwise: a shape with no rule is sentinelled, and a relearned shape's incumbent
-     * carries on serving without being scored against or relearned.
+     * The learner gives up with the reason, so the model is not asked the same question again until an
+     * operator says otherwise: a learner with no rule sentinels its streams, and a relearned learner's
+     * incumbent carries on serving without being scored against or relearned.
      *
      */
     public void reject(final ShapeshifterAiDoc doc, final String ruleUuid, final String reason) {
         final Rules.Held held = draft(doc, ruleUuid);
         final RoutingRule draft = held.rule();
-        final Shape shape = Shape.parse(held.learner(), shapeAwaiting(doc, held));
-        rules.remove(shape.learner(), draft.getUuid());
+        final Learner learner = awaitingReview(doc, held);
+        rules.remove(learner, draft.getUuid());
         regressionSet.discard(draft.getUuid());
         snapshots.discard(draft.getUuid());
-        shapes.reset(shape.learner(), shape.id());
-        shapes.giveUp(shape.learner(), doc.getUuid(), shape.id(), "Rejected: " + reason);
+        states.reset(learner);
+        states.giveUp(learner, doc.getUuid(), "Rejected: " + reason);
         // And the streams that were waiting for somebody to review it stop saying they are. They are
-        // still waiting — nothing binds the shape now — but a ledger row that goes on naming a draft
-        // that no longer exists is the screen a person would use to start the shape learning again,
+        // still waiting — nothing serves the learner now — but a ledger row that goes on naming a draft
+        // that no longer exists is the screen a person would use to start the learner learning again,
         // telling them to review something instead.
-        ledger.restate(shape.learner(), shape.id(), "Rejected: " + reason);
+        ledger.restate(learner, "Rejected: " + reason);
         record(() -> attempts.decided(doc.getUuid(), ruleUuid, AttemptStatus.REJECTED, "Rejected: " + reason));
-        // The streams waiting behind the draft (design 04 §3) are woken to error, as a given-up shape's
+        // The streams waiting behind the draft (design 04 §3) are woken to error, as a given-up learner's
         // always are (A52, A80): left waiting, they would wait for a review that is no longer coming.
-        wake(shape.learner(), shape.values().get(MetaFields.FIELD_FEED), shape.values().get(MetaFields.FIELD_TYPE));
+        wake(learner);
+    }
+
+    /// The learner's state starts afresh — not given up, not marked, its rolling score forgotten — but a
+    /// draft awaiting review still awaits it: it is a person's to decide (A25), and nothing that calls this
+    /// decided it. Forgotten, it would be a draft nothing awaits, serving the learner's streams a wait that
+    /// approve and reject both refuse to end.
+    private void resetKeepingDraft(final ShapeshifterAiDoc doc, final Learner learner) {
+        final Optional<String> draft = states.draftAwaiting(learner);
+        states.reset(learner);
+        draft.ifPresent(ruleUuid -> states.awaitReview(learner, doc.getUuid(), ruleUuid));
     }
 
     /// A draft of this document, with whose it is.
@@ -1991,19 +1951,20 @@ public final class Stage {
                         "Rule " + ruleUuid + " is not a draft on document " + doc.getName()));
     }
 
-    private String shapeAwaiting(final ShapeshifterAiDoc doc, final Rules.Held draft) {
-        return shapes.shapeAwaiting(draft.learner(), draft.rule().getUuid())
-                .orElseThrow(() -> new IllegalStateException("No shape awaits review under draft rule "
-                                                             + draft.rule().getUuid() + " on document "
-                                                             + doc.getName()));
+    /// The learner whose review the draft is: the one whose state says it awaits that draft. A draft no
+    /// learner awaits is one nothing would release on approval and nothing would give up on rejection.
+    private Learner awaitingReview(final ShapeshifterAiDoc doc, final Rules.Held draft) {
+        if (!states.draftAwaiting(draft.learner()).filter(draft.rule().getUuid()::equals).isPresent()) {
+            throw new IllegalStateException("Nothing awaits review under draft rule " + draft.rule().getUuid()
+                                            + " on document " + doc.getName());
+        }
+        return draft.learner();
     }
 
-    /**
-     * The active rule a draft would replace: the one serving the same shape.
-     */
-    private static Optional<RoutingRule> incumbentOf(final List<RoutingRule> table, final RoutingRule draft) {
+    /// The rule a draft would replace: the one serving the learner.
+    private static Optional<RoutingRule> incumbentOf(final List<RoutingRule> table) {
         return table.stream()
-                .filter(rule -> !rule.isDraft() && Objects.equals(rule.getShapeId(), draft.getShapeId()))
+                .filter(rule -> !rule.isDraft())
                 .findFirst();
     }
 
@@ -2017,13 +1978,9 @@ public final class Stage {
                         "Rule " + ruleUuid + " is not a rule of this document"));
     }
 
-    /// What binds a shape (design 06 phase J slice 2a): its learner's rule serving it, or failing that the
-    /// draft awaiting review for it. Nothing selects among rules any more; a rule is the binding of the
-    /// shape it was learned for.
-    private Optional<RoutingRule> bindingFor(final Shape shape) {
-        final List<RoutingRule> bindings = rules.forLearner(shape.learner()).stream()
-                .filter(rule -> shape.id().equals(rule.getShapeId()))
-                .toList();
+    /// What serves a learner (A124): its binding, or failing that the draft awaiting review.
+    private Optional<RoutingRule> bindingFor(final Learner learner) {
+        final List<RoutingRule> bindings = rules.forLearner(learner);
         return bindings.stream()
                 .filter(rule -> !rule.isDraft())
                 .findFirst()
@@ -2089,7 +2046,7 @@ public final class Stage {
     /// them — open the next question, and the transform is learned again in place. The session ends when
     /// the stream clears, or parks (A65) when its budgets or its rounds are spent.
     private StageRun settle(final ShapeshifterAiDoc doc,
-                            final Shape shape,
+                            final Learner learner,
                             final Input input,
                             final Map<String, Object> attributes,
                             final Scorecard scorecard,
@@ -2131,10 +2088,10 @@ public final class Stage {
                     ? ""
                     : "; the last candidate was kept out: " + kept);
             if (round == MOST_ROUNDS) {
-                return parked(doc, shape, reason + "; " + MOST_ROUNDS + " rounds without the stream clearing",
+                return parked(doc, learner, reason + "; " + MOST_ROUNDS + " rounds without the stream clearing",
                         run.transcript());
             }
-            run = relearnUnderClaim(doc, shape, rule, input, attributes, scorecard, served, reason, recorder);
+            run = relearnUnderClaim(doc, learner, rule, input, attributes, scorecard, served, reason, recorder);
         }
         return run;
     }
@@ -2152,10 +2109,10 @@ public final class Stage {
 
     /// The session parks for a person (A65).
     private StageRun parked(final ShapeshifterAiDoc doc,
-                            final Shape shape,
+                            final Learner learner,
                             final String reason,
                             final List<Exchange> transcript) {
-        return new StageRun(doc, new Parked(reason), shape, null, null, List.of(), transcript, null, List.of());
+        return new StageRun(doc, new Parked(reason), learner, null, null, List.of(), transcript, null, List.of());
     }
 
     /// What one record is for a learned chain: the boundary the flow settled, or for a chain that begins
@@ -2172,9 +2129,23 @@ public final class Stage {
                 : null;
     }
 
-    private DocRef write(final ShapeshifterAiDoc doc, final Shape shape, final Learned learned) {
-        return writer.write(DocPath.fromParts(FOLDER, doc.getName()), shape.slug() + "-" + clock.millis(),
+    /// A new fragment, named for the feed and type of the stream it was learned on, where it has them, and
+    /// the time; phase J slice 5 names it for its pipeline instead (A113).
+    private DocRef write(final ShapeshifterAiDoc doc, final Input input, final Learned learned) {
+        return writer.write(DocPath.fromParts(FOLDER, doc.getName()), slug(input) + "-" + clock.millis(),
                 learned.chain(), boundary(learned));
+    }
+
+    /// The stream's feed and type as a document name can carry them, with anything a name should not hold
+    /// collapsed to a hyphen.
+    private static String slug(final Input input) {
+        final String named = Stream.of(input.feed(), input.type())
+                .filter(Objects::nonNull)
+                .collect(Collectors.joining("-"))
+                .replaceAll("[^A-Za-z0-9._-]+", "-");
+        return named.isEmpty()
+                ? "learned"
+                : named;
     }
 
     /**
@@ -2182,7 +2153,7 @@ public final class Stage {
      */
     private StageRun emit(final ShapeshifterAiDoc doc,
                           final Decision decision,
-                          final Shape shape,
+                          final Learner learner,
                           final Input input,
                           final RoutingRule rule,
                           final Judged judged,
@@ -2190,47 +2161,50 @@ public final class Stage {
         final Bindings bindings = new Bindings(doc.getUuid(), rule.getUuid(), rule.getPipeline(),
                 rule.getRecordBoundary(), rule.isProvisional(), judged.score(), rule.getSnapshot());
         outputs.emitted(input.id(), input.pipeline(), bindings, judged.spans());
-        return new StageRun(doc, decision, shape, bindings, judged.output(), judged.verdicts(), transcript,
+        return new StageRun(doc, decision, learner, bindings, judged.output(), judged.verdicts(), transcript,
                 judged.events(), judged.diagnostics());
     }
 
-    /// The stream is not processed and nothing is waiting for it to be: an error naming the shape and
-    /// the reason, and **no ledger row**.
+    /// The stream is not processed and nothing is waiting for it to be: an error naming the reason,
+    /// and **no ledger row**.
     ///
-    /// The ledger is what a shape's settling releases (A12): a row goes on it because a promotion will
+    /// The ledger is what a learner's settling releases (A12): a row goes on it because a promotion will
     /// one day take it off. A refusal no promotion can answer — an as-processed reprocess of an input
-    /// nothing remembers — would go on and stay on, and every later release of that shape would ask for
+    /// nothing remembers — would go on and stay on, and every later release of that learner would ask for
     /// it again, be refused again, and write the row again.
-    private StageRun refused(final ShapeshifterAiDoc doc, final Shape shape, final String reason) {
-        return new StageRun(doc, new Sentinel(reason), shape, null, null, List.of(), List.of(), null,
+    private StageRun refused(final ShapeshifterAiDoc doc, final Learner learner, final String reason) {
+        return new StageRun(doc, new Sentinel(reason), learner, null, null, List.of(), List.of(), null,
                 List.of());
     }
 
     /**
-     * The stream is not processed and the model was not consulted: an error naming the shape and the
-     * reason, and a ledger row (A4).
+     * The stream is not processed and the model was not consulted: an error naming the reason, and a
+     * ledger row (A4).
      */
-    private StageRun sentinel(final ShapeshifterAiDoc doc, final Shape shape, final Input input, final String reason) {
-        ledger.sentinelled(shape.learner(), doc.getUuid(), shape.id(), input.id(), reason);
-        return new StageRun(doc, new Sentinel(reason), shape, null, null, List.of(), List.of(), null,
+    private StageRun sentinel(final ShapeshifterAiDoc doc,
+                              final Learner learner,
+                              final Input input,
+                              final String reason) {
+        ledger.sentinelled(learner, doc.getUuid(), input.id(), reason);
+        return new StageRun(doc, new Sentinel(reason), learner, null, null, List.of(), List.of(), null,
                 List.of());
     }
 
     /**
-     * No candidate passed: the shape is given up, and this stream is sentinelled like every later one of
-     * the shape will be until a variant covers it.
+     * No candidate passed: the learner gives up, and this stream is sentinelled like every later one will
+     * be until a person sends it back.
      */
     private StageRun givenUp(final ShapeshifterAiDoc doc,
-                             final Shape shape,
+                             final Learner learner,
                              final Input input,
                              final String decision,
                              final String reason,
                              final List<StoredError> diagnostics,
                              final List<Verdict> verdicts,
                              final List<Exchange> transcript) {
-        shapes.giveUp(shape.learner(), doc.getUuid(), shape.id(), reason);
-        ledger.sentinelled(shape.learner(), doc.getUuid(), shape.id(), input.id(), reason);
-        return new StageRun(doc, new GivenUp(decision, diagnostics), shape, null, null, verdicts, transcript,
+        states.giveUp(learner, doc.getUuid(), reason);
+        ledger.sentinelled(learner, doc.getUuid(), input.id(), reason);
+        return new StageRun(doc, new GivenUp(decision, diagnostics), learner, null, null, verdicts, transcript,
                 null, List.of());
     }
 

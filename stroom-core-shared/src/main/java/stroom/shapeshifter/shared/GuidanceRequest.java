@@ -21,7 +21,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * Something a supervisor wants the learning to know about a shape (A46), given without asking for
+ * Something a supervisor wants a learner to know (A46), given without asking for
  * anything to be run: the feed's own explanation of a field, a correction to what the model assumed, a
  * fact the sample does not show.
  * <p>
@@ -33,29 +33,18 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 public class GuidanceRequest {
 
     @JsonProperty
-    private final String shapeId;
-    @JsonProperty
     private final LearnerRef learner;
     @JsonProperty
     private final String message;
 
     @JsonCreator
-    public GuidanceRequest(@JsonProperty("shapeId") final String shapeId,
-                           @JsonProperty("learner") final LearnerRef learner,
+    public GuidanceRequest(@JsonProperty("learner") final LearnerRef learner,
                            @JsonProperty("message") final String message) {
-        this.shapeId = shapeId;
         this.learner = learner;
         this.message = message;
     }
 
-    /**
-     * Which shape it is about: the learning key's values, as a rule or a ledger row shows them.
-     */
-    public String getShapeId() {
-        return shapeId;
-    }
-
-    /// The learner the shape is one of (design 06 phase J slice 2b), as the row the person acted on named it.
+    /// The learner it is for (A128), as the row the person acted on named it.
     public LearnerRef getLearner() {
         return learner;
     }

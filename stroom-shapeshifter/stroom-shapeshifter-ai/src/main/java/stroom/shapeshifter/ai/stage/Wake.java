@@ -20,7 +20,7 @@ import stroom.shapeshifter.ai.stage.Deferrals.Deferral;
 
 import java.util.List;
 
-/// What a promotion does for the streams waiting on its shape (design 04 §5.3): their tasks go back to
+/// What a promotion does for the streams waiting on its learner (design 04 §5.3): their tasks go back to
 /// `CREATED` ahead of the retry delay, and ordinary FIFO by task id processes them oldest first. In a
 /// node this is the processor task service's wake; in a scenario it is a list of what was woken.
 public interface Wake {

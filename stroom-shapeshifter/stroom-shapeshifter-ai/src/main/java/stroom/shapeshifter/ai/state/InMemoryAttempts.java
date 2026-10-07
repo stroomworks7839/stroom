@@ -42,9 +42,9 @@ public final class InMemoryAttempts implements Attempts {
     private static final Set<AttemptStatus> BOUND = Set.of(AttemptStatus.PROMOTED,
             AttemptStatus.PROVISIONAL, AttemptStatus.AWAITING_REVIEW);
 
-    /// The states in which an attempt is still learning, and so still holds its shape (A45). A draft
-    /// awaiting review is not one of them: it has written its rule, and the rule is what the router and
-    /// the shape's own row answer with until a person decides.
+    /// The states in which an attempt is still learning, and so still holds its learner's claim (A45). A
+    /// draft awaiting review is not one of them: it has written its rule, and the rule is what the
+    /// learner's state answers with until a person decides.
     private static final Set<AttemptStatus> OPEN = Set.of(AttemptStatus.IN_PROGRESS,
             AttemptStatus.AWAITING_MODEL, AttemptStatus.PARKED);
 
@@ -54,12 +54,12 @@ public final class InMemoryAttempts implements Attempts {
     private final Set<Long> exhaustNext = new HashSet<>();
     private final AtomicLong nextId = new AtomicLong(1);
 
-    /// One open attempt per shape is what one learner means (A45); an attempt whose expiry has passed has
-    /// lapsed, and the next node takes the shape.
+    /// One open attempt per learner (A45); an attempt whose expiry has passed has lapsed, and the next
+    /// node resumes it.
     @Override
     public synchronized Optional<Long> opened(final Attempt attempt, final long nowMs) {
         final long now = System.currentTimeMillis();
-        if (open(attempt.learner(), attempt.shape(), nowMs).isPresent()) {
+        if (open(attempt.learner(), nowMs).isPresent()) {
             return Optional.empty();
         }
         final long id = nextId.getAndIncrement();
@@ -69,13 +69,12 @@ public final class InMemoryAttempts implements Attempts {
         return Optional.of(id);
     }
 
-    /// The newest, as the rows are read: an attempt superseded by a later one for the same shape is not
+    /// The newest, as the rows are read: an attempt superseded by a later one for the same learner is not
     /// what a node picks up.
     @Override
-    public synchronized Optional<Recorded> open(final Learner learner, final String shape, final long nowMs) {
+    public synchronized Optional<Recorded> open(final Learner learner, final long nowMs) {
         return attempts.values().stream()
                 .filter(attempt -> attempt.attempt().learner().equals(learner)
-                                   && attempt.attempt().shape().equals(shape)
                                    && OPEN.contains(attempt.status()))
                 .max(Comparator.comparingLong(Recorded::id))
                 .map(this::withTurns);
@@ -87,7 +86,7 @@ public final class InMemoryAttempts implements Attempts {
                                     final long expiryMs,
                                     final long tokensSpent) {
         final Recorded was = attempts.get(attemptId);
-        // A finished attempt is not parked back into life: it holds no shape and asks nothing.
+        // A finished attempt is not parked back into life: it holds no claim and asks nothing.
         if (was != null && OPEN.contains(was.status())) {
             attempts.put(attemptId, new Recorded(was.id(), claim(was, expiryMs), status, was.decision(),
                     was.ruleUuid(), was.score(), was.tokensSpent() + tokensSpent, was.createTimeMs(),
@@ -109,7 +108,7 @@ public final class InMemoryAttempts implements Attempts {
             return false;
         }
         final Attempt current = was.attempt();
-        final Attempt taken = new Attempt(current.learner(), current.docUuid(), current.shape(), current.feed(),
+        final Attempt taken = new Attempt(current.learner(), current.docUuid(), current.feed(),
                 current.type(),
                 current.inputId(), node, current.promotionMode(), expiryMs);
         attempts.put(attemptId, new Recorded(was.id(), taken, AttemptStatus.IN_PROGRESS, was.decision(),
@@ -160,7 +159,7 @@ public final class InMemoryAttempts implements Attempts {
                                     final long tokensSpent) {
         final Recorded was = attempts.get(attemptId);
         if (was != null) {
-            // A claim that has ended holds nothing (A45), and frees the shape for the next attempt; what it
+            // A claim that has ended holds nothing (A45), and frees the learner for the next attempt; what it
             // spent is added to what it had spent before it was parked.
             attempts.put(attemptId, new Recorded(was.id(), claim(was, 0L), status, decision, ruleUuid, score,
                     was.tokensSpent() + tokensSpent, was.createTimeMs(), System.currentTimeMillis(),
@@ -227,8 +226,7 @@ public final class InMemoryAttempts implements Attempts {
         return -1;
     }
 
-    /// One open attempt per shape is what one learner means (A45), whether it is opened for the first
-    /// time or opened again.
+    /// One open attempt per learner (A45), whether it is opened for the first time or opened again.
     @Override
     public synchronized boolean reopened(final long attemptId, final long nowMs, final long expiryMs) {
         final Recorded was = attempts.get(attemptId);
@@ -239,9 +237,9 @@ public final class InMemoryAttempts implements Attempts {
         if (was.status() == AttemptStatus.IN_PROGRESS && was.attempt().expiryMs() > nowMs) {
             return false;
         }
-        // Whatever else holds the shape keeps it, lapsed or not: a lapsed session is resumed, not swept
+        // Whatever else holds the claim keeps it, lapsed or not: a lapsed session is resumed, not swept
         // aside for an answer to an older one.
-        if (open(was.attempt().learner(), was.attempt().shape(), nowMs)
+        if (open(was.attempt().learner(), nowMs)
                 .filter(other -> other.id() != attemptId)
                 .isPresent()) {
             return false;
@@ -316,7 +314,6 @@ public final class InMemoryAttempts implements Attempts {
         final Attempt was = attempt.attempt();
         return (criteria.getDocUuid() == null || criteria.getDocUuid().equals(was.docUuid()))
                && (criteria.getFeed() == null || criteria.getFeed().equals(was.feed()))
-               && (criteria.getShape() == null || criteria.getShape().equals(was.shape()))
                && (criteria.getPromotionMode() == null || criteria.getPromotionMode() == was.promotionMode())
                && (criteria.getStatuses().isEmpty() || criteria.getStatuses().contains(attempt.status()));
     }
@@ -340,7 +337,7 @@ public final class InMemoryAttempts implements Attempts {
     /// taken, extended or ended is a new one.
     private static Attempt claim(final Recorded was, final long expiryMs) {
         final Attempt attempt = was.attempt();
-        return new Attempt(attempt.learner(), attempt.docUuid(), attempt.shape(), attempt.feed(), attempt.type(),
+        return new Attempt(attempt.learner(), attempt.docUuid(), attempt.feed(), attempt.type(),
                 attempt.inputId(), attempt.node(), attempt.promotionMode(), expiryMs);
     }
 

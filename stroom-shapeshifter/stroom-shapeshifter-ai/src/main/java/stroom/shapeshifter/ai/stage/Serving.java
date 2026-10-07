@@ -21,15 +21,15 @@ import stroom.shapeshifter.shared.ServingRule;
 import java.util.Collection;
 import java.util.List;
 
-/// What is serving, as a person browses it (ruling A46, design 01 §11.6): the rules of [Rules] with what
-/// [Shapes] has been scoring for each and what [Guidance] has been told about it.
+/// What is serving, as a person browses it (ruling A46, design 01 §11.6): the bindings of [Rules] with what
+/// each learner has been scoring ([LearnerStates]) and what [Guidance] has been told about it.
 ///
 /// A seam of its own rather than a method on [Rules], because it is none of the three tables and all of
 /// them. The node answers it with one query that joins them; the in-memory sibling holds the three maps
-/// and does the same work in Java. Putting it on [Rules] would have made the rule store depend on shape
-/// state it otherwise knows nothing about, and putting it above the seams would have meant reading every
-/// rule of a document into a list before paging it — which is the thing a document with ten thousand
-/// shapes cannot afford.
+/// and does the same work in Java. Putting it on [Rules] would have made the rule store depend on
+/// learner state it otherwise knows nothing about, and putting it above the seams would have meant
+/// reading every binding of a document into a list before paging it — which is the thing a document
+/// used by ten thousand pipelines cannot afford.
 ///
 /// Read-only, and off the hot path: nothing routing a stream comes here.
 public interface Serving {
@@ -44,9 +44,9 @@ public interface Serving {
     /// @param docUuids The documents the person may read. Empty answers empty rather than everything:
     ///                 the filtering belongs in the query, or a total would count rows they may not see
     ///                 and their pages would come back short.
-    /// @param below    Show only rules whose shape has been scoring below this, or null for all of them.
-    ///                 A shape with no rolling score yet is not below anything and is left out when a
-    ///                 threshold is given: there is nothing to say it is imperfect.
+    /// @param below    Show only rules whose learner has been scoring below this, or null for all of
+    ///                 them. A learner with no rolling score yet is not below anything and is left out
+    ///                 when a threshold is given: there is nothing to say it is imperfect.
     /// @param offset   The first row of the page.
     /// @param limit    How many rows.
     Page rules(Collection<String> docUuids, Double below, long offset, int limit);

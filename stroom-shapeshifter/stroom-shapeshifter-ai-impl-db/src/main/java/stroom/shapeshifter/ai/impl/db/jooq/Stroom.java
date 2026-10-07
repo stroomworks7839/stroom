@@ -16,10 +16,10 @@ import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterAttempt;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterCorpus;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterDeferral;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterGuidance;
+import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterLearnerState;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterLedger;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterOutput;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterRule;
-import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterShape;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterSnapshot;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterSpend;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterTurn;
@@ -59,6 +59,11 @@ public class Stroom extends SchemaImpl {
     public final ShapeshifterGuidance SHAPESHIFTER_GUIDANCE = ShapeshifterGuidance.SHAPESHIFTER_GUIDANCE;
 
     /**
+     * The table <code>stroom.shapeshifter_learner_state</code>.
+     */
+    public final ShapeshifterLearnerState SHAPESHIFTER_LEARNER_STATE = ShapeshifterLearnerState.SHAPESHIFTER_LEARNER_STATE;
+
+    /**
      * The table <code>stroom.shapeshifter_ledger</code>.
      */
     public final ShapeshifterLedger SHAPESHIFTER_LEDGER = ShapeshifterLedger.SHAPESHIFTER_LEDGER;
@@ -72,11 +77,6 @@ public class Stroom extends SchemaImpl {
      * The table <code>stroom.shapeshifter_rule</code>.
      */
     public final ShapeshifterRule SHAPESHIFTER_RULE = ShapeshifterRule.SHAPESHIFTER_RULE;
-
-    /**
-     * The table <code>stroom.shapeshifter_shape</code>.
-     */
-    public final ShapeshifterShape SHAPESHIFTER_SHAPE = ShapeshifterShape.SHAPESHIFTER_SHAPE;
 
     /**
      * The table <code>stroom.shapeshifter_snapshot</code>.
@@ -113,10 +113,10 @@ public class Stroom extends SchemaImpl {
             ShapeshifterCorpus.SHAPESHIFTER_CORPUS,
             ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL,
             ShapeshifterGuidance.SHAPESHIFTER_GUIDANCE,
+            ShapeshifterLearnerState.SHAPESHIFTER_LEARNER_STATE,
             ShapeshifterLedger.SHAPESHIFTER_LEDGER,
             ShapeshifterOutput.SHAPESHIFTER_OUTPUT,
             ShapeshifterRule.SHAPESHIFTER_RULE,
-            ShapeshifterShape.SHAPESHIFTER_SHAPE,
             ShapeshifterSnapshot.SHAPESHIFTER_SNAPSHOT,
             ShapeshifterSpend.SHAPESHIFTER_SPEND,
             ShapeshifterTurn.SHAPESHIFTER_TURN

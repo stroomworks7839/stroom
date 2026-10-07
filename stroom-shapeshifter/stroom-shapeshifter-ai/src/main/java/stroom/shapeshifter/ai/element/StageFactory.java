@@ -46,13 +46,13 @@ import stroom.shapeshifter.ai.scoring.YieldScorer;
 import stroom.shapeshifter.ai.stage.Attempts;
 import stroom.shapeshifter.ai.stage.Deferrals;
 import stroom.shapeshifter.ai.stage.Guidance;
+import stroom.shapeshifter.ai.stage.LearnerStates;
 import stroom.shapeshifter.ai.stage.Learners;
 import stroom.shapeshifter.ai.stage.Ledger;
 import stroom.shapeshifter.ai.stage.Outputs;
 import stroom.shapeshifter.ai.stage.RegressionSet;
 import stroom.shapeshifter.ai.stage.Reprocessing;
 import stroom.shapeshifter.ai.stage.Rules;
-import stroom.shapeshifter.ai.stage.Shapes;
 import stroom.shapeshifter.ai.stage.Snapshots;
 import stroom.shapeshifter.ai.stage.Spend;
 import stroom.shapeshifter.ai.stage.Stage;
@@ -97,7 +97,7 @@ public class StageFactory {
     private final NodeInfo nodeInfo;
     private final Attempts attempts;
     private final Rules rules;
-    private final Shapes shapes;
+    private final LearnerStates states;
     private final Spend spend;
     private final Ledger ledger;
     private final Guidance guidance;
@@ -129,7 +129,7 @@ public class StageFactory {
                         final NodeInfo nodeInfo,
                         final Attempts attempts,
                         final Rules rules,
-                        final Shapes shapes,
+                        final LearnerStates states,
                         final Spend spend,
                         final Ledger ledger,
                         final Guidance guidance,
@@ -159,7 +159,7 @@ public class StageFactory {
         this.nodeInfo = nodeInfo;
         this.attempts = attempts;
         this.rules = rules;
-        this.shapes = shapes;
+        this.states = states;
         this.spend = spend;
         this.ledger = ledger;
         this.guidance = guidance;
@@ -204,7 +204,7 @@ public class StageFactory {
                         injectedCodeProvider, taskContextFactory),
                 attempts,
                 rules,
-                shapes,
+                states,
                 spend,
                 ledger,
                 guidance,

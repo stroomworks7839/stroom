@@ -42,8 +42,6 @@ public class ServingRule {
     @JsonProperty
     private final String ruleUuid;
     @JsonProperty
-    private final String shapeId;
-    @JsonProperty
     private final DocRef fragment;
     @JsonProperty
     private final boolean pinned;
@@ -68,7 +66,6 @@ public class ServingRule {
     public ServingRule(@JsonProperty("doc") final DocRef doc,
                        @JsonProperty("learner") final LearnerRef learner,
                        @JsonProperty("ruleUuid") final String ruleUuid,
-                       @JsonProperty("shapeId") final String shapeId,
                        @JsonProperty("fragment") final DocRef fragment,
                        @JsonProperty("pinned") final boolean pinned,
                        @JsonProperty("provisional") final boolean provisional,
@@ -81,7 +78,6 @@ public class ServingRule {
         this.doc = doc;
         this.learner = learner;
         this.ruleUuid = ruleUuid;
-        this.shapeId = shapeId;
         this.fragment = fragment;
         this.pinned = pinned;
         this.provisional = provisional;
@@ -97,20 +93,13 @@ public class ServingRule {
         return doc;
     }
 
-    /// The learner whose row it is (design 06 phase J slice 2b): what a request about it sends back.
+    /// The learner it serves (A128): what a request about it sends back.
     public LearnerRef getLearner() {
         return learner;
     }
 
     public String getRuleUuid() {
         return ruleUuid;
-    }
-
-    /**
-     * Which shape it was learned for: the learning key's values, e.g. {@code Feed=SYSLOG|Type=Raw Events}.
-     */
-    public String getShapeId() {
-        return shapeId;
     }
 
     public DocRef getFragment() {
@@ -148,7 +137,7 @@ public class ServingRule {
     }
 
     /**
-     * What it has been scoring since, over the shape's rolling memory (A29); null until the shape has
+     * What it has been scoring since, over the learner's rolling memory (A29); null until the learner has
      * brought enough records to mean it.
      */
     public Double getRollingScore() {
@@ -156,7 +145,7 @@ public class ServingRule {
     }
 
     /**
-     * How many records the shape has brought into that rolling score: the traffic this rule carries, and
+     * How many records the learner has brought into that rolling score: the traffic this rule carries, and
      * what the list is ordered by.
      */
     public int getRecords() {
@@ -164,7 +153,7 @@ public class ServingRule {
     }
 
     /**
-     * How many things a supervisor has said about this rule's shape (A46), so that a person can see
+     * How many things a supervisor has said about what this rule's learner learns (A46), so that a person can see
      * whether the last hint was acted on before giving another.
      */
     public int getGuidance() {
@@ -178,7 +167,7 @@ public class ServingRule {
 
     @Override
     public String toString() {
-        return shapeId + " -> " + (fragment == null
+        return learner + " -> " + (fragment == null
                 ? "nothing"
                 : fragment.getName());
     }

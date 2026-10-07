@@ -41,7 +41,7 @@ import java.util.stream.Collectors;
  * as-current. At the lowest priority: the release of a backlog is bursty by nature and belongs behind
  * live data.
  * <p>
- * The pipeline is the caller's to name rather than this object's to know, since a shape settles where it
+ * The pipeline is the caller's to name rather than this object's to know, since a learner settles where it
  * was not necessarily sentinelled: another task, another node, or deferred mode's worker with no
  * pipeline around it at all (A5). It is held by the ledger, which is what remembers where each stream
  * that waited was being processed.

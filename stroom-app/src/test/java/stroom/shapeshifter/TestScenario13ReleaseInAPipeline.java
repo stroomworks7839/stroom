@@ -56,7 +56,6 @@ import stroom.shapeshifter.ai.stage.Deferrals.Deferral;
 import stroom.shapeshifter.ai.stage.Learner;
 import stroom.shapeshifter.ai.stage.Ledger;
 import stroom.shapeshifter.ai.stage.Rules;
-import stroom.shapeshifter.ai.stage.Shape;
 import stroom.shapeshifter.ai.transformation.XsltStep;
 import stroom.shapeshifter.shared.FlowExample;
 import stroom.shapeshifter.shared.LearningMode;
@@ -171,7 +170,7 @@ class TestScenario13ReleaseInAPipeline extends AbstractCoreIntegrationTest {
         deferredLearning.exec();
         script.verifyExhausted();
         assertThat(rules.forLearner(learner)).hasSize(1);
-        assertThat(ledger.release(learner, shape()))
+        assertThat(ledger.release(learner))
                 .describedAs("the ledger holds nothing: nothing was sentinelled")
                 .isEmpty();
 
@@ -207,10 +206,6 @@ class TestScenario13ReleaseInAPipeline extends AbstractCoreIntegrationTest {
         assertThat(rules.forLearner(learner)).hasSize(1);
     }
 
-    private String shape() {
-        return Shape.of(learner,
-                Map.of(MetaFields.FIELD_FEED, FEED, MetaFields.FIELD_TYPE, StreamTypeNames.RAW_EVENTS)).id();
-    }
 
     /**
      * The split and target questions are answered from the configurations the script will give, as the

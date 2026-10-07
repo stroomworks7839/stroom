@@ -17,6 +17,7 @@
 package stroom.shapeshifter.ai.stage;
 
 import java.util.List;
+import java.util.Optional;
 
 /// The corpus (ruling A18; design 04 §4.1): the records a rule was accepted on, per rule, each with the
 /// output it was accepted with. Keyed on the rule's uuid so that a rule an operator widens keeps its
@@ -41,11 +42,20 @@ public interface RegressionSet {
     ///
     /// @param docUuid  The document.
     /// @param ruleUuid The rule.
-    /// @param feed     The feed the records came from: where a node keeps the copy.
+    /// @param feed     The feed the records came from: where a node keeps the copy. Never null: a copy
+    ///                 must be kept on some feed.
     /// @param type     The stream type the records came from.
     /// @param entries  The records, in the order they were learned.
     /// @param cap      How many entries the rule may hold (A63).
     void accept(String docUuid, String ruleUuid, String feed, String type, List<Accepted> entries, int cap);
+
+    /// The feed a rule's records are kept on: its newest entry's. What an improvement, which has no stream
+    /// of its own, keeps what it learns for on (A126: a learner does not know its feed, but its records
+    /// do).
+    ///
+    /// @param ruleUuid The rule.
+    /// @return The feed, or empty where the rule holds no records.
+    Optional<String> feedOf(String ruleUuid);
 
     /// A rule that will never serve — a rejected draft, a retracted rule — takes its records with it.
     ///

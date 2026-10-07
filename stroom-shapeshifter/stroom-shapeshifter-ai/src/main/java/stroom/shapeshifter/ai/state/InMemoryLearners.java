@@ -22,7 +22,7 @@ import stroom.shapeshifter.ai.stage.Learners;
 
 import jakarta.inject.Inject;
 
-/// A learner's rows in memory, brought to the document it runs under. The shapes in memory record no
+/// A learner's rows in memory, brought to the document it runs under. The states in memory record no
 /// document, since nothing in memory lists them by one, so there is nothing of theirs to bring.
 public final class InMemoryLearners implements Learners {
 

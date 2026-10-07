@@ -49,6 +49,7 @@ import stroom.shapeshifter.ai.state.InMemoryDeferrals;
 import stroom.shapeshifter.ai.state.InMemoryDocuments;
 import stroom.shapeshifter.ai.state.InMemoryGuidance;
 import stroom.shapeshifter.ai.state.InMemoryInputs;
+import stroom.shapeshifter.ai.state.InMemoryLearnerStates;
 import stroom.shapeshifter.ai.state.InMemoryLearners;
 import stroom.shapeshifter.ai.state.InMemoryLedger;
 import stroom.shapeshifter.ai.state.InMemoryOutputs;
@@ -56,7 +57,6 @@ import stroom.shapeshifter.ai.state.InMemoryRegressionSet;
 import stroom.shapeshifter.ai.state.InMemoryReprocessing;
 import stroom.shapeshifter.ai.state.InMemoryRules;
 import stroom.shapeshifter.ai.state.InMemoryServing;
-import stroom.shapeshifter.ai.state.InMemoryShapes;
 import stroom.shapeshifter.ai.state.InMemorySnapshots;
 import stroom.shapeshifter.ai.state.InMemorySpend;
 import stroom.shapeshifter.ai.state.InMemoryWake;
@@ -105,7 +105,7 @@ public final class Scenarios {
     public final InMemoryAttempts attempts = new InMemoryAttempts();
     public final InMemoryRules rules = new InMemoryRules();
     public final InMemorySpend spend = new InMemorySpend();
-    public final InMemoryShapes shapes = new InMemoryShapes();
+    public final InMemoryLearnerStates states = new InMemoryLearnerStates();
     public final InMemoryLedger ledger = new InMemoryLedger();
     public final InMemoryGuidance guidance = new InMemoryGuidance();
     public final InMemoryOutputs outputs = new InMemoryOutputs();
@@ -117,7 +117,7 @@ public final class Scenarios {
     public final InMemoryDocuments documents = new InMemoryDocuments();
     public final InMemoryInputs inputs = new InMemoryInputs();
     /// The serving view of A46 over the three seams above it, as a node reads it from one query.
-    public final InMemoryServing serving = new InMemoryServing(rules, shapes, guidance);
+    public final InMemoryServing serving = new InMemoryServing(rules, states, guidance);
     /// What brings a learner's rows to the document it runs under, over the rows above.
     public final InMemoryLearners learners = new InMemoryLearners(rules, ledger, guidance, deferrals);
     /// As many attempts as a scenario could open, which is what one carrying takes on.
@@ -199,7 +199,7 @@ public final class Scenarios {
                                 stores.xslts, runners),
                 attempts,
                 rules,
-                shapes,
+                states,
                 spend,
                 ledger,
                 guidance,
@@ -288,7 +288,7 @@ public final class Scenarios {
             // that what a scenario reads off a bound stream is what the task wrote.
             final StageRun run = servedAtOnce == null
                     ? first
-                    : new StageRun(first.doc(), first.decision(), first.shape(), first.bindings(),
+                    : new StageRun(first.doc(), first.decision(), first.learner(), first.bindings(),
                             servedAtOnce.text(), first.verdicts(), first.transcript(), first.events(),
                             first.diagnostics());
             return new Processed(first, null, run, servedAtOnce);

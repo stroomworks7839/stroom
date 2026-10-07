@@ -53,7 +53,6 @@ class TestScenariosRetractionRelearningAndRelease {
     private static final String FOUR_FIELDS_AND_ALARMS = Scenarios.resource("csv-fields-and-alarms.ds3.xml");
     private static final String XSLT = Scenarios.resource("csv-logon.xsl");
     private static final String DOC = "doc-1";
-    private static final String SHAPE = "Feed=DOOR-ACCESS|Type=Raw Events";
 
     private static ShapeshifterAiDoc doc(final int minRecordsPerShape) {
         return Scenarios.document()
@@ -168,10 +167,9 @@ class TestScenariosRetractionRelearningAndRelease {
         assertThat(scenarios.ledger.isEmpty()).isTrue();
         // The score is no trigger (design 04 §6): it is kept for the Supervisor's list of what could be
         // better (A46), and a person reading the stream's errors is who marks the shape (A100).
-        assertThat(scenarios.shapes.relearnReason(Scenarios.LEARNER, SHAPE)).isEmpty();
+        assertThat(scenarios.states.relearnReason(Scenarios.LEARNER)).isEmpty();
         assertThat(second.doc()).isEqualTo(first.doc());
-        scenarios.shapes.markForRelearning(Scenarios.LEARNER, DOC, SHAPE,
-                "Rolling score below the threshold: improve it");
+        scenarios.states.markForRelearning(Scenarios.LEARNER, DOC, "Rolling score below the threshold: improve it");
 
         // The next stream starts an attempt, opening with why the incumbent fell short: the mark's reason
         // and the coverage shortfall, on the chain question and on each element's first. The incumbent
@@ -208,7 +206,7 @@ class TestScenariosRetractionRelearningAndRelease {
         assertThat(scenarios.regressionSet.accepted(incumbent.getUuid()))
                 .describedAs("the records that fell short under the incumbent were learned for, and go in (A56)")
                 .hasSizeGreaterThan(held);
-        assertThat(scenarios.shapes.relearnReason(Scenarios.LEARNER, SHAPE)).isEmpty();
+        assertThat(scenarios.states.relearnReason(Scenarios.LEARNER)).isEmpty();
         assertThat(scenarios.stores.pipelines.list()).describedAs("one fragment per shape (A58)").hasSize(1);
 
         // And the stream after that is served by the new fragment, every record an event.
@@ -251,18 +249,18 @@ class TestScenariosRetractionRelearningAndRelease {
         final Script silent = Script.of();
         final StageRun blank = scenarios.process(silent, first.doc(), stream(2, "\n")).learned();
         assertThat(blank.decision()).isInstanceOf(Bound.class);
-        assertThat(scenarios.shapes.relearnReason(Scenarios.LEARNER, SHAPE)).isEmpty();
+        assertThat(scenarios.states.relearnReason(Scenarios.LEARNER)).isEmpty();
 
         // The score falls and a person marks the shape (design 04 §6); a stream of three records cannot
         // meet A14 for a candidate, so the incumbent serves it, the model is not asked, and the mark waits.
         scenarios.process(silent, first.doc(), stream(3, lines(20, 3))).learned();
-        scenarios.shapes.markForRelearning(Scenarios.LEARNER, DOC, SHAPE, "Scored below the threshold: improve it");
-        assertThat(scenarios.shapes.relearnReason(Scenarios.LEARNER, SHAPE)).isPresent();
+        scenarios.states.markForRelearning(Scenarios.LEARNER, DOC, "Scored below the threshold: improve it");
+        assertThat(scenarios.states.relearnReason(Scenarios.LEARNER)).isPresent();
         final Script stillSilent = Script.of();
         final StageRun small = scenarios.process(stillSilent, first.doc(), stream(4, lines(3, 3))).learned();
         assertThat(small.decision()).isInstanceOf(Bound.class);
         assertThat(stillSilent.asked()).isEmpty();
-        assertThat(scenarios.shapes.relearnReason(Scenarios.LEARNER, SHAPE)).isPresent();
+        assertThat(scenarios.states.relearnReason(Scenarios.LEARNER)).isPresent();
 
         // A stream with enough records is relearned.
         final Script relearn = learning(scenarios, FOUR_FIELDS_AND_ALARMS);

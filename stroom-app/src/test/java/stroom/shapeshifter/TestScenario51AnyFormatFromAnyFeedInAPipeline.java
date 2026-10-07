@@ -66,23 +66,25 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Design 02 §5, scenario 51 at Tier 2: <strong>one document, one pipeline, any format, any feed</strong>,
+ * Design 02 §5, scenario 51 at Tier 2: <strong>one document, a pipeline per feed, any format</strong>,
  * processed as processor tasks against real feeds and real streams.
  * <p>
  * Tier 1 proves the stage reaches the right decisions. What only this tier can claim is that the whole
- * arrangement works: one pipeline, whose supervised element is attached to one document, meeting four
- * feeds of four unrelated formats in turn — delimited text with a header, JSON lines, syslog in two
- * forms, and fixed-width columns with nothing to split on. Each is learned, each writes a fragment that
+ * arrangement works: a pipeline per feed, as the Pipeline Factory makes them, each with its supervised
+ * element attached to one document, and four feeds of four unrelated formats in turn — delimited text
+ * with a header, JSON lines, syslog in two forms, and fixed-width columns with nothing to split on. Each
+ * is learned, each writes a fragment that
  * is a real pipeline document, each produces an events stream equal to its format's golden, and each
  * output carries the bindings that say what produced it.
  * <p>
- * This is the demo, run. The document, the pipeline and the filter are {@link DemoContentPack}'s own, so
+ * This is the demo, run. The document, the pipelines and the filters are {@link DemoContentPack}'s own, so
  * what is proved here is the thing the content pack ships rather than a rehearsal of it. Only the model
  * is different: the advisor is scripted, as every Tier 2 scenario's is, and what a model chooses from
  * the list this document allows is the live run's to answer.
@@ -107,8 +109,8 @@ class TestScenario51AnyFormatFromAnyFeedInAPipeline extends AbstractProcessInteg
     private static final String FIXED_XSLT = Scenarios.resource("fixed-width.xsl");
     private static final String FIXED_EVENTS = Scenarios.resource("fixed-width.events.xml");
 
-    /// The learner the test's pipeline is: its Shapeshifter AI element (design 06 phase J slice 2b).
-    private Learner learner;
+    /// Each feed's learner: its pipeline's Shapeshifter AI element (A114, A127).
+    private final Map<String, Learner> learners = new LinkedHashMap<>();
 
     @Inject
     private StoreCreationTool storeCreationTool;
@@ -136,10 +138,10 @@ class TestScenario51AnyFormatFromAnyFeedInAPipeline extends AbstractProcessInteg
     private DocRef document;
 
     @Test
-    void oneDocumentAndOnePipelineLearnEveryFormatTheyAreShown() {
+    void oneDocumentAndAPipelinePerFeedLearnEveryFormatTheyAreShown() {
         DemoContentPack.FEEDS.forEach(feed -> storeCreationTool.getOrCreateFeedDoc(feed));
         document = document();
-        filter(pipeline(document));
+        DemoContentPack.FEEDS.forEach(feed -> filter(feed, pipeline(feed, document)));
 
         // Delimited text with a header row.
         learn(DemoContentPack.FEEDS.get(0), CSV.input(), CSV_EVENTS,
@@ -175,14 +177,16 @@ class TestScenario51AnyFormatFromAnyFeedInAPipeline extends AbstractProcessInteg
                         .expect(QuestionMatcher.configuration("XSLTFilter"))
                         .reply(Scenarios.fenced(FIXED_XSLT)));
 
-        // One document, one table, a rule per feed — and every rule bound to a fragment that is a real
+        // One document, a rule per feed's learner — and every rule bound to a fragment that is a real
         // pipeline document in the store.
-        final List<RoutingRule> table = rules.forLearner(learner);
-        assertThat(table).hasSize(DemoContentPack.FEEDS.size());
-        assertThat(table).extracting(RoutingRule::getShapeId)
-                .containsExactlyInAnyOrderElementsOf(DemoContentPack.FEEDS.stream()
-                        .map(feed -> "Feed=" + feed + "|Type=" + StreamTypeNames.RAW_EVENTS)
-                        .toList());
+        final List<RoutingRule> table = DemoContentPack.FEEDS.stream()
+                .map(feed -> {
+                    assertThat(rules.forLearner(learners.get(feed)))
+                            .describedAs(feed + "'s pipeline learned its own rule")
+                            .hasSize(1);
+                    return rules.forLearner(learners.get(feed)).get(0);
+                })
+                .toList();
         assertThat(table).allSatisfy(rule -> {
             assertThat(rule.isDraft()).isFalse();
             assertThat(rule.isProvisional())
@@ -208,9 +212,9 @@ class TestScenario51AnyFormatFromAnyFeedInAPipeline extends AbstractProcessInteg
         assertThat(served.getMarkerCount(Severity.ERROR, Severity.FATAL_ERROR)).isZero();
         assertThat(canonical(data(outputs().get(outputs().size() - 1))))
                 .isEqualTo(canonical(JSON_EVENTS));
-        assertThat(rules.forLearner(learner))
-                .describedAs("and no second rule was written for a shape already bound")
-                .hasSize(DemoContentPack.FEEDS.size());
+        assertThat(rules.forLearner(learners.get(DemoContentPack.FEEDS.get(1))))
+                .describedAs("and no second rule was written for a learner already bound")
+                .hasSize(1);
     }
 
     /**
@@ -251,22 +255,22 @@ class TestScenario51AnyFormatFromAnyFeedInAPipeline extends AbstractProcessInteg
         return docRef;
     }
 
-    private DocRef pipeline(final DocRef document) {
-        final DocRef pipelineRef = pipelineStore.createDocument(DemoContentPack.PIPELINE_NAME);
+    private DocRef pipeline(final String feed, final DocRef document) {
+        final DocRef pipelineRef = pipelineStore.createDocument(DemoContentPack.pipelineName(feed));
         final PipelineDoc pipeline = pipelineStore.readDocument(pipelineRef);
         pipelineStore.writeDocument(pipeline.copy()
                 .pipelineData(DemoContentPack.pipelineData(document))
                 .build());
-        learner = new Learner(pipelineRef.getUuid(), DemoContentPack.STAGE_ELEMENT);
+        learners.put(feed, new Learner(pipelineRef.getUuid(), DemoContentPack.STAGE_ELEMENT));
         return pipelineRef;
     }
 
     /**
-     * The pack's own filter over all four feeds, with this installation's pipeline in place of the uuid
-     * the pack names.
+     * The pack's own filter over one feed, with this installation's pipeline in place of the uuid the
+     * pack names.
      */
-    private void filter(final DocRef pipeline) {
-        final ProcessorFilter shipped = DemoContentPack.filter();
+    private void filter(final String feed, final DocRef pipeline) {
+        final ProcessorFilter shipped = DemoContentPack.filter(feed);
         final QueryData queryData = shipped.getQueryData().copy()
                 .dataSource(MetaFields.STREAM_STORE_DOC_REF)
                 .build();

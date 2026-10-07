@@ -75,7 +75,6 @@ class TestScenariosIncumbent {
      */
     private static final String V1 = CsvLines.replacing(XSLT, DEVICE_NAME, "          <Name/>");
     private static final String DOC = "doc-1";
-    private static final String SHAPE = "Feed=DOOR-ACCESS|Type=Raw Events";
 
     private static ShapeshifterAiDoc doc() {
         return Scenarios.document()
@@ -164,9 +163,9 @@ class TestScenariosIncumbent {
         assertThat(silent.asked()).isEmpty();
         // The score is kept for the Supervisor's list and is no longer a trigger (design 04 §6): the mark
         // is a person's, from reading it.
-        scenarios.shapes.markForRelearning(Scenarios.LEARNER, DOC, SHAPE,
+        scenarios.states.markForRelearning(Scenarios.LEARNER, DOC,
                 "Scored " + v1Score + " below the threshold: improve it");
-        assertThat(scenarios.shapes.relearnReason(Scenarios.LEARNER, SHAPE)).isPresent();
+        assertThat(scenarios.states.relearnReason(Scenarios.LEARNER)).isPresent();
         return served;
     }
 
@@ -265,7 +264,7 @@ class TestScenariosIncumbent {
             assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).containsExactly(pinned);
         }
         assertThat(silent.asked()).isEmpty();
-        assertThat(scenarios.shapes.relearnReason(Scenarios.LEARNER, SHAPE))
+        assertThat(scenarios.states.relearnReason(Scenarios.LEARNER))
                 .describedAs("never even scored against")
                 .isEmpty();
         assertThat(scenarios.stores.pipelines.list()).hasSize(1);

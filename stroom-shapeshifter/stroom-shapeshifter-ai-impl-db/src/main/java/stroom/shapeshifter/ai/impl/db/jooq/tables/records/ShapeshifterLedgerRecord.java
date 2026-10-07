@@ -89,59 +89,31 @@ public class ShapeshifterLedgerRecord extends UpdatableRecordImpl<ShapeshifterLe
     }
 
     /**
-     * Setter for <code>stroom.shapeshifter_ledger.shape_hash</code>.
-     */
-    public void setShapeHash(String value) {
-        set(5, value);
-    }
-
-    /**
-     * Getter for <code>stroom.shapeshifter_ledger.shape_hash</code>.
-     */
-    public String getShapeHash() {
-        return (String) get(5);
-    }
-
-    /**
-     * Setter for <code>stroom.shapeshifter_ledger.shape_id</code>.
-     */
-    public void setShapeId(String value) {
-        set(6, value);
-    }
-
-    /**
-     * Getter for <code>stroom.shapeshifter_ledger.shape_id</code>.
-     */
-    public String getShapeId() {
-        return (String) get(6);
-    }
-
-    /**
      * Setter for <code>stroom.shapeshifter_ledger.input_meta_id</code>.
      */
     public void setInputMetaId(Long value) {
-        set(7, value);
+        set(5, value);
     }
 
     /**
      * Getter for <code>stroom.shapeshifter_ledger.input_meta_id</code>.
      */
     public Long getInputMetaId() {
-        return (Long) get(7);
+        return (Long) get(5);
     }
 
     /**
      * Setter for <code>stroom.shapeshifter_ledger.reason</code>.
      */
     public void setReason(String value) {
-        set(8, value);
+        set(6, value);
     }
 
     /**
      * Getter for <code>stroom.shapeshifter_ledger.reason</code>.
      */
     public String getReason() {
-        return (String) get(8);
+        return (String) get(6);
     }
 
     // -------------------------------------------------------------------------
@@ -167,7 +139,7 @@ public class ShapeshifterLedgerRecord extends UpdatableRecordImpl<ShapeshifterLe
     /**
      * Create a detached, initialised ShapeshifterLedgerRecord
      */
-    public ShapeshifterLedgerRecord(Long id, Long createTimeMs, String pipelineUuid, String elementId, String docUuid, String shapeHash, String shapeId, Long inputMetaId, String reason) {
+    public ShapeshifterLedgerRecord(Long id, Long createTimeMs, String pipelineUuid, String elementId, String docUuid, Long inputMetaId, String reason) {
         super(ShapeshifterLedger.SHAPESHIFTER_LEDGER);
 
         setId(id);
@@ -175,8 +147,6 @@ public class ShapeshifterLedgerRecord extends UpdatableRecordImpl<ShapeshifterLe
         setPipelineUuid(pipelineUuid);
         setElementId(elementId);
         setDocUuid(docUuid);
-        setShapeHash(shapeHash);
-        setShapeId(shapeId);
         setInputMetaId(inputMetaId);
         setReason(reason);
         resetTouchedOnNotNull();

@@ -194,10 +194,10 @@ public class Supervision {
     ///
     /// The fragment is run once and once only (§12 item 2): the run the stage judged is the run that is
     /// served, and its events are carried back on the [StageRun]. A decision that binds nothing — a
-    /// sentinel, a shape given up, a draft awaiting review — emits nothing and says why on the error
+    /// sentinel, a learner that gave up, a draft awaiting review — emits nothing and says why on the error
     /// stream (A4).
     ///
-    /// Stepping is a dry run (A30): the stage routes and serves, and a shape nothing binds is reported
+    /// Stepping is a dry run (A30): the stage routes and serves, and a learner nothing serves is reported
     /// rather than learned. A person opening the stepper on a feed nobody has taught yet must not spend
     /// a model call and bind a rule by looking.
     ///
@@ -239,12 +239,12 @@ public class Supervision {
                 : stage.reprocess(doc, learner(elementId), input);
         // What the stage pane shows for this element, kept for the capture to ask (A30). Per element,
         // because a pipeline may hold two supervised stages and each has its own decision to explain.
-        stepDetails.put(elementId.getId(), StepDetails.of(run, stepping));
+        stepDetails.put(elementId.getId(), StepDetails.of(run, input, stepping));
         // And what the fragment's own elements made of it, record by record, so that the chain the
         // stage ran can be stepped beneath it. Only when stepping: nothing else asks, and holding a
         // record's worth of text per record of a production stream would be a leak with no reader.
         // Taken rather than read, so that a decision this run made without running a fragment at all —
-        // a draft awaiting review, a shape given up — cannot be shown the chain of the
+        // a draft awaiting review, a learner that gave up — cannot be shown the chain of the
         // run before it. The take happens whether or not this is a step, because a run that is not
         // being stepped must still clear what the last step left.
         final List<FragmentRecord> ran = stage.takeFragment();
@@ -252,7 +252,7 @@ public class Supervision {
                 ? ran
                 : List.of());
         final Bindings bindings = run.bindings();
-        // What happened, or — for a step — what would have. A dry run's report is not a fault: a shape
+        // What happened, or — for a step — what would have. A dry run's report is not a fault: a learner
         // nobody has taught yet is the ordinary state of the feed a person has opened the stepper on,
         // and an error marker would say otherwise.
         errorReceiverProxy.log(stepping
@@ -260,7 +260,7 @@ public class Supervision {
                         : bindings == null
                                 ? Severity.ERROR
                                 : Severity.INFO, null, elementId,
-                "Shape " + run.shape().id() + ": " + StepDetails.describe(run.decision()), null);
+                StepDetails.describe(run.decision()), null);
 
         // Recorded only where a fragment really was bound and really did run: a step leaves no trace of
         // having asked, and the bindings of a run nobody made do not belong on the stream.
@@ -269,7 +269,7 @@ public class Supervision {
         }
 
         // What is served follows the *events*, not the bindings. A stream a rule already bound carries
-        // the events of the run it was judged on; a stream the shape was learned on carries none,
+        // the events of the run it was judged on; a stream the learner learned on carries none,
         // because the chain was judged as it was learned and the fragment it became has not been run as
         // a pipeline yet — so that one fragment is run here, once. A step never goes and makes a run of
         // its own: it shows what the run it already made produced, which for a variant it says it would
@@ -286,7 +286,7 @@ public class Supervision {
             // A step is different, and this is the whole of A30's promise for a feed nobody has taught
             // yet. The stepper stops at records, and a record is an `endDocument` reaching the detector
             // below this element — so an element that emits nothing produces no records, the stepper
-            // finds nothing to stop at, and the stage pane that says *would learn*, with the shape and
+            // finds nothing to stop at, and the stage pane that says *would learn*, with the learner and
             // the reason, is never shown. The one case the pane exists for would be the one case it
             // could not be reached in.
             //
@@ -311,8 +311,7 @@ public class Supervision {
             // Nothing downstream can be served from that, and silently writing an empty stream would
             // look like a feed that had nothing in it.
             errorReceiverProxy.log(Severity.ERROR, null, elementId,
-                    "Shape " + run.shape().id() + " is bound to fragment "
-                    + NullSafe.get(bindings, Bindings::fragment, DocRef::getName)
+                    "Bound to fragment " + NullSafe.get(bindings, Bindings::fragment, DocRef::getName)
                     + ", which produced nothing for this stream", null);
             return;
         }
@@ -333,14 +332,14 @@ public class Supervision {
         if (run.decision() instanceof final Deferred deferred) {
             throw new DeferTaskException(deferred.reason());
         }
-        stepDetails.put(elementId.getId(), StepDetails.of(run, false));
+        stepDetails.put(elementId.getId(), StepDetails.of(run, input, false));
         fragmentRecords.put(elementId.getId(), List.of());
         stage.takeFragment();
         final Bindings bindings = run.bindings();
         errorReceiverProxy.log(bindings == null
                         ? Severity.ERROR
                         : Severity.INFO, null, elementId,
-                "Shape " + run.shape().id() + ": " + StepDetails.describe(run.decision()), null);
+                StepDetails.describe(run.decision()), null);
         if (bindings == null) {
             return;
         }
@@ -351,7 +350,7 @@ public class Supervision {
                 error.getLocation(), error.getElementId(), error.getMessage(), null));
         if (served.records() == 0) {
             errorReceiverProxy.log(Severity.ERROR, null, elementId,
-                    "Shape " + run.shape().id() + " is bound to fragment " + bindings.fragment().getName()
+                    "Bound to fragment " + bindings.fragment().getName()
                     + ", which produced nothing for this stream", null);
         }
     }
@@ -435,7 +434,7 @@ public class Supervision {
     /// elements for the record being asked about — or null where it has not run.
     ///
     /// The decision is the stream's: the stage routes once and then produces every record of the stream,
-    /// so every record shows the same shape, rule and verdicts. What each element of the fragment was
+    /// so every record shows the same learner, rule and verdicts. What each element of the fragment was
     /// given and wrote is the record's, and that is what the index selects.
     ///
     /// @param recordIndex Which record of this part the capture is asking about, counted from zero.
@@ -532,7 +531,7 @@ public class Supervision {
                 attributes,
                 data,
                 // Which pipeline is processing it: what the ledger keeps, so that a stream sentinelled
-                // here is replayed here when its shape settles — wherever that happens (A12).
+                // here is replayed here when its learner settles — wherever that happens (A12).
                 pipelineHolder.getPipeline() == null
                         ? null
                         : pipelineHolder.getPipeline().getUuid(),

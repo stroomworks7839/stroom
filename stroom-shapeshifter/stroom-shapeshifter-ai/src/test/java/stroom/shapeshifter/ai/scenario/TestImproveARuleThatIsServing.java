@@ -60,7 +60,6 @@ class TestImproveARuleThatIsServing {
               <xsl:template match="records"><Events/></xsl:template>
             </xsl:stylesheet>""";
     private static final Golden CSV = Scenarios.corpus("001_csv_with_header");
-    private static final String SHAPE = "Feed=DOOR-ACCESS|Type=Raw Events";
 
     @Test
     void aBetterCandidateReboundsTheRuleAndTheMessageIsCarriedIntoTheAsking() {
@@ -72,10 +71,6 @@ class TestImproveARuleThatIsServing {
         final StageRun learned = scenarios.process(learning, doc, stream()).learned();
         final RoutingRule bound = scenarios.rules.forLearner(Scenarios.LEARNER).get(0);
         assertThat(learned.bindings()).isNotNull();
-        assertThat(bound.getShapeId())
-                .describedAs("a learned rule records the shape it was learned for, which is what an "
-                             + "improvement claims its attempt against")
-                .isEqualTo(SHAPE);
 
         // Asked for out of the blue: no stream arrives, and the regression set is the sample.
         final Script improving = scenarios.script(CSV.configuration(), XSLT)
@@ -95,7 +90,7 @@ class TestImproveARuleThatIsServing {
                 .hasSize(1)
                 .first()
                 .satisfies(rule -> assertThat(rule.getUuid()).isEqualTo(bound.getUuid()));
-        assertThat(scenarios.guidance.standing(Scenarios.LEARNER, SHAPE))
+        assertThat(scenarios.guidance.standing(Scenarios.LEARNER))
                 .describedAs("the message is guidance for the shape, so it is carried into this attempt "
                              + "and stands for the relearning after it")
                 .extracting(given -> given.message() + " (" + given.author() + ")")
@@ -148,14 +143,6 @@ class TestImproveARuleThatIsServing {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("not a rule of this document");
 
-        scenarios.rules.append(Scenarios.LEARNER, "doc-1", RoutingRule.builder().uuid("by-hand")
-                .pipeline(bound.getPipeline()).build());
-        assertThatThrownBy(() -> stage.improve(doc, "by-hand", null, "jo"))
-                .describedAs("a rule an operator wrote by hand did not come from a shape, and there is "
-                             + "nothing to learn again")
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("did not come from a learned shape");
-
         scenarios.regressionSet.discard(bound.getUuid());
         assertThatThrownBy(() -> stage.improve(doc, bound.getUuid(), null, "jo"))
                 .describedAs("without a record it was accepted on there is nothing to learn from and "
@@ -190,26 +177,27 @@ class TestImproveARuleThatIsServing {
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("disabled");
 
-        scenarios.shapes.awaitReview(Scenarios.LEARNER, "doc-1", SHAPE, "some-draft");
+        scenarios.states.awaitReview(Scenarios.LEARNER, "doc-1", "some-draft");
         assertThatThrownBy(() -> stage.improve(doc, bound.getUuid(), null, "jo"))
                 .describedAs("one draft per shape: a second would overwrite the pointer that says which "
                              + "is awaiting review, leaving the first undecidable")
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("already awaiting review");
-        scenarios.shapes.reset(Scenarios.LEARNER, SHAPE);
+        scenarios.states.reset(Scenarios.LEARNER);
 
         // And a shape marked for relearning has been learned again by hand: the mark is spent.
-        scenarios.shapes.markForRelearning(Scenarios.LEARNER, "doc-1", SHAPE, "drifting");
+        scenarios.states.markForRelearning(Scenarios.LEARNER, "doc-1", "drifting");
         stage.improve(doc, bound.getUuid(), null, "jo");
-        assertThat(scenarios.shapes.relearnReason(Scenarios.LEARNER, SHAPE))
+        assertThat(scenarios.states.relearnReason(Scenarios.LEARNER))
                 .describedAs("or the next stream would relearn the rule somebody has only now improved")
                 .isEmpty();
     }
 
-    /// The model is asked about the feed it is improving. There is no stream here to read the headers
-    /// off, so they come from the shape the rule recorded (A29: shown means bound).
+    /// An improvement is asked about the corpus alone. There is no stream to read a feed and type off,
+    /// and a learner does not know its feed (A126), so nothing is shown that might not be true of every
+    /// stream the learner serves.
     @Test
-    void theQuestionsKnowWhichFeedIsBeingImproved() {
+    void theQuestionsAreAboutTheCorpusAndNoFeed() {
         final Scenarios scenarios = new Scenarios();
         final Stage stage = scenarios.stage(document -> learn(scenarios), scenarios.rules);
         final ShapeshifterAiDoc doc = doc();
@@ -222,10 +210,9 @@ class TestImproveARuleThatIsServing {
 
         assertThat(improved.transcript()).isNotEmpty();
         assertThat(asking.asked()).first()
-                .describedAs("the question carries the shape's own headers, not an unnamed sample")
-                .isInstanceOfSatisfying(Chain.class, chain -> assertThat(chain.sample().headers())
-                        .containsEntry("Feed", FEED)
-                        .containsEntry("Type", "Raw Events"));
+                .describedAs("a learner does not know its feed (A126), and an improvement has no stream to "
+                             + "read one off, so the corpus is shown with no feed or type")
+                .isInstanceOfSatisfying(Chain.class, chain -> assertThat(chain.sample().headers()).isEmpty());
     }
 
     private Script learn(final Scenarios scenarios) {

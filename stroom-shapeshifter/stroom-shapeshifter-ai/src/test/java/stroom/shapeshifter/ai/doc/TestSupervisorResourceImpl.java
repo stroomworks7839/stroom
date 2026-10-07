@@ -23,7 +23,7 @@ import stroom.shapeshifter.ai.stage.Guidance;
 import stroom.shapeshifter.ai.stage.Learner;
 import stroom.shapeshifter.ai.state.InMemoryGuidance;
 import stroom.shapeshifter.shared.GuidanceRequest;
-import stroom.shapeshifter.shared.LearnShapeRequest;
+import stroom.shapeshifter.shared.LearnAgainRequest;
 import stroom.shapeshifter.shared.LearnerRef;
 
 import org.junit.jupiter.api.Test;
@@ -40,7 +40,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /// by naming it.
 class TestSupervisorResourceImpl {
 
-    private static final String SHAPE = "Feed=DOOR-ACCESS|Type=Raw Events";
     private static final LearnerRef OURS = new LearnerRef("pipeline-1", "shapeshifterAi");
     private static final LearnerRef THEIRS = new LearnerRef("pipeline-2", "shapeshifterAi");
 
@@ -49,32 +48,32 @@ class TestSupervisorResourceImpl {
 
     @Test
     void guidanceIsGivenToALearnerOfTheDocument() {
-        assertThat(resource.hint("doc-1", new GuidanceRequest(SHAPE, OURS, "Times are local.")))
+        assertThat(resource.hint("doc-1", new GuidanceRequest(OURS, "Times are local.")))
                 .singleElement()
                 .satisfies(said -> assertThat(said.getMessage()).isEqualTo("Times are local."));
     }
 
     @Test
     void aLearnerOfAnotherDocumentIsRefused() {
-        final long theirs = guidance.given(learner(THEIRS), "doc-2", SHAPE, "Said under doc-2.", "jo");
+        final long theirs = guidance.given(learner(THEIRS), "doc-2", "Said under doc-2.", "jo");
 
-        assertThatThrownBy(() -> resource.hint("doc-1", new GuidanceRequest(SHAPE, THEIRS, "Planted.")))
+        assertThatThrownBy(() -> resource.hint("doc-1", new GuidanceRequest(THEIRS, "Planted.")))
                 .describedAs("told something")
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("does not run under this document");
-        assertThatThrownBy(() -> resource.guidance("doc-1", THEIRS.getPipelineUuid(), THEIRS.getElementId(),
-                SHAPE))
+        assertThatThrownBy(() -> resource.guidance("doc-1", THEIRS.getPipelineUuid(),
+                THEIRS.getElementId()))
                 .describedAs("read")
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> resource.withdraw("doc-1", theirs, THEIRS.getPipelineUuid(),
-                THEIRS.getElementId(), SHAPE))
+                THEIRS.getElementId()))
                 .describedAs("or read by way of withdrawing")
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> resource.learn("doc-1", new LearnShapeRequest(SHAPE, THEIRS, "Again.")))
+        assertThatThrownBy(() -> resource.learn("doc-1", new LearnAgainRequest(THEIRS, "Again.")))
                 .describedAs("or sent back to be learned")
                 .isInstanceOf(IllegalArgumentException.class);
 
-        assertThat(guidance.standing(learner(THEIRS), SHAPE))
+        assertThat(guidance.standing(learner(THEIRS)))
                 .describedAs("and nothing planted on it")
                 .extracting(Guidance.Given::message)
                 .containsExactly("Said under doc-2.");

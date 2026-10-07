@@ -25,7 +25,6 @@ import stroom.shapeshifter.ai.scoring.Verdict;
 import stroom.shapeshifter.ai.stage.Decision.Bound;
 import stroom.shapeshifter.ai.stage.Decision.Would;
 import stroom.shapeshifter.ai.stage.Input;
-import stroom.shapeshifter.ai.stage.Shape;
 import stroom.shapeshifter.ai.stage.Stage;
 import stroom.shapeshifter.ai.stage.StageRun;
 import stroom.shapeshifter.ai.transformation.XsltStep;
@@ -75,15 +74,15 @@ class TestSteppingIsADryRun {
         final StageRun stepped = stage.dryRun(doc(LearningMode.AUTOMATIC), Scenarios.LEARNER, stream(), false);
 
         assertThat(stepped.decision()).isInstanceOf(Would.class);
-        assertThat(((Would) stepped.decision()).what()).isEqualTo("Learn a fragment for this shape");
+        assertThat(((Would) stepped.decision()).what()).isEqualTo("Learn a fragment for this learner");
         assertThat(((Would) stepped.decision()).said())
                 .describedAs("the hypothetical is in the decision, so that every surface reads it the "
                              + "same way and only a decision that is hypothetical reads as one")
-                .isEqualTo("Would learn a fragment for this shape");
+                .isEqualTo("Would learn a fragment for this learner");
         assertThat(script.asked()).describedAs("the model was not asked").isEmpty();
         assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).describedAs("no rule was bound").isEmpty();
         assertThat(scenarios.attempts.forDocument("doc-1", 10)).describedAs("no attempt was recorded").isEmpty();
-        assertThat(scenarios.ledger.release(Scenarios.LEARNER, stepped.shape().id()))
+        assertThat(scenarios.ledger.release(Scenarios.LEARNER))
                 .describedAs("and the stream was not sentinelled onto the ledger").isEmpty();
         assertThat(scenarios.outputs.asProcessed("doc-1", 1L, "pipeline-1"))
                 .describedAs("nor recorded as having produced anything").isEmpty();
@@ -98,8 +97,8 @@ class TestSteppingIsADryRun {
 
         assertThat(((Would) stepped.decision()).what())
                 .isEqualTo("Wait: Shapeshifter AI is disabled for this document and nothing serves this "
-                           + "shape");
-        assertThat(scenarios.ledger.release(Scenarios.LEARNER, stepped.shape().id()))
+                           + "learner");
+        assertThat(scenarios.ledger.release(Scenarios.LEARNER))
                 .describedAs("a sentinel a person only asked to see is not a sentinel").isEmpty();
     }
 
@@ -146,8 +145,6 @@ class TestSteppingIsADryRun {
                 null);
         scenarios.rules.append(Scenarios.LEARNER, "doc-1", RoutingRule.builder()
                 .uuid("rule-on-trial")
-                .shapeId(Shape.of(Scenarios.LEARNER,
-                        Map.of(MetaFields.FIELD_FEED, FEED, MetaFields.FIELD_TYPE, "Raw Events")).id())
                 .pipeline(fragment)
                 .provisional(true)
                 .build());

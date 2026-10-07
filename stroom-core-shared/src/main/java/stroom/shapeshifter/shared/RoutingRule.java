@@ -28,13 +28,13 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import java.util.Objects;
 
 /**
- * What serves a shape (design 06 phase J slice 2a, A124): a pipeline fragment, referenced by DocRef
- * (A20), learned for one shape and bound to it. Nothing selects among rules any more: a rule is the
- * binding of the shape it was learned for, and a shape is served by its rule, or waits on its draft.
+ * What serves a learner (A124): a pipeline fragment, referenced by DocRef (A20), learned by it and bound
+ * to it. Nothing selects among rules any more: a learner is served by its binding, or waits on its
+ * draft.
  * <p>
  * A rule carries the little history rebinding needs: when the fragment was promoted, the score it was
  * promoted on, whether an operator has pinned it against further promotion, and the two states a learned
- * rule passes through before it is simply bound — a <em>draft</em> the shape's streams wait on until a
+ * rule passes through before it is simply bound — a <em>draft</em> the learner's streams wait on until a
  * person approves it (A25), and a <em>provisional</em> binding that serves streams while held-out
  * validation waits for records (A5, §6). A rule has a {@code uuid} so that the runtime state of A26 can
  * name it stably.
@@ -69,8 +69,8 @@ public class RoutingRule {
     @JsonProperty
     private final boolean pinned;
     /**
-     * Written by a stage in review mode; the shape's streams wait on it until Approve clears it (A25). This
-     * flag is authoritative; the shape's own status mirrors it.
+     * Written by a stage in review mode; the learner's streams wait on it until Approve clears it (A25).
+     * This flag is authoritative; the learner's own state mirrors it.
      */
     @JsonProperty
     private final boolean draft;
@@ -91,8 +91,6 @@ public class RoutingRule {
      */
     @JsonProperty
     private final RecordBoundary recordBoundary;
-    @JsonProperty
-    private final String shapeId;
     /// The snapshot of the fragment's configuration this rule serves with (A61): what a deferral row is
     /// stamped with and what an output records. Null for a rule written before snapshots existed, which
     /// is snapshotted the first time it serves.
@@ -108,7 +106,6 @@ public class RoutingRule {
                        @JsonProperty("promotedTimeMs") final Long promotedTimeMs,
                        @JsonProperty("score") final Double score,
                        @JsonProperty("recordBoundary") final RecordBoundary recordBoundary,
-                       @JsonProperty("shapeId") final String shapeId,
                        @JsonProperty("snapshot") final String snapshot) {
         this.uuid = uuid;
         this.pipeline = pipeline;
@@ -118,13 +115,12 @@ public class RoutingRule {
         this.promotedTimeMs = promotedTimeMs;
         this.score = score;
         this.recordBoundary = recordBoundary;
-        this.shapeId = shapeId;
         this.snapshot = snapshot;
     }
 
     @SerialisationTestConstructor
     private RoutingRule() {
-        this(null, null, null, null, null, null, null, null, null, null);
+        this(null, null, null, null, null, null, null, null, null);
     }
 
     public String getUuid() {
@@ -155,13 +151,6 @@ public class RoutingRule {
         return score;
     }
 
-    /// Which shape this rule was learned for (A46), or null where it did not come from one — a rule an
-    /// operator wrote by hand, or one written before this was recorded. A rule with no shape cannot be
-    /// *improved*, because there is nothing to claim an attempt against; relearning is what it has.
-    public String getShapeId() {
-        return shapeId;
-    }
-
     public RecordBoundary getRecordBoundary() {
         return recordBoundary;
     }
@@ -188,14 +177,13 @@ public class RoutingRule {
                Objects.equals(promotedTimeMs, that.promotedTimeMs) &&
                Objects.equals(score, that.score) &&
                Objects.equals(recordBoundary, that.recordBoundary) &&
-               Objects.equals(shapeId, that.shapeId) &&
                Objects.equals(snapshot, that.snapshot);
     }
 
     @Override
     public int hashCode() {
         return Objects.hash(uuid, pipeline, pinned, draft, provisional, promotedTimeMs, score,
-                recordBoundary, shapeId, snapshot);
+                recordBoundary, snapshot);
     }
 
     @Override
@@ -234,7 +222,6 @@ public class RoutingRule {
         private Long promotedTimeMs;
         private Double score;
         private RecordBoundary recordBoundary;
-        private String shapeId;
         private String snapshot;
 
         private Builder() {
@@ -249,7 +236,6 @@ public class RoutingRule {
             this.promotedTimeMs = rule.promotedTimeMs;
             this.score = rule.score;
             this.recordBoundary = rule.recordBoundary;
-            this.shapeId = rule.shapeId;
             this.snapshot = rule.snapshot;
         }
 
@@ -288,13 +274,6 @@ public class RoutingRule {
             return this;
         }
 
-        /// Which shape this rule was learned for (A46), or null where it did not come from one: a rule
-        /// an operator wrote by hand has no shape, and neither has one written before this was recorded.
-        public Builder shapeId(final String shapeId) {
-            this.shapeId = shapeId;
-            return this;
-        }
-
         public Builder recordBoundary(final RecordBoundary recordBoundary) {
             this.recordBoundary = recordBoundary;
             return this;
@@ -308,7 +287,7 @@ public class RoutingRule {
 
         public RoutingRule build() {
             return new RoutingRule(uuid, pipeline, pinned, draft, provisional, promotedTimeMs, score,
-                    recordBoundary, shapeId, snapshot);
+                    recordBoundary, snapshot);
         }
     }
 }

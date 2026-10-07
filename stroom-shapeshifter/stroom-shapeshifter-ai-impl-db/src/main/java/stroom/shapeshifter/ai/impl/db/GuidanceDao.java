@@ -27,11 +27,11 @@ import java.util.List;
 
 import static stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterGuidance.SHAPESHIFTER_GUIDANCE;
 
-/// A supervisor's messages as rows (A46): one per thing said, keyed by the shape it is about.
+/// A supervisor's messages as rows (A46): one per thing said, keyed by the learner it was said to.
 ///
 /// Kept where every node can read it, because the node that carries a hint into a question is rarely
 /// the node the person who gave it was talking to — and because a hint outlives the attempt that first
-/// used it, which is the point of attaching it to the shape.
+/// used it, which is the point of attaching it to the learner.
 @Singleton
 public class GuidanceDao implements Guidance {
 
@@ -45,7 +45,6 @@ public class GuidanceDao implements Guidance {
     @Override
     public long given(final Learner learner,
                       final String docUuid,
-                      final String shape,
                       final String message,
                       final String author) {
         return JooqUtil.contextResult(connProvider, context -> context
@@ -54,8 +53,6 @@ public class GuidanceDao implements Guidance {
                 .set(SHAPESHIFTER_GUIDANCE.PIPELINE_UUID, learner.pipelineUuid())
                 .set(SHAPESHIFTER_GUIDANCE.ELEMENT_ID, learner.elementId())
                 .set(SHAPESHIFTER_GUIDANCE.DOC_UUID, docUuid)
-                .set(SHAPESHIFTER_GUIDANCE.SHAPE_HASH, ShapesDao.hash(shape))
-                .set(SHAPESHIFTER_GUIDANCE.SHAPE_ID, shape)
                 .set(SHAPESHIFTER_GUIDANCE.MESSAGE, message)
                 .set(SHAPESHIFTER_GUIDANCE.AUTHOR, author)
                 .returning(SHAPESHIFTER_GUIDANCE.ID)
@@ -65,7 +62,7 @@ public class GuidanceDao implements Guidance {
     /// Oldest first: the order a person wrote them in is the order they should be read in, and a later
     /// hint that corrects an earlier one only reads as a correction if it comes after it.
     @Override
-    public List<Given> standing(final Learner learner, final String shape) {
+    public List<Given> standing(final Learner learner) {
         return JooqUtil.contextResult(connProvider, context -> context
                 .select(SHAPESHIFTER_GUIDANCE.ID,
                         SHAPESHIFTER_GUIDANCE.MESSAGE,
@@ -74,7 +71,6 @@ public class GuidanceDao implements Guidance {
                 .from(SHAPESHIFTER_GUIDANCE)
                 .where(SHAPESHIFTER_GUIDANCE.PIPELINE_UUID.eq(learner.pipelineUuid()))
                 .and(SHAPESHIFTER_GUIDANCE.ELEMENT_ID.eq(learner.elementId()))
-                .and(SHAPESHIFTER_GUIDANCE.SHAPE_HASH.eq(ShapesDao.hash(shape)))
                 .orderBy(SHAPESHIFTER_GUIDANCE.ID)
                 .fetch(row -> new Given(
                         row.get(SHAPESHIFTER_GUIDANCE.ID),

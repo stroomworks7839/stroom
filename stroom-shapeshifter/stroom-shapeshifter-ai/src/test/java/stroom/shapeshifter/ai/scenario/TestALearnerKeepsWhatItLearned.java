@@ -49,7 +49,6 @@ class TestALearnerKeepsWhatItLearned {
     private static final String FEED = "DOOR-ACCESS";
     private static final String XSLT = Scenarios.resource("csv-logon.xsl");
     private static final Golden CSV = Scenarios.corpus("001_csv_with_header");
-    private static final String SHAPE = "Feed=DOOR-ACCESS|Type=Raw Events";
     /// A second pipeline under the same document, with an element of the same id.
     private static final Learner NEIGHBOUR = new Learner("pipeline-2", Scenarios.LEARNER.elementId());
 
@@ -59,7 +58,7 @@ class TestALearnerKeepsWhatItLearned {
         final ShapeshifterAiDoc doc = doc("doc-1", "door-access");
         scenarios.process(learn(scenarios), doc, stream(1L, Scenarios.LEARNER)).learned();
         final RoutingRule first = scenarios.rules.forLearner(Scenarios.LEARNER).get(0);
-        scenarios.shapes.giveUp(Scenarios.LEARNER, "doc-1", "Feed=GATE|Type=Raw Events", "Nothing to learn");
+        scenarios.states.giveUp(Scenarios.LEARNER, "doc-1", "Nothing to learn");
 
         final Script asked = learn(scenarios);
         scenarios.process(asked, NEIGHBOUR, doc, stream(2L, NEIGHBOUR)).learned();
@@ -74,7 +73,7 @@ class TestALearnerKeepsWhatItLearned {
         assertThat(scenarios.rules.forLearner(Scenarios.LEARNER))
                 .describedAs("leaving the first learner's as it was")
                 .containsExactly(first);
-        assertThat(scenarios.shapes.reasonGivenUp(NEIGHBOUR, "Feed=GATE|Type=Raw Events"))
+        assertThat(scenarios.states.reasonGivenUp(NEIGHBOUR))
                 .describedAs("and what one learner gave up, the other has not")
                 .isEmpty();
     }
@@ -86,8 +85,8 @@ class TestALearnerKeepsWhatItLearned {
         final ShapeshifterAiDoc after = doc("doc-2", "site-access");
         scenarios.process(learn(scenarios), before, stream(1L, Scenarios.LEARNER)).learned();
         final RoutingRule bound = scenarios.rules.forLearner(Scenarios.LEARNER).get(0);
-        final long hint = scenarios.guidance.given(Scenarios.LEARNER, "doc-1", SHAPE, "Times are local.", "jo");
-        scenarios.ledger.sentinelled(Scenarios.LEARNER, "doc-1", "Feed=GATE|Type=Raw Events", 7L, "Given up");
+        final long hint = scenarios.guidance.given(Scenarios.LEARNER, "doc-1", "Times are local.", "jo");
+        scenarios.ledger.sentinelled(Scenarios.LEARNER, "doc-1", 7L, "Given up");
 
         // The element now names another document, and its next stream is served under it.
         final Script silent = Script.of();
@@ -106,11 +105,11 @@ class TestALearnerKeepsWhatItLearned {
         assertThat(scenarios.serving.rules(List.of("doc-1"), null, 0, 10).rules())
                 .describedAs("and the old one's no longer does")
                 .isEmpty();
-        assertThat(scenarios.ledger.waiting(List.of("doc-2"), 0, 10).shapes())
+        assertThat(scenarios.ledger.waiting(List.of("doc-2"), 0, 10).learners())
                 .describedAs("with the streams waiting on it")
                 .hasSize(1);
         scenarios.guidance.withdraw("doc-2", hint);
-        assertThat(scenarios.guidance.standing(Scenarios.LEARNER, SHAPE))
+        assertThat(scenarios.guidance.standing(Scenarios.LEARNER))
                 .describedAs("and what was said about its shapes, withdrawn by the document it is under now")
                 .isEmpty();
 

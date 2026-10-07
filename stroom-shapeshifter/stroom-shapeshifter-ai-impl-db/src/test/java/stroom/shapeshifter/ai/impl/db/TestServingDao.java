@@ -19,13 +19,14 @@ package stroom.shapeshifter.ai.impl.db;
 import stroom.docref.DocRef;
 import stroom.shapeshifter.ai.stage.Guidance;
 import stroom.shapeshifter.ai.stage.Learner;
+import stroom.shapeshifter.ai.stage.LearnerStates;
 import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.ai.stage.Serving;
-import stroom.shapeshifter.ai.stage.Shapes;
 import stroom.shapeshifter.ai.state.InMemoryGuidance;
+import stroom.shapeshifter.ai.state.InMemoryLearnerStates;
 import stroom.shapeshifter.ai.state.InMemoryRules;
 import stroom.shapeshifter.ai.state.InMemoryServing;
-import stroom.shapeshifter.ai.state.InMemoryShapes;
+import stroom.shapeshifter.shared.LearnerRef;
 import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ServingRule;
 
@@ -39,25 +40,27 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 
-/// The serving view of A46: the rules, the shape state behind each, and what a supervisor has said —
-/// one page, ordered by the traffic each rule carries.
+/// The serving view of A46: the rules, the state of the learner each serves, and what a supervisor has
+/// said to it — one page, ordered by the traffic each rule carries.
 class TestServingDao {
 
     private static final String DOC = "doc-" + System.nanoTime();
     private static final String OTHER_DOC = "other-" + System.nanoTime();
-    private static final String BUSY = "Feed=DOOR-ACCESS|Type=Raw Events";
-    private static final String QUIET = "Feed=TURNSTILE|Type=Raw Events";
-    private static final String NEW = "Feed=LIFT|Type=Raw Events";
+    /// Three pipelines under the document, and so three learners.
+    private static final Learner BUSY = learner(DOC, "busy");
+    private static final Learner QUIET = learner(DOC, "quiet");
+    private static final Learner NEW = learner(DOC, "new");
+    private static final Learner THEIRS = learner(OTHER_DOC, "theirs");
     private static final int MEMORY = 10;
     /// The rule uuids these tests write. A uuid names a binding across every learner, and the database
     /// outlives a run, so each is cleared by its uuid before a test writes it again.
-    private static final List<String> RULES = List.of("busy", "quiet", "new", "a-draft", "by-hand", "theirs",
-            "a-busy", "b-quiet", "c-new", "d-blank");
+    private static final List<String> RULES = List.of("busy", "quiet", "new", "a-draft", "theirs",
+            "a-busy", "b-quiet", "c-new");
 
     @Inject
     private RulesDao rules;
     @Inject
-    private ShapesDao shapes;
+    private LearnerStatesDao states;
     @Inject
     private GuidanceDao guidance;
     @Inject
@@ -67,102 +70,95 @@ class TestServingDao {
     void setUp() {
         Guice.createInjector(new TestModule()).injectMembers(this);
         RULES.forEach(uuid -> rules.byUuid(uuid).ifPresent(held -> rules.remove(held.learner(), uuid)));
-        clear(shapes, guidance, DOC);
-        clear(shapes, guidance, OTHER_DOC);
+        List.of(BUSY, QUIET, NEW).forEach(learner -> clear(states, guidance, learner, DOC));
+        clear(states, guidance, THEIRS, OTHER_DOC);
     }
 
     /// Ordered by traffic, because A46's question — could this be better? — is worth asking first about
     /// whatever carries the most streams.
     @Test
     void whatIsServingComesBackBusiestFirst() {
-        bound(rules, DOC, "busy", BUSY);
-        bound(rules, DOC, "quiet", QUIET);
-        bound(rules, DOC, "new", NEW);
-        scored(shapes, DOC, BUSY, 0.93, 8);
-        scored(shapes, DOC, QUIET, 0.71, 2);
+        bound(rules, BUSY, DOC, "busy");
+        bound(rules, QUIET, DOC, "quiet");
+        bound(rules, NEW, DOC, "new");
+        scored(states, BUSY, DOC, 0.93, 8);
+        scored(states, QUIET, DOC, 0.71, 2);
 
         final Serving.Page page = serving.rules(List.of(DOC), null, 0L, 100);
 
         assertThat(page.total()).isEqualTo(3L);
         assertThat(page.rules())
-                .extracting(ServingRule::getShapeId, ServingRule::getRecords, ServingRule::getRollingScore)
+                .extracting(ServingRule::getLearner, ServingRule::getRecords, ServingRule::getRollingScore)
                 .describedAs("busiest first, and a rule that has served nothing yet is still shown — a "
                              + "binding made a minute ago is the one most worth a look")
                 .containsExactly(
-                        tuple(BUSY, 8, 0.93),
-                        tuple(QUIET, 2, 0.71),
-                        tuple(NEW, 0, null));
+                        tuple(ref(BUSY), 8, 0.93),
+                        tuple(ref(QUIET), 2, 0.71),
+                        tuple(ref(NEW), 0, null));
         assertThat(page.rules().get(0).getDoc().getUuid()).isEqualTo(DOC);
         assertThat(page.rules().get(0).getFragment().getName()).isEqualTo("busy-fragment");
     }
 
-    /// A46's filter: "good but not perfect" is the only thing worth narrowing by, and a shape with no
+    /// A46's filter: "good but not perfect" is the only thing worth narrowing by, and a learner with no
     /// score is not below anything.
     @Test
     void aThresholdLeavesOutWhatIsGoodEnoughAndWhatHasNoScoreAtAll() {
-        bound(rules, DOC, "busy", BUSY);
-        bound(rules, DOC, "quiet", QUIET);
-        bound(rules, DOC, "new", NEW);
-        scored(shapes, DOC, BUSY, 0.93, 8);
-        scored(shapes, DOC, QUIET, 0.71, 2);
+        bound(rules, BUSY, DOC, "busy");
+        bound(rules, QUIET, DOC, "quiet");
+        bound(rules, NEW, DOC, "new");
+        scored(states, BUSY, DOC, 0.93, 8);
+        scored(states, QUIET, DOC, 0.71, 2);
 
         final Serving.Page page = serving.rules(List.of(DOC), 0.9, 0L, 100);
 
-        assertThat(page.rules()).extracting(ServingRule::getShapeId)
+        assertThat(page.rules()).extracting(ServingRule::getLearner)
                 .describedAs("the one scoring below it; not the one above, and not the one with nothing "
                              + "to say it is imperfect")
-                .containsExactly(QUIET);
+                .containsExactly(ref(QUIET));
         assertThat(page.total())
                 .describedAs("and the total counts what the filter left, or a pager would promise pages "
                              + "that are not there")
                 .isEqualTo(1L);
     }
 
-    /// The two kinds of rule the view does not show, each for its own reason.
+    /// A draft is not a serving rule: it is decided rather than improved.
     @Test
-    void aDraftAndARuleWithNoShapeAreNotServingRules() {
-        bound(rules, DOC, "busy", BUSY);
-        rules.append(learner(DOC), DOC, RoutingRule.builder()
+    void aDraftIsNotAServingRule() {
+        bound(rules, BUSY, DOC, "busy");
+        rules.append(BUSY, DOC, RoutingRule.builder()
                 .uuid("a-draft")
-                .shapeId(QUIET)
                 .pipeline(new DocRef("Pipeline", "draft-fragment", "draft"))
                 .draft(true)
-                .build());
-        rules.append(learner(DOC), DOC, RoutingRule.builder()
-                .uuid("by-hand")
-                .pipeline(new DocRef("Pipeline", "hand-fragment", "by hand"))
                 .build());
 
         assertThat(serving.rules(List.of(DOC), null, 0L, 100).rules())
                 .extracting(ServingRule::getRuleUuid)
-                .describedAs("a draft is decided rather than improved, and a rule with no shape has "
-                             + "nothing to learn again")
+                .describedAs("a draft is decided rather than improved")
                 .containsExactly("busy");
     }
 
-    /// Each row says how much has been said about its shape, so that a person can see whether the last
+    /// Each row says how much has been said to its learner, so that a person can see whether the last
     /// hint was acted on before giving another.
     @Test
-    void aRowSaysHowMuchHasBeenSaidAboutItsShape() {
-        bound(rules, DOC, "busy", BUSY);
-        bound(rules, DOC, "quiet", QUIET);
-        guidance.given(learner(DOC), DOC, BUSY, "Timestamps are local, not UTC.", "jo");
-        guidance.given(learner(DOC), DOC, BUSY, "Column four is a terminal id.", "sam");
-        guidance.given(learner(OTHER_DOC), OTHER_DOC, BUSY, "Another learner's shape of the same name.", "jo");
+    void aRowSaysHowMuchHasBeenSaidToItsLearner() {
+        bound(rules, BUSY, DOC, "busy");
+        bound(rules, QUIET, DOC, "quiet");
+        guidance.given(BUSY, DOC, "Timestamps are local, not UTC.", "jo");
+        guidance.given(BUSY, DOC, "Column four is a terminal id.", "sam");
+        guidance.given(THEIRS, OTHER_DOC, "Another document's learner.", "jo");
 
         assertThat(serving.rules(List.of(DOC), null, 0L, 100).rules())
-                .extracting(ServingRule::getShapeId, ServingRule::getGuidance)
-                .describedAs("counted per learner as well as per shape, since two learners may learn "
-                             + "shapes of the same name")
-                .containsExactlyInAnyOrder(tuple(BUSY, 2), tuple(QUIET, 0));
+                .extracting(ServingRule::getLearner, ServingRule::getGuidance)
+                .describedAs("counted per learner")
+                .containsExactlyInAnyOrder(tuple(ref(BUSY), 2), tuple(ref(QUIET), 0));
     }
 
     /// The documents a person may read go into the query, as they do for the ledger: a total taken
     /// before the filtering would count rules they may not see.
     @Test
     void aDocumentNobodyNamedIsNotInTheAnswer() {
-        bound(rules, DOC, "busy", BUSY);
-        bound(rules, OTHER_DOC, "theirs", BUSY);
+        bound(rules, BUSY, DOC, "busy");
+        bound(rules, THEIRS, OTHER_DOC, "theirs");
 
         assertThat(serving.rules(List.of(DOC), null, 0L, 100).rules())
                 .extracting(ServingRule::getRuleUuid).containsExactly("busy");
@@ -181,29 +177,22 @@ class TestServingDao {
     @Test
     void theViewInMemoryAgreesWithTheViewInRows() {
         final InMemoryRules memoryRules = new InMemoryRules();
-        final InMemoryShapes memoryShapes = new InMemoryShapes();
+        final InMemoryLearnerStates memoryStates = new InMemoryLearnerStates();
         final InMemoryGuidance memoryGuidance = new InMemoryGuidance();
-        final Serving inMemory = new InMemoryServing(memoryRules, memoryShapes, memoryGuidance);
+        final Serving inMemory = new InMemoryServing(memoryRules, memoryStates, memoryGuidance);
         final List<Rules> bothRules = List.of(rules, memoryRules);
-        final List<Shapes> bothShapes = List.of(shapes, memoryShapes);
+        final List<LearnerStates> bothStates = List.of(states, memoryStates);
         final List<Guidance> bothGuidance = List.of(guidance, memoryGuidance);
         bothRules.forEach(seam -> {
-            bound(seam, DOC, "a-busy", BUSY);
-            bound(seam, DOC, "b-quiet", QUIET);
-            bound(seam, DOC, "c-new", NEW);
+            bound(seam, BUSY, DOC, "a-busy");
+            bound(seam, QUIET, DOC, "b-quiet");
+            bound(seam, NEW, DOC, "c-new");
         });
-        bothShapes.forEach(seam -> {
-            scored(seam, DOC, BUSY, 0.93, 8);
-            scored(seam, DOC, QUIET, 0.71, 2);
+        bothStates.forEach(seam -> {
+            scored(seam, BUSY, DOC, 0.93, 8);
+            scored(seam, QUIET, DOC, 0.71, 2);
         });
-        bothGuidance.forEach(seam -> seam.given(learner(DOC), DOC, BUSY, "Timestamps are local.", "jo"));
-        // A rule whose shape id is blank rather than absent: both must read it as having come from no
-        // shape, or one lists a row whose improve button the other's stage refuses.
-        bothRules.forEach(seam -> seam.append(learner(DOC), DOC, RoutingRule.builder()
-                .uuid("d-blank")
-                .shapeId("  ")
-                .pipeline(new DocRef("Pipeline", "blank-uuid", "blank-fragment"))
-                .build()));
+        bothGuidance.forEach(seam -> seam.given(BUSY, DOC, "Timestamps are local.", "jo"));
 
         assertThat(summarise(inMemory.rules(List.of(DOC), null, 0L, 100).rules()))
                 .describedAs("the same rules, the same scores, the same counts, in the same order")
@@ -215,53 +204,52 @@ class TestServingDao {
                 .describedAs("and the same total under a threshold")
                 .isEqualTo(serving.rules(List.of(DOC), 0.9, 0L, 100).total());
         assertThat(summarise(serving.rules(List.of(DOC), null, 1L, 1).rules()))
-                .containsExactly("b-quiet " + QUIET + " x2 @0.71 said 0");
-        assertThat(summarise(serving.rules(List.of(DOC), null, 0L, 100).rules()))
-                .describedAs("and a blank shape id is no shape, in the table as in the heap")
-                .noneMatch(row -> row.startsWith("d-blank"));
+                .containsExactly("b-quiet " + ref(QUIET) + " x2 @0.71 said 0");
     }
 
     private static List<String> summarise(final List<ServingRule> rules) {
         return rules.stream()
-                .map(rule -> rule.getRuleUuid() + " " + rule.getShapeId() + " x" + rule.getRecords()
+                .map(rule -> rule.getRuleUuid() + " " + rule.getLearner() + " x" + rule.getRecords()
                              + " @" + rule.getRollingScore() + " said " + rule.getGuidance())
                 .toList();
     }
 
     private static RoutingRule bound(final Rules rules,
+                                     final Learner learner,
                                      final String docUuid,
-                                     final String ruleUuid,
-                                     final String shapeId) {
-        return rules.append(learner(docUuid), docUuid, RoutingRule.builder()
+                                     final String ruleUuid) {
+        return rules.append(learner, docUuid, RoutingRule.builder()
                 .uuid(ruleUuid)
-                .shapeId(shapeId)
                 .pipeline(new DocRef("Pipeline", ruleUuid + "-uuid", ruleUuid + "-fragment"))
                 .promotedTimeMs(1_700_000_000_000L)
                 .score(0.95)
                 .build());
     }
 
-    /// A shape scored over enough records to have a rolling score of exactly what was asked for: the
+    /// A learner scored over enough records to have a rolling score of exactly what was asked for: the
     /// mean of one stream's score is that score, whatever the memory.
-    private static void scored(final Shapes shapes,
+    private static void scored(final LearnerStates states,
+                               final Learner learner,
                                final String docUuid,
-                               final String shapeId,
                                final double score,
                                final int records) {
-        shapes.scored(learner(docUuid), docUuid, shapeId, score, records, MEMORY);
+        states.scored(learner, docUuid, score, records, MEMORY);
     }
 
-    private static void clear(final Shapes shapes,
+    private static void clear(final LearnerStates states,
                               final Guidance guidance,
+                              final Learner learner,
                               final String docUuid) {
-        List.of(BUSY, QUIET, NEW).forEach(shape -> {
-            shapes.reset(learner(docUuid), shape);
-            guidance.standing(learner(docUuid), shape).forEach(given -> guidance.withdraw(docUuid, given.id()));
-        });
+        states.reset(learner);
+        guidance.standing(learner).forEach(given -> guidance.withdraw(docUuid, given.id()));
     }
 
-    /// The learner whose rows a document's are in these tests: each document its own pipeline's.
-    private static Learner learner(final String docUuid) {
-        return new Learner("pipeline-" + docUuid, "shapeshifterAi");
+    /// A learner of one of a document's pipelines in these tests.
+    private static Learner learner(final String docUuid, final String name) {
+        return new Learner("pipeline-" + docUuid + "-" + name, "shapeshifterAi");
+    }
+
+    private static LearnerRef ref(final Learner learner) {
+        return new LearnerRef(learner.pipelineUuid(), learner.elementId());
     }
 }

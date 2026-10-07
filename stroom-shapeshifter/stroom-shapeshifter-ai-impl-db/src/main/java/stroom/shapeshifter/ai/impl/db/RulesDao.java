@@ -35,9 +35,9 @@ import java.util.UUID;
 
 import static stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterRule.SHAPESHIFTER_RULE;
 
-/// The bindings of A41 as rows: one per binding, each a learner's for the shape it was learned for
-/// (design 06 phase J slices 2a and 2b). A promotion is one insert and a rebinding one update, so two
-/// nodes promoting two shapes do not contend.
+/// The bindings of A41 and A124 as rows: a learner's binding, and any draft awaiting review to take its
+/// place. A promotion is one insert and a rebinding one update, so two nodes promoting for two learners
+/// do not contend.
 @Singleton
 public class RulesDao implements Rules {
 
@@ -106,8 +106,6 @@ public class RulesDao implements Rules {
                     .set(SHAPESHIFTER_RULE.BOUNDARY_ELEMENT, element(rule))
                     .set(SHAPESHIFTER_RULE.BOUNDARY_ARRAY, array(rule))
                     .set(SHAPESHIFTER_RULE.BOUNDARY_DEPTH, depth(rule))
-                    .set(SHAPESHIFTER_RULE.SHAPE_ID, rule.getShapeId())
-                    .set(SHAPESHIFTER_RULE.SHAPE_HASH, shapeHash(rule))
                     .set(SHAPESHIFTER_RULE.SNAPSHOT_ID, rule.getSnapshot())
                     .where(SHAPESHIFTER_RULE.PIPELINE_UUID.eq(learner.pipelineUuid()))
                     .and(SHAPESHIFTER_RULE.ELEMENT_ID.eq(learner.elementId()))
@@ -156,8 +154,6 @@ public class RulesDao implements Rules {
                 .set(SHAPESHIFTER_RULE.BOUNDARY_ELEMENT, element(stored))
                 .set(SHAPESHIFTER_RULE.BOUNDARY_ARRAY, array(stored))
                 .set(SHAPESHIFTER_RULE.BOUNDARY_DEPTH, depth(stored))
-                .set(SHAPESHIFTER_RULE.SHAPE_ID, stored.getShapeId())
-                .set(SHAPESHIFTER_RULE.SHAPE_HASH, shapeHash(stored))
                 .set(SHAPESHIFTER_RULE.SNAPSHOT_ID, stored.getSnapshot())
                 .execute();
         return stored;
@@ -184,21 +180,8 @@ public class RulesDao implements Rules {
                         : boundaryArray != null
                                 ? RecordBoundary.ofArray(boundaryArray).atDepth(boundaryDepth)
                                 : null)
-                .shapeId(record.get(SHAPESHIFTER_RULE.SHAPE_ID))
                 .snapshot(record.get(SHAPESHIFTER_RULE.SNAPSHOT_ID))
                 .build();
-    }
-
-    /// The shape's hash beside its id, so that the serving view of A46 can join a rule to its shape's
-    /// state on an indexed column: [ServingDao] orders by traffic and filters by score, and neither lives
-    /// on this table. Written wherever the id is, by the same rule — a rule with no shape has no hash.
-    private static String shapeHash(final RoutingRule rule) {
-        // Blank counts as none, as it does everywhere else that asks whether a rule came from a shape
-        // (`Stage.improve`, `InMemoryServing`). A hash of the empty string is a real hash, and a rule
-        // carrying one would be listed as serving and then refused when somebody pressed improve.
-        return NullSafe.isBlankString(rule.getShapeId())
-                ? null
-                : ShapesDao.hash(rule.getShapeId());
     }
 
     private static String type(final RoutingRule rule) {

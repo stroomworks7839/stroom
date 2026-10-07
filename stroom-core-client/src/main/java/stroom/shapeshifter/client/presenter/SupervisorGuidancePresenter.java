@@ -47,15 +47,15 @@ import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * Everything a supervisor has said about one shape (ruling A46), oldest first, with a way to say
+ * Everything a supervisor has said to one learner (ruling A46, A128), oldest first, with a way to say
  * another thing and a way to take one back.
  * <p>
  * Taking one back is why this exists rather than a count on a row. A hint that turned out to be wrong
- * is worse than no hint: it is carried into every question asked about the shape from then on, and a
+ * is worse than no hint: it is carried into every question the learner asks from then on, and a
  * person who cannot see what is standing cannot know that. The turns that already carried it still say
  * they did (A45) — what is withdrawn stops being carried, and does not stop having been.
  * <p>
- * Not paged. Guidance is what one person wrote about one feed; a shape with a hundred hints is a shape
+ * Not paged. Guidance is what one person wrote about one feed; a learner with a hundred hints is one
  * somebody should be talking to rather than typing at.
  */
 public class SupervisorGuidancePresenter extends MyPresenterWidget<PagerView> {
@@ -69,7 +69,6 @@ public class SupervisorGuidancePresenter extends MyPresenterWidget<PagerView> {
     private final ButtonView removeButton;
     private String docUuid;
     private LearnerRef learner;
-    private String shapeId;
     private Runnable onChange;
 
     @Inject
@@ -85,7 +84,7 @@ public class SupervisorGuidancePresenter extends MyPresenterWidget<PagerView> {
         view.setDataWidget(dataGrid);
         initTableColumns();
 
-        addButton = view.addButton(SvgPresets.ADD.title("Tell the learning something else about this shape"));
+        addButton = view.addButton(SvgPresets.ADD.title("Tell this learner something else"));
         removeButton = view.addButton(SvgPresets.DELETE.title("Take this back, so that it stops being carried"));
         updateButtons();
     }
@@ -99,40 +98,36 @@ public class SupervisorGuidancePresenter extends MyPresenterWidget<PagerView> {
     }
 
     /**
-     * Show what has been said about a shape.
+     * Show what has been said to a learner.
      *
-     * @param learner  The learner whose shape it is, as the row names it.
-     * @param shapeId  The shape, as a rule or an attempt names it.
+     * @param learner  The learner, as the row names it.
      * @param onChange Run when something is said or taken back, so that the count on the row the dialog
      *                 was opened from is read again.
      */
     public void show(final String docUuid,
                      final LearnerRef learner,
-                     final String shapeId,
                      final Runnable onChange) {
         this.docUuid = docUuid;
         this.learner = learner;
-        this.shapeId = shapeId;
         this.onChange = onChange;
         read(said -> {
             ShowPopupEvent.builder(this)
                     .popupType(PopupType.CLOSE_DIALOG)
                     .popupSize(PopupSize.resizable(800, 400))
-                    .caption("What has been said about " + shapeId)
+                    .caption("What has been said to this learner")
                     .fire();
             set(said);
         });
     }
 
     private void add() {
-        // Which shape this is about, taken now rather than when OK is pressed: the dialog can be
-        // reopened on another shape while a prompt is up.
-        final String about = shapeId;
+        // Which learner this is about, taken now rather than when OK is pressed: the dialog can be
+        // reopened on another while a prompt is up.
         final LearnerRef whose = learner;
         final String onDocument = docUuid;
         PromptEvent.fire(this,
-                "What should the learning know about this shape? It is kept against the shape, so every "
-                + "question asked about it from now on carries it.", "",
+                "What should this learner know? It is kept against the learner, so every question it "
+                + "asks from now on carries it.", "",
                 message -> {
                     // Null is Cancel; empty is nothing to record.
                     if (NullSafe.isBlankString(message)) {
@@ -141,7 +136,7 @@ public class SupervisorGuidancePresenter extends MyPresenterWidget<PagerView> {
                     restFactory
                             .create(SUPERVISOR_RESOURCE)
                             .method(resource -> resource.hint(onDocument,
-                                    new GuidanceRequest(about, whose, message)))
+                                    new GuidanceRequest(whose, message)))
                             .onSuccess(this::changed)
                             .taskMonitorFactory(this)
                             .exec();
@@ -155,18 +150,17 @@ public class SupervisorGuidancePresenter extends MyPresenterWidget<PagerView> {
         if (said == null) {
             return;
         }
-        final String about = shapeId;
         final LearnerRef whose = learner;
         final String onDocument = docUuid;
         ConfirmEvent.fire(this,
-                "Take this back? It stops being carried into what is asked about this shape. The turns "
+                "Take this back? It stops being carried into what this learner asks. The turns "
                 + "that already carried it still say they did.",
                 ok -> {
                     if (ok) {
                         restFactory
                                 .create(SUPERVISOR_RESOURCE)
                                 .method(resource -> resource.withdraw(onDocument, said.getId(),
-                                        whose.getPipelineUuid(), whose.getElementId(), about))
+                                        whose.getPipelineUuid(), whose.getElementId()))
                                 .onSuccess(this::changed)
                                 .taskMonitorFactory(this)
                                 .exec();
@@ -186,7 +180,7 @@ public class SupervisorGuidancePresenter extends MyPresenterWidget<PagerView> {
         restFactory
                 .create(SUPERVISOR_RESOURCE)
                 .method(resource -> resource.guidance(docUuid, learner.getPipelineUuid(),
-                        learner.getElementId(), shapeId))
+                        learner.getElementId()))
                 .onSuccess(consumer::accept)
                 .taskMonitorFactory(this)
                 .exec();
@@ -210,8 +204,8 @@ public class SupervisorGuidancePresenter extends MyPresenterWidget<PagerView> {
         dataGrid.addResizableColumn(
                 DataGridUtil.htmlColumnBuilder((SupervisorGuidance said) -> text(said.getMessage())).build(),
                 DataGridUtil.headingBuilder("Said")
-                        .withToolTip("What was written, as it is carried into every question about this "
-                                     + "shape.")
+                        .withToolTip("What was written, as it is carried into every question this "
+                                     + "learner asks.")
                         .build(),
                 ColumnSizeConstants.BIG_COL);
         dataGrid.addResizableColumn(

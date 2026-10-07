@@ -52,11 +52,11 @@ import com.gwtplatform.mvp.client.MyPresenterWidget;
 import java.util.function.Consumer;
 
 /**
- * What is serving (ruling A46, design 01 §11.6): a rule per learned shape, ordered by the traffic each
+ * What is serving (ruling A46, design 01 §11.6): a rule per learner, ordered by the traffic each
  * carries, with <em>improve</em> on the row.
  * <p>
  * This is the way in that nothing else offers. Every other surface in the feature is reached because
- * something went wrong — a shape was given up, a draft awaits review, a rolling score fell through the
+ * something went wrong — a learner gave up, a draft awaits review, a rolling score fell through the
  * floor. A rule serving at 0.93 is above every threshold and nothing will ever flag it, so a person who
  * wants it better has to be able to go and find it. They find it here, busiest first, because the rule
  * carrying the most streams is the one worth an hour.
@@ -99,7 +99,7 @@ public class SupervisorServingPresenter extends MyPresenterWidget<PagerView> {
         improveButton = view.addButton(SvgPresets.RERUN.title(
                 "Ask for this rule to be made better, from what it already does"));
         hintButton = view.addButton(SvgPresets.EDIT.title(
-                "What has been said about this shape, and say something else"));
+                "What has been said to this learner, and say something else"));
         // §6, §11.6: a provisional binding a person may accept rather than wait out. Offered only for
         // the rows that are one, which is why the row says which it is.
         acceptButton = view.addButton(SvgPresets.TICK.title(
@@ -114,10 +114,10 @@ public class SupervisorServingPresenter extends MyPresenterWidget<PagerView> {
         // The filter of A46: "good but not perfect" is the one thing worth narrowing by, since nothing
         // else in the feature will ever raise a rule that is merely good.
         filterButton = view.addButton(SvgPresets.FILTER.title(
-                "Show only the rules whose shape has been scoring below a figure"));
+                "Show only the rules whose learner has been scoring below a figure"));
 
-        // Paged, like the attempts and the ledger beside it. One rule per learned shape means a busy
-        // document has as many rules as it has shapes, and a grid handed all of them shows the first
+        // Paged, like the attempts and the ledger beside it. One rule per learner means a busy document
+        // has as many rules as it has pipelines, and a grid handed all of them shows the first
         // page and loses the rest.
         dataProvider = new RestDataProvider<ServingRule, ResultPage<ServingRule>>(eventBus) {
             @Override
@@ -171,8 +171,8 @@ public class SupervisorServingPresenter extends MyPresenterWidget<PagerView> {
     ///
     /// The message is optional and the prompt says so: asking again from the incumbent, with the records
     /// it was accepted on and the score it made on them, is itself worth something. What is typed is kept
-    /// as guidance for the shape rather than for the attempt, so it is carried into every question asked
-    /// about that shape from then on — including the relearning of A29 months later.
+    /// as guidance for the learner rather than for the attempt, so it is carried into every question it
+    /// asks from then on — including the relearning of A29 months later.
     private void improve() {
         final ServingRule rule = selected();
         if (rule == null) {
@@ -187,7 +187,7 @@ public class SupervisorServingPresenter extends MyPresenterWidget<PagerView> {
         }
         PromptEvent.fire(this,
                 "What should be better about this rule? Leave it empty to ask again from what it already "
-                + "does. What you write is kept against the shape, so everything asked about it from now "
+                + "does. What you write is kept against the learner, so everything it asks from now "
                 + "on carries it.", "",
                 message -> {
                     // Null is Cancel and empty is "ask again from what it already does", and the two
@@ -221,7 +221,7 @@ public class SupervisorServingPresenter extends MyPresenterWidget<PagerView> {
                 });
     }
 
-    /// Tell the learning something about this rule's shape, without asking for anything to be run
+    /// Tell this rule's learner something, without asking for anything to be run
     /// (A46): the feed's own explanation of a field, a correction, a fact no sample shows.
     ///
     /// Separate from improving, because a person who has just learned something about a feed should be
@@ -234,7 +234,7 @@ public class SupervisorServingPresenter extends MyPresenterWidget<PagerView> {
             // has already been said, or the same hint is given three times and a wrong one is never
             // taken back. The row's count is read again when anything changes.
             // Only the count on the row changes, so the row a person is reading stays selected.
-            guidancePresenter.show(rule.getDoc().getUuid(), rule.getLearner(), rule.getShapeId(), this::refresh);
+            guidancePresenter.show(rule.getDoc().getUuid(), rule.getLearner(), this::refresh);
         }
     }
 
@@ -280,7 +280,7 @@ public class SupervisorServingPresenter extends MyPresenterWidget<PagerView> {
     /// being withdrawn, so all of it is asked to be processed again as it would be now (A12).
     ///
     /// Confirmed and reasoned, because it is the most consequential thing on this screen: a backlog goes
-    /// through the pipeline and a feed stops being processed until its shape is learned again. The
+    /// through the pipeline and a feed stops being processed until its learner learns again. The
     /// reason is asked for rather than assumed — it travels with every stream it asks for.
     private void retract() {
         final ServingRule rule = selected();
@@ -293,7 +293,7 @@ public class SupervisorServingPresenter extends MyPresenterWidget<PagerView> {
             return;
         }
         PromptEvent.fire(this,
-                "Why is this rule being taken back? It goes out of the table, its shape is learned again "
+                "Why is this rule being taken back? It goes out of the table, its learner learns again "
                 + "from the next stream, and everything it has produced is asked to be processed again "
                 + "as it would be now. The reason travels with every one of those streams.", "",
                 reason -> {
@@ -397,16 +397,17 @@ public class SupervisorServingPresenter extends MyPresenterWidget<PagerView> {
                         .build(),
                 ColumnSizeConstants.MEDIUM_COL);
         dataGrid.addResizableColumn(
-                DataGridUtil.htmlColumnBuilder((ServingRule rule) -> text(rule.getShapeId())).build(),
-                DataGridUtil.headingBuilder("Shape")
-                        .withToolTip("The learning key's values this rule was learned for.")
+                DataGridUtil.htmlColumnBuilder((ServingRule rule) -> text(String.valueOf(rule.getLearner())))
+                        .build(),
+                DataGridUtil.headingBuilder("Learner")
+                        .withToolTip("The pipeline and the element in it that this rule serves.")
                         .build(),
                 ColumnSizeConstants.BIG_COL);
         dataGrid.addResizableColumn(
                 DataGridUtil.htmlColumnBuilder((ServingRule rule) ->
                         text(NullSafe.get(rule.getFragment(), DocRef::getName))).build(),
                 DataGridUtil.headingBuilder("Serving")
-                        .withToolTip("The pipeline fragment it binds: what every stream of this shape is "
+                        .withToolTip("The pipeline fragment it binds: what every stream of this learner is "
                                      + "processed by.")
                         .build(),
                 ColumnSizeConstants.MEDIUM_COL);
@@ -423,8 +424,8 @@ public class SupervisorServingPresenter extends MyPresenterWidget<PagerView> {
                 DataGridUtil.htmlColumnBuilder((ServingRule rule) ->
                         text(score(rule.getRollingScore()))).rightAligned().build(),
                 DataGridUtil.headingBuilder("Scoring")
-                        .withToolTip("What it has been scoring lately, over the shape's rolling memory. "
-                                     + "Blank until the shape has served something.")
+                        .withToolTip("What it has been scoring lately, over the learner's rolling memory. "
+                                     + "Blank until the learner has served something.")
                         .rightAligned()
                         .build(),
                 80);
@@ -459,8 +460,8 @@ public class SupervisorServingPresenter extends MyPresenterWidget<PagerView> {
                                 ? ""
                                 : Integer.toString(rule.getGuidance()))).rightAligned().build(),
                 DataGridUtil.headingBuilder("Said")
-                        .withToolTip("How many things a supervisor has told the learning about this "
-                                     + "shape, so that you can see whether the last hint was acted on "
+                        .withToolTip("How many things a supervisor has told this learner, "
+                                     + "so that you can see whether the last hint was acted on "
                                      + "before giving another.")
                         .rightAligned()
                         .build(),

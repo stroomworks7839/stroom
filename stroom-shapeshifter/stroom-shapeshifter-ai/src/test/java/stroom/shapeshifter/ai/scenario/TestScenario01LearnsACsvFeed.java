@@ -120,7 +120,7 @@ class TestScenario01LearnsACsvFeed {
         final Promoted promoted = (Promoted) run.decision();
         assertThat(run.output()).isEqualTo(EXPECTED_EVENTS);
         assertThat(run.transcript()).hasSize(6);
-        assertThat(scenarios.shapes.reasonGivenUp(Scenarios.LEARNER, run.shape().id())).isEmpty();
+        assertThat(scenarios.states.reasonGivenUp(Scenarios.LEARNER)).isEmpty();
         assertThat(scenarios.ledger.isEmpty()).isTrue();
         assertThat(run.bindings())
                 .describedAs("design 01 §7.3 rule 3: the output records what produced it")
@@ -145,7 +145,6 @@ class TestScenario01LearnsACsvFeed {
         assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).hasSize(1);
         final RoutingRule rule = scenarios.rules.forLearner(Scenarios.LEARNER).get(0);
         assertThat(rule).isEqualTo(promoted.rule());
-        assertThat(rule.getShapeId()).isEqualTo("Feed=DOOR-ACCESS|Type=Raw Events");
         assertThat(rule.getUuid()).describedAs("A26: a learned rule is named stably").isNotNull();
         assertThat(rule.isDraft()).isFalse();
         assertThat(rule.getPromotedTimeMs()).isEqualTo(Scenarios.NOW.toEpochMilli());
@@ -154,7 +153,7 @@ class TestScenario01LearnsACsvFeed {
         // The fragment is real content: a Source → DSParser → SplitFilter → XSLTFilter pipeline over two new
         // documents, the split giving the transform one record at a time (design 04 §3).
         assertThat(rule.getPipeline().getName()).startsWith("DOOR-ACCESS-Raw-Events-");
-        assertThat(run.shape().id()).isEqualTo("Feed=DOOR-ACCESS|Type=Raw Events");
+        assertThat(run.learner()).isEqualTo(Scenarios.LEARNER);
         assertThat(scenarios.stores.pipelines.readDocument(rule.getPipeline()).getPipelineData()
                 .getAddedElements())
                 .extracting(element -> element.getType())

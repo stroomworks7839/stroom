@@ -15,10 +15,10 @@ import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterAttempt;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterCorpus;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterDeferral;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterGuidance;
+import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterLearnerState;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterLedger;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterOutput;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterRule;
-import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterShape;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterSnapshot;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterSpend;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterTurn;
@@ -26,10 +26,10 @@ import stroom.shapeshifter.ai.impl.db.jooq.tables.records.ShapeshifterAttemptRec
 import stroom.shapeshifter.ai.impl.db.jooq.tables.records.ShapeshifterCorpusRecord;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.records.ShapeshifterDeferralRecord;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.records.ShapeshifterGuidanceRecord;
+import stroom.shapeshifter.ai.impl.db.jooq.tables.records.ShapeshifterLearnerStateRecord;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.records.ShapeshifterLedgerRecord;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.records.ShapeshifterOutputRecord;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.records.ShapeshifterRuleRecord;
-import stroom.shapeshifter.ai.impl.db.jooq.tables.records.ShapeshifterShapeRecord;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.records.ShapeshifterSnapshotRecord;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.records.ShapeshifterSpendRecord;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.records.ShapeshifterTurnRecord;
@@ -47,19 +47,19 @@ public class Keys {
     // -------------------------------------------------------------------------
 
     public static final UniqueKey<ShapeshifterAttemptRecord> KEY_SHAPESHIFTER_ATTEMPT_PRIMARY = Internal.createUniqueKey(ShapeshifterAttempt.SHAPESHIFTER_ATTEMPT, DSL.name("KEY_shapeshifter_attempt_PRIMARY"), new TableField[] { ShapeshifterAttempt.SHAPESHIFTER_ATTEMPT.ID }, true);
-    public static final UniqueKey<ShapeshifterAttemptRecord> KEY_SHAPESHIFTER_ATTEMPT_SHAPESHIFTER_ATTEMPT_CLAIM = Internal.createUniqueKey(ShapeshifterAttempt.SHAPESHIFTER_ATTEMPT, DSL.name("KEY_shapeshifter_attempt_shapeshifter_attempt_claim"), new TableField[] { ShapeshifterAttempt.SHAPESHIFTER_ATTEMPT.PIPELINE_UUID, ShapeshifterAttempt.SHAPESHIFTER_ATTEMPT.ELEMENT_ID, ShapeshifterAttempt.SHAPESHIFTER_ATTEMPT.CLAIM_KEY }, true);
+    public static final UniqueKey<ShapeshifterAttemptRecord> KEY_SHAPESHIFTER_ATTEMPT_SHAPESHIFTER_ATTEMPT_CLAIM = Internal.createUniqueKey(ShapeshifterAttempt.SHAPESHIFTER_ATTEMPT, DSL.name("KEY_shapeshifter_attempt_shapeshifter_attempt_claim"), new TableField[] { ShapeshifterAttempt.SHAPESHIFTER_ATTEMPT.PIPELINE_UUID, ShapeshifterAttempt.SHAPESHIFTER_ATTEMPT.ELEMENT_ID, ShapeshifterAttempt.SHAPESHIFTER_ATTEMPT.CLAIMED }, true);
     public static final UniqueKey<ShapeshifterCorpusRecord> KEY_SHAPESHIFTER_CORPUS_PRIMARY = Internal.createUniqueKey(ShapeshifterCorpus.SHAPESHIFTER_CORPUS, DSL.name("KEY_shapeshifter_corpus_PRIMARY"), new TableField[] { ShapeshifterCorpus.SHAPESHIFTER_CORPUS.ID }, true);
     public static final UniqueKey<ShapeshifterDeferralRecord> KEY_SHAPESHIFTER_DEFERRAL_PRIMARY = Internal.createUniqueKey(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL, DSL.name("KEY_shapeshifter_deferral_PRIMARY"), new TableField[] { ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.ID }, true);
     public static final UniqueKey<ShapeshifterDeferralRecord> KEY_SHAPESHIFTER_DEFERRAL_SHAPESHIFTER_DEFERRAL_LEARNER_META = Internal.createUniqueKey(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL, DSL.name("KEY_shapeshifter_deferral_shapeshifter_deferral_learner_meta"), new TableField[] { ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.PIPELINE_UUID, ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.ELEMENT_ID, ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.META_ID }, true);
     public static final UniqueKey<ShapeshifterGuidanceRecord> KEY_SHAPESHIFTER_GUIDANCE_PRIMARY = Internal.createUniqueKey(ShapeshifterGuidance.SHAPESHIFTER_GUIDANCE, DSL.name("KEY_shapeshifter_guidance_PRIMARY"), new TableField[] { ShapeshifterGuidance.SHAPESHIFTER_GUIDANCE.ID }, true);
+    public static final UniqueKey<ShapeshifterLearnerStateRecord> KEY_SHAPESHIFTER_LEARNER_STATE_PRIMARY = Internal.createUniqueKey(ShapeshifterLearnerState.SHAPESHIFTER_LEARNER_STATE, DSL.name("KEY_shapeshifter_learner_state_PRIMARY"), new TableField[] { ShapeshifterLearnerState.SHAPESHIFTER_LEARNER_STATE.ID }, true);
+    public static final UniqueKey<ShapeshifterLearnerStateRecord> KEY_SHAPESHIFTER_LEARNER_STATE_SHAPESHIFTER_LEARNER_STATE_LEARNER = Internal.createUniqueKey(ShapeshifterLearnerState.SHAPESHIFTER_LEARNER_STATE, DSL.name("KEY_shapeshifter_learner_state_shapeshifter_learner_state_learner"), new TableField[] { ShapeshifterLearnerState.SHAPESHIFTER_LEARNER_STATE.PIPELINE_UUID, ShapeshifterLearnerState.SHAPESHIFTER_LEARNER_STATE.ELEMENT_ID }, true);
     public static final UniqueKey<ShapeshifterLedgerRecord> KEY_SHAPESHIFTER_LEDGER_PRIMARY = Internal.createUniqueKey(ShapeshifterLedger.SHAPESHIFTER_LEDGER, DSL.name("KEY_shapeshifter_ledger_PRIMARY"), new TableField[] { ShapeshifterLedger.SHAPESHIFTER_LEDGER.ID }, true);
-    public static final UniqueKey<ShapeshifterLedgerRecord> KEY_SHAPESHIFTER_LEDGER_SHAPESHIFTER_LEDGER_LEARNER_SHAPE_INPUT = Internal.createUniqueKey(ShapeshifterLedger.SHAPESHIFTER_LEDGER, DSL.name("KEY_shapeshifter_ledger_shapeshifter_ledger_learner_shape_input"), new TableField[] { ShapeshifterLedger.SHAPESHIFTER_LEDGER.PIPELINE_UUID, ShapeshifterLedger.SHAPESHIFTER_LEDGER.ELEMENT_ID, ShapeshifterLedger.SHAPESHIFTER_LEDGER.SHAPE_HASH, ShapeshifterLedger.SHAPESHIFTER_LEDGER.INPUT_META_ID }, true);
+    public static final UniqueKey<ShapeshifterLedgerRecord> KEY_SHAPESHIFTER_LEDGER_SHAPESHIFTER_LEDGER_LEARNER_INPUT = Internal.createUniqueKey(ShapeshifterLedger.SHAPESHIFTER_LEDGER, DSL.name("KEY_shapeshifter_ledger_shapeshifter_ledger_learner_input"), new TableField[] { ShapeshifterLedger.SHAPESHIFTER_LEDGER.PIPELINE_UUID, ShapeshifterLedger.SHAPESHIFTER_LEDGER.ELEMENT_ID, ShapeshifterLedger.SHAPESHIFTER_LEDGER.INPUT_META_ID }, true);
     public static final UniqueKey<ShapeshifterOutputRecord> KEY_SHAPESHIFTER_OUTPUT_PRIMARY = Internal.createUniqueKey(ShapeshifterOutput.SHAPESHIFTER_OUTPUT, DSL.name("KEY_shapeshifter_output_PRIMARY"), new TableField[] { ShapeshifterOutput.SHAPESHIFTER_OUTPUT.ID }, true);
     public static final UniqueKey<ShapeshifterOutputRecord> KEY_SHAPESHIFTER_OUTPUT_SHAPESHIFTER_OUTPUT_RULE_INPUT_PIPELINE = Internal.createUniqueKey(ShapeshifterOutput.SHAPESHIFTER_OUTPUT, DSL.name("KEY_shapeshifter_output_shapeshifter_output_rule_input_pipeline"), new TableField[] { ShapeshifterOutput.SHAPESHIFTER_OUTPUT.RULE_UUID, ShapeshifterOutput.SHAPESHIFTER_OUTPUT.INPUT_META_ID, ShapeshifterOutput.SHAPESHIFTER_OUTPUT.PIPELINE_UUID }, true);
     public static final UniqueKey<ShapeshifterRuleRecord> KEY_SHAPESHIFTER_RULE_PRIMARY = Internal.createUniqueKey(ShapeshifterRule.SHAPESHIFTER_RULE, DSL.name("KEY_shapeshifter_rule_PRIMARY"), new TableField[] { ShapeshifterRule.SHAPESHIFTER_RULE.ID }, true);
     public static final UniqueKey<ShapeshifterRuleRecord> KEY_SHAPESHIFTER_RULE_SHAPESHIFTER_RULE_RULE_UUID = Internal.createUniqueKey(ShapeshifterRule.SHAPESHIFTER_RULE, DSL.name("KEY_shapeshifter_rule_shapeshifter_rule_rule_uuid"), new TableField[] { ShapeshifterRule.SHAPESHIFTER_RULE.RULE_UUID }, true);
-    public static final UniqueKey<ShapeshifterShapeRecord> KEY_SHAPESHIFTER_SHAPE_PRIMARY = Internal.createUniqueKey(ShapeshifterShape.SHAPESHIFTER_SHAPE, DSL.name("KEY_shapeshifter_shape_PRIMARY"), new TableField[] { ShapeshifterShape.SHAPESHIFTER_SHAPE.ID }, true);
-    public static final UniqueKey<ShapeshifterShapeRecord> KEY_SHAPESHIFTER_SHAPE_SHAPESHIFTER_SHAPE_LEARNER_SHAPE = Internal.createUniqueKey(ShapeshifterShape.SHAPESHIFTER_SHAPE, DSL.name("KEY_shapeshifter_shape_shapeshifter_shape_learner_shape"), new TableField[] { ShapeshifterShape.SHAPESHIFTER_SHAPE.PIPELINE_UUID, ShapeshifterShape.SHAPESHIFTER_SHAPE.ELEMENT_ID, ShapeshifterShape.SHAPESHIFTER_SHAPE.SHAPE_HASH }, true);
     public static final UniqueKey<ShapeshifterSnapshotRecord> KEY_SHAPESHIFTER_SNAPSHOT_PRIMARY = Internal.createUniqueKey(ShapeshifterSnapshot.SHAPESHIFTER_SNAPSHOT, DSL.name("KEY_shapeshifter_snapshot_PRIMARY"), new TableField[] { ShapeshifterSnapshot.SHAPESHIFTER_SNAPSHOT.ID }, true);
     public static final UniqueKey<ShapeshifterSnapshotRecord> KEY_SHAPESHIFTER_SNAPSHOT_SHAPESHIFTER_SNAPSHOT_ID = Internal.createUniqueKey(ShapeshifterSnapshot.SHAPESHIFTER_SNAPSHOT, DSL.name("KEY_shapeshifter_snapshot_shapeshifter_snapshot_id"), new TableField[] { ShapeshifterSnapshot.SHAPESHIFTER_SNAPSHOT.SNAPSHOT_ID }, true);
     public static final UniqueKey<ShapeshifterSpendRecord> KEY_SHAPESHIFTER_SPEND_PRIMARY = Internal.createUniqueKey(ShapeshifterSpend.SHAPESHIFTER_SPEND, DSL.name("KEY_shapeshifter_spend_PRIMARY"), new TableField[] { ShapeshifterSpend.SHAPESHIFTER_SPEND.ID }, true);

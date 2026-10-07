@@ -203,7 +203,7 @@ public class FlowChart extends Composite {
         }
 
         // Start, and its edge down to the first step.
-        terminal(svg, TOP, START, "START  ·  a shape with no rule");
+        terminal(svg, TOP, START, "START  ·  a learner with no binding");
         if (count > 0) {
             edge(svg, "start", false, pathKeys, "M" + CX + ' ' + (TOP + TERMINAL_H) + " V" + FIRST, null, 0, 0,
                     null, CX, FIRST, "down");

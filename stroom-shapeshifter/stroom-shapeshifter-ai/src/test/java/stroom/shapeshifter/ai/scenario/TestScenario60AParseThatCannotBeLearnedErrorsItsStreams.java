@@ -50,7 +50,6 @@ class TestScenario60AParseThatCannotBeLearnedErrorsItsStreams {
 
     private static final String DOC = "doc-1";
     private static final String FEED = "DOOR-ACCESS";
-    private static final String SHAPE = "Feed=DOOR-ACCESS|Type=Raw Events";
     private static final Golden CSV = Scenarios.corpus("001_csv_with_header");
     /// A splitter that cuts one record per separator-delimited block: over a CSV with no separators, one
     /// record for the whole stream, which is a yield far short of the gate.
@@ -94,7 +93,7 @@ class TestScenario60AParseThatCannotBeLearnedErrorsItsStreams {
 
         final Recorded session = scenarios.attempts.forDocument(DOC, 10).get(0);
         assertThat(session.status()).describedAs(String.valueOf(session.decision())).isEqualTo(AttemptStatus.ABANDONED);
-        assertThat(scenarios.shapes.reasonGivenUp(Scenarios.LEARNER, SHAPE)).isPresent()
+        assertThat(scenarios.states.reasonGivenUp(Scenarios.LEARNER)).isPresent()
                 .get().asString().contains("No passing configuration for DSParser");
         assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).isEmpty();
         assertThat(scenarios.wake.woken()).extracting(Deferral::inputId)
@@ -104,7 +103,7 @@ class TestScenario60AParseThatCannotBeLearnedErrorsItsStreams {
         for (final long id : List.of(1L, 2L)) {
             final StageRun run = scenarios.stage(silent).decide(doc, Scenarios.LEARNER, input(id));
             assertThat(run.decision()).isInstanceOf(Sentinel.class);
-            assertThat(((Sentinel) run.decision()).reason()).contains("Shape given up");
+            assertThat(((Sentinel) run.decision()).reason()).contains("Given up");
             assertThat(scenarios.deferrals.of(Scenarios.LEARNER, id)).isEmpty();
         }
         assertThat(scenarios.attempts.forDocument(DOC, 10)).hasSize(1);

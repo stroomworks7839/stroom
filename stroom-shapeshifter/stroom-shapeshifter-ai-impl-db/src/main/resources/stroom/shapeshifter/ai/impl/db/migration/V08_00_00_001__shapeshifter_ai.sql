@@ -25,12 +25,12 @@ SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0;
 --
 
 --
--- What a learner knows about one of its shapes: given up, marked to learn again, a draft waiting for
--- review, and its rolling score. A learner is the pipeline and the element (A114); the document it ran
--- under is kept for the Supervisor, which lists what a person may see. The shape's id has no bound, so
--- it is found by its hash; shape_id carries it as written, for a person reading the row.
+-- A learner's learning state (A117, A124): given up, marked to learn again, the draft awaiting review,
+-- and its rolling score. One row per learner, the pipeline and the element (A114); the document it runs
+-- under is kept for the Supervisor, which lists what a person may see. The binding that serves it is the
+-- learner's one binding that is not a draft.
 --
-CREATE TABLE IF NOT EXISTS shapeshifter_shape (
+CREATE TABLE IF NOT EXISTS shapeshifter_learner_state (
     id                    bigint NOT NULL AUTO_INCREMENT,
     version               int NOT NULL,
     create_time_ms        bigint NOT NULL,
@@ -38,22 +38,20 @@ CREATE TABLE IF NOT EXISTS shapeshifter_shape (
     pipeline_uuid         varchar(255) NOT NULL,
     element_id            varchar(255) NOT NULL,
     doc_uuid              varchar(255) NOT NULL,
-    shape_hash            varchar(64) NOT NULL,
-    shape_id              longtext NOT NULL,
     given_up_reason       longtext DEFAULT NULL,
     relearn_reason        longtext DEFAULT NULL,
     awaiting_rule_uuid    varchar(255) DEFAULT NULL,
     rolling_score         double DEFAULT NULL,
     rolling_records       int NOT NULL DEFAULT 0,
     PRIMARY KEY           (id),
-    UNIQUE KEY            shapeshifter_shape_learner_shape (pipeline_uuid, element_id, shape_hash),
-    KEY                   shapeshifter_shape_doc_uuid (doc_uuid)
+    UNIQUE KEY            shapeshifter_learner_state_learner (pipeline_uuid, element_id),
+    KEY                   shapeshifter_learner_state_doc_uuid (doc_uuid)
 ) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
 
 --
--- The streams of a given-up shape, kept to be put through again if it is learned after all. One row per
--- stream per learner and shape, so a stream recorded twice is not replayed twice. The learner's pipeline
--- is the one that was processing the stream, and the one it is put through again.
+-- The streams a learner gave up on, kept to be put through again if it learns after all. One row per
+-- stream per learner, so a stream recorded twice is not replayed twice. The learner's pipeline is the one
+-- that was processing the stream, and the one it is put through again.
 --
 CREATE TABLE IF NOT EXISTS shapeshifter_ledger (
     id                    bigint NOT NULL AUTO_INCREMENT,
@@ -61,21 +59,18 @@ CREATE TABLE IF NOT EXISTS shapeshifter_ledger (
     pipeline_uuid         varchar(255) NOT NULL,
     element_id            varchar(255) NOT NULL,
     doc_uuid              varchar(255) NOT NULL,
-    shape_hash            varchar(64) NOT NULL,
-    shape_id              longtext NOT NULL,
     input_meta_id         bigint NOT NULL,
     reason                longtext NOT NULL,
     PRIMARY KEY           (id),
-    UNIQUE KEY            shapeshifter_ledger_learner_shape_input (pipeline_uuid, element_id, shape_hash, input_meta_id),
+    UNIQUE KEY            shapeshifter_ledger_learner_input (pipeline_uuid, element_id, input_meta_id),
     KEY                   shapeshifter_ledger_doc_uuid (doc_uuid),
     KEY                   shapeshifter_ledger_input_meta_id (input_meta_id)
 ) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
 
 --
--- What serves a learner's shapes: one row per binding, each of the shape it was learned for (design 06
--- phase J slices 2a and 2b), or a draft awaiting review for it. pipeline_uuid and element_id are the
--- learner (A114); the fragment_* columns name the fragment the binding runs. The document the learner
--- ran under is kept for the Supervisor.
+-- What serves a learner (A124): its binding, and any draft awaiting review to take its place.
+-- pipeline_uuid and element_id are the learner (A114); the fragment_* columns name the fragment the
+-- binding runs. The document the learner runs under is kept for the Supervisor.
 --
 CREATE TABLE IF NOT EXISTS shapeshifter_rule (
     id                    bigint NOT NULL AUTO_INCREMENT,
@@ -97,12 +92,10 @@ CREATE TABLE IF NOT EXISTS shapeshifter_rule (
     boundary_element      varchar(255) DEFAULT NULL,
     boundary_array        varchar(255) DEFAULT NULL,
     boundary_depth        int DEFAULT NULL,
-    shape_id              longtext DEFAULT NULL,
-    shape_hash            varchar(64) DEFAULT NULL,
     snapshot_id           varchar(255) DEFAULT NULL,
     PRIMARY KEY           (id),
     UNIQUE KEY            shapeshifter_rule_rule_uuid (rule_uuid),
-    KEY                   shapeshifter_rule_learner_shape (pipeline_uuid, element_id, shape_hash),
+    KEY                   shapeshifter_rule_learner (pipeline_uuid, element_id),
     KEY                   shapeshifter_rule_doc_uuid (doc_uuid)
 ) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
 
@@ -125,9 +118,9 @@ CREATE TABLE IF NOT EXISTS shapeshifter_spend (
 ) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
 
 --
--- One learning session (A28). An open attempt is its learner's claim on the shape it learns (A45): the
--- claim key is the shape's hash while the attempt is open and null once it closes, so one learner has
--- at most one open attempt per shape. The document is the one the session ran under.
+-- One learning session (A28). An open attempt is its learner's claim (A45): claimed is 1 while the
+-- attempt is open and null once it closes, so one learner has at most one open attempt. The document is
+-- the one the session ran under, and the feed and type those of the stream it opened on.
 --
 CREATE TABLE IF NOT EXISTS shapeshifter_attempt (
     id                    bigint NOT NULL AUTO_INCREMENT,
@@ -137,8 +130,6 @@ CREATE TABLE IF NOT EXISTS shapeshifter_attempt (
     pipeline_uuid         varchar(255) NOT NULL,
     element_id            varchar(255) NOT NULL,
     doc_uuid              varchar(255) NOT NULL,
-    shape_hash            varchar(64) NOT NULL,
-    shape_id              longtext NOT NULL,
     feed_name             varchar(255) DEFAULT NULL,
     type_name             varchar(255) DEFAULT NULL,
     input_meta_id         bigint DEFAULT NULL,
@@ -152,13 +143,12 @@ CREATE TABLE IF NOT EXISTS shapeshifter_attempt (
     tokens_spent          bigint NOT NULL DEFAULT 0,
     -- When a claim lapses if nothing heartbeats it (A45), for the worker to take up
     expiry_ms             bigint DEFAULT NULL,
-    claim_key             varchar(64) DEFAULT NULL,
+    claimed               tinyint DEFAULT NULL,
     granted_tokens        bigint NOT NULL DEFAULT 0,
     granted_ms            bigint NOT NULL DEFAULT 0,
     exhaust_next          tinyint NOT NULL DEFAULT 0,
     PRIMARY KEY           (id),
-    UNIQUE KEY            shapeshifter_attempt_claim (pipeline_uuid, element_id, claim_key),
-    KEY                   shapeshifter_attempt_learner_shape (pipeline_uuid, element_id, shape_hash),
+    UNIQUE KEY            shapeshifter_attempt_claim (pipeline_uuid, element_id, claimed),
     KEY                   shapeshifter_attempt_doc_uuid (doc_uuid),
     KEY                   shapeshifter_attempt_status (status),
     KEY                   shapeshifter_attempt_create_time_ms (create_time_ms)
@@ -214,8 +204,8 @@ CREATE TABLE IF NOT EXISTS shapeshifter_output (
 ) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
 
 --
--- What a person has said about one of a learner's shapes (A46), carried into every question about it
--- from then on. The document is kept for who may see and withdraw it.
+-- What a person has said about what a learner learns (A46), carried into every question it asks from
+-- then on. The document is kept for who may see and withdraw it.
 --
 CREATE TABLE IF NOT EXISTS shapeshifter_guidance (
     id                    bigint NOT NULL AUTO_INCREMENT,
@@ -223,19 +213,17 @@ CREATE TABLE IF NOT EXISTS shapeshifter_guidance (
     pipeline_uuid         varchar(255) NOT NULL,
     element_id            varchar(255) NOT NULL,
     doc_uuid              varchar(255) NOT NULL,
-    shape_hash            varchar(64) NOT NULL,
-    shape_id              longtext NOT NULL,
     message               longtext NOT NULL,
     -- Who said it. A hint is somebody's, and a person reading one a year later needs to know whose.
     author                varchar(255) NOT NULL,
     PRIMARY KEY           (id),
-    KEY                   shapeshifter_guidance_learner_shape (pipeline_uuid, element_id, shape_hash),
+    KEY                   shapeshifter_guidance_learner (pipeline_uuid, element_id),
     KEY                   shapeshifter_guidance_doc_uuid (doc_uuid)
 ) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
 
 --
--- A stream waiting for its learner (design 04 §3): one row per stream per learner. A promotion wakes a
--- learner's rows of one feed and type, found on the learner's prefix of the unique key. The document is
+-- A stream waiting for its learner (design 04 §3): one row per stream per learner. A promotion wakes the
+-- learner's rows, found on the learner's prefix of the unique key. The document is
 -- kept for the Supervisor's backlog, which lists what waits on the documents a person may see.
 --
 CREATE TABLE IF NOT EXISTS shapeshifter_deferral (

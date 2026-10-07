@@ -52,7 +52,6 @@ import stroom.shapeshifter.ai.stage.Attempts.Recorded;
 import stroom.shapeshifter.ai.stage.Learner;
 import stroom.shapeshifter.ai.stage.Ledger;
 import stroom.shapeshifter.ai.stage.Rules;
-import stroom.shapeshifter.ai.stage.Shape;
 import stroom.shapeshifter.ai.transformation.XsltStep;
 import stroom.shapeshifter.shared.AttemptStatus;
 import stroom.shapeshifter.shared.FlowExample;
@@ -184,9 +183,7 @@ class TestScenario30DeferredWorkerInAPipeline extends AbstractProcessIntegration
         final RoutingRule rule = rules.forLearner(learner).get(0);
         assertThat(pipelineStore.readDocument(rule.getPipeline()))
                 .describedAs("and the fragment it learned is a pipeline document").isNotNull();
-        final String shape = Shape.of(learner,
-                Map.of(MetaFields.FIELD_FEED, FEED, MetaFields.FIELD_TYPE, StreamTypeNames.RAW_EVENTS)).id();
-        assertThat(ledger.release(learner, shape))
+        assertThat(ledger.release(learner))
                 .describedAs("the ledger holds nothing: what waited was deferred, not sentinelled")
                 .isEmpty();
         // Scenario 13's substance in a node: *both* streams waited on this shape and one promotion

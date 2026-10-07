@@ -50,7 +50,6 @@ class TestScenario63TheFlowNamesItsExits {
 
     private static final String DOC = "doc-1";
     private static final String FEED = "DOOR-ACCESS";
-    private static final String SHAPE = "Feed=DOOR-ACCESS|Type=Raw Events";
     private static final Golden CSV = Scenarios.corpus("001_csv_with_header");
     private static final String ONE_BLOCK = Scenarios.resource("block-split.ds3.xml");
     private static final String BROKEN = "<xsl:stylesheet version=\"2.0\">not a stylesheet";
@@ -78,7 +77,7 @@ class TestScenario63TheFlowNamesItsExits {
 
         final Recorded session = scenarios.attempts.forDocument(DOC, 10).get(0);
         assertThat(session.status()).describedAs(String.valueOf(session.decision())).isEqualTo(AttemptStatus.PARKED);
-        assertThat(scenarios.shapes.reasonGivenUp(Scenarios.LEARNER, SHAPE))
+        assertThat(scenarios.states.reasonGivenUp(Scenarios.LEARNER))
                 .describedAs("the shape is not given up")
                 .isEmpty();
         assertThat(scenarios.deferrals.of(Scenarios.LEARNER, 1L)).describedAs("the stream goes on waiting").isPresent();
@@ -112,13 +111,13 @@ class TestScenario63TheFlowNamesItsExits {
 
         final Recorded session = scenarios.attempts.forDocument(DOC, 10).get(0);
         assertThat(session.status()).describedAs(String.valueOf(session.decision())).isEqualTo(AttemptStatus.ABANDONED);
-        assertThat(scenarios.shapes.reasonGivenUp(Scenarios.LEARNER, SHAPE)).isPresent()
+        assertThat(scenarios.states.reasonGivenUp(Scenarios.LEARNER)).isPresent()
                 .get().asString().contains("No passing configuration for XSLTFilter");
         assertThat(scenarios.wake.woken()).extracting(Deferral::inputId).contains(1L, 2L);
         for (final long id : List.of(1L, 2L)) {
             final StageRun run = scenarios.stage(silent).decide(doc, Scenarios.LEARNER, input(id));
             assertThat(run.decision()).isInstanceOf(Sentinel.class);
-            assertThat(((Sentinel) run.decision()).reason()).contains("Shape given up");
+            assertThat(((Sentinel) run.decision()).reason()).contains("Given up");
         }
     }
 

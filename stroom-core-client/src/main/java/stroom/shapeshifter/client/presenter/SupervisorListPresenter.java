@@ -92,7 +92,6 @@ public class SupervisorListPresenter extends MyPresenterWidget<PagerView> {
                         criteria.getSortList(),
                         criteria.getDocUuid(),
                         criteria.getFeed(),
-                        criteria.getShape(),
                         criteria.getPromotionMode(),
                         criteria.getStatuses());
                 restFactory
@@ -184,11 +183,11 @@ public class SupervisorListPresenter extends MyPresenterWidget<PagerView> {
                         .build(),
                 ColumnSizeConstants.MEDIUM_COL);
         dataGrid.addResizableColumn(
-                DataGridUtil.htmlColumnBuilder((SupervisorAttempt row) -> text(row.getShape())).build(),
-                DataGridUtil.headingBuilder("Shape")
-                        .withToolTip("The shape being learned, as the document's learning key writes it.")
+                DataGridUtil.htmlColumnBuilder((SupervisorAttempt row) -> text(row.getType())).build(),
+                DataGridUtil.headingBuilder("Type")
+                        .withToolTip("The type of the stream the attempt was raised on.")
                         .build(),
-                ColumnSizeConstants.BIG_COL);
+                ColumnSizeConstants.MEDIUM_COL);
         dataGrid.addResizableColumn(
                 DataGridUtil.htmlColumnBuilder((SupervisorAttempt row) ->
                         text(NullSafe.get(row.getStatus(), status -> status.getDisplayValue()))).build(),

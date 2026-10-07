@@ -30,7 +30,7 @@ import java.util.Optional;
 /// A node reads the stream store; a scenario answers from what it put there.
 public interface Inputs {
 
-    /// The stream, or empty where it has been deleted since — a shape whose only example is gone cannot
+    /// The stream, or empty where it has been deleted since — a learner whose only example is gone cannot
     /// be learned, and the attempt that was learning it is closed rather than left waiting.
     Optional<Input> byId(long metaId);
 

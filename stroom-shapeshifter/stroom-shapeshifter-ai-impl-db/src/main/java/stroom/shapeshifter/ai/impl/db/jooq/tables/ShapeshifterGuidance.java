@@ -80,16 +80,6 @@ public class ShapeshifterGuidance extends TableImpl<ShapeshifterGuidanceRecord> 
     public final TableField<ShapeshifterGuidanceRecord, String> DOC_UUID = createField(DSL.name("doc_uuid"), SQLDataType.VARCHAR(255).nullable(false), this, "");
 
     /**
-     * The column <code>stroom.shapeshifter_guidance.shape_hash</code>.
-     */
-    public final TableField<ShapeshifterGuidanceRecord, String> SHAPE_HASH = createField(DSL.name("shape_hash"), SQLDataType.VARCHAR(64).nullable(false), this, "");
-
-    /**
-     * The column <code>stroom.shapeshifter_guidance.shape_id</code>.
-     */
-    public final TableField<ShapeshifterGuidanceRecord, String> SHAPE_ID = createField(DSL.name("shape_id"), SQLDataType.CLOB.nullable(false), this, "");
-
-    /**
      * The column <code>stroom.shapeshifter_guidance.message</code>.
      */
     public final TableField<ShapeshifterGuidanceRecord, String> MESSAGE = createField(DSL.name("message"), SQLDataType.CLOB.nullable(false), this, "");
@@ -137,7 +127,7 @@ public class ShapeshifterGuidance extends TableImpl<ShapeshifterGuidanceRecord> 
 
     @Override
     public List<Index> getIndexes() {
-        return Arrays.asList(Indexes.SHAPESHIFTER_GUIDANCE_SHAPESHIFTER_GUIDANCE_DOC_UUID, Indexes.SHAPESHIFTER_GUIDANCE_SHAPESHIFTER_GUIDANCE_LEARNER_SHAPE);
+        return Arrays.asList(Indexes.SHAPESHIFTER_GUIDANCE_SHAPESHIFTER_GUIDANCE_DOC_UUID, Indexes.SHAPESHIFTER_GUIDANCE_SHAPESHIFTER_GUIDANCE_LEARNER);
     }
 
     @Override

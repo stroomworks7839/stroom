@@ -141,7 +141,7 @@ public class SupervisorTurnsPresenter extends MyPresenterWidget<PagerView> {
         // Which attempt this answer is for, taken now. The popup does not stop a person clicking
         // another attempt in the list behind it, and reading the field when OK is pressed would write a
         // hand-written answer into whatever they had moved on to — reopening that attempt and taking
-        // its shape back. A reader meeting state that was not built for it, in a window.
+        // its claim back. A reader meeting state that was not built for it, in a window.
         final long attemptId = attempt.getId();
         final EditorPresenter editor = editorProvider.get();
         // The editor is the whole of this dialog, so it is drawn as a control in one: elsewhere — the
@@ -173,7 +173,7 @@ public class SupervisorTurnsPresenter extends MyPresenterWidget<PagerView> {
                         new AmendTurnRequest(answer)))
                 .onSuccess(amended -> {
                     if (onAmended != null) {
-                        // The attempt is open again and has taken its shape back, so the list above is
+                        // The attempt is open again and has taken its claim back, so the list above is
                         // showing a status that is no longer true. Told first, because refreshing the
                         // list clears the selection and reading the transcript under a cleared
                         // selection would blank the answer just written.

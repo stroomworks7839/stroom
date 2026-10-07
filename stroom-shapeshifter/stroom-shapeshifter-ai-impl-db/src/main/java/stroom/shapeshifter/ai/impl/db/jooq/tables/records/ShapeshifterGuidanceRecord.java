@@ -89,59 +89,31 @@ public class ShapeshifterGuidanceRecord extends UpdatableRecordImpl<Shapeshifter
     }
 
     /**
-     * Setter for <code>stroom.shapeshifter_guidance.shape_hash</code>.
-     */
-    public void setShapeHash(String value) {
-        set(5, value);
-    }
-
-    /**
-     * Getter for <code>stroom.shapeshifter_guidance.shape_hash</code>.
-     */
-    public String getShapeHash() {
-        return (String) get(5);
-    }
-
-    /**
-     * Setter for <code>stroom.shapeshifter_guidance.shape_id</code>.
-     */
-    public void setShapeId(String value) {
-        set(6, value);
-    }
-
-    /**
-     * Getter for <code>stroom.shapeshifter_guidance.shape_id</code>.
-     */
-    public String getShapeId() {
-        return (String) get(6);
-    }
-
-    /**
      * Setter for <code>stroom.shapeshifter_guidance.message</code>.
      */
     public void setMessage(String value) {
-        set(7, value);
+        set(5, value);
     }
 
     /**
      * Getter for <code>stroom.shapeshifter_guidance.message</code>.
      */
     public String getMessage() {
-        return (String) get(7);
+        return (String) get(5);
     }
 
     /**
      * Setter for <code>stroom.shapeshifter_guidance.author</code>.
      */
     public void setAuthor(String value) {
-        set(8, value);
+        set(6, value);
     }
 
     /**
      * Getter for <code>stroom.shapeshifter_guidance.author</code>.
      */
     public String getAuthor() {
-        return (String) get(8);
+        return (String) get(6);
     }
 
     // -------------------------------------------------------------------------
@@ -167,7 +139,7 @@ public class ShapeshifterGuidanceRecord extends UpdatableRecordImpl<Shapeshifter
     /**
      * Create a detached, initialised ShapeshifterGuidanceRecord
      */
-    public ShapeshifterGuidanceRecord(Long id, Long createTimeMs, String pipelineUuid, String elementId, String docUuid, String shapeHash, String shapeId, String message, String author) {
+    public ShapeshifterGuidanceRecord(Long id, Long createTimeMs, String pipelineUuid, String elementId, String docUuid, String message, String author) {
         super(ShapeshifterGuidance.SHAPESHIFTER_GUIDANCE);
 
         setId(id);
@@ -175,8 +147,6 @@ public class ShapeshifterGuidanceRecord extends UpdatableRecordImpl<Shapeshifter
         setPipelineUuid(pipelineUuid);
         setElementId(elementId);
         setDocUuid(docUuid);
-        setShapeHash(shapeHash);
-        setShapeId(shapeId);
         setMessage(message);
         setAuthor(author);
         resetTouchedOnNotNull();

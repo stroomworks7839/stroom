@@ -40,7 +40,7 @@ import java.util.List;
 /**
  * The Supervisor of ruling A28: attempts across every Shapeshifter AI document, not a tab on one. A row
  * opens to the conversation turn by turn, and what a person may do to an attempt they are reading — answer a
- * turn instead, edit one and run it again, approve or reject what it drafted, or send its shape back to
+ * turn instead, edit one and run it again, approve or reject what it drafted, or send its learner back to
  * be learned afresh — is here rather than spread across the documents.
  * <p>
  * Editing the routing table a rule sits in — widening a selector, removing a rule — is the document's
@@ -80,7 +80,7 @@ public interface SupervisorResource extends RestResource, DirectRestService {
 
     @POST
     @Path("/{id}/reject")
-    @Operation(summary = "Reject what an attempt drafted, and give up on its shape",
+    @Operation(summary = "Reject what an attempt drafted, and give its learner up",
             operationId = "rejectShapeshifterAiAttempt")
     SupervisorAttempt reject(@PathParam("id") long id, RejectRequest request);
 
@@ -107,10 +107,10 @@ public interface SupervisorResource extends RestResource, DirectRestService {
     @POST
     @Path("/ledger")
     @Operation(
-            summary = "What is waiting on the ledger, a row per shape",
+            summary = "What is waiting on the ledger, a row per learner",
             operationId = "findShapeshifterAiLedger")
-    ResultPage<LedgerShape> ledger(@QueryParam("docUuid") String docUuid,
-                                   @Parameter(description = "page", required = true) PageRequest pageRequest);
+    ResultPage<LedgerLearner> ledger(@QueryParam("docUuid") String docUuid,
+                                     @Parameter(description = "page", required = true) PageRequest pageRequest);
 
     @POST
     @Path("/serving")
@@ -149,42 +149,40 @@ public interface SupervisorResource extends RestResource, DirectRestService {
     @GET
     @Path("/guidance/{docUuid}")
     @Operation(
-            summary = "What a supervisor has told the learning about a shape",
+            summary = "What a supervisor has told a learner",
             operationId = "fetchShapeshifterAiGuidance")
     List<SupervisorGuidance> guidance(@PathParam("docUuid") String docUuid,
                                       @QueryParam("pipelineUuid") String pipelineUuid,
-                                      @QueryParam("elementId") String elementId,
-                                      @QueryParam("shapeId") String shapeId);
+                                      @QueryParam("elementId") String elementId);
 
     @POST
     @Path("/guidance/{docUuid}")
     @Operation(
-            summary = "Tell the learning something about a shape, without asking for anything to be run",
+            summary = "Tell a learner something, without asking for anything to be run",
             operationId = "addShapeshifterAiGuidance")
     List<SupervisorGuidance> hint(@PathParam("docUuid") String docUuid, GuidanceRequest request);
 
     @DELETE
     @Path("/guidance/{docUuid}/{id}")
     @Operation(
-            summary = "Take back something said about a shape, so that it stops being carried",
+            summary = "Take back something said to a learner, so that it stops being carried",
             operationId = "withdrawShapeshifterAiGuidance")
     List<SupervisorGuidance> withdraw(@PathParam("docUuid") String docUuid,
                                       @PathParam("id") long id,
                                       @QueryParam("pipelineUuid") String pipelineUuid,
-                                      @QueryParam("elementId") String elementId,
-                                      @QueryParam("shapeId") String shapeId);
+                                      @QueryParam("elementId") String elementId);
 
     @POST
     @Path("/ledger/{docUuid}/learn")
     @Operation(
-            summary = "Ask for a shape to be learned now, and for the streams waiting on it to be "
+            summary = "Ask for a learner to learn now, and for the streams waiting on it to be "
                       + "processed again",
-            operationId = "learnShapeshifterAiShape")
-    Integer learn(@PathParam("docUuid") String docUuid, LearnShapeRequest request);
+            operationId = "learnShapeshifterAiLearner")
+    Integer learn(@PathParam("docUuid") String docUuid, LearnAgainRequest request);
 
     @POST
     @Path("/{id}/relearn")
-    @Operation(summary = "Mark the attempt's shape to be learned afresh",
-            operationId = "relearnShapeshifterAiShape")
+    @Operation(summary = "Mark the attempt's learner to learn afresh",
+            operationId = "relearnShapeshifterAiLearner")
     SupervisorAttempt relearn(@PathParam("id") long id);
 }

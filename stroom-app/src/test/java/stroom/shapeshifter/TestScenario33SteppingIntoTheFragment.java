@@ -263,7 +263,7 @@ class TestScenario33SteppingIntoTheFragment extends AbstractProcessIntegrationTe
         assertThat(details.getDecision())
                 .describedAs("*would* learn: nothing has been learned by looking")
                 .isEqualTo("Would");
-        assertThat(details.getShapeId()).isEqualTo("Feed=" + FEED + "|Type=" + StreamTypeNames.RAW_EVENTS);
+        assertThat(details.getStream()).containsEntry("Feed", FEED).containsEntry("Type", StreamTypeNames.RAW_EVENTS);
         assertThat(details.getNested())
                 .describedAs("with no chain beneath it, because no chain ran")
                 .isEmpty();

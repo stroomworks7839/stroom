@@ -22,12 +22,16 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 
 /// The corpus as a map of lists: what scenarios run over — node-local and gone on restart. Every method
 /// is synchronised: one node's tasks share it.
 public final class InMemoryRegressionSet implements RegressionSet {
 
     private final Map<String, List<Accepted>> accepted = new HashMap<>();
+    /// The feed each rule's newest entries came from.
+    private final Map<String, String> feeds = new HashMap<>();
 
     @Override
     public synchronized List<Accepted> accepted(final String ruleUuid) {
@@ -41,19 +45,35 @@ public final class InMemoryRegressionSet implements RegressionSet {
                                     final String type,
                                     final List<Accepted> entries,
                                     final int cap) {
+        // As a node's store has it: a copy kept on no feed is not kept at all.
+        Objects.requireNonNull(feed, "The feed to keep rule " + ruleUuid + "'s records on");
         append(ruleUuid, entries, cap);
+        feeds.put(ruleUuid, feed);
+    }
+
+    @Override
+    public synchronized Optional<String> feedOf(final String ruleUuid) {
+        return accepted.containsKey(ruleUuid)
+                ? Optional.ofNullable(feeds.get(ruleUuid))
+                : Optional.empty();
     }
 
     @Override
     public synchronized void discard(final String ruleUuid) {
         accepted.remove(ruleUuid);
+        feeds.remove(ruleUuid);
     }
 
     @Override
     public synchronized void move(final String fromRuleUuid, final String toRuleUuid, final int cap) {
         final List<Accepted> moving = accepted.remove(fromRuleUuid);
+        final String movingFeed = feeds.remove(fromRuleUuid);
         if (moving != null) {
             append(toRuleUuid, moving, cap);
+            // Appended after what the rule held, so they are its newest.
+            if (movingFeed != null) {
+                feeds.put(toRuleUuid, movingFeed);
+            }
         }
     }
 

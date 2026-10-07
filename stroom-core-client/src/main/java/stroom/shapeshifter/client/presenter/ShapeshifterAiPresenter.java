@@ -147,7 +147,7 @@ public class ShapeshifterAiPresenter extends DocTabPresenter<LinkTabPanelView, S
                 .exec();
         restFactory.create(SUPERVISOR_RESOURCE)
                 .method(resource -> resource.find(new AttemptCriteria(new PageRequest(0, 1), null, uuid, null, null,
-                        null, List.of(AttemptStatus.PARKED))))
+                        List.of(AttemptStatus.PARKED))))
                 .onSuccess(page -> {
                     if (request == asked) {
                         figures[1] = total(page.getPageResponse().getTotal(), page.size());
