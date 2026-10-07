@@ -102,6 +102,11 @@ The job keeps a high-water mark of meta ids per factory, as a processor filter's
 reads the distinct key values among streams above the mark that match the stream filter, in batches,
 and moves the mark on. This is incremental and cheap, and never rescans the whole meta table.
 
+A new factory starts from the beginning of the stream table, so it meets every combination already
+held that its stream filter matches. That is the point on a store being brought under factories, and
+too much on one where only new feeds should get pipelines: a `Create Time` term in the stream filter
+bounds both what the factory looks at and what the filters it makes process, so the two cannot disagree.
+
 It runs as a scheduled Stroom job on one node at a time, under a cluster lock, so two nodes never make
 the same pipeline twice. A unique key on the record of what was made backs that up.
 
@@ -370,6 +375,12 @@ matching `-impl-db` module with its own Flyway migration and jOOQ code.
    pickers, with a key picker offering only the fields a processor filter can query (A119), and the list of combinations made with links and *forget*. `gwtCompile`.
 5. **Audit and walkthrough.** A factory over `Raw Events` with an ordinary template makes a pipeline
    and filter per feed as data arrives, and each processes.
+
+   *Built 2026-10-07.* The exit is shown end to end by `TestPipelineFactoryPipelinesProcess`: a factory
+   over raw events, with `Source → XMLParser → XMLWriter → StreamAppender` as its template, meets two
+   feeds, makes a pipeline and filter for each, and the tasks those filters create run each feed's
+   streams through its own pipeline to events, without error and without crossing feeds. What remains of
+   phase I is a person doing the same from the user interface (ISSUES item 19).
 
    *Built 2026-10-07.* The document opens on five tabs. **Settings** holds whether the factory runs, the
    key as a tick box per field a filter can sort by, the template, the folder and name patterns, the

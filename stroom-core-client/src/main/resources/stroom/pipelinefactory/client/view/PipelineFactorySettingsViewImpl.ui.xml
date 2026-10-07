@@ -54,7 +54,7 @@
                         <g:FlowPanel styleName="max form-padding form">
                             <form:FormGroup identity="pipelineFactoryStreamFilter"
                                             label="Streams looked at"
-                                            helpText="Which streams the factory looks at for combinations it has not met. Every filter it makes takes this and the combination's values."
+                                            helpText="Which streams the factory looks at for combinations it has not met. Every filter it makes takes this and the combination's values. A new factory reads every stream already held that matches, so add a Create Time term to look only at recent streams; the filters it makes then process only those too."
                                             addStyleNames="dock-max">
                                 <g:SimplePanel ui:field="streamFilter" styleName="max default-min-sizes"/>
                             </form:FormGroup>

@@ -92,3 +92,9 @@ the commit or ruling that closed it, rather than deleting it.
 
 16. **Phase H's exit:** a person composes the escalating example on the Flow tab from an empty flow
     without typing the grammar, and reads a parked session's path in the Supervisor. *Design 03, design 05.*
+
+19. **Phase I's exit:** a person makes a Pipeline Factory over `Raw Events` with an ordinary template from
+    the explorer, with a stream filter bounded to the test feeds or by a recent `Create Time` (a new
+    factory reads every matching stream already held), enables it, sends data for two feeds, and watches the *Pipeline Factory* job make a
+    pipeline and filter per feed, the filters process, and the Made tab list both. Then deletes one
+    pipeline, sends more data, and sees it not made again until forgotten. *Design 06, phase I slice 5.*
