@@ -63,6 +63,7 @@ class TestPipelineFactoryStoreImpl {
     @Mock
     private ImportExportDocument importExportDocument;
 
+    private final InMemoryCombinations combinations = new InMemoryCombinations();
     private PipelineFactoryStoreImpl factoryStore;
 
     @BeforeEach
@@ -70,7 +71,7 @@ class TestPipelineFactoryStoreImpl {
         when(storeFactory.<PipelineFactoryDoc, PipelineFactoryDoc.Builder>createStore(
                 any(), any(), any(), any(), any()))
                 .thenReturn(store);
-        factoryStore = new PipelineFactoryStoreImpl(storeFactory, securityContext, serialiser);
+        factoryStore = new PipelineFactoryStoreImpl(storeFactory, securityContext, serialiser, () -> combinations);
     }
 
     @Test
@@ -123,6 +124,19 @@ class TestPipelineFactoryStoreImpl {
         assertThat(factoryStore.importDocument(DOC_REF, importExportDocument, importState, settings))
                 .isEqualTo(DOC_REF);
         assertThat(importState.getMessageList()).isEmpty();
+    }
+
+    @Test
+    void aDeletedFactoryTakesItsRecordWithIt() {
+        combinations.met(DOC_REF.getUuid(), Combination.ofFeedAndType("SYSLOG", "Raw Events"));
+        combinations.lastMetaId(DOC_REF.getUuid(), 40L);
+        when(securityContext.hasDocumentPermission(any(), any())).thenReturn(true);
+
+        factoryStore.deleteDocument(DOC_REF);
+
+        verify(store).deleteDocument(DOC_REF);
+        assertThat(combinations.list(DOC_REF.getUuid())).isEmpty();
+        assertThat(combinations.lastMetaId(DOC_REF.getUuid())).isZero();
     }
 
     private static PipelineFactoryDoc.Builder factory() {

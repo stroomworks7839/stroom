@@ -29,6 +29,7 @@ import stroom.util.shared.EntityServiceException;
 import stroom.util.shared.Severity;
 
 import jakarta.inject.Inject;
+import jakarta.inject.Provider;
 import jakarta.inject.Singleton;
 
 import java.io.IOException;
@@ -44,11 +45,13 @@ public class PipelineFactoryStoreImpl
         implements PipelineFactoryStore {
 
     private final PipelineFactorySerialiser serialiser;
+    private final Provider<Combinations> combinationsProvider;
 
     @Inject
     PipelineFactoryStoreImpl(final StoreFactory storeFactory,
                              final SecurityContext securityContext,
-                             final PipelineFactorySerialiser serialiser) {
+                             final PipelineFactorySerialiser serialiser,
+                             final Provider<Combinations> combinationsProvider) {
         super(storeFactory,
                 securityContext,
                 serialiser,
@@ -56,6 +59,15 @@ public class PipelineFactoryStoreImpl
                 PipelineFactoryDoc::builder,
                 PipelineFactoryDoc::copy);
         this.serialiser = serialiser;
+        this.combinationsProvider = combinationsProvider;
+    }
+
+    /// A deleted factory's record of what it met goes with it: nothing will read it again, and a factory
+    /// is never undeleted under the same UUID.
+    @Override
+    public void deleteDocument(final DocRef docRef) {
+        super.deleteDocument(docRef);
+        combinationsProvider.get().forgetFactory(docRef.getUuid());
     }
 
     @Override

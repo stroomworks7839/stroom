@@ -342,6 +342,30 @@ matching `-impl-db` module with its own Flyway migration and jOOQ code.
    mark, the incremental scan of §3.2, and the scheduled job under a cluster lock. Tests: a second run
    makes nothing twice, a deleted pipeline is not made again, *forget* lets it be made afresh, a
    creation that fails (a permission, a template deleted) is recorded and retried on the next run.
+
+   *Built 2026-10-07.* The `stroom-pipeline-factory-impl-db` module holds two tables: one row per
+   combination a factory has met, and one per factory for the highest stream id it has read. A
+   combination is stored as JSON with its fields in name order and found by the SHA-256 of that text,
+   so the order a key lists its fields in does not matter. The job, *Pipeline Factory*, runs every minute
+   under a cluster lock. For each enabled factory without problems it retries what it could not make,
+   then reads new streams as the run-as user, a batch at a time in id order. It reads unlocked and
+   locked streams, but not deleted ones. A combination is recorded as met before its pipeline is made,
+   and the place in the stream table moves on only after a batch's combinations are recorded, so a run
+   stopped part-way loses nothing. A failure waits `retryFailedAfter` (ten minutes) before it is tried
+   again, since a failure such as an AI template on a node that does not claim its tasks would otherwise
+   make and delete the same pipeline every minute. A factory new to a large store reads its history over
+   several runs, `maxScanBatchesPerRun` batches of `scanBatchSize` streams at a time. *Forget* deletes the
+   row, so the combination's next stream makes its pipeline afresh; streams already read before then do
+   not.
+
+   *Audit, 2026-10-07.* Deleting a factory left its rows for ever; the store now forgets a deleted
+   factory's record and place, and leaves the pipelines it made, which are a person's. The scan's
+   correctness rests on the stream search sorting by id, since the place moves to the highest id read; it
+   does, and a test now pins the sort and the batch size. Left as they are: a stream the run-as user
+   cannot see is passed over for good, so a feed it is later given meets the factory with its next
+   stream; a pipeline made but not recorded, because the database failed between the two, is made
+   again on the retry; and a copied factory has a UUID of its own, so it meets every combination
+   afresh and makes its own pipelines.
 4. **Its screen.** The document's settings tab, using the standard expression editor and document
    pickers, with a key picker offering only the fields a processor filter can query (A119), and the list of combinations made with links and *forget*. `gwtCompile`.
 5. **Audit and walkthrough.** A factory over `Raw Events` with an ordinary template makes a pipeline
@@ -353,7 +377,9 @@ The largest phase. Its slices keep the build and the scenarios green at each ste
 
 1. **The key moves under the stage.** Every runtime table's `(doc_uuid, shape_hash)` becomes
    `(pipeline_uuid, element_id)`, with the document recorded on the attempt (A114). The migrations are
-   rewritten (A111) and the jOOQ code regenerated. The stage takes its key from `PipelineHolder` and the
+   rewritten (A111) and the jOOQ code regenerated. They are renumbered for Stroom 8.0 as they are
+   rewritten: the branch targets 8.0, and the twenty it carries are numbered `V07_13_00_*`. The Pipeline
+   Factory's own migration is `V08_00_00_001__pipeline_factory.sql`. The stage takes its key from `PipelineHolder` and the
    element. The scenario fixture gives each scenario's feed its own pipeline. Shapes still exist in the
    code but are now one per key, so behaviour is unchanged and every scenario must pass unaltered in
    what it asserts.

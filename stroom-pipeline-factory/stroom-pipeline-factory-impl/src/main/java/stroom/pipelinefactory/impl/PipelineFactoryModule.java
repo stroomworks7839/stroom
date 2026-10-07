@@ -16,11 +16,15 @@
 
 package stroom.pipelinefactory.impl;
 
+import stroom.cluster.lock.api.ClusterLockService;
 import stroom.docstore.api.DocumentStoreBinder;
+import stroom.job.api.ScheduledJobsBinder;
 import stroom.pipelinefactory.shared.PipelineFactoryDoc;
+import stroom.util.RunnableWrapper;
 import stroom.util.guice.RestResourcesBinder;
 
 import com.google.inject.AbstractModule;
+import jakarta.inject.Inject;
 
 /// Binds the Pipeline Factory document's store, its handlers and its resource (design 06, phase I).
 public class PipelineFactoryModule extends AbstractModule {
@@ -32,5 +36,29 @@ public class PipelineFactoryModule extends AbstractModule {
 
         RestResourcesBinder.create(binder())
                 .bind(PipelineFactoryResourceImpl.class);
+
+        ScheduledJobsBinder.create(binder())
+                .bindJobTo(PipelineFactoryJob.class, builder -> builder
+                        .name("Pipeline Factory")
+                        .description("Look through the streams that have arrived for each enabled Pipeline "
+                                     + "Factory, and make a pipeline and processor filter for each new "
+                                     + "combination of its key's values")
+                        .frequencySchedule("1m"));
+    }
+
+
+    // --------------------------------------------------------------------------------
+
+
+    /// The job runs on one node at a time: two nodes reading the same streams would race to make the same
+    /// pipelines, and the record's unique key would leave one of them with a pipeline it never recorded.
+    private static class PipelineFactoryJob extends RunnableWrapper {
+
+        private static final String LOCK = "pipeline-factory";
+
+        @Inject
+        PipelineFactoryJob(final ClusterLockService clusterLockService, final PipelineFactoryRunner runner) {
+            super(() -> clusterLockService.tryLock(LOCK, runner::exec));
+        }
     }
 }
