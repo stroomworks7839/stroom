@@ -73,7 +73,7 @@ class TestScenario57TheSessionRunsTheHeldStreamInFull {
         scenarios.documents.put(doc);
         scenarios.inputs.put(input(1L, STREAM));
         final Script silent = Script.of();
-        final StageRun first = task(scenarios, silent).decide(doc, input(1L, STREAM));
+        final StageRun first = task(scenarios, silent).decide(doc, Scenarios.LEARNER, input(1L, STREAM));
         assertThat(first.decision()).isInstanceOf(Deferred.class);
 
         // Round one learns from the sample, where every record is a logon; the full pass then finds the
@@ -108,10 +108,11 @@ class TestScenario57TheSessionRunsTheHeldStreamInFull {
         assertThat(scenarios.wake.woken()).extracting(Deferral::inputId).contains(1L);
 
         // The stream is served in full by the task that wakes.
-        final StageRun decided = task(scenarios, silent).decide(doc, input(1L, STREAM));
+        final StageRun decided = task(scenarios, silent).decide(doc, Scenarios.LEARNER, input(1L, STREAM));
         assertThat(decided.decision()).describedAs(decided.decision().toString()).isInstanceOf(Bound.class);
         final TextSink sink = new TextSink();
-        assertThat(task(scenarios, silent).stream(doc, ((Bound) decided.decision()).rule(), input(1L, STREAM), sink)
+        assertThat(task(scenarios, silent).stream(doc, Scenarios.LEARNER, ((Bound) decided.decision()).rule(),
+                input(1L, STREAM), sink)
                 .clear()).isTrue();
         assertThat(sink.records()).isEqualTo(12);
         assertThat(sink.text()).contains("<Action>Logoff</Action>");
@@ -128,7 +129,7 @@ class TestScenario57TheSessionRunsTheHeldStreamInFull {
         scenarios.documents.put(doc);
         scenarios.inputs.put(input(1L, STREAM));
         final Script silent = Script.of();
-        task(scenarios, silent).decide(doc, input(1L, STREAM));
+        task(scenarios, silent).decide(doc, Scenarios.LEARNER, input(1L, STREAM));
 
         // The one candidate does not compile, nor does the one the exhaustion step asks for: the session
         // has nothing left to try.
@@ -145,11 +146,11 @@ class TestScenario57TheSessionRunsTheHeldStreamInFull {
         assertThat(parked.decision()).isNotBlank();
         assertThat(scenarios.rules.forDocument(DOC)).describedAs("nothing was bound").isEmpty();
         assertThat(scenarios.shapes.reasonGivenUp(DOC, SHAPE)).describedAs("and the shape is not given up").isEmpty();
-        assertThat(scenarios.deferrals.of(DOC, 1L)).describedAs("the stream waits").isPresent();
+        assertThat(scenarios.deferrals.of(Scenarios.LEARNER, 1L)).describedAs("the stream waits").isPresent();
 
         // The worker leaves it alone; a task of the shape waits on it and opens no second session.
         assertThat(scenarios.worker(script).advance(10)).isZero();
-        final StageRun again = task(scenarios, silent).decide(doc, input(2L, STREAM));
+        final StageRun again = task(scenarios, silent).decide(doc, Scenarios.LEARNER, input(2L, STREAM));
         assertThat(again.decision()).isInstanceOf(Deferred.class);
         assertThat(scenarios.attempts.forDocument(DOC, 10)).hasSize(1);
         assertThat(scenarios.attempts.awaiting(10)).isEmpty();

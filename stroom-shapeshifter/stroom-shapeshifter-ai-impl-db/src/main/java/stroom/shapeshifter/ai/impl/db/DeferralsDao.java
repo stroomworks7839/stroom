@@ -19,6 +19,7 @@ package stroom.shapeshifter.ai.impl.db;
 import stroom.db.util.JooqUtil;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterDeferral;
 import stroom.shapeshifter.ai.stage.Deferrals;
+import stroom.shapeshifter.ai.stage.Learner;
 
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
@@ -42,11 +43,11 @@ public class DeferralsDao implements Deferrals {
     }
 
     @Override
-    public void deferred(final String docUuid,
+    public void deferred(final Learner learner,
+                         final String docUuid,
                          final long inputId,
                          final String feed,
                          final String type,
-                         final String pipeline,
                          final Long taskId,
                          final Integer filterId,
                          final String failedAgainst,
@@ -55,11 +56,12 @@ public class DeferralsDao implements Deferrals {
         final long now = System.currentTimeMillis();
         JooqUtil.context(connProvider, context -> context
                 .insertInto(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL)
+                .set(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.PIPELINE_UUID, learner.pipelineUuid())
+                .set(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.ELEMENT_ID, learner.elementId())
                 .set(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.DOC_UUID, docUuid)
                 .set(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.META_ID, inputId)
                 .set(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.FEED_NAME, feed)
                 .set(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.TYPE_NAME, type)
-                .set(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.PIPELINE_UUID, pipeline)
                 .set(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.TASK_ID, taskId)
                 .set(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.FILTER_ID, filterId)
                 .set(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.FAILED_AGAINST, failedAgainst)
@@ -69,9 +71,10 @@ public class DeferralsDao implements Deferrals {
                 .set(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.UPDATE_TIME_MS, now)
                 .set(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.ATTEMPTS, 1)
                 // Tried again and put back again: everything but when it first waited moves. The task
-                // moves too — a reprocess is a new task for the same stream.
+                // moves too — a reprocess is a new task for the same stream — and so does the document,
+                // since the learner may have been pointed at another.
                 .onDuplicateKeyUpdate()
-                .set(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.PIPELINE_UUID, pipeline)
+                .set(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.DOC_UUID, docUuid)
                 .set(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.TASK_ID, taskId)
                 .set(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.FILTER_ID, filterId)
                 .set(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.FAILED_AGAINST, failedAgainst)
@@ -84,10 +87,11 @@ public class DeferralsDao implements Deferrals {
     }
 
     @Override
-    public void released(final String docUuid, final long inputId) {
+    public void released(final Learner learner, final long inputId) {
         JooqUtil.context(connProvider, context -> context
                 .deleteFrom(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL)
-                .where(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.DOC_UUID.eq(docUuid))
+                .where(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.PIPELINE_UUID.eq(learner.pipelineUuid()))
+                .and(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.ELEMENT_ID.eq(learner.elementId()))
                 .and(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.META_ID.eq(inputId))
                 .execute());
     }
@@ -103,10 +107,11 @@ public class DeferralsDao implements Deferrals {
     }
 
     @Override
-    public Optional<Deferral> of(final String docUuid, final long inputId) {
+    public Optional<Deferral> of(final Learner learner, final long inputId) {
         return JooqUtil.contextResult(connProvider, context -> context
                 .selectFrom(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL)
-                .where(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.DOC_UUID.eq(docUuid))
+                .where(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.PIPELINE_UUID.eq(learner.pipelineUuid()))
+                .and(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.ELEMENT_ID.eq(learner.elementId()))
                 .and(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.META_ID.eq(inputId))
                 .fetchOptional(DeferralsDao::deferral));
     }
@@ -125,11 +130,12 @@ public class DeferralsDao implements Deferrals {
 
     private static Deferral deferral(final Record row) {
         return new Deferral(
+                new Learner(row.get(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.PIPELINE_UUID),
+                        row.get(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.ELEMENT_ID)),
                 row.get(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.DOC_UUID),
                 row.get(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.META_ID),
                 row.get(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.FEED_NAME),
                 row.get(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.TYPE_NAME),
-                row.get(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.PIPELINE_UUID),
                 row.get(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.TASK_ID),
                 row.get(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.FILTER_ID),
                 row.get(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.FAILED_AGAINST),

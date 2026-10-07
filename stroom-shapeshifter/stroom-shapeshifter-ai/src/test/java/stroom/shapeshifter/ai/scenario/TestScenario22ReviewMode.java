@@ -134,7 +134,8 @@ class TestScenario22ReviewMode {
                 .contains(draft.getPipeline().getName())
                 .contains(SHAPE);
         assertThat(silent.asked()).isEmpty();
-        assertThat(scenarios.deferrals.of(DOC, 2L)).describedAs("the stream waits behind the draft").isPresent();
+        assertThat(scenarios.deferrals.of(Scenarios.LEARNER,
+                2L)).describedAs("the stream waits behind the draft").isPresent();
         return second;
     }
 

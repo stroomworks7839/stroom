@@ -17,6 +17,7 @@
 package stroom.shapeshifter.ai.state;
 
 import stroom.shapeshifter.ai.stage.Attempts;
+import stroom.shapeshifter.ai.stage.Learner;
 import stroom.shapeshifter.shared.AttemptCriteria;
 import stroom.shapeshifter.shared.AttemptStatus;
 import stroom.util.shared.PageRequest;
@@ -58,7 +59,7 @@ public final class InMemoryAttempts implements Attempts {
     @Override
     public synchronized Optional<Long> opened(final Attempt attempt, final long nowMs) {
         final long now = System.currentTimeMillis();
-        if (open(attempt.docUuid(), attempt.shape(), nowMs).isPresent()) {
+        if (open(attempt.learner(), attempt.shape(), nowMs).isPresent()) {
             return Optional.empty();
         }
         final long id = nextId.getAndIncrement();
@@ -71,9 +72,18 @@ public final class InMemoryAttempts implements Attempts {
     /// The newest, as the rows are read: an attempt superseded by a later one for the same shape is not
     /// what a node picks up.
     @Override
-    public synchronized Optional<Recorded> open(final String docUuid, final String shape, final long nowMs) {
+    public synchronized Optional<Learner> learnerOf(final String docUuid, final String shape) {
         return attempts.values().stream()
                 .filter(attempt -> attempt.attempt().docUuid().equals(docUuid)
+                                   && attempt.attempt().shape().equals(shape))
+                .max(Comparator.comparingLong(Recorded::id))
+                .map(attempt -> attempt.attempt().learner());
+    }
+
+    @Override
+    public synchronized Optional<Recorded> open(final Learner learner, final String shape, final long nowMs) {
+        return attempts.values().stream()
+                .filter(attempt -> attempt.attempt().learner().equals(learner)
                                    && attempt.attempt().shape().equals(shape)
                                    && OPEN.contains(attempt.status()))
                 .max(Comparator.comparingLong(Recorded::id))
@@ -108,7 +118,8 @@ public final class InMemoryAttempts implements Attempts {
             return false;
         }
         final Attempt current = was.attempt();
-        final Attempt taken = new Attempt(current.docUuid(), current.shape(), current.feed(), current.type(),
+        final Attempt taken = new Attempt(current.learner(), current.docUuid(), current.shape(), current.feed(),
+                current.type(),
                 current.inputId(), node, current.promotionMode(), expiryMs);
         attempts.put(attemptId, new Recorded(was.id(), taken, AttemptStatus.IN_PROGRESS, was.decision(),
                 was.ruleUuid(), was.score(), was.tokensSpent(), was.createTimeMs(),
@@ -239,7 +250,7 @@ public final class InMemoryAttempts implements Attempts {
         }
         // Whatever else holds the shape keeps it, lapsed or not: a lapsed session is resumed, not swept
         // aside for an answer to an older one.
-        if (open(was.attempt().docUuid(), was.attempt().shape(), nowMs)
+        if (open(was.attempt().learner(), was.attempt().shape(), nowMs)
                 .filter(other -> other.id() != attemptId)
                 .isPresent()) {
             return false;
@@ -338,7 +349,7 @@ public final class InMemoryAttempts implements Attempts {
     /// taken, extended or ended is a new one.
     private static Attempt claim(final Recorded was, final long expiryMs) {
         final Attempt attempt = was.attempt();
-        return new Attempt(attempt.docUuid(), attempt.shape(), attempt.feed(), attempt.type(),
+        return new Attempt(attempt.learner(), attempt.docUuid(), attempt.shape(), attempt.feed(), attempt.type(),
                 attempt.inputId(), attempt.node(), attempt.promotionMode(), expiryMs);
     }
 

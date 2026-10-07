@@ -60,6 +60,16 @@ public class ShapeshifterDeferral extends TableImpl<ShapeshifterDeferralRecord> 
     public final TableField<ShapeshifterDeferralRecord, Long> ID = createField(DSL.name("id"), SQLDataType.BIGINT.nullable(false).identity(true), this, "");
 
     /**
+     * The column <code>stroom.shapeshifter_deferral.pipeline_uuid</code>.
+     */
+    public final TableField<ShapeshifterDeferralRecord, String> PIPELINE_UUID = createField(DSL.name("pipeline_uuid"), SQLDataType.VARCHAR(255).nullable(false), this, "");
+
+    /**
+     * The column <code>stroom.shapeshifter_deferral.element_id</code>.
+     */
+    public final TableField<ShapeshifterDeferralRecord, String> ELEMENT_ID = createField(DSL.name("element_id"), SQLDataType.VARCHAR(255).nullable(false), this, "");
+
+    /**
      * The column <code>stroom.shapeshifter_deferral.doc_uuid</code>.
      */
     public final TableField<ShapeshifterDeferralRecord, String> DOC_UUID = createField(DSL.name("doc_uuid"), SQLDataType.VARCHAR(255).nullable(false), this, "");
@@ -78,11 +88,6 @@ public class ShapeshifterDeferral extends TableImpl<ShapeshifterDeferralRecord> 
      * The column <code>stroom.shapeshifter_deferral.type_name</code>.
      */
     public final TableField<ShapeshifterDeferralRecord, String> TYPE_NAME = createField(DSL.name("type_name"), SQLDataType.VARCHAR(255).nullable(false), this, "");
-
-    /**
-     * The column <code>stroom.shapeshifter_deferral.pipeline_uuid</code>.
-     */
-    public final TableField<ShapeshifterDeferralRecord, String> PIPELINE_UUID = createField(DSL.name("pipeline_uuid"), SQLDataType.VARCHAR(255), this, "");
 
     /**
      * The column <code>stroom.shapeshifter_deferral.task_id</code>.
@@ -177,7 +182,7 @@ public class ShapeshifterDeferral extends TableImpl<ShapeshifterDeferralRecord> 
 
     @Override
     public List<UniqueKey<ShapeshifterDeferralRecord>> getUniqueKeys() {
-        return Arrays.asList(Keys.KEY_SHAPESHIFTER_DEFERRAL_SHAPESHIFTER_DEFERRAL_DOC_META);
+        return Arrays.asList(Keys.KEY_SHAPESHIFTER_DEFERRAL_SHAPESHIFTER_DEFERRAL_LEARNER_META);
     }
 
     @Override

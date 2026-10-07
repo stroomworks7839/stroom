@@ -58,7 +58,8 @@ class TestScenario61AParkedSessionGivenMoreToSpendCarriesOn {
         scenarios.documents.put(doc);
         scenarios.inputs.put(input(1L));
         final Script silent = Script.of();
-        assertThat(scenarios.stage(silent).decide(doc, input(1L)).decision()).isInstanceOf(Deferred.class);
+        assertThat(scenarios.stage(silent).decide(doc, Scenarios.LEARNER,
+                input(1L)).decision()).isInstanceOf(Deferred.class);
 
         final Script learning = scenarios.script(CSV.configuration(), XSLT).charging(1L)
                 .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter")

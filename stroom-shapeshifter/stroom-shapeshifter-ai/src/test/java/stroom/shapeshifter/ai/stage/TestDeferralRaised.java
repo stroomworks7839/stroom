@@ -28,7 +28,9 @@ class TestDeferralRaised {
 
     @Test
     void raisedOncePastTheMaximumAgeAndNotBefore() {
-        final Deferral row = new Deferral("doc", 1L, "F", "T", null, null, null, null, "waiting", 1, 1_000L, 1);
+        final Deferral row = new Deferral(new Learner("pipeline", "shapeshifterAi"), "doc", 1L, "F", "T", null, null,
+                null,
+                "waiting", 1, 1_000L, 1);
         assertThat(row.raised(500L, 1_400L)).isFalse();
         assertThat(row.raised(500L, 1_500L)).describedAs("at the age exactly, not yet").isFalse();
         assertThat(row.raised(500L, 1_501L)).isTrue();

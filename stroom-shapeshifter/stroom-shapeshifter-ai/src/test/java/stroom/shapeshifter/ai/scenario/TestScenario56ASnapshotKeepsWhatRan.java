@@ -80,9 +80,10 @@ class TestScenario56ASnapshotKeepsWhatRan {
 
         // A stream falls short under it and is held against that snapshot.
         final Script silent = Script.of();
-        assertThatThrownBy(() -> task(scenarios, silent).stream(doc, learned, stream(2L, MIXED), new TextSink()))
+        assertThatThrownBy(() -> task(scenarios, silent).stream(doc, Scenarios.LEARNER, learned, stream(2L, MIXED),
+                new TextSink()))
                 .isInstanceOf(DeferTaskException.class);
-        assertThat(scenarios.deferrals.of(DOC, 2L).orElseThrow().failedAgainst()).isEqualTo(first);
+        assertThat(scenarios.deferrals.of(Scenarios.LEARNER, 2L).orElseThrow().failedAgainst()).isEqualTo(first);
 
         // The worker relearns: the same fragment, edited in place (A58), under a new snapshot.
         final Script relearning = script(scenarios, TRANSLATES_BOTH);
@@ -99,10 +100,11 @@ class TestScenario56ASnapshotKeepsWhatRan {
                 .containsExactly(first, rebound.getSnapshot());
 
         // The stamp moved, so the held stream is scored again, and now clears.
-        final StageRun decided = task(scenarios, silent).decide(doc, stream(2L, MIXED));
+        final StageRun decided = task(scenarios, silent).decide(doc, Scenarios.LEARNER, stream(2L, MIXED));
         assertThat(decided.decision()).describedAs(decided.decision().toString()).isInstanceOf(Bound.class);
         final TextSink sink = new TextSink();
-        assertThat(task(scenarios, silent).stream(doc, ((Bound) decided.decision()).rule(), stream(2L, MIXED), sink)
+        assertThat(task(scenarios, silent).stream(doc, Scenarios.LEARNER, ((Bound) decided.decision()).rule(),
+                stream(2L, MIXED), sink)
                 .clear()).isTrue();
         assertThat(sink.text()).contains("<Action>Logoff</Action>");
     }
@@ -117,7 +119,8 @@ class TestScenario56ASnapshotKeepsWhatRan {
         final Script silent = Script.of();
         // The first stream was emitted under the first snapshot by the session that learned it; a second
         // stream falls short and the rule is relearned in place.
-        assertThatThrownBy(() -> task(scenarios, silent).stream(doc, learned, stream(2L, MIXED), new TextSink()))
+        assertThatThrownBy(() -> task(scenarios, silent).stream(doc, Scenarios.LEARNER, learned, stream(2L, MIXED),
+                new TextSink()))
                 .isInstanceOf(DeferTaskException.class);
         final Script relearning = script(scenarios, TRANSLATES_BOTH);
         scenarios.worker(relearning).advance(10);
@@ -142,7 +145,7 @@ class TestScenario56ASnapshotKeepsWhatRan {
 
         // Edited by hand: the stylesheet now admits nothing but a logon.
         edit(scenarios, learned.getPipeline(), LOGON_ONLY);
-        final StageRun decided = task(scenarios, silent).decide(doc, stream(2L, MIXED));
+        final StageRun decided = task(scenarios, silent).decide(doc, Scenarios.LEARNER, stream(2L, MIXED));
 
         final RoutingRule fresh = ((Bound) decided.decision()).rule();
         assertThat(fresh.getSnapshot()).describedAs("a promotion by hand (A72)").isNotEqualTo(learned.getSnapshot());
@@ -150,11 +153,13 @@ class TestScenario56ASnapshotKeepsWhatRan {
         assertThat(scenarios.snapshots.byId(fresh.getSnapshot()).orElseThrow().code().values())
                 .anySatisfy(code -> assertThat(code).isEqualTo(LOGON_ONLY));
         // And the edit is what serves: the logoffs fall short, against the new stamp.
-        assertThatThrownBy(() -> task(scenarios, silent).stream(doc, fresh, stream(2L, MIXED), new TextSink()))
+        assertThatThrownBy(() -> task(scenarios, silent).stream(doc, Scenarios.LEARNER, fresh, stream(2L, MIXED),
+                new TextSink()))
                 .isInstanceOf(DeferTaskException.class);
-        assertThat(scenarios.deferrals.of(DOC, 2L).orElseThrow().failedAgainst()).isEqualTo(fresh.getSnapshot());
+        assertThat(scenarios.deferrals.of(Scenarios.LEARNER,
+                2L).orElseThrow().failedAgainst()).isEqualTo(fresh.getSnapshot());
         // Served again before anything else changes: no third snapshot.
-        task(scenarios, silent).decide(doc, stream(3L, CSV.input()));
+        task(scenarios, silent).decide(doc, Scenarios.LEARNER, stream(3L, CSV.input()));
         assertThat(scenarios.snapshots.forRule(learned.getUuid())).hasSize(2);
     }
 
@@ -174,7 +179,8 @@ class TestScenario56ASnapshotKeepsWhatRan {
         final RoutingRule a = ((Promoted) first.decision()).rule();
         // The neighbour, bound by looking to a's fragment.
         final Script silent = Script.of();
-        final StageRun second = task(scenarios, silent).decide(doc, stream(2L, CSV.input(), "CSV-v2"));
+        final StageRun second = task(scenarios, silent).decide(doc, Scenarios.LEARNER, stream(2L, CSV.input(),
+                "CSV-v2"));
         final RoutingRule b = ((Promoted) second.decision()).rule();
         assertThat(b.getPipeline()).isEqualTo(a.getPipeline());
         assertThat(b.getSnapshot())
@@ -183,7 +189,8 @@ class TestScenario56ASnapshotKeepsWhatRan {
 
         // A mixed stream of the neighbour's shape falls short; the worker relearns the neighbour.
         scenarios.inputs.put(stream(3L, MIXED, "CSV-v2"));
-        assertThatThrownBy(() -> task(scenarios, silent).stream(doc, b, stream(3L, MIXED, "CSV-v2"), new TextSink()))
+        assertThatThrownBy(() -> task(scenarios, silent).stream(doc, Scenarios.LEARNER, b, stream(3L, MIXED,
+                "CSV-v2"), new TextSink()))
                 .isInstanceOf(DeferTaskException.class);
         final Script relearning = script(scenarios, TRANSLATES_BOTH);
         assertThat(scenarios.worker(relearning).advance(10)).isEqualTo(1);

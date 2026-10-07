@@ -25,6 +25,7 @@ import stroom.shapeshifter.ai.stage.Attempts.Recorded;
 import stroom.shapeshifter.ai.stage.Attempts.Turn;
 import stroom.shapeshifter.ai.stage.Bindings;
 import stroom.shapeshifter.ai.stage.Guidance.Given;
+import stroom.shapeshifter.ai.stage.Learner;
 import stroom.shapeshifter.ai.stage.Ledger;
 import stroom.shapeshifter.ai.stage.Replayable;
 import stroom.shapeshifter.ai.stage.Spend.Spent;
@@ -56,6 +57,7 @@ import static org.assertj.core.api.Assertions.tuple;
 class TestShapesAndLedgerDao {
 
     private static final String DOC = "doc-" + System.nanoTime();
+    private static final Learner LEARNER = new Learner("pipeline-" + DOC, "shapeshifterAi");
     private static final String SHAPE = "Feed=DOOR-ACCESS|Type=Raw Events";
     private static final String OTHER_SHAPE = "Feed=TURNSTILE|Type=Raw Events";
 
@@ -170,12 +172,12 @@ class TestShapesAndLedgerDao {
         // Reset is about what was learned, not about who is learning: a promotion resets the shape while
         // the attempt that promoted it is still open, and must not hand the shape to another node (A45).
         final String shape = SHAPE + "-reset";
-        attempts.opened(new Attempt(DOC, shape, "F", "T", 1L, "node-1",
+        attempts.opened(new Attempt(LEARNER, DOC, shape, "F", "T", 1L, "node-1",
                 PromotionMode.AUTOMATIC, now() + 60_000L), now()).orElseThrow();
 
         shapes.reset(DOC, shape);
 
-        assertThat(attempts.opened(new Attempt(DOC, shape, "F", "T", 2L, "node-2",
+        assertThat(attempts.opened(new Attempt(LEARNER, DOC, shape, "F", "T", 2L, "node-2",
                 PromotionMode.AUTOMATIC, now() + 60_000L), now())).isEmpty();
     }
 
@@ -184,7 +186,7 @@ class TestShapesAndLedgerDao {
         // A45: taking an attempt up is taking its shape. The heartbeat is what keeps a slow model call
         // from costing a node the shape it is learning.
         final String shape = SHAPE + "-resume";
-        final long id = attempts.opened(new Attempt(DOC, shape, "F", "T", 1L, "node-1",
+        final long id = attempts.opened(new Attempt(LEARNER, DOC, shape, "F", "T", 1L, "node-1",
                 PromotionMode.AUTOMATIC, now() + 60_000L), now()).orElseThrow();
         attempts.parked(id, AttemptStatus.AWAITING_MODEL, now() + 60_000L, 500L);
 
@@ -201,12 +203,12 @@ class TestShapesAndLedgerDao {
                 .describedAs("which carries it on").isTrue();
 
         attempts.heartbeat(id, now() - 1);
-        assertThat(attempts.open(DOC, shape, now())).describedAs("lapsed, and it still holds its shape: the "
+        assertThat(attempts.open(LEARNER, shape, now())).describedAs("lapsed, and it still holds its shape: the "
                                                                  + "session is resumed, not replaced (design 04 §4)")
                 .map(Recorded::id).contains(id);
         assertThat(attempts.lapsed(now(), 10)).extracting(Recorded::id)
                 .describedAs("which is what the next worker finds it by").contains(id);
-        assertThat(attempts.opened(new Attempt(DOC, shape, "F", "T", 2L, "node-2",
+        assertThat(attempts.opened(new Attempt(LEARNER, DOC, shape, "F", "T", 2L, "node-2",
                 PromotionMode.AUTOMATIC, now() + 60_000L), now()))
                 .describedAs("so no attempt opens beside it").isEmpty();
         assertThat(attempts.claimed(id, "node-1", now(), now() + 60_000L))
@@ -232,7 +234,7 @@ class TestShapesAndLedgerDao {
         // A65: the worker leaves it alone, no task of the shape opens another, and its lease does not
         // lapse — until a person acts, which is not the DAO's to do.
         final String shape = SHAPE + "-parked";
-        final long id = attempts.opened(new Attempt(DOC, shape, "F", "T", 1L, "node-1",
+        final long id = attempts.opened(new Attempt(LEARNER, DOC, shape, "F", "T", 1L, "node-1",
                 PromotionMode.AUTOMATIC, now() + 60_000L), now()).orElseThrow();
         attempts.claimed(id, "node-1", now(), now() + 60_000L);
 
@@ -245,9 +247,9 @@ class TestShapesAndLedgerDao {
         assertThat(attempts.awaiting(10)).extracting(Recorded::id).describedAs("not the worker's").doesNotContain(id);
         assertThat(attempts.claimed(id, "node-2", now() + 1_000_000_000L, now() + 1_000_060_000L))
                 .describedAs("nobody's to carry, however long it has stood").isFalse();
-        assertThat(attempts.open(DOC, shape, now() + 1_000_000_000L)).describedAs("and it keeps its shape")
+        assertThat(attempts.open(LEARNER, shape, now() + 1_000_000_000L)).describedAs("and it keeps its shape")
                 .map(Recorded::id).contains(id);
-        assertThat(attempts.opened(new Attempt(DOC, shape, "F", "T", 2L, "node-2",
+        assertThat(attempts.opened(new Attempt(LEARNER, DOC, shape, "F", "T", 2L, "node-2",
                 PromotionMode.AUTOMATIC, now() + 60_000L), now() + 1_000_000_000L))
                 .describedAs("so no second attempt opens for it").isEmpty();
 
@@ -262,7 +264,7 @@ class TestShapesAndLedgerDao {
         // A77: what a person grants is the attempt's alone, added up as it is granted again, and read back
         // with the row.
         final String shape = SHAPE + "-grant";
-        final long id = attempts.opened(new Attempt(DOC, shape, "F", "T", 1L, "node-1",
+        final long id = attempts.opened(new Attempt(LEARNER, DOC, shape, "F", "T", 1L, "node-1",
                 PromotionMode.AUTOMATIC, now() + 60_000L), now()).orElseThrow();
         assertThat(attempts.byId(id).orElseThrow().grant()).isEqualTo(Grant.NONE);
 
@@ -281,7 +283,7 @@ class TestShapesAndLedgerDao {
         // A65: a person's sending is read back with the row for the worker to take, stands through a park
         // and the reopening that follows, and is cleared when the attempt closes.
         final String shape = SHAPE + "-exhaust";
-        final long id = attempts.opened(new Attempt(DOC, shape, "F", "T", 1L, "node-1",
+        final long id = attempts.opened(new Attempt(LEARNER, DOC, shape, "F", "T", 1L, "node-1",
                 PromotionMode.AUTOMATIC, now() + 60_000L), now()).orElseThrow();
         assertThat(attempts.byId(id).orElseThrow().exhaustNext()).isFalse();
 
@@ -325,7 +327,7 @@ class TestShapesAndLedgerDao {
     void anAttemptAndItsTurnsAreRowsThatOutliveTheNode() {
         // A28: what was asked and answered survives the node that asked it, and the turns are readable in
         // the order they were put.
-        final long id = attempts.opened(new Attempt(DOC, SHAPE, "DOOR-ACCESS", "Raw Events", 42L, "node-1",
+        final long id = attempts.opened(new Attempt(LEARNER, DOC, SHAPE, "DOOR-ACCESS", "Raw Events", 42L, "node-1",
                 PromotionMode.AUTOMATIC, now() + 60_000L), now()).orElseThrow();
         attempts.turn(id, new Turn(1, "chain", 1, QuestionKind.CHAIN, "CHAIN: choose from [DSParser]",
                 "DSParser -> XSLTFilter", "local-model", StepOutcome.PASSED));
@@ -351,7 +353,7 @@ class TestShapesAndLedgerDao {
 
         // A shape with an id longer than any column is still one attempt, found by its hash.
         final String long1 = SHAPE + "|RemoteFile=" + "a".repeat(2000);
-        final long longId = attempts.opened(new Attempt(DOC, long1, null, null, null, "node-1",
+        final long longId = attempts.opened(new Attempt(LEARNER, DOC, long1, null, null, null, "node-1",
                 PromotionMode.REVIEW, now()), now()).orElseThrow();
         assertThat(attempts.byId(longId).orElseThrow().attempt().shape()).isEqualTo(long1);
         assertThat(attempts.forDocument(DOC, 10)).extracting(Recorded::id)
@@ -364,30 +366,30 @@ class TestShapesAndLedgerDao {
         // A45: the attempt row is the claim. A parked attempt is still learning, and one whose expiry has
         // passed has lapsed and is still learning too: it is resumed, not replaced (design 04 §4).
         final String shape = SHAPE + "-claim";
-        final long mine = attempts.opened(new Attempt(DOC, shape, "F", "T", 1L, "node-1",
+        final long mine = attempts.opened(new Attempt(LEARNER, DOC, shape, "F", "T", 1L, "node-1",
                 PromotionMode.AUTOMATIC, now() + 60_000L), now()).orElseThrow();
 
-        assertThat(attempts.opened(new Attempt(DOC, shape, "F", "T", 2L, "node-2",
+        assertThat(attempts.opened(new Attempt(LEARNER, DOC, shape, "F", "T", 2L, "node-2",
                 PromotionMode.AUTOMATIC, now() + 60_000L), now()))
                 .describedAs("one learner per shape").isEmpty();
-        assertThat(attempts.open(DOC, shape, now()).orElseThrow().id()).isEqualTo(mine);
+        assertThat(attempts.open(LEARNER, shape, now()).orElseThrow().id()).isEqualTo(mine);
 
         // Parked awaiting the model, it keeps the shape.
         attempts.parked(mine, AttemptStatus.AWAITING_MODEL, now() + 60_000L, 0L);
-        assertThat(attempts.open(DOC, shape, now())).isPresent();
-        assertThat(attempts.opened(new Attempt(DOC, shape, "F", "T", 3L, "node-2",
+        assertThat(attempts.open(LEARNER, shape, now())).isPresent();
+        assertThat(attempts.opened(new Attempt(LEARNER, DOC, shape, "F", "T", 3L, "node-2",
                 PromotionMode.AUTOMATIC, now() + 60_000L), now())).isEmpty();
 
         // Lapsed, it still holds the shape: nobody opens beside it.
         attempts.parked(mine, AttemptStatus.AWAITING_MODEL, now() - 1, 0L);
-        assertThat(attempts.open(DOC, shape, now())).map(Recorded::id).contains(mine);
-        assertThat(attempts.opened(new Attempt(DOC, shape, "F", "T", 4L, "node-2",
+        assertThat(attempts.open(LEARNER, shape, now())).map(Recorded::id).contains(mine);
+        assertThat(attempts.opened(new Attempt(LEARNER, DOC, shape, "F", "T", 4L, "node-2",
                 PromotionMode.AUTOMATIC, now() + 60_000L), now())).isEmpty();
 
         // Closed, it holds nothing, and the shape is free for the attempt after it.
         attempts.closed(mine, AttemptStatus.PROMOTED, "Promoted 1.0", "rule-2", 1.0, 0L);
-        assertThat(attempts.open(DOC, shape, now())).isEmpty();
-        assertThat(attempts.opened(new Attempt(DOC, shape, "F", "T", 5L, "node-3",
+        assertThat(attempts.open(LEARNER, shape, now())).isEmpty();
+        assertThat(attempts.opened(new Attempt(LEARNER, DOC, shape, "F", "T", 5L, "node-3",
                 PromotionMode.AUTOMATIC, now() + 60_000L), now())).isPresent();
     }
 
@@ -396,7 +398,7 @@ class TestShapesAndLedgerDao {
         // A28: *answer instead* and *edit and re-run from here*. What came after the turn answered is a
         // consequence of an answer that has changed, and the walk derives it again.
         final String shape = SHAPE + "-amend";
-        final long id = attempts.opened(new Attempt(DOC, shape, "F", "T", 1L, "node-1",
+        final long id = attempts.opened(new Attempt(LEARNER, DOC, shape, "F", "T", 1L, "node-1",
                 PromotionMode.AUTOMATIC, now() + 60_000L), now()).orElseThrow();
         attempts.turn(id, new Turn(1, "chain", 1, QuestionKind.CHAIN, "Chain: choose from [DSParser]",
                 "DSParser", "local-model", StepOutcome.PASSED));
@@ -411,7 +413,7 @@ class TestShapesAndLedgerDao {
         assertThat(attempts.byId(id).orElseThrow().status()).isEqualTo(AttemptStatus.AWAITING_MODEL);
         assertThat(attempts.byId(id).orElseThrow().decision())
                 .describedAs("what it came to before is not what it has come to now").isNull();
-        assertThat(attempts.opened(new Attempt(DOC, shape, "F", "T", 2L, "node-2",
+        assertThat(attempts.opened(new Attempt(LEARNER, DOC, shape, "F", "T", 2L, "node-2",
                 PromotionMode.AUTOMATIC, now() + 60_000L), now()))
                 .describedAs("and holds it against another").isEmpty();
         assertThat(attempts.reopened(id, now(), now() + 60_000L))
@@ -443,10 +445,10 @@ class TestShapesAndLedgerDao {
         // again. The claim of the attempt reopened is pushed out, or a worker would find it lapsed and
         // take it before the answer was recorded against it.
         final String shape = SHAPE + "-lapsed";
-        final long dead = attempts.opened(new Attempt(DOC, shape, "F", "T", 1L, "node-dead",
+        final long dead = attempts.opened(new Attempt(LEARNER, DOC, shape, "F", "T", 1L, "node-dead",
                 PromotionMode.AUTOMATIC, now() - 1), now() - 2).orElseThrow();
         attempts.closed(dead, AttemptStatus.PROMOTED, "Promoted", "rule-x", 1.0, 0L);
-        final long mine = attempts.opened(new Attempt(DOC, shape, "F", "T", 2L, "node-1",
+        final long mine = attempts.opened(new Attempt(LEARNER, DOC, shape, "F", "T", 2L, "node-1",
                 PromotionMode.AUTOMATIC, now() - 1), now() - 2).orElseThrow();
         attempts.turn(mine, new Turn(1, "chain", 1, QuestionKind.CHAIN, "Chain: choose from [DSParser]",
                 "DSParser", "local-model", StepOutcome.PASSED));
@@ -459,14 +461,14 @@ class TestShapesAndLedgerDao {
         final Recorded reopened = attempts.byId(mine).orElseThrow();
         assertThat(reopened.status()).isEqualTo(AttemptStatus.AWAITING_MODEL);
         assertThat(reopened.attempt().expiryMs()).isGreaterThan(now());
-        assertThat(attempts.open(DOC, shape, now()).orElseThrow().id()).isEqualTo(mine);
+        assertThat(attempts.open(LEARNER, shape, now()).orElseThrow().id()).isEqualTo(mine);
         attempts.closed(mine, AttemptStatus.ABANDONED, "done with", null, null, 0L);
     }
 
     @Test
     void anAttemptBeingWalkedNowIsNotOpenedAgain() {
         final String shape = SHAPE + "-walking";
-        final long id = attempts.opened(new Attempt(DOC, shape, "F", "T", 1L, "node-1",
+        final long id = attempts.opened(new Attempt(LEARNER, DOC, shape, "F", "T", 1L, "node-1",
                 PromotionMode.AUTOMATIC, now() + 60_000L), now()).orElseThrow();
 
         assertThat(attempts.reopened(id, now(), now() + 60_000L))
@@ -482,10 +484,10 @@ class TestShapesAndLedgerDao {
     @Test
     void anAttemptCannotBeOpenedAgainWhileAnotherHoldsItsShape() {
         final String shape = SHAPE + "-contended";
-        final long mine = attempts.opened(new Attempt(DOC, shape, "F", "T", 1L, "node-1",
+        final long mine = attempts.opened(new Attempt(LEARNER, DOC, shape, "F", "T", 1L, "node-1",
                 PromotionMode.AUTOMATIC, now() + 60_000L), now()).orElseThrow();
         attempts.closed(mine, AttemptStatus.PROMOTED, "Promoted 1.0", "rule-9", 1.0, 0L);
-        final long theirs = attempts.opened(new Attempt(DOC, shape, "F", "T", 2L, "node-2",
+        final long theirs = attempts.opened(new Attempt(LEARNER, DOC, shape, "F", "T", 2L, "node-2",
                 PromotionMode.AUTOMATIC, now() + 60_000L), now()).orElseThrow();
 
         assertThat(attempts.reopened(mine, now(), now() + 60_000L))
@@ -609,12 +611,15 @@ class TestShapesAndLedgerDao {
         // things a person looking for an attempt would know.
         final String doc = "doc-" + System.nanoTime();
         final String other = "doc-" + System.nanoTime() + "-other";
-        final long first = attempts.opened(new Attempt(doc, SHAPE, "DOOR-ACCESS", "Raw Events", 1L, "node-1",
+        final long first = attempts.opened(new Attempt(new Learner("pipeline-" + doc, "shapeshifterAi"), doc, SHAPE,
+                "DOOR-ACCESS", "Raw Events", 1L, "node-1",
                 PromotionMode.AUTOMATIC, now() + 60_000L), now()).orElseThrow();
         attempts.closed(first, AttemptStatus.PROMOTED, "Promoted 1.0", "rule-1", 1.0, 10L);
-        final long second = attempts.opened(new Attempt(doc, SHAPE + "-b", "OTHER-FEED", "Raw Events", 2L,
+        final long second = attempts.opened(new Attempt(new Learner("pipeline-" + doc, "shapeshifterAi"), doc,
+                SHAPE + "-b", "OTHER-FEED", "Raw Events", 2L,
                 "node-2", PromotionMode.REVIEW, now() + 60_000L), now()).orElseThrow();
-        final long elsewhere = attempts.opened(new Attempt(other, SHAPE, "DOOR-ACCESS", "Raw Events", 3L,
+        final long elsewhere = attempts.opened(new Attempt(new Learner("pipeline-" + other, "shapeshifterAi"), other,
+                SHAPE, "DOOR-ACCESS", "Raw Events", 3L,
                 "node-1", PromotionMode.AUTOMATIC, now() + 60_000L), now())
                 .orElseThrow();
 
@@ -665,18 +670,22 @@ class TestShapesAndLedgerDao {
         // feature writes. An attempt still learning, still waiting for the model, or waiting for a person
         // to decide is never pruned however old it is: age is not what says an attempt is over.
         final String doc = "doc-" + System.nanoTime() + "-prune";
-        final long finished = attempts.opened(new Attempt(doc, SHAPE + "-a", "F", "T", 1L, "node-1",
+        final long finished = attempts.opened(new Attempt(new Learner("pipeline-" + doc, "shapeshifterAi"), doc,
+                SHAPE + "-a", "F", "T", 1L, "node-1",
                 PromotionMode.AUTOMATIC, now() + 60_000L), now()).orElseThrow();
         attempts.turn(finished, new Turn(1, "chain", 1, QuestionKind.CHAIN, "Chain: choose", "DSParser",
                 "local-model", StepOutcome.PASSED));
         attempts.closed(finished, AttemptStatus.PROMOTED, "Promoted", "rule-1", 1.0, 0L);
-        final long waiting = attempts.opened(new Attempt(doc, SHAPE + "-b", "F", "T", 2L, "node-1",
+        final long waiting = attempts.opened(new Attempt(new Learner("pipeline-" + doc, "shapeshifterAi"), doc,
+                SHAPE + "-b", "F", "T", 2L, "node-1",
                 PromotionMode.AUTOMATIC, now() + 60_000L), now()).orElseThrow();
         attempts.parked(waiting, AttemptStatus.AWAITING_MODEL, now() + 60_000L, 0L);
-        final long reviewing = attempts.opened(new Attempt(doc, SHAPE + "-c", "F", "T", 3L, "node-1",
+        final long reviewing = attempts.opened(new Attempt(new Learner("pipeline-" + doc, "shapeshifterAi"), doc,
+                SHAPE + "-c", "F", "T", 3L, "node-1",
                 PromotionMode.REVIEW, now() + 60_000L), now()).orElseThrow();
         attempts.closed(reviewing, AttemptStatus.AWAITING_REVIEW, "Drafted", "rule-2", 0.9, 0L);
-        final long learning = attempts.opened(new Attempt(doc, SHAPE + "-d", "F", "T", 4L, "node-1",
+        final long learning = attempts.opened(new Attempt(new Learner("pipeline-" + doc, "shapeshifterAi"), doc,
+                SHAPE + "-d", "F", "T", 4L, "node-1",
                 PromotionMode.AUTOMATIC, now() + 60_000L), now()).orElseThrow();
 
         assertThat(attempts.prune(now() - 60_000L)).describedAs("nothing is old enough yet").isZero();

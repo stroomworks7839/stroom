@@ -517,7 +517,13 @@ public final class Stage {
         // who asked. Carrying one on from the worker would need the attempt to remember that it is an
         // improvement and to find its sample in the regression set rather than in the stream store,
         // which is not built.
-        return recording(doc, shape, input, advisors.of(doc),
+        // Claimed as the learner that learned the shape, since an improvement is that learner learning it
+        // better (design 06 phase J slice 1).
+        final Learner learner = attempts.learnerOf(doc.getUuid(), shape.id())
+                .orElseThrow(() -> new IllegalArgumentException("Rule " + ruleUuid + " has no record of what "
+                                                                + "learned it, so there is nothing to improve "
+                                                                + "it as; relearn its shape instead"));
+        return recording(doc, learner, shape, input, advisors.of(doc),
                 reason -> refused(doc, shape, "Rule " + ruleUuid + " is not being improved: " + reason),
                 recorder -> improveUnderClaim(doc, incumbent, input, attributes, scorecard, accepted, recorder));
     }
@@ -924,7 +930,7 @@ public final class Stage {
     ///
     /// A pinned rule is frozen (design 01 §7.3 rule 2): its streams are served whatever the bar says,
     /// since nothing will relearn it and a person has said *this, exactly*.
-    public StageRun decide(final ShapeshifterAiDoc doc, final Input input) {
+    public StageRun decide(final ShapeshifterAiDoc doc, final Learner learner, final Input input) {
         final Map<String, Object> attributes = input.routingAttributes(ShapeSignature.of(input.data()));
         final Shape shape = Shape.of(doc.getLearningKey(), attributes);
         final Scorecard scorecard = new Scorecard(doc.getScorers(), scorers);
@@ -942,11 +948,11 @@ public final class Stage {
             if (rule.isDraft()) {
                 // A person has it in front of them: the stream waits for their decision rather than
                 // erroring behind it, and Approve or Reject is what moves it.
-                return deferred(doc, shape, input, null, 0, "Awaiting review: draft rule " + rule.getUuid()
+                return deferred(doc, learner, shape, input, null, 0, "Awaiting review: draft rule " + rule.getUuid()
                                                              + " binds " + rule.getPipeline().getName()
                                                              + " for shape " + shape.id());
             }
-            return decideServed(doc, shape, rule, input, attributes, scorecard);
+            return decideServed(doc, learner, shape, rule, input, attributes, scorecard);
         }
 
         final Optional<String> givenUp = shapes.reasonGivenUp(doc.getUuid(), shape.id());
@@ -955,7 +961,7 @@ public final class Stage {
             // goes, and it errors with the reason. This is the one refusal that keeps a ledger row (A80):
             // the ledger is the door a person learns a given-up shape again through, and the row is what
             // that asks to be processed again.
-            deferrals.released(doc.getUuid(), input.id());
+            deferrals.released(learner, input.id());
             return sentinel(doc, shape, input, "Shape given up: " + givenUp.get());
         }
         if (!shape.missing().isEmpty()) {
@@ -984,19 +990,20 @@ public final class Stage {
         if (doc.getLearningMode() == LearningMode.DISABLED) {
             // The kill switch: no session can open, so the stream waits for a person to turn learning on
             // or to bind the shape by hand, and the deferral age (A57) is what raises it if nobody does.
-            return deferred(doc, shape, input, null, 0,
+            return deferred(doc, learner, shape, input, null, 0,
                     "Shapeshifter AI is disabled for this document and no bound variant fits");
         }
         // Learning leaves the task (A60, A64): the session is opened on this stream and parked at its
         // first question for the worker, and the stream waits on it. Where an attempt already holds the
         // shape, this stream waits on that one.
-        return recording(doc, shape, input, RecordedAdvisor.awaiting(),
-                reason -> deferred(doc, shape, input, null, 0, reason),
+        return recording(doc, learner, shape, input, RecordedAdvisor.awaiting(),
+                reason -> deferred(doc, learner, shape, input, null, 0, reason),
                 recorder -> learnAndBind(doc, shape, input, attributes, scorecard, selector, recorder));
     }
 
     /// The task decision for a shape a rule serves.
     private StageRun decideServed(final ShapeshifterAiDoc doc,
+                                  final Learner learner,
                                   final Shape shape,
                                   final RoutingRule matched,
                                   final Input input,
@@ -1007,12 +1014,12 @@ public final class Stage {
         final RoutingRule rule = freshened(doc, matched);
         final String stamp = stamp(rule);
         if (!rule.isPinned()) {
-            final Optional<Deferral> row = deferrals.of(doc.getUuid(), input.id());
+            final Optional<Deferral> row = deferrals.of(learner, input.id());
             if (row.isPresent() && stamp.equals(row.get().failedAgainst())) {
                 // Version-stamped (design 04 §3): the transform it failed against is still the one in
                 // force, so nothing is run. The session is opened if none holds the shape — the last may
                 // have lapsed or failed — or the stream would be waiting on nothing.
-                return session(doc, shape, rule, input, attributes, scorecard, null, row.get().reason(), stamp,
+                return session(doc, learner, shape, rule, input, attributes, scorecard, null, row.get().reason(), stamp,
                         row.get().failingRecords());
             }
         }
@@ -1021,7 +1028,7 @@ public final class Stage {
         // writes it, and what the stream came to is decided there.
         final StageRun bound = new StageRun(doc, new Bound(rule), shape, bindingsOf(doc, rule), null, List.of(),
                 List.of(), null, List.of());
-        relearnOnMark(doc, shape, rule, input, attributes, scorecard);
+        relearnOnMark(doc, learner, shape, rule, input, attributes, scorecard);
         return bound;
     }
 
@@ -1033,6 +1040,7 @@ public final class Stage {
     /// where a session already holds the shape — one the mark or a short record opened — the stream
     /// simply flows.
     private void relearnOnMark(final ShapeshifterAiDoc doc,
+                               final Learner learner,
                                final Shape shape,
                                final RoutingRule rule,
                                final Input input,
@@ -1044,14 +1052,14 @@ public final class Stage {
             || doc.getLearningMode() == LearningMode.DISABLED
             || shapes.draftAwaiting(doc.getUuid(), shape.id()).isPresent()
             || shapes.reasonGivenUp(doc.getUuid(), shape.id()).isPresent()
-            || attempts.open(doc.getUuid(), shape.id(), clock.millis()).isPresent()) {
+            || attempts.open(learner, shape.id(), clock.millis()).isPresent()) {
             return;
         }
         final Judged judged = judge(scorecard, rule.getPipeline(), input.data(), rule.getRecordBoundary());
         if (judged.records() < doc.getMinRecordsPerShape()) {
             return;
         }
-        recording(doc, shape, input, RecordedAdvisor.awaiting(),
+        recording(doc, learner, shape, input, RecordedAdvisor.awaiting(),
                 waiting -> null,
                 recorder -> relearnUnderClaim(doc, shape, rule, input, attributes, scorecard, judged, marked.get(),
                         recorder));
@@ -1074,6 +1082,7 @@ public final class Stage {
     /// @param downstream Where the output goes.
     /// @return What the run came to, for the caller to say on the error stream (A20).
     public ServedStream stream(final ShapeshifterAiDoc doc,
+                               final Learner learner,
                                final RoutingRule rule,
                                final Input input,
                                final ContentHandler downstream) {
@@ -1093,11 +1102,11 @@ public final class Stage {
                                           .map(StoredError::getMessage)
                                           .findFirst()
                                           .orElse("a gate failed");
-            final StageRun deferred = session(doc, shape, rule, input, attributes,
+            final StageRun deferred = session(doc, learner, shape, rule, input, attributes,
                     new Scorecard(doc.getScorers(), scorers), Judged.shortOf(served, short_), reason, stamp(rule), 1);
             throw new DeferTaskException(((Deferred) deferred.decision()).reason());
         }
-        deferrals.released(doc.getUuid(), input.id());
+        deferrals.released(learner, input.id());
         if (rule.isProvisional()) {
             // Promoted the first time the shape brings enough records and they clear the floor (A14,
             // design 01 §6): what [#promote] does, less the output, which the downstream has.
@@ -1144,6 +1153,7 @@ public final class Stage {
     /// @param judged The stream as the rule's fragment judged it, or null where the stamp said not to run
     ///               it.
     private StageRun session(final ShapeshifterAiDoc doc,
+                             final Learner learner,
                              final Shape shape,
                              final RoutingRule rule,
                              final Input input,
@@ -1157,11 +1167,12 @@ public final class Stage {
             shapes.markForRelearning(doc.getUuid(), shape.id(), reason);
         }
         if (doc.getLearningMode() == LearningMode.DISABLED) {
-            return deferred(doc, shape, input, stamp, failingRecords,
+            return deferred(doc, learner, shape, input, stamp, failingRecords,
                     reason + "; Shapeshifter AI is disabled for this document, so the stream waits for a person");
         }
-        return recording(doc, shape, input, RecordedAdvisor.awaiting(),
-                waiting -> deferred(doc, shape, input, stamp, failingRecords, reason, reason + " (" + waiting + ")"),
+        return recording(doc, learner, shape, input, RecordedAdvisor.awaiting(),
+                waiting -> deferred(doc, learner, shape, input, stamp, failingRecords, reason,
+                        reason + " (" + waiting + ")"),
                 recorder -> {
                     // Opened in the task only to be parked: the worker re-walks it as a relearning, since
                     // a rule binds the shape (resume reads that from the rules as they stand). The stream
@@ -1177,24 +1188,26 @@ public final class Stage {
 
     /// The stream waits: its row is written — or brought up to date — and nothing else is.
     private StageRun deferred(final ShapeshifterAiDoc doc,
+                              final Learner learner,
                               final Shape shape,
                               final Input input,
                               final String failedAgainst,
                               final int failingRecords,
                               final String reason) {
-        return deferred(doc, shape, input, failedAgainst, failingRecords, reason, reason);
+        return deferred(doc, learner, shape, input, failedAgainst, failingRecords, reason, reason);
     }
 
     /// The same, where the decision has more to say than the row keeps: the row holds why the stream
     /// waits, which is the same each time it is tried, and not what each try found the session doing.
     private StageRun deferred(final ShapeshifterAiDoc doc,
+                              final Learner learner,
                               final Shape shape,
                               final Input input,
                               final String failedAgainst,
                               final int failingRecords,
                               final String reason,
                               final String said) {
-        deferrals.deferred(doc.getUuid(), input.id(), input.feed(), input.type(), input.pipeline(), input.taskId(),
+        deferrals.deferred(learner, doc.getUuid(), input.id(), input.feed(), input.type(), input.taskId(),
                 input.filterId(), failedAgainst, reason, failingRecords);
         return new StageRun(doc, new Deferred(said), shape, null, null, List.of(), List.of(), null, List.of());
     }
@@ -1225,6 +1238,7 @@ public final class Stage {
     ///                For an unknown shape that is a sentinel and the ledger; for a shape a rule already
     ///                binds, it is that rule serving the stream as it serves every other.
     private StageRun recording(final ShapeshifterAiDoc doc,
+                               final Learner learner,
                                final Shape shape,
                                final Input input,
                                final Function<String, StageRun> waiting,
@@ -1233,17 +1247,18 @@ public final class Stage {
         // tokens: asking twice would read two fresh counters and record nothing spent. A task never
         // learns (A60, A99): it decides, and a session is opened and carried by the worker, or by a
         // person's improve (A102), which asks as it goes.
-        return recording(doc, shape, input, advisors.of(doc), waiting, attempt);
+        return recording(doc, learner, shape, input, advisors.of(doc), waiting, attempt);
     }
 
     /// The same, for a caller that has already decided who answers.
     private StageRun recording(final ShapeshifterAiDoc doc,
+                               final Learner learner,
                                final Shape shape,
                                final Input input,
                                final Advisor advisor,
                                final Function<String, StageRun> waiting,
                                final Function<Recorder, StageRun> attempt) {
-        final Optional<Long> opened = attempts.opened(new Attempts.Attempt(doc.getUuid(), shape.id(),
+        final Optional<Long> opened = attempts.opened(new Attempts.Attempt(learner, doc.getUuid(), shape.id(),
                 input.feed(), input.type(), input.id(), node, doc.getPromotionMode(),
                 claimUntil()), clock.millis());
         if (opened.isEmpty()) {

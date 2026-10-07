@@ -40,6 +40,7 @@ import stroom.shapeshifter.ai.stage.Decision.Bound;
 import stroom.shapeshifter.ai.stage.Decision.Deferred;
 import stroom.shapeshifter.ai.stage.DeferredWorker;
 import stroom.shapeshifter.ai.stage.Input;
+import stroom.shapeshifter.ai.stage.Learner;
 import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.ai.stage.Stage;
 import stroom.shapeshifter.ai.stage.StageRun;
@@ -91,6 +92,11 @@ public final class Scenarios {
     /// A node's lease on a session (design 04 §4), as a node's configuration defaults it.
     public static final Duration LEASE = Duration.ofMinutes(10);
     public static final long SEED = 42L;
+    /// What a scenario's stage learns as (A114): one pipeline's Shapeshifter AI element. A scenario sends
+    /// every feed through the one stage, as a supervising pipeline did before design 06, and that changes
+    /// nothing while shapes remain: a claim is the learner's on one shape, and a deferral the learner's on
+    /// one stream.
+    public static final Learner LEARNER = new Learner("scenario-pipeline", "shapeshifterAi");
 
     private static final NodeFixture NODE = new NodeFixture();
 
@@ -245,7 +251,7 @@ public final class Scenarios {
         documents.put(doc);
         inputs.put(input);
         final Stage stage = stage(advisors, rules, fragmentRunner);
-        final StageRun first = stage.decide(doc, input);
+        final StageRun first = stage.decide(doc, LEARNER, input);
         // A stream a rule binds is served as it is read, by the incumbent where its shape is being
         // relearned (A29, A100).
         final TextSink servedAtOnce = served(stage, doc, input, first);
@@ -270,7 +276,7 @@ public final class Scenarios {
         // stream a rule now binds is served.
         final TextSink served = servedAtOnce != null || learned.bindings() == null
                 ? servedAtOnce
-                : served(stage, doc, input, stage.decide(doc, input));
+                : served(stage, doc, input, stage.decide(doc, LEARNER, input));
         return new Processed(first, attempts.byId(opened.id()).orElseThrow(), learned, served);
     }
 
@@ -283,7 +289,7 @@ public final class Scenarios {
         }
         final TextSink sink = new TextSink();
         try {
-            stage.stream(doc, bound.rule(), input, sink);
+            stage.stream(doc, LEARNER, bound.rule(), input, sink);
         } catch (final DeferTaskException e) {
             // A record short of the bar: the stream waits on the session that opened, as a task would.
             return null;
@@ -296,7 +302,7 @@ public final class Scenarios {
     public TextSink served(final ShapeshifterAiDoc doc, final Input input) {
         inputs.put(input);
         final Stage stage = stage(Script.of());
-        return served(stage, doc, input, stage.decide(doc, input));
+        return served(stage, doc, input, stage.decide(doc, LEARNER, input));
     }
 
     public static Golden corpus(final String stem) {

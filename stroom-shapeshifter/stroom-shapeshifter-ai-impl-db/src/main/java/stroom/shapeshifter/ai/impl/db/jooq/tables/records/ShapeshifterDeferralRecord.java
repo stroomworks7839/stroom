@@ -33,185 +33,199 @@ public class ShapeshifterDeferralRecord extends UpdatableRecordImpl<Shapeshifter
     }
 
     /**
-     * Setter for <code>stroom.shapeshifter_deferral.doc_uuid</code>.
-     */
-    public void setDocUuid(String value) {
-        set(1, value);
-    }
-
-    /**
-     * Getter for <code>stroom.shapeshifter_deferral.doc_uuid</code>.
-     */
-    public String getDocUuid() {
-        return (String) get(1);
-    }
-
-    /**
-     * Setter for <code>stroom.shapeshifter_deferral.meta_id</code>.
-     */
-    public void setMetaId(Long value) {
-        set(2, value);
-    }
-
-    /**
-     * Getter for <code>stroom.shapeshifter_deferral.meta_id</code>.
-     */
-    public Long getMetaId() {
-        return (Long) get(2);
-    }
-
-    /**
-     * Setter for <code>stroom.shapeshifter_deferral.feed_name</code>.
-     */
-    public void setFeedName(String value) {
-        set(3, value);
-    }
-
-    /**
-     * Getter for <code>stroom.shapeshifter_deferral.feed_name</code>.
-     */
-    public String getFeedName() {
-        return (String) get(3);
-    }
-
-    /**
-     * Setter for <code>stroom.shapeshifter_deferral.type_name</code>.
-     */
-    public void setTypeName(String value) {
-        set(4, value);
-    }
-
-    /**
-     * Getter for <code>stroom.shapeshifter_deferral.type_name</code>.
-     */
-    public String getTypeName() {
-        return (String) get(4);
-    }
-
-    /**
      * Setter for <code>stroom.shapeshifter_deferral.pipeline_uuid</code>.
      */
     public void setPipelineUuid(String value) {
-        set(5, value);
+        set(1, value);
     }
 
     /**
      * Getter for <code>stroom.shapeshifter_deferral.pipeline_uuid</code>.
      */
     public String getPipelineUuid() {
+        return (String) get(1);
+    }
+
+    /**
+     * Setter for <code>stroom.shapeshifter_deferral.element_id</code>.
+     */
+    public void setElementId(String value) {
+        set(2, value);
+    }
+
+    /**
+     * Getter for <code>stroom.shapeshifter_deferral.element_id</code>.
+     */
+    public String getElementId() {
+        return (String) get(2);
+    }
+
+    /**
+     * Setter for <code>stroom.shapeshifter_deferral.doc_uuid</code>.
+     */
+    public void setDocUuid(String value) {
+        set(3, value);
+    }
+
+    /**
+     * Getter for <code>stroom.shapeshifter_deferral.doc_uuid</code>.
+     */
+    public String getDocUuid() {
+        return (String) get(3);
+    }
+
+    /**
+     * Setter for <code>stroom.shapeshifter_deferral.meta_id</code>.
+     */
+    public void setMetaId(Long value) {
+        set(4, value);
+    }
+
+    /**
+     * Getter for <code>stroom.shapeshifter_deferral.meta_id</code>.
+     */
+    public Long getMetaId() {
+        return (Long) get(4);
+    }
+
+    /**
+     * Setter for <code>stroom.shapeshifter_deferral.feed_name</code>.
+     */
+    public void setFeedName(String value) {
+        set(5, value);
+    }
+
+    /**
+     * Getter for <code>stroom.shapeshifter_deferral.feed_name</code>.
+     */
+    public String getFeedName() {
         return (String) get(5);
+    }
+
+    /**
+     * Setter for <code>stroom.shapeshifter_deferral.type_name</code>.
+     */
+    public void setTypeName(String value) {
+        set(6, value);
+    }
+
+    /**
+     * Getter for <code>stroom.shapeshifter_deferral.type_name</code>.
+     */
+    public String getTypeName() {
+        return (String) get(6);
     }
 
     /**
      * Setter for <code>stroom.shapeshifter_deferral.task_id</code>.
      */
     public void setTaskId(Long value) {
-        set(6, value);
+        set(7, value);
     }
 
     /**
      * Getter for <code>stroom.shapeshifter_deferral.task_id</code>.
      */
     public Long getTaskId() {
-        return (Long) get(6);
+        return (Long) get(7);
     }
 
     /**
      * Setter for <code>stroom.shapeshifter_deferral.filter_id</code>.
      */
     public void setFilterId(Integer value) {
-        set(7, value);
+        set(8, value);
     }
 
     /**
      * Getter for <code>stroom.shapeshifter_deferral.filter_id</code>.
      */
     public Integer getFilterId() {
-        return (Integer) get(7);
+        return (Integer) get(8);
     }
 
     /**
      * Setter for <code>stroom.shapeshifter_deferral.failed_against</code>.
      */
     public void setFailedAgainst(String value) {
-        set(8, value);
+        set(9, value);
     }
 
     /**
      * Getter for <code>stroom.shapeshifter_deferral.failed_against</code>.
      */
     public String getFailedAgainst() {
-        return (String) get(8);
+        return (String) get(9);
     }
 
     /**
      * Setter for <code>stroom.shapeshifter_deferral.reason</code>.
      */
     public void setReason(String value) {
-        set(9, value);
+        set(10, value);
     }
 
     /**
      * Getter for <code>stroom.shapeshifter_deferral.reason</code>.
      */
     public String getReason() {
-        return (String) get(9);
+        return (String) get(10);
     }
 
     /**
      * Setter for <code>stroom.shapeshifter_deferral.failing_records</code>.
      */
     public void setFailingRecords(Integer value) {
-        set(10, value);
+        set(11, value);
     }
 
     /**
      * Getter for <code>stroom.shapeshifter_deferral.failing_records</code>.
      */
     public Integer getFailingRecords() {
-        return (Integer) get(10);
+        return (Integer) get(11);
     }
 
     /**
      * Setter for <code>stroom.shapeshifter_deferral.first_deferred_ms</code>.
      */
     public void setFirstDeferredMs(Long value) {
-        set(11, value);
+        set(12, value);
     }
 
     /**
      * Getter for <code>stroom.shapeshifter_deferral.first_deferred_ms</code>.
      */
     public Long getFirstDeferredMs() {
-        return (Long) get(11);
+        return (Long) get(12);
     }
 
     /**
      * Setter for <code>stroom.shapeshifter_deferral.update_time_ms</code>.
      */
     public void setUpdateTimeMs(Long value) {
-        set(12, value);
+        set(13, value);
     }
 
     /**
      * Getter for <code>stroom.shapeshifter_deferral.update_time_ms</code>.
      */
     public Long getUpdateTimeMs() {
-        return (Long) get(12);
+        return (Long) get(13);
     }
 
     /**
      * Setter for <code>stroom.shapeshifter_deferral.attempts</code>.
      */
     public void setAttempts(Integer value) {
-        set(13, value);
+        set(14, value);
     }
 
     /**
      * Getter for <code>stroom.shapeshifter_deferral.attempts</code>.
      */
     public Integer getAttempts() {
-        return (Integer) get(13);
+        return (Integer) get(14);
     }
 
     // -------------------------------------------------------------------------
@@ -237,15 +251,16 @@ public class ShapeshifterDeferralRecord extends UpdatableRecordImpl<Shapeshifter
     /**
      * Create a detached, initialised ShapeshifterDeferralRecord
      */
-    public ShapeshifterDeferralRecord(Long id, String docUuid, Long metaId, String feedName, String typeName, String pipelineUuid, Long taskId, Integer filterId, String failedAgainst, String reason, Integer failingRecords, Long firstDeferredMs, Long updateTimeMs, Integer attempts) {
+    public ShapeshifterDeferralRecord(Long id, String pipelineUuid, String elementId, String docUuid, Long metaId, String feedName, String typeName, Long taskId, Integer filterId, String failedAgainst, String reason, Integer failingRecords, Long firstDeferredMs, Long updateTimeMs, Integer attempts) {
         super(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL);
 
         setId(id);
+        setPipelineUuid(pipelineUuid);
+        setElementId(elementId);
         setDocUuid(docUuid);
         setMetaId(metaId);
         setFeedName(feedName);
         setTypeName(typeName);
-        setPipelineUuid(pipelineUuid);
         setTaskId(taskId);
         setFilterId(filterId);
         setFailedAgainst(failedAgainst);

@@ -17,6 +17,7 @@
 package stroom.shapeshifter.ai.impl.db;
 
 import stroom.shapeshifter.ai.stage.Deferrals.Deferral;
+import stroom.shapeshifter.ai.stage.Learner;
 
 import com.google.inject.Guice;
 import jakarta.inject.Inject;
@@ -33,6 +34,8 @@ class TestDeferralsDao {
 
     private static final String DOC = "doc-" + System.nanoTime();
     private static final String OTHER_DOC = "other-" + System.nanoTime();
+    private static final Learner LEARNER = new Learner("pipeline-" + DOC, "shapeshifterAi");
+    private static final Learner OTHER_LEARNER = new Learner("pipeline-" + OTHER_DOC, "shapeshifterAi");
 
     @Inject
     private DeferralsDao deferrals;
@@ -41,16 +44,16 @@ class TestDeferralsDao {
     void setUp() {
         Guice.createInjector(new TestModule()).injectMembers(this);
         for (final String doc : List.of(DOC, OTHER_DOC)) {
-            deferrals.forDocument(doc).forEach(row -> deferrals.released(doc, row.inputId()));
+            deferrals.forDocument(doc).forEach(row -> deferrals.released(row.learner(), row.inputId()));
         }
     }
 
     @Test
     void aStreamPutBackTwiceIsOneRowThatKeepsWhenItFirstWaited() {
-        deferrals.deferred(DOC, 7L, "DOOR-ACCESS", "Raw Events", "pipe", 100L, 5, "frag:1",
+        deferrals.deferred(LEARNER, DOC, 7L, "DOOR-ACCESS", "Raw Events", 100L, 5, "frag:1",
                 "2 of 6 record(s) fell short of the bar", 2);
         final Deferral first = deferrals.forDocument(DOC).getFirst();
-        deferrals.deferred(DOC, 7L, "DOOR-ACCESS", "Raw Events", "pipe", 101L, 5, "frag:2",
+        deferrals.deferred(LEARNER, DOC, 7L, "DOOR-ACCESS", "Raw Events", 101L, 5, "frag:2",
                 "1 of 6 record(s) fell short of the bar", 1);
 
         final List<Deferral> rows = deferrals.forDocument(DOC);
@@ -68,11 +71,13 @@ class TestDeferralsDao {
 
     @Test
     void aStreamWithNoRuleAndNoTaskIsARowOfNulls() {
-        deferrals.deferred(DOC, 8L, "LIFT", "Raw Events", null, null, null, null, "no rule for this shape", 0);
+        deferrals.deferred(LEARNER, DOC, 8L, "LIFT", "Raw Events", null, null, null, "no rule for this shape", 0);
 
         final Deferral row = deferrals.forDocument(DOC).getFirst();
 
-        assertThat(row.pipeline()).isNull();
+        // The pipeline is the learner's, so it is never missing (A114).
+        assertThat(row.learner()).isEqualTo(LEARNER);
+        assertThat(row.pipeline()).isEqualTo(LEARNER.pipelineUuid());
         assertThat(row.taskId()).isNull();
         assertThat(row.filterId()).isNull();
         assertThat(row.failedAgainst()).isNull();
@@ -82,12 +87,12 @@ class TestDeferralsDao {
 
     @Test
     void oneStreamsRowComesBackByItsIdAndAShapesRowsComeBackOldestFirst() {
-        deferrals.deferred(DOC, 7L, "DOOR-ACCESS", "Raw Events", "pipe", 100L, 5, "frag:1", "short", 2);
-        deferrals.deferred(DOC, 9L, "DOOR-ACCESS", "Raw Events", "pipe", 102L, 5, null, "no rule", 0);
-        deferrals.deferred(DOC, 8L, "LIFT", "Raw Events", "pipe", 101L, 5, null, "no rule", 0);
+        deferrals.deferred(LEARNER, DOC, 7L, "DOOR-ACCESS", "Raw Events", 100L, 5, "frag:1", "short", 2);
+        deferrals.deferred(LEARNER, DOC, 9L, "DOOR-ACCESS", "Raw Events", 102L, 5, null, "no rule", 0);
+        deferrals.deferred(LEARNER, DOC, 8L, "LIFT", "Raw Events", 101L, 5, null, "no rule", 0);
 
-        assertThat(deferrals.of(DOC, 9L)).isPresent().get().extracting(Deferral::reason).isEqualTo("no rule");
-        assertThat(deferrals.of(DOC, 99L)).isEmpty();
+        assertThat(deferrals.of(LEARNER, 9L)).isPresent().get().extracting(Deferral::reason).isEqualTo("no rule");
+        assertThat(deferrals.of(LEARNER, 99L)).isEmpty();
         assertThat(deferrals.waiting(DOC, "DOOR-ACCESS", "Raw Events"))
                 .extracting(Deferral::inputId)
                 .containsExactly(7L, 9L);
@@ -97,11 +102,11 @@ class TestDeferralsDao {
 
     @Test
     void releasedRowsAreGoneAndOtherDocumentsAreUntouched() {
-        deferrals.deferred(DOC, 7L, "DOOR-ACCESS", "Raw Events", "pipe", 100L, 5, "frag:1", "short", 2);
-        deferrals.deferred(DOC, 9L, "DOOR-ACCESS", "Raw Events", "pipe", 102L, 5, "frag:1", "short", 3);
-        deferrals.deferred(OTHER_DOC, 7L, "DOOR-ACCESS", "Raw Events", "pipe", 103L, 6, "frag:9", "short", 1);
+        deferrals.deferred(LEARNER, DOC, 7L, "DOOR-ACCESS", "Raw Events", 100L, 5, "frag:1", "short", 2);
+        deferrals.deferred(LEARNER, DOC, 9L, "DOOR-ACCESS", "Raw Events", 102L, 5, "frag:1", "short", 3);
+        deferrals.deferred(OTHER_LEARNER, OTHER_DOC, 7L, "DOOR-ACCESS", "Raw Events", 103L, 6, "frag:9", "short", 1);
 
-        deferrals.released(DOC, 7L);
+        deferrals.released(LEARNER, 7L);
 
         assertThat(deferrals.forDocument(DOC)).extracting(Deferral::inputId).containsExactly(9L);
         assertThat(deferrals.forDocument(OTHER_DOC)).extracting(Deferral::inputId).containsExactly(7L);

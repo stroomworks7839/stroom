@@ -28,26 +28,26 @@ import java.util.Optional;
 /// §3, §5.3). In-memory in scenarios; a table in a node.
 public interface Deferrals {
 
-    /// A stream the stage would put back, or has. A second call for the same stream and document is the
+    /// A stream the stage would put back, or has. A second call for the same stream and learner is the
     /// same row, with what it failed against and why brought up to date and its attempts counted; the
     /// time it first waited is kept, since a new reason does not make it newly late.
     ///
-    /// @param docUuid        The document.
+    /// @param learner        The learner it waits on, whose pipeline is processing it.
+    /// @param docUuid        The document the learner runs under.
     /// @param inputId        The stream's meta id.
     /// @param feed           Its feed.
     /// @param type           Its type.
-    /// @param pipeline       The uuid of the pipeline processing it, where one is.
     /// @param taskId         The processor task to wake, where one is.
     /// @param filterId       The processor filter that task belongs to, where one is.
     /// @param failedAgainst  What the stream was run through and fell short of: the rule's fragment and
     ///                       its version, or null where there was no rule to run it through.
     /// @param reason         Why it waits, in words.
     /// @param failingRecords How many of its records fell short of the bar; zero where there was no rule.
-    void deferred(String docUuid,
+    void deferred(Learner learner,
+                  String docUuid,
                   long inputId,
                   String feed,
                   String type,
-                  String pipeline,
                   Long taskId,
                   Integer filterId,
                   String failedAgainst,
@@ -56,9 +56,9 @@ public interface Deferrals {
 
     /// The stream has been served, or errored, and waits no more.
     ///
-    /// @param docUuid The document.
+    /// @param learner The learner it waited on.
     /// @param inputId The stream's meta id.
-    void released(String docUuid, long inputId);
+    void released(Learner learner, long inputId);
 
     /// What is waiting for a document, oldest first.
     ///
@@ -68,12 +68,15 @@ public interface Deferrals {
 
     /// One stream's row, where it has one.
     ///
-    /// @param docUuid The document.
+    /// @param learner The learner it waits on.
     /// @param inputId The stream's meta id.
     /// @return Its row.
-    Optional<Deferral> of(String docUuid, long inputId);
+    Optional<Deferral> of(Learner learner, long inputId);
 
     /// What is waiting on one shape (A49: a feed and a type), oldest first: what a promotion wakes.
+    ///
+    /// Every learner of a document is woken for the shape: a document's shapes are its own until design
+    /// 06 phase J slice 2 gives each learner its record.
     ///
     /// @param docUuid The document.
     /// @param feed    The feed.
@@ -85,11 +88,11 @@ public interface Deferrals {
 
     /// One waiting stream.
     ///
-    /// @param docUuid         The document.
+    /// @param learner         The learner it waits on, whose pipeline is processing it.
+    /// @param docUuid         The document the learner ran under when the stream last waited.
     /// @param inputId         The stream's meta id.
     /// @param feed            Its feed.
     /// @param type            Its type.
-    /// @param pipeline        The pipeline processing it, where one is.
     /// @param taskId          The task to wake, where one is.
     /// @param filterId        That task's filter, where one is.
     /// @param failedAgainst   What it last fell short of, or null where there was no rule.
@@ -97,11 +100,11 @@ public interface Deferrals {
     /// @param failingRecords  How many records fell short, the last time it was tried.
     /// @param firstDeferredMs When it first waited.
     /// @param attempts        How many times it has been tried and put back.
-    record Deferral(String docUuid,
+    record Deferral(Learner learner,
+                    String docUuid,
                     long inputId,
                     String feed,
                     String type,
-                    String pipeline,
                     Long taskId,
                     Integer filterId,
                     String failedAgainst,
@@ -114,6 +117,11 @@ public interface Deferrals {
         /// still waiting (A79). Computed when read, since age is not a thing to store.
         public boolean raised(final long maxAgeMs, final long nowMs) {
             return nowMs - firstDeferredMs > maxAgeMs;
+        }
+
+        /// @return The pipeline processing the stream: the learner's.
+        public String pipeline() {
+            return learner.pipelineUuid();
         }
 
     }

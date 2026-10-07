@@ -68,7 +68,8 @@ class TestScenario63TheFlowNamesItsExits {
         scenarios.documents.put(doc);
         scenarios.inputs.put(input(1L));
         final Script silent = Script.of();
-        assertThat(scenarios.stage(silent).decide(doc, input(1L)).decision()).isInstanceOf(Deferred.class);
+        assertThat(scenarios.stage(silent).decide(doc, Scenarios.LEARNER,
+                input(1L)).decision()).isInstanceOf(Deferred.class);
         final Script script = scenarios.script(CSV.configuration(), null)
                 .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter")
                 .expect(QuestionMatcher.configuration("DSParser")).reply(Scenarios.fenced(ONE_BLOCK));
@@ -78,7 +79,7 @@ class TestScenario63TheFlowNamesItsExits {
         final Recorded session = scenarios.attempts.forDocument(DOC, 10).get(0);
         assertThat(session.status()).describedAs(String.valueOf(session.decision())).isEqualTo(AttemptStatus.PARKED);
         assertThat(scenarios.shapes.reasonGivenUp(DOC, SHAPE)).describedAs("the shape is not given up").isEmpty();
-        assertThat(scenarios.deferrals.of(DOC, 1L)).describedAs("the stream goes on waiting").isPresent();
+        assertThat(scenarios.deferrals.of(Scenarios.LEARNER, 1L)).describedAs("the stream goes on waiting").isPresent();
         assertThat(scenarios.wake.woken()).isEmpty();
     }
 
@@ -96,8 +97,10 @@ class TestScenario63TheFlowNamesItsExits {
         scenarios.inputs.put(input(1L));
         scenarios.inputs.put(input(2L));
         final Script silent = Script.of();
-        assertThat(scenarios.stage(silent).decide(doc, input(1L)).decision()).isInstanceOf(Deferred.class);
-        assertThat(scenarios.stage(silent).decide(doc, input(2L)).decision()).isInstanceOf(Deferred.class);
+        assertThat(scenarios.stage(silent).decide(doc, Scenarios.LEARNER,
+                input(1L)).decision()).isInstanceOf(Deferred.class);
+        assertThat(scenarios.stage(silent).decide(doc, Scenarios.LEARNER,
+                input(2L)).decision()).isInstanceOf(Deferred.class);
         final Script script = scenarios.script(CSV.configuration(), null)
                 .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter")
                 .expect(QuestionMatcher.configuration("DSParser")).reply(Scenarios.fenced(CSV.configuration()))
@@ -111,7 +114,7 @@ class TestScenario63TheFlowNamesItsExits {
                 .get().asString().contains("No passing configuration for XSLTFilter");
         assertThat(scenarios.wake.woken()).extracting(Deferral::inputId).contains(1L, 2L);
         for (final long id : List.of(1L, 2L)) {
-            final StageRun run = scenarios.stage(silent).decide(doc, input(id));
+            final StageRun run = scenarios.stage(silent).decide(doc, Scenarios.LEARNER, input(id));
             assertThat(run.decision()).isInstanceOf(Sentinel.class);
             assertThat(((Sentinel) run.decision()).reason()).contains("Shape given up");
         }

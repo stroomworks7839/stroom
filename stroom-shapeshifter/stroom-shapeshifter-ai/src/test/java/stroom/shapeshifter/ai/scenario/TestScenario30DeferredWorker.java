@@ -91,7 +91,7 @@ class TestScenario30DeferredWorker {
         final Input first = scenarios.inputs.put(stream(1L));
         final Script inTheTask = Script.of();
 
-        final StageRun run = scenarios.stage(inTheTask).decide(doc, first);
+        final StageRun run = scenarios.stage(inTheTask).decide(doc, Scenarios.LEARNER, first);
 
         assertThat(run.decision()).describedAs(run.decision().toString()).isInstanceOf(Deferred.class);
         assertThat(inTheTask.asked()).describedAs("no model call in the task: a task decides and never learns (A60)")
@@ -108,7 +108,8 @@ class TestScenario30DeferredWorker {
 
         // A second stream of the shape while it waits: held behind the same attempt, not a second.
         final Input second = scenarios.inputs.put(stream(2L));
-        assertThat(scenarios.stage(Script.of()).decide(doc, second).decision()).isInstanceOf(Deferred.class);
+        assertThat(scenarios.stage(Script.of()).decide(doc, Scenarios.LEARNER,
+                second).decision()).isInstanceOf(Deferred.class);
         assertThat(scenarios.attempts.forDocument(DOC, 10)).describedAs("one attempt for one shape").hasSize(1);
         assertThat(scenarios.deferrals.forDocument(DOC)).hasSize(2);
 
@@ -139,7 +140,7 @@ class TestScenario30DeferredWorker {
         final Scenarios scenarios = new Scenarios();
         final ShapeshifterAiDoc doc = scenarios.documents.put(deferred());
         scenarios.inputs.put(stream(1L));
-        scenarios.stage(Script.of()).decide(doc, stream(1L));
+        scenarios.stage(Script.of()).decide(doc, Scenarios.LEARNER, stream(1L));
         scenarios.worker(learning(scenarios)).advance(10);
 
         final Script silent = Script.of();
@@ -158,7 +159,7 @@ class TestScenario30DeferredWorker {
         final Scenarios scenarios = new Scenarios();
         final ShapeshifterAiDoc doc = scenarios.documents.put(deferred());
         scenarios.inputs.put(stream(1L));
-        scenarios.stage(Script.of()).decide(doc, stream(1L));
+        scenarios.stage(Script.of()).decide(doc, Scenarios.LEARNER, stream(1L));
         scenarios.worker(learning(scenarios)).advance(10);
         final Recorded promoted = scenarios.attempts.forDocument(DOC, 10).get(0);
         assertThat(promoted.status()).isEqualTo(AttemptStatus.PROMOTED);
@@ -166,7 +167,7 @@ class TestScenario30DeferredWorker {
 
         final Input next = scenarios.inputs.put(stream(5L));
         final Script inTheTask = Script.of();
-        final StageRun served = scenarios.stage(inTheTask).decide(doc, next);
+        final StageRun served = scenarios.stage(inTheTask).decide(doc, Scenarios.LEARNER, next);
 
         assertThat(served.decision()).describedAs(served.decision().toString()).isInstanceOf(Bound.class);
         assertThat(inTheTask.asked()).isEmpty();
@@ -174,7 +175,8 @@ class TestScenario30DeferredWorker {
         assertThat(scenarios.attempts.forDocument(DOC, 10)).extracting(Recorded::status)
                 .describedAs("the session the mark opened, parked for the worker, beside the one that learned")
                 .containsExactlyInAnyOrder(AttemptStatus.PROMOTED, AttemptStatus.AWAITING_MODEL);
-        assertThat(scenarios.deferrals.of(DOC, 5L)).describedAs("the stream does not wait on it").isEmpty();
+        assertThat(scenarios.deferrals.of(Scenarios.LEARNER,
+                5L)).describedAs("the stream does not wait on it").isEmpty();
     }
 
     @Test
@@ -185,7 +187,7 @@ class TestScenario30DeferredWorker {
         final Scenarios scenarios = new Scenarios();
         final ShapeshifterAiDoc doc = scenarios.documents.put(deferred());
         scenarios.inputs.put(stream(1L));
-        scenarios.stage(Script.of()).decide(doc, stream(1L));
+        scenarios.stage(Script.of()).decide(doc, Scenarios.LEARNER, stream(1L));
         final Recorded parked = scenarios.attempts.forDocument(DOC, 10).get(0);
         scenarios.inputs.remove(1L);
 
@@ -199,7 +201,7 @@ class TestScenario30DeferredWorker {
 
         // The shape is free again: the next stream of it opens an attempt of its own.
         scenarios.inputs.put(stream(4L));
-        scenarios.stage(Script.of()).decide(doc, stream(4L));
+        scenarios.stage(Script.of()).decide(doc, Scenarios.LEARNER, stream(4L));
         assertThat(scenarios.attempts.forDocument(DOC, 10)).hasSize(2);
 
         // And a document deleted while its attempt waited is the same story.
@@ -217,7 +219,7 @@ class TestScenario30DeferredWorker {
         final Scenarios scenarios = new Scenarios();
         final ShapeshifterAiDoc doc = scenarios.documents.put(deferred());
         scenarios.inputs.put(stream(1L));
-        scenarios.stage(Script.of()).decide(doc, stream(1L));
+        scenarios.stage(Script.of()).decide(doc, Scenarios.LEARNER, stream(1L));
         final Recorded parked = scenarios.attempts.forDocument(DOC, 10).get(0);
         // An operator reserves the selector while it waits: this shape binds nothing, by hand.
         scenarios.rules.append(DOC, RoutingRule.builder()
@@ -246,7 +248,7 @@ class TestScenario30DeferredWorker {
         final Scenarios scenarios = new Scenarios();
         final ShapeshifterAiDoc doc = scenarios.documents.put(deferred());
         scenarios.inputs.put(stream(1L));
-        scenarios.stage(Script.of()).decide(doc, stream(1L));
+        scenarios.stage(Script.of()).decide(doc, Scenarios.LEARNER, stream(1L));
         final Recorded parked = scenarios.attempts.forDocument(DOC, 10).get(0);
         scenarios.attempts.heartbeat(parked.id(), Scenarios.NOW.toEpochMilli() - 1);
 
@@ -264,7 +266,7 @@ class TestScenario30DeferredWorker {
         final Scenarios scenarios = new Scenarios();
         final ShapeshifterAiDoc doc = scenarios.documents.put(deferred());
         scenarios.inputs.put(stream(1L));
-        scenarios.stage(Script.of()).decide(doc, stream(1L));
+        scenarios.stage(Script.of()).decide(doc, Scenarios.LEARNER, stream(1L));
         final Recorded first = scenarios.attempts.forDocument(DOC, 10).get(0);
         scenarios.inputs.remove(1L);
 
@@ -272,7 +274,7 @@ class TestScenario30DeferredWorker {
         final ShapeshifterAiDoc other = scenarios.documents.put(deferred().copy().uuid("doc-2").build());
         final Input fine = scenarios.inputs.put(new Input(2L, "OTHER-FEED", "Raw Events",
                 Map.of("Format", "CSV"), CSV.input()));
-        scenarios.stage(Script.of()).decide(other, fine);
+        scenarios.stage(Script.of()).decide(other, Scenarios.LEARNER, fine);
 
         final int advanced = scenarios.worker(learning(scenarios)).advance(10);
 

@@ -280,7 +280,7 @@ class TestScenariosRetractionRelearningAndRelease {
         for (long id = 11; id <= 12; id++) {
             final StageRun run = scenarios.process(silent, disabled, stream(id, lines(6, 0))).learned();
             assertThat(run.decision()).isInstanceOf(Deferred.class);
-            assertThat(scenarios.deferrals.of(DOC, id)).isPresent();
+            assertThat(scenarios.deferrals.of(Scenarios.LEARNER, id)).isPresent();
         }
         assertThat(silent.asked()).isEmpty();
         assertThat(scenarios.ledger.isEmpty()).isTrue();

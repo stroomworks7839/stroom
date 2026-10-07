@@ -86,7 +86,7 @@ class TestScenario54TheTaskDecision {
         scenarios.documents.put(doc);
         scenarios.inputs.put(stream(1L, MIXED));
         scenarios.inputs.put(stream(2L, MIXED));
-        final StageRun first = task(scenarios, silent, null).decide(doc, stream(1L, MIXED));
+        final StageRun first = task(scenarios, silent, null).decide(doc, Scenarios.LEARNER, stream(1L, MIXED));
 
         assertThat(first.decision()).describedAs(first.decision().toString()).isInstanceOf(Deferred.class);
         assertThat(((Deferred) first.decision()).reason()).contains("Awaiting the model");
@@ -102,7 +102,7 @@ class TestScenario54TheTaskDecision {
                 .containsExactly(tuple(1L, null));
 
         // A second stream of the shape while the session is open: waits on it, opens nothing.
-        final StageRun second = task(scenarios, silent, null).decide(doc, stream(2L, MIXED));
+        final StageRun second = task(scenarios, silent, null).decide(doc, Scenarios.LEARNER, stream(2L, MIXED));
         assertThat(second.decision()).isInstanceOf(Deferred.class);
         assertThat(scenarios.attempts.forDocument(DOC, 10)).describedAs("one session for one shape").hasSize(1);
         assertThat(scenarios.deferrals.forDocument(DOC)).extracting(Deferral::inputId).containsExactly(1L, 2L);
@@ -117,11 +117,11 @@ class TestScenario54TheTaskDecision {
 
         // Tried again, each is bound and served as it is read, and its row goes.
         for (final long id : List.of(1L, 2L)) {
-            final StageRun bound = task(scenarios, silent, null).decide(doc, stream(id, MIXED));
+            final StageRun bound = task(scenarios, silent, null).decide(doc, Scenarios.LEARNER, stream(id, MIXED));
             assertThat(bound.decision()).describedAs(bound.decision().toString()).isInstanceOf(Bound.class);
             final TextSink sink = new TextSink();
             final ServedStream served = task(scenarios, silent, null)
-                    .stream(doc, ((Bound) bound.decision()).rule(), stream(id, MIXED), sink);
+                    .stream(doc, Scenarios.LEARNER, ((Bound) bound.decision()).rule(), stream(id, MIXED), sink);
             assertThat(served.clear()).isTrue();
             assertThat(served.records()).isEqualTo(6);
             assertThat(sink.text()).contains("<Action>Logoff</Action>");
@@ -143,17 +143,18 @@ class TestScenario54TheTaskDecision {
 
         scenarios.documents.put(doc);
         scenarios.inputs.put(stream(2L, MIXED));
-        final StageRun bound = task(scenarios, silent, counting).decide(doc, stream(2L, MIXED));
+        final StageRun bound = task(scenarios, silent, counting).decide(doc, Scenarios.LEARNER, stream(2L, MIXED));
         assertThat(bound.decision()).describedAs("nothing is known until it is read").isInstanceOf(Bound.class);
         final TextSink sink = new TextSink();
-        assertThatThrownBy(() -> task(scenarios, silent, counting).stream(doc, learned, stream(2L, MIXED), sink))
+        assertThatThrownBy(() -> task(scenarios, silent, counting).stream(doc, Scenarios.LEARNER, learned, stream(2L,
+                MIXED), sink))
                 .isInstanceOf(DeferTaskException.class)
                 .hasMessageStartingWith("Record 3 fell short of the bar");
         assertThat(sink.records())
                 .describedAs("the two records before it were handed on; nothing after")
                 .isEqualTo(2);
         assertThat(runs.get()).describedAs("read once").isEqualTo(1);
-        final Deferral row = scenarios.deferrals.of(DOC, 2L).orElseThrow();
+        final Deferral row = scenarios.deferrals.of(Scenarios.LEARNER, 2L).orElseThrow();
         assertThat(row.failedAgainst())
                 .describedAs("stamped with the snapshot in force (A61)")
                 .isEqualTo(learned.getSnapshot());
@@ -167,16 +168,18 @@ class TestScenario54TheTaskDecision {
                 .containsExactlyInAnyOrder(AttemptStatus.AWAITING_MODEL, AttemptStatus.PROMOTED);
 
         // Tried again before the transform moves: deferred by the stamp, without a run.
-        final StageRun again = task(scenarios, silent, counting).decide(doc, stream(2L, MIXED));
+        final StageRun again = task(scenarios, silent, counting).decide(doc, Scenarios.LEARNER, stream(2L, MIXED));
         assertThat(again.decision()).isInstanceOf(Deferred.class);
         assertThat(runs.get()).describedAs("not read again (§8.3)").isEqualTo(1);
-        assertThat(scenarios.deferrals.of(DOC, 2L).orElseThrow().attempts()).isEqualTo(2);
+        assertThat(scenarios.deferrals.of(Scenarios.LEARNER, 2L).orElseThrow().attempts()).isEqualTo(2);
         assertThat(scenarios.attempts.forDocument(DOC, 10)).describedAs("no second session").hasSize(2);
 
         // A stream of the shape whose records all clear flows while the session runs (§8.2).
-        final StageRun flowing = task(scenarios, silent, counting).decide(doc, stream(3L, CSV.input()));
+        final StageRun flowing = task(scenarios, silent, counting).decide(doc, Scenarios.LEARNER, stream(3L,
+                CSV.input()));
         assertThat(flowing.decision()).describedAs(flowing.decision().toString()).isInstanceOf(Bound.class);
-        assertThat(task(scenarios, silent, counting).stream(doc, learned, stream(3L, CSV.input()), new TextSink())
+        assertThat(task(scenarios, silent, counting).stream(doc, Scenarios.LEARNER, learned, stream(3L, CSV.input()),
+                new TextSink())
                 .clear()).isTrue();
         assertThat(scenarios.deferrals.forDocument(DOC)).extracting(Deferral::inputId).containsExactly(2L);
 
@@ -189,10 +192,11 @@ class TestScenario54TheTaskDecision {
                 .describedAs("the stream the rule was first learned on, woken by its promotion; and now the "
                              + "held stream, by the rebinding")
                 .containsExactly(1L, 2L);
-        final StageRun served = task(scenarios, silent, counting).decide(doc, stream(2L, MIXED));
+        final StageRun served = task(scenarios, silent, counting).decide(doc, Scenarios.LEARNER, stream(2L, MIXED));
         assertThat(served.decision()).describedAs(served.decision().toString()).isInstanceOf(Bound.class);
         final RoutingRule rebound = ((Bound) served.decision()).rule();
-        assertThat(task(scenarios, silent, counting).stream(doc, rebound, stream(2L, MIXED), new TextSink()).clear())
+        assertThat(task(scenarios, silent, counting).stream(doc, Scenarios.LEARNER, rebound, stream(2L, MIXED),
+                new TextSink()).clear())
                 .isTrue();
         assertThat(scenarios.deferrals.forDocument(DOC)).isEmpty();
         assertThat(silent.asked()).isEmpty();
@@ -205,7 +209,7 @@ class TestScenario54TheTaskDecision {
         scenarios.shapes.giveUp(DOC, SHAPE, "the parse could not be learned");
 
         final StageRun errored = scenarios.stage(document -> Script.of(), scenarios.rules)
-                .decide(doc, stream(1L, MIXED));
+                .decide(doc, Scenarios.LEARNER, stream(1L, MIXED));
 
         assertThat(errored.decision()).isInstanceOf(Sentinel.class);
         assertThat(((Sentinel) errored.decision()).reason()).contains("given up");
@@ -222,12 +226,12 @@ class TestScenario54TheTaskDecision {
         scenarios.rules.replace(DOC, learned.copy().pinned(true).build());
 
         final StageRun served = scenarios.stage(document -> Script.of(), scenarios.rules)
-                .decide(doc, stream(2L, MIXED));
+                .decide(doc, Scenarios.LEARNER, stream(2L, MIXED));
 
         assertThat(served.decision()).describedAs(served.decision().toString()).isInstanceOf(Bound.class);
         final TextSink sink = new TextSink();
         final ServedStream streamed = scenarios.stage(document -> Script.of(), scenarios.rules)
-                .stream(doc, ((Bound) served.decision()).rule(), stream(2L, MIXED), sink);
+                .stream(doc, Scenarios.LEARNER, ((Bound) served.decision()).rule(), stream(2L, MIXED), sink);
         assertThat(streamed.clear()).isTrue();
         assertThat(sink.records()).describedAs("every record, the thin ones too").isEqualTo(6);
         assertThat(scenarios.deferrals.forDocument(DOC)).isEmpty();
@@ -254,11 +258,11 @@ class TestScenario54TheTaskDecision {
         final RoutingRule draft = ((Drafted) drafted.decision()).rule();
         final Script silent = Script.of();
 
-        final StageRun waiting = task(scenarios, silent, null).decide(doc, stream(2L, MIXED));
+        final StageRun waiting = task(scenarios, silent, null).decide(doc, Scenarios.LEARNER, stream(2L, MIXED));
 
         assertThat(waiting.decision()).isInstanceOf(Deferred.class);
         assertThat(((Deferred) waiting.decision()).reason()).contains("Awaiting review");
-        assertThat(scenarios.deferrals.of(DOC, 2L)).isPresent();
+        assertThat(scenarios.deferrals.of(Scenarios.LEARNER, 2L)).isPresent();
         assertThat(scenarios.ledger.rows())
                 .describedAs("the stream that was drafted on is on the ledger, as a session's is; this one is not")
                 .extracting(InMemoryLedger.Row::inputId)
@@ -269,12 +273,12 @@ class TestScenario54TheTaskDecision {
         assertThat(scenarios.wake.woken()).extracting(Deferral::inputId)
                 .describedAs("the stream the draft was learned on waited behind it too")
                 .containsExactly(1L, 2L);
-        final StageRun served = task(scenarios, silent, null).decide(doc, stream(2L, MIXED));
+        final StageRun served = task(scenarios, silent, null).decide(doc, Scenarios.LEARNER, stream(2L, MIXED));
         assertThat(served.decision()).describedAs(served.decision().toString()).isInstanceOf(Bound.class);
         task(scenarios, silent, null)
-                .stream(doc, ((Bound) served.decision()).rule(), stream(2L, MIXED), new TextSink());
+                .stream(doc, Scenarios.LEARNER, ((Bound) served.decision()).rule(), stream(2L, MIXED), new TextSink());
         task(scenarios, silent, null)
-                .stream(doc, ((Bound) served.decision()).rule(), stream(1L, MIXED), new TextSink());
+                .stream(doc, Scenarios.LEARNER, ((Bound) served.decision()).rule(), stream(1L, MIXED), new TextSink());
         assertThat(scenarios.deferrals.forDocument(DOC)).isEmpty();
     }
 
@@ -286,15 +290,16 @@ class TestScenario54TheTaskDecision {
         learn(scenarios, doc, LOGON_ONLY);
         final Script silent = Script.of();
         final RoutingRule rule = scenarios.rules.forDocument(DOC).get(0);
-        assertThatThrownBy(() -> task(scenarios, silent, null).stream(doc, rule, stream(2L, MIXED), new TextSink()))
+        assertThatThrownBy(() -> task(scenarios, silent, null).stream(doc, Scenarios.LEARNER, rule, stream(2L,
+                MIXED), new TextSink()))
                 .isInstanceOf(DeferTaskException.class);
 
-        final StageRun again = task(scenarios, silent, null).decide(doc, stream(2L, MIXED));
+        final StageRun again = task(scenarios, silent, null).decide(doc, Scenarios.LEARNER, stream(2L, MIXED));
 
         assertThat(((Deferred) again.decision()).reason())
                 .startsWith("Record 3 fell short of the bar: ")
                 .contains("learning this shape");
-        assertThat(scenarios.deferrals.of(DOC, 2L).orElseThrow().reason())
+        assertThat(scenarios.deferrals.of(Scenarios.LEARNER, 2L).orElseThrow().reason())
                 .describedAs("the row keeps why, not what each try found")
                 .startsWith("Record 3 fell short of the bar: ")
                 .doesNotContain("learning this shape");

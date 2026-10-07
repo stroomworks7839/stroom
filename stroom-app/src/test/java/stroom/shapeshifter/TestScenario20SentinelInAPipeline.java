@@ -46,6 +46,7 @@ import stroom.shapeshifter.ai.scenario.AdvisorHolder;
 import stroom.shapeshifter.ai.scenario.Scenarios;
 import stroom.shapeshifter.ai.scenario.Script;
 import stroom.shapeshifter.ai.stage.Deferrals;
+import stroom.shapeshifter.ai.stage.Learner;
 import stroom.shapeshifter.ai.stage.Ledger;
 import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.ai.stage.Shape;
@@ -157,7 +158,7 @@ class TestScenario20SentinelInAPipeline extends AbstractCoreIntegrationTest {
                 .describedAs("nothing is sentinelled to make it wait, so the ledger holds nothing")
                 .isEmpty();
         assertThat(deferrals).isInstanceOf(DeferralsDao.class);
-        assertThat(deferrals.of(doc.getUuid(), raw.getId()))
+        assertThat(deferrals.of(new Learner(pipeline.getUuid(), "shapeshifterAi"), raw.getId()))
                 .describedAs("the deferral row is a row in the database, not a map in one node's heap")
                 .isPresent()
                 .get()

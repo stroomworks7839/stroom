@@ -36,7 +36,7 @@ import java.util.Optional;
 public interface Attempts {
 
     /// Open an attempt for a shape. The row is the claim on the shape (A45): one open attempt per
-    /// `(doc, shape)` is what one learner means, and an attempt parked awaiting the model or a person is
+    /// learner and shape is what one session at a time means, and an attempt parked awaiting the model or a person is
     /// still learning.
     ///
     /// An open attempt whose lease has lapsed holds its shape still: its node has stopped, and the session
@@ -50,7 +50,17 @@ public interface Attempts {
 
     /// The attempt open for a shape, if one is — lapsed or not: what a node meeting the shape finds instead
     /// of taking it, and what a stream of the shape waits on.
-    Optional<Recorded> open(String docUuid, String shape, long nowMs);
+    Optional<Recorded> open(Learner learner, String shape, long nowMs);
+
+    /// The learner that last learned a shape of a document: what an action that begins from a rule
+    /// rather than a stream claims the shape as (design 06 phase J slice 1). Every learned rule came
+    /// from an attempt, and the attempt's row says whose. Phase J slice 2 gives a rule its learner and
+    /// removes this.
+    ///
+    /// @param docUuid The document.
+    /// @param shape   The shape, as the learning key writes it.
+    /// @return The learner of the newest attempt on the shape; empty where nothing has learned it.
+    Optional<Learner> learnerOf(String docUuid, String shape);
 
     /// Park an attempt until whoever will answer its next question does (A28): it keeps its claim on the
     /// shape, since it is still learning, and its expiry is pushed out by the same heartbeat. What it has
@@ -179,11 +189,14 @@ public interface Attempts {
     // --------------------------------------------------------------------------------
 
 
+    /// @param learner  What is learning: the pipeline and element whose claim the attempt is (A114).
+    /// @param docUuid  The document it learns under.
     /// @param shape    The shape being learned, as the learning key writes it.
     /// @param inputId  The stream that raised the attempt, so a person can see what it was learning from.
     /// @param node     Which node opened it.
     /// @param expiryMs When the claim lapses if nothing heartbeats it (A45).
-    record Attempt(String docUuid,
+    record Attempt(Learner learner,
+                   String docUuid,
                    String shape,
                    String feed,
                    String type,

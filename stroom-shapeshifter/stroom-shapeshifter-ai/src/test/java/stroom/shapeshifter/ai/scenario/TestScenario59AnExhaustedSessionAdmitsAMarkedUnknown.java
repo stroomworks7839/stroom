@@ -74,7 +74,8 @@ class TestScenario59AnExhaustedSessionAdmitsAMarkedUnknown {
         scenarios.documents.put(doc);
         scenarios.inputs.put(streamed(1L));
         final Script silent = Script.of();
-        assertThat(scenarios.stage(silent).decide(doc, streamed(1L)).decision()).isInstanceOf(Deferred.class);
+        assertThat(scenarios.stage(silent).decide(doc, Scenarios.LEARNER,
+                streamed(1L)).decision()).isInstanceOf(Deferred.class);
 
         // Round one learns from the sample of logons and is promoted; the full pass finds the logoffs.
         // Round two is held to them: the model offers the admitted form at the transform's own question —
@@ -110,10 +111,11 @@ class TestScenario59AnExhaustedSessionAdmitsAMarkedUnknown {
         assertThat(scenarios.wake.woken()).extracting(Deferral::inputId).contains(1L);
 
         // Served in full, the admitted records as marked Unknown events.
-        final StageRun decided = scenarios.stage(silent).decide(doc, streamed(1L));
+        final StageRun decided = scenarios.stage(silent).decide(doc, Scenarios.LEARNER, streamed(1L));
         assertThat(decided.decision()).isInstanceOf(Bound.class);
         final TextSink sink = new TextSink();
-        assertThat(scenarios.stage(silent).stream(doc, ((Bound) decided.decision()).rule(), streamed(1L), sink)
+        assertThat(scenarios.stage(silent).stream(doc, Scenarios.LEARNER, ((Bound) decided.decision()).rule(),
+                streamed(1L), sink)
                 .clear()).isTrue();
         assertThat(sink.records()).isEqualTo(LOGONS + LOGOFFS);
         assertThat(sink.text()).contains("<Action>Logon</Action>")
@@ -122,9 +124,10 @@ class TestScenario59AnExhaustedSessionAdmitsAMarkedUnknown {
         // A marked Unknown is not retried (§8 scenario 14): the next stream of the same kinds is served at
         // once and no session opens for it.
         scenarios.inputs.put(streamed(2L));
-        final StageRun next = scenarios.stage(silent).decide(doc, streamed(2L));
+        final StageRun next = scenarios.stage(silent).decide(doc, Scenarios.LEARNER, streamed(2L));
         assertThat(next.decision()).isInstanceOf(Bound.class);
-        assertThat(scenarios.stage(silent).stream(doc, ((Bound) next.decision()).rule(), streamed(2L), new TextSink())
+        assertThat(scenarios.stage(silent).stream(doc, Scenarios.LEARNER, ((Bound) next.decision()).rule(),
+                streamed(2L), new TextSink())
                 .clear()).isTrue();
         assertThat(scenarios.attempts.forDocument(DOC, 10)).hasSize(1);
         assertThat(silent.asked()).isEmpty();
@@ -140,7 +143,7 @@ class TestScenario59AnExhaustedSessionAdmitsAMarkedUnknown {
         scenarios.documents.put(doc);
         scenarios.inputs.put(whole);
         final Script silent = Script.of();
-        scenarios.stage(silent).decide(doc, whole);
+        scenarios.stage(silent).decide(doc, Scenarios.LEARNER, whole);
         final Script script = scenarios.script(CSV.configuration(), LOGON_ONLY)
                 .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter")
                 .expect(QuestionMatcher.configuration("DSParser")).reply(Scenarios.fenced(CSV.configuration()))

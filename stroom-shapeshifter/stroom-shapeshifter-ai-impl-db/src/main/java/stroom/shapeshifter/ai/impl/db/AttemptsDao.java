@@ -18,6 +18,7 @@ package stroom.shapeshifter.ai.impl.db;
 
 import stroom.db.util.JooqUtil;
 import stroom.shapeshifter.ai.stage.Attempts;
+import stroom.shapeshifter.ai.stage.Learner;
 import stroom.shapeshifter.shared.AttemptCriteria;
 import stroom.shapeshifter.shared.AttemptStatus;
 import stroom.shapeshifter.shared.PromotionMode;
@@ -175,9 +176,9 @@ public class AttemptsDao implements Attempts {
         });
     }
 
-    /// One open attempt per shape is what one learner means (A45), whether it is opened for the first
-    /// time or opened again: the claim is taken back under the same unique key, and the database refuses
-    /// it where another attempt has the shape.
+    /// One open attempt per learner and shape (A45), whether it is opened for the first time or opened
+    /// again: the claim is taken back under the same unique key, and the database refuses it where another
+    /// attempt of the learner has the shape.
     @Override
     public boolean reopened(final long attemptId, final long nowMs, final long expiryMs) {
         final long now = System.currentTimeMillis();
@@ -185,7 +186,6 @@ public class AttemptsDao implements Attempts {
             final Record row = context
                     .select(SHAPESHIFTER_ATTEMPT.STATUS,
                             SHAPESHIFTER_ATTEMPT.EXPIRY_MS,
-                            SHAPESHIFTER_ATTEMPT.DOC_UUID,
                             SHAPESHIFTER_ATTEMPT.SHAPE_HASH)
                     .from(SHAPESHIFTER_ATTEMPT)
                     .where(SHAPESHIFTER_ATTEMPT.ID.eq(attemptId))
@@ -235,17 +235,30 @@ public class AttemptsDao implements Attempts {
     }
 
     @Override
-    public Optional<Recorded> open(final String docUuid, final String shape, final long nowMs) {
+    public Optional<Recorded> open(final Learner learner, final String shape, final long nowMs) {
         return JooqUtil.contextResult(connProvider, context -> context
                         .select()
                         .from(SHAPESHIFTER_ATTEMPT)
-                        .where(SHAPESHIFTER_ATTEMPT.DOC_UUID.eq(docUuid))
+                        .where(SHAPESHIFTER_ATTEMPT.PIPELINE_UUID.eq(learner.pipelineUuid()))
+                        .and(SHAPESHIFTER_ATTEMPT.ELEMENT_ID.eq(learner.elementId()))
                         .and(SHAPESHIFTER_ATTEMPT.SHAPE_HASH.eq(ShapesDao.hash(shape)))
                         .and(SHAPESHIFTER_ATTEMPT.STATUS.in(OPEN))
                         .orderBy(SHAPESHIFTER_ATTEMPT.ID.desc())
                         .limit(1)
                         .fetchOptional())
                 .map(record -> recorded(record, turns(record.get(SHAPESHIFTER_ATTEMPT.ID))));
+    }
+
+    @Override
+    public Optional<Learner> learnerOf(final String docUuid, final String shape) {
+        return JooqUtil.contextResult(connProvider, context -> context
+                .select(SHAPESHIFTER_ATTEMPT.PIPELINE_UUID, SHAPESHIFTER_ATTEMPT.ELEMENT_ID)
+                .from(SHAPESHIFTER_ATTEMPT)
+                .where(SHAPESHIFTER_ATTEMPT.DOC_UUID.eq(docUuid))
+                .and(SHAPESHIFTER_ATTEMPT.SHAPE_HASH.eq(ShapesDao.hash(shape)))
+                .orderBy(SHAPESHIFTER_ATTEMPT.ID.desc())
+                .limit(1)
+                .fetchOptional(row -> new Learner(row.value1(), row.value2())));
     }
 
     /// A parked attempt keeps its shape: it is still learning, and its expiry is pushed out by the same
@@ -276,6 +289,8 @@ public class AttemptsDao implements Attempts {
                 .set(SHAPESHIFTER_ATTEMPT.VERSION, 1)
                 .set(SHAPESHIFTER_ATTEMPT.CREATE_TIME_MS, now)
                 .set(SHAPESHIFTER_ATTEMPT.UPDATE_TIME_MS, now)
+                .set(SHAPESHIFTER_ATTEMPT.PIPELINE_UUID, attempt.learner().pipelineUuid())
+                .set(SHAPESHIFTER_ATTEMPT.ELEMENT_ID, attempt.learner().elementId())
                 .set(SHAPESHIFTER_ATTEMPT.DOC_UUID, attempt.docUuid())
                 .set(SHAPESHIFTER_ATTEMPT.SHAPE_HASH, ShapesDao.hash(attempt.shape()))
                 .set(SHAPESHIFTER_ATTEMPT.SHAPE_ID, attempt.shape())
@@ -528,6 +543,8 @@ public class AttemptsDao implements Attempts {
 
     private static Recorded recorded(final Record record, final List<Turn> turns) {
         final Attempt attempt = new Attempt(
+                new Learner(record.get(SHAPESHIFTER_ATTEMPT.PIPELINE_UUID),
+                        record.get(SHAPESHIFTER_ATTEMPT.ELEMENT_ID)),
                 record.get(SHAPESHIFTER_ATTEMPT.DOC_UUID),
                 record.get(SHAPESHIFTER_ATTEMPT.SHAPE_ID),
                 record.get(SHAPESHIFTER_ATTEMPT.FEED_NAME),

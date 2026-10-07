@@ -47,6 +47,7 @@ import stroom.shapeshifter.ai.stage.Decision.Promoted;
 import stroom.shapeshifter.ai.stage.Decision.Provisional;
 import stroom.shapeshifter.ai.stage.Decision.Rebound;
 import stroom.shapeshifter.ai.stage.Input;
+import stroom.shapeshifter.ai.stage.Learner;
 import stroom.shapeshifter.ai.stage.ShapeSignature;
 import stroom.shapeshifter.ai.stage.Stage;
 import stroom.shapeshifter.ai.stage.Stage.Served;
@@ -327,7 +328,8 @@ public class Supervision {
                                  final ElementId elementId,
                                  final Input input,
                                  final ContentHandler downstream) {
-        final StageRun run = stage.decide(doc, input);
+        final Learner learner = learner(elementId);
+        final StageRun run = stage.decide(doc, learner, input);
         if (run.decision() instanceof final Deferred deferred) {
             throw new DeferTaskException(deferred.reason());
         }
@@ -344,7 +346,7 @@ public class Supervision {
         }
         record(bindings, elementId);
         final RoutingRule rule = ruleOf(run.decision());
-        final ServedStream served = stage.stream(doc, rule, input, downstream);
+        final ServedStream served = stage.stream(doc, learner, rule, input, downstream);
         served.diagnostics().forEach(error -> errorReceiverProxy.log(error.getSeverity(),
                 error.getLocation(), error.getElementId(), error.getMessage(), null));
         if (served.records() == 0) {
@@ -409,6 +411,16 @@ public class Supervision {
         } catch (final IOException e) {
             throw new UncheckedIOException(e);
         }
+    }
+
+    /// The learner this element is (A114): the pipeline the processor is running and this element's id in
+    /// it. An element outside a running pipeline has nothing to learn as, so it is refused.
+    private Learner learner(final ElementId elementId) {
+        if (pipelineHolder.getPipeline() == null) {
+            throw ProcessException.create("A Shapeshifter AI element learns as the pipeline it runs in, and "
+                                          + "element " + elementId + " is not running in one");
+        }
+        return new Learner(pipelineHolder.getPipeline().getUuid(), elementId.getId());
     }
 
     /// Forget what this element last decided, because it is about to decide again (A30). The capture

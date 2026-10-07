@@ -101,7 +101,8 @@ class TestScenariosBindingBeforeLearning {
     /// Another node already learning this shape, as the claim of A45 has it: the row that a stage meeting
     /// the shape finds instead of taking it.
     private static long heldByAnotherNode(final Scenarios scenarios, final long untilMs) {
-        return scenarios.attempts.opened(new Attempt("doc-1", shapeX(), "DOOR-ACCESS", "Raw Events", 99L,
+        return scenarios.attempts.opened(new Attempt(Scenarios.LEARNER, "doc-1", shapeX(), "DOOR-ACCESS",
+                "Raw Events", 99L,
                         "node-2", PromotionMode.AUTOMATIC, untilMs),
                 Scenarios.NOW.toEpochMilli()).orElseThrow();
     }
@@ -294,7 +295,7 @@ class TestScenariosBindingBeforeLearning {
         assertThat(silent.asked()).describedAs("the model is asked once for a shape, not once per node")
                 .isEmpty();
         assertThat(scenarios.ledger.isEmpty()).describedAs("waiting is not a refusal (A80)").isTrue();
-        assertThat(scenarios.deferrals.of("doc-1", 1L)).isPresent();
+        assertThat(scenarios.deferrals.of(Scenarios.LEARNER, 1L)).isPresent();
         assertThat(scenarios.rules.forDocument("doc-1")).isEmpty();
 
         // That attempt over, the next stream of the shape learns, and the stream that waited is woken.
@@ -508,7 +509,7 @@ class TestScenariosBindingBeforeLearning {
         scenarios.inputs.put(stream("CSV"));
 
         // The task opens the session and parks it at its first question (design 04 §3).
-        final StageRun parked = scenarios.stage(Script.of()).decide(doc, stream("CSV"));
+        final StageRun parked = scenarios.stage(Script.of()).decide(doc, Scenarios.LEARNER, stream("CSV"));
         assertThat(parked.decision()).describedAs(parked.decision().toString()).isInstanceOf(Deferred.class);
         final Recorded waiting = scenarios.attempts.forDocument("doc-1", 10).get(0);
         assertThat(waiting.status()).isEqualTo(AttemptStatus.AWAITING_MODEL);

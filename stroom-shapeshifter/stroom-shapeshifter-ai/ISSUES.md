@@ -81,7 +81,8 @@ the commit or ruling that closed it, rather than deleting it.
 
 14. **A changelog entry,** through `./log_change.sh`, which needs a GitHub issue number.
 
-18. **The Shapeshifter AI migrations are numbered for 7.13.** The branch targets Stroom 8.0, but its
+18. ~~**The Shapeshifter AI migrations are numbered for 7.13.**~~ *Closed 2026-10-07: the twenty became one,
+    `V08_00_00_001__shapeshifter_ai.sql`, in phase J slice 1.* The branch targets Stroom 8.0, but its
     twenty migrations are `V07_13_00_001` to `V07_13_00_020`. Phase J rewrites them (A111) and renumbers
     them `V08_00_00_*` as it does. The Pipeline Factory's is already `V08_00_00_001`. *Design 06 §7.*
 

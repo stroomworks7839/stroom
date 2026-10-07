@@ -74,7 +74,8 @@ class TestScenario62AParkedSessionSentToTheExhaustionStepCarriesOn {
         scenarios.documents.put(doc);
         scenarios.inputs.put(streamed(1L));
         final Script silent = Script.of();
-        assertThat(scenarios.stage(silent).decide(doc, streamed(1L)).decision()).isInstanceOf(Deferred.class);
+        assertThat(scenarios.stage(silent).decide(doc, Scenarios.LEARNER,
+                streamed(1L)).decision()).isInstanceOf(Deferred.class);
 
         final Script learning = scenarios.script(CSV.configuration(), LOGON_ONLY).charging(1L)
                 .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter")
@@ -142,7 +143,7 @@ class TestScenario62AParkedSessionSentToTheExhaustionStepCarriesOn {
         scenarios.documents.put(doc);
         scenarios.inputs.put(streamed(1L));
         final Script silent = Script.of();
-        scenarios.stage(silent).decide(doc, streamed(1L));
+        scenarios.stage(silent).decide(doc, Scenarios.LEARNER, streamed(1L));
         final Script learning = scenarios.script(CSV.configuration(), LOGON_ONLY).charging(1L)
                 .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter")
                 .expect(QuestionMatcher.configuration("DSParser")).reply(Scenarios.fenced(CSV.configuration()))
@@ -167,7 +168,7 @@ class TestScenario62AParkedSessionSentToTheExhaustionStepCarriesOn {
                 .contains("no 'on spent' transition");
         assertThat(nothing.asked()).describedAs("no transform's question").isEmpty();
         assertThat(scenarios.rules.forDocument(DOC)).describedAs("round one's fragment stays bound").hasSize(1);
-        assertThat(scenarios.deferrals.of(DOC, 1L)).describedAs("and the stream waits").isPresent();
+        assertThat(scenarios.deferrals.of(Scenarios.LEARNER, 1L)).describedAs("and the stream waits").isPresent();
     }
 
     @Test
@@ -183,7 +184,7 @@ class TestScenario62AParkedSessionSentToTheExhaustionStepCarriesOn {
         scenarios.documents.put(doc);
         scenarios.inputs.put(streamed(1L));
         final Script silent = Script.of();
-        scenarios.stage(silent).decide(doc, streamed(1L));
+        scenarios.stage(silent).decide(doc, Scenarios.LEARNER, streamed(1L));
         final Script learning = scenarios.script(CSV.configuration(), LOGON_ONLY).charging(1L)
                 .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter")
                 .expect(QuestionMatcher.configuration("DSParser")).reply(Scenarios.fenced(CSV.configuration()))

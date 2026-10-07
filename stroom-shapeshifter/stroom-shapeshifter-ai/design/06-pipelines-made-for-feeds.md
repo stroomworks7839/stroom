@@ -416,6 +416,43 @@ The largest phase. Its slices keep the build and the scenarios green at each ste
    element. The scenario fixture gives each scenario's feed its own pipeline. Shapes still exist in the
    code but are now one per key, so behaviour is unchanged and every scenario must pass unaltered in
    what it asserts.
+   *How, decided 2026-10-07 on reading the code.* The stage's state is reached through eleven seams, each
+   with an in-memory form, a database form and, for two, a cache in front. Those keyed by a document and
+   a stream — an attempt's claim, and a deferred stream — are keyed instead by a **learner**. A learner is the pipeline and the element (A114),
+   and carries the document it runs under for the rows that record it, though the document is not part
+   of what it is. *Rules* and *shapes* stay the document's in this slice, since slice 2 replaces both
+   with the learner's record, and rekeying them first would be done twice. So does what hangs on a shape
+   rather than a stream — the ledger of a given-up shape's streams, a person's guidance about a shape,
+   and a rule's outputs — since the actions on them (approving a draft, rejecting it, learning a shape
+   again, saying something about it) name a document and a shape and no stream, and would otherwise have
+   to look a learner up from a shape; slice 2's record carries the learner and ends that. While shapes
+   remain, each of a document's feeds and types is one learner, so the two keys cannot disagree. *Spend* stays the
+   document's for good: a budget is the document's setting, counted across the cluster (A44). The document stays on the rows the Supervisor filters by
+   what a person may read, and that the Route tab lists, until phase L. The twenty migrations become one,
+   `V08_00_00_001__shapeshifter_ai.sql`, written as the schema now stands with the learner's columns in
+   place of the document as key; and `shapeshifter_feed_state`, which nothing has read or written since error
+   mode went (A57), is left out. The element knows its learner from `PipelineHolder` and its own id, and
+   passes it to the stage's `decide` and `stream`; the worker reads it from the attempt's row.
+
+   *Built 2026-10-07.* `Learner` is the pipeline and element and nothing else; an attempt and a
+   deferral record the document beside it. A claim is unique per learner and shape, and a deferral per
+   learner and stream. What a promotion wakes is still read by document, feed and type, since a
+   document's shapes are still its own. `improve` begins from a rule and no stream, and claims the
+   shape as the learner of the newest attempt on it (`Attempts.learnerOf`); slice 2 gives the record its
+   learner and removes that. The scenarios run as one fixed learner, which changes nothing while shapes
+   remain, since claims and deferrals are per shape and per stream. A development database migrated
+   under the old numbering must drop the Shapeshifter AI tables and `shapeshifter_ai_schema_history`
+   before it starts on this, since Flyway finds the old versions gone.
+
+   *Audit, 2026-10-07.* Every path that runs the element sets the pipeline it runs in — processing,
+   stepping, reprocessing, headless translation, data preview — so an element always has its learner.
+   One thing is not as it was. A claim was unique per document and shape, and is now per learner and
+   shape, so two pipelines running under one document that meet the same feed and type could each learn
+   it at once, where before the second waited. Neither the supervising pipeline of old nor the factory's
+   pipelines, one per feed, can do that; a person copying a supervised pipeline could. Until slice 2 the
+   two would write rules into one document's table, the newer winning. Slice 2's record, per learner,
+   makes them two learners with a record each.
+
 2. **One record, no rules (A117).** The rule table and the shape table become the element's record.
    The routing table, the reserved rule and the selector code go, and the learning key leaves the
    document; its serialiser drops the old key on read. The deferral, snapshot and wake read the record.

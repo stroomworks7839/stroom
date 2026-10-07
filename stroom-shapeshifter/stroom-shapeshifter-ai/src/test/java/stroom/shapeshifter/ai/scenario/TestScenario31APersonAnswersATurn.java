@@ -128,7 +128,7 @@ class TestScenario31APersonAnswersATurn {
 
         // The task opens the session and asks nobody (A60): it stops at the first question, recorded for
         // whoever will answer it.
-        scenarios.stage(Script.of()).decide(doc, stream(1L));
+        scenarios.stage(Script.of()).decide(doc, Scenarios.LEARNER, stream(1L));
 
         final Recorded parked = scenarios.attempts.forDocument(DOC, 10).get(0);
         assertThat(parked.status()).isEqualTo(AttemptStatus.AWAITING_MODEL);
@@ -201,7 +201,7 @@ class TestScenario31APersonAnswersATurn {
         final ShapeshifterAiDoc doc = scenarios.documents.put(doc().copy()
                 .build());
         scenarios.inputs.put(stream(1L));
-        scenarios.stage(Script.of()).decide(doc, stream(1L));
+        scenarios.stage(Script.of()).decide(doc, Scenarios.LEARNER, stream(1L));
         final Recorded parked = scenarios.attempts.forDocument(DOC, 10).get(0);
         // A worker takes it up, and is walking it now.
         assertThat(scenarios.attempts.claimed(parked.id(), "node-1", Scenarios.NOW.toEpochMilli(),
@@ -275,7 +275,8 @@ class TestScenario31APersonAnswersATurn {
         scenarios.process(model, doc, stream(1L)).learned();
         final Recorded abandoned = scenarios.attempts.forDocument(DOC, 10).get(0);
         // Another node takes the shape in the meantime, by opening an attempt for it.
-        final long theirs = scenarios.attempts.opened(new Attempt(DOC, shape(), "DOOR-ACCESS", "Raw Events",
+        final long theirs = scenarios.attempts.opened(new Attempt(Scenarios.LEARNER, DOC, shape(), "DOOR-ACCESS",
+                "Raw Events",
                         2L, "node-2", PromotionMode.AUTOMATIC, Long.MAX_VALUE),
                 Scenarios.NOW.toEpochMilli()).orElseThrow();
 

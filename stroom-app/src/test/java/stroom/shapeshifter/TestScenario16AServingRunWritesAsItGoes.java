@@ -64,6 +64,7 @@ import stroom.shapeshifter.ai.stage.Attempts;
 import stroom.shapeshifter.ai.stage.Attempts.Recorded;
 import stroom.shapeshifter.ai.stage.Deferrals;
 import stroom.shapeshifter.ai.stage.Deferrals.Deferral;
+import stroom.shapeshifter.ai.stage.Learner;
 import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.ai.transformation.XsltStep;
 import stroom.shapeshifter.shared.AttemptStatus;
@@ -190,7 +191,8 @@ class TestScenario16AServingRunWritesAsItGoes extends AbstractCoreIntegrationTes
         assertThat(visibleChildrenOf(mixed))
                 .describedAs("what the writer made of the records before the short one is discarded (§8.6)")
                 .isEmpty();
-        final Deferral row = deferrals.of(document.getUuid(), mixed.getId()).orElseThrow();
+        final Learner learner = new Learner(filter.getPipelineUuid(), DemoContentPack.STAGE_ELEMENT);
+        final Deferral row = deferrals.of(learner, mixed.getId()).orElseThrow();
         assertThat(row.reason()).startsWith("Record 3 fell short of the bar");
         assertThat(row.failedAgainst())
                 .describedAs("stamped with the snapshot in force (A61)")

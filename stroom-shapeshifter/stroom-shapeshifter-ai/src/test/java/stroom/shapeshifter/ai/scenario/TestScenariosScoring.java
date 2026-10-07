@@ -311,7 +311,8 @@ class TestScenariosScoring {
         assertThat(scenarios.stores.pipelines.list()).isEmpty();
         assertThat(scenarios.shapes.reasonGivenUp(DOC, SHAPE)).isEmpty();
         assertThat(scenarios.ledger.isEmpty()).isTrue();
-        assertThat(scenarios.deferrals.of(DOC, 1L)).describedAs("the stream waits on the parked session").isPresent();
+        assertThat(scenarios.deferrals.of(Scenarios.LEARNER,
+                1L)).describedAs("the stream waits on the parked session").isPresent();
 
         // And the shape is not asked about again while a person decides: the next stream waits on the same
         // session.

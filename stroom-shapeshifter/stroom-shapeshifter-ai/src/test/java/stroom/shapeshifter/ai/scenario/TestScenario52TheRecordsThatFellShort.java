@@ -55,7 +55,7 @@ class TestScenario52TheRecordsThatFellShort {
                 .name("door-access")
                 .build();
 
-        scenarios.stage(document -> Script.of(), scenarios.rules).decide(doc, stream(3L, MIXED));
+        scenarios.stage(document -> Script.of(), scenarios.rules).decide(doc, Scenarios.LEARNER, stream(3L, MIXED));
 
         final List<Deferral> rows = scenarios.deferrals.forDocument(DOC);
         assertThat(rows).hasSize(1);

@@ -17,6 +17,7 @@
 package stroom.shapeshifter.ai.state;
 
 import stroom.shapeshifter.ai.stage.Deferrals;
+import stroom.shapeshifter.ai.stage.Learner;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -30,11 +31,11 @@ public final class InMemoryDeferrals implements Deferrals {
     private final List<Deferral> rows = new ArrayList<>();
 
     @Override
-    public synchronized void deferred(final String docUuid,
+    public synchronized void deferred(final Learner learner,
+                                      final String docUuid,
                                       final long inputId,
                                       final String feed,
                                       final String type,
-                                      final String pipeline,
                                       final Long taskId,
                                       final Integer filterId,
                                       final String failedAgainst,
@@ -43,25 +44,25 @@ public final class InMemoryDeferrals implements Deferrals {
         final long now = System.currentTimeMillis();
         for (int i = 0; i < rows.size(); i++) {
             final Deferral row = rows.get(i);
-            if (row.docUuid().equals(docUuid) && row.inputId() == inputId) {
-                rows.set(i, new Deferral(docUuid, inputId, feed, type, pipeline, taskId, filterId, failedAgainst,
+            if (row.learner().equals(learner) && row.inputId() == inputId) {
+                rows.set(i, new Deferral(learner, docUuid, inputId, feed, type, taskId, filterId, failedAgainst,
                         reason, failingRecords, row.firstDeferredMs(), row.attempts() + 1));
                 return;
             }
         }
-        rows.add(new Deferral(docUuid, inputId, feed, type, pipeline, taskId, filterId, failedAgainst, reason,
+        rows.add(new Deferral(learner, docUuid, inputId, feed, type, taskId, filterId, failedAgainst, reason,
                 failingRecords, now, 1));
     }
 
     @Override
-    public synchronized void released(final String docUuid, final long inputId) {
-        rows.removeIf(row -> row.docUuid().equals(docUuid) && row.inputId() == inputId);
+    public synchronized void released(final Learner learner, final long inputId) {
+        rows.removeIf(row -> row.learner().equals(learner) && row.inputId() == inputId);
     }
 
     @Override
-    public synchronized Optional<Deferral> of(final String docUuid, final long inputId) {
+    public synchronized Optional<Deferral> of(final Learner learner, final long inputId) {
         return rows.stream()
-                .filter(row -> row.docUuid().equals(docUuid) && row.inputId() == inputId)
+                .filter(row -> row.learner().equals(learner) && row.inputId() == inputId)
                 .findFirst();
     }
 

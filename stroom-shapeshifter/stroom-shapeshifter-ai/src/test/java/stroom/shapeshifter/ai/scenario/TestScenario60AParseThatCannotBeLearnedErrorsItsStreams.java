@@ -79,8 +79,10 @@ class TestScenario60AParseThatCannotBeLearnedErrorsItsStreams {
         scenarios.inputs.put(input(1L));
         scenarios.inputs.put(input(2L));
         final Script silent = Script.of();
-        assertThat(scenarios.stage(silent).decide(doc, input(1L)).decision()).isInstanceOf(Deferred.class);
-        assertThat(scenarios.stage(silent).decide(doc, input(2L)).decision()).isInstanceOf(Deferred.class);
+        assertThat(scenarios.stage(silent).decide(doc, Scenarios.LEARNER,
+                input(1L)).decision()).isInstanceOf(Deferred.class);
+        assertThat(scenarios.stage(silent).decide(doc, Scenarios.LEARNER,
+                input(2L)).decision()).isInstanceOf(Deferred.class);
 
         // The one parser candidate cuts the whole stream as one record: yield short of the gate (A54), and
         // nothing else to try.
@@ -100,10 +102,10 @@ class TestScenario60AParseThatCannotBeLearnedErrorsItsStreams {
 
         // Each woken task errors with the reason, its row goes, and no session opens again.
         for (final long id : List.of(1L, 2L)) {
-            final StageRun run = scenarios.stage(silent).decide(doc, input(id));
+            final StageRun run = scenarios.stage(silent).decide(doc, Scenarios.LEARNER, input(id));
             assertThat(run.decision()).isInstanceOf(Sentinel.class);
             assertThat(((Sentinel) run.decision()).reason()).contains("Shape given up");
-            assertThat(scenarios.deferrals.of(DOC, id)).isEmpty();
+            assertThat(scenarios.deferrals.of(Scenarios.LEARNER, id)).isEmpty();
         }
         assertThat(scenarios.attempts.forDocument(DOC, 10)).hasSize(1);
         assertThat(silent.asked()).isEmpty();

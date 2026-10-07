@@ -75,6 +75,16 @@ public class ShapeshifterAttempt extends TableImpl<ShapeshifterAttemptRecord> {
     public final TableField<ShapeshifterAttemptRecord, Long> UPDATE_TIME_MS = createField(DSL.name("update_time_ms"), SQLDataType.BIGINT.nullable(false), this, "");
 
     /**
+     * The column <code>stroom.shapeshifter_attempt.pipeline_uuid</code>.
+     */
+    public final TableField<ShapeshifterAttemptRecord, String> PIPELINE_UUID = createField(DSL.name("pipeline_uuid"), SQLDataType.VARCHAR(255).nullable(false), this, "");
+
+    /**
+     * The column <code>stroom.shapeshifter_attempt.element_id</code>.
+     */
+    public final TableField<ShapeshifterAttemptRecord, String> ELEMENT_ID = createField(DSL.name("element_id"), SQLDataType.VARCHAR(255).nullable(false), this, "");
+
+    /**
      * The column <code>stroom.shapeshifter_attempt.doc_uuid</code>.
      */
     public final TableField<ShapeshifterAttemptRecord, String> DOC_UUID = createField(DSL.name("doc_uuid"), SQLDataType.VARCHAR(255).nullable(false), this, "");
@@ -202,7 +212,7 @@ public class ShapeshifterAttempt extends TableImpl<ShapeshifterAttemptRecord> {
 
     @Override
     public List<Index> getIndexes() {
-        return Arrays.asList(Indexes.SHAPESHIFTER_ATTEMPT_SHAPESHIFTER_ATTEMPT_CREATE_TIME_MS, Indexes.SHAPESHIFTER_ATTEMPT_SHAPESHIFTER_ATTEMPT_DOC_SHAPE, Indexes.SHAPESHIFTER_ATTEMPT_SHAPESHIFTER_ATTEMPT_STATUS);
+        return Arrays.asList(Indexes.SHAPESHIFTER_ATTEMPT_SHAPESHIFTER_ATTEMPT_CREATE_TIME_MS, Indexes.SHAPESHIFTER_ATTEMPT_SHAPESHIFTER_ATTEMPT_DOC_UUID, Indexes.SHAPESHIFTER_ATTEMPT_SHAPESHIFTER_ATTEMPT_LEARNER_SHAPE, Indexes.SHAPESHIFTER_ATTEMPT_SHAPESHIFTER_ATTEMPT_STATUS);
     }
 
     @Override

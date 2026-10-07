@@ -58,7 +58,8 @@ class TestScenario58ASessionWhoseNodeDiesIsCarriedOnByAnother {
         scenarios.documents.put(doc);
         scenarios.inputs.put(input(1L));
         final Script silent = Script.of();
-        assertThat(scenarios.stage(silent).decide(doc, input(1L)).decision()).isInstanceOf(Deferred.class);
+        assertThat(scenarios.stage(silent).decide(doc, Scenarios.LEARNER,
+                input(1L)).decision()).isInstanceOf(Deferred.class);
         final long session = scenarios.attempts.forDocument(DOC, 10).get(0).id();
 
         // Node one takes the session and dies at the transform question: the JVM is gone, and nothing
@@ -80,7 +81,8 @@ class TestScenario58ASessionWhoseNodeDiesIsCarriedOnByAnother {
         // The shape is still the session's: a second stream waits on it and no other opens; and while
         // the lease runs the worker leaves it to the node that holds it.
         scenarios.inputs.put(input(2L));
-        assertThat(scenarios.stage(silent).decide(doc, input(2L)).decision()).isInstanceOf(Deferred.class);
+        assertThat(scenarios.stage(silent).decide(doc, Scenarios.LEARNER,
+                input(2L)).decision()).isInstanceOf(Deferred.class);
         assertThat(scenarios.attempts.forDocument(DOC, 10)).hasSize(1);
         scenarios.node = "node-2";
         assertThat(scenarios.worker(silent).advance(10)).describedAs("not lapsed yet: nobody else's").isZero();
