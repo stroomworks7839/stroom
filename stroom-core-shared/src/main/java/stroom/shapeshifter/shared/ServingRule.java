@@ -44,8 +44,6 @@ public class ServingRule {
     @JsonProperty
     private final DocRef fragment;
     @JsonProperty
-    private final boolean pinned;
-    @JsonProperty
     private final boolean provisional;
     @JsonProperty
     private final Double promotedScore;
@@ -71,7 +69,6 @@ public class ServingRule {
                        @JsonProperty("learner") final LearnerRef learner,
                        @JsonProperty("ruleUuid") final String ruleUuid,
                        @JsonProperty("fragment") final DocRef fragment,
-                       @JsonProperty("pinned") final boolean pinned,
                        @JsonProperty("provisional") final boolean provisional,
                        @JsonProperty("promotedScore") final Double promotedScore,
                        @JsonProperty("promotedTimeMs") final Long promotedTimeMs,
@@ -84,7 +81,6 @@ public class ServingRule {
         this.learner = learner;
         this.ruleUuid = ruleUuid;
         this.fragment = fragment;
-        this.pinned = pinned;
         this.provisional = provisional;
         this.promotedScore = promotedScore;
         this.promotedTimeMs = promotedTimeMs;
@@ -110,14 +106,6 @@ public class ServingRule {
 
     public DocRef getFragment() {
         return fragment;
-    }
-
-    /**
-     * A pinned rule is frozen (design 01 §7.3 rule 2): served, never rebound. It cannot be improved
-     * until somebody unpins it, and the list says so rather than letting the button fail.
-     */
-    public boolean isPinned() {
-        return pinned;
     }
 
     /**

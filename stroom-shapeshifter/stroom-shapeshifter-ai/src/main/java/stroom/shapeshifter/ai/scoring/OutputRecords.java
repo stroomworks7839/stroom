@@ -16,7 +16,7 @@
 
 package stroom.shapeshifter.ai.scoring;
 
-import stroom.shapeshifter.ai.stage.ShapeSignature;
+import stroom.shapeshifter.ai.stage.RecordSkeleton;
 import stroom.shapeshifter.shared.RecordBoundary;
 
 import net.sf.saxon.s9api.Processor;
@@ -88,7 +88,7 @@ public final class OutputRecords {
      * @return The output as records, or empty where the output is not markup or does not parse.
      */
     public static Optional<OutputRecords> parse(final String output) {
-        if (output == null || !ShapeSignature.isMarkup(output)) {
+        if (output == null || !RecordSkeleton.isMarkup(output)) {
             return Optional.empty();
         }
         try {

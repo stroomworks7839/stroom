@@ -162,14 +162,6 @@ class TestImproveARuleThatIsServing {
         scenarios.process(learn(scenarios), doc, stream()).learned();
         final RoutingRule bound = scenarios.rules.forLearner(Scenarios.LEARNER).get(0);
 
-        scenarios.rules.replace(Scenarios.LEARNER, "doc-1", bound.copy().pinned(true).build());
-        assertThatThrownBy(() -> stage.improve(doc, bound.getUuid(), null, "jo"))
-                .describedAs("a pin freezes a rule (§7.3 rule 2), and an improvement rebinds it — which "
-                             + "is exactly what the pin is there to stop")
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("pinned");
-        scenarios.rules.replace(Scenarios.LEARNER, "doc-1", bound.copy().pinned(false).build());
-
         assertThatThrownBy(() -> stage.improve(doc().copy().learningMode(LearningMode.DISABLED).build(),
                 bound.getUuid(), null, "jo"))
                 .describedAs("the kill switch is a kill switch: a button that asked anyway would be a "
@@ -228,7 +220,7 @@ class TestImproveARuleThatIsServing {
                 .name("door-access")
                 .learningMode(LearningMode.AUTOMATIC)
                 .allowedElements(List.of("DSParser", "XSLTFilter"))
-                .minRecordsPerShape(1)
+                .minRecordsToLearn(1)
                 .promotionFloor(0.85)
                 // Named, because a document with no scorers scores every chain 1.0 and no candidate
                 // could ever be worse than what it would replace.

@@ -1302,6 +1302,12 @@ appConfig:
         prepStmtCacheSize: 25
         prepStmtCacheSqlLimit: 256
     deferredLearningBatchSize: 10
+    learnerStateCache:
+      expireAfterAccess: "PT10M"
+      expireAfterWrite: null
+      maximumSize: 10000
+      refreshAfterWrite: null
+      statisticsMode: "INTERNAL"
     ruleCache:
       expireAfterAccess: "PT10M"
       expireAfterWrite: null
@@ -1309,12 +1315,6 @@ appConfig:
       refreshAfterWrite: null
       statisticsMode: "INTERNAL"
     sessionLease: "PT10M"
-    shapeCache:
-      expireAfterAccess: "PT10M"
-      expireAfterWrite: null
-      maximumSize: 10000
-      refreshAfterWrite: null
-      statisticsMode: "INTERNAL"
   solr:
     indexCache:
       expireAfterAccess: null

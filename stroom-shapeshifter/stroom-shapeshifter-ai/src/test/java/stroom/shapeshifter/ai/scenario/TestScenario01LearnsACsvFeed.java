@@ -65,7 +65,7 @@ class TestScenario01LearnsACsvFeed {
                 .learningMode(LearningMode.AUTOMATIC)
                 .flow(FlowExample.TARGET_FIRST)
                 .allowedElements(List.of("DSParser", "XSLTFilter"))
-                .minRecordsPerShape(5)
+                .minRecordsToLearn(5)
                 // The golden splitter reads the header line into a variable, which coverage counts as
                 // discarded — design 01 §9.1's finding — so the split scores 6/7 and the floor sits below it.
                 .promotionFloor(0.85)
@@ -147,7 +147,6 @@ class TestScenario01LearnsACsvFeed {
         assertThat(rule.getUuid()).describedAs("A26: a learned rule is named stably").isNotNull();
         assertThat(rule.isDraft()).isFalse();
         assertThat(rule.getPromotedTimeMs()).isEqualTo(Scenarios.NOW.toEpochMilli());
-        assertThat(rule.isPinned()).isFalse();
 
         // The fragment is real content: a Source → DSParser → SplitFilter → XSLTFilter pipeline over two new
         // documents, the split giving the transform one record at a time (design 04 §3).

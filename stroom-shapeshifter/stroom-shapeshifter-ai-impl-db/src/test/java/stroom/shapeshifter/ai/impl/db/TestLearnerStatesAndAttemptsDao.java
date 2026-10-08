@@ -43,8 +43,14 @@ import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.OptionalDouble;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -114,6 +120,38 @@ class TestLearnerStatesAndAttemptsDao {
         // Reset starts it afresh, as a promotion or a retraction does.
         states.reset(LEARNER);
         assertThat(states.scored(LEARNER, DOC, 1.0, 1, 1)).hasValue(1.0);
+    }
+
+    /// The first streams of a new learner are often served at once, and each finds no row and makes it.
+    /// Made under a shared lock, the next step's `FOR UPDATE` deadlocked them and the database killed one,
+    /// erroring its stream; made under the exclusive lock, they queue. Several new learners, each scored
+    /// by many threads together, every score counted.
+    @Test
+    void theFirstStreamsOfANewLearnerScoredAtOnceAllCount() throws Exception {
+        final int threads = 8;
+        final ExecutorService pool = Executors.newFixedThreadPool(threads);
+        try {
+            for (int round = 0; round < 5; round++) {
+                final Learner fresh = new Learner("fresh-" + System.nanoTime(), "shapeshifterAi");
+                final CountDownLatch start = new CountDownLatch(1);
+                final List<Future<OptionalDouble>> scored = new ArrayList<>();
+                for (int i = 0; i < threads; i++) {
+                    scored.add(pool.submit(() -> {
+                        start.await();
+                        return states.scored(fresh, DOC, 1.0, 1, 1000);
+                    }));
+                }
+                start.countDown();
+                for (final Future<OptionalDouble> each : scored) {
+                    each.get(30, TimeUnit.SECONDS);
+                }
+                assertThat(states.rolling(fresh))
+                        .describedAs("round " + round + ": every thread's record counted")
+                        .hasValueSatisfying(rolling -> assertThat(rolling.records()).isEqualTo(threads));
+            }
+        } finally {
+            pool.shutdownNow();
+        }
     }
 
     @Test

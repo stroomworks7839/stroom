@@ -146,7 +146,7 @@ class TestDeletedPipelinesDao {
                 .build());
         states.giveUp(learner, DOC, "Gave up.");
         guidance.given(learner, DOC, "Times are local.", "jo");
-        deferrals.deferred(learner, DOC, 7L, "DOOR-ACCESS", "Raw Events", null, null, null, "Waiting.", 0);
+        deferrals.deferred(learner, DOC, 7L, "DOOR-ACCESS", "Raw Events", null, "Waiting.", 0);
         final long attemptId = attempts.opened(new Attempt(learner, DOC, "DOOR-ACCESS", "Raw Events", 7L,
                 "node-1", PromotionMode.AUTOMATIC, 60_000L), 1_000L).orElseThrow();
         attempts.turn(attemptId, new Turn(1, "chain", 1, QuestionKind.CHAIN, "Which chain?", "DSParser",

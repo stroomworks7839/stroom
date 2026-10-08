@@ -80,8 +80,8 @@ public class RulesDao implements Rules {
     }
 
     /// A rule the learner does not have is appended rather than lost: a promotion must not be dropped
-    /// because its row was pruned between the run and the write. Two writers of one rule — a supervisor
-    /// rebinding it while a person pins it — are serialised on the row, the second seeing what the first
+    /// because its row was pruned between the run and the write. Two writers of one rule — a provisional
+    /// rule promoted while a person accepts it — are serialised on the row, the second seeing what the first
     /// wrote rather than both succeeding blind.
     @Override
     public void replace(final Learner learner, final String docUuid, final RoutingRule rule) {
@@ -98,7 +98,6 @@ public class RulesDao implements Rules {
                     .set(SHAPESHIFTER_RULE.FRAGMENT_TYPE, type(rule))
                     .set(SHAPESHIFTER_RULE.FRAGMENT_UUID, uuid(rule))
                     .set(SHAPESHIFTER_RULE.FRAGMENT_NAME, name(rule))
-                    .set(SHAPESHIFTER_RULE.PINNED, rule.isPinned())
                     .set(SHAPESHIFTER_RULE.DRAFT, rule.isDraft())
                     .set(SHAPESHIFTER_RULE.PROVISIONAL, rule.isProvisional())
                     .set(SHAPESHIFTER_RULE.PROMOTED_TIME_MS, rule.getPromotedTimeMs())
@@ -146,7 +145,6 @@ public class RulesDao implements Rules {
                 .set(SHAPESHIFTER_RULE.FRAGMENT_TYPE, type(stored))
                 .set(SHAPESHIFTER_RULE.FRAGMENT_UUID, uuid(stored))
                 .set(SHAPESHIFTER_RULE.FRAGMENT_NAME, name(stored))
-                .set(SHAPESHIFTER_RULE.PINNED, stored.isPinned())
                 .set(SHAPESHIFTER_RULE.DRAFT, stored.isDraft())
                 .set(SHAPESHIFTER_RULE.PROVISIONAL, stored.isProvisional())
                 .set(SHAPESHIFTER_RULE.PROMOTED_TIME_MS, stored.getPromotedTimeMs())
@@ -170,7 +168,6 @@ public class RulesDao implements Rules {
                         ? null
                         : new DocRef(record.get(SHAPESHIFTER_RULE.FRAGMENT_TYPE), fragmentUuid,
                                 record.get(SHAPESHIFTER_RULE.FRAGMENT_NAME)))
-                .pinned(record.get(SHAPESHIFTER_RULE.PINNED))
                 .draft(record.get(SHAPESHIFTER_RULE.DRAFT))
                 .provisional(record.get(SHAPESHIFTER_RULE.PROVISIONAL))
                 .promotedTimeMs(record.get(SHAPESHIFTER_RULE.PROMOTED_TIME_MS))

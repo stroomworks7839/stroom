@@ -55,7 +55,7 @@ class TestScenario38ReadBackBySpan {
                 .name("door-access")
                 .learningMode(LearningMode.AUTOMATIC)
                 .allowedElements(List.of("DSParser", "XSLTFilter"))
-                .minRecordsPerShape(1)
+                .minRecordsToLearn(1)
                 .build();
     }
 

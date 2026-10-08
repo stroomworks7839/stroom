@@ -117,115 +117,87 @@ public class ShapeshifterDeferralRecord extends UpdatableRecordImpl<Shapeshifter
     }
 
     /**
-     * Setter for <code>stroom.shapeshifter_deferral.task_id</code>.
-     */
-    public void setTaskId(Long value) {
-        set(7, value);
-    }
-
-    /**
-     * Getter for <code>stroom.shapeshifter_deferral.task_id</code>.
-     */
-    public Long getTaskId() {
-        return (Long) get(7);
-    }
-
-    /**
-     * Setter for <code>stroom.shapeshifter_deferral.filter_id</code>.
-     */
-    public void setFilterId(Integer value) {
-        set(8, value);
-    }
-
-    /**
-     * Getter for <code>stroom.shapeshifter_deferral.filter_id</code>.
-     */
-    public Integer getFilterId() {
-        return (Integer) get(8);
-    }
-
-    /**
      * Setter for <code>stroom.shapeshifter_deferral.failed_against</code>.
      */
     public void setFailedAgainst(String value) {
-        set(9, value);
+        set(7, value);
     }
 
     /**
      * Getter for <code>stroom.shapeshifter_deferral.failed_against</code>.
      */
     public String getFailedAgainst() {
-        return (String) get(9);
+        return (String) get(7);
     }
 
     /**
      * Setter for <code>stroom.shapeshifter_deferral.reason</code>.
      */
     public void setReason(String value) {
-        set(10, value);
+        set(8, value);
     }
 
     /**
      * Getter for <code>stroom.shapeshifter_deferral.reason</code>.
      */
     public String getReason() {
-        return (String) get(10);
+        return (String) get(8);
     }
 
     /**
      * Setter for <code>stroom.shapeshifter_deferral.failing_records</code>.
      */
     public void setFailingRecords(Integer value) {
-        set(11, value);
+        set(9, value);
     }
 
     /**
      * Getter for <code>stroom.shapeshifter_deferral.failing_records</code>.
      */
     public Integer getFailingRecords() {
-        return (Integer) get(11);
+        return (Integer) get(9);
     }
 
     /**
      * Setter for <code>stroom.shapeshifter_deferral.first_deferred_ms</code>.
      */
     public void setFirstDeferredMs(Long value) {
-        set(12, value);
+        set(10, value);
     }
 
     /**
      * Getter for <code>stroom.shapeshifter_deferral.first_deferred_ms</code>.
      */
     public Long getFirstDeferredMs() {
-        return (Long) get(12);
+        return (Long) get(10);
     }
 
     /**
      * Setter for <code>stroom.shapeshifter_deferral.update_time_ms</code>.
      */
     public void setUpdateTimeMs(Long value) {
-        set(13, value);
+        set(11, value);
     }
 
     /**
      * Getter for <code>stroom.shapeshifter_deferral.update_time_ms</code>.
      */
     public Long getUpdateTimeMs() {
-        return (Long) get(13);
+        return (Long) get(11);
     }
 
     /**
      * Setter for <code>stroom.shapeshifter_deferral.attempts</code>.
      */
     public void setAttempts(Integer value) {
-        set(14, value);
+        set(12, value);
     }
 
     /**
      * Getter for <code>stroom.shapeshifter_deferral.attempts</code>.
      */
     public Integer getAttempts() {
-        return (Integer) get(14);
+        return (Integer) get(12);
     }
 
     // -------------------------------------------------------------------------
@@ -251,7 +223,7 @@ public class ShapeshifterDeferralRecord extends UpdatableRecordImpl<Shapeshifter
     /**
      * Create a detached, initialised ShapeshifterDeferralRecord
      */
-    public ShapeshifterDeferralRecord(Long id, String pipelineUuid, String elementId, String docUuid, Long metaId, String feedName, String typeName, Long taskId, Integer filterId, String failedAgainst, String reason, Integer failingRecords, Long firstDeferredMs, Long updateTimeMs, Integer attempts) {
+    public ShapeshifterDeferralRecord(Long id, String pipelineUuid, String elementId, String docUuid, Long metaId, String feedName, String typeName, String failedAgainst, String reason, Integer failingRecords, Long firstDeferredMs, Long updateTimeMs, Integer attempts) {
         super(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL);
 
         setId(id);
@@ -261,8 +233,6 @@ public class ShapeshifterDeferralRecord extends UpdatableRecordImpl<Shapeshifter
         setMetaId(metaId);
         setFeedName(feedName);
         setTypeName(typeName);
-        setTaskId(taskId);
-        setFilterId(filterId);
         setFailedAgainst(failedAgainst);
         setReason(reason);
         setFailingRecords(failingRecords);

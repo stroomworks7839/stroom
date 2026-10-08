@@ -66,7 +66,7 @@ class TestScenario22ReviewMode {
                 .flow(FlowExample.TARGET_FIRST)
                 .promotionMode(PromotionMode.REVIEW)
                 .allowedElements(List.of("DSParser", "XSLTFilter"))
-                .minRecordsPerShape(5)
+                .minRecordsToLearn(5)
                 .scorers(List.of(
                         new ScorerSetting(ScorerType.COMPILE, 0.0, 1.0, true, null),
                         new ScorerSetting(ScorerType.INPUT_COVERAGE, 1.0, 0.8, false, null),
@@ -269,7 +269,7 @@ class TestScenario22ReviewMode {
         final int attemptsBefore = scenarios.attempts.forDocument(DOC, 100).size();
         // A stream that fell short of the incumbent before, tried again: its row is stamped against the
         // transform in force, which is what sends a task to open a session.
-        scenarios.deferrals.deferred(Scenarios.LEARNER, DOC, 7L, "DOOR-ACCESS", "Raw Events", null, null,
+        scenarios.deferrals.deferred(Scenarios.LEARNER, DOC, 7L, "DOOR-ACCESS", "Raw Events",
                 incumbent.getSnapshot(), "Record 3 fell short of the bar", 1);
         scenarios.inputs.put(stream(7, withAlarms));
 
@@ -375,7 +375,7 @@ class TestScenario22ReviewMode {
         // goes live with the records it was judged on in its regression set (A18).
         final Scenarios scenarios = new Scenarios();
         final Script script = learning(scenarios, FOUR_FIELDS);
-        final StageRun first = scenarios.process(script, review().copy().minRecordsPerShape(10).build(),
+        final StageRun first = scenarios.process(script, review().copy().minRecordsToLearn(10).build(),
                 stream(1, lines(6, 0))).learned();
         final RoutingRule draft = ((Drafted) first.decision()).rule();
         assertThat(draft.isProvisional()).isTrue();
@@ -388,28 +388,6 @@ class TestScenario22ReviewMode {
         assertThat(scenarios.regressionSet.accepted(live.getUuid()))
                 .describedAs("one entry per record of the sample it was learned from, however few (A56)")
                 .hasSize(5);
-    }
-
-    @Test
-    void aPinnedIncumbentRefusesApprovalOfADraftInItsPlace() {
-        final Scenarios scenarios = new Scenarios();
-        final StageRun waiting = drafted(scenarios);
-        scenarios.stage(Script.of()).approve(waiting.doc(),
-                scenarios.rules.forLearner(Scenarios.LEARNER).get(0).getUuid());
-        final ShapeshifterAiDoc bound = waiting.doc();
-        final String withAlarms = lines(20, 3);
-        scenarios.process(Script.of(), bound, stream(3, withAlarms)).learned();
-        // The mark is a person's (design 04 §6).
-        scenarios.states.markForRelearning(Scenarios.LEARNER, DOC, "Scored below the threshold: improve it");
-        final StageRun relearned = scenarios.process(learning(scenarios, FOUR_FIELDS_AND_ALARMS), bound, stream(4,
-                withAlarms)).learned();
-        final RoutingRule draft = ((Drafted) relearned.decision()).rule();
-        final RoutingRule pinned = scenarios.rules.forLearner(Scenarios.LEARNER).get(0).copy().pinned(true).build();
-        scenarios.rules.replace(Scenarios.LEARNER, DOC, pinned);
-
-        assertThatThrownBy(() -> scenarios.stage(Script.of()).approve(relearned.doc(), draft.getUuid()))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("pinned");
     }
 
     @Test

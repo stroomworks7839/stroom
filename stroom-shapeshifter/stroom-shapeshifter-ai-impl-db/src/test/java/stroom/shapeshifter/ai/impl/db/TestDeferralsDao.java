@@ -51,10 +51,10 @@ class TestDeferralsDao {
 
     @Test
     void aStreamPutBackTwiceIsOneRowThatKeepsWhenItFirstWaited() {
-        deferrals.deferred(LEARNER, DOC, 7L, "DOOR-ACCESS", "Raw Events", 100L, 5, "frag:1",
+        deferrals.deferred(LEARNER, DOC, 7L, "DOOR-ACCESS", "Raw Events", "frag:1",
                 "2 of 6 record(s) fell short of the bar", 2);
         final Deferral first = deferrals.forDocument(DOC).getFirst();
-        deferrals.deferred(LEARNER, DOC, 7L, "DOOR-ACCESS", "Raw Events", 101L, 5, "frag:2",
+        deferrals.deferred(LEARNER, DOC, 7L, "DOOR-ACCESS", "Raw Events", "frag:2",
                 "1 of 6 record(s) fell short of the bar", 1);
 
         final List<Deferral> rows = deferrals.forDocument(DOC);
@@ -62,8 +62,6 @@ class TestDeferralsDao {
         assertThat(rows).hasSize(1);
         final Deferral row = rows.getFirst();
         assertThat(row.attempts()).isEqualTo(2);
-        assertThat(row.taskId()).isEqualTo(101L);
-        assertThat(row.filterId()).isEqualTo(5);
         assertThat(row.failedAgainst()).isEqualTo("frag:2");
         assertThat(row.failingRecords()).isEqualTo(1);
         assertThat(row.reason()).isEqualTo("1 of 6 record(s) fell short of the bar");
@@ -71,16 +69,14 @@ class TestDeferralsDao {
     }
 
     @Test
-    void aStreamWithNoRuleAndNoTaskIsARowOfNulls() {
-        deferrals.deferred(LEARNER, DOC, 8L, "LIFT", "Raw Events", null, null, null, "no rule for this shape", 0);
+    void aStreamWithNoRuleFailedAgainstNothing() {
+        deferrals.deferred(LEARNER, DOC, 8L, "LIFT", "Raw Events", null, "no rule for this shape", 0);
 
         final Deferral row = deferrals.forDocument(DOC).getFirst();
 
         // The pipeline is the learner's, so it is never missing (A114).
         assertThat(row.learner()).isEqualTo(LEARNER);
         assertThat(row.pipeline()).isEqualTo(LEARNER.pipelineUuid());
-        assertThat(row.taskId()).isNull();
-        assertThat(row.filterId()).isNull();
         assertThat(row.failedAgainst()).isNull();
         assertThat(row.failingRecords()).isZero();
         assertThat(row.attempts()).isEqualTo(1);
@@ -88,9 +84,9 @@ class TestDeferralsDao {
 
     @Test
     void oneStreamsRowComesBackByItsId() {
-        deferrals.deferred(LEARNER, DOC, 7L, "DOOR-ACCESS", "Raw Events", 100L, 5, "frag:1", "short", 2);
-        deferrals.deferred(LEARNER, DOC, 9L, "DOOR-ACCESS", "Raw Events", 102L, 5, null, "no rule", 0);
-        deferrals.deferred(OTHER_LEARNER, OTHER_DOC, 8L, "LIFT", "Raw Events", 101L, 5, null, "no rule", 0);
+        deferrals.deferred(LEARNER, DOC, 7L, "DOOR-ACCESS", "Raw Events", "frag:1", "short", 2);
+        deferrals.deferred(LEARNER, DOC, 9L, "DOOR-ACCESS", "Raw Events", null, "no rule", 0);
+        deferrals.deferred(OTHER_LEARNER, OTHER_DOC, 8L, "LIFT", "Raw Events", null, "no rule", 0);
 
         assertThat(deferrals.of(LEARNER, 9L)).isPresent().get().extracting(Deferral::reason).isEqualTo("no rule");
         assertThat(deferrals.of(LEARNER, 99L)).isEmpty();
@@ -99,9 +95,9 @@ class TestDeferralsDao {
 
     @Test
     void releasedRowsAreGoneAndOtherDocumentsAreUntouched() {
-        deferrals.deferred(LEARNER, DOC, 7L, "DOOR-ACCESS", "Raw Events", 100L, 5, "frag:1", "short", 2);
-        deferrals.deferred(LEARNER, DOC, 9L, "DOOR-ACCESS", "Raw Events", 102L, 5, "frag:1", "short", 3);
-        deferrals.deferred(OTHER_LEARNER, OTHER_DOC, 7L, "DOOR-ACCESS", "Raw Events", 103L, 6, "frag:9", "short", 1);
+        deferrals.deferred(LEARNER, DOC, 7L, "DOOR-ACCESS", "Raw Events", "frag:1", "short", 2);
+        deferrals.deferred(LEARNER, DOC, 9L, "DOOR-ACCESS", "Raw Events", "frag:1", "short", 3);
+        deferrals.deferred(OTHER_LEARNER, OTHER_DOC, 7L, "DOOR-ACCESS", "Raw Events", "frag:9", "short", 1);
 
         deferrals.released(LEARNER, 7L);
 
@@ -114,10 +110,10 @@ class TestDeferralsDao {
     /// shared with whatever else has run against the database, so only these two learners are looked at.
     @Test
     void eachLearnerAndTransformWaitedAgainstIsNamedOnce() {
-        deferrals.deferred(LEARNER, DOC, 7L, "DOOR-ACCESS", "Raw Events", 100L, 5, "frag:1", "short", 2);
-        deferrals.deferred(LEARNER, DOC, 8L, "DOOR-ACCESS", "Raw Events", 101L, 5, "frag:1", "short", 1);
-        deferrals.deferred(LEARNER, DOC, 9L, "LIFT", "Raw Events", 102L, 5, null, "no rule", 0);
-        deferrals.deferred(OTHER_LEARNER, OTHER_DOC, 7L, "DOOR-ACCESS", "Raw Events", 103L, 6, "frag:9", "short", 1);
+        deferrals.deferred(LEARNER, DOC, 7L, "DOOR-ACCESS", "Raw Events", "frag:1", "short", 2);
+        deferrals.deferred(LEARNER, DOC, 8L, "DOOR-ACCESS", "Raw Events", "frag:1", "short", 1);
+        deferrals.deferred(LEARNER, DOC, 9L, "LIFT", "Raw Events", null, "no rule", 0);
+        deferrals.deferred(OTHER_LEARNER, OTHER_DOC, 7L, "DOOR-ACCESS", "Raw Events", "frag:9", "short", 1);
 
         assertThat(deferrals.stampsWaiting())
                 .filteredOn(stamp -> stamp.learner().equals(LEARNER) || stamp.learner().equals(OTHER_LEARNER))

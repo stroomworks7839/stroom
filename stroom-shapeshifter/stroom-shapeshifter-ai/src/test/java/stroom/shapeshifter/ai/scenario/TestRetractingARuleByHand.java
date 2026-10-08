@@ -133,13 +133,6 @@ class TestRetractingARuleByHand {
                 .describedAs("a draft served nothing, so deciding it is Approve or Reject (A25)")
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("draft awaiting review");
-
-        scenarios.rules.replace(Scenarios.LEARNER, "doc-1", bound.copy().pinned(true).build());
-        assertThatThrownBy(() -> stage.retract(doc, bound.getUuid(), "Wrong.", "jo"))
-                .describedAs("§7.3 rule 2: a pin freezes a rule — served, never promoted, retracted or "
-                             + "relearned")
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("pinned");
     }
 
     /// The attempt that bound the rule says it has been taken back.
@@ -228,11 +221,6 @@ class TestRetractingARuleByHand {
                 .describedAs("a rule already serving on a judgement has nothing to accept")
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("not a provisional binding");
-        scenarios.rules.replace(Scenarios.LEARNER, "doc-1", accepted.copy().provisional(true).pinned(true).build());
-        assertThatThrownBy(() -> stage.accept(doc, "provisional", "jo"))
-                .describedAs("§7.3 rule 2: a pin freezes a rule — served, never promoted")
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("pinned");
     }
 
     private Script learn(final Scenarios scenarios) {
@@ -248,7 +236,7 @@ class TestRetractingARuleByHand {
                 .name("door-access")
                 .learningMode(LearningMode.AUTOMATIC)
                 .allowedElements(List.of("DSParser", "XSLTFilter"))
-                .minRecordsPerShape(1)
+                .minRecordsToLearn(1)
                 .promotionFloor(0.85)
                 // Named, because a document with no scorers scores every chain 1.0.
                 .scorers(List.of(

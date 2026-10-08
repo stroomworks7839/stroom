@@ -24,7 +24,7 @@ import stroom.meta.api.MetaService;
 import stroom.meta.shared.Meta;
 import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.Inputs;
-import stroom.shapeshifter.ai.stage.ShapeSignature;
+import stroom.shapeshifter.ai.stage.RecordSkeleton;
 import stroom.util.logging.LambdaLogger;
 import stroom.util.logging.LambdaLoggerFactory;
 import stroom.util.logging.LogUtil;
@@ -82,7 +82,7 @@ public class StreamInputs implements Inputs {
                             : attributes, prefix.text())
                     : Input.streamed(metaId, meta.getFeedName(), meta.getTypeName(), attributes == null
                             ? Map.of()
-                            : attributes, prefix.text(), null, null, null, () -> open(metaId)));
+                            : attributes, prefix.text(), null, () -> open(metaId)));
         } catch (final Exception e) {
             // Deleted, on a volume this node cannot reach, or unreadable — and the close of the source
             // throws a checked exception besides. The attempt that was learning from it is abandoned by
@@ -100,7 +100,7 @@ public class StreamInputs implements Inputs {
             final InputStream in = provider.get();
             final byte[] bytes = in.readNBytes(Input.PREFIX_BYTES);
             final boolean complete = bytes.length < Input.PREFIX_BYTES || in.read() < 0;
-            final String text = ShapeSignature.withoutBom(new String(bytes, StandardCharsets.UTF_8));
+            final String text = RecordSkeleton.withoutBom(new String(bytes, StandardCharsets.UTF_8));
             return new Prefix(complete
                     ? text
                     : wholeLines(text), complete);

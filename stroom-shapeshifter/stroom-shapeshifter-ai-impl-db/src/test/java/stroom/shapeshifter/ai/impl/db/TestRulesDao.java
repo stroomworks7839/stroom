@@ -107,10 +107,10 @@ class TestRulesDao {
         final String a = rules.append(LEARNER, DOC, named("a")).getUuid();
         final String b = rules.append(LEARNER, DOC, named("b")).getUuid();
 
-        rules.replace(LEARNER, DOC, rule(a).copy().pinned(true).score(1.0).build());
+        rules.replace(LEARNER, DOC, rule(a).copy().provisional(true).score(1.0).build());
 
         assertThat(uuids()).containsExactly(a, b);
-        assertThat(rule(a).isPinned()).isTrue();
+        assertThat(rule(a).isProvisional()).isTrue();
         assertThat(rule(a).getScore()).isEqualTo(1.0);
 
         // A promotion must not be lost because its row was pruned between the run and the write.

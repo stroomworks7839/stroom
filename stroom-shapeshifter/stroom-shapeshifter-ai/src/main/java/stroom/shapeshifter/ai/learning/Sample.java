@@ -52,15 +52,16 @@ public record Sample(String text, Map<String, String> headers) {
     }
 
     /**
-     * @param values The stream's routing attributes, of which only those {@link #SHOWN} are kept.
+     * @param feed The stream's feed, where it has one.
+     * @param type The stream's type, where it has one.
      */
-    public static Sample of(final String text, final Map<String, ?> values) {
+    public static Sample of(final String text, final String feed, final String type) {
         final Map<String, String> headers = new LinkedHashMap<>();
-        for (final String field : SHOWN) {
-            final Object value = values.get(field);
-            if (value != null) {
-                headers.put(field, value.toString());
-            }
+        if (feed != null) {
+            headers.put(MetaFields.FIELD_FEED, feed);
+        }
+        if (type != null) {
+            headers.put(MetaFields.FIELD_TYPE, type);
         }
         return new Sample(text, headers);
     }

@@ -50,14 +50,13 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/// Design 01 §7.3: reprocessing is a choice rather than an accident. **As-current** resolves the
-/// selector against today's routing table — what "we have fixed it, run the backlog again" wants, and
-/// the mode a release (A12) reprocesses in. **As-processed** runs each stream through the fragment that
-/// produced its output before — what an audit wants, and what rule 1 makes possible by never letting a
-/// document that has run be edited.
+/// Design 01 §7.3: reprocessing **as processed** runs each stream through the fragment that produced its
+/// output before — what an audit wants, and what a snapshot makes possible however the fragment has been
+/// rewritten since. Reprocessing as things are now is an ordinary processor filter on the pipeline (A129),
+/// and needs nothing of the stage.
 ///
-/// The two are only distinguishable once a rule has been rebound, which is what these say.
-class TestScenariosReprocessing {
+/// As processed differs from as now only once a rule has been rebound, which is what these say.
+class TestReprocessingAsProcessed {
 
     private static final String FEED = "DOOR-ACCESS";
     private static final String XSLT = Scenarios.resource("csv-logon.xsl");
@@ -72,7 +71,7 @@ class TestScenariosReprocessing {
                 .name("door-access")
                 .learningMode(LearningMode.AUTOMATIC)
                 .allowedElements(List.of("DSParser", "XSLTFilter"))
-                .minRecordsPerShape(1)
+                .minRecordsToLearn(1)
                 .build();
     }
 

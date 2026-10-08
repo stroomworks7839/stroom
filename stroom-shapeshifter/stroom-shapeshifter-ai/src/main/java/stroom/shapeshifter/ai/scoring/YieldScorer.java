@@ -16,7 +16,7 @@
 
 package stroom.shapeshifter.ai.scoring;
 
-import stroom.shapeshifter.ai.stage.ShapeSignature;
+import stroom.shapeshifter.ai.stage.RecordSkeleton;
 import stroom.shapeshifter.shared.ScorerParameters;
 import stroom.shapeshifter.shared.ScorerType;
 import stroom.shapeshifter.shared.YieldBasis;
@@ -102,7 +102,7 @@ public final class YieldScorer implements Scorer {
      * the caller settles by counting.
      */
     private static boolean isXml(final String text) {
-        return text != null && ShapeSignature.isMarkup(text);
+        return text != null && RecordSkeleton.isMarkup(text);
     }
 
     private static String unitName(final YieldBasis basis) {

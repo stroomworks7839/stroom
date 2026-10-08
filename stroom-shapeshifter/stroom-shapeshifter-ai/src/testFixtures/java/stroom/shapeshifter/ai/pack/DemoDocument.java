@@ -93,7 +93,7 @@ public final class DemoDocument {
     ///
     /// The flow is the escalating one (A37): direct for a feed that gives its meaning up easily, and a
     /// target only where the transform falls short — which is what makes a single flow reasonable for
-    /// formats nobody has seen yet. `minRecordsPerShape` is five rather than the default ten so that
+    /// formats nobody has seen yet. `minRecordsToLearn` is five rather than the default ten so that
     /// the small demo files are judged rather than bound provisionally, and the floor is 0.85 rather
     /// than 0.9 so that a good first attempt on an awkward format is promoted rather than retried.
     ///
@@ -105,7 +105,7 @@ public final class DemoDocument {
                 .flow(FlowExample.ESCALATING)
                 .allowedElements(ALLOWED_ELEMENTS)
                 .instructions(INSTRUCTIONS)
-                .minRecordsPerShape(5)
+                .minRecordsToLearn(5)
                 .promotionFloor(0.85)
                 .scorers(scorers());
     }

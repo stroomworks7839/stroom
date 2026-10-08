@@ -697,6 +697,35 @@ The largest phase. Its slices keep the build and the scenarios green at each ste
 7. **Audit.** Including a search for every remaining use of shape, rule and learning key in the module,
    its tests, the shared model and the client.
 
+   *Split 2026-10-08,* after the search found 485 uses of shape, 344 of routing and some 3,000 of rule:
+   7a clears what is dead or misnamed — pinning (A138), `minRecordsToLearn` (A139), the shape signature
+   as the record skeleton it now is, the unused shape cache setting, the deferral's task and filter
+   columns nothing reads since A129, and the wording of shape, routing and learning key; 7b renames rule
+   to binding (A140); 7c is the audit of the phase.
+
+   *7a built 2026-10-08.* Pinning is gone (A138): the flag, its column, the stage's guards on improve,
+   accept, approve, retract, relearning and the worker, the served path's pass-everything judge, and the
+   Supervisor's warnings; the four scenarios about it go with it. The document's setting is
+   `minRecordsToLearn`, "Minimum records to learn" (A139), and the committed demo pack is written again.
+   `ShapeSignature` was a hash nothing read and the record skeleton target checks and sampling use; it is
+   `RecordSkeleton`, without the hash. The stage built a routing attribute map for every stream only to
+   give the model's sample its feed and type; the sample takes them from the stream, and the map,
+   `RoutingFields` and the selector's signature field go. A stream no longer carries its task and filter,
+   and a deferral row no longer records them: a wake names the pipeline (A129). The node's `shapeCache`
+   setting was the learner state cache, and is named so. `TestScenariosReprocessing` is
+   `TestReprocessingAsProcessed`, which is all it tests. The prose of shape and routing that remains sits
+   beside the rule's names, and is swept with them in 7b, so that no file is reworded twice.
+
+   *7a audited 2026-10-08.* One fault, older than the slice, closed. The first streams of a new learner,
+   served at once, each found no state row and made it with `INSERT … ON DUPLICATE KEY IGNORE`, which on
+   a duplicate takes a shared lock; the rolling score's `FOR UPDATE` then had each wanting the exclusive
+   lock the others' shared locks refused, and the database killed one, erroring its stream. The many
+   streams, many threads scenario met it once the app tests could run again. The row is now made with
+   an update on a duplicate, which takes the exclusive lock at once, and a test scoring new learners from
+   eight threads at a time fails without it. Two comments still described the shape signature as if it
+   were there. A stored document's old `minRecordsPerShape` is dropped on reading, as every unknown
+   property is, and the setting takes its default; nothing has been released with the old name.
+
 ### Phase K — Deferred tasks count *(`stroom-processor`; closes ISSUES item 1)*
 
 1. **Task creation counts `DEFERRED` with `CREATED` (A109).** One change in
@@ -991,3 +1020,20 @@ in phase J slice 6, over deleting them too.*
 **A137.** *The Supervisor hides a deleted pipeline's learning unless asked.* The attempts and serving
 lists show it under a "Show deleted pipelines" tick, off by default, marked "Pipeline deleted", and
 nothing that would change it is offered. *Ruled 2026-10-08, in phase J slice 6, over always showing it.*
+
+**A138.** *There is no pinning.* A pin was set on the Routing tab, which went in slice 2a, and nothing
+has set one since. The flag, its column and its guards go, and so do the messages telling a person to
+unpin first. A person who wants a learner left alone turns learning off for its document, or reviews
+every promotion. *Ruled 2026-10-08, in the phase J audit, over pin and unpin buttons in the Supervisor.*
+
+**A139.** *The records a stream must bring are the records to learn.* The document's
+`minRecordsPerShape` becomes `minRecordsToLearn`, "Minimum records to learn": how many records a stream
+must bring before its learner learns from it. *Ruled 2026-10-08, in the phase J audit.*
+
+**A140.** *What serves a learner is its binding.* With routing gone, a learner's record says only that
+it is served by a fragment: the learner is bound to it, as A124 says. `RoutingRule` becomes `Binding`,
+`Rules` becomes `LearnerBindings`, `shapeshifter_rule` becomes `shapeshifter_binding` and `rule_uuid`
+becomes `binding_uuid` wherever it is kept; the stage's record of what an output was produced with,
+`Bindings` until now, becomes `Produced`; and the Supervisor says binding — serving bindings, retract a
+binding. *Ruled 2026-10-08, in the phase J audit, over keeping "rule", over "rule" on screen only, and
+over leaving it.*

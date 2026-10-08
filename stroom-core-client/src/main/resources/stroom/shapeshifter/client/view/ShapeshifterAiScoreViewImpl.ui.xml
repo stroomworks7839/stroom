@@ -9,7 +9,7 @@
             <g:north size="300">
                 <g:ScrollPanel styleName="max">
                     <g:FlowPanel styleName="form-padding form">
-                        <g:Label text="The scores: the scorers below are the bar a served record must clear — one that falls short sends its shape back to be learned while the rule keeps serving — and the judges of every candidate a session learns. The gate here decides whether what was learned becomes a rule."
+                        <g:Label text="The scores: the scorers below are the bar a served record must clear — one that falls short sends its learner back to learn again while the rule keeps serving — and the judges of every candidate a session learns. The gate here decides whether what was learned becomes a rule."
                                  styleName="flow-note"/>
                         <form:FormGroup identity="shapeshifterAiPromotionMode"
                                         label="Promotion mode"
@@ -23,13 +23,13 @@
                         </form:FormGroup>
                         <form:FormGroup identity="shapeshifterAiHeldOutFraction"
                                         label="Held-out fraction (%)"
-                                        helpText="The share of a shape's records withheld from the model and used only to judge promotion.">
+                                        helpText="The share of a stream's records withheld from the model and used only to judge promotion.">
                             <v:ValueSpinner ui:field="heldOutFraction" width="80px"/>
                         </form:FormGroup>
-                        <form:FormGroup identity="shapeshifterAiMinRecordsPerShape"
-                                        label="Minimum records per shape"
-                                        helpText="Records a shape must have accumulated before promotion is judged; below this a candidate that clears the floor is bound provisionally and waits for more.">
-                            <v:ValueSpinner ui:field="minRecordsPerShape" width="80px"/>
+                        <form:FormGroup identity="shapeshifterAiMinRecordsToLearn"
+                                        label="Minimum records to learn"
+                                        helpText="How many records a stream must bring before its learner learns from it, and before promotion is judged; below this a candidate that clears the floor is bound provisionally and waits for more.">
+                            <v:ValueSpinner ui:field="minRecordsToLearn" width="80px"/>
                         </form:FormGroup>
                         <form:FormGroup identity="shapeshifterAiRegressionCap"
                                         label="Regression records per rule"
@@ -43,7 +43,7 @@
                         </form:FormGroup>
                         <form:FormGroup identity="shapeshifterAiRelearnThreshold"
                                         label="Flag a serving rule below (%)"
-                                        helpText="A rule whose rolling per-record score falls below this is flagged in the Supervisor's serving list. It goes on serving; a record that falls short of the bar is what sends a shape back to be learned.">
+                                        helpText="A rule whose rolling per-record score falls below this is flagged in the Supervisor's serving list. It goes on serving; a record that falls short of the bar is what sends its learner back to learn again.">
                             <v:ValueSpinner ui:field="relearnThreshold" width="80px"/>
                         </form:FormGroup>
                     </g:FlowPanel>

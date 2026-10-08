@@ -89,7 +89,7 @@ class TestTheSweepWakesEachPipelineOnce {
                                final Learner learner,
                                final long inputId,
                                final String failedAgainst) {
-        scenarios.deferrals.deferred(learner, DOC, inputId, "DOOR-ACCESS", "Raw Events", null, null,
+        scenarios.deferrals.deferred(learner, DOC, inputId, "DOOR-ACCESS", "Raw Events",
                 failedAgainst, "Fell short of the bar", 1);
     }
 }

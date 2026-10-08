@@ -36,8 +36,6 @@ public final class InMemoryDeferrals implements Deferrals {
                                       final long inputId,
                                       final String feed,
                                       final String type,
-                                      final Long taskId,
-                                      final Integer filterId,
                                       final String failedAgainst,
                                       final String reason,
                                       final int failingRecords) {
@@ -45,12 +43,12 @@ public final class InMemoryDeferrals implements Deferrals {
         for (int i = 0; i < rows.size(); i++) {
             final Deferral row = rows.get(i);
             if (row.learner().equals(learner) && row.inputId() == inputId) {
-                rows.set(i, new Deferral(learner, docUuid, inputId, feed, type, taskId, filterId, failedAgainst,
+                rows.set(i, new Deferral(learner, docUuid, inputId, feed, type, failedAgainst,
                         reason, failingRecords, row.firstDeferredMs(), row.attempts() + 1));
                 return;
             }
         }
-        rows.add(new Deferral(learner, docUuid, inputId, feed, type, taskId, filterId, failedAgainst, reason,
+        rows.add(new Deferral(learner, docUuid, inputId, feed, type, failedAgainst, reason,
                 failingRecords, now, 1));
     }
 
@@ -73,8 +71,8 @@ public final class InMemoryDeferrals implements Deferrals {
     /// @param docUuid The document.
     public synchronized void runsUnder(final Learner learner, final String docUuid) {
         rows.replaceAll(row -> row.learner().equals(learner)
-                ? new Deferral(learner, docUuid, row.inputId(), row.feed(), row.type(), row.taskId(),
-                        row.filterId(), row.failedAgainst(), row.reason(), row.failingRecords(),
+                ? new Deferral(learner, docUuid, row.inputId(), row.feed(), row.type(),
+                        row.failedAgainst(), row.reason(), row.failingRecords(),
                         row.firstDeferredMs(), row.attempts())
                 : row);
     }

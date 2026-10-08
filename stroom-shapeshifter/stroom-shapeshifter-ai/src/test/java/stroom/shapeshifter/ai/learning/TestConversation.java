@@ -16,7 +16,6 @@
 
 package stroom.shapeshifter.ai.learning;
 
-import stroom.meta.api.StandardHeaderArguments;
 import stroom.meta.shared.MetaFields;
 import stroom.shapeshifter.ai.extraction.DataSplitterStep;
 import stroom.shapeshifter.ai.extraction.ExtractionCorpus;
@@ -68,15 +67,9 @@ class TestConversation {
     private static final String XSLT = Scenarios.resource("csv-logon.xsl");
     private static final String EXPECTED_EVENTS = Scenarios.resource("csv-logon.events.xml");
     /**
-     * The sample as the supervisor would build it: the text plus the stream's feed and type, with a
-     * sender-set header present to show that anything else is left behind (A126).
+     * The sample as the supervisor would build it: the text plus the stream's feed and type (A126).
      */
-    private static final Sample SAMPLE = Sample.of(CSV.input(),
-            Map.of(
-                    MetaFields.FIELD_FEED, "DOOR-ACCESS",
-                    MetaFields.FIELD_TYPE, "Raw Events",
-                    StandardHeaderArguments.SYSTEM, "Door Access",
-                    "X-Sender-Token", "s3cret"));
+    private static final Sample SAMPLE = Sample.of(CSV.input(), "DOOR-ACCESS", "Raw Events");
 
     /**
      * These tests are about the conversation; the scorecard is the compile gate alone so that a step passes

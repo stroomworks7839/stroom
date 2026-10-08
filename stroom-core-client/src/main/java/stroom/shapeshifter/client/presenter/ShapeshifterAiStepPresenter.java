@@ -42,12 +42,11 @@ import java.util.Map.Entry;
  * where the code pane would be.
  * <p>
  * A supervisor has no document to show as code, and what a person selecting it needs is the decision —
- * which shape this stream has, what was bound, what the scorers made of it, and what was said to the
- * model where it was learned. Stepping is a dry run (A30), so an unbound shape shows what the stage
+ * what serves this learner, what the scorers made of the stream, and what was said to the model where
+ * it was learned. Stepping is a dry run (A30, A121), so a learner nothing serves shows what the stage
  * <em>would</em> do and the pane says so.
  * <p>
- * Read-only for now. The actions A30 puts beside the evidence — Approve, Reject, pin, retract — are the
- * Routing tab's and the Supervisor view's, and arrive with them (design 03 §7 slices 7 and 8).
+ * Read only. Approving, rejecting and retracting are the Supervisor's.
  */
 public class ShapeshifterAiStepPresenter
         extends MyPresenterWidget<ShapeshifterAiStepView>

@@ -105,7 +105,6 @@ public final class InMemoryServing implements Serving {
                 new LearnerRef(held.learner().pipelineUuid(), held.learner().elementId()),
                 rule.getUuid(),
                 rule.getPipeline(),
-                rule.isPinned(),
                 rule.isProvisional(),
                 rule.getScore(),
                 rule.getPromotedTimeMs(),

@@ -127,8 +127,7 @@ class TestADeletedPipelinesLearningInANode extends AbstractCoreIntegrationTest {
     void aPipelineGoneWithoutBeingHeardIsFoundAtMidnight() {
         // Learning kept for a pipeline the node has no record of: deleted while no node was listening.
         final String gone = UUID.randomUUID().toString();
-        deferrals.deferred(new Learner(gone, "shapeshifterAi"), "doc-gone", 1L, FEED, StreamTypeNames.RAW_EVENTS,
-                null, null, null, "Waiting.", 0);
+        deferrals.deferred(new Learner(gone, "shapeshifterAi"), "doc-gone", 1L, FEED, StreamTypeNames.RAW_EVENTS, null, "Waiting.", 0);
 
         attemptRetention.exec();
 

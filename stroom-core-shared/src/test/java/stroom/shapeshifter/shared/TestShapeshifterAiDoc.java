@@ -256,7 +256,7 @@ class TestShapeshifterAiDoc {
         assertThat(doc.getPromotionMode()).describedAs("A9").isEqualTo(PromotionMode.AUTOMATIC);
         assertThat(doc.getPromotionFloor()).isEqualTo(0.9);
         assertThat(doc.getHeldOutFraction()).isEqualTo(0.2);
-        assertThat(doc.getMinRecordsPerShape()).isEqualTo(10);
+        assertThat(doc.getMinRecordsToLearn()).isEqualTo(10);
         assertThat(doc.getRegressionCap()).isEqualTo(100);
         assertThat(doc.getRegressionRetentionDays()).isNull();
         assertThat(doc.getScorers()).isEmpty();
@@ -353,7 +353,7 @@ class TestShapeshifterAiDoc {
                 .promotionMode(PromotionMode.REVIEW)
                 .promotionFloor(0.95)
                 .heldOutFraction(0.25)
-                .minRecordsPerShape(20)
+                .minRecordsToLearn(20)
                 .regressionCap(50)
                 .regressionRetentionDays(30)
                 .scorers(List.of(

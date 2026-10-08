@@ -191,7 +191,7 @@ class TestScenario59AnExhaustedSessionAdmitsAMarkedUnknown {
     /// The stream as a task has it: the logons as the prefix, the whole to be read as a fragment runs.
     private static Input streamed(final long id) {
         final int prefix = STREAM.indexOf("logoff") - "2020-06-17T08:08:00.000Z,user8,office,".length();
-        return Input.streamed(id, FEED, "Raw Events", Map.of(), STREAM.substring(0, prefix), "pipeline-1", null,
-                null, () -> new ByteArrayInputStream(STREAM.getBytes(StandardCharsets.UTF_8)));
+        return Input.streamed(id, FEED, "Raw Events", Map.of(), STREAM.substring(0, prefix), "pipeline-1",
+                () -> new ByteArrayInputStream(STREAM.getBytes(StandardCharsets.UTF_8)));
     }
 }

@@ -65,7 +65,6 @@ CREATE TABLE IF NOT EXISTS shapeshifter_rule (
     fragment_type         varchar(255) DEFAULT NULL,
     fragment_uuid         varchar(255) DEFAULT NULL,
     fragment_name         varchar(255) DEFAULT NULL,
-    pinned                tinyint NOT NULL DEFAULT 0,
     draft                 tinyint NOT NULL DEFAULT 0,
     provisional           tinyint NOT NULL DEFAULT 0,
     promoted_time_ms      bigint DEFAULT NULL,
@@ -204,7 +203,7 @@ CREATE TABLE IF NOT EXISTS shapeshifter_guidance (
 
 --
 -- A stream waiting for its learner (design 04 §3): one row per stream per learner. A promotion wakes the
--- learner's rows, found on the learner's prefix of the unique key. The document is
+-- learner's pipeline (A129), and the rows say which streams wait and on what. The document is
 -- kept for the Supervisor's backlog, which lists what waits on the documents a person may see.
 --
 CREATE TABLE IF NOT EXISTS shapeshifter_deferral (
@@ -215,9 +214,6 @@ CREATE TABLE IF NOT EXISTS shapeshifter_deferral (
     meta_id               bigint NOT NULL,
     feed_name             varchar(255) NOT NULL,
     type_name             varchar(255) NOT NULL,
-    -- The task to wake and the filter it belongs to; null for a stream nothing is processing.
-    task_id               bigint DEFAULT NULL,
-    filter_id             int DEFAULT NULL,
     -- What the stream was run through and fell short of; null where there was nothing to run it through.
     failed_against        varchar(255) DEFAULT NULL,
     reason                longtext NOT NULL,

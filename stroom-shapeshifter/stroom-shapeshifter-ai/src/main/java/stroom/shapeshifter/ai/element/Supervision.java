@@ -33,7 +33,6 @@ import stroom.pipeline.state.MetaDataHolder;
 import stroom.pipeline.state.MetaHolder;
 import stroom.pipeline.state.PipelineContext;
 import stroom.pipeline.state.PipelineHolder;
-import stroom.pipeline.state.StreamProcessorHolder;
 import stroom.processor.api.DeferTaskException;
 import stroom.shapeshifter.ai.doc.ShapeshifterAiStore;
 import stroom.shapeshifter.ai.fragment.FragmentRunner.FragmentRecord;
@@ -48,7 +47,7 @@ import stroom.shapeshifter.ai.stage.Decision.Provisional;
 import stroom.shapeshifter.ai.stage.Decision.Rebound;
 import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.Learner;
-import stroom.shapeshifter.ai.stage.ShapeSignature;
+import stroom.shapeshifter.ai.stage.RecordSkeleton;
 import stroom.shapeshifter.ai.stage.Stage;
 import stroom.shapeshifter.ai.stage.Stage.Served;
 import stroom.shapeshifter.ai.stage.StageRun;
@@ -100,7 +99,6 @@ public class Supervision {
     private final MetaData metaData;
     private final ErrorReceiverProxy errorReceiverProxy;
     private final PipelineHolder pipelineHolder;
-    private final StreamProcessorHolder streamProcessorHolder;
     private final PipelineContext pipelineContext;
     private final Stage stage;
 
@@ -140,7 +138,6 @@ public class Supervision {
                        final MetaData metaData,
                        final ErrorReceiverProxy errorReceiverProxy,
                        final PipelineHolder pipelineHolder,
-                       final StreamProcessorHolder streamProcessorHolder,
                        final PipelineContext pipelineContext,
                        final StageFactory stageFactory) {
         this.store = store;
@@ -151,7 +148,6 @@ public class Supervision {
         this.metaData = metaData;
         this.errorReceiverProxy = errorReceiverProxy;
         this.pipelineHolder = pipelineHolder;
-        this.streamProcessorHolder = streamProcessorHolder;
         this.pipelineContext = pipelineContext;
         this.stage = stageFactory.create();
     }
@@ -203,8 +199,8 @@ public class Supervision {
     ///
     /// The stage is given the stream itself (design 04 §3, *streams of any size*). A step and a reprocess
     /// read the whole stream as text, as they always have: a step is bounded by the person stepping and a
-    /// reprocess asks what was done. A task reads the stream's prefix — the shape's signature and the
-    /// sample the model is shown need no more — and the rest is read by the fragment as it serves the
+    /// reprocess asks what was done. A task reads the stream's prefix — the sample the model is shown
+    /// needs no more — and the rest is read by the fragment as it serves the
     /// stream.
     ///
     /// @param asProcessed Which question a reprocess is asking (design 01 §7.3).
@@ -380,11 +376,11 @@ public class Supervision {
         try {
             final byte[] prefix = bytes.readNBytes(Input.PREFIX_BYTES);
             if (prefix.length < Input.PREFIX_BYTES) {
-                return input(ShapeSignature.withoutBom(new String(prefix, StandardCharsets.UTF_8)));
+                return input(RecordSkeleton.withoutBom(new String(prefix, StandardCharsets.UTF_8)));
             }
-            final Input whole = input(ShapeSignature.withoutBom(new String(prefix, StandardCharsets.UTF_8)));
+            final Input whole = input(RecordSkeleton.withoutBom(new String(prefix, StandardCharsets.UTF_8)));
             return Input.streamed(whole.id(), whole.feed(), whole.type(), whole.attributes(), whole.data(),
-                    whole.pipeline(), whole.taskId(), whole.filterId(),
+                    whole.pipeline(),
                     () -> new SequenceInputStream(new ByteArrayInputStream(prefix), bytes));
         } catch (final IOException e) {
             throw new UncheckedIOException(e);
@@ -406,7 +402,7 @@ public class Supervision {
             }
             // A byte order mark is not content: read as text it would make XML or JSON look like a line
             // of text to every classification downstream.
-            return ShapeSignature.withoutBom(text.toString());
+            return RecordSkeleton.withoutBom(text.toString());
         } catch (final IOException e) {
             throw new UncheckedIOException(e);
         }
@@ -534,16 +530,7 @@ public class Supervision {
                 // produced can be counted by where it was produced (§6).
                 pipelineHolder.getPipeline() == null
                         ? null
-                        : pipelineHolder.getPipeline().getUuid(),
-                // And which task, so that a deferral can be woken (design 04 §5.3): null in the stepper
-                // and anywhere else no task is behind the stream.
-                streamProcessorHolder.getStreamTask() == null
-                        ? null
-                        : streamProcessorHolder.getStreamTask().getId(),
-                streamProcessorHolder.getStreamTask() == null
-                        || streamProcessorHolder.getStreamTask().getProcessorFilter() == null
-                        ? null
-                        : streamProcessorHolder.getStreamTask().getProcessorFilter().getId());
+                        : pipelineHolder.getPipeline().getUuid());
     }
 
     /// The output stream's attributes are one set for the whole stream, and a stream of several parts is

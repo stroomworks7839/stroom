@@ -16,9 +16,7 @@
 
 package stroom.shapeshifter.ai.learning;
 
-import stroom.meta.api.StandardHeaderArguments;
 import stroom.meta.shared.MetaFields;
-import stroom.shapeshifter.shared.RoutingFields;
 
 import org.junit.jupiter.api.Test;
 
@@ -26,29 +24,13 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+/// What an attempt shows the model of its stream (A126): the feed and the type, feed first, and nothing
+/// else the stream carries, since nothing else is asked for.
 class TestSample {
 
     @Test
-    void routingHeaderNamesAreStroomsStandardHeaderArguments() {
-        // RoutingFields restates the names because StandardHeaderArguments is not shared with the client.
-        assertThat(RoutingFields.HEADERS).containsExactly(
-                StandardHeaderArguments.FORMAT,
-                StandardHeaderArguments.SCHEMA,
-                StandardHeaderArguments.COMPRESSION,
-                StandardHeaderArguments.SYSTEM,
-                StandardHeaderArguments.ENVIRONMENT,
-                StandardHeaderArguments.REMOTE_FILE);
-    }
-
-    @Test
-    void keepsOnlyTheFeedAndTheType() {
-        // A126: the stream carries more than its feed and type, and only they travel, the feed first.
-        final Sample sample = Sample.of("text",
-                Map.of(
-                        StandardHeaderArguments.SYSTEM, "Door Access",
-                        MetaFields.FIELD_TYPE, "Raw Events",
-                        MetaFields.FIELD_FEED, "SYSLOG",
-                        "X-Sender-Token", "s3cret"));
+    void keepsTheFeedAndTheTypeInThatOrder() {
+        final Sample sample = Sample.of("text", "SYSLOG", "Raw Events");
 
         assertThat(sample.headers()).containsExactly(
                 Map.entry(MetaFields.FIELD_FEED, "SYSLOG"),
@@ -57,7 +39,7 @@ class TestSample {
 
     @Test
     void aFieldTheStreamLacksIsAbsent() {
-        final Sample sample = Sample.of("text", Map.of(MetaFields.FIELD_TYPE, "Raw Events"));
+        final Sample sample = Sample.of("text", null, "Raw Events");
 
         assertThat(sample.headers()).containsExactly(Map.entry(MetaFields.FIELD_TYPE, "Raw Events"));
     }

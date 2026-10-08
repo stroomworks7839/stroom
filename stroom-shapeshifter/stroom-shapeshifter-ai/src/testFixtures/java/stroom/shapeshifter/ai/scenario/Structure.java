@@ -24,7 +24,7 @@ import stroom.shapeshifter.ai.learning.StepResult;
 import stroom.shapeshifter.ai.learning.StepRunner;
 import stroom.shapeshifter.ai.learning.TargetChecks;
 import stroom.shapeshifter.ai.scoring.OutputRecords;
-import stroom.shapeshifter.ai.stage.ShapeSignature;
+import stroom.shapeshifter.ai.stage.RecordSkeleton;
 
 import java.util.List;
 import java.util.Optional;
@@ -100,8 +100,8 @@ public final class Structure {
         // The splitter is for raw text and the record element for markup, which is the one thing that
         // tells the two stages' questions apart without asking which element sent them.
         return splitter != null
-                ? !ShapeSignature.isMarkup(sample)
-                : ShapeSignature.isMarkup(sample);
+                ? !RecordSkeleton.isMarkup(sample)
+                : RecordSkeleton.isMarkup(sample);
     }
 
     public Optional<String> answer(final Question question) {

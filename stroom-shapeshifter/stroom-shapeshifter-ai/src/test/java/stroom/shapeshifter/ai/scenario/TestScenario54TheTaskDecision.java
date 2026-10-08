@@ -216,30 +216,6 @@ class TestScenario54TheTaskDecision {
         assertThat(scenarios.attempts.forDocument(DOC, 10)).isEmpty();
     }
 
-    /// A pinned rule is frozen: served whatever the bar says, and nothing waits on it.
-    @Test
-    void aPinnedRuleServesItsStreamsWhateverTheBarSays() {
-        final Scenarios scenarios = new Scenarios();
-        final ShapeshifterAiDoc doc = doc();
-        final RoutingRule learned = learn(scenarios, doc, LOGON_ONLY);
-        scenarios.rules.replace(Scenarios.LEARNER, DOC, learned.copy().pinned(true).build());
-
-        final StageRun served = scenarios.stage(document -> Script.of(), scenarios.rules)
-                .decide(doc, Scenarios.LEARNER, stream(2L, MIXED));
-
-        assertThat(served.decision()).describedAs(served.decision().toString()).isInstanceOf(Bound.class);
-        final TextSink sink = new TextSink();
-        final ServedStream streamed = scenarios.stage(document -> Script.of(), scenarios.rules)
-                .stream(doc, Scenarios.LEARNER, ((Bound) served.decision()).rule(), stream(2L, MIXED), sink);
-        assertThat(streamed.clear()).isTrue();
-        assertThat(sink.records()).describedAs("every record, the thin ones too").isEqualTo(6);
-        assertThat(scenarios.deferrals.forDocument(DOC)).isEmpty();
-        assertThat(scenarios.attempts.forDocument(DOC, 10))
-                .describedAs("the session that learned it, and no new one")
-                .extracting(Recorded::status)
-                .containsExactly(AttemptStatus.PROMOTED);
-    }
-
     /// A task's stage: silent, since a task never asks.
     private static Stage task(final Scenarios scenarios, final Script silent, final FragmentRunner runner) {
         return scenarios.stage(document -> silent, scenarios.rules, runner);

@@ -53,14 +53,14 @@ class TestScenariosRetractionRelearningAndRelease {
     private static final String XSLT = Scenarios.resource("csv-logon.xsl");
     private static final String DOC = "doc-1";
 
-    private static ShapeshifterAiDoc doc(final int minRecordsPerShape) {
+    private static ShapeshifterAiDoc doc(final int minRecordsToLearn) {
         return Scenarios.document()
                 .uuid(DOC)
                 .name("door-access")
                 .learningMode(LearningMode.AUTOMATIC)
                 .flow(FlowExample.TARGET_FIRST)
                 .allowedElements(List.of("DSParser", "XSLTFilter"))
-                .minRecordsPerShape(minRecordsPerShape)
+                .minRecordsToLearn(minRecordsToLearn)
                 .relearnThreshold(0.8)
                 .scorers(List.of(
                         new ScorerSetting(ScorerType.COMPILE, 0.0, 1.0, true, null),
@@ -210,25 +210,6 @@ class TestScenariosRetractionRelearningAndRelease {
         assertThat(fourth.decision()).isInstanceOf(Bound.class);
         assertThat(fourth.bindings().fragment()).isEqualTo(rebound.rule().getPipeline());
         assertThat(events(fourth.output())).isEqualTo(20);
-        assertThat(silent.asked()).isEmpty();
-    }
-
-    @Test
-    void aPinnedRuleIsNeitherPromotedNorRetracted() {
-        // Design 01 §7.3 rule 2: a pin exempts a rule from automatic rebinding and retraction, provisional
-        // or not. The stream that would retract the rule in scenario 28 is simply served.
-        final Scenarios scenarios = new Scenarios();
-        final Script script = learning(scenarios, FOUR_FIELDS);
-        final StageRun first = scenarios.process(script, doc(10), stream(1, lines(6, 0))).learned();
-        final RoutingRule pinned = ((Provisional) first.decision()).rule().copy().pinned(true).build();
-        scenarios.rules.replace(Scenarios.LEARNER, DOC, pinned);
-
-        final Script silent = Script.of();
-        final StageRun run = scenarios.process(silent, first.doc(),
-                stream(2, lines(10, 0).replace(",logon\n", ",logon,badge\n"))).learned();
-
-        assertThat(run.decision()).isInstanceOf(Bound.class);
-        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).containsExactly(pinned);
         assertThat(silent.asked()).isEmpty();
     }
 

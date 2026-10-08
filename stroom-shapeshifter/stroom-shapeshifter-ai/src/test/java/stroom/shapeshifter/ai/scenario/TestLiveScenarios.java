@@ -127,7 +127,7 @@ class TestLiveScenarios {
                 .flow(FLOW_UNDER_TEST)
                 .allowedElements(List.of("DSParser", "XSLTFilter"))
                 .instructions(INSTRUCTIONS)
-                .minRecordsPerShape(5)
+                .minRecordsToLearn(5)
                 .promotionFloor(0.85);
         Optional.ofNullable(System.getenv(MAX_ATTEMPTS)).map(Integer::valueOf).ifPresent(builder::maxAttempts);
         return builder
@@ -225,7 +225,7 @@ class TestLiveScenarios {
             final Scenarios scenarios = new Scenarios();
             final ShapeshifterAiDoc doc = doc("regex", 0.9).copy()
                     .instructions("Lines of a number, a bracketed type and free text: a system's own log.")
-                    .minRecordsPerShape(2)
+                    .minRecordsToLearn(2)
                     .build();
             return List.of(scenarios.process(advisor, doc,
                     new Input(1, "SYSLOG-LIKE", "Raw Events", Map.of(), REGEX.input())).learned());
@@ -239,7 +239,7 @@ class TestLiveScenarios {
                     .instructions("Linux audit records: blocks separated by a line of four dashes, a block of "
                                   + "several lines being one record whose lines share the msg=audit(...) id. Events "
                                   + "should name the auid or uid as the user and the node as the device.")
-                    .minRecordsPerShape(2)
+                    .minRecordsToLearn(2)
                     .build();
             return List.of(scenarios.process(advisor, doc,
                     new Input(1, "LINUX-AUDIT", "Raw Events", Map.of(), MULTI_LINE.input())).learned());
@@ -250,7 +250,7 @@ class TestLiveScenarios {
                     .instructions("An application's audit log as XML, one entry per thing a person did. Events "
                                   + "should name the login as the user, the host as the device, and the document "
                                   + "opened where there is one.")
-                    .minRecordsPerShape(2)
+                    .minRecordsToLearn(2)
                     .build();
             return List.of(scenarios.process(advisor, doc,
                     new Input(1, "DOCVAULT-AUDIT", "Raw Events", Map.of("Format", "XML"), NESTED_XML)).learned());

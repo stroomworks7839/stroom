@@ -61,7 +61,7 @@ class TestLearnersDao {
                     .uuid("rule-" + each.pipelineUuid())
                     .build());
             states.giveUp(each, before, "Nothing to learn");
-            deferrals.deferred(each, before, 8L, "DOOR-ACCESS", "Raw Events", null, null, null, "waiting", 0);
+            deferrals.deferred(each, before, 8L, "DOOR-ACCESS", "Raw Events", null, "waiting", 0);
         }
         final long hint = guidance.given(learner, before, "Times are local.", "jo");
 

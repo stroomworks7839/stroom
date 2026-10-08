@@ -169,7 +169,7 @@ class TestWhatIsServing {
                 .name("door-access")
                 .learningMode(LearningMode.AUTOMATIC)
                 .allowedElements(List.of("DSParser", "XSLTFilter"))
-                .minRecordsPerShape(1)
+                .minRecordsToLearn(1)
                 .promotionFloor(0.85)
                 // Named, because a document with no scorers scores every chain 1.0.
                 .scorers(List.of(

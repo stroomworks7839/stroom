@@ -148,7 +148,7 @@ class TestScenario20SentinelInAPipeline extends AbstractCoreIntegrationTest {
                 .isEmpty();
         assertThat(rules.forLearner(learner)).describedAs("and wrote no rule").isEmpty();
 
-        // The deferral names the input, in a row: the task a promotion would wake (design 04 §5.3).
+        // The deferral names the input, in a row, under the learner whose pipeline a promotion wakes (A129).
         assertThat(deferrals).isInstanceOf(DeferralsDao.class);
         assertThat(deferrals.of(new Learner(pipeline.getUuid(), "shapeshifterAi"), raw.getId()))
                 .describedAs("the deferral row is a row in the database, not a map in one node's heap")
@@ -156,8 +156,6 @@ class TestScenario20SentinelInAPipeline extends AbstractCoreIntegrationTest {
                 .get()
                 .satisfies(row -> {
                     assertThat(row.pipeline()).isEqualTo(pipeline.getUuid());
-                    assertThat(row.taskId()).describedAs("the task a wake will move").isNotNull();
-                    assertThat(row.filterId()).isNotNull();
                     assertThat(row.failedAgainst()).isNull();
                     assertThat(row.reason()).contains("disabled");
                 });

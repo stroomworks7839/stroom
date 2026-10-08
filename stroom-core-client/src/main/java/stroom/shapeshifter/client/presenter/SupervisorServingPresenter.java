@@ -192,13 +192,6 @@ public class SupervisorServingPresenter extends MyPresenterWidget<PagerView> {
         if (rule == null) {
             return;
         }
-        if (rule.isPinned()) {
-            // §7.3 rule 2: a pin freezes a rule. Said here rather than letting the call fail, because a
-            // button that is offered and then refuses is a button that lies.
-            AlertEvent.fireWarn(this, "This rule is pinned, which keeps it serving exactly as it is. "
-                                      + "Unpin it on the document's Routing tab before improving it.", null);
-            return;
-        }
         PromptEvent.fire(this,
                 "What should be better about this rule? Leave it empty to ask again from what it already "
                 + "does. What you write is kept against the learner, so everything it asks from now "
@@ -301,11 +294,6 @@ public class SupervisorServingPresenter extends MyPresenterWidget<PagerView> {
     private void retract() {
         final ServingRule rule = selected();
         if (rule == null) {
-            return;
-        }
-        if (rule.isPinned()) {
-            AlertEvent.fireWarn(this, "This rule is pinned, which keeps it serving exactly as it is. "
-                                      + "Unpin it before retracting it.", null);
             return;
         }
         PromptEvent.fire(this,
@@ -434,8 +422,8 @@ public class SupervisorServingPresenter extends MyPresenterWidget<PagerView> {
         dataGrid.addResizableColumn(
                 DataGridUtil.htmlColumnBuilder((ServingRule rule) -> text(state(rule))).build(),
                 DataGridUtil.headingBuilder("State")
-                        .withToolTip("Serving on a judgement, serving provisionally until enough "
-                                     + "records arrive to make one (§6), or frozen by a pin (§7.3); and "
+                        .withToolTip("Serving on a judgement, or serving provisionally until enough "
+                                     + "records arrive to make one (§6); and "
                                      + "whether what it scores lately is below the document's relearn "
                                      + "threshold, which is where to look first; and whether its "
                                      + "pipeline has been deleted, when deleted pipelines are shown.")
@@ -494,9 +482,6 @@ public class SupervisorServingPresenter extends MyPresenterWidget<PagerView> {
         final StringBuilder state = new StringBuilder(rule.isProvisional()
                 ? "Provisional"
                 : "Serving");
-        if (rule.isPinned()) {
-            state.append(", pinned");
-        }
         if (rule.isPipelineDeleted()) {
             state.append(", pipeline deleted");
         }

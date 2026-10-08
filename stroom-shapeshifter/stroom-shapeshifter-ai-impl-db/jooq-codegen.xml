@@ -27,7 +27,7 @@
             <forcedTypes>
                 <forcedType>
                     <name>BOOLEAN</name>
-                    <includeExpression>.*\.(shapeshifter_rule\.(pinned|draft|provisional)|shapeshifter_output\.provisional)</includeExpression>
+                    <includeExpression>.*\.(shapeshifter_rule\.(draft|provisional)|shapeshifter_output\.provisional)</includeExpression>
                     <!-- see https://github.com/jOOQ/jOOQ/issues/9405 -->
                     <includeTypes>(?i:tinyint)(\(1\))?</includeTypes>
                 </forcedType>

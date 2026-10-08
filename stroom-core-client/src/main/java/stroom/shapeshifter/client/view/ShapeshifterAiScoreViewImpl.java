@@ -32,7 +32,7 @@ public class ShapeshifterAiScoreViewImpl
     @UiField
     ValueSpinner heldOutFraction;
     @UiField
-    ValueSpinner minRecordsPerShape;
+    ValueSpinner minRecordsToLearn;
     @UiField
     ValueSpinner regressionCap;
     @UiField
@@ -48,7 +48,7 @@ public class ShapeshifterAiScoreViewImpl
         promotionMode.addItems(PromotionMode.values());
         bound(promotionFloor, 0, PERCENT);
         bound(heldOutFraction, 0, PERCENT);
-        bound(minRecordsPerShape, 1, Integer.MAX_VALUE);
+        bound(minRecordsToLearn, 1, Integer.MAX_VALUE);
         bound(regressionCap, 0, Integer.MAX_VALUE);
         bound(regressionRetentionDays, 0, Integer.MAX_VALUE);
         bound(relearnThreshold, 0, PERCENT);
@@ -100,13 +100,13 @@ public class ShapeshifterAiScoreViewImpl
     }
 
     @Override
-    public int getMinRecordsPerShape() {
-        return minRecordsPerShape.getIntValue();
+    public int getMinRecordsToLearn() {
+        return minRecordsToLearn.getIntValue();
     }
 
     @Override
-    public void setMinRecordsPerShape(final int minRecordsPerShape) {
-        this.minRecordsPerShape.setValue(minRecordsPerShape);
+    public void setMinRecordsToLearn(final int minRecordsToLearn) {
+        this.minRecordsToLearn.setValue(minRecordsToLearn);
     }
 
     @Override
@@ -150,7 +150,7 @@ public class ShapeshifterAiScoreViewImpl
         promotionMode.setEnabled(enabled);
         promotionFloor.setEnabled(enabled);
         heldOutFraction.setEnabled(enabled);
-        minRecordsPerShape.setEnabled(enabled);
+        minRecordsToLearn.setEnabled(enabled);
         regressionCap.setEnabled(enabled);
         regressionRetentionDays.setEnabled(enabled);
         relearnThreshold.setEnabled(enabled);
@@ -177,8 +177,8 @@ public class ShapeshifterAiScoreViewImpl
         fireChange();
     }
 
-    @UiHandler("minRecordsPerShape")
-    public void onMinRecordsPerShape(final ValueChangeEvent<Long> event) {
+    @UiHandler("minRecordsToLearn")
+    public void onMinRecordsToLearn(final ValueChangeEvent<Long> event) {
         fireChange();
     }
 

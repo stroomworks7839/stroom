@@ -16,18 +16,14 @@
 
 package stroom.shapeshifter.ai.stage;
 
-import stroom.meta.shared.MetaFields;
-import stroom.shapeshifter.shared.RoutingFields;
-
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * One stream as the stage receives it: the metadata a selector may match on (A22) and the data.
+ * One stream as the stage receives it: its metadata and its data.
  *
  * @param id         What names the stream in a deferral and an output row: its meta id in a node.
  * @param feed       The feed name.
@@ -37,16 +33,14 @@ import java.util.function.Supplier;
  * @param pipeline   The uuid of the pipeline processing it, where one is: what an output row records, so
  *                   that what a rule produced is counted where it was produced. Null where nothing is
  *                   processing it — a worker re-walking an attempt, a scenario.
- * @param taskId     The processor task processing it, where one is: what a deferral wakes (design 04 §5.3).
- * @param filterId   That task's filter, where one is.
  * @param opener     Where the whole stream is read from, where `data` is only its prefix (design 04 §3);
  *                   null where `data` is the whole of it.
  */
 public record Input(long id, String feed, String type, Map<String, String> attributes, String data,
-                    String pipeline, Long taskId, Integer filterId, Supplier<InputStream> opener) {
+                    String pipeline, Supplier<InputStream> opener) {
 
     /// How much of a stream is read as text before anything is decided about it (design 04 §3, *streams
-    /// of any size*): enough for the shape's signature and the sample the model is shown, which the
+    /// of any size*): enough for the sample the model is shown, which the
     /// document bounds far below this, and no more. The rest is read as the fragment runs over it.
     public static final int PREFIX_BYTES = 64 * 1024;
 
@@ -56,14 +50,8 @@ public record Input(long id, String feed, String type, Map<String, String> attri
 
     /// A stream whose text is all in hand: the whole of it is `data`.
     public Input(final long id, final String feed, final String type, final Map<String, String> attributes,
-                 final String data, final String pipeline, final Long taskId, final Integer filterId) {
-        this(id, feed, type, attributes, data, pipeline, taskId, filterId, null);
-    }
-
-    /// A stream as a task has it, before design 04: nothing to wake.
-    public Input(final long id, final String feed, final String type, final Map<String, String> attributes,
                  final String data, final String pipeline) {
-        this(id, feed, type, attributes, data, pipeline, null, null, null);
+        this(id, feed, type, attributes, data, pipeline, null);
     }
 
     /// Whether `data` is the whole stream. Where it is not, `data` is the first [#PREFIX_BYTES] of it as
@@ -90,26 +78,7 @@ public record Input(long id, String feed, String type, Map<String, String> attri
     /// A stream read as far as its prefix, the rest to be read as the fragment runs over it.
     public static Input streamed(final long id, final String feed, final String type,
                                  final Map<String, String> attributes, final String prefix, final String pipeline,
-                                 final Long taskId, final Integer filterId, final Supplier<InputStream> opener) {
-        return new Input(id, feed, type, attributes, prefix, pipeline, taskId, filterId, opener);
-    }
-
-
-    /**
-     * The map a routing selector is evaluated against: the meta fields, whichever routing headers the
-     * stream carries, and the record shape signature the stage computed.
-     */
-    public Map<String, Object> routingAttributes(final String shapeSignature) {
-        final Map<String, Object> map = new HashMap<>();
-        map.put(MetaFields.FIELD_FEED, feed);
-        map.put(MetaFields.FIELD_TYPE, type);
-        for (final String header : RoutingFields.HEADERS) {
-            final String value = attributes.get(header);
-            if (value != null) {
-                map.put(header, value);
-            }
-        }
-        map.put(RoutingFields.SHAPE_SIGNATURE.getFldName(), shapeSignature);
-        return map;
+                                 final Supplier<InputStream> opener) {
+        return new Input(id, feed, type, attributes, prefix, pipeline, opener);
     }
 }

@@ -33,28 +33,20 @@ import java.util.Objects;
  * draft.
  * <p>
  * A rule carries the little history rebinding needs: when the fragment was promoted, the score it was
- * promoted on, whether an operator has pinned it against further promotion, and the two states a learned
- * rule passes through before it is simply bound — a <em>draft</em> the learner's streams wait on until a
- * person approves it (A25), and a <em>provisional</em> binding that serves streams while held-out
- * validation waits for records (A5, §6). A rule has a {@code uuid} so that the runtime state of A26 can
- * name it stably.
+ * promoted on, and the two states a learned rule passes through before it is simply bound — a
+ * <em>draft</em> the learner's streams wait on until a person approves it (A25), and a
+ * <em>provisional</em> binding that serves streams while held-out validation waits for records (A5, §6).
+ * A rule has a {@code uuid} so that the runtime state of A26 can name it stably.
  */
 @JsonPropertyOrder({
         "uuid",
         "pipeline",
-        "pinned",
         "draft",
         "provisional",
         "promotedTimeMs",
         "score"})
 @JsonInclude(Include.NON_NULL)
 public class RoutingRule {
-
-    /**
-     * The field a selector matches the record shape signature (§5) against. Not a meta field: the
-     * supervisor computes it from the record and supplies it alongside the stream's attributes.
-     */
-    public static final String SHAPE_SIGNATURE_FIELD = "Shape Signature";
 
     /**
      * Null until the store or the supervisor assigns one; the client never generates it.
@@ -66,8 +58,6 @@ public class RoutingRule {
      */
     @JsonProperty
     private final DocRef pipeline;
-    @JsonProperty
-    private final boolean pinned;
     /**
      * Written by a stage in review mode; the learner's streams wait on it until Approve clears it (A25).
      * This flag is authoritative; the learner's own state mirrors it.
@@ -100,7 +90,6 @@ public class RoutingRule {
     @JsonCreator
     public RoutingRule(@JsonProperty("uuid") final String uuid,
                        @JsonProperty("pipeline") final DocRef pipeline,
-                       @JsonProperty("pinned") final Boolean pinned,
                        @JsonProperty("draft") final Boolean draft,
                        @JsonProperty("provisional") final Boolean provisional,
                        @JsonProperty("promotedTimeMs") final Long promotedTimeMs,
@@ -109,7 +98,6 @@ public class RoutingRule {
                        @JsonProperty("snapshot") final String snapshot) {
         this.uuid = uuid;
         this.pipeline = pipeline;
-        this.pinned = Objects.requireNonNullElse(pinned, false);
         this.draft = Objects.requireNonNullElse(draft, false);
         this.provisional = Objects.requireNonNullElse(provisional, false);
         this.promotedTimeMs = promotedTimeMs;
@@ -120,7 +108,7 @@ public class RoutingRule {
 
     @SerialisationTestConstructor
     private RoutingRule() {
-        this(null, null, null, null, null, null, null, null, null);
+        this(null, null, null, null, null, null, null, null);
     }
 
     public String getUuid() {
@@ -129,10 +117,6 @@ public class RoutingRule {
 
     public DocRef getPipeline() {
         return pipeline;
-    }
-
-    public boolean isPinned() {
-        return pinned;
     }
 
     public boolean isDraft() {
@@ -169,8 +153,7 @@ public class RoutingRule {
             return false;
         }
         final RoutingRule that = (RoutingRule) o;
-        return pinned == that.pinned &&
-               draft == that.draft &&
+        return draft == that.draft &&
                provisional == that.provisional &&
                Objects.equals(uuid, that.uuid) &&
                Objects.equals(pipeline, that.pipeline) &&
@@ -182,7 +165,7 @@ public class RoutingRule {
 
     @Override
     public int hashCode() {
-        return Objects.hash(uuid, pipeline, pinned, draft, provisional, promotedTimeMs, score,
+        return Objects.hash(uuid, pipeline, draft, provisional, promotedTimeMs, score,
                 recordBoundary, snapshot);
     }
 
@@ -191,7 +174,6 @@ public class RoutingRule {
         return "RoutingRule{" +
                "uuid='" + uuid + '\'' +
                ", pipeline=" + pipeline +
-               ", pinned=" + pinned +
                ", draft=" + draft +
                ", provisional=" + provisional +
                ", promotedTimeMs=" + promotedTimeMs +
@@ -216,7 +198,6 @@ public class RoutingRule {
 
         private String uuid;
         private DocRef pipeline;
-        private boolean pinned;
         private boolean draft;
         private boolean provisional;
         private Long promotedTimeMs;
@@ -230,7 +211,6 @@ public class RoutingRule {
         private Builder(final RoutingRule rule) {
             this.uuid = rule.uuid;
             this.pipeline = rule.pipeline;
-            this.pinned = rule.pinned;
             this.draft = rule.draft;
             this.provisional = rule.provisional;
             this.promotedTimeMs = rule.promotedTimeMs;
@@ -246,11 +226,6 @@ public class RoutingRule {
 
         public Builder pipeline(final DocRef pipeline) {
             this.pipeline = pipeline;
-            return this;
-        }
-
-        public Builder pinned(final boolean pinned) {
-            this.pinned = pinned;
             return this;
         }
 
@@ -286,7 +261,7 @@ public class RoutingRule {
         }
 
         public RoutingRule build() {
-            return new RoutingRule(uuid, pipeline, pinned, draft, provisional, promotedTimeMs, score,
+            return new RoutingRule(uuid, pipeline, draft, provisional, promotedTimeMs, score,
                     recordBoundary, snapshot);
         }
     }

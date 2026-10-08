@@ -456,7 +456,7 @@ public class SupervisorResourceImpl implements SupervisorResource {
                               && rule.getRollingScore() != null
                               && rule.getRollingScore() < threshold;
         return new ServingRule(doc, rule.getLearner(), rule.getRuleUuid(), rule.getFragment(),
-                rule.isPinned(), rule.isProvisional(), rule.getPromotedScore(), rule.getPromotedTimeMs(),
+                rule.isProvisional(), rule.getPromotedScore(), rule.getPromotedTimeMs(),
                 rule.getRollingScore(), rule.getRecords(), rule.getGuidance(), below, rule.isPipelineDeleted());
     }
 

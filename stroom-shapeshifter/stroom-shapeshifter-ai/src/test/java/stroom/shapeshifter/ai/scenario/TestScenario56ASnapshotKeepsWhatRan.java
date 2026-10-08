@@ -17,6 +17,7 @@
 package stroom.shapeshifter.ai.scenario;
 
 import stroom.docref.DocRef;
+import stroom.meta.api.StandardHeaderArguments;
 import stroom.pipeline.shared.XsltDoc;
 import stroom.pipeline.shared.data.PipelineProperty;
 import stroom.processor.api.DeferTaskException;
@@ -29,7 +30,6 @@ import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.Snapshots.Snapshot;
 import stroom.shapeshifter.ai.stage.Stage;
 import stroom.shapeshifter.ai.stage.StageRun;
-import stroom.shapeshifter.shared.RoutingFields;
 import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 
@@ -294,6 +294,6 @@ class TestScenario56ASnapshotKeepsWhatRan {
     }
 
     private static Input stream(final long id, final String data, final String format) {
-        return new Input(id, FEED, "Raw Events", Map.of(RoutingFields.FORMAT, format), data, PIPELINE);
+        return new Input(id, FEED, "Raw Events", Map.of(StandardHeaderArguments.FORMAT, format), data, PIPELINE);
     }
 }

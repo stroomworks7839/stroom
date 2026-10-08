@@ -90,16 +90,6 @@ public class ShapeshifterDeferral extends TableImpl<ShapeshifterDeferralRecord> 
     public final TableField<ShapeshifterDeferralRecord, String> TYPE_NAME = createField(DSL.name("type_name"), SQLDataType.VARCHAR(255).nullable(false), this, "");
 
     /**
-     * The column <code>stroom.shapeshifter_deferral.task_id</code>.
-     */
-    public final TableField<ShapeshifterDeferralRecord, Long> TASK_ID = createField(DSL.name("task_id"), SQLDataType.BIGINT, this, "");
-
-    /**
-     * The column <code>stroom.shapeshifter_deferral.filter_id</code>.
-     */
-    public final TableField<ShapeshifterDeferralRecord, Integer> FILTER_ID = createField(DSL.name("filter_id"), SQLDataType.INTEGER, this, "");
-
-    /**
      * The column <code>stroom.shapeshifter_deferral.failed_against</code>.
      */
     public final TableField<ShapeshifterDeferralRecord, String> FAILED_AGAINST = createField(DSL.name("failed_against"), SQLDataType.VARCHAR(255), this, "");

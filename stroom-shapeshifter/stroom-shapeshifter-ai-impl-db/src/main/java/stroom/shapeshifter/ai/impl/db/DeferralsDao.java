@@ -48,8 +48,6 @@ public class DeferralsDao implements Deferrals {
                          final long inputId,
                          final String feed,
                          final String type,
-                         final Long taskId,
-                         final Integer filterId,
                          final String failedAgainst,
                          final String reason,
                          final int failingRecords) {
@@ -62,21 +60,16 @@ public class DeferralsDao implements Deferrals {
                 .set(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.META_ID, inputId)
                 .set(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.FEED_NAME, feed)
                 .set(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.TYPE_NAME, type)
-                .set(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.TASK_ID, taskId)
-                .set(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.FILTER_ID, filterId)
                 .set(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.FAILED_AGAINST, failedAgainst)
                 .set(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.REASON, reason)
                 .set(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.FAILING_RECORDS, failingRecords)
                 .set(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.FIRST_DEFERRED_MS, now)
                 .set(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.UPDATE_TIME_MS, now)
                 .set(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.ATTEMPTS, 1)
-                // Tried again and put back again: everything but when it first waited moves. The task
-                // moves too — a reprocess is a new task for the same stream — and so does the document,
-                // since the learner may have been pointed at another.
+                // Tried again and put back again: everything but when it first waited moves, the document
+                // too, since the learner may have been pointed at another.
                 .onDuplicateKeyUpdate()
                 .set(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.DOC_UUID, docUuid)
-                .set(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.TASK_ID, taskId)
-                .set(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.FILTER_ID, filterId)
                 .set(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.FAILED_AGAINST, failedAgainst)
                 .set(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.REASON, reason)
                 .set(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.FAILING_RECORDS, failingRecords)
@@ -146,8 +139,6 @@ public class DeferralsDao implements Deferrals {
                 row.get(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.META_ID),
                 row.get(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.FEED_NAME),
                 row.get(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.TYPE_NAME),
-                row.get(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.TASK_ID),
-                row.get(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.FILTER_ID),
                 row.get(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.FAILED_AGAINST),
                 row.get(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.REASON),
                 row.get(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.FAILING_RECORDS),

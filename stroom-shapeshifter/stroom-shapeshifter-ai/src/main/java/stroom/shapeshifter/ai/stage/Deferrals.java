@@ -19,10 +19,11 @@ package stroom.shapeshifter.ai.stage;
 import java.util.List;
 import java.util.Optional;
 
-/// The streams that are waiting, and on what (design 04 §3, §6): one row per stream a document has put
-/// back — the stream, the task and filter that will be woken, the transform it failed against, and since
-/// when. Nothing about which of its records failed and none of its text (A69): the session works that out
-/// for the one stream it learns from, and for the rest it would be stale the moment the transform moved.
+/// The streams that are waiting, and on what (design 04 §3, §6): one row per stream a learner has put
+/// back — the stream, the transform it failed against, and since when. A wake names the learner's
+/// pipeline, not a row's task (A129), so a row does not say which task deferred it. Nothing about which
+/// of its records failed and none of its text (A69): the session works that out for the one stream it
+/// learns from, and for the rest it would be stale the moment the transform moved.
 ///
 /// A row is a stream that waits: its task deferred it, and a wake or a person brings it back (design 04
 /// §3, §5.3). In-memory in scenarios; a table in a node.
@@ -37,8 +38,6 @@ public interface Deferrals {
     /// @param inputId        The stream's meta id.
     /// @param feed           Its feed.
     /// @param type           Its type.
-    /// @param taskId         The processor task to wake, where one is.
-    /// @param filterId       The processor filter that task belongs to, where one is.
     /// @param failedAgainst  What the stream was run through and fell short of: the rule's fragment and
     ///                       its version, or null where there was no rule to run it through.
     /// @param reason         Why it waits, in words.
@@ -48,8 +47,6 @@ public interface Deferrals {
                   long inputId,
                   String feed,
                   String type,
-                  Long taskId,
-                  Integer filterId,
                   String failedAgainst,
                   String reason,
                   int failingRecords);
@@ -97,8 +94,6 @@ public interface Deferrals {
     /// @param inputId         The stream's meta id.
     /// @param feed            Its feed.
     /// @param type            Its type.
-    /// @param taskId          The task to wake, where one is.
-    /// @param filterId        That task's filter, where one is.
     /// @param failedAgainst   What it last fell short of, or null where there was no rule.
     /// @param reason          Why it waits.
     /// @param failingRecords  How many records fell short, the last time it was tried.
@@ -109,8 +104,6 @@ public interface Deferrals {
                     long inputId,
                     String feed,
                     String type,
-                    Long taskId,
-                    Integer filterId,
                     String failedAgainst,
                     String reason,
                     int failingRecords,

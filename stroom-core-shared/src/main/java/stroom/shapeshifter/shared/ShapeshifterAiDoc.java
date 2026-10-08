@@ -74,7 +74,7 @@ import java.util.Objects;
         "promotionMode",
         "promotionFloor",
         "heldOutFraction",
-        "minRecordsPerShape",
+        "minRecordsToLearn",
         "regressionCap",
         "regressionRetentionDays",
         "scorers",
@@ -106,7 +106,7 @@ public class ShapeshifterAiDoc extends AbstractDoc {
     static final int DEFAULT_SAMPLE_SIZE_LIMIT = 8_192;
     static final double DEFAULT_PROMOTION_FLOOR = 0.9;
     static final double DEFAULT_HELD_OUT_FRACTION = 0.2;
-    static final int DEFAULT_MIN_RECORDS_PER_SHAPE = 10;
+    static final int DEFAULT_MIN_RECORDS_TO_LEARN = 10;
     static final int DEFAULT_REGRESSION_CAP = 100;
 
     @JsonProperty
@@ -188,7 +188,7 @@ public class ShapeshifterAiDoc extends AbstractDoc {
      * that clears the floor is bound provisionally and waits for more. Ruling A14, A5.
      */
     @JsonProperty
-    private final int minRecordsPerShape;
+    private final int minRecordsToLearn;
     /**
      * Most previously-accepted records retained per rule for the regression check. Ruling A18.
      */
@@ -229,7 +229,7 @@ public class ShapeshifterAiDoc extends AbstractDoc {
             @JsonProperty("promotionMode") final PromotionMode promotionMode,
             @JsonProperty("promotionFloor") final Double promotionFloor,
             @JsonProperty("heldOutFraction") final Double heldOutFraction,
-            @JsonProperty("minRecordsPerShape") final Integer minRecordsPerShape,
+            @JsonProperty("minRecordsToLearn") final Integer minRecordsToLearn,
             @JsonProperty("regressionCap") final Integer regressionCap,
             @JsonProperty("regressionRetentionDays") final Integer regressionRetentionDays,
             @JsonProperty("scorers") final List<ScorerSetting> scorers) {
@@ -250,7 +250,7 @@ public class ShapeshifterAiDoc extends AbstractDoc {
         this.promotionMode = Objects.requireNonNullElse(promotionMode, DEFAULT_PROMOTION_MODE);
         this.promotionFloor = Objects.requireNonNullElse(promotionFloor, DEFAULT_PROMOTION_FLOOR);
         this.heldOutFraction = Objects.requireNonNullElse(heldOutFraction, DEFAULT_HELD_OUT_FRACTION);
-        this.minRecordsPerShape = Objects.requireNonNullElse(minRecordsPerShape, DEFAULT_MIN_RECORDS_PER_SHAPE);
+        this.minRecordsToLearn = Objects.requireNonNullElse(minRecordsToLearn, DEFAULT_MIN_RECORDS_TO_LEARN);
         this.regressionCap = Objects.requireNonNullElse(regressionCap, DEFAULT_REGRESSION_CAP);
         this.regressionRetentionDays = regressionRetentionDays;
         this.scorers = copyOrEmpty(scorers);
@@ -338,8 +338,8 @@ public class ShapeshifterAiDoc extends AbstractDoc {
         return heldOutFraction;
     }
 
-    public int getMinRecordsPerShape() {
-        return minRecordsPerShape;
+    public int getMinRecordsToLearn() {
+        return minRecordsToLearn;
     }
 
     public int getRegressionCap() {
@@ -372,7 +372,7 @@ public class ShapeshifterAiDoc extends AbstractDoc {
                Double.compare(relearnThreshold, that.relearnThreshold) == 0 &&
                Double.compare(promotionFloor, that.promotionFloor) == 0 &&
                Double.compare(heldOutFraction, that.heldOutFraction) == 0 &&
-               minRecordsPerShape == that.minRecordsPerShape &&
+               minRecordsToLearn == that.minRecordsToLearn &&
                regressionCap == that.regressionCap &&
                Objects.equals(description, that.description) &&
                learningMode == that.learningMode &&
@@ -403,7 +403,7 @@ public class ShapeshifterAiDoc extends AbstractDoc {
                 promotionMode,
                 promotionFloor,
                 heldOutFraction,
-                minRecordsPerShape,
+                minRecordsToLearn,
                 regressionCap,
                 regressionRetentionDays,
                 scorers);
@@ -424,7 +424,7 @@ public class ShapeshifterAiDoc extends AbstractDoc {
                ", promotionMode=" + promotionMode +
                ", promotionFloor=" + promotionFloor +
                ", heldOutFraction=" + heldOutFraction +
-               ", minRecordsPerShape=" + minRecordsPerShape +
+               ", minRecordsToLearn=" + minRecordsToLearn +
                ", regressionCap=" + regressionCap +
                ", regressionRetentionDays=" + regressionRetentionDays +
                ", scorers=" + scorers +
@@ -459,7 +459,7 @@ public class ShapeshifterAiDoc extends AbstractDoc {
         private PromotionMode promotionMode = DEFAULT_PROMOTION_MODE;
         private double promotionFloor = DEFAULT_PROMOTION_FLOOR;
         private double heldOutFraction = DEFAULT_HELD_OUT_FRACTION;
-        private int minRecordsPerShape = DEFAULT_MIN_RECORDS_PER_SHAPE;
+        private int minRecordsToLearn = DEFAULT_MIN_RECORDS_TO_LEARN;
         private int regressionCap = DEFAULT_REGRESSION_CAP;
         private Integer regressionRetentionDays;
         private List<ScorerSetting> scorers = Collections.emptyList();
@@ -483,7 +483,7 @@ public class ShapeshifterAiDoc extends AbstractDoc {
             this.promotionMode = doc.promotionMode;
             this.promotionFloor = doc.promotionFloor;
             this.heldOutFraction = doc.heldOutFraction;
-            this.minRecordsPerShape = doc.minRecordsPerShape;
+            this.minRecordsToLearn = doc.minRecordsToLearn;
             this.regressionCap = doc.regressionCap;
             this.regressionRetentionDays = doc.regressionRetentionDays;
             this.scorers = doc.scorers;
@@ -575,8 +575,8 @@ public class ShapeshifterAiDoc extends AbstractDoc {
             return self();
         }
 
-        public Builder minRecordsPerShape(final int minRecordsPerShape) {
-            this.minRecordsPerShape = minRecordsPerShape;
+        public Builder minRecordsToLearn(final int minRecordsToLearn) {
+            this.minRecordsToLearn = minRecordsToLearn;
             return self();
         }
 
@@ -623,7 +623,7 @@ public class ShapeshifterAiDoc extends AbstractDoc {
                     promotionMode,
                     promotionFloor,
                     heldOutFraction,
-                    minRecordsPerShape,
+                    minRecordsToLearn,
                     regressionCap,
                     regressionRetentionDays,
                     scorers);

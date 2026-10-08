@@ -98,7 +98,7 @@ public class ShapeshifterAiScorePresenter
         view.setPromotionMode(doc.getPromotionMode());
         view.setPromotionFloor(doc.getPromotionFloor());
         view.setHeldOutFraction(doc.getHeldOutFraction());
-        view.setMinRecordsPerShape(doc.getMinRecordsPerShape());
+        view.setMinRecordsToLearn(doc.getMinRecordsToLearn());
         view.setRegressionCap(doc.getRegressionCap());
         view.setRegressionRetentionDays(doc.getRegressionRetentionDays());
         view.setRelearnThreshold(doc.getRelearnThreshold());
@@ -116,7 +116,7 @@ public class ShapeshifterAiScorePresenter
                 .promotionMode(view.getPromotionMode())
                 .promotionFloor(view.getPromotionFloor())
                 .heldOutFraction(view.getHeldOutFraction())
-                .minRecordsPerShape(view.getMinRecordsPerShape())
+                .minRecordsToLearn(view.getMinRecordsToLearn())
                 .regressionCap(view.getRegressionCap())
                 .regressionRetentionDays(view.getRegressionRetentionDays())
                 .relearnThreshold(view.getRelearnThreshold())
@@ -266,9 +266,9 @@ public class ShapeshifterAiScorePresenter
 
         void setHeldOutFraction(double heldOutFraction);
 
-        int getMinRecordsPerShape();
+        int getMinRecordsToLearn();
 
-        void setMinRecordsPerShape(int minRecordsPerShape);
+        void setMinRecordsToLearn(int minRecordsToLearn);
 
         int getRegressionCap();
 

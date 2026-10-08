@@ -99,7 +99,7 @@ class TestScenariosTarget {
                 .learningMode(LearningMode.AUTOMATIC)
                 .flow(FlowExample.TARGET_FIRST)
                 .allowedElements(List.of("DSParser", "XSLTFilter"))
-                .minRecordsPerShape(5)
+                .minRecordsToLearn(5)
                 .scorers(List.of(
                         new ScorerSetting(ScorerType.COMPILE, 0.0, 1.0, true, null),
                         new ScorerSetting(ScorerType.INPUT_COVERAGE, 1.0, 0.9, false, null),
@@ -313,7 +313,7 @@ class TestScenariosTarget {
         // Blocks of several lines between ---- lines. The scorers here are about structure alone.
         final Scenarios scenarios = new Scenarios();
         final ShapeshifterAiDoc doc = doc().copy()
-                .minRecordsPerShape(2)
+                .minRecordsToLearn(2)
                 .scorers(List.of(
                         new ScorerSetting(ScorerType.COMPILE, 0.0, 1.0, true, null),
                         new ScorerSetting(ScorerType.INPUT_COVERAGE, 1.0, 0.9, false, null),
@@ -367,7 +367,7 @@ class TestScenariosTarget {
         // schema; yield by records would count the root's one child, so it is not asked here (design 01 §10.1).
         final Scenarios scenarios = new Scenarios();
         final ShapeshifterAiDoc doc = doc().copy()
-                .minRecordsPerShape(2)
+                .minRecordsToLearn(2)
                 .scorers(List.of(
                         new ScorerSetting(ScorerType.COMPILE, 0.0, 1.0, true, null),
                         new ScorerSetting(ScorerType.SCHEMA_CONFORMANCE, 1.0, 1.0, true,

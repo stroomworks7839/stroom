@@ -43,10 +43,11 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Design 02 §5, scenarios 8, 9 and 10: a bound shape relearned against an incumbent. A candidate that
+ * Design 02 §5, scenarios 8 and 9: a bound shape relearned against an incumbent. A candidate that
  * looks better on the learning sample but is worse on the held-out stream is not promoted (A15); one
- * that is worse on a record the rule was accepted on is not promoted either (A18); one that is better on
- * both replaces the incumbent's fragment under the same rule; and a pinned rule is never relearned.
+ * that is worse on a record the rule was accepted on is not promoted either (A18); and one that is better
+ * on both replaces the incumbent's fragment under the same rule. Scenario 10, a pinned rule, went with
+ * pinning (design 06 A138).
  * <p>
  * The incumbent is the golden transform with an empty device name, which the document weighs, so it
  * scores well but not perfectly and its records still clear the bar. A person marks the shape for
@@ -83,7 +84,7 @@ class TestScenariosIncumbent {
                 .learningMode(LearningMode.AUTOMATIC)
                 .flow(FlowExample.TARGET_FIRST)
                 .allowedElements(List.of("DSParser", "XSLTFilter"))
-                .minRecordsPerShape(5)
+                .minRecordsToLearn(5)
                 // Below what the flawed candidates score, so that the comparison with the incumbent, not the
                 // floor, is what decides.
                 .promotionFloor(0.85)
@@ -247,26 +248,5 @@ class TestScenariosIncumbent {
         assertThat(scenarios.stores.xslts.list()).hasSize(1);
         assertThat(scenarios.snapshots.forRule(v1.getUuid())).hasSize(2);
         assertThat(scenarios.regressionSet.accepted(v1.getUuid())).hasSizeGreaterThan(6);
-    }
-
-    @Test
-    void scenario10APinnedRuleIsNeverRelearned() {
-        final Scenarios scenarios = new Scenarios();
-        final Script script = learning(scenarios, V1);
-        final StageRun learned = scenarios.process(script, doc(), stream(1, CsvLines.lines(7))).learned();
-        final RoutingRule pinned = ((Promoted) learned.decision()).rule().copy().pinned(true).build();
-        scenarios.rules.replace(Scenarios.LEARNER, DOC, pinned);
-
-        final Script silent = Script.of();
-        for (long id = 2; id <= 4; id++) {
-            final StageRun run = scenarios.process(silent, learned.doc(), stream(id, CsvLines.lines(7))).learned();
-            assertThat(run.decision()).isInstanceOf(Bound.class);
-            assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).containsExactly(pinned);
-        }
-        assertThat(silent.asked()).isEmpty();
-        assertThat(scenarios.states.relearnReason(Scenarios.LEARNER))
-                .describedAs("never even scored against")
-                .isEmpty();
-        assertThat(scenarios.stores.pipelines.list()).hasSize(1);
     }
 }

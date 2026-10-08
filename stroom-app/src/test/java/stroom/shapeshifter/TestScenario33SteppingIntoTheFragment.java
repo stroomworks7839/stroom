@@ -352,7 +352,7 @@ class TestScenario33SteppingIntoTheFragment extends AbstractProcessIntegrationTe
                 .learningMode(LearningMode.AUTOMATIC)
                 .flow(FlowExample.TARGET_FIRST)
                 .allowedElements(List.of("DSParser", "XSLTFilter"))
-                .minRecordsPerShape(5)
+                .minRecordsToLearn(5)
                 .promotionFloor(0.85)
                 .scorers(List.of(
                         new ScorerSetting(ScorerType.COMPILE, 0.0, 1.0, true, null),

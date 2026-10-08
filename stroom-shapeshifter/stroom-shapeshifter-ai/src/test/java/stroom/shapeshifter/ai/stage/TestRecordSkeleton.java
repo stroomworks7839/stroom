@@ -23,7 +23,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class TestShapeSignature {
+class TestRecordSkeleton {
 
     private static final String ONE_RECORD = """
             <?xml version="1.0"?>
@@ -38,28 +38,6 @@ class TestShapeSignature {
               <record><data name="user" value="ef"/><data name="door" value="3"/></record>
             </records>
             """;
-    private static final String OTHER_SHAPE = """
-            <records xmlns="records:2">
-              <record><data name="user" value="jb"/></record>
-            </records>
-            """;
-
-    @Test
-    void anXmlSignatureIsTheFirstRecordsSkeletonNotTheStreams() {
-        // Design 01 §5: stable under value variation and record count, sensitive to structure — otherwise
-        // every stream is a new shape and no selector, deferral or regression set is ever hit twice.
-        assertThat(ShapeSignature.of(ONE_RECORD)).isEqualTo(ShapeSignature.of(THREE_RECORDS));
-        assertThat(ShapeSignature.of(ONE_RECORD)).isNotEqualTo(ShapeSignature.of(OTHER_SHAPE));
-        assertThat(ShapeSignature.xmlSkeleton(THREE_RECORDS))
-                .isEqualTo("<records><record><data></data><data></data></record>");
-    }
-
-    @Test
-    void aTextSignatureIsTheFirstLinesTokenClasses() {
-        assertThat(ShapeSignature.of("2026-09-17 10:00:01 door7 open\n2026-09-17 10:00:02 door8 shut\n"))
-                .isEqualTo(ShapeSignature.of("1999-01-01 00:00:00 gate8 shut\n"));
-        assertThat(ShapeSignature.of("a,b,c\n")).isNotEqualTo(ShapeSignature.of("a b c\n"));
-    }
 
     @Test
     void aBlankStreamHasAnEmptyLearningPrefix() {
@@ -95,7 +73,7 @@ class TestShapeSignature {
     @Test
     void textThatLooksLikeMarkupButIsNotADocumentIsCutByWholeLines() {
         final String chat = "<alice> hello there everyone\n<bob> hi alice\n<carol> morning all\n";
-        assertThat(ShapeSignature.isMarkup(chat)).isTrue();
+        assertThat(RecordSkeleton.isMarkup(chat)).isTrue();
         assertThat(Stage.learningPrefix(chat, ShapeshifterAiDoc.builder().uuid("d").sampleSizeLimit(45).build()))
                 .isEqualTo("<alice> hello there everyone\n<bob> hi alice\n");
     }
@@ -111,9 +89,9 @@ class TestShapeSignature {
         final String process = "<Event><System><EventID>4688</EventID></System><EventData>"
                                + "<Data Name=\"NewProcessName\">cmd.exe</Data><Data Name=\"LogonType\">2</Data>"
                                + "</EventData><User Name=\"carol\"/></Event>";
-        assertThat(ShapeSignature.recordSkeleton(logon)).isEqualTo(ShapeSignature.recordSkeleton(otherLogon));
-        assertThat(ShapeSignature.recordSkeleton(logon)).isNotEqualTo(ShapeSignature.recordSkeleton(process));
-        assertThat(ShapeSignature.recordSkeleton(logon))
+        assertThat(RecordSkeleton.recordSkeleton(logon)).isEqualTo(RecordSkeleton.recordSkeleton(otherLogon));
+        assertThat(RecordSkeleton.recordSkeleton(logon)).isNotEqualTo(RecordSkeleton.recordSkeleton(process));
+        assertThat(RecordSkeleton.recordSkeleton(logon))
                 .contains("<Data Name=TargetUserName>", "<User Name>")
                 .doesNotContain("alice");
         // A JSON key always names a field; an array is one kind however many items it holds.
@@ -121,12 +99,12 @@ class TestShapeSignature {
                                 + "<array key=\"roles\"><string>x</string><string>y</string></array></map>";
         final String threeRoles = twoRoles.replace("<string>y</string>", "<string>y</string><string>z</string>");
         final String noRoles = twoRoles.replace("<array key=\"roles\">", "<array key=\"groups\">");
-        assertThat(ShapeSignature.recordSkeleton(twoRoles)).isEqualTo(ShapeSignature.recordSkeleton(threeRoles));
-        assertThat(ShapeSignature.recordSkeleton(twoRoles)).isNotEqualTo(ShapeSignature.recordSkeleton(noRoles));
-        assertThat(ShapeSignature.recordSkeleton(twoRoles))
+        assertThat(RecordSkeleton.recordSkeleton(twoRoles)).isEqualTo(RecordSkeleton.recordSkeleton(threeRoles));
+        assertThat(RecordSkeleton.recordSkeleton(twoRoles)).isNotEqualTo(RecordSkeleton.recordSkeleton(noRoles));
+        assertThat(RecordSkeleton.recordSkeleton(twoRoles))
                 .isEqualTo("<map><string key=user></string><array key=roles><string></string></array></map>");
         // What does not parse falls back to the text skeleton rather than throwing.
-        assertThat(ShapeSignature.recordSkeleton("<a><b></a>")).isEqualTo(ShapeSignature.textSkeleton("<a><b></a>"));
+        assertThat(RecordSkeleton.recordSkeleton("<a><b></a>")).isEqualTo(RecordSkeleton.textSkeleton("<a><b></a>"));
     }
 
     @Test
@@ -172,11 +150,12 @@ class TestShapeSignature {
     @Test
     void aByteOrderMarkIsNotContent() {
         // Read as text, a BOM would make XML and JSON look like a line of text to every classification.
-        assertThat(ShapeSignature.isMarkup("\uFEFF<records/>")).isTrue();
-        assertThat(ShapeSignature.of("\uFEFF" + ONE_RECORD)).isEqualTo(ShapeSignature.of(ONE_RECORD));
+        assertThat(RecordSkeleton.isMarkup("\uFEFF<records/>")).isTrue();
+        assertThat(RecordSkeleton.recordSkeleton(RecordSkeleton.withoutBom("\uFEFF" + ONE_RECORD)))
+                .isEqualTo(RecordSkeleton.recordSkeleton(ONE_RECORD));
         assertThat(Stage.isJsonDocument("\uFEFF{\n  \"a\": 1\n}\n")).isTrue();
-        assertThat(ShapeSignature.withoutBom("\uFEFFx")).isEqualTo("x");
-        assertThat(ShapeSignature.withoutBom("")).isEmpty();
+        assertThat(RecordSkeleton.withoutBom("\uFEFFx")).isEqualTo("x");
+        assertThat(RecordSkeleton.withoutBom("")).isEmpty();
     }
 
     @Test

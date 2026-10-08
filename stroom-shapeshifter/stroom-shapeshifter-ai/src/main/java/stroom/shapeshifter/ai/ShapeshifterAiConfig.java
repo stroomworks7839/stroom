@@ -34,20 +34,20 @@ public class ShapeshifterAiConfig extends AbstractConfig implements IsStroomConf
 
     private final ShapeshifterAiDbConfig dbConfig;
     private final CacheConfig ruleCache;
-    private final CacheConfig shapeCache;
+    private final CacheConfig learnerStateCache;
     private final int deferredLearningBatchSize;
     private final StroomDuration attemptRetention;
     private final StroomDuration sessionLease;
 
     public ShapeshifterAiConfig() {
         dbConfig = new ShapeshifterAiDbConfig();
-        // Read for every stream of every shape and written only when something is learned, so it is
+        // Read for every stream of every learner and written only when something is learned, so it is
         // invalidated by what writes it rather than by time; the expiry is a backstop.
         ruleCache = CacheConfig.builder()
                 .maximumSize(1000L)
                 .expireAfterAccess(StroomDuration.ofMinutes(10))
                 .build();
-        shapeCache = CacheConfig.builder()
+        learnerStateCache = CacheConfig.builder()
                 .maximumSize(10_000L)
                 .expireAfterAccess(StroomDuration.ofMinutes(10))
                 .build();
@@ -60,13 +60,13 @@ public class ShapeshifterAiConfig extends AbstractConfig implements IsStroomConf
     @JsonCreator
     public ShapeshifterAiConfig(@JsonProperty("db") final ShapeshifterAiDbConfig dbConfig,
                                 @JsonProperty("ruleCache") final CacheConfig ruleCache,
-                                @JsonProperty("shapeCache") final CacheConfig shapeCache,
+                                @JsonProperty("learnerStateCache") final CacheConfig learnerStateCache,
                                 @JsonProperty("deferredLearningBatchSize") final int deferredLearningBatchSize,
                                 @JsonProperty("attemptRetention") final StroomDuration attemptRetention,
                                 @JsonProperty("sessionLease") final StroomDuration sessionLease) {
         this.dbConfig = dbConfig;
         this.ruleCache = ruleCache;
-        this.shapeCache = shapeCache;
+        this.learnerStateCache = learnerStateCache;
         this.deferredLearningBatchSize = deferredLearningBatchSize;
         this.attemptRetention = attemptRetention;
         this.sessionLease = sessionLease;
@@ -74,28 +74,27 @@ public class ShapeshifterAiConfig extends AbstractConfig implements IsStroomConf
 
     @Override
     @JsonProperty("db")
-    @JsonPropertyDescription("The database holding the runtime state of A26: the shapes a document has met, "
-                             + "its routing rules, the streams waiting on a learner, each feed's error-mode "
-                             + "state and the cluster's spend.")
+    @JsonPropertyDescription("The database holding the runtime state of A26: what serves each learner and "
+                             + "its state, its learning sessions, the streams waiting on it, and the "
+                             + "cluster's spend.")
     public ShapeshifterAiDbConfig getDbConfig() {
         return dbConfig;
     }
 
     @JsonProperty("ruleCache")
-    @JsonPropertyDescription("The routing rules of each Shapeshifter AI document, cached per node. Every "
-                             + "stream of every shape is routed against them, and they change only when "
-                             + "something is learned or an operator edits them, which clears the entry on "
-                             + "every node.")
+    @JsonPropertyDescription("What serves each Shapeshifter AI learner, cached per node. Every stream of "
+                             + "every learner reads it, and it changes only when something is learned or a "
+                             + "person acts on it, which clears the entry on every node.")
     public CacheConfig getRuleCache() {
         return ruleCache;
     }
 
-    @JsonProperty("shapeCache")
-    @JsonPropertyDescription("What each shape has settled into — given up, marked for relearning, awaiting "
-                             + "review — cached per node. The rolling scores are not cached: they are "
-                             + "counted across the cluster.")
-    public CacheConfig getShapeCache() {
-        return shapeCache;
+    @JsonProperty("learnerStateCache")
+    @JsonPropertyDescription("What each learner has settled into — given up, marked to learn again, "
+                             + "awaiting review — cached per node. The rolling scores are not cached: they "
+                             + "are counted across the cluster.")
+    public CacheConfig getLearnerStateCache() {
+        return learnerStateCache;
     }
 
     @Min(1)

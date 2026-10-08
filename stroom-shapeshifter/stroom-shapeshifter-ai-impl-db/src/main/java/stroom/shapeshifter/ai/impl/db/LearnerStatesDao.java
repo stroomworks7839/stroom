@@ -192,9 +192,10 @@ public class LearnerStatesDao implements LearnerStates {
 
     /// The row for a learner, made where this node is the first to mention it. Two nodes meeting a new learner
     /// at once both insert; the unique key decides, and the loser reads what the winner wrote. The row is
-    /// looked for first, so that the steady path — the row exists — never leaves the shared lock an
-    /// `INSERT ... ON DUPLICATE KEY IGNORE` takes on a duplicate, which a following `FOR UPDATE` would have
-    /// to upgrade, and two nodes doing that at once deadlock.
+    /// looked for first, so that the steady path — the row exists — takes no lock here. Where it is
+    /// missing, the insert takes the row's exclusive lock even on a duplicate, so that a following
+    /// `FOR UPDATE` has nothing to upgrade: a shared lock held by two transactions that each then want it
+    /// exclusively is a deadlock.
     private static void row(final DSLContext context,
                             final Learner learner,
                             final String docUuid) {
@@ -211,7 +212,12 @@ public class LearnerStatesDao implements LearnerStates {
                 .set(SHAPESHIFTER_LEARNER_STATE.PIPELINE_UUID, learner.pipelineUuid())
                 .set(SHAPESHIFTER_LEARNER_STATE.ELEMENT_ID, learner.elementId())
                 .set(SHAPESHIFTER_LEARNER_STATE.DOC_UUID, docUuid)
-                .onDuplicateKeyIgnore()
+                // Not IGNORE: on a duplicate that takes a shared lock, and the transactions that met the
+                // row missing together — the first streams of a new learner, scored at once — each then
+                // ask for the exclusive lock the others' shared locks refuse, and the database kills one.
+                // An update takes the exclusive lock at once, so they queue instead.
+                .onDuplicateKeyUpdate()
+                .set(SHAPESHIFTER_LEARNER_STATE.VERSION, SHAPESHIFTER_LEARNER_STATE.VERSION)
                 .execute();
     }
 }

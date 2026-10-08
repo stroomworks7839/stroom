@@ -34,8 +34,8 @@ import stroom.shapeshifter.ai.stage.Decision.Sentinel;
 import stroom.shapeshifter.ai.stage.Deferrals.Deferral;
 import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.Learner;
+import stroom.shapeshifter.ai.stage.RecordSkeleton;
 import stroom.shapeshifter.ai.stage.Rules;
-import stroom.shapeshifter.ai.stage.ShapeSignature;
 import stroom.shapeshifter.ai.stage.Stage;
 import stroom.shapeshifter.ai.stage.StageRun;
 import stroom.shapeshifter.shared.AttemptStatus;
@@ -81,7 +81,7 @@ class TestScenariosBindingBeforeLearning {
                 .learningMode(LearningMode.AUTOMATIC)
                 .flow(FlowExample.TARGET_FIRST)
                 .allowedElements(List.of("DSParser", "XSLTFilter"))
-                .minRecordsPerShape(5)
+                .minRecordsToLearn(5)
                 .promotionFloor(0.85)
                 .scorers(List.of(
                         new ScorerSetting(ScorerType.COMPILE, 0.0, 1.0, true, null),
@@ -139,7 +139,7 @@ class TestScenariosBindingBeforeLearning {
     @Test
     void scenario14TooFewRecordsBindsProvisionallyThenPromotesWhenEnoughArrive() {
         final Scenarios scenarios = new Scenarios();
-        final ShapeshifterAiDoc doc = doorAccess().copy().minRecordsPerShape(10).build();
+        final ShapeshifterAiDoc doc = doorAccess().copy().minRecordsToLearn(10).build();
         final Script script = scenarios.script(CSV.configuration(), XSLT)
                 .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter")
                 .expect(QuestionMatcher.configuration("DSParser")).reply(Scenarios.fenced(CSV.configuration()))

@@ -67,7 +67,7 @@ class TestScenario49XmlFragments {
                 .learningMode(LearningMode.AUTOMATIC)
                 .flow(FlowExample.TARGET_FIRST)
                 .allowedElements(List.of("XMLFragmentParser", "XSLTFilter"))
-                .minRecordsPerShape(5)
+                .minRecordsToLearn(5)
                 .scorers(List.of(
                         new ScorerSetting(ScorerType.COMPILE, 0.0, 1.0, true, null),
                         new ScorerSetting(ScorerType.YIELD, 1.0, 0.5, false,

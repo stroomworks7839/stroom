@@ -239,7 +239,6 @@ public final class Stage {
                            final Advisor answerer) {
         final Recorded recorded = attempts.byId(attemptId)
                 .orElseThrow(() -> new IllegalArgumentException("No attempt " + attemptId));
-        final Map<String, Object> attributes = input.routingAttributes(ShapeSignature.of(input.data()));
         final Learner learner = recorded.attempt().learner();
         // Carrying it on is taking it (A45): an attempt that has finished is not resumed, and one another
         // node has taken since is that node's until its claim lapses.
@@ -277,15 +276,15 @@ public final class Stage {
             return carrying(doc, learner, input, attemptId, recorded.tokensSpent(), recorded.grant(),
                     recorded.exhaustNext(), answeredBefore, replay, true,
                     reason -> emit(doc, new Kept(rule, reason), learner, input, rule, served, List.of()),
-                    recorder -> settle(doc, learner, input, attributes, scorecard, recorder,
-                            relearnUnderClaim(doc, learner, rule, input, attributes, scorecard, served, marked,
+                    recorder -> settle(doc, learner, input, scorecard, recorder,
+                            relearnUnderClaim(doc, learner, rule, input, scorecard, served, marked,
                                     recorder)));
         }
         return carrying(doc, learner, input, attemptId, recorded.tokensSpent(), recorded.grant(),
                 recorded.exhaustNext(), answeredBefore, replay, true,
                 reason -> refused(doc, learner, reason),
-                recorder -> settle(doc, learner, input, attributes, scorecard, recorder,
-                        learnAndBind(doc, learner, input, attributes, scorecard, recorder)));
+                recorder -> settle(doc, learner, input, scorecard, recorder,
+                        learnAndBind(doc, learner, input, scorecard, recorder)));
     }
 
     /**
@@ -449,11 +448,6 @@ public final class Stage {
             throw new IllegalArgumentException("Rule " + ruleUuid + " binds nothing, so there is nothing to "
                                                + "improve");
         }
-        if (incumbent.isPinned()) {
-            // §7.3 rule 2: a pin freezes a rule — served, never promoted, retracted or relearned. An
-            // improvement rebinds it, which is exactly what the pin is there to stop.
-            throw new IllegalStateException("Rule " + ruleUuid + " is pinned; unpin it before improving it");
-        }
         if (doc.getLearningMode() == LearningMode.DISABLED) {
             // The kill switch is a kill switch. Every other path that asks a model reads it, and a
             // button that asked anyway would be a way round it.
@@ -495,7 +489,6 @@ public final class Stage {
         // No feed and no type: there is no stream here to read them off, and a learner does not know its
         // feed (A126), so the model is shown the corpus alone.
         final Input input = new Input(-1L, null, null, Map.of(), sample, null);
-        final Map<String, Object> attributes = input.routingAttributes(ShapeSignature.of(sample));
         final Scorecard scorecard = new Scorecard(doc.getScorers(), scorers);
         // Asked where it was asked from, whatever the document's execution mode. Deferred mode exists
         // because a model call inside a *processing task* holds a task slot (A5); an improvement is not
@@ -505,7 +498,7 @@ public final class Stage {
         // which is not built.
         return recording(doc, learner, input, advisors.of(doc),
                 reason -> refused(doc, learner, "Rule " + ruleUuid + " is not being improved: " + reason),
-                recorder -> improveUnderClaim(doc, learner, incumbent, input, attributes, scorecard, accepted,
+                recorder -> improveUnderClaim(doc, learner, incumbent, input, scorecard, accepted,
                         corpusFeed, recorder));
     }
 
@@ -519,7 +512,6 @@ public final class Stage {
                                        final Learner learner,
                                        final RoutingRule incumbent,
                                        final Input input,
-                                       final Map<String, Object> attributes,
                                        final Scorecard scorecard,
                                        final List<Accepted> accepted,
                                        final String corpusFeed,
@@ -528,7 +520,7 @@ public final class Stage {
         opening.add(new StoredError(Severity.ERROR, null, STAGE,
                 "Improving " + incumbent.getPipeline().getName() + ", which is serving and scored "
                 + incumbent.getScore() + " when it was promoted. It is not failing: make it better."));
-        final Outcome outcome = learn(doc, learner, input, attributes, scorecard, opening, List.of(), recorder);
+        final Outcome outcome = learn(doc, learner, input, scorecard, opening, List.of(), recorder);
         if (outcome instanceof final Abandoned abandoned) {
             return kept(doc, learner, incumbent, "No candidate: " + abandoned.reason(), outcome.transcript());
         }
@@ -641,14 +633,6 @@ public final class Stage {
             return Optional.of("Awaiting review: draft rule " + matched.get().getUuid()
                                + " already serves this learner");
         }
-        if (matched.isPresent() && matched.get().isPinned()) {
-            // §7.3 rule 2: a pin freezes a rule — served, never promoted, retracted or relearned. Every
-            // other path that would rebind one checks; carrying an attempt on did not, so a rule pinned
-            // while a deferred attempt was parked would be rebound by the relearning the attempt
-            // resumes into.
-            return Optional.of("Rule " + matched.get().getUuid() + " is pinned, so what it binds is not "
-                               + "to be changed");
-        }
         final Optional<String> givenUp = states.reasonGivenUp(learner);
         if (givenUp.isPresent()) {
             return Optional.of("Given up: " + givenUp.get());
@@ -675,7 +659,6 @@ public final class Stage {
     /// input: an input nothing remembers cannot be served as it was, and quietly serving it as-current
     /// would answer a question nobody asked.
     public StageRun reprocess(final ShapeshifterAiDoc doc, final Learner learner, final Input input) {
-        final Map<String, Object> attributes = input.routingAttributes(ShapeSignature.of(input.data()));
         final Optional<Bindings> recorded = outputs.asProcessed(doc.getUuid(), input.id(), input.pipeline());
         if (recorded.isEmpty()) {
             return refused(doc, learner, "Nothing is recorded for input " + input.id()
@@ -747,7 +730,6 @@ public final class Stage {
                            final Learner learner,
                            final Input input,
                            final boolean asProcessed) {
-        final Map<String, Object> attributes = input.routingAttributes(ShapeSignature.of(input.data()));
         final Scorecard scorecard = new Scorecard(doc.getScorers(), scorers);
 
         if (asProcessed) {
@@ -771,8 +753,8 @@ public final class Stage {
             // What serving would go on to do with that judgement: a provisional rule that has brought
             // enough records and clears the floor is promoted. One that does not is served as it stands —
             // the floor no longer retracts it (A101) — and is shown as served below.
-            if (rule.isProvisional() && !rule.isPinned()
-                && judged.records() >= doc.getMinRecordsPerShape() && judged.clearsFloor(doc)) {
+            if (rule.isProvisional()
+                && judged.records() >= doc.getMinRecordsToLearn() && judged.clearsFloor(doc)) {
                 return new StageRun(doc, new Would("Promote rule " + rule.getUuid() + ", which scored "
                                                    + judged.score() + " on the " + judged.records()
                                                    + " records this stream brings"),
@@ -828,14 +810,10 @@ public final class Stage {
     ///   transform in force defers again without running anything.
     /// - No rule: deferred, with the session opened on this stream.
     /// - The learner has given up: errored with the reason — the only outcome that errors.
-    ///
-    /// A pinned rule is frozen (design 01 §7.3 rule 2): its streams are served whatever the bar says,
-    /// since nothing will relearn it and a person has said *this, exactly*.
     public StageRun decide(final ShapeshifterAiDoc doc, final Learner learner, final Input input) {
         // What the learner keeps goes with it to the document it runs under now, so that this document's
         // Supervisor shows what serves its pipeline and no other document's editors can act on it.
         learners.runsUnder(learner, doc.getUuid());
-        final Map<String, Object> attributes = input.routingAttributes(ShapeSignature.of(input.data()));
         final Scorecard scorecard = new Scorecard(doc.getScorers(), scorers);
         final Optional<RoutingRule> matched = bindingFor(learner);
 
@@ -847,7 +825,7 @@ public final class Stage {
                 return deferred(doc, learner, input, null, 0, "Awaiting review: draft rule " + rule.getUuid()
                                                              + " binds " + rule.getPipeline().getName());
             }
-            return decideServed(doc, learner, rule, input, attributes, scorecard);
+            return decideServed(doc, learner, rule, input, scorecard);
         }
 
         final Optional<String> givenUp = states.reasonGivenUp(learner);
@@ -869,7 +847,7 @@ public final class Stage {
         // learner's claim, this stream waits on that one.
         return recording(doc, learner, input, RecordedAdvisor.awaiting(),
                 reason -> deferred(doc, learner, input, null, 0, reason),
-                recorder -> learnAndBind(doc, learner, input, attributes, scorecard, recorder));
+                recorder -> learnAndBind(doc, learner, input, scorecard, recorder));
     }
 
     /// The task decision for a learner a rule serves.
@@ -877,35 +855,32 @@ public final class Stage {
                                   final Learner learner,
                                   final RoutingRule matched,
                                   final Input input,
-                                  final Map<String, Object> attributes,
                                   final Scorecard scorecard) {
         // As it serves now (A72): a hand edit is snapshotted here, before the stamp is compared, so that
         // a stream deferred against the old snapshot is scored against the edit.
         final RoutingRule rule = freshened(doc, learner, matched);
         final String stamp = stamp(rule);
-        if (!rule.isPinned()) {
-            final Optional<Deferral> row = deferrals.of(learner, input.id());
-            if (row.isPresent() && stamp.equals(row.get().failedAgainst())) {
-                // Version-stamped (design 04 §3): the transform it failed against is still the one in
-                // force, so nothing is run. The session is opened if none holds the claim — the last may
-                // have lapsed or failed — or the stream would be waiting on nothing.
-                return session(doc, learner, rule, input, attributes, scorecard, null, row.get().reason(), stamp,
-                        row.get().failingRecords());
-            }
+        final Optional<Deferral> row = deferrals.of(learner, input.id());
+        if (row.isPresent() && stamp.equals(row.get().failedAgainst())) {
+            // Version-stamped (design 04 §3): the transform it failed against is still the one in force, so
+            // nothing is run. The session is opened if none holds the claim — the last may have lapsed or
+            // failed — or the stream would be waiting on nothing.
+            return session(doc, learner, rule, input, scorecard, null, row.get().reason(), stamp,
+                    row.get().failingRecords());
         }
         // Served as it is read (design 04 §3, *streams of any size*): nothing is run here. The caller
         // streams the fragment over the stream with [#stream], which judges each record as the fragment
         // writes it, and what the stream came to is decided there.
         final StageRun bound = new StageRun(doc, new Bound(rule), learner, bindingsOf(doc, rule), null, List.of(),
                 List.of(), null, List.of());
-        relearnOnMark(doc, learner, rule, input, attributes, scorecard);
+        relearnOnMark(doc, learner, rule, input, scorecard);
         return bound;
     }
 
     /// A learner a person marked for relearning (A100) relearns on its next stream that brings enough
     /// records to judge a candidate on: the session is opened here and parked for the worker, while the
-    /// stream itself is served by the incumbent, as it would be without the mark (A29). A pinned rule is
-    /// never relearned; a learner behind a draft waits for the review; one that gave up is a person's to
+    /// stream itself is served by the incumbent, as it would be without the mark (A29). A learner behind a
+    /// draft waits for the review; one that gave up is a person's to
     /// send back (A80); with learning off nothing opens; and
     /// where a session already holds the claim — one the mark or a short record opened — the stream
     /// simply flows.
@@ -913,11 +888,9 @@ public final class Stage {
                                final Learner learner,
                                final RoutingRule rule,
                                final Input input,
-                               final Map<String, Object> attributes,
                                final Scorecard scorecard) {
         final Optional<String> marked = states.relearnReason(learner);
         if (marked.isEmpty()
-            || rule.isPinned()
             || doc.getLearningMode() == LearningMode.DISABLED
             || states.draftAwaiting(learner).isPresent()
             || states.reasonGivenUp(learner).isPresent()
@@ -925,12 +898,12 @@ public final class Stage {
             return;
         }
         final Judged judged = judge(scorecard, rule.getPipeline(), input.data(), rule.getRecordBoundary());
-        if (judged.records() < doc.getMinRecordsPerShape()) {
+        if (judged.records() < doc.getMinRecordsToLearn()) {
             return;
         }
         recording(doc, learner, input, RecordedAdvisor.awaiting(),
                 waiting -> null,
-                recorder -> relearnUnderClaim(doc, learner, rule, input, attributes, scorecard, judged, marked.get(),
+                recorder -> relearnUnderClaim(doc, learner, rule, input, scorecard, judged, marked.get(),
                         recorder));
     }
 
@@ -943,7 +916,7 @@ public final class Stage {
     ///
     /// A stream that clears in full is served: its row goes, the learner's rolling score is fed, a
     /// provisional rule that has now seen enough records is promoted, and the output is recorded against
-    /// the bindings that produced it. A pinned rule's stream is handed on whatever each record scores.
+    /// the bindings that produced it.
     ///
     /// @param doc        The document.
     /// @param rule       The rule that binds the stream, as [#decide] returned it.
@@ -955,12 +928,9 @@ public final class Stage {
                                final RoutingRule rule,
                                final Input input,
                                final ContentHandler downstream) {
-        final Map<String, Object> attributes = input.routingAttributes(ShapeSignature.of(input.data()));
         final Scorecard bar = recordBar(doc);
-        final RecordJudge judge = rule.isPinned()
-                ? (index, record, parsed) -> new Verdict(List.of(), 1.0)
-                : (index, record, parsed) -> bar.judge(new Attempted(TRANSFORM, false, null,
-                        new StepResult(record, List.of()), rule.getRecordBoundary()));
+        final RecordJudge judge = (index, record, parsed) -> bar.judge(new Attempted(TRANSFORM, false, null,
+                new StepResult(record, List.of()), rule.getRecordBoundary()));
         final ServedStream served = fragmentRunner.serve(rule.getPipeline(), input.open(), rule.getRecordBoundary(),
                 judge, downstream);
         if (served.shortfall().isPresent()) {
@@ -970,7 +940,7 @@ public final class Stage {
                                           .map(StoredError::getMessage)
                                           .findFirst()
                                           .orElse("a gate failed");
-            final StageRun deferred = session(doc, learner, rule, input, attributes,
+            final StageRun deferred = session(doc, learner, rule, input,
                     new Scorecard(doc.getScorers(), scorers), Judged.shortOf(served, short_), reason, stamp(rule), 1);
             throw new DeferTaskException(((Deferred) deferred.decision()).reason());
         }
@@ -978,7 +948,7 @@ public final class Stage {
         if (rule.isProvisional()) {
             // Promoted the first time the learner brings enough records and they clear the floor (A14,
             // design 01 §6): what [#promote] does, less the output, which the downstream has.
-            if (served.records() >= doc.getMinRecordsPerShape() && served.meanTotal() >= doc.getPromotionFloor()) {
+            if (served.records() >= doc.getMinRecordsToLearn() && served.meanTotal() >= doc.getPromotionFloor()) {
                 rules.replace(learner, doc.getUuid(), rule.copy()
                         .provisional(false)
                         .promotedTimeMs(clock.millis())
@@ -986,12 +956,12 @@ public final class Stage {
                         .build());
                 resetKeepingDraft(doc, learner);
             }
-        } else if (!rule.isPinned() && served.records() > 0) {
+        } else if (served.records() > 0) {
             // The rolling score goes on being kept for the Supervisor's list of what could be better
             // (A46), and triggers nothing here. A run that made nothing is said on the error stream by the
             // caller and scores nothing.
             states.scored(learner, doc.getUuid(), served.meanTotal(), served.records(),
-                    doc.getMinRecordsPerShape());
+                    doc.getMinRecordsToLearn());
         }
         outputs.emitted(input.id(), input.pipeline(), bindingsOf(doc, rule), List.of());
         return served;
@@ -1024,7 +994,6 @@ public final class Stage {
                              final Learner learner,
                              final RoutingRule rule,
                              final Input input,
-                             final Map<String, Object> attributes,
                              final Scorecard scorecard,
                              final Judged judged,
                              final String reason,
@@ -1065,7 +1034,7 @@ public final class Stage {
                     final Judged served = judged != null
                             ? judged
                             : judge(scorecard, rule.getPipeline(), input.data(), rule.getRecordBoundary());
-                    return relearnUnderClaim(doc, learner, rule, input, attributes, scorecard, served, reason,
+                    return relearnUnderClaim(doc, learner, rule, input, scorecard, served, reason,
                             recorder);
                 });
     }
@@ -1089,8 +1058,8 @@ public final class Stage {
                               final int failingRecords,
                               final String reason,
                               final String said) {
-        deferrals.deferred(learner, doc.getUuid(), input.id(), input.feed(), input.type(), input.taskId(),
-                input.filterId(), failedAgainst, reason, failingRecords);
+        deferrals.deferred(learner, doc.getUuid(), input.id(), input.feed(), input.type(), failedAgainst, reason,
+                failingRecords);
         return new StageRun(doc, new Deferred(said), learner, null, null, List.of(), List.of(), null, List.of());
     }
 
@@ -1430,11 +1399,10 @@ public final class Stage {
     private StageRun learnAndBind(final ShapeshifterAiDoc doc,
                                   final Learner learner,
                                   final Input input,
-                                  final Map<String, Object> attributes,
                                   final Scorecard scorecard,
                                   final Recorder recorder) {
         // Learn on a prefix, judge on the whole stream.
-        final Outcome outcome = learn(doc, learner, input, attributes, scorecard, List.of(), List.of(), recorder);
+        final Outcome outcome = learn(doc, learner, input, scorecard, List.of(), List.of(), recorder);
         if (outcome instanceof final Abandoned abandoned) {
             if (abandoned.givesUp()) {
                 // The flow's exit is give-up (A83): a parser's default, since a stream that cannot be cut
@@ -1483,7 +1451,6 @@ public final class Stage {
                                        final Learner learner,
                                        final RoutingRule incumbent,
                                        final Input input,
-                                       final Map<String, Object> attributes,
                                        final Scorecard scorecard,
                                        final Judged served,
                                        final String marked,
@@ -1497,7 +1464,7 @@ public final class Stage {
         // parser cut them and as the transform left them (A64): what the model has to see to learn for
         // a record that lay beyond the sample.
         opening.addAll(served.diagnostics());
-        final Outcome outcome = learn(doc, learner, input, attributes, scorecard, opening, served.held(), recorder);
+        final Outcome outcome = learn(doc, learner, input, scorecard, opening, served.held(), recorder);
         // The mark is spent now that the relearning has happened, and not before: an attempt that parks
         // at a question (A5) is carried on by the worker, which must find the learner as this walk found it
         // or ask something else (A45). Spent whatever the candidate came to, or a learner that cannot be
@@ -1620,7 +1587,7 @@ public final class Stage {
                           final List<Accepted> entries,
                           final List<Exchange> transcript,
                           final RecordBoundary boundary) {
-        final boolean provisional = judged.records() < doc.getMinRecordsPerShape();
+        final boolean provisional = judged.records() < doc.getMinRecordsToLearn();
         final boolean draft = doc.getPromotionMode() == PromotionMode.REVIEW;
         final String ruleUuid = UUID.randomUUID().toString();
         final RoutingRule rule = RoutingRule.builder()
@@ -1650,7 +1617,7 @@ public final class Stage {
         }
         wake(learner);
         final Decision decision = provisional
-                ? new Provisional(rule, judged.score(), judged.records(), doc.getMinRecordsPerShape())
+                ? new Provisional(rule, judged.score(), judged.records(), doc.getMinRecordsToLearn())
                 : new Promoted(rule, judged.score());
         return emit(doc, decision, learner, input, rule, judged, transcript);
     }
@@ -1658,7 +1625,6 @@ public final class Stage {
     private Outcome learn(final ShapeshifterAiDoc doc,
                           final Learner learner,
                           final Input input,
-                          final Map<String, Object> attributes,
                           final Scorecard scorecard,
                           final List<StoredError> opening,
                           final List<String> held,
@@ -1684,7 +1650,7 @@ public final class Stage {
                 // so that a hint given while the attempt was parked is carried by the turn that
                 // resumes it.
                 .guidedBy(() -> guidance.standing(learner));
-        final Sample sample = Sample.of(learningPrefix(input.data(), doc), attributes);
+        final Sample sample = Sample.of(learningPrefix(input.data(), doc), input.feed(), input.type());
         final long before = advisor.tokensUsed();
         final List<Exchange> asked = new ArrayList<>();
         try {
@@ -1713,11 +1679,6 @@ public final class Stage {
         final Learner learner = awaitingReview(doc, held);
         final Optional<RoutingRule> incumbent = incumbentOf(rules.forLearner(learner));
         if (incumbent.isPresent()) {
-            if (incumbent.get().isPinned()) {
-                // Design 01 §7.3 rule 2: a pin exempts a rule from rebinding until it is unpinned.
-                throw new IllegalStateException("Rule " + incumbent.get().getUuid() + " is pinned; unpin it before "
-                                                + "approving draft " + ruleUuid + " in its place");
-            }
             rules.replace(learner, doc.getUuid(), incumbent.get().copy()
                     .pipeline(draft.getPipeline())
                     .snapshot(draft.getSnapshot())
@@ -1766,10 +1727,6 @@ public final class Stage {
             // Nothing to accept: it is already serving on a judgement, or it is a draft, or it binds
             // nothing. Said rather than quietly doing nothing.
             throw new IllegalArgumentException("Rule " + ruleUuid + " is not a provisional binding");
-        }
-        if (rule.isPinned()) {
-            // §7.3 rule 2: a pin freezes a rule — served, never promoted, retracted or relearned.
-            throw new IllegalStateException("Rule " + ruleUuid + " is pinned; unpin it before accepting it");
         }
         final String said = "Accepted by " + by + " on the score it was bound at, without waiting for "
                             + "records to judge it on";
@@ -1822,10 +1779,6 @@ public final class Stage {
             // Reject (A25), and saying so beats retracting something that was never bound.
             throw new IllegalArgumentException("Rule " + ruleUuid + " is a draft awaiting review: approve "
                                                + "or reject it rather than retracting it");
-        }
-        if (rule.isPinned()) {
-            // §7.3 rule 2: a pin freezes a rule — served, never promoted, retracted or relearned.
-            throw new IllegalStateException("Rule " + ruleUuid + " is pinned; unpin it before retracting it");
         }
         final String said = "Retracted by " + by + ": " + reason;
         rules.remove(learner, rule.getUuid());
@@ -1982,7 +1935,6 @@ public final class Stage {
     private StageRun settle(final ShapeshifterAiDoc doc,
                             final Learner learner,
                             final Input input,
-                            final Map<String, Object> attributes,
                             final Scorecard scorecard,
                             final Recorder recorder,
                             final StageRun first) {
@@ -2025,7 +1977,7 @@ public final class Stage {
                 return parked(doc, learner, reason + "; " + MOST_ROUNDS + " rounds without the stream clearing",
                         run.transcript());
             }
-            run = relearnUnderClaim(doc, learner, rule, input, attributes, scorecard, served, reason, recorder);
+            run = relearnUnderClaim(doc, learner, rule, input, scorecard, served, reason, recorder);
         }
         return run;
     }
@@ -2138,7 +2090,7 @@ public final class Stage {
         final int limit = policy.getSampleSizeLimit();
         // Markup that is one document is learned whole; markup that is not — a fragment per line, no root —
         // is lines, held out and cut like any text.
-        if (ShapeSignature.isMarkup(data) && Records.parsed(data) >= 0) {
+        if (RecordSkeleton.isMarkup(data) && Records.parsed(data) >= 0) {
             return data.length() <= limit
                     ? data
                     : wholeChildren(data, limit);
@@ -2206,7 +2158,7 @@ public final class Stage {
      * for a JSON document, however many lines it is printed over; the non-blank lines of text.
      */
     static int recordsBrought(final String input) {
-        if (ShapeSignature.isMarkup(input)) {
+        if (RecordSkeleton.isMarkup(input)) {
             final int parsed = Records.parsed(input);
             if (parsed >= 0) {
                 return parsed;
@@ -2224,7 +2176,7 @@ public final class Stage {
      * value is parsed.
      */
     static boolean isJsonDocument(final String data) {
-        final String trimmed = ShapeSignature.withoutBom(data).stripLeading();
+        final String trimmed = RecordSkeleton.withoutBom(data).stripLeading();
         if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) {
             return false;
         }
@@ -2248,7 +2200,7 @@ public final class Stage {
      * and the budget of A5 is what stops a runaway.
      */
     private static String wholeItems(final String data, final int limit) {
-        final String trimmed = ShapeSignature.withoutBom(data).stripLeading();
+        final String trimmed = RecordSkeleton.withoutBom(data).stripLeading();
         final Optional<int[]> widest = widestArray(trimmed);
         if (widest.isEmpty()) {
             return data;

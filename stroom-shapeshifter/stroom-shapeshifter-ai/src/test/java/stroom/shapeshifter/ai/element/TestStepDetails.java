@@ -185,7 +185,7 @@ class TestStepDetails {
                 .name("door-access")
                 .learningMode(LearningMode.AUTOMATIC)
                 .allowedElements(List.of("DSParser", "XSLTFilter"))
-                .minRecordsPerShape(1)
+                .minRecordsToLearn(1)
                 // Named, because a document with no scorers produces verdicts with nothing in them and
                 // this is about what the pane shows of them.
                 .scorers(List.of(

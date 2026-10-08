@@ -26,13 +26,9 @@ import org.xml.sax.helpers.DefaultHandler;
 
 import java.io.IOException;
 import java.io.StringReader;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
-import java.util.HexFormat;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -42,21 +38,15 @@ import java.util.stream.Collectors;
 import javax.xml.parsers.ParserConfigurationException;
 
 /**
- * The record shape signature of design §5: a hash of a record's structure with its values removed.
- * For raw text it is the token-class skeleton of the first non-blank line — runs of digits, letters,
- * whitespace and each punctuation character reduced to a class — so two lines differing only in values
- * share a signature. For XML it is the element skeleton of the first record — the root's first child
- * element and its subtree — tag names and nesting, no text or attribute values, so that a stream's
- * signature does not vary with how many records it carries.
- * <p>
- * Provisional. Ruling A6 (normalisation) is open and waits for real feeds; scenarios depend only on the
- * same shape yielding the same key and a different shape a different one, which is what this gives.
+ * A record's structure with its values removed: what tells one kind of record from another where a
+ * sample is chosen, records are counted and a target is checked. For raw text it is the token-class
+ * skeleton of the first non-blank line — runs of digits, letters, whitespace and each punctuation
+ * character reduced to a class — so two lines differing only in values share it. For markup it is the
+ * element tree of one record, its attribute names and the values that name a field, no text.
  */
-public final class ShapeSignature {
+public final class RecordSkeleton {
 
-    private static final int DIGEST_BYTES = 8;
-
-    private ShapeSignature() {
+    private RecordSkeleton() {
     }
 
     /**
@@ -75,13 +65,6 @@ public final class ShapeSignature {
      * siblings, which is what a run of named fields looks like and a lone value does not.
      */
     private static final Set<String> NAMING = Set.of("name", "Name", "Key");
-
-    public static String of(final String data) {
-        final String skeleton = isMarkup(data)
-                ? xmlSkeleton(data)
-                : textSkeleton(data);
-        return digest(skeleton);
-    }
 
     public static boolean isMarkup(final String data) {
         return MARKUP.matcher(withoutBom(data)).find();
@@ -170,60 +153,6 @@ public final class ShapeSignature {
         return root[0];
     }
 
-    static String xmlSkeleton(final String data) {
-        final StringBuilder skeleton = new StringBuilder();
-        // Depth 0 is outside the root, 1 is the root, 2 is a record. The skeleton is the root's name and
-        // the first record's subtree; later records, which share the record's shape, are not walked.
-        int depth = 0;
-        boolean recordSeen = false;
-        int i = 0;
-        while ((i = data.indexOf('<', i)) >= 0) {
-            final int end = data.indexOf('>', i);
-            if (end < 0) {
-                break;
-            }
-            final String tag = data.substring(i + 1, end);
-            i = end + 1;
-            if (tag.startsWith("?") || tag.startsWith("!")) {
-                continue;
-            }
-            final boolean closing = tag.startsWith("/");
-            final boolean selfClosing = !closing && tag.endsWith("/");
-            final String name = tag.replaceFirst("^/", "").split("[\\s/]", 2)[0];
-            if (closing) {
-                depth--;
-                if (depth == 1) {
-                    // The first record has closed; nothing after it changes the shape.
-                    skeleton.append("</").append(name).append('>');
-                    break;
-                }
-                if (depth == 0) {
-                    break;
-                }
-            } else {
-                if (depth == 1 && recordSeen) {
-                    break;
-                }
-                if (depth == 1) {
-                    recordSeen = true;
-                }
-                depth++;
-            }
-            skeleton.append(closing
-                    ? "</"
-                    : "<").append(name).append('>');
-            if (selfClosing) {
-                // An empty element is one shape however it is written: <data/> and <data></data> agree.
-                skeleton.append("</").append(name).append('>');
-                depth--;
-                if (depth == 1) {
-                    break;
-                }
-            }
-        }
-        return skeleton.toString();
-    }
-
     /**
      * One element of a record: its name, its attribute names in document order with the values that name,
      * and its distinct children.
@@ -268,15 +197,6 @@ public final class ShapeSignature {
             }
             distinct.forEach(out::append);
             return out.append("</").append(name).append('>').toString();
-        }
-    }
-
-    private static String digest(final String skeleton) {
-        try {
-            final byte[] hash = MessageDigest.getInstance("SHA-256").digest(skeleton.getBytes(StandardCharsets.UTF_8));
-            return HexFormat.of().formatHex(hash, 0, DIGEST_BYTES);
-        } catch (final NoSuchAlgorithmException e) {
-            throw new IllegalStateException(e);
         }
     }
 }

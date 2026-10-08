@@ -110,11 +110,6 @@ public class ShapeshifterRule extends TableImpl<ShapeshifterRuleRecord> {
     public final TableField<ShapeshifterRuleRecord, String> FRAGMENT_NAME = createField(DSL.name("fragment_name"), SQLDataType.VARCHAR(255), this, "");
 
     /**
-     * The column <code>stroom.shapeshifter_rule.pinned</code>.
-     */
-    public final TableField<ShapeshifterRuleRecord, Boolean> PINNED = createField(DSL.name("pinned"), SQLDataType.BOOLEAN.nullable(false).defaultValue(DSL.inline("0", SQLDataType.BOOLEAN)), this, "");
-
-    /**
      * The column <code>stroom.shapeshifter_rule.draft</code>.
      */
     public final TableField<ShapeshifterRuleRecord, Boolean> DRAFT = createField(DSL.name("draft"), SQLDataType.BOOLEAN.nullable(false).defaultValue(DSL.inline("0", SQLDataType.BOOLEAN)), this, "");

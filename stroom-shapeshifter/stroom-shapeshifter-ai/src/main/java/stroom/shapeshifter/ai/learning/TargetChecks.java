@@ -20,7 +20,7 @@ import stroom.shapeshifter.ai.scoring.Attempted;
 import stroom.shapeshifter.ai.scoring.OutputRecords;
 import stroom.shapeshifter.ai.scoring.Scorecard;
 import stroom.shapeshifter.ai.scoring.Verdict;
-import stroom.shapeshifter.ai.stage.ShapeSignature;
+import stroom.shapeshifter.ai.stage.RecordSkeleton;
 import stroom.shapeshifter.shared.RecordBoundary;
 import stroom.util.shared.ElementId;
 import stroom.util.shared.Severity;
@@ -66,8 +66,8 @@ public final class TargetChecks {
 
     /**
      * One record of each kind the split yielded, first seen first, at most {@link #REPRESENTATIVES}. A text
-     * record's kind is the text skeleton of {@link ShapeSignature} — the same discrimination the routing
-     * signature uses; a markup record's is its element skeleton with its naming attributes, since records
+     * record's kind is its text skeleton, values reduced to their classes; a markup record's is its
+     * element skeleton with its naming attributes ({@link RecordSkeleton}), since records
      * of one vocabulary — named {@code Data}, or a JSON map — are told apart by what they are called.
      */
     public static List<String> representatives(final List<String> records) {
@@ -178,9 +178,9 @@ public final class TargetChecks {
      * the record skeleton of markup.
      */
     public static String kindOf(final String record) {
-        return ShapeSignature.isMarkup(record)
-                ? ShapeSignature.recordSkeleton(record)
-                : ShapeSignature.textSkeleton(record);
+        return RecordSkeleton.isMarkup(record)
+                ? RecordSkeleton.recordSkeleton(record)
+                : RecordSkeleton.textSkeleton(record);
     }
 
     /**

@@ -38,7 +38,7 @@ class TestInMemoryRules {
         final InMemoryRules rules = new InMemoryRules();
         final RoutingRule bound = rules.append(NEIGHBOUR, "doc-1", RoutingRule.builder().uuid("rule-1").build());
 
-        assertThatThrownBy(() -> rules.replace(LEARNER, "doc-1", bound.copy().pinned(true).build()))
+        assertThatThrownBy(() -> rules.replace(LEARNER, "doc-1", bound.copy().score(1.0).build()))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("binding of pipeline-2");
         rules.remove(LEARNER, "rule-1");

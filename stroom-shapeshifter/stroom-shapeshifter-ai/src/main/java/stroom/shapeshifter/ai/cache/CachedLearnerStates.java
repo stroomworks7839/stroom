@@ -66,7 +66,7 @@ public class CachedLearnerStates implements LearnerStates, Clearable, EntityEven
         this.entityEventBus = entityEventBus;
         this.cache = cacheManager.createLoadingCache(
                 CACHE_NAME,
-                () -> configProvider.get().getShapeCache(),
+                () -> configProvider.get().getLearnerStateCache(),
                 learner -> new Settled(
                         rows.reasonGivenUp(learner),
                         rows.relearnReason(learner),

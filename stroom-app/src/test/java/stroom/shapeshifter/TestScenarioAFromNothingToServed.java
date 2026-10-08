@@ -190,8 +190,6 @@ class TestScenarioAFromNothingToServed extends AbstractCoreIntegrationTest {
         final List<Deferral> waiting = deferrals.forDocument(document.getUuid());
         assertThat(waiting).extracting(Deferral::inputId).containsExactly(first.getId(), second.getId());
         assertThat(waiting).allSatisfy(row -> {
-            assertThat(row.filterId()).isEqualTo(filter.getId());
-            assertThat(row.taskId()).describedAs("the task a wake will move").isNotNull();
             assertThat(row.failedAgainst()).describedAs("no rule to have failed against").isNull();
         });
         assertThat(rules.forLearner(learner)).isEmpty();

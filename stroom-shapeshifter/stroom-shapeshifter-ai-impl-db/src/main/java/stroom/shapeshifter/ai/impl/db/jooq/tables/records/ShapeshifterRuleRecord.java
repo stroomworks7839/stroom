@@ -173,129 +173,115 @@ public class ShapeshifterRuleRecord extends UpdatableRecordImpl<ShapeshifterRule
     }
 
     /**
-     * Setter for <code>stroom.shapeshifter_rule.pinned</code>.
-     */
-    public void setPinned(Boolean value) {
-        set(11, value);
-    }
-
-    /**
-     * Getter for <code>stroom.shapeshifter_rule.pinned</code>.
-     */
-    public Boolean getPinned() {
-        return (Boolean) get(11);
-    }
-
-    /**
      * Setter for <code>stroom.shapeshifter_rule.draft</code>.
      */
     public void setDraft(Boolean value) {
-        set(12, value);
+        set(11, value);
     }
 
     /**
      * Getter for <code>stroom.shapeshifter_rule.draft</code>.
      */
     public Boolean getDraft() {
-        return (Boolean) get(12);
+        return (Boolean) get(11);
     }
 
     /**
      * Setter for <code>stroom.shapeshifter_rule.provisional</code>.
      */
     public void setProvisional(Boolean value) {
-        set(13, value);
+        set(12, value);
     }
 
     /**
      * Getter for <code>stroom.shapeshifter_rule.provisional</code>.
      */
     public Boolean getProvisional() {
-        return (Boolean) get(13);
+        return (Boolean) get(12);
     }
 
     /**
      * Setter for <code>stroom.shapeshifter_rule.promoted_time_ms</code>.
      */
     public void setPromotedTimeMs(Long value) {
-        set(14, value);
+        set(13, value);
     }
 
     /**
      * Getter for <code>stroom.shapeshifter_rule.promoted_time_ms</code>.
      */
     public Long getPromotedTimeMs() {
-        return (Long) get(14);
+        return (Long) get(13);
     }
 
     /**
      * Setter for <code>stroom.shapeshifter_rule.score</code>.
      */
     public void setScore(Double value) {
-        set(15, value);
+        set(14, value);
     }
 
     /**
      * Getter for <code>stroom.shapeshifter_rule.score</code>.
      */
     public Double getScore() {
-        return (Double) get(15);
+        return (Double) get(14);
     }
 
     /**
      * Setter for <code>stroom.shapeshifter_rule.boundary_element</code>.
      */
     public void setBoundaryElement(String value) {
-        set(16, value);
+        set(15, value);
     }
 
     /**
      * Getter for <code>stroom.shapeshifter_rule.boundary_element</code>.
      */
     public String getBoundaryElement() {
-        return (String) get(16);
+        return (String) get(15);
     }
 
     /**
      * Setter for <code>stroom.shapeshifter_rule.boundary_array</code>.
      */
     public void setBoundaryArray(String value) {
-        set(17, value);
+        set(16, value);
     }
 
     /**
      * Getter for <code>stroom.shapeshifter_rule.boundary_array</code>.
      */
     public String getBoundaryArray() {
-        return (String) get(17);
+        return (String) get(16);
     }
 
     /**
      * Setter for <code>stroom.shapeshifter_rule.boundary_depth</code>.
      */
     public void setBoundaryDepth(Integer value) {
-        set(18, value);
+        set(17, value);
     }
 
     /**
      * Getter for <code>stroom.shapeshifter_rule.boundary_depth</code>.
      */
     public Integer getBoundaryDepth() {
-        return (Integer) get(18);
+        return (Integer) get(17);
     }
 
     /**
      * Setter for <code>stroom.shapeshifter_rule.snapshot_id</code>.
      */
     public void setSnapshotId(String value) {
-        set(19, value);
+        set(18, value);
     }
 
     /**
      * Getter for <code>stroom.shapeshifter_rule.snapshot_id</code>.
      */
     public String getSnapshotId() {
-        return (String) get(19);
+        return (String) get(18);
     }
 
     // -------------------------------------------------------------------------
@@ -321,7 +307,7 @@ public class ShapeshifterRuleRecord extends UpdatableRecordImpl<ShapeshifterRule
     /**
      * Create a detached, initialised ShapeshifterRuleRecord
      */
-    public ShapeshifterRuleRecord(Long id, Integer version, Long createTimeMs, Long updateTimeMs, String pipelineUuid, String elementId, String docUuid, String ruleUuid, String fragmentType, String fragmentUuid, String fragmentName, Boolean pinned, Boolean draft, Boolean provisional, Long promotedTimeMs, Double score, String boundaryElement, String boundaryArray, Integer boundaryDepth, String snapshotId) {
+    public ShapeshifterRuleRecord(Long id, Integer version, Long createTimeMs, Long updateTimeMs, String pipelineUuid, String elementId, String docUuid, String ruleUuid, String fragmentType, String fragmentUuid, String fragmentName, Boolean draft, Boolean provisional, Long promotedTimeMs, Double score, String boundaryElement, String boundaryArray, Integer boundaryDepth, String snapshotId) {
         super(ShapeshifterRule.SHAPESHIFTER_RULE);
 
         setId(id);
@@ -335,7 +321,6 @@ public class ShapeshifterRuleRecord extends UpdatableRecordImpl<ShapeshifterRule
         setFragmentType(fragmentType);
         setFragmentUuid(fragmentUuid);
         setFragmentName(fragmentName);
-        setPinned(pinned);
         setDraft(draft);
         setProvisional(provisional);
         setPromotedTimeMs(promotedTimeMs);
