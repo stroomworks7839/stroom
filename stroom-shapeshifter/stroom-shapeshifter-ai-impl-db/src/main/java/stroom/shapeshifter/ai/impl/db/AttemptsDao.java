@@ -490,6 +490,11 @@ public class AttemptsDao implements Attempts {
                     .map(AttemptStatus::name)
                     .toList()));
         }
+        // One learner's sessions, the list beneath its row (design 06 A143).
+        if (criteria.getLearner() != null) {
+            conditions.add(SHAPESHIFTER_ATTEMPT.PIPELINE_UUID.eq(criteria.getLearner().getPipelineUuid()));
+            conditions.add(SHAPESHIFTER_ATTEMPT.ELEMENT_ID.eq(criteria.getLearner().getElementId()));
+        }
         // A deleted pipeline's attempts are kept to be read, and shown only when asked for (A137).
         if (!criteria.isShowDeletedPipelines()) {
             conditions.add(DSL.notExists(DSL

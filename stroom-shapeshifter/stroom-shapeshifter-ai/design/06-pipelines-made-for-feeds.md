@@ -800,6 +800,41 @@ The largest phase. Its slices keep the build and the scenarios green at each ste
 4. **The grant dialog.** ISSUES item 5, on the ruling ISSUES item 17 owes.
 5. **Audit.** `gwtCompile` and a look in the browser.
 
+   *L1 was built in phase J* (slices 2a and 7b): the Route tab is gone, the process header shows Score
+   and Learn, the deferral age is on the Learn tab, and the wording says binding. *L2 is cut in two,
+   2026-10-08:* 2a the server — the learning pipelines as a page read in the database (ISSUES item 11),
+   a pipeline's sessions and waiting streams by its learner, and a person giving a learner up; 2b the
+   client, the three levels on that (A141–A143).
+
+   *2a built 2026-10-08.* The learning pipelines are a page read in one statement (`LearningPipelinesDao`,
+   in memory `InMemoryLearningPipelines`, held to one answer by an agreement test): a learner is any
+   pipeline and element with a state, a binding, a session or a waiting stream, its document the one its
+   state, bindings or waiting streams record, else its latest session's. Its state is read in the query,
+   in the order given up, learning off, waiting for a person (a draft awaiting review, or a session
+   parked or awaiting review), learning (a session open, or nothing serving), serving; so a page narrowed
+   by state is a page of the right rows, and its total counts them. Most waiting streams first, then the
+   latest session. Each row carries the serving binding and its scores, the waiting count and the oldest
+   wait, the latest session, what has been said to it, and whether its pipeline is deleted; the resource
+   names the pipeline, through Stroom's document finder, and judges the oldest wait against the
+   document's maximum deferral age (A57). A learner's waiting streams are a page read where they are,
+   which is ISSUES item 11's paging for the list that replaces the backlog. A learner's sessions are the
+   attempts list narrowed by the learner. A person gives a learner up from its row (`Stage.giveUp`): it
+   learns no more, its streams nothing serves error with the reason, its pipeline is woken so that those
+   waiting come to their end now, what serves it goes on serving, and sending it back undoes it.
+   Sending back and giving up both name the learner, need the document's EDIT and refuse a deleted
+   pipeline's learner (A137). The attempt-based relearn, the serving list and the backlog stay until 2b
+   moves the client onto these.
+
+   *2a audited 2026-10-08.* Two faults closed. A draft is decided before a give-up is read, so a learner
+   given up from its row while a draft awaited review went on holding its streams for a review; giving up
+   is now refused while a draft awaits, and says that rejecting it is how such a learner is given up.
+   And the in-memory state kept no document, so a learner known by its state alone — given up, its
+   streams errored — was listed by the node and missed by the scenarios; the in-memory state keeps the
+   document it was last written under and is brought to a new one as the table's row is, and the
+   agreement test now holds such a learner. Noted for the real-scale trial (ISSUES item 11): each page
+   of the list groups the attempts table. A row names its pipeline to anyone who may read the document
+   it runs under, as the attempts list already named its feed.
+
 ### Phase M — The walkthrough
 
 A factory over `Raw Events` with the AI template takes three feeds from unseen to served from the UI.
@@ -1090,3 +1125,17 @@ becomes `binding_uuid` wherever it is kept; the stage's record of what an output
 `Bindings` until now, becomes `Produced`; and the Supervisor says binding — serving bindings, retract a
 binding. *Ruled 2026-10-08, in the phase J audit, over keeping "rule", over "rule" on screen only, and
 over leaving it.*
+
+**A141.** *A serving binding is acted on from its pipeline's row.* With the serving pane gone (A115),
+accepting a provisional binding, retracting one and opening its fragment sit on the learning pipelines
+list beside relearn, guidance, improve and give up, since the row shows the binding in its Serving
+column. *Ruled 2026-10-08, in phase L, over offering them from the session that wrote the binding.*
+
+**A142.** *The learning pipelines list is narrowed by document, state and deletion.* One filter: which
+Shapeshifter AI document, which states — serving, learning, waiting for a person, given up, learning off
+— and the "Show deleted pipelines" tick of A137. Most waiting streams first, then the most recent
+session. *Ruled 2026-10-08, in phase L, over a text box and over no filter.*
+
+**A143.** *There is no list of every session.* The pipelines list is the way in, and a pipeline's
+sessions are listed newest first with no filter of their own; the attempts filter goes. *Ruled
+2026-10-08, in phase L, over keeping the cross-pipeline list as a third tab.*

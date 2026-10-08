@@ -165,6 +165,38 @@ public interface SupervisorResource extends RestResource, DirectRestService {
                                       @QueryParam("elementId") String elementId);
 
     @POST
+    @Path("/learners")
+    @Operation(
+            summary = "The learning pipelines: each pipeline's Shapeshifter AI element that has learned or is "
+                      + "learning, where it stands, what serves it and what waits on it",
+            operationId = "findShapeshifterAiLearners")
+    ResultPage<SupervisorLearner> learners(LearnerCriteria criteria);
+
+    @POST
+    @Path("/learners/{docUuid}/waiting")
+    @Operation(
+            summary = "The streams waiting on one learner, oldest first",
+            operationId = "findShapeshifterAiLearnerWaiting")
+    ResultPage<BacklogStream> waiting(@PathParam("docUuid") String docUuid,
+                                      @QueryParam("pipelineUuid") String pipelineUuid,
+                                      @QueryParam("elementId") String elementId,
+                                      @Parameter(description = "page", required = true) PageRequest pageRequest);
+
+    @POST
+    @Path("/learners/{docUuid}/relearn")
+    @Operation(
+            summary = "Send a learner back to learn afresh from its next stream",
+            operationId = "relearnShapeshifterAiLearnerByRef")
+    Boolean relearnLearner(@PathParam("docUuid") String docUuid, LearnerRequest request);
+
+    @POST
+    @Path("/learners/{docUuid}/giveUp")
+    @Operation(
+            summary = "Give a learner up: it learns no more, and its streams nothing serves error",
+            operationId = "giveUpShapeshifterAiLearner")
+    Boolean giveUp(@PathParam("docUuid") String docUuid, LearnerRequest request);
+
+    @POST
     @Path("/{id}/relearn")
     @Operation(summary = "Mark the attempt's learner to learn afresh",
             operationId = "relearnShapeshifterAiLearner")

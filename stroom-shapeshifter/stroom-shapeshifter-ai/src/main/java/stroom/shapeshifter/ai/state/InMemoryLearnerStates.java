@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalDouble;
+import java.util.Set;
 
 /// The learners' states as a map, by learner: what scenarios run over. The rolling score is a running mean
 /// whose memory is capped in records: the two columns a row can hold, `score` and `records`, with
@@ -42,7 +43,7 @@ public final class InMemoryLearnerStates implements LearnerStates {
 
     @Override
     public synchronized void giveUp(final Learner learner, final String docUuid, final String reason) {
-        row(learner).givenUp = reason;
+        row(learner, docUuid).givenUp = reason;
     }
 
     @Override
@@ -51,7 +52,7 @@ public final class InMemoryLearnerStates implements LearnerStates {
                                               final double score,
                                               final int records,
                                               final int memory) {
-        final Row row = row(learner);
+        final Row row = row(learner, docUuid);
         final int remembered = Math.min(row.records, memory);
         if (remembered + records > 0) {
             row.score = (row.score * remembered + score * records) / (remembered + records);
@@ -69,12 +70,12 @@ public final class InMemoryLearnerStates implements LearnerStates {
 
     @Override
     public synchronized void markForRelearning(final Learner learner, final String docUuid, final String reason) {
-        row(learner).relearn = reason;
+        row(learner, docUuid).relearn = reason;
     }
 
     @Override
     public synchronized void awaitReview(final Learner learner, final String docUuid, final String bindingUuid) {
-        row(learner).draft = bindingUuid;
+        row(learner, docUuid).draft = bindingUuid;
     }
 
     @Override
@@ -111,6 +112,34 @@ public final class InMemoryLearnerStates implements LearnerStates {
         return read(learner).score;
     }
 
+    /// @return Every learner that has a state, for the learning pipelines list.
+    public synchronized Set<Learner> learners() {
+        return Set.copyOf(rows.keySet());
+    }
+
+    /// @param learner The learner.
+    /// @return The document its state was last written under, where it has a state.
+    public synchronized Optional<String> documentOf(final Learner learner) {
+        return Optional.ofNullable(read(learner).docUuid);
+    }
+
+    /// The learner's state, brought to the document it runs under (see [InMemoryLearners]).
+    ///
+    /// @param learner The learner.
+    /// @param docUuid The document.
+    public synchronized void runsUnder(final Learner learner, final String docUuid) {
+        final Row row = rows.get(learner);
+        if (row != null) {
+            row.docUuid = docUuid;
+        }
+    }
+
+    /// @param learner The learner.
+    /// @return Whether a person is to decide its draft.
+    public synchronized boolean awaitsReview(final Learner learner) {
+        return read(learner).draft != null;
+    }
+
     /// @return Whether no learner has a state: nothing was written of any, since a read makes no row.
     public synchronized boolean isEmpty() {
         return rows.isEmpty();
@@ -124,8 +153,16 @@ public final class InMemoryLearnerStates implements LearnerStates {
         return rows.computeIfAbsent(learner, k -> new Row());
     }
 
+    /// The row, recording the document it was last written under, as the table's row does.
+    private Row row(final Learner learner, final String docUuid) {
+        final Row row = row(learner);
+        row.docUuid = docUuid;
+        return row;
+    }
+
     private static final class Row {
 
+        private String docUuid;
         private String givenUp;
         private String relearn;
         private String draft;

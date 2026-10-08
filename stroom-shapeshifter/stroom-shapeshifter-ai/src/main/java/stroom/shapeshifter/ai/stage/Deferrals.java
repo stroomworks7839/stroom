@@ -64,6 +64,15 @@ public interface Deferrals {
     /// @return How many rows went.
     int releasedAll(String pipelineUuid);
 
+    /// A page of what waits on one learner, oldest first: its pipeline's waiting streams tab (design 06
+    /// A115).
+    ///
+    /// @param learner The learner.
+    /// @param offset  The first row of the page.
+    /// @param limit   How many rows.
+    /// @return The page, and how many wait in all.
+    Waiting waitingOn(Learner learner, long offset, int limit);
+
     /// What is waiting for a document, oldest first.
     ///
     /// @param docUuid The document.
@@ -86,6 +95,14 @@ public interface Deferrals {
 
 
     // --------------------------------------------------------------------------------
+
+    /// A page of one learner's waiting streams.
+    ///
+    /// @param rows  The page's rows, oldest first.
+    /// @param total How many wait in all.
+    record Waiting(List<Deferral> rows, long total) {
+
+    }
 
     /// One waiting stream.
     ///

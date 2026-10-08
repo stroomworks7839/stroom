@@ -29,14 +29,17 @@ public final class InMemoryLearners implements Learners {
     private final InMemoryLearnerBindings learnerBindings;
     private final InMemoryGuidance guidance;
     private final InMemoryDeferrals deferrals;
+    private final InMemoryLearnerStates states;
 
     @Inject
     public InMemoryLearners(final InMemoryLearnerBindings learnerBindings,
                             final InMemoryGuidance guidance,
-                            final InMemoryDeferrals deferrals) {
+                            final InMemoryDeferrals deferrals,
+                            final InMemoryLearnerStates states) {
         this.learnerBindings = learnerBindings;
         this.guidance = guidance;
         this.deferrals = deferrals;
+        this.states = states;
     }
 
     @Override
@@ -44,5 +47,6 @@ public final class InMemoryLearners implements Learners {
         learnerBindings.runsUnder(learner, docUuid);
         guidance.runsUnder(learner, docUuid);
         deferrals.runsUnder(learner, docUuid);
+        states.runsUnder(learner, docUuid);
     }
 }

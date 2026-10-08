@@ -82,7 +82,8 @@ public class AttemptFilterPresenter extends MyPresenterWidget<AttemptFilterView>
                 blankToNull(getView().getFeed()),
                 getView().getPromotionMode(),
                 getView().getStatuses(),
-                getView().isShowDeletedPipelines());
+                getView().isShowDeletedPipelines(),
+                opened.getLearner());
     }
 
     /**

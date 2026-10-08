@@ -622,6 +622,26 @@ public final class Stage {
         states.markForRelearning(learner, doc.getUuid(), reason);
     }
 
+    /// A person gives a learner up (design 06 A115): it learns no more, its streams with nothing serving
+    /// them error with the reason rather than wait, and an open session is not carried on. What serves it
+    /// goes on serving. Sending it back to learn again undoes it ([#relearn]). Its pipeline is woken, so
+    /// that the streams waiting on it come to their end now rather than at the retry delay.
+    ///
+    /// @param learner The learner.
+    /// @param reason  Why, in the words a person gave: its streams error with it.
+    /// @param by      Who gave it up.
+    public void giveUp(final ShapeshifterAiDoc doc, final Learner learner, final String reason, final String by) {
+        // A draft is decided before a give-up is read, so its streams would go on waiting for a review
+        // after the learner had been given up. Rejecting it is giving the learner up, and discards the draft.
+        final Optional<String> draft = states.draftAwaiting(learner);
+        if (draft.isPresent()) {
+            throw new IllegalStateException("Draft binding " + draft.get() + " awaits review: reject it, which "
+                                            + "gives the learner up with the reason");
+        }
+        states.giveUp(learner, doc.getUuid(), "Given up by " + by + ": " + reason);
+        wake(learner);
+    }
+
     /**
      * Why an attempt that stopped is not to be carried on, if it is not: the learner's state as it stands
      * now, read as a task's decision reads it for a stream. Empty where the attempt may go on.

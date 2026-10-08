@@ -17,6 +17,7 @@
 package stroom.shapeshifter.ai.doc;
 
 import stroom.docref.DocRef;
+import stroom.docstore.api.DocFinder;
 import stroom.event.logging.rs.api.AutoLogged;
 import stroom.security.api.SecurityContext;
 import stroom.security.shared.DocumentPermission;
@@ -34,6 +35,7 @@ import stroom.shapeshifter.ai.stage.DeletedPipelines;
 import stroom.shapeshifter.ai.stage.Guidance;
 import stroom.shapeshifter.ai.stage.Learner;
 import stroom.shapeshifter.ai.stage.LearnerBindings;
+import stroom.shapeshifter.ai.stage.LearningPipelines;
 import stroom.shapeshifter.ai.stage.Serving;
 import stroom.shapeshifter.shared.AmendTurnRequest;
 import stroom.shapeshifter.shared.AttemptCriteria;
@@ -42,13 +44,17 @@ import stroom.shapeshifter.shared.GrantRequest;
 import stroom.shapeshifter.shared.GuidanceRequest;
 import stroom.shapeshifter.shared.ImproveOutcome;
 import stroom.shapeshifter.shared.ImproveRequest;
+import stroom.shapeshifter.shared.LearnerCriteria;
 import stroom.shapeshifter.shared.LearnerRef;
+import stroom.shapeshifter.shared.LearnerRequest;
+import stroom.shapeshifter.shared.LearningMode;
 import stroom.shapeshifter.shared.RejectRequest;
 import stroom.shapeshifter.shared.ServingBinding;
 import stroom.shapeshifter.shared.ServingCriteria;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 import stroom.shapeshifter.shared.SupervisorAttempt;
 import stroom.shapeshifter.shared.SupervisorGuidance;
+import stroom.shapeshifter.shared.SupervisorLearner;
 import stroom.shapeshifter.shared.SupervisorResource;
 import stroom.shapeshifter.shared.SupervisorTurn;
 import stroom.util.logging.LambdaLogger;
@@ -65,6 +71,7 @@ import jakarta.inject.Inject;
 import jakarta.inject.Provider;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -102,6 +109,8 @@ public class SupervisorResourceImpl implements SupervisorResource {
     private final Provider<LearnerDocuments> learnerDocumentsProvider;
     private final Provider<DeletedPipelines> deletedPipelinesProvider;
     private final Provider<LearnerBindings> learnerBindingsProvider;
+    private final Provider<LearningPipelines> learningPipelinesProvider;
+    private final Provider<DocFinder> docFinderProvider;
 
     @Inject
     SupervisorResourceImpl(final Provider<Attempts> attemptsProvider,
@@ -114,7 +123,9 @@ public class SupervisorResourceImpl implements SupervisorResource {
                            final Provider<Deferrals> deferralsProvider,
                            final Provider<LearnerDocuments> learnerDocumentsProvider,
                            final Provider<DeletedPipelines> deletedPipelinesProvider,
-                           final Provider<LearnerBindings> learnerBindingsProvider) {
+                           final Provider<LearnerBindings> learnerBindingsProvider,
+                           final Provider<LearningPipelines> learningPipelinesProvider,
+                           final Provider<DocFinder> docFinderProvider) {
         this.attemptsProvider = attemptsProvider;
         this.storeProvider = storeProvider;
         this.stageFactoryProvider = stageFactoryProvider;
@@ -126,6 +137,133 @@ public class SupervisorResourceImpl implements SupervisorResource {
         this.learnerDocumentsProvider = learnerDocumentsProvider;
         this.deletedPipelinesProvider = deletedPipelinesProvider;
         this.learnerBindingsProvider = learnerBindingsProvider;
+        this.learningPipelinesProvider = learningPipelinesProvider;
+        this.docFinderProvider = docFinderProvider;
+    }
+
+    /// The learning pipelines (design 06 A115, A142): read and paged where the rows are, each named with
+    /// its pipeline and document, and its oldest wait judged against its document's maximum deferral age
+    /// (A57). The documents this person may read go into the query, as they do for the other lists.
+    @Override
+    public ResultPage<SupervisorLearner> learners(final LearnerCriteria criteria) {
+        final LearnerCriteria asked = criteria == null
+                ? new LearnerCriteria()
+                : criteria;
+        final Map<String, DocRef> readable = readable(asked.getDocUuid());
+        final Map<String, ShapeshifterAiDoc> docs = documents(readable.values());
+        final Set<String> learningOff = docs.values().stream()
+                .filter(doc -> doc.getLearningMode() == LearningMode.DISABLED)
+                .map(ShapeshifterAiDoc::getUuid)
+                .collect(Collectors.toSet());
+        final PageRequest page = asked.getPageRequest() == null
+                ? new PageRequest(0, 100)
+                : asked.getPageRequest();
+        final long offset = Math.max(0L, NullSafe.getOrElse(page.getOffset(), Integer::longValue, 0L));
+        final LearningPipelines.Page found = learningPipelinesProvider.get().learners(readable.keySet(),
+                learningOff, asked.getStates(), asked.isShowDeletedPipelines(), offset, pageLength(page));
+        final DocFinder docFinder = docFinderProvider.get();
+        final long now = System.currentTimeMillis();
+        final List<SupervisorLearner> rows = found.learners().stream()
+                .map(row -> row.named(docFinder.decorate(row.getPipeline()),
+                        readable.get(row.getDoc().getUuid()),
+                        row.getOldestWaitMs() != null
+                        && now - row.getOldestWaitMs() > maxDeferralAge(docs, row.getDoc().getUuid())))
+                .toList();
+        return new ResultPage<>(rows, new PageResponse(offset, rows.size(), found.total(), true));
+    }
+
+    /// What waits on one learner (design 06 A115), oldest first, a page at a time.
+    @Override
+    public ResultPage<BacklogStream> waiting(final String docUuid,
+                                             final String pipelineUuid,
+                                             final String elementId,
+                                             final PageRequest pageRequest) {
+        if (!may(docUuid, DocumentPermission.VIEW)) {
+            throw new PermissionException(securityContextProvider.get().getUserRef(),
+                    "You do not have permission to read this document");
+        }
+        final Learner learner = learnerOf(docUuid, new LearnerRef(pipelineUuid, elementId));
+        final PageRequest page = pageRequest == null
+                ? new PageRequest(0, 100)
+                : pageRequest;
+        final long offset = Math.max(0L, NullSafe.getOrElse(page.getOffset(), Integer::longValue, 0L));
+        final Deferrals.Waiting waiting = deferralsProvider.get().waitingOn(learner, offset, pageLength(page));
+        final DocRef doc = new DocRef(ShapeshifterAiDoc.TYPE, docUuid);
+        final long maxAge = maxDeferralAge(documents(List.of(doc)), docUuid);
+        final long now = System.currentTimeMillis();
+        final List<BacklogStream> rows = waiting.rows().stream()
+                .map(row -> new BacklogStream(doc, row.inputId(), row.feed(), row.type(), row.failedAgainst(),
+                        row.reason(), row.failingRecords(), row.firstDeferredMs(), row.attempts(),
+                        row.raised(maxAge, now)))
+                .toList();
+        return new ResultPage<>(rows, new PageResponse(offset, rows.size(), waiting.total(), true));
+    }
+
+    /// Send a learner back to learn afresh from its next stream (A28, A29), from its row.
+    @Override
+    public Boolean relearnLearner(final String docUuid, final LearnerRequest request) {
+        final Learner learner = changeable(docUuid, request);
+        final String who = securityContextProvider.get().getUserIdentityForAudit();
+        final String reason = NullSafe.isBlankString(request.getReason())
+                ? "Sent back to be learned again by " + who
+                : "Sent back to be learned again by " + who + ": " + request.getReason();
+        final ShapeshifterAiDoc doc = document(docUuid);
+        pipelineScopeProvider.get().scopeRunnable(() ->
+                stageFactoryProvider.get().create().relearn(doc, learner, reason));
+        return Boolean.TRUE;
+    }
+
+    /// Give a learner up (design 06 A115). The reason is asked for rather than assumed: its streams error
+    /// with it.
+    @Override
+    public Boolean giveUp(final String docUuid, final LearnerRequest request) {
+        if (request == null || NullSafe.isBlankString(request.getReason())) {
+            throw new IllegalArgumentException("Giving a learner up says why: its streams error with the "
+                                               + "reason");
+        }
+        final Learner learner = changeable(docUuid, request);
+        final String by = securityContextProvider.get().getUserIdentityForAudit();
+        final ShapeshifterAiDoc doc = document(docUuid);
+        pipelineScopeProvider.get().scopeRunnable(() ->
+                stageFactoryProvider.get().create().giveUp(doc, learner, request.getReason(), by));
+        return Boolean.TRUE;
+    }
+
+    /// The learner a request about a row names, where this person may change how the document learns and
+    /// its pipeline has not been deleted (A137).
+    private Learner changeable(final String docUuid, final LearnerRequest request) {
+        if (request == null) {
+            throw new IllegalArgumentException("Say which learner: its pipeline and element");
+        }
+        if (!may(docUuid, DocumentPermission.EDIT)) {
+            throw new PermissionException(securityContextProvider.get().getUserRef(),
+                    "You do not have permission to change how this document learns");
+        }
+        return live(learnerOf(docUuid, request.getLearner()));
+    }
+
+    /// The documents, read once each; one that cannot be read is left out, and its rows take the defaults.
+    private Map<String, ShapeshifterAiDoc> documents(final Collection<DocRef> docRefs) {
+        final Map<String, ShapeshifterAiDoc> docs = new LinkedHashMap<>();
+        for (final DocRef docRef : docRefs) {
+            try {
+                final ShapeshifterAiDoc doc = storeProvider.get().readDocument(docRef);
+                if (doc != null) {
+                    docs.put(docRef.getUuid(), doc);
+                }
+            } catch (final RuntimeException e) {
+                LOGGER.debug(() -> LogUtil.message("Document {} could not be read: {}", docRef.getUuid(),
+                        e.getMessage()));
+            }
+        }
+        return docs;
+    }
+
+    private static long maxDeferralAge(final Map<String, ShapeshifterAiDoc> docs, final String docUuid) {
+        final ShapeshifterAiDoc doc = docs.get(docUuid);
+        return doc == null
+                ? ShapeshifterAiDoc.builder().build().getMaxDeferralAgeMs()
+                : doc.getMaxDeferralAgeMs();
     }
 
     /// What is waiting on a session (design 04 §6), a row per stream, the raised ones first and then the

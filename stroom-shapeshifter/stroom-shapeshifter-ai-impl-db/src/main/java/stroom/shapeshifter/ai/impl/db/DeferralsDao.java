@@ -23,6 +23,7 @@ import stroom.shapeshifter.ai.stage.Learner;
 
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import org.jooq.Condition;
 import org.jooq.Record;
 
 import java.util.List;
@@ -95,6 +96,20 @@ public class DeferralsDao implements Deferrals {
                 .deleteFrom(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL)
                 .where(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.PIPELINE_UUID.eq(pipelineUuid))
                 .execute());
+    }
+
+    @Override
+    public Waiting waitingOn(final Learner learner, final long offset, final int limit) {
+        final Condition mine = ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.PIPELINE_UUID.eq(learner.pipelineUuid())
+                .and(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.ELEMENT_ID.eq(learner.elementId()));
+        return JooqUtil.contextResult(connProvider, context -> new Waiting(
+                context.selectFrom(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL)
+                        .where(mine)
+                        .orderBy(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.FIRST_DEFERRED_MS.asc(),
+                                ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.META_ID.asc())
+                        .limit(offset, limit)
+                        .fetch(DeferralsDao::deferral),
+                context.fetchCount(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL, mine)));
     }
 
     @Override

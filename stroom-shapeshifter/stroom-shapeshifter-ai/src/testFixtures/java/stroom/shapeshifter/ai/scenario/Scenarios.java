@@ -53,6 +53,7 @@ import stroom.shapeshifter.ai.state.InMemoryInputs;
 import stroom.shapeshifter.ai.state.InMemoryLearnerBindings;
 import stroom.shapeshifter.ai.state.InMemoryLearnerStates;
 import stroom.shapeshifter.ai.state.InMemoryLearners;
+import stroom.shapeshifter.ai.state.InMemoryLearningPipelines;
 import stroom.shapeshifter.ai.state.InMemoryOutputs;
 import stroom.shapeshifter.ai.state.InMemoryPlaces;
 import stroom.shapeshifter.ai.state.InMemoryRegressionSet;
@@ -118,8 +119,10 @@ public final class Scenarios {
     public final InMemoryInputs inputs = new InMemoryInputs();
     /// The serving view of A46 over the three seams above it, as a node reads it from one query.
     public final InMemoryServing serving = new InMemoryServing(learnerBindings, states, guidance, deletedPipelines);
+    public final InMemoryLearningPipelines learningPipelines = new InMemoryLearningPipelines(states, learnerBindings,
+            attempts, deferrals, guidance, deletedPipelines);
     /// What brings a learner's rows to the document it runs under, over the rows above.
-    public final InMemoryLearners learners = new InMemoryLearners(learnerBindings, guidance, deferrals);
+    public final InMemoryLearners learners = new InMemoryLearners(learnerBindings, guidance, deferrals, states);
     /// As many attempts as a scenario could open, which is what one carrying takes on.
     private static final int CARRY_AT_MOST = 100;
 

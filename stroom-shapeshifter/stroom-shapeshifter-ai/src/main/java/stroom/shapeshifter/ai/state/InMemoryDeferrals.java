@@ -106,6 +106,23 @@ public final class InMemoryDeferrals implements Deferrals {
     }
 
     @Override
+    public synchronized Waiting waitingOn(final Learner learner, final long offset, final int limit) {
+        final List<Deferral> mine = rows.stream()
+                .filter(row -> row.learner().equals(learner))
+                .sorted(Comparator.comparingLong(Deferral::firstDeferredMs).thenComparingLong(Deferral::inputId))
+                .toList();
+        return new Waiting(mine.stream()
+                .skip(Math.max(0L, offset))
+                .limit(Math.max(0, limit))
+                .toList(), mine.size());
+    }
+
+    /// @return Every waiting stream, for the learning pipelines list.
+    public synchronized List<Deferral> all() {
+        return List.copyOf(rows);
+    }
+
+    @Override
     public synchronized List<Deferral> forDocument(final String docUuid) {
         return rows.stream()
                 .filter(row -> row.docUuid().equals(docUuid))

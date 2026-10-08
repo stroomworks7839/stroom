@@ -333,7 +333,15 @@ public final class InMemoryAttempts implements Attempts {
         return (criteria.getDocUuid() == null || criteria.getDocUuid().equals(was.docUuid()))
                && (criteria.getFeed() == null || criteria.getFeed().equals(was.feed()))
                && (criteria.getPromotionMode() == null || criteria.getPromotionMode() == was.promotionMode())
-               && (criteria.getStatuses().isEmpty() || criteria.getStatuses().contains(attempt.status()));
+               && (criteria.getStatuses().isEmpty() || criteria.getStatuses().contains(attempt.status()))
+               && (criteria.getLearner() == null
+                   || (criteria.getLearner().getPipelineUuid().equals(was.learner().pipelineUuid())
+                       && criteria.getLearner().getElementId().equals(was.learner().elementId())));
+    }
+
+    /// @return Every attempt, for the learning pipelines list.
+    public synchronized List<Recorded> all() {
+        return List.copyOf(attempts.values());
     }
 
     @Override

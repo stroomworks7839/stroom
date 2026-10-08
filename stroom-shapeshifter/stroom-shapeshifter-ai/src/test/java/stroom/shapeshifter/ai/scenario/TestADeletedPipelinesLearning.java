@@ -153,7 +153,7 @@ class TestADeletedPipelinesLearning {
     }
 
     private static AttemptCriteria showingDeleted() {
-        return new AttemptCriteria(null, null, null, null, null, null, true);
+        return new AttemptCriteria(null, null, null, null, null, null, true, null);
     }
 
     private static ShapeshifterAiDoc deferred() {

@@ -44,6 +44,8 @@ public class AttemptCriteria extends BaseCriteria {
     private final List<AttemptStatus> statuses;
     @JsonProperty
     private final boolean showDeletedPipelines;
+    @JsonProperty
+    private final LearnerRef learner;
 
     public AttemptCriteria() {
         this(null, null, null, null, null, null);
@@ -56,7 +58,12 @@ public class AttemptCriteria extends BaseCriteria {
                            final String feed,
                            final PromotionMode promotionMode,
                            final List<AttemptStatus> statuses) {
-        this(pageRequest, sortList, docUuid, feed, promotionMode, statuses, false);
+        this(pageRequest, sortList, docUuid, feed, promotionMode, statuses, false, null);
+    }
+
+    /// One learner's sessions, newest first (design 06 A143), whatever their pipeline's state.
+    public static AttemptCriteria forLearner(final PageRequest pageRequest, final LearnerRef learner) {
+        return new AttemptCriteria(pageRequest, null, null, null, null, null, true, learner);
     }
 
     @JsonCreator
@@ -66,9 +73,11 @@ public class AttemptCriteria extends BaseCriteria {
                            @JsonProperty("feed") final String feed,
                            @JsonProperty("promotionMode") final PromotionMode promotionMode,
                            @JsonProperty("statuses") final List<AttemptStatus> statuses,
-                           @JsonProperty("showDeletedPipelines") final boolean showDeletedPipelines) {
+                           @JsonProperty("showDeletedPipelines") final boolean showDeletedPipelines,
+                           @JsonProperty("learner") final LearnerRef learner) {
         super(pageRequest, sortList);
         this.showDeletedPipelines = showDeletedPipelines;
+        this.learner = learner;
         this.docUuid = docUuid;
         this.feed = feed;
         this.promotionMode = promotionMode;
@@ -97,5 +106,10 @@ public class AttemptCriteria extends BaseCriteria {
     /// until they age out, and left out unless a person asks for them.
     public boolean isShowDeletedPipelines() {
         return showDeletedPipelines;
+    }
+
+    /// One learner's sessions only, or every learner's when null (design 06 A143).
+    public LearnerRef getLearner() {
+        return learner;
     }
 }

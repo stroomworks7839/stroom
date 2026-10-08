@@ -95,7 +95,8 @@ public class SupervisorListPresenter extends MyPresenterWidget<PagerView> {
                         criteria.getFeed(),
                         criteria.getPromotionMode(),
                         criteria.getStatuses(),
-                        criteria.isShowDeletedPipelines());
+                        criteria.isShowDeletedPipelines(),
+                        criteria.getLearner());
                 restFactory
                         .create(SUPERVISOR_RESOURCE)
                         .method(resource -> resource.find(asked))

@@ -29,6 +29,7 @@ import stroom.shapeshifter.shared.Binding;
 import stroom.shapeshifter.shared.GuidanceRequest;
 import stroom.shapeshifter.shared.ImproveRequest;
 import stroom.shapeshifter.shared.LearnerRef;
+import stroom.shapeshifter.shared.LearnerRequest;
 import stroom.shapeshifter.shared.RejectRequest;
 
 import org.junit.jupiter.api.Test;
@@ -125,6 +126,32 @@ class TestSupervisorResourceImpl {
         assertThat(guidance.standing(gone)).hasSize(1);
     }
 
+    /// A person's give up and send back act on a learner of the document they may edit, whose pipeline
+    /// is still there (design 06 A115, A137); giving up says why, since its streams error with the reason.
+    @Test
+    void aLearnerIsGivenUpOrSentBackOnlyWithCause() {
+        assertThatThrownBy(() -> resource.giveUp("doc-1", new LearnerRequest(OURS, " ")))
+                .describedAs("giving up says why")
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("says why");
+        assertThatThrownBy(() -> resource.giveUp("doc-1", new LearnerRequest(THEIRS, "Retired.")))
+                .describedAs("not another document's learner")
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("does not run under this document");
+        assertThatThrownBy(() -> resource.relearnLearner("doc-1", new LearnerRequest(THEIRS, null)))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        learnerBindings.append(learner(GONE), "doc-1", Binding.builder()
+                .uuid("binding-gone")
+                .pipeline(new DocRef("Pipeline", "fragment-gone", "DOOR-ACCESS learned"))
+                .build());
+        deletedPipelines.deleted(GONE.getPipelineUuid(), 1_000L);
+        assertThatThrownBy(() -> resource.giveUp("doc-1", new LearnerRequest(GONE, "Retired.")))
+                .describedAs("nor a deleted pipeline's")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("has been deleted");
+    }
+
     private SupervisorResourceImpl resource() {
         final LearnerDocuments documents = Mockito.mock(LearnerDocuments.class);
         Mockito.when(documents.documentOf(learner(OURS))).thenReturn(Optional.of("doc-1"));
@@ -142,7 +169,9 @@ class TestSupervisorResourceImpl {
                 () -> null,
                 () -> documents,
                 () -> deletedPipelines,
-                () -> learnerBindings);
+                () -> learnerBindings,
+                () -> null,
+                () -> null);
     }
 
     private static Learner learner(final LearnerRef ref) {
