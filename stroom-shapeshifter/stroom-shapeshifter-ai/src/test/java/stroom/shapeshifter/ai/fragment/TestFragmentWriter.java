@@ -38,6 +38,7 @@ import stroom.util.shared.DocPath;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
@@ -258,5 +259,53 @@ class TestFragmentWriter {
         assertThat(second.getUuid()).isNotEqualTo(first.getUuid());
         assertThat(stores.pipelines.list()).hasSize(2);
         assertThat(stores.xslts.list()).hasSize(2);
+    }
+
+    /// A132: a fragment written where its name is taken takes the first free number after it, and the
+    /// documents it references take that name too, so that a fragment and its documents still sort together
+    /// and can be told from the ones before them.
+    @Test
+    void aSecondFragmentOfTheSameNameTakesTheFirstFreeNumber() {
+        final ContentStores stores = new ContentStores();
+        final FragmentWriter writer = stores.writer();
+        final List<LearnedStep> chain = List.of(
+                new LearnedStep(new XsltStep(), XSLT, new StepResult("<Events/>", List.of()), UNSCORED));
+
+        final DocRef first = writer.write(FOLDER, "DOOR-ACCESS Raw Events", chain, null);
+        final DocRef second = writer.write(FOLDER, "DOOR-ACCESS Raw Events", chain, null);
+        final DocRef third = writer.write(FOLDER, "DOOR-ACCESS Raw Events", chain, null);
+
+        assertThat(List.of(first, second, third)).extracting(DocRef::getName)
+                .containsExactly("DOOR-ACCESS Raw Events", "DOOR-ACCESS Raw Events 2", "DOOR-ACCESS Raw Events 3");
+        assertThat(stores.xslts.list()).extracting(DocRef::getName)
+                .describedAs("each fragment's stylesheet named for its own fragment")
+                .containsExactlyInAnyOrder("DOOR-ACCESS Raw Events-xsltFilter",
+                        "DOOR-ACCESS Raw Events 2-xsltFilter",
+                        "DOOR-ACCESS Raw Events 3-xsltFilter");
+    }
+
+    /// The first free number, not the next after the highest: a gap a person left by deleting a fragment
+    /// is filled.
+    @Test
+    void theFirstFreeNumberFillsAGap() {
+        final ContentCreator creator = new ContentCreator() {
+            @Override
+            public DocRef create(final DocPath folder, final String type, final String name) {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public void ensure(final DocPath folder) {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public Set<String> names(final DocPath folder) {
+                return Set.of("Door", "Door 3", "Door-xsltFilter");
+            }
+        };
+
+        assertThat(creator.unused(FOLDER, "Door")).isEqualTo("Door 2");
+        assertThat(creator.unused(FOLDER, "Turnstile")).describedAs("a free name is itself").isEqualTo("Turnstile");
     }
 }

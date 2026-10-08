@@ -76,6 +76,14 @@ public final class FragmentWriter {
         this.xsltStore = xsltStore;
     }
 
+    /// Make the folder learned content goes in, or find it, before anything is learned for it: a folder
+    /// that cannot be made is found out while nothing has been spent on what would go in it.
+    ///
+    /// @param folder The folder.
+    public void ensure(final DocPath folder) {
+        creator.ensure(folder);
+    }
+
     /// Rewrite a fragment in place (A58): the same pipeline document, and the same configuration
     /// documents where the chain still has an element of the same id and type to run them — their text
     /// overwritten — with a new document only for an element the fragment did not have. One fragment and
@@ -165,7 +173,8 @@ public final class FragmentWriter {
 
     /**
      * @param folder Where the fragment and its configuration documents are created.
-     * @param name   The name for the fragment; configuration documents take it with the element id appended.
+     * @param name   The name for the fragment, or the first free number after it where the folder has one
+     *               by that name; configuration documents take it with the element id appended.
      * @param chain  The learned steps in chain order.
      * @return The fragment's DocRef, for the routing table.
      */
@@ -184,6 +193,9 @@ public final class FragmentWriter {
                 .ifPresent(type -> {
                     throw new IllegalArgumentException("No store to write a " + type + " document");
                 });
+        // One name for the fragment and every document it references, found once: a second fragment of a
+        // learner's takes the first free number (A132), and its documents go with it.
+        final String named = creator.unused(folder, name);
         final PipelineDataBuilder builder = new PipelineDataBuilder()
                 .addElement(new PipelineElement(SOURCE, SOURCE));
         String previous = SOURCE;
@@ -216,7 +228,7 @@ public final class FragmentWriter {
             builder.addLink(previous, elementId);
             step.runner().configured().ifPresent(configured -> {
                 final DocRef configuration = writeConfiguration(
-                        folder, name + "-" + elementId, configured, step.configuration());
+                        folder, named + "-" + elementId, configured, step.configuration());
                 builder.addProperty(new PipelineProperty(
                         elementId, configured.propertyName(), new PipelinePropertyValue(configuration)));
             });
@@ -224,7 +236,7 @@ public final class FragmentWriter {
         }
         final PipelineData pipelineData = builder.build();
 
-        final DocRef fragment = creator.create(folder, PipelineDoc.TYPE, name);
+        final DocRef fragment = creator.create(folder, PipelineDoc.TYPE, named);
         pipelineStore.writeDocument(pipelineStore.readDocument(fragment)
                 .copy()
                 .pipelineData(pipelineData)

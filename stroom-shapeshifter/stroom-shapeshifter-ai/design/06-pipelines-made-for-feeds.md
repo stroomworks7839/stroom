@@ -158,9 +158,10 @@ pipeline without touching anything learned.
 
 **Where learned content goes** is the element's to know, through two properties: the folder and the
 name for what it learns. The factory writes them onto each made pipeline from its patterns (A113), e.g.
-folder `Feeds/${feed}` and name `${feed} ${type}`, so a feed's pipeline, fragment, text converter and
-XSLT sit together and share a name. A pipeline made by hand sets them by hand. Where they are unset,
-learned content goes beside the pipeline under the pipeline's name. This replaces the fixed
+folder `Feeds/${feed}` and name `${feed} ${type} learned`, so a feed's pipeline, fragment, text converter
+and XSLT sit together and sort together, the fragment told from the pipeline by its name. A pipeline made
+by hand sets them by hand. Where they are unset, learned content goes beside the pipeline under the
+pipeline's name with ` learned` after it (A133). This replaces the fixed
 `Shapeshifter/<document name>` folder and the `<shape>-<time>` names the stage uses now. The document stays what it
 is: settings shared by every pipeline made from the template. The flow, scorers, budgets, model and
 instructions are written once.
@@ -627,6 +628,46 @@ The largest phase. Its slices keep the build and the scenarios green at each ste
    ledger they describe is superseded by A131.
 5. **Where learned content goes (A113).** The element's folder and name properties, defaulting to
    beside the pipeline under its name, replace the fixed folder and the timestamped names.
+
+   *Built 2026-10-07.* The Shapeshifter AI element has `learnedFolder` and `learnedName` string
+   properties, which a factory writes from its patterns as it would any property. The stage asks a
+   `Places` seam where a learner's content goes. In a node `PipelinePlaces` reads the two properties from
+   the learner's pipeline as merged, as `LearnerDocuments` reads its document, so the worker, which runs
+   no pipeline, places content as a task would. Unset or blank, the folder is the pipeline's own and the
+   name is the pipeline's. A pipeline that can no longer be read puts what a session learns in
+   `Shapeshifter` under the pipeline's uuid. A new fragment is named once, and its text converter and
+   XSLT take that name with the element id appended. A second fragment where the name is taken, a draft
+   in review mode or a fresh learn after a retraction, takes the first free number after it (A132),
+   which the content creator finds in the folder. A fragment rewritten in place keeps its name. The
+   fixed `Shapeshifter/<document>` folder and the `<feed>-<type>-<time>` names are gone.
+
+   *5 audited 2026-10-07.* Two faults closed. The default name was the pipeline's own, and the pipeline
+   is in the folder, so every first fragment would have been numbered "… 2" beside a pipeline of the
+   same name; the default is now the pipeline's name with ` learned` after it (A133), and §4.1's example
+   follows it. And a folder the explorer cannot make — a pattern substituted with a name its folder
+   pattern refuses — was found out only when the fragment was written, after the model had been paid:
+   the session closed in error and the learner's next stream opened another, so a bad folder spent on
+   every stream. The stage now makes sure of the folder before it opens a session, and a stream whose
+   learner cannot be placed waits, saying why; the node remembers the folders it has made sure of, so
+   a waiting backlog does not look again on every try. The fixture's creator holds folders to the
+   explorer's pattern, so the scenarios meet the same refusal.
+
+   Left as they are: two learners told the same place could, learning at once, both take the same free
+   number, which the explorer allows and a person can rename; and a fragment rewritten in place puts a
+   document for an element it did not have in the learner's folder as it is now, which differs from the
+   fragment's own only if a person moves the folder by hand.
+
+   Audited again the same day. One fault and two slips closed. Since the stage makes sure of a folder
+   before a session opens, every task trying a new learner's streams does so side by side, and a folder
+   has no unique name: two tasks could each make `Feeds/DOOR-ACCESS` before either saw the other's, and
+   the explorer's own walk then fails for good on the twin, so the learner would have waited forever.
+   The creator now walks the path itself, one walk at a time on a node, and where a folder has a twin
+   takes the one with the lowest uuid, as every node would. The empty path, a pipeline at the top of the
+   tree, walked a null part; and a `learnedFolder` of `Feeds//DOOR-ACCESS`, which a pattern substituting
+   to nothing can leave, threw before the stage could say why. A folder is now taken as meant: parts
+   trimmed, empty ones dropped, nothing left the top of the tree. The waiting reason quotes the failure,
+   no longer assuming a bad name. Document names need no such guard: the explorer holds only folders to
+   its name pattern.
 6. **A deleted pipeline's learning.** Its record is marked deleted and its sessions age out under the
    retention job (A120).
 7. **Audit.** Including a search for every remaining use of shape, rule and learning key in the module,
@@ -791,7 +832,8 @@ stream is what will catch a format change (ISSUES item 2).
 name pattern for the pipelines it makes, and patterns for element property values, all with the key's
 values substituted. The Shapeshifter AI element gains properties for the folder and name of what it
 learns, which an AI factory sets from its patterns, so the fragment, text converter and XSLT are named
-and placed as the factory says. Unset, they go beside the pipeline under its name. *Added 2026-10-07
+and placed as the factory says. Unset, they go beside the pipeline under its name (with ` learned` after
+it, A133). *Added 2026-10-07
 after the questions: the owner asked for naming to be configurable; the mechanism, substituted element
 properties, is the design's.*
 
@@ -894,3 +936,15 @@ is the record a person acts from: they send its learner back from it. A stream a
 is an ordinary error stream, reprocessed on the pipeline as any other is; nothing else is written for
 it. The ledger of design 01 §5.2 and its table, view and endpoints go. *Ruled 2026-10-07, in the audit
 of slice 4: since A129 the ledger bought nothing but complexity.*
+
+**A132.** *A learner's later fragments are numbered.* A fragment written where its name is already taken
+in its folder takes the first free number after it — `DOOR-ACCESS Raw Events 2`, then `3` — and its
+text converter and XSLT take that name too. The first free number, so a gap a person left is filled.
+*Ruled 2026-10-07, in phase J slice 5, over keeping one name for every fragment and over appending the
+date.*
+
+**A133.** *Learned content is not named as its pipeline is.* Unset, the name is the pipeline's with
+` learned` after it — `DOOR-ACCESS Raw Events learned` — since the pipeline is in the same folder under its
+own name, and a fragment under that name would be numbered as though it were a second. A factory's name
+pattern for what is learned follows it. *Ruled 2026-10-07, in the audit of phase J slice 5, over a
+subfolder per pipeline and over leaving the first fragment numbered.*

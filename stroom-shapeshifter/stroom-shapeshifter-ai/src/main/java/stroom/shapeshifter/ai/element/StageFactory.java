@@ -49,6 +49,7 @@ import stroom.shapeshifter.ai.stage.Guidance;
 import stroom.shapeshifter.ai.stage.LearnerStates;
 import stroom.shapeshifter.ai.stage.Learners;
 import stroom.shapeshifter.ai.stage.Outputs;
+import stroom.shapeshifter.ai.stage.Places;
 import stroom.shapeshifter.ai.stage.RegressionSet;
 import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.ai.stage.Snapshots;
@@ -103,6 +104,7 @@ public class StageFactory {
     private final Deferrals deferrals;
     private final Learners learners;
     private final Wake wake;
+    private final Places places;
     private final Snapshots snapshots;
     private final FragmentCodes codes;
     private final Provider<ShapeshifterAiConfig> configProvider;
@@ -133,6 +135,7 @@ public class StageFactory {
                         final Deferrals deferrals,
                         final Learners learners,
                         final Wake wake,
+                        final Places places,
                         final Snapshots snapshots,
                         final FragmentCodes codes,
                         final Provider<ShapeshifterAiConfig> configProvider) {
@@ -161,6 +164,7 @@ public class StageFactory {
         this.deferrals = deferrals;
         this.learners = learners;
         this.wake = wake;
+        this.places = places;
         this.snapshots = snapshots;
         this.codes = codes;
         this.configProvider = configProvider;
@@ -204,6 +208,7 @@ public class StageFactory {
                 deferrals,
                 learners,
                 wake,
+                places,
                 snapshots,
                 codes,
                 Clock.systemUTC(),

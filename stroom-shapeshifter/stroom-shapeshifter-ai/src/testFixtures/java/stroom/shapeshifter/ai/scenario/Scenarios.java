@@ -52,6 +52,7 @@ import stroom.shapeshifter.ai.state.InMemoryInputs;
 import stroom.shapeshifter.ai.state.InMemoryLearnerStates;
 import stroom.shapeshifter.ai.state.InMemoryLearners;
 import stroom.shapeshifter.ai.state.InMemoryOutputs;
+import stroom.shapeshifter.ai.state.InMemoryPlaces;
 import stroom.shapeshifter.ai.state.InMemoryRegressionSet;
 import stroom.shapeshifter.ai.state.InMemoryRules;
 import stroom.shapeshifter.ai.state.InMemoryServing;
@@ -109,6 +110,7 @@ public final class Scenarios {
     public final InMemoryRegressionSet regressionSet = new InMemoryRegressionSet();
     public final InMemoryDeferrals deferrals = new InMemoryDeferrals();
     public final InMemoryWake wake = new InMemoryWake(deferrals);
+    public final InMemoryPlaces places = new InMemoryPlaces();
     public final InMemorySnapshots snapshots = new InMemorySnapshots();
     public final InMemoryDocuments documents = new InMemoryDocuments();
     public final InMemoryInputs inputs = new InMemoryInputs();
@@ -203,6 +205,7 @@ public final class Scenarios {
                 deferrals,
                 learners,
                 wake,
+                places,
                 snapshots,
                 stores.codes(),
                 Clock.fixed(NOW, ZoneOffset.UTC),

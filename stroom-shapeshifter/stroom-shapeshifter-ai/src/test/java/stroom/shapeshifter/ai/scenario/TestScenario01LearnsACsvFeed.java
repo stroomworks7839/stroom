@@ -151,7 +151,9 @@ class TestScenario01LearnsACsvFeed {
 
         // The fragment is real content: a Source → DSParser → SplitFilter → XSLTFilter pipeline over two new
         // documents, the split giving the transform one record at a time (design 04 §3).
-        assertThat(rule.getPipeline().getName()).startsWith("DOOR-ACCESS-Raw-Events-");
+        assertThat(rule.getPipeline().getName())
+                .describedAs("named where the learner's element says (A113): here, for its pipeline")
+                .isEqualTo(Scenarios.LEARNER.pipelineUuid());
         assertThat(run.learner()).isEqualTo(Scenarios.LEARNER);
         assertThat(scenarios.stores.pipelines.readDocument(rule.getPipeline()).getPipelineData()
                 .getAddedElements())

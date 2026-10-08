@@ -16,6 +16,7 @@
 
 package stroom.shapeshifter.ai.fragment;
 
+import stroom.docref.DocRef;
 import stroom.docstore.api.DocumentStoreRegistry;
 import stroom.docstore.api.Serialiser2Factory;
 import stroom.docstore.api.StoreFactory;
@@ -34,11 +35,18 @@ import stroom.processor.api.ProcessorFilterService;
 import stroom.processor.api.ProcessorService;
 import stroom.security.api.SecurityContext;
 import stroom.security.mock.MockSecurityContext;
+import stroom.util.shared.DocPath;
 
 import com.google.inject.Binder;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.util.Providers;
+
+import java.util.List;
+import java.util.Set;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * The three real document stores a fragment is written to — pipeline, text converter and XSLT — over
@@ -51,6 +59,10 @@ import com.google.inject.util.Providers;
  */
 public final class ContentStores {
 
+    /// The explorer's pattern for a folder's name (`FolderExplorerActionHandler`), which it holds a folder
+    /// to as it makes one: a folder no node could make is refused here too.
+    private static final Pattern FOLDER_NAME = Pattern.compile("^[a-zA-Z0-9_\\- \\.\\(\\)]{1,}$");
+
     public final PipelineStore pipelines;
     /**
      * Follows {@code parentPipeline} through the same store, so a fragment that inherits from a template
@@ -60,7 +72,8 @@ public final class ContentStores {
     public final TextConverterStore textConverters;
     public final XsltStore xslts;
     /**
-     * Creates straight through the stores: there is no explorer here, so the folder is ignored.
+     * Creates straight through the stores: there is no explorer here, so the folder is ignored and every
+     * document is in the one folder a free name is found in.
      */
     public final ContentCreator creator;
 
@@ -84,11 +97,34 @@ public final class ContentStores {
         stackLoader = injector.getInstance(PipelineStackLoader.class);
         textConverters = injector.getInstance(TextConverterStore.class);
         xslts = injector.getInstance(XsltStore.class);
-        creator = (folder, type, name) -> switch (type) {
-            case PipelineDoc.TYPE -> pipelines.createDocument(name);
-            case TextConverterDoc.TYPE -> textConverters.createDocument(name);
-            case XsltDoc.TYPE -> xslts.createDocument(name);
-            default -> throw new IllegalArgumentException(type);
+        creator = new ContentCreator() {
+
+            @Override
+            public DocRef create(final DocPath folder, final String type, final String name) {
+                return switch (type) {
+                    case PipelineDoc.TYPE -> pipelines.createDocument(name);
+                    case TextConverterDoc.TYPE -> textConverters.createDocument(name);
+                    case XsltDoc.TYPE -> xslts.createDocument(name);
+                    default -> throw new IllegalArgumentException(type);
+                };
+            }
+
+            @Override
+            public void ensure(final DocPath folder) {
+                folder.forEach((index, part) -> {
+                    if (!FOLDER_NAME.matcher(part).matches()) {
+                        throw new IllegalArgumentException("Invalid name \"" + part + "\"");
+                    }
+                });
+            }
+
+            @Override
+            public Set<String> names(final DocPath folder) {
+                return Stream.of(pipelines.list(), textConverters.list(), xslts.list())
+                        .flatMap(List::stream)
+                        .map(DocRef::getName)
+                        .collect(Collectors.toSet());
+            }
         };
     }
 

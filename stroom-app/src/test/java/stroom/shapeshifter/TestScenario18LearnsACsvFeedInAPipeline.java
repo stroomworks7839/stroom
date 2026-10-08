@@ -168,7 +168,9 @@ class TestScenario18LearnsACsvFeedInAPipeline extends AbstractProcessIntegration
         assertThat(rule.isProvisional()).isFalse();
         final PipelineDoc fragment = pipelineStore.readDocument(rule.getPipeline());
         assertThat(fragment).describedAs("the fragment is a real pipeline document").isNotNull();
-        assertThat(fragment.getName()).startsWith(FEED + "-Raw-Events-");
+        assertThat(fragment.getName())
+                .describedAs("named for the pipeline it was learned for, the element naming nothing (A113)")
+                .isEqualTo("DOOR-ACCESS supervised learned");
         assertThat(fragment.getPipelineData().getAddedElements())
                 .extracting(element -> element.getType())
                 .containsExactly("Source", "DSParser", "SplitFilter", "XSLTFilter");

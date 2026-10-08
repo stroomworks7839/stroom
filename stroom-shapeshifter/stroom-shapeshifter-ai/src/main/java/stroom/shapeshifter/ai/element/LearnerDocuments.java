@@ -22,7 +22,6 @@ import stroom.pipeline.PipelineStore;
 import stroom.pipeline.factory.PipelineDataCache;
 import stroom.pipeline.shared.PipelineDoc;
 import stroom.pipeline.shared.data.PipelineData;
-import stroom.pipeline.shared.data.PipelineProperty;
 import stroom.pipeline.shared.data.PipelinePropertyValue;
 import stroom.security.api.SecurityContext;
 import stroom.shapeshifter.ai.stage.Learner;
@@ -31,7 +30,8 @@ import stroom.shapeshifter.shared.ShapeshifterAiElements;
 import jakarta.inject.Inject;
 import jakarta.inject.Provider;
 
-import java.util.Objects;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 
 /// The document a learner runs under, as its pipeline says now (design 06 phase J slice 2b): the
@@ -70,16 +70,29 @@ public class LearnerDocuments {
     /// @return The document, if the pipeline exists and its element of that id is a Shapeshifter AI stage
     /// naming one.
     public Optional<String> documentOf(final Learner learner) {
+        return elementOf(learner)
+                .map(element -> element.properties().get(DOCUMENT_PROPERTY))
+                .map(PipelinePropertyValue::getEntity)
+                .map(DocRef::getUuid);
+    }
+
+    /// The learner's element as its pipeline has it now, merged, so that a property inherited from a parent
+    /// counts: the pipeline, and the element's properties by name. Read as the processing user, as
+    /// [#documentOf] is.
+    ///
+    /// @param learner The learner.
+    /// @return The element, if the pipeline exists and its element of that id is a Shapeshifter AI stage.
+    Optional<Element> elementOf(final Learner learner) {
         return securityContextProvider.get().asProcessingUserResult(() -> read(learner));
     }
 
-    private Optional<String> read(final Learner learner) {
+    private Optional<Element> read(final Learner learner) {
         final PipelineDoc pipeline;
         try {
             pipeline = pipelineStoreProvider.get().readDocument(
                     new DocRef(PipelineDoc.TYPE, learner.pipelineUuid()));
         } catch (final RuntimeException e) {
-            // A pipeline that cannot be read has no element to name a document.
+            // A pipeline that cannot be read has no element.
             return Optional.empty();
         }
         if (pipeline == null) {
@@ -95,13 +108,23 @@ public class LearnerDocuments {
         if (!stage) {
             return Optional.empty();
         }
-        return merged.getAddedProperties().stream()
+        final Map<String, PipelinePropertyValue> properties = new HashMap<>();
+        merged.getAddedProperties().stream()
                 .filter(property -> learner.elementId().equals(property.getElement())
-                                    && DOCUMENT_PROPERTY.equals(property.getName()))
-                .map(PipelineProperty::getValue)
-                .map(PipelinePropertyValue::getEntity)
-                .filter(Objects::nonNull)
-                .map(DocRef::getUuid)
-                .findFirst();
+                                    && property.getValue() != null)
+                .forEach(property -> properties.put(property.getName(), property.getValue()));
+        return Optional.of(new Element(pipeline, Map.copyOf(properties)));
+    }
+
+
+    // --------------------------------------------------------------------------------
+
+
+    /// A learner's element, read from its pipeline.
+    ///
+    /// @param pipeline   The pipeline, as stored: its name and uuid.
+    /// @param properties The element's properties as merged, by name.
+    record Element(PipelineDoc pipeline, Map<String, PipelinePropertyValue> properties) {
+
     }
 }

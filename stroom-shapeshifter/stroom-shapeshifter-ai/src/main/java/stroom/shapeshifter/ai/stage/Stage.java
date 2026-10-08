@@ -108,7 +108,6 @@ import java.util.TreeSet;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 /**
  * One supervised stage over one stream, as design 02 §4 spells it out: route, learn, judge, write,
@@ -129,7 +128,6 @@ public final class Stage {
 
     private static final LambdaLogger LOGGER = LambdaLoggerFactory.getLogger(Stage.class);
 
-    private static final String FOLDER = "Shapeshifter";
     /**
      * The window a document's spend is counted over (A44). A24 will make it a setting, with the budget it
      * is measured against; until then it is an hour, which is long enough to see a feed burning spend and
@@ -154,6 +152,7 @@ public final class Stage {
     private final Deferrals deferrals;
     private final Learners learners;
     private final Wake wake;
+    private final Places places;
     private final Snapshots snapshots;
     private final FragmentCodes codes;
     /// The element whose output is always `records` over `record`.
@@ -185,6 +184,7 @@ public final class Stage {
                  final Deferrals deferrals,
                  final Learners learners,
                  final Wake wake,
+                 final Places places,
                  final Snapshots snapshots,
                  final FragmentCodes codes,
                  final Clock clock,
@@ -206,6 +206,7 @@ public final class Stage {
         this.deferrals = deferrals;
         this.learners = learners;
         this.wake = wake;
+        this.places = places;
         this.snapshots = snapshots;
         this.codes = codes;
         this.clock = clock;
@@ -560,8 +561,8 @@ public final class Stage {
         // In place (A58), unless a person is to review it first: a draft is its own fragment until Approve
         // rebinds the incumbent to it.
         final DocRef fragment = doc.getPromotionMode() == PromotionMode.REVIEW
-                ? write(doc, input, learned)
-                : rewrite(doc, incumbent, learned);
+                ? write(learner, learned)
+                : rewrite(learner, incumbent, learned);
         // A learner marked to learn again has just done so, by hand: the mark is spent, or its next stream
         // would relearn the rule somebody has only now improved.
         states.reset(learner);
@@ -1162,6 +1163,13 @@ public final class Stage {
                                final Advisor advisor,
                                final Function<String, StageRun> waiting,
                                final Function<Recorder, StageRun> attempt) {
+        // What the session learns must have somewhere to go, and that is found out now rather than after
+        // the model has been paid: a folder that cannot be made would close every session in error once it
+        // had learned, and the learner's next stream would open another.
+        final Optional<String> unplaceable = unplaceable(learner);
+        if (unplaceable.isPresent()) {
+            return waiting.apply(unplaceable.get());
+        }
         final Optional<Long> opened = attempts.opened(new Attempts.Attempt(learner, doc.getUuid(),
                 input.feed(), input.type(), input.id(), node, doc.getPromotionMode(),
                 claimUntil()), clock.millis());
@@ -1461,7 +1469,7 @@ public final class Stage {
             wake(learner);
             return givenUp;
         }
-        final DocRef fragment = write(doc, input, learned);
+        final DocRef fragment = write(learner, learned);
         // What goes in the corpus (A56): the sample the model was shown, every record of it, since a
         // first learning learned for all of them.
         final List<Accepted> entries = Corpus.entries(learned.chain(), boundary(learned),
@@ -1557,8 +1565,8 @@ public final class Stage {
         // In place (A58), unless a person is to review it first: a draft is its own fragment until Approve
         // rebinds the incumbent to it.
         final DocRef fragment = doc.getPromotionMode() == PromotionMode.REVIEW
-                ? write(doc, input, learned)
-                : rewrite(doc, incumbent, learned);
+                ? write(learner, learned)
+                : rewrite(learner, incumbent, learned);
         if (doc.getPromotionMode() == PromotionMode.REVIEW) {
             // Behind the incumbent, which keeps matching first; Approve rebinds the incumbent to this
             // fragment and carries the history over.
@@ -1949,11 +1957,12 @@ public final class Stage {
     }
 
     /// A session improves a rule's fragment in place (A58): the same pipeline, the same documents, the
-    /// text replaced. What ran before is the snapshot's to keep.
-    private DocRef rewrite(final ShapeshifterAiDoc doc,
+    /// text replaced. What ran before is the snapshot's to keep. A document for an element the fragment did
+    /// not have goes in the learner's folder, named for the fragment (A113).
+    private DocRef rewrite(final Learner learner,
                            final RoutingRule incumbent,
                            final Learned learned) {
-        return writer.rewrite(incumbent.getPipeline(), DocPath.fromParts(FOLDER, doc.getName()),
+        return writer.rewrite(incumbent.getPipeline(), places.of(learner).folder(),
                 incumbent.getPipeline().getName(), learned.chain(), boundary(learned));
     }
 
@@ -2054,23 +2063,30 @@ public final class Stage {
                 : null;
     }
 
-    /// A new fragment, named for the feed and type of the stream it was learned on, where it has them, and
-    /// the time; phase J slice 5 names it for its pipeline instead (A113).
-    private DocRef write(final ShapeshifterAiDoc doc, final Input input, final Learned learned) {
-        return writer.write(DocPath.fromParts(FOLDER, doc.getName()), slug(input) + "-" + clock.millis(),
-                learned.chain(), boundary(learned));
+    /// Why what the learner learns could not be put where its element says, if it could not: the folder is
+    /// made, or found, before a session is opened.
+    private Optional<String> unplaceable(final Learner learner) {
+        final DocPath folder = places.of(learner).folder();
+        try {
+            writer.ensure(folder);
+            return Optional.empty();
+        } catch (final RuntimeException e) {
+            LOGGER.debug(() -> LogUtil.message("Learner {} cannot be placed in {}: {}", learner, folder,
+                    e.getMessage()), e);
+            // Most often a name the explorer will not have for a folder, but not always: the reason
+            // says what it was, and where the folder is set.
+            return Optional.of("What this learner learns cannot be put in the folder " + folder + ": "
+                               + Objects.requireNonNullElse(e.getMessage(), e.getClass().getSimpleName())
+                               + ". The element's learnedFolder says where it goes; a folder's name may "
+                               + "hold letters, digits, spaces and - _ . ( )");
+        }
     }
 
-    /// The stream's feed and type as a document name can carry them, with anything a name should not hold
-    /// collapsed to a hyphen.
-    private static String slug(final Input input) {
-        final String named = Stream.of(input.feed(), input.type())
-                .filter(Objects::nonNull)
-                .collect(Collectors.joining("-"))
-                .replaceAll("[^A-Za-z0-9._-]+", "-");
-        return named.isEmpty()
-                ? "learned"
-                : named;
+    /// A new fragment, in the learner's folder under its name (A113), or the first free number after the
+    /// name where the folder already has one (A132).
+    private DocRef write(final Learner learner, final Learned learned) {
+        final Places.Place place = places.of(learner);
+        return writer.write(place.folder(), place.name(), learned.chain(), boundary(learned));
     }
 
     /**

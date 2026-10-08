@@ -109,6 +109,32 @@ public class ShapeshifterAiParser extends AbstractParser implements HasStepDetai
         this.asProcessed = asProcessed;
     }
 
+    /// Where what this stage learns goes (design 06 A113): a folder path from the top of the tree, e.g.
+    /// `Feeds/DOOR-ACCESS`, which a Pipeline Factory writes from its pattern. Unset, beside the pipeline.
+    ///
+    /// Declared here so that the pipeline editor and a factory can set it; it is read from the pipeline by
+    /// [PipelinePlaces], since the worker that carries a session on runs no pipeline and has no element to
+    /// be told it by.
+    @PipelineProperty(
+            description = "The folder what this stage learns goes in, e.g. Feeds/DOOR-ACCESS. Unset, the "
+                          + "pipeline's own folder.",
+            displayPriority = 3)
+    public void setLearnedFolder(final String learnedFolder) {
+        // Read from the pipeline by PipelinePlaces, not kept here.
+    }
+
+    /// What what this stage learns is called (design 06 A113): the fragment's name, which its text
+    /// converter and XSLT take with the element id appended, and a later fragment takes with the first
+    /// free number after it (A132). Unset, the pipeline's name with ` learned` after it (A133). Read from
+    /// the pipeline, as the folder is.
+    @PipelineProperty(
+            description = "The name what this stage learns is given. Unset, the pipeline's name followed "
+                          + "by \"learned\".",
+            displayPriority = 4)
+    public void setLearnedName(final String learnedName) {
+        // Read from the pipeline by PipelinePlaces, not kept here.
+    }
+
     @Override
     protected XMLReader createReader() {
         supervision.checkPosition(supervision.document(docRef, getElementId()), getElementId());
