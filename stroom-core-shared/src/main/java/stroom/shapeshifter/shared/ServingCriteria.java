@@ -27,11 +27,11 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 
 /**
- * Which serving rules the Supervisor is asking for (A46): across every document by default, ordered by
+ * Which serving bindings the Supervisor is asking for (A46): across every document by default, ordered by
  * the traffic each carries, and narrowed by the one thing a person browsing for something to improve
  * would narrow by — how well it has been scoring lately.
  * <p>
- * There is no sort list to choose from. Traffic is the order, because the rule worth an hour is the one
+ * There is no sort list to choose from. Traffic is the order, because the binding worth an hour is the one
  * carrying the most streams; a score is what filters the list rather than what arranges it.
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -61,14 +61,14 @@ public class ServingCriteria extends BaseCriteria {
     }
 
     /**
-     * One document's rules, or every document this person may read when null.
+     * One document's bindings, or every document this person may read when null.
      */
     public String getDocUuid() {
         return docUuid;
     }
 
     /**
-     * Only rules whose shape has been scoring below this, or all of them when null. A shape that has
+     * Only bindings whose learner has been scoring below this, or all of them when null. A binding that has
      * served nothing yet has no score and is left out when a threshold is given.
      */
     public Double getBelow() {

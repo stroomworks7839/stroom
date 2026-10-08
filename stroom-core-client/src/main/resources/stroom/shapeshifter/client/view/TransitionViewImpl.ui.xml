@@ -11,7 +11,7 @@
         </form:FormGroup>
         <form:FormGroup identity="transitionTarget"
                         label="Go to"
-                        helpText="The step to go to. 'end' completes the flow and binds what was learned; 'park' parks the session for a person; 'give-up' gives the shape up and errors its streams; 'abandon' takes the step's own default: give-up for a parser, park for any other step.">
+                        helpText="The step to go to. 'end' completes the flow and binds what was learned; 'park' parks the session for a person; 'give-up' gives the learner up and errors its streams; 'abandon' takes the step's own default: give-up for a parser, park for any other step.">
             <l:SelectionBox ui:field="target"/>
         </form:FormGroup>
     </g:FlowPanel>

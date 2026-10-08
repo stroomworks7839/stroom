@@ -41,9 +41,9 @@ import org.xml.sax.XMLReader;
 
 /**
  * The supervisor at the extraction stage (design 01 §3, §12 item 4): one supervised stage fed the raw
- * stream, emitting events. Sits where a parser sits, and does what the {@link Stage} decides — routes
- * the stream to a bound fragment, learns one when nothing is bound and the document allows, or refuses
- * it with an error naming the shape and the reason (A4). What it does is {@link Supervision}'s.
+ * stream, emitting events. Sits where a parser sits, and does what the {@link Stage} decides — runs
+ * the stream through a bound fragment, learns one when nothing is bound and the document allows, or
+ * refuses it with an error naming the learner and the reason (A4). What it does is {@link Supervision}'s.
  * <p>
  * A bound fragment runs as a nested pipeline (A20), built by the same {@link stroom.pipeline.factory.PipelineFactory}
  * in the same pipeline scope, so its errors reach this pipeline's error stream and its events reach this
@@ -57,9 +57,9 @@ import org.xml.sax.XMLReader;
         type = ShapeshifterAiParser.TYPE,
         category = Category.PARSER,
         description = """
-                A supervised stage over a raw stream: routes each stream to the fragment its \
-                Shapeshifter AI document binds for the stream's shape, learns a fragment for a shape \
-                nothing binds, and refuses a shape it has given up on.
+                A supervised stage over a raw stream: runs each stream through the fragment this \
+                element's learner is bound to, learns a fragment when nothing is bound, and refuses \
+                streams once its learner has given up.
                 """,
         roles = {
                 PipelineElementType.ROLE_PARSER,
@@ -91,8 +91,8 @@ public class ShapeshifterAiParser extends AbstractParser implements HasStepDetai
         this.docRef = docRef;
     }
 
-    /// Which question a reprocess is asking (design 01 §7.3). False — the default — resolves the
-    /// routing table as it stands today, which is what "we have fixed it, run the backlog again" wants
+    /// Which question a reprocess is asking (design 01 §7.3). False — the default — serves with the
+    /// learner's binding as it stands today, which is what "we have fixed it, run the backlog again" wants
     /// and the mode a release (A12) reprocesses in. True runs each stream through the fragment that
     /// produced its output before, which is what an audit wants: the content cannot have changed, so
     /// the answer cannot either.
@@ -102,7 +102,7 @@ public class ShapeshifterAiParser extends AbstractParser implements HasStepDetai
     /// pipeline whose supervisor has this set at the streams in question.
     @PipelineProperty(
             description = "Process each stream through the fragment that produced it before, rather "
-                          + "than through whatever the routing table binds today.",
+                          + "than through whatever the learner is bound to today.",
             defaultValue = "false",
             displayPriority = 2)
     public void setAsProcessed(final boolean asProcessed) {
@@ -154,7 +154,7 @@ public class ShapeshifterAiParser extends AbstractParser implements HasStepDetai
 
     /**
      * Reads the stream and lets the supervision decide. The document is never written: it holds only
-     * what a person authors, and what the stage learns is rows (A41). Two tasks learning the same shape
+     * what a person authors, and what the stage learns is rows (A41). Two tasks learning for the same learner
      * at once still race until the lease of A42 exists, but they race on rows and not on one document.
      */
     private final class SupervisorReader extends stroom.pipeline.xml.converter.AbstractParser {

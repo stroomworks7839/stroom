@@ -22,7 +22,7 @@ import stroom.shapeshifter.shared.ReplayUnit;
 /**
  * Whether a pipeline document is a fragment in the sense of proposed ruling A20: a chain from
  * {@code Source} that ends at a filter, with no writer or destination, so that the supervisor can attach
- * its own capture. Applied when a Shapeshifter AI document is saved, so that a routing rule can never point at a
+ * its own capture. Applied when a Shapeshifter AI document is saved, so that a binding can never point at a
  * pipeline
  * the supervisor would have to refuse at run time.
  */

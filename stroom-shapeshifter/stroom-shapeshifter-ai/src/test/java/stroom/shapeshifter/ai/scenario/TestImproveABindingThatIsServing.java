@@ -25,8 +25,8 @@ import stroom.shapeshifter.ai.stage.RegressionSet.Accepted;
 import stroom.shapeshifter.ai.stage.RegressionSet.Kind;
 import stroom.shapeshifter.ai.stage.Stage;
 import stroom.shapeshifter.ai.stage.StageRun;
+import stroom.shapeshifter.shared.Binding;
 import stroom.shapeshifter.shared.LearningMode;
-import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ScorerSetting;
 import stroom.shapeshifter.shared.ScorerType;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
@@ -41,14 +41,14 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/// Ruling A46: **a way in for a rule that is not failing.** A rule serving at 0.93 is above every
+/// Ruling A46: **a way in for a binding that is not failing.** A binding serving at 0.93 is above every
 /// threshold, nothing has flagged it, and until now there was no door marked "make this better".
 ///
-/// An improvement does not wait for traffic. The records the rule was accepted on are kept per rule
+/// An improvement does not wait for traffic. The records the binding was accepted on are kept per binding
 /// (A18) with the score each achieved, so an attempt has both a sample to learn from and the bar to
 /// beat without a stream arriving — a feed that ships once a day can be improved at eleven in the
 /// morning. The incumbent serves throughout and a candidate takes over only through the ordinary gate.
-class TestImproveARuleThatIsServing {
+class TestImproveABindingThatIsServing {
 
     private static final String FEED = "DOOR-ACCESS";
     private static final String XSLT = Scenarios.resource("csv-logon.xsl");
@@ -62,36 +62,36 @@ class TestImproveARuleThatIsServing {
     private static final Golden CSV = Scenarios.corpus("001_csv_with_header");
 
     @Test
-    void aBetterCandidateReboundsTheRuleAndTheMessageIsCarriedIntoTheAsking() {
+    void aBetterCandidateReboundsTheBindingAndTheMessageIsCarriedIntoTheAsking() {
         final Scenarios scenarios = new Scenarios();
         final Script learning = learn(scenarios);
-        final Stage stage = scenarios.stage(document -> learning, scenarios.rules);
+        final Stage stage = scenarios.stage(document -> learning, scenarios.learnerBindings);
         final ShapeshifterAiDoc doc = doc();
 
         final StageRun learned = scenarios.process(learning, doc, stream()).learned();
-        final RoutingRule bound = scenarios.rules.forLearner(Scenarios.LEARNER).get(0);
-        assertThat(learned.bindings()).isNotNull();
+        final Binding bound = scenarios.learnerBindings.forLearner(Scenarios.LEARNER).get(0);
+        assertThat(learned.produced()).isNotNull();
 
         // Asked for out of the blue: no stream arrives, and the regression set is the sample.
         final Script improving = scenarios.script(CSV.configuration(), XSLT)
                 .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter")
                 .expect(QuestionMatcher.configuration("DSParser")).reply(Scenarios.fenced(CSV.configuration()))
                 .expect(QuestionMatcher.configuration("XSLTFilter")).reply(Scenarios.fenced(XSLT));
-        final Stage improver = scenarios.stage(document -> improving, scenarios.rules);
+        final Stage improver = scenarios.stage(document -> improving, scenarios.learnerBindings);
 
         final StageRun improved = improver.improve(doc, bound.getUuid(),
                 "The fourth column is a terminal id, not a user.", "jo");
 
         assertThat(improved.decision())
-                .describedAs("a candidate that is no worse on what the rule was accepted on takes over")
+                .describedAs("a candidate that is no worse on what the binding was accepted on takes over")
                 .isInstanceOf(Rebound.class);
-        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER))
-                .describedAs("the same rule, rebound: it keeps its uuid and its history (§7.3 rule 2)")
+        assertThat(scenarios.learnerBindings.forLearner(Scenarios.LEARNER))
+                .describedAs("the same binding, rebound: it keeps its uuid and its history (§7.3 rule 2)")
                 .hasSize(1)
                 .first()
-                .satisfies(rule -> assertThat(rule.getUuid()).isEqualTo(bound.getUuid()));
+                .satisfies(binding -> assertThat(binding.getUuid()).isEqualTo(bound.getUuid()));
         assertThat(scenarios.guidance.standing(Scenarios.LEARNER))
-                .describedAs("the message is guidance for the shape, so it is carried into this attempt "
+                .describedAs("the message is guidance for the learner, so it is carried into this attempt "
                              + "and stands for the relearning after it")
                 .extracting(given -> given.message() + " (" + given.author() + ")")
                 .containsExactly("The fourth column is a terminal id, not a user. (jo)");
@@ -100,12 +100,12 @@ class TestImproveARuleThatIsServing {
     @Test
     void aCandidateThatIsWorseOnAnAcceptedRecordIsRefusedAndTheIncumbentServesOn() {
         final Scenarios scenarios = new Scenarios();
-        final Stage stage = scenarios.stage(document -> learn(scenarios), scenarios.rules);
+        final Stage stage = scenarios.stage(document -> learn(scenarios), scenarios.learnerBindings);
         final ShapeshifterAiDoc doc = doc();
         scenarios.process(learn(scenarios), doc, stream()).learned();
-        final RoutingRule bound = scenarios.rules.forLearner(Scenarios.LEARNER).get(0);
+        final Binding bound = scenarios.learnerBindings.forLearner(Scenarios.LEARNER).get(0);
 
-        // Seeded by hand. What the gate is about is the entry a candidate is held to — a record the rule
+        // Seeded by hand. What the gate is about is the entry a candidate is held to — a record the binding
         // was accepted on that the candidate makes less of is not an improvement (A66) — and an entry
         // that says it yielded an event, over a record that holds nothing to make one of, is the cheapest
         // way to have one. Its text is an ordinary line, so the sample the candidate learns from still
@@ -116,17 +116,17 @@ class TestImproveARuleThatIsServing {
                 "<records xmlns=\"records:2\"/>", lines[1], lines[0] + "\n", "\n", "<Events><Event/></Events>",
                 Kind.TRANSLATION, 1.0, 7L, 0L, null)), doc.getRegressionCap());
 
-        final Stage improver = scenarios.stage(document -> learn(scenarios), scenarios.rules);
+        final Stage improver = scenarios.stage(document -> learn(scenarios), scenarios.learnerBindings);
         final StageRun improved = improver.improve(doc, bound.getUuid(), null, "jo");
 
         assertThat(improved.decision())
-                .describedAs("worse on a record the rule was accepted on is not an improvement, whatever "
+                .describedAs("worse on a record the binding was accepted on is not an improvement, whatever "
                              + "else it does (A18)")
                 .isInstanceOf(Kept.class);
         assertThat(((Kept) improved.decision()).reason())
                 .contains("makes nothing of a record that yielded an event")
                 .contains("record 1 of 1 in the corpus, accepted by attempt 7");
-        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER).get(0).getPipeline())
+        assertThat(scenarios.learnerBindings.forLearner(Scenarios.LEARNER).get(0).getPipeline())
                 .describedAs("and the incumbent is still bound, having served throughout")
                 .isEqualTo(bound.getPipeline());
     }
@@ -134,14 +134,14 @@ class TestImproveARuleThatIsServing {
     @Test
     void whatCannotBeImprovedSaysSoRatherThanGuessing() {
         final Scenarios scenarios = new Scenarios();
-        final Stage stage = scenarios.stage(document -> learn(scenarios), scenarios.rules);
+        final Stage stage = scenarios.stage(document -> learn(scenarios), scenarios.learnerBindings);
         final ShapeshifterAiDoc doc = doc();
         scenarios.process(learn(scenarios), doc, stream()).learned();
-        final RoutingRule bound = scenarios.rules.forLearner(Scenarios.LEARNER).get(0);
+        final Binding bound = scenarios.learnerBindings.forLearner(Scenarios.LEARNER).get(0);
 
         assertThatThrownBy(() -> stage.improve(doc, "not-a-rule", null, "jo"))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("not a rule of this document");
+                .hasMessageContaining("not a binding of this document");
 
         scenarios.regressionSet.discard(bound.getUuid());
         assertThatThrownBy(() -> stage.improve(doc, bound.getUuid(), null, "jo"))
@@ -157,10 +157,10 @@ class TestImproveARuleThatIsServing {
     @Test
     void anImprovementRefusesWhatOtherDecisionsHaveSettled() {
         final Scenarios scenarios = new Scenarios();
-        final Stage stage = scenarios.stage(document -> learn(scenarios), scenarios.rules);
+        final Stage stage = scenarios.stage(document -> learn(scenarios), scenarios.learnerBindings);
         final ShapeshifterAiDoc doc = doc();
         scenarios.process(learn(scenarios), doc, stream()).learned();
-        final RoutingRule bound = scenarios.rules.forLearner(Scenarios.LEARNER).get(0);
+        final Binding bound = scenarios.learnerBindings.forLearner(Scenarios.LEARNER).get(0);
 
         assertThatThrownBy(() -> stage.improve(doc().copy().learningMode(LearningMode.DISABLED).build(),
                 bound.getUuid(), null, "jo"))
@@ -171,17 +171,17 @@ class TestImproveARuleThatIsServing {
 
         scenarios.states.awaitReview(Scenarios.LEARNER, "doc-1", "some-draft");
         assertThatThrownBy(() -> stage.improve(doc, bound.getUuid(), null, "jo"))
-                .describedAs("one draft per shape: a second would overwrite the pointer that says which "
+                .describedAs("one draft per learner: a second would overwrite the pointer that says which "
                              + "is awaiting review, leaving the first undecidable")
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("already awaiting review");
         scenarios.states.reset(Scenarios.LEARNER);
 
-        // And a shape marked for relearning has been learned again by hand: the mark is spent.
+        // And a learner marked for relearning has learned again by hand: the mark is spent.
         scenarios.states.markForRelearning(Scenarios.LEARNER, "doc-1", "drifting");
         stage.improve(doc, bound.getUuid(), null, "jo");
         assertThat(scenarios.states.relearnReason(Scenarios.LEARNER))
-                .describedAs("or the next stream would relearn the rule somebody has only now improved")
+                .describedAs("or the next stream would relearn the binding somebody has only now improved")
                 .isEmpty();
     }
 
@@ -191,13 +191,13 @@ class TestImproveARuleThatIsServing {
     @Test
     void theQuestionsAreAboutTheCorpusAndNoFeed() {
         final Scenarios scenarios = new Scenarios();
-        final Stage stage = scenarios.stage(document -> learn(scenarios), scenarios.rules);
+        final Stage stage = scenarios.stage(document -> learn(scenarios), scenarios.learnerBindings);
         final ShapeshifterAiDoc doc = doc();
         scenarios.process(learn(scenarios), doc, stream()).learned();
-        final RoutingRule bound = scenarios.rules.forLearner(Scenarios.LEARNER).get(0);
+        final Binding bound = scenarios.learnerBindings.forLearner(Scenarios.LEARNER).get(0);
 
         final Script asking = learn(scenarios);
-        final StageRun improved = scenarios.stage(document -> asking, scenarios.rules)
+        final StageRun improved = scenarios.stage(document -> asking, scenarios.learnerBindings)
                 .improve(doc, bound.getUuid(), null, "jo");
 
         assertThat(improved.transcript()).isNotEmpty();

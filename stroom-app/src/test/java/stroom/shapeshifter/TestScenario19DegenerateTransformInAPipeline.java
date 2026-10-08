@@ -47,14 +47,14 @@ import stroom.shapeshifter.ai.scenario.QuestionMatcher;
 import stroom.shapeshifter.ai.scenario.Scenarios;
 import stroom.shapeshifter.ai.scenario.Script;
 import stroom.shapeshifter.ai.scenario.Structure;
-import stroom.shapeshifter.ai.stage.Bindings;
 import stroom.shapeshifter.ai.stage.Learner;
-import stroom.shapeshifter.ai.stage.Rules;
+import stroom.shapeshifter.ai.stage.LearnerBindings;
+import stroom.shapeshifter.ai.stage.Produced;
 import stroom.shapeshifter.ai.transformation.XsltStep;
+import stroom.shapeshifter.shared.Binding;
 import stroom.shapeshifter.shared.ExtractionQualityParameters;
 import stroom.shapeshifter.shared.FlowExample;
 import stroom.shapeshifter.shared.LearningMode;
-import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.SchemaConformanceParameters;
 import stroom.shapeshifter.shared.ScorerSetting;
 import stroom.shapeshifter.shared.ScorerType;
@@ -107,7 +107,7 @@ class TestScenario19DegenerateTransformInAPipeline extends AbstractProcessIntegr
     @Inject
     private ShapeshifterAiStore shapeshifterAiStore;
     @Inject
-    private Rules rules;
+    private LearnerBindings learnerBindings;
     @Inject
     private PipelineStore pipelineStore;
     @Inject
@@ -160,11 +160,12 @@ class TestScenario19DegenerateTransformInAPipeline extends AbstractProcessIntegr
                 .noneMatch(error -> error.getMessage().startsWith("Schema conformance"));
         assertThat(result.getMarkerCount(Severity.ERROR, Severity.FATAL_ERROR)).isZero();
         assertThat(result.getWritten()).isEqualTo(6);
-        assertThat(rules.forLearner(learner)).hasSize(1);
-        final RoutingRule rule = rules.forLearner(learner).get(0);
+        assertThat(learnerBindings.forLearner(learner)).hasSize(1);
+        final Binding binding = learnerBindings.forLearner(learner).get(0);
         final Meta output = outputs().get(0);
         assertThat(canonical(data(output))).isEqualTo(canonical(EXPECTED_EVENTS));
-        assertThat(streamStore.getAttributes(output.getId())).containsEntry(Bindings.RULE_ATTRIBUTE, rule.getUuid());
+        assertThat(streamStore.getAttributes(output.getId())).containsEntry(Produced.BINDING_ATTRIBUTE,
+                binding.getUuid());
     }
 
     /**

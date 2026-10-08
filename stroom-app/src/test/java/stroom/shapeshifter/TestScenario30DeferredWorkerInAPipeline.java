@@ -50,12 +50,12 @@ import stroom.shapeshifter.ai.scenario.Structure;
 import stroom.shapeshifter.ai.stage.Attempts;
 import stroom.shapeshifter.ai.stage.Attempts.Recorded;
 import stroom.shapeshifter.ai.stage.Learner;
-import stroom.shapeshifter.ai.stage.Rules;
+import stroom.shapeshifter.ai.stage.LearnerBindings;
 import stroom.shapeshifter.ai.transformation.XsltStep;
 import stroom.shapeshifter.shared.AttemptStatus;
+import stroom.shapeshifter.shared.Binding;
 import stroom.shapeshifter.shared.FlowExample;
 import stroom.shapeshifter.shared.LearningMode;
-import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ScorerSetting;
 import stroom.shapeshifter.shared.ScorerType;
 import stroom.shapeshifter.shared.YieldBasis;
@@ -84,7 +84,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * asks the model nothing — it parks an attempt and writes an error stream — and the node's job carries
  * the attempt on afterwards, with no task in front of it, reading the stream back out of the store by
  * the id the attempt kept. What Tier 1 cannot claim is claimed here: the worker's seams are the node's
- * stores, the rule it writes is a row, and the fragment it wrote is a pipeline document.
+ * stores, the binding it writes is a row, and the fragment it wrote is a pipeline document.
  */
 class TestScenario30DeferredWorkerInAPipeline extends AbstractProcessIntegrationTest {
 
@@ -104,7 +104,7 @@ class TestScenario30DeferredWorkerInAPipeline extends AbstractProcessIntegration
     @Inject
     private ShapeshifterAiStore shapeshifterAiStore;
     @Inject
-    private Rules rules;
+    private LearnerBindings learnerBindings;
     @Inject
     private Attempts attempts;
     @Inject
@@ -151,7 +151,7 @@ class TestScenario30DeferredWorkerInAPipeline extends AbstractProcessIntegration
                 .describedAs("the stream waits, and nothing is sentinelled to make it (design 04 §8.7)").isZero();
         assertThat(task.getWritten()).isZero();
         assertThat(outputs()).isEmpty();
-        assertThat(rules.forLearner(learner)).isEmpty();
+        assertThat(learnerBindings.forLearner(learner)).isEmpty();
         final Recorded parked = attempts.forDocument(doc.getUuid(), 10).get(0);
         assertThat(parked.status()).isEqualTo(AttemptStatus.AWAITING_MODEL);
         assertThat(parked.turns()).describedAs("the question it stopped at, asked of nobody").hasSize(1);
@@ -160,11 +160,11 @@ class TestScenario30DeferredWorkerInAPipeline extends AbstractProcessIntegration
                 .describedAs("naming the stream it was raised on, which is how the job finds it again")
                 .isEqualTo(raw.getId());
 
-        // A second stream of the same shape while the attempt waits: deferred behind it — scenario 13's
+        // A second stream of the same learner while the attempt waits: deferred behind it — scenario 13's
         // two streams, which the promotion must wake together.
         final Meta second = rawStream();
         processOne();
-        assertThat(attempts.forDocument(doc.getUuid(), 10)).describedAs("one attempt for one shape")
+        assertThat(attempts.forDocument(doc.getUuid(), 10)).describedAs("one attempt for one learner")
                 .hasSize(1);
         assertThat(second.getId()).isNotEqualTo(raw.getId());
 
@@ -176,14 +176,14 @@ class TestScenario30DeferredWorkerInAPipeline extends AbstractProcessIntegration
         final Recorded finished = attempts.byId(parked.id()).orElseThrow();
         assertThat(finished.status()).describedAs(String.valueOf(finished.decision()))
                 .isEqualTo(AttemptStatus.PROMOTED);
-        assertThat(rules.forLearner(learner)).describedAs("one rule, written by the job").hasSize(1);
-        final RoutingRule rule = rules.forLearner(learner).get(0);
-        assertThat(pipelineStore.readDocument(rule.getPipeline()))
+        assertThat(learnerBindings.forLearner(learner)).describedAs("one binding, written by the job").hasSize(1);
+        final Binding binding = learnerBindings.forLearner(learner).get(0);
+        assertThat(pipelineStore.readDocument(binding.getPipeline()))
                 .describedAs("and the fragment it learned is a pipeline document").isNotNull();
         // Scenario 13's substance in a node: *both* streams waited on this learner and one promotion
         // woke them together, as the pipeline's deferred tasks (design 06 A129).
 
-        // The next stream of the shape is bound in the task, with no model call and no worker.
+        // The next stream of the learner is bound in the task, with no model call and no worker.
         final Script silent = Script.of();
         advisor.set(silent);
         rawStream();
@@ -197,7 +197,7 @@ class TestScenario30DeferredWorkerInAPipeline extends AbstractProcessIntegration
         });
         assertThat(outputs()).hasSize(3);
         assertThat(attempts.forDocument(doc.getUuid(), 10))
-                .describedAs("and opened no second attempt: the shape is known now").hasSize(1);
+                .describedAs("and opened no second attempt: the learner is known now").hasSize(1);
     }
 
     private Script script() {

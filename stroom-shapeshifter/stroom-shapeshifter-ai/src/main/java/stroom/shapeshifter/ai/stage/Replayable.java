@@ -17,7 +17,7 @@
 package stroom.shapeshifter.ai.stage;
 
 /// One input stream a person might put through again, and the pipeline that processed it: what the
-/// outputs hand back when a rule is retracted. The stage asks for none of them to be reprocessed (A129);
+/// outputs hand back when a binding is retracted. The stage asks for none of them to be reprocessed (A129);
 /// it counts them.
 ///
 /// @param pipeline The uuid of the pipeline, or null where nothing was processing it: a harness, or the

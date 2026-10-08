@@ -93,7 +93,7 @@ public class ShapeshifterAiScorePresenter
     @Override
     protected void onRead(final DocRef docRef, final ShapeshifterAiDoc doc, final boolean readOnly) {
         // The scores (design 05 §10; A91, A93): the gate a learned fragment must pass, the flag a serving
-        // rule raises, and beneath them the scorers that are the bar and the judges.
+        // binding raises, and beneath them the scorers that are the bar and the judges.
         final ShapeshifterAiScoreView view = getView();
         view.setPromotionMode(doc.getPromotionMode());
         view.setPromotionFloor(doc.getPromotionFloor());

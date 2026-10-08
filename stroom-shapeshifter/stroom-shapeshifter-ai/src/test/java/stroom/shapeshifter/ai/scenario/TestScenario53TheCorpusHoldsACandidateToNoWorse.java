@@ -26,8 +26,8 @@ import stroom.shapeshifter.ai.stage.RegressionSet.Accepted;
 import stroom.shapeshifter.ai.stage.RegressionSet.Kind;
 import stroom.shapeshifter.ai.stage.Stage;
 import stroom.shapeshifter.ai.stage.StageRun;
+import stroom.shapeshifter.shared.Binding;
 import stroom.shapeshifter.shared.ExtractionQualityParameters;
-import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ScorerSetting;
 import stroom.shapeshifter.shared.ScorerType;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
@@ -42,7 +42,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /// Design 02 §5, scenario 53: **the corpus holds a candidate to no worse** (design 04 §4.1, A56, A66;
 /// phase 3's exit at Tier 1).
 ///
-/// The corpus is per record (A56): a rule learned from six records holds six entries, each the record as
+/// The corpus is per record (A56): a binding learned from six records holds six entries, each the record as
 /// the parser cut it with the output it was accepted with and what that output is — a translation, an
 /// admission, nothing. A later session is held to every entry, to no worse (A66): its output for each
 /// must clear the bar, and a record once translated may never become an Unknown. Output may otherwise
@@ -64,13 +64,13 @@ class TestScenario53TheCorpusHoldsACandidateToNoWorse {
     private static final String ADMITS_LOGOFF = Scenarios.resource("csv-logon-unknown.xsl");
 
     @Test
-    void aRuleIsAcceptedOnEachRecordItLearnedFromWithWhatItMadeOfIt() {
+    void aBindingIsAcceptedOnEachRecordItLearnedFromWithWhatItMadeOfIt() {
         final Scenarios scenarios = new Scenarios();
         final ShapeshifterAiDoc doc = doc();
 
-        final RoutingRule rule = learn(scenarios, doc, ADMITS_LOGOFF);
+        final Binding binding = learn(scenarios, doc, ADMITS_LOGOFF);
 
-        final List<Accepted> corpus = scenarios.regressionSet.accepted(rule.getUuid());
+        final List<Accepted> corpus = scenarios.regressionSet.accepted(binding.getUuid());
         assertThat(corpus).describedAs("one entry per record of the sample (A56)").hasSize(6);
         assertThat(corpus).extracting(Accepted::kind).containsExactly(
                 Kind.TRANSLATION, Kind.TRANSLATION, Kind.UNKNOWN, Kind.TRANSLATION, Kind.UNKNOWN, Kind.TRANSLATION);
@@ -89,21 +89,21 @@ class TestScenario53TheCorpusHoldsACandidateToNoWorse {
     void aCandidateThatTurnsATranslatedRecordIntoAnUnknownIsRefusedAndTheEntryIsNamed() {
         final Scenarios scenarios = new Scenarios();
         final ShapeshifterAiDoc doc = doc();
-        final RoutingRule rule = learn(scenarios, doc, TRANSLATES_BOTH);
-        assertThat(scenarios.regressionSet.accepted(rule.getUuid()))
+        final Binding binding = learn(scenarios, doc, TRANSLATES_BOTH);
+        assertThat(scenarios.regressionSet.accepted(binding.getUuid()))
                 .extracting(Accepted::kind)
                 .containsOnly(Kind.TRANSLATION);
 
-        final StageRun improved = improve(scenarios, doc, rule, ADMITS_LOGOFF);
+        final StageRun improved = improve(scenarios, doc, binding, ADMITS_LOGOFF);
 
         assertThat(improved.decision()).describedAs(improved.decision().toString()).isInstanceOf(Kept.class);
         assertThat(((Kept) improved.decision()).reason())
                 .contains("turns a record that translated into an Unknown")
                 .contains("record 3 of 6 in the corpus");
-        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER).get(0).getPipeline())
+        assertThat(scenarios.learnerBindings.forLearner(Scenarios.LEARNER).get(0).getPipeline())
                 .describedAs("the incumbent serves on")
-                .isEqualTo(rule.getPipeline());
-        assertThat(scenarios.regressionSet.accepted(rule.getUuid()))
+                .isEqualTo(binding.getPipeline());
+        assertThat(scenarios.regressionSet.accepted(binding.getUuid()))
                 .describedAs("and the corpus is as it was")
                 .hasSize(6);
     }
@@ -112,12 +112,12 @@ class TestScenario53TheCorpusHoldsACandidateToNoWorse {
     void aCandidateThatTurnsAnUnknownIntoATranslationIsAcceptedAndTheCorpusGrows() {
         final Scenarios scenarios = new Scenarios();
         final ShapeshifterAiDoc doc = doc();
-        final RoutingRule rule = learn(scenarios, doc, ADMITS_LOGOFF);
+        final Binding binding = learn(scenarios, doc, ADMITS_LOGOFF);
 
-        final StageRun improved = improve(scenarios, doc, rule, TRANSLATES_BOTH);
+        final StageRun improved = improve(scenarios, doc, binding, TRANSLATES_BOTH);
 
         assertThat(improved.decision()).describedAs(improved.decision().toString()).isInstanceOf(Rebound.class);
-        final List<Accepted> corpus = scenarios.regressionSet.accepted(rule.getUuid());
+        final List<Accepted> corpus = scenarios.regressionSet.accepted(binding.getUuid());
         assertThat(corpus)
                 .describedAs("the six records again, with what the candidate now makes of them, after the six "
                              + "they were first accepted with")
@@ -133,11 +133,11 @@ class TestScenario53TheCorpusHoldsACandidateToNoWorse {
     void theCapLetsTheOldestEntriesGo() {
         final Scenarios scenarios = new Scenarios();
         final ShapeshifterAiDoc doc = doc().copy().regressionCap(8).build();
-        final RoutingRule rule = learn(scenarios, doc, ADMITS_LOGOFF);
+        final Binding binding = learn(scenarios, doc, ADMITS_LOGOFF);
 
-        improve(scenarios, doc, rule, TRANSLATES_BOTH);
+        improve(scenarios, doc, binding, TRANSLATES_BOTH);
 
-        final List<Accepted> corpus = scenarios.regressionSet.accepted(rule.getUuid());
+        final List<Accepted> corpus = scenarios.regressionSet.accepted(binding.getUuid());
         assertThat(corpus).hasSize(8);
         assertThat(corpus.subList(0, 2))
                 .describedAs("what remains of the first acceptance is its last two records")
@@ -145,21 +145,21 @@ class TestScenario53TheCorpusHoldsACandidateToNoWorse {
                 .containsExactly(Kind.UNKNOWN, Kind.TRANSLATION);
     }
 
-    private static RoutingRule learn(final Scenarios scenarios, final ShapeshifterAiDoc doc, final String xslt) {
+    private static Binding learn(final Scenarios scenarios, final ShapeshifterAiDoc doc, final String xslt) {
         final Script script = script(scenarios, xslt);
         final StageRun run = scenarios.process(script, doc, stream(1L)).learned();
         script.verifyExhausted();
         assertThat(run.decision()).describedAs(run.decision().toString()).isInstanceOf(Promoted.class);
-        return ((Promoted) run.decision()).rule();
+        return ((Promoted) run.decision()).binding();
     }
 
     private static StageRun improve(final Scenarios scenarios,
                                     final ShapeshifterAiDoc doc,
-                                    final RoutingRule rule,
+                                    final Binding binding,
                                     final String xslt) {
         final Script script = script(scenarios, xslt);
-        final Stage improver = scenarios.stage(document -> script, scenarios.rules);
-        final StageRun improved = improver.improve(doc, rule.getUuid(), null, "jo");
+        final Stage improver = scenarios.stage(document -> script, scenarios.learnerBindings);
+        final StageRun improved = improver.improve(doc, binding.getUuid(), null, "jo");
         script.verifyExhausted();
         return improved;
     }

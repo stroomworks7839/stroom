@@ -30,55 +30,55 @@ import java.util.Optional;
 public final class InMemoryRegressionSet implements RegressionSet {
 
     private final Map<String, List<Accepted>> accepted = new HashMap<>();
-    /// The feed each rule's newest entries came from.
+    /// The feed each binding's newest entries came from.
     private final Map<String, String> feeds = new HashMap<>();
 
     @Override
-    public synchronized List<Accepted> accepted(final String ruleUuid) {
-        return List.copyOf(accepted.getOrDefault(ruleUuid, List.of()));
+    public synchronized List<Accepted> accepted(final String bindingUuid) {
+        return List.copyOf(accepted.getOrDefault(bindingUuid, List.of()));
     }
 
     @Override
     public synchronized void accept(final String docUuid,
-                                    final String ruleUuid,
+                                    final String bindingUuid,
                                     final String feed,
                                     final String type,
                                     final List<Accepted> entries,
                                     final int cap) {
         // As a node's store has it: a copy kept on no feed is not kept at all.
-        Objects.requireNonNull(feed, "The feed to keep rule " + ruleUuid + "'s records on");
-        append(ruleUuid, entries, cap);
-        feeds.put(ruleUuid, feed);
+        Objects.requireNonNull(feed, "The feed to keep binding " + bindingUuid + "'s records on");
+        append(bindingUuid, entries, cap);
+        feeds.put(bindingUuid, feed);
     }
 
     @Override
-    public synchronized Optional<String> feedOf(final String ruleUuid) {
-        return accepted.containsKey(ruleUuid)
-                ? Optional.ofNullable(feeds.get(ruleUuid))
+    public synchronized Optional<String> feedOf(final String bindingUuid) {
+        return accepted.containsKey(bindingUuid)
+                ? Optional.ofNullable(feeds.get(bindingUuid))
                 : Optional.empty();
     }
 
     @Override
-    public synchronized void discard(final String ruleUuid) {
-        accepted.remove(ruleUuid);
-        feeds.remove(ruleUuid);
+    public synchronized void discard(final String bindingUuid) {
+        accepted.remove(bindingUuid);
+        feeds.remove(bindingUuid);
     }
 
     @Override
-    public synchronized void move(final String fromRuleUuid, final String toRuleUuid, final int cap) {
-        final List<Accepted> moving = accepted.remove(fromRuleUuid);
-        final String movingFeed = feeds.remove(fromRuleUuid);
+    public synchronized void move(final String fromBindingUuid, final String toBindingUuid, final int cap) {
+        final List<Accepted> moving = accepted.remove(fromBindingUuid);
+        final String movingFeed = feeds.remove(fromBindingUuid);
         if (moving != null) {
-            append(toRuleUuid, moving, cap);
-            // Appended after what the rule held, so they are its newest.
+            append(toBindingUuid, moving, cap);
+            // Appended after what the binding held, so they are its newest.
             if (movingFeed != null) {
-                feeds.put(toRuleUuid, movingFeed);
+                feeds.put(toBindingUuid, movingFeed);
             }
         }
     }
 
-    private void append(final String ruleUuid, final List<Accepted> entries, final int cap) {
-        final List<Accepted> kept = accepted.computeIfAbsent(ruleUuid, k -> new ArrayList<>());
+    private void append(final String bindingUuid, final List<Accepted> entries, final int cap) {
+        final List<Accepted> kept = accepted.computeIfAbsent(bindingUuid, k -> new ArrayList<>());
         kept.addAll(entries);
         // The cap keeps the most recent; the oldest accepted records are the first to go.
         while (kept.size() > cap) {

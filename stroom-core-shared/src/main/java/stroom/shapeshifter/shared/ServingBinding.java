@@ -24,23 +24,23 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * One rule that is serving, as the Supervisor shows it (ruling A46, design 01 §11.6): what it binds,
+ * One binding that is serving, as the Supervisor shows it (ruling A46, design 01 §11.6): what it binds,
  * what it scored when it was promoted, what it has been scoring since, and how much traffic it carries.
  * <p>
- * The list this belongs to is not an alert and not a queue. A46 is explicit: a rule serving at 0.93 is
+ * The list this belongs to is not an alert and not a queue. A46 is explicit: a binding serving at 0.93 is
  * above every threshold and nothing is wrong with it, so "good but not perfect" is a question somebody
- * asks when they have time — ordered by traffic, because the rule carrying the most streams is the one
+ * asks when they have time — ordered by traffic, because the binding carrying the most streams is the one
  * worth an hour.
  */
 @JsonInclude(Include.NON_NULL)
-public class ServingRule {
+public class ServingBinding {
 
     @JsonProperty
     private final DocRef doc;
     @JsonProperty
     private final LearnerRef learner;
     @JsonProperty
-    private final String ruleUuid;
+    private final String bindingUuid;
     @JsonProperty
     private final DocRef fragment;
     @JsonProperty
@@ -65,9 +65,9 @@ public class ServingRule {
     private final boolean pipelineDeleted;
 
     @JsonCreator
-    public ServingRule(@JsonProperty("doc") final DocRef doc,
+    public ServingBinding(@JsonProperty("doc") final DocRef doc,
                        @JsonProperty("learner") final LearnerRef learner,
-                       @JsonProperty("ruleUuid") final String ruleUuid,
+                       @JsonProperty("bindingUuid") final String bindingUuid,
                        @JsonProperty("fragment") final DocRef fragment,
                        @JsonProperty("provisional") final boolean provisional,
                        @JsonProperty("promotedScore") final Double promotedScore,
@@ -79,7 +79,7 @@ public class ServingRule {
                        @JsonProperty("pipelineDeleted") final boolean pipelineDeleted) {
         this.doc = doc;
         this.learner = learner;
-        this.ruleUuid = ruleUuid;
+        this.bindingUuid = bindingUuid;
         this.fragment = fragment;
         this.provisional = provisional;
         this.promotedScore = promotedScore;
@@ -100,8 +100,8 @@ public class ServingRule {
         return learner;
     }
 
-    public String getRuleUuid() {
-        return ruleUuid;
+    public String getBindingUuid() {
+        return bindingUuid;
     }
 
     public DocRef getFragment() {
@@ -139,7 +139,7 @@ public class ServingRule {
     }
 
     /**
-     * How many records the learner has brought into that rolling score: the traffic this rule carries, and
+     * How many records the learner has brought into that rolling score: the traffic this binding carries, and
      * what the list is ordered by.
      */
     public int getRecords() {
@@ -147,14 +147,14 @@ public class ServingRule {
     }
 
     /**
-     * How many things a supervisor has said about what this rule's learner learns (A46), so that a person can see
+     * How many things a supervisor has said about what this binding's learner learns (A46), so that a person can see
      * whether the last hint was acted on before giving another.
      */
     public int getGuidance() {
         return guidance;
     }
 
-    /// Whether its rolling score is below the document's relearn threshold: a rule a person might improve.
+    /// Whether its rolling score is below the document's relearn threshold: a binding a person might improve.
     public boolean isBelowThreshold() {
         return belowThreshold;
     }

@@ -34,7 +34,7 @@ import static org.assertj.core.api.Assertions.tuple;
 class TestCorpusIndexDao {
 
     private static final String DOC = "doc-" + System.nanoTime();
-    private static final String RULE = "rule-" + System.nanoTime();
+    private static final String BINDING = "rule-" + System.nanoTime();
     private static final String DRAFT = "draft-" + System.nanoTime();
 
     @Inject
@@ -43,61 +43,61 @@ class TestCorpusIndexDao {
     @BeforeEach
     void setUp() {
         Guice.createInjector(new TestModule()).injectMembers(this);
-        index.discard(RULE);
+        index.discard(BINDING);
         index.discard(DRAFT);
     }
 
     @Test
     void rowsComeBackInTheOrderTheyWereAccepted() {
-        index.add(List.of(row(RULE, 10L, 0, Kind.TRANSLATION), row(RULE, 10L, 1, Kind.UNKNOWN)));
-        index.add(List.of(row(RULE, 11L, 0, Kind.NONE)));
+        index.add(List.of(row(BINDING, 10L, 0, Kind.TRANSLATION), row(BINDING, 10L, 1, Kind.UNKNOWN)));
+        index.add(List.of(row(BINDING, 11L, 0, Kind.NONE)));
 
-        assertThat(index.rows(RULE))
+        assertThat(index.rows(BINDING))
                 .extracting(Row::metaId, Row::segment, Row::kind)
                 .containsExactly(
                         tuple(10L, 0, Kind.TRANSLATION),
                         tuple(10L, 1, Kind.UNKNOWN),
                         tuple(11L, 0, Kind.NONE));
-        assertThat(index.rows(RULE).get(0).attemptId()).isEqualTo(7L);
+        assertThat(index.rows(BINDING).get(0).attemptId()).isEqualTo(7L);
     }
 
     @Test
     void theCapDropsTheOldestAndNamesTheStreamsNothingNamesAnyMore() {
-        index.add(List.of(row(RULE, 10L, 0, Kind.TRANSLATION), row(RULE, 10L, 1, Kind.TRANSLATION)));
-        index.add(List.of(row(RULE, 11L, 0, Kind.TRANSLATION), row(RULE, 11L, 1, Kind.TRANSLATION)));
+        index.add(List.of(row(BINDING, 10L, 0, Kind.TRANSLATION), row(BINDING, 10L, 1, Kind.TRANSLATION)));
+        index.add(List.of(row(BINDING, 11L, 0, Kind.TRANSLATION), row(BINDING, 11L, 1, Kind.TRANSLATION)));
 
-        assertThat(index.trim(RULE, 3))
+        assertThat(index.trim(BINDING, 3))
                 .describedAs("one row of stream 10 remains, so stream 10 is still named")
                 .isEmpty();
-        assertThat(index.rows(RULE)).hasSize(3);
-        assertThat(index.trim(RULE, 2))
+        assertThat(index.rows(BINDING)).hasSize(3);
+        assertThat(index.trim(BINDING, 2))
                 .describedAs("now nothing names stream 10")
                 .containsExactly(10L);
-        assertThat(index.trim(RULE, 2)).describedAs("within the cap, nothing is dropped").isEmpty();
+        assertThat(index.trim(BINDING, 2)).describedAs("within the cap, nothing is dropped").isEmpty();
     }
 
     @Test
-    void discardHandsBackEveryStreamOfTheRuleAndNoOtherRules() {
-        index.add(List.of(row(RULE, 10L, 0, Kind.TRANSLATION)));
+    void discardHandsBackEveryStreamOfTheBindingAndNoOtherBindings() {
+        index.add(List.of(row(BINDING, 10L, 0, Kind.TRANSLATION)));
         index.add(List.of(row(DRAFT, 12L, 0, Kind.TRANSLATION)));
 
-        assertThat(index.discard(RULE)).containsExactly(10L);
-        assertThat(index.rows(RULE)).isEmpty();
+        assertThat(index.discard(BINDING)).containsExactly(10L);
+        assertThat(index.rows(BINDING)).isEmpty();
         assertThat(index.rows(DRAFT)).hasSize(1);
     }
 
     @Test
     void moveReKeysADraftsRowsAfterTheIncumbents() {
-        index.add(List.of(row(RULE, 10L, 0, Kind.TRANSLATION)));
+        index.add(List.of(row(BINDING, 10L, 0, Kind.TRANSLATION)));
         index.add(List.of(row(DRAFT, 12L, 0, Kind.UNKNOWN)));
 
-        index.move(DRAFT, RULE);
+        index.move(DRAFT, BINDING);
 
         assertThat(index.rows(DRAFT)).isEmpty();
-        assertThat(index.rows(RULE)).extracting(Row::metaId).containsExactly(10L, 12L);
+        assertThat(index.rows(BINDING)).extracting(Row::metaId).containsExactly(10L, 12L);
     }
 
-    private static Row row(final String rule, final long metaId, final int segment, final Kind kind) {
-        return new Row(DOC, rule, metaId, segment, kind, 0.9, 7L, 1_000L);
+    private static Row row(final String binding, final long metaId, final int segment, final Kind kind) {
+        return new Row(DOC, binding, metaId, segment, kind, 0.9, 7L, 1_000L);
     }
 }

@@ -29,14 +29,14 @@ import java.util.Objects;
 
 /**
  * What serves a learner (A124): a pipeline fragment, referenced by DocRef (A20), learned by it and bound
- * to it. Nothing selects among rules any more: a learner is served by its binding, or waits on its
+ * to it. Nothing selects among bindings any more: a learner is served by its binding, or waits on its
  * draft.
  * <p>
- * A rule carries the little history rebinding needs: when the fragment was promoted, the score it was
- * promoted on, and the two states a learned rule passes through before it is simply bound — a
+ * A binding carries the little history rebinding needs: when the fragment was promoted, the score it was
+ * promoted on, and the two states a learned binding passes through before it is simply bound — a
  * <em>draft</em> the learner's streams wait on until a person approves it (A25), and a
  * <em>provisional</em> binding that serves streams while held-out validation waits for records (A5, §6).
- * A rule has a {@code uuid} so that the runtime state of A26 can name it stably.
+ * A binding has a {@code uuid} so that the runtime state of A26 can name it stably.
  */
 @JsonPropertyOrder({
         "uuid",
@@ -46,7 +46,7 @@ import java.util.Objects;
         "promotedTimeMs",
         "score"})
 @JsonInclude(Include.NON_NULL)
-public class RoutingRule {
+public class Binding {
 
     /**
      * Null until the store or the supervisor assigns one; the client never generates it.
@@ -76,19 +76,19 @@ public class RoutingRule {
     private final Double score;
     /**
      * What one record is in the stream, as the variant was learned (A35): the stage counts a stream's
-     * records and judges yield by it. Null for raw text, whose parser cuts the records, and for rules
+     * records and judges yield by it. Null for raw text, whose parser cuts the records, and for bindings
      * written before it was carried, which count the root's children as before.
      */
     @JsonProperty
     private final RecordBoundary recordBoundary;
-    /// The snapshot of the fragment's configuration this rule serves with (A61): what a deferral row is
-    /// stamped with and what an output records. Null for a rule written before snapshots existed, which
+    /// The snapshot of the fragment's configuration this binding serves with (A61): what a deferral row is
+    /// stamped with and what an output records. Null for a binding written before snapshots existed, which
     /// is snapshotted the first time it serves.
     @JsonProperty
     private final String snapshot;
 
     @JsonCreator
-    public RoutingRule(@JsonProperty("uuid") final String uuid,
+    public Binding(@JsonProperty("uuid") final String uuid,
                        @JsonProperty("pipeline") final DocRef pipeline,
                        @JsonProperty("draft") final Boolean draft,
                        @JsonProperty("provisional") final Boolean provisional,
@@ -107,7 +107,7 @@ public class RoutingRule {
     }
 
     @SerialisationTestConstructor
-    private RoutingRule() {
+    private Binding() {
         this(null, null, null, null, null, null, null, null);
     }
 
@@ -139,7 +139,7 @@ public class RoutingRule {
         return recordBoundary;
     }
 
-    /// The snapshot this rule serves with (A61), or null for a rule written before snapshots existed.
+    /// The snapshot this binding serves with (A61), or null for a binding written before snapshots existed.
     public String getSnapshot() {
         return snapshot;
     }
@@ -152,7 +152,7 @@ public class RoutingRule {
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
-        final RoutingRule that = (RoutingRule) o;
+        final Binding that = (Binding) o;
         return draft == that.draft &&
                provisional == that.provisional &&
                Objects.equals(uuid, that.uuid) &&
@@ -171,7 +171,7 @@ public class RoutingRule {
 
     @Override
     public String toString() {
-        return "RoutingRule{" +
+        return "Binding{" +
                "uuid='" + uuid + '\'' +
                ", pipeline=" + pipeline +
                ", draft=" + draft +
@@ -208,15 +208,15 @@ public class RoutingRule {
         private Builder() {
         }
 
-        private Builder(final RoutingRule rule) {
-            this.uuid = rule.uuid;
-            this.pipeline = rule.pipeline;
-            this.draft = rule.draft;
-            this.provisional = rule.provisional;
-            this.promotedTimeMs = rule.promotedTimeMs;
-            this.score = rule.score;
-            this.recordBoundary = rule.recordBoundary;
-            this.snapshot = rule.snapshot;
+        private Builder(final Binding binding) {
+            this.uuid = binding.uuid;
+            this.pipeline = binding.pipeline;
+            this.draft = binding.draft;
+            this.provisional = binding.provisional;
+            this.promotedTimeMs = binding.promotedTimeMs;
+            this.score = binding.score;
+            this.recordBoundary = binding.recordBoundary;
+            this.snapshot = binding.snapshot;
         }
 
         public Builder uuid(final String uuid) {
@@ -254,14 +254,14 @@ public class RoutingRule {
             return this;
         }
 
-        /// The snapshot the rule serves with (A61).
+        /// The snapshot the binding serves with (A61).
         public Builder snapshot(final String snapshot) {
             this.snapshot = snapshot;
             return this;
         }
 
-        public RoutingRule build() {
-            return new RoutingRule(uuid, pipeline, draft, provisional, promotedTimeMs, score,
+        public Binding build() {
+            return new Binding(uuid, pipeline, draft, provisional, promotedTimeMs, score,
                     recordBoundary, snapshot);
         }
     }

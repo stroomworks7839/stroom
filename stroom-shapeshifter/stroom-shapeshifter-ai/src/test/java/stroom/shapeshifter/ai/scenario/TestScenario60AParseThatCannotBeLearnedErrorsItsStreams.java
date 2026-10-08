@@ -44,8 +44,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 /// §4 and its §8 scenario 5) — the one terminal failure.
 ///
 /// The parser's candidates are spent short of the document's coverage gate. Nothing can be scored or
-/// served: the session gives the shape up, the streams waiting on it are woken, and each errors with the
-/// reason — no session opens again for the shape.
+/// served: the session gives the learner up, the streams waiting on it are woken, and each errors with the
+/// reason — no session opens again for the learner.
 class TestScenario60AParseThatCannotBeLearnedErrorsItsStreams {
 
     private static final String DOC = "doc-1";
@@ -56,7 +56,7 @@ class TestScenario60AParseThatCannotBeLearnedErrorsItsStreams {
     private static final String ONE_BLOCK = Scenarios.resource("block-split.ds3.xml");
 
     @Test
-    void theParsersCandidatesSpentShortOfTheGatesGiveTheShapeUpAndErrorEveryWaitingStream() {
+    void theParsersCandidatesSpentShortOfTheGatesGiveTheLearnerUpAndErrorEveryWaitingStream() {
         final Scenarios scenarios = new Scenarios();
         // The demo document with its yield counted per line, which is the gate a parser that cuts a CSV as
         // one record fails; the demo's own yield is per record, which says nothing of a parser over text.
@@ -95,7 +95,7 @@ class TestScenario60AParseThatCannotBeLearnedErrorsItsStreams {
         assertThat(session.status()).describedAs(String.valueOf(session.decision())).isEqualTo(AttemptStatus.ABANDONED);
         assertThat(scenarios.states.reasonGivenUp(Scenarios.LEARNER)).isPresent()
                 .get().asString().contains("No passing configuration for DSParser");
-        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).isEmpty();
+        assertThat(scenarios.learnerBindings.forLearner(Scenarios.LEARNER)).isEmpty();
         assertThat(scenarios.wake.woken()).extracting(Deferral::inputId)
                 .describedAs("every waiting stream is woken to error").contains(1L, 2L);
 

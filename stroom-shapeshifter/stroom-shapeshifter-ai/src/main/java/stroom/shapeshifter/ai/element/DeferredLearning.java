@@ -41,7 +41,7 @@ import java.time.Clock;
 /// model answers and without a task slot held while it does.
 ///
 /// As the processing user, since it reads streams and documents on nobody's behalf, and writes
-/// fragments and rules as an automatic promotion does.
+/// fragments and bindings as an automatic promotion does.
 ///
 /// A pass takes a bounded batch rather than everything waiting: a job that tried to empty the queue
 /// would hold one thread for as long as the model took times the length of the queue, and the next pass

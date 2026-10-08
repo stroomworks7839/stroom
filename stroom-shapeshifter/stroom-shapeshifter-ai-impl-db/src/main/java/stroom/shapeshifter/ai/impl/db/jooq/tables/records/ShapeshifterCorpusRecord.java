@@ -47,16 +47,16 @@ public class ShapeshifterCorpusRecord extends UpdatableRecordImpl<ShapeshifterCo
     }
 
     /**
-     * Setter for <code>stroom.shapeshifter_corpus.rule_uuid</code>.
+     * Setter for <code>stroom.shapeshifter_corpus.binding_uuid</code>.
      */
-    public void setRuleUuid(String value) {
+    public void setBindingUuid(String value) {
         set(2, value);
     }
 
     /**
-     * Getter for <code>stroom.shapeshifter_corpus.rule_uuid</code>.
+     * Getter for <code>stroom.shapeshifter_corpus.binding_uuid</code>.
      */
-    public String getRuleUuid() {
+    public String getBindingUuid() {
         return (String) get(2);
     }
 
@@ -167,12 +167,12 @@ public class ShapeshifterCorpusRecord extends UpdatableRecordImpl<ShapeshifterCo
     /**
      * Create a detached, initialised ShapeshifterCorpusRecord
      */
-    public ShapeshifterCorpusRecord(Long id, String docUuid, String ruleUuid, Long metaId, Integer segment, String kind, Double score, Long attemptId, Long acceptTimeMs) {
+    public ShapeshifterCorpusRecord(Long id, String docUuid, String bindingUuid, Long metaId, Integer segment, String kind, Double score, Long attemptId, Long acceptTimeMs) {
         super(ShapeshifterCorpus.SHAPESHIFTER_CORPUS);
 
         setId(id);
         setDocUuid(docUuid);
-        setRuleUuid(ruleUuid);
+        setBindingUuid(bindingUuid);
         setMetaId(metaId);
         setSegment(segment);
         setKind(kind);

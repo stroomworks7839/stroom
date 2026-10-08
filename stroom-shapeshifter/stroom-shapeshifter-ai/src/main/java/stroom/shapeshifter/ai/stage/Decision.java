@@ -16,7 +16,7 @@
 
 package stroom.shapeshifter.ai.stage;
 
-import stroom.shapeshifter.shared.RoutingRule;
+import stroom.shapeshifter.shared.Binding;
 import stroom.util.shared.StoredError;
 
 import java.util.List;
@@ -27,25 +27,25 @@ import java.util.List;
 public sealed interface Decision {
 
     /**
-     * A routing rule matched and bound a fragment; the stream was processed with it, no learning.
+     * The learner's binding served the stream: it was processed with the bound fragment, no learning.
      */
-    record Bound(RoutingRule rule) implements Decision {
+    record Bound(Binding binding) implements Decision {
 
     }
 
     /**
-     * A fragment was learned and promoted, and the routing table now carries this rule for it.
+     * A fragment was learned and promoted, and this binding now serves the learner with it.
      */
-    record Promoted(RoutingRule rule, double score) implements Decision {
+    record Promoted(Binding binding, double score) implements Decision {
 
     }
 
     /**
      * A learner marked for relearning (A29) was relearned while the incumbent served the stream, and
-     * the candidate beat it: the rule is rebound to the new fragment (design 01 §7.3 rule 2) for the
-     * streams that follow. Same rule, same {@code uuid}; the regression set grows.
+     * the candidate beat it: the binding is rebound to the new fragment (design 01 §7.3 rule 2) for the
+     * streams that follow. Same binding, same {@code uuid}; the regression set grows.
      */
-    record Rebound(RoutingRule incumbent, RoutingRule rule, double score) implements Decision {
+    record Rebound(Binding incumbent, Binding binding, double score) implements Decision {
 
     }
 
@@ -54,26 +54,26 @@ public sealed interface Decision {
      * incumbent was kept: no candidate passed, or the candidate did not beat it on this stream or on the
      * regression set (A15, A18). Nothing was written.
      */
-    record Kept(RoutingRule incumbent, String reason) implements Decision {
+    record Kept(Binding incumbent, String reason) implements Decision {
 
     }
 
     /**
      * The document is in review mode (A25): a candidate that would have been bound is written as a draft
-     * rule that serves nothing, and waits for Approve or Reject. For a learner nothing served the stream
+     * binding that serves nothing, and waits for Approve or Reject. For a learner nothing served the stream
      * waits behind the draft, woken when it is approved; for a relearning one the incumbent served the
-     * stream and the draft sits behind it in the table.
+     * stream and the draft waits behind it.
      */
-    record Drafted(RoutingRule rule, double score) implements Decision {
+    record Drafted(Binding binding, double score) implements Decision {
 
     }
 
     /**
-     * A provisional rule failed the gate once the learner brought enough records to judge it (design 01
-     * §6): the rule is gone from the table, the learner knows nothing again, the inputs whose output it
+     * A provisional binding failed the gate once the learner brought enough records to judge it (design 01
+     * §6): the binding is gone, the learner knows nothing again, the inputs whose output it
      * produced are requested for reprocessing as-current, and this stream is sentinelled.
      */
-    record Retracted(RoutingRule rule, double score, String reason) implements Decision {
+    record Retracted(Binding binding, double score, String reason) implements Decision {
 
     }
 
@@ -82,7 +82,7 @@ public sealed interface Decision {
      * (A14), so it is bound provisionally (A5, design 01 §6): it handles this stream and every one after
      * it, marked as such, until the learner has {@code required} records and the gate can be met.
      */
-    record Provisional(RoutingRule rule, double score, int records, int required) implements Decision {
+    record Provisional(Binding binding, double score, int records, int required) implements Decision {
 
     }
 
@@ -128,7 +128,7 @@ public sealed interface Decision {
     }
 
     /// What the stage *would* have done, which is all a dry run may say (A30, design 01 §11.7).
-    /// Stepping routes and serves and does nothing else, so a learner no rule serves is reported here
+    /// Stepping serves and does nothing else, so a learner no binding serves is reported here
     /// rather than learned, sentinelled or given up.
     ///
     /// @param what What would happen, in the words the stage would have used had it done it.

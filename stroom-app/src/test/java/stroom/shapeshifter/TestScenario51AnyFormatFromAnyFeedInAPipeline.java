@@ -46,11 +46,11 @@ import stroom.shapeshifter.ai.scenario.QuestionMatcher;
 import stroom.shapeshifter.ai.scenario.Scenarios;
 import stroom.shapeshifter.ai.scenario.Script;
 import stroom.shapeshifter.ai.scenario.Structure;
-import stroom.shapeshifter.ai.stage.Bindings;
 import stroom.shapeshifter.ai.stage.Learner;
-import stroom.shapeshifter.ai.stage.Rules;
+import stroom.shapeshifter.ai.stage.LearnerBindings;
+import stroom.shapeshifter.ai.stage.Produced;
 import stroom.shapeshifter.ai.transformation.XsltStep;
-import stroom.shapeshifter.shared.RoutingRule;
+import stroom.shapeshifter.shared.Binding;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 import stroom.test.AbstractProcessIntegrationTest;
 import stroom.test.CommonTranslationTestHelper;
@@ -123,7 +123,7 @@ class TestScenario51AnyFormatFromAnyFeedInAPipeline extends AbstractProcessInteg
     @Inject
     private PipelineStore pipelineStore;
     @Inject
-    private Rules rules;
+    private LearnerBindings learnerBindings;
     @Inject
     private MockMetaService metaService;
     @Inject
@@ -177,30 +177,30 @@ class TestScenario51AnyFormatFromAnyFeedInAPipeline extends AbstractProcessInteg
                         .expect(QuestionMatcher.configuration("XSLTFilter"))
                         .reply(Scenarios.fenced(FIXED_XSLT)));
 
-        // One document, a rule per feed's learner — and every rule bound to a fragment that is a real
+        // One document, a binding per feed's learner — and every binding bound to a fragment that is a real
         // pipeline document in the store.
-        final List<RoutingRule> table = DemoContentPack.FEEDS.stream()
+        final List<Binding> table = DemoContentPack.FEEDS.stream()
                 .map(feed -> {
-                    assertThat(rules.forLearner(learners.get(feed)))
-                            .describedAs(feed + "'s pipeline learned its own rule")
+                    assertThat(learnerBindings.forLearner(learners.get(feed)))
+                            .describedAs(feed + "'s pipeline learned its own binding")
                             .hasSize(1);
-                    return rules.forLearner(learners.get(feed)).get(0);
+                    return learnerBindings.forLearner(learners.get(feed)).get(0);
                 })
                 .toList();
-        assertThat(table).allSatisfy(rule -> {
-            assertThat(rule.isDraft()).isFalse();
-            assertThat(rule.isProvisional())
+        assertThat(table).allSatisfy(binding -> {
+            assertThat(binding.isDraft()).isFalse();
+            assertThat(binding.isProvisional())
                     .describedAs("each brought enough records to be judged on, so none is provisional")
                     .isFalse();
-            assertThat(pipelineStore.readDocument(rule.getPipeline()))
+            assertThat(pipelineStore.readDocument(binding.getPipeline()))
                     .describedAs("what it learned is a pipeline anyone can open")
                     .isNotNull();
         });
         assertThat(shapeshifterAiStore.readDocument(document).getFlow())
-                .describedAs("A41: learning writes rules, not documents — the demo document is untouched")
+                .describedAs("A41: learning writes bindings, not documents — the demo document is untouched")
                 .isEqualTo(DemoContentPack.document().getFlow());
 
-        // And a second stream of a format already learned is served by its rule without the model being
+        // And a second stream of a format already learned is served by its binding without the model being
         // asked. The one that matters here is JSON, since it is the only format whose parser the demo
         // configures nothing for.
         final Script silent = Script.of();
@@ -208,12 +208,12 @@ class TestScenario51AnyFormatFromAnyFeedInAPipeline extends AbstractProcessInteg
         rawStream(DemoContentPack.FEEDS.get(1), JSON_LINES);
         final ProcessorResult served = processOne();
 
-        assertThat(silent.asked()).describedAs("nothing was asked: the rule serves it").isEmpty();
+        assertThat(silent.asked()).describedAs("nothing was asked: the binding serves it").isEmpty();
         assertThat(served.getMarkerCount(Severity.ERROR, Severity.FATAL_ERROR)).isZero();
         assertThat(canonical(data(outputs().get(outputs().size() - 1))))
                 .isEqualTo(canonical(JSON_EVENTS));
-        assertThat(rules.forLearner(learners.get(DemoContentPack.FEEDS.get(1))))
-                .describedAs("and no second rule was written for a learner already bound")
+        assertThat(learnerBindings.forLearner(learners.get(DemoContentPack.FEEDS.get(1))))
+                .describedAs("and no second binding was written for a learner already bound")
                 .hasSize(1);
     }
 
@@ -237,8 +237,8 @@ class TestScenario51AnyFormatFromAnyFeedInAPipeline extends AbstractProcessInteg
                 .isEqualTo(canonical(expected));
         assertThat(streamStore.getAttributes(output.getId()))
                 .describedAs("design 01 §7.3 rule 3: the output carries what produced it")
-                .containsEntry(Bindings.DOC_ATTRIBUTE, document.getUuid())
-                .containsEntry(Bindings.PROVISIONAL_ATTRIBUTE, "false");
+                .containsEntry(Produced.DOC_ATTRIBUTE, document.getUuid())
+                .containsEntry(Produced.PROVISIONAL_ATTRIBUTE, "false");
     }
 
     /**

@@ -32,7 +32,7 @@ public sealed interface Question {
 
     /**
      * Diagnostics from the previous answer to the same question, if it was refused or failed. Empty the
-     * first time a question is asked — unless the attempt is relearning a bound shape (A29), when the
+     * first time a question is asked — unless the attempt is relearning a bound learner (A29), when the
      * first asking of each question carries why the incumbent fell short.
      */
     List<StoredError> feedback();
@@ -135,7 +135,7 @@ public sealed interface Question {
 
     /// How many records the stream holds and how many kinds they are of, as the split found them.
     ///
-    /// @param kinds How many shapes of record the stream carries, by the discrimination the split uses:
+    /// @param kinds How many kinds of record the stream carries, by the discrimination the split uses:
     ///              one where every record is alike, more where a feed reports several things.
     record Records(int total, int kinds) {
 

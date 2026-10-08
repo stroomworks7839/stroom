@@ -29,11 +29,11 @@ import stroom.shapeshifter.ai.stage.RegressionSet.Kind;
 import stroom.shapeshifter.ai.stage.Stage;
 import stroom.shapeshifter.ai.stage.StageRun;
 import stroom.shapeshifter.shared.AttemptStatus;
+import stroom.shapeshifter.shared.Binding;
 import stroom.shapeshifter.shared.FlowStep;
 import stroom.shapeshifter.shared.LearnedUnknown;
 import stroom.shapeshifter.shared.LearningFlow;
 import stroom.shapeshifter.shared.QuestionKind;
-import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 import stroom.shapeshifter.shared.StepOutcome;
 
@@ -101,8 +101,8 @@ class TestScenario59AnExhaustedSessionAdmitsAMarkedUnknown {
         final Recorded session = attempts.get(0);
         assertThat(session.status()).describedAs(String.valueOf(session.decision())).isEqualTo(AttemptStatus.PROMOTED);
         assertThat(session.turns()).extracting(Turn::kind).contains(QuestionKind.ADMIT);
-        final RoutingRule rule = scenarios.rules.forLearner(Scenarios.LEARNER).get(0);
-        final List<Accepted> corpus = scenarios.regressionSet.accepted(rule.getUuid());
+        final Binding binding = scenarios.learnerBindings.forLearner(Scenarios.LEARNER).get(0);
+        final List<Accepted> corpus = scenarios.regressionSet.accepted(binding.getUuid());
         assertThat(corpus).filteredOn(entry -> entry.kind() == Kind.UNKNOWN)
                 .describedAs("the admitted records are in the corpus as admissions (A75)")
                 .hasSize(LOGOFFS)
@@ -114,7 +114,7 @@ class TestScenario59AnExhaustedSessionAdmitsAMarkedUnknown {
         final StageRun decided = scenarios.stage(silent).decide(doc, Scenarios.LEARNER, streamed(1L));
         assertThat(decided.decision()).isInstanceOf(Bound.class);
         final TextSink sink = new TextSink();
-        assertThat(scenarios.stage(silent).stream(doc, Scenarios.LEARNER, ((Bound) decided.decision()).rule(),
+        assertThat(scenarios.stage(silent).stream(doc, Scenarios.LEARNER, ((Bound) decided.decision()).binding(),
                 streamed(1L), sink)
                 .clear()).isTrue();
         assertThat(sink.records()).isEqualTo(LOGONS + LOGOFFS);
@@ -126,7 +126,7 @@ class TestScenario59AnExhaustedSessionAdmitsAMarkedUnknown {
         scenarios.inputs.put(streamed(2L));
         final StageRun next = scenarios.stage(silent).decide(doc, Scenarios.LEARNER, streamed(2L));
         assertThat(next.decision()).isInstanceOf(Bound.class);
-        assertThat(scenarios.stage(silent).stream(doc, Scenarios.LEARNER, ((Bound) next.decision()).rule(),
+        assertThat(scenarios.stage(silent).stream(doc, Scenarios.LEARNER, ((Bound) next.decision()).binding(),
                 streamed(2L), new TextSink())
                 .clear()).isTrue();
         assertThat(scenarios.attempts.forDocument(DOC, 10)).hasSize(1);

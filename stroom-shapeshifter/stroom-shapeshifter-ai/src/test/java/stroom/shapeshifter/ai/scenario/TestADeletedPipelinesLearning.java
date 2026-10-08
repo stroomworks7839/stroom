@@ -88,7 +88,7 @@ class TestADeletedPipelinesLearning {
         scenarios.inputs.put(stream(1L));
         scenarios.stage(Script.of()).decide(doc, Scenarios.LEARNER, stream(1L));
         scenarios.worker(learning(scenarios)).advance(10);
-        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).hasSize(1);
+        assertThat(scenarios.learnerBindings.forLearner(Scenarios.LEARNER)).hasSize(1);
 
         deletions(scenarios).deleted(Scenarios.LEARNER.pipelineUuid());
 
@@ -98,15 +98,15 @@ class TestADeletedPipelinesLearning {
         assertThat(scenarios.attempts.found(showingDeleted(), List.of(DOC)).attempts())
                 .describedAs("until asked for")
                 .hasSize(1);
-        assertThat(scenarios.serving.rules(List.of(DOC), null, false, 0L, 100).rules())
+        assertThat(scenarios.serving.bindings(List.of(DOC), null, false, 0L, 100).bindings())
                 .describedAs("and what served it")
                 .isEmpty();
-        final Serving.Page shown = scenarios.serving.rules(List.of(DOC), null, true, 0L, 100);
-        assertThat(shown.rules())
+        final Serving.Page shown = scenarios.serving.bindings(List.of(DOC), null, true, 0L, 100);
+        assertThat(shown.bindings())
                 .singleElement()
-                .satisfies(rule -> assertThat(rule.isPipelineDeleted()).isTrue());
+                .satisfies(binding -> assertThat(binding.isPipelineDeleted()).isTrue());
         assertThat(shown.total()).isOne();
-        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER))
+        assertThat(scenarios.learnerBindings.forLearner(Scenarios.LEARNER))
                 .describedAs("kept, to be read until it ages out")
                 .hasSize(1);
     }

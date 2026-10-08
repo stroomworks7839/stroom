@@ -40,9 +40,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /// Design 02 §5, scenario 2, as design 06 leaves it: the model chooses a JSONParser, no configuration
 /// question is asked for it, and the fragment holds it with no document. The scenario was first written for
-/// a learning key holding the `Format` header, which the chain question carried and the rule bound on
-/// (A29); a shape is a feed and a type since design 06 phase J slice 2a, a pipeline being unable to select
-/// streams by a receipt header (A119), so the header is neither shown nor bound.
+/// a learning key holding the `Format` header, which the chain question carried and the binding bound on
+/// (A29); since design 06 phase J slice 2a a learner is one element in one pipeline, a pipeline being unable
+/// to select streams by a receipt header (A119), so the header is neither shown nor bound.
 class TestScenario02HeaderNamesTheParser {
 
     private static final String XSLT = Scenarios.resource("records.xsl");

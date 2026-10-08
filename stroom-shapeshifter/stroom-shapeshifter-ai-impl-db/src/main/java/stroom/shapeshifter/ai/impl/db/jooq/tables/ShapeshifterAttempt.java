@@ -125,9 +125,9 @@ public class ShapeshifterAttempt extends TableImpl<ShapeshifterAttemptRecord> {
     public final TableField<ShapeshifterAttemptRecord, String> DECISION = createField(DSL.name("decision"), SQLDataType.CLOB, this, "");
 
     /**
-     * The column <code>stroom.shapeshifter_attempt.rule_uuid</code>.
+     * The column <code>stroom.shapeshifter_attempt.binding_uuid</code>.
      */
-    public final TableField<ShapeshifterAttemptRecord, String> RULE_UUID = createField(DSL.name("rule_uuid"), SQLDataType.VARCHAR(255), this, "");
+    public final TableField<ShapeshifterAttemptRecord, String> BINDING_UUID = createField(DSL.name("binding_uuid"), SQLDataType.VARCHAR(255), this, "");
 
     /**
      * The column <code>stroom.shapeshifter_attempt.score</code>.

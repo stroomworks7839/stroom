@@ -101,8 +101,8 @@ public class CachedLearnerStates implements LearnerStates, Clearable, EntityEven
     }
 
     @Override
-    public void awaitReview(final Learner learner, final String docUuid, final String ruleUuid) {
-        rows.awaitReview(learner, docUuid, ruleUuid);
+    public void awaitReview(final Learner learner, final String docUuid, final String bindingUuid) {
+        rows.awaitReview(learner, docUuid, bindingUuid);
         changed(learner);
     }
 

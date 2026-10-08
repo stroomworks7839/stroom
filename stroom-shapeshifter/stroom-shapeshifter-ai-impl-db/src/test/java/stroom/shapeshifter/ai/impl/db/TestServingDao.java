@@ -19,17 +19,17 @@ package stroom.shapeshifter.ai.impl.db;
 import stroom.docref.DocRef;
 import stroom.shapeshifter.ai.stage.Guidance;
 import stroom.shapeshifter.ai.stage.Learner;
+import stroom.shapeshifter.ai.stage.LearnerBindings;
 import stroom.shapeshifter.ai.stage.LearnerStates;
-import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.ai.stage.Serving;
 import stroom.shapeshifter.ai.state.InMemoryDeletedPipelines;
 import stroom.shapeshifter.ai.state.InMemoryGuidance;
+import stroom.shapeshifter.ai.state.InMemoryLearnerBindings;
 import stroom.shapeshifter.ai.state.InMemoryLearnerStates;
-import stroom.shapeshifter.ai.state.InMemoryRules;
 import stroom.shapeshifter.ai.state.InMemoryServing;
+import stroom.shapeshifter.shared.Binding;
 import stroom.shapeshifter.shared.LearnerRef;
-import stroom.shapeshifter.shared.RoutingRule;
-import stroom.shapeshifter.shared.ServingRule;
+import stroom.shapeshifter.shared.ServingBinding;
 
 import com.google.inject.Guice;
 import jakarta.inject.Inject;
@@ -41,8 +41,8 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 
-/// The serving view of A46: the rules, the state of the learner each serves, and what a supervisor has
-/// said to it — one page, ordered by the traffic each rule carries.
+/// The serving view of A46: the bindings, the state of the learner each serves, and what a supervisor has
+/// said to it — one page, ordered by the traffic each binding carries.
 class TestServingDao {
 
     private static final String DOC = "doc-" + System.nanoTime();
@@ -53,13 +53,13 @@ class TestServingDao {
     private static final Learner NEW = learner(DOC, "new");
     private static final Learner THEIRS = learner(OTHER_DOC, "theirs");
     private static final int MEMORY = 10;
-    /// The rule uuids these tests write. A uuid names a binding across every learner, and the database
+    /// The binding uuids these tests write. A uuid names a binding across every learner, and the database
     /// outlives a run, so each is cleared by its uuid before a test writes it again.
-    private static final List<String> RULES = List.of("busy", "quiet", "new", "a-draft", "theirs",
+    private static final List<String> BINDINGS = List.of("busy", "quiet", "new", "a-draft", "theirs",
             "a-busy", "b-quiet", "c-new");
 
     @Inject
-    private RulesDao rules;
+    private LearnerBindingsDao learnerBindings;
     @Inject
     private LearnerStatesDao states;
     @Inject
@@ -70,7 +70,8 @@ class TestServingDao {
     @BeforeEach
     void setUp() {
         Guice.createInjector(new TestModule()).injectMembers(this);
-        RULES.forEach(uuid -> rules.byUuid(uuid).ifPresent(held -> rules.remove(held.learner(), uuid)));
+        BINDINGS.forEach(uuid -> learnerBindings.byUuid(uuid).ifPresent(held -> learnerBindings.remove(held.learner(),
+                uuid)));
         List.of(BUSY, QUIET, NEW).forEach(learner -> clear(states, guidance, learner, DOC));
         clear(states, guidance, THEIRS, OTHER_DOC);
     }
@@ -79,40 +80,40 @@ class TestServingDao {
     /// whatever carries the most streams.
     @Test
     void whatIsServingComesBackBusiestFirst() {
-        bound(rules, BUSY, DOC, "busy");
-        bound(rules, QUIET, DOC, "quiet");
-        bound(rules, NEW, DOC, "new");
+        bound(learnerBindings, BUSY, DOC, "busy");
+        bound(learnerBindings, QUIET, DOC, "quiet");
+        bound(learnerBindings, NEW, DOC, "new");
         scored(states, BUSY, DOC, 0.93, 8);
         scored(states, QUIET, DOC, 0.71, 2);
 
-        final Serving.Page page = serving.rules(List.of(DOC), null, false, 0L, 100);
+        final Serving.Page page = serving.bindings(List.of(DOC), null, false, 0L, 100);
 
         assertThat(page.total()).isEqualTo(3L);
-        assertThat(page.rules())
-                .extracting(ServingRule::getLearner, ServingRule::getRecords, ServingRule::getRollingScore)
-                .describedAs("busiest first, and a rule that has served nothing yet is still shown — a "
+        assertThat(page.bindings())
+                .extracting(ServingBinding::getLearner, ServingBinding::getRecords, ServingBinding::getRollingScore)
+                .describedAs("busiest first, and a binding that has served nothing yet is still shown — a "
                              + "binding made a minute ago is the one most worth a look")
                 .containsExactly(
                         tuple(ref(BUSY), 8, 0.93),
                         tuple(ref(QUIET), 2, 0.71),
                         tuple(ref(NEW), 0, null));
-        assertThat(page.rules().get(0).getDoc().getUuid()).isEqualTo(DOC);
-        assertThat(page.rules().get(0).getFragment().getName()).isEqualTo("busy-fragment");
+        assertThat(page.bindings().get(0).getDoc().getUuid()).isEqualTo(DOC);
+        assertThat(page.bindings().get(0).getFragment().getName()).isEqualTo("busy-fragment");
     }
 
     /// A46's filter: "good but not perfect" is the only thing worth narrowing by, and a learner with no
     /// score is not below anything.
     @Test
     void aThresholdLeavesOutWhatIsGoodEnoughAndWhatHasNoScoreAtAll() {
-        bound(rules, BUSY, DOC, "busy");
-        bound(rules, QUIET, DOC, "quiet");
-        bound(rules, NEW, DOC, "new");
+        bound(learnerBindings, BUSY, DOC, "busy");
+        bound(learnerBindings, QUIET, DOC, "quiet");
+        bound(learnerBindings, NEW, DOC, "new");
         scored(states, BUSY, DOC, 0.93, 8);
         scored(states, QUIET, DOC, 0.71, 2);
 
-        final Serving.Page page = serving.rules(List.of(DOC), 0.9, false, 0L, 100);
+        final Serving.Page page = serving.bindings(List.of(DOC), 0.9, false, 0L, 100);
 
-        assertThat(page.rules()).extracting(ServingRule::getLearner)
+        assertThat(page.bindings()).extracting(ServingBinding::getLearner)
                 .describedAs("the one scoring below it; not the one above, and not the one with nothing "
                              + "to say it is imperfect")
                 .containsExactly(ref(QUIET));
@@ -122,18 +123,18 @@ class TestServingDao {
                 .isEqualTo(1L);
     }
 
-    /// A draft is not a serving rule: it is decided rather than improved.
+    /// A draft is not a serving binding: it is decided rather than improved.
     @Test
-    void aDraftIsNotAServingRule() {
-        bound(rules, BUSY, DOC, "busy");
-        rules.append(BUSY, DOC, RoutingRule.builder()
+    void aDraftIsNotAServingBinding() {
+        bound(learnerBindings, BUSY, DOC, "busy");
+        learnerBindings.append(BUSY, DOC, Binding.builder()
                 .uuid("a-draft")
                 .pipeline(new DocRef("Pipeline", "draft-fragment", "draft"))
                 .draft(true)
                 .build());
 
-        assertThat(serving.rules(List.of(DOC), null, false, 0L, 100).rules())
-                .extracting(ServingRule::getRuleUuid)
+        assertThat(serving.bindings(List.of(DOC), null, false, 0L, 100).bindings())
+                .extracting(ServingBinding::getBindingUuid)
                 .describedAs("a draft is decided rather than improved")
                 .containsExactly("busy");
     }
@@ -142,31 +143,31 @@ class TestServingDao {
     /// hint was acted on before giving another.
     @Test
     void aRowSaysHowMuchHasBeenSaidToItsLearner() {
-        bound(rules, BUSY, DOC, "busy");
-        bound(rules, QUIET, DOC, "quiet");
+        bound(learnerBindings, BUSY, DOC, "busy");
+        bound(learnerBindings, QUIET, DOC, "quiet");
         guidance.given(BUSY, DOC, "Timestamps are local, not UTC.", "jo");
         guidance.given(BUSY, DOC, "Column four is a terminal id.", "sam");
         guidance.given(THEIRS, OTHER_DOC, "Another document's learner.", "jo");
 
-        assertThat(serving.rules(List.of(DOC), null, false, 0L, 100).rules())
-                .extracting(ServingRule::getLearner, ServingRule::getGuidance)
+        assertThat(serving.bindings(List.of(DOC), null, false, 0L, 100).bindings())
+                .extracting(ServingBinding::getLearner, ServingBinding::getGuidance)
                 .describedAs("counted per learner")
                 .containsExactlyInAnyOrder(tuple(ref(BUSY), 2), tuple(ref(QUIET), 0));
     }
 
     /// The documents a person may read go into the query, as they do for the attempts: a total taken
-    /// before the filtering would count rules they may not see.
+    /// before the filtering would count bindings they may not see.
     @Test
     void aDocumentNobodyNamedIsNotInTheAnswer() {
-        bound(rules, BUSY, DOC, "busy");
-        bound(rules, THEIRS, OTHER_DOC, "theirs");
+        bound(learnerBindings, BUSY, DOC, "busy");
+        bound(learnerBindings, THEIRS, OTHER_DOC, "theirs");
 
-        assertThat(serving.rules(List.of(DOC), null, false, 0L, 100).rules())
-                .extracting(ServingRule::getRuleUuid).containsExactly("busy");
-        assertThat(serving.rules(List.of(), null, false, 0L, 100).rules())
+        assertThat(serving.bindings(List.of(DOC), null, false, 0L, 100).bindings())
+                .extracting(ServingBinding::getBindingUuid).containsExactly("busy");
+        assertThat(serving.bindings(List.of(), null, false, 0L, 100).bindings())
                 .describedAs("and naming no documents answers nothing rather than everything")
                 .isEmpty();
-        assertThat(serving.rules(List.of(DOC, OTHER_DOC), null, false, 0L, 100).rules()).hasSize(2);
+        assertThat(serving.bindings(List.of(DOC, OTHER_DOC), null, false, 0L, 100).bindings()).hasSize(2);
     }
 
     /// The table and the heap answer the same question the same way.
@@ -177,15 +178,15 @@ class TestServingDao {
     /// node sorts in SQL, and a tiebreaker either one lacked would make this a coin flip.
     @Test
     void theViewInMemoryAgreesWithTheViewInRows() {
-        final InMemoryRules memoryRules = new InMemoryRules();
+        final InMemoryLearnerBindings memoryBindings = new InMemoryLearnerBindings();
         final InMemoryLearnerStates memoryStates = new InMemoryLearnerStates();
         final InMemoryGuidance memoryGuidance = new InMemoryGuidance();
-        final Serving inMemory = new InMemoryServing(memoryRules, memoryStates, memoryGuidance,
+        final Serving inMemory = new InMemoryServing(memoryBindings, memoryStates, memoryGuidance,
                 new InMemoryDeletedPipelines());
-        final List<Rules> bothRules = List.of(rules, memoryRules);
+        final List<LearnerBindings> bothBindings = List.of(learnerBindings, memoryBindings);
         final List<LearnerStates> bothStates = List.of(states, memoryStates);
         final List<Guidance> bothGuidance = List.of(guidance, memoryGuidance);
-        bothRules.forEach(seam -> {
+        bothBindings.forEach(seam -> {
             bound(seam, BUSY, DOC, "a-busy");
             bound(seam, QUIET, DOC, "b-quiet");
             bound(seam, NEW, DOC, "c-new");
@@ -196,33 +197,33 @@ class TestServingDao {
         });
         bothGuidance.forEach(seam -> seam.given(BUSY, DOC, "Timestamps are local.", "jo"));
 
-        assertThat(summarise(inMemory.rules(List.of(DOC), null, false, 0L, 100).rules()))
-                .describedAs("the same rules, the same scores, the same counts, in the same order")
-                .isEqualTo(summarise(serving.rules(List.of(DOC), null, false, 0L, 100).rules()));
-        assertThat(summarise(inMemory.rules(List.of(DOC), null, false, 1L, 1).rules()))
+        assertThat(summarise(inMemory.bindings(List.of(DOC), null, false, 0L, 100).bindings()))
+                .describedAs("the same bindings, the same scores, the same counts, in the same order")
+                .isEqualTo(summarise(serving.bindings(List.of(DOC), null, false, 0L, 100).bindings()));
+        assertThat(summarise(inMemory.bindings(List.of(DOC), null, false, 1L, 1).bindings()))
                 .describedAs("and the same page of them")
-                .isEqualTo(summarise(serving.rules(List.of(DOC), null, false, 1L, 1).rules()));
-        assertThat(inMemory.rules(List.of(DOC), 0.9, false, 0L, 100).total())
+                .isEqualTo(summarise(serving.bindings(List.of(DOC), null, false, 1L, 1).bindings()));
+        assertThat(inMemory.bindings(List.of(DOC), 0.9, false, 0L, 100).total())
                 .describedAs("and the same total under a threshold")
-                .isEqualTo(serving.rules(List.of(DOC), 0.9, false, 0L, 100).total());
-        assertThat(summarise(serving.rules(List.of(DOC), null, false, 1L, 1).rules()))
+                .isEqualTo(serving.bindings(List.of(DOC), 0.9, false, 0L, 100).total());
+        assertThat(summarise(serving.bindings(List.of(DOC), null, false, 1L, 1).bindings()))
                 .containsExactly("b-quiet " + ref(QUIET) + " x2 @0.71 said 0");
     }
 
-    private static List<String> summarise(final List<ServingRule> rules) {
-        return rules.stream()
-                .map(rule -> rule.getRuleUuid() + " " + rule.getLearner() + " x" + rule.getRecords()
-                             + " @" + rule.getRollingScore() + " said " + rule.getGuidance())
+    private static List<String> summarise(final List<ServingBinding> bindings) {
+        return bindings.stream()
+                .map(binding -> binding.getBindingUuid() + " " + binding.getLearner() + " x" + binding.getRecords()
+                             + " @" + binding.getRollingScore() + " said " + binding.getGuidance())
                 .toList();
     }
 
-    private static RoutingRule bound(final Rules rules,
+    private static Binding bound(final LearnerBindings learnerBindings,
                                      final Learner learner,
                                      final String docUuid,
-                                     final String ruleUuid) {
-        return rules.append(learner, docUuid, RoutingRule.builder()
-                .uuid(ruleUuid)
-                .pipeline(new DocRef("Pipeline", ruleUuid + "-uuid", ruleUuid + "-fragment"))
+                                     final String bindingUuid) {
+        return learnerBindings.append(learner, docUuid, Binding.builder()
+                .uuid(bindingUuid)
+                .pipeline(new DocRef("Pipeline", bindingUuid + "-uuid", bindingUuid + "-fragment"))
                 .promotedTimeMs(1_700_000_000_000L)
                 .score(0.95)
                 .build());

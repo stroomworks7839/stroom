@@ -282,7 +282,7 @@ class TestScenariosFlow {
         assertThat(run.decision()).isInstanceOf(Promoted.class);
         assertThat(steps(run)).containsExactly("chain", "configure", "configure");
 
-        // Its own scenarios: rules are rows now (A41) and outlive a stage, so a second run against the same
+        // Its own scenarios: bindings are rows now (A41) and outlive a stage, so a second run against the same
         // feed would bind what the first promoted instead of learning.
         final Scenarios afresh = new Scenarios();
         final Script refused = afresh.script(FOUR_FIELDS, XSLT)
@@ -296,7 +296,7 @@ class TestScenariosFlow {
         assertThat(((GivenUp) abandoned.decision()).reason()).contains("on a pass of step 'parser'");
 
         // An at-once abandon names the outcome and the step, not candidates that were never spent. A fresh
-        // stage: the shape above was given up, and a given-up shape asks nothing (scenario 11).
+        // stage: the learner above was given up, and a given-up learner asks nothing (scenario 11).
         final Scenarios fresh = new Scenarios();
         final Script prose = fresh.script(FOUR_FIELDS, XSLT)
                 .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter")

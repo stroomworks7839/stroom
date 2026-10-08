@@ -27,8 +27,8 @@ import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.Stage;
 import stroom.shapeshifter.ai.stage.StageRun;
 import stroom.shapeshifter.shared.AttemptStatus;
+import stroom.shapeshifter.shared.Binding;
 import stroom.shapeshifter.shared.FlowExample;
-import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 
 import org.junit.jupiter.api.Test;
@@ -49,8 +49,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 /// promoted, and the worker's full pass over the stream finds the records that fell short — as the
 /// parser cut them, with what the transform made of them — and puts them to the model as the next
 /// question's evidence. The second candidate translates both; the full pass clears; the session ends
-/// with one attempt, one rule, one fragment edited in place, and the stream woken. A session that cannot
-/// finish — out of candidates — parks for a person: its shape held, its stream waiting, the worker
+/// with one attempt, one binding, one fragment edited in place, and the stream woken. A session that cannot
+/// finish — out of candidates — parks for a person: its learner held, its stream waiting, the worker
 /// leaving it alone.
 class TestScenario57TheSessionRunsTheHeldStreamInFull {
 
@@ -101,16 +101,16 @@ class TestScenario57TheSessionRunsTheHeldStreamInFull {
                 .containsExactlyElementsOf(IntStream.rangeClosed(1, turns.size()).boxed().toList());
         assertThat(turns).filteredOn(turn -> turn.question().startsWith("Configure: XSLTFilter"))
                 .describedAs("the transform was asked for in each round").hasSize(2);
-        final RoutingRule rule = scenarios.rules.forLearner(Scenarios.LEARNER).get(0);
+        final Binding binding = scenarios.learnerBindings.forLearner(Scenarios.LEARNER).get(0);
         assertThat(scenarios.stores.pipelines.list()).describedAs("one fragment, edited in place").hasSize(1);
-        assertThat(scenarios.snapshots.forRule(rule.getUuid())).describedAs("two promotions").hasSize(2);
+        assertThat(scenarios.snapshots.forBinding(binding.getUuid())).describedAs("two promotions").hasSize(2);
         assertThat(scenarios.wake.woken()).extracting(Deferral::inputId).contains(1L);
 
         // The stream is served in full by the task that wakes.
         final StageRun decided = task(scenarios, silent).decide(doc, Scenarios.LEARNER, input(1L, STREAM));
         assertThat(decided.decision()).describedAs(decided.decision().toString()).isInstanceOf(Bound.class);
         final TextSink sink = new TextSink();
-        assertThat(task(scenarios, silent).stream(doc, Scenarios.LEARNER, ((Bound) decided.decision()).rule(),
+        assertThat(task(scenarios, silent).stream(doc, Scenarios.LEARNER, ((Bound) decided.decision()).binding(),
                 input(1L, STREAM), sink)
                 .clear()).isTrue();
         assertThat(sink.records()).isEqualTo(12);
@@ -119,9 +119,9 @@ class TestScenario57TheSessionRunsTheHeldStreamInFull {
     }
 
     /// §8 scenario 12: a session out of candidates parks and holds. Its stream stays deferred, no second
-    /// session opens for the shape, and the worker leaves it alone.
+    /// session opens for the learner, and the worker leaves it alone.
     @Test
-    void aSessionOutOfCandidatesParksForAPersonAndHoldsItsShape() {
+    void aSessionOutOfCandidatesParksForAPersonAndHoldsItsLearner() {
         final Scenarios scenarios = new Scenarios();
         // The direct flow with one candidate a step: the session has one try at the transform.
         final ShapeshifterAiDoc doc = doc().copy().flow(FlowExample.DIRECT).maxAttempts(1).build();
@@ -143,13 +143,13 @@ class TestScenario57TheSessionRunsTheHeldStreamInFull {
         final Recorded parked = scenarios.attempts.forDocument(DOC, 10).get(0);
         assertThat(parked.status()).describedAs(String.valueOf(parked.decision())).isEqualTo(AttemptStatus.PARKED);
         assertThat(parked.decision()).isNotBlank();
-        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).describedAs("nothing was bound").isEmpty();
+        assertThat(scenarios.learnerBindings.forLearner(Scenarios.LEARNER)).describedAs("nothing was bound").isEmpty();
         assertThat(scenarios.states.reasonGivenUp(Scenarios.LEARNER))
-                .describedAs("and the shape is not given up")
+                .describedAs("and the learner is not given up")
                 .isEmpty();
         assertThat(scenarios.deferrals.of(Scenarios.LEARNER, 1L)).describedAs("the stream waits").isPresent();
 
-        // The worker leaves it alone; a task of the shape waits on it and opens no second session.
+        // The worker leaves it alone; a task of the learner waits on it and opens no second session.
         assertThat(scenarios.worker(script).advance(10)).isZero();
         final StageRun again = task(scenarios, silent).decide(doc, Scenarios.LEARNER, input(2L, STREAM));
         assertThat(again.decision()).isInstanceOf(Deferred.class);
@@ -165,12 +165,12 @@ class TestScenario57TheSessionRunsTheHeldStreamInFull {
         assertThat(silent.asked()).describedAs("nothing is asked again: the turns are replayed").isEmpty();
         final Recorded carried = scenarios.attempts.byId(parked.id()).orElseThrow();
         assertThat(carried.status()).describedAs(String.valueOf(carried.decision())).isEqualTo(AttemptStatus.PROMOTED);
-        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).hasSize(1);
+        assertThat(scenarios.learnerBindings.forLearner(Scenarios.LEARNER)).hasSize(1);
         assertThat(scenarios.wake.woken()).extracting(Deferral::inputId).contains(1L, 2L);
     }
 
     private static Stage task(final Scenarios scenarios, final Script silent) {
-        return scenarios.stage(document -> silent, scenarios.rules);
+        return scenarios.stage(document -> silent, scenarios.learnerBindings);
     }
 
     /// The demo document, with the sample the model is shown cut to the header and the first few logons.

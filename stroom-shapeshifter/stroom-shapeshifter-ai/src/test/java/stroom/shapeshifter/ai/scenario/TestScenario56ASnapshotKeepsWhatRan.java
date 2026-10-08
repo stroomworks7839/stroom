@@ -30,7 +30,7 @@ import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.Snapshots.Snapshot;
 import stroom.shapeshifter.ai.stage.Stage;
 import stroom.shapeshifter.ai.stage.StageRun;
-import stroom.shapeshifter.shared.RoutingRule;
+import stroom.shapeshifter.shared.Binding;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 
 import org.junit.jupiter.api.Test;
@@ -47,12 +47,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /// Design 02 §5, scenario 56: **a promotion keeps a snapshot, and a session edits in place** (A58, A61,
 /// A70–A72; design 04 §8 scenario 11).
 ///
-/// A rule learned for a shape points at a snapshot of its fragment's configuration. A relearning edits
+/// A learner's binding points at a snapshot of its fragment's configuration. A relearning edits
 /// the same fragment — the same pipeline document, the same stylesheet document, the text replaced —
 /// and keeps a new snapshot; the deferral stamp moves with it, so a stream held against the old one is
 /// scored again. An output records the snapshot that produced it, and an as-processed reprocess runs
 /// that snapshot's code, not what the fragment says today. A stylesheet edited by hand is snapshotted the
-/// first time the rule serves after the edit. A retracted rule takes its snapshots with it.
+/// first time the binding serves after the edit. A retracted binding takes its snapshots with it.
 class TestScenario56ASnapshotKeepsWhatRan {
 
     private static final String DOC = "doc-1";
@@ -70,10 +70,10 @@ class TestScenario56ASnapshotKeepsWhatRan {
         final ShapeshifterAiDoc doc = doc();
         scenarios.documents.put(doc);
         scenarios.inputs.put(stream(2L, MIXED));
-        final RoutingRule learned = learn(scenarios, doc, LOGON_ONLY);
+        final Binding learned = learn(scenarios, doc, LOGON_ONLY);
         final String first = learned.getSnapshot();
         assertThat(first).describedAs("a promotion keeps a snapshot (A61)").isNotNull();
-        assertThat(scenarios.snapshots.forRule(learned.getUuid()))
+        assertThat(scenarios.snapshots.forBinding(learned.getUuid()))
                 .extracting(Snapshot::id)
                 .containsExactly(first);
         assertThat(scenarios.snapshots.byId(first).orElseThrow().code().values())
@@ -92,28 +92,28 @@ class TestScenario56ASnapshotKeepsWhatRan {
         final Script relearning = script(scenarios, TRANSLATES_BOTH);
         assertThat(scenarios.worker(relearning).advance(10)).isEqualTo(1);
         relearning.verifyExhausted();
-        final RoutingRule rebound = scenarios.rules.forLearner(Scenarios.LEARNER).get(0);
+        final Binding rebound = scenarios.learnerBindings.forLearner(Scenarios.LEARNER).get(0);
         assertThat(rebound.getUuid()).isEqualTo(learned.getUuid());
         assertThat(rebound.getPipeline()).describedAs("the same fragment").isEqualTo(learned.getPipeline());
         assertThat(rebound.getSnapshot()).describedAs("a new snapshot").isNotEqualTo(first);
         assertThat(scenarios.stores.pipelines.list()).describedAs("no new fragment was written").hasSize(1);
         assertThat(scenarios.stores.xslts.list()).describedAs("nor a new stylesheet").hasSize(1);
         assertThat(stylesheet(scenarios, rebound.getPipeline())).isEqualTo(TRANSLATES_BOTH);
-        assertThat(scenarios.snapshots.forRule(learned.getUuid())).extracting(Snapshot::id)
+        assertThat(scenarios.snapshots.forBinding(learned.getUuid())).extracting(Snapshot::id)
                 .containsExactly(first, rebound.getSnapshot());
 
         // The stamp moved, so the held stream is scored again, and now clears.
         final StageRun decided = task(scenarios, silent).decide(doc, Scenarios.LEARNER, stream(2L, MIXED));
         assertThat(decided.decision()).describedAs(decided.decision().toString()).isInstanceOf(Bound.class);
         final TextSink sink = new TextSink();
-        assertThat(task(scenarios, silent).stream(doc, Scenarios.LEARNER, ((Bound) decided.decision()).rule(),
+        assertThat(task(scenarios, silent).stream(doc, Scenarios.LEARNER, ((Bound) decided.decision()).binding(),
                 stream(2L, MIXED), sink)
                 .clear()).isTrue();
         assertThat(sink.text()).contains("<Action>Logoff</Action>");
     }
 
     /// A task that judged its stream against the snapshot a relearning has just replaced finds its record
-    /// short of a bar the shape no longer stands at. It neither marks the shape nor opens a session — that
+    /// short of a bar the learner no longer stands at. It neither marks the learner nor opens a session — that
     /// would relearn what has just been learned, and ask the model for it — but waits against the old
     /// stamp; and since the promotion's wake came before its row was written, the learning job's pass is
     /// what wakes it, to be scored against the new snapshot.
@@ -124,7 +124,7 @@ class TestScenario56ASnapshotKeepsWhatRan {
         scenarios.documents.put(doc);
         scenarios.inputs.put(stream(2L, MIXED));
         scenarios.inputs.put(stream(3L, MIXED));
-        final RoutingRule learned = learn(scenarios, doc, LOGON_ONLY);
+        final Binding learned = learn(scenarios, doc, LOGON_ONLY);
         final Script silent = Script.of();
         assertThatThrownBy(() -> task(scenarios, silent).stream(doc, Scenarios.LEARNER, learned, stream(2L, MIXED),
                 new TextSink()))
@@ -133,7 +133,7 @@ class TestScenario56ASnapshotKeepsWhatRan {
 
         // A task serves stream 3 under the snapshot in force, and while it runs — the records before the
         // logoff already handed on — the worker relearns and promotes. The logoff then falls short of the
-        // bar the shape stood at when the run began.
+        // bar the learner stood at when the run began.
         final Script relearning = script(scenarios, TRANSLATES_BOTH);
         final ContentHandler relearnedMidRun = new DefaultHandler() {
             private boolean relearned;
@@ -152,11 +152,11 @@ class TestScenario56ASnapshotKeepsWhatRan {
                 .isInstanceOf(DeferTaskException.class)
                 .hasMessageContaining("since replaced");
         relearning.verifyExhausted();
-        final RoutingRule rebound = scenarios.rules.forLearner(Scenarios.LEARNER).get(0);
+        final Binding rebound = scenarios.learnerBindings.forLearner(Scenarios.LEARNER).get(0);
         assertThat(rebound.getSnapshot()).isNotEqualTo(learned.getSnapshot());
         assertThat(silent.asked()).isEmpty();
         assertThat(scenarios.states.relearnReason(Scenarios.LEARNER))
-                .describedAs("the shape is not marked on a stale judgement")
+                .describedAs("the learner is not marked on a stale judgement")
                 .isEmpty();
         assertThat(scenarios.attempts.forDocument(DOC, 10))
                 .describedAs("no session opened beyond the relearning")
@@ -173,7 +173,7 @@ class TestScenario56ASnapshotKeepsWhatRan {
         assertThat(scenarios.wake.woken()).extracting(Deferral::inputId).contains(3L);
         final StageRun decided = task(scenarios, silent).decide(doc, Scenarios.LEARNER, stream(3L, MIXED));
         assertThat(decided.decision()).describedAs(decided.decision().toString()).isInstanceOf(Bound.class);
-        assertThat(task(scenarios, silent).stream(doc, Scenarios.LEARNER, ((Bound) decided.decision()).rule(),
+        assertThat(task(scenarios, silent).stream(doc, Scenarios.LEARNER, ((Bound) decided.decision()).binding(),
                 stream(3L, MIXED), new TextSink()).clear()).isTrue();
     }
 
@@ -183,10 +183,10 @@ class TestScenario56ASnapshotKeepsWhatRan {
         final ShapeshifterAiDoc doc = doc();
         scenarios.documents.put(doc);
         scenarios.inputs.put(stream(2L, MIXED));
-        final RoutingRule learned = learn(scenarios, doc, LOGON_ONLY);
+        final Binding learned = learn(scenarios, doc, LOGON_ONLY);
         final Script silent = Script.of();
         // The first stream was emitted under the first snapshot by the session that learned it; a second
-        // stream falls short and the rule is relearned in place.
+        // stream falls short and the binding is relearned in place.
         assertThatThrownBy(() -> task(scenarios, silent).stream(doc, Scenarios.LEARNER, learned, stream(2L, MIXED),
                 new TextSink()))
                 .isInstanceOf(DeferTaskException.class);
@@ -197,27 +197,28 @@ class TestScenario56ASnapshotKeepsWhatRan {
 
         // As processed: the first stream goes back through the code that produced its output — the
         // logon-only stylesheet — though the fragment now translates both.
-        final StageRun again = scenarios.stage(document -> silent, scenarios.rules)
+        final StageRun again = scenarios.stage(document -> silent, scenarios.learnerBindings)
                 .reprocess(doc, Scenarios.LEARNER, stream(1L, CSV.input()));
         assertThat(again.decision()).describedAs(again.decision().toString()).isInstanceOf(Bound.class);
-        assertThat(again.bindings().snapshotId()).isEqualTo(learned.getSnapshot());
+        assertThat(again.produced().snapshotId()).isEqualTo(learned.getSnapshot());
         assertThat(again.output()).doesNotContain("Logoff");
     }
 
     @Test
-    void aStylesheetEditedByHandIsSnapshottedTheFirstTimeTheRuleServes() {
+    void aStylesheetEditedByHandIsSnapshottedTheFirstTimeTheBindingServes() {
         final Scenarios scenarios = new Scenarios();
         final ShapeshifterAiDoc doc = doc();
-        final RoutingRule learned = learn(scenarios, doc, TRANSLATES_BOTH);
+        final Binding learned = learn(scenarios, doc, TRANSLATES_BOTH);
         final Script silent = Script.of();
 
         // Edited by hand: the stylesheet now admits nothing but a logon.
         edit(scenarios, learned.getPipeline(), LOGON_ONLY);
         final StageRun decided = task(scenarios, silent).decide(doc, Scenarios.LEARNER, stream(2L, MIXED));
 
-        final RoutingRule fresh = ((Bound) decided.decision()).rule();
+        final Binding fresh = ((Bound) decided.decision()).binding();
         assertThat(fresh.getSnapshot()).describedAs("a promotion by hand (A72)").isNotEqualTo(learned.getSnapshot());
-        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER).get(0).getSnapshot()).isEqualTo(fresh.getSnapshot());
+        assertThat(scenarios.learnerBindings.forLearner(Scenarios.LEARNER).get(0).getSnapshot())
+                .isEqualTo(fresh.getSnapshot());
         assertThat(scenarios.snapshots.byId(fresh.getSnapshot()).orElseThrow().code().values())
                 .anySatisfy(code -> assertThat(code).isEqualTo(LOGON_ONLY));
         // And the edit is what serves: the logoffs fall short, against the new stamp.
@@ -228,34 +229,36 @@ class TestScenario56ASnapshotKeepsWhatRan {
                 2L).orElseThrow().failedAgainst()).isEqualTo(fresh.getSnapshot());
         // Served again before anything else changes: no third snapshot.
         task(scenarios, silent).decide(doc, Scenarios.LEARNER, stream(3L, CSV.input()));
-        assertThat(scenarios.snapshots.forRule(learned.getUuid())).hasSize(2);
+        assertThat(scenarios.snapshots.forBinding(learned.getUuid())).hasSize(2);
     }
 
-    // A fragment shared with a neighbouring shape is retired with binding by looking (design 06 phase J
-    // slice 2a): a shape is its feed and type, so no second shape can come to share the first's fragment.
+    // A fragment shared with a neighbouring learner is retired with binding by looking (design 06 phase J
+    // slice 2a): a learner is one element in one pipeline, so no second learner can come to share the
+    // first's fragment.
 
     @Test
-    void aRetractedRuleTakesItsSnapshotsWithIt() {
+    void aRetractedBindingTakesItsSnapshotsWithIt() {
         final Scenarios scenarios = new Scenarios();
         final ShapeshifterAiDoc doc = doc();
-        final RoutingRule learned = learn(scenarios, doc, TRANSLATES_BOTH);
-        assertThat(scenarios.snapshots.forRule(learned.getUuid())).hasSize(1);
+        final Binding learned = learn(scenarios, doc, TRANSLATES_BOTH);
+        assertThat(scenarios.snapshots.forBinding(learned.getUuid())).hasSize(1);
 
-        scenarios.stage(document -> Script.of(), scenarios.rules).retract(doc, learned.getUuid(), "wrong", "jo");
+        scenarios.stage(document -> Script.of(), scenarios.learnerBindings).retract(doc, learned.getUuid(), "wrong",
+                "jo");
 
-        assertThat(scenarios.snapshots.forRule(learned.getUuid())).isEmpty();
+        assertThat(scenarios.snapshots.forBinding(learned.getUuid())).isEmpty();
     }
 
-    private static RoutingRule learn(final Scenarios scenarios, final ShapeshifterAiDoc doc, final String xslt) {
+    private static Binding learn(final Scenarios scenarios, final ShapeshifterAiDoc doc, final String xslt) {
         final Script script = script(scenarios, xslt);
         final StageRun run = scenarios.process(script, doc, stream(1L, CSV.input())).learned();
         script.verifyExhausted();
         assertThat(run.decision()).describedAs(run.decision().toString()).isInstanceOf(Promoted.class);
-        return ((Promoted) run.decision()).rule();
+        return ((Promoted) run.decision()).binding();
     }
 
     private static Stage task(final Scenarios scenarios, final Script silent) {
-        return scenarios.stage(document -> silent, scenarios.rules);
+        return scenarios.stage(document -> silent, scenarios.learnerBindings);
     }
 
     private static Script script(final Scenarios scenarios, final String xslt) {

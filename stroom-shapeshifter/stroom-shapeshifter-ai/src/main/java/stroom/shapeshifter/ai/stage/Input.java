@@ -31,7 +31,7 @@ import java.util.function.Supplier;
  * @param attributes The stream's attribute map — the receipt headers.
  * @param data       The stream's content.
  * @param pipeline   The uuid of the pipeline processing it, where one is: what an output row records, so
- *                   that what a rule produced is counted where it was produced. Null where nothing is
+ *                   that what a binding produced is counted where it was produced. Null where nothing is
  *                   processing it — a worker re-walking an attempt, a scenario.
  * @param opener     Where the whole stream is read from, where `data` is only its prefix (design 04 §3);
  *                   null where `data` is the whole of it.

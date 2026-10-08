@@ -23,7 +23,7 @@ import stroom.shapeshifter.ai.stage.Decision.Promoted;
 import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.Learner;
 import stroom.shapeshifter.ai.stage.StageRun;
-import stroom.shapeshifter.shared.RoutingRule;
+import stroom.shapeshifter.shared.Binding;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 
 import org.junit.jupiter.api.Test;
@@ -45,7 +45,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /// that document, and it is the configuration the demo content pack ships — proved here first, so the
 /// pack is a thing that has been seen to work rather than a plausible arrangement of settings.
 ///
-/// Four feeds, four formats, four pipelines, four rules, each serving its own traffic: delimited text
+/// Four feeds, four formats, four pipelines, four bindings, each serving its own traffic: delimited text
 /// with a header, JSON lines, syslog in two forms, and fixed-width columns with nothing to split on.
 /// Each feed has its pipeline, as the Pipeline Factory makes them, and so its learner (A114, A127); one
 /// document, one flow, one set of scorers.
@@ -79,9 +79,9 @@ class TestScenario51AnyFormatFromAnyFeed {
     private static final String FIXED_XSLT = Scenarios.resource("fixed-width.xsl");
     private static final String FIXED_EVENTS = Scenarios.resource("fixed-width.events.xml");
 
-    /// Each feed learns its own rule, and each rule writes the format's golden events.
+    /// Each feed learns its own binding, and each binding writes the format's golden events.
     ///
-    /// The document is the same one throughout — each feed's learner binds its own rule (A124) and each
+    /// The document is the same one throughout — each feed's learner binds its own binding (A124) and each
     /// serves its own feed — so what is proved is not four documents that each work but *one* that works
     /// four times over, on inputs that share nothing but the schema they must end at.
     @Test
@@ -123,13 +123,13 @@ class TestScenario51AnyFormatFromAnyFeed {
                         .reply(Scenarios.fenced(FIXED_XSLT)));
         assertPromoted(fixed, FIXED_EVENTS);
 
-        // One document, a learner per feed, and a rule for each learner.
-        final List<RoutingRule> table = List.of("DOOR-ACCESS", "APP-EVENTS", "FIREWALL", "MAINFRAME").stream()
+        // One document, a learner per feed, and a binding for each learner.
+        final List<Binding> table = List.of("DOOR-ACCESS", "APP-EVENTS", "FIREWALL", "MAINFRAME").stream()
                 .map(feed -> {
-                    assertThat(scenarios.rules.forLearner(learner(feed)))
-                            .describedAs("a rule for " + feed + "'s learner, bound to what it learned (A124)")
+                    assertThat(scenarios.learnerBindings.forLearner(learner(feed)))
+                            .describedAs("a binding for " + feed + "'s learner, bound to what it learned (A124)")
                             .hasSize(1);
-                    return scenarios.rules.forLearner(learner(feed)).get(0);
+                    return scenarios.learnerBindings.forLearner(learner(feed)).get(0);
                 })
                 .toList();
         // And none of the four would have waited (design 04 §7, phase 2): every record of every format
@@ -137,12 +137,12 @@ class TestScenario51AnyFormatFromAnyFeed {
         assertThat(scenarios.deferrals.forDocument(DOC))
                 .describedAs("what phase 4 would have deferred")
                 .isEmpty();
-        assertThat(table).allSatisfy(rule -> {
-            assertThat(rule.isDraft()).isFalse();
-            assertThat(rule.isProvisional())
+        assertThat(table).allSatisfy(binding -> {
+            assertThat(binding.isDraft()).isFalse();
+            assertThat(binding.isProvisional())
                     .describedAs("each brought enough records to be judged on, so none is provisional")
                     .isFalse();
-            assertThat(rule.getScore())
+            assertThat(binding.getScore())
                     .describedAs("and each was promoted on a score, not on hope")
                     .isNotNull();
         });
@@ -164,11 +164,11 @@ class TestScenario51AnyFormatFromAnyFeed {
         final StageRun second = scenarios.process(silent, learner("APP-EVENTS"), doc,
                 stream(9L, "APP-EVENTS", JSON_LINES)).learned();
 
-        assertThat(silent.asked()).describedAs("nothing was asked: the rule serves it").isEmpty();
+        assertThat(silent.asked()).describedAs("nothing was asked: the binding serves it").isEmpty();
         assertThat(Scenarios.canonical(second.output()))
                 .describedAs("and what it writes is what was learned")
                 .isEqualTo(Scenarios.canonical(JSON_EVENTS));
-        assertThat(scenarios.rules.forLearner(learner("APP-EVENTS"))).hasSize(1);
+        assertThat(scenarios.learnerBindings.forLearner(learner("APP-EVENTS"))).hasSize(1);
     }
 
     private static StageRun learn(final Scenarios scenarios,
@@ -176,7 +176,7 @@ class TestScenario51AnyFormatFromAnyFeed {
                                   final String feed,
                                   final String data,
                                   final Script script) {
-        final long next = scenarios.rules.all().size() + 1L;
+        final long next = scenarios.learnerBindings.all().size() + 1L;
         final StageRun run = scenarios.process(script, learner(feed), doc, stream(next, feed, data)).learned();
         // Exhausted, or a scripted reply nobody reached would pass in silence and the run would have
         // asked something other than what this scenario says it asks.

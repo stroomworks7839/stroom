@@ -20,7 +20,7 @@ package stroom.shapeshifter.ai.impl.db;
 import stroom.db.util.JooqUtil;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterLearnerState;
 import stroom.shapeshifter.ai.stage.Learner;
-import stroom.shapeshifter.shared.RoutingRule;
+import stroom.shapeshifter.shared.Binding;
 
 import com.google.inject.Guice;
 import jakarta.inject.Inject;
@@ -39,7 +39,7 @@ class TestLearnersDao {
     @Inject
     private LearnersDao learners;
     @Inject
-    private RulesDao rules;
+    private LearnerBindingsDao learnerBindings;
     @Inject
     private LearnerStatesDao states;
     @Inject
@@ -57,7 +57,7 @@ class TestLearnersDao {
         final Learner learner = new Learner("pipeline-moved-" + RUN, "shapeshifterAi");
         final Learner neighbour = new Learner("pipeline-stayed-" + RUN, "shapeshifterAi");
         for (final Learner each : List.of(learner, neighbour)) {
-            rules.append(each, before, RoutingRule.builder()
+            learnerBindings.append(each, before, Binding.builder()
                     .uuid("rule-" + each.pipelineUuid())
                     .build());
             states.giveUp(each, before, "Nothing to learn");
@@ -67,7 +67,7 @@ class TestLearnersDao {
 
         learners.runsUnder(learner, after);
 
-        assertThat(rules.byUuid("rule-" + learner.pipelineUuid()))
+        assertThat(learnerBindings.byUuid("rule-" + learner.pipelineUuid()))
                 .hasValueSatisfying(held -> assertThat(held.docUuid()).isEqualTo(after));
         assertThat(documentsOfStates(learner)).containsExactly(after);
         assertThat(deferrals.forDocument(after))
@@ -78,7 +78,7 @@ class TestLearnersDao {
                 .describedAs("withdrawn by the document it is under now, which is who may change it")
                 .isEmpty();
 
-        assertThat(rules.byUuid("rule-" + neighbour.pipelineUuid()))
+        assertThat(learnerBindings.byUuid("rule-" + neighbour.pipelineUuid()))
                 .describedAs("the neighbour runs under the old document still, and stays there")
                 .hasValueSatisfying(held -> assertThat(held.docUuid()).isEqualTo(before));
         assertThat(documentsOfStates(neighbour)).containsExactly(before);

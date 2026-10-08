@@ -51,8 +51,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 /// nothing, or it takes whatever the runner happens to be holding: a variant tried and rejected earlier
 /// in the same call, or an earlier stream of the same pipeline scope.
 ///
-/// One stage over three streams, since a stage's runner is a stage's: a shape learned, the same shape
-/// stepped, and then a second shape learned behind it.
+/// One stage over three streams, since a stage's runner is a stage's: a stream learned, one of the same
+/// learner stepped, and then a second learner learning behind it.
 class TestServedRunEvents {
 
     private static final String FEED = "DOOR-ACCESS";
@@ -73,12 +73,12 @@ class TestServedRunEvents {
                 .expect(QuestionMatcher.chain().withKey("Feed", OTHER_FEED)).reply("DSParser -> XSLTFilter")
                 .expect(QuestionMatcher.configuration("DSParser")).reply(Scenarios.fenced(CSV.configuration()))
                 .expect(QuestionMatcher.configuration("XSLTFilter")).reply(Scenarios.fenced(XSLT));
-        final Stage stage = scenarios.stage(document -> script, scenarios.rules, runner);
+        final Stage stage = scenarios.stage(document -> script, scenarios.learnerBindings, runner);
         final ShapeshifterAiDoc doc = doc();
 
-        final StageRun learned = scenarios.process(document -> script, scenarios.rules, runner, doc, stream(1,
+        final StageRun learned = scenarios.process(document -> script, scenarios.learnerBindings, runner, doc, stream(1,
                 FEED)).learned();
-        assertThat(learned.bindings()).describedAs("the shape was learned and bound").isNotNull();
+        assertThat(learned.produced()).describedAs("the stream was learned and bound").isNotNull();
         assertThat(learned.events())
                 .describedAs("nothing has run the fragment it wrote, so there is nothing to serve with")
                 .isNull();
@@ -87,15 +87,15 @@ class TestServedRunEvents {
         // the run's events on to what is stepped beneath it. A task streams a bound stream instead
         // (design 04 §3) and makes no run to carry.
         final StageRun served = stage.dryRun(doc, Scenarios.LEARNER, stream(2, FEED), false);
-        assertThat(served.bindings()).describedAs("the same shape, bound").isNotNull();
+        assertThat(served.produced()).describedAs("the same learner, bound").isNotNull();
         assertThat(served.events())
                 .describedAs("judged by running the fragment, and served by that same run")
                 .isSameAs(runner.emitted.get(runner.emitted.size() - 1));
 
-        // And now a second shape, behind a stage whose runner is holding the stream before it.
-        final StageRun other = scenarios.process(document -> script, scenarios.rules, runner, doc, stream(3,
+        // And now a second learner, behind a stage whose runner is holding the stream before it.
+        final StageRun other = scenarios.process(document -> script, scenarios.learnerBindings, runner, doc, stream(3,
                 OTHER_FEED)).learned();
-        assertThat(other.bindings()).describedAs("the second shape was learned and bound").isNotNull();
+        assertThat(other.produced()).describedAs("the second learner learned and was bound").isNotNull();
         assertThat(other.events())
                 .describedAs("a chain judged as it was learned made no run, so it carries no events — "
                              + "least of all the previous stream's")

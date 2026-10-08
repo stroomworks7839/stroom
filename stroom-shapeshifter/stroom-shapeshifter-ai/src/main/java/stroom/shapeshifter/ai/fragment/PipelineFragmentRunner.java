@@ -74,11 +74,11 @@ import java.util.Set;
 /// The fragment run as a pipeline (§12 item 2): the real elements, the real pools, the real filters, and
 /// what each of them made of the stream taken from the capture the build was given.
 ///
-/// This is what a node judges a candidate and serves a bound rule with, and the reason it exists is that
+/// This is what a node judges a candidate and serves a binding with, and the reason it exists is that
 /// a stand-in can only be as right as the person who wrote it. The pipeline runs a `SplitFilter` for
 /// real, compiles a stylesheet through the pool for real, and applies whatever the fragment inherits
 /// from its parent — none of which the module's step runners do, and all of which decide whether a
-/// promoted rule works on the next stream.
+/// promoted binding works on the next stream.
 ///
 /// Each element's *input* is taken as the one before it wrote rather than from the capture, because the
 /// recorders above the parser report what they read by source span and a headless run has no span to ask

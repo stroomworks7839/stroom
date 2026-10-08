@@ -40,13 +40,13 @@ import java.util.concurrent.atomic.AtomicLong;
 /// and it does not outlive the node, which is why the tables exist.
 public final class InMemoryAttempts implements Attempts {
 
-    /// The states in which an attempt's rule is one that was, or was about to be, serving: the ones a
+    /// The states in which an attempt's binding is one that was, or was about to be, serving: the ones a
     /// retraction is about.
     private static final Set<AttemptStatus> BOUND = Set.of(AttemptStatus.PROMOTED,
             AttemptStatus.PROVISIONAL, AttemptStatus.AWAITING_REVIEW);
 
     /// The states in which an attempt is still learning, and so still holds its learner's claim (A45). A
-    /// draft awaiting review is not one of them: it has written its rule, and the rule is what the
+    /// draft awaiting review is not one of them: it has written its binding, and the binding is what the
     /// learner's state answers with until a person decides.
     private static final Set<AttemptStatus> OPEN = Set.of(AttemptStatus.IN_PROGRESS,
             AttemptStatus.AWAITING_MODEL, AttemptStatus.PARKED);
@@ -105,7 +105,7 @@ public final class InMemoryAttempts implements Attempts {
         // A finished attempt is not parked back into life: it holds no claim and asks nothing.
         if (was != null && OPEN.contains(was.status())) {
             attempts.put(attemptId, new Recorded(was.id(), claim(was, expiryMs), status, was.decision(),
-                    was.ruleUuid(), was.score(), was.tokensSpent() + tokensSpent, was.createTimeMs(),
+                    was.bindingUuid(), was.score(), was.tokensSpent() + tokensSpent, was.createTimeMs(),
                     System.currentTimeMillis(), List.of()));
         }
     }
@@ -128,7 +128,7 @@ public final class InMemoryAttempts implements Attempts {
                 current.type(),
                 current.inputId(), node, current.promotionMode(), expiryMs);
         attempts.put(attemptId, new Recorded(was.id(), taken, AttemptStatus.IN_PROGRESS, was.decision(),
-                was.ruleUuid(), was.score(), was.tokensSpent(), was.createTimeMs(),
+                was.bindingUuid(), was.score(), was.tokensSpent(), was.createTimeMs(),
                 System.currentTimeMillis(), List.of()));
         return true;
     }
@@ -138,7 +138,7 @@ public final class InMemoryAttempts implements Attempts {
         final Recorded was = attempts.get(attemptId);
         if (was != null && OPEN.contains(was.status())) {
             attempts.put(attemptId, new Recorded(was.id(), claim(was, expiryMs), was.status(), was.decision(),
-                    was.ruleUuid(), was.score(), was.tokensSpent(), was.createTimeMs(),
+                    was.bindingUuid(), was.score(), was.tokensSpent(), was.createTimeMs(),
                     System.currentTimeMillis(), List.of()));
         }
     }
@@ -161,7 +161,7 @@ public final class InMemoryAttempts implements Attempts {
         final Recorded was = attempts.get(attemptId);
         if (was != null && OPEN.contains(was.status())) {
             attempts.put(attemptId, new Recorded(was.id(), claim(was, Long.MAX_VALUE), AttemptStatus.PARKED, reason,
-                    was.ruleUuid(), was.score(), was.tokensSpent() + tokensSpent, was.createTimeMs(),
+                    was.bindingUuid(), was.score(), was.tokensSpent() + tokensSpent, was.createTimeMs(),
                     System.currentTimeMillis(), List.of()));
         }
     }
@@ -170,14 +170,14 @@ public final class InMemoryAttempts implements Attempts {
     public synchronized void closed(final long attemptId,
                                     final AttemptStatus status,
                                     final String decision,
-                                    final String ruleUuid,
+                                    final String bindingUuid,
                                     final Double score,
                                     final long tokensSpent) {
         final Recorded was = attempts.get(attemptId);
         if (was != null) {
             // A claim that has ended holds nothing (A45), and frees the learner for the next attempt; what it
             // spent is added to what it had spent before it was parked.
-            attempts.put(attemptId, new Recorded(was.id(), claim(was, 0L), status, decision, ruleUuid, score,
+            attempts.put(attemptId, new Recorded(was.id(), claim(was, 0L), status, decision, bindingUuid, score,
                     was.tokensSpent() + tokensSpent, was.createTimeMs(), System.currentTimeMillis(),
                     List.of()));
             // A sending to the exhaustion step stands until the attempt closes (A65).
@@ -187,30 +187,30 @@ public final class InMemoryAttempts implements Attempts {
 
     @Override
     public synchronized void decided(final String docUuid,
-                                     final String ruleUuid,
+                                     final String bindingUuid,
                                      final AttemptStatus status,
                                      final String decision) {
         attempts.values().stream()
                 .filter(attempt -> attempt.attempt().docUuid().equals(docUuid)
-                                   && ruleUuid.equals(attempt.ruleUuid())
+                                   && bindingUuid.equals(attempt.bindingUuid())
                                    && attempt.status() == AttemptStatus.AWAITING_REVIEW)
                 .toList()
-                .forEach(attempt -> closed(attempt.id(), status, decision, attempt.ruleUuid(), attempt.score(),
+                .forEach(attempt -> closed(attempt.id(), status, decision, attempt.bindingUuid(), attempt.score(),
                         0L));
     }
 
-    /// The attempts that bound this rule, whatever state they ended in — promoted, provisional, or
+    /// The attempts that bound this binding, whatever state they ended in — promoted, provisional, or
     /// awaiting a review that will now never happen.
     @Override
-    public synchronized void settled(final String docUuid, final String ruleUuid,
+    public synchronized void settled(final String docUuid, final String bindingUuid,
                                      final AttemptStatus status, final String decision) {
         attempts.values().stream()
                 .filter(attempt -> attempt.attempt().docUuid().equals(docUuid)
-                                   && ruleUuid.equals(attempt.ruleUuid())
+                                   && bindingUuid.equals(attempt.bindingUuid())
                                    && BOUND.contains(attempt.status()))
                 .toList()
                 .forEach(attempt -> closed(attempt.id(), status, decision,
-                        attempt.ruleUuid(), attempt.score(), 0L));
+                        attempt.bindingUuid(), attempt.score(), 0L));
     }
 
     @Override
@@ -361,7 +361,7 @@ public final class InMemoryAttempts implements Attempts {
 
     private Recorded withTurns(final Recorded attempt) {
         return new Recorded(attempt.id(), attempt.attempt(), attempt.status(), attempt.decision(),
-                attempt.ruleUuid(), attempt.score(), attempt.tokensSpent(), attempt.createTimeMs(),
+                attempt.bindingUuid(), attempt.score(), attempt.tokensSpent(), attempt.createTimeMs(),
                 attempt.updateTimeMs(), List.copyOf(turns.getOrDefault(attempt.id(), List.of())),
                 grants.getOrDefault(attempt.id(), Grant.NONE), exhaustNext.contains(attempt.id()));
     }

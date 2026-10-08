@@ -120,7 +120,7 @@ class TestFragmentWriter {
 
     @Test
     void aBoundaryThatDoesNotKnowWhereItSitsIsWrittenWithoutAFilter() {
-        // A rule learned before the depth was recorded cannot say where to split, and a guess is worse
+        // A binding learned before the depth was recorded cannot say where to split, and a guess is worse
         // than nothing: the usual depth of one splits a JSON document at its single top-level map, which
         // is one document for the whole stream and bounds nothing. It is written as it was before item
         // 25, until it is learned again.

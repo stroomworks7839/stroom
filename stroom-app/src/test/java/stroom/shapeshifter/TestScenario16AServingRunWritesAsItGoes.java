@@ -65,7 +65,7 @@ import stroom.shapeshifter.ai.stage.Attempts.Recorded;
 import stroom.shapeshifter.ai.stage.Deferrals;
 import stroom.shapeshifter.ai.stage.Deferrals.Deferral;
 import stroom.shapeshifter.ai.stage.Learner;
-import stroom.shapeshifter.ai.stage.Rules;
+import stroom.shapeshifter.ai.stage.LearnerBindings;
 import stroom.shapeshifter.ai.transformation.XsltStep;
 import stroom.shapeshifter.shared.AttemptStatus;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
@@ -96,7 +96,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /// Design 04 §8, scenario 16 (its first half) and §3, *streams of any size*: **a serving run writes as it
 /// goes and leaves nothing when it defers.**
 ///
-/// A rule is learned that translates logons and leaves anything else as an event the schema refuses.
+/// A binding is learned that translates logons and leaves anything else as an event the schema refuses.
 /// A stream of six records, two of them logoffs, is then served as it is read: the fragment runs over
 /// the stream, each record of its output is judged as it is written, and the two records before the
 /// first logoff reach the pipeline's writer before the third stops the run. The task ends deferred, and
@@ -140,7 +140,7 @@ class TestScenario16AServingRunWritesAsItGoes extends AbstractCoreIntegrationTes
     @Inject
     private ShapeshifterAiStore shapeshifterAiStore;
     @Inject
-    private Rules rules;
+    private LearnerBindings learnerBindings;
     @Inject
     private Attempts attempts;
     @Inject
@@ -169,7 +169,7 @@ class TestScenario16AServingRunWritesAsItGoes extends AbstractCoreIntegrationTes
 
     @Test
     void aStreamWithARecordShortOfTheBarIsDiscardedAsItWaitsAndServedWhenTheTransformMoves() {
-        // A rule that translates logons alone, learned on a stream of logons: task, worker, task.
+        // A binding that translates logons alone, learned on a stream of logons: task, worker, task.
         advisor.set(Script.of());
         final Meta logons = rawStream(CSV.input());
         commonTranslationTestHelper.process(tasks(1).get(0));
@@ -199,7 +199,7 @@ class TestScenario16AServingRunWritesAsItGoes extends AbstractCoreIntegrationTes
         assertThat(row.reason()).startsWith("Record 3 fell short of the bar");
         assertThat(row.failedAgainst())
                 .describedAs("stamped with the snapshot in force (A61)")
-                .isEqualTo(rules.forLearner(learner).get(0).getSnapshot());
+                .isEqualTo(learnerBindings.forLearner(learner).get(0).getSnapshot());
         final List<Recorded> open = attempts.forDocument(document.getUuid(), 10).stream()
                 .filter(attempt -> attempt.status() == AttemptStatus.AWAITING_MODEL)
                 .toList();

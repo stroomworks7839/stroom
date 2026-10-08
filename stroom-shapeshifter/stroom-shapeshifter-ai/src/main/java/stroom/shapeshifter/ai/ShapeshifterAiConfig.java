@@ -33,7 +33,7 @@ import jakarta.validation.constraints.Min;
 public class ShapeshifterAiConfig extends AbstractConfig implements IsStroomConfig, HasDbConfig {
 
     private final ShapeshifterAiDbConfig dbConfig;
-    private final CacheConfig ruleCache;
+    private final CacheConfig bindingCache;
     private final CacheConfig learnerStateCache;
     private final int deferredLearningBatchSize;
     private final StroomDuration attemptRetention;
@@ -43,7 +43,7 @@ public class ShapeshifterAiConfig extends AbstractConfig implements IsStroomConf
         dbConfig = new ShapeshifterAiDbConfig();
         // Read for every stream of every learner and written only when something is learned, so it is
         // invalidated by what writes it rather than by time; the expiry is a backstop.
-        ruleCache = CacheConfig.builder()
+        bindingCache = CacheConfig.builder()
                 .maximumSize(1000L)
                 .expireAfterAccess(StroomDuration.ofMinutes(10))
                 .build();
@@ -59,13 +59,13 @@ public class ShapeshifterAiConfig extends AbstractConfig implements IsStroomConf
     @SuppressWarnings("unused")
     @JsonCreator
     public ShapeshifterAiConfig(@JsonProperty("db") final ShapeshifterAiDbConfig dbConfig,
-                                @JsonProperty("ruleCache") final CacheConfig ruleCache,
+                                @JsonProperty("bindingCache") final CacheConfig bindingCache,
                                 @JsonProperty("learnerStateCache") final CacheConfig learnerStateCache,
                                 @JsonProperty("deferredLearningBatchSize") final int deferredLearningBatchSize,
                                 @JsonProperty("attemptRetention") final StroomDuration attemptRetention,
                                 @JsonProperty("sessionLease") final StroomDuration sessionLease) {
         this.dbConfig = dbConfig;
-        this.ruleCache = ruleCache;
+        this.bindingCache = bindingCache;
         this.learnerStateCache = learnerStateCache;
         this.deferredLearningBatchSize = deferredLearningBatchSize;
         this.attemptRetention = attemptRetention;
@@ -81,12 +81,12 @@ public class ShapeshifterAiConfig extends AbstractConfig implements IsStroomConf
         return dbConfig;
     }
 
-    @JsonProperty("ruleCache")
+    @JsonProperty("bindingCache")
     @JsonPropertyDescription("What serves each Shapeshifter AI learner, cached per node. Every stream of "
                              + "every learner reads it, and it changes only when something is learned or a "
                              + "person acts on it, which clears the entry on every node.")
-    public CacheConfig getRuleCache() {
-        return ruleCache;
+    public CacheConfig getBindingCache() {
+        return bindingCache;
     }
 
     @JsonProperty("learnerStateCache")
@@ -110,7 +110,7 @@ public class ShapeshifterAiConfig extends AbstractConfig implements IsStroomConf
 
     @JsonProperty("attemptRetention")
     @JsonPropertyDescription("How long the record of a finished attempt is kept before the prune job "
-                             + "removes it and its turns, and how long what each rule produced is kept, "
+                             + "removes it and its turns, and how long what each binding produced is kept, "
                              + "which is what a retraction can still ask to be processed again. An attempt "
                              + "that is still learning, or waiting for a person, is never pruned however "
                              + "old it is. Zero keeps everything for ever, which on a busy cluster is a "

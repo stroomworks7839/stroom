@@ -27,8 +27,8 @@ import stroom.docref.HasDisplayValue;
 /// transform the records already exist and one of them is enough.
 ///
 /// It is derived from the fragment at build time rather than declared on the document (A1 revised,
-/// 2026-09-17), because under A21 the model chooses the chain per shape and a document that spans
-/// several shapes may span both kinds. It is not what decides *scoring* granularity, which follows the
+/// 2026-09-17), because under A21 the model chooses the chain per learner and a document that spans
+/// several learners may span both kinds. It is not what decides *scoring* granularity, which follows the
 /// chain: stream-level after a parser, per record after a filter.
 public enum ReplayUnit implements HasDisplayValue {
 

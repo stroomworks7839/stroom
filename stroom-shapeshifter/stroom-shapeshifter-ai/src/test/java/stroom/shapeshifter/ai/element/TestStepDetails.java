@@ -37,9 +37,9 @@ import stroom.shapeshifter.ai.stage.Decision.Would;
 import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.Stage;
 import stroom.shapeshifter.ai.stage.StageRun;
+import stroom.shapeshifter.shared.Binding;
 import stroom.shapeshifter.shared.LearningMode;
 import stroom.shapeshifter.shared.QuestionKind;
-import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ScorerSetting;
 import stroom.shapeshifter.shared.ScorerType;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
@@ -72,7 +72,7 @@ class TestStepDetails {
     void aLearnedStreamShowsItsFeedDecisionFragmentScoresAndTranscript() {
         final Scenarios scenarios = new Scenarios();
         final Script script = script(scenarios);
-        final Stage stage = scenarios.stage(document -> script, scenarios.rules);
+        final Stage stage = scenarios.stage(document -> script, scenarios.learnerBindings);
         final StageRun run = scenarios.process(script, doc(), stream()).learned();
 
         final ShapeshifterAiStepDetails details = StepDetails.of(run, stream(), false);
@@ -83,13 +83,14 @@ class TestStepDetails {
                 .describedAs("the feed and type are what the model is shown of the stream")
                 .containsExactly(Map.entry("Feed", FEED), Map.entry("Type", "Raw Events"));
         assertThat(details.getDecision()).isEqualTo("Promoted");
-        assertThat(details.getReason()).startsWith("Promoted rule ");
-        assertThat(details.getRuleUuid()).isEqualTo(scenarios.rules.forLearner(Scenarios.LEARNER).get(0).getUuid());
+        assertThat(details.getReason()).startsWith("Promoted binding ");
+        assertThat(details.getBindingUuid()).isEqualTo(scenarios.learnerBindings.forLearner(Scenarios.LEARNER).get(0)
+                .getUuid());
         assertThat(details.getFragment())
                 .describedAs("carried as a reference so the pane can offer it as a link")
-                .isEqualTo(run.bindings().fragment());
+                .isEqualTo(run.produced().fragment());
         assertThat(details.isProvisional()).isFalse();
-        assertThat(details.getScore()).isEqualTo(run.bindings().score());
+        assertThat(details.getScore()).isEqualTo(run.produced().score());
 
         assertThat(details.getVerdicts())
                 .describedAs("one per step of the chain, in chain order")
@@ -115,9 +116,9 @@ class TestStepDetails {
     }
 
     @Test
-    void aSteppedStreamNothingServesSaysWhatItWouldDoAndNamesNoRule() {
+    void aSteppedStreamNothingServesSaysWhatItWouldDoAndNamesNoBinding() {
         final Scenarios scenarios = new Scenarios();
-        final Stage stage = scenarios.stage(document -> Script.of(), scenarios.rules);
+        final Stage stage = scenarios.stage(document -> Script.of(), scenarios.learnerBindings);
         final StageRun run = stage.dryRun(doc(), Scenarios.LEARNER, stream(), false);
 
         final ShapeshifterAiStepDetails details = StepDetails.of(run, stream(), true);
@@ -128,9 +129,9 @@ class TestStepDetails {
         assertThat(details.getDecision()).isEqualTo("Would");
         assertThat(details.getReason())
                 .describedAs("the hypothetical is in the decision itself, not put there by the pane: a "
-                             + "step over a learner a rule serves really does run the fragment")
+                             + "step over a learner a binding serves really does run the fragment")
                 .isEqualTo("Would learn a fragment for this learner");
-        assertThat(details.getRuleUuid()).isNull();
+        assertThat(details.getBindingUuid()).isNull();
         assertThat(details.getFragment()).isNull();
         assertThat(details.getVerdicts()).isEmpty();
         assertThat(details.getTranscript()).isEmpty();
@@ -145,18 +146,18 @@ class TestStepDetails {
     /// added to that switch and forgotten here.
     @Test
     void everyDecisionSaysWhatItWas() {
-        final RoutingRule rule = RoutingRule.builder().uuid("rule-1")
+        final Binding binding = Binding.builder().uuid("rule-1")
                 .pipeline(DocRef.builder().type("Pipeline").uuid("f-1").name("door-v1").build())
                 .build();
         final List<Decision> all = List.of(
-                new Bound(rule),
+                new Bound(binding),
                 new Bound(null),
-                new Promoted(rule, 0.9),
-                new Provisional(rule, 0.9, 3, 5),
-                new Rebound(rule, rule, 0.95),
-                new Kept(rule, "the candidate was worse"),
-                new Drafted(rule, 0.9),
-                new Retracted(rule, 0.2, "it failed the gate"),
+                new Promoted(binding, 0.9),
+                new Provisional(binding, 0.9, 3, 5),
+                new Rebound(binding, binding, 0.95),
+                new Kept(binding, "the candidate was worse"),
+                new Drafted(binding, 0.9),
+                new Retracted(binding, 0.2, "it failed the gate"),
                 new GivenUp("nothing passed", List.of()),
                 new Sentinel("nothing serves this learner"),
                 new Deferred("waiting on a session"),

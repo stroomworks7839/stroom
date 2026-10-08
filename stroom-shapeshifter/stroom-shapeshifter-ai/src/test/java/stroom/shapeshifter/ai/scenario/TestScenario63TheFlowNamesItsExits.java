@@ -43,7 +43,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /// Design 02 §5, scenario 63: **the flow names its exits** (A83; design 05 §2).
 ///
 /// A step whose candidates are spent leaves the flow by the exit it names: `goto park` parks the session
-/// for a person, `goto give-up` gives the shape up and errors its streams. The defaults stand where the
+/// for a person, `goto give-up` gives the learner up and errors its streams. The defaults stand where the
 /// flow names none, a parser's being give-up (scenario 60) and any other step's park (scenario 57), and
 /// the flow may say the other: a parser that parks, a transform that gives up.
 class TestScenario63TheFlowNamesItsExits {
@@ -55,7 +55,7 @@ class TestScenario63TheFlowNamesItsExits {
     private static final String BROKEN = "<xsl:stylesheet version=\"2.0\">not a stylesheet";
 
     @Test
-    void aParserWhoseFlowSaysParkParksInsteadOfGivingTheShapeUp() {
+    void aParserWhoseFlowSaysParkParksInsteadOfGivingTheLearnerUp() {
         final Scenarios scenarios = new Scenarios();
         final ShapeshifterAiDoc doc = perLine(DemoDocument.configure(Scenarios.document()).uuid(DOC).name("door")
                 .heldOutFraction(0.0)
@@ -78,14 +78,14 @@ class TestScenario63TheFlowNamesItsExits {
         final Recorded session = scenarios.attempts.forDocument(DOC, 10).get(0);
         assertThat(session.status()).describedAs(String.valueOf(session.decision())).isEqualTo(AttemptStatus.PARKED);
         assertThat(scenarios.states.reasonGivenUp(Scenarios.LEARNER))
-                .describedAs("the shape is not given up")
+                .describedAs("the learner is not given up")
                 .isEmpty();
         assertThat(scenarios.deferrals.of(Scenarios.LEARNER, 1L)).describedAs("the stream goes on waiting").isPresent();
         assertThat(scenarios.wake.woken()).isEmpty();
     }
 
     @Test
-    void aTransformWhoseFlowSaysGiveUpGivesTheShapeUpAndErrorsItsStreams() {
+    void aTransformWhoseFlowSaysGiveUpGivesTheLearnerUpAndErrorsItsStreams() {
         final Scenarios scenarios = new Scenarios();
         final ShapeshifterAiDoc doc = DemoDocument.configure(Scenarios.document()).uuid(DOC).name("door")
                 .heldOutFraction(0.0)

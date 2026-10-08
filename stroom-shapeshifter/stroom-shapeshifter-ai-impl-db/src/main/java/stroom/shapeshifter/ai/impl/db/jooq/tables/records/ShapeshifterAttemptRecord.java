@@ -215,16 +215,16 @@ public class ShapeshifterAttemptRecord extends UpdatableRecordImpl<ShapeshifterA
     }
 
     /**
-     * Setter for <code>stroom.shapeshifter_attempt.rule_uuid</code>.
+     * Setter for <code>stroom.shapeshifter_attempt.binding_uuid</code>.
      */
-    public void setRuleUuid(String value) {
+    public void setBindingUuid(String value) {
         set(14, value);
     }
 
     /**
-     * Getter for <code>stroom.shapeshifter_attempt.rule_uuid</code>.
+     * Getter for <code>stroom.shapeshifter_attempt.binding_uuid</code>.
      */
-    public String getRuleUuid() {
+    public String getBindingUuid() {
         return (String) get(14);
     }
 
@@ -349,7 +349,7 @@ public class ShapeshifterAttemptRecord extends UpdatableRecordImpl<ShapeshifterA
     /**
      * Create a detached, initialised ShapeshifterAttemptRecord
      */
-    public ShapeshifterAttemptRecord(Long id, Integer version, Long createTimeMs, Long updateTimeMs, String pipelineUuid, String elementId, String docUuid, String feedName, String typeName, Long inputMetaId, String nodeName, String promotionMode, String status, String decision, String ruleUuid, Double score, Long tokensSpent, Long expiryMs, Byte claimed, Long grantedTokens, Long grantedMs, Byte exhaustNext) {
+    public ShapeshifterAttemptRecord(Long id, Integer version, Long createTimeMs, Long updateTimeMs, String pipelineUuid, String elementId, String docUuid, String feedName, String typeName, Long inputMetaId, String nodeName, String promotionMode, String status, String decision, String bindingUuid, Double score, Long tokensSpent, Long expiryMs, Byte claimed, Long grantedTokens, Long grantedMs, Byte exhaustNext) {
         super(ShapeshifterAttempt.SHAPESHIFTER_ATTEMPT);
 
         setId(id);
@@ -366,7 +366,7 @@ public class ShapeshifterAttemptRecord extends UpdatableRecordImpl<ShapeshifterA
         setPromotionMode(promotionMode);
         setStatus(status);
         setDecision(decision);
-        setRuleUuid(ruleUuid);
+        setBindingUuid(bindingUuid);
         setScore(score);
         setTokensSpent(tokensSpent);
         setExpiryMs(expiryMs);

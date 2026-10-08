@@ -94,7 +94,7 @@ class TestScenario61AParkedSessionGivenMoreToSpendCarriesOn {
         assertThat(finished.status())
                 .describedAs(String.valueOf(finished.decision())).isEqualTo(AttemptStatus.PROMOTED);
         assertThat(finished.grant().tokens()).describedAs("the grant stands on the row").isEqualTo(10L);
-        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).hasSize(1);
+        assertThat(scenarios.learnerBindings.forLearner(Scenarios.LEARNER)).hasSize(1);
         assertThat(scenarios.wake.woken()).extracting(Deferral::inputId).contains(1L);
     }
 

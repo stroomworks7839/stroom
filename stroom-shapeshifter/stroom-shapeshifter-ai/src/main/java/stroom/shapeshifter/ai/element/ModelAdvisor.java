@@ -78,7 +78,7 @@ public final class ModelAdvisor implements Advisor {
         return ask(transcript, question, List.of());
     }
 
-    /// The document's words, then what a supervisor has said about this shape (A46), then the conversation.
+    /// The document's words, then what a supervisor has said about this learner (A46), then the conversation.
     ///
     /// Guidance goes in the **system** message beside the document's own instructions, because that is
     /// what it is: a standing fact about the feed, not a turn of the conversation. Put in as a turn it
@@ -118,7 +118,7 @@ public final class ModelAdvisor implements Advisor {
         }
     }
 
-    /// What a supervisor has told this stage about this shape, oldest first and attributed. Attributed
+    /// What a supervisor has told this stage about this learner, oldest first and attributed. Attributed
     /// because the model should weigh a person's words as a person's, and because the transcript a
     /// person reads afterwards has to show whose they were.
     private static String guidance(final List<Given> guidance) {

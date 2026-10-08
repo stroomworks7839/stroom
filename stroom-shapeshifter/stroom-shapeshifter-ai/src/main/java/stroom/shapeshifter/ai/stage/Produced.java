@@ -24,41 +24,41 @@ import java.util.Map;
 
 /**
  * What produced an output (design 01 §7.3 rule 3), recorded alongside it so that reprocessing can be
- * as-processed, and so that a retracted rule's outputs can be found. The fragment's and its documents'
+ * as-processed, and so that a retracted binding's outputs can be found. The fragment's and its documents'
  * version ids, and the candidate count, join these when the supervisor element writes them to the
  * output stream (§12 item 7).
  *
  * @param docUuid     The Shapeshifter AI document.
- * @param ruleUuid    The routing rule that matched or was bound.
- * @param fragment    The fragment the rule bound.
+ * @param bindingUuid The binding that served the stream.
+ * @param fragment    The fragment the binding named.
  * @param boundary    What one record was in this stream when it was processed (A35), because the
  *                    fragment alone does not say how its chain is run: the same fragment under another
- *                    boundary produces other events, and the rule's boundary today is not necessarily
- *                    the one that produced this output. Null where the rule had none, which is every
+ *                    boundary produces other events, and the binding's boundary today is not necessarily
+ *                    the one that produced this output. Null where the binding had none, which is every
  *                    chain over raw text, since there the parser's configuration cuts the records.
- * @param provisional Whether the rule was provisional when it produced this output (§6).
+ * @param provisional Whether the binding was provisional when it produced this output (§6).
  * @param score       The fragment's score over this stream.
  */
-public record Bindings(String docUuid,
-                       String ruleUuid,
+public record Produced(String docUuid,
+                       String bindingUuid,
                        DocRef fragment,
                        RecordBoundary boundary,
                        boolean provisional,
                        double score,
                        String snapshotId) {
 
-    /// Bindings with no snapshot: a run before snapshots existed, or a scenario that has none.
-    public Bindings(final String docUuid,
-                    final String ruleUuid,
+    /// Produced with no snapshot: a run before snapshots existed, or a scenario that has none.
+    public Produced(final String docUuid,
+                    final String bindingUuid,
                     final DocRef fragment,
                     final RecordBoundary boundary,
                     final boolean provisional,
                     final double score) {
-        this(docUuid, ruleUuid, fragment, boundary, provisional, score, null);
+        this(docUuid, bindingUuid, fragment, boundary, provisional, score, null);
     }
 
     public static final String DOC_ATTRIBUTE = "ShapeshifterAiDoc";
-    public static final String RULE_ATTRIBUTE = "ShapeshifterAiRule";
+    public static final String BINDING_ATTRIBUTE = "ShapeshifterAiBinding";
     public static final String FRAGMENT_ATTRIBUTE = "ShapeshifterAiFragment";
     public static final String PROVISIONAL_ATTRIBUTE = "ShapeshifterAiProvisional";
     public static final String SCORE_ATTRIBUTE = "ShapeshifterAiScore";
@@ -88,7 +88,7 @@ public record Bindings(String docUuid,
                 : "." + elementId;
         final Map<String, String> attributes = new LinkedHashMap<>();
         attributes.put(DOC_ATTRIBUTE + suffix, docUuid);
-        attributes.put(RULE_ATTRIBUTE + suffix, ruleUuid);
+        attributes.put(BINDING_ATTRIBUTE + suffix, bindingUuid);
         attributes.put(FRAGMENT_ATTRIBUTE + suffix, fragment.getUuid());
         attributes.put(PROVISIONAL_ATTRIBUTE + suffix, Boolean.toString(provisional));
         attributes.put(SCORE_ATTRIBUTE + suffix, Double.toString(score));

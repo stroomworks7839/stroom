@@ -24,12 +24,12 @@ import stroom.shapeshifter.ai.stage.Guidance;
 import stroom.shapeshifter.ai.stage.Learner;
 import stroom.shapeshifter.ai.state.InMemoryDeletedPipelines;
 import stroom.shapeshifter.ai.state.InMemoryGuidance;
-import stroom.shapeshifter.ai.state.InMemoryRules;
+import stroom.shapeshifter.ai.state.InMemoryLearnerBindings;
+import stroom.shapeshifter.shared.Binding;
 import stroom.shapeshifter.shared.GuidanceRequest;
 import stroom.shapeshifter.shared.ImproveRequest;
 import stroom.shapeshifter.shared.LearnerRef;
 import stroom.shapeshifter.shared.RejectRequest;
-import stroom.shapeshifter.shared.RoutingRule;
 
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -51,7 +51,7 @@ class TestSupervisorResourceImpl {
 
     private final InMemoryGuidance guidance = new InMemoryGuidance();
     private final InMemoryDeletedPipelines deletedPipelines = new InMemoryDeletedPipelines();
-    private final InMemoryRules rules = new InMemoryRules();
+    private final InMemoryLearnerBindings learnerBindings = new InMemoryLearnerBindings();
     private final SupervisorResourceImpl resource = resource();
 
     @Test
@@ -91,7 +91,7 @@ class TestSupervisorResourceImpl {
     @Test
     void aDeletedPipelinesLearnerIsReadAndNotChanged() {
         final Learner gone = learner(GONE);
-        rules.append(gone, "doc-1", RoutingRule.builder()
+        learnerBindings.append(gone, "doc-1", Binding.builder()
                 .uuid("rule-gone")
                 .pipeline(new DocRef("Pipeline", "fragment-gone", "DOOR-ACCESS learned"))
                 .build());
@@ -114,7 +114,7 @@ class TestSupervisorResourceImpl {
                 .describedAs("nothing taken back")
                 .isInstanceOf(IllegalStateException.class);
         assertThatThrownBy(() -> resource.improve("doc-1", "rule-gone", new ImproveRequest(null)))
-                .describedAs("its rule not improved")
+                .describedAs("its binding not improved")
                 .isInstanceOf(IllegalStateException.class);
         assertThatThrownBy(() -> resource.accept("doc-1", "rule-gone"))
                 .describedAs("accepted")
@@ -142,7 +142,7 @@ class TestSupervisorResourceImpl {
                 () -> null,
                 () -> documents,
                 () -> deletedPipelines,
-                () -> rules);
+                () -> learnerBindings);
     }
 
     private static Learner learner(final LearnerRef ref) {

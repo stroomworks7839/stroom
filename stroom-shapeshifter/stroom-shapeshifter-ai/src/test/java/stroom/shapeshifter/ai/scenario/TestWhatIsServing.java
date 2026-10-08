@@ -20,12 +20,12 @@ import stroom.shapeshifter.ai.extraction.ExtractionCorpus.Golden;
 import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.Learner;
 import stroom.shapeshifter.ai.stage.Serving;
+import stroom.shapeshifter.shared.Binding;
 import stroom.shapeshifter.shared.LearnerRef;
 import stroom.shapeshifter.shared.LearningMode;
-import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ScorerSetting;
 import stroom.shapeshifter.shared.ScorerType;
-import stroom.shapeshifter.shared.ServingRule;
+import stroom.shapeshifter.shared.ServingBinding;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 import stroom.shapeshifter.shared.YieldBasis;
 import stroom.shapeshifter.shared.YieldParameters;
@@ -41,10 +41,10 @@ import static org.assertj.core.api.Assertions.tuple;
 /// Ruling A46, design 01 §11.6: **the way in.**
 ///
 /// Every other surface in the feature is reached because something went wrong — a learner gave up, a
-/// draft awaits review, a rolling score fell through the floor. A rule serving at 0.93 is above every
+/// draft awaits review, a rolling score fell through the floor. A binding serving at 0.93 is above every
 /// threshold and nothing will ever raise it, so a person who wants it better has to be able to go and
-/// find it. This is the list they find it in: ordered by the traffic each rule carries, because the
-/// rule carrying the most streams is the one worth an hour.
+/// find it. This is the list they find it in: ordered by the traffic each binding carries, because the
+/// binding carrying the most streams is the one worth an hour.
 class TestWhatIsServing {
 
     private static final String XSLT = Scenarios.resource("csv-logon.xsl");
@@ -53,7 +53,7 @@ class TestWhatIsServing {
     private static final Learner DOOR = Scenarios.LEARNER;
     private static final Learner LIFT = new Learner("pipeline-lift", Scenarios.LEARNER.elementId());
 
-    /// What the stage learns is what the view shows. A rule promoted by a stream is in the list without
+    /// What the stage learns is what the view shows. A binding promoted by a stream is in the list without
     /// anything else being written down: the learner it serves is the learner the view joins it to.
     @Test
     void whatTheStageLearnsIsWhatAPersonBrowses() {
@@ -64,40 +64,40 @@ class TestWhatIsServing {
         assertThat(learned.served()).describedAs("the stream it was learned on, served once the wake came")
                 .isNotNull();
 
-        final Serving.Page page = scenarios.serving.rules(List.of("doc-1"), null, false, 0L, 100);
+        final Serving.Page page = scenarios.serving.bindings(List.of("doc-1"), null, false, 0L, 100);
         assertThat(page.total()).isEqualTo(1L);
-        assertThat(page.rules())
-                .extracting(ServingRule::getLearner, ServingRule::getRecords)
+        assertThat(page.bindings())
+                .extracting(ServingBinding::getLearner, ServingBinding::getRecords)
                 .describedAs("the promotion resets the learner, so its rolling memory starts from the streams it "
                              + "serves: the first is the one it was learned on, which the wake serves")
                 .containsExactly(tuple(new LearnerRef(DOOR.pipelineUuid(), DOOR.elementId()),
                         learned.served().records()));
-        assertThat(page.rules().get(0).getRollingScore())
+        assertThat(page.bindings().get(0).getRollingScore())
                 .describedAs("and a rolling score, from that stream").isNotNull();
-        assertThat(page.rules().get(0).getPromotedScore())
+        assertThat(page.bindings().get(0).getPromotedScore())
                 .describedAs("what it scored when it took over is what a rolling score is read against")
                 .isNotNull();
-        assertThat(page.rules().get(0).getFragment()).isNotNull();
+        assertThat(page.bindings().get(0).getFragment()).isNotNull();
     }
 
     /// Busiest first, and the score is what narrows the list rather than what arranges it. Sorting by
-    /// score would put the worst rule in the installation at the top whether it carried one stream a
+    /// score would put the worst binding in the installation at the top whether it carried one stream a
     /// month or a million.
     @Test
-    void theBusiestRuleComesFirstAndTheScoreOnlyFilters() {
+    void theBusiestBindingComesFirstAndTheScoreOnlyFilters() {
         final Scenarios scenarios = new Scenarios();
-        scenarios.rules.append(DOOR, "doc-1", rule("busy"));
-        scenarios.rules.append(LIFT, "doc-1", rule("quiet"));
+        scenarios.learnerBindings.append(DOOR, "doc-1", binding("busy"));
+        scenarios.learnerBindings.append(LIFT, "doc-1", binding("quiet"));
         scenarios.states.scored(DOOR, "doc-1", 0.93, 40, 100);
         scenarios.states.scored(LIFT, "doc-1", 0.71, 3, 100);
 
-        assertThat(scenarios.serving.rules(List.of("doc-1"), null, false, 0L, 100).rules())
-                .extracting(ServingRule::getRuleUuid)
-                .describedAs("the rule carrying forty records before the one carrying three, though it "
+        assertThat(scenarios.serving.bindings(List.of("doc-1"), null, false, 0L, 100).bindings())
+                .extracting(ServingBinding::getBindingUuid)
+                .describedAs("the binding carrying forty records before the one carrying three, though it "
                              + "is scoring better")
                 .containsExactly("busy", "quiet");
-        assertThat(scenarios.serving.rules(List.of("doc-1"), 0.9, false, 0L, 100).rules())
-                .extracting(ServingRule::getRuleUuid)
+        assertThat(scenarios.serving.bindings(List.of("doc-1"), 0.9, false, 0L, 100).bindings())
+                .extracting(ServingBinding::getBindingUuid)
                 .describedAs("and a threshold leaves out what is good enough")
                 .containsExactly("quiet");
     }
@@ -107,13 +107,13 @@ class TestWhatIsServing {
     @Test
     void aRowSaysHowMuchHasBeenSaidToItsLearner() {
         final Scenarios scenarios = new Scenarios();
-        scenarios.rules.append(DOOR, "doc-1", rule("busy"));
+        scenarios.learnerBindings.append(DOOR, "doc-1", binding("busy"));
         scenarios.guidance.given(DOOR, "doc-1", "Timestamps are local, not UTC.", "jo");
         scenarios.guidance.given(DOOR, "doc-1", "Column four is a terminal id.", "sam");
         scenarios.guidance.given(LIFT, "doc-1", "Said to another learner.", "jo");
 
-        assertThat(scenarios.serving.rules(List.of("doc-1"), null, false, 0L, 100).rules())
-                .extracting(ServingRule::getGuidance)
+        assertThat(scenarios.serving.bindings(List.of("doc-1"), null, false, 0L, 100).bindings())
+                .extracting(ServingBinding::getGuidance)
                 .containsExactly(2);
     }
 
@@ -121,11 +121,11 @@ class TestWhatIsServing {
     @Test
     void whatCannotBeImprovedIsNotInTheList() {
         final Scenarios scenarios = new Scenarios();
-        scenarios.rules.append(DOOR, "doc-1", rule("serving"));
-        scenarios.rules.append(DOOR, "doc-1", rule("draft").copy().draft(true).build());
+        scenarios.learnerBindings.append(DOOR, "doc-1", binding("serving"));
+        scenarios.learnerBindings.append(DOOR, "doc-1", binding("draft").copy().draft(true).build());
 
-        assertThat(scenarios.serving.rules(List.of("doc-1"), null, false, 0L, 100).rules())
-                .extracting(ServingRule::getRuleUuid)
+        assertThat(scenarios.serving.bindings(List.of("doc-1"), null, false, 0L, 100).bindings())
+                .extracting(ServingBinding::getBindingUuid)
                 .describedAs("a draft is decided rather than improved (A25)")
                 .containsExactly("serving");
     }
@@ -135,16 +135,16 @@ class TestWhatIsServing {
     @Test
     void aDocumentNobodyNamedIsNotInTheAnswer() {
         final Scenarios scenarios = new Scenarios();
-        scenarios.rules.append(DOOR, "doc-1", rule("ours"));
-        scenarios.rules.append(LIFT, "doc-2", rule("theirs"));
+        scenarios.learnerBindings.append(DOOR, "doc-1", binding("ours"));
+        scenarios.learnerBindings.append(LIFT, "doc-2", binding("theirs"));
 
-        assertThat(scenarios.serving.rules(List.of("doc-1"), null, false, 0L, 100).rules())
-                .extracting(ServingRule::getRuleUuid).containsExactly("ours");
-        assertThat(scenarios.serving.rules(List.of(), null, false, 0L, 100).rules()).isEmpty();
+        assertThat(scenarios.serving.bindings(List.of("doc-1"), null, false, 0L, 100).bindings())
+                .extracting(ServingBinding::getBindingUuid).containsExactly("ours");
+        assertThat(scenarios.serving.bindings(List.of(), null, false, 0L, 100).bindings()).isEmpty();
     }
 
-    private static RoutingRule rule(final String uuid) {
-        return RoutingRule.builder()
+    private static Binding binding(final String uuid) {
+        return Binding.builder()
                 .uuid(uuid)
                 .pipeline(stroom.docref.DocRef.builder()
                         .type("Pipeline")

@@ -48,7 +48,7 @@ public class SnapshotsDao implements Snapshots {
                 .insertInto(ShapeshifterSnapshot.SHAPESHIFTER_SNAPSHOT)
                 .set(ShapeshifterSnapshot.SHAPESHIFTER_SNAPSHOT.SNAPSHOT_ID, snapshot.id())
                 .set(ShapeshifterSnapshot.SHAPESHIFTER_SNAPSHOT.DOC_UUID, snapshot.docUuid())
-                .set(ShapeshifterSnapshot.SHAPESHIFTER_SNAPSHOT.RULE_UUID, snapshot.ruleUuid())
+                .set(ShapeshifterSnapshot.SHAPESHIFTER_SNAPSHOT.BINDING_UUID, snapshot.bindingUuid())
                 .set(ShapeshifterSnapshot.SHAPESHIFTER_SNAPSHOT.FRAGMENT_UUID, snapshot.fragmentUuid())
                 .set(ShapeshifterSnapshot.SHAPESHIFTER_SNAPSHOT.STRUCTURE, snapshot.structure())
                 .set(ShapeshifterSnapshot.SHAPESHIFTER_SNAPSHOT.CODE,
@@ -68,28 +68,28 @@ public class SnapshotsDao implements Snapshots {
     }
 
     @Override
-    public List<Snapshot> forRule(final String ruleUuid) {
+    public List<Snapshot> forBinding(final String bindingUuid) {
         return JooqUtil.contextResult(connProvider, context -> context
                 .selectFrom(ShapeshifterSnapshot.SHAPESHIFTER_SNAPSHOT)
-                .where(ShapeshifterSnapshot.SHAPESHIFTER_SNAPSHOT.RULE_UUID.eq(ruleUuid))
+                .where(ShapeshifterSnapshot.SHAPESHIFTER_SNAPSHOT.BINDING_UUID.eq(bindingUuid))
                 .orderBy(ShapeshifterSnapshot.SHAPESHIFTER_SNAPSHOT.ID.asc())
                 .fetch(SnapshotsDao::snapshot));
     }
 
     @Override
-    public void discard(final String ruleUuid) {
+    public void discard(final String bindingUuid) {
         JooqUtil.context(connProvider, context -> context
                 .deleteFrom(ShapeshifterSnapshot.SHAPESHIFTER_SNAPSHOT)
-                .where(ShapeshifterSnapshot.SHAPESHIFTER_SNAPSHOT.RULE_UUID.eq(ruleUuid))
+                .where(ShapeshifterSnapshot.SHAPESHIFTER_SNAPSHOT.BINDING_UUID.eq(bindingUuid))
                 .execute());
     }
 
     @Override
-    public void move(final String fromRuleUuid, final String toRuleUuid) {
+    public void move(final String fromBindingUuid, final String toBindingUuid) {
         JooqUtil.context(connProvider, context -> context
                 .update(ShapeshifterSnapshot.SHAPESHIFTER_SNAPSHOT)
-                .set(ShapeshifterSnapshot.SHAPESHIFTER_SNAPSHOT.RULE_UUID, toRuleUuid)
-                .where(ShapeshifterSnapshot.SHAPESHIFTER_SNAPSHOT.RULE_UUID.eq(fromRuleUuid))
+                .set(ShapeshifterSnapshot.SHAPESHIFTER_SNAPSHOT.BINDING_UUID, toBindingUuid)
+                .where(ShapeshifterSnapshot.SHAPESHIFTER_SNAPSHOT.BINDING_UUID.eq(fromBindingUuid))
                 .execute());
     }
 
@@ -97,7 +97,7 @@ public class SnapshotsDao implements Snapshots {
         return new Snapshot(
                 row.get(ShapeshifterSnapshot.SHAPESHIFTER_SNAPSHOT.SNAPSHOT_ID),
                 row.get(ShapeshifterSnapshot.SHAPESHIFTER_SNAPSHOT.DOC_UUID),
-                row.get(ShapeshifterSnapshot.SHAPESHIFTER_SNAPSHOT.RULE_UUID),
+                row.get(ShapeshifterSnapshot.SHAPESHIFTER_SNAPSHOT.BINDING_UUID),
                 row.get(ShapeshifterSnapshot.SHAPESHIFTER_SNAPSHOT.FRAGMENT_UUID),
                 row.get(ShapeshifterSnapshot.SHAPESHIFTER_SNAPSHOT.STRUCTURE),
                 strings(row.get(ShapeshifterSnapshot.SHAPESHIFTER_SNAPSHOT.CODE)),

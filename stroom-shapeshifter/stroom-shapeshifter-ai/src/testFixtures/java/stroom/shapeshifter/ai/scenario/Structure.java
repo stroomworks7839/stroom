@@ -31,7 +31,7 @@ import java.util.Optional;
 
 /**
  * A scripted model's answers to the structural questions of A31 — <i>Split</i> and <i>Target</i> — worked
- * out from the configurations the script will go on to give, so that a scenario about routing, promotion
+ * out from the configurations the script will go on to give, so that a scenario about serving, promotion
  * or relearning states only the questions it is about. The split is one record per line; a target is
  * what the script's own splitter and stylesheet make of the record, or {@code none} where they make
  * nothing of it (a header). A scenario about the targets themselves scripts those turns explicitly, and

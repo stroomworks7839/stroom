@@ -87,7 +87,7 @@ public final class FragmentWriter {
     /// Rewrite a fragment in place (A58): the same pipeline document, and the same configuration
     /// documents where the chain still has an element of the same id and type to run them — their text
     /// overwritten — with a new document only for an element the fragment did not have. One fragment and
-    /// one stylesheet per shape, growing as the session learns; what ran before is a snapshot's to keep.
+    /// one stylesheet per learner, growing as the session learns; what ran before is a snapshot's to keep.
     ///
     /// @param fragment The fragment to rewrite.
     /// @param folder   Where a new configuration document goes, where one is needed.
@@ -176,7 +176,7 @@ public final class FragmentWriter {
      * @param name   The name for the fragment, or the first free number after it where the folder has one
      *               by that name; configuration documents take it with the element id appended.
      * @param chain  The learned steps in chain order.
-     * @return The fragment's DocRef, for the routing table.
+     * @return The fragment's DocRef, for the binding.
      */
     public DocRef write(final DocPath folder,
                         final String name,
@@ -199,7 +199,7 @@ public final class FragmentWriter {
         final PipelineDataBuilder builder = new PipelineDataBuilder()
                 .addElement(new PipelineElement(SOURCE, SOURCE));
         String previous = SOURCE;
-        // No depth, no filter: a boundary from a rule learned before the depth was recorded cannot say
+        // No depth, no filter: a boundary from a binding learned before the depth was recorded cannot say
         // where to split, and a guessed depth splits nothing (see RecordBoundary#splitDepth).
         final OptionalInt depth = boundary == null
                 ? OptionalInt.empty()

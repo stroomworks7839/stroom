@@ -21,15 +21,15 @@ import stroom.shapeshifter.ai.learning.Question;
 import stroom.shapeshifter.ai.learning.Question.Chain;
 import stroom.shapeshifter.ai.learning.Question.Configuration;
 import stroom.shapeshifter.ai.scoring.Judgement;
-import stroom.shapeshifter.ai.stage.Bindings;
 import stroom.shapeshifter.ai.stage.Decision.Bound;
 import stroom.shapeshifter.ai.stage.Decision.Promoted;
 import stroom.shapeshifter.ai.stage.Input;
+import stroom.shapeshifter.ai.stage.Produced;
 import stroom.shapeshifter.ai.stage.RegressionSet.Kind;
 import stroom.shapeshifter.ai.stage.StageRun;
+import stroom.shapeshifter.shared.Binding;
 import stroom.shapeshifter.shared.FlowExample;
 import stroom.shapeshifter.shared.LearningMode;
-import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ScorerSetting;
 import stroom.shapeshifter.shared.ScorerType;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
@@ -44,13 +44,13 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Design 02 §5, scenario 1: a CSV feed with nothing in the routing table. The stage learns a
+ * Design 02 §5, scenario 1: a CSV feed whose learner is bound to nothing. The stage learns a
  * splitter and a transform in one conversation, judges them over the whole stream, promotes, and the
- * routing table gains the learned rule.
+ * learner gains the learned binding.
  * <p>
  * The corpus case has six records under a header. The coverage threshold sits at 0.8 because the
  * golden splitter reads the header into a variable, which coverage counts as discarded (design 01
- * §9.1 found exactly this), and the minimum records per shape is lowered to fit the case.
+ * §9.1 found exactly this), and the minimum records per learner is lowered to fit the case.
  */
 class TestScenario01LearnsACsvFeed {
 
@@ -83,7 +83,7 @@ class TestScenario01LearnsACsvFeed {
     }
 
     @Test
-    void learnsPromotesAndRoutes() {
+    void learnsPromotesAndServes() {
         final Scenarios scenarios = new Scenarios();
         final Script script = scenarios.script(CSV.configuration(), XSLT)
                 .expect(QuestionMatcher.chain()
@@ -121,11 +121,11 @@ class TestScenario01LearnsACsvFeed {
         assertThat(run.output()).isEqualTo(EXPECTED_EVENTS);
         assertThat(run.transcript()).hasSize(6);
         assertThat(scenarios.states.reasonGivenUp(Scenarios.LEARNER)).isEmpty();
-        assertThat(run.bindings())
+        assertThat(run.produced())
                 .describedAs("design 01 §7.3 rule 3: the output records what produced it")
-                .isEqualTo(new Bindings(run.doc().getUuid(), promoted.rule().getUuid(),
-                        promoted.rule().getPipeline(), promoted.rule().getRecordBoundary(), false,
-                        promoted.score(), promoted.rule().getSnapshot()));
+                .isEqualTo(new Produced(run.doc().getUuid(), promoted.binding().getUuid(),
+                        promoted.binding().getPipeline(), promoted.binding().getRecordBoundary(), false,
+                        promoted.score(), promoted.binding().getSnapshot()));
 
         // Scored over the whole stream: coverage and yield on the split, yield on the transform.
         assertThat(run.verdicts()).hasSize(2);
@@ -139,29 +139,29 @@ class TestScenario01LearnsACsvFeed {
                 .containsExactly(1.0, 1.0);
         assertThat(promoted.score()).isGreaterThanOrEqualTo(policy().getPromotionFloor());
 
-        // The document gained exactly the learned rule, the binding of the shape it was learned for: its feed
+        // The document gained exactly the learned binding, the binding of the learner it was learned for: its feed
         // and type (A49).
-        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).hasSize(1);
-        final RoutingRule rule = scenarios.rules.forLearner(Scenarios.LEARNER).get(0);
-        assertThat(rule).isEqualTo(promoted.rule());
-        assertThat(rule.getUuid()).describedAs("A26: a learned rule is named stably").isNotNull();
-        assertThat(rule.isDraft()).isFalse();
-        assertThat(rule.getPromotedTimeMs()).isEqualTo(Scenarios.NOW.toEpochMilli());
+        assertThat(scenarios.learnerBindings.forLearner(Scenarios.LEARNER)).hasSize(1);
+        final Binding binding = scenarios.learnerBindings.forLearner(Scenarios.LEARNER).get(0);
+        assertThat(binding).isEqualTo(promoted.binding());
+        assertThat(binding.getUuid()).describedAs("A26: a learned binding is named stably").isNotNull();
+        assertThat(binding.isDraft()).isFalse();
+        assertThat(binding.getPromotedTimeMs()).isEqualTo(Scenarios.NOW.toEpochMilli());
 
         // The fragment is real content: a Source → DSParser → SplitFilter → XSLTFilter pipeline over two new
         // documents, the split giving the transform one record at a time (design 04 §3).
-        assertThat(rule.getPipeline().getName())
+        assertThat(binding.getPipeline().getName())
                 .describedAs("named where the learner's element says (A113): here, for its pipeline")
                 .isEqualTo(Scenarios.LEARNER.pipelineUuid());
         assertThat(run.learner()).isEqualTo(Scenarios.LEARNER);
-        assertThat(scenarios.stores.pipelines.readDocument(rule.getPipeline()).getPipelineData()
+        assertThat(scenarios.stores.pipelines.readDocument(binding.getPipeline()).getPipelineData()
                 .getAddedElements())
                 .extracting(element -> element.getType())
                 .containsExactly("Source", "DSParser", "SplitFilter", "XSLTFilter");
         assertThat(scenarios.stores.textConverters.list()).hasSize(1);
         assertThat(scenarios.stores.xslts.list()).hasSize(1);
-        assertThat(scenarios.regressionSet.accepted(rule.getUuid()))
-                .describedAs("A18, A56: the corpus is per rule and per record — the five records of the sample, "
+        assertThat(scenarios.regressionSet.accepted(binding.getUuid()))
+                .describedAs("A18, A56: the corpus is per binding and per record — the five records of the sample, "
                              + "the held-out fifth of the stream having been judged on and not learned from")
                 .hasSize(5)
                 .allSatisfy(entry -> {
@@ -172,7 +172,7 @@ class TestScenario01LearnsACsvFeed {
     }
 
     @Test
-    void theSecondStreamOfTheShapeIsBoundWithoutLearning() {
+    void theSecondStreamOfTheLearnerIsServedWithoutLearning() {
         final Scenarios scenarios = new Scenarios();
         final Script script = scenarios.script(CSV.configuration(), XSLT)
                 .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter")
@@ -181,7 +181,7 @@ class TestScenario01LearnsACsvFeed {
         final StageRun first = scenarios.process(script, policy(), input()).learned();
         script.verifyExhausted();
 
-        // Same shape again, this time with a script that must not be consulted.
+        // Same learner again, this time with a script that must not be consulted.
         final Script silent = Script.of();
         final Input again = new Input(
                 2L, "DOOR-ACCESS", "Raw Events", Map.of("Format", "CSV", "System", "Door Access"), CSV.input());

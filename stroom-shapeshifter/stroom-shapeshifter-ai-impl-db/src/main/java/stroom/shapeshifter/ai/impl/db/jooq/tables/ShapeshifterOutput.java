@@ -70,9 +70,9 @@ public class ShapeshifterOutput extends TableImpl<ShapeshifterOutputRecord> {
     public final TableField<ShapeshifterOutputRecord, String> DOC_UUID = createField(DSL.name("doc_uuid"), SQLDataType.VARCHAR(255).nullable(false), this, "");
 
     /**
-     * The column <code>stroom.shapeshifter_output.rule_uuid</code>.
+     * The column <code>stroom.shapeshifter_output.binding_uuid</code>.
      */
-    public final TableField<ShapeshifterOutputRecord, String> RULE_UUID = createField(DSL.name("rule_uuid"), SQLDataType.VARCHAR(255).nullable(false), this, "");
+    public final TableField<ShapeshifterOutputRecord, String> BINDING_UUID = createField(DSL.name("binding_uuid"), SQLDataType.VARCHAR(255).nullable(false), this, "");
 
     /**
      * The column <code>stroom.shapeshifter_output.input_meta_id</code>.
@@ -180,7 +180,7 @@ public class ShapeshifterOutput extends TableImpl<ShapeshifterOutputRecord> {
 
     @Override
     public List<UniqueKey<ShapeshifterOutputRecord>> getUniqueKeys() {
-        return Arrays.asList(Keys.KEY_SHAPESHIFTER_OUTPUT_SHAPESHIFTER_OUTPUT_RULE_INPUT_PIPELINE);
+        return Arrays.asList(Keys.KEY_SHAPESHIFTER_OUTPUT_SHAPESHIFTER_OUTPUT_BINDING_INPUT_PIPELINE);
     }
 
     @Override

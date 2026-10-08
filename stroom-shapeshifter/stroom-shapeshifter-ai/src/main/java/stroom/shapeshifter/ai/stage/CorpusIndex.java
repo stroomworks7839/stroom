@@ -26,43 +26,43 @@ import java.util.List;
 /// database; a table in a node.
 public interface CorpusIndex {
 
-    /// A rule's rows, oldest first.
+    /// A binding's rows, oldest first.
     ///
-    /// @param ruleUuid The rule.
+    /// @param bindingUuid The binding.
     /// @return Its rows.
-    List<Row> rows(String ruleUuid);
+    List<Row> rows(String bindingUuid);
 
     /// Rows for the entries a promotion wrote, after the stream holding them is closed.
     ///
     /// @param rows The rows, in the order the entries were written.
     void add(List<Row> rows);
 
-    /// Drop a rule's oldest rows beyond the cap (A63).
+    /// Drop a binding's oldest rows beyond the cap (A63).
     ///
-    /// @param ruleUuid The rule.
-    /// @param cap      How many rows it may keep.
+    /// @param bindingUuid The binding.
+    /// @param cap         How many rows it may keep.
     /// @return The streams no row names any more, for the caller to delete.
-    List<Long> trim(String ruleUuid, int cap);
+    List<Long> trim(String bindingUuid, int cap);
 
-    /// Drop every row of a rule.
+    /// Drop every row of a binding.
     ///
-    /// @param ruleUuid The rule.
+    /// @param bindingUuid The binding.
     /// @return The streams no row names any more, for the caller to delete.
-    List<Long> discard(String ruleUuid);
+    List<Long> discard(String bindingUuid);
 
-    /// Re-key a rule's rows to another: a draft's history becomes the incumbent's on Approve, after what
+    /// Re-key a binding's rows to another: a draft's history becomes the incumbent's on Approve, after what
     /// the incumbent already holds.
     ///
-    /// @param fromRuleUuid The draft.
-    /// @param toRuleUuid   The rule it replaced.
-    void move(String fromRuleUuid, String toRuleUuid);
+    /// @param fromBindingUuid The draft.
+    /// @param toBindingUuid   The binding it replaced.
+    void move(String fromBindingUuid, String toBindingUuid);
 
     // --------------------------------------------------------------------------------
 
     /// One row.
     ///
     /// @param docUuid      The document.
-    /// @param ruleUuid     The rule.
+    /// @param bindingUuid  The binding.
     /// @param metaId       The stream holding the entry.
     /// @param segment      Which segment of it, from zero.
     /// @param kind         What the record became.
@@ -70,7 +70,7 @@ public interface CorpusIndex {
     /// @param attemptId    The attempt that accepted it, where one was open.
     /// @param acceptTimeMs When.
     record Row(String docUuid,
-               String ruleUuid,
+               String bindingUuid,
                long metaId,
                int segment,
                Kind kind,

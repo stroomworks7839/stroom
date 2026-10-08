@@ -36,7 +36,7 @@ public sealed interface Outcome {
      * @param output  What the last step produced over the sample: the translation, for a transform stage.
      * @param targets What each kind of record was to become (A31), as validated; empty under the direct
      *                conversation. They go onto the regression set at promotion as its goldens.
-     * @param boundary What one record is, as the split settled it (A35), for the rule to carry and the stage
+     * @param boundary What one record is, as the split settled it (A35), for the binding to carry and the stage
      *                 to count by; null where the input is raw text or no split was asked.
      */
     record Learned(List<LearnedStep> chain,
@@ -48,7 +48,7 @@ public sealed interface Outcome {
     }
 
     /// The attempt could not be carried through: the reason, what was learned about why, the turns so
-    /// far, and where it leaves to (A83): parked for a person, or the shape given up and its streams
+    /// far, and where it leaves to (A83): parked for a person, or the learner given up and its streams
     /// errored, which is a parser's default (A52, A54) and any step's where the flow says `goto give-up`.
     ///
     /// @param diagnostics What the last failing step reported, if a step failed; the last question's
@@ -63,7 +63,7 @@ public sealed interface Outcome {
             this(reason, diagnostics, transcript, FlowExit.PARK);
         }
 
-        /// Whether the shape is to be given up and its streams errored.
+        /// Whether the learner is to be given up and its streams errored.
         public boolean givesUp() {
             return exit == FlowExit.GIVE_UP;
         }

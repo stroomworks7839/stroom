@@ -33,7 +33,7 @@ import java.util.List;
 
 /**
  * What the document store tests share: a store over the real {@code StoreImpl} and in-memory persistence,
- * and a doc shape with a model, a rule bound to a fragment and a rule with nothing promoted yet, so that
+ * and a document with a model, a binding bound to a fragment and a binding with nothing promoted yet, so that
  * every kind of dependency the store must remap — and the absence of one — is present.
  */
 final class ShapeshifterAiFixture {

@@ -139,7 +139,7 @@ class TestRecordSkeleton {
     @Test
     void aStreamBringsItsRecordsAsTheYieldScorerCountsThem() {
         // A document brings its root's children; fragments with no root bring their lines, not zero, or the
-        // shape would bind provisionally and stay so; a JSON document is one value; text is its lines.
+        // learner would be bound provisionally and stay so; a JSON document is one value; text is its lines.
         assertThat(Stage.recordsBrought(THREE_RECORDS)).isEqualTo(3);
         assertThat(Stage.recordsBrought("<Event id=\"1\"/>\n<Event id=\"2\"/>\n<Event id=\"3\"/>\n")).isEqualTo(3);
         assertThat(Stage.recordsBrought("{\n  \"events\": [\n    {\"a\": 1},\n    {\"a\": 2}\n  ]\n}\n")).isEqualTo(1);

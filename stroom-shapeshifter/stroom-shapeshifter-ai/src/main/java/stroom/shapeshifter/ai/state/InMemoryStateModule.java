@@ -22,10 +22,10 @@ import stroom.shapeshifter.ai.stage.CorpusIndex;
 import stroom.shapeshifter.ai.stage.Deferrals;
 import stroom.shapeshifter.ai.stage.DeletedPipelines;
 import stroom.shapeshifter.ai.stage.Guidance;
+import stroom.shapeshifter.ai.stage.LearnerBindings;
 import stroom.shapeshifter.ai.stage.LearnerStates;
 import stroom.shapeshifter.ai.stage.Learners;
 import stroom.shapeshifter.ai.stage.Outputs;
-import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.ai.stage.Serving;
 import stroom.shapeshifter.ai.stage.Snapshots;
 import stroom.shapeshifter.ai.stage.Spend;
@@ -42,10 +42,10 @@ public class InMemoryStateModule extends AbstractModule {
     protected void configure() {
         super.configure();
         bind(Attempts.class).to(InMemoryAttempts.class).in(Scopes.SINGLETON);
-        // One instance behind each seam and the class itself: the serving view walks every rule, and what
+        // One instance behind each seam and the class itself: the serving view walks every binding, and what
         // brings a learner's rows to its document reaches past the seams to the rows behind them.
-        bind(InMemoryRules.class).in(Scopes.SINGLETON);
-        bind(Rules.class).to(InMemoryRules.class);
+        bind(InMemoryLearnerBindings.class).in(Scopes.SINGLETON);
+        bind(LearnerBindings.class).to(InMemoryLearnerBindings.class);
         bind(InMemoryGuidance.class).in(Scopes.SINGLETON);
         bind(Guidance.class).to(InMemoryGuidance.class);
         bind(InMemoryDeferrals.class).in(Scopes.SINGLETON);

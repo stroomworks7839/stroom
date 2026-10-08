@@ -26,22 +26,22 @@ import jakarta.inject.Inject;
 /// document, since nothing in memory lists them by one, so there is nothing of theirs to bring.
 public final class InMemoryLearners implements Learners {
 
-    private final InMemoryRules rules;
+    private final InMemoryLearnerBindings learnerBindings;
     private final InMemoryGuidance guidance;
     private final InMemoryDeferrals deferrals;
 
     @Inject
-    public InMemoryLearners(final InMemoryRules rules,
+    public InMemoryLearners(final InMemoryLearnerBindings learnerBindings,
                             final InMemoryGuidance guidance,
                             final InMemoryDeferrals deferrals) {
-        this.rules = rules;
+        this.learnerBindings = learnerBindings;
         this.guidance = guidance;
         this.deferrals = deferrals;
     }
 
     @Override
     public void runsUnder(final Learner learner, final String docUuid) {
-        rules.runsUnder(learner, docUuid);
+        learnerBindings.runsUnder(learner, docUuid);
         guidance.runsUnder(learner, docUuid);
         deferrals.runsUnder(learner, docUuid);
     }

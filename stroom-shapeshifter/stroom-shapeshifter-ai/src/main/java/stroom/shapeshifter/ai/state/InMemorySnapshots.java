@@ -38,19 +38,19 @@ public final class InMemorySnapshots implements Snapshots {
     }
 
     @Override
-    public synchronized List<Snapshot> forRule(final String ruleUuid) {
-        return snapshots.stream().filter(snapshot -> snapshot.ruleUuid().equals(ruleUuid)).toList();
+    public synchronized List<Snapshot> forBinding(final String bindingUuid) {
+        return snapshots.stream().filter(snapshot -> snapshot.bindingUuid().equals(bindingUuid)).toList();
     }
 
     @Override
-    public synchronized void discard(final String ruleUuid) {
-        snapshots.removeIf(snapshot -> snapshot.ruleUuid().equals(ruleUuid));
+    public synchronized void discard(final String bindingUuid) {
+        snapshots.removeIf(snapshot -> snapshot.bindingUuid().equals(bindingUuid));
     }
 
     @Override
-    public synchronized void move(final String fromRuleUuid, final String toRuleUuid) {
-        snapshots.replaceAll(snapshot -> snapshot.ruleUuid().equals(fromRuleUuid)
-                ? new Snapshot(snapshot.id(), snapshot.docUuid(), toRuleUuid, snapshot.fragmentUuid(),
+    public synchronized void move(final String fromBindingUuid, final String toBindingUuid) {
+        snapshots.replaceAll(snapshot -> snapshot.bindingUuid().equals(fromBindingUuid)
+                ? new Snapshot(snapshot.id(), snapshot.docUuid(), toBindingUuid, snapshot.fragmentUuid(),
                         snapshot.structure(), snapshot.code(), snapshot.versions(), snapshot.createTimeMs())
                 : snapshot);
     }

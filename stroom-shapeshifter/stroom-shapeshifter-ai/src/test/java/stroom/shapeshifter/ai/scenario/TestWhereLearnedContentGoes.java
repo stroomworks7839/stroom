@@ -22,8 +22,8 @@ import stroom.shapeshifter.ai.stage.Decision.Promoted;
 import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.Places.Place;
 import stroom.shapeshifter.ai.stage.StageRun;
+import stroom.shapeshifter.shared.Binding;
 import stroom.shapeshifter.shared.LearningMode;
-import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ScorerSetting;
 import stroom.shapeshifter.shared.ScorerType;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
@@ -56,15 +56,15 @@ class TestWhereLearnedContentGoes {
         final StageRun first = scenarios.process(script(scenarios), doc(), stream(1L)).learned();
 
         assertThat(first.decision()).isInstanceOf(Promoted.class);
-        final RoutingRule rule = ((Promoted) first.decision()).rule();
-        assertThat(rule.getPipeline().getName()).isEqualTo("DOOR-ACCESS Raw Events");
+        final Binding binding = ((Promoted) first.decision()).binding();
+        assertThat(binding.getPipeline().getName()).isEqualTo("DOOR-ACCESS Raw Events");
 
         // Taken back, and learned again: a new fragment (design 01 §7.3 rule 1), beside the first.
-        scenarios.stage(Script.of()).retract(doc(), rule.getUuid(), "The timestamps are wrong.", "jo");
+        scenarios.stage(Script.of()).retract(doc(), binding.getUuid(), "The timestamps are wrong.", "jo");
         final StageRun second = scenarios.process(script(scenarios), doc(), stream(2L)).learned();
 
         assertThat(second.decision()).isInstanceOf(Promoted.class);
-        assertThat(((Promoted) second.decision()).rule().getPipeline().getName())
+        assertThat(((Promoted) second.decision()).binding().getPipeline().getName())
                 .describedAs("the name is taken by the first, which is history and stays")
                 .isEqualTo("DOOR-ACCESS Raw Events 2");
     }
@@ -94,7 +94,7 @@ class TestWhereLearnedContentGoes {
         final StageRun learned = scenarios.process(script(scenarios), doc(), stream(1L)).learned();
 
         assertThat(learned.decision()).isInstanceOf(Promoted.class);
-        assertThat(((Promoted) learned.decision()).rule().getPipeline().getName()).isEqualTo("Door");
+        assertThat(((Promoted) learned.decision()).binding().getPipeline().getName()).isEqualTo("Door");
     }
 
     private static Script script(final Scenarios scenarios) {

@@ -70,9 +70,9 @@ public class ShapeshifterSnapshot extends TableImpl<ShapeshifterSnapshotRecord> 
     public final TableField<ShapeshifterSnapshotRecord, String> DOC_UUID = createField(DSL.name("doc_uuid"), SQLDataType.VARCHAR(255).nullable(false), this, "");
 
     /**
-     * The column <code>stroom.shapeshifter_snapshot.rule_uuid</code>.
+     * The column <code>stroom.shapeshifter_snapshot.binding_uuid</code>.
      */
-    public final TableField<ShapeshifterSnapshotRecord, String> RULE_UUID = createField(DSL.name("rule_uuid"), SQLDataType.VARCHAR(255).nullable(false), this, "");
+    public final TableField<ShapeshifterSnapshotRecord, String> BINDING_UUID = createField(DSL.name("binding_uuid"), SQLDataType.VARCHAR(255).nullable(false), this, "");
 
     /**
      * The column <code>stroom.shapeshifter_snapshot.fragment_uuid</code>.
@@ -137,7 +137,7 @@ public class ShapeshifterSnapshot extends TableImpl<ShapeshifterSnapshotRecord> 
 
     @Override
     public List<Index> getIndexes() {
-        return Arrays.asList(Indexes.SHAPESHIFTER_SNAPSHOT_SHAPESHIFTER_SNAPSHOT_RULE);
+        return Arrays.asList(Indexes.SHAPESHIFTER_SNAPSHOT_SHAPESHIFTER_SNAPSHOT_BINDING);
     }
 
     @Override

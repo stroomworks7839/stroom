@@ -64,16 +64,16 @@ import stroom.shapeshifter.ai.stage.Attempts;
 import stroom.shapeshifter.ai.stage.Attempts.Recorded;
 import stroom.shapeshifter.ai.stage.Deferrals;
 import stroom.shapeshifter.ai.stage.Learner;
+import stroom.shapeshifter.ai.stage.LearnerBindings;
 import stroom.shapeshifter.ai.stage.RegressionSet;
 import stroom.shapeshifter.ai.stage.RegressionSet.Accepted;
 import stroom.shapeshifter.ai.stage.RegressionSet.Kind;
-import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.ai.transformation.XsltStep;
 import stroom.shapeshifter.shared.AttemptStatus;
+import stroom.shapeshifter.shared.Binding;
 import stroom.shapeshifter.shared.FlowStep;
 import stroom.shapeshifter.shared.LearnedUnknown;
 import stroom.shapeshifter.shared.LearningFlow;
-import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 import stroom.test.AbstractCoreIntegrationTest;
 import stroom.test.CommonTranslationTestHelper;
@@ -160,7 +160,7 @@ class TestScenarioAStepsFourToSix extends AbstractCoreIntegrationTest {
     @Inject
     private ShapeshifterAiStore shapeshifterAiStore;
     @Inject
-    private Rules rules;
+    private LearnerBindings learnerBindings;
     @Inject
     private Attempts attempts;
     @Inject
@@ -203,7 +203,7 @@ class TestScenarioAStepsFourToSix extends AbstractCoreIntegrationTest {
         advisor.set(silent);
         commonTranslationTestHelper.process(tasks(1).get(0));
         assertThat(statusByInput()).containsEntry(first.getId(), TaskStatus.COMPLETE);
-        final RoutingRule learned = rules.forLearner(learner).get(0);
+        final Binding learned = learnerBindings.forLearner(learner).get(0);
 
         // Step 4: a stream with two kinds the transform has not met defers, and one session opens.
         final Meta mixed = rawStream(EVERY_KIND);
@@ -229,7 +229,7 @@ class TestScenarioAStepsFourToSix extends AbstractCoreIntegrationTest {
         relearning.verifyExhausted();
         final Recorded session = attempts.byId(open.get(0).id()).orElseThrow();
         assertThat(session.status()).describedAs(String.valueOf(session.decision())).isEqualTo(AttemptStatus.PROMOTED);
-        final List<RoutingRule> now = rules.forLearner(learner);
+        final List<Binding> now = learnerBindings.forLearner(learner);
         assertThat(now).hasSize(1);
         assertThat(now.get(0).getUuid()).isEqualTo(learned.getUuid());
         assertThat(now.get(0).getPipeline()).describedAs("the same pipeline, improved in place (A58)")

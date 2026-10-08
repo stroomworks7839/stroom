@@ -21,10 +21,10 @@ import java.util.Map;
 import java.util.Optional;
 
 /// The snapshots of a fragment's configuration (A61, A70): one per promotion, keyed by a version id —
-/// what a rule points at, what a deferral row is stamped with, what an output records, and what an
+/// what a binding points at, what a deferral row is stamped with, what an output records, and what an
 /// as-processed reprocess runs. A snapshot is text: the fragment's structure and each element's code, and
 /// the versions of the documents it was taken from, by which a hand edit is noticed (A72). It lives as
-/// long as its rule (A71). In-memory in scenarios; a table in a node.
+/// long as its binding (A71). In-memory in scenarios; a table in a node.
 public interface Snapshots {
 
     /// Keep a snapshot.
@@ -38,31 +38,31 @@ public interface Snapshots {
     /// @return The snapshot, where it still exists.
     Optional<Snapshot> byId(String snapshotId);
 
-    /// A rule's snapshots, oldest first.
+    /// A binding's snapshots, oldest first.
     ///
-    /// @param ruleUuid The rule.
+    /// @param bindingUuid The binding.
     /// @return Its snapshots.
-    List<Snapshot> forRule(String ruleUuid);
+    List<Snapshot> forBinding(String bindingUuid);
 
-    /// A rule has gone, and its snapshots with it (A71).
+    /// A binding has gone, and its snapshots with it (A71).
     ///
-    /// @param ruleUuid The rule.
-    void discard(String ruleUuid);
+    /// @param bindingUuid The binding.
+    void discard(String bindingUuid);
 
     /// Approve rebinds the incumbent to a draft's fragment, and the draft's snapshots become the
     /// incumbent's.
     ///
-    /// @param fromRuleUuid The draft.
-    /// @param toRuleUuid   The rule it replaced.
-    void move(String fromRuleUuid, String toRuleUuid);
+    /// @param fromBindingUuid The draft.
+    /// @param toBindingUuid   The binding it replaced.
+    void move(String fromBindingUuid, String toBindingUuid);
 
     // --------------------------------------------------------------------------------
 
     /// One snapshot.
     ///
-    /// @param id           Its id: the version a rule points at and a row is stamped with.
+    /// @param id           Its id: the version a binding points at and a row is stamped with.
     /// @param docUuid      The document.
-    /// @param ruleUuid     The rule.
+    /// @param bindingUuid  The binding.
     /// @param fragmentUuid The fragment it was taken from.
     /// @param structure    The fragment's pipeline data, as JSON.
     /// @param code         Element id to the code that element runs with.
@@ -70,7 +70,7 @@ public interface Snapshots {
     /// @param createTimeMs When it was taken.
     record Snapshot(String id,
                     String docUuid,
-                    String ruleUuid,
+                    String bindingUuid,
                     String fragmentUuid,
                     String structure,
                     Map<String, String> code,

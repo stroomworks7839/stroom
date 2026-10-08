@@ -36,7 +36,7 @@
                                 <g:FlowPanel ui:field="startSection">
                                     <form:FormGroup identity="shapeshifterAiLearningMode"
                                                     label="Learning mode"
-                                                    helpText="Whether a session may call the model at all. Disabled by default; Shapeshifter AI is opt-in per document. Disabled still serves the shapes already bound, and a shape with nothing to serve it waits.">
+                                                    helpText="Whether a session may call the model at all. Disabled by default; Shapeshifter AI is opt-in per document. Disabled still serves the learners already bound, and the streams of a learner nothing serves wait.">
                                         <l:SelectionBox ui:field="learningMode"/>
                                     </form:FormGroup>
                                     <form:FormGroup identity="shapeshifterLearningModel"

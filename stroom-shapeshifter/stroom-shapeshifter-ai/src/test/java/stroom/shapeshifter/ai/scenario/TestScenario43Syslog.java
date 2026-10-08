@@ -40,7 +40,7 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /// Design 02 §5, scenario 43 (design 03 §3): syslog in both forms — RFC 3164 and RFC 5424 — from two senders on
-/// one feed. That is one shape, so one variant must take both forms, and a splitter that handles one is sent
+/// one feed. That is one learner, so one transform must take both forms, and a splitter that handles one is sent
 /// back naming the lines it dropped. The scenario also put the record signature in the learning key, making
 /// each form its own shape; design 06 retired that, a pipeline learning one transform with a match per kind
 /// of record (A49, A104).
@@ -84,7 +84,7 @@ class TestScenario43Syslog {
 
 
     @Test
-    void scenario43OneShapeUnderTheDefaultKeyMustTakeBothForms() {
+    void scenario43OneTransformMustTakeBothForms() {
         final Scenarios scenarios = new Scenarios();
         final Script script = scenarios.script(BOTH_FORMS, XSLT)
                 .expect(QuestionMatcher.chain().withKey("Feed", FEED)).reply("DSParser -> XSLTFilter")
@@ -101,9 +101,9 @@ class TestScenario43Syslog {
         assertThat(run.decision()).describedAs(run.decision().toString()).isInstanceOf(Promoted.class);
         script.verifyExhausted();
         assertThat(run.output()).isEqualTo(EVENTS);
-        // One learner, so one rule, and one variant that handles both forms.
+        // One learner, so one binding, and one variant that handles both forms.
         assertThat(run.learner()).isEqualTo(Scenarios.LEARNER);
-        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).hasSize(1);
+        assertThat(scenarios.learnerBindings.forLearner(Scenarios.LEARNER)).hasSize(1);
         // The two forms are two kinds of record, so two targets were proposed and both configurations carried them.
         assertThat(script.asked()).filteredOn(TargetFor.class::isInstance).hasSize(2);
         assertThat(script.scripted()).hasSize(4);

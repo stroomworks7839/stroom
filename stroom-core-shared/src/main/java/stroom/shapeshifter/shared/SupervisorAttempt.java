@@ -53,7 +53,7 @@ public class SupervisorAttempt {
     @JsonProperty
     private final String decision;
     @JsonProperty
-    private final String ruleUuid;
+    private final String bindingUuid;
     @JsonProperty
     private final Double score;
     @JsonProperty
@@ -88,7 +88,7 @@ public class SupervisorAttempt {
                              @JsonProperty("promotionMode") final PromotionMode promotionMode,
                              @JsonProperty("status") final AttemptStatus status,
                              @JsonProperty("decision") final String decision,
-                             @JsonProperty("ruleUuid") final String ruleUuid,
+                             @JsonProperty("bindingUuid") final String bindingUuid,
                              @JsonProperty("score") final Double score,
                              @JsonProperty("tokensSpent") final long tokensSpent,
                              @JsonProperty("grantedTokens") final long grantedTokens,
@@ -108,7 +108,7 @@ public class SupervisorAttempt {
         this.promotionMode = promotionMode;
         this.status = status;
         this.decision = decision;
-        this.ruleUuid = ruleUuid;
+        this.bindingUuid = bindingUuid;
         this.score = score;
         this.tokensSpent = tokensSpent;
         this.grantedTokens = grantedTokens;
@@ -163,8 +163,8 @@ public class SupervisorAttempt {
         return decision;
     }
 
-    public String getRuleUuid() {
-        return ruleUuid;
+    public String getBindingUuid() {
+        return bindingUuid;
     }
 
     public Double getScore() {

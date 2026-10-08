@@ -21,11 +21,11 @@ import stroom.shapeshifter.ai.extraction.ExtractionCorpus.Golden;
 import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.Learner;
 import stroom.shapeshifter.ai.stage.Stage;
+import stroom.shapeshifter.shared.Binding;
 import stroom.shapeshifter.shared.LearningMode;
-import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ScorerSetting;
 import stroom.shapeshifter.shared.ScorerType;
-import stroom.shapeshifter.shared.ServingRule;
+import stroom.shapeshifter.shared.ServingBinding;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 import stroom.shapeshifter.shared.YieldBasis;
 import stroom.shapeshifter.shared.YieldParameters;
@@ -41,7 +41,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /// Design 06 phase J slice 2b (A114, A124): **what a learner learns is its own.**
 ///
 /// A learner is a pipeline and an element, and two of them may run under one document: what one binds,
-/// gives up or is told about a shape is nothing to the other, which meets the same feed afresh. And a
+/// gives up or is told about a learner is nothing to the other, which meets the same feed afresh. And a
 /// learner whose element is pointed at another document takes what it learned with it, since the
 /// document is only what the Supervisor lists it under and what decides who may act on it.
 class TestALearnerKeepsWhatItLearned {
@@ -57,7 +57,7 @@ class TestALearnerKeepsWhatItLearned {
         final Scenarios scenarios = new Scenarios();
         final ShapeshifterAiDoc doc = doc("doc-1", "door-access");
         scenarios.process(learn(scenarios), doc, stream(1L, Scenarios.LEARNER)).learned();
-        final RoutingRule first = scenarios.rules.forLearner(Scenarios.LEARNER).get(0);
+        final Binding first = scenarios.learnerBindings.forLearner(Scenarios.LEARNER).get(0);
         scenarios.states.giveUp(Scenarios.LEARNER, "doc-1", "Nothing to learn");
 
         final Script asked = learn(scenarios);
@@ -66,11 +66,11 @@ class TestALearnerKeepsWhatItLearned {
         assertThat(asked.asked())
                 .describedAs("the neighbour meets the feed afresh: the first learner's binding is not its own")
                 .isNotEmpty();
-        assertThat(scenarios.rules.forLearner(NEIGHBOUR))
+        assertThat(scenarios.learnerBindings.forLearner(NEIGHBOUR))
                 .describedAs("and binds its own")
                 .singleElement()
-                .satisfies(rule -> assertThat(rule.getUuid()).isNotEqualTo(first.getUuid()));
-        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER))
+                .satisfies(binding -> assertThat(binding.getUuid()).isNotEqualTo(first.getUuid()));
+        assertThat(scenarios.learnerBindings.forLearner(Scenarios.LEARNER))
                 .describedAs("leaving the first learner's as it was")
                 .containsExactly(first);
         assertThat(scenarios.states.reasonGivenUp(NEIGHBOUR))
@@ -84,7 +84,7 @@ class TestALearnerKeepsWhatItLearned {
         final ShapeshifterAiDoc before = doc("doc-1", "door-access");
         final ShapeshifterAiDoc after = doc("doc-2", "site-access");
         scenarios.process(learn(scenarios), before, stream(1L, Scenarios.LEARNER)).learned();
-        final RoutingRule bound = scenarios.rules.forLearner(Scenarios.LEARNER).get(0);
+        final Binding bound = scenarios.learnerBindings.forLearner(Scenarios.LEARNER).get(0);
         final long hint = scenarios.guidance.given(Scenarios.LEARNER, "doc-1", "Times are local.", "jo");
 
         // The element now names another document, and its next stream is served under it.
@@ -94,19 +94,19 @@ class TestALearnerKeepsWhatItLearned {
         assertThat(silent.asked())
                 .describedAs("what it learned still serves: the binding is the learner's, not the document's")
                 .isEmpty();
-        assertThat(scenarios.rules.byUuid(bound.getUuid()))
+        assertThat(scenarios.learnerBindings.byUuid(bound.getUuid()))
                 .describedAs("and the binding is kept under the document it runs under now")
                 .hasValueSatisfying(held -> assertThat(held.docUuid()).isEqualTo("doc-2"));
-        assertThat(scenarios.serving.rules(List.of("doc-2"), null, false, 0, 10).rules())
+        assertThat(scenarios.serving.bindings(List.of("doc-2"), null, false, 0, 10).bindings())
                 .describedAs("so that document's Supervisor shows what serves its pipeline")
-                .extracting(ServingRule::getRuleUuid)
+                .extracting(ServingBinding::getBindingUuid)
                 .containsExactly(bound.getUuid());
-        assertThat(scenarios.serving.rules(List.of("doc-1"), null, false, 0, 10).rules())
+        assertThat(scenarios.serving.bindings(List.of("doc-1"), null, false, 0, 10).bindings())
                 .describedAs("and the old one's no longer does")
                 .isEmpty();
         scenarios.guidance.withdraw("doc-2", hint);
         assertThat(scenarios.guidance.standing(Scenarios.LEARNER))
-                .describedAs("and what was said about its shapes, withdrawn by the document it is under now")
+                .describedAs("and what was said about its learners, withdrawn by the document it is under now")
                 .isEmpty();
 
         final Stage stage = scenarios.stage(Script.of());
@@ -114,9 +114,9 @@ class TestALearnerKeepsWhatItLearned {
                 .describedAs("the old document's editors can no longer take back what serves another's "
                              + "pipeline")
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("not a rule of this document");
+                .hasMessageContaining("not a binding of this document");
         stage.retract(after, bound.getUuid(), "Wrong.", "jo");
-        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER))
+        assertThat(scenarios.learnerBindings.forLearner(Scenarios.LEARNER))
                 .describedAs("while the new one's can")
                 .isEmpty();
     }

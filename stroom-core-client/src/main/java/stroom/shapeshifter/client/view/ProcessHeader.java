@@ -101,7 +101,7 @@ public class ProcessHeader extends Composite {
     /// The two stages, in the order a stream meets them (A110): which streams reach the document is its
     /// pipelines' filters' to say.
     public enum Stage {
-        SCORE("Score", "the bar, and the gate to a rule"),
+        SCORE("Score", "the bar, and the gate to a binding"),
         LEARN("Learn", "the flow a session walks");
 
         private final String title;

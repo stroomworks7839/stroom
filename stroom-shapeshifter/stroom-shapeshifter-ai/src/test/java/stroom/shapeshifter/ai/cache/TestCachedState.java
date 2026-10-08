@@ -20,11 +20,11 @@ import stroom.cache.impl.CacheManagerImpl;
 import stroom.docref.DocRef;
 import stroom.shapeshifter.ai.ShapeshifterAiConfig;
 import stroom.shapeshifter.ai.stage.Learner;
+import stroom.shapeshifter.ai.stage.LearnerBindings;
 import stroom.shapeshifter.ai.stage.LearnerStates;
-import stroom.shapeshifter.ai.stage.Rules;
+import stroom.shapeshifter.ai.state.InMemoryLearnerBindings;
 import stroom.shapeshifter.ai.state.InMemoryLearnerStates;
-import stroom.shapeshifter.ai.state.InMemoryRules;
-import stroom.shapeshifter.shared.RoutingRule;
+import stroom.shapeshifter.shared.Binding;
 import stroom.util.entityevent.EntityAction;
 import stroom.util.entityevent.EntityEvent;
 import stroom.util.entityevent.EntityEventBatch;
@@ -56,30 +56,31 @@ class TestCachedState {
     private final List<EntityEvent> fired = new ArrayList<>();
     private final EntityEventBus bus = new RecordingBus(fired);
     private final CacheManagerImpl cacheManager = new CacheManagerImpl();
-    private final CountingRules rows = new CountingRules();
+    private final CountingBindings rows = new CountingBindings();
     private final CountingStates stateRows = new CountingStates();
-    private final CachedRules rules = new CachedRules(rows, cacheManager, bus, ShapeshifterAiConfig::new);
+    private final CachedLearnerBindings learnerBindings = new CachedLearnerBindings(rows, cacheManager, bus,
+            ShapeshifterAiConfig::new);
     private final CachedLearnerStates states = new CachedLearnerStates(stateRows, cacheManager, bus,
             ShapeshifterAiConfig::new);
 
     @Test
     void aLearnersBindingsAreReadOnceAndHeldUntilSomethingWritesThem() {
-        rules.append(LEARNER, DOC, RoutingRule.builder().uuid("rule-1").build());
+        learnerBindings.append(LEARNER, DOC, Binding.builder().uuid("rule-1").build());
         final int afterWrite = rows.reads;
 
-        rules.forLearner(LEARNER);
-        rules.forLearner(LEARNER);
-        rules.forLearner(LEARNER);
+        learnerBindings.forLearner(LEARNER);
+        learnerBindings.forLearner(LEARNER);
+        learnerBindings.forLearner(LEARNER);
 
         assertThat(rows.reads).describedAs("one read of the rows, however many streams are served")
                 .isEqualTo(afterWrite + 1);
-        assertThat(rules.forLearner(LEARNER)).extracting(RoutingRule::getUuid).containsExactly("rule-1");
+        assertThat(learnerBindings.forLearner(LEARNER)).extracting(Binding::getUuid).containsExactly("rule-1");
 
         // What this node learns it sees at once, and every other node is told.
         fired.clear();
-        rules.append(LEARNER, DOC, RoutingRule.builder().uuid("rule-2").build());
+        learnerBindings.append(LEARNER, DOC, Binding.builder().uuid("rule-2").build());
 
-        assertThat(rules.forLearner(LEARNER)).extracting(RoutingRule::getUuid)
+        assertThat(learnerBindings.forLearner(LEARNER)).extracting(Binding::getUuid)
                 .describedAs("the node that wrote it is not reading its own stale copy")
                 .containsExactly("rule-1", "rule-2");
         assertThat(fired).describedAs("and the others are told to let go of the learner's pipeline")
@@ -89,21 +90,22 @@ class TestCachedState {
 
     @Test
     void anotherNodesWriteReachesThisOneAsAnEvent() {
-        rules.append(LEARNER, DOC, RoutingRule.builder().uuid("rule-1").build());
-        rules.append(NEIGHBOUR, DOC, RoutingRule.builder().uuid("rule-n").build());
-        assertThat(rules.forLearner(LEARNER)).hasSize(1);
-        assertThat(rules.forLearner(NEIGHBOUR)).hasSize(1);
+        learnerBindings.append(LEARNER, DOC, Binding.builder().uuid("rule-1").build());
+        learnerBindings.append(NEIGHBOUR, DOC, Binding.builder().uuid("rule-n").build());
+        assertThat(learnerBindings.forLearner(LEARNER)).hasSize(1);
+        assertThat(learnerBindings.forLearner(NEIGHBOUR)).hasSize(1);
         // Another node appends to the same learner: this node sees only the event.
-        rows.delegate.append(LEARNER, DOC, RoutingRule.builder().uuid("rule-2").build());
+        rows.delegate.append(LEARNER, DOC, Binding.builder().uuid("rule-2").build());
         final int beforeEvent = rows.reads;
 
-        assertThat(rules.forLearner(LEARNER)).describedAs("still what it was told").hasSize(1);
+        assertThat(learnerBindings.forLearner(LEARNER)).describedAs("still what it was told").hasSize(1);
 
-        rules.onChange(new EntityEvent(new DocRef(Learner.EVENT_TYPE, LEARNER.pipelineUuid()),
+        learnerBindings.onChange(new EntityEvent(new DocRef(Learner.EVENT_TYPE, LEARNER.pipelineUuid()),
                 EntityAction.CLEAR_CACHE));
 
-        assertThat(rules.forLearner(LEARNER)).describedAs("and reads again when told to").hasSize(2);
-        assertThat(rules.forLearner(NEIGHBOUR)).describedAs("another pipeline's is left as it was").hasSize(1);
+        assertThat(learnerBindings.forLearner(LEARNER)).describedAs("and reads again when told to").hasSize(2);
+        assertThat(learnerBindings.forLearner(NEIGHBOUR)).describedAs("another pipeline's is left as it was")
+                .hasSize(1);
         assertThat(rows.reads).describedAs("only the learner named was read again").isEqualTo(beforeEvent + 1);
     }
 
@@ -141,7 +143,7 @@ class TestCachedState {
     void anEventIsOfTheLearnersOwnTypeAndOnlySaysToLetGoOfACopy() {
         // Of the learner's own type: an event on the pipeline would have every node drop its merged
         // pipeline data. And CLEAR_CACHE, since nothing a person authored has changed.
-        rules.append(LEARNER, DOC, RoutingRule.builder().uuid("rule-1").build());
+        learnerBindings.append(LEARNER, DOC, Binding.builder().uuid("rule-1").build());
         states.giveUp(LEARNER, DOC, "Rejected");
 
         assertThat(fired).extracting(EntityEvent::getAction)
@@ -154,13 +156,13 @@ class TestCachedState {
     void whatTheCacheHandsOutIsNotTheRowsOwnList() {
         // One list, shared by every serving thread on the node until something invalidates it: a caller
         // that sorted or added to what it was given would corrupt the serving of every stream.
-        rules.append(LEARNER, DOC, RoutingRule.builder().uuid("rule-1").build());
+        learnerBindings.append(LEARNER, DOC, Binding.builder().uuid("rule-1").build());
 
-        final List<RoutingRule> bindings = rules.forLearner(LEARNER);
+        final List<Binding> bindings = learnerBindings.forLearner(LEARNER);
 
-        assertThatThrownBy(() -> bindings.add(RoutingRule.builder().uuid("rule-2").build()))
+        assertThatThrownBy(() -> bindings.add(Binding.builder().uuid("rule-2").build()))
                 .isInstanceOf(UnsupportedOperationException.class);
-        assertThat(rules.forLearner(LEARNER)).hasSize(1);
+        assertThat(learnerBindings.forLearner(LEARNER)).hasSize(1);
     }
 
 
@@ -192,35 +194,35 @@ class TestCachedState {
 
     /// The rows, counting what is asked of them: what a cache is for is that this number does not grow
     /// with the number of streams.
-    private static final class CountingRules implements Rules {
+    private static final class CountingBindings implements LearnerBindings {
 
-        private final InMemoryRules delegate = new InMemoryRules();
+        private final InMemoryLearnerBindings delegate = new InMemoryLearnerBindings();
         private int reads;
 
         @Override
-        public List<RoutingRule> forLearner(final Learner learner) {
+        public List<Binding> forLearner(final Learner learner) {
             reads++;
             return delegate.forLearner(learner);
         }
 
         @Override
-        public Optional<Held> byUuid(final String ruleUuid) {
-            return delegate.byUuid(ruleUuid);
+        public Optional<Held> byUuid(final String bindingUuid) {
+            return delegate.byUuid(bindingUuid);
         }
 
         @Override
-        public RoutingRule append(final Learner learner, final String docUuid, final RoutingRule rule) {
-            return delegate.append(learner, docUuid, rule);
+        public Binding append(final Learner learner, final String docUuid, final Binding binding) {
+            return delegate.append(learner, docUuid, binding);
         }
 
         @Override
-        public void replace(final Learner learner, final String docUuid, final RoutingRule rule) {
-            delegate.replace(learner, docUuid, rule);
+        public void replace(final Learner learner, final String docUuid, final Binding binding) {
+            delegate.replace(learner, docUuid, binding);
         }
 
         @Override
-        public void remove(final Learner learner, final String ruleUuid) {
-            delegate.remove(learner, ruleUuid);
+        public void remove(final Learner learner, final String bindingUuid) {
+            delegate.remove(learner, bindingUuid);
         }
     }
 
@@ -263,8 +265,8 @@ class TestCachedState {
         }
 
         @Override
-        public void awaitReview(final Learner learner, final String docUuid, final String ruleUuid) {
-            delegate.awaitReview(learner, docUuid, ruleUuid);
+        public void awaitReview(final Learner learner, final String docUuid, final String bindingUuid) {
+            delegate.awaitReview(learner, docUuid, bindingUuid);
         }
 
         @Override

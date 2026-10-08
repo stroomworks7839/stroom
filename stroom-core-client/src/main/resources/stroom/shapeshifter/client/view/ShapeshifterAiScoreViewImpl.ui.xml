@@ -9,11 +9,11 @@
             <g:north size="300">
                 <g:ScrollPanel styleName="max">
                     <g:FlowPanel styleName="form-padding form">
-                        <g:Label text="The scores: the scorers below are the bar a served record must clear — one that falls short sends its learner back to learn again while the rule keeps serving — and the judges of every candidate a session learns. The gate here decides whether what was learned becomes a rule."
+                        <g:Label text="The scores: the scorers below are the bar a served record must clear — one that falls short sends its learner back to learn again while the binding keeps serving — and the judges of every candidate a session learns. The gate here decides whether what was learned becomes a binding."
                                  styleName="flow-note"/>
                         <form:FormGroup identity="shapeshifterAiPromotionMode"
                                         label="Promotion mode"
-                                        helpText="Automatic: a candidate that passes the gate goes live. Review: it is appended as a draft rule the router skips, and the streams of its learner wait until a person approves it.">
+                                        helpText="Automatic: a candidate that passes the gate goes live. Review: it is appended as a draft binding that serves nothing, and the streams of its learner wait until a person approves it.">
                             <l:SelectionBox ui:field="promotionMode"/>
                         </form:FormGroup>
                         <form:FormGroup identity="shapeshifterAiPromotionFloor"
@@ -32,8 +32,8 @@
                             <v:ValueSpinner ui:field="minRecordsToLearn" width="80px"/>
                         </form:FormGroup>
                         <form:FormGroup identity="shapeshifterAiRegressionCap"
-                                        label="Regression records per rule"
-                                        helpText="The most previously accepted records retained per rule for the regression check.">
+                                        label="Regression records per binding"
+                                        helpText="The most previously accepted records retained per binding for the regression check.">
                             <v:ValueSpinner ui:field="regressionCap" width="80px"/>
                         </form:FormGroup>
                         <form:FormGroup identity="shapeshifterAiRegressionRetentionDays"
@@ -42,8 +42,8 @@
                             <v:ValueSpinner ui:field="regressionRetentionDays" width="80px"/>
                         </form:FormGroup>
                         <form:FormGroup identity="shapeshifterAiRelearnThreshold"
-                                        label="Flag a serving rule below (%)"
-                                        helpText="A rule whose rolling per-record score falls below this is flagged in the Supervisor's serving list. It goes on serving; a record that falls short of the bar is what sends its learner back to learn again.">
+                                        label="Flag a serving binding below (%)"
+                                        helpText="A binding whose rolling per-record score falls below this is flagged in the Supervisor's serving list. It goes on serving; a record that falls short of the bar is what sends its learner back to learn again.">
                             <v:ValueSpinner ui:field="relearnThreshold" width="80px"/>
                         </form:FormGroup>
                     </g:FlowPanel>

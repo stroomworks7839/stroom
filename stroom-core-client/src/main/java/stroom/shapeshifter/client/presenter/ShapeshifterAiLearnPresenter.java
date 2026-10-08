@@ -506,7 +506,7 @@ public class ShapeshifterAiLearnPresenter
         }
         if (step.transitionOnSpent() == null) {
             parts.add("spent " + (step.getRole() == ConfigureRole.PARSER
-                    ? "gives the shape up, the parser's default"
+                    ? "gives the learner up, the parser's default"
                     : "parks for a person"));
         }
         final String checks = step.getChecks().isEmpty()

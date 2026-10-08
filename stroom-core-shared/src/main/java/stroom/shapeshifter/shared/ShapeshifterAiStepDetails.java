@@ -34,7 +34,7 @@ import java.util.Map;
  * <p>
  * A supervisor has no single document to show as code — the Shapeshifter AI document is edited in its
  * own editor — and what a person selecting it needs to see is not text but the decision: which feed and
- * type this stream has, which rule served it, what was bound, what the scorers made of it, and what was said
+ * type this stream has, which binding served it, what was bound, what the scorers made of it, and what was said
  * to the model where it was learned. The fragment and the document are carried as {@link DocRef}s so
  * that the pane can offer them as links rather than as names.
  */
@@ -52,7 +52,7 @@ public class ShapeshifterAiStepDetails extends ElementStepDetails {
     @JsonProperty
     private final String reason;
     @JsonProperty
-    private final String ruleUuid;
+    private final String bindingUuid;
     @JsonProperty
     private final DocRef fragment;
     @JsonProperty
@@ -74,7 +74,7 @@ public class ShapeshifterAiStepDetails extends ElementStepDetails {
                                      @JsonProperty("stream") final Map<String, String> stream,
                                      @JsonProperty("decision") final String decision,
                                      @JsonProperty("reason") final String reason,
-                                     @JsonProperty("ruleUuid") final String ruleUuid,
+                                     @JsonProperty("bindingUuid") final String bindingUuid,
                                      @JsonProperty("fragment") final DocRef fragment,
                                      @JsonProperty("provisional") final boolean provisional,
                                      @JsonProperty("score") final Double score,
@@ -87,7 +87,7 @@ public class ShapeshifterAiStepDetails extends ElementStepDetails {
         this.stream = stream;
         this.decision = decision;
         this.reason = reason;
-        this.ruleUuid = ruleUuid;
+        this.bindingUuid = bindingUuid;
         this.fragment = fragment;
         this.provisional = provisional;
         this.score = score;
@@ -117,12 +117,12 @@ public class ShapeshifterAiStepDetails extends ElementStepDetails {
      * record's.
      */
     public ShapeshifterAiStepDetails withNested(final List<NestedElementData> elements) {
-        return new ShapeshifterAiStepDetails(dryRun, document, stream, decision, reason, ruleUuid,
+        return new ShapeshifterAiStepDetails(dryRun, document, stream, decision, reason, bindingUuid,
                 fragment, provisional, score, recordBoundary, verdicts, transcript, elements);
     }
 
     /**
-     * Whether this was a step rather than a run (A30). Stepping routes and serves and does nothing else,
+     * Whether this was a step rather than a run (A30). Stepping serves and does nothing else,
      * so what a stage pane shows for a stream nothing serves is what the stage <em>would</em> have done.
      */
     public boolean isDryRun() {
@@ -152,8 +152,8 @@ public class ShapeshifterAiStepDetails extends ElementStepDetails {
         return reason;
     }
 
-    public String getRuleUuid() {
-        return ruleUuid;
+    public String getBindingUuid() {
+        return bindingUuid;
     }
 
     /**
@@ -173,7 +173,7 @@ public class ShapeshifterAiStepDetails extends ElementStepDetails {
     }
 
     /**
-     * What one record was in this stream (A35), as the rule carried it; null for a chain over raw text,
+     * What one record was in this stream (A35), as the binding carried it; null for a chain over raw text,
      * where the parser's own configuration cuts the records.
      */
     public String getRecordBoundary() {

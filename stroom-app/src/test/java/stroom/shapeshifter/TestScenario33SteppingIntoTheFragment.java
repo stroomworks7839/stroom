@@ -55,11 +55,11 @@ import stroom.shapeshifter.ai.scenario.Scenarios;
 import stroom.shapeshifter.ai.scenario.Script;
 import stroom.shapeshifter.ai.scenario.Structure;
 import stroom.shapeshifter.ai.stage.Learner;
-import stroom.shapeshifter.ai.stage.Rules;
+import stroom.shapeshifter.ai.stage.LearnerBindings;
 import stroom.shapeshifter.ai.transformation.XsltStep;
+import stroom.shapeshifter.shared.Binding;
 import stroom.shapeshifter.shared.FlowExample;
 import stroom.shapeshifter.shared.LearningMode;
-import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ScorerSetting;
 import stroom.shapeshifter.shared.ScorerType;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
@@ -119,7 +119,7 @@ class TestScenario33SteppingIntoTheFragment extends AbstractProcessIntegrationTe
     @Inject
     private ShapeshifterAiStore shapeshifterAiStore;
     @Inject
-    private Rules rules;
+    private LearnerBindings learnerBindings;
     @Inject
     private PipelineStore pipelineStore;
     @Inject
@@ -154,7 +154,7 @@ class TestScenario33SteppingIntoTheFragment extends AbstractProcessIntegrationTe
         final ShapeshifterAiStepDetails details = (ShapeshifterAiStepDetails) stage.getDetails();
         assertThat(details).describedAs("with its stage pane (A30)").isNotNull();
         assertThat(details.isDryRun())
-                .describedAs("stepping is a dry run: the stage routes and serves and learns nothing")
+                .describedAs("stepping is a dry run: the stage serves and learns nothing")
                 .isTrue();
 
         final List<NestedElementData> nested = details.getNested();
@@ -235,7 +235,7 @@ class TestScenario33SteppingIntoTheFragment extends AbstractProcessIntegrationTe
     ///
     /// A stage that binds nothing emits nothing, and the stepper stops at records — a record being an
     /// `endDocument` reaching the detector below the element. So an untaught feed produced no records,
-    /// the stepper found nothing to stop at, and the pane that says *would learn*, with the shape and
+    /// the stepper found nothing to stop at, and the pane that says *would learn*, with the learner and
     /// the reason, was the one thing that could never be reached in the one case it was written for.
     ///
     /// A step is a dry run, so one empty document costs nothing and is what carries the explanation. In
@@ -267,7 +267,7 @@ class TestScenario33SteppingIntoTheFragment extends AbstractProcessIntegrationTe
         assertThat(details.getNested())
                 .describedAs("with no chain beneath it, because no chain ran")
                 .isEmpty();
-        assertThat(rules.forLearner(learner))
+        assertThat(learnerBindings.forLearner(learner))
                 .describedAs("and nothing was bound by opening the stepper on it")
                 .isEmpty();
     }
@@ -293,7 +293,7 @@ class TestScenario33SteppingIntoTheFragment extends AbstractProcessIntegrationTe
     }
 
     /**
-     * One stream through the pipeline, which teaches it: after this a rule is bound and stepping has a
+     * One stream through the pipeline, which teaches it: after this the learner is bound and stepping has a
      * fragment to open.
      */
     private void learn(final DocRef pipeline, final DocRef doc) {
@@ -322,7 +322,7 @@ class TestScenario33SteppingIntoTheFragment extends AbstractProcessIntegrationTe
         script.verifyExhausted();
         final ProcessorResult result = processOne();
         assertThat(result.getMarkerCount(Severity.ERROR, Severity.FATAL_ERROR)).isZero();
-        final List<RoutingRule> table = rules.forLearner(learner);
+        final List<Binding> table = learnerBindings.forLearner(learner);
         assertThat(table).hasSize(1);
         final PipelineDoc fragment = pipelineStore.readDocument(table.get(0).getPipeline());
         assertThat(fragment.getPipelineData().getAddedElements())

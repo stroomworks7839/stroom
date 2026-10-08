@@ -30,7 +30,7 @@ import java.util.Map;
 import java.util.Optional;
 
 /// Runs a written fragment over an input and says what each of its elements made of it: what the
-/// promotion gate judges (§7.4), and what a bound rule's stream goes through.
+/// promotion gate judges (§7.4), and what a bound stream goes through.
 ///
 /// Two implementations, and the difference matters. [PipelineFragmentRunner] runs the fragment as a
 /// pipeline — the real elements, the real pools, the real filters — and is what a node uses, so that
@@ -43,7 +43,7 @@ import java.util.Optional;
 /// stands in for is worse than no stand-in: it would pass a candidate the pipeline refuses.
 public interface FragmentRunner {
 
-    /// @param boundary What one record is in the stream (A35), as the rule carries it, for the scorers
+    /// @param boundary What one record is in the stream (A35), as the binding carries it, for the scorers
     ///                 that count records; null where none was settled.
     /// @return One attempted step per element of the chain, in chain order. A step that produced nothing
     /// leaves the later ones unrun; the caller sees that from the last step's result.
@@ -75,7 +75,7 @@ public interface FragmentRunner {
     ///
     /// @param fragment   The fragment.
     /// @param input      The stream, as bytes, UTF-8.
-    /// @param boundary   What one record is in the stream (A35), as the rule carries it; null where none
+    /// @param boundary   What one record is in the stream (A35), as the binding carries it; null where none
     ///                   was settled.
     /// @param judge      The bar, record by record.
     /// @param downstream Where records that clear the bar go; null where nothing is to be handed on.
@@ -115,7 +115,7 @@ public interface FragmentRunner {
     /// **Taken**, not read: the capture is handed over once and the runner is left holding nothing.
     ///
     /// That is the whole of the method's safety. A stage decides many things without running a fragment
-    /// at all — a draft awaiting review, a shape given up, a shape nothing binds — and
+    /// at all — a draft awaiting review, a learner given up, a learner nothing serves — and
     /// a caller that merely *read* the last capture would be handed the previous stream's chain and
     /// show it as this one's. Taking it means the second ask finds nothing, which is the truth.
     ///

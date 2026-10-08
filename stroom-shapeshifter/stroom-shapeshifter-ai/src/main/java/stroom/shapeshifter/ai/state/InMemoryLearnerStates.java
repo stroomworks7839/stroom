@@ -73,8 +73,8 @@ public final class InMemoryLearnerStates implements LearnerStates {
     }
 
     @Override
-    public synchronized void awaitReview(final Learner learner, final String docUuid, final String ruleUuid) {
-        row(learner).draft = ruleUuid;
+    public synchronized void awaitReview(final Learner learner, final String docUuid, final String bindingUuid) {
+        row(learner).draft = bindingUuid;
     }
 
     @Override

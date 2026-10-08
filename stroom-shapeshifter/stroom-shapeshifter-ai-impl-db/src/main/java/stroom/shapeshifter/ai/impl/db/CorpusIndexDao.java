@@ -28,7 +28,7 @@ import org.jooq.Record;
 
 import java.util.List;
 
-/// The corpus index of design 04 §4.1 as a table: a row per entry, keyed by rule and ordered by id, which
+/// The corpus index of design 04 §4.1 as a table: a row per entry, keyed by binding and ordered by id, which
 /// is the order the entries were accepted in.
 @Singleton
 public class CorpusIndexDao implements CorpusIndex {
@@ -41,10 +41,10 @@ public class CorpusIndexDao implements CorpusIndex {
     }
 
     @Override
-    public List<Row> rows(final String ruleUuid) {
+    public List<Row> rows(final String bindingUuid) {
         return JooqUtil.contextResult(connProvider, context -> context
                 .selectFrom(ShapeshifterCorpus.SHAPESHIFTER_CORPUS)
-                .where(ShapeshifterCorpus.SHAPESHIFTER_CORPUS.RULE_UUID.eq(ruleUuid))
+                .where(ShapeshifterCorpus.SHAPESHIFTER_CORPUS.BINDING_UUID.eq(bindingUuid))
                 .orderBy(ShapeshifterCorpus.SHAPESHIFTER_CORPUS.ID.asc())
                 .fetch(CorpusIndexDao::row));
     }
@@ -59,7 +59,7 @@ public class CorpusIndexDao implements CorpusIndex {
             for (final Row row : rows) {
                 context.insertInto(ShapeshifterCorpus.SHAPESHIFTER_CORPUS)
                         .set(ShapeshifterCorpus.SHAPESHIFTER_CORPUS.DOC_UUID, row.docUuid())
-                        .set(ShapeshifterCorpus.SHAPESHIFTER_CORPUS.RULE_UUID, row.ruleUuid())
+                        .set(ShapeshifterCorpus.SHAPESHIFTER_CORPUS.BINDING_UUID, row.bindingUuid())
                         .set(ShapeshifterCorpus.SHAPESHIFTER_CORPUS.META_ID, row.metaId())
                         .set(ShapeshifterCorpus.SHAPESHIFTER_CORPUS.SEGMENT, row.segment())
                         .set(ShapeshifterCorpus.SHAPESHIFTER_CORPUS.KIND, row.kind().name())
@@ -72,12 +72,12 @@ public class CorpusIndexDao implements CorpusIndex {
     }
 
     @Override
-    public List<Long> trim(final String ruleUuid, final int cap) {
+    public List<Long> trim(final String bindingUuid, final int cap) {
         return JooqUtil.transactionResult(connProvider, context -> {
             final List<Long> ids = context
                     .select(ShapeshifterCorpus.SHAPESHIFTER_CORPUS.ID)
                     .from(ShapeshifterCorpus.SHAPESHIFTER_CORPUS)
-                    .where(ShapeshifterCorpus.SHAPESHIFTER_CORPUS.RULE_UUID.eq(ruleUuid))
+                    .where(ShapeshifterCorpus.SHAPESHIFTER_CORPUS.BINDING_UUID.eq(bindingUuid))
                     .orderBy(ShapeshifterCorpus.SHAPESHIFTER_CORPUS.ID.asc())
                     .fetch(ShapeshifterCorpus.SHAPESHIFTER_CORPUS.ID);
             if (ids.size() <= cap) {
@@ -97,26 +97,26 @@ public class CorpusIndexDao implements CorpusIndex {
     }
 
     @Override
-    public List<Long> discard(final String ruleUuid) {
+    public List<Long> discard(final String bindingUuid) {
         return JooqUtil.transactionResult(connProvider, context -> {
             final List<Long> streams = context
                     .selectDistinct(ShapeshifterCorpus.SHAPESHIFTER_CORPUS.META_ID)
                     .from(ShapeshifterCorpus.SHAPESHIFTER_CORPUS)
-                    .where(ShapeshifterCorpus.SHAPESHIFTER_CORPUS.RULE_UUID.eq(ruleUuid))
+                    .where(ShapeshifterCorpus.SHAPESHIFTER_CORPUS.BINDING_UUID.eq(bindingUuid))
                     .fetch(ShapeshifterCorpus.SHAPESHIFTER_CORPUS.META_ID);
             context.deleteFrom(ShapeshifterCorpus.SHAPESHIFTER_CORPUS)
-                    .where(ShapeshifterCorpus.SHAPESHIFTER_CORPUS.RULE_UUID.eq(ruleUuid))
+                    .where(ShapeshifterCorpus.SHAPESHIFTER_CORPUS.BINDING_UUID.eq(bindingUuid))
                     .execute();
             return orphaned(context, streams);
         });
     }
 
     @Override
-    public void move(final String fromRuleUuid, final String toRuleUuid) {
+    public void move(final String fromBindingUuid, final String toBindingUuid) {
         JooqUtil.context(connProvider, context -> context
                 .update(ShapeshifterCorpus.SHAPESHIFTER_CORPUS)
-                .set(ShapeshifterCorpus.SHAPESHIFTER_CORPUS.RULE_UUID, toRuleUuid)
-                .where(ShapeshifterCorpus.SHAPESHIFTER_CORPUS.RULE_UUID.eq(fromRuleUuid))
+                .set(ShapeshifterCorpus.SHAPESHIFTER_CORPUS.BINDING_UUID, toBindingUuid)
+                .where(ShapeshifterCorpus.SHAPESHIFTER_CORPUS.BINDING_UUID.eq(fromBindingUuid))
                 .execute());
     }
 
@@ -136,7 +136,7 @@ public class CorpusIndexDao implements CorpusIndex {
     private static Row row(final Record row) {
         return new Row(
                 row.get(ShapeshifterCorpus.SHAPESHIFTER_CORPUS.DOC_UUID),
-                row.get(ShapeshifterCorpus.SHAPESHIFTER_CORPUS.RULE_UUID),
+                row.get(ShapeshifterCorpus.SHAPESHIFTER_CORPUS.BINDING_UUID),
                 row.get(ShapeshifterCorpus.SHAPESHIFTER_CORPUS.META_ID),
                 row.get(ShapeshifterCorpus.SHAPESHIFTER_CORPUS.SEGMENT),
                 Kind.valueOf(row.get(ShapeshifterCorpus.SHAPESHIFTER_CORPUS.KIND)),

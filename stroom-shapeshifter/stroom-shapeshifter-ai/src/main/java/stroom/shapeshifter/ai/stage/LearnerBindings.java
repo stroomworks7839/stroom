@@ -16,7 +16,7 @@
 
 package stroom.shapeshifter.ai.stage;
 
-import stroom.shapeshifter.shared.RoutingRule;
+import stroom.shapeshifter.shared.Binding;
 
 import java.util.List;
 import java.util.Optional;
@@ -28,41 +28,41 @@ import java.util.Optional;
 /// A row is the learner's (design 06 phase J slice 2b), and records the document the learner ran under
 /// when it was written, for the Supervisor to show and to decide who may see it. The serving path reads
 /// through a cache; these are the writes and the cache's source (design 01 §11.4).
-public interface Rules {
+public interface LearnerBindings {
 
     /// The learner's bindings, oldest first: the one that serves it, and any draft (A124).
     ///
     /// @param learner The learner.
     /// @return Its bindings.
-    List<RoutingRule> forLearner(Learner learner);
+    List<Binding> forLearner(Learner learner);
 
     /// The binding with this uuid, with whose it is.
     ///
-    /// @param ruleUuid The binding's uuid, which is unique across learners.
+    /// @param bindingUuid The binding's uuid, which is unique across learners.
     /// @return The row, if there is one.
-    Optional<Held> byUuid(String ruleUuid);
+    Optional<Held> byUuid(String bindingUuid);
 
     /// Add a binding to the learner's, giving it a uuid where it has none.
     ///
     /// @param learner The learner.
     /// @param docUuid The document the learner runs under.
-    /// @param rule    The binding.
+    /// @param binding The binding.
     /// @return The binding as stored, with its uuid.
-    RoutingRule append(Learner learner, String docUuid, RoutingRule rule);
+    Binding append(Learner learner, String docUuid, Binding binding);
 
     /// Replace the binding of the same uuid; one the learner does not have is added, since a promotion
     /// must not be lost because its row was pruned.
     ///
     /// @param learner The learner.
     /// @param docUuid The document the learner runs under.
-    /// @param rule    The binding.
-    void replace(Learner learner, String docUuid, RoutingRule rule);
+    /// @param binding The binding.
+    void replace(Learner learner, String docUuid, Binding binding);
 
     /// Remove a binding: a draft rejected, a binding retracted.
     ///
-    /// @param learner  The learner whose binding it is.
-    /// @param ruleUuid The binding's uuid.
-    void remove(Learner learner, String ruleUuid);
+    /// @param learner     The learner whose binding it is.
+    /// @param bindingUuid The binding's uuid.
+    void remove(Learner learner, String bindingUuid);
 
 
     // --------------------------------------------------------------------------------
@@ -72,8 +72,8 @@ public interface Rules {
     ///
     /// @param learner The learner whose binding it is.
     /// @param docUuid The document the learner ran under when it was written.
-    /// @param rule    The binding.
-    record Held(Learner learner, String docUuid, RoutingRule rule) {
+    /// @param binding The binding.
+    record Held(Learner learner, String docUuid, Binding binding) {
 
     }
 }

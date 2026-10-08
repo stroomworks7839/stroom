@@ -162,7 +162,7 @@ class TestConversation {
     }
 
     @Test
-    void asksShapeThenEachConfigurationInChainOrderAndTranslatesTheSample() {
+    void asksTheChainThenEachConfigurationInChainOrderAndTranslatesTheSample() {
         final CannedAdvisor model = new CannedAdvisor(
                 "DSParser -> XSLTFilter",
                 CannedAdvisor.fenced(CSV.configuration()),
@@ -171,12 +171,12 @@ class TestConversation {
         final Outcome outcome = conversation(model).run(policy(), SAMPLE);
 
         assertThat(model.questions()).hasSize(3);
-        final Chain shape = (Chain) model.questions().get(0);
-        assertThat(shape.allowedElements())
+        final Chain chain = (Chain) model.questions().get(0);
+        assertThat(chain.allowedElements())
                 .describedAs("the document allows four; only the two with runners are offered")
                 .containsExactly("DSParser", "XSLTFilter");
-        assertThat(shape.sample().text()).isEqualTo(CSV.input());
-        assertThat(shape.sample().headers())
+        assertThat(chain.sample().text()).isEqualTo(CSV.input());
+        assertThat(chain.sample().headers())
                 .describedAs("only the feed and type reach the model")
                 .containsExactly(
                         Map.entry(MetaFields.FIELD_FEED, "DOOR-ACCESS"),
@@ -208,7 +208,7 @@ class TestConversation {
     }
 
     @Test
-    void feedbackGoesToTheStepThatFailedAndTheShapeIsNotReAsked() {
+    void feedbackGoesToTheStepThatFailedAndTheChainIsNotReAsked() {
         final CannedAdvisor model = new CannedAdvisor(
                 "DSParser, XSLTFilter",
                 CannedAdvisor.fenced(BAD_CSV.configuration()),
@@ -251,7 +251,7 @@ class TestConversation {
     }
 
     @Test
-    void aShapeOutsideTheAllowedSetIsRefusedWithFeedback() {
+    void aChainOutsideTheAllowedSetIsRefusedWithFeedback() {
         final CannedAdvisor model = new CannedAdvisor(
                 "CombinedParser",
                 "DSParser",
@@ -269,7 +269,7 @@ class TestConversation {
     }
 
     @Test
-    void theShapeQuestionIsSkippedWhenOneElementIsAllowed() {
+    void theChainQuestionIsSkippedWhenOneElementIsAllowed() {
         final CannedAdvisor model = new CannedAdvisor(CannedAdvisor.fenced(XSLT));
         final ShapeshifterAiDoc transformOnly = policy().copy().allowedElements(List.of("XSLTFilter")).build();
 
@@ -348,7 +348,7 @@ class TestConversation {
     }
 
     @Test
-    void aRunOnlyElementThatFailsIsARunFailureAndItsStepMayRouteOnSpent() {
+    void aRunOnlyElementThatFailsIsARunFailureAndItsStepMayGoOnSpent() {
         // No configuration was asked for, so nothing failed to compile: the outcome is run-failed, and the one
         // run is the step's only candidate, so 'on spent' is where the flow says to go from it.
         final StepRunner failing = new StepRunner() {

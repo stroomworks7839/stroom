@@ -13,13 +13,13 @@ import org.jooq.impl.DSL;
 import org.jooq.impl.SchemaImpl;
 
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterAttempt;
+import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterBinding;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterCorpus;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterDeferral;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterDeletedPipeline;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterGuidance;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterLearnerState;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterOutput;
-import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterRule;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterSnapshot;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterSpend;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterTurn;
@@ -42,6 +42,11 @@ public class Stroom extends SchemaImpl {
      * The table <code>stroom.shapeshifter_attempt</code>.
      */
     public final ShapeshifterAttempt SHAPESHIFTER_ATTEMPT = ShapeshifterAttempt.SHAPESHIFTER_ATTEMPT;
+
+    /**
+     * The table <code>stroom.shapeshifter_binding</code>.
+     */
+    public final ShapeshifterBinding SHAPESHIFTER_BINDING = ShapeshifterBinding.SHAPESHIFTER_BINDING;
 
     /**
      * The table <code>stroom.shapeshifter_corpus</code>.
@@ -72,11 +77,6 @@ public class Stroom extends SchemaImpl {
      * The table <code>stroom.shapeshifter_output</code>.
      */
     public final ShapeshifterOutput SHAPESHIFTER_OUTPUT = ShapeshifterOutput.SHAPESHIFTER_OUTPUT;
-
-    /**
-     * The table <code>stroom.shapeshifter_rule</code>.
-     */
-    public final ShapeshifterRule SHAPESHIFTER_RULE = ShapeshifterRule.SHAPESHIFTER_RULE;
 
     /**
      * The table <code>stroom.shapeshifter_snapshot</code>.
@@ -110,13 +110,13 @@ public class Stroom extends SchemaImpl {
     public final List<Table<?>> getTables() {
         return Arrays.asList(
             ShapeshifterAttempt.SHAPESHIFTER_ATTEMPT,
+            ShapeshifterBinding.SHAPESHIFTER_BINDING,
             ShapeshifterCorpus.SHAPESHIFTER_CORPUS,
             ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL,
             ShapeshifterDeletedPipeline.SHAPESHIFTER_DELETED_PIPELINE,
             ShapeshifterGuidance.SHAPESHIFTER_GUIDANCE,
             ShapeshifterLearnerState.SHAPESHIFTER_LEARNER_STATE,
             ShapeshifterOutput.SHAPESHIFTER_OUTPUT,
-            ShapeshifterRule.SHAPESHIFTER_RULE,
             ShapeshifterSnapshot.SHAPESHIFTER_SNAPSHOT,
             ShapeshifterSpend.SHAPESHIFTER_SPEND,
             ShapeshifterTurn.SHAPESHIFTER_TURN

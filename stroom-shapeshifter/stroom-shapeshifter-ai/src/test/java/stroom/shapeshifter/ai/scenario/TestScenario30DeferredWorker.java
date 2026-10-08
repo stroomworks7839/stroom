@@ -41,7 +41,7 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Design 02 §5, scenario 30 (A5, A28): deferred learning. A stream of an unknown shape in a deferred
+ * Design 02 §5, scenario 30 (A5, A28): deferred learning. A stream for a learner that knows nothing in a deferred
  * document costs its task a sentinel and no model call — the attempt is opened and parked at its first
  * question — and the worker carries it on outside the task. What it promotes wakes its pipeline as any
  * other promotion does, so the streams that waited are tried again.
@@ -101,11 +101,11 @@ class TestScenario30DeferredWorker {
         assertThat(parked.turns().get(0).answeredBy()).isNull();
         assertThat(scenarios.deferrals.forDocument(DOC)).describedAs("the stream waits, on a row").hasSize(1);
 
-        // A second stream of the shape while it waits: held behind the same attempt, not a second.
+        // A second stream of the learner while it waits: held behind the same attempt, not a second.
         final Input second = scenarios.inputs.put(stream(2L));
         assertThat(scenarios.stage(Script.of()).decide(doc, Scenarios.LEARNER,
                 second).decision()).isInstanceOf(Deferred.class);
-        assertThat(scenarios.attempts.forDocument(DOC, 10)).describedAs("one attempt for one shape").hasSize(1);
+        assertThat(scenarios.attempts.forDocument(DOC, 10)).describedAs("one attempt for one learner").hasSize(1);
         assertThat(scenarios.deferrals.forDocument(DOC)).hasSize(2);
 
         // The worker carries it on, against the script the task never asked.
@@ -119,9 +119,9 @@ class TestScenario30DeferredWorker {
         assertThat(finished.turns()).describedAs("every turn of it, asked by the worker").isNotEmpty();
         assertThat(finished.turns()).allSatisfy(turn ->
                 assertThat(turn.answer()).describedAs("and every one answered now").isNotNull());
-        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).hasSize(1);
+        assertThat(scenarios.learnerBindings.forLearner(Scenarios.LEARNER)).hasSize(1);
 
-        // And the promotion wakes what waited on the shape.
+        // And the promotion wakes what waited on the learner.
         assertThat(scenarios.wake.woken()).extracting(Deferral::inputId).containsExactly(1L, 2L);
 
         // Nothing is left awaiting, so a second pass has nothing to do.
@@ -129,8 +129,8 @@ class TestScenario30DeferredWorker {
     }
 
     @Test
-    void aStreamOfALearnedShapeIsServedInTheTask() {
-        // Once the shape is bound, the task binds it with no model call and no worker.
+    void aStreamOfABoundLearnerIsServedInTheTask() {
+        // Once the learner is bound, the task serves it with no model call and no worker.
         final Scenarios scenarios = new Scenarios();
         final ShapeshifterAiDoc doc = scenarios.documents.put(deferred());
         scenarios.inputs.put(stream(1L));
@@ -146,8 +146,8 @@ class TestScenario30DeferredWorker {
     }
 
     @Test
-    void aBoundShapeMarkedByHandIsStillServedByTheTaskWhileItsSessionOpens() {
-        // A29, A60 and A100 together: a shape a person marked for relearning is served by its incumbent as
+    void aBoundLearnerMarkedByHandIsStillServedByTheTaskWhileItsSessionOpens() {
+        // A29, A60 and A100 together: a learner a person marked for relearning is served by its incumbent as
         // every stream of it is, and the task asks nothing; its next stream that brings enough records
         // opens the relearning session, parked for the worker.
         final Scenarios scenarios = new Scenarios();
@@ -175,7 +175,7 @@ class TestScenario30DeferredWorker {
     @Test
     void anAttemptWhoseStreamOrDocumentIsGoneIsAbandonedRatherThanWaitingForEver() {
         // The worker re-walks the conversation over the sample, and the sample is the stream (A45): a stream
-        // aged off leaves nothing to carry on from, and a shape whose attempt waits for ever is a shape
+        // aged off leaves nothing to carry on from, and a learner whose attempt waits for ever is a learner
         // nothing else may learn.
         final Scenarios scenarios = new Scenarios();
         final ShapeshifterAiDoc doc = scenarios.documents.put(deferred());
@@ -192,7 +192,7 @@ class TestScenario30DeferredWorker {
         assertThat(abandoned.status()).isEqualTo(AttemptStatus.ABANDONED);
         assertThat(abandoned.decision()).contains("no longer held");
 
-        // The shape is free again: the next stream of it opens an attempt of its own.
+        // The learner is free again: the next stream of it opens an attempt of its own.
         scenarios.inputs.put(stream(4L));
         scenarios.stage(Script.of()).decide(doc, Scenarios.LEARNER, stream(4L));
         assertThat(scenarios.attempts.forDocument(DOC, 10)).hasSize(2);
@@ -204,34 +204,35 @@ class TestScenario30DeferredWorker {
     }
 
     @Test
-    void aShapeNobodyWantsLearnedAnyMoreIsNotLearnedByTheWorker() {
-        // An attempt may wait a long while, and the shape is not as it left it: an operator may have
+    void aLearnerNobodyWantsLearningAnyMoreIsNotCarriedOnByTheWorker() {
+        // An attempt may wait a long while, and the learner is not as it left it: an operator may have
         // turned learning off, or it may have been given up. Whatever the attempt
-        // was learning towards is not wanted now, so it is closed rather than carried on into a rule
+        // was learning towards is not wanted now, so it is closed rather than carried on into a binding
         // nobody asked for.
         final Scenarios scenarios = new Scenarios();
         final ShapeshifterAiDoc doc = scenarios.documents.put(deferred());
         scenarios.inputs.put(stream(1L));
         scenarios.stage(Script.of()).decide(doc, Scenarios.LEARNER, stream(1L));
         final Recorded parked = scenarios.attempts.forDocument(DOC, 10).get(0);
-        // A person gives the shape up while it waits.
+        // A person gives the learner up while it waits.
         scenarios.states.giveUp(Scenarios.LEARNER, DOC, "Not wanted");
 
         final Script script = learning(scenarios);
         assertThat(scenarios.worker(script).advance(10)).isZero();
 
-        assertThat(script.asked()).describedAs("the model is not asked for a shape nobody wants").isEmpty();
+        assertThat(script.asked()).describedAs("the model is not asked for a learner nobody wants").isEmpty();
         final Recorded closed = scenarios.attempts.byId(parked.id()).orElseThrow();
         assertThat(closed.status()).isEqualTo(AttemptStatus.ABANDONED);
         assertThat(closed.decision()).contains("Given up: Not wanted");
-        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).describedAs("and no rule was written").isEmpty();
+        assertThat(scenarios.learnerBindings.forLearner(Scenarios.LEARNER))
+                .describedAs("and no binding was written").isEmpty();
     }
 
     @Test
     void anAttemptWhoseClaimLapsedWhileNobodyCarriedItIsStillCarriedOn() {
         // The claim's expiry says who may carry an attempt, not whether it is still wanted: nobody is
         // behind a parked attempt, so there is nothing to take it from. A worker that was down while the
-        // claim lapsed must still pick it up, or the shape waits for a stream that may never come.
+        // claim lapsed must still pick it up, or the learner waits for a stream that may never come.
         final Scenarios scenarios = new Scenarios();
         final ShapeshifterAiDoc doc = scenarios.documents.put(deferred());
         scenarios.inputs.put(stream(1L));
@@ -240,7 +241,7 @@ class TestScenario30DeferredWorker {
         scenarios.attempts.heartbeat(parked.id(), Scenarios.NOW.toEpochMilli() - 1);
 
         assertThat(scenarios.worker(learning(scenarios)).advance(10))
-                .describedAs("still waiting, and still the only attempt for its shape").isEqualTo(1);
+                .describedAs("still waiting, and still the only attempt for its learner").isEqualTo(1);
 
         assertThat(scenarios.attempts.byId(parked.id()).orElseThrow().status())
                 .isEqualTo(AttemptStatus.PROMOTED);
@@ -270,7 +271,7 @@ class TestScenario30DeferredWorker {
         assertThat(advanced).describedAs("the good one behind the bad").isEqualTo(1);
         assertThat(scenarios.attempts.byId(first.id()).orElseThrow().status())
                 .isEqualTo(AttemptStatus.ABANDONED);
-        assertThat(scenarios.rules.forLearner(second)).hasSize(1);
+        assertThat(scenarios.learnerBindings.forLearner(second)).hasSize(1);
         assertThat(scenarios.wake.woken()).extracting(Deferral::inputId).containsExactly(2L);
     }
 }

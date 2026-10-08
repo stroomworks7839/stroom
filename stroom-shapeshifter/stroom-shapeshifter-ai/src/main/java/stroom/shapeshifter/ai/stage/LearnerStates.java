@@ -22,7 +22,7 @@ import java.util.OptionalDouble;
 /// A learner's learning state (A117, A124), one row per learner: whether it has given up and why,
 /// whether it is marked to learn again and why, the rolling per-record score of design 01 §5 kept for the
 /// Supervisor, and the draft awaiting review (A25). The binding that serves the learner is its one binding
-/// that is not a draft, in [Rules]. A row records the document the learner runs under, for the
+/// that is not a draft, in [LearnerBindings]. A row records the document the learner runs under, for the
 /// Supervisor; reads name the learner, and writes name the document as well. In memory in scenarios; the
 /// `shapeshifter_learner_state` table in a node.
 public interface LearnerStates {
@@ -64,10 +64,10 @@ public interface LearnerStates {
 
     /// A draft was written for the learner and waits for Approve or Reject (A25).
     ///
-    /// @param learner  The learner.
-    /// @param docUuid  The document it runs under.
-    /// @param ruleUuid The draft's uuid.
-    void awaitReview(Learner learner, String docUuid, String ruleUuid);
+    /// @param learner     The learner.
+    /// @param docUuid     The document it runs under.
+    /// @param bindingUuid The draft's uuid.
+    void awaitReview(Learner learner, String docUuid, String bindingUuid);
 
     /// @param learner The learner.
     /// @return The draft awaiting review for the learner, if there is one.

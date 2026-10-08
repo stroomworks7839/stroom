@@ -64,7 +64,7 @@ import stroom.shapeshifter.ai.stage.Attempts.Recorded;
 import stroom.shapeshifter.ai.stage.Deferrals;
 import stroom.shapeshifter.ai.stage.Deferrals.Deferral;
 import stroom.shapeshifter.ai.stage.Learner;
-import stroom.shapeshifter.ai.stage.Rules;
+import stroom.shapeshifter.ai.stage.LearnerBindings;
 import stroom.shapeshifter.ai.transformation.XsltStep;
 import stroom.shapeshifter.shared.AttemptStatus;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
@@ -137,7 +137,7 @@ class TestScenarioAFromNothingToServed extends AbstractCoreIntegrationTest {
     @Inject
     private ShapeshifterAiStore shapeshifterAiStore;
     @Inject
-    private Rules rules;
+    private LearnerBindings learnerBindings;
     @Inject
     private Attempts attempts;
     @Inject
@@ -190,9 +190,9 @@ class TestScenarioAFromNothingToServed extends AbstractCoreIntegrationTest {
         final List<Deferral> waiting = deferrals.forDocument(document.getUuid());
         assertThat(waiting).extracting(Deferral::inputId).containsExactly(first.getId(), second.getId());
         assertThat(waiting).allSatisfy(row -> {
-            assertThat(row.failedAgainst()).describedAs("no rule to have failed against").isNull();
+            assertThat(row.failedAgainst()).describedAs("no binding to have failed against").isNull();
         });
-        assertThat(rules.forLearner(learner)).isEmpty();
+        assertThat(learnerBindings.forLearner(learner)).isEmpty();
 
         // Step 2: the worker carries the session on the stream it was raised on. The promotion writes
         // the pipeline and wakes both tasks: back to CREATED ahead of the retry delay.
@@ -201,7 +201,7 @@ class TestScenarioAFromNothingToServed extends AbstractCoreIntegrationTest {
         deferredLearning.exec();
         script.verifyExhausted();
         assertThat(attempts.byId(open.get(0).id()).orElseThrow().status()).isEqualTo(AttemptStatus.PROMOTED);
-        assertThat(rules.forLearner(learner)).hasSize(1);
+        assertThat(learnerBindings.forLearner(learner)).hasSize(1);
         assertThat(statusByInput()).containsEntry(first.getId(), TaskStatus.CREATED)
                 .containsEntry(second.getId(), TaskStatus.CREATED);
 

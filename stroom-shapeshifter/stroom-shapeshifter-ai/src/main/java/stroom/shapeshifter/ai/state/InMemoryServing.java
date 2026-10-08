@@ -18,12 +18,12 @@ package stroom.shapeshifter.ai.state;
 
 import stroom.shapeshifter.ai.stage.DeletedPipelines;
 import stroom.shapeshifter.ai.stage.Guidance;
+import stroom.shapeshifter.ai.stage.LearnerBindings.Held;
 import stroom.shapeshifter.ai.stage.LearnerStates;
-import stroom.shapeshifter.ai.stage.Rules.Held;
 import stroom.shapeshifter.ai.stage.Serving;
+import stroom.shapeshifter.shared.Binding;
 import stroom.shapeshifter.shared.LearnerRef;
-import stroom.shapeshifter.shared.RoutingRule;
-import stroom.shapeshifter.shared.ServingRule;
+import stroom.shapeshifter.shared.ServingBinding;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 import stroom.util.shared.NullSafe;
 
@@ -39,29 +39,29 @@ import java.util.Optional;
  * The serving view over the three in-memory seams: what a node's query does as a join, done here in
  * Java. The node reads the same answer from one statement, and an agreement test holds the two to it.
  * <p>
- * Every rule of every learner is walked, which is what makes this the in-memory one: the point of
+ * Every binding of every learner is walked, which is what makes this the in-memory one: the point of
  * the node's query is that it never does that.
  */
 public final class InMemoryServing implements Serving {
 
-    private final InMemoryRules rules;
+    private final InMemoryLearnerBindings learnerBindings;
     private final LearnerStates states;
     private final Guidance guidance;
     private final DeletedPipelines deletedPipelines;
 
     @Inject
-    public InMemoryServing(final InMemoryRules rules,
+    public InMemoryServing(final InMemoryLearnerBindings learnerBindings,
                            final LearnerStates states,
                            final Guidance guidance,
                            final DeletedPipelines deletedPipelines) {
-        this.rules = rules;
+        this.learnerBindings = learnerBindings;
         this.states = states;
         this.guidance = guidance;
         this.deletedPipelines = deletedPipelines;
     }
 
     @Override
-    public Page rules(final Collection<String> docUuids,
+    public Page bindings(final Collection<String> docUuids,
                       final Double below,
                       final boolean showDeleted,
                       final long offset,
@@ -69,45 +69,45 @@ public final class InMemoryServing implements Serving {
         if (NullSafe.isEmptyCollection(docUuids)) {
             return new Page(List.of(), 0L);
         }
-        final List<ServingRule> matched = new ArrayList<>();
-        for (final Held held : rules.all()) {
+        final List<ServingBinding> matched = new ArrayList<>();
+        for (final Held held : learnerBindings.all()) {
             final boolean deleted = deletedPipelines.isDeleted(held.learner().pipelineUuid());
             if (docUuids.contains(held.docUuid()) && (showDeleted || !deleted)) {
-                final ServingRule serving = serving(held, below, deleted);
+                final ServingBinding serving = serving(held, below, deleted);
                 if (serving != null) {
                     matched.add(serving);
                 }
             }
         }
-        // Most traffic first, and where two carry the same — which is routine, since every rule that has
-        // served nothing carries none — the rule's own uuid, so that the list does not reshuffle between
+        // Most traffic first, and where two carry the same — which is routine, since every binding that has
+        // served nothing carries none — the binding's own uuid, so that the list does not reshuffle between
         // one page and the next. The same tiebreaker as the node's query, and for the same reason.
-        matched.sort(Comparator.comparingInt(ServingRule::getRecords).reversed()
-                .thenComparing(ServingRule::getRuleUuid));
+        matched.sort(Comparator.comparingInt(ServingBinding::getRecords).reversed()
+                .thenComparing(ServingBinding::getBindingUuid));
         final int from = (int) Math.min(Math.max(offset, 0L), matched.size());
         final int to = Math.min(from + Math.max(limit, 0), matched.size());
         return new Page(List.copyOf(matched.subList(from, to)), matched.size());
     }
 
-    /// One rule as the view shows it, or null where it is not one the view shows: a draft is decided
+    /// One binding as the view shows it, or null where it is not one the view shows: a draft is decided
     /// rather than improved (A25).
-    private ServingRule serving(final Held held, final Double below, final boolean deleted) {
-        final RoutingRule rule = held.rule();
-        if (rule.isDraft()) {
+    private ServingBinding serving(final Held held, final Double below, final boolean deleted) {
+        final Binding binding = held.binding();
+        if (binding.isDraft()) {
             return null;
         }
         final Optional<LearnerStates.Rolling> rolling = states.rolling(held.learner());
         if (below != null && (rolling.isEmpty() || rolling.get().score() >= below)) {
             return null;
         }
-        return new ServingRule(
+        return new ServingBinding(
                 ShapeshifterAiDoc.buildDocRef().uuid(held.docUuid()).build(),
                 new LearnerRef(held.learner().pipelineUuid(), held.learner().elementId()),
-                rule.getUuid(),
-                rule.getPipeline(),
-                rule.isProvisional(),
-                rule.getScore(),
-                rule.getPromotedTimeMs(),
+                binding.getUuid(),
+                binding.getPipeline(),
+                binding.isProvisional(),
+                binding.getScore(),
+                binding.getPromotedTimeMs(),
                 rolling.map(LearnerStates.Rolling::score).orElse(null),
                 rolling.map(LearnerStates.Rolling::records).orElse(0),
                 guidance.standing(held.learner()).size(),

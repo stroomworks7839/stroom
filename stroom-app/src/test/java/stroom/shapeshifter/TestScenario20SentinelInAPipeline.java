@@ -34,19 +34,19 @@ import stroom.processor.shared.CreateProcessFilterRequest;
 import stroom.processor.shared.QueryData;
 import stroom.query.api.ExpressionOperator;
 import stroom.query.api.ExpressionTerm.Condition;
-import stroom.shapeshifter.ai.cache.CachedRules;
+import stroom.shapeshifter.ai.cache.CachedLearnerBindings;
 import stroom.shapeshifter.ai.cache.Rows;
 import stroom.shapeshifter.ai.doc.ShapeshifterAiStore;
 import stroom.shapeshifter.ai.element.ShapeshifterAiParser;
 import stroom.shapeshifter.ai.extraction.ExtractionCorpus.Golden;
 import stroom.shapeshifter.ai.impl.db.DeferralsDao;
-import stroom.shapeshifter.ai.impl.db.RulesDao;
+import stroom.shapeshifter.ai.impl.db.LearnerBindingsDao;
 import stroom.shapeshifter.ai.scenario.AdvisorHolder;
 import stroom.shapeshifter.ai.scenario.Scenarios;
 import stroom.shapeshifter.ai.scenario.Script;
 import stroom.shapeshifter.ai.stage.Deferrals;
 import stroom.shapeshifter.ai.stage.Learner;
-import stroom.shapeshifter.ai.stage.Rules;
+import stroom.shapeshifter.ai.stage.LearnerBindings;
 import stroom.shapeshifter.shared.LearningMode;
 import stroom.test.AbstractCoreIntegrationTest;
 import stroom.test.CommonTranslationTestHelper;
@@ -95,12 +95,12 @@ class TestScenario20SentinelInAPipeline extends AbstractCoreIntegrationTest {
     @Inject
     private AdvisorHolder advisor;
     @Inject
-    private Rules rules;
+    private LearnerBindings learnerBindings;
     @Inject
     private Deferrals deferrals;
     @Inject
     @Rows
-    private Rules ruleRows;
+    private LearnerBindings bindingRows;
     @Inject
     private Provider<ProcessorConfig> processorConfigProvider;
 
@@ -113,9 +113,9 @@ class TestScenario20SentinelInAPipeline extends AbstractCoreIntegrationTest {
     @Test
     void scenario20AStreamNothingServesWaitsOnARow() {
         // This harness is the node's own wiring, so the seams are the tables of A26 and not one node's
-        // heap — the routing table behind the cache a node reads it through (design 01 §12 item 8).
-        assertThat(rules).isInstanceOf(CachedRules.class);
-        assertThat(ruleRows).isInstanceOf(RulesDao.class);
+        // heap — the bindings behind the cache a node reads them through (design 01 §12 item 8).
+        assertThat(learnerBindings).isInstanceOf(CachedLearnerBindings.class);
+        assertThat(bindingRows).isInstanceOf(LearnerBindingsDao.class);
         final DocRef feed = storeCreationTool.getOrCreateFeedDoc(FEED);
         final DocRef doc = document();
         final DocRef pipeline = pipeline(feed, doc);
@@ -146,7 +146,7 @@ class TestScenario20SentinelInAPipeline extends AbstractCoreIntegrationTest {
         assertThat(metaService.find(FindMetaCriteria.createWithType(StreamTypeNames.EVENTS)).getValues())
                 .describedAs("no output stream: the stage bound nothing")
                 .isEmpty();
-        assertThat(rules.forLearner(learner)).describedAs("and wrote no rule").isEmpty();
+        assertThat(learnerBindings.forLearner(learner)).describedAs("and wrote no binding").isEmpty();
 
         // The deferral names the input, in a row, under the learner whose pipeline a promotion wakes (A129).
         assertThat(deferrals).isInstanceOf(DeferralsDao.class);

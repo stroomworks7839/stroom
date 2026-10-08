@@ -22,9 +22,9 @@ import stroom.docstore.shared.DocDataType;
 import stroom.importexport.api.ByteArrayImportExportAsset;
 import stroom.importexport.api.ImportExportDocument;
 import stroom.pipeline.shared.PipelineDoc;
+import stroom.shapeshifter.shared.Binding;
 import stroom.shapeshifter.shared.FlowExample;
 import stroom.shapeshifter.shared.LearningFlow;
-import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 import stroom.shapeshifter.shared.Template;
 import stroom.util.json.JsonUtil;
@@ -122,16 +122,16 @@ class TestShapeshifterAiSerialiser {
         assertThat(read.getTemplates()).containsEntry(Template.CHAIN, "Pick");
     }
 
-    /// A document that learned before its rules were rows (A41) carried them in its JSON. They selected
-    /// by a selector that no longer means anything and named no learner, so they have nowhere to go
+    /// A document that learned before its bindings were rows (A41) carried them in its JSON. They chose
+    /// their streams in a way that no longer means anything and named no learner, so they have nowhere to go
     /// (design 06 phase J slice 2b): the document reads without them, rather than failing to open.
     @Test
-    void aDocumentThatCarriedItsRulesReadsWithoutThem() throws IOException {
+    void aDocumentThatCarriedItsBindingsReadsWithoutThem() throws IOException {
         final ImportExportDocument written = serialiser.write(
                 ShapeshifterAiDoc.builder().uuid("d").name("door").build());
         final ObjectNode json = (ObjectNode) JsonUtil.getMapper().readTree(written.getExtAssetData("meta"));
         final ArrayNode table = json.putArray("routingTable");
-        table.add(JsonUtil.getMapper().valueToTree(RoutingRule.builder()
+        table.add(JsonUtil.getMapper().valueToTree(Binding.builder()
                 .uuid("rule-1")
                 .pipeline(new DocRef(PipelineDoc.TYPE, "fragment-1", "door-v1"))
                 .score(0.97)

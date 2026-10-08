@@ -19,7 +19,7 @@ package stroom.shapeshifter.ai.stage;
 import stroom.docref.DocRef;
 import stroom.shapeshifter.ai.scenario.Scenarios;
 import stroom.shapeshifter.ai.scenario.Script;
-import stroom.shapeshifter.shared.RoutingRule;
+import stroom.shapeshifter.shared.Binding;
 
 import org.junit.jupiter.api.Test;
 
@@ -74,11 +74,11 @@ class TestTheSweepWakesEachPipelineOnce {
 
     private static void bind(final Scenarios scenarios,
                              final Learner learner,
-                             final String ruleUuid,
+                             final String bindingUuid,
                              final String snapshot,
                              final boolean draft) {
-        scenarios.rules.append(learner, DOC, RoutingRule.builder()
-                .uuid(ruleUuid)
+        scenarios.learnerBindings.append(learner, DOC, Binding.builder()
+                .uuid(bindingUuid)
                 .pipeline(FRAGMENT)
                 .snapshot(snapshot)
                 .draft(draft)

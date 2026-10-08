@@ -51,13 +51,13 @@ import stroom.shapeshifter.ai.stage.Decision;
 import stroom.shapeshifter.ai.stage.Decision.Kept;
 import stroom.shapeshifter.ai.stage.Decision.Rebound;
 import stroom.shapeshifter.ai.stage.Learner;
+import stroom.shapeshifter.ai.stage.LearnerBindings;
 import stroom.shapeshifter.ai.stage.RegressionSet;
 import stroom.shapeshifter.ai.stage.RegressionSet.Accepted;
 import stroom.shapeshifter.ai.stage.RegressionSet.Kind;
-import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.ai.transformation.XsltStep;
+import stroom.shapeshifter.shared.Binding;
 import stroom.shapeshifter.shared.ExtractionQualityParameters;
-import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ScorerSetting;
 import stroom.shapeshifter.shared.ScorerType;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
@@ -83,7 +83,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /// Design 02 §5, scenario 53 at Tier 2 — design 04 §7, phase 3's exit: **the corpus is durable.**
 ///
-/// A rule is learned in a processor task on a real feed, and what it was accepted on is written where a
+/// A binding is learned in a processor task on a real feed, and what it was accepted on is written where a
 /// node keeps it: a stream on the source feed, of the corpus's own type, one entry per segment, with a
 /// row per entry in the database naming the stream and the segment. Nothing of it is held in memory by
 /// anything — the stored set reads the rows and the stream every time it is asked — so a stage built
@@ -116,7 +116,7 @@ class TestScenario53TheCorpusSurvivesARestart extends AbstractProcessIntegration
     @Inject
     private PipelineStore pipelineStore;
     @Inject
-    private Rules rules;
+    private LearnerBindings learnerBindings;
     @Inject
     private RegressionSet regressionSet;
     @Inject
@@ -135,7 +135,7 @@ class TestScenario53TheCorpusSurvivesARestart extends AbstractProcessIntegration
     private Provider<StageFactory> stageFactories;
 
     @Test
-    void whatATaskAcceptedARuleOnIsThereForTheNextSessionAndHoldsIt() {
+    void whatATaskAcceptedABindingOnIsThereForTheNextSessionAndHoldsIt() {
         storeCreationTool.getOrCreateFeedDoc(FEED);
         final DocRef document = document();
         filter(pipeline(document));
@@ -147,16 +147,16 @@ class TestScenario53TheCorpusSurvivesARestart extends AbstractProcessIntegration
         deferredLearning.exec();
         final ProcessorResult result = processOne();
         assertThat(result.getMarkerCount(Severity.ERROR, Severity.FATAL_ERROR)).isZero();
-        final RoutingRule rule = rules.forLearner(learner).get(0);
+        final Binding binding = learnerBindings.forLearner(learner).get(0);
 
         // Where a node keeps it: one stream of the corpus's type on the source feed, a line per entry.
         final List<Meta> corpusStreams = corpusStreams();
         assertThat(corpusStreams).hasSize(1);
         assertThat(corpusStreams.get(0).getFeedName()).isEqualTo(FEED);
         assertThat(data(corpusStreams.get(0)).lines()).hasSize(6);
-        final List<Accepted> accepted = regressionSet.accepted(rule.getUuid());
+        final List<Accepted> accepted = regressionSet.accepted(binding.getUuid());
         assertThat(accepted).hasSize(6);
-        assertThat(regressionSet.feedOf(rule.getUuid()))
+        assertThat(regressionSet.feedOf(binding.getUuid()))
                 .describedAs("what an improvement, with no stream of its own, keeps its records on")
                 .contains(FEED);
         assertThat(accepted).extracting(Accepted::kind).containsExactly(
@@ -169,35 +169,35 @@ class TestScenario53TheCorpusSurvivesARestart extends AbstractProcessIntegration
 
         // A session after a restart: a stage built afresh, as the Supervisor builds one, learning from the
         // corpus put back together. The candidate translates what was admitted, and is accepted.
-        final Decision better = improve(document, rule, TRANSLATES_BOTH);
+        final Decision better = improve(document, binding, TRANSLATES_BOTH);
         assertThat(better).describedAs(better.toString()).isInstanceOf(Rebound.class);
         assertThat(corpusStreams()).describedAs("a second promotion, a second stream").hasSize(2);
         assertThat(corpusStreams()).extracting(Meta::getFeedName)
                 .describedAs("and on the source feed too, though no stream of it was in hand: a learner does "
                              + "not know its feed (A126), but its records do")
                 .containsOnly(FEED);
-        final List<Accepted> grown = regressionSet.accepted(rule.getUuid());
+        final List<Accepted> grown = regressionSet.accepted(binding.getUuid());
         assertThat(grown).hasSize(12);
         assertThat(grown.subList(6, 12)).extracting(Accepted::kind).containsOnly(Kind.TRANSLATION);
 
         // And one more, that would turn a record that now translates back into an admission: refused by
-        // the corpus, naming the entry, and the rule serves on as it was.
-        final RoutingRule rebound = rules.forLearner(learner).get(0);
+        // the corpus, naming the entry, and the binding serves on as it was.
+        final Binding rebound = learnerBindings.forLearner(learner).get(0);
         final Decision worse = improve(document, rebound, ADMITS_LOGOFF);
         assertThat(worse).describedAs(worse.toString()).isInstanceOf(Kept.class);
         assertThat(((Kept) worse).reason())
                 .contains("turns a record that translated into an Unknown")
                 .contains("record 9 of 12 in the corpus");
-        assertThat(rules.forLearner(learner).get(0).getPipeline()).isEqualTo(rebound.getPipeline());
+        assertThat(learnerBindings.forLearner(learner).get(0).getPipeline()).isEqualTo(rebound.getPipeline());
         assertThat(corpusStreams()).hasSize(2);
     }
 
-    private Decision improve(final DocRef document, final RoutingRule rule, final String stylesheet) {
+    private Decision improve(final DocRef document, final Binding binding, final String stylesheet) {
         final Script script = script(CSV.configuration(), stylesheet);
         advisor.set(script);
         final ShapeshifterAiDoc doc = shapeshifterAiStore.readDocument(document);
         final Decision decision = pipelineScopes.get().scopeResult(() ->
-                stageFactories.get().create().improve(doc, rule.getUuid(), null, "jo").decision());
+                stageFactories.get().create().improve(doc, binding.getUuid(), null, "jo").decision());
         script.verifyExhausted();
         return decision;
     }

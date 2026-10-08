@@ -21,8 +21,8 @@ import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.Stage;
 import stroom.shapeshifter.shared.AttemptCriteria;
 import stroom.shapeshifter.shared.AttemptStatus;
+import stroom.shapeshifter.shared.Binding;
 import stroom.shapeshifter.shared.LearningMode;
-import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ScorerSetting;
 import stroom.shapeshifter.shared.ScorerType;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
@@ -37,52 +37,52 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/// Ruling A28, design 01 §11.6: **taking a rule back out of the table by hand.**
+/// Ruling A28, design 01 §11.6: **taking a binding back by hand.**
 ///
-/// The gate retracts a provisional rule that fails it (§6). This is the same act for a reason no gate
-/// can see — a person has read what the rule is producing and decided it should not be — and what
-/// follows is deliberately identical: the rule goes, the shape is unknown again, and everything the
-/// rule produced is asked to be processed again as it would be now (A12).
+/// The gate retracts a provisional binding that fails it (§6). This is the same act for a reason no gate
+/// can see — a person has read what the binding is producing and decided it should not be — and what
+/// follows is deliberately identical: the binding goes, the learner knows nothing again, and everything the
+/// binding produced is asked to be processed again as it would be now (A12).
 ///
-/// It is neither of the two things that look like it. `remove`, on the Routing tab, is exactly what it
-/// says: a rule taken out of a table, leaving the shape thinking it is bound and the streams it produced
+/// It is neither of the two things that look like it. Removing the binding's row is exactly what it says:
+/// a binding taken out of the table, leaving the learner thinking it is bound and the streams it produced
 /// standing as though they were right. `reject` is A25's decision about a draft that served nothing, and
-/// gives the shape up so it is not learned again. A retracted shape *is* learned again — the rule was
-/// wrong, the shape is not.
-class TestRetractingARuleByHand {
+/// gives the learner up so it does not learn again. A retracted learner *does* learn again — the binding
+/// was wrong, the feed is not.
+class TestRetractingABindingByHand {
 
     private static final String FEED = "DOOR-ACCESS";
     private static final String XSLT = Scenarios.resource("csv-logon.xsl");
     private static final Golden CSV = Scenarios.corpus("001_csv_with_header");
 
     @Test
-    void theRuleGoesTheShapeIsUnknownAgainAndWhatItProducedIsAskedForAgain() {
+    void theBindingGoesTheLearnerLearnsAgainAndWhatItProducedIsCounted() {
         final Scenarios scenarios = new Scenarios();
-        final Stage stage = scenarios.stage(document -> learn(scenarios), scenarios.rules);
+        final Stage stage = scenarios.stage(document -> learn(scenarios), scenarios.learnerBindings);
         final ShapeshifterAiDoc doc = doc();
         scenarios.process(learn(scenarios), doc, stream(1L)).learned();
-        final RoutingRule bound = scenarios.rules.forLearner(Scenarios.LEARNER).get(0);
-        // A second stream, so that the rule has produced something to ask for again.
+        final Binding bound = scenarios.learnerBindings.forLearner(Scenarios.LEARNER).get(0);
+        // A second stream, so that the binding has produced something to ask for again.
         scenarios.process(learn(scenarios), doc, stream(2L)).learned();
         assertThat(scenarios.outputs.boundBy(bound.getUuid(), bound.getPipeline().getUuid()))
-                .describedAs("the rule has produced output rows to take back")
+                .describedAs("the binding has produced output rows to take back")
                 .isNotEmpty();
 
         final int produced = stage.retract(doc, bound.getUuid(),
                 "The timestamps are being read as UTC and the feed is local.", "jo");
 
-        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER))
-                .describedAs("the rule is out of the table")
+        assertThat(scenarios.learnerBindings.forLearner(Scenarios.LEARNER))
+                .describedAs("the binding is gone")
                 .isEmpty();
         assertThat(scenarios.states.reasonGivenUp(Scenarios.LEARNER))
-                .describedAs("and the shape is unknown again rather than given up: the rule was wrong, "
-                             + "the shape is not, so the next stream of it learns afresh")
+                .describedAs("and the learner knows nothing again rather than giving up: the binding was wrong, "
+                             + "the feed is not, so the learner's next stream is learned afresh")
                 .isEmpty();
         assertThat(scenarios.states.rollingScore(Scenarios.LEARNER))
-                .describedAs("with nothing of what the retracted rule scored carried into what comes next")
+                .describedAs("with nothing of what the retracted binding scored carried into what comes next")
                 .isZero();
         assertThat(produced)
-                .describedAs("and what the rule produced is counted for the person to reprocess, not asked "
+                .describedAs("and what the binding produced is counted for the person to reprocess, not asked "
                              + "for (A129): both streams it served")
                 .isEqualTo(2);
         assertThat(scenarios.regressionSet.accepted(bound.getUuid()))
@@ -91,26 +91,26 @@ class TestRetractingARuleByHand {
                 .isEmpty();
     }
 
-    /// The next stream of a retracted shape learns it afresh. That is the whole difference from
-    /// rejecting, and the reason retracting is safe to offer for a rule that is merely wrong.
+    /// The next stream of a retracted learner is learned afresh. That is the whole difference from
+    /// rejecting, and the reason retracting is safe to offer for a binding that is merely wrong.
     @Test
-    void theNextStreamOfTheShapeLearnsItAgain() {
+    void theNextStreamOfTheLearnerLearnsItAgain() {
         final Scenarios scenarios = new Scenarios();
         final ShapeshifterAiDoc doc = doc();
         scenarios.process(learn(scenarios), doc, stream(1L)).learned();
-        final RoutingRule bound = scenarios.rules.forLearner(Scenarios.LEARNER).get(0);
-        scenarios.stage(document -> learn(scenarios), scenarios.rules)
+        final Binding bound = scenarios.learnerBindings.forLearner(Scenarios.LEARNER).get(0);
+        scenarios.stage(document -> learn(scenarios), scenarios.learnerBindings)
                 .retract(doc, bound.getUuid(), "Wrong.", "jo");
 
         final Script asked = learn(scenarios);
         scenarios.process(asked, doc, stream(3L)).learned();
 
         assertThat(asked.asked()).describedAs("the model is asked again, from nothing").isNotEmpty();
-        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER))
-                .describedAs("and a rule is bound again")
+        assertThat(scenarios.learnerBindings.forLearner(Scenarios.LEARNER))
+                .describedAs("and the learner is bound again")
                 .hasSize(1);
-        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER).get(0).getUuid())
-                .describedAs("a new one: the retracted rule is gone, not rebound")
+        assertThat(scenarios.learnerBindings.forLearner(Scenarios.LEARNER).get(0).getUuid())
+                .describedAs("a new one: the retracted binding is gone, not rebound")
                 .isNotEqualTo(bound.getUuid());
     }
 
@@ -119,35 +119,35 @@ class TestRetractingARuleByHand {
     @Test
     void whatCannotBeRetractedSaysSoRatherThanGuessing() {
         final Scenarios scenarios = new Scenarios();
-        final Stage stage = scenarios.stage(document -> learn(scenarios), scenarios.rules);
+        final Stage stage = scenarios.stage(document -> learn(scenarios), scenarios.learnerBindings);
         final ShapeshifterAiDoc doc = doc();
         scenarios.process(learn(scenarios), doc, stream(1L)).learned();
-        final RoutingRule bound = scenarios.rules.forLearner(Scenarios.LEARNER).get(0);
+        final Binding bound = scenarios.learnerBindings.forLearner(Scenarios.LEARNER).get(0);
 
         assertThatThrownBy(() -> stage.retract(doc, "not-a-rule", "Wrong.", "jo"))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("not a rule of this document");
+                .hasMessageContaining("not a binding of this document");
 
-        scenarios.rules.append(Scenarios.LEARNER, "doc-1", bound.copy().uuid("a-draft").draft(true).build());
+        scenarios.learnerBindings.append(Scenarios.LEARNER, "doc-1", bound.copy().uuid("a-draft").draft(true).build());
         assertThatThrownBy(() -> stage.retract(doc, "a-draft", "Wrong.", "jo"))
                 .describedAs("a draft served nothing, so deciding it is Approve or Reject (A25)")
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("draft awaiting review");
     }
 
-    /// The attempt that bound the rule says it has been taken back.
+    /// The attempt that wrote the binding says it has been taken back.
     ///
     /// Not through the door A25's decisions use: that one closes the attempt *awaiting review* for a
-    /// rule, and a retraction is about a rule that was **serving** — whose attempt closed promoted a
+    /// binding, and a retraction is about a binding that was **serving** — whose attempt closed promoted a
     /// long time ago. Sent through it, the call matched nothing and the attempt went on reading
-    /// "Promoted 0.93" for a rule that no longer exists.
+    /// "Promoted 0.93" for a binding that no longer exists.
     @Test
     void theAttemptThatBoundItSaysSo() {
         final Scenarios scenarios = new Scenarios();
-        final Stage stage = scenarios.stage(document -> learn(scenarios), scenarios.rules);
+        final Stage stage = scenarios.stage(document -> learn(scenarios), scenarios.learnerBindings);
         final ShapeshifterAiDoc doc = doc();
         scenarios.process(learn(scenarios), doc, stream(1L)).learned();
-        final RoutingRule bound = scenarios.rules.forLearner(Scenarios.LEARNER).get(0);
+        final Binding bound = scenarios.learnerBindings.forLearner(Scenarios.LEARNER).get(0);
         assertThat(scenarios.attempts.found(new AttemptCriteria(), List.of("doc-1")).attempts())
                 .describedAs("the attempt that bound it closed promoted")
                 .anySatisfy(attempt -> assertThat(attempt.status()).isEqualTo(AttemptStatus.PROMOTED));
@@ -162,17 +162,17 @@ class TestRetractingARuleByHand {
                 });
     }
 
-    /// A shape that was given up is learned again when somebody asks, from its next stream (A28, design 01
+    /// A learner that was given up learns again when somebody asks, from its next stream (A28, design 01
     /// §11.6).
     ///
-    /// This is the door the ruling leans on — "they raise an attempt for a given-up shape from the same
-    /// screen, so no on-request learning mode is needed". Marking the shape is not enough on its own:
+    /// This is the door the ruling leans on — "they raise an attempt for a given-up learner from the same
+    /// screen, so no on-request learning mode is needed". Marking the learner is not enough on its own:
     /// every path reads the give-up first and sentinels the stream before it ever looks at the mark, so
-    /// a mark on a given-up shape says nothing at all.
+    /// a mark on a given-up learner says nothing at all.
     @Test
-    void aGivenUpShapeIsLearnedAgainWhenSomebodyAsks() {
+    void aLearnerThatGaveUpLearnsAgainWhenSomebodyAsks() {
         final Scenarios scenarios = new Scenarios();
-        final Stage stage = scenarios.stage(document -> learn(scenarios), scenarios.rules);
+        final Stage stage = scenarios.stage(document -> learn(scenarios), scenarios.learnerBindings);
         scenarios.states.giveUp(Scenarios.LEARNER, "doc-1", "The model could not make sense of it");
 
         // Sent back from the attempt that gave up (A28). The streams that errored are ordinary error
@@ -196,9 +196,9 @@ class TestRetractingARuleByHand {
     @Test
     void aProvisionalBindingCanBeAcceptedRatherThanWaitedOut() {
         final Scenarios scenarios = new Scenarios();
-        final Stage stage = scenarios.stage(document -> learn(scenarios), scenarios.rules);
+        final Stage stage = scenarios.stage(document -> learn(scenarios), scenarios.learnerBindings);
         final ShapeshifterAiDoc doc = doc();
-        scenarios.rules.append(Scenarios.LEARNER, "doc-1", RoutingRule.builder()
+        scenarios.learnerBindings.append(Scenarios.LEARNER, "doc-1", Binding.builder()
                 .uuid("provisional")
                 .pipeline(stroom.docref.DocRef.builder()
                         .type("Pipeline").uuid("fragment-1").name("door-v1").build())
@@ -208,7 +208,7 @@ class TestRetractingARuleByHand {
 
         stage.accept(doc, "provisional", "jo");
 
-        final RoutingRule accepted = scenarios.rules.forLearner(Scenarios.LEARNER).get(0);
+        final Binding accepted = scenarios.learnerBindings.forLearner(Scenarios.LEARNER).get(0);
         assertThat(accepted.isProvisional())
                 .describedAs("it serves on the score it was bound at, no longer marked as waiting")
                 .isFalse();
@@ -218,7 +218,7 @@ class TestRetractingARuleByHand {
                 .isEqualTo(0.91);
 
         assertThatThrownBy(() -> stage.accept(doc, "provisional", "jo"))
-                .describedAs("a rule already serving on a judgement has nothing to accept")
+                .describedAs("a binding already serving on a judgement has nothing to accept")
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("not a provisional binding");
     }

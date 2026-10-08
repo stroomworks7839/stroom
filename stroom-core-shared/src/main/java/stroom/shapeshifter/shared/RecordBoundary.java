@@ -30,7 +30,7 @@ import java.util.OptionalInt;
 
 /// What one record is in a stream that arrives as, or is parsed into, markup (A31, A35): the local name of
 /// the element that is one record where the input is XML, or the key of the array whose items are records
-/// where it is JSON — [#ROOT] where every top-level value is one. A rule carries the boundary its variant
+/// where it is JSON — [#ROOT] where every top-level value is one. A binding carries the boundary its variant
 /// was learned with, so that the stage counts the stream's records and judges yield by it rather than by
 /// the root's children; raw text has none, since the parser's configuration cuts it.
 @JsonPropertyOrder({"element", "array", "depth"})
@@ -87,10 +87,10 @@ public final class RecordBoundary {
     /// under a key, since the JSON parser wraps its output in a records root. It is read from the document
     /// the split was settled against and not assumed, which is why it is kept rather than derived.
     ///
-    /// @return Empty for a rule learned before the depth was recorded. A guess would be worse than
+    /// @return Empty for a binding learned before the depth was recorded. A guess would be worse than
     /// nothing: the usual depth of one splits a JSON document at its single top-level map and a nested
     /// XML document at its one wrapper, which is one document for the whole stream and bounds nothing.
-    /// A rule with no depth is written without a filter, exactly as it was before item 25, until it is
+    /// A binding with no depth is written without a filter, exactly as it was before item 25, until it is
     /// learned again.
     public OptionalInt splitDepth() {
         return depth == null
@@ -98,7 +98,7 @@ public final class RecordBoundary {
                 : OptionalInt.of(depth);
     }
 
-    /// The depth as it is stored, which is null for a rule learned before it was recorded.
+    /// The depth as it is stored, which is null for a binding learned before it was recorded.
     public Integer getDepth() {
         return depth;
     }

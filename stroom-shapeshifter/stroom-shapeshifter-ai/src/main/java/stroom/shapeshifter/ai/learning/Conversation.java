@@ -124,7 +124,7 @@ public final class Conversation {
 
     /**
      * @param heartbeat Run before every question, for a caller holding something that expires while the
-     *                  conversation runs — the attempt's claim on its shape (A45), which one slow model call
+     *                  conversation runs — the attempt's claim on its learner (A45), which one slow model call
      *                  would otherwise outlive.
      */
     public Conversation(final Advisor advisor,
@@ -197,9 +197,9 @@ public final class Conversation {
         return this;
     }
 
-    /// What a supervisor has said about the shape being learned (A46), carried into every question.
+    /// What a supervisor has said about the learner being learned (A46), carried into every question.
     ///
-    /// A supplier rather than a list, because guidance belongs to the shape and not to this object: an
+    /// A supplier rather than a list, because guidance belongs to the learner and not to this object: an
     /// attempt parked awaiting the model and resumed a day later must carry what was said in between,
     /// and that is the whole reason a hint needs no timing. Each turn records which rows it carried, so
     /// a re-walk (A45) replays what was used rather than what has since been added.
@@ -785,7 +785,7 @@ public final class Conversation {
                         : "No passing configuration for ") + runner.elementType() + " after "
                     + candidates(step, walk.policy) + " attempts", exhaustible);
                 // Where the flow names no exit, the step's own default (A83): a parser whose candidates
-                // are spent is the one failure nothing can serve (A52, A54), so its shape is given up;
+                // are spent is the one failure nothing can serve (A52, A54), so its learner is given up;
                 // any other step parks for a person (A65).
                 visit = asked.kind() == Visit.Kind.ABANDON
                         ? asked.withDefaultExit(runner.parser()

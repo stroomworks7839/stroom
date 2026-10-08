@@ -26,6 +26,7 @@ import stroom.shapeshifter.ai.stage.Decision.GivenUp;
 import stroom.shapeshifter.ai.stage.Decision.Promoted;
 import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.StageRun;
+import stroom.shapeshifter.shared.Binding;
 import stroom.shapeshifter.shared.BusinessRulesParameters;
 import stroom.shapeshifter.shared.ExtractionQualityParameters;
 import stroom.shapeshifter.shared.FlowExample;
@@ -33,7 +34,6 @@ import stroom.shapeshifter.shared.FlowStep;
 import stroom.shapeshifter.shared.LearningFlow;
 import stroom.shapeshifter.shared.LearningMode;
 import stroom.shapeshifter.shared.RecordBoundary;
-import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.SchemaConformanceParameters;
 import stroom.shapeshifter.shared.ScorerSetting;
 import stroom.shapeshifter.shared.ScorerType;
@@ -149,8 +149,8 @@ class TestScenariosTarget {
                 .anyMatch(message -> message.contains("records name Unknown in EventDetail"))
                 .anyMatch(message -> message.contains("Required field EventSource/User/Id is present in 0 of 1"));
         // The targets went with the promotion, as the regression set's goldens.
-        final RoutingRule rule = ((Promoted) run.decision()).rule();
-        assertThat(scenarios.regressionSet.accepted(rule.getUuid()))
+        final Binding binding = ((Promoted) run.decision()).binding();
+        assertThat(scenarios.regressionSet.accepted(binding.getUuid()))
                 .describedAs("each entry carries what the flow said its kind of record should become")
                 .isNotEmpty()
                 .allSatisfy(entry -> assertThat(entry.target()).isNotNull());
@@ -160,7 +160,7 @@ class TestScenariosTarget {
     void aNoneForAKindSeenMoreThanOnceIsQuestionedBeforeItIsTaken() {
         final Scenarios scenarios = new Scenarios();
         // Design 02 §6.3: a live model answered none for the alarm kind. Six records of one kind: the first
-        // none is questioned; the structure then answers with the event, and the shape is learned whole.
+        // none is questioned; the structure then answers with the event, and the whole stream is learned.
         final Script script = scenarios.script(FOUR_FIELDS, XSLT)
                 .expect(QuestionMatcher.chain()).reply("DSParser -> XSLTFilter")
                 .expect(QuestionMatcher.target().withoutFeedback()).reply(TargetChecks.NONE)
@@ -176,8 +176,8 @@ class TestScenariosTarget {
         final TargetFor questioned = (TargetFor) asked.get(3);
         assertThat(questioned.feedback()).extracting(error -> error.getMessage())
                 .anyMatch(message -> message.startsWith("This kind of record is seen 5 times in the sample"));
-        final RoutingRule rule = ((Promoted) run.decision()).rule();
-        assertThat(scenarios.regressionSet.accepted(rule.getUuid()))
+        final Binding binding = ((Promoted) run.decision()).binding();
+        assertThat(scenarios.regressionSet.accepted(binding.getUuid()))
                 .isNotEmpty()
                 .allSatisfy(entry -> assertThat(entry.target()).isNotNull());
     }
@@ -202,8 +202,8 @@ class TestScenariosTarget {
 
         script.verifyExhausted();
         assertThat(run.decision()).isInstanceOf(Promoted.class);
-        final RoutingRule rule = ((Promoted) run.decision()).rule();
-        assertThat(scenarios.regressionSet.accepted(rule.getUuid()))
+        final Binding binding = ((Promoted) run.decision()).binding();
+        assertThat(scenarios.regressionSet.accepted(binding.getUuid()))
                 .describedAs("a kind of record that yields no event has no target event to carry")
                 .isNotEmpty()
                 .allSatisfy(entry -> assertThat(entry.target()).isNull());
@@ -385,12 +385,12 @@ class TestScenariosTarget {
                 new Input(1, "DOCVAULT", "Raw Events", Map.of("Format", "XML"), NESTED_XML)).learned();
 
         script.verifyExhausted();
-        // The conversation learned the shape whole; the record element the split settled reaches the stage's
+        // The conversation learned the whole stream; the record element the split settled reaches the stage's
         // count (A35) — three entries, not the root's one <entries> — so the stream meets the two records the
-        // document asks and is promoted, and the rule carries the element for the streams it will serve.
+        // document asks and is promoted, and the binding carries the element for the streams it will serve.
         assertThat(run.decision()).describedAs(run.decision().toString()).isInstanceOf(Promoted.class);
         assertThat(((Promoted) run.decision()).score()).isEqualTo(1.0);
-        assertThat(((Promoted) run.decision()).rule().getRecordBoundary())
+        assertThat(((Promoted) run.decision()).binding().getRecordBoundary())
                 .isEqualTo(RecordBoundary.ofElement("entry"));
         final List<Question> asked = script.asked();
         // Chain, split, split again, one target (all three entries are one kind), the transform.

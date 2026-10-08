@@ -33,7 +33,7 @@ public enum AttemptStatus implements HasDisplayValue {
     /// Learned, and waiting for a person to approve or reject what it wrote (A25).
     AWAITING_REVIEW("Awaiting review"),
     /// Out of budget, or out of candidates, before its stream cleared the bar: parked for a person (A65),
-    /// holding its shape with a lease that does not lapse, and left alone by the worker until somebody
+    /// holding its learner with a lease that does not lapse, and left alone by the worker until somebody
     /// answers it, gives it more to spend, or sends it to the exhaustion step.
     PARKED("Parked"),
     /// Bound on too few records to judge it on (A14); it promotes or retracts when enough arrive.
@@ -42,9 +42,9 @@ public enum AttemptStatus implements HasDisplayValue {
     PROMOTED("Promoted"),
     /// A person refused what it wrote (A25).
     REJECTED("Rejected"),
-    /// What it bound has been taken back out of the table, by a person or by the gate (design 01 §6,
-    /// §11.6). The shape is unknown again rather than given up: the rule was wrong, not the shape, so
-    /// the next stream of it is learned afresh.
+    /// What it bound has been taken back, by a person or by the gate (design 01 §6, §11.6). The learner
+    /// knows nothing again rather than giving up: the binding was wrong, not the feed, so the learner's
+    /// next stream is learned afresh.
     RETRACTED("Retracted"),
     /// It ran out of candidates, budget or sense, and wrote nothing.
     ABANDONED("Abandoned"),

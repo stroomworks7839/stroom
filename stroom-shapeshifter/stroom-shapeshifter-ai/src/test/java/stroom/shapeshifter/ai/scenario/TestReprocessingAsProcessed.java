@@ -33,10 +33,10 @@ import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.Stage;
 import stroom.shapeshifter.ai.stage.StageRun;
 import stroom.shapeshifter.ai.transformation.XsltStep;
+import stroom.shapeshifter.shared.Binding;
 import stroom.shapeshifter.shared.FlowExample;
 import stroom.shapeshifter.shared.LearningMode;
 import stroom.shapeshifter.shared.RecordBoundary;
-import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 import stroom.util.shared.DocPath;
 
@@ -55,7 +55,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /// rewritten since. Reprocessing as things are now is an ordinary processor filter on the pipeline (A129),
 /// and needs nothing of the stage.
 ///
-/// As processed differs from as now only once a rule has been rebound, which is what these say.
+/// As processed differs from as now only once a binding has been rebound, which is what these say.
 class TestReprocessingAsProcessed {
 
     private static final String FEED = "DOOR-ACCESS";
@@ -131,34 +131,34 @@ class TestReprocessingAsProcessed {
         final StageRun learned = scenarios.process(learning(scenarios), doc, stream(1, CSV.input())).learned();
         assertThat(learned.decision()).describedAs(learned.decision().toString())
                 .isInstanceOf(Promoted.class);
-        final DocRef first = learned.bindings().fragment();
+        final DocRef first = learned.produced().fragment();
 
-        // The rule is rebound to another fragment, as an improvement does (§7.3 rule 2). The second
+        // The binding is rebound to another fragment, as an improvement does (§7.3 rule 2). The second
         // fragment is a real one: an as-current run would succeed with it and produce other events,
         // which is what makes the two modes tell apart.
-        final RoutingRule rule = scenarios.rules.forLearner(Scenarios.LEARNER).getFirst();
+        final Binding binding = scenarios.learnerBindings.forLearner(Scenarios.LEARNER).getFirst();
         final DocRef second = scenarios.stores.writer().write(
                 DocPath.fromParts("Shapeshifter", FEED), "improved-v2",
                 List.of(new LearnedStep(scenarios.runners().getFirst(), CSV.configuration(),
                                 new StepResult("<records/>", List.of()), UNSCORED),
                         new LearnedStep(new XsltStep(), DEGENERATE,
                                 new StepResult("<Events/>", List.of()), UNSCORED)),
-                rule.getRecordBoundary());
-        scenarios.rules.replace(Scenarios.LEARNER, "doc-1", rule.copy().pipeline(second).build());
+                binding.getRecordBoundary());
+        scenarios.learnerBindings.replace(Scenarios.LEARNER, "doc-1", binding.copy().pipeline(second).build());
 
         // As-processed: the stream goes back through the fragment that made its output.
         final StageRun again = stage.reprocess(doc, Scenarios.LEARNER, stream(1, CSV.input()));
 
         assertThat(again.decision()).describedAs(again.decision().toString()).isInstanceOf(Bound.class);
-        assertThat(again.bindings().fragment().getUuid())
+        assertThat(again.produced().fragment().getUuid())
                 .describedAs("the fragment that produced it, not the one bound now")
                 .isEqualTo(first.getUuid());
         assertThat(again.output()).isEqualTo(learned.output());
     }
 
     @Test
-    void asProcessedRunsUnderTheBoundaryThatProducedTheOutputAndNotTodaysRuleBoundary() {
-        // A rebind keeps the rule's uuid and replaces its boundary (§7.3 rule 2), and the boundary is
+    void asProcessedRunsUnderTheBoundaryThatProducedTheOutputAndNotTodaysBindingBoundary() {
+        // A rebind keeps the binding's uuid and replaces its boundary (§7.3 rule 2), and the boundary is
         // what says where the chain is cut and therefore what the transform is given. So the fragment
         // alone is not enough to run a stream as it ran: the row remembers what one record was when the
         // output was made, and that is what the run is given.
@@ -170,7 +170,7 @@ class TestReprocessingAsProcessed {
                 .expect(QuestionMatcher.chain()).reply("JSONParser -> XSLTFilter")
                 .expect(QuestionMatcher.split().withoutFeedback()).reply("events")
                 .expect(QuestionMatcher.configuration("XSLTFilter")).reply(Scenarios.fenced(RECORDS_XSLT));
-        final Stage stage = scenarios.stage(document -> script, scenarios.rules, watching);
+        final Stage stage = scenarios.stage(document -> script, scenarios.learnerBindings, watching);
         final ShapeshifterAiDoc doc = doc().copy()
                 .allowedElements(List.of("JSONParser", "XSLTFilter"))
                 // The split question is what settles the boundary, and target-first asks it of every input.
@@ -179,15 +179,16 @@ class TestReprocessingAsProcessed {
         final Input json = new Input(1, "API-GATEWAY", "Raw Events", Map.of("Format", "JSON"),
                 Scenarios.resource("records.json"), "pipeline-1");
 
-        final StageRun learned = scenarios.process(document -> script, scenarios.rules, watching, doc, json).learned();
+        final StageRun learned = scenarios.process(document -> script, scenarios.learnerBindings, watching, doc, json)
+                .learned();
         assertThat(learned.decision()).describedAs(learned.decision().toString()).isInstanceOf(Promoted.class);
-        assertThat(learned.bindings().boundary().splitDepth().orElseThrow())
+        assertThat(learned.produced().boundary().splitDepth().orElseThrow())
                 .describedAs("the items of the array sit three elements down")
                 .isEqualTo(3);
 
-        // The rule is rebound with a boundary that would cut somewhere else entirely.
-        final RoutingRule rule = scenarios.rules.forLearner(Scenarios.LEARNER).getFirst();
-        scenarios.rules.replace(Scenarios.LEARNER, "doc-1", rule.copy()
+        // The binding is rebound with a boundary that would cut somewhere else entirely.
+        final Binding binding = scenarios.learnerBindings.forLearner(Scenarios.LEARNER).getFirst();
+        scenarios.learnerBindings.replace(Scenarios.LEARNER, "doc-1", binding.copy()
                 .recordBoundary(RecordBoundary.ofArray("events").atDepth(1))
                 .build());
 
@@ -196,7 +197,7 @@ class TestReprocessingAsProcessed {
 
         assertThat(again.decision()).describedAs(again.decision().toString()).isInstanceOf(Bound.class);
         assertThat(watching.boundaries)
-                .describedAs("run under the boundary that produced the output, not the rule's today")
+                .describedAs("run under the boundary that produced the output, not the binding's today")
                 .extracting(boundary -> boundary.splitDepth().orElseThrow())
                 .containsExactly(3);
     }

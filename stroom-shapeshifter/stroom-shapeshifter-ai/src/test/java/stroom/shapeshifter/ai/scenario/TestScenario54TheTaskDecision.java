@@ -36,9 +36,9 @@ import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.Stage;
 import stroom.shapeshifter.ai.stage.StageRun;
 import stroom.shapeshifter.shared.AttemptStatus;
+import stroom.shapeshifter.shared.Binding;
 import stroom.shapeshifter.shared.PromotionMode;
 import stroom.shapeshifter.shared.RecordBoundary;
-import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 
 import org.junit.jupiter.api.Test;
@@ -56,13 +56,13 @@ import static org.assertj.core.api.Assertions.tuple;
 /// Design 02 §5, scenario 54: **the task decision** (design 04 §3; §8's scenarios 1, 2, 3, 7 and 9 at
 /// Tier 1; phase 4's first slice).
 ///
-/// A task does one cheap thing — resolve the shape, consult what is known, emit, defer or error — and
-/// never learns. A stream of a shape nothing has learned waits, with a session opened on it and parked
-/// for the worker; a second stream of the shape waits on that session; nothing is sentinelled to make
+/// A task does one cheap thing — find its learner, consult what is known, emit, defer or error — and
+/// never learns. A stream of a learner that has learned nothing waits, with a session opened on it and parked
+/// for the worker; a second stream of the learner waits on that session; nothing is sentinelled to make
 /// either wait. The worker carries the session, the promotion wakes what waited, and the next decision
-/// on each stream emits it. A stream a rule serves with a record short of the bar waits too, against the
-/// transform in force, and is not scored again while that transform stands; a stream of the same shape
-/// whose records all clear flows meanwhile. What errors is what nothing will ever learn: a shape given
+/// on each stream emits it. A stream a binding serves with a record short of the bar waits too, against the
+/// transform in force, and is not scored again while that transform stands; a stream of the same learner
+/// whose records all clear flows meanwhile. What errors is what nothing will ever learn: a learner given
 /// up.
 class TestScenario54TheTaskDecision {
 
@@ -76,7 +76,7 @@ class TestScenario54TheTaskDecision {
 
     /// §8 scenarios 1, 7 and 9, at the decision: unseen, held, learned, woken, served.
     @Test
-    void aStreamOfAnUnseenShapeWaitsOnASessionAndIsServedWhenItPromotes() {
+    void aStreamOfANewLearnerWaitsOnASessionAndIsServedWhenItPromotes() {
         final Scenarios scenarios = new Scenarios();
         final ShapeshifterAiDoc doc = doc();
         final Script silent = Script.of();
@@ -98,10 +98,10 @@ class TestScenario54TheTaskDecision {
                 .extracting(Deferral::inputId, Deferral::failedAgainst)
                 .containsExactly(tuple(1L, null));
 
-        // A second stream of the shape while the session is open: waits on it, opens nothing.
+        // A second stream of the learner while the session is open: waits on it, opens nothing.
         final StageRun second = task(scenarios, silent, null).decide(doc, Scenarios.LEARNER, stream(2L, MIXED));
         assertThat(second.decision()).isInstanceOf(Deferred.class);
-        assertThat(scenarios.attempts.forDocument(DOC, 10)).describedAs("one session for one shape").hasSize(1);
+        assertThat(scenarios.attempts.forDocument(DOC, 10)).describedAs("one session for one learner").hasSize(1);
         assertThat(scenarios.deferrals.forDocument(DOC)).extracting(Deferral::inputId).containsExactly(1L, 2L);
 
         // The worker carries the session on the stream it was raised on; the promotion wakes both.
@@ -118,7 +118,7 @@ class TestScenario54TheTaskDecision {
             assertThat(bound.decision()).describedAs(bound.decision().toString()).isInstanceOf(Bound.class);
             final TextSink sink = new TextSink();
             final ServedStream served = task(scenarios, silent, null)
-                    .stream(doc, Scenarios.LEARNER, ((Bound) bound.decision()).rule(), stream(id, MIXED), sink);
+                    .stream(doc, Scenarios.LEARNER, ((Bound) bound.decision()).binding(), stream(id, MIXED), sink);
             assertThat(served.clear()).isTrue();
             assertThat(served.records()).isEqualTo(6);
             assertThat(sink.text()).contains("<Action>Logoff</Action>");
@@ -133,7 +133,7 @@ class TestScenario54TheTaskDecision {
     void aStreamWithARecordShortOfTheBarWaitsAndIsNotScoredAgainUntilTheTransformMoves() {
         final Scenarios scenarios = new Scenarios();
         final ShapeshifterAiDoc doc = doc();
-        final RoutingRule learned = learn(scenarios, doc, LOGON_ONLY);
+        final Binding learned = learn(scenarios, doc, LOGON_ONLY);
         final AtomicInteger runs = new AtomicInteger();
         final FragmentRunner counting = counting(scenarios, runs);
         final Script silent = Script.of();
@@ -160,7 +160,7 @@ class TestScenario54TheTaskDecision {
                 .isEqualTo(1);
         assertThat(scenarios.states.relearnReason(Scenarios.LEARNER)).isPresent();
         assertThat(scenarios.attempts.forDocument(DOC, 10))
-                .describedAs("a relearning session, opened and parked, beside the one that learned the rule")
+                .describedAs("a relearning session, opened and parked, beside the one that learned the binding")
                 .extracting(Recorded::status)
                 .containsExactlyInAnyOrder(AttemptStatus.AWAITING_MODEL, AttemptStatus.PROMOTED);
 
@@ -171,7 +171,7 @@ class TestScenario54TheTaskDecision {
         assertThat(scenarios.deferrals.of(Scenarios.LEARNER, 2L).orElseThrow().attempts()).isEqualTo(2);
         assertThat(scenarios.attempts.forDocument(DOC, 10)).describedAs("no second session").hasSize(2);
 
-        // A stream of the shape whose records all clear flows while the session runs (§8.2).
+        // A stream of the learner whose records all clear flows while the session runs (§8.2).
         final StageRun flowing = task(scenarios, silent, counting).decide(doc, Scenarios.LEARNER, stream(3L,
                 CSV.input()));
         assertThat(flowing.decision()).describedAs(flowing.decision().toString()).isInstanceOf(Bound.class);
@@ -186,14 +186,14 @@ class TestScenario54TheTaskDecision {
         assertThat(scenarios.worker(script).advance(10)).isEqualTo(1);
         script.verifyExhausted();
         assertThat(scenarios.wake.woken()).extracting(Deferral::inputId)
-                .describedAs("the stream the rule was first learned on, woken by its promotion; and now the "
+                .describedAs("the stream the binding was first learned on, woken by its promotion; and now the "
                              + "held stream, by the rebinding, and again by the pass's sweep of what waits "
                              + "against a replaced transform — nothing in a scenario has run its task, where "
                              + "in a node the task is no longer deferred and the second wake finds nothing")
                 .containsExactly(1L, 2L, 2L);
         final StageRun served = task(scenarios, silent, counting).decide(doc, Scenarios.LEARNER, stream(2L, MIXED));
         assertThat(served.decision()).describedAs(served.decision().toString()).isInstanceOf(Bound.class);
-        final RoutingRule rebound = ((Bound) served.decision()).rule();
+        final Binding rebound = ((Bound) served.decision()).binding();
         assertThat(task(scenarios, silent, counting).stream(doc, Scenarios.LEARNER, rebound, stream(2L, MIXED),
                 new TextSink()).clear())
                 .isTrue();
@@ -207,7 +207,7 @@ class TestScenario54TheTaskDecision {
         final ShapeshifterAiDoc doc = doc();
         scenarios.states.giveUp(Scenarios.LEARNER, DOC, "the parse could not be learned");
 
-        final StageRun errored = scenarios.stage(document -> Script.of(), scenarios.rules)
+        final StageRun errored = scenarios.stage(document -> Script.of(), scenarios.learnerBindings)
                 .decide(doc, Scenarios.LEARNER, stream(1L, MIXED));
 
         assertThat(errored.decision()).isInstanceOf(Sentinel.class);
@@ -218,10 +218,10 @@ class TestScenario54TheTaskDecision {
 
     /// A task's stage: silent, since a task never asks.
     private static Stage task(final Scenarios scenarios, final Script silent, final FragmentRunner runner) {
-        return scenarios.stage(document -> silent, scenarios.rules, runner);
+        return scenarios.stage(document -> silent, scenarios.learnerBindings, runner);
     }
 
-    /// A draft awaiting review holds its shape's streams waiting, not erroring, and Approve wakes them.
+    /// A draft awaiting review holds its learner's streams waiting, not erroring, and Approve wakes them.
     @Test
     void aStreamBehindADraftWaitsForTheReviewAndApproveWakesIt() {
         final Scenarios scenarios = new Scenarios();
@@ -230,7 +230,7 @@ class TestScenario54TheTaskDecision {
         final StageRun drafted = scenarios.process(script, doc, stream(1L, MIXED)).learned();
         script.verifyExhausted();
         assertThat(drafted.decision()).describedAs(drafted.decision().toString()).isInstanceOf(Drafted.class);
-        final RoutingRule draft = ((Drafted) drafted.decision()).rule();
+        final Binding draft = ((Drafted) drafted.decision()).binding();
         final Script silent = Script.of();
 
         final StageRun waiting = task(scenarios, silent, null).decide(doc, Scenarios.LEARNER, stream(2L, MIXED));
@@ -239,7 +239,7 @@ class TestScenario54TheTaskDecision {
         assertThat(((Deferred) waiting.decision()).reason()).contains("Awaiting review");
         assertThat(scenarios.deferrals.of(Scenarios.LEARNER, 2L)).isPresent();
 
-        scenarios.stage(document -> silent, scenarios.rules).approve(doc, draft.getUuid());
+        scenarios.stage(document -> silent, scenarios.learnerBindings).approve(doc, draft.getUuid());
 
         assertThat(scenarios.wake.woken()).extracting(Deferral::inputId)
                 .describedAs("the stream the draft was learned on waited behind it too")
@@ -247,9 +247,11 @@ class TestScenario54TheTaskDecision {
         final StageRun served = task(scenarios, silent, null).decide(doc, Scenarios.LEARNER, stream(2L, MIXED));
         assertThat(served.decision()).describedAs(served.decision().toString()).isInstanceOf(Bound.class);
         task(scenarios, silent, null)
-                .stream(doc, Scenarios.LEARNER, ((Bound) served.decision()).rule(), stream(2L, MIXED), new TextSink());
+                .stream(doc, Scenarios.LEARNER, ((Bound) served.decision()).binding(), stream(2L, MIXED),
+                        new TextSink());
         task(scenarios, silent, null)
-                .stream(doc, Scenarios.LEARNER, ((Bound) served.decision()).rule(), stream(1L, MIXED), new TextSink());
+                .stream(doc, Scenarios.LEARNER, ((Bound) served.decision()).binding(), stream(1L, MIXED),
+                        new TextSink());
         assertThat(scenarios.deferrals.forDocument(DOC)).isEmpty();
     }
 
@@ -260,8 +262,8 @@ class TestScenario54TheTaskDecision {
         final ShapeshifterAiDoc doc = doc();
         learn(scenarios, doc, LOGON_ONLY);
         final Script silent = Script.of();
-        final RoutingRule rule = scenarios.rules.forLearner(Scenarios.LEARNER).get(0);
-        assertThatThrownBy(() -> task(scenarios, silent, null).stream(doc, Scenarios.LEARNER, rule, stream(2L,
+        final Binding binding = scenarios.learnerBindings.forLearner(Scenarios.LEARNER).get(0);
+        assertThatThrownBy(() -> task(scenarios, silent, null).stream(doc, Scenarios.LEARNER, binding, stream(2L,
                 MIXED), new TextSink()))
                 .isInstanceOf(DeferTaskException.class);
 
@@ -276,12 +278,12 @@ class TestScenario54TheTaskDecision {
                 .doesNotContain("learning for this pipeline");
     }
 
-    private static RoutingRule learn(final Scenarios scenarios, final ShapeshifterAiDoc doc, final String xslt) {
+    private static Binding learn(final Scenarios scenarios, final ShapeshifterAiDoc doc, final String xslt) {
         final Script script = script(scenarios, xslt);
         final StageRun run = scenarios.process(script, doc, stream(1L, CSV.input())).learned();
         script.verifyExhausted();
         assertThat(run.decision()).describedAs(run.decision().toString()).isInstanceOf(Promoted.class);
-        return ((Promoted) run.decision()).rule();
+        return ((Promoted) run.decision()).binding();
     }
 
     private static Script script(final Scenarios scenarios, final String xslt) {

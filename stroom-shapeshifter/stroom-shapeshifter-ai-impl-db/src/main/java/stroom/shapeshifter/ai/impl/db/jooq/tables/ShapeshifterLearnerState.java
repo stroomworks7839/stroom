@@ -102,9 +102,9 @@ public class ShapeshifterLearnerState extends TableImpl<ShapeshifterLearnerState
 
     /**
      * The column
-     * <code>stroom.shapeshifter_learner_state.awaiting_rule_uuid</code>.
+     * <code>stroom.shapeshifter_learner_state.awaiting_binding_uuid</code>.
      */
-    public final TableField<ShapeshifterLearnerStateRecord, String> AWAITING_RULE_UUID = createField(DSL.name("awaiting_rule_uuid"), SQLDataType.VARCHAR(255), this, "");
+    public final TableField<ShapeshifterLearnerStateRecord, String> AWAITING_BINDING_UUID = createField(DSL.name("awaiting_binding_uuid"), SQLDataType.VARCHAR(255), this, "");
 
     /**
      * The column <code>stroom.shapeshifter_learner_state.rolling_score</code>.

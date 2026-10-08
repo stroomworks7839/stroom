@@ -27,12 +27,12 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/// The snapshots of A61 as rows: kept, found by id and by rule, moved with a draft's approval, and gone
-/// with the rule (A71).
+/// The snapshots of A61 as rows: kept, found by id and by binding, moved with a draft's approval, and gone
+/// with the binding (A71).
 class TestSnapshotsDao {
 
     private static final String DOC = "doc-" + System.nanoTime();
-    private static final String RULE = "rule-" + System.nanoTime();
+    private static final String BINDING = "rule-" + System.nanoTime();
     private static final String DRAFT = "draft-" + System.nanoTime();
 
     @Inject
@@ -41,43 +41,44 @@ class TestSnapshotsDao {
     @BeforeEach
     void setUp() {
         Guice.createInjector(new TestModule()).injectMembers(this);
-        snapshots.discard(RULE);
+        snapshots.discard(BINDING);
         snapshots.discard(DRAFT);
     }
 
     @Test
-    void aSnapshotComesBackWholeByItsIdAndInOrderByItsRule() {
-        snapshots.keep(snapshot("s1", RULE, "{\"elements\":[]}", Map.of("xsltFilter", "<xsl/>"), Map.of("f", "v1")));
-        snapshots.keep(snapshot("s2", RULE, "{\"elements\":[]}", Map.of("xsltFilter", "<xsl2/>"), Map.of("f", "v2")));
+    void aSnapshotComesBackWholeByItsIdAndInOrderByItsBinding() {
+        snapshots.keep(snapshot("s1", BINDING, "{\"elements\":[]}", Map.of("xsltFilter", "<xsl/>"), Map.of("f", "v1")));
+        snapshots.keep(snapshot("s2", BINDING, "{\"elements\":[]}", Map.of("xsltFilter", "<xsl2/>"), Map.of("f",
+                "v2")));
 
         final Snapshot found = snapshots.byId("s2").orElseThrow();
-        assertThat(found.ruleUuid()).isEqualTo(RULE);
+        assertThat(found.bindingUuid()).isEqualTo(BINDING);
         assertThat(found.code()).containsEntry("xsltFilter", "<xsl2/>");
         assertThat(found.versions()).containsEntry("f", "v2");
         assertThat(found.structure()).isEqualTo("{\"elements\":[]}");
-        assertThat(snapshots.forRule(RULE)).extracting(Snapshot::id).containsExactly("s1", "s2");
+        assertThat(snapshots.forBinding(BINDING)).extracting(Snapshot::id).containsExactly("s1", "s2");
         assertThat(snapshots.byId("nothing")).isEmpty();
     }
 
     @Test
-    void aDraftsSnapshotsMoveToTheRuleItReplacedAndGoWithTheRule() {
-        snapshots.keep(snapshot("s1", RULE, "{}", Map.of(), Map.of()));
+    void aDraftsSnapshotsMoveToTheBindingItReplacedAndGoWithTheBinding() {
+        snapshots.keep(snapshot("s1", BINDING, "{}", Map.of(), Map.of()));
         snapshots.keep(snapshot("d1", DRAFT, "{}", Map.of(), Map.of()));
 
-        snapshots.move(DRAFT, RULE);
-        assertThat(snapshots.forRule(RULE)).extracting(Snapshot::id).containsExactly("s1", "d1");
-        assertThat(snapshots.forRule(DRAFT)).isEmpty();
+        snapshots.move(DRAFT, BINDING);
+        assertThat(snapshots.forBinding(BINDING)).extracting(Snapshot::id).containsExactly("s1", "d1");
+        assertThat(snapshots.forBinding(DRAFT)).isEmpty();
 
-        snapshots.discard(RULE);
-        assertThat(snapshots.forRule(RULE)).isEmpty();
+        snapshots.discard(BINDING);
+        assertThat(snapshots.forBinding(BINDING)).isEmpty();
         assertThat(snapshots.byId("d1")).isEmpty();
     }
 
     private static Snapshot snapshot(final String id,
-                                     final String rule,
+                                     final String binding,
                                      final String structure,
                                      final Map<String, String> code,
                                      final Map<String, String> versions) {
-        return new Snapshot(id, DOC, rule, "fragment-1", structure, code, versions, 1_000L);
+        return new Snapshot(id, DOC, binding, "fragment-1", structure, code, versions, 1_000L);
     }
 }

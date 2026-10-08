@@ -65,9 +65,9 @@ public class ShapeshifterCorpus extends TableImpl<ShapeshifterCorpusRecord> {
     public final TableField<ShapeshifterCorpusRecord, String> DOC_UUID = createField(DSL.name("doc_uuid"), SQLDataType.VARCHAR(255).nullable(false), this, "");
 
     /**
-     * The column <code>stroom.shapeshifter_corpus.rule_uuid</code>.
+     * The column <code>stroom.shapeshifter_corpus.binding_uuid</code>.
      */
-    public final TableField<ShapeshifterCorpusRecord, String> RULE_UUID = createField(DSL.name("rule_uuid"), SQLDataType.VARCHAR(255).nullable(false), this, "");
+    public final TableField<ShapeshifterCorpusRecord, String> BINDING_UUID = createField(DSL.name("binding_uuid"), SQLDataType.VARCHAR(255).nullable(false), this, "");
 
     /**
      * The column <code>stroom.shapeshifter_corpus.meta_id</code>.
@@ -135,7 +135,7 @@ public class ShapeshifterCorpus extends TableImpl<ShapeshifterCorpusRecord> {
 
     @Override
     public List<Index> getIndexes() {
-        return Arrays.asList(Indexes.SHAPESHIFTER_CORPUS_SHAPESHIFTER_CORPUS_META, Indexes.SHAPESHIFTER_CORPUS_SHAPESHIFTER_CORPUS_RULE);
+        return Arrays.asList(Indexes.SHAPESHIFTER_CORPUS_SHAPESHIFTER_CORPUS_BINDING, Indexes.SHAPESHIFTER_CORPUS_SHAPESHIFTER_CORPUS_META);
     }
 
     @Override

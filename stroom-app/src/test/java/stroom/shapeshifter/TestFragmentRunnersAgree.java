@@ -160,8 +160,8 @@ class TestFragmentRunnersAgree extends AbstractProcessIntegrationTest {
      * holding nothing.
      * <p>
      * That is what keeps a stage that ran no chain from showing the last one that did. A stage decides
-     * many things without running a fragment at all — a reserved rule matches, a draft awaits review,
-     * the shape has been given up — and a caller that merely read the last capture would be handed the
+     * many things without running a fragment at all — a reserved binding matches, a draft awaits review,
+     * the learner has been given up — and a caller that merely read the last capture would be handed the
      * previous stream's chain and hang it in the stepping tree beneath a stage that says nothing was
      * bound. The same shape of fault as serving a rejected candidate's events, met once already.
      */

@@ -19,15 +19,15 @@ package stroom.shapeshifter.ai.impl.db;
 import stroom.docref.DocRef;
 import stroom.shapeshifter.ai.stage.Attempts.Attempt;
 import stroom.shapeshifter.ai.stage.Attempts.Turn;
-import stroom.shapeshifter.ai.stage.Bindings;
 import stroom.shapeshifter.ai.stage.CorpusIndex;
 import stroom.shapeshifter.ai.stage.Learner;
+import stroom.shapeshifter.ai.stage.Produced;
 import stroom.shapeshifter.ai.stage.RegressionSet.Kind;
 import stroom.shapeshifter.ai.stage.Snapshots.Snapshot;
 import stroom.shapeshifter.shared.AttemptStatus;
+import stroom.shapeshifter.shared.Binding;
 import stroom.shapeshifter.shared.PromotionMode;
 import stroom.shapeshifter.shared.QuestionKind;
-import stroom.shapeshifter.shared.RoutingRule;
 
 import com.google.inject.Guice;
 import jakarta.inject.Inject;
@@ -49,13 +49,13 @@ class TestDeletedPipelinesDao {
     private static final String DOC = "doc-" + RUN;
     private static final Learner GONE = new Learner("gone-" + RUN, "shapeshifterAi");
     private static final Learner STAYING = new Learner("staying-" + RUN, "shapeshifterAi");
-    private static final String GONE_RULE = "gone-rule-" + RUN;
-    private static final String STAYING_RULE = "staying-rule-" + RUN;
+    private static final String GONE_BINDING = "gone-rule-" + RUN;
+    private static final String STAYING_BINDING = "staying-rule-" + RUN;
 
     @Inject
     private DeletedPipelinesDao deletedPipelines;
     @Inject
-    private RulesDao rules;
+    private LearnerBindingsDao learnerBindings;
     @Inject
     private LearnerStatesDao states;
     @Inject
@@ -86,8 +86,8 @@ class TestDeletedPipelinesDao {
 
     @Test
     void aDeletedPipelinesLearningIsMarkedOnceAndForgottenWhole() {
-        final long gonesAttempt = learned(GONE, GONE_RULE);
-        final long stayingsAttempt = learned(STAYING, STAYING_RULE);
+        final long gonesAttempt = learned(GONE, GONE_BINDING);
+        final long stayingsAttempt = learned(STAYING, STAYING_BINDING);
 
         assertThat(deletedPipelines.pipelines())
                 .describedAs("both kept, neither marked")
@@ -118,29 +118,29 @@ class TestDeletedPipelinesDao {
 
         deletedPipelines.forget(GONE.pipelineUuid());
 
-        assertKeepsNothing(GONE, GONE_RULE, gonesAttempt);
+        assertKeepsNothing(GONE, GONE_BINDING, gonesAttempt);
         assertThat(deletedPipelines.isDeleted(GONE.pipelineUuid())).describedAs("the mark goes too").isFalse();
         assertThat(deletedPipelines.deletedBefore(Long.MAX_VALUE)).doesNotContain(GONE.pipelineUuid());
 
         // And nothing of a pipeline that was not deleted.
-        assertThat(rules.forLearner(STAYING)).hasSize(1);
+        assertThat(learnerBindings.forLearner(STAYING)).hasSize(1);
         assertThat(states.reasonGivenUp(STAYING)).isPresent();
         assertThat(guidance.standing(STAYING)).hasSize(1);
         assertThat(deferrals.of(STAYING, 7L)).isPresent();
         assertThat(attempts.byId(stayingsAttempt)).isPresent();
-        assertThat(corpus.rows(STAYING_RULE)).hasSize(1);
-        assertThat(snapshots.forRule(STAYING_RULE)).hasSize(1);
-        assertThat(outputs.boundBy(STAYING_RULE, "fragment-" + STAYING_RULE)).hasSize(1);
+        assertThat(corpus.rows(STAYING_BINDING)).hasSize(1);
+        assertThat(snapshots.forBinding(STAYING_BINDING)).hasSize(1);
+        assertThat(outputs.boundBy(STAYING_BINDING, "fragment-" + STAYING_BINDING)).hasSize(1);
 
         deletedPipelines.forget(STAYING.pipelineUuid());
-        assertKeepsNothing(STAYING, STAYING_RULE, stayingsAttempt);
+        assertKeepsNothing(STAYING, STAYING_BINDING, stayingsAttempt);
     }
 
     /// A row in every table a learner keeps rows in, under its pipeline's uuid or its binding's.
-    private long learned(final Learner learner, final String ruleUuid) {
-        final DocRef fragment = new DocRef("Pipeline", "fragment-" + ruleUuid, ruleUuid);
-        rules.append(learner, DOC, RoutingRule.builder()
-                .uuid(ruleUuid)
+    private long learned(final Learner learner, final String bindingUuid) {
+        final DocRef fragment = new DocRef("Pipeline", "fragment-" + bindingUuid, bindingUuid);
+        learnerBindings.append(learner, DOC, Binding.builder()
+                .uuid(bindingUuid)
                 .pipeline(fragment)
                 .promotedTimeMs(1_000L)
                 .build());
@@ -151,23 +151,23 @@ class TestDeletedPipelinesDao {
                 "node-1", PromotionMode.AUTOMATIC, 60_000L), 1_000L).orElseThrow();
         attempts.turn(attemptId, new Turn(1, "chain", 1, QuestionKind.CHAIN, "Which chain?", "DSParser",
                 "model", null, List.of()));
-        attempts.closed(attemptId, AttemptStatus.PROMOTED, "Promoted.", ruleUuid, 0.95, 10L);
-        outputs.emitted(7L, learner.pipelineUuid(), new Bindings(DOC, ruleUuid, fragment, null, false, 0.95));
-        corpus.add(List.of(new CorpusIndex.Row(DOC, ruleUuid, 7L, 0, Kind.TRANSLATION, 0.95, attemptId,
+        attempts.closed(attemptId, AttemptStatus.PROMOTED, "Promoted.", bindingUuid, 0.95, 10L);
+        outputs.emitted(7L, learner.pipelineUuid(), new Produced(DOC, bindingUuid, fragment, null, false, 0.95));
+        corpus.add(List.of(new CorpusIndex.Row(DOC, bindingUuid, 7L, 0, Kind.TRANSLATION, 0.95, attemptId,
                 1_000L)));
-        snapshots.keep(new Snapshot("snapshot-" + ruleUuid, DOC, ruleUuid, fragment.getUuid(), "{}",
+        snapshots.keep(new Snapshot("snapshot-" + bindingUuid, DOC, bindingUuid, fragment.getUuid(), "{}",
                 Map.of(), Map.of(), 1_000L));
         return attemptId;
     }
 
-    private void assertKeepsNothing(final Learner learner, final String ruleUuid, final long attemptId) {
-        assertThat(rules.forLearner(learner)).describedAs("its bindings").isEmpty();
+    private void assertKeepsNothing(final Learner learner, final String bindingUuid, final long attemptId) {
+        assertThat(learnerBindings.forLearner(learner)).describedAs("its bindings").isEmpty();
         assertThat(states.reasonGivenUp(learner)).describedAs("its state").isEmpty();
         assertThat(guidance.standing(learner)).describedAs("what was said to it").isEmpty();
         assertThat(deferrals.of(learner, 7L)).describedAs("what waited on it").isEmpty();
         assertThat(attempts.byId(attemptId)).describedAs("its attempts and their turns").isEmpty();
-        assertThat(corpus.rows(ruleUuid)).describedAs("its corpus").isEmpty();
-        assertThat(snapshots.forRule(ruleUuid)).describedAs("its snapshots").isEmpty();
-        assertThat(outputs.boundBy(ruleUuid, "fragment-" + ruleUuid)).describedAs("its outputs").isEmpty();
+        assertThat(corpus.rows(bindingUuid)).describedAs("its corpus").isEmpty();
+        assertThat(snapshots.forBinding(bindingUuid)).describedAs("its snapshots").isEmpty();
+        assertThat(outputs.boundBy(bindingUuid, "fragment-" + bindingUuid)).describedAs("its outputs").isEmpty();
     }
 }

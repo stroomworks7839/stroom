@@ -18,10 +18,10 @@
 package stroom.shapeshifter.ai.impl.db;
 
 import stroom.db.util.JooqUtil;
+import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterBinding;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterDeferral;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterGuidance;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterLearnerState;
-import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterRule;
 import stroom.shapeshifter.ai.stage.Learner;
 import stroom.shapeshifter.ai.stage.Learners;
 
@@ -59,12 +59,12 @@ public class LearnersDao implements Learners {
         if (docUuid.equals(brought.get(learner))) {
             return;
         }
-        final ShapeshifterRule rule = ShapeshifterRule.SHAPESHIFTER_RULE;
+        final ShapeshifterBinding binding = ShapeshifterBinding.SHAPESHIFTER_BINDING;
         final ShapeshifterLearnerState state = ShapeshifterLearnerState.SHAPESHIFTER_LEARNER_STATE;
         final ShapeshifterGuidance guidance = ShapeshifterGuidance.SHAPESHIFTER_GUIDANCE;
         final ShapeshifterDeferral deferral = ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL;
         JooqUtil.transaction(connProvider, context -> {
-            bring(context, rule, rule.PIPELINE_UUID, rule.ELEMENT_ID, rule.DOC_UUID, learner, docUuid);
+            bring(context, binding, binding.PIPELINE_UUID, binding.ELEMENT_ID, binding.DOC_UUID, learner, docUuid);
             bring(context, state, state.PIPELINE_UUID, state.ELEMENT_ID, state.DOC_UUID, learner, docUuid);
             bring(context, guidance, guidance.PIPELINE_UUID, guidance.ELEMENT_ID, guidance.DOC_UUID, learner,
                     docUuid);

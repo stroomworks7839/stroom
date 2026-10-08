@@ -39,9 +39,9 @@ import java.util.List;
 import java.util.Set;
 
 import static stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterAttempt.SHAPESHIFTER_ATTEMPT;
+import static stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterBinding.SHAPESHIFTER_BINDING;
 import static stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterGuidance.SHAPESHIFTER_GUIDANCE;
 import static stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterLearnerState.SHAPESHIFTER_LEARNER_STATE;
-import static stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterRule.SHAPESHIFTER_RULE;
 import static stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterTurn.SHAPESHIFTER_TURN;
 
 /// Deleted pipelines' learning as a table of marks (design 06 A120, A134–A136), and the learning a node
@@ -106,7 +106,7 @@ public class DeletedPipelinesDao implements DeletedPipelines, KeptLearning {
         return JooqUtil.contextResult(connProvider, context -> {
             final Set<String> kept = new HashSet<>(context
                     .select(SHAPESHIFTER_LEARNER_STATE.PIPELINE_UUID).from(SHAPESHIFTER_LEARNER_STATE)
-                    .union(DSL.select(SHAPESHIFTER_RULE.PIPELINE_UUID).from(SHAPESHIFTER_RULE))
+                    .union(DSL.select(SHAPESHIFTER_BINDING.PIPELINE_UUID).from(SHAPESHIFTER_BINDING))
                     .union(DSL.select(SHAPESHIFTER_GUIDANCE.PIPELINE_UUID).from(SHAPESHIFTER_GUIDANCE))
                     .union(DSL.select(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.PIPELINE_UUID)
                             .from(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL))
@@ -138,24 +138,24 @@ public class DeletedPipelinesDao implements DeletedPipelines, KeptLearning {
     public void forget(final String pipelineUuid) {
         JooqUtil.transaction(connProvider, context -> {
             final Select<Record1<String>> bindings = DSL
-                    .select(SHAPESHIFTER_RULE.RULE_UUID)
-                    .from(SHAPESHIFTER_RULE)
-                    .where(SHAPESHIFTER_RULE.PIPELINE_UUID.eq(pipelineUuid))
-                    .union(DSL.select(SHAPESHIFTER_ATTEMPT.RULE_UUID)
+                    .select(SHAPESHIFTER_BINDING.BINDING_UUID)
+                    .from(SHAPESHIFTER_BINDING)
+                    .where(SHAPESHIFTER_BINDING.PIPELINE_UUID.eq(pipelineUuid))
+                    .union(DSL.select(SHAPESHIFTER_ATTEMPT.BINDING_UUID)
                             .from(SHAPESHIFTER_ATTEMPT)
                             .where(SHAPESHIFTER_ATTEMPT.PIPELINE_UUID.eq(pipelineUuid))
-                            .and(SHAPESHIFTER_ATTEMPT.RULE_UUID.isNotNull()));
+                            .and(SHAPESHIFTER_ATTEMPT.BINDING_UUID.isNotNull()));
             // Read once: a delete may not select from the table it deletes from, and these are a few.
-            final List<String> ruleUuids = context.fetch(bindings).getValues(0, String.class);
-            if (!ruleUuids.isEmpty()) {
+            final List<String> bindingUuids = context.fetch(bindings).getValues(0, String.class);
+            if (!bindingUuids.isEmpty()) {
                 context.deleteFrom(ShapeshifterOutput.SHAPESHIFTER_OUTPUT)
-                        .where(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.RULE_UUID.in(ruleUuids))
+                        .where(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.BINDING_UUID.in(bindingUuids))
                         .execute();
                 context.deleteFrom(ShapeshifterCorpus.SHAPESHIFTER_CORPUS)
-                        .where(ShapeshifterCorpus.SHAPESHIFTER_CORPUS.RULE_UUID.in(ruleUuids))
+                        .where(ShapeshifterCorpus.SHAPESHIFTER_CORPUS.BINDING_UUID.in(bindingUuids))
                         .execute();
                 context.deleteFrom(ShapeshifterSnapshot.SHAPESHIFTER_SNAPSHOT)
-                        .where(ShapeshifterSnapshot.SHAPESHIFTER_SNAPSHOT.RULE_UUID.in(ruleUuids))
+                        .where(ShapeshifterSnapshot.SHAPESHIFTER_SNAPSHOT.BINDING_UUID.in(bindingUuids))
                         .execute();
             }
             context.deleteFrom(SHAPESHIFTER_TURN)
@@ -167,8 +167,8 @@ public class DeletedPipelinesDao implements DeletedPipelines, KeptLearning {
             context.deleteFrom(SHAPESHIFTER_ATTEMPT)
                     .where(SHAPESHIFTER_ATTEMPT.PIPELINE_UUID.eq(pipelineUuid))
                     .execute();
-            context.deleteFrom(SHAPESHIFTER_RULE)
-                    .where(SHAPESHIFTER_RULE.PIPELINE_UUID.eq(pipelineUuid))
+            context.deleteFrom(SHAPESHIFTER_BINDING)
+                    .where(SHAPESHIFTER_BINDING.PIPELINE_UUID.eq(pipelineUuid))
                     .execute();
             context.deleteFrom(SHAPESHIFTER_LEARNER_STATE)
                     .where(SHAPESHIFTER_LEARNER_STATE.PIPELINE_UUID.eq(pipelineUuid))
@@ -189,7 +189,7 @@ public class DeletedPipelinesDao implements DeletedPipelines, KeptLearning {
     private static boolean keeps(final DSLContext context, final String pipelineUuid) {
         return context.fetchExists(SHAPESHIFTER_LEARNER_STATE,
                        SHAPESHIFTER_LEARNER_STATE.PIPELINE_UUID.eq(pipelineUuid))
-               || context.fetchExists(SHAPESHIFTER_RULE, SHAPESHIFTER_RULE.PIPELINE_UUID.eq(pipelineUuid))
+               || context.fetchExists(SHAPESHIFTER_BINDING, SHAPESHIFTER_BINDING.PIPELINE_UUID.eq(pipelineUuid))
                || context.fetchExists(SHAPESHIFTER_GUIDANCE,
                        SHAPESHIFTER_GUIDANCE.PIPELINE_UUID.eq(pipelineUuid))
                || context.fetchExists(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL,

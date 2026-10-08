@@ -148,17 +148,17 @@ public class ShapeshifterLearnerStateRecord extends UpdatableRecordImpl<Shapeshi
 
     /**
      * Setter for
-     * <code>stroom.shapeshifter_learner_state.awaiting_rule_uuid</code>.
+     * <code>stroom.shapeshifter_learner_state.awaiting_binding_uuid</code>.
      */
-    public void setAwaitingRuleUuid(String value) {
+    public void setAwaitingBindingUuid(String value) {
         set(9, value);
     }
 
     /**
      * Getter for
-     * <code>stroom.shapeshifter_learner_state.awaiting_rule_uuid</code>.
+     * <code>stroom.shapeshifter_learner_state.awaiting_binding_uuid</code>.
      */
-    public String getAwaitingRuleUuid() {
+    public String getAwaitingBindingUuid() {
         return (String) get(9);
     }
 
@@ -215,7 +215,7 @@ public class ShapeshifterLearnerStateRecord extends UpdatableRecordImpl<Shapeshi
     /**
      * Create a detached, initialised ShapeshifterLearnerStateRecord
      */
-    public ShapeshifterLearnerStateRecord(Long id, Integer version, Long createTimeMs, Long updateTimeMs, String pipelineUuid, String elementId, String docUuid, String givenUpReason, String relearnReason, String awaitingRuleUuid, Double rollingScore, Integer rollingRecords) {
+    public ShapeshifterLearnerStateRecord(Long id, Integer version, Long createTimeMs, Long updateTimeMs, String pipelineUuid, String elementId, String docUuid, String givenUpReason, String relearnReason, String awaitingBindingUuid, Double rollingScore, Integer rollingRecords) {
         super(ShapeshifterLearnerState.SHAPESHIFTER_LEARNER_STATE);
 
         setId(id);
@@ -227,7 +227,7 @@ public class ShapeshifterLearnerStateRecord extends UpdatableRecordImpl<Shapeshi
         setDocUuid(docUuid);
         setGivenUpReason(givenUpReason);
         setRelearnReason(relearnReason);
-        setAwaitingRuleUuid(awaitingRuleUuid);
+        setAwaitingBindingUuid(awaitingBindingUuid);
         setRollingScore(rollingScore);
         setRollingRecords(rollingRecords);
         resetTouchedOnNotNull();

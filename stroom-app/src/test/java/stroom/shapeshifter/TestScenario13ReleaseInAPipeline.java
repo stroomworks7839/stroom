@@ -54,7 +54,7 @@ import stroom.shapeshifter.ai.scenario.Structure;
 import stroom.shapeshifter.ai.stage.Deferrals;
 import stroom.shapeshifter.ai.stage.Deferrals.Deferral;
 import stroom.shapeshifter.ai.stage.Learner;
-import stroom.shapeshifter.ai.stage.Rules;
+import stroom.shapeshifter.ai.stage.LearnerBindings;
 import stroom.shapeshifter.ai.transformation.XsltStep;
 import stroom.shapeshifter.shared.FlowExample;
 import stroom.shapeshifter.shared.LearningMode;
@@ -121,7 +121,7 @@ class TestScenario13ReleaseInAPipeline extends AbstractCoreIntegrationTest {
     @Inject
     private DeferredLearning deferredLearning;
     @Inject
-    private Rules rules;
+    private LearnerBindings learnerBindings;
     @Inject
     private Provider<DS3ParserFactory> parserFactories;
 
@@ -155,8 +155,8 @@ class TestScenario13ReleaseInAPipeline extends AbstractCoreIntegrationTest {
         assertThat(deferred.getWritten()).isZero();
         assertThat(events()).describedAs("nothing was produced from it").isEmpty();
 
-        // Learning on. The next stream of the same shape defers too, with a session opened on it; the
-        // worker learns and promotes, and the promotion wakes every task waiting on the shape.
+        // Learning on. The next stream of the same learner defers too, with a session opened on it; the
+        // worker learns and promotes, and the promotion wakes every task waiting on the learner.
         allowLearning(doc);
         final Script script = script();
         advisor.set(script);
@@ -164,10 +164,10 @@ class TestScenario13ReleaseInAPipeline extends AbstractCoreIntegrationTest {
         processOne();
         deferredLearning.exec();
         script.verifyExhausted();
-        assertThat(rules.forLearner(learner)).hasSize(1);
+        assertThat(learnerBindings.forLearner(learner)).hasSize(1);
 
         // And the wake is real: both tasks are back in the queue ahead of the retry delay, and run again
-        // through the rule that settled the shape — bound, not learned again.
+        // through the binding the learner settled on — bound, not learned again.
         final List<ProcessorTask> tasks = processorTaskService.find(new ExpressionCriteria()).getValues();
         assertThat(tasks).describedAs(tasks.toString())
                 .extracting(ProcessorTask::getMetaId, ProcessorTask::getStatus)
@@ -187,15 +187,15 @@ class TestScenario13ReleaseInAPipeline extends AbstractCoreIntegrationTest {
         });
 
         assertThat(events())
-                .describedAs("both streams have output now: the one that taught the shape and the one "
+                .describedAs("both streams have output now: the one the learner learned on and the one "
                              + "that arrived before it was known")
                 .extracting(Meta::getParentMetaId)
                 .containsExactlyInAnyOrder(learned.getId(), early.getId());
         assertThat(silent.asked())
-                .describedAs("released as-current (A12): the rule that settled the shape served it, and "
+                .describedAs("released as-current (A12): the binding the learner settled on served it, and "
                              + "the model was not asked again")
                 .isEmpty();
-        assertThat(rules.forLearner(learner)).hasSize(1);
+        assertThat(learnerBindings.forLearner(learner)).hasSize(1);
     }
 
 

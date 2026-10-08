@@ -5,13 +5,13 @@ package stroom.shapeshifter.ai.impl.db.jooq;
 
 
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterAttempt;
+import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterBinding;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterCorpus;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterDeferral;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterDeletedPipeline;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterGuidance;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterLearnerState;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterOutput;
-import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterRule;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterSnapshot;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterSpend;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterTurn;
@@ -27,6 +27,11 @@ public class Tables {
      * The table <code>stroom.shapeshifter_attempt</code>.
      */
     public static final ShapeshifterAttempt SHAPESHIFTER_ATTEMPT = ShapeshifterAttempt.SHAPESHIFTER_ATTEMPT;
+
+    /**
+     * The table <code>stroom.shapeshifter_binding</code>.
+     */
+    public static final ShapeshifterBinding SHAPESHIFTER_BINDING = ShapeshifterBinding.SHAPESHIFTER_BINDING;
 
     /**
      * The table <code>stroom.shapeshifter_corpus</code>.
@@ -57,11 +62,6 @@ public class Tables {
      * The table <code>stroom.shapeshifter_output</code>.
      */
     public static final ShapeshifterOutput SHAPESHIFTER_OUTPUT = ShapeshifterOutput.SHAPESHIFTER_OUTPUT;
-
-    /**
-     * The table <code>stroom.shapeshifter_rule</code>.
-     */
-    public static final ShapeshifterRule SHAPESHIFTER_RULE = ShapeshifterRule.SHAPESHIFTER_RULE;
 
     /**
      * The table <code>stroom.shapeshifter_snapshot</code>.

@@ -20,11 +20,11 @@ import stroom.cache.api.CacheManager;
 import stroom.cache.impl.CacheManagerImpl;
 import stroom.db.util.DataSourceFactory;
 import stroom.shapeshifter.ai.ShapeshifterAiDbConfig;
+import stroom.shapeshifter.ai.cache.CachedLearnerBindings;
 import stroom.shapeshifter.ai.cache.CachedLearnerStates;
-import stroom.shapeshifter.ai.cache.CachedRules;
 import stroom.shapeshifter.ai.cache.Rows;
+import stroom.shapeshifter.ai.stage.LearnerBindings;
 import stroom.shapeshifter.ai.stage.LearnerStates;
-import stroom.shapeshifter.ai.stage.Rules;
 import stroom.util.entityevent.EntityEventBus;
 
 import com.google.inject.AbstractModule;
@@ -53,10 +53,10 @@ class TestShapeshifterAiModules {
     }
 
     @Test
-    void theRoutingTableIsNotBoundBeforeTheApplicationExists() {
+    void theLearnerBindingsAreNotBoundBeforeTheApplicationExists() {
         final Injector injector = Guice.createInjector(new ShapeshifterAiDbModule(), bootstrap());
 
-        assertThat(injector.getExistingBinding(Key.get(Rules.class))).isNull();
+        assertThat(injector.getExistingBinding(Key.get(LearnerBindings.class))).isNull();
         assertThat(injector.getExistingBinding(Key.get(LearnerStates.class))).isNull();
     }
 
@@ -64,10 +64,11 @@ class TestShapeshifterAiModules {
     void theDaoModuleBindsTheRowsAndTheCachesInFrontOfThem() {
         final Injector injector = Guice.createInjector(new ShapeshifterAiDaoModule(), application());
 
-        assertThat(injector.getInstance(Key.get(Rules.class, Rows.class))).isInstanceOf(RulesDao.class);
+        assertThat(injector.getInstance(Key.get(LearnerBindings.class, Rows.class)))
+                .isInstanceOf(LearnerBindingsDao.class);
         assertThat(injector.getInstance(Key.get(LearnerStates.class, Rows.class)))
                 .isInstanceOf(LearnerStatesDao.class);
-        assertThat(injector.getInstance(Rules.class)).isInstanceOf(CachedRules.class);
+        assertThat(injector.getInstance(LearnerBindings.class)).isInstanceOf(CachedLearnerBindings.class);
         assertThat(injector.getInstance(LearnerStates.class)).isInstanceOf(CachedLearnerStates.class);
     }
 

@@ -66,7 +66,7 @@ public record Boundary(String configuration, String element, String array, Integ
         return new Boundary(null, null, array, depth);
     }
 
-    /// The boundary as a rule carries it (A35): the element or the array; null for raw text, whose parser
+    /// The boundary as a binding carries it (A35): the element or the array; null for raw text, whose parser
     /// configuration cuts the records and needs no count beside it.
     public RecordBoundary shared() {
         if (element != null) {

@@ -30,7 +30,7 @@ import java.util.function.Predicate;
 /// Which unit a chain of elements can be replayed over (A1, design 01 §4), by the one thing that
 /// decides it: whether a parser stands in the chain.
 ///
-/// Derived rather than declared, in every place it is needed — of a written fragment, when a rule binds
+/// Derived rather than declared, in every place it is needed — of a written fragment, when a binding names
 /// one; of a document's allowed elements, which say what its stage may learn; and of a stage's position
 /// in a pipeline, which says what it may host. The three must agree, and saying so is what this is for.
 public final class ReplayUnits {

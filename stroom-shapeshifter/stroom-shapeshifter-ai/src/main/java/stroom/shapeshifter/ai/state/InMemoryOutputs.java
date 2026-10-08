@@ -16,8 +16,8 @@
 
 package stroom.shapeshifter.ai.state;
 
-import stroom.shapeshifter.ai.stage.Bindings;
 import stroom.shapeshifter.ai.stage.Outputs;
+import stroom.shapeshifter.ai.stage.Produced;
 import stroom.shapeshifter.ai.stage.Replayable;
 import stroom.util.shared.TextRange;
 
@@ -38,28 +38,28 @@ public final class InMemoryOutputs implements Outputs {
     @Override
     public synchronized void emitted(final long inputId,
                                      final String pipeline,
-                                     final Bindings bindings,
+                                     final Produced produced,
                                      final List<TextRange> spans) {
-        // One row per input per rule per pipeline, as the table has it: a stream processed twice by one
-        // pipeline under one rule is one thing to replay, and two pipelines are two outputs.
+        // One row per input per binding per pipeline, as the table has it: a stream processed twice by one
+        // pipeline under one binding is one thing to replay, and two pipelines are two outputs.
         final List<TextRange> known = spans.isEmpty()
                 // A run with no parser to ask knows nothing about where the records began, and knowing
                 // nothing must not erase what was known: an as-processed reprocess of a stream keeps the
                 // spans the run that produced it recorded.
-                ? span(bindings.docUuid(), inputId, pipeline)
+                ? span(produced.docUuid(), inputId, pipeline)
                 : List.copyOf(spans);
         emitted.removeIf(output -> output.inputId() == inputId
-                                   && output.bindings().ruleUuid().equals(bindings.ruleUuid())
+                                   && output.produced().bindingUuid().equals(produced.bindingUuid())
                                    && Objects.equals(output.pipeline(), pipeline));
-        emitted.add(new Emitted(inputId, pipeline, bindings, known));
+        emitted.add(new Emitted(inputId, pipeline, produced, known));
     }
 
     @Override
-    public synchronized List<Replayable> boundBy(final String ruleUuid, final String fragmentUuid) {
+    public synchronized List<Replayable> boundBy(final String bindingUuid, final String fragmentUuid) {
         return emitted.stream()
-                .filter(output -> output.bindings().ruleUuid().equals(ruleUuid))
+                .filter(output -> output.produced().bindingUuid().equals(bindingUuid))
                 .filter(output -> fragmentUuid == null
-                                  || fragmentUuid.equals(output.bindings().fragment().getUuid()))
+                                  || fragmentUuid.equals(output.produced().fragment().getUuid()))
                 .map(output -> new Replayable(output.inputId(), output.pipeline()))
                 .toList();
     }
@@ -69,7 +69,7 @@ public final class InMemoryOutputs implements Outputs {
     private List<TextRange> span(final String docUuid, final long inputId, final String pipeline) {
         return emitted.stream()
                 .filter(output -> output.inputId() == inputId)
-                .filter(output -> output.bindings().docUuid().equals(docUuid))
+                .filter(output -> output.produced().docUuid().equals(docUuid))
                 .filter(output -> Objects.equals(output.pipeline(), pipeline))
                 .map(Emitted::spans)
                 .filter(spans -> !spans.isEmpty())
@@ -84,7 +84,7 @@ public final class InMemoryOutputs implements Outputs {
                                                  final int recordIndex) {
         return emitted.stream()
                 .filter(output -> output.inputId() == inputId)
-                .filter(output -> output.bindings().docUuid().equals(docUuid))
+                .filter(output -> output.produced().docUuid().equals(docUuid))
                 .filter(output -> Objects.equals(output.pipeline(), pipeline))
                 .map(Emitted::spans)
                 .filter(spans -> recordIndex >= 0 && recordIndex < spans.size())
@@ -93,19 +93,19 @@ public final class InMemoryOutputs implements Outputs {
     }
 
     @Override
-    public synchronized Optional<Bindings> asProcessed(final String docUuid,
+    public synchronized Optional<Produced> asProcessed(final String docUuid,
                                                        final long inputId,
                                                        final String pipeline) {
         // The last thing recorded for this input on this pipeline by this document's stage: a stream
-        // served twice keeps one row per rule, and what its output is now is what ran last.
+        // served twice keeps one row per binding, and what its output is now is what ran last.
         return emitted.stream()
                 .filter(output -> output.inputId() == inputId)
                 // This document's stage, since a pipeline may hold two and they record the same input.
-                .filter(output -> output.bindings().docUuid().equals(docUuid))
+                .filter(output -> output.produced().docUuid().equals(docUuid))
                 // This pipeline's, exactly: a stream another pipeline produced is another output, and an
                 // output of no pipeline is of no pipeline rather than of any.
                 .filter(output -> Objects.equals(output.pipeline(), pipeline))
-                .map(Emitted::bindings)
+                .map(Emitted::produced)
                 .reduce((first, last) -> last);
     }
 
@@ -120,7 +120,7 @@ public final class InMemoryOutputs implements Outputs {
         return List.copyOf(emitted);
     }
 
-    public record Emitted(long inputId, String pipeline, Bindings bindings, List<TextRange> spans) {
+    public record Emitted(long inputId, String pipeline, Produced produced, List<TextRange> spans) {
 
     }
 }

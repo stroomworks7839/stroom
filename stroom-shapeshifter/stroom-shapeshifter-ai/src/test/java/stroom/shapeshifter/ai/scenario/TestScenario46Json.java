@@ -251,7 +251,8 @@ class TestScenario46Json {
                              + "transform one record and runs it over every record, so the envelope is "
                              + "missing the first time the candidate is judged")
                 .isEqualTo("No admission for XSLTFilter after 1 attempts");
-        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).describedAs("and nothing was bound").isEmpty();
+        assertThat(scenarios.learnerBindings.forLearner(Scenarios.LEARNER)).describedAs("and nothing was bound")
+                .isEmpty();
     }
 
     @Test
@@ -271,10 +272,11 @@ class TestScenario46Json {
         // Learned whole; the array the split named reaches the stage's count and the yield scorer (A35): the
         // document brings twelve records, not the root's one map, so twelve events is a yield of one per
         // record and the stream is promoted outright — where run 7 (design 02 §6.3) had one record, and a
-        // one-event transform promoted on it. The rule carries the array for the streams it will serve.
+        // one-event transform promoted on it. The binding carries the array for the streams it will serve.
         assertThat(run.decision()).describedAs(run.decision().toString()).isInstanceOf(Promoted.class);
         assertThat(((Promoted) run.decision()).score()).isEqualTo(1.0);
-        assertThat(((Promoted) run.decision()).rule().getRecordBoundary()).isEqualTo(RecordBoundary.ofArray("events"));
+        assertThat(((Promoted) run.decision()).binding().getRecordBoundary())
+                .isEqualTo(RecordBoundary.ofArray("events"));
         assertThat(Scenarios.canonical(run.output())).isEqualTo(Scenarios.canonical(EVENTS));
         final Configuration transform = (Configuration) script.asked().get(script.asked().size() - 1);
         assertThat(transform.targets()).describedAs(transform.targets().toString()).hasSize(2);
@@ -286,14 +288,14 @@ class TestScenario46Json {
         // stylesheet sees one record and memory is bounded by the record and not by the stream. The depth
         // is read from the parsed document, not assumed: the items of an array under a key sit one deeper
         // than the children of a root.
-        assertThat(((Promoted) run.decision()).rule().getRecordBoundary().splitDepth()).hasValue(3);
-        assertThat(((Promoted) run.decision()).rule().getRecordBoundary().getDepth())
+        assertThat(((Promoted) run.decision()).binding().getRecordBoundary().splitDepth()).hasValue(3);
+        assertThat(((Promoted) run.decision()).binding().getRecordBoundary().getDepth())
                 .describedAs("the parser wraps its output in a records root, so an item of an array under "
                              + "a key sits three elements down — which is why the depth is read from the "
                              + "document the split was settled against and not assumed")
                 .isEqualTo(3);
         final PipelineData fragment = scenarios.stores.pipelines
-                .readDocument(((Promoted) run.decision()).rule().getPipeline())
+                .readDocument(((Promoted) run.decision()).binding().getPipeline())
                 .getPipelineData();
         assertThat(fragment.getElements().getAdd()).extracting(PipelineElement::getType)
                 .containsExactly("Source", "JSONParser", "SplitFilter", "XSLTFilter");
@@ -303,7 +305,7 @@ class TestScenario46Json {
                 .containsExactly(tuple("splitDepth", 3), tuple("splitCount", 1));
 
         // And the fragment that now carries a filter is still a fragment this stage can run: the next
-        // stream of the shape is served by it, with no model call. The filter is the pipeline's to run —
+        // stream of the learner is served by it, with no model call. The filter is the pipeline's to run —
         // the runner passes over it, and running the chain per record as the pipeline does is what item
         // 25 still owes — but a fragment it refused to run would break every bound markup feed on its
         // second stream.

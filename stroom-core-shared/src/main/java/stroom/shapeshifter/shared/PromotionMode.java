@@ -20,7 +20,7 @@ import stroom.docref.HasDisplayValue;
 
 /**
  * Whether a promotion goes live on its own or waits for a person (design §11.3, ruling A25).
- * Automatic is A9; review makes every learned rule a draft the router skips until Approve.
+ * Automatic is A9; review makes every learned binding a draft that serves nothing until Approve.
  */
 public enum PromotionMode implements HasDisplayValue {
     AUTOMATIC("Automatic"),

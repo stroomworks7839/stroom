@@ -28,7 +28,7 @@ import java.util.Optional;
 ///
 /// @param records     How many records were judged, the short one included.
 /// @param meanTotal   The mean of the records' weighted totals, over the gates that judge a record: what
-///                    the shape's rolling score is fed.
+///                    the learner's rolling score is fed.
 /// @param diagnostics What the fragment's elements said over the run, once each.
 /// @param shortfall   The record that fell short, where one did.
 public record ServedStream(int records,

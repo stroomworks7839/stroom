@@ -171,7 +171,7 @@ final class Corpus {
     }
 
     /// What a chain makes of one entry's record: its transform steps' output, or — for a chain that is a
-    /// parser alone, whose output is its records — the record itself, so that a parser-only rule is held
+    /// parser alone, whose output is its records — the record itself, so that a parser-only binding is held
     /// to what it emits and not to nothing.
     static String outputFor(final List<LearnedStep> transforms, final String record, final RecordBoundary boundary) {
         return transforms.isEmpty()

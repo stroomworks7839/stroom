@@ -69,7 +69,7 @@ public class ShapeshifterAiStepPresenter
         } else {
             // A step this element had nothing to say about — one it never ran on, one the parser above
             // it refused — clears the pane. Left alone it would show the step before as this one, which
-            // is worse than showing nothing: a decision, a rule and a transcript that are not this
+            // is worse than showing nothing: a decision, a binding and a transcript that are not this
             // record's, presented as though they were.
             clear();
         }
@@ -93,14 +93,14 @@ public class ShapeshifterAiStepPresenter
         if (stage.getDocument() != null) {
             term(html, "Document", stage.getDocument().getName());
         }
-        if (stage.getRuleUuid() != null) {
-            term(html, "Rule", stage.getRuleUuid());
+        if (stage.getBindingUuid() != null) {
+            term(html, "Binding", stage.getBindingUuid());
         }
         if (stage.getScore() != null) {
             term(html, "Score", String.valueOf(stage.getScore()));
         }
         if (stage.isProvisional()) {
-            term(html, "Provisional", "yes, until the shape brings enough records to judge it");
+            term(html, "Provisional", "yes, until the learner brings enough records to judge it");
         }
         if (stage.getRecordBoundary() != null) {
             term(html, "Record", stage.getRecordBoundary());
@@ -141,7 +141,7 @@ public class ShapeshifterAiStepPresenter
     }
 
     /// Every exchange with the model, where this stream was learned. Empty where it was served, which is
-    /// every stream after the first of its shape.
+    /// every stream after the first of its learner.
     private static SafeHtml transcript(final List<SupervisorTurn> turns) {
         final SafeHtmlBuilder html = new SafeHtmlBuilder();
         if (NullSafe.isEmptyCollection(turns)) {

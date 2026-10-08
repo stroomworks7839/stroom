@@ -24,9 +24,9 @@ import stroom.shapeshifter.ai.stage.Decision.Rebound;
 import stroom.shapeshifter.ai.stage.Deferrals.Deferral;
 import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.StageRun;
+import stroom.shapeshifter.shared.Binding;
 import stroom.shapeshifter.shared.FlowExample;
 import stroom.shapeshifter.shared.LearningMode;
-import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ScorerSetting;
 import stroom.shapeshifter.shared.ScorerType;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
@@ -42,8 +42,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Design 02 §5, scenarios 28, 27 and 13: what happens to a binding after it is made. A provisional
- * rule that fails the gate is retracted; a bound shape whose rolling score falls is relearned while the
- * incumbent serves; binding a shape wakes the streams that waited for it. The feed is a headerless CSV
+ * binding that fails the gate is retracted; a bound learner whose rolling score falls relearns while the
+ * incumbent serves; binding a learner wakes the streams that waited for it. The feed is a headerless CSV
  * of four fields, so that a regex splitter can be right about it and then wrong when the feed changes.
  */
 class TestScenariosRetractionRelearningAndRelease {
@@ -103,10 +103,10 @@ class TestScenariosRetractionRelearningAndRelease {
     }
 
     @Test
-    void scenario28AProvisionalRuleIsNotRetractedByTheFloor() {
-        // A101: a provisional rule is held to the record bar like any other, and the floor no longer
+    void scenario28AProvisionalBindingIsNotRetractedByTheFloor() {
+        // A101: a provisional binding is held to the record bar like any other, and the floor no longer
         // retracts it. A stream whose records all clear it is served by it; one whose records fall short
-        // sends the shape back to be learned (scenario 54); and enough clean records promote it in place
+        // sends the learner back to learn (scenario 54); and enough clean records promote it in place
         // (scenario 14).
         final Scenarios scenarios = new Scenarios();
         final ShapeshifterAiDoc doc = doc(10);
@@ -116,18 +116,18 @@ class TestScenariosRetractionRelearningAndRelease {
         final StageRun first = scenarios.process(script, doc, stream(1, lines(6, 0))).learned();
         script.verifyExhausted();
         assertThat(first.decision()).isInstanceOf(Provisional.class);
-        final RoutingRule provisional = ((Provisional) first.decision()).rule();
-        assertThat(first.bindings().provisional()).isTrue();
+        final Binding provisional = ((Provisional) first.decision()).binding();
+        assertThat(first.produced().provisional()).isTrue();
 
-        // Four more records: still too few to promote it, so the provisional rule serves them as it is.
+        // Four more records: still too few to promote it, so the provisional binding serves them as it is.
         final Script silent = Script.of();
         final StageRun second = scenarios.process(silent, first.doc(), stream(2, lines(4, 0))).learned();
         assertThat(second.decision()).isInstanceOf(Bound.class);
-        assertThat(second.bindings().provisional()).isTrue();
+        assertThat(second.produced().provisional()).isTrue();
         assertThat(events(second.output())).isEqualTo(4);
 
         // Ten records the feed now sends with a fifth field: the splitter matches none of them, so there is
-        // no record to fall short and nothing to promote on. The rule stays, provisional, and nothing is
+        // no record to fall short and nothing to promote on. The binding stays, provisional, and nothing is
         // retracted, released or asked.
         final String fiveFields = lines(10, 0).replace(",logon\n", ",logon,badge\n");
         final StageRun third = scenarios.process(silent, second.doc(), stream(3, fiveFields)).learned();
@@ -135,11 +135,11 @@ class TestScenariosRetractionRelearningAndRelease {
         assertThat(silent.asked()).isEmpty();
         assertThat(third.decision()).isInstanceOf(Bound.class);
         assertThat(events(third.output())).isZero();
-        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).containsExactly(provisional);
+        assertThat(scenarios.learnerBindings.forLearner(Scenarios.LEARNER)).containsExactly(provisional);
     }
 
     @Test
-    void scenario27AFallingRollingScoreIsKeptForTheListAndAPersonMarksTheShape() {
+    void scenario27AFallingRollingScoreIsKeptForTheListAndAPersonMarksTheLearner() {
         final Scenarios scenarios = new Scenarios();
         final ShapeshifterAiDoc doc = doc(5);
 
@@ -148,12 +148,12 @@ class TestScenariosRetractionRelearningAndRelease {
         final StageRun first = scenarios.process(script, doc, stream(1, lines(7, 0))).learned();
         script.verifyExhausted();
         assertThat(first.decision()).isInstanceOf(Promoted.class);
-        final RoutingRule incumbent = ((Promoted) first.decision()).rule();
+        final Binding incumbent = ((Promoted) first.decision()).binding();
         assertThat(((Promoted) first.decision()).score()).isEqualTo(1.0);
 
-        // Twenty records of which six are a second kind the splitter does not match. No new shape: the
-        // rule still binds, the fourteen that parse become events, the six are errors on the way — not
-        // sentinels — and the shape's rolling score falls below the threshold.
+        // Twenty records of which six are a second kind the splitter does not match. No new learner: the
+        // binding still serves, the fourteen that parse become events, the six are errors on the way — not
+        // sentinels — and the learner's rolling score falls below the threshold.
         final String withAlarms = lines(20, 3);
         final Script silent = Script.of();
         final StageRun second = scenarios.process(silent, first.doc(), stream(2, withAlarms)).learned();
@@ -162,7 +162,7 @@ class TestScenariosRetractionRelearningAndRelease {
         assertThat(second.decision()).isInstanceOf(Bound.class);
         assertThat(events(second.output())).isEqualTo(14);
         // The score is no trigger (design 04 §6): it is kept for the Supervisor's list of what could be
-        // better (A46), and a person reading the stream's errors is who marks the shape (A100).
+        // better (A46), and a person reading the stream's errors is who marks the learner (A100).
         assertThat(scenarios.states.relearnReason(Scenarios.LEARNER)).isEmpty();
         assertThat(second.doc()).isEqualTo(first.doc());
         scenarios.states.markForRelearning(Scenarios.LEARNER, DOC, "Rolling score below the threshold: improve it");
@@ -170,7 +170,7 @@ class TestScenariosRetractionRelearningAndRelease {
         // The next stream starts an attempt, opening with why the incumbent fell short: the mark's reason
         // and the coverage shortfall, on the chain question and on each element's first. The incumbent
         // serves it meanwhile; the candidate handles both kinds, beats the incumbent on this stream and
-        // is no worse on the record it was accepted on, so the rule is rebound to it — same rule, new
+        // is no worse on the record it was accepted on, so the binding is rebound to it — same binding, new
         // fragment.
         final Script relearn = scenarios.script(FOUR_FIELDS_AND_ALARMS, XSLT)
                 .expect(QuestionMatcher.chain()
@@ -189,44 +189,44 @@ class TestScenariosRetractionRelearningAndRelease {
         assertThat(third.decision()).isInstanceOf(Rebound.class);
         final Rebound rebound = (Rebound) third.decision();
         assertThat(rebound.incumbent()).isEqualTo(incumbent);
-        assertThat(rebound.rule().getUuid()).isEqualTo(incumbent.getUuid());
-        assertThat(rebound.rule().getPipeline())
+        assertThat(rebound.binding().getUuid()).isEqualTo(incumbent.getUuid());
+        assertThat(rebound.binding().getPipeline())
                 .describedAs("edited in place (A58)")
                 .isEqualTo(incumbent.getPipeline());
-        assertThat(rebound.rule().getSnapshot()).isNotEqualTo(incumbent.getSnapshot());
-        assertThat(rebound.rule().getPromotedTimeMs()).isEqualTo(Scenarios.NOW.toEpochMilli());
+        assertThat(rebound.binding().getSnapshot()).isNotEqualTo(incumbent.getSnapshot());
+        assertThat(rebound.binding().getPromotedTimeMs()).isEqualTo(Scenarios.NOW.toEpochMilli());
         assertThat(rebound.score()).isEqualTo(1.0);
-        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).containsExactly(rebound.rule());
+        assertThat(scenarios.learnerBindings.forLearner(Scenarios.LEARNER)).containsExactly(rebound.binding());
         assertThat(events(relearned.output())).describedAs("the incumbent served this stream").isEqualTo(14);
-        assertThat(third.bindings().fragment()).isEqualTo(incumbent.getPipeline());
+        assertThat(third.produced().fragment()).isEqualTo(incumbent.getPipeline());
         assertThat(scenarios.regressionSet.accepted(incumbent.getUuid()))
                 .describedAs("the records that fell short under the incumbent were learned for, and go in (A56)")
                 .hasSizeGreaterThan(held);
         assertThat(scenarios.states.relearnReason(Scenarios.LEARNER)).isEmpty();
-        assertThat(scenarios.stores.pipelines.list()).describedAs("one fragment per shape (A58)").hasSize(1);
+        assertThat(scenarios.stores.pipelines.list()).describedAs("one fragment per learner (A58)").hasSize(1);
 
         // And the stream after that is served by the new fragment, every record an event.
         final StageRun fourth = scenarios.process(silent, third.doc(), stream(4, withAlarms)).learned();
         assertThat(fourth.decision()).isInstanceOf(Bound.class);
-        assertThat(fourth.bindings().fragment()).isEqualTo(rebound.rule().getPipeline());
+        assertThat(fourth.produced().fragment()).isEqualTo(rebound.binding().getPipeline());
         assertThat(events(fourth.output())).isEqualTo(20);
         assertThat(silent.asked()).isEmpty();
     }
 
     @Test
-    void aMarkedShapeWaitsForAStreamACandidateCanBeJudgedOn() {
+    void aMarkedLearnerWaitsForAStreamACandidateCanBeJudgedOn() {
         final Scenarios scenarios = new Scenarios();
         final Script script = learning(scenarios, FOUR_FIELDS);
         final StageRun first = scenarios.process(script, doc(5), stream(1, lines(7, 0))).learned();
         assertThat(first.decision()).isInstanceOf(Promoted.class);
 
-        // A blank stream after promotion is nothing to judge the shape on: no score, no mark.
+        // A blank stream after promotion is nothing to judge the learner on: no score, no mark.
         final Script silent = Script.of();
         final StageRun blank = scenarios.process(silent, first.doc(), stream(2, "\n")).learned();
         assertThat(blank.decision()).isInstanceOf(Bound.class);
         assertThat(scenarios.states.relearnReason(Scenarios.LEARNER)).isEmpty();
 
-        // The score falls and a person marks the shape (design 04 §6); a stream of three records cannot
+        // The score falls and a person marks the learner (design 04 §6); a stream of three records cannot
         // meet A14 for a candidate, so the incumbent serves it, the model is not asked, and the mark waits.
         scenarios.process(silent, first.doc(), stream(3, lines(20, 3))).learned();
         scenarios.states.markForRelearning(Scenarios.LEARNER, DOC, "Scored below the threshold: improve it");
@@ -245,7 +245,7 @@ class TestScenariosRetractionRelearningAndRelease {
     }
 
     @Test
-    void scenario13BindingAShapeWakesTheStreamsThatWaitedForIt() {
+    void scenario13BindingALearnerWakesTheStreamsThatWaitedForIt() {
         final Scenarios scenarios = new Scenarios();
         // Two streams arrive while learning is disabled: each waits for a person (design 04 §3, the kill
         // switch), on a row, with no session opened.
@@ -259,7 +259,7 @@ class TestScenariosRetractionRelearningAndRelease {
         assertThat(silent.asked()).isEmpty();
         assertThat(scenarios.attempts.forDocument(DOC, 10)).isEmpty();
 
-        // Learning is switched on and the next stream learns the shape: the promotion wakes the two that
+        // Learning is switched on and the next stream is learned on: the promotion wakes the two that
         // waited (design 04 §5.3), and nothing is asked of reprocessing.
         final Script script = learning(scenarios, FOUR_FIELDS);
         final StageRun run = scenarios.process(script, doc(5), stream(13, lines(6, 0))).learned();

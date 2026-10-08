@@ -114,13 +114,13 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
         setInSlot(BACKLOG, backlogPresenter);
 
         // The decisions A28 puts beside the attempt they are about. Approve and Reject are review
-        // mode's (A25), offered here as well as on the document's Routing tab because a person watching
-        // the feature meets the draft here first. Re-learn is for a learner that gave up or bound
+        // mode's (A25), offered here because this is where a person watching the feature meets the
+        // draft. Re-learn is for a learner that gave up or bound
         // badly: it asks again, from the beginning.
         approveButton = listPresenter.add(SvgPresets.TICK.title("Approve what this attempt drafted"));
         rejectButton = listPresenter.add(SvgPresets.DISABLE.title("Reject what this attempt drafted"));
         relearnButton = listPresenter.add(SvgPresets.RERUN.title(
-                "Learn again: the next stream opens a session while the rule goes on serving it"));
+                "Learn again: the next stream opens a session while the binding goes on serving it"));
         // A46's message: neither an answer to a turn nor a decision about one. It attaches to the
         // attempt's learner, so a person reading a transcript and seeing what the model did not know can
         // say so there and then, and whatever is asked next carries it.
@@ -173,7 +173,7 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
         }
     }
 
-    /// Reject what an attempt drafted (A25): the rule goes and the learner gives up with the reason.
+    /// Reject what an attempt drafted (A25): the binding goes and the learner gives up with the reason.
     /// The reason is asked for rather than assumed — it is what the learner carries afterwards.
     private void reject() {
         final SupervisorAttempt attempt = awaitingReview();
@@ -308,7 +308,7 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
     /// The selection goes first, and that is not tidiness. A selection holds the row *object* it was
     /// made from, and refreshing the list builds new ones without touching it — so an attempt that has
     /// just been approved would still answer `AWAITING_REVIEW` to the guard that decides whether Reject
-    /// is offered, and rejecting it would take the rule that was just promoted out of the routing table
+    /// is offered, and rejecting it would take back the binding that was just promoted
     /// and give its learner up. What is shown afterwards is the decided attempt, which is what the person
     /// was looking at; what is *selected* is nothing, until they choose again from the list as it now is.
     private void act(final Function<SupervisorResource, SupervisorAttempt> call) {
@@ -319,7 +319,7 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
                     listPresenter.getSelectionModel().clear();
                     updateButtons();
                     turnsPresenter.read(decided);
-                    // What serves with it: approving a draft puts a rule in front of its learner.
+                    // What serves with it: approving a draft puts a binding in front of its learner.
                     refresh();
                 })
                 .taskMonitorFactory(this)

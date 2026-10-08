@@ -100,7 +100,7 @@ public final class StandInFragmentRunner implements FragmentRunner {
      * the way is followed, as a pipeline would follow it: the errors are records that failed, dropped to
      * the error stream, and the scorers count what got through (design 01 §5).
      *
-     * @param boundary What one record is in the stream (A35), as the rule carries it, for the scorers that
+     * @param boundary What one record is in the stream (A35), as the binding carries it, for the scorers that
      *                 count records; null where none was settled.
      */
     @Override

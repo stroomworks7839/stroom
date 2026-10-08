@@ -17,8 +17,8 @@
 package stroom.shapeshifter.ai.impl.db;
 
 import stroom.cache.api.CacheManager;
+import stroom.shapeshifter.ai.cache.CachedLearnerBindings;
 import stroom.shapeshifter.ai.cache.CachedLearnerStates;
-import stroom.shapeshifter.ai.cache.CachedRules;
 import stroom.shapeshifter.ai.cache.Rows;
 import stroom.shapeshifter.ai.element.KeptLearning;
 import stroom.shapeshifter.ai.stage.Attempts;
@@ -26,10 +26,10 @@ import stroom.shapeshifter.ai.stage.CorpusIndex;
 import stroom.shapeshifter.ai.stage.Deferrals;
 import stroom.shapeshifter.ai.stage.DeletedPipelines;
 import stroom.shapeshifter.ai.stage.Guidance;
+import stroom.shapeshifter.ai.stage.LearnerBindings;
 import stroom.shapeshifter.ai.stage.LearnerStates;
 import stroom.shapeshifter.ai.stage.Learners;
 import stroom.shapeshifter.ai.stage.Outputs;
-import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.ai.stage.Serving;
 import stroom.shapeshifter.ai.stage.Snapshots;
 import stroom.shapeshifter.ai.stage.Spend;
@@ -71,18 +71,18 @@ public class ShapeshifterAiDaoModule extends AbstractModule {
         bind(DeletedPipelines.class).to(DeletedPipelinesDao.class);
         bind(KeptLearning.class).to(DeletedPipelinesDao.class);
         // The two the hot path reads for every stream are bound as the rows behind a cache, and the cache
-        // is what everything else asks for (design 01 §12 item 8): a routing table read from the database
+        // is what everything else asks for (design 01 §12 item 8): a learner's bindings read from the database
         // once per stream per node is the first thing to give at volume. Nothing but the cache asks the
         // database, and what writes through it tells every node to let go of its copy.
-        bind(Rules.class).annotatedWith(Rows.class).to(RulesDao.class);
+        bind(LearnerBindings.class).annotatedWith(Rows.class).to(LearnerBindingsDao.class);
         bind(LearnerStates.class).annotatedWith(Rows.class).to(LearnerStatesDao.class);
-        bind(Rules.class).to(CachedRules.class).in(Scopes.SINGLETON);
+        bind(LearnerBindings.class).to(CachedLearnerBindings.class).in(Scopes.SINGLETON);
         bind(LearnerStates.class).to(CachedLearnerStates.class).in(Scopes.SINGLETON);
         GuiceUtil.buildMultiBinder(binder(), EntityEvent.Handler.class)
-                .addBinding(CachedRules.class)
+                .addBinding(CachedLearnerBindings.class)
                 .addBinding(CachedLearnerStates.class);
         GuiceUtil.buildMultiBinder(binder(), Clearable.class)
-                .addBinding(CachedRules.class)
+                .addBinding(CachedLearnerBindings.class)
                 .addBinding(CachedLearnerStates.class);
     }
 }

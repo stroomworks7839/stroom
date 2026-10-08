@@ -41,7 +41,7 @@ import stroom.shapeshifter.ai.stage.Decision.Deferred;
 import stroom.shapeshifter.ai.stage.DeferredWorker;
 import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.Learner;
-import stroom.shapeshifter.ai.stage.Rules;
+import stroom.shapeshifter.ai.stage.LearnerBindings;
 import stroom.shapeshifter.ai.stage.Stage;
 import stroom.shapeshifter.ai.stage.StageRun;
 import stroom.shapeshifter.ai.state.InMemoryAttempts;
@@ -50,19 +50,19 @@ import stroom.shapeshifter.ai.state.InMemoryDeletedPipelines;
 import stroom.shapeshifter.ai.state.InMemoryDocuments;
 import stroom.shapeshifter.ai.state.InMemoryGuidance;
 import stroom.shapeshifter.ai.state.InMemoryInputs;
+import stroom.shapeshifter.ai.state.InMemoryLearnerBindings;
 import stroom.shapeshifter.ai.state.InMemoryLearnerStates;
 import stroom.shapeshifter.ai.state.InMemoryLearners;
 import stroom.shapeshifter.ai.state.InMemoryOutputs;
 import stroom.shapeshifter.ai.state.InMemoryPlaces;
 import stroom.shapeshifter.ai.state.InMemoryRegressionSet;
-import stroom.shapeshifter.ai.state.InMemoryRules;
 import stroom.shapeshifter.ai.state.InMemoryServing;
 import stroom.shapeshifter.ai.state.InMemorySnapshots;
 import stroom.shapeshifter.ai.state.InMemorySpend;
 import stroom.shapeshifter.ai.state.InMemoryWake;
 import stroom.shapeshifter.ai.transformation.XsltStep;
 import stroom.shapeshifter.shared.AttemptStatus;
-import stroom.shapeshifter.shared.RoutingRule;
+import stroom.shapeshifter.shared.Binding;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 
 import java.io.IOException;
@@ -104,7 +104,7 @@ public final class Scenarios {
     public final ContentStores stores = new ContentStores();
     public final InMemoryDeletedPipelines deletedPipelines = new InMemoryDeletedPipelines();
     public final InMemoryAttempts attempts = new InMemoryAttempts(deletedPipelines);
-    public final InMemoryRules rules = new InMemoryRules();
+    public final InMemoryLearnerBindings learnerBindings = new InMemoryLearnerBindings();
     public final InMemorySpend spend = new InMemorySpend();
     public final InMemoryLearnerStates states = new InMemoryLearnerStates();
     public final InMemoryGuidance guidance = new InMemoryGuidance();
@@ -117,9 +117,9 @@ public final class Scenarios {
     public final InMemoryDocuments documents = new InMemoryDocuments();
     public final InMemoryInputs inputs = new InMemoryInputs();
     /// The serving view of A46 over the three seams above it, as a node reads it from one query.
-    public final InMemoryServing serving = new InMemoryServing(rules, states, guidance, deletedPipelines);
+    public final InMemoryServing serving = new InMemoryServing(learnerBindings, states, guidance, deletedPipelines);
     /// What brings a learner's rows to the document it runs under, over the rows above.
-    public final InMemoryLearners learners = new InMemoryLearners(rules, guidance, deferrals);
+    public final InMemoryLearners learners = new InMemoryLearners(learnerBindings, guidance, deferrals);
     /// As many attempts as a scenario could open, which is what one carrying takes on.
     private static final int CARRY_AT_MOST = 100;
 
@@ -163,30 +163,31 @@ public final class Scenarios {
     }
 
     /// The node a stage says it is, for the learning lease of A42: one scenario is one node unless it says
-    /// otherwise, and a scenario about two nodes meeting a shape gives each its own name.
+    /// otherwise, and a scenario about two nodes meeting a learner gives each its own name.
     public String node = "node-1";
 
     public Stage stage(final Advisor advisor) {
-        return stage(advisor, rules);
+        return stage(advisor, learnerBindings);
     }
 
-    /// A stage over a given rule store: for a scenario that watches when a rule is written — the moment a
+    /// A stage over a given binding store: for a scenario that watches when a binding is written — the moment a
     /// second node must still be excluded (A42).
-    public Stage stage(final Advisor advisor, final Rules rules) {
-        return stage(document -> advisor, rules);
+    public Stage stage(final Advisor advisor, final LearnerBindings learnerBindings) {
+        return stage(document -> advisor, learnerBindings);
     }
 
     /// A stage over given advisors: for a scenario about a node that makes a new advisor per call, each
     /// counting its own tokens, as the node's own does (A28).
-    public Stage stage(final Advisors advisors, final Rules rules) {
-        return stage(advisors, rules, null);
+    public Stage stage(final Advisors advisors, final LearnerBindings learnerBindings) {
+        return stage(advisors, learnerBindings, null);
     }
 
     /// A stage over a given fragment runner: for a scenario that watches *how* a written fragment is
     /// run — with which record boundary, say — rather than what it produced.
     ///
     /// @param fragmentRunner Null for the stand-in the scenarios use.
-    public Stage stage(final Advisors advisors, final Rules rules, final FragmentRunner fragmentRunner) {
+    public Stage stage(final Advisors advisors, final LearnerBindings learnerBindings,
+            final FragmentRunner fragmentRunner) {
         final List<StepRunner> runners = runners();
         return new Stage(
                 advisors,
@@ -198,7 +199,7 @@ public final class Scenarios {
                         : new StandInFragmentRunner(stores.pipelines, stores.stackLoader, stores.textConverters,
                                 stores.xslts, runners),
                 attempts,
-                rules,
+                learnerBindings,
                 states,
                 spend,
                 guidance,
@@ -234,15 +235,15 @@ public final class Scenarios {
     ///         attempt came to — the learning's own run, with its decision, verdicts and output — or the
     ///         task's decision again where nothing was carried.
     public Processed process(final Advisor advisor, final ShapeshifterAiDoc doc, final Input input) {
-        return process(advisor, rules, doc, input);
+        return process(advisor, learnerBindings, doc, input);
     }
 
-    /// The same over a given rule store: for a scenario that watches when a rule is written (A42).
+    /// The same over a given binding store: for a scenario that watches when a binding is written (A42).
     public Processed process(final Advisor advisor,
-                             final Rules rules,
+                             final LearnerBindings learnerBindings,
                              final ShapeshifterAiDoc doc,
                              final Input input) {
-        return process(document -> advisor, rules, null, doc, input);
+        return process(document -> advisor, learnerBindings, null, doc, input);
     }
 
     /// The same as another learner: a second pipeline, or a second element of one, meeting its streams
@@ -251,30 +252,30 @@ public final class Scenarios {
                              final Learner learner,
                              final ShapeshifterAiDoc doc,
                              final Input input) {
-        return process(document -> advisor, rules, null, learner, doc, input);
+        return process(document -> advisor, learnerBindings, null, learner, doc, input);
     }
 
-    /// The same over given advisors, rule store and fragment runner, as [#stage(Advisors, Rules,
+    /// The same over given advisors, binding store and fragment runner, as [#stage(Advisors, LearnerBindings,
     /// FragmentRunner)] builds a stage over them; a null runner is the scenario's own.
     public Processed process(final Advisors advisors,
-                             final Rules rules,
+                             final LearnerBindings learnerBindings,
                              final FragmentRunner fragmentRunner,
                              final ShapeshifterAiDoc doc,
                              final Input input) {
-        return process(advisors, rules, fragmentRunner, LEARNER, doc, input);
+        return process(advisors, learnerBindings, fragmentRunner, LEARNER, doc, input);
     }
 
     private Processed process(final Advisors advisors,
-                              final Rules rules,
+                              final LearnerBindings learnerBindings,
                               final FragmentRunner fragmentRunner,
                               final Learner learner,
                               final ShapeshifterAiDoc doc,
                               final Input input) {
         documents.put(doc);
         inputs.put(input);
-        final Stage stage = stage(advisors, rules, fragmentRunner);
+        final Stage stage = stage(advisors, learnerBindings, fragmentRunner);
         final StageRun first = stage.decide(doc, learner, input);
-        // A stream a rule binds is served as it is read, by the incumbent where its shape is being
+        // A bound stream is served as it is read, by the incumbent where its learner is being
         // relearned (A29, A100).
         final TextSink servedAtOnce = served(stage, learner, doc, input, first);
         final Recorded opened = attempts.forDocument(doc.getUuid(), CARRY_AT_MOST).stream()
@@ -288,15 +289,15 @@ public final class Scenarios {
             // that what a scenario reads off a bound stream is what the task wrote.
             final StageRun run = servedAtOnce == null
                     ? first
-                    : new StageRun(first.doc(), first.decision(), first.learner(), first.bindings(),
+                    : new StageRun(first.doc(), first.decision(), first.learner(), first.produced(),
                             servedAtOnce.text(), first.verdicts(), first.transcript(), first.events(),
                             first.diagnostics());
             return new Processed(first, null, run, servedAtOnce);
         }
         final StageRun learned = stage.resume(doc, opened.id(), input, advisors.of(doc));
         // What the wake makes of a stream that waited (design 04 §5.3): its task decides again, and a
-        // stream a rule now binds is served.
-        final TextSink served = servedAtOnce != null || learned.bindings() == null
+        // stream now bound is served.
+        final TextSink served = servedAtOnce != null || learned.produced() == null
                 ? servedAtOnce
                 : served(stage, learner, doc, input, stage.decide(doc, learner, input));
         return new Processed(first, attempts.byId(opened.id()).orElseThrow(), learned, served);
@@ -312,7 +313,7 @@ public final class Scenarios {
         }
         final TextSink sink = new TextSink();
         try {
-            stage.stream(doc, learner, bound.rule(), input, sink);
+            stage.stream(doc, learner, bound.binding(), input, sink);
         } catch (final DeferTaskException e) {
             // A record short of the bar: the stream waits on the session that opened, as a task would.
             return null;
@@ -320,7 +321,7 @@ public final class Scenarios {
         return sink;
     }
 
-    /// A stream served as a task serves one a rule binds (design 04 §3): decided, and streamed through
+    /// A stream served as a task serves a bound one (design 04 §3): decided, and streamed through
     /// the bound fragment into a sink. Null where the task does not bind it.
     public TextSink served(final ShapeshifterAiDoc doc, final Input input) {
         inputs.put(input);
@@ -384,7 +385,7 @@ public final class Scenarios {
 
     /// A stream processed as production processes it: what the task decided, the attempt it opened
     /// where it opened one, what carrying that attempt came to, and what the stream was served as —
-    /// at once where a rule bound it, or once the wake made its task decide again — or null where it
+    /// at once where it was bound, or once the wake made its task decide again — or null where it
     /// was not served.
     public record Processed(StageRun first, Recorded attempt, StageRun learned, TextSink served) {
 

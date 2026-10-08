@@ -61,16 +61,16 @@ public class ShapeshifterSnapshotRecord extends UpdatableRecordImpl<Shapeshifter
     }
 
     /**
-     * Setter for <code>stroom.shapeshifter_snapshot.rule_uuid</code>.
+     * Setter for <code>stroom.shapeshifter_snapshot.binding_uuid</code>.
      */
-    public void setRuleUuid(String value) {
+    public void setBindingUuid(String value) {
         set(3, value);
     }
 
     /**
-     * Getter for <code>stroom.shapeshifter_snapshot.rule_uuid</code>.
+     * Getter for <code>stroom.shapeshifter_snapshot.binding_uuid</code>.
      */
-    public String getRuleUuid() {
+    public String getBindingUuid() {
         return (String) get(3);
     }
 
@@ -167,13 +167,13 @@ public class ShapeshifterSnapshotRecord extends UpdatableRecordImpl<Shapeshifter
     /**
      * Create a detached, initialised ShapeshifterSnapshotRecord
      */
-    public ShapeshifterSnapshotRecord(Long id, String snapshotId, String docUuid, String ruleUuid, String fragmentUuid, String structure, String code, String versions, Long createTimeMs) {
+    public ShapeshifterSnapshotRecord(Long id, String snapshotId, String docUuid, String bindingUuid, String fragmentUuid, String structure, String code, String versions, Long createTimeMs) {
         super(ShapeshifterSnapshot.SHAPESHIFTER_SNAPSHOT);
 
         setId(id);
         setSnapshotId(snapshotId);
         setDocUuid(docUuid);
-        setRuleUuid(ruleUuid);
+        setBindingUuid(bindingUuid);
         setFragmentUuid(fragmentUuid);
         setStructure(structure);
         setCode(code);

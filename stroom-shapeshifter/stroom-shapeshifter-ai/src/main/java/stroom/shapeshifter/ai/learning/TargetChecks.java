@@ -48,7 +48,7 @@ import java.util.TreeSet;
 public final class TargetChecks {
 
     /**
-     * The most record kinds a sample is asked about: enough to see every shape a feed carries, few enough
+     * The most record kinds a sample is asked about: enough to see every kind of record a feed carries, few enough
      * to keep the attempt short.
      */
     public static final int REPRESENTATIVES = 3;

@@ -34,23 +34,22 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * The configuration of one supervised pipeline stage (design 01 §3, ruling A3): what it learns and
- * binds on, which model it may call and how, how many candidates an attempt gets, how candidates are
- * scored, when one is promoted and whether a person looks first, and the routing table of variants.
+ * The configuration of one supervised pipeline stage (design 01 §3, ruling A3): what it learns, which
+ * model it may call and how, how many candidates an attempt gets, how candidates are scored, and when
+ * one is promoted and whether a person looks first.
  * <p>
  * Every numeric default here is provisional in the sense of §2.1 — a configured default with a recorded
  * justification, to be revised once real feeds have been measured. Each field's javadoc names the section
  * or ruling it serves.
  * <p>
  * Runtime state deliberately does not live here: learner state, deferrals, regression records,
- * per-stream bindings, learning leases and error-mode state are rows (A26) or streams. The routing
- * table is the one part the supervisor rewrites (§7.3 rule 2). The replay unit is not a setting either:
- * it is a property of the fragment a rule binds, fixed by the stage's position (A1 as revised).
+ * per-stream bindings, learning leases and error-mode state are rows (A26) or streams. So are the
+ * learners' bindings, the one part the supervisor rewrites (§7.3 rule 2). The replay unit is not a setting either:
+ * it is a property of a binding's fragment, fixed by the stage's position (A1 as revised).
  */
 @Description(
-        "Configures one Shapeshifter AI stage: what it learns and binds on, the model and instructions it may " +
-        "use, its candidate and budget limits, the scorers that judge each candidate, the promotion gate and " +
-        "the routing table of transform variants.")
+        "Configures one Shapeshifter AI stage: what it learns, the model and instructions it may use, its " +
+        "candidate and budget limits, the scorers that judge each candidate, and the promotion gate.")
 @JsonPropertyOrder({
         "type",
         "uuid",
@@ -87,7 +86,7 @@ public class ShapeshifterAiDoc extends AbstractDoc {
 
     static final LearningMode DEFAULT_LEARNING_MODE = LearningMode.DISABLED;
     /**
-     * Below the promotion floor, so that a rule promoted at the floor is not relearned at once.
+     * Below the promotion floor, so that a binding promoted at the floor is not relearned at once.
      */
     static final double DEFAULT_RELEARN_THRESHOLD = 0.8;
     static final PromotionMode DEFAULT_PROMOTION_MODE = PromotionMode.AUTOMATIC;
@@ -123,8 +122,8 @@ public class ShapeshifterAiDoc extends AbstractDoc {
     @JsonProperty
     private final DocRef model;
     /**
-     * The rolling per-record score below which a bound shape is marked for relearning (A29, §5), so that a
-     * new kind of record inside a bound shape — which never misses the routing table — is still learned.
+     * The rolling per-record score below which a bound learner is marked for relearning (A29, §5), so that a
+     * new kind of record reaching a bound learner — which its binding goes on serving — is still learned.
      */
     @JsonProperty
     private final double relearnThreshold;
@@ -134,7 +133,7 @@ public class ShapeshifterAiDoc extends AbstractDoc {
     @JsonProperty
     private final String instructions;
     /**
-     * Candidates an attempt may try before the shape is given up on (§3, §7.4). The name predates the
+     * Candidates an attempt may try before the learner is given up on (§3, §7.4). The name predates the
      * split of <em>attempt</em> from <em>candidate</em> in design 01 §3 and is kept for the stored form.
      */
     @JsonProperty
@@ -168,7 +167,7 @@ public class ShapeshifterAiDoc extends AbstractDoc {
     @JsonProperty
     private final int sampleSizeLimit;
     /**
-     * Whether a learned rule goes live on promotion or is appended as a draft for a person to approve (A25).
+     * Whether a learned binding goes live on promotion or is appended as a draft for a person to approve (A25).
      */
     @JsonProperty
     private final PromotionMode promotionMode;
@@ -179,18 +178,18 @@ public class ShapeshifterAiDoc extends AbstractDoc {
     @JsonProperty
     private final double promotionFloor;
     /**
-     * Fraction of a shape's records withheld from the model and used only to judge promotion. Ruling A14.
+     * Fraction of a learner's records withheld from the model and used only to judge promotion. Ruling A14.
      */
     @JsonProperty
     private final double heldOutFraction;
     /**
-     * Records a shape must have accumulated before promotion is judged at all; below this a candidate
+     * Records a learner must have accumulated before promotion is judged at all; below this a candidate
      * that clears the floor is bound provisionally and waits for more. Ruling A14, A5.
      */
     @JsonProperty
     private final int minRecordsToLearn;
     /**
-     * Most previously-accepted records retained per rule for the regression check. Ruling A18.
+     * Most previously-accepted records retained per binding for the regression check. Ruling A18.
      */
     @JsonProperty
     private final int regressionCap;

@@ -239,7 +239,7 @@ class TestQuestionText {
     void aTemplateNamingAVariableItDoesNotHaveIsRefused() {
         final LearningFlow flow = LearningFlow.of(FlowExample.DIRECT)
                 .withTemplates(Map.of(Template.CHAIN, "${sample} then ${targets}",
-                        Template.EXTRACTION_RULES, "Rules ${nothing}"));
+                        Template.EXTRACTION_RULES, "LearnerBindings ${nothing}"));
         assertThat(Templates.problems(flow)).containsExactlyInAnyOrder(
                 "The chain question template names ${targets}, which it does not have; it may use ${elements}, "
                 + "${feedback}, ${headers}, ${sample}",

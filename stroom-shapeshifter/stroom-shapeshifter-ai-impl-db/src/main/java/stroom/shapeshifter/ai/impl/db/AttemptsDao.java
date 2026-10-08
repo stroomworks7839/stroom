@@ -54,7 +54,7 @@ import static stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterTurn.SHAPES
 public class AttemptsDao implements Attempts {
 
     /// The states in which an attempt is still learning, and so still holds its learner's claim (A45). A
-    /// draft awaiting review is not one of them: it has written its rule, and the rule is what the
+    /// draft awaiting review is not one of them: it has written its binding, and the binding is what the
     /// learner's state answers with until a person decides.
     private static final List<String> OPEN = List.of(AttemptStatus.IN_PROGRESS.name(),
             AttemptStatus.AWAITING_MODEL.name(), AttemptStatus.PARKED.name());
@@ -74,7 +74,7 @@ public class AttemptsDao implements Attempts {
 
     /// How many attempts one pass removes: a delete of every old row at once would hold locks across the
     /// table, and the job runs again.
-    /// The states in which an attempt's rule is one that was, or was about to be, serving: the ones a
+    /// The states in which an attempt's binding is one that was, or was about to be, serving: the ones a
     /// retraction is about.
     private static final List<String> BOUND = List.of(AttemptStatus.PROMOTED.name(),
             AttemptStatus.PROVISIONAL.name(), AttemptStatus.AWAITING_REVIEW.name());
@@ -214,7 +214,7 @@ public class AttemptsDao implements Attempts {
                         .set(SHAPESHIFTER_ATTEMPT.CLAIMED, CLAIMED)
                         .set(SHAPESHIFTER_ATTEMPT.EXPIRY_MS, expiryMs)
                         .setNull(SHAPESHIFTER_ATTEMPT.DECISION)
-                        .setNull(SHAPESHIFTER_ATTEMPT.RULE_UUID)
+                        .setNull(SHAPESHIFTER_ATTEMPT.BINDING_UUID)
                         .setNull(SHAPESHIFTER_ATTEMPT.SCORE)
                         .set(SHAPESHIFTER_ATTEMPT.VERSION, SHAPESHIFTER_ATTEMPT.VERSION.plus(1))
                         .set(SHAPESHIFTER_ATTEMPT.UPDATE_TIME_MS, now)
@@ -347,14 +347,14 @@ public class AttemptsDao implements Attempts {
     public void closed(final long attemptId,
                        final AttemptStatus status,
                        final String decision,
-                       final String ruleUuid,
+                       final String bindingUuid,
                        final Double score,
                        final long tokensSpent) {
         JooqUtil.context(connProvider, context -> context
                 .update(SHAPESHIFTER_ATTEMPT)
                 .set(SHAPESHIFTER_ATTEMPT.STATUS, status.name())
                 .set(SHAPESHIFTER_ATTEMPT.DECISION, decision)
-                .set(SHAPESHIFTER_ATTEMPT.RULE_UUID, ruleUuid)
+                .set(SHAPESHIFTER_ATTEMPT.BINDING_UUID, bindingUuid)
                 .set(SHAPESHIFTER_ATTEMPT.SCORE, score)
                 .set(SHAPESHIFTER_ATTEMPT.TOKENS_SPENT, SHAPESHIFTER_ATTEMPT.TOKENS_SPENT.plus(tokensSpent))
                 // A sending to the exhaustion step stands until the attempt closes (A65).
@@ -370,7 +370,7 @@ public class AttemptsDao implements Attempts {
 
     @Override
     public void decided(final String docUuid,
-                        final String ruleUuid,
+                        final String bindingUuid,
                         final AttemptStatus status,
                         final String decision) {
         JooqUtil.context(connProvider, context -> context
@@ -380,16 +380,16 @@ public class AttemptsDao implements Attempts {
                 .set(SHAPESHIFTER_ATTEMPT.VERSION, SHAPESHIFTER_ATTEMPT.VERSION.plus(1))
                 .set(SHAPESHIFTER_ATTEMPT.UPDATE_TIME_MS, System.currentTimeMillis())
                 .where(SHAPESHIFTER_ATTEMPT.DOC_UUID.eq(docUuid))
-                .and(SHAPESHIFTER_ATTEMPT.RULE_UUID.eq(ruleUuid))
+                .and(SHAPESHIFTER_ATTEMPT.BINDING_UUID.eq(bindingUuid))
                 .and(SHAPESHIFTER_ATTEMPT.STATUS.eq(AttemptStatus.AWAITING_REVIEW.name()))
                 .execute());
     }
 
-    /// The attempts that bound this rule, whatever state they ended in — promoted, provisional, or
+    /// The attempts that bound this binding, whatever state they ended in — promoted, provisional, or
     /// awaiting a review that will now never happen. Not [#decided]'s filter, which is A25's decision
-    /// about a draft *awaiting review*: these are about a rule that was serving.
+    /// about a draft *awaiting review*: these are about a binding that was serving.
     @Override
-    public void settled(final String docUuid, final String ruleUuid, final AttemptStatus status,
+    public void settled(final String docUuid, final String bindingUuid, final AttemptStatus status,
                         final String decision) {
         JooqUtil.context(connProvider, context -> context
                 .update(SHAPESHIFTER_ATTEMPT)
@@ -398,7 +398,7 @@ public class AttemptsDao implements Attempts {
                 .set(SHAPESHIFTER_ATTEMPT.VERSION, SHAPESHIFTER_ATTEMPT.VERSION.plus(1))
                 .set(SHAPESHIFTER_ATTEMPT.UPDATE_TIME_MS, System.currentTimeMillis())
                 .where(SHAPESHIFTER_ATTEMPT.DOC_UUID.eq(docUuid))
-                .and(SHAPESHIFTER_ATTEMPT.RULE_UUID.eq(ruleUuid))
+                .and(SHAPESHIFTER_ATTEMPT.BINDING_UUID.eq(bindingUuid))
                 .and(SHAPESHIFTER_ATTEMPT.STATUS.in(BOUND))
                 .execute());
     }
@@ -551,7 +551,7 @@ public class AttemptsDao implements Attempts {
                 attempt,
                 AttemptStatus.valueOf(record.get(SHAPESHIFTER_ATTEMPT.STATUS)),
                 record.get(SHAPESHIFTER_ATTEMPT.DECISION),
-                record.get(SHAPESHIFTER_ATTEMPT.RULE_UUID),
+                record.get(SHAPESHIFTER_ATTEMPT.BINDING_UUID),
                 record.get(SHAPESHIFTER_ATTEMPT.SCORE),
                 record.get(SHAPESHIFTER_ATTEMPT.TOKENS_SPENT),
                 record.get(SHAPESHIFTER_ATTEMPT.CREATE_TIME_MS),

@@ -69,8 +69,8 @@ class TestDeferralsDao {
     }
 
     @Test
-    void aStreamWithNoRuleFailedAgainstNothing() {
-        deferrals.deferred(LEARNER, DOC, 8L, "LIFT", "Raw Events", null, "no rule for this shape", 0);
+    void aStreamWithNoBindingFailedAgainstNothing() {
+        deferrals.deferred(LEARNER, DOC, 8L, "LIFT", "Raw Events", null, "no binding for this learner", 0);
 
         final Deferral row = deferrals.forDocument(DOC).getFirst();
 
@@ -85,10 +85,10 @@ class TestDeferralsDao {
     @Test
     void oneStreamsRowComesBackByItsId() {
         deferrals.deferred(LEARNER, DOC, 7L, "DOOR-ACCESS", "Raw Events", "frag:1", "short", 2);
-        deferrals.deferred(LEARNER, DOC, 9L, "DOOR-ACCESS", "Raw Events", null, "no rule", 0);
-        deferrals.deferred(OTHER_LEARNER, OTHER_DOC, 8L, "LIFT", "Raw Events", null, "no rule", 0);
+        deferrals.deferred(LEARNER, DOC, 9L, "DOOR-ACCESS", "Raw Events", null, "no binding", 0);
+        deferrals.deferred(OTHER_LEARNER, OTHER_DOC, 8L, "LIFT", "Raw Events", null, "no binding", 0);
 
-        assertThat(deferrals.of(LEARNER, 9L)).isPresent().get().extracting(Deferral::reason).isEqualTo("no rule");
+        assertThat(deferrals.of(LEARNER, 9L)).isPresent().get().extracting(Deferral::reason).isEqualTo("no binding");
         assertThat(deferrals.of(LEARNER, 99L)).isEmpty();
         assertThat(deferrals.of(OTHER_LEARNER, 9L)).describedAs("another learner's stream of that id").isEmpty();
     }
@@ -112,7 +112,7 @@ class TestDeferralsDao {
     void eachLearnerAndTransformWaitedAgainstIsNamedOnce() {
         deferrals.deferred(LEARNER, DOC, 7L, "DOOR-ACCESS", "Raw Events", "frag:1", "short", 2);
         deferrals.deferred(LEARNER, DOC, 8L, "DOOR-ACCESS", "Raw Events", "frag:1", "short", 1);
-        deferrals.deferred(LEARNER, DOC, 9L, "LIFT", "Raw Events", null, "no rule", 0);
+        deferrals.deferred(LEARNER, DOC, 9L, "LIFT", "Raw Events", null, "no binding", 0);
         deferrals.deferred(OTHER_LEARNER, OTHER_DOC, 7L, "DOOR-ACCESS", "Raw Events", "frag:9", "short", 1);
 
         assertThat(deferrals.stampsWaiting())

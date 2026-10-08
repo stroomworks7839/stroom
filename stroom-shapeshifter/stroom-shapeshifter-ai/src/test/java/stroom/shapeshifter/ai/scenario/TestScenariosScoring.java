@@ -302,18 +302,18 @@ class TestScenariosScoring {
 
         script.verifyExhausted();
         assertThat(script.scripted()).hasSize(8);
-        // Its candidates spent, the session parks for a person (A65) rather than giving the shape up.
+        // Its candidates spent, the session parks for a person (A65) rather than giving the learner up.
         assertThat(run.decision()).isInstanceOf(Parked.class);
         assertThat(((Parked) run.decision()).reason()).contains("No admission for XSLTFilter after 3");
         assertThat(feedback(script.scripted().get(4)))
                 .anyMatch(message -> message.contains("against an expected 1.0"));
-        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).isEmpty();
+        assertThat(scenarios.learnerBindings.forLearner(Scenarios.LEARNER)).isEmpty();
         assertThat(scenarios.stores.pipelines.list()).isEmpty();
         assertThat(scenarios.states.reasonGivenUp(Scenarios.LEARNER)).isEmpty();
         assertThat(scenarios.deferrals.of(Scenarios.LEARNER,
                 1L)).describedAs("the stream waits on the parked session").isPresent();
 
-        // And the shape is not asked about again while a person decides: the next stream waits on the same
+        // And the learner is not asked about again while a person decides: the next stream waits on the same
         // session.
         final Script silent = Script.of();
         final StageRun again = scenarios.process(silent, run.doc(), stream(2, CsvLines.lines(6))).learned();
@@ -344,7 +344,7 @@ class TestScenariosScoring {
         assertThat(((GivenUp) run.decision()).reason()).isEqualTo("Below the promotion floor");
         assertThat(scenarios.states.reasonGivenUp(Scenarios.LEARNER).orElseThrow())
                 .contains("against a floor of 0.95");
-        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).isEmpty();
+        assertThat(scenarios.learnerBindings.forLearner(Scenarios.LEARNER)).isEmpty();
         assertThat(scenarios.stores.pipelines.list()).describedAs("nothing written below the floor").isEmpty();
         // The worker gave up on a stream it read back out of the store, so it errors nothing: the stream's
         // task is woken to error it, as for the flow's give-up.

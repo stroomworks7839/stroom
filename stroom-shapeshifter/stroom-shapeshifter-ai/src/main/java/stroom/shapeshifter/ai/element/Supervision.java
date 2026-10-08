@@ -38,7 +38,6 @@ import stroom.shapeshifter.ai.doc.ShapeshifterAiStore;
 import stroom.shapeshifter.ai.fragment.FragmentRunner.FragmentRecord;
 import stroom.shapeshifter.ai.fragment.ReplayUnits;
 import stroom.shapeshifter.ai.fragment.ServedStream;
-import stroom.shapeshifter.ai.stage.Bindings;
 import stroom.shapeshifter.ai.stage.Decision;
 import stroom.shapeshifter.ai.stage.Decision.Bound;
 import stroom.shapeshifter.ai.stage.Decision.Deferred;
@@ -47,12 +46,13 @@ import stroom.shapeshifter.ai.stage.Decision.Provisional;
 import stroom.shapeshifter.ai.stage.Decision.Rebound;
 import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.Learner;
+import stroom.shapeshifter.ai.stage.Produced;
 import stroom.shapeshifter.ai.stage.RecordSkeleton;
 import stroom.shapeshifter.ai.stage.Stage;
 import stroom.shapeshifter.ai.stage.Stage.Served;
 import stroom.shapeshifter.ai.stage.StageRun;
+import stroom.shapeshifter.shared.Binding;
 import stroom.shapeshifter.shared.ReplayUnit;
-import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 import stroom.shapeshifter.shared.ShapeshifterAiStepDetails;
 import stroom.util.pipeline.scope.PipelineScoped;
@@ -185,7 +185,7 @@ public class Supervision {
         }
     }
 
-    /// Route, learn, judge and serve one stream, and play what the bound fragment made of it on to the
+    /// Learn, judge and serve one stream, and play what the bound fragment made of it on to the
     /// element's own downstream.
     ///
     /// The fragment is run once and once only (§12 item 2): the run the stage judged is the run that is
@@ -193,9 +193,9 @@ public class Supervision {
     /// sentinel, a learner that gave up, a draft awaiting review — emits nothing and says why on the error
     /// stream (A4).
     ///
-    /// Stepping is a dry run (A30): the stage routes and serves, and a learner nothing serves is reported
+    /// Stepping is a dry run (A30): the stage serves, and a learner nothing serves is reported
     /// rather than learned. A person opening the stepper on a feed nobody has taught yet must not spend
-    /// a model call and bind a rule by looking.
+    /// a model call and write a binding by looking.
     ///
     /// The stage is given the stream itself (design 04 §3, *streams of any size*). A step and a reprocess
     /// read the whole stream as text, as they always have: a step is bounded by the person stepping and a
@@ -247,24 +247,24 @@ public class Supervision {
         fragmentRecords.put(elementId.getId(), stepping
                 ? ran
                 : List.of());
-        final Bindings bindings = run.bindings();
+        final Produced produced = run.produced();
         // What happened, or — for a step — what would have. A dry run's report is not a fault: a learner
         // nobody has taught yet is the ordinary state of the feed a person has opened the stepper on,
         // and an error marker would say otherwise.
         errorReceiverProxy.log(stepping
                         ? Severity.INFO
-                        : bindings == null
+                        : produced == null
                                 ? Severity.ERROR
                                 : Severity.INFO, null, elementId,
                 StepDetails.describe(run.decision()), null);
 
         // Recorded only where a fragment really was bound and really did run: a step leaves no trace of
         // having asked, and the bindings of a run nobody made do not belong on the stream.
-        if (bindings != null && !stepping) {
-            record(bindings, elementId);
+        if (produced != null && !stepping) {
+            record(produced, elementId);
         }
 
-        // What is served follows the *events*, not the bindings. A stream a rule already bound carries
+        // What is served follows the *events*, not the bindings. A stream already bound carries
         // the events of the run it was judged on; a stream the learner learned on carries none,
         // because the chain was judged as it was learned and the fragment it became has not been run as
         // a pipeline yet — so that one fragment is run here, once. A step never goes and makes a run of
@@ -272,8 +272,8 @@ public class Supervision {
         // bind is a real output with no binding behind it.
         final Served served = run.events() != null
                 ? new Served(run.events(), run.diagnostics())
-                : bindings != null && !stepping
-                        ? stage.serve(bindings, input)
+                : produced != null && !stepping
+                        ? stage.serve(produced, input)
                         : null;
         if (served == null) {
             // Nothing ran, so there is nothing to play on. In a task that is the end of it: the stream
@@ -300,21 +300,21 @@ public class Supervision {
         // error receiver of its own, so that the complaints of a candidate nobody keeps go to the model
         // rather than to the operator; the run that is served is the one the operator has to hear, and
         // each of its elements is named as itself. Once per distinct message over the stream, which is
-        // the rule a re-ask already follows.
+        // the binding a re-ask already follows.
         served.diagnostics().forEach(error -> errorReceiverProxy.log(error.getSeverity(),
                 error.getLocation(), error.getElementId(), error.getMessage(), null));
         if (served.events() == null) {
             // Nothing downstream can be served from that, and silently writing an empty stream would
             // look like a feed that had nothing in it.
             errorReceiverProxy.log(Severity.ERROR, null, elementId,
-                    "Bound to fragment " + NullSafe.get(bindings, Bindings::fragment, DocRef::getName)
+                    "Bound to fragment " + NullSafe.get(produced, Produced::fragment, DocRef::getName)
                     + ", which produced nothing for this stream", null);
             return;
         }
         served.events().fire(downstream);
     }
 
-    /// The task's path (design 04 §3): the decision on the stream's prefix, and where a rule binds the
+    /// The task's path (design 04 §3): the decision on the stream's prefix, and where a binding serves the
     /// stream, the stream served as it is read — the fragment running over the whole of it once and each
     /// record of its output judged as it is written. A deferral is thrown out of the pipeline as a
     /// deferral and not a failure, so nothing is logged to the error receiver, the task ends deferred, and
@@ -331,34 +331,34 @@ public class Supervision {
         stepDetails.put(elementId.getId(), StepDetails.of(run, input, false));
         fragmentRecords.put(elementId.getId(), List.of());
         stage.takeFragment();
-        final Bindings bindings = run.bindings();
-        errorReceiverProxy.log(bindings == null
+        final Produced produced = run.produced();
+        errorReceiverProxy.log(produced == null
                         ? Severity.ERROR
                         : Severity.INFO, null, elementId,
                 StepDetails.describe(run.decision()), null);
-        if (bindings == null) {
+        if (produced == null) {
             return;
         }
-        record(bindings, elementId);
-        final RoutingRule rule = ruleOf(run.decision());
-        final ServedStream served = stage.stream(doc, learner, rule, input, downstream);
+        record(produced, elementId);
+        final Binding binding = bindingOf(run.decision());
+        final ServedStream served = stage.stream(doc, learner, binding, input, downstream);
         served.diagnostics().forEach(error -> errorReceiverProxy.log(error.getSeverity(),
                 error.getLocation(), error.getElementId(), error.getMessage(), null));
         if (served.records() == 0) {
             errorReceiverProxy.log(Severity.ERROR, null, elementId,
-                    "Bound to fragment " + bindings.fragment().getName()
+                    "Bound to fragment " + produced.fragment().getName()
                     + ", which produced nothing for this stream", null);
         }
     }
 
-    /// The rule a decision that binds a stream names.
-    private static RoutingRule ruleOf(final Decision decision) {
+    /// The binding a decision that binds a stream names.
+    private static Binding bindingOf(final Decision decision) {
         return switch (decision) {
-            case Bound bound -> bound.rule();
-            case Promoted promoted -> promoted.rule();
-            case Provisional provisional -> provisional.rule();
-            case Rebound rebound -> rebound.rule();
-            default -> throw new IllegalStateException("A decision with bindings names a rule: " + decision);
+            case Bound bound -> bound.binding();
+            case Promoted promoted -> promoted.binding();
+            case Provisional provisional -> provisional.binding();
+            case Rebound rebound -> rebound.binding();
+            default -> throw new IllegalStateException("A decision that binds names a binding: " + decision);
         };
     }
 
@@ -429,8 +429,8 @@ public class Supervision {
     /// What this element last decided, as the stage pane shows it (A30), with the fragment's own
     /// elements for the record being asked about — or null where it has not run.
     ///
-    /// The decision is the stream's: the stage routes once and then produces every record of the stream,
-    /// so every record shows the same learner, rule and verdicts. What each element of the fragment was
+    /// The decision is the stream's: the stage decides once and then produces every record of the stream,
+    /// so every record shows the same learner, binding and verdicts. What each element of the fragment was
     /// given and wrote is the record's, and that is what the index selects.
     ///
     /// @param recordIndex Which record of this part the capture is asking about, counted from zero.
@@ -526,7 +526,7 @@ public class Supervision {
                         : meta.getTypeName(),
                 attributes,
                 data,
-                // Which pipeline is processing it: what an output row records, so that what a rule
+                // Which pipeline is processing it: what an output row records, so that what a binding
                 // produced can be counted by where it was produced (§6).
                 pipelineHolder.getPipeline() == null
                         ? null
@@ -542,18 +542,18 @@ public class Supervision {
     /// stage is remembered by itself, so the part check compares a stage with itself rather than with
     /// the one above it; and the stage that records first — the one nearest the source — takes the plain
     /// attribute names while any behind it are named by their element.
-    private void record(final Bindings bindings, final ElementId elementId) {
+    private void record(final Produced produced, final ElementId elementId) {
         final String recorded = recordedBy.get(elementId.getId());
         if (recorded == null) {
             final boolean first = recordedBy.isEmpty();
-            recordedBy.put(elementId.getId(), bindings.ruleUuid());
-            bindings.asAttributes(first
+            recordedBy.put(elementId.getId(), produced.bindingUuid());
+            produced.asAttributes(first
                     ? null
                     : elementId.getId()).forEach(metaData::put);
-        } else if (!recorded.equals(bindings.ruleUuid())) {
+        } else if (!recorded.equals(produced.bindingUuid())) {
             errorReceiverProxy.log(Severity.WARNING, null, elementId,
-                    "Part " + metaHolder.getPartIndex() + " was bound by rule " + bindings.ruleUuid()
-                    + " but the stream's bindings name rule " + recorded + " from an earlier part", null);
+                    "Part " + metaHolder.getPartIndex() + " was bound by binding " + produced.bindingUuid()
+                    + " but the stream's bindings name binding " + recorded + " from an earlier part", null);
         }
     }
 

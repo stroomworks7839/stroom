@@ -726,6 +726,25 @@ The largest phase. Its slices keep the build and the scenarios green at each ste
    were there. A stored document's old `minRecordsPerShape` is dropped on reading, as every unknown
    property is, and the setting takes its default; nothing has been released with the old name.
 
+   *7b built 2026-10-08.* What serves a learner is its binding (A140), in code, tables and screens.
+   `RoutingRule` is `Binding`, `Rules` is `LearnerBindings` (its implementations `LearnerBindingsDao`,
+   `CachedLearnerBindings`, `InMemoryLearnerBindings`), `ServingRule` is `ServingBinding`, and the
+   stage's record of what produced an output, `Bindings` until now, is `Produced`. `shapeshifter_rule` is
+   `shapeshifter_binding`, and `rule_uuid` is `binding_uuid` in every table that keeps it; the output
+   stream's attribute is `ShapeshifterAiBinding`; the REST paths and JSON name a `bindingUuid`; the node's
+   `ruleCache` setting is `bindingCache`. Business rules, extraction and transformation rules, and the
+   numbered rules of design 01 §7.3 keep their word. The prose of rule, routing and shape was swept with
+   the names, so that a comment says binding, learner or kind of record where it meant the retired
+   routing table or shape.
+
+   *7b audited 2026-10-08.* No fault. Nothing reads the old output attribute, no SQL or field name in a
+   string still says rule, no committed API description names the old paths, and no doc link points at a
+   class that has gone; every changed file is within the feature but the checkstyle allowlist and the
+   expected configuration. The rule words that remain are business, extraction and transformation rules,
+   the business rules scorer's outcome, and design 01's numbered rules. The rename had left `@param`
+   descriptions out of line with their neighbours, and the record of what produced an output said the
+   binding "matched", as a selector would have; both are put right.
+
 ### Phase K — Deferred tasks count *(`stroom-processor`; closes ISSUES item 1)*
 
 1. **Task creation counts `DEFERRED` with `CREATED` (A109).** One change in

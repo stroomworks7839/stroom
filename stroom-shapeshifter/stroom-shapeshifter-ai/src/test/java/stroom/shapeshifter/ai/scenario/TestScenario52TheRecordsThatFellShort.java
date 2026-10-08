@@ -35,7 +35,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /// shortfalls is now held where it happens: the stream that stops at its first short record and waits,
 /// stamped with the snapshot it failed against, in scenario 54; and the session's full pass naming
 /// every record that fell short, with its gate, in scenario 57 (A99 retired the inline walk the shadow
-/// rows were written from). What remains here is the row a stream of a shape nothing is learned for
+/// rows were written from). What remains here is the row a stream of a learner that has learned nothing
 /// waits on.
 class TestScenario52TheRecordsThatFellShort {
 
@@ -45,17 +45,18 @@ class TestScenario52TheRecordsThatFellShort {
 
     private static final String MIXED = Scenarios.resource("csv-mixed.csv");
 
-    /// A stream the document has no rule for, whose attempt is opened and parked for a worker (scenario
+    /// A stream the document has no binding for, whose attempt is opened and parked for a worker (scenario
     /// 30), waits: a row with nothing it failed against.
     @Test
-    void aStreamOfAShapeNothingIsLearnedForIsRecordedToo() {
+    void aStreamOfALearnerNothingIsLearnedForIsRecordedToo() {
         final Scenarios scenarios = new Scenarios();
         final ShapeshifterAiDoc doc = DemoDocument.configure(Scenarios.document())
                 .uuid(DOC)
                 .name("door-access")
                 .build();
 
-        scenarios.stage(document -> Script.of(), scenarios.rules).decide(doc, Scenarios.LEARNER, stream(3L, MIXED));
+        scenarios.stage(document -> Script.of(), scenarios.learnerBindings).decide(doc, Scenarios.LEARNER, stream(3L,
+                MIXED));
 
         final List<Deferral> rows = scenarios.deferrals.forDocument(DOC);
         assertThat(rows).hasSize(1);

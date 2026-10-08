@@ -74,7 +74,7 @@ class TestShapeshifterAiStoreImpl {
 
     @Test
     void saveRefusesAFlowTheStageCannotHoldAndStampsTheBuiltInVersion() {
-        // Scenarios 39 and 40 (A33): the rule and the variable are named where the editor cannot check them;
+        // Scenarios 39 and 40 (A33): the binding and the variable are named where the editor cannot check them;
         // a definition that holds is saved against the built-in text of the day.
         final DocRef docRef = store.createDocument("syslog-ai");
         assertThatThrownBy(() -> store.writeDocument(store.readDocument(docRef).copy()

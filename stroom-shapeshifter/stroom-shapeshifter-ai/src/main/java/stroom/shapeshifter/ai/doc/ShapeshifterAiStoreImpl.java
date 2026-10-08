@@ -52,7 +52,7 @@ public class ShapeshifterAiStoreImpl
      */
     @Override
     public ShapeshifterAiDoc writeDocument(final ShapeshifterAiDoc document) {
-        // A33: a flow the stage cannot hold is refused here, naming the rule, rather than found when
+        // A33: a flow the stage cannot hold is refused here, naming what is wrong, rather than found when
         // the first stream arrives; and the document is stamped with the built-in text it was saved against.
         final List<String> problems = new ArrayList<>(document.getFlow().problems());
         problems.addAll(Templates.problems(document.getFlow()));
@@ -65,8 +65,8 @@ public class ShapeshifterAiStoreImpl
     }
 
     /**
-     * A Shapeshifter AI document depends on its model document, and on nothing else: since A41 the routing
-     * table is rows and the fragments are named by them, not by the document, so an exported document
+     * A Shapeshifter AI document depends on its model document, and on nothing else: since A41 the bindings
+     * are rows and the fragments are named by them, not by the document, so an exported document
      * carries its configuration and none of what it learned — as a processor filter's state is not part of
      * the pipeline it runs. Declaring the model here is what makes a content-pack import re-point it at the
      * imported copy, what lets a copied document follow it, and what draws the edge in the explorer's

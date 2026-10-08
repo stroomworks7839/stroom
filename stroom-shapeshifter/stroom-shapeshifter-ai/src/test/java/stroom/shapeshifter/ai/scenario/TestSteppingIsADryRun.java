@@ -29,8 +29,8 @@ import stroom.shapeshifter.ai.stage.LearnerStates.Rolling;
 import stroom.shapeshifter.ai.stage.Stage;
 import stroom.shapeshifter.ai.stage.StageRun;
 import stroom.shapeshifter.ai.transformation.XsltStep;
+import stroom.shapeshifter.shared.Binding;
 import stroom.shapeshifter.shared.LearningMode;
-import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ScorerSetting;
 import stroom.shapeshifter.shared.ScorerType;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
@@ -46,12 +46,12 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/// Design 01 §11.7 and A30: **stepping is a dry run**. The stage routes and serves, and does nothing
-/// else — no model asked, no fragment written, no rule bound, no output row, no rolling
-/// score and no reprocess request. A shape no rule binds is reported rather than learned.
+/// Design 01 §11.7 and A30: **stepping is a dry run**. The stage serves, and does nothing
+/// else — no model asked, no fragment written, no binding written, no output row, no rolling
+/// score and no reprocess request. A learner nothing serves is reported rather than learned for.
 ///
 /// The case that makes it matter is the ordinary one: a person opens the stepper on a feed nobody has
-/// taught yet. Learning it by looking would spend a model call, write a fragment and bind a rule, none
+/// taught yet. Learning it by looking would spend a model call, write a fragment and write a binding, none
 /// of which they asked for and all of which would then be serving live data.
 class TestSteppingIsADryRun {
 
@@ -68,10 +68,10 @@ class TestSteppingIsADryRun {
     private static final Verdict UNSCORED = new Verdict(List.of(), 1.0);
 
     @Test
-    void anUnknownShapeIsReportedRatherThanLearned() {
+    void aLearnerNothingServesIsReportedRatherThanLearned() {
         final Scenarios scenarios = new Scenarios();
         final Script script = script(scenarios);
-        final Stage stage = scenarios.stage(document -> script, scenarios.rules);
+        final Stage stage = scenarios.stage(document -> script, scenarios.learnerBindings);
 
         final StageRun stepped = stage.dryRun(doc(LearningMode.AUTOMATIC), Scenarios.LEARNER, stream(), false);
 
@@ -82,7 +82,8 @@ class TestSteppingIsADryRun {
                              + "same way and only a decision that is hypothetical reads as one")
                 .isEqualTo("Would learn a fragment for this learner");
         assertThat(script.asked()).describedAs("the model was not asked").isEmpty();
-        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).describedAs("no rule was bound").isEmpty();
+        assertThat(scenarios.learnerBindings.forLearner(Scenarios.LEARNER)).describedAs("no binding was written")
+                .isEmpty();
         assertThat(scenarios.attempts.forDocument("doc-1", 10)).describedAs("no attempt was recorded").isEmpty();
         assertThat(scenarios.outputs.asProcessed("doc-1", 1L, "pipeline-1"))
                 .describedAs("nor recorded as having produced anything").isEmpty();
@@ -99,17 +100,17 @@ class TestSteppingIsADryRun {
     void aStepMovesNoRowsAndScoresNothing() {
         final Scenarios scenarios = new Scenarios();
         final Script script = script(scenarios);
-        final Stage stage = scenarios.stage(document -> script, scenarios.rules);
+        final Stage stage = scenarios.stage(document -> script, scenarios.learnerBindings);
         scenarios.process(script, doc(LearningMode.AUTOMATIC), stream()).learned();
-        final String ruleUuid = scenarios.rules.forLearner(Scenarios.LEARNER).getFirst().getUuid();
+        final String bindingUuid = scenarios.learnerBindings.forLearner(Scenarios.LEARNER).getFirst().getUuid();
         final Optional<Rolling> scoredBefore = scenarios.states.rolling(Scenarios.LEARNER);
 
         final StageRun stepped = stage.dryRun(doc(LearningMode.AUTOMATIC).copy().uuid("doc-2").build(),
                 Scenarios.LEARNER, stream(), false);
 
         assertThat(stepped.decision()).isInstanceOf(Bound.class);
-        assertThat(scenarios.rules.byUuid(ruleUuid).orElseThrow().docUuid())
-                .describedAs("the rule is still under the document it was learned under")
+        assertThat(scenarios.learnerBindings.byUuid(bindingUuid).orElseThrow().docUuid())
+                .describedAs("the binding is still under the document it was learned under")
                 .isEqualTo("doc-1");
         assertThat(scenarios.states.rolling(Scenarios.LEARNER))
                 .describedAs("and the step added nothing to the rolling score")
@@ -121,7 +122,7 @@ class TestSteppingIsADryRun {
     @Test
     void aDisabledDocumentSaysWhatItWouldDoAndWritesNothing() {
         final Scenarios scenarios = new Scenarios();
-        final Stage stage = scenarios.stage(document -> Script.of(), scenarios.rules);
+        final Stage stage = scenarios.stage(document -> Script.of(), scenarios.learnerBindings);
 
         final StageRun stepped = stage.dryRun(doc(LearningMode.DISABLED), Scenarios.LEARNER, stream(), false);
 
@@ -134,15 +135,15 @@ class TestSteppingIsADryRun {
     }
 
     @Test
-    void aBoundShapeIsServedAndNothingIsRecorded() {
+    void aBoundLearnerIsServedAndNothingIsRecorded() {
         final Scenarios scenarios = new Scenarios();
         final Script script = script(scenarios);
-        final Stage stage = scenarios.stage(document -> script, scenarios.rules);
+        final Stage stage = scenarios.stage(document -> script, scenarios.learnerBindings);
         final ShapeshifterAiDoc doc = doc(LearningMode.AUTOMATIC);
 
         // Learned for real first, so that there is something to step over.
         final StageRun learned = scenarios.process(script, doc, stream()).learned();
-        assertThat(learned.bindings()).isNotNull();
+        assertThat(learned.produced()).isNotNull();
 
         final StageRun stepped = stage.dryRun(doc, Scenarios.LEARNER, stream(), false);
 
@@ -156,16 +157,16 @@ class TestSteppingIsADryRun {
                 .isEmpty();
     }
 
-    /// A provisional rule is on trial (A14): a stream that brings enough records and clears the floor
+    /// A provisional binding is on trial (A14): a stream that brings enough records and clears the floor
     /// promotes it, and one that does not is served by it as it stands — the floor no longer retracts it
-    /// (A101) — so a step shows the rule serving, and what it made of the stream.
+    /// (A101) — so a step shows the binding serving, and what it made of the stream.
     @Test
-    void aProvisionalRuleBelowTheFloorIsShownServingAsItStands() {
+    void aProvisionalBindingBelowTheFloorIsShownServingAsItStands() {
         final Scenarios scenarios = new Scenarios();
-        final Stage stage = scenarios.stage(document -> Script.of(), scenarios.rules);
+        final Stage stage = scenarios.stage(document -> Script.of(), scenarios.learnerBindings);
         final ShapeshifterAiDoc doc = doc(LearningMode.AUTOMATIC);
 
-        // A rule on trial, bound to a transform that makes nothing of the records: enough records to be
+        // A binding on trial, bound to a transform that makes nothing of the records: enough records to be
         // judged on, and a score that cannot clear the floor.
         final DocRef fragment = scenarios.stores.writer().write(
                 DocPath.fromParts("Shapeshifter", FEED), "on-trial-v1",
@@ -174,7 +175,7 @@ class TestSteppingIsADryRun {
                         new LearnedStep(new XsltStep(), YIELDS_NOTHING,
                                 new StepResult("<Events/>", List.of()), UNSCORED)),
                 null);
-        scenarios.rules.append(Scenarios.LEARNER, "doc-1", RoutingRule.builder()
+        scenarios.learnerBindings.append(Scenarios.LEARNER, "doc-1", Binding.builder()
                 .uuid("rule-on-trial")
                 .pipeline(fragment)
                 .provisional(true)
@@ -183,14 +184,14 @@ class TestSteppingIsADryRun {
         final StageRun stepped = stage.dryRun(doc, Scenarios.LEARNER, stream(), false);
 
         assertThat(stepped.decision()).isInstanceOf(Bound.class);
-        assertThat(((Bound) stepped.decision()).rule().getUuid()).isEqualTo("rule-on-trial");
-        assertThat(stepped.bindings().provisional()).describedAs("still on trial").isTrue();
-        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER))
-                .describedAs("the rule is still there: a step decides nothing").hasSize(1);
+        assertThat(((Bound) stepped.decision()).binding().getUuid()).isEqualTo("rule-on-trial");
+        assertThat(stepped.produced().provisional()).describedAs("still on trial").isTrue();
+        assertThat(scenarios.learnerBindings.forLearner(Scenarios.LEARNER))
+                .describedAs("the binding is still there: a step decides nothing").hasSize(1);
     }
 
-    // A variant that would be bound is retired with routing (design 06 phase J slice 2a): a shape is its
-    // feed and type, so no fragment is learned for a neighbouring shape to be tried on this one.
+    // A variant that would be bound is retired with routing (design 06 phase J slice 2a): a learner is one
+    // element in one pipeline, so no fragment is learned for a neighbouring learner to be tried on this one.
 
     private Script script(final Scenarios scenarios) {
         return scenarios.script(CSV.configuration(), XSLT)

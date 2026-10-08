@@ -115,7 +115,7 @@ public interface Attempts {
 
     /// What an attempt came to, and when it stopped. The tokens are added to what it had spent before it
     /// was last parked, so a resumed attempt records the whole of its cost.
-    void closed(long attemptId, AttemptStatus status, String decision, String ruleUuid, Double score,
+    void closed(long attemptId, AttemptStatus status, String decision, String bindingUuid, Double score,
                 long tokensSpent);
 
     /// A person's answer in place of a turn's (A28): *answer instead*, for the question an attempt
@@ -135,20 +135,20 @@ public interface Attempts {
     boolean reopened(long attemptId, long nowMs, long expiryMs);
 
     /// What a person decided about the draft an attempt wrote (A25, A28): the attempt that is awaiting
-    /// review for this rule is closed with their decision, so that an approved draft stops reading as
+    /// review for this binding is closed with their decision, so that an approved draft stops reading as
     /// though it were still waiting.
-    void decided(String docUuid, String ruleUuid, AttemptStatus status, String decision);
+    void decided(String docUuid, String bindingUuid, AttemptStatus status, String decision);
 
-    /// What has become of the rule an attempt bound (A28, design 01 §6, §11.6): retracted by the gate or
+    /// What has become of the binding an attempt bound (A28, design 01 §6, §11.6): retracted by the gate or
     /// by a person, or promoted out of a provisional binding because somebody accepted it.
     ///
     /// Separate from [#decided], and it has to be: that one is A25's decision about a draft *awaiting
-    /// review*, and filters to attempts in that state. These are about a rule that was **serving**,
+    /// review*, and filters to attempts in that state. These are about a binding that was **serving**,
     /// whose attempt closed promoted or provisional a long time ago, so the same call would match
     /// nothing and the attempt would go on saying what is no longer true.
     ///
-    /// Attempts that ended some other way are left alone: an abandoned attempt did not bind this rule.
-    void settled(String docUuid, String ruleUuid, AttemptStatus status, String decision);
+    /// Attempts that ended some other way are left alone: an abandoned attempt did not write this binding.
+    void settled(String docUuid, String bindingUuid, AttemptStatus status, String decision);
 
     /// Remove the record of attempts that finished before a given time, and their turns with them (A28,
     /// design 01 §12 item 8): one row per attempt and one per turn is the fastest-growing thing this
@@ -244,7 +244,7 @@ public interface Attempts {
                     Attempt attempt,
                     AttemptStatus status,
                     String decision,
-                    String ruleUuid,
+                    String bindingUuid,
                     Double score,
                     long tokensSpent,
                     long createTimeMs,
@@ -254,16 +254,16 @@ public interface Attempts {
                     boolean exhaustNext) {
 
         public Recorded(final long id, final Attempt attempt, final AttemptStatus status, final String decision,
-                        final String ruleUuid, final Double score, final long tokensSpent, final long createTimeMs,
+                        final String bindingUuid, final Double score, final long tokensSpent, final long createTimeMs,
                         final long updateTimeMs, final List<Turn> turns) {
-            this(id, attempt, status, decision, ruleUuid, score, tokensSpent, createTimeMs, updateTimeMs, turns,
+            this(id, attempt, status, decision, bindingUuid, score, tokensSpent, createTimeMs, updateTimeMs, turns,
                     Grant.NONE, false);
         }
 
         public Recorded(final long id, final Attempt attempt, final AttemptStatus status, final String decision,
-                        final String ruleUuid, final Double score, final long tokensSpent, final long createTimeMs,
+                        final String bindingUuid, final Double score, final long tokensSpent, final long createTimeMs,
                         final long updateTimeMs, final List<Turn> turns, final Grant grant) {
-            this(id, attempt, status, decision, ruleUuid, score, tokensSpent, createTimeMs, updateTimeMs, turns,
+            this(id, attempt, status, decision, bindingUuid, score, tokensSpent, createTimeMs, updateTimeMs, turns,
                     grant, false);
         }
     }

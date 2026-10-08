@@ -65,7 +65,7 @@ public class FragmentCheckImpl implements FragmentCheck {
     @Override
     public ReplayUnit check(final DocRef pipeline) {
         if (!PipelineDoc.TYPE.equals(pipeline.getType())) {
-            throw new EntityServiceException("A routing rule must route to a pipeline, not to '"
+            throw new EntityServiceException("A binding must bind a pipeline, not '"
                                              + pipeline.getType() + "' " + pipeline.getName());
         }
         final ElementRegistry registry = elementRegistryFactory.get();

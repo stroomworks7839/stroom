@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS shapeshifter_learner_state (
     doc_uuid              varchar(255) NOT NULL,
     given_up_reason       longtext DEFAULT NULL,
     relearn_reason        longtext DEFAULT NULL,
-    awaiting_rule_uuid    varchar(255) DEFAULT NULL,
+    awaiting_binding_uuid varchar(255) DEFAULT NULL,
     rolling_score         double DEFAULT NULL,
     rolling_records       int NOT NULL DEFAULT 0,
     PRIMARY KEY           (id),
@@ -53,7 +53,7 @@ CREATE TABLE IF NOT EXISTS shapeshifter_learner_state (
 -- pipeline_uuid and element_id are the learner (A114); the fragment_* columns name the fragment the
 -- binding runs. The document the learner runs under is kept for the Supervisor.
 --
-CREATE TABLE IF NOT EXISTS shapeshifter_rule (
+CREATE TABLE IF NOT EXISTS shapeshifter_binding (
     id                    bigint NOT NULL AUTO_INCREMENT,
     version               int NOT NULL,
     create_time_ms        bigint NOT NULL,
@@ -61,7 +61,7 @@ CREATE TABLE IF NOT EXISTS shapeshifter_rule (
     pipeline_uuid         varchar(255) NOT NULL,
     element_id            varchar(255) NOT NULL,
     doc_uuid              varchar(255) NOT NULL,
-    rule_uuid             varchar(255) NOT NULL,
+    binding_uuid          varchar(255) NOT NULL,
     fragment_type         varchar(255) DEFAULT NULL,
     fragment_uuid         varchar(255) DEFAULT NULL,
     fragment_name         varchar(255) DEFAULT NULL,
@@ -74,9 +74,9 @@ CREATE TABLE IF NOT EXISTS shapeshifter_rule (
     boundary_depth        int DEFAULT NULL,
     snapshot_id           varchar(255) DEFAULT NULL,
     PRIMARY KEY           (id),
-    UNIQUE KEY            shapeshifter_rule_rule_uuid (rule_uuid),
-    KEY                   shapeshifter_rule_learner (pipeline_uuid, element_id),
-    KEY                   shapeshifter_rule_doc_uuid (doc_uuid)
+    UNIQUE KEY            shapeshifter_binding_binding_uuid (binding_uuid),
+    KEY                   shapeshifter_binding_learner (pipeline_uuid, element_id),
+    KEY                   shapeshifter_binding_doc_uuid (doc_uuid)
 ) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
 
 --
@@ -116,9 +116,9 @@ CREATE TABLE IF NOT EXISTS shapeshifter_attempt (
     node_name             varchar(255) DEFAULT NULL,
     promotion_mode        varchar(32) NOT NULL,
     status                varchar(32) NOT NULL,
-    -- What it came to, in the words the decision itself uses, and the rule it wrote where it wrote one
+    -- What it came to, in the words the decision itself uses, and the binding it wrote where it wrote one
     decision              longtext DEFAULT NULL,
-    rule_uuid             varchar(255) DEFAULT NULL,
+    binding_uuid          varchar(255) DEFAULT NULL,
     score                 double DEFAULT NULL,
     tokens_spent          bigint NOT NULL DEFAULT 0,
     -- When a claim lapses if nothing heartbeats it (A45), for the worker to take up
@@ -159,14 +159,14 @@ CREATE TABLE IF NOT EXISTS shapeshifter_turn (
 ) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
 
 --
--- What a rule produced from each stream, so a stream can be reprocessed as it was processed (design 01
--- §7.3). One row per input per rule per pipeline. Keyed by the binding, which A124 keeps it on.
+-- What a binding produced from each stream, so a stream can be reprocessed as it was processed (design 01
+-- §7.3). One row per input per binding per pipeline (A124).
 --
 CREATE TABLE IF NOT EXISTS shapeshifter_output (
     id                    bigint NOT NULL AUTO_INCREMENT,
     create_time_ms        bigint NOT NULL,
     doc_uuid              varchar(255) NOT NULL,
-    rule_uuid             varchar(255) NOT NULL,
+    binding_uuid          varchar(255) NOT NULL,
     input_meta_id         bigint NOT NULL,
     pipeline_uuid         varchar(255) NOT NULL DEFAULT '',
     fragment_uuid         varchar(255) NOT NULL,
@@ -179,7 +179,7 @@ CREATE TABLE IF NOT EXISTS shapeshifter_output (
     record_spans          mediumtext DEFAULT NULL,
     snapshot_id           varchar(255) DEFAULT NULL,
     PRIMARY KEY           (id),
-    UNIQUE KEY            shapeshifter_output_rule_input_pipeline (rule_uuid, input_meta_id, pipeline_uuid),
+    UNIQUE KEY            shapeshifter_output_binding_input_pipeline (binding_uuid, input_meta_id, pipeline_uuid),
     KEY                   shapeshifter_output_doc_uuid (doc_uuid)
 ) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
 
@@ -227,12 +227,12 @@ CREATE TABLE IF NOT EXISTS shapeshifter_deferral (
 ) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
 
 --
--- The records a rule has been held to (design 04 phase 3): what each became when it was accepted.
+-- The records a binding has been held to (design 04 phase 3): what each became when it was accepted.
 --
 CREATE TABLE IF NOT EXISTS shapeshifter_corpus (
     id                    bigint NOT NULL AUTO_INCREMENT,
     doc_uuid              varchar(255) NOT NULL,
-    rule_uuid             varchar(255) NOT NULL,
+    binding_uuid          varchar(255) NOT NULL,
     meta_id               bigint NOT NULL,
     segment               int NOT NULL,
     -- TRANSLATION, UNKNOWN or NONE: what the record became when it was accepted.
@@ -241,19 +241,19 @@ CREATE TABLE IF NOT EXISTS shapeshifter_corpus (
     attempt_id            bigint DEFAULT NULL,
     accept_time_ms        bigint NOT NULL,
     PRIMARY KEY           (id),
-    KEY                   shapeshifter_corpus_rule (rule_uuid, id),
+    KEY                   shapeshifter_corpus_binding (binding_uuid, id),
     KEY                   shapeshifter_corpus_meta (meta_id)
 ) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
 
 --
--- An immutable copy of a fragment's configuration as it was promoted (A61): what a rule points at and
+-- An immutable copy of a fragment's configuration as it was promoted (A61): what a binding points at and
 -- what an as-processed reprocess runs.
 --
 CREATE TABLE IF NOT EXISTS shapeshifter_snapshot (
     id                    bigint NOT NULL AUTO_INCREMENT,
     snapshot_id           varchar(255) NOT NULL,
     doc_uuid              varchar(255) NOT NULL,
-    rule_uuid             varchar(255) NOT NULL,
+    binding_uuid          varchar(255) NOT NULL,
     fragment_uuid         varchar(255) NOT NULL,
     -- The fragment's PipelineData, as JSON.
     structure             longtext NOT NULL,
@@ -265,7 +265,7 @@ CREATE TABLE IF NOT EXISTS shapeshifter_snapshot (
     create_time_ms        bigint NOT NULL,
     PRIMARY KEY           (id),
     UNIQUE KEY            shapeshifter_snapshot_id (snapshot_id),
-    KEY                   shapeshifter_snapshot_rule (rule_uuid, id)
+    KEY                   shapeshifter_snapshot_binding (binding_uuid, id)
 ) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
 
 --

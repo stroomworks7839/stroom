@@ -48,7 +48,7 @@ public final class RecordSplit {
     }
 
     /// @param document The parsed document, as the element before the filter produced it.
-    /// @param depth    The element depth the records sit at, as the rule's boundary carries it.
+    /// @param depth    The element depth the records sit at, as the binding's boundary carries it.
     /// @return One document per record, in order — and *empty* where nothing sits at that depth. The
     /// filter emits the structure above the records whether it found any or not, so a document with
     /// nothing at the depth comes back as one empty envelope; that is not a record, and handing it on as

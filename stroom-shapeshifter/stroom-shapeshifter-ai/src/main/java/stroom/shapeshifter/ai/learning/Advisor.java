@@ -34,7 +34,7 @@ public interface Advisor {
      */
     String ask(List<Exchange> transcript, Question question);
 
-    /// The same, with what a supervisor has said about this shape (A46) — carried into the question, in
+    /// The same, with what a supervisor has said about this learner (A46) — carried into the question, in
     /// front of it, as context rather than as a turn of its own.
     ///
     /// Defaulted so that an advisor with no use for it needs to know nothing: a scripted one answers

@@ -63,9 +63,9 @@ public class ShapeshifterAiSerialiser implements DocumentSerialiser2<Shapeshifte
         this.delegate = serialiser2Factory.createSerialiser(ShapeshifterAiDoc.class);
     }
 
-    /// A read is a read: nothing is written here. A document's rules from before A41 are not carried over
-    /// (design 06 phase J slice 2b): they named no learner, and selected by a selector that no longer
-    /// means anything, so they have nowhere to go; the document reads without them.
+    /// A read is a read: nothing is written here. A document's bindings from before A41 are not carried over
+    /// (design 06 phase J slice 2b): they named no learner, and chose their streams in a way that no
+    /// longer means anything, so they have nowhere to go; the document reads without them.
     @Override
     public ShapeshifterAiDoc read(final ImportExportDocument importExportDocument) throws IOException {
         final ShapeshifterAiDoc read = delegate.read(importExportDocument);

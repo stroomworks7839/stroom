@@ -291,7 +291,7 @@ public class ShapeshifterAiLearnViewImpl
         setStepProblem(null);
         stepForm.setVisible(false);
         stepDefaults.setVisible(false);
-        nodeNote.setText("A session opens for a shape no rule binds, with a sample of the stream in hand. "
+        nodeNote.setText("A session opens for a learner nothing serves, with a sample of the stream in hand. "
                          + "These are the session's own settings: the model it talks to, the instructions every "
                          + "question carries, what it may spend, and the texts every question shares.");
         nodeNote.setVisible(true);
@@ -307,10 +307,10 @@ public class ShapeshifterAiLearnViewImpl
         setStepProblem(null);
         stepForm.setVisible(false);
         stepDefaults.setVisible(false);
-        nodeNote.setText("The fragment is bound as the shape's rule, the corpus is written, and the stream "
+        nodeNote.setText("The fragment is bound as the learner's binding, the corpus is written, and the stream "
                          + "and every stream that waited on it are served. A session also ends by an exit: park, "
                          + "for a person to grant more, answer a turn or send it to the exhaustion step; give-up, "
-                         + "the shape given up and its streams errored, which is a parser's default.");
+                         + "the learner given up and its streams errored, which is a parser's default.");
         nodeNote.setVisible(true);
         startSection.setVisible(false);
         textSection.setVisible(false);

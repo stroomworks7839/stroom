@@ -47,7 +47,7 @@ public final class PerRecord {
     /// is only ever one `SplitFilter` in a fragment, and what follows it is already one record deep.
     public static final int WRITTEN = 1;
 
-    /// @param depth How deep the records sit, as the rule's boundary carries it.
+    /// @param depth How deep the records sit, as the binding's boundary carries it.
     /// @return What the step wrote for each record, joined; or the step run over the whole document where
     /// the depth names no records at all, which is the only case in which there is nothing to run per
     /// record. A stream carrying a single record is run as the one record it is.

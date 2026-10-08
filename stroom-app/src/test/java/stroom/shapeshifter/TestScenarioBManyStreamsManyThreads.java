@@ -64,7 +64,7 @@ import stroom.shapeshifter.ai.stage.Attempts;
 import stroom.shapeshifter.ai.stage.Attempts.Recorded;
 import stroom.shapeshifter.ai.stage.Deferrals;
 import stroom.shapeshifter.ai.stage.Learner;
-import stroom.shapeshifter.ai.stage.Rules;
+import stroom.shapeshifter.ai.stage.LearnerBindings;
 import stroom.shapeshifter.ai.transformation.XsltStep;
 import stroom.shapeshifter.shared.AttemptStatus;
 import stroom.shapeshifter.shared.FlowStep;
@@ -159,7 +159,7 @@ class TestScenarioBManyStreamsManyThreads extends AbstractCoreIntegrationTest {
     @Inject
     private ShapeshifterAiStore shapeshifterAiStore;
     @Inject
-    private Rules rules;
+    private LearnerBindings learnerBindings;
     @Inject
     private Attempts attempts;
     @Inject
@@ -237,7 +237,7 @@ class TestScenarioBManyStreamsManyThreads extends AbstractCoreIntegrationTest {
         final List<Recorded> sessions = attempts.forDocument(document.getUuid(), 100);
         assertThat(sessions).describedAs(String.valueOf(sessions)).hasSize(2);
         assertThat(sessions).allSatisfy(session -> assertThat(session.status()).isEqualTo(AttemptStatus.PROMOTED));
-        assertThat(rules.forLearner(learner)).hasSize(1);
+        assertThat(learnerBindings.forLearner(learner)).hasSize(1);
 
         // Every stream processed exactly once, in full, and nothing left behind.
         final Map<Long, List<ProcessorTask>> tasksByInput = processorTaskService.find(new ExpressionCriteria())

@@ -61,16 +61,16 @@ public class ShapeshifterOutputRecord extends UpdatableRecordImpl<ShapeshifterOu
     }
 
     /**
-     * Setter for <code>stroom.shapeshifter_output.rule_uuid</code>.
+     * Setter for <code>stroom.shapeshifter_output.binding_uuid</code>.
      */
-    public void setRuleUuid(String value) {
+    public void setBindingUuid(String value) {
         set(3, value);
     }
 
     /**
-     * Getter for <code>stroom.shapeshifter_output.rule_uuid</code>.
+     * Getter for <code>stroom.shapeshifter_output.binding_uuid</code>.
      */
-    public String getRuleUuid() {
+    public String getBindingUuid() {
         return (String) get(3);
     }
 
@@ -251,13 +251,13 @@ public class ShapeshifterOutputRecord extends UpdatableRecordImpl<ShapeshifterOu
     /**
      * Create a detached, initialised ShapeshifterOutputRecord
      */
-    public ShapeshifterOutputRecord(Long id, Long createTimeMs, String docUuid, String ruleUuid, Long inputMetaId, String pipelineUuid, String fragmentUuid, Boolean provisional, Double score, String boundaryElement, String boundaryArray, Integer boundaryDepth, Long produceTimeMs, String recordSpans, String snapshotId) {
+    public ShapeshifterOutputRecord(Long id, Long createTimeMs, String docUuid, String bindingUuid, Long inputMetaId, String pipelineUuid, String fragmentUuid, Boolean provisional, Double score, String boundaryElement, String boundaryArray, Integer boundaryDepth, Long produceTimeMs, String recordSpans, String snapshotId) {
         super(ShapeshifterOutput.SHAPESHIFTER_OUTPUT);
 
         setId(id);
         setCreateTimeMs(createTimeMs);
         setDocUuid(docUuid);
-        setRuleUuid(ruleUuid);
+        setBindingUuid(bindingUuid);
         setInputMetaId(inputMetaId);
         setPipelineUuid(pipelineUuid);
         setFragmentUuid(fragmentUuid);

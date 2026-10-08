@@ -116,7 +116,7 @@ class TestScenario49XmlFragments {
     }
 
     @Test
-    void theRuleCarriesTheRecordElementAndTheStreamIsCountedByIt() {
+    void theBindingCarriesTheRecordElementAndTheStreamIsCountedByIt() {
         final Scenarios scenarios = new Scenarios();
         final Script script = scenarios.xmlScript("Event", TYPED)
                 .expect(QuestionMatcher.chain()).reply("XMLFragmentParser -> XSLTFilter")
@@ -126,8 +126,8 @@ class TestScenario49XmlFragments {
         scenarios.process(script, doc(),
                 new Input(1, "WINDOWS-FRAGMENTS", "Raw Events", Map.of("Format", "XML"), FRAGMENTS)).learned();
 
-        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).hasSize(1);
-        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER).getFirst().getRecordBoundary().getElement())
+        assertThat(scenarios.learnerBindings.forLearner(Scenarios.LEARNER)).hasSize(1);
+        assertThat(scenarios.learnerBindings.forLearner(Scenarios.LEARNER).getFirst().getRecordBoundary().getElement())
                 .isEqualTo("Event");
     }
 }

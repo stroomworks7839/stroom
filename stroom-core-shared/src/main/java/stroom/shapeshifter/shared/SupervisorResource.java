@@ -43,8 +43,8 @@ import java.util.List;
  * turn instead, edit one and run it again, approve or reject what it drafted, or send its learner back to
  * be learned afresh — is here rather than spread across the documents.
  * <p>
- * Editing the routing table a rule sits in — widening a selector, removing a rule — is the document's
- * own resource, since a rule outlives the attempt that wrote it.
+ * A binding outlives the attempt that wrote it, so what is done to a binding that is serving — improving,
+ * accepting or retracting it — begins from the binding rather than from an attempt.
  */
 @Tag(name = "Shapeshifter AI Supervisor")
 @Path("/shapeshifterAiSupervisor" + ResourcePaths.V1)
@@ -107,35 +107,35 @@ public interface SupervisorResource extends RestResource, DirectRestService {
     @POST
     @Path("/serving")
     @Operation(
-            summary = "The rules that are serving, ordered by the traffic each carries",
-            operationId = "findShapeshifterAiServingRules")
-    ResultPage<ServingRule> serving(ServingCriteria criteria);
+            summary = "The bindings that are serving, ordered by the traffic each carries",
+            operationId = "findShapeshifterAiServingBindings")
+    ResultPage<ServingBinding> serving(ServingCriteria criteria);
 
     @POST
-    @Path("/serving/{docUuid}/{ruleUuid}/improve")
+    @Path("/serving/{docUuid}/{bindingUuid}/improve")
     @Operation(
-            summary = "Ask for a rule that is already serving to be made better",
-            operationId = "improveShapeshifterAiRule")
+            summary = "Ask for a binding that is already serving to be made better",
+            operationId = "improveShapeshifterAiBinding")
     ImproveOutcome improve(@PathParam("docUuid") String docUuid,
-                           @PathParam("ruleUuid") String ruleUuid,
+                           @PathParam("bindingUuid") String bindingUuid,
                            ImproveRequest request);
 
     @POST
-    @Path("/serving/{docUuid}/{ruleUuid}/accept")
+    @Path("/serving/{docUuid}/{bindingUuid}/accept")
     @Operation(
             summary = "Accept a provisional binding now, rather than waiting for the records that would "
                       + "promote it",
-            operationId = "acceptShapeshifterAiRule")
-    Boolean accept(@PathParam("docUuid") String docUuid, @PathParam("ruleUuid") String ruleUuid);
+            operationId = "acceptShapeshifterAiBinding")
+    Boolean accept(@PathParam("docUuid") String docUuid, @PathParam("bindingUuid") String bindingUuid);
 
     @POST
-    @Path("/serving/{docUuid}/{ruleUuid}/retract")
+    @Path("/serving/{docUuid}/{bindingUuid}/retract")
     @Operation(
-            summary = "Take a rule that is serving back out of the table, and say how many streams it "
+            summary = "Take back a binding that is serving, and say how many streams it "
                       + "produced output for",
-            operationId = "retractShapeshifterAiRule")
+            operationId = "retractShapeshifterAiBinding")
     Integer retract(@PathParam("docUuid") String docUuid,
-                    @PathParam("ruleUuid") String ruleUuid,
+                    @PathParam("bindingUuid") String bindingUuid,
                     RejectRequest request);
 
     @GET

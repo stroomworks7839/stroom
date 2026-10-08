@@ -25,10 +25,10 @@ import stroom.shapeshifter.ai.stage.Deferrals.Deferral;
 import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.StageRun;
 import stroom.shapeshifter.shared.AttemptStatus;
+import stroom.shapeshifter.shared.Binding;
 import stroom.shapeshifter.shared.FlowExample;
 import stroom.shapeshifter.shared.LearningMode;
 import stroom.shapeshifter.shared.PromotionMode;
-import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ScorerSetting;
 import stroom.shapeshifter.shared.ScorerType;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
@@ -44,9 +44,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * Design 02 §5, scenario 22 (A25; design 04 §3): in review mode a learned rule is a draft the router does
- * not bind; streams of the shape wait behind it, each on a deferral row naming it; Approve is the
- * promotion and wakes them; Reject gives the shape up with the reason, and the streams that waited are
+ * Design 02 §5, scenario 22 (A25; design 04 §3): in review mode a learned binding is a draft that serves
+ * nothing; streams of the learner wait behind it, each on a deferral row naming it; Approve is the
+ * promotion and wakes them; Reject gives the learner up with the reason, and the streams that waited are
  * woken to error. And the case the catalogue leaves implicit: a
  * relearned candidate under review is a draft behind the incumbent, which keeps serving until a person
  * decides.
@@ -102,7 +102,7 @@ class TestScenario22ReviewMode {
     }
 
     /**
-     * The first two streams of the shape: one learns the draft, the next is refused by it.
+     * The first two streams of the learner: one learns the draft, the next is refused by it.
      */
     private static StageRun drafted(final Scenarios scenarios) {
         final Script script = learning(scenarios, FOUR_FIELDS);
@@ -110,20 +110,20 @@ class TestScenario22ReviewMode {
         script.verifyExhausted();
 
         assertThat(first.decision()).isInstanceOf(Drafted.class);
-        final RoutingRule draft = ((Drafted) first.decision()).rule();
+        final Binding draft = ((Drafted) first.decision()).binding();
         assertThat(draft.isDraft()).isTrue();
         assertThat(draft.getPromotedTimeMs()).isNull();
         assertThat(draft.getUuid()).isNotNull();
-        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).containsExactly(draft);
+        assertThat(scenarios.learnerBindings.forLearner(Scenarios.LEARNER)).containsExactly(draft);
         assertThat(first.output()).describedAs("nothing is produced under a draft").isNull();
-        assertThat(first.bindings()).isNull();
+        assertThat(first.produced()).isNull();
         assertThat(scenarios.stores.pipelines.list()).describedAs("the fragment is written all the same").hasSize(1);
 
         final Script silent = Script.of();
         final StageRun second = scenarios.process(silent, first.doc(), stream(2, lines(4, 0))).learned();
         assertThat(second.decision()).isInstanceOf(Deferred.class);
         assertThat(((Deferred) second.decision()).reason())
-                .startsWith("Awaiting review: draft rule " + draft.getUuid())
+                .startsWith("Awaiting review: draft binding " + draft.getUuid())
                 .contains(draft.getPipeline().getName());
         assertThat(silent.asked()).isEmpty();
         assertThat(scenarios.deferrals.of(Scenarios.LEARNER,
@@ -135,13 +135,13 @@ class TestScenario22ReviewMode {
     void aDraftWaitsAndApprovePromotesIt() {
         final Scenarios scenarios = new Scenarios();
         final StageRun waiting = drafted(scenarios);
-        final RoutingRule draft = scenarios.rules.forLearner(Scenarios.LEARNER).get(0);
+        final Binding draft = scenarios.learnerBindings.forLearner(Scenarios.LEARNER).get(0);
 
         scenarios.stage(Script.of()).approve(waiting.doc(), draft.getUuid());
 
         // The document is untouched: what approval changed is rows (A41).
-        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).hasSize(1);
-        final RoutingRule live = scenarios.rules.forLearner(Scenarios.LEARNER).get(0);
+        assertThat(scenarios.learnerBindings.forLearner(Scenarios.LEARNER)).hasSize(1);
+        final Binding live = scenarios.learnerBindings.forLearner(Scenarios.LEARNER).get(0);
         assertThat(live.getUuid()).isEqualTo(draft.getUuid());
         assertThat(live.isDraft()).isFalse();
         assertThat(live.getPromotedTimeMs()).isEqualTo(Scenarios.NOW.toEpochMilli());
@@ -159,14 +159,14 @@ class TestScenario22ReviewMode {
     }
 
     @Test
-    void rejectDiscardsTheDraftAndGivesTheShapeUp() {
+    void rejectDiscardsTheDraftAndGivesTheLearnerUp() {
         final Scenarios scenarios = new Scenarios();
         final StageRun waiting = drafted(scenarios);
-        final RoutingRule draft = scenarios.rules.forLearner(Scenarios.LEARNER).get(0);
+        final Binding draft = scenarios.learnerBindings.forLearner(Scenarios.LEARNER).get(0);
 
         scenarios.stage(Script.of()).reject(waiting.doc(), draft.getUuid(), "the wrong parser");
 
-        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).isEmpty();
+        assertThat(scenarios.learnerBindings.forLearner(Scenarios.LEARNER)).isEmpty();
         assertThat(scenarios.regressionSet.accepted(draft.getUuid())).isEmpty();
         assertThat(scenarios.states.reasonGivenUp(Scenarios.LEARNER)).contains("Rejected: the wrong parser");
         assertThat(scenarios.wake.woken()).extracting(Deferral::inputId)
@@ -174,7 +174,7 @@ class TestScenario22ReviewMode {
                              + "learner's streams do")
                 .contains(2L);
 
-        // The model is not asked again: the shape is given up until an operator says otherwise.
+        // The model is not asked again: the learner is given up until an operator says otherwise.
         final Script silent = Script.of();
         final StageRun third = scenarios.process(silent, waiting.doc(), stream(3, lines(7, 0))).learned();
         assertThat(third.decision()).isInstanceOf(Sentinel.class);
@@ -186,7 +186,7 @@ class TestScenario22ReviewMode {
     void onlyADraftCanBeApprovedOrRejected() {
         final Scenarios scenarios = new Scenarios();
         final StageRun waiting = drafted(scenarios);
-        final RoutingRule draft = scenarios.rules.forLearner(Scenarios.LEARNER).get(0);
+        final Binding draft = scenarios.learnerBindings.forLearner(Scenarios.LEARNER).get(0);
         scenarios.stage(Script.of()).approve(waiting.doc(), draft.getUuid());
 
         assertThatThrownBy(() -> scenarios.stage(Script.of()).approve(waiting.doc(), draft.getUuid()))
@@ -203,7 +203,7 @@ class TestScenario22ReviewMode {
     void aDraftOfAnotherDocumentIsNotThisOnesToDecide() {
         final Scenarios scenarios = new Scenarios();
         drafted(scenarios);
-        final RoutingRule draft = scenarios.rules.forLearner(Scenarios.LEARNER).get(0);
+        final Binding draft = scenarios.learnerBindings.forLearner(Scenarios.LEARNER).get(0);
         final ShapeshifterAiDoc other = review().copy().uuid("doc-2").name("gate-access").build();
 
         assertThatThrownBy(() -> scenarios.stage(Script.of()).approve(other, draft.getUuid()))
@@ -212,13 +212,13 @@ class TestScenario22ReviewMode {
         assertThatThrownBy(() -> scenarios.stage(Script.of()).reject(other, draft.getUuid(), "whatever"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("not a draft on document gate-access");
-        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER))
+        assertThat(scenarios.learnerBindings.forLearner(Scenarios.LEARNER))
                 .describedAs("and the draft is still there, awaiting a decision from its own document")
                 .containsExactly(draft);
         assertThat(scenarios.states.reasonGivenUp(Scenarios.LEARNER)).isEmpty();
     }
 
-    /// Taking back the rule a draft would replace leaves the draft awaiting review. It is still the
+    /// Taking back the binding a draft would replace leaves the draft awaiting review. It is still the
     /// learner's candidate, and approving it is how the learner is served again; forgotten, it would be a
     /// draft nothing awaits — its streams waiting on a review that approve and reject both refuse.
     @Test
@@ -226,14 +226,14 @@ class TestScenario22ReviewMode {
         final Scenarios scenarios = new Scenarios();
         final StageRun waiting = drafted(scenarios);
         scenarios.stage(Script.of()).approve(waiting.doc(),
-                scenarios.rules.forLearner(Scenarios.LEARNER).get(0).getUuid());
+                scenarios.learnerBindings.forLearner(Scenarios.LEARNER).get(0).getUuid());
         final ShapeshifterAiDoc bound = waiting.doc();
-        final RoutingRule incumbent = scenarios.rules.forLearner(Scenarios.LEARNER).get(0);
+        final Binding incumbent = scenarios.learnerBindings.forLearner(Scenarios.LEARNER).get(0);
         final String withAlarms = lines(20, 3);
         scenarios.states.markForRelearning(Scenarios.LEARNER, DOC, "Scored below the threshold: improve it");
         final StageRun relearned = scenarios.process(learning(scenarios, FOUR_FIELDS_AND_ALARMS), bound,
                 stream(4, withAlarms)).learned();
-        final RoutingRule draft = ((Drafted) relearned.decision()).rule();
+        final Binding draft = ((Drafted) relearned.decision()).binding();
 
         scenarios.stage(Script.of()).retract(bound, incumbent.getUuid(), "The timestamps are wrong.", "jo");
 
@@ -241,12 +241,12 @@ class TestScenario22ReviewMode {
                 .describedAs("the draft is still what awaits review")
                 .contains(draft.getUuid());
         scenarios.stage(Script.of()).approve(bound, draft.getUuid());
-        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER))
+        assertThat(scenarios.learnerBindings.forLearner(Scenarios.LEARNER))
                 .describedAs("and approving it makes it what serves, there being nothing to rebind")
                 .singleElement()
-                .satisfies(rule -> {
-                    assertThat(rule.getUuid()).isEqualTo(draft.getUuid());
-                    assertThat(rule.isDraft()).isFalse();
+                .satisfies(binding -> {
+                    assertThat(binding.getUuid()).isEqualTo(draft.getUuid());
+                    assertThat(binding.isDraft()).isFalse();
                 });
     }
 
@@ -258,14 +258,14 @@ class TestScenario22ReviewMode {
         final Scenarios scenarios = new Scenarios();
         final StageRun waiting = drafted(scenarios);
         scenarios.stage(Script.of()).approve(waiting.doc(),
-                scenarios.rules.forLearner(Scenarios.LEARNER).get(0).getUuid());
+                scenarios.learnerBindings.forLearner(Scenarios.LEARNER).get(0).getUuid());
         final ShapeshifterAiDoc bound = waiting.doc();
-        final RoutingRule incumbent = scenarios.rules.forLearner(Scenarios.LEARNER).get(0);
+        final Binding incumbent = scenarios.learnerBindings.forLearner(Scenarios.LEARNER).get(0);
         final String withAlarms = lines(20, 3);
         scenarios.states.markForRelearning(Scenarios.LEARNER, DOC, "Scored below the threshold: improve it");
         final StageRun relearned = scenarios.process(learning(scenarios, FOUR_FIELDS_AND_ALARMS), bound,
                 stream(4, withAlarms)).learned();
-        final RoutingRule draft = ((Drafted) relearned.decision()).rule();
+        final Binding draft = ((Drafted) relearned.decision()).binding();
         final int attemptsBefore = scenarios.attempts.forDocument(DOC, 100).size();
         // A stream that fell short of the incumbent before, tried again: its row is stamped against the
         // transform in force, which is what sends a task to open a session.
@@ -288,12 +288,12 @@ class TestScenario22ReviewMode {
         final Scenarios scenarios = new Scenarios();
         final StageRun waiting = drafted(scenarios);
         scenarios.stage(Script.of()).approve(waiting.doc(),
-                scenarios.rules.forLearner(Scenarios.LEARNER).get(0).getUuid());
+                scenarios.learnerBindings.forLearner(Scenarios.LEARNER).get(0).getUuid());
         final ShapeshifterAiDoc bound = waiting.doc();
-        final RoutingRule incumbent = scenarios.rules.forLearner(Scenarios.LEARNER).get(0);
+        final Binding incumbent = scenarios.learnerBindings.forLearner(Scenarios.LEARNER).get(0);
         final String withAlarms = lines(20, 3);
 
-        // The score falls and the shape is marked, as in scenario 27.
+        // The score falls and the learner is marked, as in scenario 27.
         final Script silent = Script.of();
         final StageRun marked = scenarios.process(silent, bound, stream(3, withAlarms)).learned();
         assertThat(marked.decision()).isInstanceOf(Bound.class);
@@ -306,25 +306,25 @@ class TestScenario22ReviewMode {
         final StageRun relearned = scenarios.process(relearn, bound, stream(4, withAlarms)).learned();
         relearn.verifyExhausted();
         assertThat(relearned.decision()).isInstanceOf(Drafted.class);
-        final RoutingRule draft = ((Drafted) relearned.decision()).rule();
+        final Binding draft = ((Drafted) relearned.decision()).binding();
         assertThat(draft.getUuid()).isNotEqualTo(incumbent.getUuid());
-        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).containsExactly(incumbent, draft);
+        assertThat(scenarios.learnerBindings.forLearner(Scenarios.LEARNER)).containsExactly(incumbent, draft);
         assertThat(events(relearned.output())).describedAs("the incumbent served").isEqualTo(14);
-        assertThat(relearned.bindings().fragment()).isEqualTo(incumbent.getPipeline());
+        assertThat(relearned.produced().fragment()).isEqualTo(incumbent.getPipeline());
 
         // While the draft waits the incumbent keeps serving, the model is not asked, no second draft.
         final StageRun meanwhile = scenarios.process(silent, relearned.doc(), stream(5, withAlarms)).learned();
         assertThat(meanwhile.decision()).isInstanceOf(Bound.class);
-        assertThat(((Bound) meanwhile.decision()).rule()).isEqualTo(incumbent);
-        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).hasSize(2);
+        assertThat(((Bound) meanwhile.decision()).binding()).isEqualTo(incumbent);
+        assertThat(scenarios.learnerBindings.forLearner(Scenarios.LEARNER)).hasSize(2);
         assertThat(silent.asked()).isEmpty();
 
-        // Approve rebinds the incumbent to the draft's fragment: one rule, the incumbent's uuid, the
+        // Approve rebinds the incumbent to the draft's fragment: one binding, the incumbent's uuid, the
         // draft's fragment, and a regression set that carries both histories.
         final int incumbentHeld = scenarios.regressionSet.accepted(incumbent.getUuid()).size();
         scenarios.stage(Script.of()).approve(relearned.doc(), draft.getUuid());
-        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).hasSize(1);
-        final RoutingRule rebound = scenarios.rules.forLearner(Scenarios.LEARNER).get(0);
+        assertThat(scenarios.learnerBindings.forLearner(Scenarios.LEARNER)).hasSize(1);
+        final Binding rebound = scenarios.learnerBindings.forLearner(Scenarios.LEARNER).get(0);
         assertThat(rebound.getUuid()).isEqualTo(incumbent.getUuid());
         assertThat(rebound.getPipeline()).isEqualTo(draft.getPipeline());
         assertThat(rebound.isDraft()).isFalse();
@@ -342,22 +342,22 @@ class TestScenario22ReviewMode {
         final Scenarios scenarios = new Scenarios();
         final StageRun waiting = drafted(scenarios);
         scenarios.stage(Script.of()).approve(waiting.doc(),
-                scenarios.rules.forLearner(Scenarios.LEARNER).get(0).getUuid());
+                scenarios.learnerBindings.forLearner(Scenarios.LEARNER).get(0).getUuid());
         final ShapeshifterAiDoc bound = waiting.doc();
-        final RoutingRule incumbent = scenarios.rules.forLearner(Scenarios.LEARNER).get(0);
+        final Binding incumbent = scenarios.learnerBindings.forLearner(Scenarios.LEARNER).get(0);
         final String withAlarms = lines(20, 3);
         scenarios.process(Script.of(), bound, stream(3, withAlarms)).learned();
         // The mark is a person's (design 04 §6).
         scenarios.states.markForRelearning(Scenarios.LEARNER, DOC, "Scored below the threshold: improve it");
         final StageRun relearned = scenarios.process(learning(scenarios, FOUR_FIELDS_AND_ALARMS), bound, stream(4,
                 withAlarms)).learned();
-        final RoutingRule draft = ((Drafted) relearned.decision()).rule();
+        final Binding draft = ((Drafted) relearned.decision()).binding();
 
         scenarios.stage(Script.of()).reject(relearned.doc(), draft.getUuid(), "no");
 
-        // The incumbent serves on; the rejection is recorded against the shape, and the same falling
+        // The incumbent serves on; the rejection is recorded against the learner, and the same falling
         // score does not mark it or produce the same draft again until an operator says otherwise.
-        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).containsExactly(incumbent);
+        assertThat(scenarios.learnerBindings.forLearner(Scenarios.LEARNER)).containsExactly(incumbent);
         assertThat(scenarios.states.reasonGivenUp(Scenarios.LEARNER)).contains("Rejected: no");
         final Script silent = Script.of();
         for (long id = 5; id <= 7; id++) {
@@ -371,18 +371,18 @@ class TestScenario22ReviewMode {
 
     @Test
     void approvingAProvisionalDraftStartsItsRegressionSet() {
-        // Too few records for A14; a person approving the draft is design 01 §6's exception, and the rule
+        // Too few records for A14; a person approving the draft is design 01 §6's exception, and the binding
         // goes live with the records it was judged on in its regression set (A18).
         final Scenarios scenarios = new Scenarios();
         final Script script = learning(scenarios, FOUR_FIELDS);
         final StageRun first = scenarios.process(script, review().copy().minRecordsToLearn(10).build(),
                 stream(1, lines(6, 0))).learned();
-        final RoutingRule draft = ((Drafted) first.decision()).rule();
+        final Binding draft = ((Drafted) first.decision()).binding();
         assertThat(draft.isProvisional()).isTrue();
 
         scenarios.stage(Script.of()).approve(first.doc(), draft.getUuid());
 
-        final RoutingRule live = scenarios.rules.forLearner(Scenarios.LEARNER).get(0);
+        final Binding live = scenarios.learnerBindings.forLearner(Scenarios.LEARNER).get(0);
         assertThat(live.isProvisional()).isFalse();
         assertThat(live.getPromotedTimeMs()).isEqualTo(Scenarios.NOW.toEpochMilli());
         assertThat(scenarios.regressionSet.accepted(live.getUuid()))
@@ -395,7 +395,7 @@ class TestScenario22ReviewMode {
         // A28: an attempt that wrote a draft is awaiting review, and stops being so when a person decides.
         final Scenarios scenarios = new Scenarios();
         final StageRun waiting = drafted(scenarios);
-        final RoutingRule draft = scenarios.rules.forLearner(Scenarios.LEARNER).get(0);
+        final Binding draft = scenarios.learnerBindings.forLearner(Scenarios.LEARNER).get(0);
         assertThat(scenarios.attempts.forDocument(DOC, 10).get(0).status())
                 .isEqualTo(AttemptStatus.AWAITING_REVIEW);
 
@@ -408,7 +408,7 @@ class TestScenario22ReviewMode {
         // And a rejected one says who refused it and why.
         final Scenarios other = new Scenarios();
         final StageRun second = drafted(other);
-        final RoutingRule rejectable = other.rules.forLearner(Scenarios.LEARNER).get(0);
+        final Binding rejectable = other.learnerBindings.forLearner(Scenarios.LEARNER).get(0);
 
         other.stage(Script.of()).reject(second.doc(), rejectable.getUuid(), "the wrong parser");
 

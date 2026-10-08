@@ -115,13 +115,13 @@ public class LearnerStatesDao implements LearnerStates {
     @Override
     public void awaitReview(final Learner learner,
                             final String docUuid,
-                            final String ruleUuid) {
-        set(learner, docUuid, SHAPESHIFTER_LEARNER_STATE.AWAITING_RULE_UUID, ruleUuid);
+                            final String bindingUuid) {
+        set(learner, docUuid, SHAPESHIFTER_LEARNER_STATE.AWAITING_BINDING_UUID, bindingUuid);
     }
 
     @Override
     public Optional<String> draftAwaiting(final Learner learner) {
-        return text(learner, SHAPESHIFTER_LEARNER_STATE.AWAITING_RULE_UUID);
+        return text(learner, SHAPESHIFTER_LEARNER_STATE.AWAITING_BINDING_UUID);
     }
 
     /// Nothing is made for a learner with no row: it has nothing to forget.
@@ -131,7 +131,7 @@ public class LearnerStatesDao implements LearnerStates {
             context.update(SHAPESHIFTER_LEARNER_STATE)
                     .setNull(SHAPESHIFTER_LEARNER_STATE.GIVEN_UP_REASON)
                     .setNull(SHAPESHIFTER_LEARNER_STATE.RELEARN_REASON)
-                    .setNull(SHAPESHIFTER_LEARNER_STATE.AWAITING_RULE_UUID)
+                    .setNull(SHAPESHIFTER_LEARNER_STATE.AWAITING_BINDING_UUID)
                     .setNull(SHAPESHIFTER_LEARNER_STATE.ROLLING_SCORE)
                     .set(SHAPESHIFTER_LEARNER_STATE.ROLLING_RECORDS, 0)
                     .set(SHAPESHIFTER_LEARNER_STATE.VERSION, SHAPESHIFTER_LEARNER_STATE.VERSION.plus(1))

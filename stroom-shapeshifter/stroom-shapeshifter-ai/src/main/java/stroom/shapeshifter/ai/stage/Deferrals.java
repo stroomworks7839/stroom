@@ -38,10 +38,10 @@ public interface Deferrals {
     /// @param inputId        The stream's meta id.
     /// @param feed           Its feed.
     /// @param type           Its type.
-    /// @param failedAgainst  What the stream was run through and fell short of: the rule's fragment and
-    ///                       its version, or null where there was no rule to run it through.
+    /// @param failedAgainst  What the stream was run through and fell short of: the binding's fragment and
+    ///                       its version, or null where there was no binding to run it through.
     /// @param reason         Why it waits, in words.
-    /// @param failingRecords How many of its records fell short of the bar; zero where there was no rule.
+    /// @param failingRecords How many of its records fell short of the bar; zero where there was no binding.
     void deferred(Learner learner,
                   String docUuid,
                   long inputId,
@@ -94,7 +94,7 @@ public interface Deferrals {
     /// @param inputId         The stream's meta id.
     /// @param feed            Its feed.
     /// @param type            Its type.
-    /// @param failedAgainst   What it last fell short of, or null where there was no rule.
+    /// @param failedAgainst   What it last fell short of, or null where there was no binding.
     /// @param reason          Why it waits.
     /// @param failingRecords  How many records fell short, the last time it was tried.
     /// @param firstDeferredMs When it first waited.

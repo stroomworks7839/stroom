@@ -19,8 +19,8 @@ package stroom.shapeshifter.ai.impl.db;
 import stroom.db.util.JooqUtil;
 import stroom.pipeline.shared.PipelineDoc;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterOutput;
-import stroom.shapeshifter.ai.stage.Bindings;
 import stroom.shapeshifter.ai.stage.Outputs;
+import stroom.shapeshifter.ai.stage.Produced;
 import stroom.shapeshifter.ai.stage.Replayable;
 import stroom.shapeshifter.shared.RecordBoundary;
 import stroom.util.shared.DefaultLocation;
@@ -39,7 +39,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 
-/// What each rule produced, as rows (design 01 §7.3 rule 3, A26): retracting a rule means finding the
+/// What each binding produced, as rows (design 01 §7.3 rule 3, A26): retracting a binding means finding the
 /// inputs whose outputs it produced, and the node that retracts is rarely the node that produced them.
 ///
 /// The bindings are on the output stream's attributes too, where a person reads them; a custom stream
@@ -88,47 +88,47 @@ public class OutputsDao implements Outputs {
     @Override
     public void emitted(final long inputId,
                         final String pipeline,
-                        final Bindings bindings,
+                        final Produced produced,
                         final List<TextRange> spans) {
         final long now = System.currentTimeMillis();
-        final RecordBoundary boundary = bindings.boundary();
+        final RecordBoundary boundary = produced.boundary();
         JooqUtil.context(connProvider, context -> context
                 .insertInto(ShapeshifterOutput.SHAPESHIFTER_OUTPUT)
                 .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.CREATE_TIME_MS, now)
                 .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.PRODUCE_TIME_MS, now)
-                .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.DOC_UUID, bindings.docUuid())
-                .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.RULE_UUID, bindings.ruleUuid())
+                .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.DOC_UUID, produced.docUuid())
+                .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.BINDING_UUID, produced.bindingUuid())
                 .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.INPUT_META_ID, inputId)
                 .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.PIPELINE_UUID, ofPipeline(pipeline))
-                .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.SNAPSHOT_ID, bindings.snapshotId())
+                .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.SNAPSHOT_ID, produced.snapshotId())
                 .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.FRAGMENT_UUID,
-                        bindings.fragment().getUuid())
+                        produced.fragment().getUuid())
                 .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.BOUNDARY_ELEMENT, NullSafe.get(boundary,
                         RecordBoundary::getElement))
                 .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.BOUNDARY_ARRAY, NullSafe.get(boundary,
                         RecordBoundary::getArray))
                 .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.BOUNDARY_DEPTH, NullSafe.get(boundary,
                         RecordBoundary::getDepth))
-                .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.PROVISIONAL, bindings.provisional())
-                .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.SCORE, bindings.score())
+                .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.PROVISIONAL, produced.provisional())
+                .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.SCORE, produced.score())
                 .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.RECORD_SPANS, written(spans))
-                // A stream processed twice by one pipeline under one rule is one thing to replay; the
+                // A stream processed twice by one pipeline under one binding is one thing to replay; the
                 // later run is what its output is, so the row says the later one — including when it
                 // was produced, since the row keeps the id it was inserted with and the id cannot then
                 // say which row was written last.
                 .onDuplicateKeyUpdate()
                 .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.PRODUCE_TIME_MS, now)
-                .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.SNAPSHOT_ID, bindings.snapshotId())
+                .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.SNAPSHOT_ID, produced.snapshotId())
                 .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.FRAGMENT_UUID,
-                        bindings.fragment().getUuid())
+                        produced.fragment().getUuid())
                 .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.BOUNDARY_ELEMENT, NullSafe.get(boundary,
                         RecordBoundary::getElement))
                 .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.BOUNDARY_ARRAY, NullSafe.get(boundary,
                         RecordBoundary::getArray))
                 .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.BOUNDARY_DEPTH, NullSafe.get(boundary,
                         RecordBoundary::getDepth))
-                .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.PROVISIONAL, bindings.provisional())
-                .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.SCORE, bindings.score())
+                .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.PROVISIONAL, produced.provisional())
+                .set(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.SCORE, produced.score())
                 // The spans are left as they are where this run has none to offer: a run with no parser
                 // to ask — an as-processed reprocess, a chain that was given records — knows nothing
                 // about where the records began, and knowing nothing must not erase what was known. The
@@ -181,12 +181,12 @@ public class OutputsDao implements Outputs {
     }
 
     @Override
-    public List<Replayable> boundBy(final String ruleUuid, final String fragmentUuid) {
+    public List<Replayable> boundBy(final String bindingUuid, final String fragmentUuid) {
         return JooqUtil.contextResult(connProvider, context -> context
                 .select(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.INPUT_META_ID,
                         ShapeshifterOutput.SHAPESHIFTER_OUTPUT.PIPELINE_UUID)
                 .from(ShapeshifterOutput.SHAPESHIFTER_OUTPUT)
-                .where(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.RULE_UUID.eq(ruleUuid))
+                .where(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.BINDING_UUID.eq(bindingUuid))
                 .and(fragmentUuid == null
                         ? DSL.noCondition()
                         : ShapeshifterOutput.SHAPESHIFTER_OUTPUT.FRAGMENT_UUID.eq(fragmentUuid))
@@ -199,10 +199,10 @@ public class OutputsDao implements Outputs {
     }
 
     @Override
-    public Optional<Bindings> asProcessed(final String docUuid, final long inputId, final String pipeline) {
+    public Optional<Produced> asProcessed(final String docUuid, final long inputId, final String pipeline) {
         return JooqUtil.contextResult(connProvider, context -> context
                         .select(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.DOC_UUID,
-                                ShapeshifterOutput.SHAPESHIFTER_OUTPUT.RULE_UUID,
+                                ShapeshifterOutput.SHAPESHIFTER_OUTPUT.BINDING_UUID,
                                 ShapeshifterOutput.SHAPESHIFTER_OUTPUT.FRAGMENT_UUID,
                                 ShapeshifterOutput.SHAPESHIFTER_OUTPUT.BOUNDARY_ELEMENT,
                                 ShapeshifterOutput.SHAPESHIFTER_OUTPUT.BOUNDARY_ARRAY,
@@ -217,15 +217,15 @@ public class OutputsDao implements Outputs {
                         .and(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.DOC_UUID.eq(docUuid))
                         .and(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.PIPELINE_UUID.eq(ofPipeline(pipeline)))
                         // What was produced last is what its output is: a stream served again under the
-                        // same rule updates its row in place and keeps the id it was inserted with, so
+                        // same binding updates its row in place and keeps the id it was inserted with, so
                         // the id is the order rows were first written and not the order they were run.
                         .orderBy(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.PRODUCE_TIME_MS.desc(),
                                 ShapeshifterOutput.SHAPESHIFTER_OUTPUT.ID.desc())
                         .limit(1)
                         .fetchOptional())
-                .map(row -> new Bindings(
+                .map(row -> new Produced(
                         row.get(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.DOC_UUID),
-                        row.get(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.RULE_UUID),
+                        row.get(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.BINDING_UUID),
                         PipelineDoc.buildDocRef()
                                 .uuid(row.get(ShapeshifterOutput.SHAPESHIFTER_OUTPUT.FRAGMENT_UUID))
                                 .build(),
@@ -247,7 +247,7 @@ public class OutputsDao implements Outputs {
                 : pipeline;
     }
 
-    /// The boundary a row remembers, or null where the rule had none.
+    /// The boundary a row remembers, or null where the binding had none.
     private static RecordBoundary boundary(final String element, final String array, final Integer depth) {
         if (element == null && array == null) {
             return null;

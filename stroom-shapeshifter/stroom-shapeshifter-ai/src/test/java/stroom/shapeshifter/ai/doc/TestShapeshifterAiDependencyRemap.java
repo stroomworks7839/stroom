@@ -19,7 +19,7 @@ package stroom.shapeshifter.ai.doc;
 import stroom.docref.DocRef;
 import stroom.docstore.api.DependencyRemapFunction;
 import stroom.docstore.api.DependencyRemapper;
-import stroom.shapeshifter.shared.RoutingRule;
+import stroom.shapeshifter.shared.Binding;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 
 import org.junit.jupiter.api.Test;
@@ -60,7 +60,7 @@ class TestShapeshifterAiDependencyRemap {
 
     @Test
     void rewritesTheModelAndNothingElse() {
-        // Since A41 the document names no fragment: the rules are rows, and an exported document carries
+        // Since A41 the document names no fragment: the bindings are rows, and an exported document carries
         // its configuration and none of what it learned.
         final DocRef importedModel = ShapeshifterAiFixture.MODEL.copy().uuid("model-2").build();
         final DocRef importedFragment = ShapeshifterAiFixture.FRAGMENT.copy().uuid("fragment-2").build();

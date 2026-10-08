@@ -22,11 +22,11 @@ import stroom.shapeshifter.ai.stage.Decision.Promoted;
 import stroom.shapeshifter.ai.stage.Decision.Rebound;
 import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.StageRun;
+import stroom.shapeshifter.shared.Binding;
 import stroom.shapeshifter.shared.BusinessRulesParameters;
 import stroom.shapeshifter.shared.ExtractionQualityParameters;
 import stroom.shapeshifter.shared.FlowExample;
 import stroom.shapeshifter.shared.LearningMode;
-import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.SchemaConformanceParameters;
 import stroom.shapeshifter.shared.ScorerSetting;
 import stroom.shapeshifter.shared.ScorerType;
@@ -43,14 +43,14 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Design 02 §5, scenarios 8 and 9: a bound shape relearned against an incumbent. A candidate that
+ * Design 02 §5, scenarios 8 and 9: a bound learner relearning against an incumbent. A candidate that
  * looks better on the learning sample but is worse on the held-out stream is not promoted (A15); one
- * that is worse on a record the rule was accepted on is not promoted either (A18); and one that is better
- * on both replaces the incumbent's fragment under the same rule. Scenario 10, a pinned rule, went with
+ * that is worse on a record the binding was accepted on is not promoted either (A18); and one that is better
+ * on both replaces the incumbent's fragment under the same binding. Scenario 10, a pinned binding, went with
  * pinning (design 06 A138).
  * <p>
  * The incumbent is the golden transform with an empty device name, which the document weighs, so it
- * scores well but not perfectly and its records still clear the bar. A person marks the shape for
+ * scores well but not perfectly and its records still clear the bar. A person marks the learner for
  * relearning, as the Supervisor's serving list would lead them to, and the next stream of it opens the
  * session while the incumbent serves it (A100).
  */
@@ -104,7 +104,7 @@ class TestScenariosIncumbent {
                                         List.of("EventSource/User/Id", "EventSource/Device/Name"))),
                         // The gate a record is held to (design 04 §3, A66): an interactive event names its
                         // user. The incumbent clears it on every record; a candidate that leaves the user
-                        // out falls short of it, on its own stream or on a record the rule was accepted on.
+                        // out falls short of it, on its own stream or on a record the binding was accepted on.
                         new ScorerSetting(ScorerType.BUSINESS_RULES, 1.0, 0.5, true,
                                 new BusinessRulesParameters(List.of(new XPathAssertion(
                                         "interactive events name the user",
@@ -146,7 +146,7 @@ class TestScenariosIncumbent {
     }
 
     /**
-     * Learns v1, serves one stream with it — which marks the shape, v1 scoring below the relearn threshold
+     * Learns v1, serves one stream with it — which marks the learner, v1 scoring below the relearn threshold
      * — and returns the document as it then stands.
      */
     private static StageRun incumbentMarked(final Scenarios scenarios, final String users) {
@@ -174,7 +174,7 @@ class TestScenariosIncumbent {
     void scenario8ACandidateBetterOnTheSampleButWorseOnTheStreamIsNotPromoted() {
         final Scenarios scenarios = new Scenarios();
         final StageRun marked = incumbentMarked(scenarios, "user");
-        final RoutingRule v1 = scenarios.rules.forLearner(Scenarios.LEARNER).get(0);
+        final Binding v1 = scenarios.learnerBindings.forLearner(Scenarios.LEARNER).get(0);
 
         // v2 names the user for everyone but user6 — the one record in the held-out fifth of a seven-line
         // stream — and, like v1, has no device: it passes every threshold on the six records it is shown
@@ -189,11 +189,11 @@ class TestScenariosIncumbent {
         final Kept kept = (Kept) run.decision();
         assertThat(kept.incumbent()).isEqualTo(v1);
         assertThat(kept.reason()).contains("against the incumbent's").contains("on this stream");
-        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).containsExactly(v1);
+        assertThat(scenarios.learnerBindings.forLearner(Scenarios.LEARNER)).containsExactly(v1);
         assertThat(scenarios.stores.pipelines.list()).describedAs("v2's documents were not written").hasSize(1);
         assertThat(scenarios.stores.xslts.list()).hasSize(1);
         assertThat(run.transcript()).describedAs("chain, split, target, parser, transform").hasSize(5);
-        assertThat(run.bindings().fragment()).describedAs("the incumbent served").isEqualTo(v1.getPipeline());
+        assertThat(run.produced().fragment()).describedAs("the incumbent served").isEqualTo(v1.getPipeline());
     }
 
     @Test
@@ -203,7 +203,7 @@ class TestScenariosIncumbent {
         // have been promoted on A15 alone — and scores far below v1's recorded score on the accepted stream.
         final Scenarios scenarios = new Scenarios();
         final StageRun marked = incumbentMarked(scenarios, "user");
-        final RoutingRule v1 = scenarios.rules.forLearner(Scenarios.LEARNER).get(0);
+        final Binding v1 = scenarios.learnerBindings.forLearner(Scenarios.LEARNER).get(0);
         assertThat(scenarios.regressionSet.accepted(v1.getUuid())).hasSize(6);
 
         final String v2 = userOnlyWhen(XSLT, "starts-with(data[@name='who']/@value, 'staff')");
@@ -214,7 +214,7 @@ class TestScenariosIncumbent {
 
         assertThat(run.decision()).isInstanceOf(Kept.class);
         assertThat(((Kept) run.decision()).reason()).contains("falls short of the bar on a record it was accepted on");
-        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).containsExactly(v1);
+        assertThat(scenarios.learnerBindings.forLearner(Scenarios.LEARNER)).containsExactly(v1);
         assertThat(scenarios.stores.xslts.list()).hasSize(1);
     }
 
@@ -222,7 +222,7 @@ class TestScenariosIncumbent {
     void scenario9ABetterCandidateReplacesTheIncumbent() {
         final Scenarios scenarios = new Scenarios();
         final StageRun marked = incumbentMarked(scenarios, "user");
-        final RoutingRule v1 = scenarios.rules.forLearner(Scenarios.LEARNER).get(0);
+        final Binding v1 = scenarios.learnerBindings.forLearner(Scenarios.LEARNER).get(0);
 
         final Script relearn = learning(scenarios, XSLT);
         final StageRun run = scenarios.process(relearn, marked.doc(), stream(3, CsvLines.lines(7, "user",
@@ -233,7 +233,7 @@ class TestScenariosIncumbent {
         final Rebound rebound = (Rebound) run.decision();
         assertThat(rebound.incumbent()).isEqualTo(v1);
         assertThat(rebound.score()).isEqualTo(1.0);
-        final RoutingRule v2 = rebound.rule();
+        final Binding v2 = rebound.binding();
         assertThat(v2.getUuid()).isEqualTo(v1.getUuid());
         assertThat(v2.getPipeline())
                 .describedAs("the same fragment, edited in place (A58)")
@@ -241,12 +241,12 @@ class TestScenariosIncumbent {
         assertThat(v2.getSnapshot()).describedAs("under a new snapshot (A61)").isNotEqualTo(v1.getSnapshot());
         assertThat(v2.getScore()).isEqualTo(1.0);
         assertThat(v2.getPromotedTimeMs()).isEqualTo(Scenarios.NOW.toEpochMilli());
-        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).containsExactly(v2);
-        // One fragment and one stylesheet per shape, growing as the session learns (A58): what ran before
+        assertThat(scenarios.learnerBindings.forLearner(Scenarios.LEARNER)).containsExactly(v2);
+        // One fragment and one stylesheet per learner, growing as the session learns (A58): what ran before
         // is the snapshot's to keep, not a sibling document's.
         assertThat(scenarios.stores.pipelines.list()).hasSize(1);
         assertThat(scenarios.stores.xslts.list()).hasSize(1);
-        assertThat(scenarios.snapshots.forRule(v1.getUuid())).hasSize(2);
+        assertThat(scenarios.snapshots.forBinding(v1.getUuid())).hasSize(2);
         assertThat(scenarios.regressionSet.accepted(v1.getUuid())).hasSizeGreaterThan(6);
     }
 }

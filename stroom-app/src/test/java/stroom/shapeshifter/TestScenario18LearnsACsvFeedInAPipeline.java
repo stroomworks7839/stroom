@@ -47,13 +47,13 @@ import stroom.shapeshifter.ai.scenario.QuestionMatcher;
 import stroom.shapeshifter.ai.scenario.Scenarios;
 import stroom.shapeshifter.ai.scenario.Script;
 import stroom.shapeshifter.ai.scenario.Structure;
-import stroom.shapeshifter.ai.stage.Bindings;
 import stroom.shapeshifter.ai.stage.Learner;
-import stroom.shapeshifter.ai.stage.Rules;
+import stroom.shapeshifter.ai.stage.LearnerBindings;
+import stroom.shapeshifter.ai.stage.Produced;
 import stroom.shapeshifter.ai.transformation.XsltStep;
+import stroom.shapeshifter.shared.Binding;
 import stroom.shapeshifter.shared.FlowExample;
 import stroom.shapeshifter.shared.LearningMode;
-import stroom.shapeshifter.shared.RoutingRule;
 import stroom.shapeshifter.shared.ScorerSetting;
 import stroom.shapeshifter.shared.ScorerType;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
@@ -81,7 +81,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Design 02 §5, scenario 18 (Tier 2): scenario 1 with the document, feed and streams as real content and
  * the supervisor element in a real pipeline, processed as a processor task. What Tier 1 cannot claim is
- * claimed here: the learned fragment runs as a pipeline, the element routes and emits, the output is a
+ * claimed here: the learned fragment runs as a pipeline, the element serves and emits, the output is a
  * stream whose attributes carry the bindings (design 01 §7.3 rule 3), and the fragment is a document in
  * the store.
  */
@@ -104,7 +104,7 @@ class TestScenario18LearnsACsvFeedInAPipeline extends AbstractProcessIntegration
     @Inject
     private ShapeshifterAiStore shapeshifterAiStore;
     @Inject
-    private Rules rules;
+    private LearnerBindings learnerBindings;
     @Inject
     private PipelineStore pipelineStore;
     @Inject
@@ -157,16 +157,16 @@ class TestScenario18LearnsACsvFeedInAPipeline extends AbstractProcessIntegration
 
         assertThat(first.getMarkerCount(Severity.ERROR, Severity.FATAL_ERROR)).isZero();
         assertThat(first.getWritten()).isEqualTo(6);
-        // The rules are rows, not part of the document (A41): the supervisor wrote one and left the
+        // The bindings are rows, not part of the document (A41): the supervisor wrote one and left the
         // document alone.
-        assertThat(rules.forLearner(learner)).hasSize(1);
-        final RoutingRule rule = rules.forLearner(learner).get(0);
+        assertThat(learnerBindings.forLearner(learner)).hasSize(1);
+        final Binding binding = learnerBindings.forLearner(learner).get(0);
         assertThat(shapeshifterAiStore.readDocument(doc))
                 .describedAs("the document the operator authored is untouched by learning")
                 .isEqualTo(shapeshifterAiStore.readDocument(doc));
-        assertThat(rule.isDraft()).isFalse();
-        assertThat(rule.isProvisional()).isFalse();
-        final PipelineDoc fragment = pipelineStore.readDocument(rule.getPipeline());
+        assertThat(binding.isDraft()).isFalse();
+        assertThat(binding.isProvisional()).isFalse();
+        final PipelineDoc fragment = pipelineStore.readDocument(binding.getPipeline());
         assertThat(fragment).describedAs("the fragment is a real pipeline document").isNotNull();
         assertThat(fragment.getName())
                 .describedAs("named for the pipeline it was learned for, the element naming nothing (A113)")
@@ -180,12 +180,12 @@ class TestScenario18LearnsACsvFeedInAPipeline extends AbstractProcessIntegration
         final Map<String, String> attributes = streamStore.getAttributes(output.getId());
         assertThat(attributes)
                 .describedAs("design 01 §7.3 rule 3: the output carries what produced it")
-                .containsEntry(Bindings.DOC_ATTRIBUTE, doc.getUuid())
-                .containsEntry(Bindings.RULE_ATTRIBUTE, rule.getUuid())
-                .containsEntry(Bindings.FRAGMENT_ATTRIBUTE, rule.getPipeline().getUuid())
-                .containsEntry(Bindings.PROVISIONAL_ATTRIBUTE, "false");
+                .containsEntry(Produced.DOC_ATTRIBUTE, doc.getUuid())
+                .containsEntry(Produced.BINDING_ATTRIBUTE, binding.getUuid())
+                .containsEntry(Produced.FRAGMENT_ATTRIBUTE, binding.getPipeline().getUuid())
+                .containsEntry(Produced.PROVISIONAL_ATTRIBUTE, "false");
 
-        // The second stream of the shape: bound by the rule, the model not consulted.
+        // The second stream of the learner: bound by the binding, the model not consulted.
         final Script silent = Script.of();
         advisor.set(silent);
         rawStream();
@@ -196,7 +196,7 @@ class TestScenario18LearnsACsvFeedInAPipeline extends AbstractProcessIntegration
         assertThat(second.getWritten()).isEqualTo(6);
         assertThat(outputs()).hasSize(2);
         assertThat(canonical(data(outputs().get(1)))).isEqualTo(canonical(EXPECTED_EVENTS));
-        assertThat(rules.forLearner(learner)).hasSize(1);
+        assertThat(learnerBindings.forLearner(learner)).hasSize(1);
     }
 
     /**

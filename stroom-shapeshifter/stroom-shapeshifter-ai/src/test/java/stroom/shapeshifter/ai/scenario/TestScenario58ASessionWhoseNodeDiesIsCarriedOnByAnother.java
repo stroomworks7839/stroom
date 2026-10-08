@@ -39,7 +39,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /// its §8 scenarios 13 and 15).
 ///
 /// A worker on one node takes a session and dies in the middle of it — nothing closes the attempt, the
-/// turns it had been answered are in the table, its lease runs on. Streams of the shape keep waiting on
+/// turns it had been answered are in the table, its lease runs on. Streams of the learner keep waiting on
 /// the session and open no other. Once the lease lapses, a worker on another node finds the attempt,
 /// takes it, and re-walks it: the recorded turns are replayed without asking the model, the question the
 /// dead node stopped at is asked, and the session is finished — one attempt, promoted, under the second
@@ -78,7 +78,7 @@ class TestScenario58ASessionWhoseNodeDiesIsCarriedOnByAnother {
         assertThat(recorded).describedAs("the turns it had been answered, the one it stopped at not among them")
                 .isGreaterThanOrEqualTo(2);
 
-        // The shape is still the session's: a second stream waits on it and no other opens; and while
+        // The learner is still the session's: a second stream waits on it and no other opens; and while
         // the lease runs the worker leaves it to the node that holds it.
         scenarios.inputs.put(input(2L));
         assertThat(scenarios.stage(silent).decide(doc, Scenarios.LEARNER,
@@ -103,7 +103,7 @@ class TestScenario58ASessionWhoseNodeDiesIsCarriedOnByAnother {
         assertThat(finished.attempt().node()).describedAs("under the node that finished it").isEqualTo("node-2");
         assertThat(finished.turns()).extracting(Turn::number).isSorted();
         assertThat(finished.turns().size()).describedAs("the replayed turns and the one asked").isEqualTo(recorded + 1);
-        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).hasSize(1);
+        assertThat(scenarios.learnerBindings.forLearner(Scenarios.LEARNER)).hasSize(1);
         assertThat(scenarios.wake.woken()).extracting(Deferral::inputId)
                 .describedAs("every stream that waited on it is woken").contains(1L, 2L);
         assertThat(scenarios.attempts.lapsed(Scenarios.NOW.toEpochMilli(), 10)).isEmpty();

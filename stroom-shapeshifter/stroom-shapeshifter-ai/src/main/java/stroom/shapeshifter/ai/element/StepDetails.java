@@ -22,7 +22,6 @@ import stroom.shapeshifter.ai.learning.Exchange;
 import stroom.shapeshifter.ai.learning.Question;
 import stroom.shapeshifter.ai.scoring.Judgement;
 import stroom.shapeshifter.ai.scoring.Verdict;
-import stroom.shapeshifter.ai.stage.Bindings;
 import stroom.shapeshifter.ai.stage.Decision;
 import stroom.shapeshifter.ai.stage.Decision.Bound;
 import stroom.shapeshifter.ai.stage.Decision.Deferred;
@@ -37,6 +36,7 @@ import stroom.shapeshifter.ai.stage.Decision.Retracted;
 import stroom.shapeshifter.ai.stage.Decision.Sentinel;
 import stroom.shapeshifter.ai.stage.Decision.Would;
 import stroom.shapeshifter.ai.stage.Input;
+import stroom.shapeshifter.ai.stage.Produced;
 import stroom.shapeshifter.ai.stage.StageRun;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 import stroom.shapeshifter.shared.ShapeshifterAiStepDetails;
@@ -62,9 +62,9 @@ public final class StepDetails {
     }
 
     public static ShapeshifterAiStepDetails of(final StageRun run, final Input input, final boolean dryRun) {
-        final Bindings bindings = run.bindings();
-        final DocRef fragment = bindings != null
-                ? bindings.fragment()
+        final Produced produced = run.produced();
+        final DocRef fragment = produced != null
+                ? produced.fragment()
                 : null;
         return new ShapeshifterAiStepDetails(
                 dryRun,
@@ -72,17 +72,17 @@ public final class StepDetails {
                 stream(input),
                 run.decision().getClass().getSimpleName(),
                 describe(run.decision()),
-                bindings == null
+                produced == null
                         ? null
-                        : bindings.ruleUuid(),
+                        : produced.bindingUuid(),
                 fragment,
-                bindings != null && bindings.provisional(),
-                bindings == null
+                produced != null && produced.provisional(),
+                produced == null
                         ? null
-                        : bindings.score(),
-                bindings == null || bindings.boundary() == null
+                        : produced.score(),
+                produced == null || produced.boundary() == null
                         ? null
-                        : bindings.boundary().toString(),
+                        : produced.boundary().toString(),
                 verdicts(run.verdicts()),
                 transcript(run.transcript()),
                 // Attached per record by [Supervision], since the decision is the stream's and what each
@@ -117,19 +117,19 @@ public final class StepDetails {
     /// they say it from here — a second switch elsewhere is a second place to forget an outcome.
     public static String describe(final Decision decision) {
         return switch (decision) {
-            case Bound bound -> bound.rule() == null
+            case Bound bound -> bound.binding() == null
                     ? "Served by the fragment that produced this input's output before"
-                    : "Served by rule " + bound.rule().getUuid();
-            case Promoted promoted -> "Promoted rule " + promoted.rule().getUuid() + ", scoring "
+                    : "Served by binding " + bound.binding().getUuid();
+            case Promoted promoted -> "Promoted binding " + promoted.binding().getUuid() + ", scoring "
                                       + promoted.score();
             case Provisional provisional -> "Bound provisionally, scoring " + provisional.score() + " on "
                                             + provisional.records() + " records of the "
                                             + provisional.required() + " a held-out judgement needs";
-            case Rebound rebound -> "Relearned: rule " + rebound.rule().getUuid() + " rebound, scoring "
+            case Rebound rebound -> "Relearned: binding " + rebound.binding().getUuid() + " rebound, scoring "
                                     + rebound.score();
             case Kept kept -> "Relearned and the incumbent kept: " + kept.reason();
-            case Drafted drafted -> "Awaiting review: draft rule " + drafted.rule().getUuid() + " binds "
-                                    + drafted.rule().getPipeline().getName();
+            case Drafted drafted -> "Awaiting review: draft binding " + drafted.binding().getUuid() + " binds "
+                                    + drafted.binding().getPipeline().getName();
             case Retracted retracted -> retracted.reason();
             case GivenUp givenUp -> "Given up: " + givenUp.reason();
             case Sentinel sentinel -> sentinel.reason();

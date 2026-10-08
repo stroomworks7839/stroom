@@ -29,8 +29,8 @@ public final class InMemoryCorpusIndex implements CorpusIndex {
     private final List<Row> rows = new ArrayList<>();
 
     @Override
-    public synchronized List<Row> rows(final String ruleUuid) {
-        return rows.stream().filter(row -> row.ruleUuid().equals(ruleUuid)).toList();
+    public synchronized List<Row> rows(final String bindingUuid) {
+        return rows.stream().filter(row -> row.bindingUuid().equals(bindingUuid)).toList();
     }
 
     @Override
@@ -39,8 +39,8 @@ public final class InMemoryCorpusIndex implements CorpusIndex {
     }
 
     @Override
-    public synchronized List<Long> trim(final String ruleUuid, final int cap) {
-        final List<Row> kept = rows(ruleUuid);
+    public synchronized List<Long> trim(final String bindingUuid, final int cap) {
+        final List<Row> kept = rows(bindingUuid);
         final List<Row> dropped = kept.size() > cap
                 ? kept.subList(0, kept.size() - cap)
                 : List.of();
@@ -49,17 +49,17 @@ public final class InMemoryCorpusIndex implements CorpusIndex {
     }
 
     @Override
-    public synchronized List<Long> discard(final String ruleUuid) {
-        final List<Row> dropped = rows(ruleUuid);
+    public synchronized List<Long> discard(final String bindingUuid) {
+        final List<Row> dropped = rows(bindingUuid);
         rows.removeAll(dropped);
         return orphaned(dropped);
     }
 
     @Override
-    public synchronized void move(final String fromRuleUuid, final String toRuleUuid) {
-        final List<Row> moving = rows(fromRuleUuid);
+    public synchronized void move(final String fromBindingUuid, final String toBindingUuid) {
+        final List<Row> moving = rows(fromBindingUuid);
         rows.removeAll(moving);
-        moving.forEach(row -> rows.add(new Row(row.docUuid(), toRuleUuid, row.metaId(), row.segment(), row.kind(),
+        moving.forEach(row -> rows.add(new Row(row.docUuid(), toBindingUuid, row.metaId(), row.segment(), row.kind(),
                 row.score(), row.attemptId(), row.acceptTimeMs())));
     }
 

@@ -19,13 +19,13 @@ package stroom.shapeshifter.shared;
 import stroom.docref.HasDisplayValue;
 
 /// Where a session goes when it leaves the flow without binding (A83): parked for a person, or the
-/// shape given up and its streams errored. A transition names one with `goto park` or `goto give-up`;
+/// learner given up and its streams errored. A transition names one with `goto park` or `goto give-up`;
 /// one written `abandon` takes the step's own default, which is give-up for a parser (A52, A54) and park
 /// for any other step (A65).
 public enum FlowExit implements HasDisplayValue {
     /// The session parks for a person (A65): grant more, answer a turn, or send to the exhaustion step.
     PARK("park"),
-    /// The shape is given up and the streams waiting on it error with the reason (A52, A54, A80).
+    /// The learner is given up and the streams waiting on it error with the reason (A52, A54, A80).
     GIVE_UP("give-up");
 
     private final String displayValue;

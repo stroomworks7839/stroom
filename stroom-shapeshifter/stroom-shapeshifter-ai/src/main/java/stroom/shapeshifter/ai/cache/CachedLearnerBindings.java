@@ -21,8 +21,8 @@ import stroom.cache.api.LoadingStroomCache;
 import stroom.docref.DocRef;
 import stroom.shapeshifter.ai.ShapeshifterAiConfig;
 import stroom.shapeshifter.ai.stage.Learner;
-import stroom.shapeshifter.ai.stage.Rules;
-import stroom.shapeshifter.shared.RoutingRule;
+import stroom.shapeshifter.ai.stage.LearnerBindings;
+import stroom.shapeshifter.shared.Binding;
 import stroom.util.entityevent.EntityAction;
 import stroom.util.entityevent.EntityEvent;
 import stroom.util.entityevent.EntityEventBus;
@@ -47,16 +47,16 @@ import java.util.Optional;
 /// backstop and not the mechanism.
 @Singleton
 @EntityEventHandler(type = Learner.EVENT_TYPE)
-public class CachedRules implements Rules, Clearable, EntityEvent.Handler {
+public class CachedLearnerBindings implements LearnerBindings, Clearable, EntityEvent.Handler {
 
-    private static final String CACHE_NAME = "Shapeshifter AI Routing Rules";
+    private static final String CACHE_NAME = "Shapeshifter AI Learner Bindings";
 
-    private final Rules rows;
+    private final LearnerBindings rows;
     private final EntityEventBus entityEventBus;
-    private final LoadingStroomCache<Learner, List<RoutingRule>> cache;
+    private final LoadingStroomCache<Learner, List<Binding>> cache;
 
     @Inject
-    public CachedRules(@Rows final Rules rows,
+    public CachedLearnerBindings(@Rows final LearnerBindings rows,
                        final CacheManager cacheManager,
                        final EntityEventBus entityEventBus,
                        final Provider<ShapeshifterAiConfig> configProvider) {
@@ -64,7 +64,7 @@ public class CachedRules implements Rules, Clearable, EntityEvent.Handler {
         this.entityEventBus = entityEventBus;
         this.cache = cacheManager.createLoadingCache(
                 CACHE_NAME,
-                () -> configProvider.get().getRuleCache(),
+                () -> configProvider.get().getBindingCache(),
                 // Copied, because the rows hand back a list of their own making and this one is shared
                 // by every serving thread on the node until something invalidates it: a caller that
                 // sorted or added to what it was given would corrupt the serving of every stream.
@@ -72,32 +72,32 @@ public class CachedRules implements Rules, Clearable, EntityEvent.Handler {
     }
 
     @Override
-    public List<RoutingRule> forLearner(final Learner learner) {
+    public List<Binding> forLearner(final Learner learner) {
         return cache.get(learner);
     }
 
     /// From the rows: a binding looked up by its uuid is a person's act on the Supervisor, not a stream.
     @Override
-    public Optional<Held> byUuid(final String ruleUuid) {
-        return rows.byUuid(ruleUuid);
+    public Optional<Held> byUuid(final String bindingUuid) {
+        return rows.byUuid(bindingUuid);
     }
 
     @Override
-    public RoutingRule append(final Learner learner, final String docUuid, final RoutingRule rule) {
-        final RoutingRule appended = rows.append(learner, docUuid, rule);
+    public Binding append(final Learner learner, final String docUuid, final Binding binding) {
+        final Binding appended = rows.append(learner, docUuid, binding);
         changed(learner);
         return appended;
     }
 
     @Override
-    public void replace(final Learner learner, final String docUuid, final RoutingRule rule) {
-        rows.replace(learner, docUuid, rule);
+    public void replace(final Learner learner, final String docUuid, final Binding binding) {
+        rows.replace(learner, docUuid, binding);
         changed(learner);
     }
 
     @Override
-    public void remove(final Learner learner, final String ruleUuid) {
-        rows.remove(learner, ruleUuid);
+    public void remove(final Learner learner, final String bindingUuid) {
+        rows.remove(learner, bindingUuid);
         changed(learner);
     }
 

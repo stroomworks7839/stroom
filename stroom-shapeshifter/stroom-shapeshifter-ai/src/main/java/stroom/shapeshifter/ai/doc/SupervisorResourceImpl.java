@@ -33,7 +33,7 @@ import stroom.shapeshifter.ai.stage.Deferrals.Deferral;
 import stroom.shapeshifter.ai.stage.DeletedPipelines;
 import stroom.shapeshifter.ai.stage.Guidance;
 import stroom.shapeshifter.ai.stage.Learner;
-import stroom.shapeshifter.ai.stage.Rules;
+import stroom.shapeshifter.ai.stage.LearnerBindings;
 import stroom.shapeshifter.ai.stage.Serving;
 import stroom.shapeshifter.shared.AmendTurnRequest;
 import stroom.shapeshifter.shared.AttemptCriteria;
@@ -44,8 +44,8 @@ import stroom.shapeshifter.shared.ImproveOutcome;
 import stroom.shapeshifter.shared.ImproveRequest;
 import stroom.shapeshifter.shared.LearnerRef;
 import stroom.shapeshifter.shared.RejectRequest;
+import stroom.shapeshifter.shared.ServingBinding;
 import stroom.shapeshifter.shared.ServingCriteria;
-import stroom.shapeshifter.shared.ServingRule;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 import stroom.shapeshifter.shared.SupervisorAttempt;
 import stroom.shapeshifter.shared.SupervisorGuidance;
@@ -85,7 +85,7 @@ public class SupervisorResourceImpl implements SupervisorResource {
 
     private static final LambdaLogger LOGGER = LambdaLoggerFactory.getLogger(SupervisorResourceImpl.class);
 
-    /// The most rows a page of the serving rules may ask for, whatever it asks for.
+    /// The most rows a page of the serving bindings may ask for, whatever it asks for.
     /// The attempts beside them have always clamped; these did not, so any person with VIEW on one
     /// document could ask for the whole table in one request, and a negative length reached the database
     /// as `LIMIT -1`.
@@ -101,7 +101,7 @@ public class SupervisorResourceImpl implements SupervisorResource {
     private final Provider<Deferrals> deferralsProvider;
     private final Provider<LearnerDocuments> learnerDocumentsProvider;
     private final Provider<DeletedPipelines> deletedPipelinesProvider;
-    private final Provider<Rules> rulesProvider;
+    private final Provider<LearnerBindings> learnerBindingsProvider;
 
     @Inject
     SupervisorResourceImpl(final Provider<Attempts> attemptsProvider,
@@ -114,7 +114,7 @@ public class SupervisorResourceImpl implements SupervisorResource {
                            final Provider<Deferrals> deferralsProvider,
                            final Provider<LearnerDocuments> learnerDocumentsProvider,
                            final Provider<DeletedPipelines> deletedPipelinesProvider,
-                           final Provider<Rules> rulesProvider) {
+                           final Provider<LearnerBindings> learnerBindingsProvider) {
         this.attemptsProvider = attemptsProvider;
         this.storeProvider = storeProvider;
         this.stageFactoryProvider = stageFactoryProvider;
@@ -125,7 +125,7 @@ public class SupervisorResourceImpl implements SupervisorResource {
         this.deferralsProvider = deferralsProvider;
         this.learnerDocumentsProvider = learnerDocumentsProvider;
         this.deletedPipelinesProvider = deletedPipelinesProvider;
-        this.rulesProvider = rulesProvider;
+        this.learnerBindingsProvider = learnerBindingsProvider;
     }
 
     /// What is waiting on a session (design 04 §6), a row per stream, the raised ones first and then the
@@ -208,16 +208,16 @@ public class SupervisorResourceImpl implements SupervisorResource {
         return new ResultPage<>(rows, new PageResponse(offset, rows.size(), page.total(), true));
     }
 
-    /// The rules that are serving (A46), ordered by the traffic each carries.
+    /// The bindings that are serving (A46), ordered by the traffic each carries.
     ///
-    /// Not an alert list. A rule serving at 0.93 is above every threshold and nothing is wrong with it;
+    /// Not an alert list. A binding serving at 0.93 is above every threshold and nothing is wrong with it;
     /// this is where a person goes when they have an hour and want to spend it where it counts, which is
     /// on whatever carries the most streams.
     ///
     /// The documents this person may read go into the query rather than filtering its answer, as they do
     /// for [#find].
     @Override
-    public ResultPage<ServingRule> serving(final ServingCriteria criteria) {
+    public ResultPage<ServingBinding> serving(final ServingCriteria criteria) {
         final ServingCriteria asked = criteria == null
                 ? new ServingCriteria()
                 : criteria;
@@ -227,15 +227,15 @@ public class SupervisorResourceImpl implements SupervisorResource {
                 : asked.getPageRequest();
         final long offset = Math.max(0L, NullSafe.getOrElse(page.getOffset(), Integer::longValue, 0L));
         final int length = pageLength(page);
-        final Serving.Page found = servingProvider.get()
-                .rules(readable.keySet(), asked.getBelow(), asked.isShowDeletedPipelines(), offset, length);
+        final Serving.Page found = servingProvider.get().bindings(readable.keySet(), asked.getBelow(),
+                asked.isShowDeletedPipelines(), offset, length);
         // Each row named with its document rather than its uuid, since the view is over all of them, and
         // held against its document's relearn threshold (design 04 §6): the threshold triggers nothing
         // by itself now, and this list is where it is read.
         final Map<String, Double> thresholds = new LinkedHashMap<>();
-        final List<ServingRule> rows = found.rules().stream()
-                .map(rule -> named(readable.get(rule.getDoc().getUuid()), rule,
-                        thresholds.computeIfAbsent(rule.getDoc().getUuid(), this::relearnThreshold)))
+        final List<ServingBinding> rows = found.bindings().stream()
+                .map(binding -> named(readable.get(binding.getDoc().getUuid()), binding,
+                        thresholds.computeIfAbsent(binding.getDoc().getUuid(), this::relearnThreshold)))
                 .toList();
         return new ResultPage<>(rows, new PageResponse(offset, rows.size(), found.total(), true));
     }
@@ -254,10 +254,10 @@ public class SupervisorResourceImpl implements SupervisorResource {
         }
     }
 
-    /// Ask for a rule that is already serving to be made better (A46).
+    /// Ask for a binding that is already serving to be made better (A46).
     ///
-    /// Held to EDIT, as approving a draft is: it spends a model's tokens and may rebind the document's
-    /// routing.
+    /// Held to EDIT, as approving a draft is: it spends a model's tokens and may rebind the
+    /// learner.
     ///
     /// It runs while the request is open, which is the one thing here that is not yet what A46 asks for:
     /// the ruling says an improvement is taken by the deferred worker. The stage says why in
@@ -266,19 +266,19 @@ public class SupervisorResourceImpl implements SupervisorResource {
     /// meanwhile: the incumbent serves every stream throughout, and a candidate takes over only through
     /// the ordinary gate.
     @Override
-    public ImproveOutcome improve(final String docUuid, final String ruleUuid, final ImproveRequest request) {
+    public ImproveOutcome improve(final String docUuid, final String bindingUuid, final ImproveRequest request) {
         if (!may(docUuid, DocumentPermission.EDIT)) {
             throw new PermissionException(securityContextProvider.get().getUserRef(),
-                    "You do not have permission to change the rules of this document");
+                    "You do not have permission to change the bindings of this document");
         }
         final String by = securityContextProvider.get().getUserIdentityForAudit();
         final String message = request == null
                 ? null
                 : request.getMessage();
-        liveRule(ruleUuid);
+        liveBinding(bindingUuid);
         final ShapeshifterAiDoc doc = document(docUuid);
         final Decision decision = pipelineScopeProvider.get().scopeResult(() ->
-                stageFactoryProvider.get().create().improve(doc, ruleUuid, message, by).decision());
+                stageFactoryProvider.get().create().improve(doc, bindingUuid, message, by).decision());
         // Described from the one switch that describes every decision: the stage pane, the error stream
         // and this button say the same thing because they say it from the same place.
         return new ImproveOutcome(StepDetails.describe(decision));
@@ -287,46 +287,46 @@ public class SupervisorResourceImpl implements SupervisorResource {
     /// Accept a provisional binding now (design 01 §6, §11.6), rather than waiting for the records
     /// that would promote it.
     ///
-    /// Held to EDIT, as the other acts that change the document's routing are. Not a way round the
-    /// gate: the rule cleared the promotion floor when it was bound, and what is skipped is the wait
+    /// Held to EDIT, as the other acts that change what serves a learner are. Not a way round the
+    /// gate: the binding cleared the promotion floor when it was bound, and what is skipped is the wait
     /// for more records to judge it on.
     @Override
-    public Boolean accept(final String docUuid, final String ruleUuid) {
+    public Boolean accept(final String docUuid, final String bindingUuid) {
         if (!may(docUuid, DocumentPermission.EDIT)) {
             throw new PermissionException(securityContextProvider.get().getUserRef(),
-                    "You do not have permission to change the rules of this document");
+                    "You do not have permission to change the bindings of this document");
         }
         final String by = securityContextProvider.get().getUserIdentityForAudit();
-        liveRule(ruleUuid);
+        liveBinding(bindingUuid);
         final ShapeshifterAiDoc doc = document(docUuid);
         pipelineScopeProvider.get().scopeRunnable(() ->
-                stageFactoryProvider.get().create().accept(doc, ruleUuid, by));
+                stageFactoryProvider.get().create().accept(doc, bindingUuid, by));
         return Boolean.TRUE;
     }
 
-    /// Take a rule that is serving back out of the table (A28, design 01 §11.6).
+    /// Take back a binding that is serving (A28, design 01 §11.6).
     ///
-    /// The reason is asked for rather than assumed: it is recorded against the attempt that bound the rule.
+    /// The reason is asked for rather than assumed: it is recorded against the attempt that wrote the binding.
     ///
-    /// Answers how many streams the rule produced output for, which is the one consequence the person
+    /// Answers how many streams the binding produced output for, which is the one consequence the person
     /// cannot see for themselves, and what they would reprocess (A129).
     ///
     /// Held to EDIT, as approving a draft is: it changes what serves the document's pipelines.
     @Override
-    public Integer retract(final String docUuid, final String ruleUuid, final RejectRequest request) {
+    public Integer retract(final String docUuid, final String bindingUuid, final RejectRequest request) {
         if (request == null || NullSafe.isBlankString(request.getReason())) {
             throw new IllegalArgumentException("A retraction says why: the reason is recorded against "
-                                               + "the attempt that bound the rule");
+                                               + "the attempt that wrote the binding");
         }
         if (!may(docUuid, DocumentPermission.EDIT)) {
             throw new PermissionException(securityContextProvider.get().getUserRef(),
-                    "You do not have permission to change the rules of this document");
+                    "You do not have permission to change the bindings of this document");
         }
         final String by = securityContextProvider.get().getUserIdentityForAudit();
-        liveRule(ruleUuid);
+        liveBinding(bindingUuid);
         final ShapeshifterAiDoc doc = document(docUuid);
         return pipelineScopeProvider.get().scopeResult(() ->
-                stageFactoryProvider.get().create().retract(doc, ruleUuid, request.getReason(), by));
+                stageFactoryProvider.get().create().retract(doc, bindingUuid, request.getReason(), by));
     }
 
     /// What has been said to a learner (A46), oldest first.
@@ -398,7 +398,7 @@ public class SupervisorResourceImpl implements SupervisorResource {
     @Override
     public SupervisorAttempt approve(final long id) {
         final Recorded attempt = live(change(id));
-        onStage(attempt, (stage, doc) -> stage.approve(doc, ruleOf(attempt)));
+        onStage(attempt, (stage, doc) -> stage.approve(doc, bindingOf(attempt)));
         return detail(read(id));
     }
 
@@ -408,7 +408,7 @@ public class SupervisorResourceImpl implements SupervisorResource {
             throw new IllegalArgumentException("A rejection says why: the learner gives up with the reason");
         }
         final Recorded attempt = live(change(id));
-        onStage(attempt, (stage, doc) -> stage.reject(doc, ruleOf(attempt), request.getReason()));
+        onStage(attempt, (stage, doc) -> stage.reject(doc, bindingOf(attempt), request.getReason()));
         return detail(read(id));
     }
 
@@ -451,13 +451,14 @@ public class SupervisorResourceImpl implements SupervisorResource {
 
     /// The same row with its document named rather than merely identified: the seam answers with uuids,
     /// since it has no store to ask, and the view is over every document at once.
-    private static ServingRule named(final DocRef doc, final ServingRule rule, final Double threshold) {
+    private static ServingBinding named(final DocRef doc, final ServingBinding binding, final Double threshold) {
         final boolean below = threshold != null
-                              && rule.getRollingScore() != null
-                              && rule.getRollingScore() < threshold;
-        return new ServingRule(doc, rule.getLearner(), rule.getRuleUuid(), rule.getFragment(),
-                rule.isProvisional(), rule.getPromotedScore(), rule.getPromotedTimeMs(),
-                rule.getRollingScore(), rule.getRecords(), rule.getGuidance(), below, rule.isPipelineDeleted());
+                              && binding.getRollingScore() != null
+                              && binding.getRollingScore() < threshold;
+        return new ServingBinding(doc, binding.getLearner(), binding.getBindingUuid(), binding.getFragment(),
+                binding.isProvisional(), binding.getPromotedScore(), binding.getPromotedTimeMs(),
+                binding.getRollingScore(), binding.getRecords(), binding.getGuidance(), below,
+                        binding.isPipelineDeleted());
     }
 
     /// The learner a request names, as the row it was made from carried it (design 06 phase J slice 2b).
@@ -500,8 +501,8 @@ public class SupervisorResourceImpl implements SupervisorResource {
     }
 
     /// The binding's learner held to the same, where the binding is still there to say whose it is.
-    private void liveRule(final String ruleUuid) {
-        rulesProvider.get().byUuid(ruleUuid).ifPresent(held -> live(held.learner()));
+    private void liveBinding(final String bindingUuid) {
+        learnerBindingsProvider.get().byUuid(bindingUuid).ifPresent(held -> live(held.learner()));
     }
 
     /// An attempt whose learner still runs under the document it was learning for. An attempt is history
@@ -522,9 +523,9 @@ public class SupervisorResourceImpl implements SupervisorResource {
     /// this lets a person read and no more.
     private boolean runsUnder(final Learner learner, final String docUuid) {
         if (deletedPipelinesProvider.get().isDeleted(learner.pipelineUuid())) {
-            final Rules rules = rulesProvider.get();
-            return rules.forLearner(learner).stream()
-                    .map(rule -> rules.byUuid(rule.getUuid()))
+            final LearnerBindings learnerBindings = learnerBindingsProvider.get();
+            return learnerBindings.forLearner(learner).stream()
+                    .map(binding -> learnerBindings.byUuid(binding.getUuid()))
                     .flatMap(Optional::stream)
                     .anyMatch(held -> docUuid.equals(held.docUuid()));
         }
@@ -553,9 +554,9 @@ public class SupervisorResourceImpl implements SupervisorResource {
         return permitted(id, DocumentPermission.VIEW);
     }
 
-    /// An attempt a person may change. Approving a draft binds a rule, rejecting one gives a learner up,
-    /// and running an attempt again spends a model's tokens: these are edits of the document's routing
-    /// and are held to the same permission as editing its routing table by hand.
+    /// An attempt a person may change. Approving a draft puts its binding in force, rejecting one gives a
+    /// learner up, and running an attempt again spends a model's tokens: these change what serves the
+    /// document's learners and are held to the same permission as editing the document.
     private Recorded change(final long id) {
         return permitted(id, DocumentPermission.EDIT);
     }
@@ -585,11 +586,11 @@ public class SupervisorResourceImpl implements SupervisorResource {
                 .toList();
     }
 
-    private String ruleOf(final Recorded attempt) {
-        if (attempt.ruleUuid() == null) {
-            throw new IllegalStateException("Attempt " + attempt.id() + " drafted no rule to decide about");
+    private String bindingOf(final Recorded attempt) {
+        if (attempt.bindingUuid() == null) {
+            throw new IllegalStateException("Attempt " + attempt.id() + " drafted no binding to decide about");
         }
-        return attempt.ruleUuid();
+        return attempt.bindingUuid();
     }
 
     /// In a pipeline scope, though there is no pipeline: what a stage is built from reports through the
@@ -626,7 +627,7 @@ public class SupervisorResourceImpl implements SupervisorResource {
                 attempt.attempt().promotionMode(),
                 attempt.status(),
                 attempt.decision(),
-                attempt.ruleUuid(),
+                attempt.bindingUuid(),
                 attempt.score(),
                 attempt.tokensSpent(),
                 attempt.grant().tokens(),

@@ -46,12 +46,12 @@ import stroom.shapeshifter.ai.scoring.YieldScorer;
 import stroom.shapeshifter.ai.stage.Attempts;
 import stroom.shapeshifter.ai.stage.Deferrals;
 import stroom.shapeshifter.ai.stage.Guidance;
+import stroom.shapeshifter.ai.stage.LearnerBindings;
 import stroom.shapeshifter.ai.stage.LearnerStates;
 import stroom.shapeshifter.ai.stage.Learners;
 import stroom.shapeshifter.ai.stage.Outputs;
 import stroom.shapeshifter.ai.stage.Places;
 import stroom.shapeshifter.ai.stage.RegressionSet;
-import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.ai.stage.Snapshots;
 import stroom.shapeshifter.ai.stage.Spend;
 import stroom.shapeshifter.ai.stage.Stage;
@@ -95,7 +95,7 @@ public class StageFactory {
     private final TaskContextFactory taskContextFactory;
     private final NodeInfo nodeInfo;
     private final Attempts attempts;
-    private final Rules rules;
+    private final LearnerBindings learnerBindings;
     private final LearnerStates states;
     private final Spend spend;
     private final Guidance guidance;
@@ -126,7 +126,7 @@ public class StageFactory {
                         final TaskContextFactory taskContextFactory,
                         final NodeInfo nodeInfo,
                         final Attempts attempts,
-                        final Rules rules,
+                        final LearnerBindings learnerBindings,
                         final LearnerStates states,
                         final Spend spend,
                         final Guidance guidance,
@@ -155,7 +155,7 @@ public class StageFactory {
         this.taskContextFactory = taskContextFactory;
         this.nodeInfo = nodeInfo;
         this.attempts = attempts;
-        this.rules = rules;
+        this.learnerBindings = learnerBindings;
         this.states = states;
         this.spend = spend;
         this.guidance = guidance;
@@ -199,7 +199,7 @@ public class StageFactory {
                         headlessCaptureProvider, errorReceiverProvider, fragmentOutputProvider, fragmentTapProvider,
                         injectedCodeProvider, taskContextFactory),
                 attempts,
-                rules,
+                learnerBindings,
                 states,
                 spend,
                 guidance,

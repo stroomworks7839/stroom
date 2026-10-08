@@ -23,9 +23,9 @@ import stroom.shapeshifter.ai.stage.Attempts.Grant;
 import stroom.shapeshifter.ai.stage.Attempts.Page;
 import stroom.shapeshifter.ai.stage.Attempts.Recorded;
 import stroom.shapeshifter.ai.stage.Attempts.Turn;
-import stroom.shapeshifter.ai.stage.Bindings;
 import stroom.shapeshifter.ai.stage.Guidance.Given;
 import stroom.shapeshifter.ai.stage.Learner;
+import stroom.shapeshifter.ai.stage.Produced;
 import stroom.shapeshifter.ai.stage.Replayable;
 import stroom.shapeshifter.ai.stage.Spend.Spent;
 import stroom.shapeshifter.shared.AttemptCriteria;
@@ -217,7 +217,7 @@ class TestLearnerStatesAndAttemptsDao {
     }
 
     @Test
-    void anAttemptParkedForAPersonKeepsItsShapeAndIsNobodysToCarry() {
+    void anAttemptParkedForAPersonKeepsItsLearnerAndIsNobodysToCarry() {
         // A65: the worker leaves it alone, no task of the learner opens another, and its lease does not
         // lapse — until a person acts, which is not the DAO's to do.
         final Learner learner = learner("parked");
@@ -326,7 +326,7 @@ class TestLearnerStatesAndAttemptsDao {
         final Recorded read = attempts.byId(id).orElseThrow();
         assertThat(read.status()).isEqualTo(AttemptStatus.PROMOTED);
         assertThat(read.decision()).isEqualTo("Promoted 0.97");
-        assertThat(read.ruleUuid()).isEqualTo("rule-1");
+        assertThat(read.bindingUuid()).isEqualTo("rule-1");
         assertThat(read.score()).isEqualTo(0.97);
         assertThat(read.tokensSpent()).isEqualTo(1_234L);
         assertThat(read.attempt().feed()).isEqualTo("DOOR-ACCESS");
@@ -469,7 +469,7 @@ class TestLearnerStatesAndAttemptsDao {
     }
 
     @Test
-    void anAttemptCannotBeOpenedAgainWhileAnotherHoldsItsShape() {
+    void anAttemptCannotBeOpenedAgainWhileAnotherHoldsItsLearner() {
         final Learner learner = learner("contended");
         final long mine = attempts.opened(new Attempt(learner, DOC, "F", "T", 1L, "node-1",
                 PromotionMode.AUTOMATIC, now() + 60_000L), now()).orElseThrow();
@@ -487,16 +487,16 @@ class TestLearnerStatesAndAttemptsDao {
     }
 
     @Test
-    void whatARuleProducedIsFoundWhereverItWasProduced() {
-        // Design 01 §7.3 rule 3: retracting a rule means finding the inputs whose outputs it produced,
+    void whatABindingProducedIsFoundWhereverItWasProduced() {
+        // Design 01 §7.3 rule 3: retracting a binding means finding the inputs whose outputs it produced,
         // and the node that retracts is rarely the node that produced them. The bindings are on the
         // output stream's attributes too, where a person reads them, but a custom stream attribute is not
         // a field stroom can query.
         final DocRef fragment = PipelineDoc.buildDocRef().uuid("fragment-1").name("door-v1").build();
-        outputs.emitted(1L, "pipeline-1", new Bindings(DOC, "rule-1", fragment,
+        outputs.emitted(1L, "pipeline-1", new Produced(DOC, "rule-1", fragment,
                 RecordBoundary.ofElement("Event").atDepth(1), false, 0.97));
-        outputs.emitted(2L, "pipeline-2", new Bindings(DOC, "rule-1", fragment, null, false, 0.98));
-        outputs.emitted(3L, null, new Bindings(DOC, "rule-2", fragment, null, true, 0.5));
+        outputs.emitted(2L, "pipeline-2", new Produced(DOC, "rule-1", fragment, null, false, 0.98));
+        outputs.emitted(3L, null, new Produced(DOC, "rule-2", fragment, null, true, 0.5));
 
         assertThat(outputs.boundBy("rule-1", "fragment-1"))
                 .extracting(Replayable::inputId, Replayable::pipeline)
@@ -506,22 +506,22 @@ class TestLearnerStatesAndAttemptsDao {
                 .describedAs("a stream no pipeline produced names none").containsExactly((String) null);
         assertThat(outputs.boundBy("rule-3", "fragment-1")).isEmpty();
 
-        // A rule keeps its uuid when it is rebound (§7.3 rule 3), so what an earlier generation produced
+        // A binding keeps its uuid when it is rebound (§7.3 rule 3), so what an earlier generation produced
         // is not what a retraction of this one asks for.
         final DocRef rebound = PipelineDoc.buildDocRef().uuid("fragment-2").name("door-v2").build();
-        outputs.emitted(4L, "pipeline-1", new Bindings(DOC, "rule-1", rebound, null, false, 0.99));
+        outputs.emitted(4L, "pipeline-1", new Produced(DOC, "rule-1", rebound, null, false, 0.99));
         assertThat(outputs.boundBy("rule-1", "fragment-2")).extracting(Replayable::inputId)
                 .describedAs("only what this binding produced").containsExactly(4L);
         assertThat(outputs.boundBy("rule-1", "fragment-1")).extracting(Replayable::inputId)
                 .describedAs("and the generation before it is left alone").containsExactly(1L, 2L);
 
-        // A stream processed twice by one pipeline under one rule is one thing to replay; by two
+        // A stream processed twice by one pipeline under one binding is one thing to replay; by two
         // pipelines it is two outputs, and a retraction asks for both, because both are still there.
-        outputs.emitted(1L, "pipeline-3", new Bindings(DOC, "rule-1", fragment, null, false, 0.99));
+        outputs.emitted(1L, "pipeline-3", new Produced(DOC, "rule-1", fragment, null, false, 0.99));
         assertThat(outputs.boundBy("rule-1", "fragment-1"))
                 .extracting(Replayable::inputId, Replayable::pipeline)
                 .containsExactly(tuple(1L, "pipeline-1"), tuple(2L, "pipeline-2"), tuple(1L, "pipeline-3"));
-        outputs.emitted(1L, "pipeline-1", new Bindings(DOC, "rule-1", fragment,
+        outputs.emitted(1L, "pipeline-1", new Produced(DOC, "rule-1", fragment,
                 RecordBoundary.ofElement("Event").atDepth(1), false, 0.95));
         assertThat(outputs.boundBy("rule-1", "fragment-1"))
                 .describedAs("and the same pipeline again is the same output, said again")
@@ -530,17 +530,17 @@ class TestLearnerStatesAndAttemptsDao {
         // What an as-processed reprocess asks (design 01 §7.3): what was bound when this input was last
         // processed by this pipeline, so that the fragment which produced the output produces it again.
         assertThat(outputs.asProcessed(DOC, 2L, "pipeline-2")).get()
-                .extracting(Bindings::ruleUuid, bindings -> bindings.fragment().getUuid(), Bindings::provisional)
+                .extracting(Produced::bindingUuid, bindings -> bindings.fragment().getUuid(), Produced::provisional)
                 .containsExactly("rule-1", "fragment-1", false);
         assertThat(outputs.asProcessed(DOC, 1L, "pipeline-1")).get()
-                .describedAs("under the boundary that produced it, not the rule's boundary today")
+                .describedAs("under the boundary that produced it, not the binding's boundary today")
                 .extracting(bindings -> bindings.boundary().getElement(),
                         bindings -> bindings.boundary().splitDepth().orElseThrow())
                 .containsExactly("Event", 1);
         assertThat(outputs.asProcessed(DOC, 1L, "pipeline-3")).describedAs("another pipeline's run of the same "
                                                                      + "input is another output, not a "
                                                                      + "replacement for it")
-                .get().extracting(Bindings::score).isEqualTo(0.99);
+                .get().extracting(Produced::score).isEqualTo(0.99);
         assertThat(outputs.asProcessed(DOC, 1L, "pipeline-9")).isEmpty();
         assertThat(outputs.asProcessed(DOC, 3L, null))
                 .describedAs("an output of no pipeline is of no pipeline rather than of any")
@@ -554,7 +554,7 @@ class TestLearnerStatesAndAttemptsDao {
         // without it the extraction stage would be answered with the transformation stage's fragment,
         // which would then be run over raw bytes.
         final DocRef transform = PipelineDoc.buildDocRef().uuid("fragment-t").name("transform").build();
-        outputs.emitted(2L, "pipeline-2", new Bindings("doc-2", "rule-t", transform, null, false, 0.97));
+        outputs.emitted(2L, "pipeline-2", new Produced("doc-2", "rule-t", transform, null, false, 0.97));
         assertThat(outputs.asProcessed(DOC, 2L, "pipeline-2")).get()
                 .describedAs("the stage that asked, not the one that recorded last")
                 .extracting(bindings -> bindings.fragment().getUuid()).isEqualTo("fragment-1");
@@ -563,7 +563,7 @@ class TestLearnerStatesAndAttemptsDao {
 
         // Where each record began and ended in the stream it was cut from (§12 item 21), so that a
         // fault found at an event is put to the model with the record that made it.
-        outputs.emitted(5L, "pipeline-1", new Bindings(DOC, "rule-1", fragment, null, false, 0.9),
+        outputs.emitted(5L, "pipeline-1", new Produced(DOC, "rule-1", fragment, null, false, 0.9),
                 List.of(new TextRange(DefaultLocation.of(2, 1), DefaultLocation.of(2, 40)),
                         new TextRange(DefaultLocation.of(3, 1), DefaultLocation.of(4, 12))));
         assertThat(outputs.span(DOC, 5L, "pipeline-1", 0)).get()
@@ -581,7 +581,7 @@ class TestLearnerStatesAndAttemptsDao {
                 .describedAs("an output recorded with no spans has none to give").isEmpty();
         // And a later run with nothing to say about the records — an as-processed reprocess, which has
         // no parser to ask — leaves what was recorded where it is.
-        outputs.emitted(5L, "pipeline-1", new Bindings(DOC, "rule-1", fragment, null, false, 0.9));
+        outputs.emitted(5L, "pipeline-1", new Produced(DOC, "rule-1", fragment, null, false, 0.9));
         assertThat(outputs.span(DOC, 5L, "pipeline-1", 0))
                 .describedAs("knowing nothing does not erase what was known").isPresent();
 

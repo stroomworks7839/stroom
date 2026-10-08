@@ -21,10 +21,10 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * What came of asking for a rule to be improved (A46), in the words the stage decided it in.
+ * What came of asking for a binding to be improved (A46), in the words the stage decided it in.
  * <p>
  * An improvement can end four ways and none of them is a failure: the candidate took over, it was kept
- * back as a draft for review, the incumbent held its place because nothing beat it (A18), or the shape
+ * back as a draft for review, the incumbent held its place because nothing beat it (A18), or the learner
  * was left alone. The person is told which, and the attempt itself is in the Supervisor's list with
  * every question it asked.
  */

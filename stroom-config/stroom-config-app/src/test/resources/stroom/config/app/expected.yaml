@@ -1285,6 +1285,12 @@ appConfig:
     secure: true
   shapeshifterAi:
     attemptRetention: "P90D"
+    bindingCache:
+      expireAfterAccess: "PT10M"
+      expireAfterWrite: null
+      maximumSize: 1000
+      refreshAfterWrite: null
+      statisticsMode: "INTERNAL"
     db:
       connection:
         jdbcDriverClassName: null
@@ -1306,12 +1312,6 @@ appConfig:
       expireAfterAccess: "PT10M"
       expireAfterWrite: null
       maximumSize: 10000
-      refreshAfterWrite: null
-      statisticsMode: "INTERNAL"
-    ruleCache:
-      expireAfterAccess: "PT10M"
-      expireAfterWrite: null
-      maximumSize: 1000
       refreshAfterWrite: null
       statisticsMode: "INTERNAL"
     sessionLease: "PT10M"

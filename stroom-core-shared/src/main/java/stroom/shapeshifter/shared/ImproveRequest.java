@@ -21,11 +21,11 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * What a person wants better about a rule that is already serving (A46).
+ * What a person wants better about a binding that is already serving (A46).
  * <p>
  * The message is optional: asking again from the incumbent, with the records it was accepted on and the
  * score it achieved on them, is itself worth something. When there is one it is kept as guidance for the
- * shape rather than for this attempt, so it is carried into every question asked about that shape from
+ * learner rather than for this attempt, so it is carried into every question asked about that learner from
  * then on — including the relearning of A29 months later.
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)

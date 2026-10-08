@@ -17,8 +17,8 @@
 package stroom.shapeshifter.ai.state;
 
 import stroom.shapeshifter.ai.stage.Learner;
-import stroom.shapeshifter.ai.stage.Rules;
-import stroom.shapeshifter.shared.RoutingRule;
+import stroom.shapeshifter.ai.stage.LearnerBindings;
+import stroom.shapeshifter.shared.Binding;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -27,55 +27,55 @@ import java.util.UUID;
 
 /// The bindings of A41 in memory, until the A26 module holds them. Every method is synchronised: one node's
 /// tasks share it.
-public final class InMemoryRules implements Rules {
+public final class InMemoryLearnerBindings implements LearnerBindings {
 
     private final List<Held> rows = new ArrayList<>();
 
     @Override
-    public synchronized List<RoutingRule> forLearner(final Learner learner) {
+    public synchronized List<Binding> forLearner(final Learner learner) {
         return rows.stream()
                 .filter(row -> row.learner().equals(learner))
-                .map(Held::rule)
+                .map(Held::binding)
                 .toList();
     }
 
     @Override
-    public synchronized Optional<Held> byUuid(final String ruleUuid) {
+    public synchronized Optional<Held> byUuid(final String bindingUuid) {
         return rows.stream()
-                .filter(row -> ruleUuid.equals(row.rule().getUuid()))
+                .filter(row -> bindingUuid.equals(row.binding().getUuid()))
                 .findFirst();
     }
 
     @Override
-    public synchronized RoutingRule append(final Learner learner, final String docUuid, final RoutingRule rule) {
-        final RoutingRule stored = rule.getUuid() == null
-                ? rule.copy().uuid(UUID.randomUUID().toString()).build()
-                : rule;
+    public synchronized Binding append(final Learner learner, final String docUuid, final Binding binding) {
+        final Binding stored = binding.getUuid() == null
+                ? binding.copy().uuid(UUID.randomUUID().toString()).build()
+                : binding;
         rows.add(new Held(learner, docUuid, stored));
         return stored;
     }
 
     @Override
-    public synchronized void replace(final Learner learner, final String docUuid, final RoutingRule rule) {
+    public synchronized void replace(final Learner learner, final String docUuid, final Binding binding) {
         for (int i = 0; i < rows.size(); i++) {
             final Held row = rows.get(i);
-            if (row.rule().getUuid().equals(rule.getUuid())) {
+            if (row.binding().getUuid().equals(binding.getUuid())) {
                 // As the table has it: a uuid names one binding across every learner, so another
                 // learner's is not this one's to overwrite.
                 if (!row.learner().equals(learner)) {
-                    throw new IllegalStateException("Rule " + rule.getUuid() + " is a binding of "
+                    throw new IllegalStateException("Binding " + binding.getUuid() + " is a binding of "
                                                     + row.learner() + ", not of " + learner);
                 }
-                rows.set(i, new Held(learner, docUuid, rule));
+                rows.set(i, new Held(learner, docUuid, binding));
                 return;
             }
         }
-        rows.add(new Held(learner, docUuid, rule));
+        rows.add(new Held(learner, docUuid, binding));
     }
 
     @Override
-    public synchronized void remove(final Learner learner, final String ruleUuid) {
-        rows.removeIf(row -> row.learner().equals(learner) && ruleUuid.equals(row.rule().getUuid()));
+    public synchronized void remove(final Learner learner, final String bindingUuid) {
+        rows.removeIf(row -> row.learner().equals(learner) && bindingUuid.equals(row.binding().getUuid()));
     }
 
     /// The learner's bindings brought to the document it runs under (see [InMemoryLearners]).
@@ -84,7 +84,7 @@ public final class InMemoryRules implements Rules {
     /// @param docUuid The document.
     public synchronized void runsUnder(final Learner learner, final String docUuid) {
         rows.replaceAll(row -> row.learner().equals(learner)
-                ? new Held(learner, docUuid, row.rule())
+                ? new Held(learner, docUuid, row.binding())
                 : row);
     }
 

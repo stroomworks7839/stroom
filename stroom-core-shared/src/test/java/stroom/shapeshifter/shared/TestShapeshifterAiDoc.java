@@ -316,14 +316,14 @@ class TestShapeshifterAiDoc {
     }
 
     @Test
-    void aRuleDefaultsToActiveWithNoUuid() {
+    void aBindingDefaultsToActiveWithNoUuid() {
         // The store assigns the uuid on save and the supervisor on creation; the client never does, so a
-        // rule built without one is not yet identified and is neither a draft nor provisional.
-        final RoutingRule rule = RoutingRule.builder().build();
+        // binding built without one is not yet identified and is neither a draft nor provisional.
+        final Binding binding = Binding.builder().build();
 
-        assertThat(rule.getUuid()).isNull();
-        assertThat(rule.isDraft()).isFalse();
-        assertThat(rule.isProvisional()).isFalse();
+        assertThat(binding.getUuid()).isNull();
+        assertThat(binding.isDraft()).isFalse();
+        assertThat(binding.isProvisional()).isFalse();
     }
 
     static ShapeshifterAiDoc populated() {

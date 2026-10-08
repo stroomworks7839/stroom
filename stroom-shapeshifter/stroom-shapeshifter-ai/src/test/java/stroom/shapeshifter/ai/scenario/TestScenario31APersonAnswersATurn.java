@@ -99,7 +99,7 @@ class TestScenario31APersonAnswersATurn {
                 .hasSize(theirs.number());
         assertThat(waiting.turns().get(theirs.number() - 1).answeredBy()).isEqualTo(OPERATOR);
         assertThat(scenarios.states.reasonGivenUp(Scenarios.LEARNER))
-                .describedAs("re-running says the shape is not settled after all").isEmpty();
+                .describedAs("re-running says the learner is not settled after all").isEmpty();
 
         // The worker carries it on: everything before the person's turn is replayed, their answer is
         // given where the model's was, and only what comes after is asked.
@@ -111,7 +111,7 @@ class TestScenario31APersonAnswersATurn {
         final Recorded promoted = scenarios.attempts.byId(abandoned.id()).orElseThrow();
         assertThat(promoted.status()).describedAs(String.valueOf(promoted.decision()))
                 .isEqualTo(AttemptStatus.PROMOTED);
-        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER)).hasSize(1);
+        assertThat(scenarios.learnerBindings.forLearner(Scenarios.LEARNER)).hasSize(1);
         assertThat(promoted.turns()).extracting(Turn::answeredBy)
                 .describedAs("the transcript says who answered each turn (A28)")
                 .containsSubsequence(model, OPERATOR, model);
@@ -184,7 +184,7 @@ class TestScenario31APersonAnswersATurn {
                 .describedAs("and the worker has nothing to pick up").isEmpty();
 
         // The same of the wrong document: an attempt belongs to the document that raised it, and
-        // resetting another document's shape would clear state that has nothing to do with this.
+        // resetting another document's learner would clear state that has nothing to do with this.
         final ShapeshifterAiDoc other = doc().copy().uuid("doc-2").build();
         assertThatThrownBy(() -> scenarios.stage(Script.of())
                 .amend(other, abandoned.id(), 1, "DSParser -> XSLTFilter", OPERATOR))
@@ -220,7 +220,7 @@ class TestScenario31APersonAnswersATurn {
         assertThat(amended.status()).isEqualTo(AttemptStatus.AWAITING_MODEL);
         assertThat(amended.turns().get(0).answeredBy()).isEqualTo(OPERATOR);
         assertThat(amended.attempt().expiryMs())
-                .describedAs("and its claim is pushed out, or the next stream of the shape would sweep it "
+                .describedAs("and its claim is pushed out, or the next stream of the learner would sweep it "
                              + "away before the worker reached it")
                 .isGreaterThan(Scenarios.NOW.toEpochMilli());
     }
@@ -228,10 +228,10 @@ class TestScenario31APersonAnswersATurn {
     /// What an attempt drafted goes with the answer that produced it.
     ///
     /// The turns after the one answered are discarded because they are a consequence of an answer that
-    /// has changed, and a draft rule is the last of those consequences. Left in the table it is a draft
-    /// nothing awaits: the reset clears the pointer that says which shape is waiting for it, so
-    /// approving or rejecting it throws, every stream of the shape is sentinelled by it, and the only
-    /// way out is deleting the rule by hand.
+    /// has changed, and a draft binding is the last of those consequences. Left in place it is a draft
+    /// nothing awaits: the reset clears the pointer that says which learner is waiting for it, so
+    /// approving or rejecting it throws, every stream of the learner is sentinelled by it, and the only
+    /// way out is deleting the binding by hand.
     @Test
     void amendingAnAttemptTakesBackWhatItDrafted() {
         final Scenarios scenarios = new Scenarios();
@@ -246,26 +246,26 @@ class TestScenario31APersonAnswersATurn {
         scenarios.process(model, doc, stream(1L)).learned();
         final Recorded drafted = scenarios.attempts.forDocument(DOC, 10).get(0);
         assertThat(drafted.status()).isEqualTo(AttemptStatus.AWAITING_REVIEW);
-        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER))
+        assertThat(scenarios.learnerBindings.forLearner(Scenarios.LEARNER))
                 .describedAs("review mode wrote a draft for somebody to decide (A25)")
-                .anySatisfy(rule -> assertThat(rule.isDraft()).isTrue());
+                .anySatisfy(binding -> assertThat(binding.isDraft()).isTrue());
 
         scenarios.stage(Script.of()).amend(doc, drafted.id(), 1, "DSParser -> XSLTFilter", OPERATOR);
 
-        assertThat(scenarios.rules.forLearner(Scenarios.LEARNER))
+        assertThat(scenarios.learnerBindings.forLearner(Scenarios.LEARNER))
                 .describedAs("the draft goes with the answer that produced it, or it is a draft nothing "
                              + "awaits: unapprovable, unrejectable, and sentinelling every stream of its "
-                             + "shape until somebody deletes the rule by hand")
-                .noneSatisfy(rule -> assertThat(rule.isDraft()).isTrue());
+                             + "learner until somebody deletes the binding by hand")
+                .noneSatisfy(binding -> assertThat(binding.isDraft()).isTrue());
         assertThat(scenarios.states.draftAwaiting(Scenarios.LEARNER))
                 .describedAs("and nothing is waiting for one")
                 .isEmpty();
     }
 
     @Test
-    void anAttemptCannotBeRunAgainWhileAnotherHoldsItsShape() {
-        // A45: re-running takes the shape back, and a shape another attempt is learning is not free. A
-        // person is told rather than two attempts learning one shape at once.
+    void anAttemptCannotBeRunAgainWhileAnotherHoldsItsLearner() {
+        // A45: re-running takes the learner back, and a learner another attempt is learning is not free. A
+        // person is told rather than two attempts learning one learner at once.
         final Scenarios scenarios = new Scenarios();
         final ShapeshifterAiDoc doc = scenarios.documents.put(doc());
         scenarios.inputs.put(stream(1L));
@@ -274,7 +274,7 @@ class TestScenario31APersonAnswersATurn {
                 .expect(QuestionMatcher.configuration("DSParser")).reply(Scenarios.fenced(TWO_FIELDS));
         scenarios.process(model, doc, stream(1L)).learned();
         final Recorded abandoned = scenarios.attempts.forDocument(DOC, 10).get(0);
-        // Another node takes the shape in the meantime, by opening an attempt for it.
+        // Another node takes the learner in the meantime, by opening an attempt for it.
         final long theirs = scenarios.attempts.opened(new Attempt(Scenarios.LEARNER, DOC, "DOOR-ACCESS",
                 "Raw Events",
                         2L, "node-2", PromotionMode.AUTOMATIC, Long.MAX_VALUE),
@@ -285,7 +285,7 @@ class TestScenario31APersonAnswersATurn {
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("cannot be run again");
 
-        // That node's lease lapses and it still holds the shape: a lapsed session is resumed by the next
+        // That node's lease lapses and it still holds the learner: a lapsed session is resumed by the next
         // worker, not swept aside for an answer to an older attempt (design 04 §4, scenario 58).
         scenarios.attempts.heartbeat(theirs, Scenarios.NOW.toEpochMilli() - 1);
         assertThatThrownBy(() -> scenarios.stage(Script.of())
@@ -293,7 +293,7 @@ class TestScenario31APersonAnswersATurn {
                 .isInstanceOf(IllegalStateException.class);
         assertThat(scenarios.attempts.byId(theirs).orElseThrow().status()).isEqualTo(AttemptStatus.IN_PROGRESS);
 
-        // Once it has finished, the shape is free and the answer goes through.
+        // Once it has finished, the learner is free and the answer goes through.
         scenarios.attempts.closed(theirs, AttemptStatus.ABANDONED, "Given up", null, null, 0L);
         scenarios.stage(Script.of()).amend(doc, abandoned.id(), 1, "DSParser -> XSLTFilter", OPERATOR);
 
@@ -333,10 +333,6 @@ class TestScenario31APersonAnswersATurn {
         assertThat(scenarios.attempts.prune(System.currentTimeMillis() + 60_000L)).isEqualTo(1);
         assertThat(scenarios.attempts.byId(abandoned.id())).isEmpty();
         assertThat(scenarios.attempts.forDocument(DOC, 10)).isEmpty();
-    }
-
-    private static String shape() {
-        return "Feed=DOOR-ACCESS|Type=Raw Events";
     }
 
     private static ShapeshifterAiDoc doc() {

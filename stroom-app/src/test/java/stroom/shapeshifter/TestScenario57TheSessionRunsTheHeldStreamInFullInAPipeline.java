@@ -64,7 +64,7 @@ import stroom.shapeshifter.ai.stage.Attempts.Recorded;
 import stroom.shapeshifter.ai.stage.Deferrals;
 import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.Learner;
-import stroom.shapeshifter.ai.stage.Rules;
+import stroom.shapeshifter.ai.stage.LearnerBindings;
 import stroom.shapeshifter.ai.transformation.XsltStep;
 import stroom.shapeshifter.shared.AttemptStatus;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
@@ -97,7 +97,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /// real processor tasks, a real database and the fragment run as a pipeline.
 ///
 /// A stream larger than the prefix a task reads as text: the logons fill the first sixty-four kibibytes
-/// and the logoffs lie beyond them, where neither the shape's signature nor the sample the model is shown
+/// and the logoffs lie beyond them, where neither the sample the model is shown
 /// nor the judgement of the first candidate reaches. The first candidate translates logons alone and is
 /// promoted on the prefix; the worker's full pass over the stream — the fragment run through the pipeline
 /// with the parser tapped — finds the logoffs, as the parser cut them, and the next question carries
@@ -138,7 +138,7 @@ class TestScenario57TheSessionRunsTheHeldStreamInFullInAPipeline extends Abstrac
     @Inject
     private ShapeshifterAiStore shapeshifterAiStore;
     @Inject
-    private Rules rules;
+    private LearnerBindings learnerBindings;
     @Inject
     private Attempts attempts;
     @Inject
@@ -212,7 +212,7 @@ class TestScenario57TheSessionRunsTheHeldStreamInFullInAPipeline extends Abstrac
         final Recorded carried = attempts.byId(open.get(0).id()).orElseThrow();
         assertThat(carried.status()).describedAs(String.valueOf(carried.decision())).isEqualTo(AttemptStatus.PROMOTED);
         assertThat(attempts.forDocument(document.getUuid(), 10)).describedAs("one session to its end").hasSize(1);
-        assertThat(rules.forLearner(learner)).hasSize(1);
+        assertThat(learnerBindings.forLearner(learner)).hasSize(1);
         assertThat(statusByInput()).containsEntry(input.getId(), TaskStatus.CREATED);
 
         // The woken task serves the stream in full.

@@ -89,7 +89,7 @@ public class BacklogStream {
         return type;
     }
 
-    /// The snapshot the stream was run through and fell short of; null where nothing bound its shape.
+    /// The snapshot the stream was run through and fell short of; null where nothing bound its learner.
     public String getFailedAgainst() {
         return failedAgainst;
     }

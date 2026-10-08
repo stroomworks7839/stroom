@@ -42,7 +42,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /// Ruling A46: **a supervisor may put a message of their own into the learning**, and every question
 /// asked after it carries it.
 ///
-/// The message attaches to the shape rather than to a turn or an attempt, which is the whole of the
+/// The message attaches to the learner rather than to a turn or an attempt, which is the whole of the
 /// ruling's first decision: what a person knows is about the feed, not about turn 7 of attempt 412. So
 /// nothing has to be timed, nothing is refused for arriving at the wrong moment, and a hint given
 /// before anything has been learned is carried by the first question asked.
@@ -53,11 +53,11 @@ class TestSupervisorGuidance {
     private static final Golden CSV = Scenarios.corpus("001_csv_with_header");
 
     @Test
-    void everyQuestionCarriesWhatASupervisorHasSaidAboutTheShape() {
+    void everyQuestionCarriesWhatASupervisorHasSaidToTheLearner() {
         final Scenarios scenarios = new Scenarios();
         final Script script = script(scenarios);
         final Carrying carrying = new Carrying(script);
-        final Stage stage = scenarios.stage(document -> carrying, scenarios.rules);
+        final Stage stage = scenarios.stage(document -> carrying, scenarios.learnerBindings);
 
         final long first = scenarios.guidance.given(Scenarios.LEARNER, "doc-1",
                 "This feed's timestamps are local, not UTC.", "jo");
@@ -66,7 +66,7 @@ class TestSupervisorGuidance {
 
         final StageRun learned = scenarios.process(carrying, doc(), stream()).learned();
 
-        assertThat(learned.bindings()).describedAs("it still learned").isNotNull();
+        assertThat(learned.produced()).describedAs("it still learned").isNotNull();
         assertThat(carrying.carried)
                 .describedAs("every question, not just the first: a hint is standing context and not a "
                              + "turn of the conversation")
@@ -89,13 +89,13 @@ class TestSupervisorGuidance {
     void aLearnerNobodyHasSaidAnythingToCarriesNothing() {
         final Scenarios scenarios = new Scenarios();
         final Carrying carrying = new Carrying(script(scenarios));
-        final Stage stage = scenarios.stage(document -> carrying, scenarios.rules);
+        final Stage stage = scenarios.stage(document -> carrying, scenarios.learnerBindings);
         scenarios.guidance.given(new Learner("pipeline-2", Scenarios.LEARNER.elementId()), "doc-1",
                 "Said to another pipeline's learner.", "jo");
 
         final StageRun learned = scenarios.process(carrying, doc(), stream()).learned();
 
-        assertThat(learned.bindings()).isNotNull();
+        assertThat(learned.produced()).isNotNull();
         assertThat(carrying.carried)
                 .describedAs("a hint is said to one learner, and a neighbour's is not this one's")
                 .isNotEmpty()
@@ -107,7 +107,7 @@ class TestSupervisorGuidance {
     void aHintTakenBackIsNotCarried() {
         final Scenarios scenarios = new Scenarios();
         final Carrying carrying = new Carrying(script(scenarios));
-        final Stage stage = scenarios.stage(document -> carrying, scenarios.rules);
+        final Stage stage = scenarios.stage(document -> carrying, scenarios.learnerBindings);
         final long wrong = scenarios.guidance.given(Scenarios.LEARNER, "doc-1", "Something mistaken.", "jo");
         scenarios.guidance.withdraw("doc-1", wrong);
 
@@ -115,7 +115,7 @@ class TestSupervisorGuidance {
 
         assertThat(carrying.carried)
                 .describedAs("a hint that turned out to be wrong is worse than no hint: it would be "
-                             + "carried into every question about the shape from then on")
+                             + "carried into every question about the learner from then on")
                 .allSatisfy(carried -> assertThat(carried).isEmpty());
     }
 
@@ -142,10 +142,10 @@ class TestSupervisorGuidance {
         final RecordedAdvisor resumed = new RecordedAdvisor(List.of(answered), carrying);
 
         final long after = scenarios.guidance.given(Scenarios.LEARNER, "doc-1", "Said while it was parked.", "sam");
-        final Stage stage = scenarios.stage(document -> resumed, scenarios.rules);
+        final Stage stage = scenarios.stage(document -> resumed, scenarios.learnerBindings);
         final StageRun learned = scenarios.process(resumed, doc(), stream()).learned();
 
-        assertThat(learned.bindings()).describedAs("it carried on and bound something").isNotNull();
+        assertThat(learned.produced()).describedAs("it carried on and bound something").isNotNull();
         assertThat(carrying.carried)
                 .describedAs("the questions the model was actually asked carry both, including the one "
                              + "given while the attempt was parked — a wrapper that dropped them would "

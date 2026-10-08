@@ -53,7 +53,7 @@ import java.util.Optional;
 /// data it was taken from would be the data, kept.
 ///
 /// A stream is written once and never appended to, which is what a stream is; a promotion's entries are a
-/// stream, and a rule's corpus is however many streams its promotions wrote, read through the index. The
+/// stream, and a binding's corpus is however many streams its promotions wrote, read through the index. The
 /// cap (A63) drops rows, and a stream no row names any more is logically deleted.
 @Singleton
 public class StoredRegressionSet implements RegressionSet {
@@ -76,9 +76,9 @@ public class StoredRegressionSet implements RegressionSet {
     }
 
     @Override
-    public List<Accepted> accepted(final String ruleUuid) {
-        final List<Row> rows = index.rows(ruleUuid);
-        // Each stream read once, however many of its segments the rule still names.
+    public List<Accepted> accepted(final String bindingUuid) {
+        final List<Row> rows = index.rows(bindingUuid);
+        // Each stream read once, however many of its segments the binding still names.
         final Map<Long, List<String>> streams = new LinkedHashMap<>();
         final List<Accepted> accepted = new ArrayList<>();
         for (final Row row : rows) {
@@ -92,9 +92,9 @@ public class StoredRegressionSet implements RegressionSet {
                 // The stream is gone — retention took it, or a person did — or holds less than the row
                 // says, or this user may not read the feed's data, which the corpus is. An entry nobody
                 // can read holds nothing to anything; it is left out and said.
-                LOGGER.warn(() -> LogUtil.message("Corpus entry for rule {} names segment {} of stream {}, "
+                LOGGER.warn(() -> LogUtil.message("Corpus entry for binding {} names segment {} of stream {}, "
                                                   + "which cannot be read: deleted, or not this user's to read",
-                        ruleUuid, row.segment(), row.metaId()));
+                        bindingUuid, row.segment(), row.metaId()));
             }
         }
         return accepted;
@@ -102,7 +102,7 @@ public class StoredRegressionSet implements RegressionSet {
 
     @Override
     public void accept(final String docUuid,
-                       final String ruleUuid,
+                       final String bindingUuid,
                        final String feed,
                        final String type,
                        final List<Accepted> entries,
@@ -112,22 +112,22 @@ public class StoredRegressionSet implements RegressionSet {
         }
         // Said here rather than by the store, which would make a stream on no feed or fail somewhere less
         // telling.
-        Objects.requireNonNull(feed, "The feed to keep rule " + ruleUuid + "'s records on");
+        Objects.requireNonNull(feed, "The feed to keep binding " + bindingUuid + "'s records on");
         final long metaId = write(feed, entries);
         final List<Row> rows = new ArrayList<>();
         for (int segment = 0; segment < entries.size(); segment++) {
             final Accepted entry = entries.get(segment);
-            rows.add(new Row(docUuid, ruleUuid, metaId, segment, entry.kind(), entry.score(), entry.attemptId(),
+            rows.add(new Row(docUuid, bindingUuid, metaId, segment, entry.kind(), entry.score(), entry.attemptId(),
                     entry.acceptedMs()));
         }
         index.add(rows);
-        delete(index.trim(ruleUuid, cap));
+        delete(index.trim(bindingUuid, cap));
     }
 
-    /// The feed of the stream the rule's newest entry is in.
+    /// The feed of the stream the binding's newest entry is in.
     @Override
-    public Optional<String> feedOf(final String ruleUuid) {
-        final List<Row> rows = index.rows(ruleUuid);
+    public Optional<String> feedOf(final String bindingUuid) {
+        final List<Row> rows = index.rows(bindingUuid);
         if (rows.isEmpty()) {
             return Optional.empty();
         }
@@ -136,14 +136,14 @@ public class StoredRegressionSet implements RegressionSet {
     }
 
     @Override
-    public void discard(final String ruleUuid) {
-        delete(index.discard(ruleUuid));
+    public void discard(final String bindingUuid) {
+        delete(index.discard(bindingUuid));
     }
 
     @Override
-    public void move(final String fromRuleUuid, final String toRuleUuid, final int cap) {
-        index.move(fromRuleUuid, toRuleUuid);
-        delete(index.trim(toRuleUuid, cap));
+    public void move(final String fromBindingUuid, final String toBindingUuid, final int cap) {
+        index.move(fromBindingUuid, toBindingUuid);
+        delete(index.trim(toBindingUuid, cap));
     }
 
     /// One stream for the entries, one segment per entry, each a line of JSON: the segment is what the
