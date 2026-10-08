@@ -31,7 +31,6 @@ import stroom.shapeshifter.ai.stage.LearnerStates;
 import stroom.shapeshifter.ai.stage.Learners;
 import stroom.shapeshifter.ai.stage.LearningPipelines;
 import stroom.shapeshifter.ai.stage.Outputs;
-import stroom.shapeshifter.ai.stage.Serving;
 import stroom.shapeshifter.ai.stage.Snapshots;
 import stroom.shapeshifter.ai.stage.Spend;
 import stroom.util.entityevent.EntityEvent;
@@ -63,7 +62,6 @@ public class ShapeshifterAiDaoModule extends AbstractModule {
         bind(Guidance.class).to(GuidanceDao.class);
         bind(Spend.class).to(SpendDao.class);
         bind(Outputs.class).to(OutputsDao.class);
-        bind(Serving.class).to(ServingDao.class);
         bind(LearningPipelines.class).to(LearningPipelinesDao.class);
         bind(Deferrals.class).to(DeferralsDao.class);
         bind(Learners.class).to(LearnersDao.class);

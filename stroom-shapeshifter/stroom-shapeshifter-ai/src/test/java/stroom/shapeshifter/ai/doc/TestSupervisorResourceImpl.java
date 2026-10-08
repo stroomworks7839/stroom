@@ -22,6 +22,7 @@ import stroom.security.mock.MockSecurityContext;
 import stroom.shapeshifter.ai.element.LearnerDocuments;
 import stroom.shapeshifter.ai.stage.Guidance;
 import stroom.shapeshifter.ai.stage.Learner;
+import stroom.shapeshifter.ai.stage.LearningPipelines;
 import stroom.shapeshifter.ai.state.InMemoryDeletedPipelines;
 import stroom.shapeshifter.ai.state.InMemoryGuidance;
 import stroom.shapeshifter.ai.state.InMemoryLearnerBindings;
@@ -152,25 +153,39 @@ class TestSupervisorResourceImpl {
                 .hasMessageContaining("has been deleted");
     }
 
+    /// A deleted pipeline's learner is read from the document it is listed under, whether or not it ever
+    /// bound anything (A137): a learner that only had sessions was refused, its waiting streams and what
+    /// had been said to it unreadable from its row.
+    @Test
+    void aDeletedPipelinesLearnerIsReadUnderTheDocumentItIsListedUnder() {
+        deletedPipelines.deleted(GONE.getPipelineUuid(), 1_000L);
+
+        assertThat(resource.guidance("doc-1", GONE.getPipelineUuid(), GONE.getElementId())).isEmpty();
+        assertThatThrownBy(() -> resource.guidance("doc-2", GONE.getPipelineUuid(), GONE.getElementId()))
+                .describedAs("and under no other")
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
     private SupervisorResourceImpl resource() {
         final LearnerDocuments documents = Mockito.mock(LearnerDocuments.class);
         Mockito.when(documents.documentOf(learner(OURS))).thenReturn(Optional.of("doc-1"));
         Mockito.when(documents.documentOf(learner(THEIRS))).thenReturn(Optional.of("doc-2"));
-        // A deleted pipeline names no document.
+        // A deleted pipeline names no document; the learning pipelines list says which it is read under.
         Mockito.when(documents.documentOf(learner(GONE))).thenReturn(Optional.empty());
+        final LearningPipelines pipelines = Mockito.mock(LearningPipelines.class);
+        Mockito.when(pipelines.documentOf(learner(GONE))).thenReturn(Optional.of("doc-1"));
         return new SupervisorResourceImpl(
                 () -> null,
                 () -> null,
                 () -> null,
                 () -> null,
                 MockSecurityContext::new,
-                () -> null,
                 () -> guidance,
                 () -> null,
                 () -> documents,
                 () -> deletedPipelines,
                 () -> learnerBindings,
-                () -> null,
+                () -> pipelines,
                 () -> null);
     }
 

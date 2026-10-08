@@ -835,6 +835,32 @@ The largest phase. Its slices keep the build and the scenarios green at each ste
    of the list groups the attempts table. A row names its pipeline to anyone who may read the document
    it runs under, as the attempts list already named its feed.
 
+   *2b built 2026-10-08.* The Supervisor is three levels (A141–A143). On top, the learning pipelines,
+   a row per learner: its pipeline, document, state (with the reason it was given up, and whether its
+   pipeline is deleted), what serves it (the fragment, its rolling and promoted scores, provisional, and
+   whether the rolling score is below the document's relearn threshold), its waiting streams (raised
+   where the oldest is past the maximum deferral age), its latest session and how much has been said to
+   it. The filter narrows it by document, state and show-deleted. The actions are the row's: send back,
+   give up (with a reason), hint, improve, and on what serves it accept, open and retract; a deleted
+   pipeline's row has none. Under it, tabs of the chosen learner's sessions and its waiting streams; under
+   them, a session's turns and its flow. The attempts filter, the serving list and the backlog list go,
+   and with them the server's serving read (`Serving`, `ServingDao`, `ServingBinding`, `ServingCriteria`)
+   and the attempt-based relearn; the backlog count stays, since the document's header shows it. The
+   serving scenarios read the learning pipelines list (`TestTheLearningPipelinesList`): most waiting
+   first, a state narrowing the page, and a draft making its learner wait for a person.
+
+   *2b audited 2026-10-08.* Three faults closed. A deleted pipeline's learner was read under a document
+   only where it had bound something, so one that had only had sessions was listed under "show deleted"
+   and refused when chosen: its waiting streams and what had been said to it would not read. Its document
+   is now the one the list gives it (`LearningPipelines.documentOf`, the list's order of tables asked of
+   one learner, held to the list in both forms). The chosen row was the object the page was first read
+   into, so after any refresh — a session approved or rejected beneath it, the tab refreshed — its
+   buttons answered for the learner as it was: Give up offered to a learner a rejection had given up,
+   Retract offered for a binding a promotion had replaced. The row is now swapped for its fresh copy
+   whenever the page comes back, and an action on it reads the sessions and waiting streams again rather
+   than letting the row go. And the serving column had lost what the rolling score rests on, which the
+   serving list showed (A46): it says how many records again.
+
 ### Phase M — The walkthrough
 
 A factory over `Raw Events` with the AI template takes three feeds from unseen to served from the UI.

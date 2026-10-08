@@ -70,8 +70,9 @@ the commit or ruling that closed it, rather than deleting it.
 
 11. **The backlog pages in memory,** reading every readable document's rows, and its "raised" count is
     the page total rather than the raised rows. *Design 04, phase 6 first slice's audit.* A learner's
-    waiting streams are now a page read in the database (design 06 phase L slice 2a), and the backlog goes
-    with the client's move to them in 2b. The learning pipelines list that replaces it groups the whole
+    waiting streams are now a page read in the database (design 06 phase L slice 2a), and the backlog list
+    went with the client's move to them in 2b; its endpoint stays only for the count in the document's
+    header, which still reads in memory. The learning pipelines list that replaces it groups the whole
     attempts table for each page and again for its total; the trial should watch that query once a
     cluster has kept a season of sessions.
 

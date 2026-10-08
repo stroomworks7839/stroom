@@ -16,17 +16,14 @@
 
 package stroom.shapeshifter.client.view;
 
-import stroom.item.client.SelectionBox;
-import stroom.shapeshifter.client.presenter.AttemptFilterPresenter.AttemptFilterView;
-import stroom.shapeshifter.shared.AttemptStatus;
-import stroom.shapeshifter.shared.PromotionMode;
+import stroom.shapeshifter.client.presenter.LearnerFilterPresenter.LearnerFilterView;
+import stroom.shapeshifter.shared.LearnerState;
 import stroom.widget.tickbox.client.view.CustomCheckBox;
 
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
 import com.google.gwt.user.client.ui.FlowPanel;
 import com.google.gwt.user.client.ui.SimplePanel;
-import com.google.gwt.user.client.ui.TextBox;
 import com.google.gwt.user.client.ui.Widget;
 import com.google.inject.Inject;
 import com.gwtplatform.mvp.client.View;
@@ -37,38 +34,26 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 
-public class AttemptFilterViewImpl extends ViewImpl implements AttemptFilterView {
-
-    /**
-     * What "any" reads as in a picker that may be left alone. A null value on the criteria, which the
-     * query takes as not narrowed by this at all.
-     */
-    private static final String ANY = "Any";
+public class LearnerFilterViewImpl extends ViewImpl implements LearnerFilterView {
 
     private final Widget widget;
-    private final Map<AttemptStatus, CustomCheckBox> statusBoxes = new EnumMap<>(AttemptStatus.class);
+    private final Map<LearnerState, CustomCheckBox> stateBoxes = new EnumMap<>(LearnerState.class);
 
     @UiField
     SimplePanel document;
     @UiField
-    TextBox feed;
-    @UiField
-    SelectionBox<PromotionMode> promotionMode;
-    @UiField
-    FlowPanel statuses;
+    FlowPanel states;
     @UiField
     CustomCheckBox showDeletedPipelines;
 
     @Inject
-    public AttemptFilterViewImpl(final Binder binder) {
+    public LearnerFilterViewImpl(final Binder binder) {
         widget = binder.createAndBindUi(this);
-        promotionMode.setNonSelectString(ANY);
-        promotionMode.addItems(PromotionMode.values());
-        for (final AttemptStatus status : AttemptStatus.values()) {
+        for (final LearnerState state : LearnerState.values()) {
             final CustomCheckBox box = new CustomCheckBox();
-            box.setLabel(status.getDisplayValue());
-            statusBoxes.put(status, box);
-            statuses.add(box);
+            box.setLabel(state.getDisplayValue());
+            stateBoxes.put(state, box);
+            states.add(box);
         }
     }
 
@@ -83,44 +68,24 @@ public class AttemptFilterViewImpl extends ViewImpl implements AttemptFilterView
     }
 
     @Override
-    public String getFeed() {
-        return feed.getValue();
-    }
-
-    @Override
-    public void setFeed(final String feed) {
-        this.feed.setValue(feed);
-    }
-
-    @Override
-    public PromotionMode getPromotionMode() {
-        return promotionMode.getValue();
-    }
-
-    @Override
-    public void setPromotionMode(final PromotionMode mode) {
-        this.promotionMode.setValue(mode);
-    }
-
-    @Override
-    public List<AttemptStatus> getStatuses() {
-        final List<AttemptStatus> ticked = new ArrayList<>();
-        statusBoxes.forEach((status, box) -> {
+    public List<LearnerState> getStates() {
+        final List<LearnerState> ticked = new ArrayList<>();
+        stateBoxes.forEach((status, box) -> {
             if (Boolean.TRUE.equals(box.getValue())) {
                 ticked.add(status);
             }
         });
-        // Every status ticked is the same question as none ticked, and the query reads an empty list as
-        // "not narrowed by status": said as the smaller of the two, so that the screen does not report
+        // Every state ticked is the same question as none ticked, and the query reads an empty list as
+        // "not narrowed by state": said as the smaller of the two, so that the screen does not report
         // itself as filtered when it is showing everything.
-        return ticked.size() == statusBoxes.size()
+        return ticked.size() == stateBoxes.size()
                 ? List.of()
                 : ticked;
     }
 
     @Override
-    public void setStatuses(final List<AttemptStatus> statuses) {
-        statusBoxes.forEach((status, box) -> box.setValue(statuses != null && statuses.contains(status)));
+    public void setStates(final List<LearnerState> states) {
+        stateBoxes.forEach((status, box) -> box.setValue(states != null && states.contains(status)));
     }
 
 
@@ -138,7 +103,7 @@ public class AttemptFilterViewImpl extends ViewImpl implements AttemptFilterView
     // --------------------------------------------------------------------------------
 
 
-    public interface Binder extends UiBinder<Widget, AttemptFilterViewImpl> {
+    public interface Binder extends UiBinder<Widget, LearnerFilterViewImpl> {
 
     }
 }

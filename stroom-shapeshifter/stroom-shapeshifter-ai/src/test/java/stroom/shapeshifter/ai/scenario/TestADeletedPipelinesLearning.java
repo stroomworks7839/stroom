@@ -22,7 +22,7 @@ import stroom.shapeshifter.ai.element.PipelineDeletions;
 import stroom.shapeshifter.ai.extraction.ExtractionCorpus.Golden;
 import stroom.shapeshifter.ai.stage.Attempts.Recorded;
 import stroom.shapeshifter.ai.stage.Input;
-import stroom.shapeshifter.ai.stage.Serving;
+import stroom.shapeshifter.ai.stage.LearningPipelines;
 import stroom.shapeshifter.shared.AttemptCriteria;
 import stroom.shapeshifter.shared.AttemptStatus;
 import stroom.shapeshifter.shared.FlowExample;
@@ -39,6 +39,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -98,11 +99,13 @@ class TestADeletedPipelinesLearning {
         assertThat(scenarios.attempts.found(showingDeleted(), List.of(DOC)).attempts())
                 .describedAs("until asked for")
                 .hasSize(1);
-        assertThat(scenarios.serving.bindings(List.of(DOC), null, false, 0L, 100).bindings())
+        assertThat(scenarios.learningPipelines
+                .learners(List.of(DOC), Set.of(), List.of(), false, 0L, 100).learners())
                 .describedAs("and what served it")
                 .isEmpty();
-        final Serving.Page shown = scenarios.serving.bindings(List.of(DOC), null, true, 0L, 100);
-        assertThat(shown.bindings())
+        final LearningPipelines.Page shown = scenarios.learningPipelines
+                .learners(List.of(DOC), Set.of(), List.of(), true, 0L, 100);
+        assertThat(shown.learners())
                 .singleElement()
                 .satisfies(binding -> assertThat(binding.isPipelineDeleted()).isTrue());
         assertThat(shown.total()).isOne();

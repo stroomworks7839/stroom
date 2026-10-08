@@ -19,12 +19,12 @@ package stroom.shapeshifter.client.gin;
 import stroom.core.client.gin.PluginModule;
 import stroom.monitoring.client.ShapeshifterAiSupervisorPlugin;
 import stroom.shapeshifter.client.ShapeshifterAiPlugin;
-import stroom.shapeshifter.client.presenter.AttemptFilterPresenter;
-import stroom.shapeshifter.client.presenter.AttemptFilterPresenter.AttemptFilterView;
 import stroom.shapeshifter.client.presenter.BuiltInTextPresenter;
 import stroom.shapeshifter.client.presenter.BuiltInTextPresenter.BuiltInTextView;
 import stroom.shapeshifter.client.presenter.FlowStepPresenter;
 import stroom.shapeshifter.client.presenter.FlowStepPresenter.FlowStepView;
+import stroom.shapeshifter.client.presenter.LearnerFilterPresenter;
+import stroom.shapeshifter.client.presenter.LearnerFilterPresenter.LearnerFilterView;
 import stroom.shapeshifter.client.presenter.ScorerSettingPresenter;
 import stroom.shapeshifter.client.presenter.ScorerSettingPresenter.ScorerSettingView;
 import stroom.shapeshifter.client.presenter.ShapeshifterAiLearnPresenter;
@@ -42,9 +42,9 @@ import stroom.shapeshifter.client.presenter.TransitionPresenter;
 import stroom.shapeshifter.client.presenter.TransitionPresenter.TransitionView;
 import stroom.shapeshifter.client.presenter.XPathAssertionPresenter;
 import stroom.shapeshifter.client.presenter.XPathAssertionPresenter.XPathAssertionView;
-import stroom.shapeshifter.client.view.AttemptFilterViewImpl;
 import stroom.shapeshifter.client.view.BuiltInTextViewImpl;
 import stroom.shapeshifter.client.view.FlowStepViewImpl;
+import stroom.shapeshifter.client.view.LearnerFilterViewImpl;
 import stroom.shapeshifter.client.view.ScorerSettingViewImpl;
 import stroom.shapeshifter.client.view.ShapeshifterAiLearnViewImpl;
 import stroom.shapeshifter.client.view.ShapeshifterAiScoreViewImpl;
@@ -86,9 +86,9 @@ public class ShapeshifterAiModule extends PluginModule {
                 XPathAssertionView.class,
                 XPathAssertionViewImpl.class);
         // The flow editor of §12 item 24: a step as a form, and a transition as a form inside it.
-        bindPresenterWidget(AttemptFilterPresenter.class,
-                AttemptFilterView.class,
-                AttemptFilterViewImpl.class);
+        bindPresenterWidget(LearnerFilterPresenter.class,
+                LearnerFilterView.class,
+                LearnerFilterViewImpl.class);
         bindPresenterWidget(FlowStepPresenter.class,
                 FlowStepView.class,
                 FlowStepViewImpl.class);

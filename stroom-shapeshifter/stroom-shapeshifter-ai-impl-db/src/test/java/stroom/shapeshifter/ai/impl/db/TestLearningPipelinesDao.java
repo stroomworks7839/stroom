@@ -64,6 +64,7 @@ class TestLearningPipelinesDao {
     private final Learner givenUp = learner("given-up");
     private final Learner off = learner("off");
     private final Learner deleted = learner("deleted");
+    private final Learner forgotten = learner("forgotten");
     private final Learner unread = learner("unread");
     /// Known by its state alone: given up, its streams long since errored, no binding or session left.
     private final Learner quiet = learner("quiet");
@@ -171,6 +172,21 @@ class TestLearningPipelinesDao {
                 .isZero();
     }
 
+    /// A learner's document is the one it is listed under, in both forms; for a deleted pipeline's learner
+    /// that never bound anything too, which its sessions alone name, so that it can be read (A137).
+    @Test
+    void aLearnersDocumentIsTheOneItIsListedUnder() {
+        for (final LearningPipelines pipelines : List.of(rows, memory)) {
+            assertThat(pipelines.learners(readable, learningOff, List.of(), true, 0L, 100).learners())
+                    .allSatisfy(row -> assertThat(pipelines.documentOf(new Learner(
+                            row.getLearner().getPipelineUuid(), row.getLearner().getElementId())))
+                            .contains(row.getDoc().getUuid()));
+            assertThat(pipelines.documentOf(forgotten)).contains(doc);
+            assertThat(pipelines.documentOf(unread)).contains(unreadDoc);
+            assertThat(pipelines.documentOf(learner("unknown"))).isEmpty();
+        }
+    }
+
     /// The same learners, in whichever form: written through the seams, as the stage writes them.
     private void given(final LearnerBindings bindings,
                               final LearnerStates learnerStates,
@@ -200,6 +216,11 @@ class TestLearningPipelinesDao {
 
         bindings.append(deleted, doc, binding("deleted", false, 0.9));
         marks.deleted(deleted.pipelineUuid(), 1_000L);
+
+        // A deleted pipeline that only ever had a session: nothing but the session names its document.
+        sessions.opened(new Attempt(forgotten, doc, "GATE", "Raw Events", 3L, "node-1",
+                PromotionMode.AUTOMATIC, Long.MAX_VALUE), 500L);
+        marks.deleted(forgotten.pipelineUuid(), 1_000L);
 
         bindings.append(unread, unreadDoc, binding("unread", false, 0.9));
 

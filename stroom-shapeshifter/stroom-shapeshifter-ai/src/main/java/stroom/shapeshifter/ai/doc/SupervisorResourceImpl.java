@@ -36,7 +36,6 @@ import stroom.shapeshifter.ai.stage.Guidance;
 import stroom.shapeshifter.ai.stage.Learner;
 import stroom.shapeshifter.ai.stage.LearnerBindings;
 import stroom.shapeshifter.ai.stage.LearningPipelines;
-import stroom.shapeshifter.ai.stage.Serving;
 import stroom.shapeshifter.shared.AmendTurnRequest;
 import stroom.shapeshifter.shared.AttemptCriteria;
 import stroom.shapeshifter.shared.BacklogStream;
@@ -49,8 +48,6 @@ import stroom.shapeshifter.shared.LearnerRef;
 import stroom.shapeshifter.shared.LearnerRequest;
 import stroom.shapeshifter.shared.LearningMode;
 import stroom.shapeshifter.shared.RejectRequest;
-import stroom.shapeshifter.shared.ServingBinding;
-import stroom.shapeshifter.shared.ServingCriteria;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 import stroom.shapeshifter.shared.SupervisorAttempt;
 import stroom.shapeshifter.shared.SupervisorGuidance;
@@ -103,7 +100,6 @@ public class SupervisorResourceImpl implements SupervisorResource {
     private final Provider<StageFactory> stageFactoryProvider;
     private final Provider<PipelineScopeRunnable> pipelineScopeProvider;
     private final Provider<SecurityContext> securityContextProvider;
-    private final Provider<Serving> servingProvider;
     private final Provider<Guidance> guidanceProvider;
     private final Provider<Deferrals> deferralsProvider;
     private final Provider<LearnerDocuments> learnerDocumentsProvider;
@@ -118,7 +114,6 @@ public class SupervisorResourceImpl implements SupervisorResource {
                            final Provider<StageFactory> stageFactoryProvider,
                            final Provider<PipelineScopeRunnable> pipelineScopeProvider,
                            final Provider<SecurityContext> securityContextProvider,
-                           final Provider<Serving> servingProvider,
                            final Provider<Guidance> guidanceProvider,
                            final Provider<Deferrals> deferralsProvider,
                            final Provider<LearnerDocuments> learnerDocumentsProvider,
@@ -131,7 +126,6 @@ public class SupervisorResourceImpl implements SupervisorResource {
         this.stageFactoryProvider = stageFactoryProvider;
         this.pipelineScopeProvider = pipelineScopeProvider;
         this.securityContextProvider = securityContextProvider;
-        this.servingProvider = servingProvider;
         this.guidanceProvider = guidanceProvider;
         this.deferralsProvider = deferralsProvider;
         this.learnerDocumentsProvider = learnerDocumentsProvider;
@@ -167,7 +161,8 @@ public class SupervisorResourceImpl implements SupervisorResource {
                 .map(row -> row.named(docFinder.decorate(row.getPipeline()),
                         readable.get(row.getDoc().getUuid()),
                         row.getOldestWaitMs() != null
-                        && now - row.getOldestWaitMs() > maxDeferralAge(docs, row.getDoc().getUuid())))
+                        && now - row.getOldestWaitMs() > maxDeferralAge(docs, row.getDoc().getUuid()),
+                        belowThreshold(docs.get(row.getDoc().getUuid()), row.getRollingScore())))
                 .toList();
         return new ResultPage<>(rows, new PageResponse(offset, rows.size(), found.total(), true));
     }
@@ -259,6 +254,14 @@ public class SupervisorResourceImpl implements SupervisorResource {
         return docs;
     }
 
+    /// Whether a learner's rolling score is below its document's relearn threshold (design 04 §6): where
+    /// the document has one and the learner has served enough to be scored.
+    private static boolean belowThreshold(final ShapeshifterAiDoc doc, final Double rollingScore) {
+        return doc != null
+               && rollingScore != null
+               && rollingScore < doc.getRelearnThreshold();
+    }
+
     private static long maxDeferralAge(final Map<String, ShapeshifterAiDoc> docs, final String docUuid) {
         final ShapeshifterAiDoc doc = docs.get(docUuid);
         return doc == null
@@ -344,52 +347,6 @@ public class SupervisorResourceImpl implements SupervisorResource {
                 ? 0L
                 : asked.getPageRequest().getOffset();
         return new ResultPage<>(rows, new PageResponse(offset, rows.size(), page.total(), true));
-    }
-
-    /// The bindings that are serving (A46), ordered by the traffic each carries.
-    ///
-    /// Not an alert list. A binding serving at 0.93 is above every threshold and nothing is wrong with it;
-    /// this is where a person goes when they have an hour and want to spend it where it counts, which is
-    /// on whatever carries the most streams.
-    ///
-    /// The documents this person may read go into the query rather than filtering its answer, as they do
-    /// for [#find].
-    @Override
-    public ResultPage<ServingBinding> serving(final ServingCriteria criteria) {
-        final ServingCriteria asked = criteria == null
-                ? new ServingCriteria()
-                : criteria;
-        final Map<String, DocRef> readable = readable(asked.getDocUuid());
-        final PageRequest page = asked.getPageRequest() == null
-                ? new PageRequest(0, 100)
-                : asked.getPageRequest();
-        final long offset = Math.max(0L, NullSafe.getOrElse(page.getOffset(), Integer::longValue, 0L));
-        final int length = pageLength(page);
-        final Serving.Page found = servingProvider.get().bindings(readable.keySet(), asked.getBelow(),
-                asked.isShowDeletedPipelines(), offset, length);
-        // Each row named with its document rather than its uuid, since the view is over all of them, and
-        // held against its document's relearn threshold (design 04 §6): the threshold triggers nothing
-        // by itself now, and this list is where it is read.
-        final Map<String, Double> thresholds = new LinkedHashMap<>();
-        final List<ServingBinding> rows = found.bindings().stream()
-                .map(binding -> named(readable.get(binding.getDoc().getUuid()), binding,
-                        thresholds.computeIfAbsent(binding.getDoc().getUuid(), this::relearnThreshold)))
-                .toList();
-        return new ResultPage<>(rows, new PageResponse(offset, rows.size(), found.total(), true));
-    }
-
-    /// A document's relearn threshold, or none where the document cannot be read.
-    private Double relearnThreshold(final String docUuid) {
-        try {
-            final ShapeshifterAiDoc doc = storeProvider.get().readDocument(new DocRef(ShapeshifterAiDoc.TYPE, docUuid));
-            return doc == null
-                    ? null
-                    : doc.getRelearnThreshold();
-        } catch (final RuntimeException e) {
-            LOGGER.debug(() -> LogUtil.message("Document {} could not be read for its threshold: {}", docUuid,
-                    e.getMessage()));
-            return null;
-        }
     }
 
     /// Ask for a binding that is already serving to be made better (A46).
@@ -557,15 +514,6 @@ public class SupervisorResourceImpl implements SupervisorResource {
                 .toList();
     }
 
-    @Override
-    public SupervisorAttempt relearn(final long id) {
-        final Recorded attempt = stillUnder(live(change(id)));
-        final String who = securityContextProvider.get().getUserIdentityForAudit();
-        onStage(attempt, (stage, doc) -> stage.relearn(doc, attempt.attempt().learner(),
-                "Sent back to be learned again by " + who));
-        return detail(read(id));
-    }
-
     /// How many rows a page may hold: what was asked for, within what the server will give. A request
     /// is not to be trusted with either end of it — an unbounded length hands over the whole table in
     /// one call, and a negative one reaches the database as `LIMIT -1` and answers with a server error
@@ -585,18 +533,6 @@ public class SupervisorResourceImpl implements SupervisorResource {
                 .filter(docRef -> may(docRef.getUuid(), DocumentPermission.VIEW))
                 .forEach(docRef -> readable.put(docRef.getUuid(), docRef));
         return readable;
-    }
-
-    /// The same row with its document named rather than merely identified: the seam answers with uuids,
-    /// since it has no store to ask, and the view is over every document at once.
-    private static ServingBinding named(final DocRef doc, final ServingBinding binding, final Double threshold) {
-        final boolean below = threshold != null
-                              && binding.getRollingScore() != null
-                              && binding.getRollingScore() < threshold;
-        return new ServingBinding(doc, binding.getLearner(), binding.getBindingUuid(), binding.getFragment(),
-                binding.isProvisional(), binding.getPromotedScore(), binding.getPromotedTimeMs(),
-                binding.getRollingScore(), binding.getRecords(), binding.getGuidance(), below,
-                        binding.isPipelineDeleted());
     }
 
     /// The learner a request names, as the row it was made from carried it (design 06 phase J slice 2b).
@@ -656,20 +592,14 @@ public class SupervisorResourceImpl implements SupervisorResource {
     }
 
     /// Whether the learner runs under the document: as its pipeline says now, or for a pipeline since
-    /// deleted, which says nothing, as its bindings were kept, so that what it learned can still be read
-    /// from the document it learned for (A137). Nothing is changed for a deleted pipeline's learner, so
-    /// this lets a person read and no more.
+    /// deleted, which says nothing, as the learning pipelines list says, so that what it learned can still
+    /// be read from the document it is listed under (A137) — whether or not it ever bound anything.
+    /// Nothing is changed for a deleted pipeline's learner, so this lets a person read and no more.
     private boolean runsUnder(final Learner learner, final String docUuid) {
-        if (deletedPipelinesProvider.get().isDeleted(learner.pipelineUuid())) {
-            final LearnerBindings learnerBindings = learnerBindingsProvider.get();
-            return learnerBindings.forLearner(learner).stream()
-                    .map(binding -> learnerBindings.byUuid(binding.getUuid()))
-                    .flatMap(Optional::stream)
-                    .anyMatch(held -> docUuid.equals(held.docUuid()));
-        }
-        return learnerDocumentsProvider.get().documentOf(learner)
-                .filter(docUuid::equals)
-                .isPresent();
+        final Optional<String> runsUnder = deletedPipelinesProvider.get().isDeleted(learner.pipelineUuid())
+                ? learningPipelinesProvider.get().documentOf(learner)
+                : learnerDocumentsProvider.get().documentOf(learner);
+        return runsUnder.filter(docUuid::equals).isPresent();
     }
 
     private static LearnerRef ref(final Learner learner) {

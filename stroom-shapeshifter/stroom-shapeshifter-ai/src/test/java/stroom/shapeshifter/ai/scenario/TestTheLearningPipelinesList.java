@@ -19,14 +19,15 @@ package stroom.shapeshifter.ai.scenario;
 import stroom.shapeshifter.ai.extraction.ExtractionCorpus.Golden;
 import stroom.shapeshifter.ai.stage.Input;
 import stroom.shapeshifter.ai.stage.Learner;
-import stroom.shapeshifter.ai.stage.Serving;
+import stroom.shapeshifter.ai.stage.LearningPipelines;
 import stroom.shapeshifter.shared.Binding;
 import stroom.shapeshifter.shared.LearnerRef;
+import stroom.shapeshifter.shared.LearnerState;
 import stroom.shapeshifter.shared.LearningMode;
 import stroom.shapeshifter.shared.ScorerSetting;
 import stroom.shapeshifter.shared.ScorerType;
-import stroom.shapeshifter.shared.ServingBinding;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
+import stroom.shapeshifter.shared.SupervisorLearner;
 import stroom.shapeshifter.shared.YieldBasis;
 import stroom.shapeshifter.shared.YieldParameters;
 
@@ -34,18 +35,16 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 
-/// Ruling A46, design 01 §11.6: **the way in.**
-///
-/// Every other surface in the feature is reached because something went wrong — a learner gave up, a
-/// draft awaits review, a rolling score fell through the floor. A binding serving at 0.93 is above every
-/// threshold and nothing will ever raise it, so a person who wants it better has to be able to go and
-/// find it. This is the list they find it in: ordered by the traffic each binding carries, because the
-/// binding carrying the most streams is the one worth an hour.
-class TestWhatIsServing {
+/// Design 06 A115, A142, with A46: **the way in.** The Supervisor's learning pipelines list, a row per
+/// pipeline's learner: where it stands, what serves it, what waits on it, and how much has been said to
+/// it. A binding serving at 0.93 is above every threshold and nothing will ever raise it, so a person who
+/// wants it better finds it here, as they find a learner that has given up or a draft that waits for them.
+class TestTheLearningPipelinesList {
 
     private static final String XSLT = Scenarios.resource("csv-logon.xsl");
     private static final Golden CSV = Scenarios.corpus("001_csv_with_header");
@@ -64,42 +63,47 @@ class TestWhatIsServing {
         assertThat(learned.served()).describedAs("the stream it was learned on, served once the wake came")
                 .isNotNull();
 
-        final Serving.Page page = scenarios.serving.bindings(List.of("doc-1"), null, false, 0L, 100);
+        final LearningPipelines.Page page = scenarios.learningPipelines
+                .learners(List.of("doc-1"), Set.of(), List.of(), false, 0L, 100);
         assertThat(page.total()).isEqualTo(1L);
-        assertThat(page.bindings())
-                .extracting(ServingBinding::getLearner, ServingBinding::getRecords)
+        assertThat(page.learners())
+                .extracting(SupervisorLearner::getLearner, SupervisorLearner::getRecords)
                 .describedAs("the promotion resets the learner, so its rolling memory starts from the streams it "
                              + "serves: the first is the one it was learned on, which the wake serves")
                 .containsExactly(tuple(new LearnerRef(DOOR.pipelineUuid(), DOOR.elementId()),
                         learned.served().records()));
-        assertThat(page.bindings().get(0).getRollingScore())
+        assertThat(page.learners().get(0).getRollingScore())
                 .describedAs("and a rolling score, from that stream").isNotNull();
-        assertThat(page.bindings().get(0).getPromotedScore())
+        assertThat(page.learners().get(0).getPromotedScore())
                 .describedAs("what it scored when it took over is what a rolling score is read against")
                 .isNotNull();
-        assertThat(page.bindings().get(0).getFragment()).isNotNull();
+        assertThat(page.learners().get(0).getFragment()).isNotNull();
+        assertThat(page.learners().get(0).getState()).isEqualTo(LearnerState.SERVING);
     }
 
-    /// Busiest first, and the score is what narrows the list rather than what arranges it. Sorting by
-    /// score would put the worst binding in the installation at the top whether it carried one stream a
-    /// month or a million.
+    /// Most waiting streams first (A142): the learner holding the most of a feed back is the one a person
+    /// should look at first, whatever its score.
     @Test
-    void theBusiestBindingComesFirstAndTheScoreOnlyFilters() {
+    void theLearnerWithTheMostWaitingComesFirst() {
         final Scenarios scenarios = new Scenarios();
         scenarios.learnerBindings.append(DOOR, "doc-1", binding("busy"));
-        scenarios.learnerBindings.append(LIFT, "doc-1", binding("quiet"));
         scenarios.states.scored(DOOR, "doc-1", 0.93, 40, 100);
-        scenarios.states.scored(LIFT, "doc-1", 0.71, 3, 100);
+        scenarios.deferrals.deferred(LIFT, "doc-1", 1L, "LIFT", "Raw Events", null, "Learning.", 0);
+        scenarios.deferrals.deferred(LIFT, "doc-1", 2L, "LIFT", "Raw Events", null, "Learning.", 0);
 
-        assertThat(scenarios.serving.bindings(List.of("doc-1"), null, false, 0L, 100).bindings())
-                .extracting(ServingBinding::getBindingUuid)
-                .describedAs("the binding carrying forty records before the one carrying three, though it "
-                             + "is scoring better")
-                .containsExactly("busy", "quiet");
-        assertThat(scenarios.serving.bindings(List.of("doc-1"), 0.9, false, 0L, 100).bindings())
-                .extracting(ServingBinding::getBindingUuid)
-                .describedAs("and a threshold leaves out what is good enough")
-                .containsExactly("quiet");
+        assertThat(scenarios.learningPipelines
+                .learners(List.of("doc-1"), Set.of(), List.of(), false, 0L, 100)
+                .learners())
+                .extracting(row -> row.getLearner().getPipelineUuid(), SupervisorLearner::getState,
+                        SupervisorLearner::getWaiting)
+                .containsExactly(
+                        tuple(LIFT.pipelineUuid(), LearnerState.LEARNING, 2),
+                        tuple(DOOR.pipelineUuid(), LearnerState.SERVING, 0));
+        assertThat(scenarios.learningPipelines.learners(List.of("doc-1"), Set.of(),
+                List.of(LearnerState.SERVING), false, 0L, 100).learners())
+                .describedAs("and a state narrows it")
+                .extracting(SupervisorLearner::getBindingUuid)
+                .containsExactly("busy");
     }
 
     /// Each row says how much has been said to its learner (A46), so that a person can see whether the
@@ -112,22 +116,29 @@ class TestWhatIsServing {
         scenarios.guidance.given(DOOR, "doc-1", "Column four is a terminal id.", "sam");
         scenarios.guidance.given(LIFT, "doc-1", "Said to another learner.", "jo");
 
-        assertThat(scenarios.serving.bindings(List.of("doc-1"), null, false, 0L, 100).bindings())
-                .extracting(ServingBinding::getGuidance)
+        assertThat(scenarios.learningPipelines
+                .learners(List.of("doc-1"), Set.of(), List.of(), false, 0L, 100).learners())
+                .extracting(SupervisorLearner::getGuidance)
                 .containsExactly(2);
     }
 
-    /// A draft is not in the list: a button offered on a row that cannot take it is a button that lies.
+    /// A draft awaiting review makes its learner wait for a person (A25), while the binding the row shows
+    /// is the one that serves.
     @Test
-    void whatCannotBeImprovedIsNotInTheList() {
+    void aDraftMakesItsLearnerWaitForAPerson() {
         final Scenarios scenarios = new Scenarios();
         scenarios.learnerBindings.append(DOOR, "doc-1", binding("serving"));
         scenarios.learnerBindings.append(DOOR, "doc-1", binding("draft").copy().draft(true).build());
+        scenarios.states.awaitReview(DOOR, "doc-1", "draft");
 
-        assertThat(scenarios.serving.bindings(List.of("doc-1"), null, false, 0L, 100).bindings())
-                .extracting(ServingBinding::getBindingUuid)
-                .describedAs("a draft is decided rather than improved (A25)")
-                .containsExactly("serving");
+        assertThat(scenarios.learningPipelines
+                .learners(List.of("doc-1"), Set.of(), List.of(), false, 0L, 100)
+                .learners())
+                .singleElement()
+                .satisfies(row -> {
+                    assertThat(row.getState()).isEqualTo(LearnerState.AWAITING_PERSON);
+                    assertThat(row.getBindingUuid()).isEqualTo("serving");
+                });
     }
 
     /// The documents a person may read go into the query, as they do for the attempts: naming none
@@ -138,9 +149,11 @@ class TestWhatIsServing {
         scenarios.learnerBindings.append(DOOR, "doc-1", binding("ours"));
         scenarios.learnerBindings.append(LIFT, "doc-2", binding("theirs"));
 
-        assertThat(scenarios.serving.bindings(List.of("doc-1"), null, false, 0L, 100).bindings())
-                .extracting(ServingBinding::getBindingUuid).containsExactly("ours");
-        assertThat(scenarios.serving.bindings(List.of(), null, false, 0L, 100).bindings()).isEmpty();
+        assertThat(scenarios.learningPipelines
+                .learners(List.of("doc-1"), Set.of(), List.of(), false, 0L, 100).learners())
+                .extracting(SupervisorLearner::getBindingUuid).containsExactly("ours");
+        assertThat(scenarios.learningPipelines
+                .learners(List.of(), Set.of(), List.of(), false, 0L, 100).learners()).isEmpty();
     }
 
     private static Binding binding(final String uuid) {

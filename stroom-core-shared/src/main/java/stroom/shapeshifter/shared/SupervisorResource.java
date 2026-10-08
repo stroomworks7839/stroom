@@ -104,12 +104,6 @@ public interface SupervisorResource extends RestResource, DirectRestService {
     ResultPage<BacklogStream> backlog(@QueryParam("docUuid") String docUuid,
                                       @Parameter(description = "page", required = true) PageRequest pageRequest);
 
-    @POST
-    @Path("/serving")
-    @Operation(
-            summary = "The bindings that are serving, ordered by the traffic each carries",
-            operationId = "findShapeshifterAiServingBindings")
-    ResultPage<ServingBinding> serving(ServingCriteria criteria);
 
     @POST
     @Path("/serving/{docUuid}/{bindingUuid}/improve")
@@ -186,7 +180,7 @@ public interface SupervisorResource extends RestResource, DirectRestService {
     @Path("/learners/{docUuid}/relearn")
     @Operation(
             summary = "Send a learner back to learn afresh from its next stream",
-            operationId = "relearnShapeshifterAiLearnerByRef")
+            operationId = "relearnShapeshifterAiLearner")
     Boolean relearnLearner(@PathParam("docUuid") String docUuid, LearnerRequest request);
 
     @POST
@@ -196,9 +190,4 @@ public interface SupervisorResource extends RestResource, DirectRestService {
             operationId = "giveUpShapeshifterAiLearner")
     Boolean giveUp(@PathParam("docUuid") String docUuid, LearnerRequest request);
 
-    @POST
-    @Path("/{id}/relearn")
-    @Operation(summary = "Mark the attempt's learner to learn afresh",
-            operationId = "relearnShapeshifterAiLearner")
-    SupervisorAttempt relearn(@PathParam("id") long id);
 }

@@ -21,6 +21,7 @@ import stroom.docref.DocRef;
 import stroom.pipeline.shared.PipelineDoc;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterDeferral;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterDeletedPipeline;
+import stroom.shapeshifter.ai.stage.Learner;
 import stroom.shapeshifter.ai.stage.LearningPipelines;
 import stroom.shapeshifter.shared.AttemptStatus;
 import stroom.shapeshifter.shared.LearnerRef;
@@ -39,6 +40,7 @@ import org.jooq.impl.DSL;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 import static stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterAttempt.SHAPESHIFTER_ATTEMPT;
@@ -217,6 +219,39 @@ public class LearningPipelinesDao implements LearningPipelines {
         });
     }
 
+    /// The list's document for one learner: the same order of tables as the list's, asked of that learner
+    /// alone, rather than the list's statement narrowed, which would group every table to answer it.
+    @Override
+    public Optional<String> documentOf(final Learner learner) {
+        final String pipelineUuid = learner.pipelineUuid();
+        final String elementId = learner.elementId();
+        final Field<String> stated = DSL.select(SHAPESHIFTER_LEARNER_STATE.DOC_UUID)
+                .from(SHAPESHIFTER_LEARNER_STATE)
+                .where(SHAPESHIFTER_LEARNER_STATE.PIPELINE_UUID.eq(pipelineUuid))
+                .and(SHAPESHIFTER_LEARNER_STATE.ELEMENT_ID.eq(elementId))
+                .asField();
+        final Field<String> bound = DSL.select(DSL.max(SHAPESHIFTER_BINDING.DOC_UUID))
+                .from(SHAPESHIFTER_BINDING)
+                .where(SHAPESHIFTER_BINDING.PIPELINE_UUID.eq(pipelineUuid))
+                .and(SHAPESHIFTER_BINDING.ELEMENT_ID.eq(elementId))
+                .asField();
+        final Field<String> waiting = DSL.select(DSL.max(DEFERRAL.DOC_UUID))
+                .from(DEFERRAL)
+                .where(DEFERRAL.PIPELINE_UUID.eq(pipelineUuid))
+                .and(DEFERRAL.ELEMENT_ID.eq(elementId))
+                .asField();
+        final Field<String> latest = DSL.select(SHAPESHIFTER_ATTEMPT.DOC_UUID)
+                .from(SHAPESHIFTER_ATTEMPT)
+                .where(SHAPESHIFTER_ATTEMPT.PIPELINE_UUID.eq(pipelineUuid))
+                .and(SHAPESHIFTER_ATTEMPT.ELEMENT_ID.eq(elementId))
+                .orderBy(SHAPESHIFTER_ATTEMPT.CREATE_TIME_MS.desc(), SHAPESHIFTER_ATTEMPT.ID.desc())
+                .limit(1)
+                .asField();
+        return Optional.ofNullable(JooqUtil.contextResult(connProvider, context -> context
+                .select(DSL.coalesce(stated, bound, waiting, latest))
+                .fetchOne(0, String.class)));
+    }
+
     private static SupervisorLearner learner(final Record row) {
         final String fragmentUuid = row.get("fragment_uuid", String.class);
         final int records = row.get("records", Integer.class);
@@ -243,6 +278,7 @@ public class LearningPipelinesDao implements LearningPipelines {
                 false,
                 row.get("last", Long.class),
                 row.get("said", Integer.class),
-                Boolean.TRUE.equals(row.get("deleted", Boolean.class)));
+                Boolean.TRUE.equals(row.get("deleted", Boolean.class)),
+                false);
     }
 }

@@ -21,6 +21,7 @@ import stroom.shapeshifter.shared.SupervisorLearner;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 /// The Supervisor's learning pipelines list (design 06 A115, A142): every learner of the documents a
@@ -45,6 +46,14 @@ public interface LearningPipelines {
                   boolean showDeleted,
                   long offset,
                   int limit);
+
+    /// The document a learner is listed under, worked out as the list works it out. For a learner whose
+    /// pipeline has been deleted, and so names no document of its own, this is the document its learning
+    /// is read from (A137).
+    ///
+    /// @param learner The learner.
+    /// @return Its document, or empty where no table knows the learner.
+    Optional<String> documentOf(Learner learner);
 
 
     // --------------------------------------------------------------------------------

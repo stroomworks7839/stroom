@@ -27,7 +27,6 @@ import stroom.shapeshifter.ai.stage.LearnerStates;
 import stroom.shapeshifter.ai.stage.Learners;
 import stroom.shapeshifter.ai.stage.LearningPipelines;
 import stroom.shapeshifter.ai.stage.Outputs;
-import stroom.shapeshifter.ai.stage.Serving;
 import stroom.shapeshifter.ai.stage.Snapshots;
 import stroom.shapeshifter.ai.stage.Spend;
 
@@ -53,7 +52,6 @@ public class InMemoryStateModule extends AbstractModule {
         bind(Deferrals.class).to(InMemoryDeferrals.class);
         bind(Learners.class).to(InMemoryLearners.class).in(Scopes.SINGLETON);
         bind(LearnerStates.class).to(InMemoryLearnerStates.class).in(Scopes.SINGLETON);
-        bind(Serving.class).to(InMemoryServing.class).in(Scopes.SINGLETON);
         bind(InMemoryAttempts.class).in(Scopes.SINGLETON);
         bind(InMemoryLearnerStates.class).in(Scopes.SINGLETON);
         bind(LearningPipelines.class).to(InMemoryLearningPipelines.class).in(Scopes.SINGLETON);

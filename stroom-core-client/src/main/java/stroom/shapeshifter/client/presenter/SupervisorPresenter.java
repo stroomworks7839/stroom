@@ -29,46 +29,50 @@ import stroom.shapeshifter.shared.RejectRequest;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 import stroom.shapeshifter.shared.ShapeshifterAiResource;
 import stroom.shapeshifter.shared.SupervisorAttempt;
+import stroom.shapeshifter.shared.SupervisorLearner;
 import stroom.shapeshifter.shared.SupervisorResource;
 import stroom.svg.client.IconColour;
 import stroom.svg.client.SvgPresets;
 import stroom.svg.shared.SvgImage;
 import stroom.util.shared.NullSafe;
 import stroom.widget.button.client.ButtonView;
+import stroom.widget.tab.client.presenter.LinkTabsLayoutView;
+import stroom.widget.tab.client.presenter.TabData;
+import stroom.widget.tab.client.presenter.TabDataImpl;
 import stroom.widget.util.client.MultiSelectionModel;
 
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.user.client.ui.Widget;
 import com.google.inject.Inject;
 import com.google.web.bindery.event.shared.EventBus;
-import com.gwtplatform.mvp.client.View;
+import com.gwtplatform.mvp.client.MyPresenterWidget;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
 
 /**
- * The Supervisor of ruling A28: every Shapeshifter AI document's attempts in one place, rather than a
- * tab on each document. The list above, and below it the conversation of whichever attempt is selected,
- * turn by turn — what was asked, what was answered, by whom, and what the answer scored.
+ * The Supervisor (A28, design 06 A115): three levels, master to detail. The learning pipelines above, with
+ * the actions on a pipeline's learner and its binding; beneath them the selected pipeline's sessions, with
+ * the actions on a session, and beside them on a second tab the streams waiting on it; and beneath those
+ * the selected session's conversation, turn by turn, beside its path drawn over the flow (A88).
  */
 public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter.SupervisorView>
         implements Refreshable {
 
     public static final String TAB_TYPE = "ShapeshifterAiSupervisor";
-    public static final String ATTEMPT_LIST = "ATTEMPT_LIST";
+    public static final String LEARNERS = "LEARNERS";
     public static final String TURN_LIST = "TURN_LIST";
-    public static final String SERVING = "SERVING";
-    public static final String BACKLOG = "BACKLOG";
+    private static final TabData SESSIONS_TAB = new TabDataImpl("Sessions");
+    private static final TabData WAITING_TAB = new TabDataImpl("Waiting streams");
 
     private static final SupervisorResource SUPERVISOR_RESOURCE = GWT.create(SupervisorResource.class);
     private static final ShapeshifterAiResource DOCUMENT_RESOURCE = GWT.create(ShapeshifterAiResource.class);
 
+    private final SupervisorLearnersPresenter learnersPresenter;
     private final SupervisorListPresenter listPresenter;
+    private final SupervisorWaitingPresenter waitingPresenter;
     private final SupervisorTurnsPresenter turnsPresenter;
-    private final SupervisorServingPresenter servingPresenter;
-    private final SupervisorGuidancePresenter guidancePresenter;
-    private final SupervisorBacklogPresenter backlogPresenter;
     private final RestFactory restFactory;
     /// The selected attempt's path over its document's flow (A88), drawn from the turns the pane fetched
     /// and the flow fetched once per document.
@@ -76,29 +80,30 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
     private final Map<String, ShapeshifterAiDoc> documents = new HashMap<>();
     private final ButtonView approveButton;
     private final ButtonView rejectButton;
-    private final ButtonView relearnButton;
-    private final ButtonView hintButton;
     private final ButtonView grantButton;
     private final ButtonView exhaustButton;
 
     @Inject
     public SupervisorPresenter(final EventBus eventBus,
                                final SupervisorView view,
+                               final SupervisorLearnersPresenter learnersPresenter,
                                final SupervisorListPresenter listPresenter,
+                               final SupervisorWaitingPresenter waitingPresenter,
                                final SupervisorTurnsPresenter turnsPresenter,
-                               final SupervisorServingPresenter servingPresenter,
-                               final SupervisorGuidancePresenter guidancePresenter,
-                               final SupervisorBacklogPresenter backlogPresenter,
                                final RestFactory restFactory) {
         super(eventBus, view);
+        this.learnersPresenter = learnersPresenter;
         this.listPresenter = listPresenter;
+        this.waitingPresenter = waitingPresenter;
         this.turnsPresenter = turnsPresenter;
-        this.servingPresenter = servingPresenter;
-        this.guidancePresenter = guidancePresenter;
-        this.backlogPresenter = backlogPresenter;
         this.restFactory = restFactory;
 
-        setInSlot(ATTEMPT_LIST, listPresenter);
+        setInSlot(LEARNERS, learnersPresenter);
+        // Giving a learner up or sending it back changes its sessions and waiting streams as well as its row.
+        learnersPresenter.setOnActed(this::refresh);
+        view.getTabBar().addTab(SESSIONS_TAB);
+        view.getTabBar().addTab(WAITING_TAB);
+        selectTab(SESSIONS_TAB);
         // A turn answered reopens the attempt and takes its claim back (A28), so the row it was
         // answered from is showing a status that is no longer true.
         turnsPresenter.setOnAmended(amended -> {
@@ -110,22 +115,13 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
         turnsPresenter.setOnDetail(this::drawPath);
         flowChart.fitToPane();
         view.setFlowChart(flowChart);
-        setInSlot(SERVING, servingPresenter);
-        setInSlot(BACKLOG, backlogPresenter);
 
         // The decisions A28 puts beside the attempt they are about. Approve and Reject are review
         // mode's (A25), offered here because this is where a person watching the feature meets the
-        // draft. Re-learn is for a learner that gave up or bound
-        // badly: it asks again, from the beginning.
+        // draft. What acts on the learner rather than the session — learn again, give up, guidance — is on
+        // the pipeline's row above (A115, A141).
         approveButton = listPresenter.add(SvgPresets.TICK.title("Approve what this attempt drafted"));
         rejectButton = listPresenter.add(SvgPresets.DISABLE.title("Reject what this attempt drafted"));
-        relearnButton = listPresenter.add(SvgPresets.RERUN.title(
-                "Learn again: the next stream opens a session while the binding goes on serving it"));
-        // A46's message: neither an answer to a turn nor a decision about one. It attaches to the
-        // attempt's learner, so a person reading a transcript and seeing what the model did not know can
-        // say so there and then, and whatever is asked next carries it.
-        hintButton = listPresenter.add(SvgPresets.EDIT.title(
-                "What has been said to this attempt's learner, and say something else"));
         // A65's first action on a session parked for a person: more to spend, granted to this attempt
         // alone (A77), which the worker then carries on with.
         grantButton = listPresenter.add(SvgPresets.ADD.title(
@@ -140,6 +136,15 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
     @Override
     protected void onBind() {
         super.onBind();
+        registerHandler(learnersPresenter.getSelectionModel().addSelectionHandler(event -> {
+            // A pipeline chosen: its sessions and waiting streams beneath it, and no session yet.
+            final SupervisorLearner chosen = learnersPresenter.getSelectionModel().getSelected();
+            listPresenter.setLearner(NullSafe.get(chosen, SupervisorLearner::getLearner));
+            waitingPresenter.setLearner(chosen);
+            turnsPresenter.read(null);
+            updateButtons();
+        }));
+        registerHandler(getView().getTabBar().addSelectionHandler(event -> selectTab(event.getSelectedItem())));
 
         registerHandler(listPresenter.getSelectionModel().addSelectionHandler(event -> {
             final SupervisorAttempt selected = NullSafe.get(
@@ -151,8 +156,6 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
         }));
         registerHandler(approveButton.addClickHandler(event -> approve()));
         registerHandler(rejectButton.addClickHandler(event -> reject()));
-        registerHandler(relearnButton.addClickHandler(event -> relearn()));
-        registerHandler(hintButton.addClickHandler(event -> hint()));
         registerHandler(grantButton.addClickHandler(event -> grant()));
         registerHandler(exhaustButton.addClickHandler(event -> exhaust()));
     }
@@ -185,41 +188,6 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
                             act(resource -> resource.reject(attempt.getId(), new RejectRequest(reason)));
                         }
                     });
-        }
-    }
-
-    /// Ask again, from the beginning (A28): for a learner that gave up, or bound something a person is
-    /// not content with. What the attempt learned before is not thrown away — it is a record — but the
-    /// learner is asked afresh.
-    private void relearn() {
-        final SupervisorAttempt attempt = selected();
-        if (attempt != null) {
-            ConfirmEvent.fire(this, "Learn again? The learner learns afresh from its next stream, "
-                                    + "and what is bound now keeps serving until then. Streams that "
-                                    + "errored while it had given up are ordinary error streams: "
-                                    + "reprocess them on the pipeline to put them through.",
-                    ok -> {
-                        if (ok) {
-                            act(resource -> resource.relearn(attempt.getId()));
-                        }
-                    });
-        }
-    }
-
-    /// Tell the selected attempt's learner something (A46).
-    ///
-    /// It attaches to the learner and not to the attempt, which is the ruling's first decision: what a
-    /// person knows is about the feed, not about turn 7 of attempt 412. So nothing has to be timed,
-    /// nothing is refused for arriving at the wrong moment, and a hint outlives the attempt it was
-    /// written from — the relearning of A29, months later, carries it too.
-    ///
-    /// It asks for nothing to be run. A person reading a transcript and seeing what the model did not
-    /// know should be able to write it down there and then.
-    private void hint() {
-        final SupervisorAttempt attempt = selected();
-        if (attempt != null) {
-            guidancePresenter.show(attempt.getDoc().getUuid(), attempt.getLearner(),
-                    attempt.isPipelineDeleted(), servingPresenter::refresh);
         }
     }
 
@@ -319,7 +287,8 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
                     listPresenter.getSelectionModel().clear();
                     updateButtons();
                     turnsPresenter.read(decided);
-                    // What serves with it: approving a draft puts a binding in front of its learner.
+                    // What serves with it, and where its pipeline now stands: approving a draft puts a binding
+                    // in front of its learner, and rejecting one gives it up.
                     refresh();
                 })
                 .taskMonitorFactory(this)
@@ -356,11 +325,17 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
         final boolean review = awaitingReview() != null;
         approveButton.setEnabled(review);
         rejectButton.setEnabled(review);
-        relearnButton.setEnabled(live() != null);
-        // What has been said can still be read for a deleted pipeline's learner; the dialog adds nothing.
-        hintButton.setEnabled(selected() != null);
         grantButton.setEnabled(parked() != null);
         exhaustButton.setEnabled(parked() != null);
+    }
+
+    /// Show a tab's list beneath the pipelines: the sessions, or the waiting streams.
+    private void selectTab(final TabData tab) {
+        final MyPresenterWidget<?> content = WAITING_TAB.equals(tab)
+                ? waitingPresenter
+                : listPresenter;
+        getView().getLayerContainer().show(content);
+        getView().getTabBar().selectTab(tab);
     }
 
     @Override
@@ -375,7 +350,7 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
 
     @Override
     public String getLabel() {
-        return "Shapeshifter AI Attempts";
+        return "Shapeshifter AI Supervisor";
     }
 
     @Override
@@ -385,16 +360,16 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
 
     @Override
     public void refresh() {
+        learnersPresenter.refresh();
         listPresenter.refresh();
-        servingPresenter.refresh();
-        backlogPresenter.refresh();
+        waitingPresenter.refresh();
     }
 
 
     // --------------------------------------------------------------------------------
 
 
-    public interface SupervisorView extends View {
+    public interface SupervisorView extends LinkTabsLayoutView {
 
         /// The document's flow drawn beside the turns, with the attempt's path over it (A88).
         void setFlowChart(Widget chart);

@@ -22,8 +22,8 @@ import stroom.data.grid.client.MyDataGrid;
 import stroom.data.grid.client.PagerView;
 import stroom.dispatch.client.RestErrorHandler;
 import stroom.dispatch.client.RestFactory;
-import stroom.docref.DocRef;
 import stroom.shapeshifter.shared.BacklogStream;
+import stroom.shapeshifter.shared.SupervisorLearner;
 import stroom.shapeshifter.shared.SupervisorResource;
 import stroom.util.client.DataGridUtil;
 import stroom.util.shared.NullSafe;
@@ -41,25 +41,27 @@ import com.gwtplatform.mvp.client.MyPresenterWidget;
 
 import java.util.function.Consumer;
 
-/// The Supervisor's backlog (design 04 §6): what is waiting on a session, a row per stream — on which
-/// transform it fell short, since when, how many times it has been tried — with the streams that have
-/// waited past their document's maximum deferral age raised to the top and marked (A57, A78, A79). Nothing
-/// here is an action: a stream waits until its session promotes, or its learner gives up, and both are
-/// done from beside the attempts.
-public class SupervisorBacklogPresenter extends MyPresenterWidget<PagerView> {
+/// The selected learning pipeline's waiting streams (design 04 §6, design 06 A115): a row per stream — on
+/// which transform it fell short, since when, how many times it has been tried — oldest first, those that
+/// have waited past the document's maximum deferral age marked (A57). Nothing here is an action: a stream
+/// waits until its learner's session promotes, or the learner gives up, and both are done from the
+/// pipeline's row and its sessions.
+public class SupervisorWaitingPresenter extends MyPresenterWidget<PagerView> {
 
     private static final SupervisorResource SUPERVISOR_RESOURCE = GWT.create(SupervisorResource.class);
 
     private final RestDataProvider<BacklogStream, ResultPage<BacklogStream>> dataProvider;
     private final MyDataGrid<BacklogStream> dataGrid;
+    /// Whose waiting streams are listed: the pipeline chosen above, or nobody's before one is.
+    private SupervisorLearner learner;
 
     @Inject
-    public SupervisorBacklogPresenter(final EventBus eventBus,
+    public SupervisorWaitingPresenter(final EventBus eventBus,
                                       final PagerView view,
                                       final RestFactory restFactory) {
         super(eventBus, view);
         dataGrid = new MyDataGrid<>(this);
-        dataGrid.setTableName("Shapeshifter AI Backlog");
+        dataGrid.setTableName("Shapeshifter AI Waiting Streams");
         dataGrid.setMultiLine(true);
         view.setDataWidget(dataGrid);
         initTableColumns();
@@ -68,9 +70,16 @@ public class SupervisorBacklogPresenter extends MyPresenterWidget<PagerView> {
             protected void exec(final Range range,
                                 final Consumer<ResultPage<BacklogStream>> dataConsumer,
                                 final RestErrorHandler errorHandler) {
+                if (learner == null) {
+                    dataConsumer.accept(ResultPage.empty());
+                    return;
+                }
+                final SupervisorLearner whose = learner;
                 restFactory
                         .create(SUPERVISOR_RESOURCE)
-                        .method(resource -> resource.backlog(null,
+                        .method(resource -> resource.waiting(whose.getDoc().getUuid(),
+                                whose.getLearner().getPipelineUuid(),
+                                whose.getLearner().getElementId(),
                                 new PageRequest(range.getStart(), range.getLength())))
                         .onSuccess(dataConsumer)
                         .onFailure(errorHandler)
@@ -91,11 +100,6 @@ public class SupervisorBacklogPresenter extends MyPresenterWidget<PagerView> {
                                      + "goes on waiting; this is the flag that says somebody should look.")
                         .build(),
                 70);
-        dataGrid.addResizableColumn(
-                DataGridUtil.htmlColumnBuilder((BacklogStream stream) ->
-                        text(NullSafe.get(stream.getDoc(), DocRef::getName))).build(),
-                DataGridUtil.headingBuilder("Document").build(),
-                ColumnSizeConstants.MEDIUM_COL);
         dataGrid.addResizableColumn(
                 DataGridUtil.htmlColumnBuilder((BacklogStream stream) ->
                         text(stream.getFeed() + " / " + stream.getType())).build(),
@@ -144,7 +148,16 @@ public class SupervisorBacklogPresenter extends MyPresenterWidget<PagerView> {
                 : text);
     }
 
-    /// Read the backlog again: what is waiting changes as sessions promote.
+    /// List this learner's waiting streams, from the first page, or none.
+    ///
+    /// @param learner The learning pipeline chosen above, or null where none is.
+    public void setLearner(final SupervisorLearner learner) {
+        this.learner = learner;
+        dataGrid.setVisibleRange(new Range(0, PageRequest.DEFAULT_PAGE_LENGTH));
+        refresh();
+    }
+
+    /// Read them again: what is waiting changes as sessions promote.
     public void refresh() {
         dataProvider.refresh();
     }

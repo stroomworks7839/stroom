@@ -25,8 +25,8 @@ import stroom.shapeshifter.shared.Binding;
 import stroom.shapeshifter.shared.LearningMode;
 import stroom.shapeshifter.shared.ScorerSetting;
 import stroom.shapeshifter.shared.ScorerType;
-import stroom.shapeshifter.shared.ServingBinding;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
+import stroom.shapeshifter.shared.SupervisorLearner;
 import stroom.shapeshifter.shared.YieldBasis;
 import stroom.shapeshifter.shared.YieldParameters;
 
@@ -34,6 +34,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -97,11 +98,11 @@ class TestALearnerKeepsWhatItLearned {
         assertThat(scenarios.learnerBindings.byUuid(bound.getUuid()))
                 .describedAs("and the binding is kept under the document it runs under now")
                 .hasValueSatisfying(held -> assertThat(held.docUuid()).isEqualTo("doc-2"));
-        assertThat(scenarios.serving.bindings(List.of("doc-2"), null, false, 0, 10).bindings())
+        assertThat(scenarios.learningPipelines.learners(List.of("doc-2"), Set.of(), List.of(), false, 0, 10).learners())
                 .describedAs("so that document's Supervisor shows what serves its pipeline")
-                .extracting(ServingBinding::getBindingUuid)
+                .extracting(SupervisorLearner::getBindingUuid)
                 .containsExactly(bound.getUuid());
-        assertThat(scenarios.serving.bindings(List.of("doc-1"), null, false, 0, 10).bindings())
+        assertThat(scenarios.learningPipelines.learners(List.of("doc-1"), Set.of(), List.of(), false, 0, 10).learners())
                 .describedAs("and the old one's no longer does")
                 .isEmpty();
         scenarios.guidance.withdraw("doc-2", hint);

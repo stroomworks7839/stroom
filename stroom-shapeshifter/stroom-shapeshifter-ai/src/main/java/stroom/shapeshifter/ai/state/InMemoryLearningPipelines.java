@@ -130,7 +130,8 @@ public final class InMemoryLearningPipelines implements LearningPipelines {
                     false,
                     sessions.stream().map(Recorded::createTimeMs).max(Long::compare).orElse(null),
                     guidance.standing(learner).size(),
-                    deleted));
+                    deleted,
+                    false));
         }
         // The same order as the node's query, ties broken the same way, so that a page turned twice reads
         // the same twice.
@@ -142,6 +143,14 @@ public final class InMemoryLearningPipelines implements LearningPipelines {
                 .skip(Math.max(0L, offset))
                 .limit(Math.max(0, limit))
                 .toList(), matched.size());
+    }
+
+    @Override
+    public Optional<String> documentOf(final Learner learner) {
+        return states.documentOf(learner).or(() -> Optional.ofNullable(documentOf(
+                bindings.all().stream().filter(row -> row.learner().equals(learner)).toList(),
+                deferrals.all().stream().filter(row -> row.learner().equals(learner)).toList(),
+                attempts.all().stream().filter(attempt -> attempt.attempt().learner().equals(learner)).toList())));
     }
 
     /// The document the learner runs under where it has no state to say: what its bindings, then its

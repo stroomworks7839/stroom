@@ -73,6 +73,10 @@ public class SupervisorLearner {
     private final int guidance;
     @JsonProperty
     private final boolean pipelineDeleted;
+    /// Whether what it scores lately is below its document's relearn threshold: the one place the
+    /// threshold is read, since it triggers nothing by itself (design 04 §6).
+    @JsonProperty
+    private final boolean belowThreshold;
 
     @JsonCreator
     public SupervisorLearner(@JsonProperty("learner") final LearnerRef learner,
@@ -91,7 +95,8 @@ public class SupervisorLearner {
                              @JsonProperty("raised") final boolean raised,
                              @JsonProperty("lastSessionMs") final Long lastSessionMs,
                              @JsonProperty("guidance") final int guidance,
-                             @JsonProperty("pipelineDeleted") final boolean pipelineDeleted) {
+                             @JsonProperty("pipelineDeleted") final boolean pipelineDeleted,
+                             @JsonProperty("belowThreshold") final boolean belowThreshold) {
         this.learner = learner;
         this.pipeline = pipeline;
         this.doc = doc;
@@ -109,14 +114,19 @@ public class SupervisorLearner {
         this.lastSessionMs = lastSessionMs;
         this.guidance = guidance;
         this.pipelineDeleted = pipelineDeleted;
+        this.belowThreshold = belowThreshold;
     }
 
-    /// The same row with its pipeline and document named, and its wait judged against its document's
-    /// maximum age: what the resource adds to what the database answers.
-    public SupervisorLearner named(final DocRef pipeline, final DocRef doc, final boolean raised) {
+    /// The same row with its pipeline and document named, its wait judged against its document's maximum
+    /// age, and its score against the document's relearn threshold: what the resource adds to what the
+    /// database answers.
+    public SupervisorLearner named(final DocRef pipeline,
+                                   final DocRef doc,
+                                   final boolean raised,
+                                   final boolean belowThreshold) {
         return new SupervisorLearner(learner, pipeline, doc, state, givenUpReason, bindingUuid, fragment,
                 provisional, promotedScore, rollingScore, records, waiting, oldestWaitMs, raised, lastSessionMs,
-                guidance, pipelineDeleted);
+                guidance, pipelineDeleted, belowThreshold);
     }
 
     public LearnerRef getLearner() {
@@ -185,6 +195,10 @@ public class SupervisorLearner {
 
     public boolean isPipelineDeleted() {
         return pipelineDeleted;
+    }
+
+    public boolean isBelowThreshold() {
+        return belowThreshold;
     }
 
     @Override

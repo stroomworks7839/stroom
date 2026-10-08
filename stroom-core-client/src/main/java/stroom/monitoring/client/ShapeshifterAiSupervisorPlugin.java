@@ -57,7 +57,7 @@ public class ShapeshifterAiSupervisorPlugin extends MonitoringPlugin<SupervisorP
                             .priority(12)
                             .icon(SvgImage.AI)
                             .iconColour(IconColour.GREY)
-                            .text("Shapeshifter AI Attempts")
+                            .text("Shapeshifter AI Supervisor")
                             .command(this::open)
                             .build());
         }
