@@ -4,6 +4,13 @@
 recommendation was taken; the rulings are A81–A90 in §9, and the owner ruled that phase H begins at
 once rather than after phase 6's exit walkthrough.*
 
+> *Superseded in part by design 06, phase J (2026-10-07 and 08).* The pipeline is the unit of learning
+> (A104): a **learner** is one Shapeshifter AI element in one pipeline (A114), and what serves it is its
+> **binding** (A117, A124, A140). Shapes, the learning key, the shape signature, the routing table and its
+> selectors, pinning (A138) and the ledger (A131) are gone; a stream waits as a deferred task, which a
+> promotion wakes by its pipeline (A129). Where this document says a shape, read a learner; where it
+> says a rule, read a binding. It is kept as the record of how the design arrived where it is.
+
 A mock-up accompanies this draft: the three example plans drawn vertically as a flowchart, with a
 step's form and its question text opening beside the chart, validation painted on the step it names,
 the text form kept beneath, and a recorded attempt's path drawn over the flow.

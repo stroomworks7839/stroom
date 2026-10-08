@@ -43,21 +43,21 @@ public class SupervisedPipelineCheck implements SupervisedPipelines {
         this.pipelineDataCacheProvider = pipelineDataCacheProvider;
     }
 
+    /// A pipeline that cannot be read, or merged with the pipelines it inherits from, cannot be judged and
+    /// is taken as not supervised: an import makes a filter before the pipeline it names has arrived, or
+    /// before that pipeline's parent has, and a filter a person makes names one that is there.
     @Override
     public boolean isSupervised(final DocRef pipeline) {
-        final PipelineDoc doc;
         try {
-            doc = pipelineStoreProvider.get().readDocument(pipeline);
+            final PipelineDoc doc = pipelineStoreProvider.get().readDocument(pipeline);
+            if (doc == null) {
+                return false;
+            }
+            final PipelineData merged = pipelineDataCacheProvider.get().get(doc);
+            return merged != null && merged.getAddedElements().stream()
+                    .anyMatch(element -> ShapeshifterAiElements.PARSER.equals(element.getType()));
         } catch (final RuntimeException e) {
-            // A pipeline that cannot be read cannot be judged: an import makes a filter before the
-            // pipeline it names has arrived, and a filter a person makes names one that is there.
             return false;
         }
-        if (doc == null) {
-            return false;
-        }
-        final PipelineData merged = pipelineDataCacheProvider.get().get(doc);
-        return merged != null && merged.getAddedElements().stream()
-                .anyMatch(element -> ShapeshifterAiElements.PARSER.equals(element.getType()));
     }
 }

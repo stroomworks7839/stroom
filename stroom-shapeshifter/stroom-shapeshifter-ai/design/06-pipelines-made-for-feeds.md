@@ -745,6 +745,22 @@ The largest phase. Its slices keep the build and the scenarios green at each ste
    descriptions out of line with their neighbours, and the record of what produced an output said the
    binding "matched", as a selector would have; both are put right.
 
+   *7c, the phase audited 2026-10-08.* Every item a slice left for this audit is closed: the names of
+   rule and shape (7a, 7b), the shape signature and `RoutingFields`, `minRecordsPerShape` and the shape
+   cache, the deferral's task and filter, the reprocessing test's name and the unpin text (7a). The two
+   left as they are in slice 5 stand. Designs 01 to 05 open with a note that phase J superseded their
+   shapes, routing table, pinning and ledger and saying how to read them; `ISSUES.md` and the project's
+   notes say learner and binding. A factory writes the element's placement through its property values,
+   which its own test covers, and the element reads them merged; no one test yet runs the two together,
+   which phase M's walkthrough does.
+
+   One fault, older than the phase, closed. A processor filter is made as an import reads it, and its
+   pipeline is checked for a supervised stage: the pipeline was read inside a guard, but its merge with
+   the pipelines it inherits from was not, so an import that brought a filter before its pipeline's
+   parent failed. `TestImportExportSerializer` met it once the whole of `stroom-app`'s tests were run;
+   the check now takes a pipeline it cannot merge as not supervised, with a test of each case. The
+   whole of `stroom-app`'s tests, and those of every other module the phase touched, pass.
+
 ### Phase K — Deferred tasks count *(`stroom-processor`; closes ISSUES item 1)*
 
 1. **Task creation counts `DEFERRED` with `CREATED` (A109).** One change in

@@ -15,13 +15,13 @@ the commit or ruling that closed it, rather than deleting it.
    tasks past which creation pauses. Recommended: leave it until the real-scale trial shows whether the
    deferred population matters. *Design 04 §5.2 and §9.*
 
-2. **A format change under a rule goes unnoticed.** What a parser drops while a stream is served — lines
+2. **A format change under a binding goes unnoticed.** What a parser drops while a stream is served — lines
    its splitter does not match — is reported on the error stream but judged by nothing, since the record
-   bar judges records and these never became records. A feed that changes its format under a rule is
-   not sent back to be learned until a person marks the shape (A100). *Design 04 §10, A99's note.*
+   bar judges records and these never became records. A feed that changes its format under a binding is
+   not sent back to be learned until a person marks its learner (A100). *Design 04 §10, A99's note.*
 
-3. **Improving a serving rule is still synchronous.** The Supervisor's *improve* is the one place the
-   model is asked outside the worker (A102): it learns against the rule's accepted corpus, which the
+3. **Improving a serving binding is still synchronous.** The Supervisor's *improve* is the one place the
+   model is asked outside the worker (A102): it learns against the binding's accepted corpus, which the
    worker cannot read back as a stream. Moving it to the worker needs the attempt to carry its own
    sample — a change to the attempt row. *Design 04 §10, A102.*
 
@@ -63,7 +63,7 @@ the commit or ruling that closed it, rather than deleting it.
    several units — a Configure over the whole chain, a Target over several kinds — records a turn per
    unit, and the first unit's pass lights the step's pass edge. *Design 05 §7, slice 2's audit.*
 
-10. **A marked shape relearns on its first stream whose prefix is big enough.** A task holds only its
+10. **A marked learner relearns on its first stream whose prefix is big enough.** A task holds only its
     stream's prefix, so the mark path judges that. Noted rather than a fault. *Design 04 §10, A100.*
 
 ## For the real-scale trial

@@ -6,6 +6,13 @@ is, when it is finished, or which input formats the feature has been shown to ha
 does, and it is the one the slices are now cut from. A phase ends on its exit criterion — a test or a
 run, not a judgement — and the next does not start until it has.*
 
+> *Superseded in part by design 06, phase J (2026-10-07 and 08).* The pipeline is the unit of learning
+> (A104): a **learner** is one Shapeshifter AI element in one pipeline (A114), and what serves it is its
+> **binding** (A117, A124, A140). Shapes, the learning key, the shape signature, the routing table and its
+> selectors, pinning (A138) and the ledger (A131) are gone; a stream waits as a deferred task, which a
+> promotion wakes by its pipeline (A129). Where this document says a shape, read a learner; where it
+> says a rule, read a binding. It is kept as the record of how the design arrived where it is.
+
 ## 1. Where it stands
 
 **What is being built is an MVP prototype** (the owner, 2026-09-23): enough of the process and the UI to
