@@ -136,6 +136,29 @@ class TestProcessorTaskDaoImpl extends AbstractProcessorTest {
         assertThat(getTaskStatus(created)).isEqualTo(TaskStatus.CREATED);
     }
 
+    /// Design 06 A109. The tasks a filter holds are counted in one query, a count for each status asked
+    /// for: not those being processed, nor another filter's.
+    @Test
+    void testCountTasksForFilterInStatuses() {
+        processor1 = createProcessor();
+        processorFilter1a = createProcessorFilter(processor1);
+        processorFilter1b = createProcessorFilter(processor1);
+        final Instant now = Instant.now();
+        createProcessorTask(processorFilter1a, TaskStatus.CREATED, null, FEED, now);
+        createProcessorTask(processorFilter1a, TaskStatus.DEFERRED, null, FEED, now);
+        createProcessorTask(processorFilter1a, TaskStatus.DEFERRED, null, FEED, now);
+        createProcessorTask(processorFilter1a, TaskStatus.PROCESSING, NODE1, FEED, now);
+        createProcessorTask(processorFilter1b, TaskStatus.DEFERRED, null, FEED, now);
+
+        assertThat(processorTaskDao.countTasksForFilter(processorFilter1a.getId(),
+                Set.of(TaskStatus.CREATED, TaskStatus.DEFERRED)))
+                .containsExactlyInAnyOrderEntriesOf(Map.of(TaskStatus.CREATED, 1, TaskStatus.DEFERRED, 2));
+        assertThat(processorTaskDao.countTasksForFilter(processorFilter1b.getId(),
+                Set.of(TaskStatus.CREATED, TaskStatus.DEFERRED)))
+                .describedAs("a status with none is counted as none")
+                .containsExactlyInAnyOrderEntriesOf(Map.of(TaskStatus.CREATED, 0, TaskStatus.DEFERRED, 1));
+    }
+
     /**
      * Design 04 §5.3, design 06 §4.3. A wake returns the deferred tasks of every filter on a pipeline,
      * now, whatever their age — a reprocess filter's as well as the one that feeds it; a task of another

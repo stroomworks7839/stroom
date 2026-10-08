@@ -767,6 +767,24 @@ The largest phase. Its slices keep the build and the scenarios green at each ste
    `ProcessorTaskCreatorImpl` and its DAO count, with a test that a filter whose tasks are all deferred
    creates no more, and one that a filter with none deferred creates as before.
 
+   *Built 2026-10-08.* `ProcessorTaskCreatorImpl` counts the tasks a filter holds — `CREATED` and
+   `DEFERRED` — in one query, through a new `countTasksForFilter(filter, statuses)` on the task DAO that
+   gives a count for each status. A filter's own allowance is spent by both: one whose tasks have
+   deferred makes no more until a wake or the sweep returns them and they are processed, and a wake can
+   no longer leave it far past its limit, since the tasks it returns were counted already. This is the
+   stall design 04 §5.2 avoided, taken knowingly: with one filter per feed and type (A104) it holds back
+   only the feed whose learner is waiting.
+
+   *Audited 2026-10-08.* One fault closed, in the slice as first built. The run's budget is shared by
+   every filter of a processing profile, and of no profile, and the slice spent it with deferred tasks
+   too: a deferred task is no node's to claim, and one learner's backlog of them spent its profile's
+   budget on every run, so the profile's other feeds were given no tasks — the opposite of A109's "no
+   other filter's count changes". Only the waiting tasks spend the shared budget now; the deferred ones
+   count against their own filter alone. The creator's test that encoded the fault now holds the
+   opposite, and fails on the old accounting; the creator's tests show a filter at its allowance in
+   deferred tasks making no more and one with none deferred going on, and the DAO's test counts each
+   status asked for and no other filter's.
+
 ### Phase L — What a person sees *(the client)*
 
 1. **The document's tabs.** The Route tab goes, and the process header shows Score and Learn (A110).

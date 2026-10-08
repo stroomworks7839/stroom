@@ -191,6 +191,13 @@ public interface ProcessorTaskDao {
      */
     int countTasksForFilter(int filterId, TaskStatus status);
 
+    /// Count the current number of tasks for a filter in each of the specified statuses, in one query.
+    ///
+    /// @param filterId The filter to count tasks for.
+    /// @param statuses The task statuses.
+    /// @return The number of tasks in each, zero where there are none.
+    Map<TaskStatus, Integer> countTasksForFilter(int filterId, Set<TaskStatus> statuses);
+
     /**
      * Count the current number of tasks for a filter matching the specified status, both for a single node and
      * for the whole cluster. Both counts come from one query so that they are a consistent view of the same

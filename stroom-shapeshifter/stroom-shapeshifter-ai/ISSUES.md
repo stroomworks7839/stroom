@@ -7,7 +7,7 @@ the commit or ruling that closed it, rather than deleting it.
 ## Needs a ruling
 
 1. ~~**Whether deferred tasks count against a filter's task budget.**~~ *Ruled 2026-10-07: every filter counts `DEFERRED` with
-   `CREATED` (A109), made safe by one filter per feed and type (A104); built in design 06 phase K.* Task creation bounds itself on
+   `CREATED` (A109), made safe by one filter per feed and type (A104); built 2026-10-08 in design 06 phase K.* Task creation bounds itself on
    `countTasksForFilter(filter, CREATED)`, so `DEFERRED` tasks are outside the budget: the deferred
    population is bounded by what arrives, and a wake or a sweep can return a backlog to `CREATED` far
    past the limit, after which creation pauses until it drains. Options: count `CREATED` and `DEFERRED`

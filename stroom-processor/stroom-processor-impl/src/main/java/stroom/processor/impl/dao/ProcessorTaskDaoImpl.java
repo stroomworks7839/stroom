@@ -89,6 +89,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -861,6 +862,25 @@ class ProcessorTaskDaoImpl implements ProcessorTaskDao {
                                 .where(PROCESSOR_TASK.STATUS.eq(status.getPrimitiveValue()))
                                 .and(PROCESSOR_TASK.FK_PROCESSOR_FILTER_ID.eq(filterId))
                                 .fetchOne(0, int.class));
+    }
+
+    @Override
+    public Map<TaskStatus, Integer> countTasksForFilter(final int filterId, final Set<TaskStatus> statuses) {
+        final List<Byte> values = statuses.stream()
+                .map(TaskStatus::getPrimitiveValue)
+                .toList();
+        final Map<TaskStatus, Integer> counts = new EnumMap<>(TaskStatus.class);
+        statuses.forEach(status -> counts.put(status, 0));
+        JooqUtil.context(processorDbConnProvider, context -> context
+                .select(PROCESSOR_TASK.STATUS, DSL.count())
+                .from(PROCESSOR_TASK)
+                .where(PROCESSOR_TASK.STATUS.in(values))
+                .and(PROCESSOR_TASK.FK_PROCESSOR_FILTER_ID.eq(filterId))
+                .groupBy(PROCESSOR_TASK.STATUS)
+                .fetch()
+                .forEach(row -> counts.put(TaskStatus.PRIMITIVE_VALUE_CONVERTER.fromPrimitiveValue(row.value1()),
+                        row.value2())));
+        return counts;
     }
 
     @Override

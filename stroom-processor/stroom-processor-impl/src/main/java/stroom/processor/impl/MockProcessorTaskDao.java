@@ -263,6 +263,13 @@ public class MockProcessorTaskDao implements ProcessorTaskDao, Clearable {
     }
 
     @Override
+    public Map<TaskStatus, Integer> countTasksForFilter(final int filterId, final Set<TaskStatus> statuses) {
+        final Map<TaskStatus, Integer> counts = new HashMap<>();
+        statuses.forEach(status -> counts.put(status, 0));
+        return counts;
+    }
+
+    @Override
     public FilterTaskCounts countTasksForFilter(final int filterId,
                                                 final String nodeName,
                                                 final TaskStatus status) {
