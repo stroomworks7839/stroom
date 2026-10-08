@@ -56,7 +56,7 @@
                                     </form:FormGroup>
                                     <form:FormGroup identity="shapeshifterAiAttemptBudgetMs"
                                                     label="Time budget (ms)"
-                                                    helpText="Wall-clock budget for a whole session, every question included. Mandatory; there is no unlimited setting. A session that runs out parks for a person.">
+                                                    helpText="Wall-clock budget for one run of a session, every question in it included: a session carried on again, after a person grants it more or a node dies, has the whole of it again. Mandatory; there is no unlimited setting. A run that runs out parks the session for a person.">
                                         <v:ValueSpinner ui:field="attemptBudgetMs" width="120px"/>
                                     </form:FormGroup>
                                     <form:FormGroup identity="shapeshifterAiTokenBudget"

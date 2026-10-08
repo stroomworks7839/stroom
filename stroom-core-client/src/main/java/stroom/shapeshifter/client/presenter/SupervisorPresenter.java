@@ -16,7 +16,6 @@
 
 package stroom.shapeshifter.client.presenter;
 
-import stroom.alert.client.event.AlertEvent;
 import stroom.alert.client.event.ConfirmEvent;
 import stroom.alert.client.event.PromptEvent;
 import stroom.content.client.presenter.ContentTabPresenter;
@@ -25,7 +24,6 @@ import stroom.dispatch.client.RestFactory;
 import stroom.shapeshifter.client.view.FlowChart;
 import stroom.shapeshifter.shared.AttemptStatus;
 import stroom.shapeshifter.shared.FlowStep;
-import stroom.shapeshifter.shared.GrantRequest;
 import stroom.shapeshifter.shared.RejectRequest;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 import stroom.shapeshifter.shared.ShapeshifterAiResource;
@@ -46,6 +44,7 @@ import stroom.widget.util.client.MultiSelectionModel;
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.user.client.ui.Widget;
 import com.google.inject.Inject;
+import com.google.inject.Provider;
 import com.google.web.bindery.event.shared.EventBus;
 import com.gwtplatform.mvp.client.MyPresenterWidget;
 
@@ -77,9 +76,13 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
     private final SupervisorWaitingPresenter waitingPresenter;
     private final SupervisorTurnsPresenter turnsPresenter;
     private final RestFactory restFactory;
+    private final Provider<GrantPresenter> grantPresenterProvider;
     /// The selected attempt's path over its document's flow (A88), drawn from the turns the pane fetched
     /// and the flow fetched once per document.
     private final FlowChart flowChart = new FlowChart();
+    /// The documents read to draw sessions' paths and to state their budgets in the grant dialog. Dropped
+    /// when the Supervisor is refreshed or another pipeline is chosen, so that a flow or a budget edited
+    /// since is not shown as it was.
     private final Map<String, ShapeshifterAiDoc> documents = new HashMap<>();
     /// The steps drawn now, so that a step chosen on the chart can be found among the turns.
     private List<FlowStep> steps = List.of();
@@ -95,6 +98,7 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
                                final SupervisorListPresenter listPresenter,
                                final SupervisorWaitingPresenter waitingPresenter,
                                final SupervisorTurnsPresenter turnsPresenter,
+                               final Provider<GrantPresenter> grantPresenterProvider,
                                final RestFactory restFactory) {
         super(eventBus, view);
         this.learnersPresenter = learnersPresenter;
@@ -102,6 +106,7 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
         this.waitingPresenter = waitingPresenter;
         this.turnsPresenter = turnsPresenter;
         this.restFactory = restFactory;
+        this.grantPresenterProvider = grantPresenterProvider;
 
         setInSlot(LEARNERS, learnersPresenter);
         // Giving a learner up or sending it back changes its sessions and waiting streams as well as its row.
@@ -158,6 +163,7 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
         registerHandler(learnersPresenter.getSelectionModel().addSelectionHandler(event -> {
             // A pipeline chosen: its sessions and waiting streams beneath it, and no session yet.
             final SupervisorLearner chosen = learnersPresenter.getSelectionModel().getSelected();
+            documents.clear();
             listPresenter.setLearner(NullSafe.get(chosen, SupervisorLearner::getLearner));
             waitingPresenter.setLearner(chosen);
             turnsPresenter.read(null);
@@ -210,32 +216,16 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
         }
     }
 
-    /// Give a parked session more to spend (A65, A77): tokens, asked for here, recorded against the
-    /// attempt alone and not the document, and the worker carries the session on with them.
+    /// Give a parked session more to spend (A65, A77): tokens over its life, minutes for each run (design
+    /// 06 A145), asked for in the grant dialog and recorded against the attempt alone and not the document;
+    /// the worker carries the session on with them.
     private void grant() {
         final SupervisorAttempt attempt = parked();
         if (attempt != null) {
-            PromptEvent.fire(this, "How many more tokens may this attempt spend? The grant is this "
-                                   + "attempt's alone; the document's budget is not changed. It has spent "
-                                   + attempt.getTokensSpent() + " and been granted " + attempt.getGrantedTokens()
-                                   + " so far.", "",
-                    tokens -> {
-                        if (NullSafe.isBlankString(tokens)) {
-                            return;
-                        }
-                        final long granted;
-                        try {
-                            granted = Long.parseLong(tokens.trim());
-                        } catch (final NumberFormatException e) {
-                            AlertEvent.fireError(this, "'" + tokens + "' is not a number of tokens", null);
-                            return;
-                        }
-                        if (granted <= 0) {
-                            AlertEvent.fireError(this, "A grant is more than nothing", null);
-                            return;
-                        }
-                        act(resource -> resource.grant(attempt.getId(), new GrantRequest(granted, 0L)));
-                    });
+            // Its document's budgets, where its path has been drawn and the document read for it.
+            final ShapeshifterAiDoc doc = NullSafe.get(attempt.getDoc(), docRef -> documents.get(docRef.getUuid()));
+            grantPresenterProvider.get().show(attempt, doc, granted ->
+                    act(resource -> resource.grant(attempt.getId(), granted)));
         }
     }
 
@@ -390,6 +380,7 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
 
     @Override
     public void refresh() {
+        documents.clear();
         learnersPresenter.refresh();
         listPresenter.refresh();
         waitingPresenter.refresh();

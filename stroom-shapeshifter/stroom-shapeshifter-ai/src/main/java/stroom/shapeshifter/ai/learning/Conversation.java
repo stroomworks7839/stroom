@@ -95,8 +95,8 @@ public final class Conversation {
     private final BiConsumer<Integer, Exchange> onTurn;
     private Budget budget;
     private long alreadySpent;
-    /// When the attempt's time budget began to run, where it is not this conversation's start: a round
-    /// that follows another in one carrying is under the one budget (A5).
+    /// When this run's time budget began to run, where it is not this conversation's start: a round that
+    /// follows another in one run is under the one budget (A5, design 06 A145).
     private Long begunAtMs;
     /// What a person granted the attempt beyond the document's budgets (A77).
     private long grantedTokens;
@@ -168,8 +168,8 @@ public final class Conversation {
         return this;
     }
 
-    /// Count the attempt's time budget from this moment rather than from the conversation's start (A5):
-    /// a round that follows another in one carrying is under the one budget.
+    /// Count this run's time budget from this moment rather than from the conversation's start (A5, design
+    /// 06 A145): a round that follows another in one run is under the one budget.
     ///
     /// @return This conversation, to be run.
     public Conversation begunAt(final long ms) {
@@ -1249,9 +1249,9 @@ public final class Conversation {
         }
     }
 
-    /**
-     * The attempt's budget (A5): how long it may take and how many tokens it may spend, from where it began.
-     */
+    /// The session's budget (A5): how many tokens it may spend over its life, and how long this run of it
+    /// may take (design 06 A145) — a session carried on again has the whole time budget again.
+    ///
     /// @param grantedTokens What a person granted beyond the document's token budget (A77).
     /// @param grantedMs     Likewise beyond its time budget.
     private record Budget(ShapeshifterAiDoc policy,
@@ -1264,14 +1264,15 @@ public final class Conversation {
             final long elapsed = nowMs - startedMs;
             final long allowedMs = policy.getAttemptBudgetMs() + grantedMs;
             if (elapsed > allowedMs) {
-                throw new BudgetExhausted("The attempt's budget of " + allowedMs
-                                          + " ms is spent after " + elapsed + " ms");
+                throw new BudgetExhausted("This run's time budget of " + allowedMs
+                                          + " ms is spent after " + elapsed + " ms; each run of the session "
+                                          + "has the whole of it");
             }
             final long tokens = tokensNow - tokensAtStart;
             if (policy.getTokenBudget() != null) {
                 final long allowed = policy.getTokenBudget() + grantedTokens;
                 if (tokens > allowed) {
-                    throw new BudgetExhausted("The attempt's budget of " + allowed
+                    throw new BudgetExhausted("The session's budget of " + allowed
                                               + " tokens is spent after " + tokens + " tokens");
                 }
             }

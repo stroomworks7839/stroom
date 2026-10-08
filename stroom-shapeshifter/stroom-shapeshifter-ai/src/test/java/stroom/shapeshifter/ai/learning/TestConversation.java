@@ -129,7 +129,7 @@ class TestConversation {
         final Outcome outcome = conversation.run(policy().copy().attemptBudgetMs(90_000).build(), SAMPLE);
 
         assertThat(outcome).isInstanceOf(Abandoned.class);
-        assertThat(((Abandoned) outcome).reason()).contains("budget of 90000 ms is spent");
+        assertThat(((Abandoned) outcome).reason()).contains("This run's time budget of 90000 ms is spent");
         assertThat(model.questions()).describedAs("the first question was asked; the second was not").hasSize(1);
         assertThat(outcome.transcript()).hasSize(1);
     }

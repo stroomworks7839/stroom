@@ -178,6 +178,13 @@ public class SupervisorListPresenter extends MyPresenterWidget<PagerView> {
                         .build(),
                 ColumnSizeConstants.SMALL_COL);
         dataGrid.addResizableColumn(
+                DataGridUtil.htmlColumnBuilder((SupervisorAttempt row) -> text(granted(row))).build(),
+                DataGridUtil.headingBuilder("Granted")
+                        .withToolTip("What a person has granted it beyond its document's budgets: tokens over "
+                                     + "its whole life, and minutes for each run of it.")
+                        .build(),
+                ColumnSizeConstants.MEDIUM_COL);
+        dataGrid.addResizableColumn(
                 DataGridUtil.htmlColumnBuilder((SupervisorAttempt row) -> text(row.getNode())).build(),
                 DataGridUtil.headingBuilder("Node")
                         .withToolTip("Which node last carried the attempt.")
@@ -198,6 +205,19 @@ public class SupervisorListPresenter extends MyPresenterWidget<PagerView> {
             status.append(" (pipeline deleted)");
         }
         return status.toString();
+    }
+
+    /// What has been granted, said as the grant dialog asks for it (design 06 A145).
+    private static String granted(final SupervisorAttempt row) {
+        final String tokens = row.getGrantedTokens() > 0L
+                ? row.getGrantedTokens() + " tokens"
+                : "";
+        final String time = row.getGrantedMs() > 0L
+                ? GrantPresenter.duration(row.getGrantedMs()) + " each run"
+                : "";
+        return tokens.isEmpty() || time.isEmpty()
+                ? tokens + time
+                : tokens + ", " + time;
     }
 
     private static SafeHtml text(final String value) {

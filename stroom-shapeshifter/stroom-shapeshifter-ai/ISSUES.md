@@ -25,7 +25,8 @@ the commit or ruling that closed it, rather than deleting it.
    worker cannot read back as a stream. Moving it to the worker needs the attempt to carry its own
    sample — a change to the attempt row. *Design 04 §10, A102.*
 
-17. **Whether an attempt's time budget is per carrying or per attempt.** Tokens are counted over the
+17. ~~**Whether an attempt's time budget is per carrying or per attempt.**~~ *Ruled 2026-10-08: per run, said
+    plainly (design 06 A145); the grant dialog is built in phase L slice 4.* Tokens are counted over the
     attempt's life: each carrying starts from what was already spent. Time is counted from when the
     carrying began (`Recorder.startedMs`), so a session parked for running out of time gets a full
     `attemptBudgetMs` again on its next carrying. Any grant reopens it, even one of tokens alone, and
@@ -43,7 +44,8 @@ the commit or ruling that closed it, rather than deleting it.
    another node take the attempt and ask the same question. A heartbeat on a timer during the call fixes
    it. Worth doing before anything runs unattended. *Design 04 §4.*
 
-5. **Grant asks for tokens only.** The resource takes tokens and milliseconds; the Supervisor's button
+5. ~~**Grant asks for tokens only.**~~ *Closed 2026-10-08 in design 06 phase L slice 4: a dialog of tokens
+   and minutes for each run (A145).* The resource takes tokens and milliseconds; the Supervisor's button
    prompts for tokens and always sends no time. Fix: a two-field grant dialog, tokens and minutes,
    after the built-in text popup. What its time field means waits on item 17. *Design 04, phase 6
    first slice (A77).*

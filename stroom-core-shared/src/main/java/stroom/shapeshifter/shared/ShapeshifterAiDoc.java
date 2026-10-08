@@ -144,7 +144,8 @@ public class ShapeshifterAiDoc extends AbstractDoc {
     @JsonProperty
     private final LearningFlow flow;
     /**
-     * Wall-clock budget for one attempt. Ruling A5 makes the budget mandatory; there is no unlimited value.
+     * Wall-clock budget for one run of an attempt: each time it is carried on, it has the whole of it again
+     * (design 06 A145). Ruling A5 makes the budget mandatory; there is no unlimited value.
      */
     @JsonProperty
     private final long attemptBudgetMs;

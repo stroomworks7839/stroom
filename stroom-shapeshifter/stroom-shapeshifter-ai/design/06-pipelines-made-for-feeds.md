@@ -883,6 +883,22 @@ The largest phase. Its slices keep the build and the scenarios green at each ste
    to the step itself, which the rule for units read as a unit's pass and drew no edge for; a step that
    loops on its pass takes its edge.
 
+   *4 built 2026-10-08.* A parked session is granted more from a dialog of two fields (ISSUES item 5),
+   more tokens and more minutes for each run, on A145: time is counted per run. Above the fields, what
+   the session has spent and been granted against its document's budgets, and that a run carried on has
+   its whole time budget again. A grant of nothing, or less than nothing, is refused in the dialog, which
+   stays open (`GrantRequest.problem`, as the stage holds it). The sessions list shows what each was
+   granted, tokens and minutes each run. The wording that called the time budget the whole session's —
+   the Learn tab's help, the document's field, the message a run that runs out of time parks with — says
+   it is each run's.
+
+   *4 audited 2026-10-08.* One fault closed. The Supervisor read each document once and kept it for as long
+   as it was open, so the grant dialog stated the budgets the document had when its first session was
+   drawn, and a session's path was drawn over the flow as it was then, though either may have been edited
+   since; the documents are read again once the Supervisor is refreshed or another pipeline is chosen. A
+   value typed into a field is taken when the field loses focus, which pressing OK does first, so a grant
+   typed and confirmed is the grant sent.
+
 ### Phase M — The walkthrough
 
 A factory over `Raw Events` with the AI template takes three feeds from unseen to served from the UI.
@@ -1194,3 +1210,9 @@ the check the outcome names, on a pass the gate that passed by the least, or whe
 check that did. A turn no scorer judged — a chain chosen, a configuration that did not compile, a
 refusal — has none, and the compile gate, the floor and not a check, decides no score. *Ruled
 2026-10-08, in phase L, over showing the outcome alone or the whole scorecard on every turn.*
+
+**A145.** *A session's time budget is per run.* Tokens are counted over a session's life; time bounds
+how long one run holds a worker, from when that run began, so a session parked for time has its whole
+budget again on its next run. A time grant raises that per-run limit for the one session. The grant
+dialog and the session say so plainly. *Ruled 2026-10-08, in phase L (ISSUES item 17), over counting time
+over the whole session or dropping the time grant.*
