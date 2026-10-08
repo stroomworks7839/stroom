@@ -23,6 +23,7 @@ import stroom.data.grid.client.PagerView;
 import stroom.dispatch.client.RestErrorHandler;
 import stroom.dispatch.client.RestFactory;
 import stroom.shapeshifter.shared.AttemptCriteria;
+import stroom.shapeshifter.shared.AttemptStatus;
 import stroom.shapeshifter.shared.SupervisorAttempt;
 import stroom.shapeshifter.shared.SupervisorResource;
 import stroom.svg.client.Preset;
@@ -93,7 +94,8 @@ public class SupervisorListPresenter extends MyPresenterWidget<PagerView> {
                         criteria.getDocUuid(),
                         criteria.getFeed(),
                         criteria.getPromotionMode(),
-                        criteria.getStatuses());
+                        criteria.getStatuses(),
+                        criteria.isShowDeletedPipelines());
                 restFactory
                         .create(SUPERVISOR_RESOURCE)
                         .method(resource -> resource.find(asked))
@@ -190,10 +192,11 @@ public class SupervisorListPresenter extends MyPresenterWidget<PagerView> {
                 ColumnSizeConstants.MEDIUM_COL);
         dataGrid.addResizableColumn(
                 DataGridUtil.htmlColumnBuilder((SupervisorAttempt row) ->
-                        text(NullSafe.get(row.getStatus(), status -> status.getDisplayValue()))).build(),
+                        text(status(row))).build(),
                 DataGridUtil.headingBuilder("Status")
                         .withToolTip("Where the attempt stands: learning, waiting for the model, waiting for "
-                                     + "a person, or what it came to.")
+                                     + "a person, or what it came to; and whether its pipeline has been "
+                                     + "deleted, when deleted pipelines are shown.")
                         .build(),
                 ColumnSizeConstants.SMALL_COL);
         dataGrid.addResizableColumn(
@@ -228,6 +231,15 @@ public class SupervisorListPresenter extends MyPresenterWidget<PagerView> {
                         .withToolTip("Which node last carried the attempt.")
                         .build(),
                 ColumnSizeConstants.MEDIUM_COL);
+    }
+
+    /// Where the attempt stands, and that its pipeline is deleted where it is (design 06 A137): kept to be
+    /// read, with nothing offered that would change it.
+    private static String status(final SupervisorAttempt row) {
+        final String status = NullSafe.get(row.getStatus(), AttemptStatus::getDisplayValue);
+        return row.isPipelineDeleted()
+                ? NullSafe.string(status) + " (pipeline deleted)"
+                : status;
     }
 
     private static SafeHtml text(final String value) {

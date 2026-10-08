@@ -47,9 +47,11 @@ public interface Serving {
     /// @param below    Show only rules whose learner has been scoring below this, or null for all of
     ///                 them. A learner with no rolling score yet is not below anything and is left out
     ///                 when a threshold is given: there is nothing to say it is imperfect.
+    /// @param showDeleted Whether the rules of pipelines since deleted are shown too (design 06 A137): kept
+    ///                    to be read until they age out, each marked as its pipeline's deleted.
     /// @param offset   The first row of the page.
     /// @param limit    How many rows.
-    Page rules(Collection<String> docUuids, Double below, long offset, int limit);
+    Page rules(Collection<String> docUuids, Double below, boolean showDeleted, long offset, int limit);
 
 
     // --------------------------------------------------------------------------------

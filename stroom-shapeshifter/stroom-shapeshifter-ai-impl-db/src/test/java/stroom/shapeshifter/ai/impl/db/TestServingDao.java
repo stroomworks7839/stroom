@@ -22,6 +22,7 @@ import stroom.shapeshifter.ai.stage.Learner;
 import stroom.shapeshifter.ai.stage.LearnerStates;
 import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.ai.stage.Serving;
+import stroom.shapeshifter.ai.state.InMemoryDeletedPipelines;
 import stroom.shapeshifter.ai.state.InMemoryGuidance;
 import stroom.shapeshifter.ai.state.InMemoryLearnerStates;
 import stroom.shapeshifter.ai.state.InMemoryRules;
@@ -84,7 +85,7 @@ class TestServingDao {
         scored(states, BUSY, DOC, 0.93, 8);
         scored(states, QUIET, DOC, 0.71, 2);
 
-        final Serving.Page page = serving.rules(List.of(DOC), null, 0L, 100);
+        final Serving.Page page = serving.rules(List.of(DOC), null, false, 0L, 100);
 
         assertThat(page.total()).isEqualTo(3L);
         assertThat(page.rules())
@@ -109,7 +110,7 @@ class TestServingDao {
         scored(states, BUSY, DOC, 0.93, 8);
         scored(states, QUIET, DOC, 0.71, 2);
 
-        final Serving.Page page = serving.rules(List.of(DOC), 0.9, 0L, 100);
+        final Serving.Page page = serving.rules(List.of(DOC), 0.9, false, 0L, 100);
 
         assertThat(page.rules()).extracting(ServingRule::getLearner)
                 .describedAs("the one scoring below it; not the one above, and not the one with nothing "
@@ -131,7 +132,7 @@ class TestServingDao {
                 .draft(true)
                 .build());
 
-        assertThat(serving.rules(List.of(DOC), null, 0L, 100).rules())
+        assertThat(serving.rules(List.of(DOC), null, false, 0L, 100).rules())
                 .extracting(ServingRule::getRuleUuid)
                 .describedAs("a draft is decided rather than improved")
                 .containsExactly("busy");
@@ -147,7 +148,7 @@ class TestServingDao {
         guidance.given(BUSY, DOC, "Column four is a terminal id.", "sam");
         guidance.given(THEIRS, OTHER_DOC, "Another document's learner.", "jo");
 
-        assertThat(serving.rules(List.of(DOC), null, 0L, 100).rules())
+        assertThat(serving.rules(List.of(DOC), null, false, 0L, 100).rules())
                 .extracting(ServingRule::getLearner, ServingRule::getGuidance)
                 .describedAs("counted per learner")
                 .containsExactlyInAnyOrder(tuple(ref(BUSY), 2), tuple(ref(QUIET), 0));
@@ -160,12 +161,12 @@ class TestServingDao {
         bound(rules, BUSY, DOC, "busy");
         bound(rules, THEIRS, OTHER_DOC, "theirs");
 
-        assertThat(serving.rules(List.of(DOC), null, 0L, 100).rules())
+        assertThat(serving.rules(List.of(DOC), null, false, 0L, 100).rules())
                 .extracting(ServingRule::getRuleUuid).containsExactly("busy");
-        assertThat(serving.rules(List.of(), null, 0L, 100).rules())
+        assertThat(serving.rules(List.of(), null, false, 0L, 100).rules())
                 .describedAs("and naming no documents answers nothing rather than everything")
                 .isEmpty();
-        assertThat(serving.rules(List.of(DOC, OTHER_DOC), null, 0L, 100).rules()).hasSize(2);
+        assertThat(serving.rules(List.of(DOC, OTHER_DOC), null, false, 0L, 100).rules()).hasSize(2);
     }
 
     /// The table and the heap answer the same question the same way.
@@ -179,7 +180,8 @@ class TestServingDao {
         final InMemoryRules memoryRules = new InMemoryRules();
         final InMemoryLearnerStates memoryStates = new InMemoryLearnerStates();
         final InMemoryGuidance memoryGuidance = new InMemoryGuidance();
-        final Serving inMemory = new InMemoryServing(memoryRules, memoryStates, memoryGuidance);
+        final Serving inMemory = new InMemoryServing(memoryRules, memoryStates, memoryGuidance,
+                new InMemoryDeletedPipelines());
         final List<Rules> bothRules = List.of(rules, memoryRules);
         final List<LearnerStates> bothStates = List.of(states, memoryStates);
         final List<Guidance> bothGuidance = List.of(guidance, memoryGuidance);
@@ -194,16 +196,16 @@ class TestServingDao {
         });
         bothGuidance.forEach(seam -> seam.given(BUSY, DOC, "Timestamps are local.", "jo"));
 
-        assertThat(summarise(inMemory.rules(List.of(DOC), null, 0L, 100).rules()))
+        assertThat(summarise(inMemory.rules(List.of(DOC), null, false, 0L, 100).rules()))
                 .describedAs("the same rules, the same scores, the same counts, in the same order")
-                .isEqualTo(summarise(serving.rules(List.of(DOC), null, 0L, 100).rules()));
-        assertThat(summarise(inMemory.rules(List.of(DOC), null, 1L, 1).rules()))
+                .isEqualTo(summarise(serving.rules(List.of(DOC), null, false, 0L, 100).rules()));
+        assertThat(summarise(inMemory.rules(List.of(DOC), null, false, 1L, 1).rules()))
                 .describedAs("and the same page of them")
-                .isEqualTo(summarise(serving.rules(List.of(DOC), null, 1L, 1).rules()));
-        assertThat(inMemory.rules(List.of(DOC), 0.9, 0L, 100).total())
+                .isEqualTo(summarise(serving.rules(List.of(DOC), null, false, 1L, 1).rules()));
+        assertThat(inMemory.rules(List.of(DOC), 0.9, false, 0L, 100).total())
                 .describedAs("and the same total under a threshold")
-                .isEqualTo(serving.rules(List.of(DOC), 0.9, 0L, 100).total());
-        assertThat(summarise(serving.rules(List.of(DOC), null, 1L, 1).rules()))
+                .isEqualTo(serving.rules(List.of(DOC), 0.9, false, 0L, 100).total());
+        assertThat(summarise(serving.rules(List.of(DOC), null, false, 1L, 1).rules()))
                 .containsExactly("b-quiet " + ref(QUIET) + " x2 @0.71 said 0");
     }
 

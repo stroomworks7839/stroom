@@ -16,6 +16,7 @@
 
 package stroom.shapeshifter.ai.state;
 
+import stroom.shapeshifter.ai.stage.DeletedPipelines;
 import stroom.shapeshifter.ai.stage.Guidance;
 import stroom.shapeshifter.ai.stage.LearnerStates;
 import stroom.shapeshifter.ai.stage.Rules.Held;
@@ -46,23 +47,33 @@ public final class InMemoryServing implements Serving {
     private final InMemoryRules rules;
     private final LearnerStates states;
     private final Guidance guidance;
+    private final DeletedPipelines deletedPipelines;
 
     @Inject
-    public InMemoryServing(final InMemoryRules rules, final LearnerStates states, final Guidance guidance) {
+    public InMemoryServing(final InMemoryRules rules,
+                           final LearnerStates states,
+                           final Guidance guidance,
+                           final DeletedPipelines deletedPipelines) {
         this.rules = rules;
         this.states = states;
         this.guidance = guidance;
+        this.deletedPipelines = deletedPipelines;
     }
 
     @Override
-    public Page rules(final Collection<String> docUuids, final Double below, final long offset, final int limit) {
+    public Page rules(final Collection<String> docUuids,
+                      final Double below,
+                      final boolean showDeleted,
+                      final long offset,
+                      final int limit) {
         if (NullSafe.isEmptyCollection(docUuids)) {
             return new Page(List.of(), 0L);
         }
         final List<ServingRule> matched = new ArrayList<>();
         for (final Held held : rules.all()) {
-            if (docUuids.contains(held.docUuid())) {
-                final ServingRule serving = serving(held, below);
+            final boolean deleted = deletedPipelines.isDeleted(held.learner().pipelineUuid());
+            if (docUuids.contains(held.docUuid()) && (showDeleted || !deleted)) {
+                final ServingRule serving = serving(held, below, deleted);
                 if (serving != null) {
                     matched.add(serving);
                 }
@@ -80,7 +91,7 @@ public final class InMemoryServing implements Serving {
 
     /// One rule as the view shows it, or null where it is not one the view shows: a draft is decided
     /// rather than improved (A25).
-    private ServingRule serving(final Held held, final Double below) {
+    private ServingRule serving(final Held held, final Double below, final boolean deleted) {
         final RoutingRule rule = held.rule();
         if (rule.isDraft()) {
             return null;
@@ -102,6 +113,7 @@ public final class InMemoryServing implements Serving {
                 rolling.map(LearnerStates.Rolling::records).orElse(0),
                 guidance.standing(held.learner()).size(),
                 // Whether it is below its document's threshold is the resource's to say, which has the document.
-                false);
+                false,
+                deleted);
     }
 }

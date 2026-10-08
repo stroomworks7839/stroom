@@ -30,8 +30,10 @@ import stroom.shapeshifter.ai.stage.Attempts.Turn;
 import stroom.shapeshifter.ai.stage.Decision;
 import stroom.shapeshifter.ai.stage.Deferrals;
 import stroom.shapeshifter.ai.stage.Deferrals.Deferral;
+import stroom.shapeshifter.ai.stage.DeletedPipelines;
 import stroom.shapeshifter.ai.stage.Guidance;
 import stroom.shapeshifter.ai.stage.Learner;
+import stroom.shapeshifter.ai.stage.Rules;
 import stroom.shapeshifter.ai.stage.Serving;
 import stroom.shapeshifter.shared.AmendTurnRequest;
 import stroom.shapeshifter.shared.AttemptCriteria;
@@ -67,7 +69,10 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 /// The Supervisor of A28: attempts across every Shapeshifter AI document, and what a person may do to
 /// one they are reading.
@@ -95,6 +100,8 @@ public class SupervisorResourceImpl implements SupervisorResource {
     private final Provider<Guidance> guidanceProvider;
     private final Provider<Deferrals> deferralsProvider;
     private final Provider<LearnerDocuments> learnerDocumentsProvider;
+    private final Provider<DeletedPipelines> deletedPipelinesProvider;
+    private final Provider<Rules> rulesProvider;
 
     @Inject
     SupervisorResourceImpl(final Provider<Attempts> attemptsProvider,
@@ -105,7 +112,9 @@ public class SupervisorResourceImpl implements SupervisorResource {
                            final Provider<Serving> servingProvider,
                            final Provider<Guidance> guidanceProvider,
                            final Provider<Deferrals> deferralsProvider,
-                           final Provider<LearnerDocuments> learnerDocumentsProvider) {
+                           final Provider<LearnerDocuments> learnerDocumentsProvider,
+                           final Provider<DeletedPipelines> deletedPipelinesProvider,
+                           final Provider<Rules> rulesProvider) {
         this.attemptsProvider = attemptsProvider;
         this.storeProvider = storeProvider;
         this.stageFactoryProvider = stageFactoryProvider;
@@ -115,6 +124,8 @@ public class SupervisorResourceImpl implements SupervisorResource {
         this.guidanceProvider = guidanceProvider;
         this.deferralsProvider = deferralsProvider;
         this.learnerDocumentsProvider = learnerDocumentsProvider;
+        this.deletedPipelinesProvider = deletedPipelinesProvider;
+        this.rulesProvider = rulesProvider;
     }
 
     /// What is waiting on a session (design 04 §6), a row per stream, the raised ones first and then the
@@ -161,7 +172,7 @@ public class SupervisorResourceImpl implements SupervisorResource {
         if (request == null) {
             throw new IllegalArgumentException("Nothing was granted");
         }
-        final Recorded attempt = change(id);
+        final Recorded attempt = live(change(id));
         onStage(attempt, (stage, doc) -> stage.grant(doc, id, request.getTokens(), request.getMs()));
         return detail(read(id));
     }
@@ -169,7 +180,7 @@ public class SupervisorResourceImpl implements SupervisorResource {
     /// Send a parked session to the exhaustion step (A65), and carry it on.
     @Override
     public SupervisorAttempt exhaust(final long id) {
-        final Recorded attempt = change(id);
+        final Recorded attempt = live(change(id));
         onStage(attempt, (stage, doc) -> stage.exhaust(doc, id));
         return detail(read(id));
     }
@@ -183,8 +194,13 @@ public class SupervisorResourceImpl implements SupervisorResource {
         // taken before the filtering would tell them how many attempts exist on documents they may not
         // see, and the pages they turned would come back short with no way to reach the end.
         final Page page = attemptsProvider.get().found(asked, mayRead(asked.getDocUuid()));
+        // Which of the page's pipelines are deleted, asked once for the page rather than once a row.
+        final Set<String> deleted = deletedPipelinesProvider.get().deletedOf(page.attempts().stream()
+                .map(attempt -> attempt.attempt().learner().pipelineUuid())
+                .collect(Collectors.toSet()));
         final List<SupervisorAttempt> rows = page.attempts().stream()
-                .map(SupervisorResourceImpl::summary)
+                .map(attempt -> attempt(attempt, List.of(),
+                        deleted.contains(attempt.attempt().learner().pipelineUuid())))
                 .toList();
         final long offset = asked.getPageRequest() == null || asked.getPageRequest().getOffset() == null
                 ? 0L
@@ -212,7 +228,7 @@ public class SupervisorResourceImpl implements SupervisorResource {
         final long offset = Math.max(0L, NullSafe.getOrElse(page.getOffset(), Integer::longValue, 0L));
         final int length = pageLength(page);
         final Serving.Page found = servingProvider.get()
-                .rules(readable.keySet(), asked.getBelow(), offset, length);
+                .rules(readable.keySet(), asked.getBelow(), asked.isShowDeletedPipelines(), offset, length);
         // Each row named with its document rather than its uuid, since the view is over all of them, and
         // held against its document's relearn threshold (design 04 §6): the threshold triggers nothing
         // by itself now, and this list is where it is read.
@@ -259,6 +275,7 @@ public class SupervisorResourceImpl implements SupervisorResource {
         final String message = request == null
                 ? null
                 : request.getMessage();
+        liveRule(ruleUuid);
         final ShapeshifterAiDoc doc = document(docUuid);
         final Decision decision = pipelineScopeProvider.get().scopeResult(() ->
                 stageFactoryProvider.get().create().improve(doc, ruleUuid, message, by).decision());
@@ -280,6 +297,7 @@ public class SupervisorResourceImpl implements SupervisorResource {
                     "You do not have permission to change the rules of this document");
         }
         final String by = securityContextProvider.get().getUserIdentityForAudit();
+        liveRule(ruleUuid);
         final ShapeshifterAiDoc doc = document(docUuid);
         pipelineScopeProvider.get().scopeRunnable(() ->
                 stageFactoryProvider.get().create().accept(doc, ruleUuid, by));
@@ -305,6 +323,7 @@ public class SupervisorResourceImpl implements SupervisorResource {
                     "You do not have permission to change the rules of this document");
         }
         final String by = securityContextProvider.get().getUserIdentityForAudit();
+        liveRule(ruleUuid);
         final ShapeshifterAiDoc doc = document(docUuid);
         return pipelineScopeProvider.get().scopeResult(() ->
                 stageFactoryProvider.get().create().retract(doc, ruleUuid, request.getReason(), by));
@@ -335,7 +354,7 @@ public class SupervisorResourceImpl implements SupervisorResource {
             throw new PermissionException(securityContextProvider.get().getUserRef(),
                     "You do not have permission to change how this document learns");
         }
-        final Learner learner = learnerOf(docUuid, request.getLearner());
+        final Learner learner = live(learnerOf(docUuid, request.getLearner()));
         guidanceProvider.get().given(learner, docUuid, request.getMessage(),
                 securityContextProvider.get().getUserIdentityForAudit());
         return said(learner);
@@ -355,7 +374,7 @@ public class SupervisorResourceImpl implements SupervisorResource {
             throw new PermissionException(securityContextProvider.get().getUserRef(),
                     "You do not have permission to change how this document learns");
         }
-        final Learner learner = learnerOf(docUuid, new LearnerRef(pipelineUuid, elementId));
+        final Learner learner = live(learnerOf(docUuid, new LearnerRef(pipelineUuid, elementId)));
         guidanceProvider.get().withdraw(docUuid, id);
         return said(learner);
     }
@@ -370,7 +389,7 @@ public class SupervisorResourceImpl implements SupervisorResource {
         if (request == null) {
             throw new IllegalArgumentException("No answer was given for turn " + number);
         }
-        final Recorded attempt = stillUnder(change(id));
+        final Recorded attempt = stillUnder(live(change(id)));
         final String answeredBy = securityContextProvider.get().getUserIdentityForAudit();
         onStage(attempt, (stage, doc) -> stage.amend(doc, id, number, request.getAnswer(), answeredBy));
         return detail(read(id));
@@ -378,7 +397,7 @@ public class SupervisorResourceImpl implements SupervisorResource {
 
     @Override
     public SupervisorAttempt approve(final long id) {
-        final Recorded attempt = change(id);
+        final Recorded attempt = live(change(id));
         onStage(attempt, (stage, doc) -> stage.approve(doc, ruleOf(attempt)));
         return detail(read(id));
     }
@@ -388,7 +407,7 @@ public class SupervisorResourceImpl implements SupervisorResource {
         if (request == null || request.getReason() == null || request.getReason().isBlank()) {
             throw new IllegalArgumentException("A rejection says why: the learner gives up with the reason");
         }
-        final Recorded attempt = change(id);
+        final Recorded attempt = live(change(id));
         onStage(attempt, (stage, doc) -> stage.reject(doc, ruleOf(attempt), request.getReason()));
         return detail(read(id));
     }
@@ -402,7 +421,7 @@ public class SupervisorResourceImpl implements SupervisorResource {
 
     @Override
     public SupervisorAttempt relearn(final long id) {
-        final Recorded attempt = stillUnder(change(id));
+        final Recorded attempt = stillUnder(live(change(id)));
         final String who = securityContextProvider.get().getUserIdentityForAudit();
         onStage(attempt, (stage, doc) -> stage.relearn(doc, attempt.attempt().learner(),
                 "Sent back to be learned again by " + who));
@@ -438,7 +457,7 @@ public class SupervisorResourceImpl implements SupervisorResource {
                               && rule.getRollingScore() < threshold;
         return new ServingRule(doc, rule.getLearner(), rule.getRuleUuid(), rule.getFragment(),
                 rule.isPinned(), rule.isProvisional(), rule.getPromotedScore(), rule.getPromotedTimeMs(),
-                rule.getRollingScore(), rule.getRecords(), rule.getGuidance(), below);
+                rule.getRollingScore(), rule.getRecords(), rule.getGuidance(), below, rule.isPipelineDeleted());
     }
 
     /// The learner a request names, as the row it was made from carried it (design 06 phase J slice 2b).
@@ -462,6 +481,29 @@ public class SupervisorResourceImpl implements SupervisorResource {
         return learner;
     }
 
+    /// An attempt whose pipeline has not been deleted. A deleted pipeline's learning is kept to be read
+    /// until it ages out, and nothing more is done with it (design 06 A137): what a person would change
+    /// from here would serve, or teach, a pipeline that will never run again.
+    private Recorded live(final Recorded attempt) {
+        live(attempt.attempt().learner());
+        return attempt;
+    }
+
+    /// The learner, where its pipeline has not been deleted.
+    private Learner live(final Learner learner) {
+        if (deletedPipelinesProvider.get().isDeleted(learner.pipelineUuid())) {
+            throw new IllegalStateException("The pipeline of element " + learner.elementId() + " has been "
+                                            + "deleted: what it learned is kept to be read until it ages "
+                                            + "out, and nothing more is done with it");
+        }
+        return learner;
+    }
+
+    /// The binding's learner held to the same, where the binding is still there to say whose it is.
+    private void liveRule(final String ruleUuid) {
+        rulesProvider.get().byUuid(ruleUuid).ifPresent(held -> live(held.learner()));
+    }
+
     /// An attempt whose learner still runs under the document it was learning for. An attempt is history
     /// and keeps its document, but a change made from one is a change to its learner: once the pipeline
     /// has been pointed at another document, the old document's editors are no longer the ones to make it.
@@ -474,7 +516,18 @@ public class SupervisorResourceImpl implements SupervisorResource {
         return attempt;
     }
 
+    /// Whether the learner runs under the document: as its pipeline says now, or for a pipeline since
+    /// deleted, which says nothing, as its bindings were kept, so that what it learned can still be read
+    /// from the document it learned for (A137). Nothing is changed for a deleted pipeline's learner, so
+    /// this lets a person read and no more.
     private boolean runsUnder(final Learner learner, final String docUuid) {
+        if (deletedPipelinesProvider.get().isDeleted(learner.pipelineUuid())) {
+            final Rules rules = rulesProvider.get();
+            return rules.forLearner(learner).stream()
+                    .map(rule -> rules.byUuid(rule.getUuid()))
+                    .flatMap(Optional::stream)
+                    .anyMatch(held -> docUuid.equals(held.docUuid()));
+        }
         return learnerDocumentsProvider.get().documentOf(learner)
                 .filter(docUuid::equals)
                 .isPresent();
@@ -552,17 +605,16 @@ public class SupervisorResourceImpl implements SupervisorResource {
                 action.run(stageFactoryProvider.get().create(), doc));
     }
 
-    private static SupervisorAttempt summary(final Recorded attempt) {
-        return attempt(attempt, List.of());
-    }
-
-    private static SupervisorAttempt detail(final Recorded attempt) {
+    private SupervisorAttempt detail(final Recorded attempt) {
         return attempt(attempt, attempt.turns().stream()
-                .map(SupervisorResourceImpl::turn)
-                .toList());
+                        .map(SupervisorResourceImpl::turn)
+                        .toList(),
+                deletedPipelinesProvider.get().isDeleted(attempt.attempt().learner().pipelineUuid()));
     }
 
-    private static SupervisorAttempt attempt(final Recorded attempt, final List<SupervisorTurn> turns) {
+    private static SupervisorAttempt attempt(final Recorded attempt,
+                                             final List<SupervisorTurn> turns,
+                                             final boolean pipelineDeleted) {
         return new SupervisorAttempt(
                 attempt.id(),
                 new DocRef(ShapeshifterAiDoc.TYPE, attempt.attempt().docUuid()),
@@ -582,7 +634,8 @@ public class SupervisorResourceImpl implements SupervisorResource {
                 attempt.exhaustNext(),
                 attempt.createTimeMs(),
                 attempt.updateTimeMs(),
-                turns);
+                turns,
+                pipelineDeleted);
     }
 
     private static SupervisorTurn turn(final Turn turn) {

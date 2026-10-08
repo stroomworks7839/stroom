@@ -17,10 +17,13 @@
 package stroom.shapeshifter.ai.state;
 
 import stroom.shapeshifter.ai.stage.Attempts;
+import stroom.shapeshifter.ai.stage.DeletedPipelines;
 import stroom.shapeshifter.ai.stage.Learner;
 import stroom.shapeshifter.shared.AttemptCriteria;
 import stroom.shapeshifter.shared.AttemptStatus;
 import stroom.util.shared.PageRequest;
+
+import jakarta.inject.Inject;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -53,6 +56,19 @@ public final class InMemoryAttempts implements Attempts {
     private final Map<Long, Grant> grants = new LinkedHashMap<>();
     private final Set<Long> exhaustNext = new HashSet<>();
     private final AtomicLong nextId = new AtomicLong(1);
+    /// Which pipelines are deleted, whose attempts a person sees only when they ask (A137).
+    private final DeletedPipelines deletedPipelines;
+
+    /// Attempts in a scenario where no pipeline is deleted.
+    public InMemoryAttempts() {
+        this(new InMemoryDeletedPipelines());
+    }
+
+    /// @param deletedPipelines Which pipelines are deleted.
+    @Inject
+    public InMemoryAttempts(final DeletedPipelines deletedPipelines) {
+        this.deletedPipelines = deletedPipelines;
+    }
 
     /// One open attempt per learner (A45); an attempt whose expiry has passed has lapsed, and the next
     /// node resumes it.
@@ -291,6 +307,8 @@ public final class InMemoryAttempts implements Attempts {
         final List<Recorded> matching = attempts.values().stream()
                 .filter(attempt -> docUuids.contains(attempt.attempt().docUuid()))
                 .filter(attempt -> matches(attempt, criteria))
+                .filter(attempt -> criteria.isShowDeletedPipelines()
+                                   || !deletedPipelines.isDeleted(attempt.attempt().learner().pipelineUuid()))
                 .sorted((a, b) -> Long.compare(b.id(), a.id()))
                 .toList();
         // Null offsets and lengths are what a request that says nothing about paging carries, and are

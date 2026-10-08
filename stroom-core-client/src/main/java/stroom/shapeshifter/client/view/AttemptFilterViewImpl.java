@@ -56,6 +56,8 @@ public class AttemptFilterViewImpl extends ViewImpl implements AttemptFilterView
     SelectionBox<PromotionMode> promotionMode;
     @UiField
     FlowPanel statuses;
+    @UiField
+    CustomCheckBox showDeletedPipelines;
 
     @Inject
     public AttemptFilterViewImpl(final Binder binder) {
@@ -119,6 +121,17 @@ public class AttemptFilterViewImpl extends ViewImpl implements AttemptFilterView
     @Override
     public void setStatuses(final List<AttemptStatus> statuses) {
         statusBoxes.forEach((status, box) -> box.setValue(statuses != null && statuses.contains(status)));
+    }
+
+
+    @Override
+    public boolean isShowDeletedPipelines() {
+        return Boolean.TRUE.equals(showDeletedPipelines.getValue());
+    }
+
+    @Override
+    public void setShowDeletedPipelines(final boolean show) {
+        showDeletedPipelines.setValue(show);
     }
 
 

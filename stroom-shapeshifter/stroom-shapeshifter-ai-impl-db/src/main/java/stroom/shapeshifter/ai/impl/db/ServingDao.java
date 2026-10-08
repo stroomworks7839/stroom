@@ -18,6 +18,7 @@ package stroom.shapeshifter.ai.impl.db;
 
 import stroom.db.util.JooqUtil;
 import stroom.docref.DocRef;
+import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterDeletedPipeline;
 import stroom.shapeshifter.ai.stage.Serving;
 import stroom.shapeshifter.shared.LearnerRef;
 import stroom.shapeshifter.shared.ServingRule;
@@ -63,6 +64,7 @@ public class ServingDao implements Serving {
     @Override
     public Page rules(final Collection<String> docUuids,
                       final Double below,
+                      final boolean showDeleted,
                       final long offset,
                       final int limit) {
         if (NullSafe.isEmptyCollection(docUuids)) {
@@ -80,11 +82,15 @@ public class ServingDao implements Serving {
         final Condition serving = SHAPESHIFTER_RULE.DOC_UUID.in(docUuids)
                 .and(SHAPESHIFTER_RULE.DRAFT.isFalse());
         // A learner that has served nothing is not below anything: it has no score to be below one.
-        final Condition matching = below == null
+        final Condition scored = below == null
                 ? serving
                 : serving
                         .and(SHAPESHIFTER_LEARNER_STATE.ROLLING_RECORDS.gt(0))
                         .and(SHAPESHIFTER_LEARNER_STATE.ROLLING_SCORE.lt(below));
+        // A deleted pipeline's rules are kept to be read, and shown only when asked for (A137).
+        final Condition matching = showDeleted
+                ? scored
+                : scored.and(ShapeshifterDeletedPipeline.SHAPESHIFTER_DELETED_PIPELINE.PIPELINE_UUID.isNull());
         // Traffic first, and a rule whose learner has no state yet counts as none, which sorts it last. Ties break
         // on the rule's own uuid so that a page turned twice reads the same twice; without a tiebreaker
         // the order among the many rules carrying no traffic is whatever the database felt like.
@@ -104,11 +110,15 @@ public class ServingDao implements Serving {
                             SHAPESHIFTER_RULE.PROMOTED_TIME_MS,
                             SHAPESHIFTER_LEARNER_STATE.ROLLING_SCORE,
                             SHAPESHIFTER_LEARNER_STATE.ROLLING_RECORDS,
+                            ShapeshifterDeletedPipeline.SHAPESHIFTER_DELETED_PIPELINE.PIPELINE_UUID,
                             guidance.field(said))
                     .from(SHAPESHIFTER_RULE)
                     .leftJoin(SHAPESHIFTER_LEARNER_STATE)
                     .on(SHAPESHIFTER_LEARNER_STATE.PIPELINE_UUID.eq(SHAPESHIFTER_RULE.PIPELINE_UUID))
                     .and(SHAPESHIFTER_LEARNER_STATE.ELEMENT_ID.eq(SHAPESHIFTER_RULE.ELEMENT_ID))
+                    .leftJoin(ShapeshifterDeletedPipeline.SHAPESHIFTER_DELETED_PIPELINE)
+                    .on(ShapeshifterDeletedPipeline.SHAPESHIFTER_DELETED_PIPELINE.PIPELINE_UUID
+                            .eq(SHAPESHIFTER_RULE.PIPELINE_UUID))
                     .leftJoin(guidance)
                     .on(guidance.field(SHAPESHIFTER_GUIDANCE.PIPELINE_UUID).eq(SHAPESHIFTER_RULE.PIPELINE_UUID))
                     .and(guidance.field(SHAPESHIFTER_GUIDANCE.ELEMENT_ID).eq(SHAPESHIFTER_RULE.ELEMENT_ID))
@@ -122,6 +132,9 @@ public class ServingDao implements Serving {
                     .leftJoin(SHAPESHIFTER_LEARNER_STATE)
                     .on(SHAPESHIFTER_LEARNER_STATE.PIPELINE_UUID.eq(SHAPESHIFTER_RULE.PIPELINE_UUID))
                     .and(SHAPESHIFTER_LEARNER_STATE.ELEMENT_ID.eq(SHAPESHIFTER_RULE.ELEMENT_ID))
+                    .leftJoin(ShapeshifterDeletedPipeline.SHAPESHIFTER_DELETED_PIPELINE)
+                    .on(ShapeshifterDeletedPipeline.SHAPESHIFTER_DELETED_PIPELINE.PIPELINE_UUID
+                            .eq(SHAPESHIFTER_RULE.PIPELINE_UUID))
                     .where(matching)
                     .fetchOptional()
                     .map(Record1::value1)
@@ -158,6 +171,7 @@ public class ServingDao implements Serving {
                         ? 0
                         : said,
                 // Whether it is below its document's threshold is the resource's to say, which has the document.
-                false);
+                false,
+                row.get(ShapeshifterDeletedPipeline.SHAPESHIFTER_DELETED_PIPELINE.PIPELINE_UUID) != null);
     }
 }

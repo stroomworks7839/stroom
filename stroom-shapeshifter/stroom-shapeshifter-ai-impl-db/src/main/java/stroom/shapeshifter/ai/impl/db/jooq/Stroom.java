@@ -15,6 +15,7 @@ import org.jooq.impl.SchemaImpl;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterAttempt;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterCorpus;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterDeferral;
+import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterDeletedPipeline;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterGuidance;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterLearnerState;
 import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterOutput;
@@ -51,6 +52,11 @@ public class Stroom extends SchemaImpl {
      * The table <code>stroom.shapeshifter_deferral</code>.
      */
     public final ShapeshifterDeferral SHAPESHIFTER_DEFERRAL = ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL;
+
+    /**
+     * The table <code>stroom.shapeshifter_deleted_pipeline</code>.
+     */
+    public final ShapeshifterDeletedPipeline SHAPESHIFTER_DELETED_PIPELINE = ShapeshifterDeletedPipeline.SHAPESHIFTER_DELETED_PIPELINE;
 
     /**
      * The table <code>stroom.shapeshifter_guidance</code>.
@@ -106,6 +112,7 @@ public class Stroom extends SchemaImpl {
             ShapeshifterAttempt.SHAPESHIFTER_ATTEMPT,
             ShapeshifterCorpus.SHAPESHIFTER_CORPUS,
             ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL,
+            ShapeshifterDeletedPipeline.SHAPESHIFTER_DELETED_PIPELINE,
             ShapeshifterGuidance.SHAPESHIFTER_GUIDANCE,
             ShapeshifterLearnerState.SHAPESHIFTER_LEARNER_STATE,
             ShapeshifterOutput.SHAPESHIFTER_OUTPUT,

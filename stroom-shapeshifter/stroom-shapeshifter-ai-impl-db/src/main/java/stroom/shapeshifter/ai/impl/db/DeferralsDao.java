@@ -97,6 +97,14 @@ public class DeferralsDao implements Deferrals {
     }
 
     @Override
+    public int releasedAll(final String pipelineUuid) {
+        return JooqUtil.contextResult(connProvider, context -> context
+                .deleteFrom(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL)
+                .where(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL.PIPELINE_UUID.eq(pipelineUuid))
+                .execute());
+    }
+
+    @Override
     public List<Deferral> forDocument(final String docUuid) {
         return JooqUtil.contextResult(connProvider, context -> context
                 .selectFrom(ShapeshifterDeferral.SHAPESHIFTER_DEFERRAL)

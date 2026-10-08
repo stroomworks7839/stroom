@@ -35,7 +35,8 @@ import java.util.List;
 
 /**
  * Which attempts the Supervisor is showing (A28, design 01 §11.6): the six things the ruling says a
- * person may narrow by — document, feed, execution mode, promotion mode and status.
+ * person may narrow by — document, feed, execution mode, promotion mode and status — and whether a
+ * deleted pipeline's attempts are shown, which they are not unless asked for (design 06 A137).
  * <p>
  * Every one of them goes into the query rather than filtering its answer, as the page's total already
  * does: a filter applied afterwards would leave the pager promising pages that are not there.
@@ -65,6 +66,7 @@ public class AttemptFilterPresenter extends MyPresenterWidget<AttemptFilterView>
         getView().setFeed(NullSafe.string(criteria.getFeed()));
         getView().setPromotionMode(criteria.getPromotionMode());
         getView().setStatuses(criteria.getStatuses());
+        getView().setShowDeletedPipelines(criteria.isShowDeletedPipelines());
     }
 
     /**
@@ -79,7 +81,8 @@ public class AttemptFilterPresenter extends MyPresenterWidget<AttemptFilterView>
                 NullSafe.get(document, DocRef::getUuid),
                 blankToNull(getView().getFeed()),
                 getView().getPromotionMode(),
-                getView().getStatuses());
+                getView().getStatuses(),
+                getView().isShowDeletedPipelines());
     }
 
     /**
@@ -90,7 +93,8 @@ public class AttemptFilterPresenter extends MyPresenterWidget<AttemptFilterView>
         return criteria.getDocUuid() != null
                || criteria.getFeed() != null
                || criteria.getPromotionMode() != null
-               || !NullSafe.list(criteria.getStatuses()).isEmpty();
+               || !NullSafe.list(criteria.getStatuses()).isEmpty()
+               || criteria.isShowDeletedPipelines();
     }
 
     private static String blankToNull(final String value) {
@@ -122,5 +126,12 @@ public class AttemptFilterPresenter extends MyPresenterWidget<AttemptFilterView>
         List<AttemptStatus> getStatuses();
 
         void setStatuses(List<AttemptStatus> statuses);
+
+        /**
+         * Whether a deleted pipeline's attempts are shown too (design 06 A137).
+         */
+        boolean isShowDeletedPipelines();
+
+        void setShowDeletedPipelines(boolean show);
     }
 }

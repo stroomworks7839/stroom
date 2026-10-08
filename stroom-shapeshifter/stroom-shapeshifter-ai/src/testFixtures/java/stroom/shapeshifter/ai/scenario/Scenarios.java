@@ -46,6 +46,7 @@ import stroom.shapeshifter.ai.stage.Stage;
 import stroom.shapeshifter.ai.stage.StageRun;
 import stroom.shapeshifter.ai.state.InMemoryAttempts;
 import stroom.shapeshifter.ai.state.InMemoryDeferrals;
+import stroom.shapeshifter.ai.state.InMemoryDeletedPipelines;
 import stroom.shapeshifter.ai.state.InMemoryDocuments;
 import stroom.shapeshifter.ai.state.InMemoryGuidance;
 import stroom.shapeshifter.ai.state.InMemoryInputs;
@@ -101,7 +102,8 @@ public final class Scenarios {
     private static final NodeFixture NODE = new NodeFixture();
 
     public final ContentStores stores = new ContentStores();
-    public final InMemoryAttempts attempts = new InMemoryAttempts();
+    public final InMemoryDeletedPipelines deletedPipelines = new InMemoryDeletedPipelines();
+    public final InMemoryAttempts attempts = new InMemoryAttempts(deletedPipelines);
     public final InMemoryRules rules = new InMemoryRules();
     public final InMemorySpend spend = new InMemorySpend();
     public final InMemoryLearnerStates states = new InMemoryLearnerStates();
@@ -115,7 +117,7 @@ public final class Scenarios {
     public final InMemoryDocuments documents = new InMemoryDocuments();
     public final InMemoryInputs inputs = new InMemoryInputs();
     /// The serving view of A46 over the three seams above it, as a node reads it from one query.
-    public final InMemoryServing serving = new InMemoryServing(rules, states, guidance);
+    public final InMemoryServing serving = new InMemoryServing(rules, states, guidance, deletedPipelines);
     /// What brings a learner's rows to the document it runs under, over the rows above.
     public final InMemoryLearners learners = new InMemoryLearners(rules, guidance, deferrals);
     /// As many attempts as a scenario could open, which is what one carrying takes on.
@@ -218,7 +220,8 @@ public final class Scenarios {
     /// job that carries on the attempts a deferred document parks. The stage is one of this scenario's,
     /// since a stage holds nothing of a stream between calls.
     public DeferredWorker worker(final Advisor answerer) {
-        return new DeferredWorker(stage(answerer), attempts, documents, inputs, document -> answerer,
+        return new DeferredWorker(stage(answerer), attempts, documents, inputs, deletedPipelines,
+                document -> answerer,
                 Clock.fixed(NOW, ZoneOffset.UTC));
     }
 

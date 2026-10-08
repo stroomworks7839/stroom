@@ -21,6 +21,7 @@ import stroom.shapeshifter.ai.ShapeshifterAiConfig;
 import stroom.shapeshifter.ai.learning.Advisors;
 import stroom.shapeshifter.ai.stage.Attempts;
 import stroom.shapeshifter.ai.stage.DeferredWorker;
+import stroom.shapeshifter.ai.stage.DeletedPipelines;
 import stroom.shapeshifter.ai.stage.Documents;
 import stroom.shapeshifter.ai.stage.Inputs;
 import stroom.util.logging.LambdaLogger;
@@ -55,6 +56,7 @@ public class DeferredLearning {
     private final Attempts attempts;
     private final Documents documents;
     private final Inputs inputs;
+    private final DeletedPipelines deletedPipelines;
     private final Advisors advisors;
     private final SecurityContext securityContext;
     private final Provider<ShapeshifterAiConfig> configProvider;
@@ -65,6 +67,7 @@ public class DeferredLearning {
                             final Attempts attempts,
                             final Documents documents,
                             final Inputs inputs,
+                            final DeletedPipelines deletedPipelines,
                             final Advisors advisors,
                             final SecurityContext securityContext,
                             final Provider<ShapeshifterAiConfig> configProvider) {
@@ -73,6 +76,7 @@ public class DeferredLearning {
         this.attempts = attempts;
         this.documents = documents;
         this.inputs = inputs;
+        this.deletedPipelines = deletedPipelines;
         this.advisors = advisors;
         this.securityContext = securityContext;
         this.configProvider = configProvider;
@@ -84,7 +88,7 @@ public class DeferredLearning {
             // compiler, the schema scorer — reports through the scoped error receiver, and a candidate
             // configuration is compiled and run here exactly as it is in a task.
             final DeferredWorker worker = new DeferredWorker(stageFactory.get().create(), attempts, documents,
-                    inputs, advisors, Clock.systemUTC());
+                    inputs, deletedPipelines, advisors, Clock.systemUTC());
             final int carried = worker.advance(configProvider.get().getDeferredLearningBatchSize());
             if (carried > 0) {
                 LOGGER.info(() -> LogUtil.message("Carried on {} attempt(s) awaiting the model", carried));

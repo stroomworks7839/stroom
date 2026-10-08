@@ -143,6 +143,9 @@ public class SupervisorTurnsPresenter extends MyPresenterWidget<PagerView> {
         // hand-written answer into whatever they had moved on to — reopening that attempt and taking
         // its claim back. A reader meeting state that was not built for it, in a window.
         final long attemptId = attempt.getId();
+        // A deleted pipeline's attempt is read and not answered (design 06 A137): the turn opens as it
+        // was answered, and closes without asking anything.
+        final boolean readOnly = attempt.isPipelineDeleted();
         final EditorPresenter editor = editorProvider.get();
         // The editor is the whole of this dialog, so it is drawn as a control in one: elsewhere — the
         // column filter, the column function editor — the panel an editor sits in carries these, and
@@ -151,14 +154,19 @@ public class SupervisorTurnsPresenter extends MyPresenterWidget<PagerView> {
         editor.setMode(AceEditorMode.XML);
         editor.setText(NullSafe.string(turn.getAnswer()));
         editor.getLineNumbersOption().setOn();
+        editor.setReadOnly(readOnly);
         ShowPopupEvent.builder(editor)
-                .popupType(PopupType.OK_CANCEL_DIALOG)
+                .popupType(readOnly
+                        ? PopupType.CLOSE_DIALOG
+                        : PopupType.OK_CANCEL_DIALOG)
                 .popupSize(PopupSize.resizable(900, 600))
-                .caption((NullSafe.isBlankString(turn.getAnswer())
-                        ? "Answer turn "
-                        : "Edit turn ") + turn.getNumber() + ": " + NullSafe.string(turn.getQuestion()))
+                .caption((readOnly
+                        ? "Turn "
+                        : NullSafe.isBlankString(turn.getAnswer())
+                                ? "Answer turn "
+                                : "Edit turn ") + turn.getNumber() + ": " + NullSafe.string(turn.getQuestion()))
                 .onHideRequest(event -> {
-                    if (event.isOk()) {
+                    if (event.isOk() && !readOnly) {
                         amend(attemptId, turn, editor.getText());
                     }
                     event.hide();
@@ -185,8 +193,12 @@ public class SupervisorTurnsPresenter extends MyPresenterWidget<PagerView> {
                 .exec();
     }
 
+    /// A deleted pipeline's attempt is kept to be read and not answered (design 06 A137): its turns still
+    /// open on a double click, to read.
     private void updateButtons() {
-        answerButton.setEnabled(attempt != null && selectionModel.getSelected() != null);
+        answerButton.setEnabled(attempt != null
+                                && !attempt.isPipelineDeleted()
+                                && selectionModel.getSelected() != null);
     }
 
     /**

@@ -60,6 +60,13 @@ public interface Deferrals {
     /// @param inputId The stream's meta id.
     void released(Learner learner, long inputId);
 
+    /// Every stream waiting on a pipeline's learners waits no more: the pipeline has been deleted, and no
+    /// task of it will run them again (design 06 A135).
+    ///
+    /// @param pipelineUuid The pipeline.
+    /// @return How many rows went.
+    int releasedAll(String pipelineUuid);
+
     /// What is waiting for a document, oldest first.
     ///
     /// @param docUuid The document.

@@ -38,6 +38,7 @@ import stroom.util.shared.NullSafe;
 import stroom.util.shared.PageRequest;
 import stroom.util.shared.ResultPage;
 import stroom.widget.button.client.ButtonView;
+import stroom.widget.button.client.ToggleButtonView;
 import stroom.widget.customdatebox.client.ClientDateUtil;
 import stroom.widget.util.client.MultiSelectionModel;
 
@@ -79,7 +80,11 @@ public class SupervisorServingPresenter extends MyPresenterWidget<PagerView> {
     private final ButtonView acceptButton;
     private final ButtonView openButton;
     private final ButtonView filterButton;
+    private final ToggleButtonView deletedButton;
     private Double below;
+    /// Whether what served pipelines since deleted is shown too (design 06 A137): kept to be read until it
+    /// ages out, and left out unless a person asks for it.
+    private boolean showDeleted;
 
     @Inject
     public SupervisorServingPresenter(final EventBus eventBus,
@@ -115,6 +120,10 @@ public class SupervisorServingPresenter extends MyPresenterWidget<PagerView> {
         // else in the feature will ever raise a rule that is merely good.
         filterButton = view.addButton(SvgPresets.FILTER.title(
                 "Show only the rules whose learner has been scoring below a figure"));
+        deletedButton = view.addToggleButton(
+                SvgPresets.DELETED.title("Show the rules of deleted pipelines, kept to be read until they "
+                                         + "age out"),
+                SvgPresets.DELETED.title("Hide the rules of deleted pipelines"));
 
         // Paged, like the attempts beside it. One rule per learner means a busy document
         // has as many rules as it has pipelines, and a grid handed all of them shows the first
@@ -127,7 +136,8 @@ public class SupervisorServingPresenter extends MyPresenterWidget<PagerView> {
                 restFactory
                         .create(SUPERVISOR_RESOURCE)
                         .method(resource -> resource.serving(new ServingCriteria(
-                                new PageRequest(range.getStart(), range.getLength()), null, null, below)))
+                                new PageRequest(range.getStart(), range.getLength()), null, null, below,
+                                showDeleted)))
                         .onSuccess(dataConsumer)
                         .onFailure(errorHandler)
                         .taskMonitorFactory(view)
@@ -148,6 +158,10 @@ public class SupervisorServingPresenter extends MyPresenterWidget<PagerView> {
         registerHandler(openButton.addClickHandler(event -> open()));
         registerHandler(retractButton.addClickHandler(event -> retract()));
         registerHandler(filterButton.addClickHandler(event -> filter()));
+        registerHandler(deletedButton.addClickHandler(event -> {
+            showDeleted = deletedButton.getState();
+            applyFilter();
+        }));
     }
 
     public void refresh() {
@@ -234,7 +248,8 @@ public class SupervisorServingPresenter extends MyPresenterWidget<PagerView> {
             // has already been said, or the same hint is given three times and a wrong one is never
             // taken back. The row's count is read again when anything changes.
             // Only the count on the row changes, so the row a person is reading stays selected.
-            guidancePresenter.show(rule.getDoc().getUuid(), rule.getLearner(), this::refresh);
+            guidancePresenter.show(rule.getDoc().getUuid(), rule.getLearner(), rule.isPipelineDeleted(),
+                    this::refresh);
         }
     }
 
@@ -382,10 +397,13 @@ public class SupervisorServingPresenter extends MyPresenterWidget<PagerView> {
 
     private void updateButtons() {
         final boolean one = selected() != null;
-        improveButton.setEnabled(one);
+        // A deleted pipeline's rule is kept to be read, and nothing is offered that would change it
+        // (A137): what has been said to its learner still opens, to read, and so does its fragment.
+        final boolean live = one && !selected().isPipelineDeleted();
+        improveButton.setEnabled(live);
         hintButton.setEnabled(one);
-        retractButton.setEnabled(one);
-        acceptButton.setEnabled(one && selected().isProvisional());
+        retractButton.setEnabled(live);
+        acceptButton.setEnabled(live && selected().isProvisional());
         openButton.setEnabled(one && selected().getFragment() != null);
     }
 
@@ -419,7 +437,8 @@ public class SupervisorServingPresenter extends MyPresenterWidget<PagerView> {
                         .withToolTip("Serving on a judgement, serving provisionally until enough "
                                      + "records arrive to make one (§6), or frozen by a pin (§7.3); and "
                                      + "whether what it scores lately is below the document's relearn "
-                                     + "threshold, which is where to look first.")
+                                     + "threshold, which is where to look first; and whether its "
+                                     + "pipeline has been deleted, when deleted pipelines are shown.")
                         .build(),
                 ColumnSizeConstants.MEDIUM_COL);
         dataGrid.addResizableColumn(
@@ -477,6 +496,9 @@ public class SupervisorServingPresenter extends MyPresenterWidget<PagerView> {
                 : "Serving");
         if (rule.isPinned()) {
             state.append(", pinned");
+        }
+        if (rule.isPipelineDeleted()) {
+            state.append(", pipeline deleted");
         }
         if (rule.isBelowThreshold()) {
             // The document's relearn threshold, read here and nowhere else (design 04 §6): this rule is

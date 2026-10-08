@@ -61,6 +61,10 @@ public class ServingRule {
     /// is for, now that the threshold triggers nothing by itself (design 04 §6).
     @JsonProperty
     private final boolean belowThreshold;
+    /// Whether the pipeline it served has been deleted (design 06 A137): kept to be read, with nothing
+    /// offered that would change it.
+    @JsonProperty
+    private final boolean pipelineDeleted;
 
     @JsonCreator
     public ServingRule(@JsonProperty("doc") final DocRef doc,
@@ -74,7 +78,8 @@ public class ServingRule {
                        @JsonProperty("rollingScore") final Double rollingScore,
                        @JsonProperty("records") final int records,
                        @JsonProperty("guidance") final int guidance,
-                       @JsonProperty("belowThreshold") final boolean belowThreshold) {
+                       @JsonProperty("belowThreshold") final boolean belowThreshold,
+                       @JsonProperty("pipelineDeleted") final boolean pipelineDeleted) {
         this.doc = doc;
         this.learner = learner;
         this.ruleUuid = ruleUuid;
@@ -87,6 +92,7 @@ public class ServingRule {
         this.records = records;
         this.guidance = guidance;
         this.belowThreshold = belowThreshold;
+        this.pipelineDeleted = pipelineDeleted;
     }
 
     public DocRef getDoc() {
@@ -163,6 +169,10 @@ public class ServingRule {
     /// Whether its rolling score is below the document's relearn threshold: a rule a person might improve.
     public boolean isBelowThreshold() {
         return belowThreshold;
+    }
+
+    public boolean isPipelineDeleted() {
+        return pipelineDeleted;
     }
 
     @Override

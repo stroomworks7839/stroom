@@ -272,6 +272,18 @@ CREATE TABLE IF NOT EXISTS shapeshifter_snapshot (
     KEY                   shapeshifter_snapshot_rule (rule_uuid, id)
 ) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
 
+--
+-- A pipeline deleted while its learning is kept (A120, A134): its learners' rows stay, to be read, until
+-- the retention job forgets them once the mark is older than attempts are kept. One row per pipeline,
+-- since a pipeline's deletion is every one of its elements' at once.
+--
+CREATE TABLE IF NOT EXISTS shapeshifter_deleted_pipeline (
+    pipeline_uuid         varchar(255) NOT NULL,
+    deleted_time_ms       bigint NOT NULL,
+    PRIMARY KEY           (pipeline_uuid),
+    KEY                   shapeshifter_deleted_pipeline_deleted_time_ms (deleted_time_ms)
+) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+
 SET SQL_NOTES=@OLD_SQL_NOTES;
 
 -- vim: set shiftwidth=4 tabstop=4 expandtab:

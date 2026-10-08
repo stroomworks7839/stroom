@@ -20,9 +20,11 @@ import stroom.cache.api.CacheManager;
 import stroom.shapeshifter.ai.cache.CachedLearnerStates;
 import stroom.shapeshifter.ai.cache.CachedRules;
 import stroom.shapeshifter.ai.cache.Rows;
+import stroom.shapeshifter.ai.element.KeptLearning;
 import stroom.shapeshifter.ai.stage.Attempts;
 import stroom.shapeshifter.ai.stage.CorpusIndex;
 import stroom.shapeshifter.ai.stage.Deferrals;
+import stroom.shapeshifter.ai.stage.DeletedPipelines;
 import stroom.shapeshifter.ai.stage.Guidance;
 import stroom.shapeshifter.ai.stage.LearnerStates;
 import stroom.shapeshifter.ai.stage.Learners;
@@ -65,6 +67,9 @@ public class ShapeshifterAiDaoModule extends AbstractModule {
         bind(Learners.class).to(LearnersDao.class);
         bind(CorpusIndex.class).to(CorpusIndexDao.class);
         bind(Snapshots.class).to(SnapshotsDao.class);
+        // One table of marks, and the retention job's view of every table a learner keeps rows in.
+        bind(DeletedPipelines.class).to(DeletedPipelinesDao.class);
+        bind(KeptLearning.class).to(DeletedPipelinesDao.class);
         // The two the hot path reads for every stream are bound as the rows behind a cache, and the cache
         // is what everything else asks for (design 01 §12 item 8): a routing table read from the database
         // once per stream per node is the first thing to give at volume. Nothing but the cache asks the

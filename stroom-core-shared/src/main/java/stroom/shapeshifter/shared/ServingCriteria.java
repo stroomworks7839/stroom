@@ -41,17 +41,21 @@ public class ServingCriteria extends BaseCriteria {
     private final String docUuid;
     @JsonProperty
     private final Double below;
+    @JsonProperty
+    private final boolean showDeletedPipelines;
 
     public ServingCriteria() {
-        this(null, null, null, null);
+        this(null, null, null, null, false);
     }
 
     @JsonCreator
     public ServingCriteria(@JsonProperty("pageRequest") final PageRequest pageRequest,
                            @JsonProperty("sortList") final List<CriteriaFieldSort> sortList,
                            @JsonProperty("docUuid") final String docUuid,
-                           @JsonProperty("below") final Double below) {
+                           @JsonProperty("below") final Double below,
+                           @JsonProperty("showDeletedPipelines") final boolean showDeletedPipelines) {
         super(pageRequest, sortList);
+        this.showDeletedPipelines = showDeletedPipelines;
         this.docUuid = docUuid;
         this.below = below;
     }
@@ -69,5 +73,11 @@ public class ServingCriteria extends BaseCriteria {
      */
     public Double getBelow() {
         return below;
+    }
+
+    /// Whether what served pipelines since deleted is shown too (design 06 A137): kept to be read until it
+    /// ages out, and left out unless a person asks for it.
+    public boolean isShowDeletedPipelines() {
+        return showDeletedPipelines;
     }
 }

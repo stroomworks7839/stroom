@@ -72,6 +72,10 @@ public class SupervisorAttempt {
     private final long updateTimeMs;
     @JsonProperty
     private final List<SupervisorTurn> turns;
+    /// Whether the pipeline it was learning for has been deleted (design 06 A137): kept to be read, with
+    /// nothing offered that would change it.
+    @JsonProperty
+    private final boolean pipelineDeleted;
 
     @JsonCreator
     public SupervisorAttempt(@JsonProperty("id") final long id,
@@ -92,7 +96,8 @@ public class SupervisorAttempt {
                              @JsonProperty("exhaustNext") final boolean exhaustNext,
                              @JsonProperty("createTimeMs") final long createTimeMs,
                              @JsonProperty("updateTimeMs") final long updateTimeMs,
-                             @JsonProperty("turns") final List<SupervisorTurn> turns) {
+                             @JsonProperty("turns") final List<SupervisorTurn> turns,
+                             @JsonProperty("pipelineDeleted") final boolean pipelineDeleted) {
         this.id = id;
         this.doc = doc;
         this.learner = learner;
@@ -114,6 +119,7 @@ public class SupervisorAttempt {
         this.turns = turns == null
                 ? List.of()
                 : List.copyOf(turns);
+        this.pipelineDeleted = pipelineDeleted;
     }
 
     public long getId() {
@@ -187,6 +193,10 @@ public class SupervisorAttempt {
 
     public long getUpdateTimeMs() {
         return updateTimeMs;
+    }
+
+    public boolean isPipelineDeleted() {
+        return pipelineDeleted;
     }
 
     public List<SupervisorTurn> getTurns() {

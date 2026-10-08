@@ -219,7 +219,7 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
         final SupervisorAttempt attempt = selected();
         if (attempt != null) {
             guidancePresenter.show(attempt.getDoc().getUuid(), attempt.getLearner(),
-                    servingPresenter::refresh);
+                    attempt.isPipelineDeleted(), servingPresenter::refresh);
         }
     }
 
@@ -296,7 +296,7 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
 
     /// The selected attempt where it is parked for a person, and null otherwise.
     private SupervisorAttempt parked() {
-        final SupervisorAttempt attempt = selected();
+        final SupervisorAttempt attempt = live();
         return attempt != null && AttemptStatus.PARKED == attempt.getStatus()
                 ? attempt
                 : null;
@@ -333,10 +333,20 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
                 MultiSelectionModel::getSelected);
     }
 
+    /// The selected attempt where its pipeline has not been deleted, and null otherwise: a deleted
+    /// pipeline's attempts are kept to be read, and nothing is offered that would change them (design 06
+    /// A137).
+    private SupervisorAttempt live() {
+        final SupervisorAttempt attempt = selected();
+        return attempt != null && !attempt.isPipelineDeleted()
+                ? attempt
+                : null;
+    }
+
     /// The selected attempt where it is one a person may approve or reject, and null otherwise: an
     /// attempt that drafted nothing has nothing to decide about.
     private SupervisorAttempt awaitingReview() {
-        final SupervisorAttempt attempt = selected();
+        final SupervisorAttempt attempt = live();
         return attempt != null && AttemptStatus.AWAITING_REVIEW == attempt.getStatus()
                 ? attempt
                 : null;
@@ -346,7 +356,8 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
         final boolean review = awaitingReview() != null;
         approveButton.setEnabled(review);
         rejectButton.setEnabled(review);
-        relearnButton.setEnabled(selected() != null);
+        relearnButton.setEnabled(live() != null);
+        // What has been said can still be read for a deleted pipeline's learner; the dialog adds nothing.
         hintButton.setEnabled(selected() != null);
         grantButton.setEnabled(parked() != null);
         exhaustButton.setEnabled(parked() != null);

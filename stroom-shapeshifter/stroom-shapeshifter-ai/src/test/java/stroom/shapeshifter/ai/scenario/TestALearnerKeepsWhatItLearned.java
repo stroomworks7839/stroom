@@ -97,11 +97,11 @@ class TestALearnerKeepsWhatItLearned {
         assertThat(scenarios.rules.byUuid(bound.getUuid()))
                 .describedAs("and the binding is kept under the document it runs under now")
                 .hasValueSatisfying(held -> assertThat(held.docUuid()).isEqualTo("doc-2"));
-        assertThat(scenarios.serving.rules(List.of("doc-2"), null, 0, 10).rules())
+        assertThat(scenarios.serving.rules(List.of("doc-2"), null, false, 0, 10).rules())
                 .describedAs("so that document's Supervisor shows what serves its pipeline")
                 .extracting(ServingRule::getRuleUuid)
                 .containsExactly(bound.getUuid());
-        assertThat(scenarios.serving.rules(List.of("doc-1"), null, 0, 10).rules())
+        assertThat(scenarios.serving.rules(List.of("doc-1"), null, false, 0, 10).rules())
                 .describedAs("and the old one's no longer does")
                 .isEmpty();
         scenarios.guidance.withdraw("doc-2", hint);

@@ -64,7 +64,7 @@ class TestWhatIsServing {
         assertThat(learned.served()).describedAs("the stream it was learned on, served once the wake came")
                 .isNotNull();
 
-        final Serving.Page page = scenarios.serving.rules(List.of("doc-1"), null, 0L, 100);
+        final Serving.Page page = scenarios.serving.rules(List.of("doc-1"), null, false, 0L, 100);
         assertThat(page.total()).isEqualTo(1L);
         assertThat(page.rules())
                 .extracting(ServingRule::getLearner, ServingRule::getRecords)
@@ -91,12 +91,12 @@ class TestWhatIsServing {
         scenarios.states.scored(DOOR, "doc-1", 0.93, 40, 100);
         scenarios.states.scored(LIFT, "doc-1", 0.71, 3, 100);
 
-        assertThat(scenarios.serving.rules(List.of("doc-1"), null, 0L, 100).rules())
+        assertThat(scenarios.serving.rules(List.of("doc-1"), null, false, 0L, 100).rules())
                 .extracting(ServingRule::getRuleUuid)
                 .describedAs("the rule carrying forty records before the one carrying three, though it "
                              + "is scoring better")
                 .containsExactly("busy", "quiet");
-        assertThat(scenarios.serving.rules(List.of("doc-1"), 0.9, 0L, 100).rules())
+        assertThat(scenarios.serving.rules(List.of("doc-1"), 0.9, false, 0L, 100).rules())
                 .extracting(ServingRule::getRuleUuid)
                 .describedAs("and a threshold leaves out what is good enough")
                 .containsExactly("quiet");
@@ -112,7 +112,7 @@ class TestWhatIsServing {
         scenarios.guidance.given(DOOR, "doc-1", "Column four is a terminal id.", "sam");
         scenarios.guidance.given(LIFT, "doc-1", "Said to another learner.", "jo");
 
-        assertThat(scenarios.serving.rules(List.of("doc-1"), null, 0L, 100).rules())
+        assertThat(scenarios.serving.rules(List.of("doc-1"), null, false, 0L, 100).rules())
                 .extracting(ServingRule::getGuidance)
                 .containsExactly(2);
     }
@@ -124,7 +124,7 @@ class TestWhatIsServing {
         scenarios.rules.append(DOOR, "doc-1", rule("serving"));
         scenarios.rules.append(DOOR, "doc-1", rule("draft").copy().draft(true).build());
 
-        assertThat(scenarios.serving.rules(List.of("doc-1"), null, 0L, 100).rules())
+        assertThat(scenarios.serving.rules(List.of("doc-1"), null, false, 0L, 100).rules())
                 .extracting(ServingRule::getRuleUuid)
                 .describedAs("a draft is decided rather than improved (A25)")
                 .containsExactly("serving");
@@ -138,9 +138,9 @@ class TestWhatIsServing {
         scenarios.rules.append(DOOR, "doc-1", rule("ours"));
         scenarios.rules.append(LIFT, "doc-2", rule("theirs"));
 
-        assertThat(scenarios.serving.rules(List.of("doc-1"), null, 0L, 100).rules())
+        assertThat(scenarios.serving.rules(List.of("doc-1"), null, false, 0L, 100).rules())
                 .extracting(ServingRule::getRuleUuid).containsExactly("ours");
-        assertThat(scenarios.serving.rules(List.of(), null, 0L, 100).rules()).isEmpty();
+        assertThat(scenarios.serving.rules(List.of(), null, false, 0L, 100).rules()).isEmpty();
     }
 
     private static RoutingRule rule(final String uuid) {

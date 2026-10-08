@@ -27,6 +27,8 @@ import stroom.shapeshifter.ai.stage.Places;
 import stroom.shapeshifter.ai.stage.RegressionSet;
 import stroom.shapeshifter.ai.stage.Wake;
 import stroom.util.RunnableWrapper;
+import stroom.util.entityevent.EntityEvent;
+import stroom.util.guice.GuiceUtil;
 import stroom.util.shared.scheduler.CronExpressions;
 
 import com.google.inject.Scopes;
@@ -55,6 +57,9 @@ public class ShapeshifterAiElementModule extends PipelineElementModule {
         // names, and the stream it was raised on (A5, A28).
         bind(Documents.class).to(StoreDocuments.class).in(Scopes.SINGLETON);
         bind(Inputs.class).to(StreamInputs.class).in(Scopes.SINGLETON);
+        // A pipeline's deletion marks its learning deleted, and lets go of what waits on it (A134, A135).
+        GuiceUtil.buildMultiBinder(binder(), EntityEvent.Handler.class)
+                .addBinding(PipelineDeletions.class);
 
         ScheduledJobsBinder.create(binder())
                 .bindJobTo(DeferredLearningJob.class, builder -> builder
@@ -66,7 +71,9 @@ public class ShapeshifterAiElementModule extends PipelineElementModule {
                 .bindJobTo(AttemptRetentionJob.class, builder -> builder
                         .name("Shapeshifter AI Attempt Retention")
                         .description("Remove the record of Shapeshifter AI attempts that finished longer "
-                                     + "ago than the retention period, and their turns with them")
+                                     + "ago than the retention period, and their turns with them; mark "
+                                     + "the learning of pipelines since deleted, and forget it once it "
+                                     + "has been deleted for longer than the retention period")
                         .cronSchedule(CronExpressions.EVERY_DAY_AT_MIDNIGHT.getExpression()));
     }
 

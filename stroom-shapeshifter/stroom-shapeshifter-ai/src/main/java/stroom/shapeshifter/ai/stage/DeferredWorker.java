@@ -49,6 +49,7 @@ public final class DeferredWorker {
     private final Attempts attempts;
     private final Documents documents;
     private final Inputs inputs;
+    private final DeletedPipelines deletedPipelines;
     private final Advisors advisors;
     private final Clock clock;
 
@@ -56,12 +57,14 @@ public final class DeferredWorker {
                           final Attempts attempts,
                           final Documents documents,
                           final Inputs inputs,
+                          final DeletedPipelines deletedPipelines,
                           final Advisors advisors,
                           final Clock clock) {
         this.stage = stage;
         this.attempts = attempts;
         this.documents = documents;
         this.inputs = inputs;
+        this.deletedPipelines = deletedPipelines;
         this.advisors = advisors;
         this.clock = clock;
     }
@@ -70,7 +73,7 @@ public final class DeferredWorker {
     /// was carrying whose lease has lapsed (design 04 §4) — a session whose node died is carried on from
     /// the turns it recorded, by this node, and not opened again from nothing.
     ///
-    /// One attempt's failure is its own: a document deleted, a stream aged off or a model that fell over
+    /// One attempt's failure is its own: a pipeline or document deleted, a stream aged off or a model that fell over
     /// closes that attempt and the pass goes on to the next, since a job that stops at the first bad
     /// attempt would never reach the good ones behind it.
     ///
@@ -111,6 +114,11 @@ public final class DeferredWorker {
     }
 
     private boolean carry(final Recorded attempt) {
+        // A deleted pipeline's learning stops at once (design 06 A135): a session carried on for it would
+        // spend on the model for a pipeline that will never run what it learns.
+        if (deletedPipelines.isDeleted(attempt.attempt().learner().pipelineUuid())) {
+            return abandon(attempt, "The pipeline this learner is in has been deleted");
+        }
         final Optional<ShapeshifterAiDoc> doc = documents.byUuid(attempt.attempt().docUuid());
         if (doc.isEmpty()) {
             return abandon(attempt, "The Shapeshifter AI document has been deleted");

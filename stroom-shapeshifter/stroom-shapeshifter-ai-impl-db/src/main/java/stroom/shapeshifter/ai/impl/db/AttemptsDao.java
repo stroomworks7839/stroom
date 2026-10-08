@@ -17,6 +17,7 @@
 package stroom.shapeshifter.ai.impl.db;
 
 import stroom.db.util.JooqUtil;
+import stroom.shapeshifter.ai.impl.db.jooq.tables.ShapeshifterDeletedPipeline;
 import stroom.shapeshifter.ai.stage.Attempts;
 import stroom.shapeshifter.ai.stage.Learner;
 import stroom.shapeshifter.shared.AttemptCriteria;
@@ -32,6 +33,7 @@ import org.jooq.Condition;
 import org.jooq.DSLContext;
 import org.jooq.Record;
 import org.jooq.exception.IntegrityConstraintViolationException;
+import org.jooq.impl.DSL;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -487,6 +489,14 @@ public class AttemptsDao implements Attempts {
             conditions.add(SHAPESHIFTER_ATTEMPT.STATUS.in(criteria.getStatuses().stream()
                     .map(AttemptStatus::name)
                     .toList()));
+        }
+        // A deleted pipeline's attempts are kept to be read, and shown only when asked for (A137).
+        if (!criteria.isShowDeletedPipelines()) {
+            conditions.add(DSL.notExists(DSL
+                    .selectOne()
+                    .from(ShapeshifterDeletedPipeline.SHAPESHIFTER_DELETED_PIPELINE)
+                    .where(ShapeshifterDeletedPipeline.SHAPESHIFTER_DELETED_PIPELINE.PIPELINE_UUID
+                            .eq(SHAPESHIFTER_ATTEMPT.PIPELINE_UUID))));
         }
         // A request that says nothing about paging carries nulls, which are the caller's to survive.
         final int offset = JooqUtil.getOffset(criteria.getPageRequest());

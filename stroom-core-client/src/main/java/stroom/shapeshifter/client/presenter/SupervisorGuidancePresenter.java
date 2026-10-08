@@ -70,6 +70,9 @@ public class SupervisorGuidancePresenter extends MyPresenterWidget<PagerView> {
     private String docUuid;
     private LearnerRef learner;
     private Runnable onChange;
+    /// Whether what is shown may only be read: a deleted pipeline's learner is told nothing more (design
+    /// 06 A137).
+    private boolean readOnly;
 
     @Inject
     public SupervisorGuidancePresenter(final EventBus eventBus,
@@ -101,14 +104,17 @@ public class SupervisorGuidancePresenter extends MyPresenterWidget<PagerView> {
      * Show what has been said to a learner.
      *
      * @param learner  The learner, as the row names it.
+     * @param readOnly Whether it may only be read, as a deleted pipeline's learner may.
      * @param onChange Run when something is said or taken back, so that the count on the row the dialog
      *                 was opened from is read again.
      */
     public void show(final String docUuid,
                      final LearnerRef learner,
+                     final boolean readOnly,
                      final Runnable onChange) {
         this.docUuid = docUuid;
         this.learner = learner;
+        this.readOnly = readOnly;
         this.onChange = onChange;
         read(said -> {
             ShowPopupEvent.builder(this)
@@ -196,8 +202,8 @@ public class SupervisorGuidancePresenter extends MyPresenterWidget<PagerView> {
     }
 
     private void updateButtons() {
-        removeButton.setEnabled(selectionModel.getSelected() != null);
-        addButton.setEnabled(true);
+        removeButton.setEnabled(!readOnly && selectionModel.getSelected() != null);
+        addButton.setEnabled(!readOnly);
     }
 
     private void initTableColumns() {

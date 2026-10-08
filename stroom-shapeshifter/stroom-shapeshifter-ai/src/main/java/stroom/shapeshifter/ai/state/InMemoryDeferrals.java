@@ -59,6 +59,13 @@ public final class InMemoryDeferrals implements Deferrals {
         rows.removeIf(row -> row.learner().equals(learner) && row.inputId() == inputId);
     }
 
+    @Override
+    public synchronized int releasedAll(final String pipelineUuid) {
+        final int before = rows.size();
+        rows.removeIf(row -> row.learner().pipelineUuid().equals(pipelineUuid));
+        return before - rows.size();
+    }
+
     /// The streams waiting on the learner, brought to the document it runs under (see
     /// [InMemoryLearners]).
     ///

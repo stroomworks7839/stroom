@@ -42,9 +42,21 @@ public class AttemptCriteria extends BaseCriteria {
     private final PromotionMode promotionMode;
     @JsonProperty
     private final List<AttemptStatus> statuses;
+    @JsonProperty
+    private final boolean showDeletedPipelines;
 
     public AttemptCriteria() {
         this(null, null, null, null, null, null);
+    }
+
+    /// Without the attempts of deleted pipelines, as the Supervisor shows them unless asked (A137).
+    public AttemptCriteria(final PageRequest pageRequest,
+                           final List<CriteriaFieldSort> sortList,
+                           final String docUuid,
+                           final String feed,
+                           final PromotionMode promotionMode,
+                           final List<AttemptStatus> statuses) {
+        this(pageRequest, sortList, docUuid, feed, promotionMode, statuses, false);
     }
 
     @JsonCreator
@@ -53,8 +65,10 @@ public class AttemptCriteria extends BaseCriteria {
                            @JsonProperty("docUuid") final String docUuid,
                            @JsonProperty("feed") final String feed,
                            @JsonProperty("promotionMode") final PromotionMode promotionMode,
-                           @JsonProperty("statuses") final List<AttemptStatus> statuses) {
+                           @JsonProperty("statuses") final List<AttemptStatus> statuses,
+                           @JsonProperty("showDeletedPipelines") final boolean showDeletedPipelines) {
         super(pageRequest, sortList);
+        this.showDeletedPipelines = showDeletedPipelines;
         this.docUuid = docUuid;
         this.feed = feed;
         this.promotionMode = promotionMode;
@@ -77,5 +91,11 @@ public class AttemptCriteria extends BaseCriteria {
 
     public List<AttemptStatus> getStatuses() {
         return statuses;
+    }
+
+    /// Whether the attempts of pipelines since deleted are shown too (design 06 A137): kept to be read
+    /// until they age out, and left out unless a person asks for them.
+    public boolean isShowDeletedPipelines() {
+        return showDeletedPipelines;
     }
 }

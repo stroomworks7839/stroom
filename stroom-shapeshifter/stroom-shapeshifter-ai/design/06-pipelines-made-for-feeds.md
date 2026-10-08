@@ -669,7 +669,31 @@ The largest phase. Its slices keep the build and the scenarios green at each ste
    no longer assuming a bad name. Document names need no such guard: the explorer holds only folders to
    its name pattern.
 6. **A deleted pipeline's learning.** Its record is marked deleted and its sessions age out under the
-   retention job (A120).
+   retention job (A120, A134–A137).
+
+   *Built 2026-10-08.* The mark is the pipeline's, one row in `shapeshifter_deleted_pipeline`, since a
+   pipeline's deletion is every one of its elements' at once and a learner may have no state row to
+   mark. Stroom's delete event for a pipeline reaches `PipelineDeletions` on every node, which marks the
+   learning, where any is kept, and lets go of the streams waiting on it; the first mark's time stands.
+   The deferred worker abandons an attempt of a marked pipeline before asking anything. The retention
+   job marks the learning of every pipeline it keeps rows for that the store no longer lists, and, once a
+   mark is older than attempts are kept, forgets the pipeline's learning in one transaction: state,
+   bindings, guidance, waiting streams, attempts and turns, and the outputs, corpus and snapshots of its
+   bindings. Learning kept for ever is marked and never forgotten. The fragments it wrote stay in the
+   tree. The Supervisor's attempts filter and the serving list's toolbar have a "Show deleted pipelines"
+   choice, off by default; a shown row says "pipeline deleted", every action on it is refused at the
+   resource and not offered in the screen, and what was said to its learner opens read only, found
+   through the document its bindings were kept under since the pipeline names none.
+
+   *6 audited 2026-10-08.* Three faults closed. A pipeline imported from an export of it comes back under
+   its uuid, and its learning stayed marked: the pipeline would have run while its sessions were
+   abandoned, the Supervisor hid it, and the retention job forgot what it was learning. Stroom's create
+   event now clears the mark, and so does the retention job for a marked pipeline it finds there again.
+   The retention job marked every kept pipeline its one read of the store's list left out, so a list
+   that came back short would have set live learning on the road to being forgotten; a pipeline the list
+   leaves out is now marked only once a read of it on its own finds nothing. And that read: the
+   database's store says not found by throwing, which the job had taken as not knowing, so in a node it
+   never marked anything; the node test found it. A deleted pipeline's turn opens read only.
 7. **Audit.** Including a search for every remaining use of shape, rule and learning key in the module,
    its tests, the shared model and the client.
 
@@ -948,3 +972,22 @@ date.*
 own name, and a fragment under that name would be numbered as though it were a second. A factory's name
 pattern for what is learned follows it. *Ruled 2026-10-07, in the audit of phase J slice 5, over a
 subfolder per pipeline and over leaving the first fragment numbered.*
+
+**A134.** *A pipeline's deletion is heard and checked for.* Stroom's delete event for a pipeline marks
+its learning deleted as it happens; the midnight retention job marks any pipeline whose learning is kept
+but which no longer exists, for a delete no node heard. *Ruled 2026-10-08, in phase J slice 6, over the
+event alone and over the job alone.*
+
+**A135.** *A deleted pipeline's learning stops at once.* Its waiting streams' rows go, since no task of
+a deleted pipeline will run them again, and an open session is abandoned rather than carried on. What
+it learned, its sessions, corpus and snapshots stay, to be read, until they age out. *Ruled 2026-10-08,
+in phase J slice 6, over marking alone.*
+
+**A136.** *What a deleted pipeline learned stays in the tree.* Aging out removes Shapeshifter AI's own
+rows of a deleted pipeline's learning; the fragments, text converters and XSLTs it wrote are content a
+person may have read or reused, and stay, as a factory leaves the pipelines it made. *Ruled 2026-10-08,
+in phase J slice 6, over deleting them too.*
+
+**A137.** *The Supervisor hides a deleted pipeline's learning unless asked.* The attempts and serving
+lists show it under a "Show deleted pipelines" tick, off by default, marked "Pipeline deleted", and
+nothing that would change it is offered. *Ruled 2026-10-08, in phase J slice 6, over always showing it.*
