@@ -709,7 +709,7 @@ public class SupervisorResourceImpl implements SupervisorResource {
 
     private static SupervisorTurn turn(final Turn turn) {
         return new SupervisorTurn(turn.number(), turn.stepId(), turn.candidate(), turn.kind(),
-                turn.question(), turn.answer(), turn.answeredBy(), turn.outcome());
+                turn.question(), turn.answer(), turn.answeredBy(), turn.outcome(), turn.score());
     }
 
 

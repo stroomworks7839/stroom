@@ -48,8 +48,9 @@ the commit or ruling that closed it, rather than deleting it.
    after the built-in text popup. What its time field means waits on item 17. *Design 04, phase 6
    first slice (A77).*
 
-6. **A session sent to the exhaustion step shows no mark** on its row in the Supervisor beyond its state,
-   though the attempt carries the flag. *Design 04, phase 6 third slice (A65).*
+6. ~~**A session sent to the exhaustion step shows no mark** on its row in the Supervisor beyond its state,
+   though the attempt carries the flag.~~ *Closed 2026-10-08 in design 06 phase L slice 3: the status says
+   it was sent until the worker takes it there.* *Design 04, phase 6 third slice (A65).*
 
 7. **An unreadable step edit is lost on the Flow tab.** An edit the form cannot read as a step — an id
    that is not a word, a limit below one — is reported beside the form, and lost if another step is
@@ -59,9 +60,10 @@ the commit or ruling that closed it, rather than deleting it.
    its kind's own checks but cannot say which: that table lives in the engine. Moving it into the shared
    model would let the engine and the panel read one table. *Design 05 §10.*
 
-9. **A multi-part step's pass is highlighted early.** On the Supervisor's path over the flow, a step of
-   several units — a Configure over the whole chain, a Target over several kinds — records a turn per
-   unit, and the first unit's pass lights the step's pass edge. *Design 05 §7, slice 2's audit.*
+9. ~~**A multi-part step's pass is highlighted early.**~~ *Closed 2026-10-08 in design 06 phase L slice 3:
+   a unit's pass followed by the step's next unit takes no edge.* On the Supervisor's path over the flow,
+   a step of several units — a Configure over the whole chain, a Target over several kinds — records a
+   turn per unit, and the first unit's pass lit the step's pass edge. *Design 05 §7, slice 2's audit.*
 
 10. **A marked learner relearns on its first stream whose prefix is big enough.** A task holds only its
     stream's prefix, so the mark path judges that. Noted rather than a fault. *Design 04 §10, A100.*

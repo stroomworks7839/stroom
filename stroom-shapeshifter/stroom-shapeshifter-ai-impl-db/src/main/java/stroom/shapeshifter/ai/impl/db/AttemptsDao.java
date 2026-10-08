@@ -24,7 +24,9 @@ import stroom.shapeshifter.shared.AttemptCriteria;
 import stroom.shapeshifter.shared.AttemptStatus;
 import stroom.shapeshifter.shared.PromotionMode;
 import stroom.shapeshifter.shared.QuestionKind;
+import stroom.shapeshifter.shared.ScorerType;
 import stroom.shapeshifter.shared.StepOutcome;
+import stroom.shapeshifter.shared.TurnScore;
 import stroom.util.shared.NullSafe;
 
 import jakarta.inject.Inject;
@@ -172,6 +174,9 @@ public class AttemptsDao implements Attempts {
                     .set(SHAPESHIFTER_TURN.ANSWER, answer)
                     .set(SHAPESHIFTER_TURN.ANSWERED_BY, answeredBy)
                     .setNull(SHAPESHIFTER_TURN.OUTCOME)
+                    .setNull(SHAPESHIFTER_TURN.SCORER)
+                    .setNull(SHAPESHIFTER_TURN.SCORE)
+                    .setNull(SHAPESHIFTER_TURN.SCORE_THRESHOLD)
                     .where(SHAPESHIFTER_TURN.FK_ATTEMPT_ID.eq(attemptId))
                     .and(SHAPESHIFTER_TURN.TURN_NUMBER.eq(turnNumber))
                     .execute();
@@ -297,6 +302,10 @@ public class AttemptsDao implements Attempts {
     /// still running shows what it had got to.
     @Override
     public void turn(final long attemptId, final Turn turn) {
+        // The score of the check that decided it (design 06 A144), where one did.
+        final String scorer = NullSafe.get(turn.score(), TurnScore::getScorer, ScorerType::name);
+        final Double score = NullSafe.get(turn.score(), TurnScore::getScore);
+        final Double threshold = NullSafe.get(turn.score(), TurnScore::getThreshold);
         JooqUtil.context(connProvider, context -> context
                 .insertInto(SHAPESHIFTER_TURN)
                 .set(SHAPESHIFTER_TURN.CREATE_TIME_MS, System.currentTimeMillis())
@@ -311,6 +320,9 @@ public class AttemptsDao implements Attempts {
                 .set(SHAPESHIFTER_TURN.OUTCOME, turn.outcome() == null
                         ? null
                         : turn.outcome().name())
+                .set(SHAPESHIFTER_TURN.SCORER, scorer)
+                .set(SHAPESHIFTER_TURN.SCORE, score)
+                .set(SHAPESHIFTER_TURN.SCORE_THRESHOLD, threshold)
                 // Which guidance this question carried (A46), so that a re-walk replays what was used
                 // rather than what has since been added.
                 .set(SHAPESHIFTER_TURN.CARRIED_GUIDANCE, carried(turn.carried()))
@@ -320,6 +332,9 @@ public class AttemptsDao implements Attempts {
                 .set(SHAPESHIFTER_TURN.OUTCOME, turn.outcome() == null
                         ? null
                         : turn.outcome().name())
+                .set(SHAPESHIFTER_TURN.SCORER, scorer)
+                .set(SHAPESHIFTER_TURN.SCORE, score)
+                .set(SHAPESHIFTER_TURN.SCORE_THRESHOLD, threshold)
                 // On the update as well as the insert: a question the attempt parked at is written
                 // before it is asked, with nothing carried, and answered on the pass that resumes it.
                 // Left off here the column would stay empty for exactly the turn that carried something.
@@ -622,6 +637,16 @@ public class AttemptsDao implements Attempts {
                 outcome == null
                         ? null
                         : StepOutcome.valueOf(outcome),
+                score(record),
                 carried(record.get(SHAPESHIFTER_TURN.CARRIED_GUIDANCE)));
+    }
+
+    /// The score of the check that decided a turn, where one did (design 06 A144).
+    private static TurnScore score(final Record record) {
+        final String scorer = record.get(SHAPESHIFTER_TURN.SCORER);
+        return scorer == null
+                ? null
+                : new TurnScore(ScorerType.valueOf(scorer), record.get(SHAPESHIFTER_TURN.SCORE),
+                        record.get(SHAPESHIFTER_TURN.SCORE_THRESHOLD));
     }
 }

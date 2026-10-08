@@ -26,7 +26,9 @@ import java.util.Map;
 /// can draw the route over the flow. A turn's edge is: `passed` on a pass, whether the flow declares
 /// `on passed goto` or lets it fall through; the outcome's own name where the step declares a transition
 /// on it; `reask` where the next turn is the same step again; and `spent` otherwise, since a shortfall
-/// with no transition and no next candidate leaves by the step's spent edge.
+/// with no transition and no next candidate leaves by the step's spent edge. A step of several units — a
+/// Configure over the whole chain, a Target over several kinds — records a turn per unit, and a unit's
+/// pass followed by the step's next unit takes no edge: the step passes as a whole, at its last unit.
 public final class FlowPath {
 
     public static final String PASSED = "passed";
@@ -65,12 +67,35 @@ public final class FlowPath {
         return visits;
     }
 
+    /// The step a turn was asked at, by its index in the flow, as the chart numbers its steps.
+    ///
+    /// @param steps The flow's steps.
+    /// @param turn  The turn.
+    /// @return The step's index, or null where the turn names no step the flow still has.
+    public static Integer stepOf(final List<FlowStep> steps, final SupervisorTurn turn) {
+        if (turn == null || turn.getStepId() == null) {
+            return null;
+        }
+        for (int i = 0; i < steps.size(); i++) {
+            if (steps.get(i).effectiveId().equals(turn.getStepId().toLowerCase())) {
+                return i;
+            }
+        }
+        return null;
+    }
+
     private static String edge(final FlowStep step, final int at, final StepOutcome outcome, final Integer next) {
         if (outcome == null) {
             return null;
         }
         if (outcome == StepOutcome.PASSED) {
-            return edgeKey(at, PASSED);
+            // The next turn at the same step is its next unit, and the step has not passed yet — unless the
+            // flow sends a pass back to the step itself, where the next turn is that edge taken.
+            final Transition onPassed = step.transitionOn(StepOutcome.PASSED);
+            final boolean loopsBack = onPassed != null && step.effectiveId().equals(onPassed.getGoTo());
+            return next != null && next == at && !loopsBack
+                    ? null
+                    : edgeKey(at, PASSED);
         }
         if (step.transitionOn(outcome) != null) {
             return edgeKey(at, outcome.getDisplayValue());

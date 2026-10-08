@@ -42,6 +42,7 @@ import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 import stroom.shapeshifter.shared.StepGuard;
 import stroom.shapeshifter.shared.StepOutcome;
 import stroom.shapeshifter.shared.Transition;
+import stroom.shapeshifter.shared.TurnScore;
 import stroom.util.shared.ElementId;
 import stroom.util.shared.Severity;
 import stroom.util.shared.StoredError;
@@ -387,7 +388,7 @@ public final class Conversation {
                                              + "' has no 'on spent' transition to take it there");
             }
             final Judged judged = unit.attempt(candidate, feedback);
-            judge(walk.transcript, step, candidate, judged.outcome());
+            judge(walk.transcript, step, candidate, judged.outcome(), judged.score());
             if (judged.outcome() == StepOutcome.PASSED) {
                 return Visit.next();
             }
@@ -539,7 +540,7 @@ public final class Conversation {
             }
             final Verdict verdict = over.judge(Attempted.of(first, walk.sample.text(), result));
             if (!verdict.passed()) {
-                return new Judged(Scorecard.outcome(verdict), verdict.feedback(), null);
+                return Judged.fellShort(verdict, verdict.feedback());
             }
             final List<String> records = recordTexts(result.output());
             if (records.isEmpty()) {
@@ -553,7 +554,7 @@ public final class Conversation {
                 }
             }
             walk.cut(Boundary.ofConfiguration(configuration.get()), records);
-            return Judged.passed();
+            return Judged.passed(verdict);
         }, spent));
     }
 
@@ -659,10 +660,10 @@ public final class Conversation {
                 }
                 final Verdict verdict = TargetChecks.verdict(meaning, record, document);
                 if (!verdict.passed()) {
-                    return new Judged(Scorecard.outcome(verdict), verdict.feedback(), null);
+                    return Judged.fellShort(verdict, verdict.feedback());
                 }
                 proposed.add(Target.of(record, event.get()));
-                return Judged.passed();
+                return Judged.passed(verdict);
             }, "No acceptable target for record kind " + kind + " after " + candidates(step, walk.policy)
                 + " candidates");
             if (visit.kind() != Visit.Kind.NEXT) {
@@ -830,7 +831,7 @@ public final class Conversation {
                             "On a record of the held stream that fell short (" + (i + 1) + " of " + held.size()
                             + "), as the parser cut it:\n" + record));
                     feedback.addAll(verdict.feedback());
-                    return new Judged(Scorecard.outcome(verdict), feedback, null);
+                    return Judged.fellShort(verdict, feedback);
                 }
             }
         }
@@ -877,7 +878,7 @@ public final class Conversation {
         }
         final Verdict verdict = over.judge(Attempted.of(runner, input, result, boundary));
         if (!verdict.passed()) {
-            return new Judged(Scorecard.outcome(verdict), verdict.feedback(), null);
+            return Judged.fellShort(verdict, verdict.feedback());
         }
         // Held to the records of the held stream that fell short (design 04 §4): a candidate for the
         // chain's last element is run over each as the pipeline would give it, and judged on it alone, so
@@ -906,7 +907,8 @@ public final class Conversation {
                 }
             }
         }
-        return new Judged(StepOutcome.PASSED, List.of(), new LearnedStep(runner, configuration, result, verdict));
+        return new Judged(StepOutcome.PASSED, List.of(), new LearnedStep(runner, configuration, result, verdict),
+                Scorecard.deciding(verdict).orElse(null));
     }
 
     /**
@@ -1055,13 +1057,14 @@ public final class Conversation {
     private void judge(final List<Exchange> transcript,
                        final FlowStep step,
                        final int candidate,
-                       final StepOutcome outcome) {
+                       final StepOutcome outcome,
+                       final TurnScore score) {
         for (int i = transcript.size() - 1; i >= 0; i--) {
             final Exchange turn = transcript.get(i);
             if (turn.outcome() != null || !step.effectiveId().equals(turn.step()) || turn.candidate() != candidate) {
                 return;
             }
-            transcript.set(i, turn.judged(outcome));
+            transcript.set(i, turn.judged(outcome, score));
             onTurn.accept(i + 1, transcript.get(i));
         }
     }
@@ -1082,10 +1085,25 @@ public final class Conversation {
     /**
      * How one candidate ended, with what to tell the model if it did not pass and what was learned if it did.
      */
-    private record Judged(StepOutcome outcome, List<StoredError> feedback, LearnedStep learned) {
+    /// @param score The score of the check that decided it (design 06 A144), or null where no scorer did.
+    private record Judged(StepOutcome outcome, List<StoredError> feedback, LearnedStep learned, TurnScore score) {
+
+        Judged(final StepOutcome outcome, final List<StoredError> feedback, final LearnedStep learned) {
+            this(outcome, feedback, learned, null);
+        }
 
         static Judged passed() {
             return new Judged(StepOutcome.PASSED, List.of(), null);
+        }
+
+        /// A shortfall the scorecard decided, with the check that decided it (A144).
+        static Judged fellShort(final Verdict verdict, final List<StoredError> feedback) {
+            return new Judged(Scorecard.outcome(verdict), feedback, null, Scorecard.deciding(verdict).orElse(null));
+        }
+
+        /// A pass the scorecard decided, with the check that passed by the least.
+        static Judged passed(final Verdict verdict) {
+            return new Judged(StepOutcome.PASSED, List.of(), null, Scorecard.deciding(verdict).orElse(null));
         }
 
         static Judged refused(final String message) {

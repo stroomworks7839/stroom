@@ -25,6 +25,7 @@ import stroom.shapeshifter.shared.AmendTurnRequest;
 import stroom.shapeshifter.shared.SupervisorAttempt;
 import stroom.shapeshifter.shared.SupervisorResource;
 import stroom.shapeshifter.shared.SupervisorTurn;
+import stroom.shapeshifter.shared.TurnScore;
 import stroom.svg.client.SvgPresets;
 import stroom.util.client.DataGridUtil;
 import stroom.util.shared.NullSafe;
@@ -32,7 +33,9 @@ import stroom.widget.button.client.ButtonView;
 import stroom.widget.popup.client.event.ShowPopupEvent;
 import stroom.widget.popup.client.presenter.PopupSize;
 import stroom.widget.popup.client.presenter.PopupType;
+import stroom.widget.util.client.ElementUtil;
 import stroom.widget.util.client.MultiSelectionModel;
+import stroom.widget.util.client.SelectionType;
 
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.safehtml.shared.SafeHtml;
@@ -46,15 +49,18 @@ import edu.ycp.cs.dh.acegwt.client.ace.AceEditorMode;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 /**
  * One attempt's conversation, turn by turn (A28): what was asked, what was answered and by whom, and what
  * the answer scored. A turn with no answer is the question the attempt stopped at, which is what a
- * person may answer instead.
+ * person may answer instead. Read beside the attempt's path over its flow (design 06 A116): a turn chosen
+ * here lights its step there, and a step or a visit chosen there brings its turn into view here.
  */
 public class SupervisorTurnsPresenter extends MyPresenterWidget<PagerView> {
 
     private static final SupervisorResource SUPERVISOR_RESOURCE = GWT.create(SupervisorResource.class);
+    private static final int EVERY_TURN = 100_000;
 
     private final MyDataGrid<SupervisorTurn> dataGrid;
     private final MultiSelectionModel<SupervisorTurn> selectionModel;
@@ -71,6 +77,8 @@ public class SupervisorTurnsPresenter extends MyPresenterWidget<PagerView> {
     /// What to do when an answer has been written: the attempt has changed and the list above it with it.
     private Consumer<SupervisorAttempt> onAmended;
     private Consumer<SupervisorAttempt> onDetail;
+    /// Who is told which turn was chosen, so that the chart beside it can light its step (A116).
+    private Consumer<SupervisorTurn> onTurnSelected;
 
     @Inject
     public SupervisorTurnsPresenter(final EventBus eventBus,
@@ -80,7 +88,9 @@ public class SupervisorTurnsPresenter extends MyPresenterWidget<PagerView> {
         super(eventBus, view);
         this.restFactory = restFactory;
         this.editorProvider = editorProvider;
-        dataGrid = new MyDataGrid<>(this);
+        // The whole conversation on one page (A116): the turns are set here rather than fetched a page at a
+        // time, so a second page would be empty, and a Target over many kinds runs past a page of turns.
+        dataGrid = new MyDataGrid<>(this, EVERY_TURN);
         dataGrid.setTableName("Turns");
         dataGrid.setMultiLine(true);
         selectionModel = dataGrid.addDefaultSelectionModel(true);
@@ -107,6 +117,9 @@ public class SupervisorTurnsPresenter extends MyPresenterWidget<PagerView> {
             if (event.getSelectionType().isDoubleSelect()) {
                 answer();
             }
+            if (onTurnSelected != null) {
+                onTurnSelected.accept(selectionModel.getSelected());
+            }
             updateButtons();
         }));
         registerHandler(answerButton.addClickHandler(event -> answer()));
@@ -121,6 +134,44 @@ public class SupervisorTurnsPresenter extends MyPresenterWidget<PagerView> {
 
     public void setOnAmended(final Consumer<SupervisorAttempt> onAmended) {
         this.onAmended = onAmended;
+    }
+
+    /// @param onTurnSelected Who is told which turn was chosen, or null when none is (A116).
+    public void setOnTurnSelected(final Consumer<SupervisorTurn> onTurnSelected) {
+        this.onTurnSelected = onTurnSelected;
+    }
+
+    /// Choose the first turn asked at a step, and bring it into view (A116): a step chosen on the chart.
+    ///
+    /// @param stepId The step's id, as the flow gives it.
+    public void showStep(final String stepId) {
+        reveal(turn -> stepId != null && stepId.equalsIgnoreCase(turn.getStepId()));
+    }
+
+    /// Choose a turn by its number, and bring it into view (A116): a visit chosen on the chart.
+    ///
+    /// @param number The turn's number.
+    public void showTurn(final int number) {
+        reveal(turn -> turn.getNumber() == number);
+    }
+
+    /// The first turn that matches, selected without telling anyone — whoever asked has already shown
+    /// what it stands for — and scrolled to. Where none matches, a step the session never reached, no turn
+    /// is selected: the one selected before belongs to another step, and Answer would act on it.
+    private void reveal(final Predicate<SupervisorTurn> matching) {
+        for (int row = 0; row < turns.size(); row++) {
+            final SupervisorTurn turn = turns.get(row);
+            if (matching.test(turn)) {
+                selectionModel.setSelected(turn, new SelectionType(), false);
+                updateButtons();
+                if (row < dataGrid.getVisibleItemCount()) {
+                    ElementUtil.scrollIntoViewNearest(dataGrid.getRowElement(row));
+                }
+                return;
+            }
+        }
+        selectionModel.clear(false);
+        updateButtons();
     }
 
     /// Answer a turn in place of whoever answered it (A28).
@@ -259,6 +310,13 @@ public class SupervisorTurnsPresenter extends MyPresenterWidget<PagerView> {
                         .build(),
                 40);
         dataGrid.addResizableColumn(
+                DataGridUtil.htmlColumnBuilder((SupervisorTurn turn) -> text(step(turn))).build(),
+                DataGridUtil.headingBuilder("Step")
+                        .withToolTip("The step of the flow that asked it, and which of the step's candidates "
+                                     + "this was.")
+                        .build(),
+                ColumnSizeConstants.SMALL_COL);
+        dataGrid.addResizableColumn(
                 DataGridUtil.htmlColumnBuilder((SupervisorTurn turn) -> text(turn.getQuestion())).build(),
                 DataGridUtil.headingBuilder("Question")
                         .withToolTip("What was asked: the kind of question and what it was about. Not the "
@@ -282,9 +340,27 @@ public class SupervisorTurnsPresenter extends MyPresenterWidget<PagerView> {
                 DataGridUtil.htmlColumnBuilder((SupervisorTurn turn) ->
                         text(NullSafe.get(turn.getOutcome(), outcome -> outcome.getDisplayValue()))).build(),
                 DataGridUtil.headingBuilder("Outcome")
-                        .withToolTip("What the answer scored when it was run, where it has been run.")
+                        .withToolTip("How the answer was judged when it was run, where it has been run.")
                         .build(),
                 ColumnSizeConstants.MEDIUM_COL);
+        dataGrid.addResizableColumn(
+                DataGridUtil.htmlColumnBuilder((SupervisorTurn turn) ->
+                        text(NullSafe.get(turn.getScore(), TurnScore::format))).build(),
+                DataGridUtil.headingBuilder("Score")
+                        .withToolTip("The score of the check that decided it, against the document's threshold "
+                                     + "for that check: on a shortfall the check that fell short, on a pass the "
+                                     + "check that passed by the least. Empty where no scorer judged it.")
+                        .build(),
+                ColumnSizeConstants.MEDIUM_COL);
+    }
+
+    private static String step(final SupervisorTurn turn) {
+        if (turn.getStepId() == null) {
+            return "";
+        }
+        return turn.getCandidate() > 1
+                ? turn.getStepId() + ", candidate " + turn.getCandidate()
+                : turn.getStepId();
     }
 
     private static SafeHtml text(final String value) {

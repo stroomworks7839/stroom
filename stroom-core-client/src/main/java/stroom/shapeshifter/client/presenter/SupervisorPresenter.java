@@ -24,6 +24,7 @@ import stroom.data.table.client.Refreshable;
 import stroom.dispatch.client.RestFactory;
 import stroom.shapeshifter.client.view.FlowChart;
 import stroom.shapeshifter.shared.AttemptStatus;
+import stroom.shapeshifter.shared.FlowStep;
 import stroom.shapeshifter.shared.GrantRequest;
 import stroom.shapeshifter.shared.RejectRequest;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
@@ -31,6 +32,7 @@ import stroom.shapeshifter.shared.ShapeshifterAiResource;
 import stroom.shapeshifter.shared.SupervisorAttempt;
 import stroom.shapeshifter.shared.SupervisorLearner;
 import stroom.shapeshifter.shared.SupervisorResource;
+import stroom.shapeshifter.shared.SupervisorTurn;
 import stroom.svg.client.IconColour;
 import stroom.svg.client.SvgPresets;
 import stroom.svg.shared.SvgImage;
@@ -48,6 +50,7 @@ import com.google.web.bindery.event.shared.EventBus;
 import com.gwtplatform.mvp.client.MyPresenterWidget;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
@@ -78,6 +81,8 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
     /// and the flow fetched once per document.
     private final FlowChart flowChart = new FlowChart();
     private final Map<String, ShapeshifterAiDoc> documents = new HashMap<>();
+    /// The steps drawn now, so that a step chosen on the chart can be found among the turns.
+    private List<FlowStep> steps = List.of();
     private final ButtonView approveButton;
     private final ButtonView rejectButton;
     private final ButtonView grantButton;
@@ -113,6 +118,20 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
         });
         setInSlot(TURN_LIST, turnsPresenter);
         turnsPresenter.setOnDetail(this::drawPath);
+        // The transcript and the chart choose each other (A116): a turn lights its step and rings its visit;
+        // a step brings its first turn into view, and a visit its own.
+        turnsPresenter.setOnTurnSelected(turn -> flowChart.setSelectedTurn(NullSafe.get(turn,
+                SupervisorTurn::getNumber)));
+        flowChart.setOnSelect(step -> {
+            flowChart.setSelected(step);
+            if (step >= 0 && step < steps.size()) {
+                turnsPresenter.showStep(steps.get(step).effectiveId());
+            }
+        });
+        flowChart.setOnTurnSelect(number -> {
+            flowChart.setSelectedTurn(number);
+            turnsPresenter.showTurn(number);
+        });
         flowChart.fitToPane();
         view.setFlowChart(flowChart);
 
@@ -241,13 +260,13 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
     /// turns are the pane's; nothing is drawn where there is no attempt, or no document to draw.
     private void drawPath(final SupervisorAttempt detail) {
         if (detail == null || detail.getDoc() == null) {
-            flowChart.clear();
+            clearPath();
             return;
         }
         final String uuid = detail.getDoc().getUuid();
         final ShapeshifterAiDoc known = documents.get(uuid);
         if (known != null) {
-            flowChart.show(known.getFlow().getSteps(), null, detail.getTurns(), null);
+            showPath(known, detail);
             return;
         }
         restFactory
@@ -255,11 +274,21 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
                 .method(resource -> resource.fetch(uuid))
                 .onSuccess(doc -> {
                     documents.put(uuid, doc);
-                    flowChart.show(doc.getFlow().getSteps(), null, detail.getTurns(), null);
+                    showPath(doc, detail);
                 })
-                .onFailure(error -> flowChart.clear())
+                .onFailure(error -> clearPath())
                 .taskMonitorFactory(this)
                 .exec();
+    }
+
+    private void showPath(final ShapeshifterAiDoc doc, final SupervisorAttempt detail) {
+        steps = NullSafe.list(doc.getFlow().getSteps());
+        flowChart.show(steps, null, detail.getTurns(), null);
+    }
+
+    private void clearPath() {
+        steps = List.of();
+        flowChart.clear();
     }
 
     /// The selected attempt where it is parked for a person, and null otherwise.
@@ -326,7 +355,8 @@ public class SupervisorPresenter extends ContentTabPresenter<SupervisorPresenter
         approveButton.setEnabled(review);
         rejectButton.setEnabled(review);
         grantButton.setEnabled(parked() != null);
-        exhaustButton.setEnabled(parked() != null);
+        // Sent once is sent (A65): the mark stands until the attempt closes, and the list says so.
+        exhaustButton.setEnabled(parked() != null && !parked().isExhaustNext());
     }
 
     /// Show a tab's list beneath the pipelines: the sessions, or the waiting streams.

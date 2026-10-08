@@ -19,6 +19,7 @@ package stroom.shapeshifter.ai.scoring;
 import stroom.shapeshifter.shared.ScorerSetting;
 import stroom.shapeshifter.shared.ScorerType;
 import stroom.shapeshifter.shared.StepOutcome;
+import stroom.shapeshifter.shared.TurnScore;
 
 import org.junit.jupiter.api.Test;
 
@@ -46,5 +47,42 @@ class TestScorecard {
                 judgement(ScorerType.COMPILE, true, 0.0)), 0.0))).isEqualTo(StepOutcome.COMPILE_FAILED);
         assertThat(Scorecard.outcome(new Verdict(List.of(judgement(ScorerType.YIELD, false, 1.0)), 1.0)))
                 .isEqualTo(StepOutcome.PASSED);
+    }
+
+    /// Design 06 A144: a shortfall's score is the check that decided it, as the outcome names it.
+    @Test
+    void aShortfallIsScoredByTheCheckThatDecidedIt() {
+        assertThat(Scorecard.deciding(new Verdict(List.of(
+                judgement(ScorerType.YIELD, false, 0.4),
+                judgement(ScorerType.EXTRACTION_QUALITY, true, 0.2)), 0.3)))
+                .contains(new TurnScore(ScorerType.EXTRACTION_QUALITY, 0.2, 0.5));
+        assertThat(Scorecard.deciding(new Verdict(List.of(judgement(ScorerType.COMPILE, true, 0.0)), 0.0)))
+                .describedAs("the compile gate is the floor, and its outcome says what its score would")
+                .isEmpty();
+    }
+
+    /// A pass is scored by the gate that passed by the least, and where no gate applied, by the check that
+    /// did; the compile gate, met at 1.0 against a threshold of 1.0, is never it.
+    @Test
+    void aPassIsScoredByTheCheckThatPassedByTheLeast() {
+        assertThat(Scorecard.deciding(new Verdict(List.of(
+                judgement(ScorerType.COMPILE, true, 0.5),
+                judgement(ScorerType.YIELD, false, 0.55),
+                judgement(ScorerType.INPUT_COVERAGE, true, 0.9),
+                judgement(ScorerType.EXTRACTION_QUALITY, true, 0.7)), 0.8)))
+                .describedAs("a gate before a closer check that is not one")
+                .contains(new TurnScore(ScorerType.EXTRACTION_QUALITY, 0.7, 0.5));
+        assertThat(Scorecard.deciding(new Verdict(List.of(
+                judgement(ScorerType.YIELD, false, 0.9),
+                judgement(ScorerType.INPUT_COVERAGE, false, 0.6)), 0.75)))
+                .contains(new TurnScore(ScorerType.INPUT_COVERAGE, 0.6, 0.5));
+        assertThat(Scorecard.deciding(new Verdict(List.of(), 1.0))).isEmpty();
+    }
+
+    @Test
+    void aTurnScoreReadsAsTheCheckItsScoreAndItsThreshold() {
+        assertThat(new TurnScore(ScorerType.INPUT_COVERAGE, 0.41234, 0.8).format())
+                .isEqualTo("Input coverage 0.412 < 0.8");
+        assertThat(new TurnScore(ScorerType.YIELD, 0.8, 0.8).format()).isEqualTo("Yield 0.8 ≥ 0.8");
     }
 }

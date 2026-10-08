@@ -33,7 +33,9 @@ import stroom.shapeshifter.shared.AttemptStatus;
 import stroom.shapeshifter.shared.PromotionMode;
 import stroom.shapeshifter.shared.QuestionKind;
 import stroom.shapeshifter.shared.RecordBoundary;
+import stroom.shapeshifter.shared.ScorerType;
 import stroom.shapeshifter.shared.StepOutcome;
+import stroom.shapeshifter.shared.TurnScore;
 import stroom.util.shared.DefaultLocation;
 import stroom.util.shared.PageRequest;
 import stroom.util.shared.TextRange;
@@ -319,7 +321,8 @@ class TestLearnerStatesAndAttemptsDao {
         attempts.turn(id, new Turn(1, "chain", 1, QuestionKind.CHAIN, "CHAIN: choose from [DSParser]",
                 "DSParser -> XSLTFilter", "local-model", StepOutcome.PASSED));
         attempts.turn(id, new Turn(2, "configure", 2, QuestionKind.CONFIGURE, "CONFIGURE: DSParser",
-                "<dataSplitter/>", "local-model", StepOutcome.COVERAGE_SHORT));
+                "<dataSplitter/>", "local-model", StepOutcome.COVERAGE_SHORT,
+                new TurnScore(ScorerType.INPUT_COVERAGE, 0.41, 0.8), List.of()));
 
         attempts.closed(id, AttemptStatus.PROMOTED, "Promoted 0.97", "rule-1", 0.97, 1_234L);
 
@@ -337,6 +340,10 @@ class TestLearnerStatesAndAttemptsDao {
         assertThat(read.turns().get(1).candidate()).isEqualTo(2);
         assertThat(read.turns().get(1).outcome()).isEqualTo(StepOutcome.COVERAGE_SHORT);
         assertThat(read.turns().get(0).answeredBy()).isEqualTo("local-model");
+        assertThat(read.turns().get(1).score())
+                .describedAs("the check that decided it, against its threshold (A144)")
+                .isEqualTo(new TurnScore(ScorerType.INPUT_COVERAGE, 0.41, 0.8));
+        assertThat(read.turns().get(0).score()).describedAs("a turn no scorer decided").isNull();
 
         // The learner's next attempt, once this one has closed, with no stream behind it.
         final long nextId = attempts.opened(new Attempt(LEARNER, DOC, null, null, null, "node-1",
@@ -390,7 +397,8 @@ class TestLearnerStatesAndAttemptsDao {
         attempts.turn(id, new Turn(1, "chain", 1, QuestionKind.CHAIN, "Chain: choose from [DSParser]",
                 "DSParser", "local-model", StepOutcome.PASSED));
         attempts.turn(id, new Turn(2, "configure", 1, QuestionKind.CONFIGURE, "Configure: DSParser",
-                "<dataSplitter/>", "local-model", StepOutcome.COVERAGE_SHORT));
+                "<dataSplitter/>", "local-model", StepOutcome.COVERAGE_SHORT,
+                new TurnScore(ScorerType.INPUT_COVERAGE, 0.41, 0.8), List.of()));
         attempts.turn(id, new Turn(3, "configure", 2, QuestionKind.CONFIGURE, "Configure: DSParser",
                 "<dataSplitter/>", "local-model", StepOutcome.COVERAGE_SHORT));
         attempts.closed(id, AttemptStatus.ABANDONED, "No passing configuration", null, null, 10L);
@@ -414,6 +422,7 @@ class TestLearnerStatesAndAttemptsDao {
         assertThat(read.turns().get(1).answeredBy()).isEqualTo("an.operator");
         assertThat(read.turns().get(1).outcome())
                 .describedAs("unjudged: it has not been run yet").isNull();
+        assertThat(read.turns().get(1).score()).describedAs("nor scored").isNull();
         assertThat(read.turns().get(0).answeredBy())
                 .describedAs("the turns before it are as they were").isEqualTo("local-model");
         assertThat(attempts.awaiting(10)).extracting(Recorded::id).contains(id);

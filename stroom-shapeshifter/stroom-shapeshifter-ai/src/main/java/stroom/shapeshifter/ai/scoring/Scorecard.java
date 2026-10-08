@@ -20,9 +20,11 @@ import stroom.shapeshifter.shared.Check;
 import stroom.shapeshifter.shared.ScorerSetting;
 import stroom.shapeshifter.shared.ScorerType;
 import stroom.shapeshifter.shared.StepOutcome;
+import stroom.shapeshifter.shared.TurnScore;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
@@ -79,11 +81,7 @@ public final class Scorecard {
     /// other scorer that did not meet its threshold, in the document's order within each; the compile
     /// gate's as {@code COMPILE_FAILED}.
     public static StepOutcome outcome(final Verdict verdict) {
-        final Judgement decisive = verdict.judgements().stream()
-                .filter(Judgement::failedGate)
-                .findFirst()
-                .or(() -> verdict.judgements().stream().filter(judgement -> !judgement.metThreshold()).findFirst())
-                .orElse(null);
+        final Judgement decisive = shortfall(verdict).orElse(null);
         if (decisive == null) {
             return StepOutcome.PASSED;
         }
@@ -91,6 +89,44 @@ public final class Scorecard {
         return check == null
                 ? StepOutcome.COMPILE_FAILED
                 : check.shortfall();
+    }
+
+    /// The score of the check that decided a verdict (design 06 A144): on a shortfall the one [#outcome]
+    /// names; on a pass the gate that passed by the least, or where no gate applied, the check that did.
+    /// The compile gate is the floor every step stands on rather than a check, and its outcome says all
+    /// its score would, so it decides no score.
+    ///
+    /// @param verdict The verdict.
+    /// @return The deciding check's score, or empty where no check decided it.
+    public static Optional<TurnScore> deciding(final Verdict verdict) {
+        final Optional<Judgement> shortfall = shortfall(verdict);
+        final Optional<Judgement> decided;
+        if (shortfall.isPresent()) {
+            decided = shortfall.filter(Scorecard::isCheck);
+        } else {
+            final Comparator<Judgement> byMargin = Comparator.comparingDouble(
+                    judgement -> judgement.score().value() - judgement.setting().getThreshold());
+            final List<Judgement> checks = verdict.judgements().stream().filter(Scorecard::isCheck).toList();
+            decided = checks.stream()
+                    .filter(judgement -> judgement.setting().isGate())
+                    .min(byMargin)
+                    .or(() -> checks.stream().min(byMargin));
+        }
+        return decided.map(judgement -> new TurnScore(judgement.setting().getType(), judgement.score().value(),
+                judgement.setting().getThreshold()));
+    }
+
+    /// The judgement that decided a shortfall: a failed gate before any other scorer that did not meet its
+    /// threshold, in the document's order within each.
+    private static Optional<Judgement> shortfall(final Verdict verdict) {
+        return verdict.judgements().stream()
+                .filter(Judgement::failedGate)
+                .findFirst()
+                .or(() -> verdict.judgements().stream().filter(judgement -> !judgement.metThreshold()).findFirst());
+    }
+
+    private static boolean isCheck(final Judgement judgement) {
+        return Check.of(judgement.setting().getType()) != null;
     }
 
     public Verdict judge(final Attempted step) {

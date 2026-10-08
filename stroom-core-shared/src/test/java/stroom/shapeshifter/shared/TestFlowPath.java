@@ -69,6 +69,54 @@ class TestFlowPath {
                 .containsExactly("0|passed", "1|passed", "2|spent", "3|passed");
     }
 
+    /// ISSUES item 9: a step of several units records a turn per unit, and only its last unit's pass is
+    /// the step's pass; a unit that falls short re-asks the step as any candidate does.
+    @Test
+    void aStepOfSeveralUnitsPassesAtItsLastUnit() {
+        final List<FlowStep> steps = FlowExample.TARGET_FIRST.steps();
+        final List<SupervisorTurn> turns = List.of(
+                turn(1, "chain", StepOutcome.PASSED),
+                turn(2, "split", StepOutcome.PASSED),
+                turn(3, "target", StepOutcome.PASSED),
+                turn(4, "target", StepOutcome.CONFORMANCE_SHORT),
+                turn(5, "target", StepOutcome.PASSED),
+                turn(6, "target", StepOutcome.PASSED),
+                turn(7, "parser", null));
+        assertThat(FlowPath.visits(steps, turns)).extracting(Visit::getTurn, Visit::getEdge)
+                .containsExactly(
+                        tuple(1, "0|passed"),
+                        tuple(2, "1|passed"),
+                        tuple(3, null),
+                        tuple(4, "2|reask"),
+                        tuple(5, null),
+                        tuple(6, "2|passed"),
+                        tuple(7, null));
+    }
+
+    /// A flow may send a pass back to the step itself: the turn after it is that edge taken, not a unit.
+    @Test
+    void aPassSentBackToItsOwnStepTakesThatEdge() {
+        final List<FlowStep> steps = List.of(
+                FlowStep.parse("CHAIN"),
+                FlowStep.parse("again: CONFIGURE transform candidates 2 on passed goto again"));
+        final List<SupervisorTurn> turns = List.of(
+                turn(1, "chain", StepOutcome.PASSED),
+                turn(2, "again", StepOutcome.PASSED),
+                turn(3, "again", null));
+        assertThat(FlowPath.visits(steps, turns)).extracting(Visit::getEdge)
+                .containsExactly("0|passed", "1|passed", null);
+    }
+
+    @Test
+    void aTurnIsAtTheStepItNames() {
+        final List<FlowStep> steps = FlowExample.TARGET_FIRST.steps();
+
+        assertThat(FlowPath.stepOf(steps, turn(1, "Parser", null))).isEqualTo(3);
+        assertThat(FlowPath.stepOf(steps, turn(1, "nowhere", null))).isNull();
+        assertThat(FlowPath.stepOf(steps, turn(1, null, null))).isNull();
+        assertThat(FlowPath.stepOf(steps, null)).isNull();
+    }
+
     private static SupervisorTurn turn(final int number, final String step, final StepOutcome outcome) {
         return new SupervisorTurn(number, step, 1, QuestionKind.CONFIGURE, "q", "a", null, outcome);
     }

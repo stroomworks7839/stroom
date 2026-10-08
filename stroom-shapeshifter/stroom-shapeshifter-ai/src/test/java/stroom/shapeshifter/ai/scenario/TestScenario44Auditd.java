@@ -118,6 +118,18 @@ class TestScenario44Auditd {
         assertThat(turns.get(1).outcome()).isEqualTo(StepOutcome.YIELD_SHORT);
         assertThat(turns.get(1).question().feedback()).isEmpty();
         assertThat(turns.get(2).outcome()).isEqualTo(StepOutcome.PASSED);
+        // Design 06 A144: each turn carries the score of the check that decided it — the yield that fell
+        // short, and on the pass the check that passed by the least — and a chain chosen carries none.
+        assertThat(turns.get(0).score()).isNull();
+        assertThat(turns.get(1).score()).satisfies(score -> {
+            assertThat(score.getScorer()).isEqualTo(ScorerType.YIELD);
+            assertThat(score.isMet()).isFalse();
+        });
+        assertThat(turns.get(2).score()).satisfies(score -> assertThat(score.isMet()).isTrue());
+        final long attemptId = scenarios.attempts.all().getFirst().id();
+        assertThat(scenarios.attempts.byId(attemptId).orElseThrow().turns().get(1).score())
+                .describedAs("and the attempt keeps it")
+                .isEqualTo(turns.get(1).score());
         assertThat(turns.stream().filter(turn -> turn.question() instanceof TargetFor).findFirst().orElseThrow()
                 .question()).isInstanceOf(TargetFor.class);
         // Targets were proposed for whole events: the first kind's record spans lines that share a serial.

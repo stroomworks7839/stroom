@@ -150,6 +150,10 @@ CREATE TABLE IF NOT EXISTS shapeshifter_turn (
     -- The answerer: the model a document names, or the user who answered instead; null while unanswered
     answered_by           varchar(255) DEFAULT NULL,
     outcome               varchar(32) DEFAULT NULL,
+    -- The check that decided the turn and its score against its threshold (A144); null where no scorer did
+    scorer                varchar(32) DEFAULT NULL,
+    score                 double DEFAULT NULL,
+    score_threshold       double DEFAULT NULL,
     -- The guidance the question carried (A45), so a re-walk replays what was used
     carried_guidance      text DEFAULT NULL,
     PRIMARY KEY           (id),

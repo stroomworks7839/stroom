@@ -137,8 +137,18 @@
     font-weight: 600;
 }
 
+.flow-visit {
+    cursor: pointer;
+}
+
 .flow-visit circle {
     fill: var(--orange-500, #d97706);
+}
+
+/* The turn chosen in the transcript beside the chart (A116). */
+.flow-visit--selected circle {
+    stroke: var(--text-color);
+    stroke-width: 2;
 }
 
 .flow-visit-text {

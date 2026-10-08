@@ -21,6 +21,7 @@ import stroom.shapeshifter.shared.AttemptStatus;
 import stroom.shapeshifter.shared.PromotionMode;
 import stroom.shapeshifter.shared.QuestionKind;
 import stroom.shapeshifter.shared.StepOutcome;
+import stroom.shapeshifter.shared.TurnScore;
 
 import java.util.Collection;
 import java.util.List;
@@ -202,6 +203,7 @@ public interface Attempts {
     /// @param answeredBy The model a document names, or the person who answered instead (A28); null
     ///                   while nobody has answered.
     /// @param outcome    What the answer scored, once it was judged; null while it is being asked.
+    /// @param score      The score of the check that decided it (design 06 A144); null where no scorer did.
     record Turn(int number,
                 String stepId,
                 int candidate,
@@ -210,6 +212,7 @@ public interface Attempts {
                 String answer,
                 String answeredBy,
                 StepOutcome outcome,
+                TurnScore score,
                 List<Long> carried) {
 
         public Turn {
@@ -225,7 +228,20 @@ public interface Attempts {
                     final String answer,
                     final String answeredBy,
                     final StepOutcome outcome) {
-            this(number, stepId, candidate, kind, question, answer, answeredBy, outcome, List.of());
+            this(number, stepId, candidate, kind, question, answer, answeredBy, outcome, null, List.of());
+        }
+
+        /// A turn no scorer decided, asked with the guidance it carried.
+        public Turn(final int number,
+                    final String stepId,
+                    final int candidate,
+                    final QuestionKind kind,
+                    final String question,
+                    final String answer,
+                    final String answeredBy,
+                    final StepOutcome outcome,
+                    final List<Long> carried) {
+            this(number, stepId, candidate, kind, question, answer, answeredBy, outcome, null, carried);
         }
     }
 

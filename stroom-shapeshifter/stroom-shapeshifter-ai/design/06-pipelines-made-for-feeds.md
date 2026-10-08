@@ -861,6 +861,28 @@ The largest phase. Its slices keep the build and the scenarios green at each ste
    than letting the row go. And the serving column had lost what the rolling score rests on, which the
    serving list showed (A46): it says how many records again.
 
+   *3 built 2026-10-08.* A session reads as its conversation beside its path over the flow (A116). The
+   transcript has the step that asked each turn and its candidate, and each turn's score (A144): the
+   conversation records, per turn, the check that decided it, its score and its threshold
+   (`Scorecard.deciding`, carried by the judging to the exchange and the attempt's turn; three columns on
+   `shapeshifter_turn`), cleared with the outcome when a person answers the turn instead. Choosing a turn
+   lights its step on the chart and rings its own visit among the step's others; choosing a step brings
+   its first turn into view, and choosing a visit's number its own turn; the chart scrolls a step chosen
+   from the transcript into view. A turn's full text still opens on a double click, as a row's dialog does
+   everywhere else, since a single click is the choosing. ISSUES item 6: a session sent to the exhaustion
+   step says so in its status until the worker takes it there, and is not offered the step again; once
+   taken, the exhaustion turn is in its transcript. ISSUES item 9: a step of several units passes at its
+   last unit — a unit's pass followed by the same step's next unit takes no edge (`FlowPath`).
+
+   *3 audited 2026-10-08.* Three faults closed. The transcript showed a hundred turns a page while its
+   turns are set rather than fetched, so a second page was empty and a conversation longer than a page —
+   a Target over many kinds — could not be read past it, and choosing a later turn from the chart would
+   have scrolled to a row of the wrong page; it now shows every turn on one page, as A116 reads it. A
+   step chosen on the chart that the session never reached left the turn chosen before selected, so
+   Answer would act on a turn of another step; nothing is selected now. And a flow may send a pass back
+   to the step itself, which the rule for units read as a unit's pass and drew no edge for; a step that
+   loops on its pass takes its edge.
+
 ### Phase M — The walkthrough
 
 A factory over `Raw Events` with the AI template takes three feeds from unseen to served from the UI.
@@ -1165,3 +1187,10 @@ session. *Ruled 2026-10-08, in phase L, over a text box and over no filter.*
 **A143.** *There is no list of every session.* The pipelines list is the way in, and a pipeline's
 sessions are listed newest first with no filter of their own; the attempts filter goes. *Ruled
 2026-10-08, in phase L, over keeping the cross-pipeline list as a third tab.*
+
+**A144.** *A turn is scored by the check that decided it.* A116 shows each turn's score, and a turn
+records the score of the check that decided its outcome against that check's threshold: on a shortfall
+the check the outcome names, on a pass the gate that passed by the least, or where no gate applied the
+check that did. A turn no scorer judged — a chain chosen, a configuration that did not compile, a
+refusal — has none, and the compile gate, the floor and not a check, decides no score. *Ruled
+2026-10-08, in phase L, over showing the outcome alone or the whole scorecard on every turn.*

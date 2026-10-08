@@ -17,6 +17,7 @@
 package stroom.shapeshifter.ai.learning;
 
 import stroom.shapeshifter.shared.StepOutcome;
+import stroom.shapeshifter.shared.TurnScore;
 
 import java.util.List;
 
@@ -25,6 +26,7 @@ import java.util.List;
  * flow asked it, which candidate it was, and how it ended (A28, A37). The outcome is null until the
  * candidate is judged, and stays null for a turn that was never judged, such as a reply the budget cut off.
  *
+ * @param score   The score of the check that decided it (design 06 A144), or null where no scorer did.
  * @param carried The ids of the guidance this question was asked with (A46), so that a re-walk (A45)
  *                replays what was actually used rather than what has since been added.
  */
@@ -33,6 +35,7 @@ public record Exchange(Question question,
                        String step,
                        int candidate,
                        StepOutcome outcome,
+                       TurnScore score,
                        List<Long> carried) {
 
     public Exchange {
@@ -43,7 +46,7 @@ public record Exchange(Question question,
      * A turn not yet placed in a flow: as an advisor is given its transcript.
      */
     public Exchange(final Question question, final String reply) {
-        this(question, reply, null, 0, null, List.of());
+        this(question, reply, null, 0, null, null, List.of());
     }
 
     public Exchange(final Question question,
@@ -51,11 +54,21 @@ public record Exchange(Question question,
                     final String step,
                     final int candidate,
                     final StepOutcome outcome) {
-        this(question, reply, step, candidate, outcome, List.of());
+        this(question, reply, step, candidate, outcome, null, List.of());
     }
 
-    /// This turn with its outcome known.
-    public Exchange judged(final StepOutcome outcome) {
-        return new Exchange(question, reply, step, candidate, outcome, carried);
+    /// A turn not yet judged, asked with the guidance it carried.
+    public Exchange(final Question question,
+                    final String reply,
+                    final String step,
+                    final int candidate,
+                    final StepOutcome outcome,
+                    final List<Long> carried) {
+        this(question, reply, step, candidate, outcome, null, carried);
+    }
+
+    /// This turn with its outcome known, and the score of the check that decided it where one did.
+    public Exchange judged(final StepOutcome outcome, final TurnScore score) {
+        return new Exchange(question, reply, step, candidate, outcome, score, carried);
     }
 }

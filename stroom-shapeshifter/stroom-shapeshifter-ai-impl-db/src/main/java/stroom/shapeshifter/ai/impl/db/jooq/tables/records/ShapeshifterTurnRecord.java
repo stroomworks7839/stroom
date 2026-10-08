@@ -173,17 +173,59 @@ public class ShapeshifterTurnRecord extends UpdatableRecordImpl<ShapeshifterTurn
     }
 
     /**
+     * Setter for <code>stroom.shapeshifter_turn.scorer</code>.
+     */
+    public void setScorer(String value) {
+        set(11, value);
+    }
+
+    /**
+     * Getter for <code>stroom.shapeshifter_turn.scorer</code>.
+     */
+    public String getScorer() {
+        return (String) get(11);
+    }
+
+    /**
+     * Setter for <code>stroom.shapeshifter_turn.score</code>.
+     */
+    public void setScore(Double value) {
+        set(12, value);
+    }
+
+    /**
+     * Getter for <code>stroom.shapeshifter_turn.score</code>.
+     */
+    public Double getScore() {
+        return (Double) get(12);
+    }
+
+    /**
+     * Setter for <code>stroom.shapeshifter_turn.score_threshold</code>.
+     */
+    public void setScoreThreshold(Double value) {
+        set(13, value);
+    }
+
+    /**
+     * Getter for <code>stroom.shapeshifter_turn.score_threshold</code>.
+     */
+    public Double getScoreThreshold() {
+        return (Double) get(13);
+    }
+
+    /**
      * Setter for <code>stroom.shapeshifter_turn.carried_guidance</code>.
      */
     public void setCarriedGuidance(String value) {
-        set(11, value);
+        set(14, value);
     }
 
     /**
      * Getter for <code>stroom.shapeshifter_turn.carried_guidance</code>.
      */
     public String getCarriedGuidance() {
-        return (String) get(11);
+        return (String) get(14);
     }
 
     // -------------------------------------------------------------------------
@@ -209,7 +251,7 @@ public class ShapeshifterTurnRecord extends UpdatableRecordImpl<ShapeshifterTurn
     /**
      * Create a detached, initialised ShapeshifterTurnRecord
      */
-    public ShapeshifterTurnRecord(Long id, Long createTimeMs, Long fkAttemptId, Integer turnNumber, String stepId, Integer candidate, String questionKind, String question, String answer, String answeredBy, String outcome, String carriedGuidance) {
+    public ShapeshifterTurnRecord(Long id, Long createTimeMs, Long fkAttemptId, Integer turnNumber, String stepId, Integer candidate, String questionKind, String question, String answer, String answeredBy, String outcome, String scorer, Double score, Double scoreThreshold, String carriedGuidance) {
         super(ShapeshifterTurn.SHAPESHIFTER_TURN);
 
         setId(id);
@@ -223,6 +265,9 @@ public class ShapeshifterTurnRecord extends UpdatableRecordImpl<ShapeshifterTurn
         setAnswer(answer);
         setAnsweredBy(answeredBy);
         setOutcome(outcome);
+        setScorer(scorer);
+        setScore(score);
+        setScoreThreshold(scoreThreshold);
         setCarriedGuidance(carriedGuidance);
         resetTouchedOnNotNull();
     }

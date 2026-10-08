@@ -146,8 +146,9 @@ public class SupervisorListPresenter extends MyPresenterWidget<PagerView> {
                         text(status(row))).build(),
                 DataGridUtil.headingBuilder("Status")
                         .withToolTip("Where the attempt stands: learning, waiting for the model, waiting for "
-                                     + "a person, or what it came to; and whether its pipeline has been "
-                                     + "deleted, when deleted pipelines are shown.")
+                                     + "a person, or what it came to; whether a person has sent it to the "
+                                     + "exhaustion step; and whether its pipeline has been deleted, when "
+                                     + "deleted pipelines are shown.")
                         .build(),
                 ColumnSizeConstants.SMALL_COL);
         dataGrid.addResizableColumn(
@@ -184,13 +185,19 @@ public class SupervisorListPresenter extends MyPresenterWidget<PagerView> {
                 ColumnSizeConstants.MEDIUM_COL);
     }
 
-    /// Where the attempt stands, and that its pipeline is deleted where it is (design 06 A137): kept to be
-    /// read, with nothing offered that would change it.
+    /// Where the attempt stands; that a person has sent it to the exhaustion step, until the worker takes
+    /// it there (A65, ISSUES item 6); and that its pipeline is deleted where it is (design 06 A137): kept to
+    /// be read, with nothing offered that would change it.
     private static String status(final SupervisorAttempt row) {
-        final String status = NullSafe.get(row.getStatus(), AttemptStatus::getDisplayValue);
-        return row.isPipelineDeleted()
-                ? NullSafe.string(status) + " (pipeline deleted)"
-                : status;
+        final StringBuilder status = new StringBuilder(NullSafe.string(
+                NullSafe.get(row.getStatus(), AttemptStatus::getDisplayValue)));
+        if (row.isExhaustNext()) {
+            status.append(", sent to the exhaustion step");
+        }
+        if (row.isPipelineDeleted()) {
+            status.append(" (pipeline deleted)");
+        }
+        return status.toString();
     }
 
     private static SafeHtml text(final String value) {

@@ -109,6 +109,21 @@ public class ShapeshifterTurn extends TableImpl<ShapeshifterTurnRecord> {
     public final TableField<ShapeshifterTurnRecord, String> OUTCOME = createField(DSL.name("outcome"), SQLDataType.VARCHAR(32), this, "");
 
     /**
+     * The column <code>stroom.shapeshifter_turn.scorer</code>.
+     */
+    public final TableField<ShapeshifterTurnRecord, String> SCORER = createField(DSL.name("scorer"), SQLDataType.VARCHAR(32), this, "");
+
+    /**
+     * The column <code>stroom.shapeshifter_turn.score</code>.
+     */
+    public final TableField<ShapeshifterTurnRecord, Double> SCORE = createField(DSL.name("score"), SQLDataType.DOUBLE, this, "");
+
+    /**
+     * The column <code>stroom.shapeshifter_turn.score_threshold</code>.
+     */
+    public final TableField<ShapeshifterTurnRecord, Double> SCORE_THRESHOLD = createField(DSL.name("score_threshold"), SQLDataType.DOUBLE, this, "");
+
+    /**
      * The column <code>stroom.shapeshifter_turn.carried_guidance</code>.
      */
     public final TableField<ShapeshifterTurnRecord, String> CARRIED_GUIDANCE = createField(DSL.name("carried_guidance"), SQLDataType.CLOB(65535), this, "");

@@ -70,6 +70,7 @@ public class FlowChart extends Composite {
     private static final String DATA_STEP = "data-step";
     private static final String DATA_EDGE = "data-edge";
     private static final String DATA_NODE = "data-node";
+    private static final String DATA_TURN = "data-turn";
     public static final String START = "start";
     public static final String END = "end";
 
@@ -78,10 +79,13 @@ public class FlowChart extends Composite {
     private List<FlowProblem> problems = new ArrayList<>();
     private List<SupervisorTurn> turns = new ArrayList<>();
     private Integer selected;
+    /// The turn chosen in a transcript beside the chart, whose visit is ringed (A116).
+    private Integer selectedTurn;
     private String selectedTerminal;
     private Consumer<Integer> onSelect;
     private Consumer<String> onTerminalSelect;
     private BiConsumer<Integer, String> onEdgeSelect;
+    private Consumer<Integer> onTurnSelect;
 
     public FlowChart() {
         initWidget(html);
@@ -91,6 +95,13 @@ public class FlowChart extends Composite {
         html.addClickHandler(event -> {
             final Element target = event.getNativeEvent().getEventTarget().cast();
             if (target == null) {
+                return;
+            }
+            // A visit's number is a turn of the attempt drawn over the flow (A116): the turn, not its step.
+            final Element visit = ElementUtil.findParent(target,
+                    element -> NullSafe.isNonBlankString(element.getAttribute(DATA_TURN)), 4);
+            if (visit != null && onTurnSelect != null) {
+                onTurnSelect.accept(Integer.parseInt(visit.getAttribute(DATA_TURN)));
                 return;
             }
             final Element edge = ElementUtil.findParent(target,
@@ -135,6 +146,11 @@ public class FlowChart extends Composite {
         this.onEdgeSelect = onEdgeSelect;
     }
 
+    /// Who is told which of a recorded attempt's visits was clicked, by its turn's number (A116).
+    public void setOnTurnSelect(final Consumer<Integer> onTurnSelect) {
+        this.onTurnSelect = onTurnSelect;
+    }
+
     /// Draw the flow, with what is wrong with it painted on the steps it names, and a recorded attempt's
     /// path over it where turns are given.
     public void show(final List<FlowStep> steps,
@@ -145,19 +161,50 @@ public class FlowChart extends Composite {
         this.problems = new ArrayList<>(NullSafe.list(problems));
         this.turns = new ArrayList<>(NullSafe.list(turns));
         this.selected = selected;
+        this.selectedTurn = null;
         render();
     }
 
-    /// Paint one step as the selected one, the rest as they were.
+    /// Paint one step as the selected one, the rest as they were, and bring it into view where the
+    /// drawing is longer than its pane: a step chosen from elsewhere — a turn in the Supervisor's
+    /// transcript, a step in a form — may be far down a long flow.
     public void setSelected(final Integer selected) {
         this.selected = selected;
         this.selectedTerminal = null;
+        this.selectedTurn = null;
         render();
+        reveal();
+    }
+
+    /// Paint the step a recorded turn was asked at as the selected one, ring that turn's visit among the
+    /// step's others, and bring it into view (A116). A turn the drawing has no visit for selects nothing.
+    ///
+    /// @param turn The turn's number, or null for none.
+    public void setSelectedTurn(final Integer turn) {
+        this.selectedTurn = turn;
+        this.selectedTerminal = null;
+        this.selected = turn == null
+                ? null
+                : FlowPath.visits(steps, turns).stream()
+                        .filter(visit -> visit.getTurn() == turn)
+                        .map(Visit::getStep)
+                        .findFirst()
+                        .orElse(null);
+        render();
+        reveal();
+    }
+
+    private void reveal() {
+        final Element node = ElementUtil.findChild(html.getElement(), "flow-node--selected");
+        if (node != null) {
+            ElementUtil.scrollIntoViewNearest(node);
+        }
     }
 
     /// Paint Start or End as the selected one, and no step.
     public void setSelectedTerminal(final String terminal) {
         this.selected = null;
+        this.selectedTurn = null;
         this.selectedTerminal = terminal;
         render();
     }
@@ -168,6 +215,7 @@ public class FlowChart extends Composite {
         problems = new ArrayList<>();
         turns = new ArrayList<>();
         selected = null;
+        selectedTurn = null;
         html.setHTML("");
     }
 
@@ -328,8 +376,11 @@ public class FlowChart extends Composite {
             if (numbers != null) {
                 for (int j = 0; j < numbers.size(); j++) {
                     final int cy = boxY + 10 + j * 18;
-                    svg.append("<g class=\"flow-visit\"><circle cx=\"").append(boxX - 10).append("\" cy=\"").append(cy)
-                            .append("\" r=\"8\"/>");
+                    svg.append("<g class=\"flow-visit").append(numbers.get(j).equals(selectedTurn)
+                            ? " flow-visit--selected"
+                            : "").append("\" ").append(DATA_TURN).append("=\"").append(numbers.get(j))
+                            .append("\"><title>Turn ").append(numbers.get(j)).append("</title><circle cx=\"")
+                            .append(boxX - 10).append("\" cy=\"").append(cy).append("\" r=\"8\"/>");
                     text(svg, boxX - 10, cy + 3, "middle", "flow-visit-text", String.valueOf(numbers.get(j)));
                     svg.append("</g>");
                 }

@@ -176,7 +176,8 @@ public final class StepDetails {
                     // Who answered is the attempt's to know (A28); a step reads a transcript the stage
                     // has just made, and everything in it was answered by the model.
                     null,
-                    exchange.outcome()));
+                    exchange.outcome(),
+                    exchange.score()));
         }
         return NullSafe.list(turns);
     }

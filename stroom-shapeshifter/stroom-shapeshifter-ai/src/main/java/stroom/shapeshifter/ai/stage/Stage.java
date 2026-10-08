@@ -1329,7 +1329,7 @@ public final class Stage {
             record(() -> attempts.turn(attemptId, new Attempts.Turn(numbered, exchange.step(),
                     exchange.candidate(), Question.kindOf(exchange.question()), exchange.question().summary(),
                     exchange.reply(), answeredBefore.getOrDefault(numbered, answeredBy),
-                    exchange.outcome(), exchange.carried())));
+                    exchange.outcome(), exchange.score(), exchange.carried())));
         }
 
         /// A turn's number in the attempt, from its number in the walk that asked it. A session runs its

@@ -44,6 +44,21 @@ public class SupervisorTurn {
     private final String answeredBy;
     @JsonProperty
     private final StepOutcome outcome;
+    /// The score of the check that decided it (design 06 A144), where a scorer decided it.
+    @JsonProperty
+    private final TurnScore score;
+
+    /// A turn no scorer decided.
+    public SupervisorTurn(final int number,
+                          final String stepId,
+                          final int candidate,
+                          final QuestionKind kind,
+                          final String question,
+                          final String answer,
+                          final String answeredBy,
+                          final StepOutcome outcome) {
+        this(number, stepId, candidate, kind, question, answer, answeredBy, outcome, null);
+    }
 
     @JsonCreator
     public SupervisorTurn(@JsonProperty("number") final int number,
@@ -53,7 +68,8 @@ public class SupervisorTurn {
                           @JsonProperty("question") final String question,
                           @JsonProperty("answer") final String answer,
                           @JsonProperty("answeredBy") final String answeredBy,
-                          @JsonProperty("outcome") final StepOutcome outcome) {
+                          @JsonProperty("outcome") final StepOutcome outcome,
+                          @JsonProperty("score") final TurnScore score) {
         this.number = number;
         this.stepId = stepId;
         this.candidate = candidate;
@@ -62,6 +78,7 @@ public class SupervisorTurn {
         this.answer = answer;
         this.answeredBy = answeredBy;
         this.outcome = outcome;
+        this.score = score;
     }
 
     public int getNumber() {
@@ -94,6 +111,11 @@ public class SupervisorTurn {
 
     public StepOutcome getOutcome() {
         return outcome;
+    }
+
+    /// @return The score of the check that decided it, or null where no scorer did.
+    public TurnScore getScore() {
+        return score;
     }
 
     /**
