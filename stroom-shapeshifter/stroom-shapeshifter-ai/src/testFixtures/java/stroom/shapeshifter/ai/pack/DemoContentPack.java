@@ -169,9 +169,6 @@ public final class DemoContentPack {
 
     /// The Shapeshifter AI document the pack ships: scenario 51's settings, an identity, and the model.
     ///
-    /// Inline rather than deferred so that a demo sees the learning happen in the stream it posted
-    /// instead of waiting for a worker (A5).
-    ///
     /// @return The document.
     public static ShapeshifterAiDoc document() {
         final ShapeshifterAiDoc configured = DemoDocument.configure(ShapeshifterAiDoc.builder())

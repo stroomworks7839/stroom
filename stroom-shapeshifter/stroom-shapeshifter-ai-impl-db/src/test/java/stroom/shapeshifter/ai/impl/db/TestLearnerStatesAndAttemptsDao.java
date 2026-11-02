@@ -180,7 +180,7 @@ class TestLearnerStatesAndAttemptsDao {
         attempts.parked(id, AttemptStatus.AWAITING_MODEL, now() + 60_000L, 500L);
 
         assertThat(attempts.awaiting(10)).extracting(Recorded::id)
-                .describedAs("what deferred mode's worker advances").contains(id);
+                .describedAs("what the worker advances").contains(id);
         assertThat(attempts.claimed(id, "node-2", now(), now() + 120_000L))
                 .describedAs("a parked attempt is nobody's: any node's worker may take it").isTrue();
         assertThat(attempts.byId(id).orElseThrow().status()).isEqualTo(AttemptStatus.IN_PROGRESS);

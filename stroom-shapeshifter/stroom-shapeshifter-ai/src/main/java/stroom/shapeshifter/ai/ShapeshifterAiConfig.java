@@ -102,8 +102,8 @@ public class ShapeshifterAiConfig extends AbstractConfig implements IsStroomConf
     @JsonPropertyDescription("How many attempts awaiting the model one pass of the Shapeshifter AI Deferred "
                              + "Learning job carries on. One attempt is one conversation, which may be minutes "
                              + "of model time, so a pass is bounded and the job's schedule sets the rate. "
-                             + "At least one: a batch of none would leave every deferred document learning "
-                             + "nothing, silently.")
+                             + "At least one: a batch of none would leave every waiting stream unlearned, "
+                             + "silently.")
     public int getDeferredLearningBatchSize() {
         return deferredLearningBatchSize;
     }
@@ -111,7 +111,7 @@ public class ShapeshifterAiConfig extends AbstractConfig implements IsStroomConf
     @JsonProperty("attemptRetention")
     @JsonPropertyDescription("How long the record of a finished attempt is kept before the prune job "
                              + "removes it and its turns, and how long what each binding produced is kept, "
-                             + "which is what a retraction can still ask to be processed again. An attempt "
+                             + "which is what an as-processed reprocess reads. An attempt "
                              + "that is still learning, or waiting for a person, is never pruned however "
                              + "old it is. Zero keeps everything for ever, which on a busy cluster is a "
                              + "row per stream that nothing will ever remove.")

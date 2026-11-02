@@ -67,7 +67,7 @@ import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
 /// A stage over this node's state, wherever one is wanted: in a pipeline task, where the supervisor
-/// element runs it over the stream in front of it, and in deferred mode's worker (A5), which runs it
+/// element runs it over the stream in front of it, and in the worker (A5), which runs it
 /// over an attempt that stopped. A stage holds nothing between calls, so one is as good as many; what it
 /// is built from — the element runners, the scorers, the fragment writer and runner, and the runtime
 /// state of A26 — is the same in either place, and a second copy of this list in the worker would be a

@@ -27,6 +27,8 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Objects;
 
@@ -34,24 +36,35 @@ import java.util.Objects;
 public class S3EventConfig extends AbstractConfig implements IsStroomConfig, IsProxyConfig {
 
     public static final StroomDuration DEFAULT_RE_POLL_DURATION = StroomDuration.ofMinutes(5);
+    public static final StroomDuration DEFAULT_SLEEP_DURATION_POST_FAILURE = StroomDuration.ofMinutes(1);
+    public static final String PROP_NAME_SQS = "sqs";
 
     @JsonProperty
     private final StroomDuration rePollDuration;
     @JsonProperty
     private final SqsConfig sqs;
+    @JsonProperty
+    private final StroomDuration sleepDurationPostFailure;
 
     public S3EventConfig() {
         this.rePollDuration = DEFAULT_RE_POLL_DURATION;
-        this.sqs = null;
+        // SqsConfig is implements IsAtomicConfig so the value is treated one atomic thing, thus
+        // it is allowed to be null
+        this.sqs = new SqsConfig();
+        this.sleepDurationPostFailure = DEFAULT_SLEEP_DURATION_POST_FAILURE;
     }
 
     @JsonCreator
     public S3EventConfig(@JsonProperty("rePollDuration") final StroomDuration rePollDuration,
-                         @JsonProperty("sqs") final SqsConfig sqs) {
+                         @JsonProperty(PROP_NAME_SQS) final SqsConfig sqs,
+                         @JsonProperty("sleepDurationPostFailure") final StroomDuration sleepDurationPostFailure) {
         this.rePollDuration = Objects.requireNonNullElse(rePollDuration, DEFAULT_RE_POLL_DURATION);
-        this.sqs = sqs;
+        this.sqs = Objects.requireNonNullElse(sqs, new SqsConfig());
+        this.sleepDurationPostFailure = Objects.requireNonNullElse(
+                sleepDurationPostFailure, DEFAULT_SLEEP_DURATION_POST_FAILURE);
     }
 
+    @NonNull
     @JsonPropertyDescription(
             "This is the time to keep polling for. Once reached polling will stop and will begin again " +
             "at the next scheduled execution time for the job.")
@@ -60,17 +73,18 @@ public class S3EventConfig extends AbstractConfig implements IsStroomConfig, IsP
         return rePollDuration;
     }
 
+    @Nullable
     @JsonPropertyDescription("The configuration for the AWS SQS queue that will be used to receive S3 events.")
     @JsonProperty
     public SqsConfig getSqs() {
         return sqs;
     }
 
-    @Override
-    public String toString() {
-        return "S3EventConfig{" +
-               "sqs=" + sqs +
-               '}';
+    @NonNull
+    @JsonPropertyDescription("The sleep time after a poll failure occurs.")
+    @JsonProperty
+    public StroomDuration getSleepDurationPostFailure() {
+        return sleepDurationPostFailure;
     }
 
     @Override
@@ -79,11 +93,21 @@ public class S3EventConfig extends AbstractConfig implements IsStroomConfig, IsP
             return false;
         }
         final S3EventConfig that = (S3EventConfig) o;
-        return Objects.equals(rePollDuration, that.rePollDuration) && Objects.equals(sqs, that.sqs);
+        return Objects.equals(rePollDuration, that.rePollDuration) && Objects.equals(sqs,
+                that.sqs) && Objects.equals(sleepDurationPostFailure, that.sleepDurationPostFailure);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(rePollDuration, sqs);
+        return Objects.hash(rePollDuration, sqs, sleepDurationPostFailure);
+    }
+
+    @Override
+    public String toString() {
+        return "S3EventConfig{" +
+               "rePollDuration=" + rePollDuration +
+               ", sqs=" + sqs +
+               ", sleepDurationPostFailure=" + sleepDurationPostFailure +
+               '}';
     }
 }

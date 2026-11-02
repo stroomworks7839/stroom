@@ -69,15 +69,6 @@ public sealed interface Decision {
     }
 
     /**
-     * A provisional binding failed the gate once the learner brought enough records to judge it (design 01
-     * §6): the binding is gone, the learner knows nothing again, the inputs whose output it
-     * produced are requested for reprocessing as-current, and this stream is sentinelled.
-     */
-    record Retracted(Binding binding, double score, String reason) implements Decision {
-
-    }
-
-    /**
      * A variant cleared the floor on the learner's records but there were too few for a held-out split
      * (A14), so it is bound provisionally (A5, design 01 §6): it handles this stream and every one after
      * it, marked as such, until the learner has {@code required} records and the gate can be met.

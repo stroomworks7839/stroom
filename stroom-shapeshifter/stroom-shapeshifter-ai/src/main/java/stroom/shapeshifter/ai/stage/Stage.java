@@ -62,7 +62,6 @@ import stroom.shapeshifter.ai.stage.Decision.Parked;
 import stroom.shapeshifter.ai.stage.Decision.Promoted;
 import stroom.shapeshifter.ai.stage.Decision.Provisional;
 import stroom.shapeshifter.ai.stage.Decision.Rebound;
-import stroom.shapeshifter.ai.stage.Decision.Retracted;
 import stroom.shapeshifter.ai.stage.Decision.Sentinel;
 import stroom.shapeshifter.ai.stage.Decision.Would;
 import stroom.shapeshifter.ai.stage.Deferrals.Deferral;
@@ -490,8 +489,8 @@ public final class Stage {
         // feed (A126), so the model is shown the corpus alone.
         final Input input = new Input(-1L, null, null, Map.of(), sample, null);
         final Scorecard scorecard = new Scorecard(doc.getScorers(), scorers);
-        // Asked where it was asked from, whatever the document's execution mode. Deferred mode exists
-        // because a model call inside a *processing task* holds a task slot (A5); an improvement is not
+        // Asked where it was asked from, not by the worker. The worker exists because a model call
+        // inside a *processing task* holds a task slot (A5); an improvement is not
         // a processing task, the incumbent is serving throughout, and nothing waits on it but the person
         // who asked. Carrying one on from the worker would need the attempt to remember that it is an
         // improvement and to find its sample in the regression set rather than in the stream store,
@@ -1378,7 +1377,6 @@ public final class Stage {
             case Drafted drafted -> "Awaiting review, scored " + drafted.score();
             case Kept kept -> "Kept the incumbent: " + kept.reason();
             case GivenUp givenUp -> givenUp.reason();
-            case Retracted retracted -> retracted.reason();
             case Sentinel sentinel -> sentinel.reason();
             default -> decision.getClass().getSimpleName();
         };

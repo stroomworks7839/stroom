@@ -79,7 +79,7 @@ public interface Attempts {
     /// own threads off one attempt is that the job cannot overlap itself, not this method.
     boolean claimed(long attemptId, String node, long nowMs, long expiryMs);
 
-    /// The attempts waiting for the model, oldest first: what deferred mode's worker advances (A5, A28).
+    /// The attempts waiting for the model, oldest first: what the worker advances (A5, A28).
     /// Whether a parked attempt's claim has lapsed does not matter here — nobody is carrying it, so there
     /// is nothing to take it from, and a worker that was down while it lapsed must still pick it up or
     /// the learner waits for a stream that may never come. A parked attempt that *has* been taken over is

@@ -40,7 +40,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Optional;
 
-/// The streams of A28 in a node: the stream store, read by meta id. This is how deferred mode's worker
+/// The streams of A28 in a node: the stream store, read by meta id. This is how the worker
 /// gets back the sample an attempt was learning from — the attempt keeps the id and the store keeps the
 /// stream, so nothing is copied and nothing is held.
 ///

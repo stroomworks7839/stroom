@@ -31,8 +31,8 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 
-/// Deferred mode's worker (A5, A28): the job that advances the attempts waiting for the model. A stream
-/// of a learner nothing serves in a deferred document costs its task a sentinel and no model call — the attempt
+/// The worker (A5, A28): the job that advances the attempts waiting for the model. A stream of a
+/// learner nothing serves costs its task a deferral and no model call — the attempt
 /// is opened and parked at its first question — and this is what carries it on, outside the task, at
 /// whatever pace the model answers. The promotion it reaches wakes the learner's pipeline as any other
 /// does, so the streams that waited are tried again.

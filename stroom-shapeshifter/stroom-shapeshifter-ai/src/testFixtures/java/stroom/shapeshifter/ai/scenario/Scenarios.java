@@ -218,8 +218,8 @@ public final class Scenarios {
                 node);
     }
 
-    /// Deferred mode's worker over this scenario's state (A5, A28), answering with a given script: the
-    /// job that carries on the attempts a deferred document parks. The stage is one of this scenario's,
+    /// The worker over this scenario's state (A5, A28), answering with a given script: the job that
+    /// carries on the attempts a processing task parks. The stage is one of this scenario's,
     /// since a stage holds nothing of a stream between calls.
     public DeferredWorker worker(final Advisor answerer) {
         return new DeferredWorker(stage(answerer), attempts, documents, inputs, deletedPipelines,

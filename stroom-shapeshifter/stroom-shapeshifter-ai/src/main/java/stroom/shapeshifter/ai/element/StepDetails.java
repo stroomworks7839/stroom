@@ -32,7 +32,6 @@ import stroom.shapeshifter.ai.stage.Decision.Parked;
 import stroom.shapeshifter.ai.stage.Decision.Promoted;
 import stroom.shapeshifter.ai.stage.Decision.Provisional;
 import stroom.shapeshifter.ai.stage.Decision.Rebound;
-import stroom.shapeshifter.ai.stage.Decision.Retracted;
 import stroom.shapeshifter.ai.stage.Decision.Sentinel;
 import stroom.shapeshifter.ai.stage.Decision.Would;
 import stroom.shapeshifter.ai.stage.Input;
@@ -130,7 +129,6 @@ public final class StepDetails {
             case Kept kept -> "Relearned and the incumbent kept: " + kept.reason();
             case Drafted drafted -> "Awaiting review: draft binding " + drafted.binding().getUuid() + " binds "
                                     + drafted.binding().getPipeline().getName();
-            case Retracted retracted -> retracted.reason();
             case GivenUp givenUp -> "Given up: " + givenUp.reason();
             case Sentinel sentinel -> sentinel.reason();
             case Deferred deferred -> "Deferred: " + deferred.reason();

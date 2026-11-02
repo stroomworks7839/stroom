@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+
 package stroom.pipelinefactory.client;
 
 import stroom.core.client.ContentManager;
@@ -23,12 +24,12 @@ import stroom.docref.DocRef;
 import stroom.docstore.shared.DocRefUtil;
 import stroom.document.client.DocumentPlugin;
 import stroom.document.client.DocumentPluginEventManager;
-import stroom.entity.client.presenter.DocPresenter;
-import stroom.pipelinefactory.client.presenter.PipelineFactoryPresenter;
+import stroom.document.client.editor.DocumentEditorHost;
+import stroom.pipelinefactory.client.component.PipelineFactoryEditor;
 import stroom.pipelinefactory.shared.PipelineFactoryDoc;
 import stroom.pipelinefactory.shared.PipelineFactoryResource;
 import stroom.security.client.api.ClientSecurityContext;
-import stroom.task.client.TaskMonitorFactory;
+import stroom.widget.task.client.TaskMonitorFactory;
 
 import com.google.gwt.core.client.GWT;
 import com.google.inject.Inject;
@@ -38,30 +39,41 @@ import com.google.web.bindery.event.shared.EventBus;
 import java.util.function.Consumer;
 import javax.inject.Singleton;
 
-/// Opens, loads and saves Pipeline Factory documents (design 06 §3.5).
+/// Opens, loads and saves Pipeline Factory documents (design 06 §3.5), each in a
+/// [PipelineFactoryEditor].
 @Singleton
 public class PipelineFactoryPlugin extends DocumentPlugin<PipelineFactoryDoc> {
 
     private static final PipelineFactoryResource RESOURCE = GWT.create(PipelineFactoryResource.class);
 
-    private final Provider<PipelineFactoryPresenter> editorProvider;
+    private final EventBus eventBus;
+    private final Provider<PipelineFactoryEditor> editorProvider;
     private final RestFactory restFactory;
 
+    /// Made by GIN.
+    ///
+    /// @param eventBus                 The application's event bus.
+    /// @param editorProvider           Makes a factory's editor.
+    /// @param restFactory              Loads and saves factories.
+    /// @param contentManager           Shows the editors.
+    /// @param entityPluginEventManager Handles the document actions.
+    /// @param securityContext          Says what the user may do.
     @Inject
     public PipelineFactoryPlugin(final EventBus eventBus,
-                                 final Provider<PipelineFactoryPresenter> editorProvider,
+                                 final Provider<PipelineFactoryEditor> editorProvider,
                                  final RestFactory restFactory,
                                  final ContentManager contentManager,
                                  final DocumentPluginEventManager entityPluginEventManager,
                                  final ClientSecurityContext securityContext) {
         super(eventBus, contentManager, entityPluginEventManager, securityContext);
+        this.eventBus = eventBus;
         this.editorProvider = editorProvider;
         this.restFactory = restFactory;
     }
 
     @Override
-    protected DocPresenter<?, ?> createEditor() {
-        return editorProvider.get();
+    protected DocumentEditorHost<?> createEditor() {
+        return new DocumentEditorHost<>(eventBus, editorProvider.get(), PipelineFactoryDoc.TYPE);
     }
 
     @Override

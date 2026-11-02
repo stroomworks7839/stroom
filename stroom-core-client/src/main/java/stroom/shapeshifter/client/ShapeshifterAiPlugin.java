@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2026 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,15 +23,15 @@ import stroom.docref.DocRef;
 import stroom.docstore.shared.DocRefUtil;
 import stroom.document.client.DocumentPlugin;
 import stroom.document.client.DocumentPluginEventManager;
-import stroom.entity.client.presenter.DocPresenter;
-import stroom.pipeline.stepping.client.presenter.ElementStepDetailsPresenterRegistry;
+import stroom.document.client.editor.DocumentEditorHost;
+import stroom.pipeline.stepping.client.component.ElementStepDetailsPaneRegistry;
 import stroom.security.client.api.ClientSecurityContext;
-import stroom.shapeshifter.client.presenter.ShapeshifterAiPresenter;
-import stroom.shapeshifter.client.presenter.ShapeshifterAiStepPresenter;
+import stroom.shapeshifter.client.component.ShapeshifterAiEditor;
+import stroom.shapeshifter.client.component.StageDecisionPaneController;
 import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 import stroom.shapeshifter.shared.ShapeshifterAiElements;
 import stroom.shapeshifter.shared.ShapeshifterAiResource;
-import stroom.task.client.TaskMonitorFactory;
+import stroom.widget.task.client.TaskMonitorFactory;
 
 import com.google.gwt.core.client.GWT;
 import com.google.inject.Inject;
@@ -41,36 +41,49 @@ import com.google.web.bindery.event.shared.EventBus;
 import java.util.function.Consumer;
 import javax.inject.Singleton;
 
+/// Opens, loads and saves Shapeshifter AI documents ([ShapeshifterAiEditor]), and gives the stepper the
+/// pane a supervised stage shows in place of its code pane (A30).
 @Singleton
 public class ShapeshifterAiPlugin extends DocumentPlugin<ShapeshifterAiDoc> {
 
     private static final ShapeshifterAiResource RESOURCE = GWT.create(ShapeshifterAiResource.class);
 
-    private final Provider<ShapeshifterAiPresenter> editorProvider;
+    private final EventBus eventBus;
+    private final Provider<ShapeshifterAiEditor> editorProvider;
     private final RestFactory restFactory;
 
+    /// Made by GIN, once.
+    ///
+    /// @param eventBus                 The application's event bus.
+    /// @param editorProvider           Makes a document's editor.
+    /// @param restFactory              Loads and saves documents.
+    /// @param contentManager           Shows the editors.
+    /// @param entityPluginEventManager Handles the documents' events.
+    /// @param securityContext          The user's permissions.
+    /// @param stepDetailsRegistry      Where the stepper finds the panes element types show.
+    /// @param stagePaneProvider        Makes a supervised stage's pane.
     @Inject
     public ShapeshifterAiPlugin(final EventBus eventBus,
-                                   final Provider<ShapeshifterAiPresenter> editorProvider,
-                                   final RestFactory restFactory,
-                                   final ContentManager contentManager,
-                                   final DocumentPluginEventManager entityPluginEventManager,
-                                   final ClientSecurityContext securityContext,
-                                   final ElementStepDetailsPresenterRegistry stepDetailsRegistry,
-                                   final Provider<ShapeshifterAiStepPresenter> stepPresenterProvider) {
+                                final Provider<ShapeshifterAiEditor> editorProvider,
+                                final RestFactory restFactory,
+                                final ContentManager contentManager,
+                                final DocumentPluginEventManager entityPluginEventManager,
+                                final ClientSecurityContext securityContext,
+                                final ElementStepDetailsPaneRegistry stepDetailsRegistry,
+                                final Provider<StageDecisionPaneController> stagePaneProvider) {
         super(eventBus, contentManager, entityPluginEventManager, securityContext);
+        this.eventBus = eventBus;
         this.editorProvider = editorProvider;
         this.restFactory = restFactory;
         // The stepper shows a supervised stage's decision where an element's code pane would be (A30).
         // It knows nothing about this feature: the feature says which of its elements have a pane and
         // what shows it, and does so here because the plugin is where the feature meets the client.
-        // Both shapes of the stage, because both have a decision to explain (§12 item 4).
-        stepDetailsRegistry.register(ShapeshifterAiElements.PARSER, stepPresenterProvider::get);
+        stepDetailsRegistry.register(ShapeshifterAiElements.PARSER, stagePaneProvider::get);
     }
 
     @Override
-    protected DocPresenter<?, ?> createEditor() {
-        return editorProvider.get();
+    protected DocumentEditorHost<?> createEditor() {
+        return new DocumentEditorHost<>(eventBus, editorProvider.get(), ShapeshifterAiDoc.TYPE);
     }
 
     @Override

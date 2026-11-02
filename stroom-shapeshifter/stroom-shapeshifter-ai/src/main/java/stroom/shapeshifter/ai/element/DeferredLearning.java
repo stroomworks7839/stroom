@@ -35,10 +35,10 @@ import jakarta.inject.Singleton;
 
 import java.time.Clock;
 
-/// Deferred mode's worker as a node runs it (A5, A28): the job behind *Shapeshifter AI Deferred
-/// Learning*. A deferred document asks the model nothing in the processing task — the attempt is opened
-/// and parked at its first question — and this is what carries those attempts on, at whatever pace the
-/// model answers and without a task slot held while it does.
+/// The worker as a node runs it (A5, A28): the job behind *Shapeshifter AI Deferred Learning*. A
+/// processing task asks the model nothing — the attempt is opened and parked at its first question
+/// (A48, A60) — and this is what carries those attempts on, at whatever pace the model answers and
+/// without a task slot held while it does.
 ///
 /// As the processing user, since it reads streams and documents on nobody's behalf, and writes
 /// fragments and bindings as an automatic promotion does.

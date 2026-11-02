@@ -27,7 +27,6 @@ import stroom.processor.api.ProcessorFilterService;
 import stroom.processor.api.ProcessorService;
 import stroom.processor.api.ProcessorTaskService;
 import stroom.processor.api.SupervisedPipelines;
-import stroom.processor.impl.db.jooq.tables.Processor;
 import stroom.processor.shared.ProcessorFilterDoc;
 import stroom.processor.shared.ProcessorProfile;
 import stroom.processor.shared.ProcessorResource;
@@ -35,6 +34,7 @@ import stroom.processor.shared.ProcessorTaskResource;
 import stroom.query.api.datasource.DataSourceProvider;
 import stroom.searchable.api.Searchable;
 import stroom.util.RunnableWrapper;
+import stroom.util.entityevent.EntityEvent;
 import stroom.util.guice.GuiceUtil;
 import stroom.util.guice.HasSystemInfoBinder;
 import stroom.util.guice.RestResourcesBinder;
@@ -78,6 +78,9 @@ public class ProcessorModule extends AbstractModule {
                 .addBinding(ProcessorProfileCache.class)
                 .addBinding(PrioritisedFilters.class)
                 .addBinding(ProcessorTaskAvailability.class);
+
+        GuiceUtil.buildMultiBinder(binder(), EntityEvent.Handler.class)
+                .addBinding(ProcessorProfileCache.class);
 
         GuiceUtil.buildMultiBinder(binder(), DataSourceProvider.class)
                 .addBinding(ProcessorTaskServiceImpl.class);

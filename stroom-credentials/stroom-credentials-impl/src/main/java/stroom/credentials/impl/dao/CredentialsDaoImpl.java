@@ -29,16 +29,19 @@ import stroom.db.util.ExpressionMapper;
 import stroom.db.util.ExpressionMapperFactory;
 import stroom.db.util.JooqUtil;
 import stroom.query.api.ExpressionOperator;
+import stroom.query.api.token.TokenErrorUtil;
+import stroom.query.api.token.TokenException;
 import stroom.query.common.v2.DateExpressionParser;
-import stroom.query.common.v2.FieldProviderImpl;
-import stroom.query.common.v2.SimpleStringExpressionParser;
-import stroom.query.common.v2.SimpleStringExpressionParser.FieldProvider;
+import stroom.query.language.filter.FieldProviderImpl;
+import stroom.query.language.filter.SimpleStringExpressionParser;
+import stroom.query.language.filter.SimpleStringExpressionParser.FieldProvider;
 import stroom.util.json.JsonUtil;
 import stroom.util.logging.LambdaLogger;
 import stroom.util.logging.LambdaLoggerFactory;
 import stroom.util.shared.Clearable;
 import stroom.util.shared.NullSafe;
 import stroom.util.shared.ResultPage;
+import stroom.util.shared.TokenError;
 
 import jakarta.inject.Inject;
 import org.jooq.Condition;
@@ -50,6 +53,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
@@ -108,16 +112,17 @@ public class CredentialsDaoImpl implements CredentialsDao, Clearable {
         return expressionMapper;
     }
 
-    private List<Condition> createConditions(final FindCredentialRequest request) {
+    private List<Condition> createConditions(final FindCredentialRequest request,
+                                             final AtomicReference<TokenError> filterError) {
         final List<Condition> conditions = new ArrayList<>();
         final FieldProvider fieldProvider = new FieldProviderImpl(
-                List.of(stroom.credentials.shared.CredentialFields.CREDENTIAL_NAME),
-                List.of(stroom.credentials.shared.CredentialFields.CREDENTIAL_NAME,
-                        stroom.credentials.shared.CredentialFields.CREDENTIAL_UUID,
-                        stroom.credentials.shared.CredentialFields.CREDENTIAL_TYPE));
+                List.of(stroom.credentials.shared.CredentialFields.CREDENTIAL_NAME_FIELD),
+                List.of(stroom.credentials.shared.CredentialFields.CREDENTIAL_NAME_FIELD,
+                        stroom.credentials.shared.CredentialFields.CREDENTIAL_UUID_FIELD,
+                        stroom.credentials.shared.CredentialFields.CREDENTIAL_TYPE_FIELD));
         try {
             final Optional<ExpressionOperator> optionalExpressionOperator = SimpleStringExpressionParser
-                    .create(fieldProvider, request.getFilter());
+                    .create(fieldProvider, request.getQuickFilter());
             optionalExpressionOperator.ifPresent(expressionOperator ->
                     conditions.add(expressionMapper.apply(expressionOperator)));
         } catch (final RuntimeException e) {
@@ -127,6 +132,11 @@ public class CredentialsDaoImpl implements CredentialsDao, Clearable {
             // as AnnotationDaoImpl, IndexFieldDaoImpl and AiDaoImpl all do.
             LOGGER.debug(e::getMessage, e);
             conditions.add(DSL.falseCondition());
+            if (e instanceof final TokenException tokenException) {
+                // Carried out through createConditions' caller rather than returned here, because
+                // this method builds conditions rather than the page. See ResultPage.filterError.
+                filterError.set(TokenErrorUtil.toTokenError(tokenException));
+            }
         }
 
         if (!NullSafe.isEmptyCollection(request.getCredentialTypes())) {
@@ -146,7 +156,8 @@ public class CredentialsDaoImpl implements CredentialsDao, Clearable {
     @Override
     public ResultPage<CredentialWithPerms> findCredentialsWithPermissions(final FindCredentialRequest request,
                                                                           final Function<Credential, CredentialWithPerms> permissionDecorator) {
-        final List<Condition> conditions = createConditions(request);
+        final AtomicReference<TokenError> filterError = new AtomicReference<>();
+        final List<Condition> conditions = createConditions(request, filterError);
         final List<CredentialWithPerms> list = JooqUtil.contextResult(credentialsDbConnProvider, context ->
                         context
                                 .select()
@@ -158,13 +169,17 @@ public class CredentialsDaoImpl implements CredentialsDao, Clearable {
                                 .map(permissionDecorator)
                                 .filter(Objects::nonNull))
                 .toList();
-        return ResultPage.createPageLimitedList(list, request.getPageRequest());
+        return ResultPage.<CredentialWithPerms>createPageLimitedList(list, request.getPageRequest())
+                .copy()
+                .filterError(filterError.get())
+                .build();
     }
 
     @Override
     public ResultPage<Credential> findCredentials(final FindCredentialRequest request,
                                                   final Predicate<Credential> permissionFilter) {
-        final List<Condition> conditions = createConditions(request);
+        final AtomicReference<TokenError> filterError = new AtomicReference<>();
+        final List<Condition> conditions = createConditions(request, filterError);
         final List<Credential> list = JooqUtil.contextResult(credentialsDbConnProvider, context ->
                         context
                                 .select()
@@ -175,8 +190,13 @@ public class CredentialsDaoImpl implements CredentialsDao, Clearable {
                                 .map(this::mapToCredential)
                                 .filter(permissionFilter))
                 .toList();
-        return ResultPage.createPageLimitedList(list, request.getPageRequest());
+        return ResultPage.<Credential>createPageLimitedList(list, request.getPageRequest())
+                .copy()
+                .filterError(filterError.get())
+                .build();
     }
+
+
 
     private Credential mapToCredential(final Record record) {
         return new Credential(
@@ -188,6 +208,7 @@ public class CredentialsDaoImpl implements CredentialsDao, Clearable {
                 record.get(CREDENTIAL.UPDATE_USER),
                 getCredentialType(record.get(CREDENTIAL.CRENDENTIAL_TYPE)),
                 getKeyStoreType(record.get(CREDENTIAL.KEY_STORE_TYPE)),
+                record.get(CREDENTIAL.KEY_STORE_PATH),
                 record.get(CREDENTIAL.EXPIRY_TIME_MS));
     }
 
@@ -201,6 +222,7 @@ public class CredentialsDaoImpl implements CredentialsDao, Clearable {
                 record.get(CREDENTIAL.UPDATE_USER),
                 getCredentialType(record.get(CREDENTIAL.CRENDENTIAL_TYPE)),
                 getKeyStoreType(record.get(CREDENTIAL.KEY_STORE_TYPE)),
+                record.get(CREDENTIAL.KEY_STORE_PATH),
                 record.get(CREDENTIAL.EXPIRY_TIME_MS));
 
         final Secret secret = JsonUtil.readValue(record.get(CREDENTIAL.SECRET_JSON).data(), Secret.class);
@@ -233,6 +255,7 @@ public class CredentialsDaoImpl implements CredentialsDao, Clearable {
                                 CREDENTIAL.UPDATE_USER,
                                 CREDENTIAL.CRENDENTIAL_TYPE,
                                 CREDENTIAL.KEY_STORE_TYPE,
+                                CREDENTIAL.KEY_STORE_PATH,
                                 CREDENTIAL.EXPIRY_TIME_MS)
                         .from(CREDENTIAL)
                         .where(CREDENTIAL.UUID.eq(uuid))
@@ -252,6 +275,7 @@ public class CredentialsDaoImpl implements CredentialsDao, Clearable {
                                 CREDENTIAL.UPDATE_USER,
                                 CREDENTIAL.CRENDENTIAL_TYPE,
                                 CREDENTIAL.KEY_STORE_TYPE,
+                                CREDENTIAL.KEY_STORE_PATH,
                                 CREDENTIAL.EXPIRY_TIME_MS)
                         .from(CREDENTIAL)
                         .where(CREDENTIAL.NAME.eq(name))
@@ -279,6 +303,7 @@ public class CredentialsDaoImpl implements CredentialsDao, Clearable {
                                 CREDENTIAL.UPDATE_USER,
                                 CREDENTIAL.CRENDENTIAL_TYPE,
                                 CREDENTIAL.KEY_STORE_TYPE,
+                                CREDENTIAL.KEY_STORE_PATH,
                                 CREDENTIAL.EXPIRY_TIME_MS,
                                 CREDENTIAL.SECRET_JSON,
                                 CREDENTIAL.KEY_STORE)
@@ -311,6 +336,7 @@ public class CredentialsDaoImpl implements CredentialsDao, Clearable {
                     .set(CREDENTIAL.UPDATE_USER, credential.getUpdateUser())
                     .set(CREDENTIAL.CRENDENTIAL_TYPE, credentialType)
                     .set(CREDENTIAL.KEY_STORE_TYPE, keyStoreType)
+                    .set(CREDENTIAL.KEY_STORE_PATH, credential.getKeyStorePath())
                     .set(CREDENTIAL.EXPIRY_TIME_MS, credential.getExpiryTimeMs())
                     .set(CREDENTIAL.SECRET_JSON, json)
                     .set(CREDENTIAL.KEY_STORE, secret.keyStore())
@@ -328,6 +354,7 @@ public class CredentialsDaoImpl implements CredentialsDao, Clearable {
                             CREDENTIAL.UPDATE_USER,
                             CREDENTIAL.CRENDENTIAL_TYPE,
                             CREDENTIAL.KEY_STORE_TYPE,
+                            CREDENTIAL.KEY_STORE_PATH,
                             CREDENTIAL.EXPIRY_TIME_MS,
                             CREDENTIAL.SECRET_JSON,
                             CREDENTIAL.KEY_STORE)
@@ -339,13 +366,70 @@ public class CredentialsDaoImpl implements CredentialsDao, Clearable {
                             credential.getUpdateUser(),
                             credentialType,
                             keyStoreType,
+                            credential.getKeyStorePath(),
                             credential.getExpiryTimeMs(),
                             json,
                             secret.keyStore())
-                    .onDuplicateKeyUpdate()
-                    .set(CREDENTIAL.UUID, credential.getUuid())
+                    // No onDuplicateKeyUpdate() here. Name is unique, so a clash on name would
+                    // otherwise re-key another user's credential (and its secret) to this UUID.
                     .execute());
         }
+    }
+
+    @Override
+    public StoredSecret getStoredSecretByUuid(final String uuid) {
+        return JooqUtil.contextResult(credentialsDbConnProvider, context -> context
+                        .select(CREDENTIAL.UUID,
+                                CREDENTIAL.NAME,
+                                CREDENTIAL.CREATE_TIME_MS,
+                                CREDENTIAL.UPDATE_TIME_MS,
+                                CREDENTIAL.CREATE_USER,
+                                CREDENTIAL.UPDATE_USER,
+                                CREDENTIAL.CRENDENTIAL_TYPE,
+                                CREDENTIAL.KEY_STORE_TYPE,
+                                CREDENTIAL.KEY_STORE_PATH,
+                                CREDENTIAL.EXPIRY_TIME_MS,
+                                CREDENTIAL.SECRET_JSON,
+                                CREDENTIAL.KEY_STORE)
+                        .from(CREDENTIAL)
+                        .where(CREDENTIAL.UUID.eq(uuid))
+                        .fetchOptional())
+                .map(this::mapToStoredSecret)
+                .orElse(null);
+    }
+
+    @Override
+    public boolean updateCredential(final Credential credential) {
+        final int count = JooqUtil.contextResult(credentialsDbConnProvider, context -> context
+                .update(CREDENTIAL)
+                .set(CREDENTIAL.NAME, credential.getName())
+                .set(CREDENTIAL.UPDATE_TIME_MS, credential.getUpdateTimeMs())
+                .set(CREDENTIAL.UPDATE_USER, credential.getUpdateUser())
+                .set(CREDENTIAL.EXPIRY_TIME_MS, credential.getExpiryTimeMs())
+                .where(CREDENTIAL.UUID.eq(credential.getUuid()))
+                .execute());
+        return count > 0;
+    }
+
+    @Override
+    public boolean updateSecret(final StoredSecret secret) {
+        final Credential credential = secret.credential();
+        final String keyStoreType = credential.getKeyStoreType() == null
+                ? null
+                : credential.getKeyStoreType().name();
+        final JSON json = JSON.valueOf(JsonUtil.writeValueAsString(secret.secret()));
+        final int count = JooqUtil.contextResult(credentialsDbConnProvider, context -> context
+                .update(CREDENTIAL)
+                .set(CREDENTIAL.SECRET_JSON, json)
+                .set(CREDENTIAL.KEY_STORE, secret.keyStore())
+                .set(CREDENTIAL.KEY_STORE_TYPE, keyStoreType)
+                .set(CREDENTIAL.KEY_STORE_PATH, credential.getKeyStorePath())
+                .set(CREDENTIAL.EXPIRY_TIME_MS, credential.getExpiryTimeMs())
+                .set(CREDENTIAL.UPDATE_TIME_MS, credential.getUpdateTimeMs())
+                .set(CREDENTIAL.UPDATE_USER, credential.getUpdateUser())
+                .where(CREDENTIAL.UUID.eq(credential.getUuid()))
+                .execute());
+        return count > 0;
     }
 
     /**

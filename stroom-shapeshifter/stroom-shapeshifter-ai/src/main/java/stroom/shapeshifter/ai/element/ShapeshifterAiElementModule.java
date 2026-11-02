@@ -53,7 +53,7 @@ public class ShapeshifterAiElementModule extends PipelineElementModule {
         bind(Wake.class).to(TaskWake.class).in(Scopes.SINGLETON);
         // What a learner learns goes where its element says, read from its pipeline (A113).
         bind(Places.class).to(PipelinePlaces.class);
-        // What deferred mode's worker needs and a processing task is handed: the document an attempt
+        // What the worker needs and a processing task is handed: the document an attempt
         // names, and the stream it was raised on (A5, A28).
         bind(Documents.class).to(StoreDocuments.class).in(Scopes.SINGLETON);
         bind(Inputs.class).to(StreamInputs.class).in(Scopes.SINGLETON);
@@ -64,9 +64,9 @@ public class ShapeshifterAiElementModule extends PipelineElementModule {
         ScheduledJobsBinder.create(binder())
                 .bindJobTo(DeferredLearningJob.class, builder -> builder
                         .name("Shapeshifter AI Deferred Learning")
-                        .description("Carry on the Shapeshifter AI attempts that are waiting for the model: "
-                                     + "what a document in deferred execution mode parks rather than "
-                                     + "learning inside a processing task")
+                        .description("Carry on the Shapeshifter AI attempts that are waiting for the model. "
+                                     + "A processing task never asks the model: it defers its stream, "
+                                     + "and this job does the learning")
                         .frequencySchedule("1m"))
                 .bindJobTo(AttemptRetentionJob.class, builder -> builder
                         .name("Shapeshifter AI Attempt Retention")

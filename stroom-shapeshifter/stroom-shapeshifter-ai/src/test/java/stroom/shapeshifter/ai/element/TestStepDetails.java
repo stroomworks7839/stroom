@@ -31,7 +31,6 @@ import stroom.shapeshifter.ai.stage.Decision.Parked;
 import stroom.shapeshifter.ai.stage.Decision.Promoted;
 import stroom.shapeshifter.ai.stage.Decision.Provisional;
 import stroom.shapeshifter.ai.stage.Decision.Rebound;
-import stroom.shapeshifter.ai.stage.Decision.Retracted;
 import stroom.shapeshifter.ai.stage.Decision.Sentinel;
 import stroom.shapeshifter.ai.stage.Decision.Would;
 import stroom.shapeshifter.ai.stage.Input;
@@ -157,7 +156,6 @@ class TestStepDetails {
                 new Rebound(binding, binding, 0.95),
                 new Kept(binding, "the candidate was worse"),
                 new Drafted(binding, 0.9),
-                new Retracted(binding, 0.2, "it failed the gate"),
                 new GivenUp("nothing passed", List.of()),
                 new Sentinel("nothing serves this learner"),
                 new Deferred("waiting on a session"),

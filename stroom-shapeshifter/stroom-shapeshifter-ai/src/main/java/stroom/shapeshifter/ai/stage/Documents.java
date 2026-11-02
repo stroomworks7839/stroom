@@ -20,7 +20,7 @@ import stroom.shapeshifter.shared.ShapeshifterAiDoc;
 
 import java.util.Optional;
 
-/// The Shapeshifter AI documents by uuid, as an attempt's row names one: what deferred mode's worker
+/// The Shapeshifter AI documents by uuid, as an attempt's row names one: what the worker
 /// reads to learn how the attempt it is carrying on was told to learn. The document is read as it
 /// stands now, not as it stood when the attempt opened, so an operator who changed it while the attempt
 /// waited has changed it — and where that makes the replay put different questions, the attempt is

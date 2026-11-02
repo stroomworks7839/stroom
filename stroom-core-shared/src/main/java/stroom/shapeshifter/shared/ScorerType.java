@@ -23,19 +23,28 @@ import stroom.docref.HasDisplayValue;
  * each.
  */
 public enum ScorerType implements HasDisplayValue {
-    COMPILE("Compile"),
-    INPUT_COVERAGE("Input coverage"),
-    YIELD("Yield"),
-    SCHEMA_CONFORMANCE("Schema conformance"),
-    EXTRACTION_QUALITY("Extraction quality"),
-    BUSINESS_RULES("Business rules"),
-    ERROR_LOAD("Error load"),
-    EVENT_CLASSIFICATION("Event classification");
+    COMPILE("Compile", true),
+    INPUT_COVERAGE("Input coverage", true),
+    YIELD("Yield", true),
+    SCHEMA_CONFORMANCE("Schema conformance", true),
+    EXTRACTION_QUALITY("Extraction quality", true),
+    BUSINESS_RULES("Business rules", true),
+    // Settings with no scorer yet: a document naming one is refused when it is scored
+    ERROR_LOAD("Error load", false),
+    EVENT_CLASSIFICATION("Event classification", false);
 
     private final String displayValue;
+    private final boolean built;
 
-    ScorerType(final String displayValue) {
+    ScorerType(final String displayValue, final boolean built) {
         this.displayValue = displayValue;
+        this.built = built;
+    }
+
+    /// @return Whether a scorer of this type exists. One that does not is not offered for a document,
+    ///         since a document naming it cannot be scored.
+    public boolean isBuilt() {
+        return built;
     }
 
     @Override

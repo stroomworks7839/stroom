@@ -56,7 +56,8 @@ public class DbConnectionsModule extends AbstractModule {
         install(new stroom.shapeshifter.ai.impl.db.ShapeshifterAiDbModule());
         install(new stroom.storedquery.impl.db.StoredQueryDbModule());
         install(new stroom.statistics.impl.sql.SQLStatisticsDbModule());
-        install(new stroom.dashboard.impl.db.VisualisationAssetDbModule());
+        install(new stroom.sqlstore.impl.db.SqlStoreDbModule());
+        install(new stroom.document.asset.impl.db.DocumentAssetDbModule());
 
         // Special DB module for running cross-module java migrations
         NullSafe.consume(getCrossModuleDbMigrationsModule(), this::install);
