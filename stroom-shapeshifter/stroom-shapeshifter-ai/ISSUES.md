@@ -70,6 +70,30 @@ the commit or ruling that closed it, rather than deleting it.
 10. **A marked learner relearns on its first stream whose prefix is big enough.** A task holds only its
     stream's prefix, so the mark path judges that. Noted rather than a fault. *Design 04 §10, A100.*
 
+20. **Two scorer types have no scorer.** `ERROR_LOAD` and `EVENT_CLASSIFICATION` are in `ScorerType`, with
+    parameters and a check each, but nothing implements them, and a document naming either is refused
+    when its scorecard is built ("No scorer is installed"). Since 2026-11-02 the editor offers neither
+    (`ScorerType.isBuilt`), and shows one only where a document already names it. Build them, or take
+    them out of the model. *Design 01 §8.4 and §12 item 5.*
+
+22. **A document with no scorers judges nothing.** Only the scorers a document lists are applied, compile
+    included, so a new document, which has none, passes every candidate and every record, and nothing says
+    so. Fix: warn on the Score tab and refuse to learn with an empty set, or start a new document with the
+    demo set. *design/06-scoring.md §6.3, design/10-status-and-future.md §10.4.*
+
+23. **A19's refusal of `ignoreErrors` is not built.** The built-in question text forbids it; nothing refuses
+    a Data Splitter configuration that sets it. Fix: refuse it as `compile-failed` in the same static check
+    as item 21. *design/09-rulings.md A19, design/10-status-and-future.md §10.4.*
+
+24. **`regressionRetentionDays` is read by nothing,** though the Score tab's help text says it sets how long
+    regression records are kept. The corpus follows the source feed's retention (A18). Recommended: remove
+    the field. *design/06-scoring.md §6.8, design/10-status-and-future.md §10.4.*
+
+25. ~~**Stale texts.**~~ *Closed 2026-11-02: each rewritten, and `Decision.Retracted` removed.* The Retract button's tooltip says what it produced is asked to be processed again,
+    which A129 ended; the Deferred Learning job's description speaks of a deferred execution mode; the
+    `attemptRetention` description speaks of retraction asking for reprocessing; `Decision.Retracted` is
+    constructed by nothing; class comments say "deferred mode's worker". *design/10-status-and-future.md §10.4 lists each.*
+
 ## For the real-scale trial
 
 11. **The backlog pages in memory,** reading every readable document's rows, and its "raised" count is
@@ -79,6 +103,16 @@ the commit or ruling that closed it, rather than deleting it.
     header, which still reads in memory. The learning pipelines list that replaces it groups the whole
     attempts table for each page and again for its total; the trial should watch that query once a
     cluster has kept a season of sessions.
+
+21. **A stylesheet the model writes is not checked before it runs.** On a node a candidate runs in the
+    real `XSLTFilter` with the whole `stroom:` function library, so a stylesheet could call `http-call`,
+    `fetch-json` or `ask-ai` while it is judged, and go on calling it once promoted. A147 rules a static
+    check instead of a restricted library at run time: every candidate stylesheet is refused, as
+    `compile-failed` with the reason, if it calls any extension function or names `document()`,
+    `unparsed-text()`, `collection()`, `xsl:include`, `xsl:import`, `xsl:result-document` or an external
+    entity; the same check is made again at promotion. `XsltStep`, the Tier 1 stand-in, already refuses
+    all of these by configuring Saxon; the check is to do the same to the text, so that it holds whichever
+    runner judges the candidate. A stylesheet a person edits by hand afterwards is theirs, like any other.
 
 ## Before a pull request
 

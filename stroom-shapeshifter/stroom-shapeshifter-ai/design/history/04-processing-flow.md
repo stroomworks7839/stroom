@@ -1,5 +1,7 @@
 # Design 04 — The processing flow: how a stream waits for what it needs
 
+> **Archived.** This is the design as it was written and ruled, kept for its reasoning and history. The current design is [the design set](../README.md); code comments that cite this document by number and section still resolve here.
+
 *Written 2026-10-04, from the owner's rulings of the same day. Design 01 describes what the stage
 decides; design 02 the scenarios that force it; design 03 the order the work is done in. None of them
 says how a stream gets to the stage, or what becomes of it when the stage is not ready for it. That is

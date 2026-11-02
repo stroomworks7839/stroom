@@ -1,5 +1,7 @@
 # Design 06 — Pipelines made for feeds: one pipeline per feed and type, made by a job
 
+> **Archived.** This is the design as it was written and ruled, kept for its reasoning and history. The current design is [the design set](../README.md); code comments that cite this document by number and section still resolve here.
+
 *Drafted and ruled 2026-10-07. The ten questions of §8 were put with recommendations. Eight
 recommendations were taken; on Q6 the owner ruled that a Pipeline Factory offers every processor filter
 setting, and on Q8 that the process header drops its first stage. The rulings are A103–A112 in §10. A113 to A117

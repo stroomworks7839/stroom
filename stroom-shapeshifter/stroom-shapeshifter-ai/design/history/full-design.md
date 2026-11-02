@@ -1,5 +1,7 @@
 # Shapeshifter — Intelligent Data Transformation for Stroom
 
+> **Archived.** This is the design as it was written and ruled, kept for its reasoning and history. The current design is [the design set](../README.md); code comments that cite this document by number and section still resolve here.
+
 > **Version**: 0.4 — May 2026
 > **Status**: Draft
 > **Author**: Stroomworks

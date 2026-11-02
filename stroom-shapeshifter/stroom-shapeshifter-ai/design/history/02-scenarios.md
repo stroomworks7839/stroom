@@ -1,5 +1,7 @@
 # Scenarios: the supervisor's executable specification
 
+> **Archived.** This is the design as it was written and ruled, kept for its reasoning and history. The current design is [the design set](../README.md); code comments that cite this document by number and section still resolve here.
+
 *Drafted 2026-09-17. Companion to `01-intelligence-in-the-pipeline.md`, whose section numbers and
 rulings (A1–A29) this document cites. Status: proposed; §7 lists what is owed a decision. Brought
 into line with design 01's A23–A29 and its 2026-09-17 revisions the same evening.*

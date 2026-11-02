@@ -1,5 +1,7 @@
 # Design 01 — Intelligence in the pipeline: a supervised stage, not an external controller
 
+> **Archived.** This is the design as it was written and ruled, kept for its reasoning and history. The current design is [the design set](../README.md); code comments that cite this document by number and section still resolve here.
+
 *Reframed 2026-09-11 from `full-design.md` (v0.4, May 2026). That document describes two components,
 Shapeshifter Intelligence and Shapeshifter Engine. This design keeps only Intelligence, drops the
 Engine entirely, and re-targets the whole mechanism at Stroom's existing Data Splitter and XSLT.*

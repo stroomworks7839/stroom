@@ -1,5 +1,7 @@
 # Design 03 — Phases: what is built in what order, and what lets the next phase start
 
+> **Archived.** This is the design as it was written and ruled, kept for its reasoning and history. The current design is [the design set](../README.md); code comments that cite this document by number and section still resolve here.
+
 *Written 2026-09-21, revised 2026-09-23 for the MVP scope of design 01 §15. Design 01 §12 is the work list, in dependency order and marked built or not;
 design 02 §6 is the same list ordered by the scenario that forces each item. Neither says what a phase
 is, when it is finished, or which input formats the feature has been shown to handle. This document
