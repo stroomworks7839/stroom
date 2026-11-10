@@ -21,7 +21,6 @@ import stroom.widget.text.client.Label;
 
 import com.google.gwt.user.client.ui.FlowPanel;
 import com.google.gwt.user.client.ui.ScrollPanel;
-import com.google.gwt.user.client.ui.Widget;
 import com.google.inject.Inject;
 
 public class ConditionEdit extends Component {

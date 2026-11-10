@@ -19,9 +19,7 @@ package stroom.shapeshifter.client.component;
 import stroom.shapeshifter.client.component.ContentPaneController.Loose;
 import stroom.shapeshifter.client.model.Hot;
 import stroom.shapeshifter.client.model.Mark;
-import stroom.widget.button.client.Button;
 import stroom.widget.component.client.Component;
-import stroom.widget.form.client.TextArea;
 import stroom.widget.text.client.Html;
 import stroom.widget.text.client.Label;
 
@@ -29,7 +27,6 @@ import com.google.gwt.core.client.GWT;
 import com.google.gwt.dom.client.Element;
 import com.google.gwt.dom.client.EventTarget;
 import com.google.gwt.event.dom.client.ClickEvent;
-import com.google.gwt.event.dom.client.KeyCodes;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
 import com.google.gwt.user.client.ui.FlowPanel;

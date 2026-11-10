@@ -17,9 +17,7 @@
 package stroom.shapeshifter.client.component;
 
 import stroom.shapeshifter.client.model.PatternItem;
-import stroom.svg.shared.SvgImage;
 import stroom.widget.button.client.Toolbar;
-import stroom.widget.button.client.ToolbarButton;
 import stroom.widget.component.client.Component;
 import stroom.widget.htree.client.treelayout.util.DefaultTreeForTreeLayout;
 import stroom.widget.text.client.Html;

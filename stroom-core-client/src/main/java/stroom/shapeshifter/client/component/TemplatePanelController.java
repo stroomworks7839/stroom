@@ -139,7 +139,9 @@ public class TemplatePanelController extends Controller {
         }));
         own(modesButton.addClickHandler(event -> {
             if (MouseUtil.isPrimary(event) && host.getProject() != null) {
-                modeEditorProvider.get().show(this);
+                final ModeEditorController modes = modeEditorProvider.get();
+                modes.setHost(host);
+                modes.show(this);
             }
         }));
         own(patternButton.addClickHandler(event -> {
@@ -152,7 +154,6 @@ public class TemplatePanelController extends Controller {
 
     public void setHost(final ProjectHost host) {
         this.host = host;
-        modeEditorProvider.get().setHost(host);
     }
 
 

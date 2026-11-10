@@ -22,7 +22,6 @@ import stroom.shapeshifter.client.model.Instructions;
 import stroom.shapeshifter.client.model.SortKey;
 import stroom.shapeshifter.config.Condition;
 import stroom.shapeshifter.config.ConfigException;
-import stroom.shapeshifter.config.Dispatch;
 import stroom.shapeshifter.config.OutputNode;
 import stroom.shapeshifter.config.OutputNode.Append;
 import stroom.shapeshifter.config.OutputNode.ApplyDirective;

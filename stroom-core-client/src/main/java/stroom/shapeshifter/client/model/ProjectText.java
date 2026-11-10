@@ -23,7 +23,6 @@ import stroom.shapeshifter.config.Project;
 import stroom.shapeshifter.config.json.JsonText;
 import stroom.shapeshifter.config.json.ProjectJson;
 
-import java.util.List;
 
 /**
  * The client's edge onto the project text: the config module's own parser and printer over its

@@ -19,7 +19,6 @@ package stroom.shapeshifter.client.component;
 import stroom.alert.client.event.AlertEvent;
 import stroom.shapeshifter.client.model.PatternNodes;
 import stroom.shapeshifter.client.model.Templates;
-import stroom.shapeshifter.config.BinaryCast;
 import stroom.shapeshifter.config.ConfigException;
 import stroom.shapeshifter.config.PatternNode;
 import stroom.shapeshifter.config.Project;
@@ -32,7 +31,6 @@ import stroom.widget.popup.client.PopupSize;
 import stroom.widget.popup.client.PopupType;
 import stroom.widget.popup.client.event.HidePopupRequestEvent;
 
-import com.google.gwt.user.client.ui.Focus;
 import com.google.inject.Inject;
 import com.google.web.bindery.event.shared.EventBus;
 

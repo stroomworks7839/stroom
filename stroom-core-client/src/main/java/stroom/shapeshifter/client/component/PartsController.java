@@ -18,7 +18,6 @@ package stroom.shapeshifter.client.component;
 
 import stroom.shapeshifter.client.model.ProjectHost;
 import stroom.shapeshifter.client.model.Templates;
-import stroom.shapeshifter.config.ConfigException;
 import stroom.shapeshifter.config.MatchExpression;
 import stroom.shapeshifter.config.MatchExpression.MatchPart;
 import stroom.shapeshifter.config.PatternNode;
@@ -28,7 +27,6 @@ import stroom.widget.button.client.ToolbarButton;
 import stroom.widget.component.client.Controller;
 import stroom.widget.util.client.MouseUtil;
 
-import com.google.gwt.safehtml.shared.SafeHtml;
 import com.google.gwt.safehtml.shared.SafeHtmlBuilder;
 import com.google.inject.Inject;
 import com.google.inject.Provider;

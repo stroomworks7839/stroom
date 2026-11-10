@@ -29,7 +29,6 @@ import stroom.shapeshifter.shared.ShapeshifterDoc;
 import stroom.svg.shared.SvgImage;
 import stroom.util.client.DelayedUpdate;
 import stroom.widget.button.client.ToolbarButton;
-import stroom.widget.component.client.Contexts;
 import stroom.widget.tab.client.TabData;
 import stroom.widget.tab.client.TabDataImpl;
 

@@ -19,7 +19,6 @@ package stroom.shapeshifter.client.component;
 import stroom.dispatch.client.RestFactory;
 import stroom.shapeshifter.client.model.ProjectHost;
 import stroom.shapeshifter.config.ConfigException;
-import stroom.shapeshifter.config.Dispatch;
 import stroom.shapeshifter.config.Project;
 import stroom.shapeshifter.config.Project.SourceConfig;
 import stroom.shapeshifter.shared.ShapeshifterResource;
@@ -29,7 +28,6 @@ import com.google.gwt.core.client.GWT;
 import com.google.inject.Inject;
 import com.google.web.bindery.event.shared.EventBus;
 
-import java.util.List;
 
 /**
  * The source panel: what the {@code source} row of the template panel edits — the project's name

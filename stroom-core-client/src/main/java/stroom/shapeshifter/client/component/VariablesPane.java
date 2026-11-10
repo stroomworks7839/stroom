@@ -23,7 +23,6 @@ import stroom.widget.button.client.LinkButton;
 import stroom.widget.component.client.Component;
 import stroom.widget.text.client.InlineLabel;
 import stroom.widget.text.client.Label;
-import stroom.widget.text.client.Link;
 
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.event.dom.client.MouseOutEvent;
