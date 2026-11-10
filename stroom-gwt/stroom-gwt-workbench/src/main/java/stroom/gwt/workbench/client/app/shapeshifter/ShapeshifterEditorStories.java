@@ -250,7 +250,7 @@ public final class ShapeshifterEditorStories {
                     play.expect(play.getByText("Read only", ".link-tab-panel__read-only-note")).toBeVisible();
                     // Save As stays available read only, so the document can still be copied
                     play.expect(play.getByRole("button", "Save As")).not().toHaveAttribute("aria-disabled");
-                    play.waitFor(() -> play.expect(play.getByText("pair")).toBeInTheDocument());
+                    play.waitFor(() -> play.expect(play.getByText("pair", TEMPLATE_NAME)).toBeInTheDocument());
                     expectNoProblems(play);
                 })
                 // The document is locked and unlocked while it is open, as DocumentPlugin does when
@@ -258,20 +258,26 @@ public final class ShapeshifterEditorStories {
                 // watches Contexts.READ_ONLY rather than being told once by read()
                 .story("LockChangeWhileOpen", context -> render(context, false))
                 .withPlay(play -> {
-                    play.waitFor(() -> play.expect(play.getByText("pair")).toBeInTheDocument());
+                    play.waitFor(() -> play.expect(play.getByText("pair", TEMPLATE_NAME)).toBeInTheDocument());
                     play.expect(play.getByRole("button", "Save")).toHaveAttribute("aria-disabled", "true");
+
+                    // A pane below follows too: the body offers no "+ instruction" read only
+                    selectTemplate(play, "pair");
+                    play.waitFor(() -> play.expect(play.getByText("+ instruction")).toBeInTheDocument());
 
                     play.run("lock the document", () -> readAgain(true));
                     play.expect(play.findByRole("button", "Save (read only)")).toBeInTheDocument();
                     play.expect(play.getByText("Read only", ".link-tab-panel__read-only-note")).toBeVisible();
+                    play.waitFor(() -> play.expect(play.queryByText("+ instruction")).toBeNull());
                     // The panel is still drawn: locking narrows what may be changed, it doesn't
                     // empty the tab
-                    play.expect(play.getByText("pair")).toBeInTheDocument();
+                    play.expect(play.getByText("pair", TEMPLATE_NAME)).toBeInTheDocument();
 
                     play.run("unlock the document", () -> readAgain(false));
                     play.expect(play.findByRole("button", "Save")).toBeInTheDocument();
                     play.expect(play.queryByText("Read only", ".link-tab-panel__read-only-note")).toBeNull();
-                    play.expect(play.getByText("pair")).toBeInTheDocument();
+                    play.waitFor(() -> play.expect(play.getByText("+ instruction")).toBeInTheDocument());
+                    play.expect(play.getByText("pair", TEMPLATE_NAME)).toBeInTheDocument();
                     expectNoProblems(play);
                 })
 
@@ -331,7 +337,7 @@ public final class ShapeshifterEditorStories {
                 .story("TemplateDialogOk", context -> render(context, false))
                 .withPlay(play -> {
                     final Play screen = play.screen();
-                    play.waitFor(() -> play.expect(play.getByText("pair")).toBeInTheDocument());
+                    play.waitFor(() -> play.expect(play.getByText("pair", TEMPLATE_NAME)).toBeInTheDocument());
                     play.click(play.getByRole("button", "Add template"));
                     final Play dialog = play.within(
                             screen.findByText("New Template", StroomDom.DIALOG_TITLE)
@@ -349,7 +355,7 @@ public final class ShapeshifterEditorStories {
                 .story("TemplateDialogCancel", context -> render(context, false))
                 .withPlay(play -> {
                     final Play screen = play.screen();
-                    play.waitFor(() -> play.expect(play.getByText("pair")).toBeInTheDocument());
+                    play.waitFor(() -> play.expect(play.getByText("pair", TEMPLATE_NAME)).toBeInTheDocument());
                     play.click(play.getByRole("button", "Add template"));
                     final Play dialog = play.within(
                             screen.findByText("New Template", StroomDom.DIALOG_TITLE)
@@ -435,7 +441,7 @@ public final class ShapeshifterEditorStories {
                 .story("ModesDialog", context -> render(context, false))
                 .withPlay(play -> {
                     final Play screen = play.screen();
-                    play.waitFor(() -> play.expect(play.getByText("pair")).toBeInTheDocument());
+                    play.waitFor(() -> play.expect(play.getByText("pair", TEMPLATE_NAME)).toBeInTheDocument());
                     play.click(play.getByRole("button", TextMatch.regex("^Modes", "i")));
                     final Play dialog = play.within(
                             screen.findByText(TextMatch.regex("mode", "i"), StroomDom.DIALOG_TITLE)
@@ -572,10 +578,11 @@ public final class ShapeshifterEditorStories {
     // The chip that carries a template's match, and opens the pattern workbench
     private static final String MATCH_CHIP = ".ss-match-chip";
 
-    // Picks a template in the panel, which is what fills the strip beside it
+    // Picks a template in the panel, which is what fills the strip beside it. By the panel's
+    // row: once it is selected the strip shows the name too.
     private static void selectTemplate(final Play play, final String name) {
-        play.waitFor(() -> play.expect(play.getByText(name)).toBeInTheDocument());
-        play.click(play.getByText(name));
+        play.waitFor(() -> play.expect(play.getByText(name, TEMPLATE_NAME)).toBeInTheDocument());
+        play.click(play.getByText(name, TEMPLATE_NAME));
     }
 
     // The host the story shows, for plays that act as ShapeshifterPlugin does
