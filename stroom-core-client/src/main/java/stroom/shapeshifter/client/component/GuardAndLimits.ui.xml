@@ -3,8 +3,10 @@
              xmlns:form="urn:import:stroom.widget.form.client"
              xmlns:t="urn:import:stroom.widget.text.client"
              xmlns:g="urn:import:com.google.gwt.user.client.ui"
+             xmlns:split="urn:import:stroom.widget.layout.client"
              xmlns:ss="urn:import:stroom.shapeshifter.client.component">
-    <g:ScrollPanel styleName="max">
+    <split:ScrollPane addStyleNames="max scroll-region"
+                      focusable="true" role="region" ariaLabel="Guard and limits">
         <g:FlowPanel styleName="ss-wb-right">
             <g:FlowPanel styleName="ss-wb-sec">
                 <t:Html styleName="ss-wb-h4">Guard <span class="ss-wb-h4-note">(evaluated before matching, against the names in scope)</span></t:Html>
@@ -30,5 +32,5 @@
                 </g:FlowPanel>
             </g:FlowPanel>
         </g:FlowPanel>
-    </g:ScrollPanel>
+    </split:ScrollPane>
 </ui:UiBinder>

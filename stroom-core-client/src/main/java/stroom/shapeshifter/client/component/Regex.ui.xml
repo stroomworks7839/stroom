@@ -3,8 +3,10 @@
              xmlns:form="urn:import:stroom.widget.form.client"
              xmlns:t="urn:import:stroom.widget.text.client"
              xmlns:g="urn:import:com.google.gwt.user.client.ui"
+             xmlns:split="urn:import:stroom.widget.layout.client"
              xmlns:tickbox="urn:import:stroom.widget.tickbox.client">
-    <g:ScrollPanel styleName="max">
+    <split:ScrollPane addStyleNames="max scroll-region"
+                      focusable="true" role="region" ariaLabel="Regular expression">
         <g:FlowPanel styleName="ss-wb-right">
             <g:FlowPanel styleName="ss-wb-sec">
                 <t:Label styleName="ss-wb-h4" text="Pattern"/>
@@ -32,5 +34,5 @@
                 <t:Label ui:field="explain" styleName="ss-wb-lint ss-explain"/>
             </g:FlowPanel>
         </g:FlowPanel>
-    </g:ScrollPanel>
+    </split:ScrollPane>
 </ui:UiBinder>

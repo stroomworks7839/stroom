@@ -17,15 +17,15 @@
 package stroom.shapeshifter.client.component;
 
 import stroom.widget.component.client.Component;
+import stroom.widget.layout.client.ScrollPane;
 import stroom.widget.text.client.Label;
 
 import com.google.gwt.user.client.ui.FlowPanel;
-import com.google.gwt.user.client.ui.ScrollPanel;
 import com.google.inject.Inject;
 
 public class ConditionEdit extends Component {
 
-    private final ScrollPanel widget;
+    private final ScrollPane widget;
     private final ClauseListPanel clauses = new ClauseListPanel();
 
     @Inject
@@ -37,8 +37,12 @@ public class ConditionEdit extends Component {
         panel.add(heading);
         clauses.setEmptyText("(no clauses yet)");
         panel.add(clauses);
-        widget = new ScrollPanel(panel);
-        widget.setStyleName("max");
+        widget = new ScrollPane();
+        widget.setWidget(panel);
+        widget.setStyleName("max scroll-region");
+        widget.setFocusable(true);
+        widget.setRole("region");
+        widget.setAriaLabel("Condition");
         initWidget(widget);
     }
 

@@ -446,6 +446,85 @@ public final class ShapeshifterEditorStories {
                     play.click(screen.getByRole("button", StroomDom.button("Close")));
                     expectNoProblems(play);
                 })
+
+                // The body's "+ instruction" line offers the kinds on a menu; picking one opens
+                // the instruction dialog for it
+                .story("InstructionDialogOk", context -> render(context, false))
+                .withPlay(play -> {
+                    final Play screen = play.screen();
+                    selectTemplate(play, "pair");
+                    play.waitFor(() -> play.expect(play.getByText("+ instruction")).toBeInTheDocument());
+                    play.click(play.getByText("+ instruction"));
+                    // The kinds are a menu on the page's body, not in the canvas
+                    play.click(screen.findByText("text", StroomDom.MENU_ITEM_TEXT));
+                    final Play dialog = play.within(
+                            screen.findByText("New text", StroomDom.DIALOG_TITLE)
+                                    .closest(StroomDom.DIALOG));
+                    dialog.type(dialog.getByRole("textbox").first(), "hello");
+                    play.click(screen.getByRole("button", StroomDom.button("OK")));
+                    // A card for it joins the body, and the document has work to save
+                    play.waitFor(() -> play.expect(play.getAllByText("text", CARD_KIND).count())
+                            .toSatisfy("a fourth text card", count -> ((Integer) count) == 4));
+                    play.expect(play.getByRole("button", "Save")).not().toHaveAttribute("aria-disabled");
+                    expectNoProblems(play);
+                })
+                // Cancel adds no card and leaves the document clean
+                .story("InstructionDialogCancel", context -> render(context, false))
+                .withPlay(play -> {
+                    final Play screen = play.screen();
+                    selectTemplate(play, "pair");
+                    play.waitFor(() -> play.expect(play.getByText("+ instruction")).toBeInTheDocument());
+                    play.click(play.getByText("+ instruction"));
+                    play.click(screen.findByText("text", StroomDom.MENU_ITEM_TEXT));
+                    final Play dialog = play.within(
+                            screen.findByText("New text", StroomDom.DIALOG_TITLE)
+                                    .closest(StroomDom.DIALOG));
+                    dialog.type(dialog.getByRole("textbox").first(), "hello");
+                    play.click(screen.getByRole("button", StroomDom.button("Cancel")));
+                    play.waitFor(() -> play.expect(screen.queryByText("New text",
+                            StroomDom.DIALOG_TITLE)).toBeNull());
+                    // The pair template's three text cards, as the fixture has them
+                    play.expect(play.getAllByText("text", CARD_KIND).count())
+                            .toSatisfy("still three text cards", count -> ((Integer) count) == 3);
+                    play.expect(play.getByRole("button", "Save")).toHaveAttribute("aria-disabled", "true");
+                    expectNoProblems(play);
+                })
+                // Adding a pattern part asks for its name first: the name prompt, which several
+                // places share
+                .story("NamePromptOk", context -> render(context, false))
+                .withPlay(play -> {
+                    final Play screen = play.screen();
+                    play.waitFor(() -> play.expect(play.getByText("pair", TEMPLATE_NAME))
+                            .toBeInTheDocument());
+                    play.click(play.getByRole("button", TextMatch.regex("^Add a pattern part")));
+                    final Play dialog = play.within(
+                            screen.findByText("New Pattern Part", StroomDom.DIALOG_TITLE)
+                                    .closest(StroomDom.DIALOG));
+                    dialog.type(dialog.getByRole("textbox").first(), "ipv4");
+                    play.click(screen.getByRole("button", StroomDom.button("OK")));
+                    // The part is in the panel's library section
+                    play.waitFor(() -> play.expect(play.getByText("ipv4", TEMPLATE_NAME))
+                            .toBeInTheDocument());
+                    expectNoProblems(play);
+                })
+                // Cancelling the prompt adds no part
+                .story("NamePromptCancel", context -> render(context, false))
+                .withPlay(play -> {
+                    final Play screen = play.screen();
+                    play.waitFor(() -> play.expect(play.getByText("pair", TEMPLATE_NAME))
+                            .toBeInTheDocument());
+                    play.click(play.getByRole("button", TextMatch.regex("^Add a pattern part")));
+                    final Play dialog = play.within(
+                            screen.findByText("New Pattern Part", StroomDom.DIALOG_TITLE)
+                                    .closest(StroomDom.DIALOG));
+                    dialog.type(dialog.getByRole("textbox").first(), "ipv4");
+                    play.click(screen.getByRole("button", StroomDom.button("Cancel")));
+                    play.waitFor(() -> play.expect(screen.queryByText("New Pattern Part",
+                            StroomDom.DIALOG_TITLE)).toBeNull());
+                    play.expect(play.queryByText("ipv4", TEMPLATE_NAME)).toBeNull();
+                    play.expect(play.getByRole("button", "Save")).toHaveAttribute("aria-disabled", "true");
+                    expectNoProblems(play);
+                })
                 // The Source tab shows the same project as text. Opening it at all is the
                 // regression test for its missing attach(...), which threw on the editor's null
                 // options

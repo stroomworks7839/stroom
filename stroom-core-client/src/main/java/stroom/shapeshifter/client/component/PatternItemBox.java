@@ -36,6 +36,9 @@ public class PatternItemBox extends Box<PatternItem> {
         this.item = item;
         background.setStyleName("expression-item");
         initWidget(background);
+        // aria-selected needs a role that takes it, and a node of the pattern tree is a tree
+        // item. After initWidget: there is no element before it.
+        getElement().setAttribute("role", "treeitem");
     }
 
     public void setInnerWidget(final Widget innerWidget) {

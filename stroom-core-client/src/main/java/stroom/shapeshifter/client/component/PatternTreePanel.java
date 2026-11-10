@@ -79,6 +79,9 @@ public class PatternTreePanel extends TreePanel<PatternItem> {
         }
         panel.add(boxPanel);
         initWidget(panel);
+        // Its boxes are treeitems, which need a tree to sit in (ExpressionTree does the same)
+        boxPanel.getElement().setAttribute("role", "tree");
+        boxPanel.getElement().setAttribute("aria-label", "Pattern nodes");
     }
 
     public void setListener(final PatternItemRenderer.Listener listener) {
