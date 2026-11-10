@@ -76,9 +76,8 @@ public class DeclarationsController extends Controller {
         dataGrid.setTableName("Declarations");
         selectionModel = dataGrid.addDefaultSelectionModel(false);
         view.setDataWidget(dataGrid);
-        // The toolbar shares the pager's bar, so paging is hidden by style rather than the bar by API.
-        // Everything it holds is shown at once, so it pages nothing; its actions
-        // share the pager's bar, which stays.
+        // Everything it holds is shown at once, so it pages nothing; its actions share
+        // the pager's bar, which stays (setPagerVisible would take the bar as well).
         view.setPagingVisible(false);
         addButton = view.getToolbar().button(SvgImage.ADD, "Add declaration", () -> {
         });
