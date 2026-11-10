@@ -31,6 +31,7 @@ import stroom.shapeshifter.shared.ShapeshifterPatternInfo.Group;
 import stroom.shapeshifter.shared.ShapeshifterPatternRequest;
 import stroom.shapeshifter.shared.ShapeshifterResource;
 import stroom.util.client.DelayedUpdate;
+import stroom.widget.component.client.Contexts;
 import stroom.widget.component.client.Controller;
 
 import com.google.gwt.core.client.GWT;
@@ -56,6 +57,10 @@ public class RegexController
         extends Controller
         implements MatchEditorController.MatchForm {
 
+    // From Contexts.READ_ONLY: true until the document says otherwise, so a
+    // controller with no owner fails closed rather than editable.
+    private boolean readOnly = true;
+
     private final Regex view;
 
     private static final ShapeshifterResource RESOURCE = GWT.create(ShapeshifterResource.class);
@@ -76,12 +81,14 @@ public class RegexController
         super(eventBus);
         this.view = view;
         initWidget(view);
+        watch(Contexts.READ_ONLY, readOnly -> this.readOnly = readOnly);
         view.setOnChange(this::onChange);
         view.setOnExplode(this::onExplode);
         view.setOnGroupName(this::onGroupName);
         view.setOnGroupSelect(this::onGroupSelect);
         this.restFactory = restFactory;
         this.commit = new DelayedUpdate(300, this::commit);
+        onDispose(commit::reset);
     }
 
     public void setHost(final ProjectHost host) {
@@ -108,7 +115,7 @@ public class RegexController
         if (template == null || !(template.match() instanceof MatchExpression.Regex regex)) {
             return;
         }
-        view.setEnabled(!host.isReadOnly());
+        view.setEnabled(!readOnly);
         // Only touch the fields when the model disagrees with them, so that a commit of the user's
         // own typing does not move the caret.
         if (!regex.pattern().equals(view.getPattern())) {
@@ -159,7 +166,7 @@ public class RegexController
      */
     public void onGroupName(final int index, final String typed) {
         final Template template = host.template(templateId);
-        if (template == null || host.isReadOnly()) {
+        if (template == null || readOnly) {
             return;
         }
         final String name = typed == null
@@ -208,7 +215,7 @@ public class RegexController
 
     private void commit() {
         final Template template = host.template(templateId);
-        if (template == null || host.isReadOnly() || !(template.match() instanceof MatchExpression.Regex)) {
+        if (template == null || readOnly || !(template.match() instanceof MatchExpression.Regex)) {
             return;
         }
         final MatchExpression.Regex regex = new MatchExpression.Regex(view.getPattern(),
@@ -246,7 +253,7 @@ public class RegexController
                         show();
                     }
                 })
-                .taskMonitorFactory(taskMonitor())
+                .owner(this)
                 .exec();
     }
 

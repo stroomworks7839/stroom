@@ -22,6 +22,7 @@ import stroom.shapeshifter.config.ConfigException;
 import stroom.shapeshifter.config.Project;
 import stroom.shapeshifter.config.Project.SourceConfig;
 import stroom.shapeshifter.shared.ShapeshifterResource;
+import stroom.widget.component.client.Contexts;
 import stroom.widget.component.client.Controller;
 
 import com.google.gwt.core.client.GWT;
@@ -37,6 +38,10 @@ import com.google.web.bindery.event.shared.EventBus;
  */
 public class SourceSettingsController extends Controller {
 
+    // From Contexts.READ_ONLY: true until the document says otherwise, so a
+    // controller with no owner fails closed rather than editable.
+    private boolean readOnly = true;
+
     private final SourceSettings view;
 
     private static final ShapeshifterResource RESOURCE = GWT.create(ShapeshifterResource.class);
@@ -51,6 +56,7 @@ public class SourceSettingsController extends Controller {
         super(eventBus);
         this.view = view;
         initWidget(view);
+        watch(Contexts.READ_ONLY, readOnly -> this.readOnly = readOnly);
         view.setOnChange(this::onChange);
         restFactory
                 .create(RESOURCE)
@@ -64,7 +70,7 @@ public class SourceSettingsController extends Controller {
                         reading = false;
                     }
                 })
-                .taskMonitorFactory(taskMonitor())
+                .owner(this)
                 .exec();
     }
 
@@ -76,7 +82,7 @@ public class SourceSettingsController extends Controller {
         final Project project = host.getProject();
         reading = true;
         try {
-            view.setEnabled(project != null && !host.isReadOnly());
+            view.setEnabled(project != null && !readOnly);
             if (project == null) {
                 return;
             }
@@ -95,7 +101,7 @@ public class SourceSettingsController extends Controller {
     }
 
     public void onChange() {
-        if (reading || host == null || host.getProject() == null || host.isReadOnly()) {
+        if (reading || host == null || host.getProject() == null || readOnly) {
             return;
         }
         final Project project = host.getProject();

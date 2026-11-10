@@ -24,6 +24,7 @@ import stroom.shapeshifter.config.PatternNode;
 import stroom.shapeshifter.config.Template;
 import stroom.svg.shared.SvgImage;
 import stroom.widget.button.client.ToolbarButton;
+import stroom.widget.component.client.Contexts;
 import stroom.widget.component.client.Controller;
 import stroom.widget.util.client.MouseUtil;
 
@@ -46,6 +47,10 @@ public class PartsController
         extends Controller
         implements MatchEditorController.MatchForm {
 
+    // From Contexts.READ_ONLY: true until the document says otherwise, so a
+    // controller with no owner fails closed rather than editable.
+    private boolean readOnly = true;
+
     private final Parts view;
 
     private final Provider<PartEditController> partEditorProvider;
@@ -67,6 +72,7 @@ public class PartsController
         super(eventBus);
         this.view = view;
         initWidget(view);
+        watch(Contexts.READ_ONLY, readOnly -> this.readOnly = readOnly);
         view.setOnSelect(this::onSelect);
         view.setOnOpen(this::onOpen);
         this.partEditorProvider = partEditorProvider;
@@ -145,7 +151,7 @@ public class PartsController
     }
 
     private void enableButtons() {
-        final boolean editable = host != null && !host.isReadOnly() && templateId != null;
+        final boolean editable = host != null && !readOnly && templateId != null;
         final boolean has = selected >= 0 && selected < parts.size();
         addButton.setEnabled(editable);
         editButton.setEnabled(editable && has);
@@ -155,7 +161,7 @@ public class PartsController
     }
 
     private void onAdd() {
-        if (host.isReadOnly() || templateId == null) {
+        if (readOnly || templateId == null) {
             return;
         }
         final int at = selected < 0
@@ -183,7 +189,7 @@ public class PartsController
     }
 
     private void onEdit() {
-        if (host.isReadOnly() || selected < 0 || selected >= parts.size()) {
+        if (readOnly || selected < 0 || selected >= parts.size()) {
             return;
         }
         final int at = selected;
@@ -209,7 +215,7 @@ public class PartsController
     }
 
     private void onRemove() {
-        if (host.isReadOnly() || selected < 0 || selected >= parts.size() || parts.size() < 2) {
+        if (readOnly || selected < 0 || selected >= parts.size() || parts.size() < 2) {
             return;
         }
         final List<MatchPart> next = new ArrayList<>(parts);
@@ -219,7 +225,7 @@ public class PartsController
 
     private void onMove(final int by) {
         final int to = selected + by;
-        if (host.isReadOnly() || selected < 0 || to < 0 || to >= parts.size()) {
+        if (readOnly || selected < 0 || to < 0 || to >= parts.size()) {
             return;
         }
         final List<MatchPart> next = new ArrayList<>(parts);

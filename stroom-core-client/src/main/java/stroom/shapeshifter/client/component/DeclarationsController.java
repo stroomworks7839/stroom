@@ -24,6 +24,7 @@ import stroom.shapeshifter.config.Template;
 import stroom.svg.shared.SvgImage;
 import stroom.util.client.DataGridUtil;
 import stroom.widget.button.client.ToolbarButton;
+import stroom.widget.component.client.Contexts;
 import stroom.widget.component.client.Controller;
 import stroom.widget.datagrid.client.DataGrid;
 import stroom.widget.datagrid.client.PagerPanel;
@@ -46,6 +47,10 @@ import java.util.Locale;
  */
 public class DeclarationsController extends Controller {
 
+    // From Contexts.READ_ONLY: true until the document says otherwise, so a
+    // controller with no owner fails closed rather than editable.
+    private boolean readOnly = true;
+
     private final PagerPanel view;
 
     private final DataGrid<Declaration> dataGrid;
@@ -65,6 +70,7 @@ public class DeclarationsController extends Controller {
         super(eventBus);
         this.view = view;
         initWidget(view);
+        watch(Contexts.READ_ONLY, readOnly -> this.readOnly = readOnly);
         this.editPresenterProvider = editPresenterProvider;
         dataGrid = new DataGrid<>();
         dataGrid.setTableName("Declarations");
@@ -141,7 +147,7 @@ public class DeclarationsController extends Controller {
     }
 
     private void enableButtons() {
-        final boolean editable = host != null && !host.isReadOnly() && templateId != null;
+        final boolean editable = host != null && !readOnly && templateId != null;
         final boolean selected = selectionModel.getSelected() != null;
         addButton.setEnabled(editable);
         editButton.setEnabled(editable && selected);
@@ -150,7 +156,7 @@ public class DeclarationsController extends Controller {
 
     private void onAdd() {
         final Template template = host.template(templateId);
-        if (template == null || host.isReadOnly()) {
+        if (template == null || readOnly) {
             return;
         }
         final DeclarationEditController editor = editPresenterProvider.get();
@@ -178,7 +184,7 @@ public class DeclarationsController extends Controller {
     private void onEdit() {
         final Template template = host.template(templateId);
         final Declaration existing = selectionModel.getSelected();
-        if (template == null || existing == null || host.isReadOnly()) {
+        if (template == null || existing == null || readOnly) {
             return;
         }
         final DeclarationEditController editor = editPresenterProvider.get();
@@ -206,7 +212,7 @@ public class DeclarationsController extends Controller {
     private void onRemove() {
         final Template template = host.template(templateId);
         final Declaration existing = selectionModel.getSelected();
-        if (template == null || existing == null || host.isReadOnly()) {
+        if (template == null || existing == null || readOnly) {
             return;
         }
         final String message = "Remove declaration '" + existing.name() + "'? Captures and body references to"

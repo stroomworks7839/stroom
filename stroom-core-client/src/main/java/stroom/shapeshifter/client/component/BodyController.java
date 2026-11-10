@@ -39,6 +39,7 @@ import stroom.shapeshifter.config.Template;
 import stroom.shapeshifter.config.Template.ParamDecl;
 import stroom.shapeshifter.shared.ShapeshifterTrace.Frame;
 import stroom.shapeshifter.shared.ShapeshifterTrace.Instruction;
+import stroom.widget.component.client.Contexts;
 import stroom.widget.component.client.Controller;
 import stroom.widget.menu.client.IconMenuItem;
 import stroom.widget.menu.client.InfoMenuItem;
@@ -67,6 +68,10 @@ import java.util.Set;
  */
 public class BodyController extends Controller {
 
+    // From Contexts.READ_ONLY: true until the document says otherwise, so a
+    // controller with no owner fails closed rather than editable.
+    private boolean readOnly = true;
+
     private final Body view;
 
     private final Provider<InstructionEditController> instructionEditorProvider;
@@ -84,6 +89,7 @@ public class BodyController extends Controller {
         super(eventBus);
         this.view = view;
         initWidget(view);
+        watch(Contexts.READ_ONLY, readOnly -> this.readOnly = readOnly);
         view.setOnEdit(this::onEdit);
         view.setOnDescend(this::onDescend);
         view.setOnHover(this::onHover);
@@ -110,7 +116,7 @@ public class BodyController extends Controller {
         } else {
             body = template.body();
         }
-        view.setEnabled(template != null && !host.isReadOnly());
+        view.setEnabled(template != null && !readOnly);
         view.setBody(body, notes(template));
     }
 
@@ -205,7 +211,7 @@ public class BodyController extends Controller {
 
     private void apply(final List<OutputNode> next) {
         final Template template = host.template(templateId);
-        if (template == null || host.isReadOnly()) {
+        if (template == null || readOnly) {
             return;
         }
         host.replace(host.withTemplate(Templates.withBody(template, next)));
@@ -261,7 +267,7 @@ public class BodyController extends Controller {
     public void onEdit(final String path) {
         final int[] nodePath = Bodies.path(path);
         final OutputNode node = Bodies.get(body, nodePath);
-        if (node == null || host.isReadOnly()) {
+        if (node == null || readOnly) {
             return;
         }
         final InstructionEditController editor = instructionEditorProvider.get();
@@ -286,7 +292,7 @@ public class BodyController extends Controller {
     public void onRemove(final String path) {
         final int[] nodePath = Bodies.path(path);
         final OutputNode node = Bodies.get(body, nodePath);
-        if (node == null || host.isReadOnly()) {
+        if (node == null || readOnly) {
             return;
         }
         int held = 0;
@@ -310,7 +316,7 @@ public class BodyController extends Controller {
     }
 
     public void onMove(final String path, final int by) {
-        if (host.isReadOnly()) {
+        if (readOnly) {
             return;
         }
         final List<OutputNode> next = Bodies.move(body, Bodies.path(path), by);
@@ -320,7 +326,7 @@ public class BodyController extends Controller {
     }
 
     public void onDrop(final String fromPath, final String toListPath, final int index) {
-        if (host.isReadOnly()) {
+        if (readOnly) {
             return;
         }
         final List<OutputNode> next = Bodies.moveTo(body, Bodies.path(fromPath),
@@ -332,7 +338,7 @@ public class BodyController extends Controller {
 
     /** The add menu, grouped by category, for a list path and an index in it. */
     public void onAdd(final String listPath, final int index, final int x, final int y) {
-        if (host.isReadOnly()) {
+        if (readOnly) {
             return;
         }
         final int[] list = Bodies.path(listPath);
@@ -386,7 +392,7 @@ public class BodyController extends Controller {
     public void onEditBranch(final String path, final int branch) {
         final int[] nodePath = Bodies.path(path);
         final OutputNode node = Bodies.get(body, nodePath);
-        if (host.isReadOnly() || !(node instanceof Holder holder) || !Bodies.branchIsOwn(holder, branch)) {
+        if (readOnly || !(node instanceof Holder holder) || !Bodies.branchIsOwn(holder, branch)) {
             return;
         }
         if (node instanceof Choose choose) {
@@ -419,7 +425,7 @@ public class BodyController extends Controller {
     public void onAddBranch(final String path) {
         final int[] nodePath = Bodies.path(path);
         final OutputNode node = Bodies.get(body, nodePath);
-        if (host.isReadOnly()) {
+        if (readOnly) {
             return;
         }
         if (node instanceof Choose choose) {
@@ -452,7 +458,7 @@ public class BodyController extends Controller {
     public void onRemoveBranch(final String path, final int branch) {
         final int[] nodePath = Bodies.path(path);
         final OutputNode node = Bodies.get(body, nodePath);
-        if (host.isReadOnly() || !(node instanceof Holder holder) || !Bodies.branchIsOwn(holder, branch)) {
+        if (readOnly || !(node instanceof Holder holder) || !Bodies.branchIsOwn(holder, branch)) {
             return;
         }
         final int held = holder.bodies().get(branch).size();

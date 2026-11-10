@@ -83,6 +83,7 @@ public class SampleController extends Controller {
         view.setOnSample(this::onSample);
         this.restFactory = restFactory;
         this.rerun = new DelayedUpdate(400, this::run);
+        onDispose(rerun::reset);
     }
 
     public void setHost(final ProjectHost host) {
@@ -261,7 +262,7 @@ public class SampleController extends Controller {
                         view.showNothing("The sample could not be tried: " + error.getMessage());
                     }
                 })
-                .taskMonitorFactory(taskMonitor())
+                .owner(this)
                 .exec();
     }
 

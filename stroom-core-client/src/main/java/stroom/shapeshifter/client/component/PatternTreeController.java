@@ -34,6 +34,7 @@ import stroom.shapeshifter.shared.ShapeshifterPatternRequest;
 import stroom.shapeshifter.shared.ShapeshifterResource;
 import stroom.svg.shared.SvgImage;
 import stroom.widget.button.client.ToolbarButton;
+import stroom.widget.component.client.Contexts;
 import stroom.widget.component.client.Controller;
 import stroom.widget.util.client.MouseUtil;
 
@@ -65,6 +66,10 @@ import java.util.function.Consumer;
 public class PatternTreeController
         extends Controller
         implements MatchEditorController.MatchForm {
+
+    // From Contexts.READ_ONLY: true until the document says otherwise, so a
+    // controller with no owner fails closed rather than editable.
+    private boolean readOnly = true;
 
     private final PatternTree view;
 
@@ -102,6 +107,7 @@ public class PatternTreeController
         super(eventBus);
         this.view = view;
         initWidget(view);
+        watch(Contexts.READ_ONLY, readOnly -> this.readOnly = readOnly);
         view.setOnSelect(this::onSelect);
         view.setOnOpen(this::onOpen);
         this.restFactory = restFactory;
@@ -323,7 +329,7 @@ public class PatternTreeController
     }
 
     private void enableButtons() {
-        final boolean editable = host != null && !host.isReadOnly() && root != null;
+        final boolean editable = host != null && !readOnly && root != null;
         final PatternNode node = root == null
                 ? null
                 : PatternNodes.get(root, selected);
@@ -348,7 +354,7 @@ public class PatternTreeController
 
     private void onAddChild() {
         final PatternNode parent = PatternNodes.get(root, selected);
-        if (parent == null || !PatternNodes.isContainer(parent) || host.isReadOnly()) {
+        if (parent == null || !PatternNodes.isContainer(parent) || readOnly) {
             return;
         }
         final int[] parentPath = selected;
@@ -360,7 +366,7 @@ public class PatternTreeController
 
     private void onAddAfter() {
         final PatternNode node = PatternNodes.get(root, selected);
-        if (node == null || host.isReadOnly()) {
+        if (node == null || readOnly) {
             return;
         }
         if (selected.length == 0) {
@@ -377,7 +383,7 @@ public class PatternTreeController
 
     private void onWrap() {
         final PatternNode node = PatternNodes.get(root, selected);
-        if (node == null || host.isReadOnly()) {
+        if (node == null || readOnly) {
             return;
         }
         final int[] path = selected;
@@ -393,7 +399,7 @@ public class PatternTreeController
 
     private void onEdit() {
         final PatternNode node = PatternNodes.get(root, selected);
-        if (node == null || host.isReadOnly()) {
+        if (node == null || readOnly) {
             return;
         }
         final int[] path = selected;
@@ -419,7 +425,7 @@ public class PatternTreeController
 
     private void onRemove() {
         final PatternNode node = PatternNodes.get(root, selected);
-        if (node == null || host.isReadOnly()) {
+        if (node == null || readOnly) {
             return;
         }
         final int[] path = selected;
@@ -452,7 +458,7 @@ public class PatternTreeController
 
     private void onUnwrap() {
         final PatternNode node = PatternNodes.get(root, selected);
-        if (node == null || host.isReadOnly()) {
+        if (node == null || readOnly) {
             return;
         }
         try {
@@ -463,7 +469,7 @@ public class PatternTreeController
     }
 
     private void onMove(final int by) {
-        if (selected.length == 0 || host.isReadOnly()) {
+        if (selected.length == 0 || readOnly) {
             return;
         }
         final PatternNode next = PatternNodes.move(root, selected, by);
@@ -515,7 +521,7 @@ public class PatternTreeController
     private void onExtract() {
         final PatternNode node = PatternNodes.get(root, selected);
         final Project project = host.getProject();
-        if (node == null || project == null || host.isReadOnly()) {
+        if (node == null || project == null || readOnly) {
             return;
         }
         if (subject.key().equals(Patterns.rowId(subject.name())) && selected.length == 0) {
@@ -537,7 +543,7 @@ public class PatternTreeController
     /** The part a ref names, in the ref's place. */
     private void onInline() {
         final Project project = host.getProject();
-        if (project == null || host.isReadOnly()) {
+        if (project == null || readOnly) {
             return;
         }
         final PatternNode next = Patterns.inline(root, selected, project.patterns());
@@ -589,7 +595,7 @@ public class PatternTreeController
                         view.setRegex("— " + error.getMessage());
                     }
                 })
-                .taskMonitorFactory(taskMonitor())
+                .owner(this)
                 .exec();
     }
 
@@ -633,7 +639,7 @@ public class PatternTreeController
                     libraryRequested = false;
                     view.setError("The standard library could not be fetched: " + error.getMessage());
                 })
-                .taskMonitorFactory(taskMonitor())
+                .owner(this)
                 .exec();
     }
 

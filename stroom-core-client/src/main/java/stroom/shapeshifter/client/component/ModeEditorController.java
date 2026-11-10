@@ -25,6 +25,7 @@ import stroom.shapeshifter.config.Project;
 import stroom.svg.shared.SvgImage;
 import stroom.util.client.DataGridUtil;
 import stroom.widget.button.client.ToolbarButton;
+import stroom.widget.component.client.Contexts;
 import stroom.widget.component.client.Controller;
 import stroom.widget.component.client.ControllerDialog;
 import stroom.widget.component.client.HasControllerNode;
@@ -52,6 +53,10 @@ import java.util.List;
  */
 public class ModeEditorController extends Controller {
 
+    // From Contexts.READ_ONLY: true until the document says otherwise, so a
+    // controller with no owner fails closed rather than editable.
+    private boolean readOnly = true;
+
     private final PagerPanel view;
 
     private final DataGrid<ModeRowData> dataGrid;
@@ -70,6 +75,7 @@ public class ModeEditorController extends Controller {
         super(eventBus);
         this.view = view;
         initWidget(view);
+        watch(Contexts.READ_ONLY, readOnly -> this.readOnly = readOnly);
         this.namePromptProvider = namePromptProvider;
         dataGrid = new DataGrid<>();
         dataGrid.setTableName("Modes");
@@ -163,7 +169,7 @@ public class ModeEditorController extends Controller {
     }
 
     private void enableButtons() {
-        final boolean editable = host != null && host.getProject() != null && !host.isReadOnly();
+        final boolean editable = host != null && host.getProject() != null && !readOnly;
         final ModeRowData selected = selectionModel.getSelected();
         addButton.setEnabled(editable);
         editButton.setEnabled(editable && selected != null);
@@ -171,7 +177,7 @@ public class ModeEditorController extends Controller {
     }
 
     private void onAdd() {
-        if (host.getProject() == null || host.isReadOnly()) {
+        if (host.getProject() == null || readOnly) {
             return;
         }
         namePromptProvider.get().prompt(this,
@@ -185,7 +191,7 @@ public class ModeEditorController extends Controller {
     private void onRename() {
         final Project project = host.getProject();
         final ModeRowData existing = selectionModel.getSelected();
-        if (project == null || existing == null || host.isReadOnly()) {
+        if (project == null || existing == null || readOnly) {
             return;
         }
         final String from = existing.getName();
@@ -207,7 +213,7 @@ public class ModeEditorController extends Controller {
     private void onRemove() {
         final Project project = host.getProject();
         final ModeRowData existing = selectionModel.getSelected();
-        if (project == null || existing == null || host.isReadOnly() || existing.getTemplates() > 0) {
+        if (project == null || existing == null || readOnly || existing.getTemplates() > 0) {
             return;
         }
         final String mode = existing.getName();

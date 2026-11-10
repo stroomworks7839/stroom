@@ -28,6 +28,7 @@ import stroom.shapeshifter.config.Template.MatchLimits;
 import stroom.shapeshifter.config.Template.ParamDecl;
 import stroom.shapeshifter.config.json.JsonText;
 import stroom.shapeshifter.config.json.ProjectJson;
+import stroom.widget.component.client.Contexts;
 import stroom.widget.component.client.Controller;
 
 import com.google.inject.Inject;
@@ -49,6 +50,10 @@ import java.util.Set;
  */
 public class GuardAndLimitsController extends Controller {
 
+    // From Contexts.READ_ONLY: true until the document says otherwise, so a
+    // controller with no owner fails closed rather than editable.
+    private boolean readOnly = true;
+
     private final GuardAndLimits view;
 
     private ProjectHost host;
@@ -59,6 +64,7 @@ public class GuardAndLimitsController extends Controller {
         super(eventBus);
         this.view = view;
         initWidget(view);
+        watch(Contexts.READ_ONLY, readOnly -> this.readOnly = readOnly);
         view.setOnClauseChange(this::onClauseChange);
         view.setOnClauseRemove(this::onClauseRemove);
         view.setOnClauseAdd(this::onClauseAdd);
@@ -77,7 +83,7 @@ public class GuardAndLimitsController extends Controller {
         if (template == null) {
             return;
         }
-        view.setEnabled(!host.isReadOnly());
+        view.setEnabled(!readOnly);
         view.setNames(namesInScope(template));
         final List<GuardClause> clauses = GuardClause.read(template.guard());
         if (clauses != null) {
@@ -170,7 +176,7 @@ public class GuardAndLimitsController extends Controller {
 
     private void commitClauses(final List<GuardClause> clauses) {
         final Template template = host.template(templateId);
-        if (template == null || host.isReadOnly()) {
+        if (template == null || readOnly) {
             return;
         }
         // A row just added and not yet touched is not a clause: it is skipped, not refused, and
@@ -192,7 +198,7 @@ public class GuardAndLimitsController extends Controller {
 
     public void onGuardJson(final String json) {
         final Template template = host.template(templateId);
-        if (template == null || host.isReadOnly()) {
+        if (template == null || readOnly) {
             return;
         }
         final Condition guard;
@@ -210,7 +216,7 @@ public class GuardAndLimitsController extends Controller {
 
     public void onLimitsChange(final String min, final String max, final String only) {
         final Template template = host.template(templateId);
-        if (template == null || host.isReadOnly()) {
+        if (template == null || readOnly) {
             return;
         }
         final MatchLimits limits;

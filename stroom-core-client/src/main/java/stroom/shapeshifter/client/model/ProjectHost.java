@@ -34,7 +34,6 @@ public interface ProjectHost {
     /** Hand back an edited project; the root re-renders every presenter and re-validates. */
     void replace(Project project);
 
-    boolean isReadOnly();
 
     /** A template's swatch colour: the author's override, or the palette by position (design 18 §5.6). */
     String colour(String templateId);

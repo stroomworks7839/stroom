@@ -31,6 +31,7 @@ import stroom.shapeshifter.config.Project;
 import stroom.shapeshifter.config.Template;
 import stroom.shapeshifter.config.Template.MatchLimits;
 import stroom.shapeshifter.shared.ShapeshifterTrace.Timing;
+import stroom.widget.component.client.Contexts;
 import stroom.widget.component.client.Controller;
 
 import com.google.inject.Inject;
@@ -49,6 +50,10 @@ import java.util.Objects;
  * For the project row the strip shows the document: its name and source settings.
  */
 public class TemplateStripController extends Controller {
+
+    // From Contexts.READ_ONLY: true until the document says otherwise, so a
+    // controller with no owner fails closed rather than editable.
+    private boolean readOnly = true;
 
     private final TemplateStrip view;
 
@@ -71,6 +76,7 @@ public class TemplateStripController extends Controller {
         super(eventBus);
         this.view = view;
         initWidget(view);
+        watch(Contexts.READ_ONLY, readOnly -> this.readOnly = readOnly);
         view.setOnEditIdentity(this::onEditIdentity);
         view.setOnRole(this::onRole);
         view.setOnOpenWorkbench(this::onOpenWorkbench);
@@ -116,7 +122,7 @@ public class TemplateStripController extends Controller {
         view.setMatch(Templates.kind(template.match()), Templates.describe(template.match()),
                 guardSummary(template.guard()) + guardVerdict(template) + " · "
                 + limitsSummary(template.matchLimits()));
-        view.setRole(true, MatchRole.of(template.consume()), !host.isReadOnly(), roleNote(template),
+        view.setRole(true, MatchRole.of(template.consume()), !readOnly, roleNote(template),
                 template.consume() && !template.captures().isEmpty());
         view.setMatchVisible(true);
         bodyPresenter.setTemplate(id);
@@ -182,7 +188,7 @@ public class TemplateStripController extends Controller {
      */
     public void onRole(final MatchRole role) {
         final Template template = host.template(templateId);
-        if (template == null || host.isReadOnly() || template.consume() == role.consume()) {
+        if (template == null || readOnly || template.consume() == role.consume()) {
             return;
         }
         host.replace(host.withTemplate(Templates.withRole(template, role.consume())));

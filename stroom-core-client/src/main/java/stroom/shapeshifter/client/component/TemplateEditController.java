@@ -72,7 +72,7 @@ public class TemplateEditController extends Controller {
                 .create(RESOURCE)
                 .method(ShapeshifterResource::encodings)
                 .onSuccess(view::setEncodings)
-                .taskMonitorFactory(taskMonitor())
+                .owner(this)
                 .exec();
     }
 

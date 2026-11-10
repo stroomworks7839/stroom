@@ -34,6 +34,7 @@ import stroom.shapeshifter.config.Template;
 import stroom.shapeshifter.shared.ShapeshifterTrace.Timing;
 import stroom.svg.shared.SvgImage;
 import stroom.widget.button.client.ToolbarButton;
+import stroom.widget.component.client.Contexts;
 import stroom.widget.component.client.Controller;
 import stroom.widget.component.client.Listeners;
 import stroom.widget.util.client.MouseUtil;
@@ -58,6 +59,10 @@ import java.util.function.Consumer;
  * part's, the sample's, or null for the project — and the root shows what that row is.
  */
 public class TemplatePanelController extends Controller {
+
+    // From Contexts.READ_ONLY: true until the document says otherwise, so a
+    // controller with no owner fails closed rather than editable.
+    private boolean readOnly = true;
 
     private final Listeners<String> selectionListeners = new Listeners<>();
 
@@ -89,6 +94,7 @@ public class TemplatePanelController extends Controller {
         super(eventBus);
         this.view = view;
         initWidget(view);
+        watch(Contexts.READ_ONLY, readOnly -> this.readOnly = readOnly);
         view.setOnSelect(this::onSelect);
         view.setOnOpen(this::onOpen);
         view.setOnHover(this::onHover);
@@ -351,7 +357,7 @@ public class TemplatePanelController extends Controller {
     }
 
     private void enableButtons() {
-        final boolean editable = host != null && !host.isReadOnly();
+        final boolean editable = host != null && !readOnly;
         final boolean template = selected != null && host != null && host.template(selected) != null;
         final boolean pattern = selectedPattern() != null;
         final boolean data = SampleSource.isRow(selected);
@@ -393,7 +399,7 @@ public class TemplatePanelController extends Controller {
     }
 
     private void onAdd() {
-        if (host.isReadOnly()) {
+        if (readOnly) {
             return;
         }
         final Template current = host.template(selected);
@@ -435,7 +441,7 @@ public class TemplatePanelController extends Controller {
 
     private void onAddPattern() {
         final Project project = host.getProject();
-        if (project == null || host.isReadOnly()) {
+        if (project == null || readOnly) {
             return;
         }
         namePromptProvider.get().prompt(this,
@@ -475,13 +481,13 @@ public class TemplatePanelController extends Controller {
     /** Open the selected template's name, mode and consume for editing; the strip's header calls this too. */
     public void editSelected() {
         if (selectedPattern() != null) {
-            if (!host.isReadOnly()) {
+            if (!readOnly) {
                 renamePattern(selectedPattern());
             }
             return;
         }
         final Template existing = host.template(selected);
-        if (existing == null || host.isReadOnly()) {
+        if (existing == null || readOnly) {
             return;
         }
         final TemplateEditController editor = editPresenterProvider.get();
@@ -517,13 +523,13 @@ public class TemplatePanelController extends Controller {
 
     private void onRemove() {
         if (selectedPattern() != null) {
-            if (!host.isReadOnly()) {
+            if (!readOnly) {
                 removePattern(selectedPattern());
             }
             return;
         }
         final Template existing = host.template(selected);
-        if (existing == null || host.isReadOnly()) {
+        if (existing == null || readOnly) {
             return;
         }
         final String message = "Remove template '" + existing.name() + "'? Templates dispatched to from its body"
@@ -544,7 +550,7 @@ public class TemplatePanelController extends Controller {
                 ? -1
                 : indexOf(selected);
         final Project project = host.getProject();
-        if (index < 0 || host.isReadOnly()) {
+        if (index < 0 || readOnly) {
             return;
         }
         final int to = neighbour(index, by);

@@ -35,6 +35,7 @@ import stroom.shapeshifter.shared.ShapeshifterPreviewRequest;
 import stroom.shapeshifter.shared.ShapeshifterResource;
 import stroom.shapeshifter.shared.ShapeshifterTrace;
 import stroom.util.client.DelayedUpdate;
+import stroom.widget.component.client.ContextValue;
 import stroom.widget.component.client.Contexts;
 import stroom.widget.component.client.Controller;
 import stroom.widget.component.client.Listeners;
@@ -110,6 +111,9 @@ public class ShapeshifterDesignController
     private final Set<String> declaredModes = new LinkedHashSet<>();
     private String sourceError;
     private boolean readOnly = true;
+    // What this controller adds to it: a source that does not parse can be read, not
+    // edited. The key ORs this with the document's own value.
+    private final ContextValue<Boolean> sourceReadOnly = ContextValue.of(false);
     private boolean workbenchOpen;
     private boolean samplePageOpen;
     private List<ShapeshifterMessage> lastMessages;
@@ -175,7 +179,9 @@ public class ShapeshifterDesignController
         this.variables = own(variables);
         this.output = own(output);
         this.validate = new DelayedUpdate(400, this::validate);
+        onDispose(validate::reset);
         this.rerun = new DelayedUpdate(600, this::run);
+        onDispose(rerun::reset);
         templatePanel.setHost(this);
         strip.setHost(this);
         strip.setListener(this);
@@ -203,8 +209,11 @@ public class ShapeshifterDesignController
         view.setKeyHandler(this::onKey);
         own(History.addValueChangeHandler(event -> onHistory(event.getValue())));
         // Read-only is the document's, pushed down as context rather than carried in read(): the
-        // panes below ask for it through isReadOnly(). Watched, not read once, because a document
+        // panes below watch it too. Watched, not read once, because a document
         // locked or unlocked while it is open has to reach the panes that are already drawn.
+        // A source that does not parse makes the design read-only for everything below, which
+        // the key ORs with the document's own value (Contexts.READ_ONLY narrows).
+        provide(Contexts.READ_ONLY, sourceReadOnly);
         watch(Contexts.READ_ONLY, readOnly -> {
             if (this.readOnly == readOnly) {
                 return;
@@ -421,6 +430,7 @@ public class ShapeshifterDesignController
     public void read(final Project project, final Map<String, String> colours, final SourceLocation sample,
                      final String sampleText, final SampleKind sampleKind, final String sourceError) {
         this.sourceError = sourceError;
+        sourceReadOnly.set(sourceError != null);
         if (project != null) {
             this.project = project;
             declaredModes.removeAll(Modes.of(project));
@@ -504,10 +514,6 @@ public class ShapeshifterDesignController
         return project;
     }
 
-    @Override
-    public boolean isReadOnly() {
-        return readOnly || sourceError != null;
-    }
 
     /**
      * The sample reference the document should remember: a stream's location, or null for a
@@ -574,7 +580,7 @@ public class ShapeshifterDesignController
 
     @Override
     public void setColour(final String templateId, final String colour) {
-        if (isReadOnly() || templateId == null) {
+        if (readOnly || templateId == null) {
             return;
         }
         final String before = colours.get(templateId);
@@ -593,7 +599,7 @@ public class ShapeshifterDesignController
 
     @Override
     public void replace(final Project next) {
-        if (next == null || isReadOnly()) {
+        if (next == null || readOnly) {
             return;
         }
         project = next;
@@ -756,7 +762,7 @@ public class ShapeshifterDesignController
                     AlertEvent.fireError(this, "The run failed: " + error.getMessage(), null);
                     refreshTrace();
                 })
-                .taskMonitorFactory(taskMonitor())
+                .owner(this)
                 .exec();
     }
 
@@ -939,7 +945,7 @@ public class ShapeshifterDesignController
                     lastMessages = result.getMessages();
                     messages.setMessages(sourceError, lastMessages);
                 })
-                .taskMonitorFactory(taskMonitor())
+                .owner(this)
                 .exec();
     }
 

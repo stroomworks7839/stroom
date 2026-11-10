@@ -30,6 +30,7 @@ import stroom.shapeshifter.config.PatternNode;
 import stroom.shapeshifter.config.Template;
 import stroom.shapeshifter.shared.ShapeshifterPatternRequest;
 import stroom.shapeshifter.shared.ShapeshifterResource;
+import stroom.widget.component.client.Contexts;
 import stroom.widget.component.client.Controller;
 
 import com.google.gwt.core.client.GWT;
@@ -52,6 +53,10 @@ import java.util.function.IntConsumer;
  * the plain kinds replace outright — and refuses where it cannot, the picker springing back.
  */
 public class MatchEditorController extends Controller {
+
+    // From Contexts.READ_ONLY: true until the document says otherwise, so a
+    // controller with no owner fails closed rather than editable.
+    private boolean readOnly = true;
 
     private final MatchEditor view;
 
@@ -87,6 +92,7 @@ public class MatchEditorController extends Controller {
         super(eventBus);
         this.view = view;
         initWidget(view);
+        watch(Contexts.READ_ONLY, readOnly -> this.readOnly = readOnly);
         view.setOnKind(this::onKind);
         this.restFactory = restFactory;
         this.regexForm = own(regexForm);
@@ -138,7 +144,7 @@ public class MatchEditorController extends Controller {
         // kind holds is what it last held here, edits and all.
         kept.put(kind, template.match());
         view.showKind(true);
-        view.setEnabled(!host.isReadOnly());
+        view.setEnabled(!readOnly);
         view.setKind(kind);
         if (kind != shown) {
             shown = kind;
@@ -198,7 +204,7 @@ public class MatchEditorController extends Controller {
         if (kind == current) {
             return;
         }
-        if (host.isReadOnly()) {
+        if (readOnly) {
             view.setKind(current);
             return;
         }
@@ -215,7 +221,7 @@ public class MatchEditorController extends Controller {
      */
     private void convert(final MatchKind kind) {
         final Template template = host.template(templateId);
-        if (template == null || host.isReadOnly()) {
+        if (template == null || readOnly) {
             return;
         }
         final MatchExpression match = template.match();
@@ -282,7 +288,7 @@ public class MatchEditorController extends Controller {
                         regex.flags().caseInsensitive(), regex.flags().dotAll())))
                 .onSuccess(result -> then.accept(ProjectText.parsePatternNode(result.getText())))
                 .onFailure(otherwise)
-                .taskMonitorFactory(taskMonitor())
+                .owner(this)
                 .exec();
     }
 
@@ -293,7 +299,7 @@ public class MatchEditorController extends Controller {
                         false, false, ProjectText.printPatterns(host.getProject()))))
                 .onSuccess(result -> then.accept(result.getText()))
                 .onFailure(otherwise)
-                .taskMonitorFactory(taskMonitor())
+                .owner(this)
                 .exec();
     }
 

@@ -25,6 +25,7 @@ import stroom.shapeshifter.config.Template;
 import stroom.svg.shared.SvgImage;
 import stroom.util.client.DataGridUtil;
 import stroom.widget.button.client.ToolbarButton;
+import stroom.widget.component.client.Contexts;
 import stroom.widget.component.client.Controller;
 import stroom.widget.datagrid.client.DataGrid;
 import stroom.widget.datagrid.client.PagerPanel;
@@ -47,6 +48,10 @@ import java.util.Locale;
  */
 public class CapturesController extends Controller {
 
+    // From Contexts.READ_ONLY: true until the document says otherwise, so a
+    // controller with no owner fails closed rather than editable.
+    private boolean readOnly = true;
+
     private final PagerPanel view;
 
     private final DataGrid<CaptureBinding> dataGrid;
@@ -66,6 +71,7 @@ public class CapturesController extends Controller {
         super(eventBus);
         this.view = view;
         initWidget(view);
+        watch(Contexts.READ_ONLY, readOnly -> this.readOnly = readOnly);
         this.editPresenterProvider = editPresenterProvider;
         dataGrid = new DataGrid<>();
         dataGrid.setTableName("Captures");
@@ -142,7 +148,7 @@ public class CapturesController extends Controller {
     }
 
     private void enableButtons() {
-        final boolean editable = host != null && !host.isReadOnly() && templateId != null;
+        final boolean editable = host != null && !readOnly && templateId != null;
         final boolean selected = selectionModel.getSelected() != null;
         addButton.setEnabled(editable);
         editButton.setEnabled(editable && selected);
@@ -151,7 +157,7 @@ public class CapturesController extends Controller {
 
     private void onAdd() {
         final Template template = host.template(templateId);
-        if (template == null || host.isReadOnly()) {
+        if (template == null || readOnly) {
             return;
         }
         final CaptureEditController editor = editPresenterProvider.get();
@@ -179,7 +185,7 @@ public class CapturesController extends Controller {
     private void onEdit() {
         final Template template = host.template(templateId);
         final CaptureBinding existing = selectionModel.getSelected();
-        if (template == null || existing == null || host.isReadOnly()) {
+        if (template == null || existing == null || readOnly) {
             return;
         }
         final CaptureEditController editor = editPresenterProvider.get();
@@ -207,7 +213,7 @@ public class CapturesController extends Controller {
     private void onRemove() {
         final Template template = host.template(templateId);
         final CaptureBinding existing = selectionModel.getSelected();
-        if (template == null || existing == null || host.isReadOnly()) {
+        if (template == null || existing == null || readOnly) {
             return;
         }
         ConfirmEvent.fire(this, "Remove capture '" + existing.name() + "'?", ok -> {

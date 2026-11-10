@@ -21,6 +21,7 @@ import stroom.shapeshifter.client.model.ProjectHost;
 import stroom.shapeshifter.client.model.Templates;
 import stroom.shapeshifter.config.MatchExpression;
 import stroom.shapeshifter.config.Template;
+import stroom.widget.component.client.Contexts;
 import stroom.widget.component.client.Controller;
 
 import com.google.inject.Inject;
@@ -37,6 +38,10 @@ public class DelimiterController
         extends Controller
         implements MatchEditorController.MatchForm {
 
+    // From Contexts.READ_ONLY: true until the document says otherwise, so a
+    // controller with no owner fails closed rather than editable.
+    private boolean readOnly = true;
+
     private final Delimiter view;
 
     /** What a template gets when its match becomes a delimiter: one field per line. */
@@ -50,6 +55,7 @@ public class DelimiterController
         super(eventBus);
         this.view = view;
         initWidget(view);
+        watch(Contexts.READ_ONLY, readOnly -> this.readOnly = readOnly);
         view.setOnChange(this::onChange);
     }
 
@@ -64,7 +70,7 @@ public class DelimiterController
         if (template == null || !(template.match() instanceof MatchExpression.Delimiter d)) {
             return;
         }
-        view.setEnabled(!host.isReadOnly());
+        view.setEnabled(!readOnly);
         view.setDelimiter(ControlEscapes.escape(d.delimiter()), ControlEscapes.escape(d.escape()),
                 ControlEscapes.escape(d.containerStart()), ControlEscapes.escape(d.containerEnd()));
         view.setError(null);
@@ -72,7 +78,7 @@ public class DelimiterController
 
     public void onChange() {
         final Template template = host.template(templateId);
-        if (template == null || host.isReadOnly()) {
+        if (template == null || readOnly) {
             return;
         }
         final String delimiter = ControlEscapes.unescape(view.getDelimiter());
