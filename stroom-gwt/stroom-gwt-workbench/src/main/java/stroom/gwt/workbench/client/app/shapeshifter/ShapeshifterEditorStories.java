@@ -159,6 +159,17 @@ public final class ShapeshifterEditorStories {
               "runNanos": 412000
             }""";
 
+    // ShapeshifterResource.patternInfo(): the pair template's regex, its two groups
+    private static final String PATTERN_INFO = """
+            {
+              "valid": true, "error": null,
+              "groups": [
+                {"index": 1, "name": null, "start": 0, "end": 7},
+                {"index": 2, "name": null, "start": 8, "end": 16}
+              ],
+              "explain": "a lower-case key, '=', then everything to the end of the line"
+            }""";
+
     // ShapeshifterResource.library(): what a pattern tree's ref may name
     private static final String LIBRARY = """
             {"entries": [
@@ -193,6 +204,7 @@ public final class ShapeshifterEditorStories {
             .post("/shapeshifter/v1/validate", RestReply.json(VALIDATION))
             .post("/shapeshifter/v1/preview", RestReply.json(TRACE))
             .post("/shapeshifter/v1/print", RestReply.json(PRINTED))
+            .post("/shapeshifter/v1/patternInfo", RestReply.json(PATTERN_INFO))
             .get("/shapeshifter/v1/library", RestReply.json(LIBRARY))
             .get("/shapeshifter/v1/encodings", RestReply.json(ENCODINGS))
             .post("/permission/doc/v1/fetchDocumentUserPermissions", RestReply.json(DOC_PERMISSIONS))
@@ -259,6 +271,57 @@ public final class ShapeshifterEditorStories {
                     play.expect(play.getByText("pair")).toBeInTheDocument();
                     expectNoProblems(play);
                 })
+
+                // A template picked in the panel: the strip beside it shows that template's match,
+                // what the match is for, its guard and its body. Nothing had ever drawn the
+                // Design tab's inner panes before these stories
+                .story("TemplateSelected", context -> render(context, false))
+                .withPlay(play -> {
+                    selectTemplate(play, "pair");
+                    // The strip's rows, by their keys
+                    play.waitFor(() -> play.expect(play.getByText("match", STRIP_KEY))
+                            .toBeInTheDocument());
+                    play.expect(play.getByText("match is", STRIP_KEY)).toBeInTheDocument();
+                    play.expect(play.getByText("guard", STRIP_KEY)).toBeInTheDocument();
+                    // The match chip carries the pattern, and opens the workbench
+                    play.expect(play.querySelector(MATCH_CHIP)).not().toBeNull();
+                    // Declarations and captures sit under the template
+                    play.expect(play.getByText("Declaration")).toBeInTheDocument();
+                    expectNoProblems(play);
+                })
+                // The body of the chosen template: one card per instruction, as the project says
+                .story("TemplateBody", context -> render(context, false))
+                .withPlay(play -> {
+                    selectTemplate(play, "pair");
+                    play.waitFor(() -> play.expect(play.getByText("body", STRIP_KEY))
+                            .toBeInTheDocument());
+                    // The pair template writes text, then two captured values, then text
+                    play.expect(play.getAllByText(TextMatch.regex("value-of|text")).count())
+                            .toSatisfy("a card per instruction", count -> ((Integer) count) > 0);
+                    expectNoProblems(play);
+                })
+                // Run, in the document's toolbar: the preview is shown as the input, the output
+                // and the variables of the run
+                .story("RunShowsOutput", context -> render(context, false))
+                .withPlay(play -> {
+                    selectTemplate(play, "pair");
+                    play.click(runButton(play));
+                    // The run's output, from the preview fixture
+                    play.waitFor(() -> play.expect(play.getAllByText(TextMatch.regex("web01")).count())
+                            .toSatisfy("the sample's first value", count -> ((Integer) count) > 0));
+                    expectNoProblems(play);
+                })
+                // The match chip opens the pattern workbench over the navigator's rows
+                .story("PatternWorkbench", context -> render(context, false))
+                .withPlay(play -> {
+                    selectTemplate(play, "pair");
+                    play.waitFor(() -> play.expect(play.querySelector(MATCH_CHIP)).not().toBeNull());
+                    play.click(play.querySelector(MATCH_CHIP));
+                    // The workbench replaces the rows, with its own toolbar and the pattern
+                    play.waitFor(() -> play.expect(play.getByRole("button",
+                            TextMatch.regex("close the workbench", "i"))).toBeInTheDocument());
+                    expectNoProblems(play);
+                })
                 // The Source tab shows the same project as text. Opening it at all is the
                 // regression test for its missing attach(...), which threw on the editor's null
                 // options
@@ -293,6 +356,18 @@ public final class ShapeshifterEditorStories {
 
     // Ace marks a read-only editor on its root
     private static final String ACE_READ_ONLY = ".ace_editor.ace_read-only";
+
+// The strip labels each row with its key ("match", "match is", "guard", "body")
+    private static final String STRIP_KEY = ".ss-strip-k";
+
+    // The chip that carries a template's match, and opens the pattern workbench
+    private static final String MATCH_CHIP = ".ss-match-chip";
+
+    // Picks a template in the panel, which is what fills the strip beside it
+    private static void selectTemplate(final Play play, final String name) {
+        play.waitFor(() -> play.expect(play.getByText(name)).toBeInTheDocument());
+        play.click(play.getByText(name));
+    }
 
     // The host the story shows, for plays that act as ShapeshifterPlugin does
     private static DocumentEditorHost<ShapeshifterDoc> host() {

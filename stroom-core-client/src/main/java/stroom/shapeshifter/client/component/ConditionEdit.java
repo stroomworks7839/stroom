@@ -40,6 +40,7 @@ public class ConditionEdit extends Component {
         panel.add(clauses);
         widget = new ScrollPanel(panel);
         widget.setStyleName("max");
+        initWidget(widget);
     }
 
 

@@ -15,17 +15,17 @@
                 <t:Label styleName="ss-wb-h4" text="Limits"/>
                 <g:FlowPanel styleName="ss-step-row">
                     <t:Label styleName="ss-lim-label" text="min"/>
-                    <form:TextBox ui:field="min" styleName="ss-edit-in ss-lim-in"/>
+                    <form:TextBox ui:field="min" styleName="ss-edit-in ss-lim-in" ariaLabel="Match at least"/>
                     <t:Label styleName="ss-det-desc" text="fewer matches than this is reported (a message, not a failure)"/>
                 </g:FlowPanel>
                 <g:FlowPanel styleName="ss-step-row">
                     <t:Label styleName="ss-lim-label" text="max"/>
-                    <form:TextBox ui:field="max" styleName="ss-edit-in ss-lim-in"/>
+                    <form:TextBox ui:field="max" styleName="ss-edit-in ss-lim-in" ariaLabel="Match at most"/>
                     <t:Label styleName="ss-det-desc" text="stop matching this template after N matches"/>
                 </g:FlowPanel>
                 <g:FlowPanel styleName="ss-step-row">
                     <t:Label styleName="ss-lim-label" text="only"/>
-                    <form:TextBox ui:field="only" styleName="ss-edit-in ss-lim-in"/>
+                    <form:TextBox ui:field="only" styleName="ss-edit-in ss-lim-in" ariaLabel="Match only"/>
                     <t:Label styleName="ss-det-desc" text="process only these matches, 1-based, comma-separated"/>
                 </g:FlowPanel>
             </g:FlowPanel>

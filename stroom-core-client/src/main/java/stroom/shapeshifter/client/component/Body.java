@@ -120,6 +120,7 @@ public class Body extends Component {
         title.setStyleName("ss-strip-k ss-body-title");
         widget.add(title);
         widget.add(cards);
+        initWidget(widget);
     }
 
 
