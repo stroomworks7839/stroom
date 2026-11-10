@@ -47,7 +47,15 @@ public class DeclarationEditController extends Controller {
         initWidget(view);
     }
 
+    /// @param declaration The declaration to edit, or null for a new one. A [Declaration]
+    ///                    refuses an empty name, so there is no blank one to seed this with.
     public void read(final Declaration declaration) {
+        if (declaration == null) {
+            view.setName("");
+            view.setType(Declaration.Type.SCALAR);
+            view.setEntries("");
+            return;
+        }
         view.setName(declaration.name());
         view.setType(declaration.type());
         final StringBuilder sb = new StringBuilder();

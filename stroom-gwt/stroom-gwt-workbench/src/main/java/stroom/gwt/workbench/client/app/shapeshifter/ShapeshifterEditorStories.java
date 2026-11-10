@@ -322,6 +322,122 @@ public final class ShapeshifterEditorStories {
                             TextMatch.regex("close the workbench", "i"))).toBeInTheDocument());
                     expectNoProblems(play);
                 })
+
+                // Add Template opens the template dialog; OK adds it to the project, so the
+                // panel gains a row and the document goes dirty
+                .story("TemplateDialogOk", context -> render(context, false))
+                .withPlay(play -> {
+                    final Play screen = play.screen();
+                    play.waitFor(() -> play.expect(play.getByText("pair")).toBeInTheDocument());
+                    play.click(play.getByRole("button", "Add template"));
+                    final Play dialog = play.within(
+                            screen.findByText("New Template", StroomDom.DIALOG_TITLE)
+                                    .closest(StroomDom.DIALOG));
+                    dialog.type(dialog.getByRole("textbox").first(), "line");
+                    play.click(screen.getByRole("button", StroomDom.button("OK")));
+                    // The new template is in the panel (and, because adding selects it,
+                    // in the strip beside it), and Save has work to do
+                    play.waitFor(() -> play.expect(play.getByText("line", TEMPLATE_NAME))
+                            .toBeInTheDocument());
+                    play.expect(play.getByRole("button", "Save")).not().toHaveAttribute("aria-disabled");
+                    expectNoProblems(play);
+                })
+                // Cancel leaves the project alone: no row, and the document stays clean
+                .story("TemplateDialogCancel", context -> render(context, false))
+                .withPlay(play -> {
+                    final Play screen = play.screen();
+                    play.waitFor(() -> play.expect(play.getByText("pair")).toBeInTheDocument());
+                    play.click(play.getByRole("button", "Add template"));
+                    final Play dialog = play.within(
+                            screen.findByText("New Template", StroomDom.DIALOG_TITLE)
+                                    .closest(StroomDom.DIALOG));
+                    dialog.type(dialog.getByRole("textbox").first(), "line");
+                    play.click(screen.getByRole("button", StroomDom.button("Cancel")));
+                    play.waitFor(() -> play.expect(screen.queryByText("New Template",
+                            StroomDom.DIALOG_TITLE)).toBeNull());
+                    play.expect(play.queryByText("line", TEMPLATE_NAME)).toBeNull();
+                    play.expect(play.getByRole("button", "Save")).toHaveAttribute("aria-disabled", "true");
+                    expectNoProblems(play);
+                })
+
+                // A capture binds a group of the match to a name the body can read. Its dialog
+                // is opened from the captures pane under the chosen template
+                .story("CaptureDialogOk", context -> render(context, false))
+                .withPlay(play -> {
+                    final Play screen = play.screen();
+                    selectTemplate(play, "pair");
+                    play.click(play.findByRole("button", "Add capture"));
+                    final Play dialog = play.within(
+                            screen.findByText("New Capture", StroomDom.DIALOG_TITLE)
+                                    .closest(StroomDom.DIALOG));
+                    dialog.type(dialog.getByRole("textbox").first(), "host");
+                    play.click(screen.getByRole("button", StroomDom.button("OK")));
+                    play.waitFor(() -> play.expect(play.getByRole("button", "Save"))
+                            .not().toHaveAttribute("aria-disabled"));
+                    expectNoProblems(play);
+                })
+                // Cancel writes nothing, so the document stays clean
+                .story("CaptureDialogCancel", context -> render(context, false))
+                .withPlay(play -> {
+                    final Play screen = play.screen();
+                    selectTemplate(play, "pair");
+                    play.click(play.findByRole("button", "Add capture"));
+                    final Play dialog = play.within(
+                            screen.findByText("New Capture", StroomDom.DIALOG_TITLE)
+                                    .closest(StroomDom.DIALOG));
+                    dialog.type(dialog.getByRole("textbox").first(), "host");
+                    play.click(screen.getByRole("button", StroomDom.button("Cancel")));
+                    play.waitFor(() -> play.expect(screen.queryByText("New Capture",
+                            StroomDom.DIALOG_TITLE)).toBeNull());
+                    play.expect(play.getByRole("button", "Save")).toHaveAttribute("aria-disabled", "true");
+                    expectNoProblems(play);
+                })
+                // A declaration is a name the template holds, bound by captures and read by the body
+                .story("DeclarationDialogOk", context -> render(context, false))
+                .withPlay(play -> {
+                    final Play screen = play.screen();
+                    selectTemplate(play, "pair");
+                    play.click(play.findByRole("button", "Add declaration"));
+                    final Play dialog = play.within(
+                            screen.findByText("New Declaration", StroomDom.DIALOG_TITLE)
+                                    .closest(StroomDom.DIALOG));
+                    dialog.type(dialog.getByRole("textbox").first(), "seen");
+                    play.click(screen.getByRole("button", StroomDom.button("OK")));
+                    play.waitFor(() -> play.expect(play.getByRole("button", "Save"))
+                            .not().toHaveAttribute("aria-disabled"));
+                    expectNoProblems(play);
+                })
+                // Cancel leaves the template's declarations alone
+                .story("DeclarationDialogCancel", context -> render(context, false))
+                .withPlay(play -> {
+                    final Play screen = play.screen();
+                    selectTemplate(play, "pair");
+                    play.click(play.findByRole("button", "Add declaration"));
+                    final Play dialog = play.within(
+                            screen.findByText("New Declaration", StroomDom.DIALOG_TITLE)
+                                    .closest(StroomDom.DIALOG));
+                    play.click(screen.getByRole("button", StroomDom.button("Cancel")));
+                    play.waitFor(() -> play.expect(screen.queryByText("New Declaration",
+                            StroomDom.DIALOG_TITLE)).toBeNull());
+                    play.expect(play.getByRole("button", "Save")).toHaveAttribute("aria-disabled", "true");
+                    expectNoProblems(play);
+                })
+                // The modes dialog lists the project's modes and is closed, not confirmed. It is
+                // also the one the audit found was given its host on a different instance
+                .story("ModesDialog", context -> render(context, false))
+                .withPlay(play -> {
+                    final Play screen = play.screen();
+                    play.waitFor(() -> play.expect(play.getByText("pair")).toBeInTheDocument());
+                    play.click(play.getByRole("button", TextMatch.regex("^Modes", "i")));
+                    final Play dialog = play.within(
+                            screen.findByText(TextMatch.regex("mode", "i"), StroomDom.DIALOG_TITLE)
+                                    .closest(StroomDom.DIALOG));
+                    // The project's one declared mode is listed, which needs the host
+                    play.waitFor(() -> play.expect(dialog.getAllByText("kv").count())
+                            .toSatisfy("the kv mode", count -> ((Integer) count) > 0));
+                    play.click(screen.getByRole("button", StroomDom.button("Close")));
+                    expectNoProblems(play);
+                })
                 // The Source tab shows the same project as text. Opening it at all is the
                 // regression test for its missing attach(...), which threw on the editor's null
                 // options
@@ -358,6 +474,9 @@ public final class ShapeshifterEditorStories {
     private static final String ACE_READ_ONLY = ".ace_editor.ace_read-only";
 
 // The strip labels each row with its key ("match", "match is", "guard", "body")
+    // A template's name in the panel's list
+    private static final String TEMPLATE_NAME = ".ss-tpl-name";
+
     private static final String STRIP_KEY = ".ss-strip-k";
 
     // The chip that carries a template's match, and opens the pattern workbench

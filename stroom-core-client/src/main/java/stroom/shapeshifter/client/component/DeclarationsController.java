@@ -154,7 +154,7 @@ public class DeclarationsController extends Controller {
             return;
         }
         final DeclarationEditController editor = editPresenterProvider.get();
-        editor.read(new Declaration("", Declaration.Type.SCALAR));
+        editor.read(null);
         editor.show(this, "New Declaration", e -> {
             if (e.isOk()) {
                 final Declaration declaration = editor.write();
