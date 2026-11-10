@@ -19,6 +19,7 @@ package stroom.gwt.workbench.client.app.gin;
 
 import stroom.credentials.client.component.CredentialsPickerController;
 import stroom.dictionary.client.component.DictionaryEditor;
+import stroom.shapeshifter.client.component.ShapeshifterEditor;
 import stroom.document.client.component.InfoDocumentController;
 import stroom.explorer.client.component.ExplorerNodeEditTagsController;
 import stroom.explorer.client.component.ExplorerNodeRemoveTagsController;
@@ -93,4 +94,10 @@ public interface AppScreenGinjector extends ScreenGinjector {
 
     /// @return A Dictionary's editor, which `DictionaryPlugin` opens in a `DocumentEditorHost`.
     DictionaryEditor getDictionaryEditor();
+
+    // Shapeshifter
+
+    /// @return A Shapeshifter document's editor, which `ShapeshifterPlugin` opens in a
+    /// `DocumentEditorHost`.
+    ShapeshifterEditor getShapeshifterEditor();
 }

@@ -19,6 +19,7 @@ package stroom.shapeshifter.client.component;
 import stroom.alert.client.event.ConfirmEvent;
 import stroom.data.client.ExpressionValidator;
 import stroom.data.client.component.SourceViewerController;
+import stroom.data.client.component.MetaList;
 import stroom.data.client.component.SteppingMetaListController;
 import stroom.editor.client.component.CodeEditorController;
 import stroom.meta.shared.Meta;
@@ -103,8 +104,8 @@ public class SampleSourcePickerController extends Controller {
         initWidget(view);
         view.setOnKind(this::onKind);
         view.setOnPasted(this::onPasted);
-        this.metaList = metaListProvider.get();
-        this.source = source;
+        this.metaList = make(metaListProvider).attach(new MetaList());
+        this.source = own(source);
         this.filterProvider = filterProvider;
         this.expressionValidator = expressionValidator;
         // The list sits inside the source view, where stepping puts it: pick above, read below.
@@ -112,11 +113,10 @@ public class SampleSourcePickerController extends Controller {
         source.setSteppingSource(false);
         view.setStreamView(source.asWidget());
         // Text is text: the editor every other pane of this tab pastes into (design 44 §5a).
-        pasted = editorProvider.get();
+        pasted = make(editorProvider).attach(view.getPasted());
         pasted.setMode(AceEditorMode.TEXT);
         pasted.getFormatAction().setAvailable(false);
         pasted.getOptions().getLineNumbersOption().setOn(false);
-        view.setPasteView(pasted);
         filterButton = metaList.getToolbar().button(SvgImage.FILTER, "Filter the streams",
                 this::filter);
         own(metaList.getSelectionModel().addSelectionHandler(event -> chose()));

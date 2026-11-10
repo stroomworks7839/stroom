@@ -89,10 +89,10 @@ public class MatchEditorController extends Controller {
         initWidget(view);
         view.setOnKind(this::onKind);
         this.restFactory = restFactory;
-        this.regexForm = regexForm;
-        this.treeForm = treeForm;
-        this.partsForm = partsForm;
-        this.delimiterForm = delimiterForm;
+        this.regexForm = own(regexForm);
+        this.treeForm = own(treeForm);
+        this.partsForm = own(partsForm);
+        this.delimiterForm = own(delimiterForm);
         regexForm.setOnExplode(() -> convert(MatchKind.TREE));
     }
 

@@ -64,7 +64,7 @@ public class DeclarationsController extends Controller {
         super(eventBus);
         this.view = view;
         initWidget(view);
-        this.editPresenter = editPresenter;
+        this.editPresenter = own(editPresenter);
         dataGrid = new DataGrid<>();
         dataGrid.setTableName("Declarations");
         selectionModel = dataGrid.addDefaultSelectionModel(false);

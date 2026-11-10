@@ -74,10 +74,10 @@ public class TemplateStripController extends Controller {
         view.setOnEditIdentity(this::onEditIdentity);
         view.setOnRole(this::onRole);
         view.setOnOpenWorkbench(this::onOpenWorkbench);
-        this.sourceConfig = sourceConfig;
-        this.bodyPresenter = bodyPresenter;
-        this.declarations = declarations;
-        this.captures = captures;
+        this.sourceConfig = own(sourceConfig);
+        this.bodyPresenter = own(bodyPresenter);
+        this.declarations = own(declarations);
+        this.captures = own(captures);
         view.setDetails(declarations, captures);
     }
 

@@ -91,9 +91,9 @@ public class TemplatePanelController extends Controller {
         view.setOnSelect(this::onSelect);
         view.setOnOpen(this::onOpen);
         view.setOnHover(this::onHover);
-        this.editPresenter = editPresenter;
-        this.modeEditor = modeEditor;
-        this.namePrompt = namePrompt;
+        this.editPresenter = own(editPresenter);
+        this.modeEditor = own(modeEditor);
+        this.namePrompt = own(namePrompt);
         addButton = view.getToolbar().button(SvgImage.ADD, "Add template", () -> {
         });
         editButton = view.getToolbar().button(SvgImage.EDIT, "Edit template", () -> {

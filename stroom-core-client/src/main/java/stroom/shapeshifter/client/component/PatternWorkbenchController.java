@@ -55,9 +55,9 @@ public class PatternWorkbenchController extends Controller {
         super(eventBus);
         this.view = view;
         initWidget(view);
-        this.sample = sample;
-        this.matchEditor = matchEditor;
-        this.guardAndLimits = guardAndLimits;
+        this.sample = own(sample);
+        this.matchEditor = own(matchEditor);
+        this.guardAndLimits = own(guardAndLimits);
         matchEditor.setOnGroupSelect(sample::isolate);
         matchEditor.setOnLabelSelect(sample::isolate);
         view.setSample(sample);

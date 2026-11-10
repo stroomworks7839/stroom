@@ -104,8 +104,8 @@ public class PatternTreeController
         view.setOnSelect(this::onSelect);
         view.setOnOpen(this::onOpen);
         this.restFactory = restFactory;
-        this.nodeEditor = nodeEditor;
-        this.namePrompt = namePrompt;
+        this.nodeEditor = own(nodeEditor);
+        this.namePrompt = own(namePrompt);
         addChildButton = view.getToolbar().button(SvgImage.ADD, "Add a child to the selected node", () -> {
         });
         addAfterButton = view.getToolbar().button(SvgImage.ADD_BELOW, "Add a node after the selected one", () -> {

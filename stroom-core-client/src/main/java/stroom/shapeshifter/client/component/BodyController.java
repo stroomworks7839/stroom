@@ -93,8 +93,8 @@ public class BodyController extends Controller {
         view.setOnEditBranch(this::onEditBranch);
         view.setOnAddBranch(this::onAddBranch);
         view.setOnRemoveBranch(this::onRemoveBranch);
-        this.instructionEditor = instructionEditor;
-        this.conditionEditor = conditionEditor;
+        this.instructionEditor = own(instructionEditor);
+        this.conditionEditor = own(conditionEditor);
     }
 
     public void setHost(final ProjectHost host) {

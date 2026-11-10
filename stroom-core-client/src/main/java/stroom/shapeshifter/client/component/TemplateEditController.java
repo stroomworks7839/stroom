@@ -66,7 +66,7 @@ public class TemplateEditController extends Controller {
         this.view = view;
         initWidget(view);
         view.setOnNewMode(this::onNewMode);
-        this.namePrompt = namePrompt;
+        this.namePrompt = own(namePrompt);
         restFactory
                 .create(RESOURCE)
                 .method(ShapeshifterResource::encodings)

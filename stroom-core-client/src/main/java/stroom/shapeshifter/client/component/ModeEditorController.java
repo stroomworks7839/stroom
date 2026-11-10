@@ -68,7 +68,7 @@ public class ModeEditorController extends Controller {
         super(eventBus);
         this.view = view;
         initWidget(view);
-        this.namePrompt = namePrompt;
+        this.namePrompt = own(namePrompt);
         dataGrid = new DataGrid<>();
         dataGrid.setTableName("Modes");
         selectionModel = dataGrid.addDefaultSelectionModel(false);

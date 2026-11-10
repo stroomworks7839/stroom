@@ -3,6 +3,7 @@
              xmlns:g="urn:import:com.google.gwt.user.client.ui"
              xmlns:t="urn:import:stroom.widget.text.client"
              xmlns:split="urn:import:stroom.widget.layout.client"
+             xmlns:ed="urn:import:stroom.editor.client.component"
              xmlns:l="urn:import:stroom.widget.selection.client">
     <split:SplitPane vertical="true" thin="true" sizes="50px, *" names="Heading, Sample"
                      addStyleNames="max default-min-sizes">
@@ -14,6 +15,10 @@
                  (design 44 §5q). -->
             <t:Label ui:field="keeping" styleName="ss-det-desc ss-smp-keeping"/>
         </g:FlowPanel>
-        <g:SimpleLayoutPanel ui:field="body" styleName="max"/>
+        <!-- The paste box lives here; the stream view takes its place in the body
+             when that kind is chosen. -->
+        <g:SimpleLayoutPanel ui:field="body" styleName="max">
+            <ed:CodeEditor ui:field="pasted" addStyleNames="max"/>
+        </g:SimpleLayoutPanel>
     </split:SplitPane>
 </ui:UiBinder>

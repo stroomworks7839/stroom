@@ -181,6 +181,8 @@ dependencies {
     implementation project(':stroom-core-client-widget')
     implementation project(':stroom-core-shared')
     implementation project(':stroom-docref')
+    // The Shapeshifter editor's project model (App/Shapeshifter/ShapeshifterEditor)
+    implementation project(':stroom-shapeshifter:stroom-shapeshifter-config')
     implementation project(':stroom-query:stroom-query-api')
     implementation project(':stroom-sqlstore:stroom-sqlstore-shared')
     implementation project(':stroom-util-shared')
@@ -219,6 +221,7 @@ def clientProjects = [
         project(':stroom-core-client-widget'),
         project(':stroom-core-shared'),
         project(':stroom-docref'),
+        project(':stroom-shapeshifter:stroom-shapeshifter-config'),
         project(':stroom-query:stroom-query-api'),
         project(':stroom-sqlstore:stroom-sqlstore-shared'),
         project(':stroom-util-shared'),

@@ -1,0 +1,386 @@
+/*
+ * Copyright 2026 Crown Copyright
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package stroom.gwt.workbench.client.app.shapeshifter;
+
+import stroom.docref.DocRef;
+import stroom.document.client.editor.DocumentEditorHost;
+import stroom.document.client.event.OpenDocumentEvent;
+import stroom.gwt.workbench.client.app.gin.AppScreenGinjector;
+import stroom.gwt.workbench.client.app.rest.RestFixtures;
+import stroom.gwt.workbench.client.app.rest.RestReply;
+import stroom.gwt.workbench.client.app.screen.ScreenHarness;
+import stroom.gwt.workbench.client.app.screen.StroomDom;
+import stroom.gwt.workbench.client.widgets.tree.ExplorerFixture;
+import stroom.gwt.workbench.client.widgets.tree.TreeFixtures;
+import stroom.gwt.workbench.framework.client.play.Play;
+import stroom.gwt.workbench.framework.client.play.Query;
+import stroom.gwt.workbench.framework.client.play.TextMatch;
+import stroom.gwt.workbench.framework.client.story.StoryContext;
+import stroom.gwt.workbench.framework.client.story.StoryLayout;
+import stroom.gwt.workbench.framework.client.story.StoryRegistry;
+import stroom.security.shared.DocumentPermission;
+import stroom.shapeshifter.shared.ShapeshifterDoc;
+import stroom.shapeshifter.shared.ShapeshifterResource;
+
+import com.google.gwt.core.client.GWT;
+import com.google.gwt.user.client.ui.Widget;
+
+/// The `App/Shapeshifter/ShapeshifterEditor` stories, showing Stroom's real `ShapeshifterEditor`
+/// (a Shapeshifter document's editor: Design, Source, Documentation and Permissions, with Save,
+/// Save As and Run) in a [DocumentEditorHost], as `ShapeshifterPlugin` opens it, with fake REST
+/// replies.
+///
+/// `ShapeshifterPlugin` fetches the document (`GET /shapeshifter/v1/{uuid}`), checks the user may
+/// edit it and reads it into the host, which the story does as the plugin does.
+///
+/// | Request | Answers |
+/// |---|---|
+/// | `GET /shapeshifter/v1/ss-strict-kv` | the document, whose data is the `strict_kv` engine fixture |
+/// | `POST /shapeshifter/v1/validate` | the project reads, with no messages |
+/// | `POST /shapeshifter/v1/preview` | one run over the pasted sample: three frames, two pairs out |
+/// | `POST /shapeshifter/v1/print` | a pattern tree's regex, for the match editor |
+/// | `GET /shapeshifter/v1/library` | the standard library the pattern tree's refs name |
+/// | `GET /shapeshifter/v1/encodings` | the encodings the source and template forms offer |
+/// | `POST /permission/doc/v1/fetchDocumentUserPermissions` | the Permissions tab's grid |
+/// | `POST /explorer/v2/fetchExplorerNodes` | the explorer tree ([ExplorerFixture]) |
+///
+/// `ReadOnly` and `LockChangeWhileOpen` are the regression tests for the Design tab's read-only
+/// state, which was stuck at read-only after the component migration: its controller declared the
+/// field and never assigned it, so every edit path returned early. It now watches
+/// `Contexts.READ_ONLY`, which the document provides.
+///
+/// `SourceTab` and `SourceReadOnly` are the regression tests for the Source tab, which was a bare
+/// `CodeEditorController` with no `attach(...)`: `setMode` threw on its null options the first
+/// time the tab was opened, and nothing followed the document's read-only state. It is now a
+/// `CodeTabController`, as every other document's text tab is.
+///
+/// `Default` is also the regression test for the sample page's paste box, which had the same
+/// missing `attach(...)`. Its controller is built in the Design tab's constructor, so the throw
+/// came before anything drew: this story could not reach its first assertion.
+public final class ShapeshifterEditorStories {
+
+    /// The name of the spy recording the documents opened.
+    static final String OPEN_DOC = "openDoc";
+
+    private static final DocRef DOC_REF =
+            new DocRef(ShapeshifterDoc.TYPE, "ss-strict-kv", "Key Value Lines");
+
+    // The strict_kv engine fixture (stroom-shapeshifter-engine's test resources): a source
+    // template that wraps the records, a pair template that matches key=value, and a junk_line
+    // template that warns about anything else. Three templates, so the panel has rows to show
+    // and the breadcrumb has somewhere to go.
+    private static final String PROJECT = """
+            {
+             "name": "strict_kv",
+             "version": 4,
+             "source": {"buffer_size": 20000, "ignore_errors": false, "encoding": "utf-8"},
+             "templates": [
+              {"id": "00000000-0000-0000-0000-000000000001", "name": "source", "match": "source",
+               "body": [
+                {"text": "<records>\\n"},
+                {"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]}, "mode": "kv"}},
+                {"text": "</records>\\n"}]},
+              {"id": "00000000-0000-0000-0000-000000000002", "name": "pair", "mode": "kv",
+               "match": {"regex": {"pattern": "([a-z]+)=([^\\\\n]*)\\\\n"}},
+               "body": [{"text": " <pair key=\\""}, {"value-of": {"parts": [{"capture": {"group": 1}}]}},
+                        {"text": "\\">"}, {"value-of": {"parts": [{"capture": {"group": 2}}]}},
+                        {"text": "</pair>\\n"}]},
+              {"id": "00000000-0000-0000-0000-000000000003", "name": "junk_line", "mode": "kv",
+               "consume": true,
+               "match": {"regex": {"pattern": "[^\\\\n]*\\\\n?"}},
+               "body": [{"emit-error": {"severity": "warning",
+                         "message": {"parts": [{"text": "unrecognised line: "}, {"capture": {"group": 0}}]}}}]}
+             ]
+            }""";
+
+    // The strict_kv fixture's input, as pasted text: two pairs and the comment junk_line warns about
+    private static final String SAMPLE = "host=web01\\n# a comment the grammar never claimed\\nlevel=warn\\n";
+
+    // ShapeshifterResource.fetch(). The project JSON is the document's data, so the editor parses
+    // the same text whichever tab asked for it
+    private static final String DOC = "{\n"
+                                      + "  \"type\": \"" + ShapeshifterDoc.TYPE + "\","
+                                      + " \"uuid\": \"ss-strict-kv\", \"name\": \"Key Value Lines\",\n"
+                                      + "  \"description\": \"# Key value lines\\n\\nOne pair per line.\",\n"
+                                      + "  \"data\": " + asJsonString(PROJECT) + ",\n"
+                                      + "  \"sampleText\": \"" + SAMPLE + "\",\n"
+                                      + "  \"sampleKind\": \"PASTED\"\n"
+                                      + "}";
+
+    // ShapeshifterResource.validate(): the project reads, so the Design tab shows it rather than
+    // the banner
+    private static final String VALIDATION = """
+            {"valid": true, "messages": [], "canonical": null}""";
+
+    // ShapeshifterResource.preview(): one run over the sample. Two pairs matched and written, and
+    // the comment line warned about, as the fixture's junk_line template says
+    private static final String TRACE = """
+            {
+              "compiled": true, "sampleRead": true,
+              "input": "host=web01\\n# a comment the grammar never claimed\\nlevel=warn\\n",
+              "output": "<records>\\n <pair key=\\"host\\">web01</pair>\\n <pair key=\\"level\\">warn</pair>\\n</records>\\n",
+              "frames": [
+                {"id": 1, "parentId": 0, "templateId": "00000000-0000-0000-0000-000000000001",
+                 "templateName": "source", "matchIndex": 0, "depth": 0,
+                 "inputOffset": 0, "inputLength": 56, "contentOffset": 0, "contentLength": 56},
+                {"id": 2, "parentId": 1, "templateId": "00000000-0000-0000-0000-000000000002",
+                 "templateName": "pair", "matchIndex": 0, "depth": 1,
+                 "inputOffset": 0, "inputLength": 11, "contentOffset": 0, "contentLength": 11,
+                 "content": "host=web01\\n"},
+                {"id": 3, "parentId": 1, "templateId": "00000000-0000-0000-0000-000000000003",
+                 "templateName": "junk_line", "matchIndex": 0, "depth": 1,
+                 "inputOffset": 11, "inputLength": 35, "contentOffset": 11, "contentLength": 35,
+                 "content": "# a comment the grammar never claimed\\n"}
+              ],
+              "captures": [
+                {"frameId": 2, "index": 1, "name": "key", "contentOffset": 0, "contentLength": 4},
+                {"frameId": 2, "index": 2, "name": "value", "contentOffset": 5, "contentLength": 5}
+              ],
+              "groups": [], "outputs": [], "attempts": [], "guards": [],
+              "instructions": [], "attemptsSeen": 3, "timings": [],
+              "messages": [
+                {"severity": "warning", "text": "unrecognised line: # a comment the grammar never claimed",
+                 "frameId": 3}
+              ],
+              "runNanos": 412000
+            }""";
+
+    // ShapeshifterResource.library(): what a pattern tree's ref may name
+    private static final String LIBRARY = """
+            {"entries": [
+              {"name": "ipv4", "regex": "(?:\\\\d{1,3}\\\\.){3}\\\\d{1,3}"},
+              {"name": "iso8601", "regex": "\\\\d{4}-\\\\d{2}-\\\\d{2}T[\\\\d:.]+Z?"}
+            ]}""";
+
+    // ShapeshifterResource.encodings(): the canonical labels the source and template forms offer
+    private static final String ENCODINGS = """
+            ["utf-8", "utf-16", "iso-8859-1", "ascii"]""";
+
+    // ShapeshifterResource.print(): a pattern tree as the regex it means
+    private static final String PRINTED = """
+            {"text": "([a-z]+)=([^\\\\n]*)\\\\n"}""";
+
+    // DocPermissionResource.fetchDocumentUserPermissions(): an owner and a group that may view
+    private static final String DOC_PERMISSIONS = """
+            {
+              "values": [
+                {"userRef": {"uuid": "u-admin", "subjectId": "admin", "displayName": "admin", "group": false,
+                  "enabled": true}, "permission": "OWNER"},
+                {"userRef": {"uuid": "g-analysts", "subjectId": "Analysts", "displayName": "Analysts",
+                  "group": true, "enabled": true}, "permission": "VIEW"}
+              ],
+              "pageResponse": {"offset": 0, "length": 2, "total": 2, "exact": true}
+            }""";
+
+    private static final RestFixtures FIXTURES = TreeFixtures.explorerRoutes(
+                    new ExplorerFixture(ExplorerFixture.folder("System",
+                            ExplorerFixture.doc("Key Value Lines", ShapeshifterDoc.TYPE))))
+            .get("/shapeshifter/v1/ss-strict-kv", RestReply.json(DOC))
+            .post("/shapeshifter/v1/validate", RestReply.json(VALIDATION))
+            .post("/shapeshifter/v1/preview", RestReply.json(TRACE))
+            .post("/shapeshifter/v1/print", RestReply.json(PRINTED))
+            .get("/shapeshifter/v1/library", RestReply.json(LIBRARY))
+            .get("/shapeshifter/v1/encodings", RestReply.json(ENCODINGS))
+            .post("/permission/doc/v1/fetchDocumentUserPermissions", RestReply.json(DOC_PERMISSIONS))
+            .build();
+
+    private ShapeshifterEditorStories() {
+        // Static utility
+    }
+
+    /// Adds the stories to the registry.
+    ///
+    /// @param registry The registry to add to.
+    public static void addTo(final StoryRegistry registry) {
+        registry.component("App/Shapeshifter/ShapeshifterEditor", ShapeshifterEditorStories.class)
+                .layout(StoryLayout.FULLSCREEN)
+                // The whole editor: four tabs, Design showing, and the project's three templates
+                // in the panel. Reaching the first assertion at all is the regression test for the
+                // sample page's paste box, built in the Design tab's constructor
+                .story("Default", context -> render(context, false))
+                .withPlay(play -> {
+                    for (final String label : new String[]{
+                            "Design", "Source", "Documentation", "Permissions"}) {
+                        play.waitFor(() -> play.expect(tab(play, label)).toBeInTheDocument());
+                    }
+                    // Design is the default tab, so the template panel's rows are what is shown
+                    play.waitFor(() -> play.expect(play.getByText("pair")).toBeInTheDocument());
+                    play.expect(play.getByText("source")).toBeInTheDocument();
+                    play.expect(play.getByText("junk_line")).toBeInTheDocument();
+                    // Clean on load, so Save is disabled; Run is on the document's toolbar beside it
+                    play.expect(play.getByRole("button", "Save")).toHaveAttribute("aria-disabled", "true");
+                    play.expect(runButton(play)).toBeInTheDocument();
+                    expectNoProblems(play);
+                })
+                // Read only (no EDIT permission): the editor retitles Save and says so, and the
+                // Design tab's panes offer nothing to change. Before the migration's read-only
+                // state was wired to context this was the only state the Design tab had
+                .story("ReadOnly", context -> render(context, true))
+                .withPlay(play -> {
+                    play.findByRole("button", "Save (read only)");
+                    play.expect(play.getByText("Read only", ".link-tab-panel__read-only-note")).toBeVisible();
+                    // Save As stays available read only, so the document can still be copied
+                    play.expect(play.getByRole("button", "Save As")).not().toHaveAttribute("aria-disabled");
+                    play.waitFor(() -> play.expect(play.getByText("pair")).toBeInTheDocument());
+                    expectNoProblems(play);
+                })
+                // The document is locked and unlocked while it is open, as DocumentPlugin does when
+                // its lock changes: the host tells the editor and the Design tab follows, because it
+                // watches Contexts.READ_ONLY rather than being told once by read()
+                .story("LockChangeWhileOpen", context -> render(context, false))
+                .withPlay(play -> {
+                    play.waitFor(() -> play.expect(play.getByText("pair")).toBeInTheDocument());
+                    play.expect(play.getByRole("button", "Save")).toHaveAttribute("aria-disabled", "true");
+
+                    play.run("lock the document", () -> readAgain(true));
+                    play.expect(play.findByRole("button", "Save (read only)")).toBeInTheDocument();
+                    play.expect(play.getByText("Read only", ".link-tab-panel__read-only-note")).toBeVisible();
+                    // The panel is still drawn: locking narrows what may be changed, it doesn't
+                    // empty the tab
+                    play.expect(play.getByText("pair")).toBeInTheDocument();
+
+                    play.run("unlock the document", () -> readAgain(false));
+                    play.expect(play.findByRole("button", "Save")).toBeInTheDocument();
+                    play.expect(play.queryByText("Read only", ".link-tab-panel__read-only-note")).toBeNull();
+                    play.expect(play.getByText("pair")).toBeInTheDocument();
+                    expectNoProblems(play);
+                })
+                // The Source tab shows the same project as text. Opening it at all is the
+                // regression test for its missing attach(...), which threw on the editor's null
+                // options
+                .story("SourceTab", context -> render(context, false))
+                .withPlay(play -> {
+                    openTab(play, "Source");
+                    play.waitFor(() -> play.expect(play.querySelector(ACE_INPUT)).not().toBeNull());
+                    // The project's text is in the editor, not just the tab's chrome
+                    // Ace renders a JSON string as one token, quotes included, so the name is
+                    // matched inside its token rather than as the whole of it
+                    play.waitFor(() -> play.expect(
+                                    play.getAllByText(TextMatch.regex("strict_kv")).count())
+                            .toSatisfy("more than none", count -> ((Integer) count) > 0));
+                    expectNoProblems(play);
+                })
+                // Read only: the Source tab's editor follows the document, which it did not until
+                // it became a CodeTabController. Format is a canonicalise here, so it goes too
+                .story("SourceReadOnly", context -> render(context, true))
+                .withPlay(play -> {
+                    openTab(play, "Source");
+                    play.waitFor(() -> play.expect(play.querySelector(ACE_INPUT)).not().toBeNull());
+                    play.expect("the editor is read only",
+                                    () -> play.querySelector(ACE_READ_ONLY) != null)
+                            .toBe(true);
+                    play.expect(play.getByText("Read only", ".link-tab-panel__read-only-note")).toBeVisible();
+                    expectNoProblems(play);
+                });
+    }
+
+    // Stroom's Ace editor's text area
+    private static final String ACE_INPUT = ".ace_text-input";
+
+    // Ace marks a read-only editor on its root
+    private static final String ACE_READ_ONLY = ".ace_editor.ace_read-only";
+
+    // The host the story shows, for plays that act as ShapeshifterPlugin does
+    private static DocumentEditorHost<ShapeshifterDoc> host() {
+        return ScreenHarness.shownComponent();
+    }
+
+    // Reads the shown document again, as DocumentPlugin does, read only or not
+    private static void readAgain(final boolean readOnly) {
+        final DocumentEditorHost<ShapeshifterDoc> host = host();
+        host.setReadOnly(readOnly);
+        host.read(host.getDocRef(), host.getEntity());
+    }
+
+    // Run sits on the document's toolbar, beside Save, whichever tab is showing
+    private static Query runButton(final Play play) {
+        return play.getByRole("button", "Run the project over the sample data");
+    }
+
+    // One of the editor's tabs.
+    // Stroom's link tabs have no role="tab", so they're found by their label
+    private static Query tab(final Play play, final String label) {
+        return play.getByText(label, StroomDom.LINK_TAB_LABEL);
+    }
+
+    // Opens one of the editor's tabs
+    private static void openTab(final Play play, final String label) {
+        play.waitFor(() -> play.expect(tab(play, label)).toBeInTheDocument());
+        play.click(tab(play, label));
+    }
+
+    private static void expectNoProblems(final Play play) {
+        play.expect(play.spy(ScreenHarness.ALERT_SPY)).not().toHaveBeenCalled();
+        play.expect(play.spy(ScreenHarness.UNHANDLED_REQUEST_SPY)).not().toHaveBeenCalled();
+    }
+
+    // The project JSON goes into the document's JSON as a string, so it is quoted and escaped once
+    // more. Done here rather than by hand, so the fixture above stays the engine's fixture
+    private static String asJsonString(final String text) {
+        final StringBuilder json = new StringBuilder("\"");
+        for (int i = 0; i < text.length(); i++) {
+            final char c = text.charAt(i);
+            if (c == '"' || c == '\\') {
+                json.append('\\').append(c);
+            } else if (c == '\n') {
+                json.append("\\n");
+            } else {
+                json.append(c);
+            }
+        }
+        return json.append('"').toString();
+    }
+
+    private static Widget render(final StoryContext context, final boolean readOnly) {
+        final AppScreenGinjector injector = GWT.create(AppScreenGinjector.class);
+        final ScreenHarness harness = ScreenHarness.builder(context, FIXTURES)
+                .injector(injector)
+                .realAlerts()
+                .build();
+        harness.getSecurityContext().setDocumentPermission(readOnly
+                ? DocumentPermission.VIEW
+                : DocumentPermission.EDIT);
+        harness.fn(OPEN_DOC);
+        harness.getEventBus().addHandler(OpenDocumentEvent.getType(), event ->
+                harness.spy(OPEN_DOC, event.getDocRef().getUuid()));
+        // Opened once Stroom has started, as ShapeshifterPlugin opens a document: load it, check
+        // the user may edit it, read it into the editor's host and show the tab
+        harness.afterStartUp(() -> open(harness, injector));
+        return harness.asWidget();
+    }
+
+    private static void open(final ScreenHarness harness, final AppScreenGinjector injector) {
+        final DocumentEditorHost<ShapeshifterDoc> controller = new DocumentEditorHost<>(
+                harness.getEventBus(), injector.getShapeshifterEditor(), ShapeshifterDoc.TYPE);
+        final ShapeshifterResource resource = GWT.create(ShapeshifterResource.class);
+        harness.getRestFactory()
+                .create(resource)
+                .method(res -> res.fetch(DOC_REF.getUuid()))
+                .onSuccess(doc -> harness.getSecurityContext().hasDocumentPermission(
+                        DOC_REF,
+                        DocumentPermission.EDIT,
+                        allowUpdate -> {
+                            controller.setReadOnly(!allowUpdate);
+                            controller.read(DOC_REF, doc);
+                            harness.show(controller);
+                        },
+                        error -> harness.spy(ScreenHarness.ALERT_SPY, "ERROR: " + error.getMessage()),
+                        controller))
+                .taskMonitorFactory(controller)
+                .exec();
+    }
+}

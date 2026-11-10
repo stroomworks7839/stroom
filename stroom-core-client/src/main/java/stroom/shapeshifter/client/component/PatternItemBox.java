@@ -34,7 +34,7 @@ public class PatternItemBox extends Box<PatternItem> {
 
     public PatternItemBox(final PatternItem item) {
         this.item = item;
-        background.setStyleName("expressionItemBox-background expressionItemBox-selectable");
+        background.setStyleName("expression-item");
         initWidget(background);
     }
 
@@ -45,18 +45,18 @@ public class PatternItemBox extends Box<PatternItem> {
     @Override
     public void setSelected(final boolean selected) {
         if (selected) {
-            getElement().addClassName("expressionItemBox-selected");
+            getElement().setAttribute("aria-selected", "true");
         } else {
-            getElement().removeClassName("expressionItemBox-selected");
+            getElement().removeAttribute("aria-selected");
         }
     }
 
     @Override
     public void showHotspot(final boolean show) {
         if (show) {
-            getElement().addClassName("expressionItemBox-hotspot");
+            getElement().addClassName("expression-item--target");
         } else {
-            getElement().removeClassName("expressionItemBox-hotspot");
+            getElement().removeClassName("expression-item--target");
         }
     }
 

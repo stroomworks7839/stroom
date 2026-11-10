@@ -48,6 +48,7 @@ import stroom.gwt.workbench.client.app.data.DataVolumesScreenStories;
 import stroom.gwt.workbench.client.app.data.MetaBrowserStories;
 import stroom.gwt.workbench.client.app.data.SaveChangedDocumentsStories;
 import stroom.gwt.workbench.client.app.dictionary.DictionaryEditorStories;
+import stroom.gwt.workbench.client.app.shapeshifter.ShapeshifterEditorStories;
 import stroom.gwt.workbench.client.app.editors.AnalyticRuleEditorStories;
 import stroom.gwt.workbench.client.app.editors.CodeDocumentEditorStories;
 import stroom.gwt.workbench.client.app.editors.DashboardEditorStories;
@@ -404,6 +405,8 @@ public final class AppStories {
         CreateProcessorsStories.addTo(registry);
         // App/Dictionary/DictionaryEditor
         DictionaryEditorStories.addTo(registry);
+        // App/Shapeshifter/ShapeshifterEditor
+        ShapeshifterEditorStories.addTo(registry);
         // App/Security/DocumentPermissionsTab
         DocumentPermissionsTabStories.addTo(registry);
         // App/Index/ElasticIndexEditor

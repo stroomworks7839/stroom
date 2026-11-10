@@ -16,6 +16,7 @@
 
 package stroom.shapeshifter.client.component;
 
+import stroom.editor.client.component.CodeEditor;
 import stroom.shapeshifter.client.component.SampleSourcePickerController.Kind;
 import stroom.widget.component.client.Component;
 import stroom.widget.selection.client.SelectionBox;
@@ -25,9 +26,7 @@ import com.google.gwt.core.client.GWT;
 import com.google.gwt.event.logical.shared.ValueChangeEvent;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
-import com.google.gwt.user.client.ui.IsWidget;
 import com.google.gwt.user.client.ui.SimpleLayoutPanel;
-import com.google.gwt.user.client.ui.SimplePanel;
 import com.google.gwt.user.client.ui.Widget;
 
 import java.util.function.Consumer;
@@ -41,7 +40,6 @@ public class SampleSourcePicker extends Component {
 
     private static final Binder BINDER = GWT.create(Binder.class);
 
-    private final SimplePanel pastePane = new SimplePanel();
 
     @UiField
     SelectionBox<Kind> kind;
@@ -49,6 +47,8 @@ public class SampleSourcePicker extends Component {
     SimpleLayoutPanel body;
     @UiField
     Label keeping;
+    @UiField
+    CodeEditor pasted;
 
     private Widget streamView;
 
@@ -57,7 +57,6 @@ public class SampleSourcePicker extends Component {
         kind.addValueChangeHandler(event -> onKind(event));
         kind.setDisplayValueFunction(Kind::label);
         kind.addItems(Kind.values());
-        pastePane.setStyleName("max");
     }
 
 
@@ -68,18 +67,19 @@ public class SampleSourcePicker extends Component {
         }
     }
 
+    /// @return The paste box, for its controller to attach to.
+    public CodeEditor getPasted() {
+        return pasted;
+    }
+
     public void setStreamView(final Widget view) {
         streamView = view;
         show(getKind());
     }
 
-    public void setPasteView(final IsWidget view) {
-        pastePane.setWidget(view.asWidget());
-    }
-
     private void show(final Kind which) {
         if (which == Kind.PASTED) {
-            body.setWidget(pastePane);
+            body.setWidget(pasted);
         } else if (streamView != null) {
             body.setWidget(streamView);
         }

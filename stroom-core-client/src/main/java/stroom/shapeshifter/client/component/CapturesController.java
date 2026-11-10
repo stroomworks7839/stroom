@@ -65,7 +65,7 @@ public class CapturesController extends Controller {
         super(eventBus);
         this.view = view;
         initWidget(view);
-        this.editPresenter = editPresenter;
+        this.editPresenter = own(editPresenter);
         dataGrid = new DataGrid<>();
         dataGrid.setTableName("Captures");
         selectionModel = dataGrid.addDefaultSelectionModel(false);

@@ -70,7 +70,7 @@ public class PartsController
         initWidget(view);
         view.setOnSelect(this::onSelect);
         view.setOnOpen(this::onOpen);
-        this.partEditor = partEditor;
+        this.partEditor = own(partEditor);
         addButton = view.getToolbar().button(SvgImage.ADD, "Add a part after the selected one", () -> {
         });
         editButton = view.getToolbar().button(SvgImage.EDIT, "Edit the selected part", () -> {

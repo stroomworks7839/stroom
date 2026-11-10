@@ -76,7 +76,7 @@ public final class PatternItemRenderer implements CellRenderer<PatternItem>, Nod
         style.setTop(y, Unit.PX);
 
         final Label label = new Label(item.getLabel(), false);
-        label.addStyleName("expressionItemBox-label ss-node-label");
+        label.addStyleName("ss-node-label");
         if (item.isContainer()) {
             label.addStyleName("ss-node-label--container");
         }
@@ -86,10 +86,10 @@ public final class PatternItemRenderer implements CellRenderer<PatternItem>, Nod
         label.setTitle(item.getLabel());
 
         final FlowPanel inner = new FlowPanel();
-        inner.setStyleName("termEditor-inner");
+        inner.setStyleName("expression-item__label");
         inner.add(label);
         final FlowPanel layout = new FlowPanel();
-        layout.setStyleName("termEditor-outer");
+        layout.setStyleName("expression-item__row");
         layout.add(inner);
         box.setInnerWidget(layout);
         box.setSelected(item.getPath().equals(selected));

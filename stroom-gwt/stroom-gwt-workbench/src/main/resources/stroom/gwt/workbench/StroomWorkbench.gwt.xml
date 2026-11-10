@@ -111,6 +111,8 @@
     <!-- Credentials: KeyStoreSecretFormController uploads with ImportUtil -->
     <inherits name='stroom.importexport.ImportExport'/>
     <inherits name='stroom.dictionary.Dictionary'/>
+    <inherits name='stroom.shapeshifter.Shapeshifter'/>
+    <inherits name='stroom.shapeshifter.ShapeshifterConfig'/>
     <inherits name='stroom.job.Job'/>
     <inherits name='stroom.node.Node'/>
     <inherits name='stroom.schedule.Schedule'/>
