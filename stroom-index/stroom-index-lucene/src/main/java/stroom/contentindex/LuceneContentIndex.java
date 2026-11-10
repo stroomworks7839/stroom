@@ -542,6 +542,18 @@ public class LuceneContentIndex implements ContentIndex, Handler {
                 }, executor);
     }
 
+    /// For testing. Starts initialising the index, if it hasn't been already, and waits for it to
+    /// finish. Unlike searching, which only waits [#LATCH_TIMEOUT_MS], this does not fail on a slow
+    /// or busy machine.
+    ///
+    /// @param timeout The maximum time to wait.
+    /// @return True if the index is initialised, false if it timed out.
+    boolean awaitInitialisation(final Duration timeout) throws InterruptedException {
+        ensureAnalyzerAndIndexableMap();
+        ensureIndexAsync();
+        return indexInitialisedLatch.await(timeout.toMillis(), TimeUnit.MILLISECONDS);
+    }
+
     /**
      * for testing
      */
@@ -741,6 +753,10 @@ public class LuceneContentIndex implements ContentIndex, Handler {
 
     @Override
     public ResultPage<DocContentMatch> findInContent(final FindInContentRequest request) {
+        // An invalid regex is the user's mistake, so tell them, rather than logging it as an error
+        // and matching nothing
+        RegexPatternValidator.validate(request.getFilter());
+
         // Trigger async initialisation, wait for a bit, then throw if it is not ready
         ensureIndexAndWait();
 

@@ -83,17 +83,19 @@ public class ExplorerNode implements HasDisplayValue {
                         @JsonProperty("uuid") final String uuid,
                         @JsonProperty("name") final String name,
                         @JsonProperty("tags") final Set<String> tags,
-                        @JsonProperty("depth") final int depth,
+                        @JsonProperty("depth") final Integer depth,
                         @JsonProperty("children") final List<ExplorerNode> children,
                         @JsonProperty("rootNodeUuid") final String rootNodeUuid,
                         @JsonProperty("uniqueKey") final ExplorerNodeKey uniqueKey,
                         @JsonProperty("nodeInfoList") final List<NodeInfo> nodeInfoList,
                         @JsonProperty("nodeFlags") final Set<NodeFlag> nodeFlags) {
+        // TODO Should really null/blank check type+uuid to mirror the checks done in the DocRef ctor
+        //  Also, uniqueKey should be compared to type+uuid to ensure the fields are the same.
         this.type = type;
         this.uuid = uuid;
         this.name = name;
         this.tags = tags;
-        this.depth = depth;
+        this.depth = Objects.requireNonNullElse(depth, 0);
         this.children = NullSafe.get(children, Collections::unmodifiableList);
         this.rootNodeUuid = rootNodeUuid;
         this.uniqueKey = uniqueKey;

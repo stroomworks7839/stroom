@@ -23,12 +23,12 @@ import stroom.docref.DocRef;
 import stroom.docstore.shared.DocRefUtil;
 import stroom.document.client.DocumentPlugin;
 import stroom.document.client.DocumentPluginEventManager;
-import stroom.entity.client.presenter.DocPresenter;
+import stroom.document.client.editor.DocumentEditorHost;
 import stroom.security.client.api.ClientSecurityContext;
-import stroom.shapeshifter.client.presenter.ShapeshifterPresenter;
+import stroom.shapeshifter.client.component.ShapeshifterEditor;
 import stroom.shapeshifter.shared.ShapeshifterDoc;
 import stroom.shapeshifter.shared.ShapeshifterResource;
-import stroom.task.client.TaskMonitorFactory;
+import stroom.widget.task.client.TaskMonitorFactory;
 
 import com.google.gwt.core.client.GWT;
 import com.google.inject.Inject;
@@ -48,12 +48,12 @@ public class ShapeshifterPlugin extends DocumentPlugin<ShapeshifterDoc> {
 
     private static final ShapeshifterResource SHAPESHIFTER_RESOURCE = GWT.create(ShapeshifterResource.class);
 
-    private final Provider<ShapeshifterPresenter> editorProvider;
+    private final Provider<ShapeshifterEditor> editorProvider;
     private final RestFactory restFactory;
 
     @Inject
     public ShapeshifterPlugin(final EventBus eventBus,
-                              final Provider<ShapeshifterPresenter> editorProvider,
+                              final Provider<ShapeshifterEditor> editorProvider,
                               final RestFactory restFactory,
                               final ContentManager contentManager,
                               final DocumentPluginEventManager entityPluginEventManager,
@@ -64,8 +64,8 @@ public class ShapeshifterPlugin extends DocumentPlugin<ShapeshifterDoc> {
     }
 
     @Override
-    protected DocPresenter<?, ?> createEditor() {
-        return editorProvider.get();
+    protected DocumentEditorHost<?> createEditor() {
+        return new DocumentEditorHost<>(getEventBus(), editorProvider.get(), ShapeshifterDoc.TYPE);
     }
 
     @Override

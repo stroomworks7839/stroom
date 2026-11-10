@@ -1,0 +1,36 @@
+<!DOCTYPE ui:UiBinder SYSTEM "http://dl.google.com/gwt/DTD/xhtml.ent">
+<ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
+             xmlns:form="urn:import:stroom.widget.form.client"
+             xmlns:t="urn:import:stroom.widget.text.client"
+             xmlns:g="urn:import:com.google.gwt.user.client.ui"
+             xmlns:tickbox="urn:import:stroom.widget.tickbox.client">
+    <g:ScrollPanel styleName="max">
+        <g:FlowPanel styleName="ss-wb-right">
+            <g:FlowPanel styleName="ss-wb-sec">
+                <t:Label styleName="ss-wb-h4" text="Pattern"/>
+                <form:TextArea ui:field="pattern" styleName="ss-wb-pat" visibleLines="2"/>
+                <t:Html ui:field="patternMap" styleName="ss-pat-map"
+                        title="The pattern, group spans coloured — click a group to isolate it"/>
+                <t:Label ui:field="error" styleName="ss-wb-err"/>
+                <g:FlowPanel styleName="ss-wb-row">
+                    <t:Label ui:field="explode" styleName="ss-addbtn" text="explode into the tree ›"
+                             title="Rewrite this regex as the pattern tree it is: meaning preserved, text not"/>
+                    <tickbox:TickBox ui:field="dotAll" label="dot-all"/>
+                    <tickbox:TickBox ui:field="caseInsensitive" label="case-insensitive"/>
+                    <t:Label styleName="ss-lim-label" text="advance"/>
+                    <form:TextBox ui:field="advance" styleName="ss-edit-in ss-lim-in"
+                               title="Bytes to step past after a match that consumed nothing; 0 lets the engine decide"/>
+                </g:FlowPanel>
+            </g:FlowPanel>
+            <g:FlowPanel styleName="ss-wb-sec">
+                <t:Html styleName="ss-wb-h4">Groups <span class="ss-wb-h4-note">(a name beside a group declares it and captures the group into it; blank captures nothing)</span></t:Html>
+                <t:Label ui:field="noGroups" styleName="ss-none" text="(no capturing groups)"/>
+                <g:FlowPanel ui:field="groups" styleName="ss-wb-groups"/>
+            </g:FlowPanel>
+            <g:FlowPanel styleName="ss-wb-sec">
+                <t:Label styleName="ss-wb-h4" text="How it runs"/>
+                <t:Label ui:field="explain" styleName="ss-wb-lint ss-explain"/>
+            </g:FlowPanel>
+        </g:FlowPanel>
+    </g:ScrollPanel>
+</ui:UiBinder>

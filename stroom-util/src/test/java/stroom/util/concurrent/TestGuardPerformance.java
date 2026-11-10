@@ -16,6 +16,8 @@
 
 package stroom.util.concurrent;
 
+import stroom.test.common.PerformanceTest;
+
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
@@ -35,7 +37,15 @@ public class TestGuardPerformance {
     private final int threadCount = Integer.highestOneBit(Runtime.getRuntime().availableProcessors());
     private volatile Object env = new Object();
 
+    private IntStream buildThreadCountStream() {
+        return IntStream.iterate(
+                1,
+                i -> i <= 128,
+                i -> i * 2);
+    }
+
     @Test
+    @PerformanceTest
     @Disabled
     public void perfTest() {
         for (int i = 1; i <= 3; i++) {

@@ -25,6 +25,7 @@ import stroom.config.global.shared.ListConfigResponse;
 import stroom.config.global.shared.OverrideValue;
 import stroom.config.global.shared.SetConfigValueRequest;
 import stroom.docref.DocRef;
+import stroom.event.logging.api.DocumentEventLog;
 import stroom.event.logging.api.StroomEventLoggingService;
 import stroom.event.logging.mock.MockStroomEventLoggingService;
 import stroom.explorer.impl.ExplorerConfig;
@@ -441,7 +442,7 @@ class TestGlobalConfigResourceImpl extends AbstractMultiNodeResourceTest<GlobalC
                         Stream<ConfigProperty> stream = FULL_PROP_LIST.stream();
                         stream = expressionPredicateFactory.filterAndSortStream(
                                 stream,
-                                criteria.getQuickFilterInput(),
+                                criteria.getQuickFilter(),
                                 GlobalConfigService.FIELD_PROVIDER,
                                 GlobalConfigService.VALUE_FUNCTION_FACTORIES,
                                 Optional.empty());
@@ -516,6 +517,7 @@ class TestGlobalConfigResourceImpl extends AbstractMultiNodeResourceTest<GlobalC
 
         return new GlobalConfigResourceImpl(
                 () -> stroomEventLoggingService,
+                () -> Mockito.mock(DocumentEventLog.class),
                 () -> globalConfigService,
                 () -> nodeService,
                 UiConfig::new,

@@ -25,7 +25,7 @@ import stroom.app.guice.JerseyModule;
 import stroom.app.uri.UriFactoryModule;
 import stroom.data.store.api.Store;
 import stroom.data.store.impl.fs.FsVolumeConfig;
-import stroom.data.store.impl.fs.FsVolumeService;
+import stroom.data.store.impl.fs.FsVolumeServiceImpl;
 import stroom.index.VolumeCreator;
 import stroom.index.VolumeTestConfigModule;
 import stroom.index.impl.IndexShardManager;
@@ -40,6 +40,7 @@ import stroom.security.mock.MockSecurityContextModule;
 import stroom.test.BootstrapTestModule;
 import stroom.test.CommonTestControl;
 import stroom.test.ContentStoreTestSetup;
+import stroom.test.common.PerformanceTest;
 import stroom.util.io.PathCreator;
 import stroom.util.io.TempDirProvider;
 import stroom.util.logging.LambdaLogger;
@@ -66,6 +67,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.sql.DataSource;
 
+@PerformanceTest
 class TestInjectionPerformance {
 
     private static final LambdaLogger LOGGER = LambdaLoggerFactory.getLogger(TestInjectionPerformance.class);
@@ -108,7 +110,7 @@ class TestInjectionPerformance {
                 VolumeCreator.class,
                 VolumeConfig.class,
                 FsVolumeConfig.class,
-                FsVolumeService.class,
+                FsVolumeServiceImpl.class,
                 PathCreator.class,
                 IndexVolumeService.class,
 

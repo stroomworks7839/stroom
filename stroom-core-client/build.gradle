@@ -22,11 +22,11 @@ dependencies {
     implementation project(':stroom-docref')
     implementation project(':stroom-shapeshifter:stroom-shapeshifter-config')
     implementation project(':stroom-query:stroom-query-api')
+    implementation project(':stroom-sqlstore:stroom-sqlstore-shared')
     implementation project(':stroom-util-shared')
 
     implementation libs.gin
     implementation libs.gwt.user
-    implementation libs.gwtp.mvp.client
     implementation libs.restygwt
     implementation libs.ws.rs.api.gwt
 

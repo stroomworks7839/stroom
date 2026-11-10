@@ -23,7 +23,8 @@ dependencies {
     implementation project(':stroom-config:stroom-config-common')
     implementation project(':stroom-config:stroom-config-global-impl-db')
     implementation project(':stroom-dashboard:stroom-dashboard-impl')
-    implementation project(':stroom-dashboard:stroom-dashboard-impl-db')
+    implementation project(':stroom-document-asset:stroom-document-asset-impl')
+    implementation project(':stroom-document-asset:stroom-document-asset-impl-db')
     implementation project(':stroom-dashboard:stroom-storedquery-impl')
     implementation project(':stroom-dashboard:stroom-storedquery-impl-db')
     implementation project(':stroom-data:stroom-data-retention-api')
@@ -54,6 +55,7 @@ dependencies {
     implementation project(':stroom-planb:stroom-planb-impl')
     implementation project(':stroom-processor:stroom-processor-impl')
     implementation project(':stroom-processor:stroom-processor-impl-db')
+    implementation project(':stroom-sqlstore:stroom-sqlstore-impl')
     implementation project(':stroom-receive:stroom-receive-common')
     implementation project(':stroom-receive:stroom-receive-rules-impl')
     implementation project(':stroom-search:stroom-search-elastic')
@@ -71,6 +73,7 @@ dependencies {
 
     implementation libs.dropwizard.client
     implementation libs.guice
+    implementation libs.jackson.annotations
     implementation libs.jackson.dataformat.yaml
     implementation libs.jackson2.databind
 
@@ -115,4 +118,11 @@ tasks.register('generateExpectedYaml', JavaExec) {
 
     classpath = sourceSets.test.runtimeClasspath
     mainClass = 'stroom.config.app.GenerateExpectedYaml'
+}
+
+processTestResources {
+    // TestStroomYamlUtil writes this into src/test/resources (it is gitignored). Keep it off
+    // the test classpath, else whether the test has run changes the inputs of the test task
+    // and stops it coming from the build cache.
+    exclude 'stroom/config/app/actual.yaml'
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2026 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 package stroom.planb.impl;
 
 import stroom.docref.DocRef;
+import stroom.docstore.api.DocFinder;
 import stroom.docstore.impl.Serialiser2FactoryImpl;
 import stroom.docstore.impl.StoreFactoryImpl;
 import stroom.docstore.impl.memory.MemoryPersistence;
@@ -26,6 +27,9 @@ import stroom.security.mock.MockSecurityContext;
 import stroom.util.shared.EntityServiceException;
 
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
+
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -44,8 +48,10 @@ class TestPlanBDocStoreImplCreate {
         final MockSecurityContext securityContext = new MockSecurityContext();
         return new PlanBDocStoreImpl(
                 new StoreFactoryImpl(new MemoryPersistence(), null, securityContext, null, () -> null),
+                new PlanBDocSerialiser(new Serialiser2FactoryImpl()),
                 securityContext,
-                new PlanBDocSerialiser(new Serialiser2FactoryImpl()));
+                () -> null,
+                new PlanBStoreNames(securityContext, () -> Mockito.mock(DocFinder.class), Set.of(PlanBDoc.TYPE)));
     }
 
     @Test

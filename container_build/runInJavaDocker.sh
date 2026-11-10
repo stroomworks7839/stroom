@@ -130,7 +130,7 @@ else
     run_cmd=( \
       "bash" \
       "-c"  \
-      "SKIP_TESTS=\"${SKIP_TESTS:-false}\" MAX_WORKERS=\"${MAX_WORKERS:-6}\" GWT_MIN_HEAP=\"${GWT_MIN_HEAP:-50M}\" GWT_MAX_HEAP=\"${GWT_MAX_HEAP:-2G}\" ./container_build/gradleBuild.sh" \
+      "SKIP_TESTS=\"${SKIP_TESTS:-false}\" MAX_WORKERS=\"${MAX_WORKERS:-6}\" GWT_MIN_HEAP=\"${GWT_MIN_HEAP:-1G}\" GWT_MAX_HEAP=\"${GWT_MAX_HEAP:-2G}\" ./container_build/gradleBuild.sh" \
     )
   elif [[ $# -eq 1 ]] && [[ "$1" = "GRADLE_COMPILE" ]]; then
     # Run the full CI gradle build
@@ -203,6 +203,7 @@ docker_login
 # for an example of how to hash the build context so we can pull or push
 # depending on whether there is already an image for the hash.
 
+echo "::group::Building Building image ${image_tag}"
 echo -e "${GREEN}Building image ${BLUE}${image_tag}${NC}"
 docker build \
   --tag "${image_tag}" \
@@ -212,6 +213,7 @@ docker build \
   --build-arg "DOCKER_HOST_IP=${host_ip}" \
   --build-arg "DOCKER_GROUP_ID=${docker_group_id}" \
   "${local_repo_root}/container_build/docker_java"
+echo "::endgroup::"
 
 
   #--workdir "${dest_dir}" \
@@ -221,6 +223,20 @@ if [ -t 1 ]; then
   tty_args=( "--tty" "--interactive" )
 else
   tty_args=()
+fi
+
+# If GRADLE_BUILD_CACHE_DIR is set (e.g. by CI so it can save/restore the
+# gradle build cache between runs), mount it into the container and make gradle
+# use it for its local build cache. The path is on the host.
+build_cache_args=()
+if [[ -n "${GRADLE_BUILD_CACHE_DIR:-}" ]]; then
+  container_build_cache_dir="/builder/gradle-build-cache"
+  mkdir -p "${GRADLE_BUILD_CACHE_DIR}"
+  echo -e "${GREEN}Using gradle build cache dir ${BLUE}${GRADLE_BUILD_CACHE_DIR}${NC}"
+  build_cache_args=(
+    "--mount" "type=bind,src=${GRADLE_BUILD_CACHE_DIR},dst=${container_build_cache_dir}"
+    "--env" "GRADLE_BUILD_CACHE_DIR=${container_build_cache_dir}"
+  )
 fi
 
 # Mount the whole repo into the container so we can run the build
@@ -240,6 +256,7 @@ docker run \
   --tmpfs /tmp:exec \
   --mount "type=bind,src=${host_abs_repo_dir},dst=${dest_dir}" \
   --volume builder-home-dir-vol:/home/builder \
+  "${build_cache_args[@]}" \
   --group-add "${docker_group_id}" \
   --volume /var/run/docker.sock:/var/run/docker.sock \
   --read-only \

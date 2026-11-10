@@ -20,13 +20,14 @@ import stroom.bytebuffer.impl6.ByteBufferFactoryImpl;
 import stroom.bytebuffer.impl6.ByteBuffers;
 import stroom.planb.impl.dao.temporalstate.TemporalStateDb;
 import stroom.planb.impl.dao.temporalstate.TemporalStateRequest;
-import stroom.planb.impl.data.TemporalState;
+import stroom.planb.impl.data.value.TemporalState;
 import stroom.planb.impl.serde.keyprefix.KeyPrefix;
 import stroom.planb.impl.serde.temporalkey.TemporalKey;
 import stroom.planb.shared.PlanBDoc;
 import stroom.planb.shared.TemporalStateSettings;
 import stroom.query.language.functions.Val;
 import stroom.query.language.functions.ValString;
+import stroom.test.common.PerformanceTest;
 import stroom.util.io.ByteSize;
 import stroom.util.logging.DurationTimer;
 import stroom.util.logging.LambdaLogger;
@@ -71,7 +72,7 @@ class TestStateLookupImpl {
      * This is meant to be compared to
      * stroom.pipeline.refdata.store.offheapstore.TestRefDataOffHeapStore#testLookupPerf()
      */
-//    @Disabled // Manual run only
+    @PerformanceTest
     @Test
     void perfTest(@TempDir final Path tempDir) {
         final int entryCount = 5_000;

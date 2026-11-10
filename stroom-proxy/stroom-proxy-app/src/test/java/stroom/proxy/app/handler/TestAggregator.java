@@ -18,11 +18,12 @@ package stroom.proxy.app.handler;
 
 import stroom.data.zip.StroomZipFileType;
 import stroom.proxy.app.DataDirProvider;
-import stroom.proxy.repo.FeedKey;
+import stroom.test.common.PerformanceTest;
 import stroom.test.common.util.test.StroomUnitTest;
 import stroom.util.io.FileUtil;
 import stroom.util.logging.LambdaLogger;
 import stroom.util.logging.LambdaLoggerFactory;
+import stroom.util.shared.FeedKey;
 import stroom.util.zip.ZipUtil;
 
 import org.junit.jupiter.api.Disabled;
@@ -61,6 +62,7 @@ public class TestAggregator extends StroomUnitTest {
         test(entryCountPerZip, inputZipCount, 2);
     }
 
+    @PerformanceTest
     @Disabled
     @Test
     void testPerformance() throws IOException {
@@ -78,7 +80,8 @@ public class TestAggregator extends StroomUnitTest {
         final AtomicInteger aggregateCount = new AtomicInteger();
         final Aggregator aggregator = new Aggregator(
                 cleanupDirQueue,
-                dataDirProvider);
+                dataDirProvider,
+                new FsyncConfig());
         aggregator.setDestination(aggregatorDir -> {
             try {
                 aggregateCount.getAndIncrement();

@@ -1,0 +1,13 @@
+<!DOCTYPE ui:UiBinder SYSTEM "http://dl.google.com/gwt/DTD/xhtml.ent">
+<ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
+             xmlns:form="urn:import:stroom.widget.form.client"
+             xmlns:t="urn:import:stroom.widget.text.client"
+             xmlns:g="urn:import:com.google.gwt.user.client.ui">
+    <g:FlowPanel ui:field="row" styleName="ss-group-row">
+        <t:Label ui:field="chip" styleName="ss-chip ss-chip--editable" title="Isolate this group in the pattern map"/>
+        <t:Label ui:field="index" styleName="mono ss-clickable"/>
+        <t:Label styleName="ss-group-arrow" text="→"/>
+        <form:TextBox ui:field="name" styleName="ss-edit-in ss-cap-name"
+                   title="The declaration this group is captured into; blank for none"/>
+    </g:FlowPanel>
+</ui:UiBinder>

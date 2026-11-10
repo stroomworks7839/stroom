@@ -1,0 +1,59 @@
+<!DOCTYPE ui:UiBinder SYSTEM "http://dl.google.com/gwt/DTD/xhtml.ent">
+<ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
+             xmlns:g="urn:import:com.google.gwt.user.client.ui"
+             xmlns:t="urn:import:stroom.widget.text.client"
+             xmlns:split="urn:import:stroom.widget.layout.client"
+             xmlns:l="urn:import:stroom.widget.selection.client">
+    <!-- The heading, the template itself, and its declarations and captures below: what GWT's
+         docking panel did in one, a split pane does one axis at a time. -->
+    <split:SplitPane ui:field="layout" vertical="true" thin="true"
+                     sizes="30px, *, 170px" names="Heading, Template, Details"
+                     addStyleNames="max default-min-sizes ss-strip">
+        <g:FlowPanel styleName="ss-strip-head">
+            <t:Label ui:field="title" styleName="ss-panel-title ss-strip-ptitle"/>
+            <t:Label ui:field="chip" styleName="ss-chip ss-chip--editable"
+                     title="Edit the template's name, colour, mode, params and encoding…"/>
+            <t:Label ui:field="name" styleName="ss-strip-name"
+                     title="Edit the template's name, colour, mode, params and encoding…"/>
+            <t:Label ui:field="mode" styleName="ss-strip-mode"/>
+            <t:Label ui:field="note" styleName="ss-strip-note"/>
+        </g:FlowPanel>
+        <g:ScrollPanel styleName="max">
+            <g:FlowPanel styleName="ss-strip-body">
+                <g:FlowPanel ui:field="matchLine" styleName="ss-strip-line">
+                    <t:Label styleName="ss-strip-k" text="match"/>
+                    <g:FocusPanel ui:field="matchChip" styleName="ss-match-chip"
+                                  title="Open the pattern workbench — editing, validation, groups, the plan">
+                        <g:FlowPanel styleName="ss-match-chip-inner">
+                            <t:Label ui:field="matchKind" styleName="ss-match-kind"/>
+                            <t:Label ui:field="matchSummary" styleName="ss-match-pattern"/>
+                            <t:Label styleName="ss-match-wb" text="✎ workbench"/>
+                        </g:FlowPanel>
+                    </g:FocusPanel>
+                </g:FlowPanel>
+                <!-- Between the match and the body, because that is where it acts: the match
+                     is found either way, and skipping decides what becomes of it (design 44 §5d). -->
+                <g:FlowPanel ui:field="roleLine" styleName="ss-strip-line">
+                    <t:Label styleName="ss-strip-k" text="match is"/>
+                    <l:SelectionBox ui:field="role" addStyleNames="ss-strip-role"
+                                    title="What this match is for. Both roles advance the cursor and run the body; only a record counts, captures and opens a frame to step."/>
+                    <t:Label ui:field="roleNote" styleName="ss-det-desc ss-role-note"/>
+                </g:FlowPanel>
+                <!-- Guard and limits off the match row, so the match can have the width
+                     (design 44 §5h). -->
+                <g:FlowPanel ui:field="guardLine" styleName="ss-strip-line">
+                    <t:Label styleName="ss-strip-k" text="guard"/>
+                    <t:Label ui:field="guardLimits" styleName="ss-none ss-clickable"
+                             title="Guard and limits — edited in the workbench"/>
+                </g:FlowPanel>
+                <g:SimplePanel ui:field="content" styleName="ss-strip-content"/>
+            </g:FlowPanel>
+        </g:ScrollPanel>
+        <split:SplitPane ui:field="details" thin="true" sizes="360px, *"
+                         names="Declarations, Captures"
+                         addStyleNames="max default-min-sizes">
+            <g:SimplePanel ui:field="declarations" styleName="max"/>
+            <g:SimplePanel ui:field="captures" styleName="max"/>
+        </split:SplitPane>
+    </split:SplitPane>
+</ui:UiBinder>

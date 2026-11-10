@@ -18,7 +18,7 @@
 # It also contains plantuml for plant uml image generation
 # Using 'openjdk' on Alpine is not fully supported so using Eclipse Temurin JDK to ensure we have a known jdk version
 # See https://github.com/docker-library/docs/blob/master/openjdk/README.md#openjdkversion-alpine
-FROM eclipse-temurin:25.0.3_9-jdk-alpine-3.23@sha256:5ecfde8e5ecde5954ea3721155b345ef56c1d579b940c761318ad4c05959a151
+FROM eclipse-temurin:25.0.5_8-jdk-alpine-3.23@sha256:b903bc22d49da99a0af3d50cf08f6056eaf39646b71bf3a51f74720f8243b34b
 
 # Work from the shared git repo dir
 WORKDIR /builder/shared
@@ -41,7 +41,7 @@ ARG HOST_REPO_DIR
 # The name DOCKER_HOST is used by docker so don't use that.
 ARG DOCKER_HOST_IP
 
-ARG PLANTUML_VERSION=1.2023.10
+ARG PLANTUML_VERSION=1.2026.8
 
 # Set the user ID into an env var so the entrypoint can see it
 ENV CONTAINER_USER_ID=$USER_ID \
@@ -52,7 +52,7 @@ ENV CONTAINER_USER_ID=$USER_ID \
 # Set tini as entrypoint
 #ENTRYPOINT ["/sbin/tini", "--", "/builder/docker-entrypoint.sh"]
 
-CMD id
+CMD [ "id" ]
 
 # graphviz, ttf-* for plantuml
 # rsync for gradle task :stroom-app:gwt:jakarta

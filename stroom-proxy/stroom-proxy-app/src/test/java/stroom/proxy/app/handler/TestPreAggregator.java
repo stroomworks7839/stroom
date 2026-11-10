@@ -21,15 +21,17 @@ import stroom.proxy.app.DataDirProvider;
 import stroom.proxy.app.ProxyConfig;
 import stroom.proxy.app.handler.PreAggregator.Part;
 import stroom.proxy.repo.AggregatorConfig;
-import stroom.proxy.repo.FeedKey;
+import stroom.proxy.repo.FeedKeyInterner;
 import stroom.proxy.repo.ProxyServices;
 import stroom.test.common.MockMetrics;
+import stroom.test.common.PerformanceTest;
 import stroom.test.common.TestUtil;
 import stroom.test.common.TestUtil.TimedCase;
 import stroom.test.common.util.test.StroomUnitTest;
 import stroom.util.io.FileUtil;
 import stroom.util.logging.LambdaLogger;
 import stroom.util.logging.LambdaLoggerFactory;
+import stroom.util.shared.FeedKey;
 import stroom.util.time.StroomDuration;
 import stroom.util.zip.ZipUtil;
 
@@ -57,7 +59,7 @@ public class TestPreAggregator extends StroomUnitTest {
     private static final LambdaLogger LOGGER = LambdaLoggerFactory.getLogger(TestPreAggregator.class);
 
     private static final int MAX_ITEMS_PER_AGGREGATE = 3;
-    public static final FeedKey FEED_KEY = new FeedKey("test-feed", "test-type");
+    public static final FeedKey FEED_KEY = FeedKey.of("test-feed", "test-type");
 
     @Mock
     private ProxyServices proxyServices;
@@ -168,7 +170,9 @@ public class TestPreAggregator extends StroomUnitTest {
                 cleanupDirQueue,
                 dataDirProvider,
                 proxyServices,
-                proxyConfig::getAggregatorConfig, new MockMetrics());
+                proxyConfig::getAggregatorConfig,
+                new MockMetrics(),
+                FeedKeyInterner.create());
 
         final AtomicInteger aggregateCount = new AtomicInteger();
         preAggregator.setDestination(preAggregateDir -> {
@@ -239,6 +243,7 @@ public class TestPreAggregator extends StroomUnitTest {
     /**
      * Using records takes ~x5 as long
      */
+    @PerformanceTest
     @Disabled // manual only
     @Test
     void testPerf() {

@@ -16,6 +16,7 @@
 
 package stroom.aws.s3.impl;
 
+import stroom.aws.s3.client.S3UploadProperties;
 import stroom.aws.s3.shared.S3ClientConfig;
 import stroom.aws.s3.shared.S3ConfigDoc;
 import stroom.docref.DocRef;
@@ -35,8 +36,6 @@ import stroom.pipeline.writer.OutputFactory;
 import stroom.pipeline.writer.OutputProxy;
 import stroom.svg.shared.SvgImage;
 import stroom.util.io.CompressionUtil;
-import stroom.util.io.PathCreator;
-import stroom.util.shared.NullSafe;
 import stroom.util.time.TimeBasis;
 
 import jakarta.inject.Inject;
@@ -51,7 +50,7 @@ import java.nio.file.Path;
 import java.util.Optional;
 
 /**
- * Joins text instances into a single text instance.
+ * A destination used to write an output stream to an S3 bucket.
  */
 @ConfigurableElement(
         type = "S3Appender",
@@ -68,41 +67,49 @@ public class S3Appender extends AbstractAppender {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(S3Appender.class);
     private static final String DEFAULT_USE_COMPRESSION_PROP_VALUE = "true";
+    @SuppressWarnings("ConstantValue")
+    private static final boolean DEFAULT_USE_COMPRESSION_PROP_VALUE_BOOLEAN = Boolean.parseBoolean(
+            DEFAULT_USE_COMPRESSION_PROP_VALUE);
+
     private static final String DEFAULT_COMPRESSION_METHOD_PROP_VALUE = CompressorStreamFactory.GZIP;
 
+    public static final String DEFAULT_ALLOW_OVERWRITE = "true";
+    @SuppressWarnings("ConstantValue")
+    public static final boolean DEFAULT_ALLOW_OVERWRITE_BOOLEAN = Boolean.parseBoolean(DEFAULT_ALLOW_OVERWRITE);
+
     private final S3AppenderTempDir s3AppenderTempDir;
-    private final PathCreator pathCreator;
     private final OutputFactory outputFactory;
     private final S3ClientConfigCache s3ClientConfigCache;
     private final MetaDataHolder metaDataHolder;
     private final MetaHolder metaHolder;
+    private final S3ManagerFactory s3ManagerFactory;
     private DocRef s3ConfigRef;
     private String bucketNamePattern;
     private String keyNamePattern;
-    private S3ClientConfig s3ClientConfig;
+    private S3Manager s3Manager;
     private String cacheControl;
     private String contentDisposition;
     private String contentEncoding;
     private String contentType;
+    private boolean allowOverwrite = DEFAULT_ALLOW_OVERWRITE_BOOLEAN;
 
     @Inject
     public S3Appender(final ErrorReceiverProxy errorReceiverProxy,
                       final MetaDataHolder metaDataHolder,
                       final MetaHolder metaHolder,
                       final S3AppenderTempDir s3AppenderTempDir,
-                      final PathCreator pathCreator,
-                      final S3ClientConfigCache s3ClientConfigCache) {
+                      final S3ClientConfigCache s3ClientConfigCache,
+                      final S3ManagerFactory s3ManagerFactory) {
         super(errorReceiverProxy);
         this.s3AppenderTempDir = s3AppenderTempDir;
-        this.pathCreator = pathCreator;
         this.s3ClientConfigCache = s3ClientConfigCache;
         this.metaDataHolder = metaDataHolder;
         this.metaHolder = metaHolder;
-        outputFactory = new OutputFactory(metaDataHolder);
+        this.outputFactory = new OutputFactory(metaDataHolder);
+        this.s3ManagerFactory = s3ManagerFactory;
 
         // Ensure outputStreamSupport has the defaults for S3Appender
-        //noinspection ConstantValue
-        setUseCompression(Boolean.parseBoolean(DEFAULT_USE_COMPRESSION_PROP_VALUE));
+        setUseCompression(DEFAULT_USE_COMPRESSION_PROP_VALUE_BOOLEAN);
         setCompressionMethod(DEFAULT_COMPRESSION_METHOD_PROP_VALUE);
     }
 
@@ -116,7 +123,9 @@ public class S3Appender extends AbstractAppender {
         if (optional.isEmpty()) {
             fatal("Unable to load S3 client config from " + s3ConfigRef);
         } else {
-            s3ClientConfig = optional.get();
+            final S3ClientConfig s3ClientConfig = optional.get();
+            LOGGER.debug("startProcessing() - s3ClientConfig: {}", s3ClientConfig);
+            s3Manager = s3ManagerFactory.createS3Manager(s3ClientConfig);
         }
 
         super.startProcessing();
@@ -138,32 +147,34 @@ public class S3Appender extends AbstractAppender {
                     super.close();
 
                     try {
-                        final S3Manager s3Manager = new S3Manager(pathCreator, s3ClientConfig);
-                        final String bucketNamePattern = NullSafe
-                                .nonBlank(S3Appender.this.bucketNamePattern)
-                                .orElse(s3Manager.getBucketNamePattern());
-                        final String keyNamePattern = NullSafe
-                                .nonBlank(S3Appender.this.keyNamePattern)
-                                .orElse(s3Manager.getKeyNamePattern());
-
                         // Upload to S3
                         // Upload the zip to S3.
                         final Meta meta = metaHolder.getMeta();
                         final AttributeMap attributeMap = metaDataHolder.getMetaData();
 
-                        final S3UploadProperties uploadProperties =
-                                new S3UploadProperties(cacheControl, contentDisposition, contentEncoding, contentType);
+                        final S3UploadProperties uploadProperties = new S3UploadProperties(
+                                cacheControl,
+                                contentDisposition,
+                                contentEncoding,
+                                contentType);
 
+                        final TimeBasis timeBasis = TimeBasis.CURRENT_TIME;
+                        final String bucketName = s3Manager.createBucketName(bucketNamePattern, meta, timeBasis);
+                        final String key = s3Manager.createKey(keyNamePattern, meta, sequenceNumber, timeBasis);
+                        LOGGER.debug(
+                                "close() - Uploading file for meta: {}, bucketName: {}, key: {}, " +
+                                "tempFile: {}, attributeMap: {}",
+                                meta, bucketName, key, tempFile, attributeMap);
                         // The appender is potentially creating multiple files so use current time for
                         // time var replacement in s3 keys. This is consistent with FileAppender.
                         s3Manager.upload(
-                                bucketNamePattern,
-                                keyNamePattern,
+                                bucketName,
+                                key,
                                 meta,
                                 attributeMap,
-                                tempFile,
                                 uploadProperties,
-                                TimeBasis.CURRENT_TIME);
+                                tempFile,
+                                allowOverwrite);
 
                         LOGGER.debug(
                                 "createOutput() - Uploaded tempFile '{}' to S3, meta: {}, bucketNamePattern: '{}', " +
@@ -277,5 +288,13 @@ public class S3Appender extends AbstractAppender {
             displayPriority = 12)
     public void setContentType(final String contentType) {
         this.contentType = contentType;
+    }
+
+    @PipelineProperty(
+            description = "Whether to allow overwriting of existing objects.",
+            defaultValue = DEFAULT_ALLOW_OVERWRITE,
+            displayPriority = 13)
+    public void setAllowOverwrite(final boolean allowOverwrite) {
+        this.allowOverwrite = allowOverwrite;
     }
 }

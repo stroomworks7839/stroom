@@ -1,0 +1,39 @@
+<!DOCTYPE ui:UiBinder SYSTEM "http://dl.google.com/gwt/DTD/xhtml.ent">
+<ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
+             xmlns:g="urn:import:com.google.gwt.user.client.ui"
+             xmlns:form="urn:import:stroom.widget.form.client"
+             xmlns:tickbox="urn:import:stroom.widget.tickbox.client"
+             xmlns:ss="urn:import:stroom.shapeshifter.client.component"
+             xmlns:b="urn:import:stroom.widget.button.client"
+             xmlns:l="urn:import:stroom.widget.selection.client">
+    <g:ScrollPanel styleName="max">
+    <g:FlowPanel styleName="form-padding form">
+        <form:FormGroup identity="shapeshifterTemplateName" label="Name">
+            <form:TextBox ui:field="name" addStyleNames="w-100"/>
+        </form:FormGroup>
+        <form:FormGroup identity="shapeshifterTemplateColour" label="Colour"
+                        helpText="The template's swatch in the panel and the trace. Auto takes the palette by position.">
+            <ss:ColourPalette ui:field="colour"/>
+        </form:FormGroup>
+        <form:FormGroup identity="shapeshifterTemplateMode" label="Mode"
+                        helpText="The mode this template is dispatched in, or the root. New makes a mode here and now. Order within a mode is dispatch priority; rename and remove modes with the panel's Modes button.">
+            <g:FlowPanel styleName="ss-field-row">
+                <l:SelectionBox ui:field="mode" addStyleNames="ss-field-row-main"/>
+                <b:Button ui:field="newMode" text="New..." addStyleNames="allow-focus Button--contained-primary" title="Create a mode and pick it"/>
+            </g:FlowPanel>
+        </form:FormGroup>
+        <form:FormGroup identity="shapeshifterTemplateParams" label="Params"
+                        helpText="Parameters a call-template or apply-templates can pass, one per line as name, or name = default.">
+            <form:TextArea ui:field="params" addStyleNames="w-100 shapeshifter-entries" visibleLines="3"/>
+        </form:FormGroup>
+        <form:FormGroup identity="shapeshifterTemplateEncoding" label="Encoding"
+                        helpText="This template's encoding where it differs from what encloses it; inherit takes the enclosing one.">
+            <l:SelectionBox ui:field="encoding"/>
+        </form:FormGroup>
+        <form:FormGroup identity="shapeshifterTemplateIgnoreErrors" label="Ignore errors"
+                        helpText="Errors raised while this template runs are reported and do not stop the run.">
+            <tickbox:TickBox ui:field="ignoreErrors"/>
+        </form:FormGroup>
+    </g:FlowPanel>
+    </g:ScrollPanel>
+</ui:UiBinder>

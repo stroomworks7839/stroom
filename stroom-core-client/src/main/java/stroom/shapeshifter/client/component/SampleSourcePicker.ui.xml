@@ -1,0 +1,19 @@
+<!DOCTYPE ui:UiBinder SYSTEM "http://dl.google.com/gwt/DTD/xhtml.ent">
+<ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
+             xmlns:g="urn:import:com.google.gwt.user.client.ui"
+             xmlns:t="urn:import:stroom.widget.text.client"
+             xmlns:split="urn:import:stroom.widget.layout.client"
+             xmlns:l="urn:import:stroom.widget.selection.client">
+    <split:SplitPane vertical="true" thin="true" sizes="50px, *" names="Heading, Sample"
+                     addStyleNames="max default-min-sizes">
+        <g:FlowPanel styleName="ss-smp-head">
+            <t:Label styleName="ss-lim-label" text="Sample data from"/>
+            <l:SelectionBox ui:field="kind" title="Where the project's data comes from"/>
+            <!-- The two kinds are kept differently and travel differently, and the page is
+                 where the author chooses between them, so it is where that is said
+                 (design 44 §5q). -->
+            <t:Label ui:field="keeping" styleName="ss-det-desc ss-smp-keeping"/>
+        </g:FlowPanel>
+        <g:SimpleLayoutPanel ui:field="body" styleName="max"/>
+    </split:SplitPane>
+</ui:UiBinder>

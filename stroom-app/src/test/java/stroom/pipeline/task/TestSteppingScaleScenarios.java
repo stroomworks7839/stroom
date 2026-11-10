@@ -148,8 +148,8 @@ class TestSteppingScaleScenarios extends TranslationTest {
             // Ask for the very last record while the sweep is still parsing towards it.
             final SteppingResult ahead = steppingService.step(base.copy()
                     .stepType(StepType.REFRESH)
-                    .stepLocation(new StepLocation(metaId, first.getFoundLocation().getPartIndex(),
-                            RECORD_COUNT - 1))
+                    .stepLocation(new StepLocation((long) metaId, (long) first.getFoundLocation().getPartIndex(),
+                            (long) RECORD_COUNT - 1))
                     .sessionUuid(sessionUuid)
                     .build());
             sessionUuid = ahead.getSessionUuid();
@@ -194,7 +194,7 @@ class TestSteppingScaleScenarios extends TranslationTest {
             // Un-edited: waits on the running sweep until the frontier passes the record. No new launch.
             final SteppingResult unedited = steppingService.step(base.copy()
                     .stepType(StepType.REFRESH)
-                    .stepLocation(new StepLocation(metaId, partIndex, record))
+                    .stepLocation(new StepLocation((long) metaId, (long) partIndex, (long) record))
                     .sessionUuid(sessionUuid)
                     .build());
             sessionUuid = unedited.getSessionUuid();
@@ -206,7 +206,7 @@ class TestSteppingScaleScenarios extends TranslationTest {
             // The edit, issued while the sweep is still parsing towards record 3,999.
             final SteppingResult edited = steppingService.step(base.copy()
                     .stepType(StepType.REFRESH)
-                    .stepLocation(new StepLocation(metaId, partIndex, record))
+                    .stepLocation(new StepLocation((long) metaId, (long) partIndex, (long) record))
                     .sessionUuid(sessionUuid)
                     .code(Map.of(EDITED_ELEMENT_ID, xsltText))
                     .build());
@@ -257,8 +257,8 @@ class TestSteppingScaleScenarios extends TranslationTest {
             // a mid-stream record.
             final SteppingResult edited = steppingService.step(base.copy()
                     .stepType(StepType.REFRESH)
-                    .stepLocation(new StepLocation(metaId, first.getFoundLocation().getPartIndex(),
-                            RECORD_COUNT / 2))
+                    .stepLocation(new StepLocation((long) metaId, (long) first.getFoundLocation().getPartIndex(),
+                            (long) RECORD_COUNT / 2))
                     .sessionUuid(sessionUuid)
                     .code(Map.of(EDITED_ELEMENT_ID, xsltText))
                     .build());
@@ -411,7 +411,7 @@ class TestSteppingScaleScenarios extends TranslationTest {
             sessionUuid = last.getSessionUuid();
             assertThat(last.isFoundRecord()).as("LAST completed the sweep").isTrue();
             final StepLocation record0 =
-                    new StepLocation(metaId, last.getFoundLocation().getPartIndex(), 0);
+                    new StepLocation((long) metaId, (long) last.getFoundLocation().getPartIndex(), 0L);
 
             final long onDemandBefore = steppingService.getOnDemandLaunchCount();
 
@@ -472,7 +472,7 @@ class TestSteppingScaleScenarios extends TranslationTest {
             sessionUuid = last.getSessionUuid();
             assertThat(last.isFoundRecord()).as("LAST completed the sweep").isTrue();
             final StepLocation record0 =
-                    new StepLocation(metaId, last.getFoundLocation().getPartIndex(), 0);
+                    new StepLocation((long) metaId, (long) last.getFoundLocation().getPartIndex(), 0L);
 
             final long onDemandBefore = steppingService.getOnDemandLaunchCount();
 
@@ -524,9 +524,20 @@ class TestSteppingScaleScenarios extends TranslationTest {
         try {
             final long backbones = steppingService.getBackboneLaunchCount();
             final long fullSweeps = steppingService.getFullSweepLaunchCount();
+
+            // Start with LAST because LAST deterministically waits for the backbone to complete. A FIRST
+            // issued straight away is served behind the still-running backbone's frontier, and the prefetch
+            // window is clamped to the feed captured so far - so the size of FIRST's window, and with it the
+            // launch count below, would depend on how far the backbone had got.
+            final SteppingResult last = steppingService.step(base.copy().stepType(StepType.LAST).build());
+            sessionUuid = last.getSessionUuid();
+            assertThat(last.isFoundRecord()).as("LAST resolved once the backbone completed").isTrue();
             final long onDemand = steppingService.getOnDemandLaunchCount();
 
-            final SteppingResult first = steppingService.step(base.copy().stepType(StepType.FIRST).build());
+            final SteppingResult first = steppingService.step(base.copy()
+                    .stepType(StepType.FIRST)
+                    .sessionUuid(sessionUuid)
+                    .build());
             sessionUuid = first.getSessionUuid();
             assertThat(first.isFoundRecord()).as("FIRST resolved on a skeleton-swept stream").isTrue();
             assertThat(first.getStepData().getElementData(EDITED_ELEMENT_ID))

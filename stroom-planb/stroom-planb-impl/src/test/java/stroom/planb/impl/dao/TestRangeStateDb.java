@@ -23,8 +23,8 @@ import stroom.planb.impl.dao.StateValueTestUtil.ValueFunction;
 import stroom.planb.impl.dao.rangestate.RangeStateDb;
 import stroom.planb.impl.dao.rangestate.RangeStateFields;
 import stroom.planb.impl.dao.rangestate.RangeStateRequest;
-import stroom.planb.impl.data.RangeState;
-import stroom.planb.impl.data.RangeState.Key;
+import stroom.planb.impl.data.value.RangeState;
+import stroom.planb.impl.data.value.RangeState.Key;
 import stroom.planb.shared.PlanBDoc;
 import stroom.planb.shared.RangeKeySchema;
 import stroom.planb.shared.RangeStateSettings;
@@ -164,7 +164,7 @@ class TestRangeStateDb {
                                             .build())
                                     .build();
 
-                            final Function<Integer, Key> keyFunction = i -> new Key(i, i + 1);
+                            final Function<Integer, Key> keyFunction = i -> new Key((long) i, (long) i + 1);
 
                             Path path = null;
                             try {

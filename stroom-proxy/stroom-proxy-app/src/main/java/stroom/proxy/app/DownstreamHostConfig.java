@@ -126,8 +126,8 @@ public class DownstreamHostConfig extends UriConfig implements IsProxyConfig {
     }
 
     @JsonPropertyDescription("Whether this stroom-proxy has a downstream stroom/stroom-proxy instance " +
-                             "to use for feed/API key/receipt poliocy checking. If this proxy is just used " +
-                             "to forward to file only then set to false.")
+                             "to use for feed/API key/receipt policy checking/S3 notification. " +
+                             "If this proxy is just used to forward to file only then set to false.")
     @JsonProperty("enabled")
     public boolean isEnabled() {
         return enabled;
@@ -139,7 +139,9 @@ public class DownstreamHostConfig extends UriConfig implements IsProxyConfig {
         return super.getHostname();
     }
 
-    @JsonPropertyDescription("The API Key to use authenticate with the downstream stroom/proxy.")
+    @JsonPropertyDescription("The API Key to use to authenticate with the downstream stroom/proxy. This api key " +
+                             "will be used by any HTTP forwarders that have not configured their own API key or " +
+                             "set addOpenIdAccessToken to true.")
     @JsonProperty
     public String getApiKey() {
         return apiKey;

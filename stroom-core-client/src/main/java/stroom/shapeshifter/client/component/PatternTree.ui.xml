@@ -1,0 +1,26 @@
+<!DOCTYPE ui:UiBinder SYSTEM "http://dl.google.com/gwt/DTD/xhtml.ent">
+<ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
+             xmlns:t="urn:import:stroom.widget.text.client"
+             xmlns:g="urn:import:com.google.gwt.user.client.ui"
+             xmlns:b="urn:import:stroom.widget.button.client">
+    <g:FlowPanel styleName="max dock-container-vertical">
+        <b:Toolbar name="Actions" ui:field="buttonPanel" addStyleNames="dock-min ss-wb-toolbar"/>
+        <g:ScrollPanel styleName="dock-max">
+            <g:FlowPanel styleName="ss-wb-right">
+                <g:FlowPanel styleName="ss-wb-sec">
+                    <t:Html ui:field="heading" styleName="ss-wb-h4"/>
+                    <g:SimplePanel ui:field="tree"/>
+                    <t:Label ui:field="error" styleName="ss-wb-err"/>
+                </g:FlowPanel>
+                <g:FlowPanel styleName="ss-wb-sec">
+                    <t:Html styleName="ss-wb-h4">As regex <span class="ss-wb-h4-note">(what the tree means, printed by the engine; a ref prints as its definition)</span></t:Html>
+                    <t:Label ui:field="regex" styleName="ss-wb-lint ss-explain mono"/>
+                </g:FlowPanel>
+                <g:FlowPanel styleName="ss-wb-sec">
+                    <t:Html styleName="ss-wb-h4">Library <span class="ss-wb-h4-note">(what a ref may name: the project&apos;s parts, then the standard entries)</span></t:Html>
+                    <t:Html ui:field="library"/>
+                </g:FlowPanel>
+            </g:FlowPanel>
+        </g:ScrollPanel>
+    </g:FlowPanel>
+</ui:UiBinder>

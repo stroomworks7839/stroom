@@ -34,17 +34,19 @@ set -euo pipefail
 
 # -Dorg.gradle.caching=true
 GRADLE_ARGS=(
+  "--no-daemon" # daemon no good in a container
   "-Dorg.gradle.daemon=false" # daemon no good in a container
   "-Dorg.gradle.parallel=true"
   "-Dorg.gradle.workers.max=${MAX_WORKERS:-6}"
   "-Dorg.gradle.configureondemand=true"
+  "-Dorg.gradle.jvmargs=-Xmx${GRADLE_JVM_XMX:-1g} -XX:MaxMetaspaceSize=${GRADLE_JVM_MAX_METASPACE:-512m}"
   "--console=plain"
 )
 
 GWT_ARGS=(
   "-PgwtCompilerWorkers=${MAX_WORKERS:-6}"
-  "-PgwtCompilerMinHeap=${GWT_MIN_HEAP:-50M}"
-  "-PgwtCompilerMaxHeap=${GWT_MAX_HEAP:-2G}"
+  "-PgwtCompilerMinHeap=${GWT_MIN_HEAP:-1G}"
+  "-PgwtCompilerMaxHeap=${GWT_MAX_HEAP:-4G}"
 )
 
 determine_host_address() {
@@ -91,9 +93,16 @@ main() {
   export STROOM_JDBC_DRIVER_HOST="${host_ip}"
   echo -e "${GREEN}Setting STROOM_JDBC_DRIVER_HOST to ${BLUE}${host_ip}${NC}"
 
+  # The elasticsearch service from stroom-resources, for the Elasticsearch end-to-end tests,
+  # which must not skip themselves if it can't be reached
+  export STROOM_TEST_ELASTIC_URL="${STROOM_TEST_ELASTIC_URL:-http://${host_ip}:9200}"
+  export STROOM_TEST_ELASTIC_REQUIRED=true
+  echo -e "${GREEN}Setting STROOM_TEST_ELASTIC_URL to ${BLUE}${STROOM_TEST_ELASTIC_URL}${NC}"
+
   echo "::group::Gradle vendors"
   echo -e "${GREEN}Gradle Vendors${NC}"
   ./gradlew \
+    --console=plain \
     -q javaToolchains
   echo "::endgroup::"
 
@@ -123,6 +132,41 @@ main() {
     #:stroom-proxy:stroom-proxy-app:test
   #echo "::endgroup::"
 
+  echo "::group::Run Java compile"
+  echo -e "${GREEN}RAM Stats:${NC}"
+  free -mh
+  echo -e "${GREEN}Run Java compile${NC}"
+  ./gradlew \
+    "${GRADLE_ARGS[@]}" \
+    --scan \
+    --stacktrace \
+    -PdumpFailedTestXml=true \
+    -Pversion="${BUILD_VERSION:-SNAPSHOT}" \
+    classes \
+    testClasses \
+    :stroom-proxy:stroom-proxy-app:test --tests '*TestProxyYamlUtil' \
+    :stroom-config:stroom-config-app:test --tests '*TestStroomYamlUtil'
+  echo "::endgroup::"
+
+  # Run just the checkstyle and the two config test as these often fail
+  # so better to fail early. Also not running CS alonside the other tasks
+  # may help to stop out of memory issues.
+  # This will implicitly run the java compile too
+  # Run with --quiet so it is easier to see CS issues.
+  echo "::group::Run checkstyle"
+  echo -e "${GREEN}RAM Stats:${NC}"
+  free -mh
+  echo -e "${GREEN}Run checkstyle${NC}"
+  ./gradlew \
+    "${GRADLE_ARGS[@]}" \
+    --quiet \
+    --scan \
+    -PdumpFailedTestXml=true \
+    -Pversion="${BUILD_VERSION:-SNAPSHOT}" \
+    checkstyleMain \
+    checkstyleTest
+  echo "::endgroup::"
+
   # Do the gradle build
   # Use custom gwt compile jvm settings to avoid blowing the ram limit in
   # travis. At time of writing a sudo VM in travis has 7.5gb ram.
@@ -132,7 +176,9 @@ main() {
   # content pack zips
   # Fully qualify the shadowJar tasks as we want to run lucene553 shadowJar
   echo "::group::Basic Java build"
-  echo -e "${GREEN}Do the basic java build${NC}"
+  echo -e "${GREEN}RAM Stats:${NC}"
+  free -mh
+  echo -e "${GREEN}Do the basic java build (compilation & tests)${NC}"
   ./gradlew \
     "${GRADLE_ARGS[@]}" \
     --scan \
@@ -141,6 +187,8 @@ main() {
     -Pversion="${BUILD_VERSION:-SNAPSHOT}" \
     build \
     "${test_args[@]}" \
+    -x checkstyleMain \
+    -x checkstyleTest \
     -x :stroom-app:shadowJar \
     -x :stroom-proxy:stroom-proxy-app:shadowJar \
     -x :stroom-headless:shadowJar \
@@ -151,6 +199,8 @@ main() {
   echo "::endgroup::"
 
   echo "::group::GWT UI build"
+  echo -e "${GREEN}RAM Stats:${NC}"
+  free -mh
   echo -e "${GREEN}Do the GWT UI build${NC}"
   ./gradlew \
     "${GRADLE_ARGS[@]}" \
@@ -161,6 +211,8 @@ main() {
   echo "::endgroup::"
 
   echo "::group::Dashboard GWT UI build"
+  echo -e "${GREEN}RAM Stats:${NC}"
+  free -mh
   echo -e "${GREEN}Do the dashboard GWT UI build${NC}"
   ./gradlew \
     "${GRADLE_ARGS[@]}" \
@@ -173,6 +225,8 @@ main() {
   # Make the distribution.
   # Fully qualify the shadowJar tasks as have run lucene553 shadowJar
   echo "::group::Distribution build"
+  echo -e "${GREEN}RAM Stats:${NC}"
+  free -mh
   echo -e "${GREEN}Build the distribution with version" \
     "${BLUE}${BUILD_VERSION:-SNAPSHOT}${NC}"
   ./gradlew \
@@ -185,13 +239,13 @@ main() {
     shadowJar \
     copyFilesForStroomDockerBuild \
     copyFilesForProxyDockerBuild \
+    -x checkstyleMain \
+    -x checkstyleTest \
     -x test \
     -x stroom-app-gwt:gwtCompile \
     -x stroom-dashboard-gwt:gwtCompile
+  echo -e "${GREEN}Distribution built successfully${NC}"
   echo "::endgroup::"
-
-  echo -e "${GREEN}Done${NC}"
 }
 
-# Get a time for the whole build
-time main "$@"
+main "$@"

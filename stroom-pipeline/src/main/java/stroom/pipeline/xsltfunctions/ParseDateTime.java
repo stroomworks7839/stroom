@@ -43,6 +43,38 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
 
+@XsltFunctionDef(
+        name = ParseDateTime.FUNCTION_NAME,
+        commonCategory = XsltFunctionCategory.DATE,
+        commonDescription = """
+                Parses a date string to an XPath date-time value. Without a pattern it expects Stroom's standard
+                date-time format; the default time zone is UTC.
+                """,
+        commonReturnType = XsltDataType.DATE_TIME,
+        commonReturnDescription = "The parsed date-time value, or an empty sequence if parsing fails.",
+        signatures = {
+                @XsltFunctionSignature(
+                        args = {
+                                @XsltFunctionArg(
+                                        name = "inputDate",
+                                        description = "The date string to parse.",
+                                        argType = XsltDataType.STRING
+                                ),
+                                @XsltFunctionArg(
+                                        name = "pattern",
+                                        description = "Optional input date pattern.",
+                                        argType = XsltDataType.STRING,
+                                        isOptional = true
+                                ),
+                                @XsltFunctionArg(
+                                        name = "timeZone",
+                                        description = "The input time zone; defaults to UTC.",
+                                        argType = XsltDataType.STRING,
+                                        isOptional = true
+                                )
+                        }
+                )
+        })
 class ParseDateTime extends StroomExtensionFunctionCall {
 
     public static final String FUNCTION_NAME = "parse-dateTime";
@@ -89,20 +121,16 @@ class ParseDateTime extends StroomExtensionFunctionCall {
         return result;
     }
 
-    private DateTimeValue convertToStandardDateFormat(final String functionName, final XPathContext context,
-                                               final Sequence[] arguments) throws XPathException {
-        DateTimeValue result = null;
+    private DateTimeValue convertToStandardDateFormat(final String functionName,
+                                                      final XPathContext context,
+                                                      final Sequence[] arguments) throws XPathException {
         final String value = getSafeString(functionName, context, arguments, 0);
-
-        String pattern = null;
-        if (arguments.length >= 2) {
-            pattern = getSafeString(functionName, context, arguments, 1);
-        }
-
-        String timeZone = null;
-        if (arguments.length == 3) {
-            timeZone = getSafeString(functionName, context, arguments, 2);
-        }
+        final String pattern = arguments.length >= 2
+                ? getSafeString(functionName, context, arguments, 1)
+                : null;
+        final String timeZone = arguments.length == 3
+                ? getSafeString(functionName, context, arguments, 2)
+                : null;
 
         // Parse the supplied date.
         Instant instant = null;
@@ -120,12 +148,7 @@ class ParseDateTime extends StroomExtensionFunctionCall {
             sb.append(")");
             outputWarning(context, sb, e);
         }
-
-        if (instant != null) {
-            result = DateTimeValue.fromJavaInstant(instant);
-        }
-
-        return result;
+        return NullSafe.get(instant, DateTimeValue::fromJavaInstant);
     }
 
     private Instant parseDate(final XPathContext context, final String value, final String pattern,
@@ -142,13 +165,12 @@ class ParseDateTime extends StroomExtensionFunctionCall {
     }
 
     private Function<String, Instant> createParser(final XPathContext context,
-                                                final String pattern,
-                                                final String timeZone) {
+                                                   final String pattern,
+                                                   final String timeZone) {
         // The parser itself is stroom-util's ReferenceDateParser, shared with the Shapeshifter
         // variant of this function so that both run one implementation.
         final ZoneId zoneId = getTimeZone(context, timeZone);
-        final Function<String, Instant> parser = ReferenceDateParser.create(pattern, zoneId, this::getBaseTime);
-        return parser;
+        return ReferenceDateParser.create(pattern, zoneId, this::getBaseTime);
     }
 
     private ZoneId getTimeZone(final XPathContext context, final String timeZone) {

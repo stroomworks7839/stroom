@@ -17,9 +17,10 @@
 package stroom.credentials.shared;
 
 import stroom.security.shared.DocumentPermission;
-import stroom.util.shared.BaseCriteria;
 import stroom.util.shared.CriteriaFieldSort;
 import stroom.util.shared.PageRequest;
+import stroom.util.shared.QuickFilterCriteria;
+import stroom.util.shared.SerialisationTestConstructor;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -28,18 +29,17 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 @JsonInclude(Include.NON_NULL)
-public class FindCredentialRequest extends BaseCriteria {
+public class FindCredentialRequest extends QuickFilterCriteria {
 
     public static final CriteriaFieldSort DEFAULT_SORT =
             new CriteriaFieldSort(CredentialFields.CREDENTIAL_NAME, false, true);
     public static final List<CriteriaFieldSort> DEFAULT_SORT_LIST =
             Collections.singletonList(DEFAULT_SORT);
 
-    @JsonProperty
-    private final String filter;
     @JsonProperty
     private final Set<CredentialType> credentialTypes;
     @JsonProperty
@@ -48,18 +48,20 @@ public class FindCredentialRequest extends BaseCriteria {
     @JsonCreator
     public FindCredentialRequest(@JsonProperty("pageRequest") final PageRequest pageRequest,
                                  @JsonProperty("sortList") final List<CriteriaFieldSort> sortList,
-                                 @JsonProperty("filter") final String filter,
+                                 @JsonProperty("quickFilter") final String quickFilter,
                                  @JsonProperty("credentialTypes") final Set<CredentialType> credentialTypes,
                                  @JsonProperty("requiredPermission") final DocumentPermission requiredPermission) {
-        super(pageRequest, sortList);
-        this.filter = filter;
+        super(pageRequest, sortList, quickFilter);
         this.credentialTypes = credentialTypes;
-        this.requiredPermission = requiredPermission;
+        this.requiredPermission = Objects.requireNonNull(requiredPermission);
     }
 
-    public String getFilter() {
-        return filter;
+    @SerialisationTestConstructor
+    FindCredentialRequest() {
+        credentialTypes = Collections.emptySet();
+        requiredPermission = DocumentPermission.VIEW;
     }
+
 
     public Set<CredentialType> getCredentialTypes() {
         return credentialTypes;

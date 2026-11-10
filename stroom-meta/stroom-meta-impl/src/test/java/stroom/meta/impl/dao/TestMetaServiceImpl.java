@@ -49,6 +49,7 @@ import stroom.query.api.ExpressionTerm.Condition;
 import stroom.security.mock.MockSecurityContextModule;
 import stroom.task.mock.MockTaskModule;
 import stroom.test.common.MockMetricsModule;
+import stroom.test.common.PerformanceTest;
 import stroom.test.common.util.db.DbTestModule;
 import stroom.util.collections.BatchingCollector;
 import stroom.util.date.DateUtil;
@@ -755,6 +756,7 @@ class TestMetaServiceImpl {
     /**
      * Seeing which execution timer was faster
      */
+    @PerformanceTest
     @Disabled
     @Test
     void testLogExecutionTime() {
@@ -888,8 +890,8 @@ class TestMetaServiceImpl {
 
     private void unlockAllLockedStreams() {
         JooqUtil.context(metaDbConnProvider, context -> {
-            final byte unlockedId = MetaStatusId.getPrimitiveValue(Status.UNLOCKED);
-            final byte lockedId = MetaStatusId.getPrimitiveValue(Status.LOCKED);
+            final byte unlockedId = Status.UNLOCKED.getPrimitiveValue();
+            final byte lockedId = Status.LOCKED.getPrimitiveValue();
             final int count = context.update(MetaDaoImpl.META_M)
                     .set(MetaDaoImpl.META_M.STATUS, unlockedId)
                     .set(MetaDaoImpl.META_M.STATUS_TIME, Instant.now().toEpochMilli())
