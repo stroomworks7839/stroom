@@ -229,10 +229,13 @@ public final class ShapeshifterEditorStories {
                             "Design", "Source", "Documentation", "Permissions"}) {
                         play.waitFor(() -> play.expect(tab(play, label)).toBeInTheDocument());
                     }
-                    // Design is the default tab, so the template panel's rows are what is shown
-                    play.waitFor(() -> play.expect(play.getByText("pair")).toBeInTheDocument());
-                    play.expect(play.getByText("source")).toBeInTheDocument();
-                    play.expect(play.getByText("junk_line")).toBeInTheDocument();
+                    // Design is the default tab, so the template panel's rows are what is shown.
+                    // The root template heads its group as "document", not by its own name, which
+                    // is deliberate (design 44 §5m).
+                    play.waitFor(() -> play.expect(play.getByText("pair", TEMPLATE_NAME))
+                            .toBeInTheDocument());
+                    play.expect(play.getByText("document", TEMPLATE_NAME)).toBeInTheDocument();
+                    play.expect(play.getByText("junk_line", TEMPLATE_NAME)).toBeInTheDocument();
                     // Clean on load, so Save is disabled; Run is on the document's toolbar beside it
                     play.expect(play.getByRole("button", "Save")).toHaveAttribute("aria-disabled", "true");
                     play.expect(runButton(play)).toBeInTheDocument();
@@ -296,8 +299,8 @@ public final class ShapeshifterEditorStories {
                     play.waitFor(() -> play.expect(play.getByText("body", STRIP_KEY))
                             .toBeInTheDocument());
                     // The pair template writes text, then two captured values, then text
-                    play.expect(play.getAllByText(TextMatch.regex("value-of|text")).count())
-                            .toSatisfy("a card per instruction", count -> ((Integer) count) > 0);
+                    play.expect(play.getAllByText("value-of", CARD_KIND).count())
+                            .toSatisfy("a card per value-of", count -> ((Integer) count) >= 2);
                     expectNoProblems(play);
                 })
                 // Run, in the document's toolbar: the preview is shown as the input, the output
@@ -372,8 +375,9 @@ public final class ShapeshifterEditorStories {
                                     .closest(StroomDom.DIALOG));
                     dialog.type(dialog.getByRole("textbox").first(), "host");
                     play.click(screen.getByRole("button", StroomDom.button("OK")));
-                    play.waitFor(() -> play.expect(play.getByRole("button", "Save"))
-                            .not().toHaveAttribute("aria-disabled"));
+                    // The capture is in the template's list, so the name went where it was meant to
+                    play.waitFor(() -> play.expect(play.getByText("host")).toBeInTheDocument());
+                    play.expect(play.getByRole("button", "Save")).not().toHaveAttribute("aria-disabled");
                     expectNoProblems(play);
                 })
                 // Cancel writes nothing, so the document stays clean
@@ -389,6 +393,7 @@ public final class ShapeshifterEditorStories {
                     play.click(screen.getByRole("button", StroomDom.button("Cancel")));
                     play.waitFor(() -> play.expect(screen.queryByText("New Capture",
                             StroomDom.DIALOG_TITLE)).toBeNull());
+                    play.expect(play.queryByText("host")).toBeNull();
                     play.expect(play.getByRole("button", "Save")).toHaveAttribute("aria-disabled", "true");
                     expectNoProblems(play);
                 })
@@ -403,8 +408,9 @@ public final class ShapeshifterEditorStories {
                                     .closest(StroomDom.DIALOG));
                     dialog.type(dialog.getByRole("textbox").first(), "seen");
                     play.click(screen.getByRole("button", StroomDom.button("OK")));
-                    play.waitFor(() -> play.expect(play.getByRole("button", "Save"))
-                            .not().toHaveAttribute("aria-disabled"));
+                    // The declaration is listed under the template
+                    play.waitFor(() -> play.expect(play.getByText("seen")).toBeInTheDocument());
+                    play.expect(play.getByRole("button", "Save")).not().toHaveAttribute("aria-disabled");
                     expectNoProblems(play);
                 })
                 // Cancel leaves the template's declarations alone
@@ -416,9 +422,11 @@ public final class ShapeshifterEditorStories {
                     final Play dialog = play.within(
                             screen.findByText("New Declaration", StroomDom.DIALOG_TITLE)
                                     .closest(StroomDom.DIALOG));
+                    dialog.type(dialog.getByRole("textbox").first(), "seen");
                     play.click(screen.getByRole("button", StroomDom.button("Cancel")));
                     play.waitFor(() -> play.expect(screen.queryByText("New Declaration",
                             StroomDom.DIALOG_TITLE)).toBeNull());
+                    play.expect(play.queryByText("seen")).toBeNull();
                     play.expect(play.getByRole("button", "Save")).toHaveAttribute("aria-disabled", "true");
                     expectNoProblems(play);
                 })
@@ -476,6 +484,9 @@ public final class ShapeshifterEditorStories {
 // The strip labels each row with its key ("match", "match is", "guard", "body")
     // A template's name in the panel's list
     private static final String TEMPLATE_NAME = ".ss-tpl-name";
+
+    // The kind of instruction a body card holds ("text", "value-of", ...)
+    private static final String CARD_KIND = ".ss-card-kind";
 
     private static final String STRIP_KEY = ".ss-strip-k";
 
