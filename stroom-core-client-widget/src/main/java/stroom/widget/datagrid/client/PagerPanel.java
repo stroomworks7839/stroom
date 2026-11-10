@@ -178,6 +178,14 @@ public class PagerPanel extends Component implements TaskMonitorFactory, HasWidg
         pagerContainer.setVisible(visible);
     }
 
+    /// Shows or hides the paging controls alone, leaving the bar and its toolbar: a list that
+    /// shows everything it has still wants its actions.
+    ///
+    /// @param visible Whether the paging controls show.
+    public void setPagingVisible(final boolean visible) {
+        pager.setVisible(visible);
+    }
+
     /// @return The message shown over the list, e.g. for its errors.
     public MessagePanel getMessagePanel() {
         return messagePanel;

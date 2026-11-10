@@ -28,16 +28,8 @@
     padding: 6px 0;
 }
 
-.shapeshifter-source,
-.shapeshifter-regex {
+.shapeshifter-source {
     padding: 6px 10px;
-}
-
-.shapeshifter-row {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: flex-end;
-    gap: 16px;
 }
 
 .shapeshifter-short {
@@ -46,48 +38,13 @@
 
 .shapeshifter-pattern,
 .shapeshifter-pattern-text,
-.shapeshifter-entries,
-.shapeshifter-explain {
+.shapeshifter-entries {
     font-family: var(--monospace-font-family);
 }
 
 .shapeshifter-pattern-text {
     white-space: pre-wrap;
     word-break: break-all;
-}
-
-.shapeshifter-explain {
-    white-space: pre-wrap;
-}
-
-.shapeshifter-groups {
-    border-collapse: collapse;
-}
-
-.shapeshifter-groups td {
-    padding: 1px 8px 1px 0;
-}
-
-.shapeshifter-group-index {
-    font-family: var(--monospace-font-family);
-    opacity: 0.7;
-}
-
-.shapeshifter-workbench-header {
-    display: flex;
-    align-items: baseline;
-    gap: 10px;
-    padding: 4px 10px;
-    white-space: nowrap;
-    overflow: hidden;
-}
-
-.shapeshifter-workbench-name {
-    font-weight: 500;
-}
-
-.shapeshifter-workbench-detail {
-    opacity: 0.7;
 }
 
 .shapeshifter-kind {
@@ -149,12 +106,6 @@
     white-space: nowrap;
 }
 
-.shapeshifter-node--labelled > .shapeshifter-node-text {
-    background-color: rgba(78, 121, 167, 0.15);
-    border-radius: 3px;
-    padding: 0 3px;
-}
-
 /* Hover and selection beat the label tint: declared after it on purpose. */
 .shapeshifter-parts {
     margin: 0;
@@ -163,19 +114,6 @@
 
 .shapeshifter-parts > li {
     padding: 2px 0;
-}
-
-/* Grids whose lists are short and whole: the toolbar keeps the pager's bar, the paging goes. */
-.shapeshifter-no-paging .pager-paging {
-    display: none;
-}
-
-.shapeshifter-swatch {
-    width: 12px;
-    height: 12px;
-    border-radius: 3px;
-    margin: 2px auto;
-    border: 1px solid rgba(128, 128, 128, 0.3);
 }
 
 /* ------------------------------------------------------------------------------------------
@@ -339,10 +277,6 @@
 
 .ss-strip-name {
     font-weight: 700;
-}
-
-.ss-strip-name-editable {
-    cursor: pointer;
 }
 
 .ss-strip-mode,
@@ -752,12 +686,6 @@
     text-decoration: underline;
 }
 
-.ss-addbtn-disabled {
-    opacity: .4;
-    cursor: default;
-    text-decoration: none;
-}
-
 .ss-lim-label {
     color: var(--ss-muted);
     font-size: 11px;
@@ -891,12 +819,6 @@
     align-items: center;
 }
 
-/* Auto: the swatches are shown, greyed, and take no clicks; the one auto resolves to stays marked. */
-.ss-palette-swatches-off {
-    opacity: .35;
-    pointer-events: none;
-}
-
 .ss-pal-swatch {
     width: 22px;
     height: 22px;
@@ -908,10 +830,6 @@
 
 .ss-pal-swatch:hover {
     border-color: var(--row__background-color--hovered);
-}
-
-.ss-pal-swatch-sel {
-    border-color: var(--text-color);
 }
 
 /* The parts tab's rows. */
@@ -1171,33 +1089,11 @@
     font-family: var(--monospace-font-family);
 }
 
-/* The sample editor: the content pane's front door. */
-.ss-sample {
-    display: flex;
-    flex-direction: column;
-}
-
-.ss-hint,
 .ss-note {
     color: var(--ss-muted);
     font-size: 12px;
     padding: 0 10px 6px;
     flex: none;
-}
-
-.ss-sample-text {
-    flex: 1;
-    min-height: 0;
-    margin: 0 10px;
-    resize: none;
-    font-size: 13px;
-}
-
-.ss-sample-buttons {
-    flex: none;
-    display: flex;
-    gap: 6px;
-    padding: 8px 10px;
 }
 
 /* The content pane: the value, marked. A match is a coloured underline and a faint wash of
