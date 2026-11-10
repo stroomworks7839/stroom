@@ -2963,6 +2963,48 @@ to delete them by hand.~~
 
 These were found by the review and fixed in the same change:
 
+* **Shapeshifter stories** (2026-11-10): twenty workbench stories were written for the
+  Shapeshifter editor after master's GWTP removal was merged and the editor was rebuilt on the
+  component model. They found fourteen faults that `compileJava`, `gwtCompile` and checkstyle
+  were all green with. Each is fixed, and the story that found it is its regression test
+  (`App/Shapeshifter/ShapeshifterEditor`).
+
+  *Nothing shown had a widget.* `Body` and `ConditionEdit` build their widgets in Java and never
+  called `initWidget`, so they had none: selecting any template threw and the Design tab was
+  unusable (`TemplateSelected`). Three controllers were shown without `attach(…)`, which is what
+  gives them their widget and their options — `SteppingMetaListController` threw as the editor
+  opened (`Default`), and `CodeEditorController` twice, once for the Source tab and once for the
+  sample page's paste box. A fourth, `PatternItemBox`, read `getElement()` before `initWidget`.
+  **Cause**: the conversion from presenters dropped `initWidget`/`attach` where a view had been
+  injected or built by hand; nothing in the build checks that a `Composite` has a widget.
+
+  *The Design tab could not be edited.* `ShapeshifterDesignController.readOnly` was declared and
+  never assigned, so it stayed `true` and every edit path returned early. The GWTP presenter had
+  been given it through `read(…, readOnly)`; the component model drops that argument and the
+  replacement watch was never added. It watches `Contexts.READ_ONLY` now (`LockChangeWhileOpen`).
+
+  *Add Declaration threw before its dialog opened*: it seeded the editor with
+  `new Declaration("", SCALAR)`, and a `Declaration` refuses an empty name. The editor reads
+  `null` for a new one (`DeclarationDialogOk`).
+
+  *A dialog was configured on a discarded instance.* Making the per-use dialogs with providers
+  (so `ControllerDialog.showOnce` can own and dispose them) left `TemplatePanelController.setHost`
+  making a `ModeEditorController`, setting its host and throwing it away; the one later shown had
+  none (`ModesDialog`).
+
+  *33 controllers were left unowned*, keeping 2,541 DOM nodes and 477 listeners per close
+  (`-PworkbenchLeakCheck`). Every child controller is owned now, and the check reports none.
+
+  *Accessibility*: the guard's min, max and only boxes and the sample box had no accessible name;
+  the guard, regex, condition and matches panes scrolled but no key could reach them (they are
+  named regions that take the focus); and the pattern tree's boxes carried `aria-selected` with no
+  role that takes it, then lacked `aria-level`, so a reader heard a flat list whatever the shape
+  of the tree. The boxes are `treeitem`s in a `tree`, with their level, as `ExpressionItemBox` is.
+
+  *Two visual faults from the merge*: the pattern tree's boxes still set `expressionItemBox-*` and
+  `termEditor-*`, renamed in waves 28 to 30, so they drew unstyled; and a button set
+  `Button--contained-primary`, now lower case.
+
 * **7.14 merge** (2026-11-02): a time chosen with the calendar of a `DateTimeBox` (a query's time
   range, an expression term's date, a dashboard Text Input) was written with an offset without a
   colon, e.g. `2026-01-31T13:45:00.000+1000`, for any user whose time zone isn't UTC. The server
