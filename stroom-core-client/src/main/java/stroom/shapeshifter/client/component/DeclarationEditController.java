@@ -21,10 +21,11 @@ import stroom.shapeshifter.config.ConfigException;
 import stroom.shapeshifter.config.Declaration;
 import stroom.shapeshifter.config.Declaration.Entry;
 import stroom.widget.component.client.Controller;
+import stroom.widget.component.client.ControllerDialog;
+import stroom.widget.component.client.HasControllerNode;
 import stroom.widget.popup.client.PopupSize;
 import stroom.widget.popup.client.PopupType;
 import stroom.widget.popup.client.event.HidePopupRequestEvent;
-import stroom.widget.popup.client.event.ShowPopupEvent;
 
 import com.google.gwt.user.client.ui.Focus;
 import com.google.inject.Inject;
@@ -80,8 +81,13 @@ public class DeclarationEditController extends Controller {
         }
     }
 
-    public void show(final String caption, final HidePopupRequestEvent.Handler handler) {
-        ShowPopupEvent.builder(this)
+    /// @param opener  What shows it, which owns it until it is hidden.
+    /// @param caption The dialog's caption.
+    /// @param handler Told when OK or Cancel is pressed.
+    public void show(final HasControllerNode opener,
+                     final String caption,
+                     final HidePopupRequestEvent.Handler handler) {
+        ControllerDialog.showOnce(opener, this)
                 .popupType(PopupType.OK_CANCEL_DIALOG)
                 .popupSize(PopupSize.resizable(460, 360))
                 .caption(caption)

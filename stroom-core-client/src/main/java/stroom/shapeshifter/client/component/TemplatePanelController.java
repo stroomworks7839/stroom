@@ -39,6 +39,7 @@ import stroom.widget.component.client.Listeners;
 import stroom.widget.util.client.MouseUtil;
 
 import com.google.inject.Inject;
+import com.google.inject.Provider;
 import com.google.web.bindery.event.shared.EventBus;
 import com.google.web.bindery.event.shared.HandlerRegistration;
 
@@ -62,9 +63,9 @@ public class TemplatePanelController extends Controller {
 
     private final TemplatePanel view;
 
-    private final TemplateEditController editPresenter;
-    private final ModeEditorController modeEditor;
-    private final NameEditorController namePrompt;
+    private final Provider<TemplateEditController> editPresenterProvider;
+    private final Provider<ModeEditorController> modeEditorProvider;
+    private final Provider<NameEditorController> namePromptProvider;
     private final ToolbarButton addButton;
     private final ToolbarButton editButton;
     private final ToolbarButton removeButton;
@@ -82,18 +83,18 @@ public class TemplatePanelController extends Controller {
     @Inject
     public TemplatePanelController(final EventBus eventBus,
                                   final TemplatePanel view,
-                                  final TemplateEditController editPresenter,
-                                  final ModeEditorController modeEditor,
-                                  final NameEditorController namePrompt) {
+                                  final Provider<TemplateEditController> editPresenterProvider,
+                                  final Provider<ModeEditorController> modeEditorProvider,
+                                  final Provider<NameEditorController> namePromptProvider) {
         super(eventBus);
         this.view = view;
         initWidget(view);
         view.setOnSelect(this::onSelect);
         view.setOnOpen(this::onOpen);
         view.setOnHover(this::onHover);
-        this.editPresenter = own(editPresenter);
-        this.modeEditor = own(modeEditor);
-        this.namePrompt = own(namePrompt);
+        this.editPresenterProvider = editPresenterProvider;
+        this.modeEditorProvider = modeEditorProvider;
+        this.namePromptProvider = namePromptProvider;
         addButton = view.getToolbar().button(SvgImage.ADD, "Add template", () -> {
         });
         editButton = view.getToolbar().button(SvgImage.EDIT, "Edit template", () -> {
@@ -138,7 +139,7 @@ public class TemplatePanelController extends Controller {
         }));
         own(modesButton.addClickHandler(event -> {
             if (MouseUtil.isPrimary(event) && host.getProject() != null) {
-                modeEditor.show();
+                modeEditorProvider.get().show(this);
             }
         }));
         own(patternButton.addClickHandler(event -> {
@@ -151,7 +152,7 @@ public class TemplatePanelController extends Controller {
 
     public void setHost(final ProjectHost host) {
         this.host = host;
-        modeEditor.setHost(host);
+        modeEditorProvider.get().setHost(host);
     }
 
 
@@ -397,15 +398,16 @@ public class TemplatePanelController extends Controller {
         final Template current = host.template(selected);
         // Not a skipping template: an ordinary one, whose matches count, bind and write (D36's
         // eater is a deliberate choice, made with the tick in the dialog).
-        editPresenter.read(host, Templates.create("", current == null
+        final TemplateEditController editor = editPresenterProvider.get();
+        editor.read(host, Templates.create("", current == null
                 ? null
                 : current.mode(), false), null);
-        editPresenter.show("New Template", e -> {
+        editor.show(this, "New Template", e -> {
             if (e.isOk()) {
-                final Template template = editPresenter.write();
+                final Template template = editor.write();
                 if (template != null) {
                     host.replace(host.withTemplate(template));
-                    host.setColour(template.id(), editPresenter.getColour());
+                    host.setColour(template.id(), editor.getColour());
                     select(template.id(), true);
                     e.hide();
                 } else {
@@ -435,7 +437,7 @@ public class TemplatePanelController extends Controller {
         if (project == null || host.isReadOnly()) {
             return;
         }
-        namePrompt.prompt(this,
+        namePromptProvider.get().prompt(this,
                 "New Pattern Part", "pattern part", Patterns.HELP, "", project.patterns().keySet(), name -> {
                     host.replace(Patterns.define(project, name, new PatternNode.Regex("", null)));
                     select(Patterns.rowId(name), true);
@@ -444,7 +446,7 @@ public class TemplatePanelController extends Controller {
 
     private void renamePattern(final String from) {
         final Project project = host.getProject();
-        namePrompt.prompt(this,
+        namePromptProvider.get().prompt(this,
                 "Rename Pattern Part", "pattern part", Patterns.HELP, from, project.patterns().keySet(),
                 name -> {
                     host.replace(Patterns.rename(project, from, name));
@@ -481,15 +483,16 @@ public class TemplatePanelController extends Controller {
         if (existing == null || host.isReadOnly()) {
             return;
         }
-        editPresenter.read(host, existing, overrideOf(existing.id()));
-        editPresenter.show("Edit Template", e -> {
+        final TemplateEditController editor = editPresenterProvider.get();
+        editor.read(host, existing, overrideOf(existing.id()));
+        editor.show(this, "Edit Template", e -> {
             if (e.isOk()) {
-                final Template template = editPresenter.write();
+                final Template template = editor.write();
                 if (template != null) {
                     if (!template.equals(existing)) {
                         host.replace(host.withTemplate(template));
                     }
-                    host.setColour(template.id(), editPresenter.getColour());
+                    host.setColour(template.id(), editor.getColour());
                     e.hide();
                 } else {
                     // Nothing was written, so the dialog stays open — and its OK button has to come back

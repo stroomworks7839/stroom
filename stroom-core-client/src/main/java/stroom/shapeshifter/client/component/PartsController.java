@@ -31,6 +31,7 @@ import stroom.widget.util.client.MouseUtil;
 import com.google.gwt.safehtml.shared.SafeHtml;
 import com.google.gwt.safehtml.shared.SafeHtmlBuilder;
 import com.google.inject.Inject;
+import com.google.inject.Provider;
 import com.google.web.bindery.event.shared.EventBus;
 
 import java.util.ArrayList;
@@ -49,7 +50,7 @@ public class PartsController
 
     private final Parts view;
 
-    private final PartEditController partEditor;
+    private final Provider<PartEditController> partEditorProvider;
     private final ToolbarButton addButton;
     private final ToolbarButton editButton;
     private final ToolbarButton removeButton;
@@ -64,13 +65,13 @@ public class PartsController
     @Inject
     public PartsController(final EventBus eventBus,
                           final Parts view,
-                          final PartEditController partEditor) {
+                          final Provider<PartEditController> partEditorProvider) {
         super(eventBus);
         this.view = view;
         initWidget(view);
         view.setOnSelect(this::onSelect);
         view.setOnOpen(this::onOpen);
-        this.partEditor = own(partEditor);
+        this.partEditorProvider = partEditorProvider;
         addButton = view.getToolbar().button(SvgImage.ADD, "Add a part after the selected one", () -> {
         });
         editButton = view.getToolbar().button(SvgImage.EDIT, "Edit the selected part", () -> {
@@ -162,10 +163,11 @@ public class PartsController
         final int at = selected < 0
                 ? parts.size()
                 : selected + 1;
-        partEditor.read(null);
-        partEditor.show("New Part", e -> {
+        final PartEditController editor = partEditorProvider.get();
+        editor.read(null);
+        editor.show(this, "New Part", e -> {
             if (e.isOk()) {
-                final MatchPart part = partEditor.write();
+                final MatchPart part = editor.write();
                 if (part != null) {
                     final List<MatchPart> next = new ArrayList<>(parts);
                     next.add(at, part);
@@ -187,10 +189,11 @@ public class PartsController
             return;
         }
         final int at = selected;
-        partEditor.read(parts.get(at));
-        partEditor.show("Edit Part", e -> {
+        final PartEditController editor = partEditorProvider.get();
+        editor.read(parts.get(at));
+        editor.show(this, "Edit Part", e -> {
             if (e.isOk()) {
-                final MatchPart part = partEditor.write();
+                final MatchPart part = editor.write();
                 if (part != null) {
                     final List<MatchPart> next = new ArrayList<>(parts);
                     next.set(at, part);

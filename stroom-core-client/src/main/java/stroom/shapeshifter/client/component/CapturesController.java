@@ -33,6 +33,7 @@ import stroom.widget.util.client.MultiSelectionModelImpl;
 
 import com.google.gwt.user.cellview.client.Column;
 import com.google.inject.Inject;
+import com.google.inject.Provider;
 import com.google.web.bindery.event.shared.EventBus;
 
 import java.util.ArrayList;
@@ -50,7 +51,7 @@ public class CapturesController extends Controller {
 
     private final DataGrid<CaptureBinding> dataGrid;
     private final MultiSelectionModelImpl<CaptureBinding> selectionModel;
-    private final CaptureEditController editPresenter;
+    private final Provider<CaptureEditController> editPresenterProvider;
     private final ToolbarButton addButton;
     private final ToolbarButton editButton;
     private final ToolbarButton removeButton;
@@ -61,11 +62,11 @@ public class CapturesController extends Controller {
     @Inject
     public CapturesController(final EventBus eventBus,
                              final PagerPanel view,
-                             final CaptureEditController editPresenter) {
+                             final Provider<CaptureEditController> editPresenterProvider) {
         super(eventBus);
         this.view = view;
         initWidget(view);
-        this.editPresenter = own(editPresenter);
+        this.editPresenterProvider = editPresenterProvider;
         dataGrid = new DataGrid<>();
         dataGrid.setTableName("Captures");
         selectionModel = dataGrid.addDefaultSelectionModel(false);
@@ -153,10 +154,11 @@ public class CapturesController extends Controller {
         if (template == null || host.isReadOnly()) {
             return;
         }
-        editPresenter.read(template, new CaptureBinding("", new CaptureSource.Group(1), null));
-        editPresenter.show("New Capture", e -> {
+        final CaptureEditController editor = editPresenterProvider.get();
+        editor.read(template, new CaptureBinding("", new CaptureSource.Group(1), null));
+        editor.show(this, "New Capture", e -> {
             if (e.isOk()) {
-                final CaptureBinding capture = editPresenter.write();
+                final CaptureBinding capture = editor.write();
                 if (capture != null) {
                     final List<CaptureBinding> captures = new ArrayList<>(template.captures());
                     captures.add(capture);
@@ -180,10 +182,11 @@ public class CapturesController extends Controller {
         if (template == null || existing == null || host.isReadOnly()) {
             return;
         }
-        editPresenter.read(template, existing);
-        editPresenter.show("Edit Capture", e -> {
+        final CaptureEditController editor = editPresenterProvider.get();
+        editor.read(template, existing);
+        editor.show(this, "Edit Capture", e -> {
             if (e.isOk()) {
-                final CaptureBinding capture = editPresenter.write();
+                final CaptureBinding capture = editor.write();
                 if (capture != null) {
                     final List<CaptureBinding> captures = new ArrayList<>(template.captures());
                     captures.set(captures.indexOf(existing), capture);

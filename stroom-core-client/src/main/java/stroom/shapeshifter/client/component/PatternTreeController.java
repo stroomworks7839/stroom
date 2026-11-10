@@ -41,6 +41,7 @@ import com.google.gwt.core.client.GWT;
 import com.google.gwt.safehtml.shared.SafeHtml;
 import com.google.gwt.safehtml.shared.SafeHtmlBuilder;
 import com.google.inject.Inject;
+import com.google.inject.Provider;
 import com.google.web.bindery.event.shared.EventBus;
 
 import java.util.ArrayList;
@@ -70,7 +71,7 @@ public class PatternTreeController
     private static final ShapeshifterResource RESOURCE = GWT.create(ShapeshifterResource.class);
 
     private final RestFactory restFactory;
-    private final PatternNodeEditController nodeEditor;
+    private final Provider<PatternNodeEditController> nodeEditorProvider;
     private final ToolbarButton addChildButton;
     private final ToolbarButton addAfterButton;
     private final ToolbarButton wrapButton;
@@ -81,7 +82,7 @@ public class PatternTreeController
     private final ToolbarButton downButton;
     private final ToolbarButton extractButton;
     private final ToolbarButton inlineButton;
-    private final NameEditorController namePrompt;
+    private final Provider<NameEditorController> namePromptProvider;
 
     private ProjectHost host;
     private Subject subject;
@@ -96,16 +97,16 @@ public class PatternTreeController
     public PatternTreeController(final EventBus eventBus,
                                 final PatternTree view,
                                 final RestFactory restFactory,
-                                final PatternNodeEditController nodeEditor,
-                                final NameEditorController namePrompt) {
+                                final Provider<PatternNodeEditController> nodeEditorProvider,
+                                final Provider<NameEditorController> namePromptProvider) {
         super(eventBus);
         this.view = view;
         initWidget(view);
         view.setOnSelect(this::onSelect);
         view.setOnOpen(this::onOpen);
         this.restFactory = restFactory;
-        this.nodeEditor = own(nodeEditor);
-        this.namePrompt = own(namePrompt);
+        this.nodeEditorProvider = nodeEditorProvider;
+        this.namePromptProvider = namePromptProvider;
         addChildButton = view.getToolbar().button(SvgImage.ADD, "Add a child to the selected node", () -> {
         });
         addAfterButton = view.getToolbar().button(SvgImage.ADD_BELOW, "Add a node after the selected one", () -> {
@@ -396,11 +397,12 @@ public class PatternTreeController
             return;
         }
         final int[] path = selected;
-        nodeEditor.setLibrary(host.getProject(), library);
-        nodeEditor.read(node, null);
-        nodeEditor.show("Edit Node", e -> {
+        final PatternNodeEditController editor = nodeEditorProvider.get();
+        editor.setLibrary(host.getProject(), library);
+        editor.read(node, null);
+        editor.show(this, "Edit Node", e -> {
             if (e.isOk()) {
-                final PatternNode edited = nodeEditor.write();
+                final PatternNode edited = editor.write();
                 if (edited != null) {
                     apply(PatternNodes.replace(root, path, edited), path);
                     e.hide();
@@ -475,11 +477,12 @@ public class PatternTreeController
     /** Open the node dialog for a new node; a body pre-fills what a container will wrap. */
     private void newNode(final String caption, final PatternNode body,
                          final java.util.function.Consumer<PatternNode> then) {
-        nodeEditor.setLibrary(host.getProject(), library);
-        nodeEditor.read(null, body);
-        nodeEditor.show(caption, e -> {
+        final PatternNodeEditController editor = nodeEditorProvider.get();
+        editor.setLibrary(host.getProject(), library);
+        editor.read(null, body);
+        editor.show(this, caption, e -> {
             if (e.isOk()) {
-                final PatternNode node = nodeEditor.write();
+                final PatternNode node = editor.write();
                 if (node != null) {
                     then.accept(node);
                     e.hide();
@@ -526,7 +529,7 @@ public class PatternTreeController
                 taken.add(entry.getName());
             }
         }
-        namePrompt.prompt(this,
+        namePromptProvider.get().prompt(this,
                 "Extract to Library", "pattern part", Patterns.HELP, "", taken, name -> apply(
                 Patterns.define(project, name, Patterns.part(node)), Patterns.extract(root, path, name), path));
     }

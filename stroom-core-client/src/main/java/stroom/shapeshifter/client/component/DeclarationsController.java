@@ -32,6 +32,7 @@ import stroom.widget.util.client.MultiSelectionModelImpl;
 
 import com.google.gwt.user.cellview.client.Column;
 import com.google.inject.Inject;
+import com.google.inject.Provider;
 import com.google.web.bindery.event.shared.EventBus;
 
 import java.util.ArrayList;
@@ -49,7 +50,7 @@ public class DeclarationsController extends Controller {
 
     private final DataGrid<Declaration> dataGrid;
     private final MultiSelectionModelImpl<Declaration> selectionModel;
-    private final DeclarationEditController editPresenter;
+    private final Provider<DeclarationEditController> editPresenterProvider;
     private final ToolbarButton addButton;
     private final ToolbarButton editButton;
     private final ToolbarButton removeButton;
@@ -60,11 +61,11 @@ public class DeclarationsController extends Controller {
     @Inject
     public DeclarationsController(final EventBus eventBus,
                                  final PagerPanel view,
-                                 final DeclarationEditController editPresenter) {
+                                 final Provider<DeclarationEditController> editPresenterProvider) {
         super(eventBus);
         this.view = view;
         initWidget(view);
-        this.editPresenter = own(editPresenter);
+        this.editPresenterProvider = editPresenterProvider;
         dataGrid = new DataGrid<>();
         dataGrid.setTableName("Declarations");
         selectionModel = dataGrid.addDefaultSelectionModel(false);
@@ -152,10 +153,11 @@ public class DeclarationsController extends Controller {
         if (template == null || host.isReadOnly()) {
             return;
         }
-        editPresenter.read(new Declaration("", Declaration.Type.SCALAR));
-        editPresenter.show("New Declaration", e -> {
+        final DeclarationEditController editor = editPresenterProvider.get();
+        editor.read(new Declaration("", Declaration.Type.SCALAR));
+        editor.show(this, "New Declaration", e -> {
             if (e.isOk()) {
-                final Declaration declaration = editPresenter.write();
+                final Declaration declaration = editor.write();
                 if (declaration != null) {
                     final List<Declaration> declarations = new ArrayList<>(template.declarations());
                     declarations.add(declaration);
@@ -179,10 +181,11 @@ public class DeclarationsController extends Controller {
         if (template == null || existing == null || host.isReadOnly()) {
             return;
         }
-        editPresenter.read(existing);
-        editPresenter.show("Edit Declaration", e -> {
+        final DeclarationEditController editor = editPresenterProvider.get();
+        editor.read(existing);
+        editor.show(this, "Edit Declaration", e -> {
             if (e.isOk()) {
-                final Declaration declaration = editPresenter.write();
+                final Declaration declaration = editor.write();
                 if (declaration != null) {
                     final List<Declaration> declarations = new ArrayList<>(template.declarations());
                     declarations.set(declarations.indexOf(existing), declaration);

@@ -25,14 +25,16 @@ import stroom.shapeshifter.config.Template;
 import stroom.shapeshifter.config.Template.ParamDecl;
 import stroom.shapeshifter.shared.ShapeshifterResource;
 import stroom.widget.component.client.Controller;
+import stroom.widget.component.client.ControllerDialog;
+import stroom.widget.component.client.HasControllerNode;
 import stroom.widget.popup.client.PopupSize;
 import stroom.widget.popup.client.PopupType;
 import stroom.widget.popup.client.event.HidePopupRequestEvent;
-import stroom.widget.popup.client.event.ShowPopupEvent;
 
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.user.client.ui.Focus;
 import com.google.inject.Inject;
+import com.google.inject.Provider;
 import com.google.web.bindery.event.shared.EventBus;
 
 import java.util.ArrayList;
@@ -52,7 +54,7 @@ public class TemplateEditController extends Controller {
 
     private static final ShapeshifterResource RESOURCE = GWT.create(ShapeshifterResource.class);
 
-    private final NameEditorController namePrompt;
+    private final Provider<NameEditorController> namePromptProvider;
 
     private ProjectHost host;
     private Template template;
@@ -61,12 +63,12 @@ public class TemplateEditController extends Controller {
     public TemplateEditController(final EventBus eventBus,
                                  final TemplateEdit view,
                                  final RestFactory restFactory,
-                                 final NameEditorController namePrompt) {
+                                 final Provider<NameEditorController> namePromptProvider) {
         super(eventBus);
         this.view = view;
         initWidget(view);
         view.setOnNewMode(this::onNewMode);
-        this.namePrompt = own(namePrompt);
+        this.namePromptProvider = namePromptProvider;
         restFactory
                 .create(RESOURCE)
                 .method(ShapeshifterResource::encodings)
@@ -150,7 +152,7 @@ public class TemplateEditController extends Controller {
     }
 
     public void onNewMode() {
-        namePrompt.prompt(this,
+        namePromptProvider.get().prompt(this,
                 "New Mode", "mode", Modes.HELP, "", host.modes(), name -> {
                     host.declareMode(name);
                     view.setModes(host.modes());
@@ -158,8 +160,13 @@ public class TemplateEditController extends Controller {
                 });
     }
 
-    public void show(final String caption, final HidePopupRequestEvent.Handler handler) {
-        ShowPopupEvent.builder(this)
+    /// @param opener  What shows it, which owns it until it is hidden.
+    /// @param caption The dialog's caption.
+    /// @param handler Told when OK or Cancel is pressed.
+    public void show(final HasControllerNode opener,
+                     final String caption,
+                     final HidePopupRequestEvent.Handler handler) {
+        ControllerDialog.showOnce(opener, this)
                 .popupType(PopupType.OK_CANCEL_DIALOG)
                 .popupSize(PopupSize.resizable(600, 600))
                 .caption(caption)

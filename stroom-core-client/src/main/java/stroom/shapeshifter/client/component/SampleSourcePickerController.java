@@ -18,8 +18,8 @@ package stroom.shapeshifter.client.component;
 
 import stroom.alert.client.event.ConfirmEvent;
 import stroom.data.client.ExpressionValidator;
-import stroom.data.client.component.SourceViewerController;
 import stroom.data.client.component.MetaList;
+import stroom.data.client.component.SourceViewerController;
 import stroom.data.client.component.SteppingMetaListController;
 import stroom.editor.client.component.CodeEditorController;
 import stroom.meta.shared.Meta;
@@ -36,10 +36,10 @@ import stroom.shapeshifter.client.model.SampleSource;
 import stroom.svg.shared.SvgImage;
 import stroom.widget.button.client.ToolbarButton;
 import stroom.widget.component.client.Controller;
+import stroom.widget.component.client.ControllerDialog;
 import stroom.widget.popup.client.PopupSize;
 import stroom.widget.popup.client.PopupType;
 import stroom.widget.popup.client.event.HidePopupRequestEvent;
-import stroom.widget.popup.client.event.ShowPopupEvent;
 
 import com.google.inject.Inject;
 import com.google.inject.Provider;
@@ -246,7 +246,7 @@ public class SampleSourcePickerController extends Controller {
         fields.addItems(MetaFields.getAllFields());
         presenter.init(MetaFields.STREAM_STORE_DOC_REF, fields);
         presenter.asWidget().getElement().addClassName("default-min-sizes");
-        ShowPopupEvent.builder(presenter)
+        ControllerDialog.showOnce(this, presenter)
                 .popupType(PopupType.OK_CANCEL_DIALOG)
                 .popupSize(PopupSize.resizable(1_000, 600))
                 .caption("Filter Streams")

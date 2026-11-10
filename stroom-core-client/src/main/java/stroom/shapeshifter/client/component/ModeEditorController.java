@@ -26,16 +26,18 @@ import stroom.svg.shared.SvgImage;
 import stroom.util.client.DataGridUtil;
 import stroom.widget.button.client.ToolbarButton;
 import stroom.widget.component.client.Controller;
+import stroom.widget.component.client.ControllerDialog;
+import stroom.widget.component.client.HasControllerNode;
 import stroom.widget.datagrid.client.DataGrid;
 import stroom.widget.datagrid.client.PagerPanel;
 import stroom.widget.popup.client.PopupSize;
 import stroom.widget.popup.client.PopupType;
-import stroom.widget.popup.client.event.ShowPopupEvent;
 import stroom.widget.util.client.MouseUtil;
 import stroom.widget.util.client.MultiSelectionModelImpl;
 
 import com.google.gwt.user.cellview.client.Column;
 import com.google.inject.Inject;
+import com.google.inject.Provider;
 import com.google.web.bindery.event.shared.EventBus;
 
 import java.util.ArrayList;
@@ -54,7 +56,7 @@ public class ModeEditorController extends Controller {
 
     private final DataGrid<ModeRowData> dataGrid;
     private final MultiSelectionModelImpl<ModeRowData> selectionModel;
-    private final NameEditorController namePrompt;
+    private final Provider<NameEditorController> namePromptProvider;
     private final ToolbarButton addButton;
     private final ToolbarButton editButton;
     private final ToolbarButton removeButton;
@@ -64,11 +66,11 @@ public class ModeEditorController extends Controller {
     @Inject
     public ModeEditorController(final EventBus eventBus,
                                final PagerPanel view,
-                               final NameEditorController namePrompt) {
+                               final Provider<NameEditorController> namePromptProvider) {
         super(eventBus);
         this.view = view;
         initWidget(view);
-        this.namePrompt = own(namePrompt);
+        this.namePromptProvider = namePromptProvider;
         dataGrid = new DataGrid<>();
         dataGrid.setTableName("Modes");
         selectionModel = dataGrid.addDefaultSelectionModel(false);
@@ -130,9 +132,10 @@ public class ModeEditorController extends Controller {
     }
 
 
-    public void show() {
+    /// @param opener What shows it, which owns it until it is hidden.
+    public void show(final HasControllerNode opener) {
         refresh();
-        ShowPopupEvent.builder(this)
+        ControllerDialog.showOnce(opener, this)
                 .popupType(PopupType.CLOSE_DIALOG)
                 .popupSize(PopupSize.resizable(520, 360))
                 .caption("Modes")
@@ -171,7 +174,7 @@ public class ModeEditorController extends Controller {
         if (host.getProject() == null || host.isReadOnly()) {
             return;
         }
-        namePrompt.prompt(this,
+        namePromptProvider.get().prompt(this,
                 "New Mode", "mode", Modes.HELP, "", host.modes(), name -> {
                     host.declareMode(name);
                     refresh();
@@ -186,7 +189,7 @@ public class ModeEditorController extends Controller {
             return;
         }
         final String from = existing.getName();
-        namePrompt.prompt(this,
+        namePromptProvider.get().prompt(this,
                 "Rename Mode", "mode", Modes.HELP, from, host.modes(), name -> {
                     if (existing.isWaiting()) {
                         host.forgetMode(from);

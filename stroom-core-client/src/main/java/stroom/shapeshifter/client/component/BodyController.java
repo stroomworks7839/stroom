@@ -48,6 +48,7 @@ import stroom.widget.popup.client.PopupPosition;
 
 import com.google.gwt.safehtml.shared.SafeHtmlUtils;
 import com.google.inject.Inject;
+import com.google.inject.Provider;
 import com.google.web.bindery.event.shared.EventBus;
 
 import java.util.ArrayList;
@@ -68,8 +69,8 @@ public class BodyController extends Controller {
 
     private final Body view;
 
-    private final InstructionEditController instructionEditor;
-    private final ConditionEditController conditionEditor;
+    private final Provider<InstructionEditController> instructionEditorProvider;
+    private final Provider<ConditionEditController> conditionEditorProvider;
 
     private ProjectHost host;
     private String templateId;
@@ -78,8 +79,8 @@ public class BodyController extends Controller {
     @Inject
     public BodyController(final EventBus eventBus,
                          final Body view,
-                         final InstructionEditController instructionEditor,
-                         final ConditionEditController conditionEditor) {
+                         final Provider<InstructionEditController> instructionEditorProvider,
+                         final Provider<ConditionEditController> conditionEditorProvider) {
         super(eventBus);
         this.view = view;
         initWidget(view);
@@ -93,8 +94,8 @@ public class BodyController extends Controller {
         view.setOnEditBranch(this::onEditBranch);
         view.setOnAddBranch(this::onAddBranch);
         view.setOnRemoveBranch(this::onRemoveBranch);
-        this.instructionEditor = own(instructionEditor);
-        this.conditionEditor = own(conditionEditor);
+        this.instructionEditorProvider = instructionEditorProvider;
+        this.conditionEditorProvider = conditionEditorProvider;
     }
 
     public void setHost(final ProjectHost host) {
@@ -263,10 +264,11 @@ public class BodyController extends Controller {
         if (node == null || host.isReadOnly()) {
             return;
         }
-        instructionEditor.read(node, null, names(), Modes.of(host.getProject()));
-        instructionEditor.show("Edit " + Instructions.kind(node), e -> {
+        final InstructionEditController editor = instructionEditorProvider.get();
+        editor.read(node, null, names(), Modes.of(host.getProject()));
+        editor.show(this, "Edit " + Instructions.kind(node), e -> {
             if (e.isOk()) {
-                final OutputNode edited = instructionEditor.write();
+                final OutputNode edited = editor.write();
                 if (edited != null) {
                     apply(Bodies.replace(body, nodePath, edited));
                     e.hide();
@@ -360,10 +362,11 @@ public class BodyController extends Controller {
     }
 
     private void add(final int[] list, final int index, final String kind) {
-        instructionEditor.read(null, kind, names(), Modes.of(host.getProject()));
-        instructionEditor.show("New " + kind, e -> {
+        final InstructionEditController editor = instructionEditorProvider.get();
+        editor.read(null, kind, names(), Modes.of(host.getProject()));
+        editor.show(this, "New " + kind, e -> {
             if (e.isOk()) {
-                final OutputNode node = instructionEditor.write();
+                final OutputNode node = editor.write();
                 if (node != null) {
                     apply(Bodies.insert(body, list, index, node));
                     e.hide();
@@ -387,10 +390,11 @@ public class BodyController extends Controller {
             return;
         }
         if (node instanceof Choose choose) {
-            conditionEditor.read(choose.when().get(branch).test(), names());
-            conditionEditor.show("Edit when", e -> {
+            final ConditionEditController editor = conditionEditorProvider.get();
+            editor.read(choose.when().get(branch).test(), names());
+            editor.show(this, "Edit when", e -> {
                 if (e.isOk()) {
-                    final Condition test = conditionEditor.write();
+                    final Condition test = editor.write();
                     if (test != null) {
                         apply(Bodies.replace(body, nodePath, Bodies.withWhen(choose, branch, test)));
                         e.hide();
@@ -419,10 +423,11 @@ public class BodyController extends Controller {
             return;
         }
         if (node instanceof Choose choose) {
-            conditionEditor.read(new Condition.IsFirst(), names());
-            conditionEditor.show("New when", e -> {
+            final ConditionEditController editor = conditionEditorProvider.get();
+            editor.read(new Condition.IsFirst(), names());
+            editor.show(this, "New when", e -> {
                 if (e.isOk()) {
-                    final Condition test = conditionEditor.write();
+                    final Condition test = editor.write();
                     if (test != null) {
                         apply(Bodies.replace(body, nodePath, Bodies.addWhen(choose, test)));
                         e.hide();
