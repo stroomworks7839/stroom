@@ -29,6 +29,7 @@ import com.google.web.bindery.event.shared.EventBus;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.LongConsumer;
 
 /// Design 18 §5.8: the engine's messages about the project as it stands, fed by `validate`
@@ -36,20 +37,28 @@ import java.util.function.LongConsumer;
 /// goes silent about why it is showing the previous project.
 public class MessagesController extends Controller {
 
-    private final PagerPanel view;
+    private PagerPanel view;
 
     private final DataGrid<ShapeshifterMessage> dataGrid;
     private final MultiSelectionModelImpl<ShapeshifterMessage> selectionModel;
     private LongConsumer onGoTo;
 
     @Inject
-    public MessagesController(final EventBus eventBus, final PagerPanel view) {
+    public MessagesController(final EventBus eventBus) {
         super(eventBus);
-        this.view = view;
-        initWidget(view);
         dataGrid = new DataGrid<>();
         dataGrid.setTableName("Messages");
         selectionModel = dataGrid.addDefaultSelectionModel(false);
+    }
+
+    /// Attaches this to a pager, e.g. one a template declares. The pager is then this
+    /// controller's widget.
+    ///
+    /// @param view The pager.
+    /// @return This, for its owner to keep.
+    public MessagesController attach(final PagerPanel view) {
+        this.view = Objects.requireNonNull(view, "view");
+        initWidget(view);
         view.setDataWidget(dataGrid);
         // Everything it holds is shown at once, so it pages nothing; its actions share
         // the pager's bar, which stays (setPagerVisible would take the bar as well).
@@ -71,6 +80,7 @@ public class MessagesController extends Controller {
                 onGoTo.accept(selected.getFrameId());
             }
         }));
+        return this;
 
     }
 

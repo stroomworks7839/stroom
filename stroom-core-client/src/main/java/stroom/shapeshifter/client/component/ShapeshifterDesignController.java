@@ -162,10 +162,10 @@ public class ShapeshifterDesignController
         initWidget(view);
         this.restFactory = restFactory;
         this.templatePanel = own(templatePanel).attach(view.getTemplatePanel());
-        this.strip = own(strip);
+        this.strip = own(strip).attach(view.getStrip());
         this.workbench = own(workbench);
         this.samplePage = own(samplePage);
-        this.messages = own(messages);
+        this.messages = own(messages).attach(view.getMessages());
         this.crumb = own(crumb).attach(view.getCrumb());
         this.input = own(input).attach(view.getInput());
         this.variables = own(variables).attach(view.getVariables());
@@ -186,10 +186,8 @@ public class ShapeshifterDesignController
         input.setHost(this);
         variables.setHost(this);
         output.setHost(this);
-        view.setStrip(strip);
         view.setWorkbench(workbench);
         view.setSamplePage(samplePage);
-        view.setMessages(messages);
         own(templatePanel.addSelectionListener(id -> {
             onSelect(id);
             record();

@@ -54,7 +54,7 @@ public class TemplateStripController extends Controller {
     // controller with no owner fails closed rather than editable.
     private boolean readOnly = true;
 
-    private final TemplateStrip view;
+    private TemplateStrip view;
 
     private final SourceSettingsController sourceConfig;
     private final BodyController bodyPresenter;
@@ -70,22 +70,32 @@ public class TemplateStripController extends Controller {
 
     @Inject
     public TemplateStripController(final EventBus eventBus,
-                                  final TemplateStrip view,
                                   final SourceSettingsController sourceConfig,
                                   final BodyController bodyPresenter,
                                   final DeclarationsController declarations,
                                   final CapturesController captures) {
         super(eventBus);
-        this.view = view;
-        initWidget(view);
         watch(Contexts.READ_ONLY, readOnly -> this.readOnly = readOnly);
+        this.sourceConfig = own(sourceConfig);
+        this.bodyPresenter = own(bodyPresenter);
+        this.declarations = own(declarations);
+        this.captures = own(captures);
+    }
+
+    /// Attaches this to a strip, e.g. one a template declares, and its declarations and captures
+    /// to the strip's pagers. The strip is then this controller's widget.
+    ///
+    /// @param view The strip.
+    /// @return This, for its owner to keep.
+    public TemplateStripController attach(final TemplateStrip view) {
+        this.view = Objects.requireNonNull(view, "view");
+        initWidget(view);
         view.setOnEditIdentity(this::onEditIdentity);
         view.setOnRole(this::onRole);
         view.setOnOpenWorkbench(this::onOpenWorkbench);
-        this.sourceConfig = own(sourceConfig);
-        this.bodyPresenter = own(bodyPresenter);
-        this.declarations = own(declarations).attach(view.getDeclarations());
-        this.captures = own(captures).attach(view.getCaptures());
+        declarations.attach(view.getDeclarations());
+        captures.attach(view.getCaptures());
+        return this;
     }
 
     public void setHost(final ProjectHost host) {

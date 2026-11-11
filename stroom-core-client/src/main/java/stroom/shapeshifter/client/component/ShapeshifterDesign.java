@@ -17,6 +17,7 @@
 package stroom.shapeshifter.client.component;
 
 import stroom.widget.component.client.Component;
+import stroom.widget.datagrid.client.PagerPanel;
 import stroom.widget.layout.client.SplitPane;
 import stroom.widget.text.client.Label;
 
@@ -42,7 +43,7 @@ public class ShapeshifterDesign extends Component {
     @UiField
     TemplatePanel templatePanel;
     @UiField
-    SimplePanel messages;
+    PagerPanel messages;
     @UiField
     SimpleLayoutPanel centre;
     @UiField
@@ -54,7 +55,7 @@ public class ShapeshifterDesign extends Component {
     @UiField
     VariablesPane variables;
     @UiField
-    SimplePanel strip;
+    TemplateStrip strip;
     @UiField
     OutputPane output;
 
@@ -97,8 +98,9 @@ public class ShapeshifterDesign extends Component {
         return output;
     }
 
-    public void setStrip(final IsWidget view) {
-        strip.setWidget(view.asWidget());
+    /// @return The TemplateStrip its controller attaches to.
+    public TemplateStrip getStrip() {
+        return strip;
     }
 
     public void setWorkbench(final IsWidget view) {
@@ -129,8 +131,9 @@ public class ShapeshifterDesign extends Component {
         centre.onResize();
     }
 
-    public void setMessages(final IsWidget view) {
-        messages.setWidget(view.asWidget());
+    /// @return The pager its messages controller attaches to.
+    public PagerPanel getMessages() {
+        return messages;
     }
 
     public void setBanner(final String text) {
