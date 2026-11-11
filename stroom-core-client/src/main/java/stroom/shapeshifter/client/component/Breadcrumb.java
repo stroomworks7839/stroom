@@ -24,6 +24,7 @@ import stroom.widget.button.client.ToolbarButton;
 import stroom.widget.component.client.Component;
 import stroom.widget.text.client.InlineLabel;
 import stroom.widget.text.client.Label;
+import stroom.widget.util.client.CssProperties;
 
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.uibinder.client.UiBinder;
@@ -114,7 +115,8 @@ public class Breadcrumb extends Component {
             final LinkButton name = new LinkButton(segment.getLabel());
             name.addStyleName("breadcrumb__name");
             if (segment.getColour() != null) {
-                name.getElement().getStyle().setProperty("borderBottomColor", segment.getColour());
+                CssProperties.set(name.getElement(), "--breadcrumb__segment-colour",
+                        segment.getColour());
             }
             if (i == list.size() - 1) {
                 name.addStyleName("breadcrumb__name--current");

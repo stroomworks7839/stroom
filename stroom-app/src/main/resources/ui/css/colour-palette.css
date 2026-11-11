@@ -17,6 +17,7 @@
 }
 
 .colour-palette__swatch {
+    background-color: var(--colour-palette__colour, transparent);
     width: 22px;
     height: 22px;
     border-radius: 5px;

@@ -227,6 +227,10 @@ public final class Marks {
             default -> {
             }
         }
+        // Only when the mark has one of its own: `--hue` is inherited on purpose, so a mark with
+        // no colour takes the hue in force around it (a coloured row in the content pane, say).
+        // It is one shared vocabulary rather than a property of any one block, which is why it is
+        // not named `--mark__hue`.
         if (mark.getColour() != null) {
             tag.append(" style=\"--hue:").append(Colours.safe(mark.getColour())).append('"');
         }

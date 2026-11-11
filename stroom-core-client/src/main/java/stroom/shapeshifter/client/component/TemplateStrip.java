@@ -21,6 +21,7 @@ import stroom.widget.component.client.Component;
 import stroom.widget.layout.client.SplitPane;
 import stroom.widget.selection.client.SelectionBox;
 import stroom.widget.text.client.Label;
+import stroom.widget.util.client.CssProperties;
 
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.event.dom.client.ClickEvent;
@@ -133,7 +134,7 @@ public class TemplateStrip extends Component {
         title.setText(titleText);
         chip.setVisible(colour != null);
         if (colour != null) {
-            chip.getElement().getStyle().setBackgroundColor(colour);
+            CssProperties.set(chip.getElement(), "--chip__colour", colour);
         }
         name.setText(nameText);
         name.setStyleDependentName("editable", colour != null);

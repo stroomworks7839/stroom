@@ -22,6 +22,7 @@ import stroom.shapeshifter.client.model.Mark;
 import stroom.widget.component.client.Component;
 import stroom.widget.text.client.Html;
 import stroom.widget.text.client.Label;
+import stroom.widget.util.client.CssProperties;
 
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.dom.client.Element;
@@ -102,8 +103,7 @@ public class ContentPane extends Component {
         for (final Loose match : looseMatches) {
             final FlowPanel row = new FlowPanel();
             row.addStyleName("content-pane__loose");
-            // A custom property cannot be set through Style; the attribute can carry it.
-            row.getElement().setAttribute("style", "--hue:" + Colours.safe(match.getColour()));
+            CssProperties.set(row.getElement(), "--hue", Colours.safe(match.getColour()));
             final Label label = new Label(match.getLabel() + " — from a variable:");
             label.addStyleName("content-pane__loose-label");
             final Label value = new Label(match.getContent());

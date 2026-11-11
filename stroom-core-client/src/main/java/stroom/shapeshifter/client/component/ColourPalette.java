@@ -19,6 +19,7 @@ package stroom.shapeshifter.client.component;
 import stroom.shapeshifter.client.model.Templates;
 import stroom.widget.text.client.Label;
 import stroom.widget.tickbox.client.TickBox;
+import stroom.widget.util.client.CssProperties;
 
 import com.google.gwt.event.dom.client.ClickEvent;
 import com.google.gwt.user.client.ui.Composite;
@@ -55,7 +56,7 @@ public class ColourPalette extends Composite {
             final Label swatch = new Label();
             swatch.setStyleName("colour-palette__swatch");
             swatch.setTitle(colour);
-            swatch.getElement().getStyle().setBackgroundColor(colour);
+            CssProperties.set(swatch.getElement(), "--colour-palette__colour", colour);
             swatch.addClickHandler((ClickEvent e) -> {
                 if (!auto.getValue()) {
                     chosen = colour;

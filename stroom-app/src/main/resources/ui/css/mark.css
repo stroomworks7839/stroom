@@ -2,6 +2,10 @@
  * A run's marks over the sample and the output (Marks): a match, a capture, a gap, an
  * instruction, the cursor's own text, and what is dimmed outside it. Set as HTML the
  * controller builds, so the kinds are modifiers of one block.
+ *
+ * `--hue` is deliberately not `--mark__hue`: it is one inherited vocabulary meaning "the hue in
+ * force here", written only by whatever has a colour of its own, and read by this sheet, sample,
+ * regex, content-pane and highlight. Renaming it per block would turn inheritance into a fallback.
  */
 .mark {
     -webkit-box-decoration-break: clone;

@@ -1,6 +1,11 @@
 /*
  * A template's colour, shown small beside its name (BodyCard, VariablesPane).
  */
+.swatch {
+    /* The colour it stands for, put on the element by CssProperties */
+    background-color: var(--swatch__colour, transparent);
+}
+
 .swatch--small {
     display: inline-block;
     width: 10px;

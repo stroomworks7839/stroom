@@ -19,6 +19,7 @@ package stroom.shapeshifter.client.component;
 import stroom.shapeshifter.client.model.Mark;
 import stroom.shapeshifter.client.model.TemplateRowData;
 import stroom.widget.text.client.Label;
+import stroom.widget.util.client.CssProperties;
 
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.event.dom.client.ClickEvent;
@@ -72,7 +73,7 @@ public class TemplateRow extends Composite {
         // A section has no swatch, and must not reserve room for one: the chip is what pushed
         // SETTINGS and DATA right of TEMPLATES, which is a plain label (design 44 §5m).
         chip.setVisible(!data.isSection());
-        chip.getElement().getStyle().setBackgroundColor(data.getColour());
+        CssProperties.set(chip.getElement(), "--chip__colour", data.getColour());
         if ("transparent".equals(data.getColour())) {
             chip.addStyleName("chip--outline");
         }

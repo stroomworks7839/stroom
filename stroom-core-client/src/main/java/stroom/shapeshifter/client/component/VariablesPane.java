@@ -23,6 +23,7 @@ import stroom.widget.button.client.LinkButton;
 import stroom.widget.component.client.Component;
 import stroom.widget.text.client.InlineLabel;
 import stroom.widget.text.client.Label;
+import stroom.widget.util.client.CssProperties;
 
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.event.dom.client.MouseOutEvent;
@@ -96,7 +97,8 @@ public class VariablesPane extends Component {
                 line.addDomHandler(event -> onHover.accept(null), MouseOutEvent.getType());
                 final InlineLabel swatch = new InlineLabel();
                 swatch.addStyleName("swatch swatch--small");
-                swatch.getElement().getStyle().setBackgroundColor(Colours.safe(row.getColour()));
+                CssProperties.set(swatch.getElement(), "--swatch__colour",
+                        Colours.safe(row.getColour()));
                 final InlineLabel name = new InlineLabel(row.getName());
                 name.addStyleName("variables-pane__name");
                 final InlineLabel type = new InlineLabel(row.getType() == null

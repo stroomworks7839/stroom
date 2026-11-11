@@ -3,6 +3,8 @@
  * (TemplateRow), the group rows (GroupRow) and the strip (TemplateStrip).
  */
 .chip {
+    /* The template's or capture's own colour, put on the element by CssProperties */
+    background-color: var(--chip__colour, transparent);
     display: inline-block;
     width: 10px;
     height: 10px;

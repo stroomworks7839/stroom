@@ -19,6 +19,7 @@ package stroom.shapeshifter.client.component;
 import stroom.shapeshifter.client.model.GroupRowData;
 import stroom.widget.form.client.TextBox;
 import stroom.widget.text.client.Label;
+import stroom.widget.util.client.CssProperties;
 
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.event.dom.client.BlurEvent;
@@ -60,7 +61,7 @@ public class GroupRow extends Composite {
         index.addClickHandler(event -> onIndex(event));
         name.addBlurHandler(event -> onBlur(event));
         name.addKeyDownHandler(event -> onKeyDown(event));
-        chip.getElement().getStyle().setBackgroundColor(data.getHue());
+        CssProperties.set(chip.getElement(), "--chip__colour", data.getHue());
         index.setText("$" + data.getIndex());
         committed = data.getBoundName() == null
                 ? ""

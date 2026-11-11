@@ -24,6 +24,7 @@ import stroom.shapeshifter.config.OutputNode.Choose;
 import stroom.shapeshifter.config.OutputNode.Holder;
 import stroom.shapeshifter.config.OutputNode.Switch;
 import stroom.widget.text.client.Label;
+import stroom.widget.util.client.CssProperties;
 
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.dom.client.DataTransfer;
@@ -112,7 +113,8 @@ public class BodyCard extends Composite {
         // and for a dispatch that matched, the first frame - a click on the note descends.
         swatch.setVisible(runNote != null && runNote.getColour() != null);
         if (runNote != null && runNote.getColour() != null) {
-            swatch.getElement().getStyle().setBackgroundColor(Colours.safe(runNote.getColour()));
+            CssProperties.set(swatch.getElement(), "--swatch__colour",
+                    Colours.safe(runNote.getColour()));
         }
         note.setVisible(runNote != null && runNote.getText() != null);
         if (runNote != null && runNote.getText() != null) {
