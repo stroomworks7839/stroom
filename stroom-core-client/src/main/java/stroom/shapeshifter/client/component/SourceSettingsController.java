@@ -54,7 +54,10 @@ public class SourceSettingsController extends Controller {
         super(eventBus);
         this.view = view;
         initWidget(view);
-        watch(Contexts.READ_ONLY, readOnly -> this.readOnly = readOnly);
+        watch(Contexts.READ_ONLY, readOnly -> {
+            this.readOnly = readOnly;
+            applyReadOnly();
+        });
         view.setOnChange(this::onChange);
         restFactory
                 .create(RESOURCE)
@@ -80,7 +83,7 @@ public class SourceSettingsController extends Controller {
         final Project project = host.getProject();
         reading = true;
         try {
-            view.setReadOnly(readOnly || project == null);
+            applyReadOnly();
             if (project == null) {
                 return;
             }
@@ -124,6 +127,12 @@ public class SourceSettingsController extends Controller {
         return text == null || text.trim().isEmpty()
                 ? null
                 : text.trim();
+    }
+
+    // One place that says what read-only means here, called when the context changes and
+    // when the pane is filled, so a lock change alone reaches the view.
+    private void applyReadOnly() {
+        view.setReadOnly(readOnly || host == null || host.getProject() == null);
     }
 
 }

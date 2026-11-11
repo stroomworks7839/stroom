@@ -88,7 +88,10 @@ public class MatchEditorController extends Controller {
         super(eventBus);
         this.view = view;
         initWidget(view);
-        watch(Contexts.READ_ONLY, readOnly -> this.readOnly = readOnly);
+        watch(Contexts.READ_ONLY, readOnly -> {
+            this.readOnly = readOnly;
+            applyReadOnly();
+        });
         view.setOnKind(this::onKind);
         this.restFactory = restFactory;
         this.regexForm = own(regexForm);
@@ -140,7 +143,7 @@ public class MatchEditorController extends Controller {
         // kind holds is what it last held here, edits and all.
         kept.put(kind, template.match());
         view.showKind(true);
-        view.setReadOnly(readOnly);
+        applyReadOnly();
         view.setKind(kind);
         if (kind != shown) {
             shown = kind;
@@ -306,6 +309,12 @@ public class MatchEditorController extends Controller {
     interface MatchForm extends IsWidget {
 
         void setTemplate(String id);
+    }
+
+    // One place that says what read-only means here, called when the context changes and
+    // when the pane is filled, so a lock change alone reaches the view.
+    private void applyReadOnly() {
+        view.setReadOnly(readOnly);
     }
 
 }

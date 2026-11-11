@@ -62,7 +62,10 @@ public class GuardAndLimitsController extends Controller {
         super(eventBus);
         this.view = view;
         initWidget(view);
-        watch(Contexts.READ_ONLY, readOnly -> this.readOnly = readOnly);
+        watch(Contexts.READ_ONLY, readOnly -> {
+            this.readOnly = readOnly;
+            applyReadOnly();
+        });
         view.setOnClauseChange(this::onClauseChange);
         view.setOnClauseRemove(this::onClauseRemove);
         view.setOnClauseAdd(this::onClauseAdd);
@@ -81,7 +84,7 @@ public class GuardAndLimitsController extends Controller {
         if (template == null) {
             return;
         }
-        view.setReadOnly(readOnly);
+        applyReadOnly();
         view.setNames(namesInScope(template));
         final List<GuardClause> clauses = GuardClause.read(template.guard());
         if (clauses != null) {
@@ -244,6 +247,12 @@ public class GuardAndLimitsController extends Controller {
         }
         view.setError(null);
         host.replace(host.withTemplate(Templates.withLimits(template, limits)));
+    }
+
+    // One place that says what read-only means here, called when the context changes and
+    // when the pane is filled, so a lock change alone reaches the view.
+    private void applyReadOnly() {
+        view.setReadOnly(readOnly);
     }
 
 }

@@ -53,7 +53,10 @@ public class DelimiterController
         super(eventBus);
         this.view = view;
         initWidget(view);
-        watch(Contexts.READ_ONLY, readOnly -> this.readOnly = readOnly);
+        watch(Contexts.READ_ONLY, readOnly -> {
+            this.readOnly = readOnly;
+            applyReadOnly();
+        });
         view.setOnChange(this::onChange);
     }
 
@@ -68,7 +71,7 @@ public class DelimiterController
         if (template == null || !(template.match() instanceof MatchExpression.Delimiter d)) {
             return;
         }
-        view.setReadOnly(readOnly);
+        applyReadOnly();
         view.setDelimiter(ControlEscapes.escape(d.delimiter()), ControlEscapes.escape(d.escape()),
                 ControlEscapes.escape(d.containerStart()), ControlEscapes.escape(d.containerEnd()));
         view.setError(null);
@@ -98,6 +101,12 @@ public class DelimiterController
         return text.isEmpty()
                 ? null
                 : text;
+    }
+
+    // One place that says what read-only means here, called when the context changes and
+    // when the pane is filled, so a lock change alone reaches the view.
+    private void applyReadOnly() {
+        view.setReadOnly(readOnly);
     }
 
 }

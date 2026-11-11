@@ -115,6 +115,8 @@ public class Body extends Component {
     @UiField
     FlowPanel cards;
 
+    private List<OutputNode> body = List.of();
+    private List<CardNote> notes = List.of();
     private boolean enabled = true;
     private CardList list;
 
@@ -127,9 +129,22 @@ public class Body extends Component {
     @Override
     protected void onReadOnlyChange(final boolean readOnly) {
         this.enabled = !readOnly;
+        draw();
     }
 
     public void setBody(final List<OutputNode> body, final List<CardNote> notes) {
+        this.body = body == null
+                ? List.of()
+                : body;
+        this.notes = notes == null
+                ? List.of()
+                : notes;
+        draw();
+    }
+
+    // The cards are built with read-only in force, so a change of it draws them again: the hook
+    // only changing a flag would leave the last drawing in place, with the actions it had then.
+    private void draw() {
         cards.clear();
         list = new CardList(new int[0], body, notes, cardActions, enabled, false);
         cards.add(list);

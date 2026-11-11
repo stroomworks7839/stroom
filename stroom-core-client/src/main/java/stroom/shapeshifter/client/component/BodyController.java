@@ -87,7 +87,10 @@ public class BodyController extends Controller {
         super(eventBus);
         this.view = view;
         initWidget(view);
-        watch(Contexts.READ_ONLY, readOnly -> this.readOnly = readOnly);
+        watch(Contexts.READ_ONLY, readOnly -> {
+            this.readOnly = readOnly;
+            applyReadOnly();
+        });
         view.setOnEdit(this::onEdit);
         view.setOnDescend(this::onDescend);
         view.setOnHover(this::onHover);
@@ -114,7 +117,7 @@ public class BodyController extends Controller {
         } else {
             body = template.body();
         }
-        view.setReadOnly(readOnly || template == null);
+        applyReadOnly();
         view.setBody(body, notes(template));
     }
 
@@ -475,6 +478,12 @@ public class BodyController extends Controller {
                 remove.run();
             }
         });
+    }
+
+    // One place that says what read-only means here, called when the context changes and
+    // when the pane is filled, so a lock change alone reaches the view.
+    private void applyReadOnly() {
+        view.setReadOnly(readOnly || host == null || host.template(templateId) == null);
     }
 
 }

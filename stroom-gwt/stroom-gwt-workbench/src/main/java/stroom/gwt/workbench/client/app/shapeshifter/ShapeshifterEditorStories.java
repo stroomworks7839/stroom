@@ -376,6 +376,23 @@ public final class ShapeshifterEditorStories {
                             .toSatisfy("the sample's first value", count -> ((Integer) count) > 0));
                     expectNoProblems(play);
                 })
+                // A lock change on its own, with no re-read: the panes are told through the
+                // read-only context, not by being filled again (UI-GUIDE.md: a controller calls
+                // setReadOnly from the context it watches)
+                .story("LockChangeWithoutReread", context -> render(context, false))
+                .withPlay(play -> {
+                    selectTemplate(play, "pair");
+                    play.waitFor(() -> play.expect(play.getByText("+ instruction")).toBeInTheDocument());
+                    play.run("lock the document, without reading it again", () ->
+                            host().setReadOnly(true));
+                    // The body pane below the document follows the lock on its own
+                    play.waitFor(() -> play.expect(play.queryByText("+ instruction")).toBeNull());
+                    play.run("unlock the document, without reading it again", () ->
+                            host().setReadOnly(false));
+                    play.waitFor(() -> play.expect(play.getByText("+ instruction")).toBeInTheDocument());
+                    expectNoProblems(play);
+                })
+
                 // The match chip opens the pattern workbench over the navigator's rows
                 .story("PatternWorkbench", context -> render(context, false))
                 .withPlay(play -> {

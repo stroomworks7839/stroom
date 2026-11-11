@@ -79,7 +79,10 @@ public class RegexController
         super(eventBus);
         this.view = view;
         initWidget(view);
-        watch(Contexts.READ_ONLY, readOnly -> this.readOnly = readOnly);
+        watch(Contexts.READ_ONLY, readOnly -> {
+            this.readOnly = readOnly;
+            applyReadOnly();
+        });
         view.setOnChange(this::onChange);
         view.setOnExplode(this::onExplode);
         view.setOnGroupName(this::onGroupName);
@@ -119,7 +122,7 @@ public class RegexController
         if (template == null || !(template.match() instanceof MatchExpression.Regex regex)) {
             return;
         }
-        view.setReadOnly(readOnly);
+        applyReadOnly();
         // Only touch the fields when the model disagrees with them, so that a commit of the user's
         // own typing does not move the caret.
         if (!regex.pattern().equals(view.getPattern())) {
@@ -343,6 +346,12 @@ public class RegexController
                               + "\" title=\"group $" + group + "\">")
                 .appendEscaped(text)
                 .appendHtmlConstant("</span>");
+    }
+
+    // One place that says what read-only means here, called when the context changes and
+    // when the pane is filled, so a lock change alone reaches the view.
+    private void applyReadOnly() {
+        view.setReadOnly(readOnly);
     }
 
 }
