@@ -27,7 +27,6 @@ import com.google.gwt.event.dom.client.KeyDownHandler;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
 import com.google.gwt.user.client.ui.IsWidget;
-import com.google.gwt.user.client.ui.SimpleLayoutPanel;
 import com.google.gwt.user.client.ui.SimplePanel;
 import com.google.gwt.user.client.ui.Widget;
 
@@ -45,7 +44,7 @@ public class ShapeshifterDesign extends Component {
     @UiField
     PagerPanel messages;
     @UiField
-    SimpleLayoutPanel centre;
+    SimplePanel centre;
     @UiField
     SplitPane rows;
     @UiField
@@ -117,7 +116,6 @@ public class ShapeshifterDesign extends Component {
         centre.setWidget(open
                 ? samplePageWidget
                 : rows);
-        centre.onResize();
     }
 
     public void showWorkbench(final boolean open) {
@@ -128,7 +126,6 @@ public class ShapeshifterDesign extends Component {
         centre.setWidget(open
                 ? workbenchWidget
                 : rows);
-        centre.onResize();
     }
 
     /// @return The pager its messages controller attaches to.

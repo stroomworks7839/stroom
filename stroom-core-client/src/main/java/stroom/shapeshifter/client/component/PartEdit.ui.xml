@@ -1,10 +1,11 @@
 <!DOCTYPE ui:UiBinder SYSTEM "http://dl.google.com/gwt/DTD/xhtml.ent">
 <ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
              xmlns:g="urn:import:com.google.gwt.user.client.ui"
+             xmlns:lay="urn:import:stroom.widget.layout.client"
              xmlns:form="urn:import:stroom.widget.form.client"
              xmlns:tickbox="urn:import:stroom.widget.tickbox.client"
              xmlns:l="urn:import:stroom.widget.selection.client">
-    <g:ScrollPanel styleName="max">
+    <lay:ScrollPane addStyleNames="max">
         <g:FlowPanel styleName="form-padding form">
             <form:FormGroup identity="shapeshifterPartKind" label="Kind"
                             helpText="pattern matches a tree at the cursor; take consumes a length; seek moves the cursor by a length, or to an offset; read casts the bytes at the cursor.">
@@ -34,5 +35,5 @@
                 <form:TextBox ui:field="label" addStyleNames="w-100"/>
             </form:FormGroup>
         </g:FlowPanel>
-    </g:ScrollPanel>
+    </lay:ScrollPane>
 </ui:UiBinder>

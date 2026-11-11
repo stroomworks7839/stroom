@@ -2,8 +2,9 @@
 <ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
              xmlns:form="urn:import:stroom.widget.form.client"
              xmlns:t="urn:import:stroom.widget.text.client"
-             xmlns:g="urn:import:com.google.gwt.user.client.ui">
-    <g:ScrollPanel styleName="max">
+             xmlns:g="urn:import:com.google.gwt.user.client.ui"
+             xmlns:l="urn:import:stroom.widget.layout.client">
+    <l:ScrollPane addStyleNames="max">
         <g:FlowPanel styleName="workbench-form__right">
             <g:FlowPanel styleName="workbench-form__section">
                 <t:Html styleName="workbench-form__heading">Delimiter <span class="workbench-form__heading-note">(each field between separators is a match; an escape makes the next character literal; inside a container the separator is literal; \n \t \r and \\ spell the control characters)</span></t:Html>
@@ -24,5 +25,5 @@
                 <t:Label ui:field="error" styleName="workbench-form__error"/>
             </g:FlowPanel>
         </g:FlowPanel>
-    </g:ScrollPanel>
+    </l:ScrollPane>
 </ui:UiBinder>

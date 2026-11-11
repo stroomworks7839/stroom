@@ -71,7 +71,11 @@ class TestStroomWidgetsOnly {
             Map.entry("DialogBox", "Stroom's dialogs"),
             Map.entry("TabPanel", "Stroom's tabs"),
             Map.entry("TabLayoutPanel", "Stroom's tabs"),
-            Map.entry("SplitLayoutPanel", "SplitPane (stroom.widget.layout.client)"));
+            Map.entry("SplitLayoutPanel", "SplitPane (stroom.widget.layout.client)"),
+            // GWT's layout widgets size their children themselves and expect a parent to size
+            // them; Stroom's panes are sized by CSS, so one in a SplitPane collapses to nothing
+            Map.entry("SimpleLayoutPanel", "SimplePanel, or ScrollPane (stroom.widget.layout.client)"),
+            Map.entry("ScrollPanel", "ScrollPane (stroom.widget.layout.client)"));
 
     // Stroom's own versions are built on GWT's (its copies in GWT's package)
     private static final Set<String> STROOM_VERSION_TEMPLATES = Set.of("PasswordBox.ui.xml");

@@ -7,9 +7,10 @@
 -->
 <ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
              xmlns:g="urn:import:com.google.gwt.user.client.ui"
+             xmlns:l="urn:import:stroom.widget.layout.client"
              xmlns:dg="urn:import:stroom.widget.datagrid.client">
-    <g:ScrollPanel styleName="type-filter__scroll">
+    <l:ScrollPane fitContent="true" addStyleNames="type-filter__scroll">
         <dg:DataGrid ui:field="list" profile="LISTBOX" pageSize="100" accessibleName="Document types"
                      fitContent="true" fitWidth="true" cellPadding="false" addStyleNames="type-filter"/>
-    </g:ScrollPanel>
+    </l:ScrollPane>
 </ui:UiBinder>

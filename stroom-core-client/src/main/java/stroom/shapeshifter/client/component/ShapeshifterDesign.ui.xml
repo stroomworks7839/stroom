@@ -18,7 +18,7 @@
             <ss:TemplatePanel ui:field="templatePanel"/>
             <!-- Everything right of the panel: the navigator's rows, or what is shown in their
                  place - the sample page, or the workbench (design 44 §5a, §5p). -->
-            <g:SimpleLayoutPanel ui:field="centre">
+            <g:SimplePanel ui:field="centre" styleName="max">
                 <split:SplitPane ui:field="rows" vertical="true" thin="true" sizes="300px, *"
                                  names="Input, Output" addStyleNames="max default-min-sizes">
                     <split:SplitPane vertical="true" thin="true" sizes="30px, *"
@@ -36,7 +36,7 @@
                         <ss:OutputPane ui:field="output"/>
                     </split:SplitPane>
                 </split:SplitPane>
-            </g:SimpleLayoutPanel>
+            </g:SimplePanel>
         </split:SplitPane>
         <dg:PagerPanel ui:field="messages" addStyleNames="max"/>
     </split:SplitPane>

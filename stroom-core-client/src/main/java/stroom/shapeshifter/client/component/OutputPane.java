@@ -19,6 +19,7 @@ package stroom.shapeshifter.client.component;
 import stroom.shapeshifter.client.model.Hot;
 import stroom.shapeshifter.client.model.Mark;
 import stroom.widget.component.client.Component;
+import stroom.widget.layout.client.ScrollPane;
 import stroom.widget.text.client.Html;
 import stroom.widget.text.client.Label;
 
@@ -27,7 +28,6 @@ import com.google.gwt.dom.client.Element;
 import com.google.gwt.dom.client.EventTarget;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
-import com.google.gwt.user.client.ui.ScrollPanel;
 import com.google.gwt.user.client.ui.Widget;
 
 import java.util.List;
@@ -49,7 +49,7 @@ public class OutputPane extends Component {
     @UiField
     Label note;
     @UiField
-    ScrollPanel body;
+    ScrollPane body;
     @UiField
     Html output;
     @UiField

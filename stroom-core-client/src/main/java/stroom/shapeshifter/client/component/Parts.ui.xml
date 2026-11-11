@@ -2,10 +2,11 @@
 <ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
              xmlns:t="urn:import:stroom.widget.text.client"
              xmlns:g="urn:import:com.google.gwt.user.client.ui"
+             xmlns:l="urn:import:stroom.widget.layout.client"
              xmlns:b="urn:import:stroom.widget.button.client">
     <g:FlowPanel styleName="max dock-container-vertical">
         <b:Toolbar name="Actions" ui:field="buttonPanel" addStyleNames="dock-min workbench-form__toolbar"/>
-        <g:ScrollPanel styleName="dock-max">
+        <l:ScrollPane addStyleNames="dock-max">
             <g:FlowPanel styleName="workbench-form__right">
                 <g:FlowPanel styleName="workbench-form__section">
                     <t:Html styleName="workbench-form__heading">Framed sequence <span class="workbench-form__heading-note">(run in order, nothing backtracking across parts; a take or a seek may be as long as a label matched earlier says)</span></t:Html>
@@ -13,6 +14,6 @@
                     <t:Label ui:field="error" styleName="workbench-form__error"/>
                 </g:FlowPanel>
             </g:FlowPanel>
-        </g:ScrollPanel>
+        </l:ScrollPane>
     </g:FlowPanel>
 </ui:UiBinder>

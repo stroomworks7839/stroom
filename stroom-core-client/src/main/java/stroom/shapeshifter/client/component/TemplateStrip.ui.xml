@@ -19,7 +19,7 @@
             <t:Label ui:field="mode" styleName="template-strip__mode"/>
             <t:Label ui:field="note" styleName="template-strip__note"/>
         </g:FlowPanel>
-        <g:ScrollPanel styleName="max">
+        <split:ScrollPane addStyleNames="max">
             <g:FlowPanel styleName="template-strip__body">
                 <g:FlowPanel ui:field="matchLine" styleName="template-strip__line">
                     <t:Label styleName="key-label" text="match"/>
@@ -49,7 +49,7 @@
                 </g:FlowPanel>
                 <g:SimplePanel ui:field="content" styleName="template-strip__content"/>
             </g:FlowPanel>
-        </g:ScrollPanel>
+        </split:ScrollPane>
         <split:SplitPane ui:field="details" thin="true" sizes="360px, *"
                          names="Declarations, Captures"
                          addStyleNames="max default-min-sizes">

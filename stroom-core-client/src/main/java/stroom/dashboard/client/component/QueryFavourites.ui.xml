@@ -19,8 +19,8 @@
                              accessibleName="Favourite queries"/>
             </g:SimplePanel>
         </g:FlowPanel>
-        <g:ScrollPanel styleName="max control-box control-box--padded">
+        <split:ScrollPane addStyleNames="max control-box control-box--padded">
             <q:ExpressionTree ui:field="expressionTree"/>
-        </g:ScrollPanel>
+        </split:ScrollPane>
     </split:SplitPane>
 </ui:UiBinder>

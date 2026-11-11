@@ -1,11 +1,12 @@
 <!DOCTYPE ui:UiBinder SYSTEM "http://dl.google.com/gwt/DTD/xhtml.ent">
 <ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
              xmlns:g="urn:import:com.google.gwt.user.client.ui"
+             xmlns:l="urn:import:stroom.widget.layout.client"
              xmlns:b="urn:import:stroom.widget.button.client">
     <g:FlowPanel styleName="max design-panel">
         <b:Toolbar name="Actions" ui:field="toolbar" addStyleNames="template-panel__head"/>
-        <g:ScrollPanel styleName="design-panel__body">
+        <l:ScrollPane addStyleNames="design-panel__body">
             <g:FlowPanel ui:field="list"/>
-        </g:ScrollPanel>
+        </l:ScrollPane>
     </g:FlowPanel>
 </ui:UiBinder>

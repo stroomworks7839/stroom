@@ -2,11 +2,12 @@
 <ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
              xmlns:t="urn:import:stroom.widget.text.client"
              xmlns:g="urn:import:com.google.gwt.user.client.ui"
+             xmlns:lay="urn:import:stroom.widget.layout.client"
              xmlns:form="urn:import:stroom.widget.form.client"
              xmlns:tickbox="urn:import:stroom.widget.tickbox.client"
              xmlns:l="urn:import:stroom.widget.selection.client"
              xmlns:ss="urn:import:stroom.shapeshifter.client.component">
-    <g:ScrollPanel styleName="max">
+    <lay:ScrollPane addStyleNames="max">
         <g:FlowPanel styleName="form-padding form">
             <form:FormGroup identity="ssInstrKind" label="Instruction"
                             helpText="What the card does. Output writes; invoke dispatches or calls; control branches, loops and binds; a transform computes a named value; a collection op changes a list, map or set.">
@@ -61,5 +62,5 @@
                 <form:TextArea ui:field="wire" addStyleNames="w-100 edit-form__entries" visibleLines="10"/>
             </form:FormGroup>
         </g:FlowPanel>
-    </g:ScrollPanel>
+    </lay:ScrollPane>
 </ui:UiBinder>

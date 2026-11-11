@@ -1,6 +1,7 @@
 <!DOCTYPE ui:UiBinder SYSTEM "http://dl.google.com/gwt/DTD/xhtml.ent">
 <ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
              xmlns:g="urn:import:com.google.gwt.user.client.ui"
+             xmlns:l="urn:import:stroom.widget.layout.client"
              xmlns:form="urn:import:stroom.widget.form.client"
              xmlns:colour="urn:import:stroom.widget.colour.client"
              xmlns:tx="urn:import:stroom.widget.text.client">
@@ -28,14 +29,14 @@
         <form:TextBox ui:field="filterBox" addStyleNames="floor-map-group-edit__filter"
                         placeholder="Filter by name, type or id"
                         ariaLabel="Filter members by name, type or id"/>
-        <g:ScrollPanel ui:field="memberScroll" addStyleNames="floor-map-group-edit__scroll">
+        <l:ScrollPane fitContent="true" ui:field="memberScroll" addStyleNames="floor-map-group-edit__scroll">
             <g:FlowPanel ui:field="memberList" addStyleNames="floor-map-group-edit__members">
                 <tx:Label ui:field="empty"
                          addStyleNames="floor-map-group-edit__empty"
                          text="No entities have been seen on this map yet — run the map's queries first."
                          visible="false"/>
             </g:FlowPanel>
-        </g:ScrollPanel>
+        </l:ScrollPane>
         <tx:Label ui:field="summary" addStyleNames="floor-map-group-edit__summary"/>
     </g:HTMLPanel>
 </ui:UiBinder>

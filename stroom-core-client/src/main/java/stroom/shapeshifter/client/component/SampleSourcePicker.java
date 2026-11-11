@@ -26,7 +26,7 @@ import com.google.gwt.core.client.GWT;
 import com.google.gwt.event.logical.shared.ValueChangeEvent;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
-import com.google.gwt.user.client.ui.SimpleLayoutPanel;
+import com.google.gwt.user.client.ui.SimplePanel;
 import com.google.gwt.user.client.ui.Widget;
 
 import java.util.function.Consumer;
@@ -42,7 +42,7 @@ public class SampleSourcePicker extends Component {
     @UiField
     SelectionBox<Kind> kind;
     @UiField
-    SimpleLayoutPanel body;
+    SimplePanel body;
     @UiField
     Label keeping;
     @UiField
@@ -81,7 +81,6 @@ public class SampleSourcePicker extends Component {
         } else if (streamView != null) {
             body.setWidget(streamView);
         }
-        body.onResize();
     }
 
     public Kind getKind() {

@@ -17,8 +17,8 @@
         </g:FlowPanel>
         <!-- The paste box lives here; the stream view takes its place in the body
              when that kind is chosen. -->
-        <g:SimpleLayoutPanel ui:field="body" styleName="max">
+        <g:SimplePanel ui:field="body" styleName="max">
             <ed:CodeEditor ui:field="pasted" addStyleNames="max"/>
-        </g:SimpleLayoutPanel>
+        </g:SimplePanel>
     </split:SplitPane>
 </ui:UiBinder>

@@ -1,12 +1,13 @@
 <!DOCTYPE ui:UiBinder SYSTEM "http://dl.google.com/gwt/DTD/xhtml.ent">
 <ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
              xmlns:g="urn:import:com.google.gwt.user.client.ui"
+             xmlns:lay="urn:import:stroom.widget.layout.client"
              xmlns:form="urn:import:stroom.widget.form.client"
              xmlns:tickbox="urn:import:stroom.widget.tickbox.client"
              xmlns:ss="urn:import:stroom.shapeshifter.client.component"
              xmlns:b="urn:import:stroom.widget.button.client"
              xmlns:l="urn:import:stroom.widget.selection.client">
-    <g:ScrollPanel styleName="max">
+    <lay:ScrollPane addStyleNames="max">
     <g:FlowPanel styleName="form-padding form">
         <form:FormGroup identity="shapeshifterTemplateName" label="Name">
             <form:TextBox ui:field="name" addStyleNames="w-100"/>
@@ -35,5 +36,5 @@
             <tickbox:TickBox ui:field="ignoreErrors"/>
         </form:FormGroup>
     </g:FlowPanel>
-    </g:ScrollPanel>
+    </lay:ScrollPane>
 </ui:UiBinder>
