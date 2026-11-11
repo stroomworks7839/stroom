@@ -35,6 +35,8 @@ import com.google.gwt.user.client.ui.FlowPanel;
 import com.google.gwt.user.client.ui.FocusPanel;
 import com.google.gwt.user.client.ui.Widget;
 
+import java.util.function.Consumer;
+
 /// One row of the template panel: swatch, name, count. A focusable row — click or Enter selects,
 /// double-click opens — so the panel is a list the keyboard can walk (design 18 §5.9).
 public class TemplateRow extends Composite {
@@ -57,11 +59,15 @@ public class TemplateRow extends Composite {
     Label heatBar;
 
     private final TemplateRowData data;
-    private final Listener listener;
+    private Consumer<String> onSelect = id -> {
+    };
+    private Consumer<String> onOpen = id -> {
+    };
+    private Consumer<String> onHover = id -> {
+    };
 
-    public TemplateRow(final TemplateRowData data, final Listener listener) {
+    public TemplateRow(final TemplateRowData data) {
         this.data = data;
-        this.listener = listener;
         initWidget(BINDER.createAndBindUi(this));
         row.addMouseOverHandler(event -> onMouseOver(event));
         row.addMouseOutHandler(event -> onMouseOut(event));
@@ -130,26 +136,26 @@ public class TemplateRow extends Composite {
 
     private void onMouseOver(final MouseOverEvent e) {
         if (data.getId() != null) {
-            listener.onHover(data.getId());
+            onHover.accept(data.getId());
         }
     }
 
     private void onMouseOut(final MouseOutEvent e) {
-        listener.onHover(null);
+        onHover.accept(null);
     }
 
     private void onClick(final ClickEvent e) {
-        listener.onSelect(data.getId());
+        onSelect.accept(data.getId());
     }
 
     private void onDoubleClick(final DoubleClickEvent e) {
-        listener.onOpen(data.getId());
+        onOpen.accept(data.getId());
     }
 
     private void onKeyDown(final KeyDownEvent e) {
         if (e.getNativeKeyCode() == KeyCodes.KEY_ENTER || e.getNativeKeyCode() == ' ') {
             e.preventDefault();
-            listener.onSelect(data.getId());
+            onSelect.accept(data.getId());
         }
     }
 
@@ -159,13 +165,25 @@ public class TemplateRow extends Composite {
         return "severity-flag--" + severity;
     }
 
-    public interface Listener {
+    /// Told when the row is chosen, with the template's id.
+    ///
+    /// @param onSelect The handler.
+    public void setOnSelect(final Consumer<String> onSelect) {
+        this.onSelect = onSelect;
+    }
 
-        void onSelect(String id);
+    /// Told when the row is opened, with the template's id.
+    ///
+    /// @param onOpen The handler.
+    public void setOnOpen(final Consumer<String> onOpen) {
+        this.onOpen = onOpen;
+    }
 
-        void onOpen(String id);
-
-        void onHover(String id);
+    /// Told when the pointer enters or leaves the row, with the template's id or null.
+    ///
+    /// @param onHover The handler.
+    public void setOnHover(final Consumer<String> onHover) {
+        this.onHover = onHover;
     }
 
     interface Binder extends UiBinder<Widget, TemplateRow> {

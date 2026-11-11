@@ -35,6 +35,8 @@ import com.google.gwt.user.client.ui.Composite;
 import com.google.gwt.user.client.ui.Widget;
 
 import java.util.Locale;
+import java.util.function.BiConsumer;
+import java.util.function.IntConsumer;
 
 /// One sort key: *then by* · expression · order · as · ✕. Commits when a field is left.
 public class SortKeyRow extends Composite {
@@ -53,19 +55,21 @@ public class SortKeyRow extends Composite {
     Label remove;
 
     private final int index;
-    private final Listener listener;
+    private BiConsumer<Integer, SortKey> onChange = (at, key) -> {
+    };
+    private IntConsumer onRemove = at -> {
+    };
     private SortKey committed;
 
-    public SortKeyRow(final int index, final SortKey key, final Listener listener,
+    public SortKeyRow(final int index, final SortKey key,
                       final boolean enabled) {
         this.index = index;
-        this.listener = listener;
         initWidget(BINDER.createAndBindUi(this));
         by.addBlurHandler(event -> onByBlur(event));
         by.addKeyDownHandler(event -> onByKey(event));
         order.addValueChangeHandler(event -> onOrder(event));
         as.addValueChangeHandler(event -> onAs(event));
-        remove.addClickHandler(event -> onRemove(event));
+        remove.addClickHandler(event -> onRemoveClick(event));
         // The keys run in order, and the second onwards only decide what the first left level.
         joiner.setText(index == 0
                 ? "by"
@@ -105,8 +109,8 @@ public class SortKeyRow extends Composite {
         commit();
     }
 
-    private void onRemove(final ClickEvent e) {
-        listener.onSortRemove(index);
+    private void onRemoveClick(final ClickEvent e) {
+        onRemove.accept(index);
     }
 
     /// The row as it stands.
@@ -120,14 +124,21 @@ public class SortKeyRow extends Composite {
             return;
         }
         committed = now;
-        listener.onSortChange(index, now);
+        onChange.accept(index, now);
     }
 
-    public interface Listener {
+    /// Told when this row's key changes, with the row's index and the key it now holds.
+    ///
+    /// @param onChange The handler.
+    public void setOnChange(final BiConsumer<Integer, SortKey> onChange) {
+        this.onChange = onChange;
+    }
 
-        void onSortChange(int index, SortKey key);
-
-        void onSortRemove(int index);
+    /// Told when this row's remove is pressed, with the row's index.
+    ///
+    /// @param onRemove The handler.
+    public void setOnRemove(final IntConsumer onRemove) {
+        this.onRemove = onRemove;
     }
 
     interface Binder extends UiBinder<Widget, SortKeyRow> {

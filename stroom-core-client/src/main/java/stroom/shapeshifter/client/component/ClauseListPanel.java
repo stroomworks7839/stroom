@@ -27,11 +27,14 @@ import com.google.gwt.user.client.ui.FlowPanel;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
+import java.util.function.IntConsumer;
 
 /// A condition as clause rows joined by *and*, with *+ clause*, or as its wire form
 /// when the rows cannot express it — the one condition editor, shared by the guard, `if`
 /// and `when` (design 43 §4.2).
-public class ClauseListPanel extends Composite implements GuardClauseRow.Listener {
+public class ClauseListPanel extends Composite {
 
     private final FlowPanel rows = new FlowPanel();
     private final Label none = new Label();
@@ -44,15 +47,22 @@ public class ClauseListPanel extends Composite implements GuardClauseRow.Listene
     private List<String> names = List.of();
     private boolean enabled = true;
     private String committedJson = "";
-    private Listener listener;
+    private BiConsumer<Integer, GuardClause> onChange = (at, clause) -> {
+    };
+    private IntConsumer onRemove = at -> {
+    };
+    private Runnable onAdd = () -> {
+    };
+    private Consumer<String> onJson = json -> {
+    };
 
     public ClauseListPanel() {
         final FlowPanel panel = new FlowPanel();
         none.setStyleName("placeholder");
         add.setStyleName("add-button");
         add.addClickHandler((ClickEvent e) -> {
-            if (enabled && listener != null) {
-                listener.onClauseAdd();
+            if (enabled) {
+                onAdd.run();
             }
         });
         final Label lint = new Label("This condition is more than clauses joined by and — an or, a not, a"
@@ -62,9 +72,9 @@ public class ClauseListPanel extends Composite implements GuardClauseRow.Listene
         json.setVisibleLines(6);
         json.addBlurHandler((BlurEvent e) -> {
             final String text = json.getText();
-            if (!text.equals(committedJson) && listener != null) {
+            if (!text.equals(committedJson)) {
                 committedJson = text;
-                listener.onJson(text);
+                onJson.accept(text);
             }
         });
         jsonPanel.add(lint);
@@ -80,8 +90,32 @@ public class ClauseListPanel extends Composite implements GuardClauseRow.Listene
         initWidget(panel);
     }
 
-    public void setListener(final Listener listener) {
-        this.listener = listener;
+    /// Told when a clause changes, with its index and the clause it now holds.
+    ///
+    /// @param onChange The handler.
+    public void setOnChange(final BiConsumer<Integer, GuardClause> onChange) {
+        this.onChange = onChange;
+    }
+
+    /// Told when a clause is removed, with its index.
+    ///
+    /// @param onRemove The handler.
+    public void setOnRemove(final IntConsumer onRemove) {
+        this.onRemove = onRemove;
+    }
+
+    /// Told when the add line is pressed.
+    ///
+    /// @param onAdd The handler.
+    public void setOnAdd(final Runnable onAdd) {
+        this.onAdd = onAdd;
+    }
+
+    /// Told when the condition is edited as its wire form, with the JSON written.
+    ///
+    /// @param onJson The handler.
+    public void setOnJson(final Consumer<String> onJson) {
+        this.onJson = onJson;
     }
 
     /// What the rows say when there are none.
@@ -104,7 +138,9 @@ public class ClauseListPanel extends Composite implements GuardClauseRow.Listene
         rows.clear();
         rowWidgets.clear();
         for (int i = 0; i < list.size(); i++) {
-            final GuardClauseRow row = new GuardClauseRow(i, list.get(i), names, this, enabled);
+            final GuardClauseRow row = new GuardClauseRow(i, list.get(i), names, enabled);
+            row.setOnChange((at, clause) -> onChange.accept(at, clause));
+            row.setOnRemove(at -> onRemove.accept(at));
             rowWidgets.add(row);
             rows.add(row);
         }
@@ -150,28 +186,4 @@ public class ClauseListPanel extends Composite implements GuardClauseRow.Listene
         error.setVisible(text != null);
     }
 
-    @Override
-    public void onClauseChange(final int index, final GuardClause clause) {
-        if (listener != null) {
-            listener.onClauseChange(index, clause);
-        }
-    }
-
-    @Override
-    public void onClauseRemove(final int index) {
-        if (listener != null) {
-            listener.onClauseRemove(index);
-        }
-    }
-
-    public interface Listener {
-
-        void onClauseChange(int index, GuardClause clause);
-
-        void onClauseRemove(int index);
-
-        void onClauseAdd();
-
-        void onJson(String json);
-    }
 }

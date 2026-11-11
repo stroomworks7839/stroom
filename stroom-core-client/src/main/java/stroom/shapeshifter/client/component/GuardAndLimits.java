@@ -33,8 +33,7 @@ import java.util.function.Consumer;
 import java.util.function.IntConsumer;
 
 public class GuardAndLimits
-        extends Component
-        implements ClauseListPanel.Listener {
+        extends Component {
 
     private static final Binder BINDER = GWT.create(Binder.class);
 
@@ -66,7 +65,10 @@ public class GuardAndLimits
         min.addBlurHandler(event -> onMin(event));
         max.addBlurHandler(event -> onMax(event));
         only.addBlurHandler(event -> onOnly(event));
-        clauses.setListener(this);
+        clauses.setOnChange((index, clause) -> onClauseChange.accept(index, clause));
+        clauses.setOnRemove(index -> onClauseRemove.accept(index));
+        clauses.setOnAdd(() -> onClauseAdd.run());
+        clauses.setOnJson(json -> onGuardJson.accept(json));
         clauses.setEmptyText("(no guard — the template is tried whenever its mode applies)");
         setError(null);
     }
@@ -86,26 +88,6 @@ public class GuardAndLimits
 
     private void limitsChanged() {
         limitsChangeHandler.onLimitsChange(min.getText(), max.getText(), only.getText());
-    }
-
-    @Override
-    public void onClauseChange(final int index, final GuardClause clause) {
-        onClauseChange.accept(index, clause);
-    }
-
-    @Override
-    public void onClauseRemove(final int index) {
-        onClauseRemove.accept(index);
-    }
-
-    @Override
-    public void onClauseAdd() {
-        onClauseAdd.run();
-    }
-
-    @Override
-    public void onJson(final String json) {
-        onGuardJson.accept(json);
     }
 
     public void setEnabled(final boolean enabled) {

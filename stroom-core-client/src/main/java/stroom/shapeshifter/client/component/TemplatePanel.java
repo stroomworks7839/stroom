@@ -33,8 +33,7 @@ import java.util.Objects;
 import java.util.function.Consumer;
 
 public class TemplatePanel
-        extends Component
-        implements TemplateRow.Listener {
+        extends Component {
 
     private static final Binder BINDER = GWT.create(Binder.class);
 
@@ -76,7 +75,7 @@ public class TemplatePanel
                     head.setStyleName("template-panel__section");
                     list.add(head);
                 } else {
-                    final TemplateRow widget = new TemplateRow(row, this);
+                    final TemplateRow widget = newRow(row);
                     widget.addStyleName("template-panel__section template-panel__section--link");
                     rows.add(widget);
                     list.add(widget);
@@ -89,7 +88,7 @@ public class TemplatePanel
                 head.setStyleName("template-panel__mode-head");
                 list.add(head);
             }
-            final TemplateRow widget = new TemplateRow(row, this);
+            final TemplateRow widget = newRow(row);
             rows.add(widget);
             list.add(widget);
         }
@@ -107,21 +106,15 @@ public class TemplatePanel
         }
     }
 
-    @Override
-    public void onSelect(final String id) {
-        onSelect.accept(id);
-    }
 
-    @Override
-    public void onHover(final String id) {
-        onHover.accept(id);
+    // One place where a row is made and wired, for the two call sites that make them
+    private TemplateRow newRow(final TemplateRowData row) {
+        final TemplateRow widget = new TemplateRow(row);
+        widget.setOnSelect(id -> onSelect.accept(id));
+        widget.setOnOpen(id -> onOpen.accept(id));
+        widget.setOnHover(id -> onHover.accept(id));
+        return widget;
     }
-
-    @Override
-    public void onOpen(final String id) {
-        onOpen.accept(id);
-    }
-
 
     /// @param onSelect Told when select.
     public void setOnSelect(final Consumer<String> onSelect) {

@@ -32,6 +32,9 @@ import com.google.gwt.user.client.ui.Composite;
 import com.google.gwt.user.client.ui.FlowPanel;
 import com.google.gwt.user.client.ui.Widget;
 
+import java.util.function.BiConsumer;
+import java.util.function.IntConsumer;
+
 /// One row of the groups panel: chip · `$n` · → · the declaration's name. The name commits
 /// when the field is left or Enter is pressed — the same live convention as everything else.
 public class GroupRow extends Composite {
@@ -48,12 +51,14 @@ public class GroupRow extends Composite {
     TextBox name;
 
     private final GroupRowData data;
-    private final Listener listener;
+    private BiConsumer<Integer, String> onName = (at, name) -> {
+    };
+    private IntConsumer onSelect = at -> {
+    };
     private String committed;
 
-    public GroupRow(final GroupRowData data, final Listener listener, final boolean enabled) {
+    public GroupRow(final GroupRowData data, final boolean enabled) {
         this.data = data;
-        this.listener = listener;
         initWidget(BINDER.createAndBindUi(this));
         chip.addClickHandler(event -> onChip(event));
         index.addClickHandler(event -> onIndex(event));
@@ -75,11 +80,11 @@ public class GroupRow extends Composite {
     }
 
     private void onChip(final ClickEvent e) {
-        listener.onGroupSelect(data.getIndex());
+        onSelect.accept(data.getIndex());
     }
 
     private void onIndex(final ClickEvent e) {
-        listener.onGroupSelect(data.getIndex());
+        onSelect.accept(data.getIndex());
     }
 
     private void onBlur(final BlurEvent e) {
@@ -99,14 +104,21 @@ public class GroupRow extends Composite {
             return;
         }
         committed = typed;
-        listener.onGroupName(data.getIndex(), typed);
+        onName.accept(data.getIndex(), typed);
     }
 
-    public interface Listener {
+    /// Told when the name bound to this group is committed, with the group's index.
+    ///
+    /// @param onName The handler.
+    public void setOnName(final BiConsumer<Integer, String> onName) {
+        this.onName = onName;
+    }
 
-        void onGroupName(int index, String name);
-
-        void onGroupSelect(int index);
+    /// Told when this group is chosen, with its index.
+    ///
+    /// @param onSelect The handler.
+    public void setOnSelect(final IntConsumer onSelect) {
+        this.onSelect = onSelect;
     }
 
     interface Binder extends UiBinder<Widget, GroupRow> {

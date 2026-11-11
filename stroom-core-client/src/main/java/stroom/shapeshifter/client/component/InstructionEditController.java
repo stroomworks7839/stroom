@@ -87,56 +87,38 @@ public class InstructionEditController extends Controller {
         super(eventBus);
         this.view = view;
         initWidget(view);
-        view.getCondition().setListener(new ClauseListPanel.Listener() {
-            @Override
-            public void onClauseChange(final int index, final GuardClause clause) {
-                if (index >= 0 && index < clauses.size()) {
-                    clauses.set(index, clause);
-                }
-            }
-
-            @Override
-            public void onClauseRemove(final int index) {
-                if (index >= 0 && index < clauses.size()) {
-                    clauses.remove(index);
-                    view.getCondition().setClauses(clauses);
-                }
-            }
-
-            @Override
-            public void onClauseAdd() {
-                clauses = view.getCondition().getClauses();
-                clauses.add(new GuardClause("", GuardClause.Op.EQ, "", null));
-                view.getCondition().setClauses(clauses);
-            }
-
-            @Override
-            public void onJson(final String text) {
-                conditionJson = text;
+        view.getCondition().setOnChange((index, clause) -> {
+            if (index >= 0 && index < clauses.size()) {
+                clauses.set(index, clause);
             }
         });
-        view.getSort().setListener(new SortListPanel.Listener() {
-            @Override
-            public void onSortChange(final int index, final SortKey key) {
-                if (index >= 0 && index < sortKeys.size()) {
-                    sortKeys.set(index, key);
-                }
+        view.getCondition().setOnRemove(index -> {
+            if (index >= 0 && index < clauses.size()) {
+                clauses.remove(index);
+                view.getCondition().setClauses(clauses);
             }
-
-            @Override
-            public void onSortRemove(final int index) {
-                if (index >= 0 && index < sortKeys.size()) {
-                    sortKeys.remove(index);
-                    view.getSort().setKeys(sortKeys);
-                }
+        });
+        view.getCondition().setOnAdd(() -> {
+            clauses = view.getCondition().getClauses();
+            clauses.add(new GuardClause("", GuardClause.Op.EQ, "", null));
+            view.getCondition().setClauses(clauses);
+        });
+        view.getCondition().setOnJson(text -> conditionJson = text);
+        view.getSort().setOnChange((index, key) -> {
+            if (index >= 0 && index < sortKeys.size()) {
+                sortKeys.set(index, key);
             }
-
-            @Override
-            public void onSortAdd() {
-                sortKeys = view.getSort().getKeys();
-                sortKeys.add(new SortKey("", Order.ASCENDING, null));
+        });
+        view.getSort().setOnRemove(index -> {
+            if (index >= 0 && index < sortKeys.size()) {
+                sortKeys.remove(index);
                 view.getSort().setKeys(sortKeys);
             }
+        });
+        view.getSort().setOnAdd(() -> {
+            sortKeys = view.getSort().getKeys();
+            sortKeys.add(new SortKey("", Order.ASCENDING, null));
+            view.getSort().setKeys(sortKeys);
         });
         view.setOnKind(this::showKind);
     }

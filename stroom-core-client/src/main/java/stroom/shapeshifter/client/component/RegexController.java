@@ -93,10 +93,16 @@ public class RegexController
         this.host = host;
     }
 
+    /// Told when the pattern is to be exploded into a framed sequence.
+    ///
+    /// @param onExplode The handler.
     public void setOnExplode(final Runnable onExplode) {
         this.onExplode = onExplode;
     }
 
+    /// Told when a capture group is chosen, with its number.
+    ///
+    /// @param onGroupSelect The handler.
     public void setOnGroupSelect(final IntConsumer onGroupSelect) {
         this.onGroupSelect = onGroupSelect;
     }

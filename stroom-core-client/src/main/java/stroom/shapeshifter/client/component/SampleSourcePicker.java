@@ -35,8 +35,6 @@ public class SampleSourcePicker extends Component {
 
     private Consumer<Kind> onKind = kind -> {
     };
-    private Runnable onPasted = () -> {
-    };
 
     private static final Binder BINDER = GWT.create(Binder.class);
 
@@ -105,11 +103,6 @@ public class SampleSourcePicker extends Component {
     /// @param onKind Told when kind.
     public void setOnKind(final Consumer<Kind> onKind) {
         this.onKind = onKind;
-    }
-
-    /// @param onPasted Told when pasted.
-    public void setOnPasted(final Runnable onPasted) {
-        this.onPasted = onPasted;
     }
 
     interface Binder extends UiBinder<Widget, SampleSourcePicker> {

@@ -36,6 +36,8 @@ import com.google.gwt.user.client.ui.Widget;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.function.BiConsumer;
+import java.util.function.IntConsumer;
 
 /// One guard clause: *and* · variable · operator · value · as · ✕. Commits when a field is left.
 public class GuardClauseRow extends Composite {
@@ -56,20 +58,22 @@ public class GuardClauseRow extends Composite {
     Label remove;
 
     private final int index;
-    private final Listener listener;
+    private BiConsumer<Integer, GuardClause> onChange = (at, clause) -> {
+    };
+    private IntConsumer onRemove = at -> {
+    };
     private GuardClause committed;
 
     public GuardClauseRow(final int index, final GuardClause clause, final List<String> names,
-                          final Listener listener, final boolean enabled) {
+                          final boolean enabled) {
         this.index = index;
-        this.listener = listener;
         initWidget(BINDER.createAndBindUi(this));
         variable.addValueChangeHandler(event -> onVariable(event));
         op.addValueChangeHandler(event -> onOp(event));
         value.addBlurHandler(event -> onValueBlur(event));
         value.addKeyDownHandler(event -> onValueKey(event));
         as.addValueChangeHandler(event -> onAs(event));
-        remove.addClickHandler(event -> onRemove(event));
+        remove.addClickHandler(event -> onRemoveClick(event));
         joiner.setText(index == 0
                 ? ""
                 : "and");
@@ -125,8 +129,8 @@ public class GuardClauseRow extends Composite {
         commit();
     }
 
-    private void onRemove(final ClickEvent e) {
-        listener.onClauseRemove(index);
+    private void onRemoveClick(final ClickEvent e) {
+        onRemove.accept(index);
     }
 
     /// The row as it stands.
@@ -141,7 +145,7 @@ public class GuardClauseRow extends Composite {
             return;
         }
         committed = now;
-        listener.onClauseChange(index, now);
+        onChange.accept(index, now);
     }
 
     private static boolean same(final GuardClause a, final GuardClause b) {
@@ -151,11 +155,18 @@ public class GuardClauseRow extends Composite {
                && a.getAs() == b.getAs();
     }
 
-    public interface Listener {
+    /// Told when this row's clause changes, with the row's index and the clause it now holds.
+    ///
+    /// @param onChange The handler.
+    public void setOnChange(final BiConsumer<Integer, GuardClause> onChange) {
+        this.onChange = onChange;
+    }
 
-        void onClauseChange(int index, GuardClause clause);
-
-        void onClauseRemove(int index);
+    /// Told when this row's remove is pressed, with the row's index.
+    ///
+    /// @param onRemove The handler.
+    public void setOnRemove(final IntConsumer onRemove) {
+        this.onRemove = onRemove;
     }
 
     interface Binder extends UiBinder<Widget, GuardClauseRow> {

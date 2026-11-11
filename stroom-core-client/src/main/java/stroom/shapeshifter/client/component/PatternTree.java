@@ -63,17 +63,8 @@ public class PatternTree extends Component {
         initWidget(BINDER.createAndBindUi(this));
         setError(null);
         tree.setWidget(treePanel);
-        treePanel.setListener(new PatternItemRenderer.Listener() {
-            @Override
-            public void onSelect(final String path) {
-                onSelect.accept(path);
-            }
-
-            @Override
-            public void onOpen(final String path) {
-                onOpen.accept(path);
-            }
-        });
+        treePanel.setOnSelect(path -> onSelect.accept(path));
+        treePanel.setOnOpen(path -> onOpen.accept(path));
     }
 
 

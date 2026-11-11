@@ -101,7 +101,6 @@ public class SampleSourcePickerController extends Controller {
         this.view = view;
         initWidget(view);
         view.setOnKind(this::onKind);
-        view.setOnPasted(this::onPasted);
         this.metaList = make(metaListProvider).attach(new MetaList());
         this.source = own(source);
         this.filterProvider = filterProvider;

@@ -40,8 +40,7 @@ import java.util.function.BiConsumer;
 import java.util.function.IntConsumer;
 
 public class Regex
-        extends Component
-        implements GroupRow.Listener {
+        extends Component {
 
     private static final Binder BINDER = GWT.create(Binder.class);
 
@@ -135,16 +134,6 @@ public class Regex
         onChange.run();
     }
 
-    @Override
-    public void onGroupName(final int index, final String name) {
-        onGroupName.accept(index, name);
-    }
-
-    @Override
-    public void onGroupSelect(final int index) {
-        onGroupSelect.accept(index);
-    }
-
     public void setEnabled(final boolean enabled) {
         this.enabled = enabled;
         pattern.setEnabled(enabled);
@@ -204,7 +193,10 @@ public class Regex
         groups.clear();
         noGroups.setVisible(data.isEmpty());
         for (final GroupRowData row : data) {
-            groups.add(new GroupRow(row, this, enabled));
+            final GroupRow groupRow = new GroupRow(row, enabled);
+            groupRow.setOnName((index, name) -> onGroupName.accept(index, name));
+            groupRow.setOnSelect(index -> onGroupSelect.accept(index));
+            groups.add(groupRow);
         }
     }
 

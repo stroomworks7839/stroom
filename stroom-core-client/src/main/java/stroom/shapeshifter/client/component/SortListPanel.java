@@ -25,10 +25,12 @@ import com.google.gwt.user.client.ui.FlowPanel;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BiConsumer;
+import java.util.function.IntConsumer;
 
 /// An iteration's ordering as key rows, with *+ sort key* — the last of the wire form's
 /// holdings, and the only one that was never a reference but a list of its own (design 44 §5ac).
-public class SortListPanel extends Composite implements SortKeyRow.Listener {
+public class SortListPanel extends Composite {
 
     private final FlowPanel rows = new FlowPanel();
     private final Label none = new Label();
@@ -36,15 +38,20 @@ public class SortListPanel extends Composite implements SortKeyRow.Listener {
     private final List<SortKeyRow> rowWidgets = new ArrayList<>();
 
     private boolean enabled = true;
-    private Listener listener;
+    private BiConsumer<Integer, SortKey> onChange = (at, key) -> {
+    };
+    private IntConsumer onRemove = at -> {
+    };
+    private Runnable onAdd = () -> {
+    };
 
     public SortListPanel() {
         final FlowPanel panel = new FlowPanel();
         none.setStyleName("placeholder");
         add.setStyleName("add-button");
         add.addClickHandler((ClickEvent e) -> {
-            if (enabled && listener != null) {
-                listener.onSortAdd();
+            if (enabled) {
+                onAdd.run();
             }
         });
         panel.add(none);
@@ -53,8 +60,25 @@ public class SortListPanel extends Composite implements SortKeyRow.Listener {
         initWidget(panel);
     }
 
-    public void setListener(final Listener listener) {
-        this.listener = listener;
+    /// Told when a key changes, with its index and the key it now holds.
+    ///
+    /// @param onChange The handler.
+    public void setOnChange(final BiConsumer<Integer, SortKey> onChange) {
+        this.onChange = onChange;
+    }
+
+    /// Told when a key is removed, with its index.
+    ///
+    /// @param onRemove The handler.
+    public void setOnRemove(final IntConsumer onRemove) {
+        this.onRemove = onRemove;
+    }
+
+    /// Told when the add line is pressed.
+    ///
+    /// @param onAdd The handler.
+    public void setOnAdd(final Runnable onAdd) {
+        this.onAdd = onAdd;
     }
 
     /// What the rows say when there are none.
@@ -71,7 +95,9 @@ public class SortListPanel extends Composite implements SortKeyRow.Listener {
         rows.clear();
         rowWidgets.clear();
         for (int i = 0; i < list.size(); i++) {
-            final SortKeyRow row = new SortKeyRow(i, list.get(i), this, enabled);
+            final SortKeyRow row = new SortKeyRow(i, list.get(i), enabled);
+            row.setOnChange((at, key) -> onChange.accept(at, key));
+            row.setOnRemove(at -> onRemove.accept(at));
             rowWidgets.add(row);
             rows.add(row);
         }
@@ -85,28 +111,5 @@ public class SortListPanel extends Composite implements SortKeyRow.Listener {
             list.add(row.getKey());
         }
         return list;
-    }
-
-    @Override
-    public void onSortChange(final int index, final SortKey key) {
-        if (listener != null) {
-            listener.onSortChange(index, key);
-        }
-    }
-
-    @Override
-    public void onSortRemove(final int index) {
-        if (listener != null) {
-            listener.onSortRemove(index);
-        }
-    }
-
-    public interface Listener {
-
-        void onSortChange(int index, SortKey key);
-
-        void onSortRemove(int index);
-
-        void onSortAdd();
     }
 }

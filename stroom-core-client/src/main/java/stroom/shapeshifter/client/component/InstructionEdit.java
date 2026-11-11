@@ -156,6 +156,9 @@ public class InstructionEdit extends Component {
         kind.setValue(value, false);
     }
 
+    /// Told when the instruction's kind is chosen.
+    ///
+    /// @param onKind The handler.
     public void setOnKind(final Consumer<String> onKind) {
         this.onKind = onKind;
     }

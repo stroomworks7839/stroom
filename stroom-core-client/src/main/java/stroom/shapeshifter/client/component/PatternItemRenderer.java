@@ -30,6 +30,7 @@ import com.google.gwt.user.client.ui.FlowPanel;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
 /// A pattern node drawn as a box the tree layout places (the expression editor's
 /// `ExpressionItemRenderer`, for this vocabulary): a container is a short box — the
@@ -48,15 +49,28 @@ public final class PatternItemRenderer implements CellRenderer<PatternItem>, Nod
 
     private final FlowPanel panel;
     private final List<PatternItemBox> boxes = new ArrayList<>();
-    private Listener listener;
+    private Consumer<String> onSelect = path -> {
+    };
+    private Consumer<String> onOpen = path -> {
+    };
     private String selected;
 
     public PatternItemRenderer(final FlowPanel panel) {
         this.panel = panel;
     }
 
-    public void setListener(final Listener listener) {
-        this.listener = listener;
+    /// Told when a node is chosen, with its path.
+    ///
+    /// @param onSelect The handler.
+    public void setOnSelect(final Consumer<String> onSelect) {
+        this.onSelect = onSelect;
+    }
+
+    /// Told when a node is opened, with its path.
+    ///
+    /// @param onOpen The handler.
+    public void setOnOpen(final Consumer<String> onOpen) {
+        this.onOpen = onOpen;
     }
 
     public void setSelected(final String path) {
@@ -93,14 +107,10 @@ public final class PatternItemRenderer implements CellRenderer<PatternItem>, Nod
         box.setSelected(item.getPath().equals(selected));
 
         box.addDomHandler(event -> {
-            if (listener != null) {
-                listener.onSelect(item.getPath());
-            }
+            onSelect.accept(item.getPath());
         }, com.google.gwt.event.dom.client.ClickEvent.getType());
         box.addDomHandler(event -> {
-            if (listener != null) {
-                listener.onOpen(item.getPath());
-            }
+            onOpen.accept(item.getPath());
         }, com.google.gwt.event.dom.client.DoubleClickEvent.getType());
 
         panel.add(box);
@@ -126,10 +136,4 @@ public final class PatternItemRenderer implements CellRenderer<PatternItem>, Nod
     }
 
     /// What a click on a box asks for.
-    public interface Listener {
-
-        void onSelect(String path);
-
-        void onOpen(String path);
-    }
 }

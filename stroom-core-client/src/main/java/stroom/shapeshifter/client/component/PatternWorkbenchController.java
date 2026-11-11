@@ -86,6 +86,9 @@ public class PatternWorkbenchController extends Controller {
         guardAndLimits.setHost(host);
     }
 
+    /// Told when the workbench is to be closed.
+    ///
+    /// @param onClose The handler.
     public void setOnClose(final Runnable onClose) {
         this.onClose = onClose;
     }

@@ -50,34 +50,23 @@ public class ConditionEditController extends Controller {
         super(eventBus);
         this.view = view;
         initWidget(view);
-        view.getClauses().setListener(new stroom.shapeshifter.client.component.ClauseListPanel.Listener() {
-            @Override
-            public void onClauseChange(final int index, final GuardClause clause) {
-                if (index >= 0 && index < clauses.size()) {
-                    clauses.set(index, clause);
-                }
-            }
-
-            @Override
-            public void onClauseRemove(final int index) {
-                if (index >= 0 && index < clauses.size()) {
-                    clauses.remove(index);
-                    view.getClauses().setClauses(clauses);
-                }
-            }
-
-            @Override
-            public void onClauseAdd() {
-                clauses = view.getClauses().getClauses();
-                clauses.add(new GuardClause("", GuardClause.Op.EQ, "", null));
-                view.getClauses().setClauses(clauses);
-            }
-
-            @Override
-            public void onJson(final String text) {
-                json = text;
+        view.getClauses().setOnChange((index, clause) -> {
+            if (index >= 0 && index < clauses.size()) {
+                clauses.set(index, clause);
             }
         });
+        view.getClauses().setOnRemove(index -> {
+            if (index >= 0 && index < clauses.size()) {
+                clauses.remove(index);
+                view.getClauses().setClauses(clauses);
+            }
+        });
+        view.getClauses().setOnAdd(() -> {
+            clauses = view.getClauses().getClauses();
+            clauses.add(new GuardClause("", GuardClause.Op.EQ, "", null));
+            view.getClauses().setClauses(clauses);
+        });
+        view.getClauses().setOnJson(text -> json = text);
     }
 
     public void read(final Condition condition, final List<String> names) {

@@ -77,7 +77,7 @@ import java.util.function.Consumer;
 /// trace is never far behind the definition; between the edit and the answer it is stale.
 public class ShapeshifterDesignController
         extends Controller
-        implements ProjectHost, TemplateStripController.Listener {
+        implements ProjectHost {
 
     private final Listeners<Project> changeListeners = new Listeners<>();
 
@@ -176,7 +176,8 @@ public class ShapeshifterDesignController
         onDispose(rerun::reset);
         templatePanel.setHost(this);
         strip.setHost(this);
-        strip.setListener(this);
+        strip.setOnEditIdentity(() -> templatePanel.editSelected());
+        strip.setOnOpenWorkbench(this::openWorkbench);
         workbench.setHost(this);
         samplePage.setHost(this);
         workbench.setOnClose(this::closeWorkbench);
@@ -613,6 +614,9 @@ public class ShapeshifterDesignController
         declaredModes.remove(mode);
     }
 
+    /// Told when whether the project can be run changes.
+    ///
+    /// @param onCanRunChange The handler.
     public void setOnCanRunChange(final Consumer<Boolean> onCanRunChange) {
         this.onCanRunChange = onCanRunChange;
         announceCanRun();
@@ -882,13 +886,7 @@ public class ShapeshifterDesignController
         }
     }
 
-    @Override
-    public void editIdentity() {
-        templatePanel.editSelected();
-    }
-
-    @Override
-    public void openWorkbench(final String templateId) {
+    private void openWorkbench(final String templateId) {
         if (template(templateId) == null) {
             return;
         }

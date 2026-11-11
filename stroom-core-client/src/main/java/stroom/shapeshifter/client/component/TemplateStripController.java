@@ -40,6 +40,7 @@ import com.google.web.bindery.event.shared.EventBus;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Consumer;
 
 /// The template strip (design 18 §5.6): "what it is", beneath the panes that say what
 /// happened. Its title line is the template's identity — swatch, name, mode, where it is
@@ -61,7 +62,10 @@ public class TemplateStripController extends Controller {
     private final CapturesController captures;
 
     private ProjectHost host;
-    private Listener listener;
+    private Runnable onEditIdentity = () -> {
+    };
+    private Consumer<String> onOpenWorkbench = templateId -> {
+    };
     private String templateId;
 
     @Inject
@@ -93,8 +97,18 @@ public class TemplateStripController extends Controller {
         captures.setHost(host);
     }
 
-    public void setListener(final Listener listener) {
-        this.listener = listener;
+    /// Told when the template's identity is to be edited.
+    ///
+    /// @param onEditIdentity The handler.
+    public void setOnEditIdentity(final Runnable onEditIdentity) {
+        this.onEditIdentity = onEditIdentity;
+    }
+
+    /// Told when the match workbench is to be opened, with the template's id.
+    ///
+    /// @param onOpenWorkbench The handler.
+    public void setOnOpenWorkbench(final Consumer<String> onOpenWorkbench) {
+        this.onOpenWorkbench = onOpenWorkbench;
     }
 
     /// Show a template, or the project for null; called again after every edit, so it is also refresh.
@@ -157,8 +171,8 @@ public class TemplateStripController extends Controller {
     }
 
     public void onEditIdentity() {
-        if (listener != null && templateId != null) {
-            listener.editIdentity();
+        if (templateId != null) {
+            onEditIdentity.run();
         }
     }
 
@@ -189,8 +203,8 @@ public class TemplateStripController extends Controller {
     }
 
     public void onOpenWorkbench() {
-        if (listener != null && templateId != null) {
-            listener.openWorkbench(templateId);
+        if (templateId != null) {
+            onOpenWorkbench.accept(templateId);
         }
     }
 
@@ -278,11 +292,5 @@ public class TemplateStripController extends Controller {
     }
 
     /// What the strip asks of the root: the dialogs and the workbench are the root's to open.
-    public interface Listener {
-
-        void editIdentity();
-
-        void openWorkbench(String templateId);
-    }
 
 }

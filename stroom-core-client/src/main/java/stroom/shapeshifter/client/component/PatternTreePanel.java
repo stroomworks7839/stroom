@@ -39,6 +39,7 @@ import com.google.gwt.user.client.ui.FlowPanel;
 import com.google.gwt.view.client.SelectionModel;
 
 import java.util.Objects;
+import java.util.function.Consumer;
 
 /// The pattern tree drawn as Stroom draws an expression (design 44 §4): boxes the layout places
 /// and bracket connectors on a canvas behind them, rather than an indented list — the same
@@ -82,8 +83,18 @@ public class PatternTreePanel extends TreePanel<PatternItem> {
         boxPanel.getElement().setAttribute("aria-label", "Pattern nodes");
     }
 
-    public void setListener(final PatternItemRenderer.Listener listener) {
-        cellRenderer.setListener(listener);
+    /// Told when a node is chosen, with its path.
+    ///
+    /// @param onSelect The handler.
+    public void setOnSelect(final Consumer<String> onSelect) {
+        cellRenderer.setOnSelect(onSelect);
+    }
+
+    /// Told when a node is opened, with its path.
+    ///
+    /// @param onOpen The handler.
+    public void setOnOpen(final Consumer<String> onOpen) {
+        cellRenderer.setOnOpen(onOpen);
     }
 
     /// The selected node's path, so a redraw comes back to it.
