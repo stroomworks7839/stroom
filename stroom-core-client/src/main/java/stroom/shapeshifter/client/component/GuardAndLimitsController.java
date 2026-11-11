@@ -81,7 +81,7 @@ public class GuardAndLimitsController extends Controller {
         if (template == null) {
             return;
         }
-        view.setEnabled(!readOnly);
+        view.setReadOnly(readOnly);
         view.setNames(namesInScope(template));
         final List<GuardClause> clauses = GuardClause.read(template.guard());
         if (clauses != null) {

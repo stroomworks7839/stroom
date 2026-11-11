@@ -68,7 +68,7 @@ public class DelimiterController
         if (template == null || !(template.match() instanceof MatchExpression.Delimiter d)) {
             return;
         }
-        view.setEnabled(!readOnly);
+        view.setReadOnly(readOnly);
         view.setDelimiter(ControlEscapes.escape(d.delimiter()), ControlEscapes.escape(d.escape()),
                 ControlEscapes.escape(d.containerStart()), ControlEscapes.escape(d.containerEnd()));
         view.setError(null);

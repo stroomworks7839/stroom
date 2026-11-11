@@ -90,11 +90,12 @@ public class GuardAndLimits
         limitsChangeHandler.onLimitsChange(min.getText(), max.getText(), only.getText());
     }
 
-    public void setEnabled(final boolean enabled) {
-        clauses.setEnabled(enabled);
-        min.setEnabled(enabled);
-        max.setEnabled(enabled);
-        only.setEnabled(enabled);
+    @Override
+    protected void onReadOnlyChange(final boolean readOnly) {
+        clauses.setReadOnly(readOnly);
+        min.setEnabled(!readOnly);
+        max.setEnabled(!readOnly);
+        only.setEnabled(!readOnly);
     }
 
     public void setNames(final List<String> names) {

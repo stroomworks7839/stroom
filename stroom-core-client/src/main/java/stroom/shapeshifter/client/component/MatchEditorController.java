@@ -140,7 +140,7 @@ public class MatchEditorController extends Controller {
         // kind holds is what it last held here, edits and all.
         kept.put(kind, template.match());
         view.showKind(true);
-        view.setEnabled(!readOnly);
+        view.setReadOnly(readOnly);
         view.setKind(kind);
         if (kind != shown) {
             shown = kind;

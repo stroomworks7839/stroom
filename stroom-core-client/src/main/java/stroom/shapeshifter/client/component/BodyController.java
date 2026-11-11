@@ -114,7 +114,7 @@ public class BodyController extends Controller {
         } else {
             body = template.body();
         }
-        view.setEnabled(template != null && !readOnly);
+        view.setReadOnly(readOnly || template == null);
         view.setBody(body, notes(template));
     }
 

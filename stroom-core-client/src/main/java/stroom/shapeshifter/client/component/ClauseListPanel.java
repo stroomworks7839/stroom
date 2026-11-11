@@ -17,12 +17,12 @@
 package stroom.shapeshifter.client.component;
 
 import stroom.shapeshifter.client.model.GuardClause;
+import stroom.widget.component.client.Component;
 import stroom.widget.form.client.TextArea;
 import stroom.widget.text.client.Label;
 
 import com.google.gwt.event.dom.client.BlurEvent;
 import com.google.gwt.event.dom.client.ClickEvent;
-import com.google.gwt.user.client.ui.Composite;
 import com.google.gwt.user.client.ui.FlowPanel;
 
 import java.util.ArrayList;
@@ -34,7 +34,7 @@ import java.util.function.IntConsumer;
 /// A condition as clause rows joined by *and*, with *+ clause*, or as its wire form
 /// when the rows cannot express it — the one condition editor, shared by the guard, `if`
 /// and `when` (design 43 §4.2).
-public class ClauseListPanel extends Composite {
+public class ClauseListPanel extends Component {
 
     private final FlowPanel rows = new FlowPanel();
     private final Label none = new Label();
@@ -123,8 +123,9 @@ public class ClauseListPanel extends Composite {
         none.setText(text);
     }
 
-    public void setEnabled(final boolean enabled) {
-        this.enabled = enabled;
+    @Override
+    protected void onReadOnlyChange(final boolean readOnly) {
+        this.enabled = !readOnly;
         add.setStyleDependentName("disabled", !enabled);
         json.setEnabled(enabled);
     }

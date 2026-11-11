@@ -119,7 +119,7 @@ public class RegexController
         if (template == null || !(template.match() instanceof MatchExpression.Regex regex)) {
             return;
         }
-        view.setEnabled(!readOnly);
+        view.setReadOnly(readOnly);
         // Only touch the fields when the model disagrees with them, so that a commit of the user's
         // own typing does not move the caret.
         if (!regex.pattern().equals(view.getPattern())) {

@@ -134,13 +134,14 @@ public class Regex
         onChange.run();
     }
 
-    public void setEnabled(final boolean enabled) {
-        this.enabled = enabled;
-        pattern.setEnabled(enabled);
-        caseInsensitive.setEnabled(enabled);
-        dotAll.setEnabled(enabled);
-        advance.setEnabled(enabled);
-        explode.setStyleDependentName("disabled", !enabled);
+    @Override
+    protected void onReadOnlyChange(final boolean readOnly) {
+        this.enabled = !readOnly;
+        pattern.setEnabled(!readOnly);
+        caseInsensitive.setEnabled(!readOnly);
+        dotAll.setEnabled(!readOnly);
+        advance.setEnabled(!readOnly);
+        explode.setStyleDependentName("disabled", readOnly);
     }
 
     public String getPattern() {

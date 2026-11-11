@@ -124,8 +124,9 @@ public class Body extends Component {
     }
 
 
-    public void setEnabled(final boolean enabled) {
-        this.enabled = enabled;
+    @Override
+    protected void onReadOnlyChange(final boolean readOnly) {
+        this.enabled = !readOnly;
     }
 
     public void setBody(final List<OutputNode> body, final List<CardNote> notes) {

@@ -63,8 +63,9 @@ public class MatchEditor extends Component {
         }
     }
 
-    public void setEnabled(final boolean enabled) {
-        kind.setEnabled(enabled);
+    @Override
+    protected void onReadOnlyChange(final boolean readOnly) {
+        kind.setEnabled(!readOnly);
     }
 
     public void setKind(final MatchKind value) {

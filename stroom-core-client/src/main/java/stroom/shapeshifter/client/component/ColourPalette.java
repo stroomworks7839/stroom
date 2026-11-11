@@ -17,12 +17,12 @@
 package stroom.shapeshifter.client.component;
 
 import stroom.shapeshifter.client.model.Templates;
+import stroom.widget.component.client.Component;
 import stroom.widget.text.client.Label;
 import stroom.widget.tickbox.client.TickBox;
 import stroom.widget.util.client.CssProperties;
 
 import com.google.gwt.event.dom.client.ClickEvent;
-import com.google.gwt.user.client.ui.Composite;
 import com.google.gwt.user.client.ui.FlowPanel;
 
 import java.util.ArrayList;
@@ -33,7 +33,7 @@ import java.util.Objects;
 /// colour is editor presentation, auto-assigned and user-overridable). Ticked, the swatches are
 /// greyed and the one auto resolves to is marked; unticked, that colour is the choice until
 /// another swatch is clicked, so unticking changes nothing until the author does.
-public class ColourPalette extends Composite {
+public class ColourPalette extends Component {
 
     private final TickBox auto = new TickBox();
     private final FlowPanel swatches = new FlowPanel();

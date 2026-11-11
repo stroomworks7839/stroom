@@ -113,15 +113,16 @@ public class SourceSettings extends Component {
         onChange.run();
     }
 
-    public void setEnabled(final boolean enabled) {
-        name.setEnabled(enabled);
-        version.setEnabled(enabled);
-        bufferSize.setEnabled(enabled);
-        ignoreErrors.setEnabled(enabled);
-        encoding.setEnabled(enabled);
-        dispatch.setEnabled(enabled);
-        strictValues.setEnabled(enabled);
-        maxSequenceEntries.setEnabled(enabled);
+    @Override
+    protected void onReadOnlyChange(final boolean readOnly) {
+        name.setEnabled(!readOnly);
+        version.setEnabled(!readOnly);
+        bufferSize.setEnabled(!readOnly);
+        ignoreErrors.setEnabled(!readOnly);
+        encoding.setEnabled(!readOnly);
+        dispatch.setEnabled(!readOnly);
+        strictValues.setEnabled(!readOnly);
+        maxSequenceEntries.setEnabled(!readOnly);
     }
 
     public void setError(final String text) {

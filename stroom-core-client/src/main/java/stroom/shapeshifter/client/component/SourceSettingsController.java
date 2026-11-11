@@ -80,7 +80,7 @@ public class SourceSettingsController extends Controller {
         final Project project = host.getProject();
         reading = true;
         try {
-            view.setEnabled(project != null && !readOnly);
+            view.setReadOnly(readOnly || project == null);
             if (project == null) {
                 return;
             }

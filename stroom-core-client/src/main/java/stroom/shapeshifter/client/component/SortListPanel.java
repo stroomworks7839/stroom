@@ -17,10 +17,10 @@
 package stroom.shapeshifter.client.component;
 
 import stroom.shapeshifter.client.model.SortKey;
+import stroom.widget.component.client.Component;
 import stroom.widget.text.client.Label;
 
 import com.google.gwt.event.dom.client.ClickEvent;
-import com.google.gwt.user.client.ui.Composite;
 import com.google.gwt.user.client.ui.FlowPanel;
 
 import java.util.ArrayList;
@@ -30,7 +30,7 @@ import java.util.function.IntConsumer;
 
 /// An iteration's ordering as key rows, with *+ sort key* — the last of the wire form's
 /// holdings, and the only one that was never a reference but a list of its own (design 44 §5ac).
-public class SortListPanel extends Composite {
+public class SortListPanel extends Component {
 
     private final FlowPanel rows = new FlowPanel();
     private final Label none = new Label();
@@ -86,8 +86,9 @@ public class SortListPanel extends Composite {
         none.setText(text);
     }
 
-    public void setEnabled(final boolean enabled) {
-        this.enabled = enabled;
+    @Override
+    protected void onReadOnlyChange(final boolean readOnly) {
+        this.enabled = !readOnly;
         add.setStyleDependentName("disabled", !enabled);
     }
 

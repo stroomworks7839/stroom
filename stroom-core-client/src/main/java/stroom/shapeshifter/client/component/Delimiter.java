@@ -75,11 +75,12 @@ public class Delimiter extends Component {
         onChange.run();
     }
 
-    public void setEnabled(final boolean enabled) {
-        delimiter.setEnabled(enabled);
-        escape.setEnabled(enabled);
-        containerStart.setEnabled(enabled);
-        containerEnd.setEnabled(enabled);
+    @Override
+    protected void onReadOnlyChange(final boolean readOnly) {
+        delimiter.setEnabled(!readOnly);
+        escape.setEnabled(!readOnly);
+        containerStart.setEnabled(!readOnly);
+        containerEnd.setEnabled(!readOnly);
     }
 
     public String getDelimiter() {
