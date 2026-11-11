@@ -17,37 +17,33 @@
 package stroom.shapeshifter.client.component;
 
 import stroom.widget.component.client.Component;
-import stroom.widget.layout.client.ScrollPane;
-import stroom.widget.text.client.Label;
 
-import com.google.gwt.user.client.ui.FlowPanel;
+import com.google.gwt.core.client.GWT;
+import com.google.gwt.uibinder.client.UiBinder;
+import com.google.gwt.uibinder.client.UiField;
+import com.google.gwt.user.client.ui.Widget;
 import com.google.inject.Inject;
 
+/// A choose branch's test, as clause rows in a scrolling pane.
 public class ConditionEdit extends Component {
 
-    private final ScrollPane widget;
-    private final ClauseListPanel clauses = new ClauseListPanel();
+    private static final Binder BINDER = GWT.create(Binder.class);
+
+    @UiField
+    ClauseListPanel clauses;
 
     @Inject
     public ConditionEdit() {
-        final FlowPanel panel = new FlowPanel();
-        panel.setStyleName("workbench-form__section");
-        final Label heading = new Label("Condition");
-        heading.setStyleName("workbench-form__heading");
-        panel.add(heading);
+        initWidget(BINDER.createAndBindUi(this));
         clauses.setEmptyText("(no clauses yet)");
-        panel.add(clauses);
-        widget = new ScrollPane();
-        widget.setWidget(panel);
-        widget.setStyleName("max scroll-region");
-        widget.setFocusable(true);
-        widget.setRole("region");
-        widget.setAriaLabel("Condition");
-        initWidget(widget);
     }
 
-
+    /// @return The clause rows the condition is edited as.
     public ClauseListPanel getClauses() {
         return clauses;
+    }
+
+    interface Binder extends UiBinder<Widget, ConditionEdit> {
+
     }
 }

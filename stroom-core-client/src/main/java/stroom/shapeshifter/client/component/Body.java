@@ -19,10 +19,13 @@ package stroom.shapeshifter.client.component;
 import stroom.shapeshifter.client.model.CardNote;
 import stroom.shapeshifter.config.OutputNode;
 import stroom.widget.component.client.Component;
-import stroom.widget.text.client.Label;
 
+import com.google.gwt.core.client.GWT;
+import com.google.gwt.uibinder.client.UiBinder;
+import com.google.gwt.uibinder.client.UiField;
 import com.google.gwt.user.client.Window;
 import com.google.gwt.user.client.ui.FlowPanel;
+import com.google.gwt.user.client.ui.Widget;
 import com.google.inject.Inject;
 
 import java.util.List;
@@ -31,6 +34,8 @@ import java.util.function.Consumer;
 import java.util.function.IntConsumer;
 
 public class Body extends Component {
+
+    private static final Binder BINDER = GWT.create(Binder.class);
 
     // The cards are nested widgets of this component; they reach it through one object rather
     // than ten constructor arguments, and it passes what they do on to the callbacks above.
@@ -107,19 +112,15 @@ public class Body extends Component {
     private BiConsumer<String, Integer> onRemoveBranch = (path, branch) -> {
     };
 
-    private final FlowPanel widget = new FlowPanel();
-    private final FlowPanel cards = new FlowPanel();
+    @UiField
+    FlowPanel cards;
+
     private boolean enabled = true;
     private CardList list;
 
     @Inject
     public Body() {
-        widget.setStyleName("body");
-        final Label title = new Label("body");
-        title.setStyleName("key-label body__title");
-        widget.add(title);
-        widget.add(cards);
-        initWidget(widget);
+        initWidget(BINDER.createAndBindUi(this));
     }
 
 
@@ -270,4 +271,7 @@ public class Body extends Component {
         void onRemoveBranch(String path, int branch);
     }
 
+    interface Binder extends UiBinder<Widget, Body> {
+
+    }
 }
