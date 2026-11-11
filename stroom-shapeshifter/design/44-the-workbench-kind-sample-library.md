@@ -511,9 +511,9 @@ authored. It is one template, explicitly an experiment, and labelled as one.
 
 ## 5h. The strip's left column — built 2026-09-22
 
-Four rows, four keys, one column. `.ss-strip-k` was `min-width: 44px`, which fits MATCH and
+Four rows, four keys, one column. `.key-label` was `min-width: 44px`, which fits MATCH and
 BODY but not MATCH IS, so that row's control started further right than the others; and
-`.ss-strip-content` added 4px to the body's own 12px, so BODY sat 4px right of everything above
+`.template-strip__content` added 4px to the body's own 12px, so BODY sat 4px right of everything above
 it. The key column is now a fixed 64px that does not flex, and the content pane adds nothing —
 every control starts at the same x and the body's cards line up beneath them.
 
@@ -538,7 +538,7 @@ body      + instruction
 
 **The guard row was short.** The match and role rows are as tall as the control in them; the
 guard row holds only text, so it sat shorter and broke the rhythm of a column that §5h had just
-straightened. `.ss-strip-line` now carries a `min-height` of one control —
+straightened. `.template-strip__line` now carries a `min-height` of one control —
 `calc(1.2em + 2 * var(--input__padding--vertical) + 2px)`, from the same tokens the controls use
 rather than a measured number — so all four rows are one height whatever is in them.
 

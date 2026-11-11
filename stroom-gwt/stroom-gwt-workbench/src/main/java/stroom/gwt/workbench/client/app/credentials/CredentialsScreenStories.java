@@ -380,7 +380,7 @@ public final class CredentialsScreenStories {
                     play.waitFor(() -> play.expect(play.spy(ScreenHarness.REQUEST_SPY)).toHaveBeenCalledWith(
                             RequestMatcher.post("/credentials/replaceSecret")
                                     .withJsonBodyContaining("""
-                                            {"uuid": "c-1",
+                                            {"credential": {"uuid": "c-1"},
                                              "secret": {"type": "usernamePassword", "username": "alice",
                                                         "password": "n3w"}}""")
                                     .toSpyMatcher()));
@@ -406,7 +406,7 @@ public final class CredentialsScreenStories {
                     play.waitFor(() -> play.expect(play.spy(ScreenHarness.REQUEST_SPY)).toHaveBeenCalledWith(
                             RequestMatcher.post("/credentials/replaceSecret")
                                     .withJsonBodyContaining("""
-                                            {"uuid": "c-3",
+                                            {"credential": {"uuid": "c-3"},
                                              "secret": {"type": "keyStoreFile", "keyStoreType": "JKS",
                                                         "keyStorePath": "/etc/stroom/ks.jks"}}""")
                                     .toSpyMatcher()));
@@ -435,7 +435,7 @@ public final class CredentialsScreenStories {
                     play.waitFor(() -> play.expect(play.spy(ScreenHarness.REQUEST_SPY)).toHaveBeenCalledWith(
                             RequestMatcher.post("/credentials/replaceSecret")
                                     .withJsonBodyContaining("""
-                                            {"uuid": "c-4",
+                                            {"credential": {"uuid": "c-4"},
                                              "secret": {"type": "keyStore", "keyStoreType": "JKS",
                                                         "resourceKey": {"key": "rk-1"}}}""")
                                     .toSpyMatcher()));

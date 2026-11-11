@@ -197,10 +197,66 @@ public final class ShapeshifterEditorStories {
               "pageResponse": {"offset": 0, "length": 2, "total": 2, "exact": true}
             }""";
 
+    private static final DocRef COMPOSITE_REF =
+            new DocRef(ShapeshifterDoc.TYPE, "ss-composite", "Composite Kinds");
+
+    // A second project, for the three dialogs the strict_kv fixture cannot reach: its templates
+    // match with a framed sequence (PartEdit), a pattern tree (PatternNodeEdit), and one writes
+    // its body through a choose, whose branch condition is ConditionEdit's. Kept apart from
+    // strict_kv so that the twenty stories built on that fixture still show the same screens.
+    private static final String COMPOSITE = """
+            {
+             "name": "composite",
+             "version": 4,
+             "source": {"buffer_size": 20000, "ignore_errors": false, "encoding": "utf-8"},
+             "templates": [
+              {"id": "00000000-0000-0000-0000-000000000011", "name": "source", "match": "source",
+               "body": [
+                {"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]}, "mode": "frames"}}]},
+              {"id": "00000000-0000-0000-0000-000000000012", "name": "framed", "mode": "frames",
+               "match": {"parts": [{"take": 4}, {"seek": 2}]},
+               "body": [{"text": "<frame/>\\n"}]},
+              {"id": "00000000-0000-0000-0000-000000000013", "name": "tree", "mode": "frames",
+               "match": {"pattern": {"sequence": [{"tag": "<"}, {"take_until": ">"}]}},
+               "body": [{"text": "<node/>\\n"}]},
+              {"id": "00000000-0000-0000-0000-000000000014", "name": "branch", "mode": "frames",
+               "match": {"regex": {"pattern": "[^\\\\n]*\\\\n"}},
+               "body": [
+                {"choose": {
+                  "when": [
+                   {"test": {"contains": {"select": {"parts": [{"capture": {"group": 0}}]},
+                                          "substring": "x"}},
+                    "body": [{"text": "<x/>\\n"}]}],
+                  "otherwise": [{"text": "<other/>\\n"}]}}]}
+             ]
+            }""";
+
+    private static final String COMPOSITE_DOC = "{\n"
+                                                + "  \"type\": \"" + ShapeshifterDoc.TYPE + "\","
+                                                + " \"uuid\": \"ss-composite\", \"name\": \"Composite Kinds\",\n"
+                                                + "  \"description\": \"# Composite kinds\",\n"
+                                                + "  \"data\": " + asJsonString(COMPOSITE) + ",\n"
+                                                + "  \"sampleText\": \"abcd<tag>x\\\\n\",\n"
+                                                + "  \"sampleKind\": \"PASTED\"\n"
+                                                + "}";
+
     private static final RestFixtures FIXTURES = TreeFixtures.explorerRoutes(
                     new ExplorerFixture(ExplorerFixture.folder("System",
                             ExplorerFixture.doc("Key Value Lines", ShapeshifterDoc.TYPE))))
             .get("/shapeshifter/v1/ss-strict-kv", RestReply.json(DOC))
+            .post("/shapeshifter/v1/validate", RestReply.json(VALIDATION))
+            .post("/shapeshifter/v1/preview", RestReply.json(TRACE))
+            .post("/shapeshifter/v1/print", RestReply.json(PRINTED))
+            .post("/shapeshifter/v1/patternInfo", RestReply.json(PATTERN_INFO))
+            .get("/shapeshifter/v1/library", RestReply.json(LIBRARY))
+            .get("/shapeshifter/v1/encodings", RestReply.json(ENCODINGS))
+            .post("/permission/doc/v1/fetchDocumentUserPermissions", RestReply.json(DOC_PERMISSIONS))
+            .build();
+
+    private static final RestFixtures COMPOSITE_FIXTURES = TreeFixtures.explorerRoutes(
+                    new ExplorerFixture(ExplorerFixture.folder("System",
+                            ExplorerFixture.doc("Composite Kinds", ShapeshifterDoc.TYPE))))
+            .get("/shapeshifter/v1/ss-composite", RestReply.json(COMPOSITE_DOC))
             .post("/shapeshifter/v1/validate", RestReply.json(VALIDATION))
             .post("/shapeshifter/v1/preview", RestReply.json(TRACE))
             .post("/shapeshifter/v1/print", RestReply.json(PRINTED))
@@ -531,6 +587,102 @@ public final class ShapeshifterEditorStories {
                     play.expect(play.getByRole("button", "Save")).toHaveAttribute("aria-disabled", "true");
                     expectNoProblems(play);
                 })
+                // ---- the composite fixture's three dialogs ----
+                // The framed sequence's workbench: its parts are a list with a toolbar, and Edit
+                // opens PartEdit on the selected part
+                .story("PartDialogOk", ShapeshifterEditorStories::renderComposite)
+                .withPlay(play -> {
+                    openWorkbench(play, "framed");
+                    final Play screen = play.screen();
+                    // Edit is disabled until a part is chosen: a click anywhere in the row chooses it
+                    play.waitFor(() -> play.expect(play.querySelector(PART_KIND)).not().toBeNull());
+                    play.click(play.querySelector(PART_KIND));
+                    play.click(play.getByRole("button", TextMatch.containing("Edit the selected part")));
+                    final Play dialog = screen.within(screen.findByText("Edit Part", StroomDom.DIALOG_TITLE)
+                            .closest(StroomDom.DIALOG));
+                    play.click(dialog.getByRole("button", StroomDom.button("OK")));
+                    play.waitFor(() -> play.expect(screen.queryByText("Edit Part", StroomDom.DIALOG_TITLE))
+                            .toBeNull());
+                    expectNoProblems(play);
+                })
+                // Cancel leaves the sequence as it was, so the document stays clean
+                .story("PartDialogCancel", ShapeshifterEditorStories::renderComposite)
+                .withPlay(play -> {
+                    openWorkbench(play, "framed");
+                    final Play screen = play.screen();
+                    // Edit is disabled until a part is chosen: a click anywhere in the row chooses it
+                    play.waitFor(() -> play.expect(play.querySelector(PART_KIND)).not().toBeNull());
+                    play.click(play.querySelector(PART_KIND));
+                    play.click(play.getByRole("button", TextMatch.containing("Edit the selected part")));
+                    final Play dialog = screen.within(screen.findByText("Edit Part", StroomDom.DIALOG_TITLE)
+                            .closest(StroomDom.DIALOG));
+                    play.click(dialog.getByRole("button", StroomDom.button("Cancel")));
+                    play.waitFor(() -> play.expect(screen.queryByText("Edit Part", StroomDom.DIALOG_TITLE))
+                            .toBeNull());
+                    play.expect(play.getByRole("button", "Save")).toHaveAttribute("aria-disabled", "true");
+                    expectNoProblems(play);
+                })
+                // The pattern tree's workbench: Edit opens PatternNodeEdit on the selected node
+                .story("PatternNodeDialogOk", ShapeshifterEditorStories::renderComposite)
+                .withPlay(play -> {
+                    openWorkbench(play, "tree");
+                    final Play screen = play.screen();
+                    play.click(play.getByRole("button", TextMatch.containing("Edit the selected node")));
+                    final Play dialog = screen.within(screen.findByText("Edit Node", StroomDom.DIALOG_TITLE)
+                            .closest(StroomDom.DIALOG));
+                    play.click(dialog.getByRole("button", StroomDom.button("OK")));
+                    play.waitFor(() -> play.expect(screen.queryByText("Edit Node", StroomDom.DIALOG_TITLE))
+                            .toBeNull());
+                    expectNoProblems(play);
+                })
+                // Cancel leaves the tree as it was
+                .story("PatternNodeDialogCancel", ShapeshifterEditorStories::renderComposite)
+                .withPlay(play -> {
+                    openWorkbench(play, "tree");
+                    final Play screen = play.screen();
+                    play.click(play.getByRole("button", TextMatch.containing("Edit the selected node")));
+                    final Play dialog = screen.within(screen.findByText("Edit Node", StroomDom.DIALOG_TITLE)
+                            .closest(StroomDom.DIALOG));
+                    play.click(dialog.getByRole("button", StroomDom.button("Cancel")));
+                    play.waitFor(() -> play.expect(screen.queryByText("Edit Node", StroomDom.DIALOG_TITLE))
+                            .toBeNull());
+                    play.expect(play.getByRole("button", "Save")).toHaveAttribute("aria-disabled", "true");
+                    expectNoProblems(play);
+                })
+                // A choose's branch head carries the pencil that opens ConditionEdit on its test
+                .story("ConditionDialogOk", ShapeshifterEditorStories::renderComposite)
+                .withPlay(play -> {
+                    selectTemplate(play, "branch");
+                    final Play screen = play.screen();
+                    // The pencil on the branch head is a label with a title, not a button
+                    play.waitFor(() -> play.expect(play.getByTitle(
+                            TextMatch.containing("Edit this branch's condition"))).toBeInTheDocument());
+                    play.click(play.getByTitle(TextMatch.containing("Edit this branch's condition")));
+                    final Play dialog = screen.within(screen.findByText("Edit when", StroomDom.DIALOG_TITLE)
+                            .closest(StroomDom.DIALOG));
+                    play.click(dialog.getByRole("button", StroomDom.button("OK")));
+                    play.waitFor(() -> play.expect(screen.queryByText("Edit when", StroomDom.DIALOG_TITLE))
+                            .toBeNull());
+                    expectNoProblems(play);
+                })
+                // Cancel leaves the condition as it was
+                .story("ConditionDialogCancel", ShapeshifterEditorStories::renderComposite)
+                .withPlay(play -> {
+                    selectTemplate(play, "branch");
+                    final Play screen = play.screen();
+                    // The pencil on the branch head is a label with a title, not a button
+                    play.waitFor(() -> play.expect(play.getByTitle(
+                            TextMatch.containing("Edit this branch's condition"))).toBeInTheDocument());
+                    play.click(play.getByTitle(TextMatch.containing("Edit this branch's condition")));
+                    final Play dialog = screen.within(screen.findByText("Edit when", StroomDom.DIALOG_TITLE)
+                            .closest(StroomDom.DIALOG));
+                    play.click(dialog.getByRole("button", StroomDom.button("Cancel")));
+                    play.waitFor(() -> play.expect(screen.queryByText("Edit when", StroomDom.DIALOG_TITLE))
+                            .toBeNull());
+                    play.expect(play.getByRole("button", "Save")).toHaveAttribute("aria-disabled", "true");
+                    expectNoProblems(play);
+                })
+
                 // The Source tab shows the same project as text. Opening it at all is the
                 // regression test for its missing attach(...), which threw on the editor's null
                 // options
@@ -577,9 +729,20 @@ public final class ShapeshifterEditorStories {
 
     // The chip that carries a template's match, and opens the pattern workbench
     private static final String MATCH_CHIP = ".template-strip__match-chip";
+    // A part's kind in the framed sequence's list; clicking it selects the part
+    private static final String PART_KIND = ".parts__kind";
 
     // Picks a template in the panel, which is what fills the strip beside it. By the panel's
     // row: once it is selected the strip shows the name too.
+    // Selects a template and opens its match workbench, where the parts and the pattern tree live
+    private static void openWorkbench(final Play play, final String name) {
+        selectTemplate(play, name);
+        play.waitFor(() -> play.expect(play.querySelector(MATCH_CHIP)).not().toBeNull());
+        play.click(play.querySelector(MATCH_CHIP));
+        play.waitFor(() -> play.expect(play.getByRole("button",
+                TextMatch.regex("close the workbench", "i"))).toBeInTheDocument());
+    }
+
     private static void selectTemplate(final Play play, final String name) {
         play.waitFor(() -> play.expect(play.getByText(name, TEMPLATE_NAME)).toBeInTheDocument());
         play.click(play.getByText(name, TEMPLATE_NAME));
@@ -637,8 +800,19 @@ public final class ShapeshifterEditorStories {
     }
 
     private static Widget render(final StoryContext context, final boolean readOnly) {
+        return render(context, readOnly, FIXTURES, DOC_REF);
+    }
+
+    /// The same screen over the composite fixture, whose templates reach the framed sequence, the
+    /// pattern tree and a choose.
+    private static Widget renderComposite(final StoryContext context) {
+        return render(context, false, COMPOSITE_FIXTURES, COMPOSITE_REF);
+    }
+
+    private static Widget render(final StoryContext context, final boolean readOnly,
+                                 final RestFixtures fixtures, final DocRef docRef) {
         final AppScreenGinjector injector = GWT.create(AppScreenGinjector.class);
-        final ScreenHarness harness = ScreenHarness.builder(context, FIXTURES)
+        final ScreenHarness harness = ScreenHarness.builder(context, fixtures)
                 .injector(injector)
                 .realAlerts()
                 .build();
@@ -650,23 +824,24 @@ public final class ShapeshifterEditorStories {
                 harness.spy(OPEN_DOC, event.getDocRef().getUuid()));
         // Opened once Stroom has started, as ShapeshifterPlugin opens a document: load it, check
         // the user may edit it, read it into the editor's host and show the tab
-        harness.afterStartUp(() -> open(harness, injector));
+        harness.afterStartUp(() -> open(harness, injector, docRef));
         return harness.asWidget();
     }
 
-    private static void open(final ScreenHarness harness, final AppScreenGinjector injector) {
+    private static void open(final ScreenHarness harness, final AppScreenGinjector injector,
+                             final DocRef docRef) {
         final DocumentEditorHost<ShapeshifterDoc> controller = new DocumentEditorHost<>(
                 harness.getEventBus(), injector.getShapeshifterEditor(), ShapeshifterDoc.TYPE);
         final ShapeshifterResource resource = GWT.create(ShapeshifterResource.class);
         harness.getRestFactory()
                 .create(resource)
-                .method(res -> res.fetch(DOC_REF.getUuid()))
+                .method(res -> res.fetch(docRef.getUuid()))
                 .onSuccess(doc -> harness.getSecurityContext().hasDocumentPermission(
-                        DOC_REF,
+                        docRef,
                         DocumentPermission.EDIT,
                         allowUpdate -> {
                             controller.setReadOnly(!allowUpdate);
-                            controller.read(DOC_REF, doc);
+                            controller.read(docRef, doc);
                             harness.show(controller);
                         },
                         error -> harness.spy(ScreenHarness.ALERT_SPY, "ERROR: " + error.getMessage()),

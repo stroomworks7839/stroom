@@ -3005,6 +3005,33 @@ These were found by the review and fixed in the same change:
   `termEditor-*`, renamed in waves 28 to 30, so they drew unstyled; and a button set
   `Button--contained-primary`, now lower case.
 
+* **Shapeshifter stylesheet** (2026-11-11): the area's single 1,487-line sheet was renamed BEM and
+  split a block to a sheet (38 sheets), and the screenshot baseline the twenty stories provide
+  caught what neither the stylesheet nor three separate analyses of it could show.
+
+  *The split moved rules past each other.* One element carries both `.template-row` and
+  `.template-panel__section` — `TemplatePanel` adds the section class to a row widget — and both
+  set `padding` at equal specificity. In one file the section rule came later and won; in two
+  files the import order decided, and the top padding fell from 10px to 4px, shifting eighteen of
+  the twenty screenshots. `.design-panel__title` against `.template-strip__pattern-title` was the
+  same fault in a second place. Every attempt to prove the order safe asked whether the two
+  selectors shared a class: they do not, and nothing in a stylesheet says they ever meet, because
+  that fact lives in the DOM. An empirical bisect over the import order found it. The import list
+  in `app.css` is therefore deliberately not alphabetical and says so, and the second case is
+  written as a compound selector so it no longer depends on load order.
+
+  *Comments outlived their rules.* Dropping the sheet's dead rules had left a comment with nothing
+  under it (`/* Back and forward at the crumb's head */`) and two section headers stacked on
+  whatever rule survived beneath them, so the split filed them under the wrong blocks. Those, a
+  `---- phase B ----` development banner, and six headers that repeated what the new per-sheet
+  headers say, are gone.
+
+  *Classes the code set that nothing styled.* Seven (`ss-branches`, `ss-card--cont`, `ss-smp`,
+  `ss-smp-groups`, `ss-tpl-list`, `ss-wb`, `ss-part`) were never styled in any commit and are
+  deleted; `button-container` is styled nowhere in the repository and was a leftover from the
+  port. `regex__group--selected` did nothing because the selected run's background was written as
+  an inline `hsla` in `RegexController`, which is now a `--hue` custom property and a real rule.
+
 * **7.14 merge** (2026-11-02): a time chosen with the calendar of a `DateTimeBox` (a query's time
   range, an expression term's date, a dashboard Text Input) was written with an offset without a
   colon, e.g. `2026-01-31T13:45:00.000+1000`, for any user whose time zone isn't UTC. The server
