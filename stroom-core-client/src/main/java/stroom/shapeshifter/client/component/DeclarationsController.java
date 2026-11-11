@@ -39,6 +39,7 @@ import com.google.web.bindery.event.shared.EventBus;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 
 /// A template's declarations (design 35): scalar, list, map or set, declared once, bound into by
 /// captures and read by the body; scope flows to child templates. Add, edit and remove through
@@ -49,30 +50,37 @@ public class DeclarationsController extends Controller {
     // controller with no owner fails closed rather than editable.
     private boolean readOnly = true;
 
-    private final PagerPanel view;
+    private PagerPanel view;
 
     private final DataGrid<Declaration> dataGrid;
     private final MultiSelectionModelImpl<Declaration> selectionModel;
     private final Provider<DeclarationEditController> editPresenterProvider;
-    private final ToolbarButton addButton;
-    private final ToolbarButton editButton;
-    private final ToolbarButton removeButton;
+    private ToolbarButton addButton;
+    private ToolbarButton editButton;
+    private ToolbarButton removeButton;
 
     private ProjectHost host;
     private String templateId;
 
     @Inject
     public DeclarationsController(final EventBus eventBus,
-                                 final PagerPanel view,
                                  final Provider<DeclarationEditController> editPresenterProvider) {
         super(eventBus);
-        this.view = view;
-        initWidget(view);
         watch(Contexts.READ_ONLY, readOnly -> this.readOnly = readOnly);
         this.editPresenterProvider = editPresenterProvider;
         dataGrid = new DataGrid<>();
         dataGrid.setTableName("Declarations");
         selectionModel = dataGrid.addDefaultSelectionModel(false);
+    }
+
+    /// Attaches this to a pager, e.g. one a template declares, and adds its actions to the
+    /// pager's bar. The pager is then this controller's widget.
+    ///
+    /// @param view The pager.
+    /// @return This, for its owner to keep.
+    public DeclarationsController attach(final PagerPanel view) {
+        this.view = Objects.requireNonNull(view, "view");
+        initWidget(view);
         view.setDataWidget(dataGrid);
         // Everything it holds is shown at once, so it pages nothing; its actions share
         // the pager's bar, which stays (setPagerVisible would take the bar as well).
@@ -120,6 +128,7 @@ public class DeclarationsController extends Controller {
                 onEdit();
             }
         }));
+        return this;
 
     }
 

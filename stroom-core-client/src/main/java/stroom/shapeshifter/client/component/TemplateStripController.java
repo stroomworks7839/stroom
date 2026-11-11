@@ -84,9 +84,8 @@ public class TemplateStripController extends Controller {
         view.setOnOpenWorkbench(this::onOpenWorkbench);
         this.sourceConfig = own(sourceConfig);
         this.bodyPresenter = own(bodyPresenter);
-        this.declarations = own(declarations);
-        this.captures = own(captures);
-        view.setDetails(declarations, captures);
+        this.declarations = own(declarations).attach(view.getDeclarations());
+        this.captures = own(captures).attach(view.getCaptures());
     }
 
     public void setHost(final ProjectHost host) {

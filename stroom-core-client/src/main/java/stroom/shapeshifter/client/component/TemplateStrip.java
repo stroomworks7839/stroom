@@ -18,6 +18,7 @@ package stroom.shapeshifter.client.component;
 
 import stroom.shapeshifter.client.model.MatchRole;
 import stroom.widget.component.client.Component;
+import stroom.widget.datagrid.client.PagerPanel;
 import stroom.widget.layout.client.SplitPane;
 import stroom.widget.selection.client.SelectionBox;
 import stroom.widget.text.client.Label;
@@ -83,9 +84,9 @@ public class TemplateStrip extends Component {
     @UiField
     SplitPane details;
     @UiField
-    SimplePanel declarations;
+    PagerPanel declarations;
     @UiField
-    SimplePanel captures;
+    PagerPanel captures;
 
     public TemplateStrip() {
         initWidget(BINDER.createAndBindUi(this));
@@ -174,9 +175,14 @@ public class TemplateStrip extends Component {
         content.setVisible(view != null);
     }
 
-    public void setDetails(final IsWidget declarationsView, final IsWidget capturesView) {
-        declarations.setWidget(declarationsView.asWidget());
-        captures.setWidget(capturesView.asWidget());
+    /// @return The pager its declarations controller attaches to.
+    public PagerPanel getDeclarations() {
+        return declarations;
+    }
+
+    /// @return The pager its captures controller attaches to.
+    public PagerPanel getCaptures() {
+        return captures;
     }
 
     public void setDetailsVisible(final boolean visible) {

@@ -40,6 +40,7 @@ import com.google.web.bindery.event.shared.EventBus;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 
 /// A template's captures: what binds a pattern's group or label — or a selection over the values
 /// in scope — into a declared name, with a cast. Add, edit and remove through
@@ -50,30 +51,37 @@ public class CapturesController extends Controller {
     // controller with no owner fails closed rather than editable.
     private boolean readOnly = true;
 
-    private final PagerPanel view;
+    private PagerPanel view;
 
     private final DataGrid<CaptureBinding> dataGrid;
     private final MultiSelectionModelImpl<CaptureBinding> selectionModel;
     private final Provider<CaptureEditController> editPresenterProvider;
-    private final ToolbarButton addButton;
-    private final ToolbarButton editButton;
-    private final ToolbarButton removeButton;
+    private ToolbarButton addButton;
+    private ToolbarButton editButton;
+    private ToolbarButton removeButton;
 
     private ProjectHost host;
     private String templateId;
 
     @Inject
     public CapturesController(final EventBus eventBus,
-                             final PagerPanel view,
                              final Provider<CaptureEditController> editPresenterProvider) {
         super(eventBus);
-        this.view = view;
-        initWidget(view);
         watch(Contexts.READ_ONLY, readOnly -> this.readOnly = readOnly);
         this.editPresenterProvider = editPresenterProvider;
         dataGrid = new DataGrid<>();
         dataGrid.setTableName("Captures");
         selectionModel = dataGrid.addDefaultSelectionModel(false);
+    }
+
+    /// Attaches this to a pager, e.g. one a template declares, and adds its actions to the
+    /// pager's bar. The pager is then this controller's widget.
+    ///
+    /// @param view The pager.
+    /// @return This, for its owner to keep.
+    public CapturesController attach(final PagerPanel view) {
+        this.view = Objects.requireNonNull(view, "view");
+        initWidget(view);
         view.setDataWidget(dataGrid);
         // Everything it holds is shown at once, so it pages nothing; its actions share
         // the pager's bar, which stays (setPagerVisible would take the bar as well).
@@ -121,6 +129,7 @@ public class CapturesController extends Controller {
                 onEdit();
             }
         }));
+        return this;
 
     }
 

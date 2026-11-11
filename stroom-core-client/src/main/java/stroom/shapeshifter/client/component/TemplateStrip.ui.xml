@@ -1,6 +1,7 @@
 <!DOCTYPE ui:UiBinder SYSTEM "http://dl.google.com/gwt/DTD/xhtml.ent">
 <ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
              xmlns:g="urn:import:com.google.gwt.user.client.ui"
+             xmlns:dg="urn:import:stroom.widget.datagrid.client"
              xmlns:t="urn:import:stroom.widget.text.client"
              xmlns:split="urn:import:stroom.widget.layout.client"
              xmlns:l="urn:import:stroom.widget.selection.client">
@@ -52,8 +53,8 @@
         <split:SplitPane ui:field="details" thin="true" sizes="360px, *"
                          names="Declarations, Captures"
                          addStyleNames="max default-min-sizes">
-            <g:SimplePanel ui:field="declarations" styleName="max"/>
-            <g:SimplePanel ui:field="captures" styleName="max"/>
+            <dg:PagerPanel ui:field="declarations" addStyleNames="max"/>
+            <dg:PagerPanel ui:field="captures" addStyleNames="max"/>
         </split:SplitPane>
     </split:SplitPane>
 </ui:UiBinder>
