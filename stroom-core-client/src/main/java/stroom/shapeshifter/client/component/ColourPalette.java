@@ -44,16 +44,16 @@ public class ColourPalette extends Composite {
 
     public ColourPalette() {
         final FlowPanel panel = new FlowPanel();
-        panel.setStyleName("ss-palette");
+        panel.setStyleName("colour-palette");
         auto.setLabel("Auto");
         auto.setTitle("The palette by position");
         auto.addValueChangeHandler(e -> render());
         panel.add(auto);
-        swatches.setStyleName("ss-palette-swatches");
+        swatches.setStyleName("colour-palette__swatches");
         for (int i = 0; i < Templates.paletteSize(); i++) {
             final String colour = Templates.colour(i);
             final Label swatch = new Label();
-            swatch.setStyleName("ss-pal-swatch");
+            swatch.setStyleName("colour-palette__swatch");
             swatch.setTitle(colour);
             swatch.getElement().getStyle().setBackgroundColor(colour);
             swatch.addClickHandler((ClickEvent e) -> {

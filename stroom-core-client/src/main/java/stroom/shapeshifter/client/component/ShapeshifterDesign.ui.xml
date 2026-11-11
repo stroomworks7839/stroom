@@ -9,8 +9,8 @@
          One axis per split pane, so what GWT's docking panel did in one, this does in two. -->
     <split:SplitPane ui:field="layout" vertical="true" thin="true" sizes="26px, *, 110px"
                      names="Banner, Design, Messages"
-                     addStyleNames="max default-min-sizes ss-design">
-        <t:Label ui:field="banner" styleName="shapeshifter-banner"/>
+                     addStyleNames="max default-min-sizes shapeshifter-design">
+        <t:Label ui:field="banner" styleName="shapeshifter-design__banner"/>
         <split:SplitPane thin="true" sizes="220px, *" names="Templates, Design"
                          addStyleNames="max default-min-sizes">
             <g:SimplePanel ui:field="templatePanel" styleName="max"/>

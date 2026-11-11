@@ -59,9 +59,9 @@ public class PatternTreePanel extends TreePanel<PatternItem> {
 
     public PatternTreePanel() {
         final FlowPanel panel = new FlowPanel();
-        panel.setStyleName("ss-tree-panel");
+        panel.setStyleName("pattern-tree__panel");
         boxPanel = new FlowPanel();
-        boxPanel.setStyleName("ss-tree-boxes");
+        boxPanel.setStyleName("pattern-tree__boxes");
         cellRenderer = new PatternItemRenderer(boxPanel);
 
         final LayeredCanvas canvas = LayeredCanvas.createIfSupported();
@@ -74,7 +74,7 @@ public class PatternTreePanel extends TreePanel<PatternItem> {
             treeLayout = new CenteredParentTreeLayout<>(extentProvider, layoutConfig);
             renderer = new TreeRenderer<>(canvas, cellRenderer, connectorRenderer);
             renderer.setTreeLayout(treeLayout);
-            canvas.setStyleName("ss-tree-canvas");
+            canvas.setStyleName("pattern-tree__canvas");
             panel.add(canvas);
         }
         panel.add(boxPanel);

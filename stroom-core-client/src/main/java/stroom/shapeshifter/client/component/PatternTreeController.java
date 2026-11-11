@@ -278,7 +278,7 @@ public class PatternTreeController
     private static SafeHtml headingOf(final String title, final String note) {
         return new SafeHtmlBuilder()
                 .appendEscaped(title)
-                .appendHtmlConstant(" <span class=\"ss-wb-h4-note\">(")
+                .appendHtmlConstant(" <span class=\"workbench-form__heading-note\">(")
                 .appendEscaped(note)
                 .appendHtmlConstant(")</span>")
                 .toSafeHtml();
@@ -602,24 +602,24 @@ public class PatternTreeController
     /** What a ref may name: the project's own parts first (design 44 §3), then the standard entries. */
     private void showLibrary() {
         final SafeHtmlBuilder sb = new SafeHtmlBuilder();
-        sb.appendHtmlConstant("<table class=\"shapeshifter-library\">");
+        sb.appendHtmlConstant("<table class=\"pattern-tree__library\">");
         final Project project = host.getProject();
         if (project != null) {
             for (final Map.Entry<String, PatternNode> part : project.patterns().entrySet()) {
-                sb.appendHtmlConstant("<tr><td class=\"shapeshifter-library-name\">")
+                sb.appendHtmlConstant("<tr><td class=\"pattern-tree__library-name\">")
                         .appendEscaped(part.getKey())
-                        .appendHtmlConstant("</td><td class=\"shapeshifter-pattern-text\">")
+                        .appendHtmlConstant("</td><td class=\"pattern-tree__pattern-text\">")
                         .appendEscaped(Templates.describe(part.getValue()))
-                        .appendHtmlConstant("</td><td class=\"ss-lib-whose\">project</td></tr>");
+                        .appendHtmlConstant("</td><td class=\"pattern-tree__library-whose\">project</td></tr>");
             }
         }
         if (library != null) {
             for (final ShapeshifterLibrary.Entry entry : library.getEntries()) {
-                sb.appendHtmlConstant("<tr><td class=\"shapeshifter-library-name\">")
+                sb.appendHtmlConstant("<tr><td class=\"pattern-tree__library-name\">")
                         .appendEscaped(entry.getName())
-                        .appendHtmlConstant("</td><td class=\"shapeshifter-pattern-text\">")
+                        .appendHtmlConstant("</td><td class=\"pattern-tree__pattern-text\">")
                         .appendEscaped(entry.getRegex())
-                        .appendHtmlConstant("</td><td class=\"ss-lib-whose\"></td></tr>");
+                        .appendHtmlConstant("</td><td class=\"pattern-tree__library-whose\"></td></tr>");
             }
         }
         sb.appendHtmlConstant("</table>");

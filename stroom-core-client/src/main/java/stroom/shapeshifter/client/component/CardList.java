@@ -38,8 +38,8 @@ public class CardList extends Composite {
                     final Body.CardActions handlers, final boolean enabled, final boolean nested) {
         final FlowPanel panel = new FlowPanel();
         panel.setStyleName(nested
-                ? "ss-cards ss-cards--nested"
-                : "ss-cards");
+                ? "card-list card-list--nested"
+                : "card-list");
         for (int i = 0; i < cards.size(); i++) {
             final BodyCard card = new BodyCard(listPath, i, cards.get(i), cards.size(), i < notes.size()
                     ? notes.get(i)
@@ -49,7 +49,7 @@ public class CardList extends Composite {
         }
         if (enabled) {
             final Label add = new Label("+ instruction");
-            add.setStyleName("ss-addbtn ss-addline");
+            add.setStyleName("add-button card-list__add-line");
             add.setTitle("Add an instruction at the end");
             final int at = cards.size();
             add.addClickHandler((ClickEvent e) -> handlers.onAdd(Bodies.path(listPath), at, e.getClientX(),
@@ -57,7 +57,7 @@ public class CardList extends Composite {
             panel.add(add);
         } else if (cards.isEmpty()) {
             final Label none = new Label("(no instructions)");
-            none.setStyleName("ss-none");
+            none.setStyleName("placeholder");
             panel.add(none);
         }
         initWidget(panel);

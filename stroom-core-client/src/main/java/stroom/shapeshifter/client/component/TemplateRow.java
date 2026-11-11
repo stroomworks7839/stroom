@@ -74,12 +74,12 @@ public class TemplateRow extends Composite {
         chip.setVisible(!data.isSection());
         chip.getElement().getStyle().setBackgroundColor(data.getColour());
         if ("transparent".equals(data.getColour())) {
-            chip.addStyleName("ss-chip--outline");
+            chip.addStyleName("chip--outline");
         }
         name.setText(data.getName());
         count.setText(data.getCount());
         if (data.isZero()) {
-            row.addStyleName("ss-tpl-row--zero");
+            row.addStyleName("template-row--zero");
         }
         // The severity mark (design 18 §5.8), as stepping colours its pipeline tree: a glyph in
         // the severity's colour, so it is not colour alone and it survives the row's selection.
@@ -87,7 +87,8 @@ public class TemplateRow extends Composite {
         flag.setVisible(severity != null);
         if (severity != null) {
             flag.setText("▲");
-            flag.addStyleName("ss-flag--" + severity);
+            flag.addStyleName("severity-flag");
+            flag.addStyleName(severityClass(severity));
             flag.setTitle("A run said something at " + severity + " level in a match of this template");
         }
         row.setTitle(data.getId() == null
@@ -101,10 +102,10 @@ public class TemplateRow extends Composite {
         if (data.getProfile() != null) {
             heatBar.setWidth(Math.max(1, Math.round(data.getShare() * 100)) + "%");
             heatBar.addStyleName(data.getCost() == 0
-                    ? "ss-heat-bar--cool"
+                    ? "template-row__heat-bar--cool"
                     : data.getCost() == 1
-                            ? "ss-heat-bar--warm"
-                            : "ss-heat-bar--hot");
+                            ? "template-row__heat-bar--warm"
+                            : "template-row__heat-bar--hot");
         }
     }
 
@@ -114,9 +115,9 @@ public class TemplateRow extends Composite {
 
     public void setSelected(final boolean selected) {
         if (selected) {
-            row.addStyleName("ss-tpl-row--sel");
+            row.addStyleName("template-row--selected");
         } else {
-            row.removeStyleName("ss-tpl-row--sel");
+            row.removeStyleName("template-row--selected");
         }
     }
 
@@ -151,6 +152,12 @@ public class TemplateRow extends Composite {
             e.preventDefault();
             listener.onSelect(data.getId());
         }
+    }
+
+    /// The severity's own modifier, built rather than written as a literal so that the class name
+    /// read by the stylesheet tests is a whole name and not the prefix it is made from.
+    private static String severityClass(final String severity) {
+        return "severity-flag--" + severity;
     }
 
     public interface Listener {

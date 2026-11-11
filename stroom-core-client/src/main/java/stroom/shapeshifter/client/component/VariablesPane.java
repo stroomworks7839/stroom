@@ -70,43 +70,43 @@ public class VariablesPane extends Component {
         empty.setVisible(emptyText != null);
         for (final Section section : sections) {
             final FlowPanel panel = new FlowPanel();
-            panel.addStyleName("ss-var-section");
+            panel.addStyleName("variables-pane__section");
             if (section.isLink()) {
                 final LinkButton heading = new LinkButton(section.getHeading());
-                heading.addStyleName("ss-var-heading ss-var-heading--link");
+                heading.addStyleName("variables-pane__heading variables-pane__heading--link");
                 heading.setTitle("Go to the frame that bound these");
                 heading.addClickHandler(event -> onFrame.accept(section.getFrameId()));
                 panel.add(heading);
             } else {
                 final Label heading = new Label(section.getHeading());
-                heading.addStyleName("ss-var-heading");
+                heading.addStyleName("variables-pane__heading");
                 panel.add(heading);
             }
             if (section.getRows().isEmpty()) {
                 final Label none = new Label(section.getNoneText());
-                none.addStyleName("ss-none");
+                none.addStyleName("placeholder");
                 panel.add(none);
             }
             for (final Row row : section.getRows()) {
                 final FlowPanel line = new FlowPanel();
-                line.addStyleName("ss-var-row");
+                line.addStyleName("variables-pane__row");
                 final Hot hot = Hot.capture(row.getFrameId(), row.getIndex());
                 lines.put(hot, line);
                 line.addDomHandler(event -> onHover.accept(hot), MouseOverEvent.getType());
                 line.addDomHandler(event -> onHover.accept(null), MouseOutEvent.getType());
                 final InlineLabel swatch = new InlineLabel();
-                swatch.addStyleName("ss-swatch ss-swatch--small");
+                swatch.addStyleName("swatch swatch--small");
                 swatch.getElement().getStyle().setBackgroundColor(Colours.safe(row.getColour()));
                 final InlineLabel name = new InlineLabel(row.getName());
-                name.addStyleName("ss-var-name");
+                name.addStyleName("variables-pane__name");
                 final InlineLabel type = new InlineLabel(row.getType() == null
                         ? "string"
                         : row.getType());
-                type.addStyleName("ss-type");
+                type.addStyleName("variables-pane__type");
                 final InlineLabel value = new InlineLabel(row.getValue() == null
                         ? "—"
                         : row.getValue());
-                value.addStyleName("ss-var-value mono");
+                value.addStyleName("variables-pane__value mono");
                 value.setTitle(row.getValue() == null
                         ? ""
                         : row.getValue());

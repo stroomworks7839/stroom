@@ -4,20 +4,20 @@
              xmlns:g="urn:import:com.google.gwt.user.client.ui"
              xmlns:b="urn:import:stroom.widget.button.client">
     <g:FlowPanel styleName="max dock-container-vertical">
-        <b:Toolbar name="Actions" ui:field="buttonPanel" addStyleNames="dock-min ss-wb-toolbar"/>
+        <b:Toolbar name="Actions" ui:field="buttonPanel" addStyleNames="dock-min workbench-form__toolbar"/>
         <g:ScrollPanel styleName="dock-max">
-            <g:FlowPanel styleName="ss-wb-right">
-                <g:FlowPanel styleName="ss-wb-sec">
-                    <t:Html ui:field="heading" styleName="ss-wb-h4"/>
+            <g:FlowPanel styleName="workbench-form__right">
+                <g:FlowPanel styleName="workbench-form__section">
+                    <t:Html ui:field="heading" styleName="workbench-form__heading"/>
                     <g:SimplePanel ui:field="tree"/>
-                    <t:Label ui:field="error" styleName="ss-wb-err"/>
+                    <t:Label ui:field="error" styleName="workbench-form__error"/>
                 </g:FlowPanel>
-                <g:FlowPanel styleName="ss-wb-sec">
-                    <t:Html styleName="ss-wb-h4">As regex <span class="ss-wb-h4-note">(what the tree means, printed by the engine; a ref prints as its definition)</span></t:Html>
-                    <t:Label ui:field="regex" styleName="ss-wb-lint ss-explain mono"/>
+                <g:FlowPanel styleName="workbench-form__section">
+                    <t:Html styleName="workbench-form__heading">As regex <span class="workbench-form__heading-note">(what the tree means, printed by the engine; a ref prints as its definition)</span></t:Html>
+                    <t:Label ui:field="regex" styleName="workbench-form__lint workbench-form__explain mono"/>
                 </g:FlowPanel>
-                <g:FlowPanel styleName="ss-wb-sec">
-                    <t:Html styleName="ss-wb-h4">Library <span class="ss-wb-h4-note">(what a ref may name: the project&apos;s parts, then the standard entries)</span></t:Html>
+                <g:FlowPanel styleName="workbench-form__section">
+                    <t:Html styleName="workbench-form__heading">Library <span class="workbench-form__heading-note">(what a ref may name: the project&apos;s parts, then the standard entries)</span></t:Html>
                     <t:Html ui:field="library"/>
                 </g:FlowPanel>
             </g:FlowPanel>

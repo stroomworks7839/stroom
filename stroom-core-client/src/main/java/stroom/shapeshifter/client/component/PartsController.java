@@ -245,18 +245,18 @@ public class PartsController
 
     private void render() {
         final SafeHtmlBuilder sb = new SafeHtmlBuilder();
-        sb.appendHtmlConstant("<ol class=\"shapeshifter-parts ss-parts--editable\">");
+        sb.appendHtmlConstant("<ol class=\"parts parts--editable\">");
         for (int i = 0; i < parts.size(); i++) {
             final MatchPart part = parts.get(i);
-            sb.appendHtmlConstant("<li class=\"ss-part" + (i == selected
-                    ? " ss-part--sel"
+            sb.appendHtmlConstant("<li class=\"" + (i == selected
+                    ? "parts__item--selected"
                     : "") + "\" data-index=\"" + i + "\">");
-            sb.appendHtmlConstant("<span class=\"shapeshifter-kind\">").appendEscaped(kind(part))
-                    .appendHtmlConstant("</span> <span class=\"shapeshifter-node-text\">")
+            sb.appendHtmlConstant("<span class=\"parts__kind\">").appendEscaped(kind(part))
+                    .appendHtmlConstant("</span> <span class=\"parts__node-text\">")
                     .appendEscaped(Templates.describe(part))
                     .appendHtmlConstant("</span>");
             if (part instanceof MatchPart.Pattern pattern) {
-                sb.appendHtmlConstant("<ul class=\"shapeshifter-tree\">");
+                sb.appendHtmlConstant("<ul class=\"parts__tree\">");
                 renderNode(sb, pattern.node());
                 sb.appendHtmlConstant("</ul>");
             }
@@ -279,7 +279,7 @@ public class PartsController
     }
 
     private static void renderNode(final SafeHtmlBuilder sb, final PatternNode node) {
-        sb.appendHtmlConstant("<li class=\"shapeshifter-node\"><span class=\"shapeshifter-node-text\">")
+        sb.appendHtmlConstant("<li class=\"parts__node\"><span class=\"parts__node-text\">")
                 .appendEscaped(Templates.describe(node))
                 .appendHtmlConstant("</span>");
         final List<PatternNode> children = Templates.children(node);

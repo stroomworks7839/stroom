@@ -149,9 +149,9 @@ public class TemplateStrip extends Component {
         role.setValue(value, false);
         role.setEnabled(enabled);
         roleNote.setText(note);
-        roleNote.setStyleName("ss-role-note " + (problem
-                ? "ss-wb-err"
-                : "ss-det-desc"));
+        roleNote.setStyleName("template-strip__role-note " + (problem
+                ? "workbench-form__error"
+                : "edit-form__description"));
     }
 
     public void setMatch(final String kind, final String summary, final String guardAndLimits) {

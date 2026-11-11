@@ -6,11 +6,11 @@
              xmlns:b="urn:import:stroom.widget.button.client">
     <split:SplitPane ui:field="layout" vertical="true" thin="true" sizes="34px, *, 210px"
                      names="Title, Workbench, Guard and limits"
-                     addStyleNames="max default-min-sizes ss-wb">
-        <g:FlowPanel styleName="ss-wb-title">
+                     addStyleNames="max default-min-sizes">
+        <g:FlowPanel styleName="pattern-workbench__title">
             <t:Label text="Pattern workbench —"/>
             <t:Label ui:field="subject" styleName="mono"/>
-            <t:Label styleName="ss-spacer"/>
+            <t:Label styleName="pattern-workbench__spacer"/>
             <b:Toolbar name="Actions" ui:field="buttons"/>
         </g:FlowPanel>
         <split:SplitPane thin="true" sizes="420px, *" names="Sample, Editor"

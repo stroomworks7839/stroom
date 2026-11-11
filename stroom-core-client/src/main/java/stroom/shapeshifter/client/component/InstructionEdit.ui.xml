@@ -12,7 +12,7 @@
                             helpText="What the card does. Output writes; invoke dispatches or calls; control branches, loops and binds; a transform computes a named value; a collection op changes a list, map or set.">
                 <g:FlowPanel>
                     <l:SelectionBox ui:field="kind" addStyleNames="w-100"/>
-                    <t:Label ui:field="note" styleName="shapeshifter-hint"/>
+                    <t:Label ui:field="note" styleName="edit-form__hint"/>
                 </g:FlowPanel>
             </form:FormGroup>
             <form:FormGroup ui:field="field0Group" identity="ssInstrF0" label="">
@@ -47,7 +47,7 @@
                 <tickbox:TickBox ui:field="flag1"/>
             </form:FormGroup>
             <form:FormGroup ui:field="multiGroup" identity="ssInstrMulti" label="">
-                <form:TextArea ui:field="multi" addStyleNames="w-100 shapeshifter-entries" visibleLines="5"/>
+                <form:TextArea ui:field="multi" addStyleNames="w-100 edit-form__entries" visibleLines="5"/>
             </form:FormGroup>
             <form:FormGroup ui:field="conditionGroup" identity="ssInstrCondition" label="Test">
                 <ss:ClauseListPanel ui:field="condition"/>
@@ -58,7 +58,7 @@
             </form:FormGroup>
             <form:FormGroup ui:field="wireGroup" identity="ssInstrWire" label="Wire form"
                             helpText="The instruction as the document holds it.">
-                <form:TextArea ui:field="wire" addStyleNames="w-100 shapeshifter-entries" visibleLines="10"/>
+                <form:TextArea ui:field="wire" addStyleNames="w-100 edit-form__entries" visibleLines="10"/>
             </form:FormGroup>
         </g:FlowPanel>
     </g:ScrollPanel>

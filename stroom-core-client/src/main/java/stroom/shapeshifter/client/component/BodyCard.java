@@ -118,7 +118,7 @@ public class BodyCard extends Composite {
         if (runNote != null && runNote.getText() != null) {
             note.setText(runNote.getText());
             if (runNote.getDescendTo() >= 0) {
-                note.addStyleName("ss-card-note--link");
+                note.addStyleName("body-card__note--link");
                 note.setTitle("Descend to the first match");
                 note.addClickHandler((ClickEvent e) -> {
                     e.stopPropagation();
@@ -129,7 +129,6 @@ public class BodyCard extends Composite {
         up.setVisible(index > 0);
         down.setVisible(index < count - 1);
         if (node instanceof Holder holder) {
-            addStyleName("ss-card--cont");
             final List<List<OutputNode>> bodies = holder.bodies();
             for (int b = 0; b < bodies.size(); b++) {
                 branches.add(new Branch(holder, b, bodies.get(b), enabled));
@@ -138,7 +137,7 @@ public class BodyCard extends Composite {
                 final Label addBranch = new Label(node instanceof Choose
                         ? "+ when"
                         : "+ case");
-                addBranch.setStyleName("ss-addbtn ss-add-branch");
+                addBranch.setStyleName("add-button body-card__add-branch");
                 addBranch.addClickHandler((ClickEvent e) -> handlers.onAddBranch(Bodies.path(path)));
                 branches.add(addBranch);
             }
@@ -166,12 +165,12 @@ public class BodyCard extends Composite {
             dragging = this;
             e.setData("text", Bodies.path(path));
             e.getDataTransfer().setDropEffect(DataTransfer.DropEffect.MOVE);
-            head.addStyleName("ss-card--dragging");
+            head.addStyleName("body-card__card--dragging");
         });
         head.addDragEndHandler(e -> {
             dragging = null;
             head.getElement().setDraggable(Element.DRAGGABLE_FALSE);
-            head.removeStyleName("ss-card--dragging");
+            head.removeStyleName("body-card__card--dragging");
             clearIndicator();
         });
         head.addDragOverHandler(e -> {
@@ -181,8 +180,8 @@ public class BodyCard extends Composite {
             e.preventDefault();
             clearIndicator();
             head.addStyleName(after(e.getNativeEvent().getClientY())
-                    ? "ss-card--drop-after"
-                    : "ss-card--drop-before");
+                    ? "body-card__card--drop-after"
+                    : "body-card__card--drop-before");
         });
         head.addDragLeaveHandler(e -> clearIndicator());
         head.addDropHandler(e -> {
@@ -211,8 +210,8 @@ public class BodyCard extends Composite {
     }
 
     private void clearIndicator() {
-        head.removeStyleName("ss-card--drop-before");
-        head.removeStyleName("ss-card--drop-after");
+        head.removeStyleName("body-card__card--drop-before");
+        head.removeStyleName("body-card__card--drop-after");
     }
 
     private void onHead(final ClickEvent e) {
@@ -245,24 +244,24 @@ public class BodyCard extends Composite {
 
         private Branch(final Holder holder, final int branch, final List<OutputNode> cards, final boolean enabled) {
             final FlowPanel panel = new FlowPanel();
-            panel.setStyleName("ss-branch");
+            panel.setStyleName("body-card__branch");
             final String label = Bodies.branchLabel(holder, branch);
             if (label != null) {
                 final FlowPanel headLine = new FlowPanel();
-                headLine.setStyleName("ss-br-head");
+                headLine.setStyleName("body-card__branch-head");
                 final Label key = new Label(label);
-                key.setStyleName("ss-br-key");
+                key.setStyleName("body-card__branch-key");
                 headLine.add(key);
                 if (enabled && Bodies.branchIsOwn(holder, branch)) {
                     final Label edit = new Label("✎");
-                    edit.setStyleName("ss-act");
+                    edit.setStyleName("item-action");
                     edit.setTitle("Edit this branch's " + (holder instanceof Choose
                             ? "condition"
                             : "value"));
                     edit.addClickHandler((ClickEvent e) -> handlers.onEditBranch(Bodies.path(path), branch));
                     headLine.add(edit);
                     final Label prune = new Label("✕");
-                    prune.setStyleName("ss-act ss-act--del");
+                    prune.setStyleName("item-action item-action--delete");
                     prune.setTitle("Prune this branch");
                     prune.addClickHandler((ClickEvent e) -> handlers.onRemoveBranch(Bodies.path(path), branch));
                     headLine.add(prune);

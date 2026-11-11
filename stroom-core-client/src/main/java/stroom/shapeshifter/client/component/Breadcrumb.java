@@ -106,18 +106,18 @@ public class Breadcrumb extends Component {
             final Segment segment = list.get(i);
             if (i > 0) {
                 final InlineLabel sep = new InlineLabel("›");
-                sep.addStyleName("ss-crumb-sep");
+                sep.addStyleName("breadcrumb__separator");
                 segments.add(sep);
             }
             final FlowPanel seg = new FlowPanel();
-            seg.addStyleName("ss-crumb-seg");
+            seg.addStyleName("breadcrumb__segment");
             final LinkButton name = new LinkButton(segment.getLabel());
-            name.addStyleName("ss-crumb-name");
+            name.addStyleName("breadcrumb__name");
             if (segment.getColour() != null) {
                 name.getElement().getStyle().setProperty("borderBottomColor", segment.getColour());
             }
             if (i == list.size() - 1) {
-                name.addStyleName("ss-crumb-name--current");
+                name.addStyleName("breadcrumb__name--current");
             }
             name.addClickHandler(event -> onSegment.accept(segment.getFrameId()));
             final Hot hot = Hot.frame(segment.getFrameId(), segment.getTemplateId());
@@ -129,7 +129,7 @@ public class Breadcrumb extends Component {
                 final LinkButton prev = arrow("◀", segment.getIndex() > 1);
                 prev.addClickHandler(event -> onSibling.accept(segment.getFrameId(), -1));
                 final InlineLabel index = new InlineLabel(segment.getIndex() + "/" + segment.getCount());
-                index.addStyleName("ss-crumb-idx");
+                index.addStyleName("breadcrumb__index");
                 final LinkButton next = arrow("▶", segment.getIndex() < segment.getCount());
                 next.addClickHandler(event -> onSibling.accept(segment.getFrameId(), 1));
                 seg.add(prev);
@@ -142,9 +142,9 @@ public class Breadcrumb extends Component {
 
     private static LinkButton arrow(final String glyph, final boolean enabled) {
         final LinkButton anchor = new LinkButton(glyph);
-        anchor.addStyleName("ss-crumb-arrow");
+        anchor.addStyleName("breadcrumb__arrow");
         if (!enabled) {
-            anchor.addStyleName("ss-crumb-arrow--off");
+            anchor.addStyleName("breadcrumb__arrow--off");
         }
         return anchor;
     }

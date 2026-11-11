@@ -129,35 +129,35 @@ public final class ShapeshifterEditorStories {
     // ShapeshifterResource.preview(): one run over the sample. Two pairs matched and written, and
     // the comment line warned about, as the fixture's junk_line template says
     private static final String TRACE = """
-            {
-              "compiled": true, "sampleRead": true,
-              "input": "host=web01\\n# a comment the grammar never claimed\\nlevel=warn\\n",
-              "output": "<records>\\n <pair key=\\"host\\">web01</pair>\\n <pair key=\\"level\\">warn</pair>\\n</records>\\n",
-              "frames": [
-                {"id": 1, "parentId": 0, "templateId": "00000000-0000-0000-0000-000000000001",
-                 "templateName": "source", "matchIndex": 0, "depth": 0,
-                 "inputOffset": 0, "inputLength": 56, "contentOffset": 0, "contentLength": 56},
-                {"id": 2, "parentId": 1, "templateId": "00000000-0000-0000-0000-000000000002",
-                 "templateName": "pair", "matchIndex": 0, "depth": 1,
-                 "inputOffset": 0, "inputLength": 11, "contentOffset": 0, "contentLength": 11,
-                 "content": "host=web01\\n"},
-                {"id": 3, "parentId": 1, "templateId": "00000000-0000-0000-0000-000000000003",
-                 "templateName": "junk_line", "matchIndex": 0, "depth": 1,
-                 "inputOffset": 11, "inputLength": 35, "contentOffset": 11, "contentLength": 35,
-                 "content": "# a comment the grammar never claimed\\n"}
-              ],
-              "captures": [
-                {"frameId": 2, "index": 1, "name": "key", "contentOffset": 0, "contentLength": 4},
-                {"frameId": 2, "index": 2, "name": "value", "contentOffset": 5, "contentLength": 5}
-              ],
-              "groups": [], "outputs": [], "attempts": [], "guards": [],
-              "instructions": [], "attemptsSeen": 3, "timings": [],
-              "messages": [
-                {"severity": "warning", "text": "unrecognised line: # a comment the grammar never claimed",
-                 "frameId": 3}
-              ],
-              "runNanos": 412000
-            }""";
+    {
+      "compiled": true, "sampleRead": true,
+      "input": "host=web01\\n# a comment the grammar never claimed\\nlevel=warn\\n",
+      "output": "<records>\\n <pair key=\\"host\\">web01</pair>\\n <pair key=\\"level\\">warn</pair>\\n</records>\\n",
+      "frames": [
+        {"id": 1, "parentId": 0, "templateId": "00000000-0000-0000-0000-000000000001",
+         "templateName": "source", "matchIndex": 0, "depth": 0,
+         "inputOffset": 0, "inputLength": 56, "contentOffset": 0, "contentLength": 56},
+        {"id": 2, "parentId": 1, "templateId": "00000000-0000-0000-0000-000000000002",
+         "templateName": "pair", "matchIndex": 0, "depth": 1,
+         "inputOffset": 0, "inputLength": 11, "contentOffset": 0, "contentLength": 11,
+         "content": "host=web01\\n"},
+        {"id": 3, "parentId": 1, "templateId": "00000000-0000-0000-0000-000000000003",
+         "templateName": "junk_line", "matchIndex": 0, "depth": 1,
+         "inputOffset": 11, "inputLength": 35, "contentOffset": 11, "contentLength": 35,
+         "content": "# a comment the grammar never claimed\\n"}
+      ],
+      "captures": [
+        {"frameId": 2, "index": 1, "name": "key", "contentOffset": 0, "contentLength": 4},
+        {"frameId": 2, "index": 2, "name": "value", "contentOffset": 5, "contentLength": 5}
+      ],
+      "groups": [], "outputs": [], "attempts": [], "guards": [],
+      "instructions": [], "attemptsSeen": 3, "timings": [],
+      "messages": [
+        {"severity": "warning", "text": "unrecognised line: # a comment the grammar never claimed",
+         "frameId": 3}
+      ],
+      "runNanos": 412000
+    }""";
 
     // ShapeshifterResource.patternInfo(): the pair template's regex, its two groups
     private static final String PATTERN_INFO = """
@@ -568,15 +568,15 @@ public final class ShapeshifterEditorStories {
 
 // The strip labels each row with its key ("match", "match is", "guard", "body")
     // A template's name in the panel's list
-    private static final String TEMPLATE_NAME = ".ss-tpl-name";
+    private static final String TEMPLATE_NAME = ".template-row__name";
 
     // The kind of instruction a body card holds ("text", "value-of", ...)
-    private static final String CARD_KIND = ".ss-card-kind";
+    private static final String CARD_KIND = ".body-card__kind";
 
-    private static final String STRIP_KEY = ".ss-strip-k";
+    private static final String STRIP_KEY = ".key-label";
 
     // The chip that carries a template's match, and opens the pattern workbench
-    private static final String MATCH_CHIP = ".ss-match-chip";
+    private static final String MATCH_CHIP = ".template-strip__match-chip";
 
     // Picks a template in the panel, which is what fills the strip beside it. By the panel's
     // row: once it is selected the strip shows the name too.

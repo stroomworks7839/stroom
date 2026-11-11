@@ -50,8 +50,8 @@ public class ClauseListPanel extends Composite implements GuardClauseRow.Listene
 
     public ClauseListPanel() {
         final FlowPanel panel = new FlowPanel();
-        none.setStyleName("ss-none");
-        add.setStyleName("ss-addbtn");
+        none.setStyleName("placeholder");
+        add.setStyleName("add-button");
         add.addClickHandler((ClickEvent e) -> {
             if (enabled && listener != null) {
                 listener.onClauseAdd();
@@ -59,8 +59,8 @@ public class ClauseListPanel extends Composite implements GuardClauseRow.Listene
         });
         final Label lint = new Label("This condition is more than clauses joined by and — an or, a not, a"
                                      + " comparison of two references — so it is edited as its wire form.");
-        lint.setStyleName("ss-wb-lint");
-        json.setStyleName("ss-wb-pat");
+        lint.setStyleName("workbench-form__lint");
+        json.setStyleName("workbench-form__pattern");
         json.setVisibleLines(6);
         json.addBlurHandler((BlurEvent e) -> {
             final String text = json.getText();
@@ -72,7 +72,7 @@ public class ClauseListPanel extends Composite implements GuardClauseRow.Listene
         jsonPanel.add(lint);
         jsonPanel.add(json);
         jsonPanel.setVisible(false);
-        error.setStyleName("ss-wb-err");
+        error.setStyleName("workbench-form__error");
         error.setVisible(false);
         panel.add(none);
         panel.add(rows);

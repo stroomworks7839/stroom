@@ -11,21 +11,21 @@
                             helpText="tag, take_while, take_until, take_through, take, any, regex and ref consume bytes; sequence, choice, optional, repeat, peek and not compose other nodes.">
                 <g:FlowPanel>
                     <l:SelectionBox ui:field="kind" addStyleNames="w-100"/>
-                    <t:Label ui:field="childrenNote" styleName="shapeshifter-hint"/>
+                    <t:Label ui:field="childrenNote" styleName="edit-form__hint"/>
                 </g:FlowPanel>
             </form:FormGroup>
             <form:FormGroup ui:field="textGroup" identity="shapeshifterNodeText" label="Text">
-                <form:TextBox ui:field="text" addStyleNames="w-100 shapeshifter-pattern"/>
+                <form:TextBox ui:field="text" addStyleNames="w-100 pattern-node-edit__pattern"/>
             </form:FormGroup>
             <form:FormGroup ui:field="countGroup" identity="shapeshifterNodeCount" label="Bytes">
-                <form:TextBox ui:field="count" addStyleNames="shapeshifter-short"/>
+                <form:TextBox ui:field="count" addStyleNames="edit-form__short"/>
             </form:FormGroup>
             <form:FormGroup ui:field="minGroup" identity="shapeshifterNodeMin" label="Min">
-                <form:TextBox ui:field="min" addStyleNames="shapeshifter-short"/>
+                <form:TextBox ui:field="min" addStyleNames="edit-form__short"/>
             </form:FormGroup>
             <form:FormGroup ui:field="maxGroup" identity="shapeshifterNodeMax" label="Max"
                             helpText="Blank for no upper bound.">
-                <form:TextBox ui:field="max" addStyleNames="shapeshifter-short"/>
+                <form:TextBox ui:field="max" addStyleNames="edit-form__short"/>
             </form:FormGroup>
             <form:FormGroup ui:field="greedyGroup" identity="shapeshifterNodeGreedy" label="Greedy">
                 <tickbox:TickBox ui:field="greedy"/>

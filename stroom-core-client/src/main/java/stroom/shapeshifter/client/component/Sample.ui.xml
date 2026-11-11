@@ -5,21 +5,21 @@
              xmlns:form="urn:import:stroom.widget.form.client"
              xmlns:split="urn:import:stroom.widget.layout.client">
     <split:SplitPane vertical="true" thin="true" sizes="160px, *" names="Sample, Matches"
-                     addStyleNames="max default-min-sizes ss-smp">
-        <g:FlowPanel styleName="max ss-smp-in">
-            <t:Html styleName="ss-wb-h4">Sample <span class="ss-wb-h4-note">(the cursor's frame to start with; edit freely — this never runs the document)</span></t:Html>
-            <form:TextArea ui:field="sample" styleName="ss-smp-text mono"
+                     addStyleNames="max default-min-sizes">
+        <g:FlowPanel styleName="max sample__input">
+            <t:Html styleName="workbench-form__heading">Sample <span class="workbench-form__heading-note">(the cursor's frame to start with; edit freely — this never runs the document)</span></t:Html>
+            <form:TextArea ui:field="sample" styleName="sample__text mono"
                            ariaLabel="Sample text to match against"/>
         </g:FlowPanel>
         <!-- The matches table scrolls when there are many, so the keyboard can
              reach it: a named region that takes the focus -->
         <split:ScrollPane addStyleNames="max scroll-region"
                           focusable="true" role="region" ariaLabel="Matches">
-            <g:FlowPanel styleName="ss-smp-out">
-                <t:Label ui:field="summary" styleName="ss-wb-h4"/>
-                <t:Html ui:field="matches" styleName="ss-content-box ss-smp-matches mono"/>
+            <g:FlowPanel styleName="sample__output">
+                <t:Label ui:field="summary" styleName="workbench-form__heading"/>
+                <t:Html ui:field="matches" styleName="content-box sample__matches mono"/>
                 <t:Html ui:field="table"/>
-                <t:Label ui:field="nothing" styleName="ss-none"/>
+                <t:Label ui:field="nothing" styleName="placeholder"/>
             </g:FlowPanel>
         </split:ScrollPane>
     </split:SplitPane>

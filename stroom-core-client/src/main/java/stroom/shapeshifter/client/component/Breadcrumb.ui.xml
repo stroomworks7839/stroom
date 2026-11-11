@@ -3,18 +3,18 @@
              xmlns:t="urn:import:stroom.widget.text.client"
              xmlns:g="urn:import:com.google.gwt.user.client.ui"
              xmlns:i="urn:import:stroom.widget.button.client">
-    <g:FlowPanel styleName="max ss-crumb">
+    <g:FlowPanel styleName="max breadcrumb__crumb">
         <!-- The crumb reads left to right as the cursor's ancestry, which is what a breadcrumb is
              for, so it keeps the left edge. The stepper is pushed to the far right (design 44
              §5e), where Stroom's own paging and stepping controls sit, with what it steps and
              the cursor's place in it immediately to its left. -->
-        <g:FlowPanel ui:field="segments" styleName="ss-crumb-segs"/>
-        <t:Label ui:field="state" styleName="ss-crumb-state"/>
-        <t:Label styleName="ss-spacer"/>
-        <g:FlowPanel ui:field="stepper" styleName="ss-crumb-step">
-            <t:Label ui:field="stepperLabel" styleName="ss-crumb-lbl"/>
-            <t:Label ui:field="stepperIndex" styleName="ss-crumb-idx"/>
-            <g:FlowPanel styleName="button-container icon-colour__green ss-crumb-steps">
+        <g:FlowPanel ui:field="segments" styleName="breadcrumb__segments"/>
+        <t:Label ui:field="state" styleName="breadcrumb__state"/>
+        <t:Label styleName="breadcrumb__spacer"/>
+        <g:FlowPanel ui:field="stepper" styleName="breadcrumb__step">
+            <t:Label ui:field="stepperLabel" styleName="breadcrumb__label"/>
+            <t:Label ui:field="stepperIndex" styleName="breadcrumb__index"/>
+            <g:FlowPanel styleName="icon-colour__green breadcrumb__steps">
                 <i:ToolbarButton ui:field="stepFirst"/>
                 <i:ToolbarButton ui:field="stepPrev"/>
                 <i:ToolbarButton ui:field="stepNext"/>

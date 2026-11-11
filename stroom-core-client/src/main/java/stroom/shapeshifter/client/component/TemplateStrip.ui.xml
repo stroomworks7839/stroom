@@ -8,45 +8,45 @@
          docking panel did in one, a split pane does one axis at a time. -->
     <split:SplitPane ui:field="layout" vertical="true" thin="true"
                      sizes="30px, *, 170px" names="Heading, Template, Details"
-                     addStyleNames="max default-min-sizes ss-strip">
-        <g:FlowPanel styleName="ss-strip-head">
-            <t:Label ui:field="title" styleName="ss-panel-title ss-strip-ptitle"/>
-            <t:Label ui:field="chip" styleName="ss-chip ss-chip--editable"
+                     addStyleNames="max default-min-sizes template-strip">
+        <g:FlowPanel styleName="template-strip__head">
+            <t:Label ui:field="title" styleName="design-panel__title template-strip__pattern-title"/>
+            <t:Label ui:field="chip" styleName="chip chip--editable"
                      title="Edit the template's name, colour, mode, params and encoding…"/>
-            <t:Label ui:field="name" styleName="ss-strip-name"
+            <t:Label ui:field="name" styleName="template-strip__name"
                      title="Edit the template's name, colour, mode, params and encoding…"/>
-            <t:Label ui:field="mode" styleName="ss-strip-mode"/>
-            <t:Label ui:field="note" styleName="ss-strip-note"/>
+            <t:Label ui:field="mode" styleName="template-strip__mode"/>
+            <t:Label ui:field="note" styleName="template-strip__note"/>
         </g:FlowPanel>
         <g:ScrollPanel styleName="max">
-            <g:FlowPanel styleName="ss-strip-body">
-                <g:FlowPanel ui:field="matchLine" styleName="ss-strip-line">
-                    <t:Label styleName="ss-strip-k" text="match"/>
-                    <g:FocusPanel ui:field="matchChip" styleName="ss-match-chip"
+            <g:FlowPanel styleName="template-strip__body">
+                <g:FlowPanel ui:field="matchLine" styleName="template-strip__line">
+                    <t:Label styleName="key-label" text="match"/>
+                    <g:FocusPanel ui:field="matchChip" styleName="template-strip__match-chip"
                                   title="Open the pattern workbench — editing, validation, groups, the plan">
-                        <g:FlowPanel styleName="ss-match-chip-inner">
-                            <t:Label ui:field="matchKind" styleName="ss-match-kind"/>
-                            <t:Label ui:field="matchSummary" styleName="ss-match-pattern"/>
-                            <t:Label styleName="ss-match-wb" text="✎ workbench"/>
+                        <g:FlowPanel styleName="template-strip__match-chip-inner">
+                            <t:Label ui:field="matchKind" styleName="template-strip__match-kind"/>
+                            <t:Label ui:field="matchSummary" styleName="template-strip__match-pattern"/>
+                            <t:Label styleName="template-strip__match-workbench" text="✎ workbench"/>
                         </g:FlowPanel>
                     </g:FocusPanel>
                 </g:FlowPanel>
                 <!-- Between the match and the body, because that is where it acts: the match
                      is found either way, and skipping decides what becomes of it (design 44 §5d). -->
-                <g:FlowPanel ui:field="roleLine" styleName="ss-strip-line">
-                    <t:Label styleName="ss-strip-k" text="match is"/>
-                    <l:SelectionBox ui:field="role" addStyleNames="ss-strip-role"
+                <g:FlowPanel ui:field="roleLine" styleName="template-strip__line">
+                    <t:Label styleName="key-label" text="match is"/>
+                    <l:SelectionBox ui:field="role" addStyleNames="template-strip__role"
                                     title="What this match is for. Both roles advance the cursor and run the body; only a record counts, captures and opens a frame to step."/>
-                    <t:Label ui:field="roleNote" styleName="ss-det-desc ss-role-note"/>
+                    <t:Label ui:field="roleNote" styleName="edit-form__description template-strip__role-note"/>
                 </g:FlowPanel>
                 <!-- Guard and limits off the match row, so the match can have the width
                      (design 44 §5h). -->
-                <g:FlowPanel ui:field="guardLine" styleName="ss-strip-line">
-                    <t:Label styleName="ss-strip-k" text="guard"/>
-                    <t:Label ui:field="guardLimits" styleName="ss-none ss-clickable"
+                <g:FlowPanel ui:field="guardLine" styleName="template-strip__line">
+                    <t:Label styleName="key-label" text="guard"/>
+                    <t:Label ui:field="guardLimits" styleName="placeholder template-strip--clickable"
                              title="Guard and limits — edited in the workbench"/>
                 </g:FlowPanel>
-                <g:SimplePanel ui:field="content" styleName="ss-strip-content"/>
+                <g:SimplePanel ui:field="content" styleName="template-strip__content"/>
             </g:FlowPanel>
         </g:ScrollPanel>
         <split:SplitPane ui:field="details" thin="true" sizes="360px, *"

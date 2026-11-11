@@ -1,7 +1,7 @@
 /* The Shapeshifter document's Design tab (design 43). Colour only where it compares: the
    template swatches in the panel, a label's tint in the pattern tree; text is text. */
 
-.shapeshifter-banner {
+.shapeshifter-design__banner {
     padding: 4px 8px;
     line-height: 18px;
     background-color: var(--code-editor__background-color--warning);
@@ -11,76 +11,76 @@
     text-overflow: ellipsis;
 }
 
-.shapeshifter-error {
+.source-settings__error {
     padding: 2px 4px;
     color: var(--bootstrap-error);
     white-space: pre-wrap;
 }
 
-.shapeshifter-hint {
+.edit-form__hint {
     padding-top: 2px;
     font-size: 0.9em;
     opacity: 0.7;
 }
 
-.shapeshifter-title {
+.source-settings__title {
     font-weight: 500;
     padding: 6px 0;
 }
 
-.shapeshifter-source {
+.source-settings {
     padding: 6px 10px;
 }
 
-.shapeshifter-short {
+.edit-form__short {
     width: 60px;
 }
 
-.shapeshifter-pattern,
-.shapeshifter-pattern-text,
-.shapeshifter-entries {
+.pattern-node-edit__pattern,
+.pattern-tree__pattern-text,
+.edit-form__entries {
     font-family: var(--monospace-font-family);
 }
 
-.shapeshifter-pattern-text {
+.pattern-tree__pattern-text {
     white-space: pre-wrap;
     word-break: break-all;
 }
 
-.shapeshifter-kind {
+.parts__kind {
     font-size: 0.85em;
     text-transform: uppercase;
     letter-spacing: 0.04em;
     opacity: 0.6;
 }
 
-.shapeshifter-tree,
-.shapeshifter-tree ul {
+.parts__tree,
+.parts__tree ul {
     list-style: none;
     margin: 0;
     padding-left: 0;
 }
 
-.shapeshifter-tree ul {
+.parts__tree ul {
     padding-left: 16px;
     border-left: 1px solid var(--splitter__background-color, rgba(128, 128, 128, 0.3));
     margin-left: 4px;
 }
 
-.shapeshifter-node {
+.parts__node {
     padding: 1px 0;
     font-family: var(--monospace-font-family);
     white-space: pre-wrap;
     word-break: break-all;
 }
 
-.shapeshifter-node > .shapeshifter-node-text {
+.parts__node > .parts__node-text {
     border-radius: 3px;
     padding: 0 3px;
 }
 
 /* Whose a library entry is: the project's parts are named beside the standard ones. */
-.ss-lib-whose {
+.pattern-tree__library-whose {
     color: var(--ss-muted);
     font-size: 11px;
     text-transform: uppercase;
@@ -89,63 +89,66 @@
 }
 
 /* A form's toolbar sits above its sections rather than floating over the first one. */
-.ss-wb-toolbar {
+.workbench-form__toolbar {
     border-bottom: 1px solid var(--border-color);
 }
 
-.shapeshifter-library {
+.pattern-tree__library {
     border-collapse: collapse;
 }
 
-.shapeshifter-library td {
+.pattern-tree__library td {
     padding: 1px 8px 1px 0;
     vertical-align: top;
 }
 
-.shapeshifter-library-name {
+.pattern-tree__library-name {
     white-space: nowrap;
 }
 
 /* Hover and selection beat the label tint: declared after it on purpose. */
-.shapeshifter-parts {
+.parts {
     margin: 0;
     padding-left: 20px;
 }
 
-.shapeshifter-parts > li {
+.parts > li {
     padding: 2px 0;
 }
 
 /* ------------------------------------------------------------------------------------------
    The mockup's own surfaces (design 43 §4.1), lifted from 18b-event-xml-trace-editor.html
-   under an ss- prefix and written against Stroom's theme variables as the mockup was.
+   and written against Stroom's theme variables as the mockup was. Named BEM, a block to a
+   sheet, as UI-GUIDE.md asks; the custom properties keep their --ss- prefix.
    ------------------------------------------------------------------------------------------ */
 
-.ss-design {
+.shapeshifter-design {
     --ss-muted: #6f7a80;
 }
 
-.stroom-theme-dark .ss-design {
+.stroom-theme-dark .shapeshifter-design {
     --ss-muted: #9aa4a8;
 }
 
-.ss-design .mono,
-.ss-strip-name,
-.ss-match-pattern,
-.ss-wb-title .mono {
+.shapeshifter-design .mono,
+.template-strip__name,
+.template-strip__match-pattern,
+.pattern-workbench__title .mono {
     font-family: var(--monospace-font-family);
 }
 
-.ss-spacer {
+.breadcrumb__spacer,
+.pattern-workbench__spacer {
     flex: 1;
 }
 
-.ss-clickable {
+.group-row--clickable,
+.template-strip--clickable {
     cursor: pointer;
 }
 
 /* A pane: a quiet uppercase title over a scrolling body. */
-.ss-panel {
+.design-panel {
     background-color: var(--page__background-color);
     display: flex;
     flex-direction: column;
@@ -153,7 +156,7 @@
     overflow: hidden;
 }
 
-.ss-panel-title {
+.design-panel__title {
     flex: none;
     font-size: 11px;
     text-transform: uppercase;
@@ -163,18 +166,18 @@
     padding: 7px 10px 5px;
 }
 
-.ss-panel-head {
+.template-panel__head {
     flex: none;
     padding: 0 6px 6px;
 }
 
-.ss-panel-body {
+.design-panel__body {
     flex: 1;
     overflow: auto;
     min-height: 0;
 }
 
-.ss-none {
+.placeholder {
     color: var(--ss-muted);
     font-style: italic;
     padding: 2px 12px;
@@ -182,7 +185,7 @@
 }
 
 /* The template panel's list. */
-.ss-mode-head {
+.template-panel__mode-head {
     font-size: 11px;
     color: var(--ss-muted);
     padding: 8px 10px 2px;
@@ -191,56 +194,56 @@
     gap: 6px;
 }
 
-.ss-tpl-row {
+.template-row {
     padding: 4px 10px 5px;
     cursor: pointer;
     outline: none;
 }
 
-.ss-tpl-row:hover {
+.template-row:hover {
     background-color: var(--row__background-color--hovered);
 }
 
-.ss-tpl-row:focus-visible {
+.template-row:focus-visible {
     box-shadow: inset 0 0 0 1px var(--focus-border);
 }
 
-.ss-tpl-row--sel {
+.template-row--selected {
     background-color: var(--row__background-color--selected);
     color: var(--text-color--selected);
 }
 
-.ss-tpl-row--sel:hover {
+.template-row--selected:hover {
     background-color: var(--row__background-color--selected--hovered);
 }
 
-.ss-tpl-row--zero {
+.template-row--zero {
     opacity: .65;
 }
 
-.ss-tpl-line {
+.template-row__line {
     display: flex;
     align-items: center;
     gap: 8px;
 }
 
-.ss-tpl-name {
+.template-row__name {
     flex: 1;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
-.ss-tpl-count {
+.template-row__count {
     color: var(--ss-muted);
     font-size: 12px;
 }
 
-.ss-tpl-row--sel .ss-tpl-count {
+.template-row--selected .template-row__count {
     color: inherit;
 }
 
-.ss-chip {
+.chip {
     display: inline-block;
     width: 10px;
     height: 10px;
@@ -248,21 +251,21 @@
     flex: none;
 }
 
-.ss-chip--outline {
+.chip--outline {
     border: 1px solid var(--ss-muted);
     box-sizing: border-box;
 }
 
-.ss-chip--editable {
+.chip--editable {
     cursor: pointer;
 }
 
 /* The template strip: identity line, then the match line and what follows. */
-.ss-strip {
+.template-strip {
     background-color: var(--page__background-color);
 }
 
-.ss-strip-head {
+.template-strip__head {
     display: flex;
     align-items: baseline;
     gap: 10px;
@@ -271,16 +274,16 @@
     overflow: hidden;
 }
 
-.ss-strip-ptitle {
+.template-strip__pattern-title {
     padding: 0;
 }
 
-.ss-strip-name {
+.template-strip__name {
     font-weight: 700;
 }
 
-.ss-strip-mode,
-.ss-strip-note {
+.template-strip__mode,
+.template-strip__note {
     color: var(--ss-muted);
     font-size: 12px;
     overflow: hidden;
@@ -288,7 +291,7 @@
 }
 
 /* A panel section: the list's own headings, two of which are destinations (design 44 §5m). */
-.ss-panel-section {
+.template-panel__section {
     color: var(--ss-muted);
     font-size: 11px;
     text-transform: uppercase;
@@ -297,11 +300,11 @@
     padding: 10px 10px 3px;
 }
 
-.ss-panel-section:first-child {
+.template-panel__section:first-child {
     padding-top: 6px;
 }
 
-.ss-panel-section--link {
+.template-panel__section--link {
     cursor: pointer;
     /* A row, so it has a hover and a selection band: give them something to fill. */
     padding-bottom: 5px;
@@ -310,26 +313,26 @@
 /* A section built from a row carries the row's children, which would otherwise out-vote the
    heading: the name is monospace and the value a size larger, shouted by the inherited
    uppercase. A heading is a heading whichever widget draws it. */
-.ss-panel-section .ss-tpl-name {
+.template-panel__section .template-row__name {
     font-family: inherit;
 }
 
-.ss-panel-section .ss-tpl-count {
+.template-panel__section .template-row__count {
     font-size: 11px;
     font-weight: 400;
     text-transform: none;
     letter-spacing: normal;
 }
 
-.ss-panel-section--link:hover {
+.template-panel__section--link:hover {
     color: var(--text-color);
 }
 
-.ss-strip-body {
+.template-strip__body {
     padding: 6px 0 10px;
 }
 
-.ss-strip-line {
+.template-strip__line {
     display: flex;
     align-items: center;
     gap: 10px;
@@ -341,7 +344,7 @@
     min-height: calc(1.2em + 2 * var(--input__padding--vertical) + 2px);
 }
 
-.ss-strip-k {
+.key-label {
     color: var(--ss-muted);
     /* One column for match, match is, guard and body, so every control starts at the same x
        and the body's cards line up under them. */
@@ -354,12 +357,12 @@
 }
 
 /* The role line, between the match and the body: the picker, then what the role means. */
-.ss-strip-role {
+.template-strip__role {
     flex: none;
     min-width: 132px;
 }
 
-.ss-role-note {
+.template-strip__role-note {
     overflow: hidden;
     text-overflow: ellipsis;
     padding-top: 0;
@@ -368,7 +371,7 @@
 
 /* A text input's dimensions exactly — Stroom's control tokens, not numbers of our own — and
    the row's full width, since a pattern is the longest thing on the strip. */
-.ss-match-chip {
+.template-strip__match-chip {
     border: solid 1px var(--control__border-color);
     border-radius: .25rem;
     background-color: var(--control__background-color);
@@ -380,25 +383,25 @@
     outline: none;
 }
 
-.ss-match-chip:hover,
-.ss-match-chip:focus-visible {
+.template-strip__match-chip:hover,
+.template-strip__match-chip:focus-visible {
     border-color: var(--focus-border);
 }
 
-.ss-match-chip-inner {
+.template-strip__match-chip-inner {
     display: flex;
     align-items: center;
     gap: 10px;
     min-width: 0;
 }
 
-.ss-match-kind {
+.template-strip__match-kind {
     font-weight: 600;
     color: var(--ss-muted);
     font-size: 12px;
 }
 
-.ss-match-pattern {
+.template-strip__match-pattern {
     font-size: 12.5px;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -407,18 +410,18 @@
     min-width: 0;
 }
 
-.ss-match-wb {
+.template-strip__match-workbench {
     color: var(--link__text-color);
     font-size: 12px;
     white-space: nowrap;
 }
 
-.ss-strip-content {
+.template-strip__content {
     padding: 0;
 }
 
 /* The pattern workbench: a title row over the match editor's tabs. */
-.ss-wb-title {
+.pattern-workbench__title {
     display: flex;
     align-items: center;
     gap: 10px;
@@ -433,7 +436,7 @@
 /* The sample page's head: where the data comes from, and nothing else - the words and the
    picker on one line, whatever width the page has. */
 /* What becomes of the chosen kind of sample, beside the picker that chooses it. */
-.ss-smp-keeping {
+.sample-source-picker__keeping {
     flex: 1;
     min-width: 0;
     overflow: hidden;
@@ -441,7 +444,7 @@
     white-space: nowrap;
 }
 
-.ss-smp-head {
+.sample-source-picker__head {
     display: flex;
     flex-wrap: nowrap;
     align-items: center;
@@ -450,12 +453,12 @@
     border-bottom: 1px solid var(--border-color);
 }
 
-.ss-smp-head > .ss-lim-label {
+.sample-source-picker__head > .edit-form__limit-label {
     flex: none;
     white-space: nowrap;
 }
 
-.ss-smp-head .SelectionBox {
+.sample-source-picker__kind {
     flex: none;
     width: 220px;
 }
@@ -463,24 +466,24 @@
 /* The pattern tree as Stroom draws an expression (design 44 §4): boxes the layout places over
    a canvas of bracket connectors. The box itself wears the expression editor's own classes, so
    the two trees are one idiom; these are the container and the words inside. */
-.ss-tree-panel {
+.pattern-tree__panel {
     position: relative;
     min-height: 60px;
 }
 
-.ss-tree-boxes {
+.pattern-tree__boxes {
     position: relative;
     top: 0;
     left: 0;
 }
 
-.ss-tree-canvas {
+.pattern-tree__canvas {
     position: absolute;
     top: 0;
     left: 0;
 }
 
-.ss-node-label {
+.pattern-tree__node-label {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -489,7 +492,7 @@
 }
 
 /* A combinator is the shape of the composition rather than what it matches: its word, plain. */
-.ss-node-label--container {
+.pattern-tree__node-label--container {
     font-family: inherit;
     text-transform: uppercase;
     font-size: 11px;
@@ -497,19 +500,19 @@
 }
 
 /* A capture: the node the body reads by name. */
-.ss-node-label--labelled {
+.pattern-tree__node-label--labelled {
     font-weight: 600;
 }
 
 /* The workbench's sample (design 44 §2): the text above, its matches and their groups below. */
-.ss-smp-in {
+.sample__input {
     display: flex;
     flex-direction: column;
     padding: 8px 14px 6px;
     box-sizing: border-box;
 }
 
-.ss-smp-text {
+.sample__text {
     flex: 1;
     min-height: 0;
     width: 100%;
@@ -523,65 +526,65 @@
     box-sizing: border-box;
 }
 
-.ss-smp-out {
+.sample__output {
     padding: 8px 14px;
 }
 
-.ss-smp-matches {
+.sample__matches {
     padding: 6px 8px;
     border: 1px solid var(--border-color);
     border-radius: 5px;
 }
 
-.ss-smp-table {
+.sample__table {
     margin-top: 8px;
     border-collapse: collapse;
     font-size: 12px;
 }
 
-.ss-smp-table td {
+.sample__table td {
     padding: 3px 8px 3px 0;
     vertical-align: top;
 }
 
-.ss-smp-n {
+.sample__number {
     color: var(--ss-muted);
 }
 
-.ss-smp-at {
+.sample__at {
     color: var(--ss-muted);
     font-family: var(--monospace-font-family);
     white-space: nowrap;
 }
 
-.ss-smp-g {
+.sample__group {
     display: inline-block;
     margin: 0 10px 2px 0;
     color: var(--hue);
 }
 
-.ss-smp-g--on {
+.sample__group--isolated {
     outline: 1px solid var(--hue);
     outline-offset: 2px;
     border-radius: 2px;
 }
 
-.ss-smp-gname {
+.sample__group-name {
     font-size: 11px;
     margin-right: 4px;
 }
 
-.ss-smp-gval {
+.sample__group-value {
     color: var(--text-color);
     white-space: pre-wrap;
 }
 
-.ss-smp-gnone {
+.sample__group-none {
     color: var(--ss-muted);
 }
 
 /* The match editor's kind row: one choice above the kind's form. */
-.ss-wb-kind {
+.match-editor__kind {
     display: flex;
     align-items: center;
     gap: 10px;
@@ -589,19 +592,19 @@
     border-bottom: 1px solid var(--border-color);
 }
 
-.ss-wb-kind .SelectionBox {
+.match-editor__select {
     min-width: 160px;
 }
 
-.ss-wb-right {
+.workbench-form__right {
     min-width: 0;
 }
 
-.ss-wb-sec {
+.workbench-form__section {
     padding: 8px 14px;
 }
 
-.ss-wb-h4 {
+.workbench-form__heading {
     margin: 0 0 4px;
     font-size: 11px;
     text-transform: uppercase;
@@ -609,13 +612,13 @@
     color: var(--ss-muted);
 }
 
-.ss-wb-h4-note {
+.workbench-form__heading-note {
     text-transform: none;
     letter-spacing: 0;
 }
 
-.ss-wb-pat,
-.ss-edit-in {
+.workbench-form__pattern,
+.edit-form__input {
     font-family: var(--monospace-font-family);
     font-size: 13px;
     padding: 4px 8px;
@@ -626,19 +629,19 @@
     box-sizing: border-box;
 }
 
-.ss-wb-pat {
+.workbench-form__pattern {
     width: 100%;
     resize: vertical;
 }
 
-.ss-wb-pat:focus,
-.ss-edit-in:focus {
+.workbench-form__pattern:focus,
+.edit-form__input:focus {
     outline: none;
     border-color: var(--focus-border);
     box-shadow: var(--focus-shadow);
 }
 
-.ss-pat-map {
+.regex__pattern-map {
     margin: 6px 0 0;
     padding: 6px 8px;
     border: 1px dashed var(--border-color);
@@ -650,17 +653,23 @@
     min-height: 18px;
 }
 
-.ss-pm-g {
+.regex__group {
     cursor: pointer;
     border-radius: 2px;
-    border-bottom: 2px solid;
+    border-bottom: 2px solid var(--hue);
+    color: var(--hue);
 }
 
-.ss-pm-g:hover {
+/* The chosen group, tinted as a match is in the sample. */
+.regex__group--selected {
+    background-color: color-mix(in srgb, var(--hue) 30%, transparent);
+}
+
+.regex__group:hover {
     background-color: var(--row__background-color--hovered);
 }
 
-.ss-wb-err {
+.workbench-form__error {
     color: var(--bootstrap-error);
     font-size: 12.5px;
     padding-top: 4px;
@@ -668,7 +677,7 @@
     white-space: pre-wrap;
 }
 
-.ss-wb-row {
+.regex__row {
     display: flex;
     align-items: center;
     gap: 14px;
@@ -676,17 +685,17 @@
     padding-top: 4px;
 }
 
-.ss-addbtn {
+.add-button {
     color: var(--link__text-color);
     font-size: 12px;
     cursor: pointer;
 }
 
-.ss-addbtn:hover {
+.add-button:hover {
     text-decoration: underline;
 }
 
-.ss-lim-label {
+.edit-form__limit-label {
     color: var(--ss-muted);
     font-size: 11px;
     text-transform: uppercase;
@@ -697,19 +706,19 @@
    inputs line up under one another; a longer word takes the space it needs and the row still
    reads. The inline labels elsewhere (the match kind, the regex's advance) are not in these
    rows and keep their natural width. */
-.ss-step-row > .ss-lim-label {
+.edit-form__step-row > .edit-form__limit-label {
     min-width: 72px;
 }
 
-.ss-lim-in {
+.edit-form__limit-input {
     width: 64px;
 }
 
-.ss-wb-groups {
+.regex__groups {
     font-size: 12.5px;
 }
 
-.ss-group-row {
+.group-row {
     display: flex;
     gap: 8px;
     align-items: center;
@@ -717,32 +726,32 @@
     border-radius: 3px;
 }
 
-.ss-group-row--sel {
+.group-row--selected {
     background-color: var(--row__background-color--selected);
 }
 
-.ss-group-arrow {
+.group-row__arrow {
     color: var(--ss-muted);
 }
 
-.ss-cap-name {
+.group-row__capture-name {
     width: 160px;
 }
 
-.ss-wb-lint {
+.workbench-form__lint {
     color: var(--ss-muted);
     font-size: 12px;
     font-style: italic;
 }
 
-.ss-explain {
+.workbench-form__explain {
     font-style: normal;
     font-family: var(--monospace-font-family);
     white-space: pre-wrap;
 }
 
 /* Guard clauses and limits: the mockup's step rows. */
-.ss-step-row {
+.edit-form__step-row {
     display: flex;
     align-items: center;
     gap: 6px;
@@ -750,76 +759,76 @@
     flex-wrap: wrap;
 }
 
-.ss-num-s {
+.edit-form__number {
     color: var(--ss-muted);
     font-size: 11px;
     min-width: 26px;
     text-align: right;
 }
 
-.ss-clause-var {
+.clause-row__variable {
     width: 150px;
 }
 
-.ss-clause-op {
+.clause-row__operator {
     width: 110px;
 }
 
-.ss-clause-val {
+.clause-row__value {
     width: 160px;
 }
 
-.ss-clause-as {
+.clause-row__as {
     width: 100px;
 }
 
-.ss-act {
+.item-action {
     color: var(--ss-muted);
     padding: 0 3px;
     font-size: 12px;
     cursor: pointer;
 }
 
-.ss-act:hover {
+.item-action:hover {
     color: var(--link__text-color);
 }
 
-.ss-act--del:hover {
+.item-action--delete:hover {
     color: var(--bootstrap-error);
 }
 
-.ss-det-desc {
+.edit-form__description {
     color: var(--ss-muted);
     font-size: 11.5px;
 }
 
 /* A field with a button beside it, in a form group. */
-.ss-field-row {
+.template-edit__field-row {
     display: flex;
     gap: 6px;
     align-items: center;
 }
 
-.ss-field-row-main {
+.template-edit__field-row-main {
     flex: 1 1 auto;
 }
 
 /* The colour palette in the template dialog: the auto tick, then the swatches. */
-.ss-palette {
+.colour-palette {
     display: flex;
     flex-wrap: wrap;
     gap: 12px;
     align-items: center;
 }
 
-.ss-palette-swatches {
+.colour-palette__swatches {
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
     align-items: center;
 }
 
-.ss-pal-swatch {
+.colour-palette__swatch {
     width: 22px;
     height: 22px;
     border-radius: 5px;
@@ -828,42 +837,42 @@
     box-sizing: border-box;
 }
 
-.ss-pal-swatch:hover {
+.colour-palette__swatch:hover {
     border-color: var(--row__background-color--hovered);
 }
 
 /* The parts tab's rows. */
-.ss-parts--editable > li {
+.parts--editable > li {
     cursor: pointer;
     border-radius: 3px;
     padding: 2px 4px;
 }
 
-.ss-parts--editable > li:hover {
+.parts--editable > li:hover {
     background-color: var(--row__background-color--hovered);
 }
 
-.ss-part--sel {
+.parts__item--selected {
     background-color: var(--row__background-color--selected);
 }
 
 /* The body as cards (mockup .card, .cards, .branch, .br-head, .addline). */
-.ss-body {
+.body {
     padding: 4px 12px 8px;
 }
 
-.ss-body-title {
+.body__title {
     display: block;
     padding: 2px 0;
 }
 
-.ss-cards--nested {
+.card-list--nested {
     padding: 0 0 0 10px;
 }
 
 /* The grip: a drag handle that appears with the card's other actions, so a card is still
    clicked to edit and only the grip starts a drag (design 44 §5o). */
-.ss-grip {
+.body-card__grip {
     flex: none;
     color: var(--ss-muted);
     font-size: 13px;
@@ -873,33 +882,33 @@
     padding-right: 2px;
 }
 
-.ss-card:hover .ss-grip,
-.ss-grip:active {
+.body-card__card:hover .body-card__grip,
+.body-card__grip:active {
     opacity: .7;
 }
 
-.ss-grip:active {
+.body-card__grip:active {
     cursor: grabbing;
 }
 
-.ss-card--dragging {
+.body-card__card--dragging {
     opacity: .5;
 }
 
 /* Where it would land: a line on the edge it is going to, drawn inside so nothing reflows. */
-.ss-card--drop-before {
+.body-card__card--drop-before {
     box-shadow: inset 0 2px 0 0 var(--focus-border);
 }
 
-.ss-card--drop-after {
+.body-card__card--drop-after {
     box-shadow: inset 0 -2px 0 0 var(--focus-border);
 }
 
-.ss-card-outer {
+.body-card__outer {
     margin: 4px 0;
 }
 
-.ss-card {
+.body-card__card {
     padding: 4px 8px;
     background-color: var(--control__background-color);
     border: 1px solid var(--border-color);
@@ -910,24 +919,24 @@
     transition: border-color .15s ease-out;
 }
 
-.ss-card:hover,
-.ss-card:focus-visible {
+.body-card__card:hover,
+.body-card__card:focus-visible {
     border-color: var(--focus-border);
 }
 
-.ss-card-line {
+.body-card__line {
     display: flex;
     align-items: baseline;
     gap: 8px;
     min-width: 0;
 }
 
-.ss-card-kind {
+.body-card__kind {
     font-weight: 600;
     white-space: nowrap;
 }
 
-.ss-card-lit {
+.body-card__literal {
     color: var(--ss-muted);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -936,43 +945,43 @@
     min-width: 0;
 }
 
-.ss-card-actions {
+.body-card__actions {
     display: flex;
     gap: 2px;
     opacity: 0;
     white-space: nowrap;
 }
 
-.ss-card:hover .ss-card-actions,
-.ss-card:focus-within .ss-card-actions {
+.body-card__card:hover .body-card__actions,
+.body-card__card:focus-within .body-card__actions {
     opacity: 1;
 }
 
-.ss-branch {
+.body-card__branch {
     margin: 2px 0 0 10px;
     border-left: 1px dashed var(--border-color);
 }
 
-.ss-br-head {
+.body-card__branch-head {
     display: flex;
     gap: 8px;
     align-items: baseline;
     padding: 2px 0 0 10px;
 }
 
-.ss-br-key {
+.body-card__branch-key {
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: .05em;
     color: var(--ss-muted);
 }
 
-.ss-addline {
+.card-list__add-line {
     display: inline-block;
     padding: 2px 0 6px;
 }
 
-.ss-add-branch {
+.body-card__add-branch {
     display: inline-block;
     padding: 2px 0 4px 10px;
 }
@@ -980,7 +989,7 @@
 /* ---- phase B: the trace cells (design 18 §5.1-§5.4) ---- */
 
 /* The breadcrumb: a row of segments, the run's state, then the whole-input stepper and the buttons. */
-.ss-crumb {
+.breadcrumb__crumb {
     display: flex;
     align-items: center;
     gap: 4px;
@@ -990,7 +999,7 @@
     white-space: nowrap;
 }
 
-.ss-crumb-segs {
+.breadcrumb__segments {
     display: flex;
     align-items: center;
     gap: 4px;
@@ -998,19 +1007,19 @@
     overflow: hidden;
 }
 
-.ss-crumb-seg {
+.breadcrumb__segment {
     display: inline-flex;
     align-items: center;
     gap: 3px;
 }
 
-.ss-crumb a,
-.ss-crumb a:visited {
+.breadcrumb__crumb a,
+.breadcrumb__crumb a:visited {
     color: inherit;
     text-decoration: none;
 }
 
-.ss-crumb-name {
+.breadcrumb__name {
     font-weight: 600;
     cursor: pointer;
     padding: 1px 6px;
@@ -1020,27 +1029,27 @@
     transition: background-color .15s ease-out, outline-color .15s ease-out;
 }
 
-.ss-crumb-name:hover {
+.breadcrumb__name:hover {
     background-color: var(--row__background-color--hovered);
     outline-color: var(--blue-300);
 }
 
-.ss-crumb-name--current {
+.breadcrumb__name--current {
     cursor: default;
 }
 
-.ss-crumb-sep,
-.ss-crumb-idx,
-.ss-crumb-lbl {
+.breadcrumb__separator,
+.breadcrumb__index,
+.breadcrumb__label {
     color: var(--ss-muted);
     font-size: 12px;
 }
 
-.ss-crumb-lbl {
+.breadcrumb__label {
     font-size: 11.5px;
 }
 
-.ss-crumb-arrow {
+.breadcrumb__arrow {
     padding: 0 3px;
     font-size: 11px;
     color: var(--ss-muted);
@@ -1048,20 +1057,20 @@
     visibility: hidden;
 }
 
-.ss-crumb-seg:hover .ss-crumb-arrow {
+.breadcrumb__segment:hover .breadcrumb__arrow {
     visibility: visible;
 }
 
-.ss-crumb-arrow:hover {
+.breadcrumb__arrow:hover {
     color: var(--blue-300);
 }
 
-.ss-crumb-arrow--off {
+.breadcrumb__arrow--off {
     opacity: .35;
     pointer-events: none;
 }
 
-.ss-crumb-state {
+.breadcrumb__state {
     color: var(--ss-muted);
     font-size: 12.5px;
     font-style: italic;
@@ -1071,7 +1080,7 @@
 
 /* The whole-input stepper, at the far end of the crumb: what it steps and where in it the
    cursor is, then Stroom's step buttons hard right, where Stroom puts its own. */
-.ss-crumb-step {
+.breadcrumb__step {
     display: inline-flex;
     align-items: center;
     flex: none;
@@ -1081,15 +1090,15 @@
     border-left: 1px solid var(--border-color);
 }
 
-.ss-crumb-steps {
+.breadcrumb__steps {
     margin: 0;
 }
 
-.ss-crumb-step .ss-crumb-idx {
+.breadcrumb__step .breadcrumb__index {
     font-family: var(--monospace-font-family);
 }
 
-.ss-note {
+.content-pane__note {
     color: var(--ss-muted);
     font-size: 12px;
     padding: 0 10px 6px;
@@ -1098,7 +1107,7 @@
 
 /* The content pane: the value, marked. A match is a coloured underline and a faint wash of
    its template's hue; pointing at it outlines it in the same hue (the mockup's one vocabulary). */
-.ss-reader {
+.content-pane__reader {
     display: flex;
     flex-direction: column;
 }
@@ -1106,13 +1115,13 @@
 /* The input and the output are data, and read as data: the surface a code editor has rather
    than the page's (2026-09-22). The variables beside them are a reading of the data, not the
    data, and keep the page's. */
-.ss-content,
-.ss-out,
-.ss-smp-matches {
+.content-pane,
+.output-pane,
+.sample__matches {
     background-color: var(--control__background-color);
 }
 
-.ss-content-box {
+.content-box {
     padding: 8px 12px;
     white-space: pre-wrap;
     word-break: break-all;
@@ -1120,7 +1129,7 @@
     font-size: 13px;
 }
 
-.ss-m {
+.mark {
     -webkit-box-decoration-break: clone;
     box-decoration-break: clone;
     border-radius: 2px;
@@ -1132,11 +1141,11 @@
     border-bottom: 2px solid var(--hue);
 }
 
-.ss-m:hover {
+.mark:hover {
     outline-color: var(--hue);
 }
 
-.ss-gap {
+.mark--gap {
     display: inline-block;
     width: 2px;
     height: 1em;
@@ -1146,11 +1155,11 @@
     margin: 0 1px;
 }
 
-.ss-loose-list {
+.content-pane__loose-list {
     padding: 4px 12px 8px;
 }
 
-.ss-loose {
+.content-pane__loose {
     display: flex;
     gap: 8px;
     align-items: baseline;
@@ -1160,26 +1169,26 @@
     font-size: 12.5px;
 }
 
-.ss-loose:hover {
+.content-pane__loose:hover {
     background-color: var(--row__background-color--hovered);
 }
 
-.ss-loose-label {
+.content-pane__loose-label {
     color: var(--ss-muted);
     white-space: nowrap;
 }
 
-.ss-loose-value {
+.content-pane__loose-value {
     white-space: pre-wrap;
     word-break: break-all;
 }
 
 /* The variables pane. */
-.ss-var-section {
+.variables-pane__section {
     padding: 2px 0 6px;
 }
 
-.ss-var-heading {
+.variables-pane__heading {
     display: block;
     font-size: 11px;
     text-transform: uppercase;
@@ -1189,18 +1198,18 @@
     font-weight: 600;
 }
 
-.ss-var-heading--link,
-.ss-var-heading--link:visited {
+.variables-pane__heading--link,
+.variables-pane__heading--link:visited {
     color: var(--ss-muted);
     text-decoration: none;
     cursor: pointer;
 }
 
-.ss-var-heading--link:hover {
+.variables-pane__heading--link:hover {
     color: var(--blue-300);
 }
 
-.ss-var-row {
+.variables-pane__row {
     display: grid;
     grid-template-columns: 14px minmax(64px, auto) auto 1fr;
     align-items: baseline;
@@ -1209,11 +1218,11 @@
     font-size: 13px;
 }
 
-.ss-var-row:hover {
+.variables-pane__row:hover {
     background-color: var(--row__background-color--hovered);
 }
 
-.ss-swatch--small {
+.swatch--small {
     display: inline-block;
     width: 10px;
     height: 10px;
@@ -1221,11 +1230,11 @@
     align-self: center;
 }
 
-.ss-var-name {
+.variables-pane__name {
     font-weight: 600;
 }
 
-.ss-type {
+.variables-pane__type {
     font-size: 10.5px;
     color: var(--ss-muted);
     background: rgba(127, 127, 127, .12);
@@ -1235,14 +1244,14 @@
     white-space: nowrap;
 }
 
-.ss-var-value {
+.variables-pane__value {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
 /* The output pane: what the cursor wrote, the rest dimmed. */
-.ss-out-box {
+.output-pane__box {
     padding: 8px 12px;
     white-space: pre;
     line-height: 1.7;
@@ -1250,13 +1259,13 @@
 }
 
 /* With a cursor below the document, only what it wrote is at full strength. */
-.ss-o-dim {
+.mark--dim {
     opacity: .45;
 }
 
 /* The capture tint: the text itself in the capture's hue, a dotted rule under it for the
    captures whitespace makes invisible (the mockup's one permanent mark). */
-.ss-cap {
+.mark--capture {
     -webkit-box-decoration-break: clone;
     box-decoration-break: clone;
     color: var(--hue);
@@ -1267,32 +1276,32 @@
     transition: outline-color .15s ease-out;
 }
 
-.ss-cap:hover {
+.mark--capture:hover {
     outline-color: var(--hue);
 }
 
 /* The run's word on a card (design 18 §5.6), and its output in the card's hue. */
-.ss-card-note {
+.body-card__note {
     color: var(--ss-muted);
     font-size: 11.5px;
     white-space: nowrap;
 }
 
-.ss-card-note--link {
+.body-card__note--link {
     cursor: pointer;
     text-decoration: underline dotted;
 }
 
-.ss-card-note--link:hover {
+.body-card__note--link:hover {
     color: var(--blue-300);
 }
 
-.ss-card .ss-swatch--small {
+.body-card__card .swatch--small {
     align-self: center;
     flex: none;
 }
 
-.ss-o-instr {
+.mark--instruction {
     -webkit-box-decoration-break: clone;
     box-decoration-break: clone;
     border-radius: 2px;
@@ -1302,81 +1311,81 @@
     transition: outline-color .15s ease-out;
 }
 
-.ss-o-instr:hover {
+.mark--instruction:hover {
     outline-color: var(--hue);
 }
 
 /* One highlight vocabulary (design 18 §5.5): whatever is pointed at, from whichever end, gets
    the same outline in its own hue; rows and cards get the hovered background. */
-.ss-m.ss-hot,
-.ss-cap.ss-hot,
-.ss-o-instr.ss-hot {
+.mark.highlight,
+.mark--capture.highlight,
+.mark--instruction.highlight {
     outline-color: var(--hue);
 }
 
-.ss-var-row.ss-hot,
-.ss-tpl-row.ss-hot {
+.variables-pane__row.highlight,
+.template-row.highlight {
     background-color: var(--row__background-color--hovered);
 }
 
-.ss-card.ss-hot {
+.body-card__card.highlight {
     border-color: var(--focus-border);
 }
 
-.ss-crumb-name.ss-hot {
+.breadcrumb__name.highlight {
     background-color: var(--row__background-color--hovered);
     outline-color: var(--blue-300);
 }
 
 /* The heat bar under a template row (design 18 §5.8). */
-.ss-heat {
+.template-row__heat {
     height: 3px;
     margin: 3px 0 0 26px;
     background-color: rgba(127, 127, 127, .15);
     border-radius: 2px;
 }
 
-.ss-heat-bar {
+.template-row__heat-bar {
     height: 3px;
     border-radius: 2px;
 }
 
-.ss-heat-bar--cool {
+.template-row__heat-bar--cool {
     background-color: #4caf50;
 }
 
-.ss-heat-bar--warm {
+.template-row__heat-bar--warm {
     background-color: #ffb300;
 }
 
-.ss-heat-bar--hot {
+.template-row__heat-bar--hot {
     background-color: #e53935;
 }
 
 /* Back and forward at the crumb's head: where was I, beside where am I (design 18 §5.3). */
 /* A message's severity on what it was said in (design 18 §5.8): a match span in the content, a
    template's row - as stepping colours its pipeline tree. */
-.ss-m.ss-flag--warning {
+.mark.severity-flag--warning {
     border-bottom-color: #ffb300;
     border-bottom-style: double;
 }
 
-.ss-m.ss-flag--error,
-.ss-m.ss-flag--fatal {
+.mark.severity-flag--error,
+.mark.severity-flag--fatal {
     border-bottom-color: #e53935;
     border-bottom-style: double;
 }
 
-.ss-tpl-flag {
+.template-row__flag {
     font-size: 10px;
     flex: none;
 }
 
-.ss-tpl-flag.ss-flag--warning {
+.template-row__flag.severity-flag--warning {
     color: #ffb300;
 }
 
-.ss-tpl-flag.ss-flag--error,
-.ss-tpl-flag.ss-flag--fatal {
+.template-row__flag.severity-flag--error,
+.template-row__flag.severity-flag--fatal {
     color: #e53935;
 }

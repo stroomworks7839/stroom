@@ -71,7 +71,7 @@ public class GroupRow extends Composite {
                 : data.getSyntaxName());
         name.setEnabled(enabled);
         if (data.isSelected()) {
-            row.addStyleName("ss-group-row--sel");
+            row.addStyleName("group-row--selected");
         }
     }
 

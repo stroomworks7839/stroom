@@ -4,12 +4,12 @@
              xmlns:t="urn:import:stroom.widget.text.client"
              xmlns:g="urn:import:com.google.gwt.user.client.ui"
              xmlns:l="urn:import:stroom.widget.selection.client">
-    <g:FlowPanel styleName="ss-step-row">
-        <t:Label ui:field="joiner" styleName="ss-num-s"/>
-        <form:TextBox ui:field="by" styleName="ss-edit-in ss-clause-var"
+    <g:FlowPanel styleName="edit-form__step-row">
+        <t:Label ui:field="joiner" styleName="edit-form__number"/>
+        <form:TextBox ui:field="by" styleName="edit-form__input clause-row__variable"
                    title="What to sort each entry by: a declared name, $1 for a capture group, or a call such as get(m, &quot;k&quot;)"/>
-        <l:SelectionBox ui:field="order" addStyleNames="ss-clause-op" title="Which way this key runs"/>
-        <l:SelectionBox ui:field="as" addStyleNames="ss-clause-as" title="How the key is read before ordering"/>
-        <t:Label ui:field="remove" styleName="ss-act ss-act--del" text="✕" title="Remove this sort key"/>
+        <l:SelectionBox ui:field="order" addStyleNames="clause-row__operator" title="Which way this key runs"/>
+        <l:SelectionBox ui:field="as" addStyleNames="clause-row__as" title="How the key is read before ordering"/>
+        <t:Label ui:field="remove" styleName="item-action item-action--delete" text="✕" title="Remove this sort key"/>
     </g:FlowPanel>
 </ui:UiBinder>

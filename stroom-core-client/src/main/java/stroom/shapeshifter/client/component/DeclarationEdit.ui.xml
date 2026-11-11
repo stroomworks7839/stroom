@@ -13,7 +13,7 @@
         </form:FormGroup>
         <form:FormGroup identity="shapeshifterDeclarationEntries" label="Entries"
                         helpText="A map's fixed entries, one per line as from = to.">
-            <form:TextArea ui:field="entries" addStyleNames="w-100 shapeshifter-entries" visibleLines="8"/>
+            <form:TextArea ui:field="entries" addStyleNames="w-100 edit-form__entries" visibleLines="8"/>
         </form:FormGroup>
     </g:FlowPanel>
 </ui:UiBinder>

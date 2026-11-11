@@ -4,24 +4,24 @@
              xmlns:t="urn:import:stroom.widget.text.client"
              xmlns:g="urn:import:com.google.gwt.user.client.ui">
     <g:ScrollPanel styleName="max">
-        <g:FlowPanel styleName="ss-wb-right">
-            <g:FlowPanel styleName="ss-wb-sec">
-                <t:Html styleName="ss-wb-h4">Delimiter <span class="ss-wb-h4-note">(each field between separators is a match; an escape makes the next character literal; inside a container the separator is literal; \n \t \r and \\ spell the control characters)</span></t:Html>
-                <g:FlowPanel styleName="ss-step-row">
-                    <t:Label styleName="ss-lim-label" text="delimiter"/>
-                    <form:TextBox ui:field="delimiter" styleName="ss-edit-in ss-clause-val"/>
+        <g:FlowPanel styleName="workbench-form__right">
+            <g:FlowPanel styleName="workbench-form__section">
+                <t:Html styleName="workbench-form__heading">Delimiter <span class="workbench-form__heading-note">(each field between separators is a match; an escape makes the next character literal; inside a container the separator is literal; \n \t \r and \\ spell the control characters)</span></t:Html>
+                <g:FlowPanel styleName="edit-form__step-row">
+                    <t:Label styleName="edit-form__limit-label" text="delimiter"/>
+                    <form:TextBox ui:field="delimiter" styleName="edit-form__input clause-row__value"/>
                 </g:FlowPanel>
-                <g:FlowPanel styleName="ss-step-row">
-                    <t:Label styleName="ss-lim-label" text="escape"/>
-                    <form:TextBox ui:field="escape" styleName="ss-edit-in ss-clause-val"/>
+                <g:FlowPanel styleName="edit-form__step-row">
+                    <t:Label styleName="edit-form__limit-label" text="escape"/>
+                    <form:TextBox ui:field="escape" styleName="edit-form__input clause-row__value"/>
                 </g:FlowPanel>
-                <g:FlowPanel styleName="ss-step-row">
-                    <t:Label styleName="ss-lim-label" text="container"/>
-                    <form:TextBox ui:field="containerStart" styleName="ss-edit-in ss-lim-in" title="Container start"/>
-                    <t:Label styleName="ss-det-desc" text="to"/>
-                    <form:TextBox ui:field="containerEnd" styleName="ss-edit-in ss-lim-in" title="Container end"/>
+                <g:FlowPanel styleName="edit-form__step-row">
+                    <t:Label styleName="edit-form__limit-label" text="container"/>
+                    <form:TextBox ui:field="containerStart" styleName="edit-form__input edit-form__limit-input" title="Container start"/>
+                    <t:Label styleName="edit-form__description" text="to"/>
+                    <form:TextBox ui:field="containerEnd" styleName="edit-form__input edit-form__limit-input" title="Container end"/>
                 </g:FlowPanel>
-                <t:Label ui:field="error" styleName="ss-wb-err"/>
+                <t:Label ui:field="error" styleName="workbench-form__error"/>
             </g:FlowPanel>
         </g:FlowPanel>
     </g:ScrollPanel>

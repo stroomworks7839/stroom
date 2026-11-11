@@ -9,7 +9,7 @@
                         helpText="The declaration the captured value is assigned to.">
             <g:FlowPanel>
                 <form:TextBox ui:field="name" addStyleNames="w-100"/>
-                <t:Label ui:field="declared" styleName="shapeshifter-hint"/>
+                <t:Label ui:field="declared" styleName="edit-form__hint"/>
             </g:FlowPanel>
         </form:FormGroup>
         <form:FormGroup identity="shapeshifterCaptureKind" label="From"
@@ -17,14 +17,14 @@
             <l:SelectionBox ui:field="kind" addStyleNames="w-100"/>
         </form:FormGroup>
         <form:FormGroup ui:field="groupGroup" identity="shapeshifterCaptureGroup" label="Group">
-            <form:TextBox ui:field="group" addStyleNames="shapeshifter-short"/>
+            <form:TextBox ui:field="group" addStyleNames="edit-form__short"/>
         </form:FormGroup>
         <form:FormGroup ui:field="labelGroup" identity="shapeshifterCaptureLabel" label="Label">
             <form:TextBox ui:field="label" addStyleNames="w-100"/>
         </form:FormGroup>
         <form:FormGroup ui:field="selectGroup" identity="shapeshifterCaptureSelect" label="Reference"
                         helpText="The reference's wire form: {&quot;parts&quot;: [...]}, or for key-value {&quot;key_ref&quot;: ..., &quot;value_ref&quot;: ...}.">
-            <form:TextArea ui:field="select" addStyleNames="w-100 shapeshifter-entries" visibleLines="6"/>
+            <form:TextArea ui:field="select" addStyleNames="w-100 edit-form__entries" visibleLines="6"/>
         </form:FormGroup>
         <form:FormGroup identity="shapeshifterCaptureCast" label="As"
                         helpText="The typed reading of the captured text.">

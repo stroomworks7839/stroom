@@ -42,8 +42,8 @@ public class SortListPanel extends Composite implements SortKeyRow.Listener {
 
     public SortListPanel() {
         final FlowPanel panel = new FlowPanel();
-        none.setStyleName("ss-none");
-        add.setStyleName("ss-addbtn");
+        none.setStyleName("placeholder");
+        add.setStyleName("add-button");
         add.addClickHandler((ClickEvent e) -> {
             if (enabled && listener != null) {
                 listener.onSortAdd();

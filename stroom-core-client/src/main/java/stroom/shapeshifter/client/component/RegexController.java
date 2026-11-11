@@ -329,19 +329,18 @@ public class RegexController
         return sb.toSafeHtml();
     }
 
-    /** The attributes hold only numbers and an hsl() of our own making; the text is escaped. */
+    /// The attributes hold only numbers and an hsl() of our own making; the text is escaped. The
+    /// group's colour goes in as a custom property, so the sheet decides what is done with it and
+    /// the selected run is a class rather than a background written here.
     private void appendRun(final SafeHtmlBuilder sb, final String text, final int group) {
         if (group == 0) {
             sb.appendEscaped(text);
             return;
         }
-        final String hue = hue(group);
-        sb.appendHtmlConstant("<span class=\"ss-pm-g" + (group == selectedGroup
-                ? " ss-pm-g--sel"
-                : "") + "\" data-group=\"" + group + "\" style=\"color:" + hue + ";border-bottom-color:" + hue
-                              + (group == selectedGroup
-                ? ";background-color:" + hue.replace(")", ", 0.3)").replace("hsl(", "hsla(")
-                : "") + "\" title=\"group $" + group + "\">")
+        sb.appendHtmlConstant("<span class=\"regex__group" + (group == selectedGroup
+                ? " regex__group--selected"
+                : "") + "\" data-group=\"" + group + "\" style=\"--hue:" + hue(group)
+                              + "\" title=\"group $" + group + "\">")
                 .appendEscaped(text)
                 .appendHtmlConstant("</span>");
     }

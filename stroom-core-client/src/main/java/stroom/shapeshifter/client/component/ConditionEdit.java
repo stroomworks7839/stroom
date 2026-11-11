@@ -31,9 +31,9 @@ public class ConditionEdit extends Component {
     @Inject
     public ConditionEdit() {
         final FlowPanel panel = new FlowPanel();
-        panel.setStyleName("ss-wb-sec");
+        panel.setStyleName("workbench-form__section");
         final Label heading = new Label("Condition");
-        heading.setStyleName("ss-wb-h4");
+        heading.setStyleName("workbench-form__heading");
         panel.add(heading);
         clauses.setEmptyText("(no clauses yet)");
         panel.add(clauses);

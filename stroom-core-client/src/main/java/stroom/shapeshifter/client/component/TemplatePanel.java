@@ -73,11 +73,11 @@ public class TemplatePanel
                 section = null;
                 if (row.getId() == null) {
                     final Label head = new Label(row.getName());
-                    head.setStyleName("ss-panel-section");
+                    head.setStyleName("template-panel__section");
                     list.add(head);
                 } else {
                     final TemplateRow widget = new TemplateRow(row, this);
-                    widget.addStyleName("ss-panel-section ss-panel-section--link");
+                    widget.addStyleName("template-panel__section template-panel__section--link");
                     rows.add(widget);
                     list.add(widget);
                 }
@@ -86,7 +86,7 @@ public class TemplatePanel
             if (row.getSection() != null && !Objects.equals(section, row.getSection())) {
                 section = row.getSection();
                 final Label head = new Label(section);
-                head.setStyleName("ss-mode-head");
+                head.setStyleName("template-panel__mode-head");
                 list.add(head);
             }
             final TemplateRow widget = new TemplateRow(row, this);

@@ -114,9 +114,9 @@ public class Body extends Component {
 
     @Inject
     public Body() {
-        widget.setStyleName("ss-body");
+        widget.setStyleName("body");
         final Label title = new Label("body");
-        title.setStyleName("ss-strip-k ss-body-title");
+        title.setStyleName("key-label body__title");
         widget.add(title);
         widget.add(cards);
         initWidget(widget);

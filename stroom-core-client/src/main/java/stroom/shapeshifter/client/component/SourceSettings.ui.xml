@@ -6,9 +6,9 @@
              xmlns:tickbox="urn:import:stroom.widget.tickbox.client"
              xmlns:l="urn:import:stroom.widget.selection.client">
     <g:ScrollPanel styleName="max">
-        <g:FlowPanel styleName="form dock-container-vertical shapeshifter-source">
-            <t:Label styleName="shapeshifter-title" text="Source — the document"/>
-            <t:Label ui:field="error" styleName="shapeshifter-error"/>
+        <g:FlowPanel styleName="form dock-container-vertical source-settings">
+            <t:Label styleName="source-settings__title" text="Source — the document"/>
+            <t:Label ui:field="error" styleName="source-settings__error"/>
             <form:FormGroup identity="shapeshifterProjectName" label="Project name">
                 <form:TextBox ui:field="name" addStyleNames="w-100"/>
             </form:FormGroup>

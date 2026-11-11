@@ -84,25 +84,26 @@ public class Sample extends Component {
         matches.setHTML(Marks.render(text, marks));
         final SafeHtmlBuilder html = new SafeHtmlBuilder();
         if (!rows.isEmpty()) {
-            html.appendHtmlConstant("<table class=\"ss-smp-table\">");
+            html.appendHtmlConstant("<table class=\"sample__table\">");
             for (final Row row : rows) {
-                html.appendHtmlConstant("<tr><td class=\"ss-smp-n\">")
+                html.appendHtmlConstant("<tr><td class=\"sample__number\">")
                         .appendEscaped(String.valueOf(row.index()))
-                        .appendHtmlConstant("</td><td class=\"ss-smp-at\">")
+                        .appendHtmlConstant("</td><td class=\"sample__at\">")
                         .appendEscaped(row.offset() + " +" + row.length())
-                        .appendHtmlConstant("</td><td class=\"ss-smp-groups\">");
+                        .appendHtmlConstant("</td><td>");
                 for (final Cell cell : row.cells()) {
-                    html.appendHtmlConstant("<span class=\"ss-smp-g" + (cell.isolated()
-                            ? " ss-smp-g--on"
-                            : "") + "\" style=\"--hue:" + Colours.safe(cell.hue()) + "\"><span class=\"ss-smp-gname\">")
+                    html.appendHtmlConstant("<span class=\"sample__group" + (cell.isolated()
+                            ? " sample__group--isolated"
+                            : "") + "\" style=\"--hue:" + Colours.safe(cell.hue()) + "\">")
+                            .appendHtmlConstant("<span class=\"sample__group-name\">")
                             .appendEscaped(cell.name() == null
                                     ? "$" + cell.group()
                                     : cell.name())
                             .appendHtmlConstant("</span>");
                     if (cell.value() == null) {
-                        html.appendHtmlConstant("<span class=\"ss-smp-gnone\">—</span>");
+                        html.appendHtmlConstant("<span class=\"sample__group-none\">—</span>");
                     } else {
-                        html.appendHtmlConstant("<span class=\"ss-smp-gval mono\">").appendEscaped(cell.value())
+                        html.appendHtmlConstant("<span class=\"sample__group-value mono\">").appendEscaped(cell.value())
                                 .appendHtmlConstant("</span>");
                     }
                     html.appendHtmlConstant("</span>");

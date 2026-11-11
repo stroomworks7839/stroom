@@ -101,13 +101,13 @@ public class ContentPane extends Component {
         loose.clear();
         for (final Loose match : looseMatches) {
             final FlowPanel row = new FlowPanel();
-            row.addStyleName("ss-loose");
+            row.addStyleName("content-pane__loose");
             // A custom property cannot be set through Style; the attribute can carry it.
             row.getElement().setAttribute("style", "--hue:" + Colours.safe(match.getColour()));
             final Label label = new Label(match.getLabel() + " — from a variable:");
-            label.addStyleName("ss-loose-label");
+            label.addStyleName("content-pane__loose-label");
             final Label value = new Label(match.getContent());
-            value.addStyleName("ss-loose-value mono");
+            value.addStyleName("content-pane__loose-value mono");
             row.add(label);
             row.add(value);
             row.addDomHandler(event -> onDescend.accept(match.getFrameId()), ClickEvent.getType());

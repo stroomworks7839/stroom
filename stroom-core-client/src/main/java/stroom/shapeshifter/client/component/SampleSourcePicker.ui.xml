@@ -7,13 +7,13 @@
              xmlns:l="urn:import:stroom.widget.selection.client">
     <split:SplitPane vertical="true" thin="true" sizes="50px, *" names="Heading, Sample"
                      addStyleNames="max default-min-sizes">
-        <g:FlowPanel styleName="ss-smp-head">
-            <t:Label styleName="ss-lim-label" text="Sample data from"/>
-            <l:SelectionBox ui:field="kind" title="Where the project's data comes from"/>
+        <g:FlowPanel styleName="sample-source-picker__head">
+            <t:Label styleName="edit-form__limit-label" text="Sample data from"/>
+            <l:SelectionBox ui:field="kind" addStyleNames="sample-source-picker__kind" title="Where the project's data comes from"/>
             <!-- The two kinds are kept differently and travel differently, and the page is
                  where the author chooses between them, so it is where that is said
                  (design 44 §5q). -->
-            <t:Label ui:field="keeping" styleName="ss-det-desc ss-smp-keeping"/>
+            <t:Label ui:field="keeping" styleName="edit-form__description sample-source-picker__keeping"/>
         </g:FlowPanel>
         <!-- The paste box lives here; the stream view takes its place in the body
              when that kind is chosen. -->

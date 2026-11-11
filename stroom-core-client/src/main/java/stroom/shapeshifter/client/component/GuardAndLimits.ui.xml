@@ -7,28 +7,28 @@
              xmlns:ss="urn:import:stroom.shapeshifter.client.component">
     <split:ScrollPane addStyleNames="max scroll-region"
                       focusable="true" role="region" ariaLabel="Guard and limits">
-        <g:FlowPanel styleName="ss-wb-right">
-            <g:FlowPanel styleName="ss-wb-sec">
-                <t:Html styleName="ss-wb-h4">Guard <span class="ss-wb-h4-note">(evaluated before matching, against the names in scope)</span></t:Html>
+        <g:FlowPanel styleName="workbench-form__right">
+            <g:FlowPanel styleName="workbench-form__section">
+                <t:Html styleName="workbench-form__heading">Guard <span class="workbench-form__heading-note">(evaluated before matching, against the names in scope)</span></t:Html>
                 <ss:ClauseListPanel ui:field="clauses"/>
-                <t:Label ui:field="error" styleName="ss-wb-err"/>
+                <t:Label ui:field="error" styleName="workbench-form__error"/>
             </g:FlowPanel>
-            <g:FlowPanel styleName="ss-wb-sec">
-                <t:Label styleName="ss-wb-h4" text="Limits"/>
-                <g:FlowPanel styleName="ss-step-row">
-                    <t:Label styleName="ss-lim-label" text="min"/>
-                    <form:TextBox ui:field="min" styleName="ss-edit-in ss-lim-in" ariaLabel="Match at least"/>
-                    <t:Label styleName="ss-det-desc" text="fewer matches than this is reported (a message, not a failure)"/>
+            <g:FlowPanel styleName="workbench-form__section">
+                <t:Label styleName="workbench-form__heading" text="Limits"/>
+                <g:FlowPanel styleName="edit-form__step-row">
+                    <t:Label styleName="edit-form__limit-label" text="min"/>
+                    <form:TextBox ui:field="min" styleName="edit-form__input edit-form__limit-input" ariaLabel="Match at least"/>
+                    <t:Label styleName="edit-form__description" text="fewer matches than this is reported (a message, not a failure)"/>
                 </g:FlowPanel>
-                <g:FlowPanel styleName="ss-step-row">
-                    <t:Label styleName="ss-lim-label" text="max"/>
-                    <form:TextBox ui:field="max" styleName="ss-edit-in ss-lim-in" ariaLabel="Match at most"/>
-                    <t:Label styleName="ss-det-desc" text="stop matching this template after N matches"/>
+                <g:FlowPanel styleName="edit-form__step-row">
+                    <t:Label styleName="edit-form__limit-label" text="max"/>
+                    <form:TextBox ui:field="max" styleName="edit-form__input edit-form__limit-input" ariaLabel="Match at most"/>
+                    <t:Label styleName="edit-form__description" text="stop matching this template after N matches"/>
                 </g:FlowPanel>
-                <g:FlowPanel styleName="ss-step-row">
-                    <t:Label styleName="ss-lim-label" text="only"/>
-                    <form:TextBox ui:field="only" styleName="ss-edit-in ss-lim-in" ariaLabel="Match only"/>
-                    <t:Label styleName="ss-det-desc" text="process only these matches, 1-based, comma-separated"/>
+                <g:FlowPanel styleName="edit-form__step-row">
+                    <t:Label styleName="edit-form__limit-label" text="only"/>
+                    <form:TextBox ui:field="only" styleName="edit-form__input edit-form__limit-input" ariaLabel="Match only"/>
+                    <t:Label styleName="edit-form__description" text="process only these matches, 1-based, comma-separated"/>
                 </g:FlowPanel>
             </g:FlowPanel>
         </g:FlowPanel>

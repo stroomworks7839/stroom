@@ -84,7 +84,7 @@ public class MatchEditor extends Component {
 
     public void setNote(final String text) {
         final Label note = new Label(text);
-        note.setStyleName("ss-wb-sec ss-wb-lint");
+        note.setStyleName("workbench-form__section workbench-form__lint");
         body.setWidget(note);
     }
 

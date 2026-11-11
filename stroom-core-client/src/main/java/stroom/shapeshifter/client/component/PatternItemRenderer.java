@@ -76,12 +76,12 @@ public final class PatternItemRenderer implements CellRenderer<PatternItem>, Nod
         style.setTop(y, Unit.PX);
 
         final Label label = new Label(item.getLabel(), false);
-        label.addStyleName("ss-node-label");
+        label.addStyleName("pattern-tree__node-label");
         if (item.isContainer()) {
-            label.addStyleName("ss-node-label--container");
+            label.addStyleName("pattern-tree__node-label--container");
         }
         if (item.isLabelled()) {
-            label.addStyleName("ss-node-label--labelled");
+            label.addStyleName("pattern-tree__node-label--labelled");
         }
         label.setTitle(item.getLabel());
 

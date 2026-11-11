@@ -4,13 +4,13 @@
              xmlns:g="urn:import:com.google.gwt.user.client.ui"
              xmlns:b="urn:import:stroom.widget.button.client">
     <g:FlowPanel styleName="max dock-container-vertical">
-        <b:Toolbar name="Actions" ui:field="buttonPanel" addStyleNames="dock-min ss-wb-toolbar"/>
+        <b:Toolbar name="Actions" ui:field="buttonPanel" addStyleNames="dock-min workbench-form__toolbar"/>
         <g:ScrollPanel styleName="dock-max">
-            <g:FlowPanel styleName="ss-wb-right">
-                <g:FlowPanel styleName="ss-wb-sec">
-                    <t:Html styleName="ss-wb-h4">Framed sequence <span class="ss-wb-h4-note">(run in order, nothing backtracking across parts; a take or a seek may be as long as a label matched earlier says)</span></t:Html>
+            <g:FlowPanel styleName="workbench-form__right">
+                <g:FlowPanel styleName="workbench-form__section">
+                    <t:Html styleName="workbench-form__heading">Framed sequence <span class="workbench-form__heading-note">(run in order, nothing backtracking across parts; a take or a seek may be as long as a label matched earlier says)</span></t:Html>
                     <t:Html ui:field="parts"/>
-                    <t:Label ui:field="error" styleName="ss-wb-err"/>
+                    <t:Label ui:field="error" styleName="workbench-form__error"/>
                 </g:FlowPanel>
             </g:FlowPanel>
         </g:ScrollPanel>

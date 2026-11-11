@@ -101,7 +101,7 @@ public class OutputPane extends Component {
                 : noteText);
         note.setVisible(noteText != null);
         // What this frame wrote is the whole point of the pane, so it is what the pane shows.
-        Marks.reveal(body, output.getElement(), "ss-o-own");
+        Marks.reveal(body, output.getElement(), "mark--own");
     }
 
     public void setHot(final Hot hot) {

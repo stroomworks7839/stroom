@@ -43,7 +43,7 @@ public final class Marks {
     static final String TEMPLATE_ATTR = "data-tpl";
     static final String CAPTURE_ATTR = "data-cap";
     static final String INSTRUCTION_ATTR = "data-instr";
-    static final String HOT_CLASS = "ss-hot";
+    static final String HOT_CLASS = "highlight";
 
     private Marks() {
     }
@@ -203,15 +203,15 @@ public final class Marks {
     private static String openTag(final Mark mark) {
         final StringBuilder tag = new StringBuilder("<span class=\"");
         switch (mark.getKind()) {
-            case MATCH -> tag.append("ss-m");
-            case CAPTURE -> tag.append("ss-cap");
-            case GAP -> tag.append("ss-gap");
-            case OWN -> tag.append("ss-o-own");
-            case INSTRUCTION -> tag.append("ss-o-instr");
-            case DIM -> tag.append("ss-o-dim");
+            case MATCH -> tag.append("mark");
+            case CAPTURE -> tag.append("mark--capture");
+            case GAP -> tag.append("mark--gap");
+            case OWN -> tag.append("mark--own");
+            case INSTRUCTION -> tag.append("mark--instruction");
+            case DIM -> tag.append("mark--dim");
         }
         if (mark.getFlag() != null) {
-            tag.append(" ss-flag ss-flag--").append(mark.getFlag());
+            tag.append(" severity-flag severity-flag--").append(mark.getFlag());
         }
         tag.append('"');
         switch (mark.getKind()) {

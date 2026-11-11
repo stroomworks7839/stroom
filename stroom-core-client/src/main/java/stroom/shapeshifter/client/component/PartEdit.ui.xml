@@ -12,13 +12,13 @@
             </form:FormGroup>
             <form:FormGroup ui:field="patternGroup" identity="shapeshifterPartPattern" label="Pattern tree"
                             helpText="The pattern node in its wire form, as the tree tab holds it.">
-                <form:TextArea ui:field="pattern" addStyleNames="w-100 shapeshifter-entries" visibleLines="8"/>
+                <form:TextArea ui:field="pattern" addStyleNames="w-100 edit-form__entries" visibleLines="8"/>
             </form:FormGroup>
             <form:FormGroup ui:field="lengthGroup" identity="shapeshifterPartLength" label="Length"
                             helpText="A count of bytes, or the value a label or a variable holds.">
-                <g:FlowPanel styleName="ss-step-row">
-                    <l:SelectionBox ui:field="lengthKind" addStyleNames="ss-clause-op"/>
-                    <form:TextBox ui:field="length" styleName="ss-edit-in ss-clause-val"/>
+                <g:FlowPanel styleName="edit-form__step-row">
+                    <l:SelectionBox ui:field="lengthKind" addStyleNames="clause-row__operator"/>
+                    <form:TextBox ui:field="length" styleName="edit-form__input clause-row__value"/>
                 </g:FlowPanel>
             </form:FormGroup>
             <form:FormGroup ui:field="absoluteGroup" identity="shapeshifterPartAbsolute" label="Absolute"
