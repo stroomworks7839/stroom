@@ -1,0 +1,15 @@
+/*
+ * The small-caps key in a label-and-value strip (TemplateStrip, Body): one column, so
+ * every control beside one starts at the same x.
+ */
+.key-label {
+    color: var(--ss-muted);
+    /* One column for match, match is, guard and body, so every control starts at the same x
+       and the body's cards line up under them. */
+    width: 64px;
+    flex: none;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    font-weight: 600;
+}

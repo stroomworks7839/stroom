@@ -1,0 +1,9 @@
+/*
+ * The italic note a list shows in place of its rows when it holds nothing.
+ */
+.placeholder {
+    color: var(--ss-muted);
+    font-style: italic;
+    padding: 2px 12px;
+    font-size: 12.5px;
+}

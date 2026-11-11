@@ -1,0 +1,13 @@
+/*
+ * The `+ add` line that ends a list (CardList, ClauseListPanel, SortListPanel, Regex):
+ * a quiet link rather than a button, because adding is not the list's main act.
+ */
+.add-button {
+    color: var(--link__text-color);
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.add-button:hover {
+    text-decoration: underline;
+}

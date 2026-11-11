@@ -246,7 +246,51 @@
 @import url("traces-list-tab.css");
 @import url("pathway-tree.css");
 @import url("trace-histogram-chart.css");
-@import url("shapeshifter.css");
+/* Shapeshifter's blocks (design 43). Not alphabetical: this is the order the rules stood
+   in before the sheet was split a block to a file, which keeps the cascade as it was.
+   `highlight` and `severity-flag` are states over several blocks, so they come last. */
+/* Shapeshifter's blocks (design 43). Not alphabetical: it is the order the rules stood in
+   before the sheet was split a block to a file, which keeps the cascade as it was. A panel
+   section is also a template row, so template-panel must load after template-row; the
+   states over several blocks, `highlight` and `severity-flag`, come last. */
+@import url("shapeshifter-design.css");
+@import url("source-settings.css");
+@import url("edit-form.css");
+@import url("pattern-node-edit.css");
+@import url("pattern-tree.css");
+@import url("parts.css");
+@import url("workbench-form.css");
+@import url("mono.css");
+@import url("breadcrumb.css");
+@import url("pattern-workbench.css");
+@import url("group-row.css");
+@import url("template-strip.css");
+@import url("design-panel.css");
+@import url("placeholder.css");
+@import url("template-row.css");
+@import url("template-panel.css");
+@import url("chip.css");
+@import url("key-label.css");
+@import url("sample-source-picker.css");
+@import url("sample.css");
+@import url("match-editor.css");
+@import url("regex.css");
+@import url("add-button.css");
+@import url("clause-row.css");
+@import url("item-action.css");
+@import url("template-edit.css");
+@import url("colour-palette.css");
+@import url("body.css");
+@import url("card-list.css");
+@import url("body-card.css");
+@import url("content-pane.css");
+@import url("output-pane.css");
+@import url("content-box.css");
+@import url("mark.css");
+@import url("variables-pane.css");
+@import url("swatch.css");
+@import url("highlight.css");
+@import url("severity-flag.css");
 @import url("ask-stroom-ai.css");
 @import url("ai-message.css");
 @import url("ai-chat-cell.css");

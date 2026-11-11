@@ -1,0 +1,11 @@
+/*
+ * A box of read-only content: what the cursor's frame holds (ContentPane), and the
+ * sample's matches (Sample).
+ */
+.content-box {
+    padding: 8px 12px;
+    white-space: pre-wrap;
+    word-break: break-all;
+    line-height: 2.1;
+    font-size: 13px;
+}

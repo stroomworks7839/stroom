@@ -1,0 +1,51 @@
+/*
+ * What the cursor's frame holds (ContentPane): the reader, and the loose values beside it.
+ */
+.content-pane__note {
+    color: var(--ss-muted);
+    font-size: 12px;
+    padding: 0 10px 6px;
+    flex: none;
+}
+
+/* The content pane: the value, marked. A match is a coloured underline and a faint wash of
+   its template's hue; pointing at it outlines it in the same hue (the mockup's one vocabulary). */
+.content-pane__reader {
+    display: flex;
+    flex-direction: column;
+}
+
+/* The input and the output are data, and read as data: the surface a code editor has rather
+   than the page's (2026-09-22). The variables beside them are a reading of the data, not the
+   data, and keep the page's. */
+.content-pane {
+    background-color: var(--control__background-color);
+}
+
+.content-pane__loose-list {
+    padding: 4px 12px 8px;
+}
+
+.content-pane__loose {
+    display: flex;
+    gap: 8px;
+    align-items: baseline;
+    padding: 2px 6px;
+    border-left: 3px solid var(--hue);
+    cursor: pointer;
+    font-size: 12.5px;
+}
+
+.content-pane__loose:hover {
+    background-color: var(--row__background-color--hovered);
+}
+
+.content-pane__loose-label {
+    color: var(--ss-muted);
+    white-space: nowrap;
+}
+
+.content-pane__loose-value {
+    white-space: pre-wrap;
+    word-break: break-all;
+}

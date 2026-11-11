@@ -1,0 +1,15 @@
+/*
+ * A template's colour, shown small beside its name (BodyCard, VariablesPane).
+ */
+.swatch--small {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    align-self: center;
+}
+
+.body-card__card .swatch--small {
+    align-self: center;
+    flex: none;
+}

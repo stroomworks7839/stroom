@@ -1,0 +1,24 @@
+/*
+ * A message's severity on what it was said in (design 18 §5.8): a match span in the
+ * content (Marks), a template's row (TemplateRow) — as stepping colours its pipeline tree.
+ * Set by both, so it belongs to neither.
+ */
+.mark.severity-flag--warning {
+    border-bottom-color: #ffb300;
+    border-bottom-style: double;
+}
+
+.mark.severity-flag--error,
+.mark.severity-flag--fatal {
+    border-bottom-color: #e53935;
+    border-bottom-style: double;
+}
+
+.template-row__flag.severity-flag--warning {
+    color: #ffb300;
+}
+
+.template-row__flag.severity-flag--error,
+.template-row__flag.severity-flag--fatal {
+    color: #e53935;
+}

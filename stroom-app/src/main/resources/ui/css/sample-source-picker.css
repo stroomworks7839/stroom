@@ -1,0 +1,28 @@
+/*
+ * Where the run's data comes from (SampleSourcePicker): the kind on one line with the
+ * words, and what the project keeps said beneath.
+ */
+/* What becomes of the chosen kind of sample, beside the picker that chooses it. */
+.sample-source-picker__keeping {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* The sample page's head: where the data comes from, and nothing else - the words and the
+   picker on one line, whatever width the page has. */
+.sample-source-picker__head {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.sample-source-picker__kind {
+    flex: none;
+    width: 220px;
+}

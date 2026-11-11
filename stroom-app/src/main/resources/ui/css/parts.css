@@ -1,0 +1,59 @@
+/*
+ * The framed sequence's parts (Parts): the list, its items, and each part's kind and text.
+ */
+.parts__kind {
+    font-size: 0.85em;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    opacity: 0.6;
+}
+
+.parts__tree,
+.parts__tree ul {
+    list-style: none;
+    margin: 0;
+    padding-left: 0;
+}
+
+.parts__tree ul {
+    padding-left: 16px;
+    border-left: 1px solid var(--splitter__background-color, rgba(128, 128, 128, 0.3));
+    margin-left: 4px;
+}
+
+.parts__node {
+    padding: 1px 0;
+    font-family: var(--monospace-font-family);
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+.parts__node > .parts__node-text {
+    border-radius: 3px;
+    padding: 0 3px;
+}
+
+/* Hover and selection beat the label tint: declared after it on purpose. */
+.parts {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.parts > li {
+    padding: 2px 0;
+}
+
+/* The parts tab's rows. */
+.parts--editable > li {
+    cursor: pointer;
+    border-radius: 3px;
+    padding: 2px 4px;
+}
+
+.parts--editable > li:hover {
+    background-color: var(--row__background-color--hovered);
+}
+
+.parts__item--selected {
+    background-color: var(--row__background-color--selected);
+}

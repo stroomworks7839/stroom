@@ -1,0 +1,61 @@
+/*
+ * The names in scope (VariablesPane): rows of name and value, under the headings that
+ * say where each came from.
+ */
+.variables-pane__section {
+    padding: 2px 0 6px;
+}
+
+.variables-pane__heading {
+    display: block;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--ss-muted);
+    padding: 8px 12px 4px;
+    font-weight: 600;
+}
+
+.variables-pane__heading--link,
+.variables-pane__heading--link:visited {
+    color: var(--ss-muted);
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.variables-pane__heading--link:hover {
+    color: var(--blue-300);
+}
+
+.variables-pane__row {
+    display: grid;
+    grid-template-columns: 14px minmax(64px, auto) auto 1fr;
+    align-items: baseline;
+    gap: 8px;
+    padding: 3px 12px;
+    font-size: 13px;
+}
+
+.variables-pane__row:hover {
+    background-color: var(--row__background-color--hovered);
+}
+
+.variables-pane__name {
+    font-weight: 600;
+}
+
+.variables-pane__type {
+    font-size: 10.5px;
+    color: var(--ss-muted);
+    background: rgba(127, 127, 127, .12);
+    border: 1px solid var(--control__border-color);
+    border-radius: 3px;
+    padding: 0 5px;
+    white-space: nowrap;
+}
+
+.variables-pane__value {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}

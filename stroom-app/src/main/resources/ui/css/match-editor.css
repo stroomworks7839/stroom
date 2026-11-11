@@ -1,0 +1,14 @@
+/*
+ * The match editor's kind row (MatchEditor): one choice above the kind's own form.
+ */
+.match-editor__kind {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 14px 5px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.match-editor__select {
+    min-width: 160px;
+}

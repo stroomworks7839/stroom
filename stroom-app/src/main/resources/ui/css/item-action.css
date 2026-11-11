@@ -1,0 +1,18 @@
+/*
+ * The small actions on a card or a clause row (BodyCard, GuardClauseRow, SortKeyRow),
+ * the delete among them. Not row-action, which is the data grid's.
+ */
+.item-action {
+    color: var(--ss-muted);
+    padding: 0 3px;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.item-action:hover {
+    color: var(--link__text-color);
+}
+
+.item-action--delete:hover {
+    color: var(--bootstrap-error);
+}

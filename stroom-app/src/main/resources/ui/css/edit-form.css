@@ -1,0 +1,80 @@
+/*
+ * The field furniture the edit dialogs share (CaptureEdit, DeclarationEdit,
+ * InstructionEdit, PartEdit, TemplateEdit and the workbench forms): inputs, limits, step
+ * rows, entries, hints and descriptions.
+ */
+.edit-form__hint {
+    padding-top: 2px;
+    font-size: 0.9em;
+    opacity: 0.7;
+}
+
+.edit-form__short {
+    width: 60px;
+}
+
+.edit-form__entries {
+    font-family: var(--monospace-font-family);
+}
+
+.sample-source-picker__head > .edit-form__limit-label {
+    flex: none;
+    white-space: nowrap;
+}
+
+.edit-form__input {
+    font-family: var(--monospace-font-family);
+    font-size: 13px;
+    padding: 4px 8px;
+    border: 1px solid var(--control__border-color);
+    border-radius: 5px;
+    background-color: var(--control__background-color);
+    color: var(--text-color);
+    box-sizing: border-box;
+}
+
+.edit-form__input:focus {
+    outline: none;
+    border-color: var(--focus-border);
+    box-shadow: var(--focus-shadow);
+}
+
+.edit-form__limit-label {
+    color: var(--ss-muted);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+}
+
+/* In a stacked field row - the limits, the delimiter's four - the labels share a column so the
+   inputs line up under one another; a longer word takes the space it needs and the row still
+   reads. The inline labels elsewhere (the match kind, the regex's advance) are not in these
+   rows and keep their natural width. */
+.edit-form__step-row > .edit-form__limit-label {
+    min-width: 72px;
+}
+
+.edit-form__limit-input {
+    width: 64px;
+}
+
+/* Guard clauses and limits: the mockup's step rows. */
+.edit-form__step-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 0;
+    flex-wrap: wrap;
+}
+
+.edit-form__number {
+    color: var(--ss-muted);
+    font-size: 11px;
+    min-width: 26px;
+    text-align: right;
+}
+
+.edit-form__description {
+    color: var(--ss-muted);
+    font-size: 11.5px;
+}

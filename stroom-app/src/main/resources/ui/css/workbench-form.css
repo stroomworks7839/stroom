@@ -1,0 +1,73 @@
+/*
+ * The chrome every workbench pane's form shares (Delimiter, GuardAndLimits, Parts,
+ * PatternTree, Regex and the rest): headings and their notes, sections, errors, the lint
+ * beneath a pattern, and the toolbar above them.
+ */
+/* A form's toolbar sits above its sections rather than floating over the first one. */
+.workbench-form__toolbar {
+    border-bottom: 1px solid var(--border-color);
+}
+
+/* The workbench's right column: sections with quiet uppercase headings (mockup #wbRight). */
+.workbench-form__right {
+    min-width: 0;
+}
+
+.workbench-form__section {
+    padding: 8px 14px;
+}
+
+.workbench-form__heading {
+    margin: 0 0 4px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--ss-muted);
+}
+
+.workbench-form__heading-note {
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+.workbench-form__pattern {
+    font-family: var(--monospace-font-family);
+    font-size: 13px;
+    padding: 4px 8px;
+    border: 1px solid var(--control__border-color);
+    border-radius: 5px;
+    background-color: var(--control__background-color);
+    color: var(--text-color);
+    box-sizing: border-box;
+}
+
+.workbench-form__pattern {
+    width: 100%;
+    resize: vertical;
+}
+
+.workbench-form__pattern:focus {
+    outline: none;
+    border-color: var(--focus-border);
+    box-shadow: var(--focus-shadow);
+}
+
+.workbench-form__error {
+    color: var(--bootstrap-error);
+    font-size: 12.5px;
+    padding-top: 4px;
+    min-height: 18px;
+    white-space: pre-wrap;
+}
+
+.workbench-form__lint {
+    color: var(--ss-muted);
+    font-size: 12px;
+    font-style: italic;
+}
+
+.workbench-form__explain {
+    font-style: normal;
+    font-family: var(--monospace-font-family);
+    white-space: pre-wrap;
+}

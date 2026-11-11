@@ -1,0 +1,124 @@
+/*
+ * The chosen template's strip (TemplateStrip): what it matches, the mode and role it runs
+ * under, and its body.
+ */
+.template-strip__name,
+.template-strip__match-pattern {
+    font-family: var(--monospace-font-family);
+}
+
+.template-strip--clickable {
+    cursor: pointer;
+}
+
+/* The template strip: identity line, then the match line and what follows. */
+.template-strip {
+    background-color: var(--page__background-color);
+}
+
+.template-strip__head {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    padding: 7px 12px 5px;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+/* The strip's title is a panel title that sits in the strip's own padding, so it drops the
+   panel's. Written as both classes rather than relying on which sheet loads last. */
+.design-panel__title.template-strip__pattern-title {
+    padding: 0;
+}
+
+.template-strip__name {
+    font-weight: 700;
+}
+
+.template-strip__mode,
+.template-strip__note {
+    color: var(--ss-muted);
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.template-strip__body {
+    padding: 6px 0 10px;
+}
+
+.template-strip__line {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 12px;
+    font-size: 12.5px;
+    min-width: 0;
+    /* The match and role rows are as tall as the control in them; the guard row holds only
+       text and would sit shorter. One control's height, so the four rows are one rhythm. */
+    min-height: calc(1.2em + 2 * var(--input__padding--vertical) + 2px);
+}
+
+/* The role line, between the match and the body: the picker, then what the role means. */
+.template-strip__role {
+    flex: none;
+    min-width: 132px;
+}
+
+.template-strip__role-note {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding-top: 0;
+    min-height: 0;
+}
+
+/* A text input's dimensions exactly — Stroom's control tokens, not numbers of our own — and
+   the row's full width, since a pattern is the longest thing on the strip. */
+.template-strip__match-chip {
+    border: solid 1px var(--control__border-color);
+    border-radius: .25rem;
+    background-color: var(--control__background-color);
+    padding: var(--input__padding--vertical) var(--input__padding--horizontal);
+    cursor: pointer;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    outline: none;
+}
+
+.template-strip__match-chip:hover,
+.template-strip__match-chip:focus-visible {
+    border-color: var(--focus-border);
+}
+
+.template-strip__match-chip-inner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.template-strip__match-kind {
+    font-weight: 600;
+    color: var(--ss-muted);
+    font-size: 12px;
+}
+
+.template-strip__match-pattern {
+    font-size: 12.5px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+}
+
+.template-strip__match-workbench {
+    color: var(--link__text-color);
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.template-strip__content {
+    padding: 0;
+}

@@ -1,0 +1,27 @@
+/*
+ * One capture group of a regex (GroupRow): the name it declares, and the arrow that
+ * opens it.
+ */
+.group-row--clickable {
+    cursor: pointer;
+}
+
+.group-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    padding: 2px 4px;
+    border-radius: 3px;
+}
+
+.group-row--selected {
+    background-color: var(--row__background-color--selected);
+}
+
+.group-row__arrow {
+    color: var(--ss-muted);
+}
+
+.group-row__capture-name {
+    width: 160px;
+}

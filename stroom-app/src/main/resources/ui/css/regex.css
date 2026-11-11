@@ -1,0 +1,43 @@
+/*
+ * The regex workbench (Regex): the pattern, the groups it declares, and the map of the
+ * pattern's runs, each run tinted with its group's hue.
+ */
+.regex__pattern-map {
+    margin: 6px 0 0;
+    padding: 6px 8px;
+    border: 1px dashed var(--border-color);
+    border-radius: 5px;
+    font-family: var(--monospace-font-family);
+    font-size: 13px;
+    word-break: break-all;
+    white-space: pre-wrap;
+    min-height: 18px;
+}
+
+.regex__group {
+    cursor: pointer;
+    border-radius: 2px;
+    border-bottom: 2px solid var(--hue);
+    color: var(--hue);
+}
+
+/* The chosen group, tinted as a match is in the sample. */
+.regex__group--selected {
+    background-color: color-mix(in srgb, var(--hue) 30%, transparent);
+}
+
+.regex__group:hover {
+    background-color: var(--row__background-color--hovered);
+}
+
+.regex__row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    padding-top: 4px;
+}
+
+.regex__groups {
+    font-size: 12.5px;
+}

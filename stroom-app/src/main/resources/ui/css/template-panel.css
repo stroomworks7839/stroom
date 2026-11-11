@@ -1,0 +1,42 @@
+/*
+ * The panel listing the project's templates (TemplatePanel): its head, its sections, and
+ * the list that scrolls.
+ */
+.template-panel__head {
+    flex: none;
+    padding: 0 6px 6px;
+}
+
+/* The template panel's list. */
+.template-panel__mode-head {
+    font-size: 11px;
+    color: var(--ss-muted);
+    padding: 8px 10px 2px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* A panel section: the list's own headings, two of which are destinations (design 44 §5m). */
+.template-panel__section {
+    color: var(--ss-muted);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    font-weight: 600;
+    padding: 10px 10px 3px;
+}
+
+.template-panel__section:first-child {
+    padding-top: 6px;
+}
+
+.template-panel__section--link {
+    cursor: pointer;
+    /* A row, so it has a hover and a selection band: give them something to fill. */
+    padding-bottom: 5px;
+}
+
+.template-panel__section--link:hover {
+    color: var(--text-color);
+}

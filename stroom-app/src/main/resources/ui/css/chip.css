@@ -1,0 +1,20 @@
+/*
+ * The small coloured tag a template or a capture is named by, in the panel's rows
+ * (TemplateRow), the group rows (GroupRow) and the strip (TemplateStrip).
+ */
+.chip {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+    flex: none;
+}
+
+.chip--outline {
+    border: 1px solid var(--ss-muted);
+    box-sizing: border-box;
+}
+
+.chip--editable {
+    cursor: pointer;
+}

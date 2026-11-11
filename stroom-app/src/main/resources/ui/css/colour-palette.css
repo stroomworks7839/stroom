@@ -1,0 +1,30 @@
+/*
+ * The colour palette in the template dialog (ColourPalette): the auto tick, then the
+ * swatches.
+ */
+.colour-palette {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+}
+
+.colour-palette__swatches {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+}
+
+.colour-palette__swatch {
+    width: 22px;
+    height: 22px;
+    border-radius: 5px;
+    cursor: pointer;
+    border: 2px solid transparent;
+    box-sizing: border-box;
+}
+
+.colour-palette__swatch:hover {
+    border-color: var(--row__background-color--hovered);
+}

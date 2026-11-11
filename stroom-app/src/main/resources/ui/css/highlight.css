@@ -1,0 +1,24 @@
+/*
+ * One highlight vocabulary (design 18 §5.5), set from Marks.HOT_CLASS: whatever is
+ * pointed at, from whichever end, gets the same outline in its own hue; rows and cards get
+ * the hovered background instead. A state over several blocks, so it is a block of its own.
+ */
+.mark.highlight,
+.mark--capture.highlight,
+.mark--instruction.highlight {
+    outline-color: var(--hue);
+}
+
+.variables-pane__row.highlight,
+.template-row.highlight {
+    background-color: var(--row__background-color--hovered);
+}
+
+.body-card__card.highlight {
+    border-color: var(--focus-border);
+}
+
+.breadcrumb__name.highlight {
+    background-color: var(--row__background-color--hovered);
+    outline-color: var(--blue-300);
+}

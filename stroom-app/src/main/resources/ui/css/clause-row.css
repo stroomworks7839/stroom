@@ -1,0 +1,19 @@
+/*
+ * One clause of a guard or a sort key (GuardClauseRow, SortKeyRow): its variable,
+ * operator, value, and the name it captures into.
+ */
+.clause-row__variable {
+    width: 150px;
+}
+
+.clause-row__operator {
+    width: 110px;
+}
+
+.clause-row__value {
+    width: 160px;
+}
+
+.clause-row__as {
+    width: 100px;
+}

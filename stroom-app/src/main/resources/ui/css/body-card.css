@@ -1,0 +1,130 @@
+/*
+ * One node of a template's output body (BodyCard): the card, its kind and literal, the
+ * run's note, its drag grip, and the branches a holder (choose, switch) opens beneath it.
+ */
+/* The grip: a drag handle that appears with the card's other actions, so a card is still
+   clicked to edit and only the grip starts a drag (design 44 §5o). */
+.body-card__grip {
+    flex: none;
+    color: var(--ss-muted);
+    font-size: 13px;
+    line-height: 1;
+    cursor: grab;
+    opacity: 0;
+    padding-right: 2px;
+}
+
+.body-card__card:hover .body-card__grip,
+.body-card__grip:active {
+    opacity: .7;
+}
+
+.body-card__grip:active {
+    cursor: grabbing;
+}
+
+.body-card__card--dragging {
+    opacity: .5;
+}
+
+/* Where it would land: a line on the edge it is going to, drawn inside so nothing reflows. */
+.body-card__card--drop-before {
+    box-shadow: inset 0 2px 0 0 var(--focus-border);
+}
+
+.body-card__card--drop-after {
+    box-shadow: inset 0 -2px 0 0 var(--focus-border);
+}
+
+.body-card__outer {
+    margin: 4px 0;
+}
+
+.body-card__card {
+    padding: 4px 8px;
+    background-color: var(--control__background-color);
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    font-size: 12.5px;
+    cursor: pointer;
+    outline: none;
+    transition: border-color .15s ease-out;
+}
+
+.body-card__card:hover,
+.body-card__card:focus-visible {
+    border-color: var(--focus-border);
+}
+
+.body-card__line {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    min-width: 0;
+}
+
+.body-card__kind {
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.body-card__literal {
+    color: var(--ss-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+}
+
+.body-card__actions {
+    display: flex;
+    gap: 2px;
+    opacity: 0;
+    white-space: nowrap;
+}
+
+.body-card__card:hover .body-card__actions,
+.body-card__card:focus-within .body-card__actions {
+    opacity: 1;
+}
+
+.body-card__branch {
+    margin: 2px 0 0 10px;
+    border-left: 1px dashed var(--border-color);
+}
+
+.body-card__branch-head {
+    display: flex;
+    gap: 8px;
+    align-items: baseline;
+    padding: 2px 0 0 10px;
+}
+
+.body-card__branch-key {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--ss-muted);
+}
+
+.body-card__add-branch {
+    display: inline-block;
+    padding: 2px 0 4px 10px;
+}
+
+/* The run's word on a card (design 18 §5.6), and its output in the card's hue. */
+.body-card__note {
+    color: var(--ss-muted);
+    font-size: 11.5px;
+    white-space: nowrap;
+}
+
+.body-card__note--link {
+    cursor: pointer;
+    text-decoration: underline dotted;
+}
+
+.body-card__note--link:hover {
+    color: var(--blue-300);
+}

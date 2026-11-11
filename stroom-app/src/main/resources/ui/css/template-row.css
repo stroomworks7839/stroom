@@ -1,0 +1,96 @@
+/*
+ * One template in the panel (TemplateRow): its name, its match count, its severity flag,
+ * and the heat bar beneath that says how much of the input it took.
+ */
+.template-row {
+    padding: 4px 10px 5px;
+    cursor: pointer;
+    outline: none;
+}
+
+.template-row:hover {
+    background-color: var(--row__background-color--hovered);
+}
+
+.template-row:focus-visible {
+    box-shadow: inset 0 0 0 1px var(--focus-border);
+}
+
+.template-row--selected {
+    background-color: var(--row__background-color--selected);
+    color: var(--text-color--selected);
+}
+
+.template-row--selected:hover {
+    background-color: var(--row__background-color--selected--hovered);
+}
+
+.template-row--zero {
+    opacity: .65;
+}
+
+.template-row__line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.template-row__name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.template-row__count {
+    color: var(--ss-muted);
+    font-size: 12px;
+}
+
+.template-row--selected .template-row__count {
+    color: inherit;
+}
+
+/* A section built from a row carries the row's children, which would otherwise out-vote the
+   heading: the name is monospace and the value a size larger, shouted by the inherited
+   uppercase. A heading is a heading whichever widget draws it. */
+.template-panel__section .template-row__name {
+    font-family: inherit;
+}
+
+.template-panel__section .template-row__count {
+    font-size: 11px;
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: normal;
+}
+
+/* The heat bar under a template row (design 18 §5.8). */
+.template-row__heat {
+    height: 3px;
+    margin: 3px 0 0 26px;
+    background-color: rgba(127, 127, 127, .15);
+    border-radius: 2px;
+}
+
+.template-row__heat-bar {
+    height: 3px;
+    border-radius: 2px;
+}
+
+.template-row__heat-bar--cool {
+    background-color: #4caf50;
+}
+
+.template-row__heat-bar--warm {
+    background-color: #ffb300;
+}
+
+.template-row__heat-bar--hot {
+    background-color: #e53935;
+}
+
+.template-row__flag {
+    font-size: 10px;
+    flex: none;
+}

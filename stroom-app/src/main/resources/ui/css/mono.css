@@ -1,0 +1,8 @@
+/*
+ * Monospaced text inside the Design tab: a pattern, a sample and output read as code,
+ * while everything around them reads as prose.
+ */
+.shapeshifter-design .mono,
+.pattern-workbench__title .mono {
+    font-family: var(--monospace-font-family);
+}

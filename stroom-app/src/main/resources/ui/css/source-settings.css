@@ -1,0 +1,17 @@
+/*
+ * The document's source (SourceSettings): its title, and the error beneath it.
+ */
+.source-settings__error {
+    padding: 2px 4px;
+    color: var(--bootstrap-error);
+    white-space: pre-wrap;
+}
+
+.source-settings__title {
+    font-weight: 500;
+    padding: 6px 0;
+}
+
+.source-settings {
+    padding: 6px 10px;
+}

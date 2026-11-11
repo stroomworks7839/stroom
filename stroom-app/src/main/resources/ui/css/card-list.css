@@ -1,0 +1,11 @@
+/*
+ * A list of output cards (CardList), and the line that adds to it.
+ */
+.card-list--nested {
+    padding: 0 0 0 10px;
+}
+
+.card-list__add-line {
+    display: inline-block;
+    padding: 2px 0 6px;
+}

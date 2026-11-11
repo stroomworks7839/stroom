@@ -1,0 +1,66 @@
+/*
+ * A run's marks over the sample and the output (Marks): a match, a capture, a gap, an
+ * instruction, the cursor's own text, and what is dimmed outside it. Set as HTML the
+ * controller builds, so the kinds are modifiers of one block.
+ */
+.mark {
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+    border-radius: 2px;
+    cursor: pointer;
+    outline: 2px solid transparent;
+    outline-offset: 1px;
+    transition: outline-color .15s ease-out;
+    background-color: color-mix(in srgb, var(--hue) 14%, transparent);
+    border-bottom: 2px solid var(--hue);
+}
+
+.mark:hover {
+    outline-color: var(--hue);
+}
+
+.mark--gap {
+    display: inline-block;
+    width: 2px;
+    height: 1em;
+    vertical-align: text-bottom;
+    background-color: var(--red-200, #d9534f);
+    border-radius: 1px;
+    margin: 0 1px;
+}
+
+/* With a cursor below the document, only what it wrote is at full strength. */
+.mark--dim {
+    opacity: .45;
+}
+
+/* The capture tint: the text itself in the capture's hue, a dotted rule under it for the
+   captures whitespace makes invisible (the mockup's one permanent mark). */
+.mark--capture {
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+    color: var(--hue);
+    border-radius: 2px;
+    border-bottom: 1px dotted color-mix(in srgb, var(--hue) 50%, transparent);
+    outline: 2px solid transparent;
+    outline-offset: 1px;
+    transition: outline-color .15s ease-out;
+}
+
+.mark--capture:hover {
+    outline-color: var(--hue);
+}
+
+.mark--instruction {
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+    border-radius: 2px;
+    color: var(--hue);
+    outline: 2px solid transparent;
+    outline-offset: 1px;
+    transition: outline-color .15s ease-out;
+}
+
+.mark--instruction:hover {
+    outline-color: var(--hue);
+}

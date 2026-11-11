@@ -1,0 +1,11 @@
+/*
+ * A template's output body (Body): the title above the cards, which are body-card.
+ */
+.body {
+    padding: 4px 12px 8px;
+}
+
+.body__title {
+    display: block;
+    padding: 2px 0;
+}

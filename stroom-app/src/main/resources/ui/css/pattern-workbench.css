@@ -1,0 +1,19 @@
+/*
+ * The workbench a match kind is edited in (PatternWorkbench): its title, and the space
+ * that pushes the actions to the end.
+ */
+.pattern-workbench__spacer {
+    flex: 1;
+}
+
+/* The pattern workbench: a title row over the match editor's tabs. */
+.pattern-workbench__title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 14px;
+    border-bottom: 1px solid var(--border-color);
+    font-weight: 600;
+    color: var(--heading-color);
+    white-space: nowrap;
+}

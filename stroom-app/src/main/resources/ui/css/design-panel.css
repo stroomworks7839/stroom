@@ -1,0 +1,27 @@
+/*
+ * The shell each pane of the Design tab sits in (ContentPane, OutputPane, TemplatePanel,
+ * VariablesPane): a quiet uppercase title over a scrolling body.
+ */
+.design-panel {
+    background-color: var(--page__background-color);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.design-panel__title {
+    flex: none;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--ss-muted);
+    margin: 0;
+    padding: 7px 10px 5px;
+}
+
+.design-panel__body {
+    flex: 1;
+    overflow: auto;
+    min-height: 0;
+}

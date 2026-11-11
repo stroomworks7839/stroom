@@ -1,0 +1,14 @@
+/*
+ * What a template wrote (OutputPane).
+ */
+.output-pane {
+    background-color: var(--control__background-color);
+}
+
+/* The output pane: what the cursor wrote, the rest dimmed. */
+.output-pane__box {
+    padding: 8px 12px;
+    white-space: pre;
+    line-height: 1.7;
+    font-size: 13px;
+}

@@ -1,0 +1,85 @@
+/*
+ * The workbench's sample (design 44 §2): the text above, and its matches with their
+ * groups below (Sample).
+ */
+.sample__input {
+    display: flex;
+    flex-direction: column;
+    padding: 8px 14px 6px;
+    box-sizing: border-box;
+}
+
+.sample__text {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    resize: none;
+    font-size: 13px;
+    padding: 4px 8px;
+    border: 1px solid var(--control__border-color);
+    border-radius: 5px;
+    background-color: var(--control__background-color);
+    color: var(--text-color);
+    box-sizing: border-box;
+}
+
+.sample__output {
+    padding: 8px 14px;
+}
+
+.sample__matches {
+    padding: 6px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+}
+
+.sample__table {
+    margin-top: 8px;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+
+.sample__table td {
+    padding: 3px 8px 3px 0;
+    vertical-align: top;
+}
+
+.sample__number {
+    color: var(--ss-muted);
+}
+
+.sample__at {
+    color: var(--ss-muted);
+    font-family: var(--monospace-font-family);
+    white-space: nowrap;
+}
+
+.sample__group {
+    display: inline-block;
+    margin: 0 10px 2px 0;
+    color: var(--hue);
+}
+
+.sample__group--isolated {
+    outline: 1px solid var(--hue);
+    outline-offset: 2px;
+    border-radius: 2px;
+}
+
+.sample__group-name {
+    font-size: 11px;
+    margin-right: 4px;
+}
+
+.sample__group-value {
+    color: var(--text-color);
+    white-space: pre-wrap;
+}
+
+.sample__group-none {
+    color: var(--ss-muted);
+}
+
+.sample__matches {
+    background-color: var(--control__background-color);
+}

@@ -1,0 +1,6 @@
+/*
+ * The pattern a tree node matches (PatternNodeEdit).
+ */
+.pattern-node-edit__pattern {
+    font-family: var(--monospace-font-family);
+}
