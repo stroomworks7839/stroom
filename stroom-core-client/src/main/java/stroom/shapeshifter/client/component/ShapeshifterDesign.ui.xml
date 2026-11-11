@@ -2,7 +2,8 @@
 <ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
              xmlns:g="urn:import:com.google.gwt.user.client.ui"
              xmlns:t="urn:import:stroom.widget.text.client"
-             xmlns:split="urn:import:stroom.widget.layout.client">
+             xmlns:split="urn:import:stroom.widget.layout.client"
+             xmlns:ss="urn:import:stroom.shapeshifter.client.component">
     <!-- Design 43 section 4.1: the mockup's quadrant - panel, then (crumb / input | variables)
          over (strip | output) - as nested split panels. The workbench and the sample page each
          replace the whole quadrant, leaving only the panel beside them (design 44 §5a, §5p).
@@ -13,7 +14,7 @@
         <t:Label ui:field="banner" styleName="shapeshifter-design__banner"/>
         <split:SplitPane thin="true" sizes="220px, *" names="Templates, Design"
                          addStyleNames="max default-min-sizes">
-            <g:SimplePanel ui:field="templatePanel" styleName="max"/>
+            <ss:TemplatePanel ui:field="templatePanel"/>
             <!-- Everything right of the panel: the navigator's rows, or what is shown in their
                  place - the sample page, or the workbench (design 44 §5a, §5p). -->
             <g:SimpleLayoutPanel ui:field="centre">
@@ -21,17 +22,17 @@
                                  names="Input, Output" addStyleNames="max default-min-sizes">
                     <split:SplitPane vertical="true" thin="true" sizes="30px, *"
                                      names="Crumb, Input" addStyleNames="max default-min-sizes">
-                        <g:SimplePanel ui:field="crumb" styleName="max"/>
+                        <ss:Breadcrumb ui:field="crumb"/>
                         <split:SplitPane thin="true" sizes="*, 320px" names="Input, Variables"
                                          addStyleNames="max default-min-sizes">
-                            <g:SimplePanel ui:field="input" styleName="max"/>
-                            <g:SimplePanel ui:field="variables" styleName="max"/>
+                            <ss:ContentPane ui:field="input"/>
+                            <ss:VariablesPane ui:field="variables"/>
                         </split:SplitPane>
                     </split:SplitPane>
                     <split:SplitPane thin="true" sizes="*, 320px"
                                      names="Strip, Output" addStyleNames="max default-min-sizes">
                         <g:SimplePanel ui:field="strip" styleName="max"/>
-                        <g:SimplePanel ui:field="output" styleName="max"/>
+                        <ss:OutputPane ui:field="output"/>
                     </split:SplitPane>
                 </split:SplitPane>
             </g:SimpleLayoutPanel>

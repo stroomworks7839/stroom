@@ -33,6 +33,7 @@ import com.google.web.bindery.event.shared.EventBus;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NavigableSet;
+import java.util.Objects;
 import java.util.TreeSet;
 
 /// The content pane (design 18 §5.1, §5.3): the cursor frame's content, with the matches its
@@ -47,7 +48,7 @@ import java.util.TreeSet;
 /// edits the sample - it shows the cursor's content and nothing else.
 public class ContentPaneController extends Controller {
 
-    private final ContentPane view;
+    private ContentPane view;
 
     /// More than this and the browser would be laying out spans for minutes; the sample is for looking at.
     private static final int RENDER_CAP = 200_000;
@@ -55,12 +56,21 @@ public class ContentPaneController extends Controller {
     private ProjectHost host;
 
     @Inject
-    public ContentPaneController(final EventBus eventBus, final ContentPane view) {
+    public ContentPaneController(final EventBus eventBus) {
         super(eventBus);
-        this.view = view;
+    }
+
+    /// Attaches this to a pane, e.g. one a template declares. The pane is then this
+    /// controller's widget.
+    ///
+    /// @param view The pane.
+    /// @return This, for its owner to keep.
+    public ContentPaneController attach(final ContentPane view) {
+        this.view = Objects.requireNonNull(view, "view");
         initWidget(view);
         view.setOnDescend(this::onDescend);
         view.setOnHover(this::onHover);
+        return this;
     }
 
     public void setHost(final ProjectHost host) {

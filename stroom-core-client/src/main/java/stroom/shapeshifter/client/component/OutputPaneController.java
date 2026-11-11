@@ -31,6 +31,7 @@ import com.google.web.bindery.event.shared.EventBus;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /// The output pane (design 18 §5.4): the whole output, with what the cursor frame wrote at full
 /// strength and the rest dimmed, and what each of its child matches wrote marked in the child's
@@ -39,17 +40,26 @@ import java.util.List;
 /// and says so.
 public class OutputPaneController extends Controller {
 
-    private final OutputPane view;
+    private OutputPane view;
 
     private ProjectHost host;
 
     @Inject
-    public OutputPaneController(final EventBus eventBus, final OutputPane view) {
+    public OutputPaneController(final EventBus eventBus) {
         super(eventBus);
-        this.view = view;
+    }
+
+    /// Attaches this to a pane, e.g. one a template declares. The pane is then this controller's
+    /// widget.
+    ///
+    /// @param view The pane.
+    /// @return This, for its owner to keep.
+    public OutputPaneController attach(final OutputPane view) {
+        this.view = Objects.requireNonNull(view, "view");
         initWidget(view);
         view.setOnDescend(this::onDescend);
         view.setOnHover(this::onHover);
+        return this;
     }
 
     public void setHost(final ProjectHost host) {

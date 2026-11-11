@@ -40,7 +40,7 @@ public class ShapeshifterDesign extends Component {
     @UiField
     Label banner;
     @UiField
-    SimplePanel templatePanel;
+    TemplatePanel templatePanel;
     @UiField
     SimplePanel messages;
     @UiField
@@ -48,15 +48,15 @@ public class ShapeshifterDesign extends Component {
     @UiField
     SplitPane rows;
     @UiField
-    SimplePanel crumb;
+    Breadcrumb crumb;
     @UiField
-    SimplePanel input;
+    ContentPane input;
     @UiField
-    SimplePanel variables;
+    VariablesPane variables;
     @UiField
     SimplePanel strip;
     @UiField
-    SimplePanel output;
+    OutputPane output;
 
     private Widget workbenchWidget;
     private Widget samplePageWidget;
@@ -72,24 +72,29 @@ public class ShapeshifterDesign extends Component {
     }
 
 
-    public void setTemplatePanel(final IsWidget view) {
-        templatePanel.setWidget(view.asWidget());
+    /// @return The TemplatePanel its controller attaches to.
+    public TemplatePanel getTemplatePanel() {
+        return templatePanel;
     }
 
-    public void setCrumb(final IsWidget view) {
-        crumb.setWidget(view.asWidget());
+    /// @return The Breadcrumb its controller attaches to.
+    public Breadcrumb getCrumb() {
+        return crumb;
     }
 
-    public void setInput(final IsWidget view) {
-        input.setWidget(view.asWidget());
+    /// @return The ContentPane its controller attaches to.
+    public ContentPane getInput() {
+        return input;
     }
 
-    public void setVariables(final IsWidget view) {
-        variables.setWidget(view.asWidget());
+    /// @return The VariablesPane its controller attaches to.
+    public VariablesPane getVariables() {
+        return variables;
     }
 
-    public void setOutput(final IsWidget view) {
-        output.setWidget(view.asWidget());
+    /// @return The OutputPane its controller attaches to.
+    public OutputPane getOutput() {
+        return output;
     }
 
     public void setStrip(final IsWidget view) {

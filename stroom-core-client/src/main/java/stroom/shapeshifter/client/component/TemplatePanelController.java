@@ -64,18 +64,18 @@ public class TemplatePanelController extends Controller {
 
     private final Listeners<String> selectionListeners = new Listeners<>();
 
-    private final TemplatePanel view;
+    private TemplatePanel view;
 
     private final Provider<TemplateEditController> editPresenterProvider;
     private final Provider<ModeEditorController> modeEditorProvider;
     private final Provider<NameEditorController> namePromptProvider;
-    private final ToolbarButton addButton;
-    private final ToolbarButton editButton;
-    private final ToolbarButton removeButton;
-    private final ToolbarButton upButton;
-    private final ToolbarButton downButton;
-    private final ToolbarButton modesButton;
-    private final ToolbarButton patternButton;
+    private ToolbarButton addButton;
+    private ToolbarButton editButton;
+    private ToolbarButton removeButton;
+    private ToolbarButton upButton;
+    private ToolbarButton downButton;
+    private ToolbarButton modesButton;
+    private ToolbarButton patternButton;
 
     private ProjectHost host;
 /// The panel's own rows, which are not templates and cannot collide with a template id.
@@ -85,20 +85,27 @@ public class TemplatePanelController extends Controller {
 
     @Inject
     public TemplatePanelController(final EventBus eventBus,
-                                  final TemplatePanel view,
                                   final Provider<TemplateEditController> editPresenterProvider,
                                   final Provider<ModeEditorController> modeEditorProvider,
                                   final Provider<NameEditorController> namePromptProvider) {
         super(eventBus);
-        this.view = view;
-        initWidget(view);
         watch(Contexts.READ_ONLY, readOnly -> this.readOnly = readOnly);
-        view.setOnSelect(this::onSelect);
-        view.setOnOpen(this::onOpen);
-        view.setOnHover(this::onHover);
         this.editPresenterProvider = editPresenterProvider;
         this.modeEditorProvider = modeEditorProvider;
         this.namePromptProvider = namePromptProvider;
+    }
+
+    /// Attaches this to a panel, e.g. one a template declares, and adds its actions to the panel's
+    /// toolbar. The panel is then this controller's widget.
+    ///
+    /// @param view The panel.
+    /// @return This, for its owner to keep.
+    public TemplatePanelController attach(final TemplatePanel view) {
+        this.view = Objects.requireNonNull(view, "view");
+        initWidget(view);
+        view.setOnSelect(this::onSelect);
+        view.setOnOpen(this::onOpen);
+        view.setOnHover(this::onHover);
         addButton = view.getToolbar().button(SvgImage.ADD, "Add template", () -> {
         });
         editButton = view.getToolbar().button(SvgImage.EDIT, "Edit template", () -> {
@@ -154,6 +161,7 @@ public class TemplatePanelController extends Controller {
             }
         }));
 
+        return this;
     }
 
     public void setHost(final ProjectHost host) {

@@ -27,6 +27,7 @@ import com.google.web.bindery.event.shared.EventBus;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /// The breadcrumb (design 18 §5.1): the cursor's ancestry from the document down, each segment a
 /// click back up; at its end a stepper through the other matches of the cursor's template across
@@ -34,22 +35,30 @@ import java.util.List;
 /// running). Before a run it is the front door: it says how a run arrives.
 public class BreadcrumbController extends Controller {
 
-    private final Breadcrumb view;
+    private Breadcrumb view;
 
     private ProjectHost host;
     private String templateId;
 
     @Inject
-    public BreadcrumbController(final EventBus eventBus, final Breadcrumb view) {
+    public BreadcrumbController(final EventBus eventBus) {
         super(eventBus);
-        this.view = view;
+    }
+
+    /// Attaches this to a crumb, e.g. one a template declares. The crumb is then this
+    /// controller's widget.
+    ///
+    /// @param view The crumb.
+    /// @return This, for its owner to keep.
+    public BreadcrumbController attach(final Breadcrumb view) {
+        this.view = Objects.requireNonNull(view, "view");
         initWidget(view);
         view.setOnSegment(this::onSegment);
         view.setOnSibling(this::onSibling);
         view.setOnStep(this::onStep);
         view.setOnStepTo(this::onStepTo);
         view.setOnHover(this::onHover);
-
+        return this;
     }
 
 

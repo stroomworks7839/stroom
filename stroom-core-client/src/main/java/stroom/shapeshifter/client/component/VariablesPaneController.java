@@ -28,23 +28,33 @@ import com.google.web.bindery.event.shared.EventBus;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /// The variables pane (design 18 §5.2): everything in scope at the cursor, innermost first —
 /// this match's own captures, then what each ancestor bound, each row naming the frame that
 /// bound it. A row of an outer frame is a click to that frame, where its span can be seen.
 public class VariablesPaneController extends Controller {
 
-    private final VariablesPane view;
+    private VariablesPane view;
 
     private ProjectHost host;
 
     @Inject
-    public VariablesPaneController(final EventBus eventBus, final VariablesPane view) {
+    public VariablesPaneController(final EventBus eventBus) {
         super(eventBus);
-        this.view = view;
+    }
+
+    /// Attaches this to a pane, e.g. one a template declares. The pane is then this
+    /// controller's widget.
+    ///
+    /// @param view The pane.
+    /// @return This, for its owner to keep.
+    public VariablesPaneController attach(final VariablesPane view) {
+        this.view = Objects.requireNonNull(view, "view");
         initWidget(view);
         view.setOnFrame(this::onFrame);
         view.setOnHover(this::onHover);
+        return this;
     }
 
     public void setHost(final ProjectHost host) {
