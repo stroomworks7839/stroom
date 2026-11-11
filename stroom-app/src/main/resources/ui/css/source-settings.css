@@ -12,6 +12,10 @@
     padding: 6px 0;
 }
 
-.source-settings {
-    padding: 6px 10px;
+/* The strip insets its rows 12px (template-strip.css, body.css) and the document's form stands in
+   their place, so it takes the same inset at the sides rather than a form's own (form-padding,
+   layout-helpers.css), whose room for a control's focus ring it keeps above and below. */
+.source-settings.form-padding {
+    padding-left: 12px;
+    padding-right: 12px;
 }

@@ -14,12 +14,16 @@
         <g:FlowPanel ui:field="stepper" styleName="breadcrumb__step">
             <t:Label ui:field="stepperLabel" styleName="breadcrumb__label"/>
             <t:Label ui:field="stepperIndex" styleName="breadcrumb__index"/>
-            <g:FlowPanel styleName="icon-colour__green breadcrumb__steps">
+            <!-- A toolbar, not a panel of buttons: it lays them in a row, is one tab stop with
+                 the arrow keys along it, and names itself to a screen reader. addStyleNames, as
+                 styleName would take the toolbar's own class off it. -->
+            <i:Toolbar name="Match stepper"
+                       addStyleNames="icon-colour__green breadcrumb__steps">
                 <i:ToolbarButton ui:field="stepFirst"/>
                 <i:ToolbarButton ui:field="stepPrev"/>
                 <i:ToolbarButton ui:field="stepNext"/>
                 <i:ToolbarButton ui:field="stepLast"/>
-            </g:FlowPanel>
+            </i:Toolbar>
         </g:FlowPanel>
     </g:FlowPanel>
 </ui:UiBinder>

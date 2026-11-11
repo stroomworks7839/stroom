@@ -21,7 +21,9 @@
             <g:SimplePanel ui:field="centre" styleName="max">
                 <split:SplitPane ui:field="rows" vertical="true" thin="true" sizes="300px, *"
                                  names="Input, Output" addStyleNames="max default-min-sizes">
-                    <split:SplitPane vertical="true" thin="true" sizes="30px, *"
+                    <!-- 32px: a toolbar button is 24px and its toolbar pads 4px either side for
+                         the focus ring, and the crumb's stepper is a toolbar. -->
+                    <split:SplitPane vertical="true" thin="true" sizes="32px, *"
                                      names="Crumb, Input" addStyleNames="max default-min-sizes">
                         <ss:Breadcrumb ui:field="crumb"/>
                         <split:SplitPane thin="true" sizes="*, 320px" names="Input, Variables"

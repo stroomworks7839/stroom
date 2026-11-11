@@ -7,7 +7,10 @@
              xmlns:tickbox="urn:import:stroom.widget.tickbox.client"
              xmlns:l="urn:import:stroom.widget.selection.client">
     <lay:ScrollPane addStyleNames="max">
-        <g:FlowPanel styleName="form dock-container-vertical source-settings">
+        <!-- form-padding, so the form is inset from the edges of the strip as its controls are:
+             without it a form takes layout-helpers.css's focus-ring room instead, which pads
+             7px and pulls the same back with a negative margin, leaving it flush. -->
+        <g:FlowPanel styleName="form form-padding dock-container-vertical source-settings">
             <t:Label styleName="source-settings__title" text="Source — the document"/>
             <t:Label ui:field="error" styleName="source-settings__error"/>
             <form:FormGroup identity="shapeshifterProjectName" label="Project name">
