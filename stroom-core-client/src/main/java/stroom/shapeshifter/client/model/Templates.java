@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,13 +36,11 @@ import stroom.shapeshifter.config.Template.ParamDecl;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * With-copies of {@link Template} and one-line descriptions of its parts. The model is records
- * without withers (it is shared with the engine and stays plain), so the editor's copies live here.
- */
+/// With-copies of [Template] and one-line descriptions of its parts. The model is records
+/// without withers (it is shared with the engine and stays plain), so the editor's copies live here.
 public final class Templates {
 
-    /** The editor's stable palette: a template's swatch is its position in the project. */
+    /// The editor's stable palette: a template's swatch is its position in the project.
     private static final String[] PALETTE = {
             "#4e79a7", "#f28e2b", "#59a14f", "#e15759", "#b07aa1",
             "#76b7b2", "#edc948", "#ff9da7", "#9c755f", "#bab0ac"};
@@ -90,7 +88,7 @@ public final class Templates {
                 t.match(), t.matchLimits(), t.captures(), t.body(), encoding, ignoreErrors);
     }
 
-    /** What the template's matches are for: a record, or only the cursor's advance (§5f). */
+    /// What the template's matches are for: a record, or only the cursor's advance (§5f).
     public static Template withRole(final Template t, final boolean consume) {
         return new Template(t.id(), t.name(), t.mode(), consume, t.guard(), t.param(), t.declarations(),
                 t.match(), t.matchLimits(), t.captures(), t.body(), t.encoding(), t.ignoreErrors());
@@ -101,23 +99,21 @@ public final class Templates {
                 t.match(), t.matchLimits(), t.captures(), body, t.encoding(), t.ignoreErrors());
     }
 
-    /** A new template: a regex that matches nothing yet, everything else empty. */
+    /// A new template: a regex that matches nothing yet, everything else empty.
     public static Template create(final String name, final String mode, final boolean consume) {
         return new Template(ProjectText.newId(), name, mode, consume, null, null, null,
                 new MatchExpression.Regex("", null, 0), null, null, null, null, false);
     }
 
-    /**
-     * The document template a project starts with (design 44 §5m): the source match, and a body
-     * that is one {@code apply-templates}. Behaviourally that is what a project without one
-     * already does — `RootPlanner` reads a null directive as the null mode and the project's own
-     * dispatch, which is exactly what an empty directive says — so this adds no behaviour. What
-     * it adds is the place: the author can see where the input loop sits and wrap a root element
-     * around it, and has somewhere to declare a run-scoped name.
-     *
-     * <p>One factory because both routes to it — a new project, and the panel's + on the document
-     * row — must produce the same thing.
-     */
+    /// The document template a project starts with (design 44 §5m): the source match, and a body
+    /// that is one `apply-templates`. Behaviourally that is what a project without one
+    /// already does — `RootPlanner` reads a null directive as the null mode and the project's own
+    /// dispatch, which is exactly what an empty directive says — so this adds no behaviour. What
+    /// it adds is the place: the author can see where the input loop sits and wrap a root element
+    /// around it, and has somewhere to declare a run-scoped name.
+    ///
+    /// One factory because both routes to it — a new project, and the panel's + on the document
+    /// row — must produce the same thing.
     public static Template document() {
         final OutputNode apply = new OutputNode.ApplyTemplates(new OutputNode.ApplyDirective(
                 null, null, null, OutputNode.ApplyDirective.DEFAULT_MAX_DEPTH, false, null));
@@ -125,12 +121,10 @@ public final class Templates {
                 List.of(apply));
     }
 
-    /**
-     * The project with its document template, adding one at the head where it has none. Every
-     * project the editor holds has one (design 44 §5m): the run always has a document, the row
-     * is always there, and an author should find the place for a root element and a run-scoped
-     * name already made rather than have to know to ask for it.
-     */
+    /// The project with its document template, adding one at the head where it has none. Every
+    /// project the editor holds has one (design 44 §5m): the run always has a document, the row
+    /// is always there, and an author should find the place for a root element and a run-scoped
+    /// name already made rather than have to know to ask for it.
     public static Project ensureDocument(final Project project) {
         if (project == null) {
             return null;
@@ -146,7 +140,7 @@ public final class Templates {
         return project.withTemplates(templates);
     }
 
-    /** The template with an id in a project, or null. */
+    /// The template with an id in a project, or null.
     public static Template byId(final Project project, final String id) {
         if (project == null || id == null) {
             return null;
@@ -159,7 +153,7 @@ public final class Templates {
         return null;
     }
 
-    /** The project with a template replaced by id, or appended when it is new. */
+    /// The project with a template replaced by id, or appended when it is new.
     public static Project replace(final Project project, final Template template) {
         final List<Template> templates = new ArrayList<>(project.templates());
         for (int i = 0; i < templates.size(); i++) {
@@ -172,12 +166,10 @@ public final class Templates {
         return project.withTemplates(templates);
     }
 
-    /**
-     * The project of one template a workbench sample is tried with (design 44 §2): the subject's
-     * match and encoding under the document's source settings and with its pattern library, at
-     * the root with no guard, limits, declarations, captures or body — so every match is found
-     * and nothing else runs.
-     */
+    /// The project of one template a workbench sample is tried with (design 44 §2): the subject's
+    /// match and encoding under the document's source settings and with its pattern library, at
+    /// the root with no guard, limits, declarations, captures or body — so every match is found
+    /// and nothing else runs.
     public static Project experiment(final Project project, final Template template) {
         // Never a skipping template, whatever the subject is: skipped bytes open no frame (D36),
         // and the sample is nothing but the frames a match opens.
@@ -186,11 +178,9 @@ public final class Templates {
         return project.withTemplates(List.of(bare));
     }
 
-    /**
-     * The match a kind starts as when there is nothing to carry into it (design 44 §1): the
-     * picker says what kind this match <i>is</i>, so choosing one always arrives at that kind —
-     * an empty pattern, a newline delimiter, or the kinds that hold nothing at all.
-     */
+    /// The match a kind starts as when there is nothing to carry into it (design 44 §1): the
+    /// picker says what kind this match *is*, so choosing one always arrives at that kind —
+    /// an empty pattern, a newline delimiter, or the kinds that hold nothing at all.
     public static MatchExpression blank(final MatchKind kind) {
         switch (kind) {
             case REGEX:
@@ -211,12 +201,10 @@ public final class Templates {
         }
     }
 
-    /**
-     * The one pattern a match holds, or null: a tree's node, a one-part sequence's, and a
-     * regex's as a leaf. Null means either that the match holds no pattern at all — source,
-     * all, named, delimiter — or that it holds more than one, which {@link #holdsPattern} tells
-     * apart.
-     */
+    /// The one pattern a match holds, or null: a tree's node, a one-part sequence's, and a
+    /// regex's as a leaf. Null means either that the match holds no pattern at all — source,
+    /// all, named, delimiter — or that it holds more than one, which [#holdsPattern] tells
+    /// apart.
     public static PatternNode singlePattern(final MatchExpression match) {
         if (match instanceof MatchExpression.Pattern pattern) {
             return pattern.node();
@@ -232,7 +220,7 @@ public final class Templates {
         return null;
     }
 
-    /** Whether the match is one of the pattern kinds, whatever it holds: what a conversion could lose. */
+    /// Whether the match is one of the pattern kinds, whatever it holds: what a conversion could lose.
     public static boolean holdsPattern(final MatchExpression match) {
         return match instanceof MatchExpression.Regex
                || match instanceof MatchExpression.Pattern
@@ -296,7 +284,7 @@ public final class Templates {
         return "?";
     }
 
-    /** A pattern node in one line, the design 38 vocabulary spelt as the wire format names it. */
+    /// A pattern node in one line, the design 38 vocabulary spelt as the wire format names it.
     public static String describe(final PatternNode node) {
         if (node instanceof PatternNode.Labelled labelled) {
             return describe(labelled.body()) + " → " + labelled.label()
@@ -337,7 +325,7 @@ public final class Templates {
         return "?";
     }
 
-    /** The children a node holds, for a nested rendering; leaves answer an empty list. */
+    /// The children a node holds, for a nested rendering; leaves answer an empty list.
     public static List<PatternNode> children(final PatternNode node) {
         if (node instanceof PatternNode.Labelled labelled) {
             return children(labelled.body());

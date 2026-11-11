@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,11 +40,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-/**
- * A template's declarations (design 35): scalar, list, map or set, declared once, bound into by
- * captures and read by the body; scope flows to child templates. Add, edit and remove through
- * {@link DeclarationEditController}.
- */
+/// A template's declarations (design 35): scalar, list, map or set, declared once, bound into by
+/// captures and read by the body; scope flows to child templates. Add, edit and remove through
+/// [DeclarationEditController].
 public class DeclarationsController extends Controller {
 
     // From Contexts.READ_ONLY: true until the document says otherwise, so a

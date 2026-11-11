@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,13 +27,11 @@ import stroom.widget.component.client.Controller;
 import com.google.inject.Inject;
 import com.google.web.bindery.event.shared.EventBus;
 
-/**
- * The delimiter form: the separator, its escape and the container that makes it literal — the
- * CSV case, generalised. Each field commits as it is left; a blank delimiter is refused in place
- * rather than written, since a delimiter match without one means nothing. The fields spell
- * control characters as {@link ControlEscapes} does, so a newline — the usual separator — has
- * a spelling a text box can hold.
- */
+/// The delimiter form: the separator, its escape and the container that makes it literal — the
+/// CSV case, generalised. Each field commits as it is left; a blank delimiter is refused in place
+/// rather than written, since a delimiter match without one means nothing. The fields spell
+/// control characters as [ControlEscapes] does, so a newline — the usual separator — has
+/// a spelling a text box can hold.
 public class DelimiterController
         extends Controller
         implements MatchEditorController.MatchForm {
@@ -44,7 +42,7 @@ public class DelimiterController
 
     private final Delimiter view;
 
-    /** What a template gets when its match becomes a delimiter: one field per line. */
+    /// What a template gets when its match becomes a delimiter: one field per line.
     static final MatchExpression.Delimiter DEFAULT = new MatchExpression.Delimiter("\n", null, null, null);
 
     private ProjectHost host;

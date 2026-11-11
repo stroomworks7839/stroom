@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,11 +35,9 @@ import com.google.web.bindery.event.shared.EventBus;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * A condition on its own, for a {@code when} branch: the clause editor in a dialog. Rows are
- * kept as rows until OK, so a half-built branch never reaches the model (design 18 §5.6's
- * Escape-reverts rule, in dialog form).
- */
+/// A condition on its own, for a `when` branch: the clause editor in a dialog. Rows are
+/// kept as rows until OK, so a half-built branch never reaches the model (design 18 §5.6's
+/// Escape-reverts rule, in dialog form).
 public class ConditionEditController extends Controller {
 
     private final ConditionEdit view;
@@ -97,7 +95,7 @@ public class ConditionEditController extends Controller {
         }
     }
 
-    /** The condition, or null after telling the user what is wrong; a condition is required. */
+    /// The condition, or null after telling the user what is wrong; a condition is required.
     public Condition write() {
         try {
             final Condition condition;

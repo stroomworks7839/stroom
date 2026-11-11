@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,11 +29,9 @@ import com.google.web.bindery.event.shared.EventBus;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * The variables pane (design 18 §5.2): everything in scope at the cursor, innermost first —
- * this match's own captures, then what each ancestor bound, each row naming the frame that
- * bound it. A row of an outer frame is a click to that frame, where its span can be seen.
- */
+/// The variables pane (design 18 §5.2): everything in scope at the cursor, innermost first —
+/// this match's own captures, then what each ancestor bound, each row naming the frame that
+/// bound it. A row of an outer frame is a click to that frame, where its span can be seen.
 public class VariablesPaneController extends Controller {
 
     private final VariablesPane view;
@@ -130,7 +128,7 @@ public class VariablesPaneController extends Controller {
             return noneText;
         }
 
-        /** Whether the heading is a click to the frame. */
+        /// Whether the heading is a click to the frame.
         public boolean isLink() {
             return link;
         }

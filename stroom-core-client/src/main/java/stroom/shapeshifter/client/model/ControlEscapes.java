@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,18 +16,16 @@
 
 package stroom.shapeshifter.client.model;
 
-/**
- * How the delimiter form spells control characters: a text box strips a newline typed or set
- * into it, so the separators that matter most — a newline, a tab — need a spelling that fits on
- * one line. The four escapes JSON has for them: {@code \n}, {@code \r}, {@code \t} and
- * {@code \\}; every other character stands for itself, including a lone backslash.
- */
+/// How the delimiter form spells control characters: a text box strips a newline typed or set
+/// into it, so the separators that matter most — a newline, a tab — need a spelling that fits on
+/// one line. The four escapes JSON has for them: `\n`, `\r`, `\t` and
+/// `\\`; every other character stands for itself, including a lone backslash.
 public final class ControlEscapes {
 
     private ControlEscapes() {
     }
 
-    /** The model's text as the form shows it. */
+    /// The model's text as the form shows it.
     public static String escape(final String text) {
         if (text == null) {
             return "";
@@ -55,7 +53,7 @@ public final class ControlEscapes {
         return out.toString();
     }
 
-    /** The form's text as the model holds it. */
+    /// The form's text as the model holds it.
     public static String unescape(final String text) {
         if (text == null) {
             return "";

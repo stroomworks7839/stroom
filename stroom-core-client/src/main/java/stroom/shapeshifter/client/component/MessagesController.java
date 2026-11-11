@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,11 +31,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.LongConsumer;
 
-/**
- * Design 18 §5.8: the engine's messages about the project as it stands, fed by {@code validate}
- * on every edit. A source that does not parse is the first message, so the Design tab never
- * goes silent about why it is showing the previous project.
- */
+/// Design 18 §5.8: the engine's messages about the project as it stands, fed by `validate`
+/// on every edit. A source that does not parse is the first message, so the Design tab never
+/// goes silent about why it is showing the previous project.
 public class MessagesController extends Controller {
 
     private final PagerPanel view;
@@ -77,7 +75,7 @@ public class MessagesController extends Controller {
     }
 
 
-    /** What a selected message's frame does: the root moves the cursor there. */
+    /// What a selected message's frame does: the root moves the cursor there.
     public void setOnGoTo(final LongConsumer onGoTo) {
         this.onGoTo = onGoTo;
     }

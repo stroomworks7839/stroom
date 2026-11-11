@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,16 +16,14 @@
 
 package stroom.shapeshifter.client.component;
 
-/** Colours reach inline styles; only a colour-shaped value may. */
+/// Colours reach inline styles; only a colour-shaped value may.
 final class Colours {
 
     private Colours() {
     }
 
-    /**
-     * The colour if it is a hex triplet/sextet, a word or the hue form {@code hsl(h, s%, l%)};
-     * {@code transparent} otherwise.
-     */
+    /// The colour if it is a hex triplet/sextet, a word or the hue form `hsl(h, s%, l%)`;
+    /// `transparent` otherwise.
     static String safe(final String colour) {
         if (colour == null) {
             return "transparent";

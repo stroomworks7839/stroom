@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,11 +36,9 @@ import java.util.List;
 import java.util.Locale;
 import java.util.function.Consumer;
 
-/**
- * The instruction dialog's fields, generic on purpose: four text fields, two flags, one
- * multi-line, a severity, a dispatch, a condition and the wire form, each labelled and shown by
- * the presenter per kind. One view for forty-six kinds beats forty-six views.
- */
+/// The instruction dialog's fields, generic on purpose: four text fields, two flags, one
+/// multi-line, a severity, a dispatch, a condition and the wire form, each labelled and shown by
+/// the presenter per kind. One view for forty-six kinds beats forty-six views.
 public class InstructionEdit extends Component {
 
     private static final Binder BINDER = GWT.create(Binder.class);

@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,23 +35,21 @@ import java.util.List;
 import java.util.NavigableSet;
 import java.util.TreeSet;
 
-/**
- * The content pane (design 18 §5.1, §5.3): the cursor frame's content, with the matches its
- * body dispatched marked in their templates' colours — a click descends into the match under
- * it — and every capture bound in it or beneath it tinted in its hue, at every depth, so an IP
- * or a timestamp is coloured from the document frame down and the pane shows real work
- * happening deeper. Content a match holds that is not a slice of this frame's — a value from a
- * variable — is listed under the text, since it has no place in it.
- *
- * <p>Without data the pane is an empty state pointing at the one door there is (design 18 §5.7,
- * design 44 §5): the crumb's sample chooser, a stream or text pasted. The pane itself never
- * edits the sample - it shows the cursor's content and nothing else.
- */
+/// The content pane (design 18 §5.1, §5.3): the cursor frame's content, with the matches its
+/// body dispatched marked in their templates' colours — a click descends into the match under
+/// it — and every capture bound in it or beneath it tinted in its hue, at every depth, so an IP
+/// or a timestamp is coloured from the document frame down and the pane shows real work
+/// happening deeper. Content a match holds that is not a slice of this frame's — a value from a
+/// variable — is listed under the text, since it has no place in it.
+///
+/// Without data the pane is an empty state pointing at the one door there is (design 18 §5.7,
+/// design 44 §5): the crumb's sample chooser, a stream or text pasted. The pane itself never
+/// edits the sample - it shows the cursor's content and nothing else.
 public class ContentPaneController extends Controller {
 
     private final ContentPane view;
 
-    /** More than this and the browser would be laying out spans for minutes; the sample is for looking at. */
+    /// More than this and the browser would be laying out spans for minutes; the sample is for looking at.
     private static final int RENDER_CAP = 200_000;
 
     private ProjectHost host;
@@ -142,7 +140,7 @@ public class ContentPaneController extends Controller {
                 : null);
     }
 
-    /** What the messages under a frame say, for a title: the first one's text, and how many more. */
+    /// What the messages under a frame say, for a title: the first one's text, and how many more.
     private static String messageNote(final TraceModel trace, final long frameId) {
         final List<ShapeshifterMessage> own = trace.messages(frameId);
         if (!own.isEmpty()) {
@@ -153,11 +151,9 @@ public class ContentPaneController extends Controller {
         return "a message beneath — descend to see it";
     }
 
-    /**
-     * The captures of a frame and of every frame beneath it that is a slice of it, placed in the
-     * cursor's content: a frame's offset in the cursor is its parent's plus its own. A frame
-     * whose content is no slice ends the descent, since nothing under it has a place here.
-     */
+    /// The captures of a frame and of every frame beneath it that is a slice of it, placed in the
+    /// cursor's content: a frame's offset in the cursor is its parent's plus its own. A frame
+    /// whose content is no slice ends the descent, since nothing under it has a place here.
     private void captureMarks(final TraceModel trace, final long frameId, final int base, final List<Mark> marks) {
         final List<Capture> captures = trace.captures(frameId);
         for (int i = 0; i < captures.size(); i++) {
@@ -188,7 +184,7 @@ public class ContentPaneController extends Controller {
                         : value;
     }
 
-    /** A child match whose content is not a slice of this frame's. */
+    /// A child match whose content is not a slice of this frame's.
     public static final class Loose {
 
         private final long frameId;

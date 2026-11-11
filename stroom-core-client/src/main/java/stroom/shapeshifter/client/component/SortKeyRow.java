@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,7 +36,7 @@ import com.google.gwt.user.client.ui.Widget;
 
 import java.util.Locale;
 
-/** One sort key: <i>then by</i> · expression · order · as · ✕. Commits when a field is left. */
+/// One sort key: *then by* · expression · order · as · ✕. Commits when a field is left.
 public class SortKeyRow extends Composite {
 
     private static final Binder BINDER = GWT.create(Binder.class);
@@ -109,7 +109,7 @@ public class SortKeyRow extends Composite {
         listener.onSortRemove(index);
     }
 
-    /** The row as it stands. */
+    /// The row as it stands.
     public SortKey getKey() {
         return new SortKey(by.getText(), order.getValue(), as.getValue());
     }

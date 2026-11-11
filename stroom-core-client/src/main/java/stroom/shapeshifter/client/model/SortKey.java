@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,11 +20,9 @@ import stroom.shapeshifter.config.Cast;
 import stroom.shapeshifter.config.OutputNode.Order;
 import stroom.shapeshifter.config.OutputNode.Sort;
 
-/**
- * One row of the sort editor — <i>by · order · as</i> (design 44 §5ac). The key is held as the
- * text the field shows rather than as a reference, because that is what the author is editing;
- * the presenter reads it when the dialog is accepted, as it does every other field.
- */
+/// One row of the sort editor — *by · order · as* (design 44 §5ac). The key is held as the
+/// text the field shows rather than as a reference, because that is what the author is editing;
+/// the presenter reads it when the dialog is accepted, as it does every other field.
 public final class SortKey {
 
     private final String by;
@@ -41,7 +39,7 @@ public final class SortKey {
         this.as = as;
     }
 
-    /** A key of the configuration, spelt as the field shows it. */
+    /// A key of the configuration, spelt as the field shows it.
     public static SortKey of(final Sort sort) {
         return new SortKey(Instructions.ref(sort.by()), sort.order(), sort.as());
     }

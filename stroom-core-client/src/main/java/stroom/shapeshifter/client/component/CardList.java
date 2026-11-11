@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,12 +28,12 @@ import com.google.gwt.user.client.ui.FlowPanel;
 import java.util.ArrayList;
 import java.util.List;
 
-/** A card list at a list path — the body, or a branch — with its <i>+ instruction</i> line. */
+/// A card list at a list path — the body, or a branch — with its *+ instruction* line.
 public class CardList extends Composite {
 
     private final List<BodyCard> cards = new ArrayList<>();
 
-    /** Notes are per card by position; a nested list has none (the run annotates top-level cards). */
+    /// Notes are per card by position; a nested list has none (the run annotates top-level cards).
     public CardList(final int[] listPath, final List<OutputNode> cards, final List<CardNote> notes,
                     final Body.CardActions handlers, final boolean enabled, final boolean nested) {
         final FlowPanel panel = new FlowPanel();
@@ -63,7 +63,7 @@ public class CardList extends Composite {
         initWidget(panel);
     }
 
-    /** Light the top-level card at an index, or none for -1. */
+    /// Light the top-level card at an index, or none for -1.
     public void setHot(final int index) {
         for (int i = 0; i < cards.size(); i++) {
             cards.get(i).setHot(i == index);

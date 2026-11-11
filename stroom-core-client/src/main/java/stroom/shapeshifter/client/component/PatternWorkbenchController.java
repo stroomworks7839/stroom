@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,14 +26,12 @@ import stroom.widget.util.client.MouseUtil;
 import com.google.inject.Inject;
 import com.google.web.bindery.event.shared.EventBus;
 
-/**
- * The pattern workbench (design 18 §5.6, design 44): an in-place mode of the Design tab, not a
- * dialog and not full-screen. Its subject is a template's match; the sample to try it against
- * is on the left, the match editor — the kind and its form — on the right, and guard and limits
- * sit beneath, mechanism-independent, belonging to the workbench itself. There is no Apply or
- * Cancel — every field commits as it changes, as everywhere else — so closing, or retargeting to
- * another template, never has anything to lose.
- */
+/// The pattern workbench (design 18 §5.6, design 44): an in-place mode of the Design tab, not a
+/// dialog and not full-screen. Its subject is a template's match; the sample to try it against
+/// is on the left, the match editor — the kind and its form — on the right, and guard and limits
+/// sit beneath, mechanism-independent, belonging to the workbench itself. There is no Apply or
+/// Cancel — every field commits as it changes, as everywhere else — so closing, or retargeting to
+/// another template, never has anything to lose.
 public class PatternWorkbenchController extends Controller {
 
     private final PatternWorkbench view;
@@ -76,7 +74,7 @@ public class PatternWorkbenchController extends Controller {
     }
 
 
-    /** Closed: the match editor's drafts of the kinds not chosen go with the session. */
+    /// Closed: the match editor's drafts of the kinds not chosen go with the session.
     public void closed() {
         matchEditor.forget();
     }
@@ -103,7 +101,7 @@ public class PatternWorkbenchController extends Controller {
         sample.setTemplate(id);
     }
 
-    /** A part of the project's library as the subject (design 44 §3): a tree with no template around it. */
+    /// A part of the project's library as the subject (design 44 §3): a tree with no template around it.
     public void setPattern(final String name) {
         view.setSubject("part " + name);
         view.showGuardAndLimits(false);

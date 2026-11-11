@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,13 +18,11 @@ package stroom.shapeshifter.client.model;
 
 import java.util.Objects;
 
-/**
- * What is being pointed at (design 18 §5.5): one request the root broadcasts, and every
- * surface lights whatever it holds that the request names — a frame's spans in the content
- * and the output, its template's row, its segment in the crumb; a capture's span and its
- * variables row; an instruction's output and its card. Highlighting is a set of requests,
- * not a pile of toggles: the last request replaces the one before, and null clears.
- */
+/// What is being pointed at (design 18 §5.5): one request the root broadcasts, and every
+/// surface lights whatever it holds that the request names — a frame's spans in the content
+/// and the output, its template's row, its segment in the crumb; a capture's span and its
+/// variables row; an instruction's output and its card. Highlighting is a set of requests,
+/// not a pile of toggles: the last request replaces the one before, and null clears.
 public final class Hot {
 
     public enum Kind {
@@ -78,7 +76,7 @@ public final class Hot {
         return templateId;
     }
 
-    /** The value a marked element carries for this request in the attribute it is matched by. */
+    /// The value a marked element carries for this request in the attribute it is matched by.
     public String key() {
         switch (kind) {
             case FRAME:

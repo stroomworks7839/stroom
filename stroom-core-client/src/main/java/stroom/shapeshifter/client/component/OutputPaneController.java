@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,13 +32,11 @@ import com.google.web.bindery.event.shared.EventBus;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * The output pane (design 18 §5.4): the whole output, with what the cursor frame wrote at full
- * strength and the rest dimmed, and what each of its child matches wrote marked in the child's
- * colour — a click on a child's span descends, as in the content pane. Output counted in events
- * rather than characters (an XML sink) has no character spans; the pane shows the text plain
- * and says so.
- */
+/// The output pane (design 18 §5.4): the whole output, with what the cursor frame wrote at full
+/// strength and the rest dimmed, and what each of its child matches wrote marked in the child's
+/// colour — a click on a child's span descends, as in the content pane. Output counted in events
+/// rather than characters (an XML sink) has no character spans; the pane shows the text plain
+/// and says so.
 public class OutputPaneController extends Controller {
 
     private final OutputPane view;

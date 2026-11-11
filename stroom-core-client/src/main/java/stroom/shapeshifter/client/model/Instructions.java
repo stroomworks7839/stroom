@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -47,20 +47,18 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-/**
- * What a card says about its instruction: the kind, spelt as the wire format spells it; a
- * one-line summary; and the category the add menu groups it under (design 18 §5.6: output,
- * invoke, control, transform, collection).
- */
+/// What a card says about its instruction: the kind, spelt as the wire format spells it; a
+/// one-line summary; and the category the add menu groups it under (design 18 §5.6: output,
+/// invoke, control, transform, collection).
 public final class Instructions {
 
-    /** Nine digits always fit an int, so a group number of at most that many never overflows. */
+    /// Nine digits always fit an int, so a group number of at most that many never overflows.
     private static final int GROUP_DIGITS = 9;
 
-    /** What a subscript calls the last populated entry, the one index rule that is not a value. */
+    /// What a subscript calls the last populated entry, the one index rule that is not a value.
     private static final String LAST_ENTRY = "last";
 
-    /** What a call wears after it: {@code max(xs) as number}, {@code get(m, "k") or "-"}. */
+    /// What a call wears after it: `max(xs) as number`, `get(m, "k") or "-"`.
     private static final String CAST_KEYWORD = "as";
     private static final String DEFAULT_KEYWORD = "or";
 
@@ -82,14 +80,14 @@ public final class Instructions {
         }
     }
 
-    /** The kinds an author writes constantly, each with a form of its own in the card editor. */
+    /// The kinds an author writes constantly, each with a form of its own in the card editor.
     public static final List<String> FORM_KINDS = List.of(
             "text", "value-of", "element", "attribute", "namespace", "emit-error",
             "apply-templates", "call-template",
             "if", "choose", "switch", "variable", "for-each", "for-each-group",
             "append", "insert", "put", "remove", "clear");
 
-    /** The transforms: edited as their wire form, listed for the add menu. */
+    /// The transforms: edited as their wire form, listed for the add menu.
     public static final List<String> TRANSFORM_KINDS = List.of(
             "call", "translate", "string-join", "replace", "lower-case", "upper-case", "normalize-space", "trim",
             "substring", "tokenize", "number", "add", "subtract", "multiply", "divide", "mod", "round", "floor",
@@ -99,7 +97,7 @@ public final class Instructions {
     private Instructions() {
     }
 
-    /** The kind, from the wire form's own tag: the one reading of the vocabulary. */
+    /// The kind, from the wire form's own tag: the one reading of the vocabulary.
     public static String kind(final OutputNode node) {
         final JsonValue wire = ProjectJson.writeOutput(node);
         if (wire.isString()) {
@@ -141,7 +139,7 @@ public final class Instructions {
         }
     }
 
-    /** The one line a card shows beside its kind. */
+    /// The one line a card shows beside its kind.
     public static String describe(final OutputNode node) {
         if (node instanceof Text t) {
             return quote(t.value());
@@ -202,7 +200,7 @@ public final class Instructions {
                 : wire;
     }
 
-    /** A reference as a field spells it, or its wire form when it has no spelling. */
+    /// A reference as a field spells it, or its wire form when it has no spelling.
     public static String ref(final RefExpression ref) {
         if (ref == null) {
             // An optional reference the configuration leaves out — a put into a set has no key,
@@ -216,17 +214,15 @@ public final class Instructions {
                 : JsonText.print(ProjectJson.writeRefOrNameWire(ref));
     }
 
-    /**
-     * The form's spelling of a reference, or null where the form cannot show it and the wire has
-     * to (design 44 §5u).
-     *
-     * <p>The editor spells a capture group {@code $1}, as the variables pane has always spelt a
-     * name {@code $k}: a dollar introduces a value. The wire has no short form for a numbered
-     * group — {@code group()} is already one of design 35 §6's counters, so it could not have one
-     * — and reading the wire's silence as "the form cannot show this" sent every reference to a
-     * numbered group to the raw JSON, which is what a migrated {@code apply-templates} always
-     * selects.
-     */
+    /// The form's spelling of a reference, or null where the form cannot show it and the wire has
+    /// to (design 44 §5u).
+    ///
+    /// The editor spells a capture group `$1`, as the variables pane has always spelt a
+    /// name `$k`: a dollar introduces a value. The wire has no short form for a numbered
+    /// group — `group()` is already one of design 35 §6's counters, so it could not have one
+    /// — and reading the wire's silence as "the form cannot show this" sent every reference to a
+    /// numbered group to the raw JSON, which is what a migrated `apply-templates` always
+    /// selects.
     public static String spell(final RefExpression ref) {
         if (ref == null) {
             // An absent reference has no spelling. The wire's refOrName dereferences it, so
@@ -252,11 +248,9 @@ public final class Instructions {
         return out.toString();
     }
 
-    /**
-     * One part. {@code whole} is the expression it came from where it is the only part, so a
-     * bare name and a counter keep the wire's own spelling of themselves; null within a
-     * sequence, where the wire has nothing to say about a part on its own.
-     */
+    /// One part. `whole` is the expression it came from where it is the only part, so a
+    /// bare name and a counter keep the wire's own spelling of themselves; null within a
+    /// sequence, where the wire has nothing to say about a part on its own.
     private static String spellPart(final RefPart part, final RefExpression whole) {
         if (part instanceof final RefPart.Text text) {
             return quoteLiteral(text.value());
@@ -339,14 +333,12 @@ public final class Instructions {
                 : ProjectJson.refOrName(whole);
     }
 
-    /**
-     * An index rule as a subscript: {@code [3]} the third, {@code [+1]} and {@code [-1]} relative
-     * to this match, {@code [last]} the last populated entry, {@code [i]} an index a variable
-     * holds and {@code [matchCount()]} one a function answers (design 44 §5aa).
-     *
-     * <p>Null where the rule cannot be said without losing part of itself: an index the engine
-     * ignores, a negative absolute, or a variable named for the keyword.
-     */
+    /// An index rule as a subscript: `[3]` the third, `[+1]` and `[-1]` relative
+    /// to this match, `[last]` the last populated entry, `[i]` an index a variable
+    /// holds and `[matchCount()]` one a function answers (design 44 §5aa).
+    ///
+    /// Null where the rule cannot be said without losing part of itself: an index the engine
+    /// ignores, a negative absolute, or a variable named for the keyword.
     private static String spellIndex(final MatchIndex index) {
         final boolean plain = index.index() == 0 && !index.isOffset();
         if (index.varRef() != null) {
@@ -377,14 +369,12 @@ public final class Instructions {
                 : "[" + index.index() + "]";
     }
 
-    /**
-     * A reference as the form writes it: a sequence of parts, juxtaposed (design 44 §5w).
-     *
-     * <p>{@code "on " $1 " at " when} is four parts — a literal, this match's group 1, a literal,
-     * and the name {@code when} — concatenated in that order, which is what a {@code value-of}
-     * of several parts is. A lone part spells as itself, so the simple cases read as they always
-     * did: {@code $1}, {@code when}, {@code index()}.
-     */
+    /// A reference as the form writes it: a sequence of parts, juxtaposed (design 44 §5w).
+    ///
+    /// `"on " $1 " at " when` is four parts — a literal, this match's group 1, a literal,
+    /// and the name `when` — concatenated in that order, which is what a `value-of`
+    /// of several parts is. A lone part spells as itself, so the simple cases read as they always
+    /// did: `$1`, `when`, `index()`.
     public static RefExpression read(final String text) {
         final List<RefPart> parts = parts(text == null
                 ? ""
@@ -397,7 +387,7 @@ public final class Instructions {
         return new RefExpression(parts);
     }
 
-    /** The tokens of a spelling as parts, or null where it is one bare token the wire can read. */
+    /// The tokens of a spelling as parts, or null where it is one bare token the wire can read.
     private static List<RefPart> parts(final String text) {
         final List<String> tokens = tokenise(text);
         if (tokens == null) {
@@ -433,11 +423,9 @@ public final class Instructions {
         return parts;
     }
 
-    /**
-     * A call wearing a modifier — {@code max(xs) as number}, {@code get(m, "k") or "-"} — or null
-     * where the two words after it are not one. {@code as} is for {@code min} and {@code max} and
-     * {@code or} is for {@code get}; anywhere else the words are parts in their own right.
-     */
+    /// A call wearing a modifier — `max(xs) as number`, `get(m, "k") or "-"` — or null
+    /// where the two words after it are not one. `as` is for `min` and `max` and
+    /// `or` is for `get`; anywhere else the words are parts in their own right.
     private static RefPart.Accessor modified(final RefPart.Accessor accessor, final String keyword,
                                              final String argument) {
         try {
@@ -462,7 +450,7 @@ public final class Instructions {
         return null;
     }
 
-    /** One token as an expression of its own, or null where the form could not spell it back. */
+    /// One token as an expression of its own, or null where the form could not spell it back.
     private static RefExpression oneWord(final String token) {
         final RefPart part = partOf(token);
         if (part != null) {
@@ -476,23 +464,21 @@ public final class Instructions {
                 : null;
     }
 
-    /** Whether a token is one of the engine's functions, spelt {@code index()}. */
+    /// Whether a token is one of the engine's functions, spelt `index()`.
     private static boolean isCounter(final String token) {
         return token.endsWith("()")
                && EngineVars.byName(token.substring(0, token.length() - 2)) != null;
     }
 
-    /** The two words a modifier is spelt with, which no bare name may be spelt as. */
+    /// The two words a modifier is spelt with, which no bare name may be spelt as.
     private static boolean isModifier(final String word) {
         return CAST_KEYWORD.equals(word) || DEFAULT_KEYWORD.equals(word);
     }
 
-    /**
-     * What is wrong with a spelling the author has typed, in words they can act on, or null
-     * where there is nothing to say. A modifier that did not bind is the one fault the grammar
-     * can name: it is a reserved word, so it is never the name it would otherwise be read as,
-     * and saying so beats saving a call and two undeclared reads (design 44 §5ad).
-     */
+    /// What is wrong with a spelling the author has typed, in words they can act on, or null
+    /// where there is nothing to say. A modifier that did not bind is the one fault the grammar
+    /// can name: it is a reserved word, so it is never the name it would otherwise be read as,
+    /// and saying so beats saving a call and two undeclared reads (design 44 §5ad).
     public static String fault(final String text) {
         for (final RefPart part : read(text).parts()) {
             if (part instanceof final RefPart.Capture capture && isModifier(capture.varId())) {
@@ -515,13 +501,13 @@ public final class Instructions {
         return out.toString();
     }
 
-    /** Whether a spelling is one word, so that a modifier can carry it. */
+    /// Whether a spelling is one word, so that a modifier can carry it.
     private static boolean isOneToken(final String spelling) {
         final List<String> tokens = tokenise(spelling);
         return tokens != null && tokens.size() == 1;
     }
 
-    /** A cast by the name the wire format spells it with, or null where there is no such cast. */
+    /// A cast by the name the wire format spells it with, or null where there is no such cast.
     private static Cast castOf(final String name) {
         for (final Cast cast : Cast.values()) {
             if (castName(cast).equals(name)) {
@@ -535,7 +521,7 @@ public final class Instructions {
         return cast.name().toLowerCase(Locale.ROOT);
     }
 
-    /** One token as the part it spells, or null where only the wire can read it. */
+    /// One token as the part it spells, or null where only the wire can read it.
     private static RefPart partOf(final String token) {
         if (isQuoted(token)) {
             return new RefPart.Text(unquote(token));
@@ -555,10 +541,8 @@ public final class Instructions {
         return accessorOf(token);
     }
 
-    /**
-     * The spelling split into tokens: quoted literals whole, everything else on whitespace. Null
-     * where the quoting does not close, so an author mid-edit is not told their text is a name.
-     */
+    /// The spelling split into tokens: quoted literals whole, everything else on whitespace. Null
+    /// where the quoting does not close, so an author mid-edit is not told their text is a name.
     private static List<String> tokenise(final String text) {
         final List<String> tokens = new ArrayList<>();
         final StringBuilder token = new StringBuilder();
@@ -616,11 +600,9 @@ public final class Instructions {
                 : tokens;
     }
 
-    /**
-     * A token wearing a subscript — {@code bytes[i]}, {@code $1[+1]}, {@code matchCount()[2]} —
-     * as the part it is, or null where it wears none or the base is not something that can carry
-     * one (design 44 §5aa).
-     */
+    /// A token wearing a subscript — `bytes[i]`, `$1[+1]`, `matchCount()[2]` —
+    /// as the part it is, or null where it wears none or the base is not something that can carry
+    /// one (design 44 §5aa).
     private static RefPart subscripted(final String token) {
         if (!token.endsWith("]")) {
             return null;
@@ -653,7 +635,7 @@ public final class Instructions {
                 : null;
     }
 
-    /** What is inside a subscript as an index rule, or null where it is not one. */
+    /// What is inside a subscript as an index rule, or null where it is not one.
     private static MatchIndex matchIndexOf(final String inner) {
         if (inner.isEmpty()) {
             return null;
@@ -685,11 +667,9 @@ public final class Instructions {
                 : null;
     }
 
-    /**
-     * A token as an accessor — {@code size(xs)}, {@code get(m, "k")} — or null where it is not
-     * one. The arguments are spellings in their own right, so a collection may be a name, a
-     * group, or another accessor.
-     */
+    /// A token as an accessor — `size(xs)`, `get(m, "k")` — or null where it is not
+    /// one. The arguments are spellings in their own right, so a collection may be a name, a
+    /// group, or another accessor.
     private static RefPart.Accessor accessorOf(final String token) {
         final int open = token.indexOf('(');
         if (open <= 0 || !token.endsWith(")")) {
@@ -727,7 +707,7 @@ public final class Instructions {
         return null;
     }
 
-    /** The arguments of a call, split on the commas that are not inside quotes or a nested call. */
+    /// The arguments of a call, split on the commas that are not inside quotes or a nested call.
     private static List<String> arguments(final String inner) {
         final List<String> args = new ArrayList<>();
         final StringBuilder arg = new StringBuilder();
@@ -780,7 +760,7 @@ public final class Instructions {
         return args;
     }
 
-    /** A dollar and a word: the group a pattern named, as {@code $1} is the group it numbered. */
+    /// A dollar and a word: the group a pattern named, as `$1` is the group it numbered.
     private static boolean isLabel(final String token) {
         return token.length() > 1 && token.charAt(0) == '$' && !isDigits(token.substring(1))
                && spellableName(token.substring(1));
@@ -790,7 +770,7 @@ public final class Instructions {
         return token.length() >= 2 && token.charAt(0) == '"' && token.charAt(token.length() - 1) == '"';
     }
 
-    /** More digits than a group number can hold is not a group, so the reading never overflows. */
+    /// More digits than a group number can hold is not a group, so the reading never overflows.
     private static boolean isGroup(final String token) {
         return token.length() > 1 && token.length() <= GROUP_DIGITS + 1 && token.charAt(0) == '$'
                && isDigits(token.substring(1));
@@ -832,12 +812,10 @@ public final class Instructions {
         return out.append('"').toString();
     }
 
-    /**
-     * Whether a name survives being written into the field and read back. Whitespace would split
-     * it into two parts, a quote would open a literal, and a trailing {@code ()} would read as a
-     * counter. A name that cannot be spelt faithfully is not spelt at all, and the wire form
-     * takes it.
-     */
+    /// Whether a name survives being written into the field and read back. Whitespace would split
+    /// it into two parts, a quote would open a literal, and a trailing `()` would read as a
+    /// counter. A name that cannot be spelt faithfully is not spelt at all, and the wire form
+    /// takes it.
     private static boolean spellableName(final String name) {
         if (name.isEmpty() || name.endsWith("()") || name.charAt(0) == '$') {
             return false;

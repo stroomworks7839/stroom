@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,16 +30,14 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 
-/**
- * One row of the guard editor — <i>variable · operator · value</i> (design 18 §5.6) — and the
- * reading of a {@link Condition} as rows joined by <i>and</i>. A guard the rows cannot express
- * (an <i>or</i>, a <i>not</i>, a comparison between two references, a path reference) reads as
- * null, and the editor shows its wire form instead: the model is the whole vocabulary, the rows
- * are the common case.
- */
+/// One row of the guard editor — *variable · operator · value* (design 18 §5.6) — and the
+/// reading of a [Condition] as rows joined by *and*. A guard the rows cannot express
+/// (an *or*, a *not*, a comparison between two references, a path reference) reads as
+/// null, and the editor shows its wire form instead: the model is the whole vocabulary, the rows
+/// are the common case.
 public final class GuardClause {
 
-    /** The operators a row offers, spelt as the wire format spells them. */
+    /// The operators a row offers, spelt as the wire format spells them.
     public enum Op {
         EQ("eq", true, true),
         NE("ne", true, true),
@@ -109,7 +107,7 @@ public final class GuardClause {
         return value;
     }
 
-    /** The typed reading of the variable before a comparison, or null for the text it is. */
+    /// The typed reading of the variable before a comparison, or null for the text it is.
     public Cast getAs() {
         return as;
     }
@@ -128,12 +126,12 @@ public final class GuardClause {
         return Objects.hash(variable, op, value, as);
     }
 
-    /** An untouched new row: an operator that wants a variable and a value, and neither given. */
+    /// An untouched new row: an operator that wants a variable and a value, and neither given.
     public boolean isBlank() {
         return op != null && op.takesVariable() && variable.trim().isEmpty() && value.trim().isEmpty();
     }
 
-    /** The rows a guard reads as, or null when it is not rows joined by and. */
+    /// The rows a guard reads as, or null when it is not rows joined by and.
     public static List<GuardClause> read(final Condition guard) {
         final List<GuardClause> clauses = new ArrayList<>();
         if (guard == null) {
@@ -186,7 +184,7 @@ public final class GuardClause {
                 : new GuardClause(variable, op, value, null);
     }
 
-    /** A literal as the value field shows it: text in quotes, so that "123" and 123 stay apart. */
+    /// A literal as the value field shows it: text in quotes, so that "123" and 123 stay apart.
     private static String spell(final Literal literal) {
         if (literal instanceof Literal.Text t) {
             return "\"" + t.value() + "\"";
@@ -200,7 +198,7 @@ public final class GuardClause {
         return "";
     }
 
-    /** The guard the rows mean: null for none, the one clause for one, else <i>and</i>. */
+    /// The guard the rows mean: null for none, the one clause for one, else *and*.
     public static Condition write(final List<GuardClause> clauses) {
         final List<Condition> conditions = new ArrayList<>();
         for (final GuardClause clause : clauses) {
@@ -240,10 +238,8 @@ public final class GuardClause {
         }
     }
 
-    /**
-     * The value field's spelling declares the literal's type (design 17 §8): a whole number, a
-     * fractional one, true or false, or text - quoted when it would otherwise read as one of those.
-     */
+    /// The value field's spelling declares the literal's type (design 17 §8): a whole number, a
+    /// fractional one, true or false, or text - quoted when it would otherwise read as one of those.
     static Literal literal(final String text) {
         final String t = text.trim();
         if (t.length() >= 2 && t.startsWith("\"") && t.endsWith("\"")) {
@@ -272,7 +268,7 @@ public final class GuardClause {
         return text.trim();
     }
 
-    /** One line for the strip: {@code status ge 400 and user exists}. */
+    /// One line for the strip: `status ge 400 and user exists`.
     public static String describe(final Condition guard) {
         final List<GuardClause> clauses = read(guard);
         if (clauses == null) {

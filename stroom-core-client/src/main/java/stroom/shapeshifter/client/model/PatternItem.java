@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,12 +18,10 @@ package stroom.shapeshifter.client.model;
 
 import java.util.Objects;
 
-/**
- * One node of the pattern tree as the view lays it out: where it is, what it says, and whether
- * it holds children. The path is the identity — two nodes of a tree can be the same value and
- * still be different nodes — and the parent's path is carried rather than parsed, so the
- * spelling of a path stays {@link PatternNodes}'s business.
- */
+/// One node of the pattern tree as the view lays it out: where it is, what it says, and whether
+/// it holds children. The path is the identity — two nodes of a tree can be the same value and
+/// still be different nodes — and the parent's path is carried rather than parsed, so the
+/// spelling of a path stays [PatternNodes]'s business.
 public final class PatternItem {
 
     private final String path;
@@ -45,7 +43,7 @@ public final class PatternItem {
         return path;
     }
 
-    /** The path of the node this one sits in, or null for the root. */
+    /// The path of the node this one sits in, or null for the root.
     public String getParentPath() {
         return parentPath;
     }
@@ -54,12 +52,12 @@ public final class PatternItem {
         return label;
     }
 
-    /** Whether the node holds children: a sequence, a choice, a repeat and the rest. */
+    /// Whether the node holds children: a sequence, a choice, a repeat and the rest.
     public boolean isContainer() {
         return container;
     }
 
-    /** Whether the node carries a capture label: a box of its own colour, as an operator is. */
+    /// Whether the node carries a capture label: a box of its own colour, as an operator is.
     public boolean isLabelled() {
         return labelled;
     }

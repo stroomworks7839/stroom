@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -49,15 +49,13 @@ import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
 
-/**
- * The project panel (design 18 §5.6, 43 §4.1): the sample the project runs over at the head —
- * nothing else here means anything without it — then the project itself, then the templates
- * grouped by mode in project order, which is dispatch order, so up and down are semantics, and
- * last the pattern library's parts. A template's row is a swatch, a name and, once there is a
- * trace, its match count and heat. Managed through the toolbar over the list, acting on the
- * selection; the selection is published as a value change of the row's id — a template's, a
- * part's, the sample's, or null for the project — and the root shows what that row is.
- */
+/// The project panel (design 18 §5.6, 43 §4.1): the sample the project runs over at the head —
+/// nothing else here means anything without it — then the project itself, then the templates
+/// grouped by mode in project order, which is dispatch order, so up and down are semantics, and
+/// last the pattern library's parts. A template's row is a swatch, a name and, once there is a
+/// trace, its match count and heat. Managed through the toolbar over the list, acting on the
+/// selection; the selection is published as a value change of the row's id — a template's, a
+/// part's, the sample's, or null for the project — and the root shows what that row is.
 public class TemplatePanelController extends Controller {
 
     // From Contexts.READ_ONLY: true until the document says otherwise, so a
@@ -80,7 +78,7 @@ public class TemplatePanelController extends Controller {
     private final ToolbarButton patternButton;
 
     private ProjectHost host;
-/** The panel's own rows, which are not templates and cannot collide with a template id. */
+/// The panel's own rows, which are not templates and cannot collide with a template id.
     private static final String SETTINGS_ROW = "settings:";
 
     private String selected;
@@ -169,7 +167,7 @@ public class TemplatePanelController extends Controller {
         return selectionListeners.add(listener);
     }
 
-    /** The selected template's id, or null when the project row (or nothing) is selected. */
+    /// The selected template's id, or null when the project row (or nothing) is selected.
     public String getSelectedTemplateId() {
         return selected;
     }
@@ -191,14 +189,14 @@ public class TemplatePanelController extends Controller {
         }
     }
 
-    /** A template, or a frame of one, lights its row. */
+    /// A template, or a frame of one, lights its row.
     public void setHot(final Hot hot) {
         view.setHot(hot == null || hot.getKind() == Hot.Kind.CAPTURE || hot.getKind() == Hot.Kind.INSTRUCTION
                 ? null
                 : hot.getTemplateId());
     }
 
-    /** Select a template, or the project for null, as if clicked: the root follows through the event. */
+    /// Select a template, or the project for null, as if clicked: the root follows through the event.
     public void select(final String id) {
         select(id, true);
     }
@@ -213,7 +211,7 @@ public class TemplatePanelController extends Controller {
         }
     }
 
-    /** Re-read the rows from the host's project, keeping the selection by id where it survives. */
+    /// Re-read the rows from the host's project, keeping the selection by id where it survives.
     public void refresh() {
         final Project project = host.getProject();
         final List<TemplateRowData> rows = new ArrayList<>();
@@ -297,7 +295,7 @@ public class TemplatePanelController extends Controller {
         enableButtons();
     }
 
-    /** The row that stands for the project's settings. */
+    /// The row that stands for the project's settings.
     public static String settingsRowId() {
         return SETTINGS_ROW;
     }
@@ -306,7 +304,7 @@ public class TemplatePanelController extends Controller {
         return SETTINGS_ROW.equals(rowId);
     }
 
-    /** The document template — the one matching the source — or null (design 35 §4). */
+    /// The document template — the one matching the source — or null (design 35 §4).
     static Template documentTemplate(final Project project) {
         if (project == null) {
             return null;
@@ -323,11 +321,9 @@ public class TemplatePanelController extends Controller {
         return template.match() instanceof MatchExpression.Source;
     }
 
-    /**
-     * The row's right-hand word: the kind of match until there is a trace; then the match count,
-     * or how many places were tried for none (design 18 §5.5 - a zero is a fact about the
-     * sample, not a blank).
-     */
+    /// The row's right-hand word: the kind of match until there is a trace; then the match count,
+    /// or how many places were tried for none (design 18 §5.5 - a zero is a fact about the
+    /// sample, not a blank).
     private static String count(final TraceModel trace, final Template template) {
         final Timing timing = trace == null
                 ? null
@@ -376,7 +372,7 @@ public class TemplatePanelController extends Controller {
         downButton.setEnabled(editable && index >= 0 && neighbour(index, 1) >= 0);
     }
 
-    /** The index of the nearest template in the same mode in a direction, or -1: what up and down swap with. */
+    /// The index of the nearest template in the same mode in a direction, or -1: what up and down swap with.
     private int neighbour(final int index, final int by) {
         final List<Template> templates = host.getProject().templates();
         final String mode = templates.get(index).mode();
@@ -428,7 +424,7 @@ public class TemplatePanelController extends Controller {
         });
     }
 
-    /** The library part the selection is, or null. */
+    /// The library part the selection is, or null.
     private String selectedPattern() {
         final String name = Patterns.nameOf(selected);
         return name != null && host != null && host.getProject() != null
@@ -478,7 +474,7 @@ public class TemplatePanelController extends Controller {
         });
     }
 
-    /** Open the selected template's name, mode and consume for editing; the strip's header calls this too. */
+    /// Open the selected template's name, mode and consume for editing; the strip's header calls this too.
     public void editSelected() {
         if (selectedPattern() != null) {
             if (!readOnly) {
@@ -512,7 +508,7 @@ public class TemplatePanelController extends Controller {
         });
     }
 
-    /** The colour the author chose for a template, or null when it wears the palette's. */
+    /// The colour the author chose for a template, or null when it wears the palette's.
     private String overrideOf(final String id) {
         final String colour = host.colour(id);
         final int index = indexOf(id);

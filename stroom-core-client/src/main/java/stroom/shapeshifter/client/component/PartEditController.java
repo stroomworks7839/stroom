@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,12 +33,10 @@ import stroom.widget.popup.client.event.HidePopupRequestEvent;
 import com.google.inject.Inject;
 import com.google.web.bindery.event.shared.EventBus;
 
-/**
- * One part of a match sequence (design 39): a pattern, a take of a length, a seek by or to a
- * length, or a read of a binary cast — with the label a take or read binds. A length is a
- * count, a label's value, or a variable's. The pattern part is edited as its wire form here;
- * the tree editor edits whole matches, and a part's tree is a smaller thing.
- */
+/// One part of a match sequence (design 39): a pattern, a take of a length, a seek by or to a
+/// length, or a read of a binary cast — with the label a take or read binds. A length is a
+/// count, a label's value, or a variable's. The pattern part is edited as its wire form here;
+/// the tree editor edits whole matches, and a part's tree is a smaller thing.
 public class PartEditController extends Controller {
 
     private final PartEdit view;
@@ -83,7 +81,7 @@ public class PartEditController extends Controller {
         initWidget(view);
     }
 
-    /** A part to edit, or null for a new take. */
+    /// A part to edit, or null for a new take.
     public void read(final MatchPart part) {
         final PartEdit v = view;
         v.setPattern("");
@@ -129,7 +127,7 @@ public class PartEditController extends Controller {
         }
     }
 
-    /** The edited part, or null after telling the user what is wrong. */
+    /// The edited part, or null after telling the user what is wrong.
     public MatchPart write() {
         final PartEdit v = view;
         try {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,10 +26,8 @@ import com.google.gwt.user.client.ui.FlowPanel;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * An iteration's ordering as key rows, with <i>+ sort key</i> — the last of the wire form's
- * holdings, and the only one that was never a reference but a list of its own (design 44 §5ac).
- */
+/// An iteration's ordering as key rows, with *+ sort key* — the last of the wire form's
+/// holdings, and the only one that was never a reference but a list of its own (design 44 §5ac).
 public class SortListPanel extends Composite implements SortKeyRow.Listener {
 
     private final FlowPanel rows = new FlowPanel();
@@ -59,7 +57,7 @@ public class SortListPanel extends Composite implements SortKeyRow.Listener {
         this.listener = listener;
     }
 
-    /** What the rows say when there are none. */
+    /// What the rows say when there are none.
     public void setEmptyText(final String text) {
         none.setText(text);
     }
@@ -80,7 +78,7 @@ public class SortListPanel extends Composite implements SortKeyRow.Listener {
         none.setVisible(list.isEmpty());
     }
 
-    /** The rows as they stand. */
+    /// The rows as they stand.
     public List<SortKey> getKeys() {
         final List<SortKey> list = new ArrayList<>();
         for (final SortKeyRow row : rowWidgets) {

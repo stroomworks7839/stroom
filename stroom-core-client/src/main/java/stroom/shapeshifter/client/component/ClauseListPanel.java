@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,11 +28,9 @@ import com.google.gwt.user.client.ui.FlowPanel;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * A condition as clause rows joined by <i>and</i>, with <i>+ clause</i>, or as its wire form
- * when the rows cannot express it — the one condition editor, shared by the guard, {@code if}
- * and {@code when} (design 43 §4.2).
- */
+/// A condition as clause rows joined by *and*, with *+ clause*, or as its wire form
+/// when the rows cannot express it — the one condition editor, shared by the guard, `if`
+/// and `when` (design 43 §4.2).
 public class ClauseListPanel extends Composite implements GuardClauseRow.Listener {
 
     private final FlowPanel rows = new FlowPanel();
@@ -86,7 +84,7 @@ public class ClauseListPanel extends Composite implements GuardClauseRow.Listene
         this.listener = listener;
     }
 
-    /** What the rows say when there are none. */
+    /// What the rows say when there are none.
     public void setEmptyText(final String text) {
         none.setText(text);
     }
@@ -101,7 +99,7 @@ public class ClauseListPanel extends Composite implements GuardClauseRow.Listene
         this.names = names;
     }
 
-    /** Show the condition as rows; the wire form goes. */
+    /// Show the condition as rows; the wire form goes.
     public void setClauses(final List<GuardClause> list) {
         rows.clear();
         rowWidgets.clear();
@@ -116,7 +114,7 @@ public class ClauseListPanel extends Composite implements GuardClauseRow.Listene
         jsonPanel.setVisible(false);
     }
 
-    /** The rows as they stand; empty when the wire form is showing. */
+    /// The rows as they stand; empty when the wire form is showing.
     public List<GuardClause> getClauses() {
         final List<GuardClause> list = new ArrayList<>();
         for (final GuardClauseRow row : rowWidgets) {
@@ -129,7 +127,7 @@ public class ClauseListPanel extends Composite implements GuardClauseRow.Listene
         return jsonPanel.isVisible();
     }
 
-    /** Show the condition as its wire form; the rows go. */
+    /// Show the condition as its wire form; the rows go.
     public void setJson(final String text) {
         rows.clear();
         rowWidgets.clear();

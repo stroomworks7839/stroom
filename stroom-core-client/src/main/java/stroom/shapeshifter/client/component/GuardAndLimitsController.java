@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,14 +40,12 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
-/**
- * Guard and limits (design 18 §5.6): mechanism-independent — the engine's dispatch order is
- * mode → guard → match → limits whatever the match kind — so they belong to the workbench, not
- * to any kind of match. The guard is clause rows (variable · operator · value) joined by <i>and</i>, the
- * names in scope offered; a guard the rows cannot express is edited as its wire form. Limits
- * are three fields with their semantics stated inline. Everything commits as a field is left.
- * The live verdict against the current frame waits for the trace (phase B).
- */
+/// Guard and limits (design 18 §5.6): mechanism-independent — the engine's dispatch order is
+/// mode → guard → match → limits whatever the match kind — so they belong to the workbench, not
+/// to any kind of match. The guard is clause rows (variable · operator · value) joined by *and*, the
+/// names in scope offered; a guard the rows cannot express is edited as its wire form. Limits
+/// are three fields with their semantics stated inline. Everything commits as a field is left.
+/// The live verdict against the current frame waits for the trace (phase B).
 public class GuardAndLimitsController extends Controller {
 
     // From Contexts.READ_ONLY: true until the document says otherwise, so a
@@ -106,7 +104,7 @@ public class GuardAndLimitsController extends Controller {
                 : String.valueOf(limits.maxMatch()), only(limits));
     }
 
-    /** What a clause's variable can name: the template's declarations and params, and the functions. */
+    /// What a clause's variable can name: the template's declarations and params, and the functions.
     private static List<String> namesInScope(final Template template) {
         final Set<String> names = new LinkedHashSet<>();
         for (final Declaration declaration : template.declarations()) {

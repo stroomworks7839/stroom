@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,12 +28,10 @@ import com.google.web.bindery.event.shared.EventBus;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * The breadcrumb (design 18 §5.1): the cursor's ancestry from the document down, each segment a
- * click back up; at its end a stepper through the other matches of the cursor's template across
- * the whole input; and the run's controls — a sample to paste, Run — with its state (stale,
- * running). Before a run it is the front door: it says how a run arrives.
- */
+/// The breadcrumb (design 18 §5.1): the cursor's ancestry from the document down, each segment a
+/// click back up; at its end a stepper through the other matches of the cursor's template across
+/// the whole input; and the run's controls — a sample to paste, Run — with its state (stale,
+/// running). Before a run it is the front door: it says how a run arrives.
 public class BreadcrumbController extends Controller {
 
     private final Breadcrumb view;
@@ -60,10 +58,8 @@ public class BreadcrumbController extends Controller {
         refresh();
     }
 
-    /**
-     * The template the panel has selected: what the whole-input stepper steps through while
-     * the cursor is the document and so is in no match of its own (design 18 §5.3).
-     */
+    /// The template the panel has selected: what the whole-input stepper steps through while
+    /// the cursor is the document and so is in no match of its own (design 18 §5.3).
     public void setTemplate(final String templateId) {
         this.templateId = templateId;
         refresh();
@@ -120,14 +116,12 @@ public class BreadcrumbController extends Controller {
                                         : null);
     }
 
-    /**
-     * What the stepper steps (design 18 §5.3's whole-input scope): the matches of the cursor's
-     * own template, or - the cursor being the document - of the template the panel has selected.
-     * Where that template matched nothing, and where nothing is selected, there is still
-     * something worth stepping and it is the matches themselves: the document's children, in the
-     * order they were found, whatever template each is of. So a run with any match at all has a
-     * stepper, which is the point of it being the one always-visible stepping control.
-     */
+    /// What the stepper steps (design 18 §5.3's whole-input scope): the matches of the cursor's
+    /// own template, or - the cursor being the document - of the template the panel has selected.
+    /// Where that template matched nothing, and where nothing is selected, there is still
+    /// something worth stepping and it is the matches themselves: the document's children, in the
+    /// order they were found, whatever template each is of. So a run with any match at all has a
+    /// stepper, which is the point of it being the one always-visible stepping control.
     private Stepping steppable(final TraceModel trace, final Frame frame) {
         final String stepping = frame != null
                 ? frame.getTemplateId()
@@ -143,7 +137,7 @@ public class BreadcrumbController extends Controller {
                 : new Stepping("matches", List.of());
     }
 
-    /** What the stepper steps, and what it is called: the two cannot disagree. */
+    /// What the stepper steps, and what it is called: the two cannot disagree.
     private static final class Stepping {
 
         private final String label;
@@ -175,7 +169,7 @@ public class BreadcrumbController extends Controller {
         host.hover(hot);
     }
 
-    /** A frame or a capture names its frame: the segment that is it lights (an outer-scope row points here). */
+    /// A frame or a capture names its frame: the segment that is it lights (an outer-scope row points here).
     public void setHot(final Hot hot) {
         final boolean ownCapture = hot != null && hot.getKind() == Hot.Kind.CAPTURE
                                    && hot.getFrameId() == host.cursor();
@@ -186,7 +180,7 @@ public class BreadcrumbController extends Controller {
                 : -1);
     }
 
-    /** Step within the parent: the cursor's previous or next sibling. */
+    /// Step within the parent: the cursor's previous or next sibling.
     public void onSibling(final long frameId, final int delta) {
         final TraceModel trace = host.trace();
         final Frame frame = trace == null
@@ -202,7 +196,7 @@ public class BreadcrumbController extends Controller {
         }
     }
 
-    /** Step across the whole input: the previous or next match of the cursor's template. */
+    /// Step across the whole input: the previous or next match of the cursor's template.
     public void onStep(final int delta) {
         final TraceModel trace = host.trace();
         if (trace == null) {
@@ -232,7 +226,7 @@ public class BreadcrumbController extends Controller {
         }
     }
 
-    /** One segment of the crumb: a frame, its label, its template's colour, its place among its siblings. */
+    /// One segment of the crumb: a frame, its label, its template's colour, its place among its siblings.
     public static final class Segment {
 
         private final long frameId;
@@ -256,7 +250,7 @@ public class BreadcrumbController extends Controller {
             return frameId;
         }
 
-        /** The frame's template; null for the document. */
+        /// The frame's template; null for the document.
         public String getTemplateId() {
             return templateId;
         }
@@ -269,7 +263,7 @@ public class BreadcrumbController extends Controller {
             return colour;
         }
 
-        /** One-based among the parent's children; 0 for the document. */
+        /// One-based among the parent's children; 0 for the document.
         public int getIndex() {
             return index;
         }

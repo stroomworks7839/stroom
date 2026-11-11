@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,11 +21,9 @@ import stroom.shapeshifter.client.component.Parts;
 import stroom.shapeshifter.client.component.Regex;
 import stroom.shapeshifter.config.MatchExpression;
 
-/**
- * The kinds a template's match can be, as the match editor offers them (design 44 §1): one
- * choice, not four places to configure. {@link #spelling()} is the chip's word; {@link #label()}
- * is the picker's.
- */
+/// The kinds a template's match can be, as the match editor offers them (design 44 §1): one
+/// choice, not four places to configure. [#spelling()] is the chip's word; [#label()]
+/// is the picker's.
 public enum MatchKind {
     REGEX("regex", "regex", "one expression, matched by the engine"),
     TREE("tree", "pattern tree", "composition: sequences, choices and repeats over parts, "
@@ -48,7 +46,7 @@ public enum MatchKind {
         this.note = note;
     }
 
-    /** What the kind is, in a line: the picker's title and the note beside it. */
+    /// What the kind is, in a line: the picker's title and the note beside it.
     public String note() {
         return note;
     }
@@ -61,7 +59,7 @@ public enum MatchKind {
         return label;
     }
 
-    /** Whether this kind holds a pattern: the three that convert between one another. */
+    /// Whether this kind holds a pattern: the three that convert between one another.
     public boolean holdsPattern() {
         return this == REGEX || this == TREE || this == PARTS;
     }

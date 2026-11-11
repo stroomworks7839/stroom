@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,12 +40,10 @@ import com.google.gwt.view.client.SelectionModel;
 
 import java.util.Objects;
 
-/**
- * The pattern tree drawn as Stroom draws an expression (design 44 §4): boxes the layout places
- * and bracket connectors on a canvas behind them, rather than an indented list — the same
- * widgets the query expression editor and the pipeline structure editor are built from, so a
- * composition reads here the way a condition reads there.
- */
+/// The pattern tree drawn as Stroom draws an expression (design 44 §4): boxes the layout places
+/// and bracket connectors on a canvas behind them, rather than an indented list — the same
+/// widgets the query expression editor and the pipeline structure editor are built from, so a
+/// composition reads here the way a condition reads there.
 public class PatternTreePanel extends TreePanel<PatternItem> {
 
     private static final double HORIZONTAL_SEPARATION = 20;
@@ -88,7 +86,7 @@ public class PatternTreePanel extends TreePanel<PatternItem> {
         cellRenderer.setListener(listener);
     }
 
-    /** The selected node's path, so a redraw comes back to it. */
+    /// The selected node's path, so a redraw comes back to it.
     public void setSelected(final String path) {
         cellRenderer.setSelected(path);
     }

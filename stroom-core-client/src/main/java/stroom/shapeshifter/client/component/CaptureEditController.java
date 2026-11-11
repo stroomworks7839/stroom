@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -43,11 +43,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-/**
- * One capture: the declared name it binds into, where the value comes from, and the cast. A
- * group or a label is a field each; a {@code select} or {@code key-value} source is a reference
- * expression, edited here as its wire form and read by the one reader the project has.
- */
+/// One capture: the declared name it binds into, where the value comes from, and the cast. A
+/// group or a label is a field each; a `select` or `key-value` source is a reference
+/// expression, edited here as its wire form and read by the one reader the project has.
 public class CaptureEditController extends Controller {
 
     private final CaptureEdit view;
@@ -106,7 +104,7 @@ public class CaptureEditController extends Controller {
         }
     }
 
-    /** The payload inside a tagged {@code {"select": {...}}} or {@code {"key-value": {...}}}. */
+    /// The payload inside a tagged `{"select": {...}}` or `{"key-value": {...}}`.
     private static JsonValue body(final JsonValue tagged) {
         if (tagged instanceof JsonObject object) {
             for (final Map.Entry<String, JsonValue> entry : object.entries()) {
@@ -116,7 +114,7 @@ public class CaptureEditController extends Controller {
         return tagged;
     }
 
-    /** The edited capture, or null after telling the user what is wrong. */
+    /// The edited capture, or null after telling the user what is wrong.
     public CaptureBinding write() {
         try {
             final SourceKind kind = view.getKind();

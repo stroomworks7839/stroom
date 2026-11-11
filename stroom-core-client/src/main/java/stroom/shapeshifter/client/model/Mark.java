@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,35 +20,31 @@ import stroom.shapeshifter.client.component.Marks;
 
 import java.util.Comparator;
 
-/**
- * A marked run of a text the panes render (design 18 §5.3, §5.4): a child match, a capture's
- * tint, an instruction's output, a gap where nothing matched, or the cursor's own extent.
- * Marks nest — a capture inside a match inside the cursor's content — so a pane sorts them
- * outer first and emits them as a tree; a mark that straddles another's end is clipped to it,
- * since text has no overlaps. A mark names what it is of, so that pointing at it can be
- * answered everywhere ({@link Hot}).
- */
+/// A marked run of a text the panes render (design 18 §5.3, §5.4): a child match, a capture's
+/// tint, an instruction's output, a gap where nothing matched, or the cursor's own extent.
+/// Marks nest — a capture inside a match inside the cursor's content — so a pane sorts them
+/// outer first and emits them as a tree; a mark that straddles another's end is clipped to it,
+/// since text has no overlaps. A mark names what it is of, so that pointing at it can be
+/// answered everywhere ([Hot]).
 public final class Mark {
 
     public enum Kind {
-        /** What lies outside the cursor's extent, in the output: dimmed. */
+        /// What lies outside the cursor's extent, in the output: dimmed.
         DIM,
-        /** The cursor's own extent, in the output. */
+        /// The cursor's own extent, in the output.
         OWN,
-        /** What one top-level instruction of the cursor's body wrote: the card's hue. */
+        /// What one top-level instruction of the cursor's body wrote: the card's hue.
         INSTRUCTION,
-        /** A child frame's content: its template's colour; a click descends. */
+        /// A child frame's content: its template's colour; a click descends.
         MATCH,
-        /** A capture's bytes: its hue; the text itself is coloured. */
+        /// A capture's bytes: its hue; the text itself is coloured.
         CAPTURE,
-        /** A place a template was tried and none matched: zero length. */
+        /// A place a template was tried and none matched: zero length.
         GAP
     }
 
-    /**
-     * Outer first: by start, then the longer, then by kind — the cursor's extent outside a
-     * match that fills it, a match outside the capture that fills it.
-     */
+    /// Outer first: by start, then the longer, then by kind — the cursor's extent outside a
+    /// match that fills it, a match outside the capture that fills it.
     public static final Comparator<Mark> OUTER_FIRST = (a, b) -> {
         if (a.start != b.start) {
             return Integer.compare(a.start, b.start);
@@ -91,17 +87,17 @@ public final class Mark {
         return kind;
     }
 
-    /** The frame: the one a click descends to, for a match; the one the capture or instruction belongs to. */
+    /// The frame: the one a click descends to, for a match; the one the capture or instruction belongs to.
     public long getFrameId() {
         return frameId;
     }
 
-    /** The capture's or instruction's index in its frame; -1 otherwise. */
+    /// The capture's or instruction's index in its frame; -1 otherwise.
     public int getIndex() {
         return index;
     }
 
-    /** The match's template, or null. */
+    /// The match's template, or null.
     public String getTemplateId() {
         return templateId;
     }
@@ -122,15 +118,13 @@ public final class Mark {
         return title;
     }
 
-    /**
-     * A word the stylesheet paints the mark by — a severity: {@code warning}, {@code error},
-     * {@code fatal} — or null.
-     */
+    /// A word the stylesheet paints the mark by — a severity: `warning`, `error`,
+    /// `fatal` — or null.
     public String getFlag() {
         return flag;
     }
 
-    /** The flag for a severity rank, or null below warning. */
+    /// The flag for a severity rank, or null below warning.
     public static String flagOf(final int rank) {
         switch (rank) {
             case 2:

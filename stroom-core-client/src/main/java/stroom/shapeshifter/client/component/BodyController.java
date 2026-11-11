@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -58,14 +58,12 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
-/**
- * The body as a card list (design 18 §5.6; 43 §4.2): each instruction a card with its kind and
- * a summary, each holder's branches card lists of their own, nested one level in, each with its
- * own <i>+ instruction</i> line. Click a card to edit it; the actions move it, delete it, or add
- * after it; a <i>when</i> or <i>case</i> head is edited and pruned on its own line. Every edit
- * is a rewrite through {@link Bodies} landing on the host as the template's new body. What a
- * card shows about the run — the output it wrote, the children it dispatched — is phase B.
- */
+/// The body as a card list (design 18 §5.6; 43 §4.2): each instruction a card with its kind and
+/// a summary, each holder's branches card lists of their own, nested one level in, each with its
+/// own *+ instruction* line. Click a card to edit it; the actions move it, delete it, or add
+/// after it; a *when* or *case* head is edited and pruned on its own line. Every edit
+/// is a rewrite through [Bodies] landing on the host as the template's new body. What a
+/// card shows about the run — the output it wrote, the children it dispatched — is phase B.
 public class BodyController extends Controller {
 
     // From Contexts.READ_ONLY: true until the document says otherwise, so a
@@ -120,13 +118,11 @@ public class BodyController extends Controller {
         view.setBody(body, notes(template));
     }
 
-    /**
-     * The run's annotations, one per top-level card, about one frame of this template: the
-     * cursor when it is an instance of it, else its first match (design 18 §5.6: the strip is
-     * the definition, trace-annotated). Every card gets the hue its output is painted in; a
-     * card that wrote says how much; a dispatch says how many matches it made and leads to
-     * the first, or says that nothing applies into its mode.
-     */
+    /// The run's annotations, one per top-level card, about one frame of this template: the
+    /// cursor when it is an instance of it, else its first match (design 18 §5.6: the strip is
+    /// the definition, trace-annotated). Every card gets the hue its output is painted in; a
+    /// card that wrote says how much; a dispatch says how many matches it made and leads to
+    /// the first, or says that nothing applies into its mode.
     private List<CardNote> notes(final Template template) {
         final TraceModel trace = host.trace();
         final List<CardNote> notes = new ArrayList<>();
@@ -185,11 +181,9 @@ public class BodyController extends Controller {
         return notes;
     }
 
-    /**
-     * The frame the strip is annotated with, or -1: the cursor as an instance of the template,
-     * else its first match; the document, for the template that matches the source, since its
-     * body dispatches the root level and the root's matches are the document's children.
-     */
+    /// The frame the strip is annotated with, or -1: the cursor as an instance of the template,
+    /// else its first match; the document, for the template that matches the source, since its
+    /// body dispatches the root level and the root's matches are the document's children.
     static long annotationFrame(final TraceModel trace, final Template template) {
         if (template.match() instanceof MatchExpression.Source) {
             return TraceModel.ROOT;
@@ -204,7 +198,7 @@ public class BodyController extends Controller {
                 : matches.get(0).getId();
     }
 
-    /** The hue a top-level card's output is painted in, by its position - the same rule the output pane uses. */
+    /// The hue a top-level card's output is painted in, by its position - the same rule the output pane uses.
     public static String cardHue(final int index) {
         return RegexController.hue(index);
     }
@@ -247,7 +241,7 @@ public class BodyController extends Controller {
                 : Hot.instruction(frame, index));
     }
 
-    /** An instruction of the annotated frame lights its card. */
+    /// An instruction of the annotated frame lights its card.
     public void setHot(final Hot hot) {
         final long frame = annotatedFrame();
         view.setHot(hot != null && hot.getKind() == Hot.Kind.INSTRUCTION && frame >= 0
@@ -336,7 +330,7 @@ public class BodyController extends Controller {
         }
     }
 
-    /** The add menu, grouped by category, for a list path and an index in it. */
+    /// The add menu, grouped by category, for a list path and an index in it.
     public void onAdd(final String listPath, final int index, final int x, final int y) {
         if (readOnly) {
             return;

@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -45,15 +45,13 @@ import java.util.List;
 import java.util.Objects;
 import java.util.function.Supplier;
 
-/**
- * The workbench's sample (design 44 §2, design 18 §5.6): text to try the match against, seeded
- * from the cursor's frame and freely edited, with every match and every group of it painted
- * beneath as the engine found them. The sample is the author's experiment, not the document's
- * run: it goes to {@code preview} as a project of one template — the subject's match, its
- * encoding and consumption, nothing else — and the trace that comes back is read for that
- * template's frames, their groups and the places it was tried. A group picked in the pattern
- * map, or a labelled node in the tree, isolates its spans.
- */
+/// The workbench's sample (design 44 §2, design 18 §5.6): text to try the match against, seeded
+/// from the cursor's frame and freely edited, with every match and every group of it painted
+/// beneath as the engine found them. The sample is the author's experiment, not the document's
+/// run: it goes to `preview` as a project of one template — the subject's match, its
+/// encoding and consumption, nothing else — and the trace that comes back is read for that
+/// template's frames, their groups and the places it was tried. A group picked in the pattern
+/// map, or a labelled node in the tree, isolates its spans.
 public class SampleController extends Controller {
 
     private final Sample view;
@@ -90,15 +88,13 @@ public class SampleController extends Controller {
         this.host = host;
     }
 
-    /** Shown for a template, and again after every edit of it: the match may have changed. */
+    /// Shown for a template, and again after every edit of it: the match may have changed.
     public void setTemplate(final String id) {
         subject(id, host.template(id), host.colour(id), id);
     }
 
-    /**
-     * A part of the library as the subject (design 44 §3): tried as a template whose match is a
-     * ref to it, with the library beside, so its labels are the groups.
-     */
+    /// A part of the library as the subject (design 44 §3): tried as a template whose match is a
+    /// ref to it, with the library beside, so its labels are the groups.
     public void setPattern(final String name) {
         final String key = Patterns.rowId(name);
         if (!key.equals(subjectKey)) {
@@ -133,14 +129,12 @@ public class SampleController extends Controller {
         run();
     }
 
-    /**
-     * What the subject is tried against: the content of a frame that dispatched it — the
-     * parent's, not what the subject itself matched, which is the answer rather than the
-     * question. The cursor's frame when the subject was tried there, else where it first
-     * matched, else where it was first tried at all (a template that never matches is exactly
-     * the one worth experimenting with); failing all of it, the cursor's content, then the
-     * document's sample.
-     */
+    /// What the subject is tried against: the content of a frame that dispatched it — the
+    /// parent's, not what the subject itself matched, which is the answer rather than the
+    /// question. The cursor's frame when the subject was tried there, else where it first
+    /// matched, else where it was first tried at all (a template that never matches is exactly
+    /// the one worth experimenting with); failing all of it, the cursor's content, then the
+    /// document's sample.
     private String seedText(final String templateId) {
         final TraceModel trace = host.trace();
         if (trace != null && templateId != null) {
@@ -161,7 +155,7 @@ public class SampleController extends Controller {
         return fallback(trace);
     }
 
-    /** A frame's content, or what the supplier says when it has none. */
+    /// A frame's content, or what the supplier says when it has none.
     private String contentOr(final TraceModel trace, final long frameId, final Supplier<String> otherwise) {
         final String content = trace.has(frameId)
                 ? trace.content(frameId)
@@ -174,7 +168,7 @@ public class SampleController extends Controller {
                 : otherwise.get();
     }
 
-    /** The cursor's content - the whole input at the document - then a pasted sample. */
+    /// The cursor's content - the whole input at the document - then a pasted sample.
     private String fallback(final TraceModel trace) {
         if (trace != null && trace.has(host.cursor())) {
             final String content = trace.content(host.cursor());
@@ -191,14 +185,14 @@ public class SampleController extends Controller {
         rerun.update();
     }
 
-    /** Isolate a group by number (0 for none): the regex map's click. */
+    /// Isolate a group by number (0 for none): the regex map's click.
     public void isolate(final int group) {
         isolatedGroup = group;
         isolatedLabel = null;
         paint();
     }
 
-    /** Isolate a group by its label (null for none): the tree's selection. */
+    /// Isolate a group by its label (null for none): the tree's selection.
     public void isolate(final String label) {
         isolatedLabel = label;
         isolatedGroup = 0;
@@ -266,7 +260,7 @@ public class SampleController extends Controller {
                 .exec();
     }
 
-    /** The sample as the trace read it: matches, their groups, and where the template was tried. */
+    /// The sample as the trace read it: matches, their groups, and where the template was tried.
     private void paint() {
         if (trace == null) {
             return;

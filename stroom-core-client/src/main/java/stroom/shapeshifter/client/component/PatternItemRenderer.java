@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,20 +31,18 @@ import com.google.gwt.user.client.ui.FlowPanel;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * A pattern node drawn as a box the tree layout places (the expression editor's
- * {@code ExpressionItemRenderer}, for this vocabulary): a container is a short box — the
- * combinator's word — and a leaf a wider one holding what it matches, so the shape of a
- * composition is read across the boxes rather than down an indent.
- */
+/// A pattern node drawn as a box the tree layout places (the expression editor's
+/// `ExpressionItemRenderer`, for this vocabulary): a container is a short box — the
+/// combinator's word — and a leaf a wider one holding what it matches, so the shape of a
+/// composition is read across the boxes rather than down an indent.
 public final class PatternItemRenderer implements CellRenderer<PatternItem>, NodeExtentProvider<PatternItem> {
 
-    /** As the expression editor's boxes: one row of text. */
+    /// As the expression editor's boxes: one row of text.
     private static final double HEIGHT = 25;
     private static final int CONTAINER_WIDTH = 96;
     private static final int LEAF_MIN_WIDTH = 120;
     private static final int LEAF_MAX_WIDTH = 380;
-    /** Near enough for the monospaced-ish label at this size; the box itself wraps nothing. */
+    /// Near enough for the monospaced-ish label at this size; the box itself wraps nothing.
     private static final int CHAR_WIDTH = 7;
     private static final int PADDING = 22;
 
@@ -127,7 +125,7 @@ public final class PatternItemRenderer implements CellRenderer<PatternItem>, Nod
         return boxes;
     }
 
-    /** What a click on a box asks for. */
+    /// What a click on a box asks for.
     public interface Listener {
 
         void onSelect(String path);

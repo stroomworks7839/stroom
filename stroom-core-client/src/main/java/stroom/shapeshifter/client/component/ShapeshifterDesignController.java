@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -57,26 +57,24 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.Consumer;
 
-/**
- * The Design tab's root (design 43 §4): owns the {@link Project}, the selection, and the one
- * place an edit lands. Every child edits through {@link ProjectHost#replace}; the root re-renders
- * the children, tells the document presenter (a {@link ValueChangeEvent} of the new project), and
- * asks the engine what it thinks of it on a debounce.
- *
- * <p>The frame is the mockup's (43 §4.1): the template panel; the breadcrumb, input and
- * variables cells over the strip and output cells, and the pattern workbench opening in place
- * of the crumb, input, variables and strip when a match chip is clicked.
- *
- * <p>Selection is two things owned here: the selected template's id, or null for the project,
- * pushed to the strip and the open workbench; and the cursor — the selected frame of the last
- * run's trace (design 18 §5.1) — which the crumb, the input, variables and output panes follow.
- * Selecting a frame selects its template, so the strip shows the definition the cursor is an
- * instance of.
- *
- * <p>The run (phase B): a sample is chosen in the crumb's sample chooser (design 18 Q2's
- * first door), and every edit runs the project over it again on a short debounce (Q6), so the
- * trace is never far behind the definition; between the edit and the answer it is stale.
- */
+/// The Design tab's root (design 43 §4): owns the [Project], the selection, and the one
+/// place an edit lands. Every child edits through [ProjectHost#replace]; the root re-renders
+/// the children, tells the document presenter (a [ValueChangeEvent] of the new project), and
+/// asks the engine what it thinks of it on a debounce.
+///
+/// The frame is the mockup's (43 §4.1): the template panel; the breadcrumb, input and
+/// variables cells over the strip and output cells, and the pattern workbench opening in place
+/// of the crumb, input, variables and strip when a match chip is clicked.
+///
+/// Selection is two things owned here: the selected template's id, or null for the project,
+/// pushed to the strip and the open workbench; and the cursor — the selected frame of the last
+/// run's trace (design 18 §5.1) — which the crumb, the input, variables and output panes follow.
+/// Selecting a frame selects its template, so the strip shows the definition the cursor is an
+/// instance of.
+///
+/// The run (phase B): a sample is chosen in the crumb's sample chooser (design 18 Q2's
+/// first door), and every edit runs the project over it again on a short debounce (Q6), so the
+/// trace is never far behind the definition; between the edit and the answer it is stale.
 public class ShapeshifterDesignController
         extends Controller
         implements ProjectHost, TemplateStripController.Listener {
@@ -92,11 +90,9 @@ public class ShapeshifterDesignController
     private final TemplateStripController strip;
     private final PatternWorkbenchController workbench;
     private final SampleSourcePickerController samplePage;
-    /**
-     * Told whether a run is possible, whenever that changes: Run lives in the document's own
-     * toolbar (design 44 §5a), where it is present whichever tab is showing, because running is
-     * the document's verb and the Source tab edits the same project.
-     */
+    /// Told whether a run is possible, whenever that changes: Run lives in the document's own
+    /// toolbar (design 44 §5a), where it is present whichever tab is showing, because running is
+    /// the document's verb and the Source tab edits the same project.
     private Consumer<Boolean> onCanRunChange;
     private final MessagesController messages;
     private final BreadcrumbController crumb;
@@ -119,20 +115,16 @@ public class ShapeshifterDesignController
     private List<ShapeshifterMessage> lastMessages;
 
     private SampleSource sampleSource;
-    /**
-     * True while the sample on screen is the one the document remembered rather than one chosen
-     * this session. A remembered reference can be stale — the stream deleted, or not this user's
-     * to read — so the first run that fails clears it and says so, instead of leaving the author
-     * with a sample that will never work.
-     */
+    /// True while the sample on screen is the one the document remembered rather than one chosen
+    /// this session. A remembered reference can be stale — the stream deleted, or not this user's
+    /// to read — so the first run that fails clears it and says so, instead of leaving the author
+    /// with a sample that will never work.
     private boolean sampleRemembered;
-    /**
-     * The pasted sample, kept whichever kind is in use (design 44 §5s). Held apart from
-     * {@link #sampleSource} because that is the sample in force and this is the author's own
-     * text, which a look at a stream should not destroy.
-     */
+    /// The pasted sample, kept whichever kind is in use (design 44 §5s). Held apart from
+    /// [#sampleSource] because that is the sample in force and this is the author's own
+    /// text, which a look at a stream should not destroy.
     private String keptSampleText;
-    /** The stream, kept the same way and for the same reason: returning to the paste keeps it. */
+    /// The stream, kept the same way and for the same reason: returning to the paste keeps it.
     private SourceLocation keptSampleLocation;
     private TraceModel trace;
     private long cursor = TraceModel.ROOT;
@@ -147,9 +139,9 @@ public class ShapeshifterDesignController
     private final List<NavState> history = new ArrayList<>();
     private int historyAt = -1;
     private boolean walking;
-    /** The browser token this tab's states are pushed under; see {@link #record()}. */
+    /// The browser token this tab's states are pushed under; see [#record()].
     private int historyToken;
-    /** This navigator's token space: the prefix every token of its own carries. */
+    /// This navigator's token space: the prefix every token of its own carries.
     private final String historySpace = HISTORY_PREFIX + ++navigators + "-";
 
     @Inject
@@ -230,25 +222,21 @@ public class ShapeshifterDesignController
 
     // ---- where I was ----
 
-    /**
-     * The browser's own back and forward walk this tab's navigation states (design 18 §5.3:
-     * "the state a GWT implementation hands to the platform's own place history rather than
-     * inventing a second one").
-     *
-     * <p>Stroom's content tabs already own the history, as a counter over a list they keep
-     * themselves ({@code ContentTabPanePresenter}); this is the same trick beside it. The token
-     * is prefixed, so the tab pane's {@code Integer.parseInt} of it throws and the press is
-     * ignored there, and this handler ignores the tab pane's numeric ones. Nothing survives a
-     * reload, and nothing should: the states name frames of a run, and the data a run is over is
-     * never the document's (Q2), so a restored cursor would point at what is no longer there.
-     */
+    /// The browser's own back and forward walk this tab's navigation states (design 18 §5.3:
+    /// "the state a GWT implementation hands to the platform's own place history rather than
+    /// inventing a second one").
+    ///
+    /// Stroom's content tabs already own the history, as a counter over a list they keep
+    /// themselves (`ContentTabPanePresenter`); this is the same trick beside it. The token
+    /// is prefixed, so the tab pane's `Integer.parseInt` of it throws and the press is
+    /// ignored there, and this handler ignores the tab pane's numeric ones. Nothing survives a
+    /// reload, and nothing should: the states name frames of a run, and the data a run is over is
+    /// never the document's (Q2), so a restored cursor would point at what is no longer there.
     private static final String HISTORY_PREFIX = "ss";
 
-    /**
-     * How many navigators this page has built, which gives each one its own token space. Two open
-     * projects both counting from one would read each other's tokens as their own and walk to
-     * whatever state the arithmetic landed on.
-     */
+    /// How many navigators this page has built, which gives each one its own token space. Two open
+    /// projects both counting from one would read each other's tokens as their own and walk to
+    /// whatever state the arithmetic landed on.
     private static int navigators;
 
     private void record() {
@@ -273,7 +261,7 @@ public class ShapeshifterDesignController
         crumb.refresh();
     }
 
-    /** The browser moved: walk by as many states as the token moved, when this tab is the one showing. */
+    /// The browser moved: walk by as many states as the token moved, when this tab is the one showing.
     private void onHistory(final String token) {
         if (walking || token == null || !token.startsWith(historySpace) || !isShowing()) {
             return;
@@ -296,7 +284,7 @@ public class ShapeshifterDesignController
         }
     }
 
-    /** Whether this tab is the one on screen: a press elsewhere must not move a cursor nobody sees. */
+    /// Whether this tab is the one on screen: a press elsewhere must not move a cursor nobody sees.
     private boolean isShowing() {
         return asWidget() != null && asWidget().isAttached() && asWidget().isVisible();
     }
@@ -342,13 +330,11 @@ public class ShapeshifterDesignController
         }
     }
 
-    /**
-     * The tab's keys (design 18 §5.3, §5.7): Ctrl+Enter runs; Alt+←/→ walk the history - the
-     * browser's, now, so the keys and its own back button are one thing; Alt+Shift+←/→ step the
-     * cursor's template across the whole input, Ctrl+Alt+←/→ among its siblings, Alt+↑ to the
-     * parent, Alt+↓ to the first child. A card with focus keeps its own Alt+arrows (they stop
-     * there).
-     */
+    /// The tab's keys (design 18 §5.3, §5.7): Ctrl+Enter runs; Alt+←/→ walk the history - the
+    /// browser's, now, so the keys and its own back button are one thing; Alt+Shift+←/→ step the
+    /// cursor's template across the whole input, Ctrl+Alt+←/→ among its siblings, Alt+↑ to the
+    /// parent, Alt+↓ to the first child. A card with focus keeps its own Alt+arrows (they stop
+    /// there).
     private void onKey(final KeyDownEvent event) {
         final int key = event.getNativeKeyCode();
         if (key == KeyCodes.KEY_ENTER && event.isControlKeyDown()) {
@@ -400,7 +386,7 @@ public class ShapeshifterDesignController
         }
     }
 
-    /** One place the user has been: the cursor and the selected template. */
+    /// One place the user has been: the cursor and the selected template.
     private static final class NavState {
 
         private final long frameId;
@@ -423,10 +409,8 @@ public class ShapeshifterDesignController
         }
     }
 
-    /**
-     * The document as read, or as the Source tab last parsed it. A null project with a source
-     * error keeps the previous project on screen, read-only, under the error.
-     */
+    /// The document as read, or as the Source tab last parsed it. A null project with a source
+    /// error keeps the previous project on screen, read-only, under the error.
     public void read(final Project project, final Map<String, String> colours, final SourceLocation sample,
                      final String sampleText, final SampleKind sampleKind, final String sourceError) {
         this.sourceError = sourceError;
@@ -476,14 +460,12 @@ public class ShapeshifterDesignController
         }
     }
 
-    /**
-     * Forget a sample the document remembered but the server could not read — deleted, or not
-     * this user's to read. Says so once and leaves the author at the empty state rather than on a
-     * sample that will never work. A sample chosen by hand this session is left alone: that is an
-     * ordinary unreadable stream, and the messages already say so.
-     *
-     * @return true when a remembered sample was forgotten, so the caller stops
-     */
+    /// Forget a sample the document remembered but the server could not read — deleted, or not
+    /// this user's to read. Says so once and leaves the author at the empty state rather than on a
+    /// sample that will never work. A sample chosen by hand this session is left alone: that is an
+    /// ordinary unreadable stream, and the messages already say so.
+    ///
+    /// @return true when a remembered sample was forgotten, so the caller stops
     private boolean forgetRememberedSample() {
         if (!sampleRemembered) {
             return false;
@@ -498,7 +480,7 @@ public class ShapeshifterDesignController
         return true;
     }
 
-    /** The engine's opinion of the project: a run when there is a sample, a validation otherwise. */
+    /// The engine's opinion of the project: a run when there is a sample, a validation otherwise.
     private void check() {
         if (sampleSource != null) {
             stale = true;
@@ -515,11 +497,9 @@ public class ShapeshifterDesignController
     }
 
 
-    /**
-     * The sample reference the document should remember: a stream's location, or null for a
-     * pasted sample, which is data and stays out of the document (design 44 §5j). Read when the
-     * document is written, never pushed, so choosing a sample does not make the document dirty.
-     */
+    /// The sample reference the document should remember: a stream's location, or null for a
+    /// pasted sample, which is data and stays out of the document (design 44 §5j). Read when the
+    /// document is written, never pushed, so choosing a sample does not make the document dirty.
     @Override
     public String getKeptSampleText() {
         return keptSampleText;
@@ -530,17 +510,17 @@ public class ShapeshifterDesignController
         return keptSampleLocation;
     }
 
-    /** What the document keeps: the pasted text, whether or not it is the sample in force. */
+    /// What the document keeps: the pasted text, whether or not it is the sample in force.
     public String getSampleText() {
         return keptSampleText;
     }
 
-    /** Both are kept; this is the stream, whether or not it is the one in force. */
+    /// Both are kept; this is the stream, whether or not it is the one in force.
     public SourceLocation getSampleLocation() {
         return keptSampleLocation;
     }
 
-    /** Which of the two the project is using, for the document to remember. */
+    /// Which of the two the project is using, for the document to remember.
     public SampleKind getSampleKind() {
         if (sampleSource == null) {
             return null;
@@ -550,7 +530,7 @@ public class ShapeshifterDesignController
                 : SampleKind.STREAM;
     }
 
-    /** The colour overrides as they stand, for the document to keep: only for templates that still exist. */
+    /// The colour overrides as they stand, for the document to keep: only for templates that still exist.
     public Map<String, String> getColours() {
         final Map<String, String> kept = new HashMap<>();
         for (final Map.Entry<String, String> entry : colours.entrySet()) {
@@ -638,7 +618,7 @@ public class ShapeshifterDesignController
         announceCanRun();
     }
 
-    /** Whether Run would do anything: there is a project, and data to run it over. */
+    /// Whether Run would do anything: there is a project, and data to run it over.
     public boolean canRun() {
         return project != null && sampleSource != null;
     }
@@ -698,11 +678,9 @@ public class ShapeshifterDesignController
         }
     }
 
-    /**
-     * Run, and show the run: pressing Run - or Ctrl+Enter - while the sample page is open leaves
-     * it, because what was asked for is the result rather than the picker. Choosing a sample
-     * does not, so several can be tried without the page being pulled away.
-     */
+    /// Run, and show the run: pressing Run - or Ctrl+Enter - while the sample page is open leaves
+    /// it, because what was asked for is the result rather than the picker. Choosing a sample
+    /// does not, so several can be tried without the page being pulled away.
     public void runAndShow() {
         if (samplePageOpen) {
             templatePanel.select(null);
@@ -781,12 +759,10 @@ public class ShapeshifterDesignController
         return cursor;
     }
 
-    /**
-     * Move the cursor to what a panel row stands for: a template's first match, or the document.
-     * Answers whether it moved. Nothing happens where there is no run to move within, or where
-     * the cursor is already inside a match of that template - descending into one selects its
-     * row, and that must not throw the cursor back to the first.
-     */
+    /// Move the cursor to what a panel row stands for: a template's first match, or the document.
+    /// Answers whether it moved. Nothing happens where there is no run to move within, or where
+    /// the cursor is already inside a match of that template - descending into one selects its
+    /// row, and that must not throw the cursor back to the first.
     private boolean goTo(final String templateId) {
         if (trace == null) {
             return false;
@@ -847,7 +823,7 @@ public class ShapeshifterDesignController
         strip.setHot(hot);
     }
 
-    /** Everything that reads the trace or the cursor, after either changes. */
+    /// Everything that reads the trace or the cursor, after either changes.
     private void refreshTrace() {
         templatePanel.refresh();
         strip.setTemplate(strip.getTemplateId());

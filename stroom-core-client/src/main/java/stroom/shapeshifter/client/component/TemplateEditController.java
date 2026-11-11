@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,14 +39,12 @@ import com.google.web.bindery.event.shared.EventBus;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * A template's identity — name, colour, mode, params, encoding — the same fields whether
- * creating or editing (design 18 §5.6: mode has exactly one home). What the match is <i>for</i>
- * is not identity and is not here: the strip owns it (design 44 §5f), and it is carried through
- * untouched by an edit. Colour is presentation and
- * lives beside the project in the document, not in it. A blank mode is the root: the templates
- * the document itself dispatches to. The encodings offered are the engine's, fetched once.
- */
+/// A template's identity — name, colour, mode, params, encoding — the same fields whether
+/// creating or editing (design 18 §5.6: mode has exactly one home). What the match is *for*
+/// is not identity and is not here: the strip owns it (design 44 §5f), and it is carried through
+/// untouched by an edit. Colour is presentation and
+/// lives beside the project in the document, not in it. A blank mode is the root: the templates
+/// the document itself dispatches to. The encodings offered are the engine's, fetched once.
 public class TemplateEditController extends Controller {
 
     private final TemplateEdit view;
@@ -76,7 +74,7 @@ public class TemplateEditController extends Controller {
                 .exec();
     }
 
-    /** Show a template's fields; {@code override} is the author's colour, or null for the palette's. */
+    /// Show a template's fields; `override` is the author's colour, or null for the palette's.
     public void read(final ProjectHost host, final Template template, final String override) {
         this.host = host;
         this.template = template;
@@ -101,7 +99,7 @@ public class TemplateEditController extends Controller {
         view.setParams(params.toString());
     }
 
-    /** The edited template, or null after telling the user what is missing. */
+    /// The edited template, or null after telling the user what is missing.
     public Template write() {
         final String name = view.getName().trim();
         if (name.isEmpty()) {
@@ -134,12 +132,12 @@ public class TemplateEditController extends Controller {
                 : encoding, view.isIgnoreErrors());
     }
 
-    /** The colour chosen for the template, or null for the palette's. */
+    /// The colour chosen for the template, or null for the palette's.
     public String getColour() {
         return view.getColour();
     }
 
-    /** What auto means for this template: the palette at its position, or the next position for a new one. */
+    /// What auto means for this template: the palette at its position, or the next position for a new one.
     private String autoColour(final Template template) {
         final List<Template> templates = host.getProject().templates();
         for (int i = 0; i < templates.size(); i++) {

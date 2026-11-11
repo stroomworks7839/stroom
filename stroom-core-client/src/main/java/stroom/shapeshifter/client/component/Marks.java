@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,12 +31,10 @@ import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.List;
 
-/**
- * Text with its marks as Html: the text escaped, each mark a span carrying its kind as a class,
- * its frame as an attribute and its colour as a CSS variable, so the stylesheet decides how a
- * mark looks and a click handler finds the frame. Marks come outer first and are emitted as a
- * tree; one that straddles the end of the mark it is inside is clipped there.
- */
+/// Text with its marks as Html: the text escaped, each mark a span carrying its kind as a class,
+/// its frame as an attribute and its colour as a CSS variable, so the stylesheet decides how a
+/// mark looks and a click handler finds the frame. Marks come outer first and are emitted as a
+/// tree; one that straddles the end of the mark it is inside is clipped there.
 public final class Marks {
 
     static final String FRAME_ATTR = "data-frame";
@@ -85,11 +83,9 @@ public final class Marks {
         return html.toSafeHtml();
     }
 
-    /**
-     * What a marked element says it is of, for pointing: the request the element under the
-     * pointer stands for, or null for plain text. Walks up to the block, since a capture sits
-     * inside a match and the innermost is what is pointed at.
-     */
+    /// What a marked element says it is of, for pointing: the request the element under the
+    /// pointer stands for, or null for plain text. Walks up to the block, since a capture sits
+    /// inside a match and the innermost is what is pointed at.
     static Hot hotOf(final Element block, final Element target) {
         Element at = target;
         while (at != null && at != block) {
@@ -115,7 +111,7 @@ public final class Marks {
         return null;
     }
 
-    /** The frame a click on a marked element descends to, or -1: the innermost match above it. */
+    /// The frame a click on a marked element descends to, or -1: the innermost match above it.
     static long frameOf(final Element block, final Element target) {
         Element at = target;
         while (at != null && at != block) {
@@ -128,11 +124,9 @@ public final class Marks {
         return -1;
     }
 
-    /**
-     * Light the elements of a block a request names and unlight the rest: the attribute is the
-     * request's kind, the value its key. A block of many spans is walked once per request,
-     * which the pointer's pace can afford.
-     */
+    /// Light the elements of a block a request names and unlight the rest: the attribute is the
+    /// request's kind, the value its key. A block of many spans is walked once per request,
+    /// which the pointer's pace can afford.
     static void light(final Element block, final Hot hot) {
         final String attr = hot == null
                 ? null
@@ -149,18 +143,16 @@ public final class Marks {
         }
     }
 
-    /**
-     * Bring the first mark of a class into view, if it is not there already.
-     *
-     * <p>Stepping moves the frame, not the pane, so the mark a step lands on can be anywhere in
-     * an output long enough to scroll. This leaves a third of the pane above it, so it arrives
-     * with the lines before it rather than flush against the top, and does nothing at all while
-     * it is already on screen — a step within one screenful should not move the text under the
-     * reader's eye. Instant rather than animated: a held-down step key outruns any easing.
-     *
-     * <p>Deferred because the Html it measures was set in the same pass, and a span has no
-     * position until the browser has laid it out.
-     */
+    /// Bring the first mark of a class into view, if it is not there already.
+    ///
+    /// Stepping moves the frame, not the pane, so the mark a step lands on can be anywhere in
+    /// an output long enough to scroll. This leaves a third of the pane above it, so it arrives
+    /// with the lines before it rather than flush against the top, and does nothing at all while
+    /// it is already on screen — a step within one screenful should not move the text under the
+    /// reader's eye. Instant rather than animated: a held-down step key outruns any easing.
+    ///
+    /// Deferred because the Html it measures was set in the same pass, and a span has no
+    /// position until the browser has laid it out.
     static void reveal(final ScrollPanel pane, final Element block, final String className) {
         Scheduler.get().scheduleDeferred(() -> {
             final Element mark = firstOfClass(block, className);

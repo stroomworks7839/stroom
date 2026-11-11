@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,11 +33,9 @@ import com.google.gwt.user.client.ui.Widget;
 import java.util.List;
 import java.util.function.Consumer;
 
-/**
- * The output as one preformatted block ({@link Marks}): the cursor's own extent is the
- * enclosing mark, the children's are marks inside it in their colours, and what is outside the
- * cursor's is marked dim, so the eye lands on what this frame wrote.
- */
+/// The output as one preformatted block ([Marks]): the cursor's own extent is the
+/// enclosing mark, the children's are marks inside it in their colours, and what is outside the
+/// cursor's is marked dim, so the eye lands on what this frame wrote.
 public class OutputPane extends Component {
 
     private Consumer<Long> onDescend = frameId -> {

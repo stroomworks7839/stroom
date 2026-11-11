@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,10 +35,8 @@ import com.google.gwt.user.client.ui.FlowPanel;
 import com.google.gwt.user.client.ui.FocusPanel;
 import com.google.gwt.user.client.ui.Widget;
 
-/**
- * One row of the template panel: swatch, name, count. A focusable row — click or Enter selects,
- * double-click opens — so the panel is a list the keyboard can walk (design 18 §5.9).
- */
+/// One row of the template panel: swatch, name, count. A focusable row — click or Enter selects,
+/// double-click opens — so the panel is a list the keyboard can walk (design 18 §5.9).
 public class TemplateRow extends Composite {
 
     private static final Binder BINDER = GWT.create(Binder.class);

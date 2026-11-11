@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -44,15 +44,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.IntConsumer;
 
-/**
- * The regex form (design 18 §5.6): the pattern, committed live on a debounce, rendered twice —
- * the editable text and beneath it the <b>pattern map</b>, each capture group's span in its
- * hue; the <b>groups panel</b>, one row per group, which is the capture-declaration editor —
- * typing a name beside {@code $2} declares it and binds the group to it, blanking it unbinds;
- * and what the engine says, the error as you type and the plan it would run. Every fact about
- * the pattern — validity, groups, their spans and names — is the engine's ({@code patternInfo});
- * the form never reads the pattern itself.
- */
+/// The regex form (design 18 §5.6): the pattern, committed live on a debounce, rendered twice —
+/// the editable text and beneath it the **pattern map**, each capture group's span in its
+/// hue; the **groups panel**, one row per group, which is the capture-declaration editor —
+/// typing a name beside `$2` declares it and binds the group to it, blanking it unbinds;
+/// and what the engine says, the error as you type and the plan it would run. Every fact about
+/// the pattern — validity, groups, their spans and names — is the engine's (`patternInfo`);
+/// the form never reads the pattern itself.
 public class RegexController
         extends Controller
         implements MatchEditorController.MatchForm {
@@ -158,12 +156,10 @@ public class RegexController
         }
     }
 
-    /**
-     * The groups panel is the capture-declaration editor (design 18 §5.6): a name beside a group
-     * is a scalar declaration of that name and a capture binding the group into it; blank is no
-     * capture. The declaration is left in place when a group is unbound or renamed - the body
-     * may read it - and the messages say so if nothing does.
-     */
+    /// The groups panel is the capture-declaration editor (design 18 §5.6): a name beside a group
+    /// is a scalar declaration of that name and a capture binding the group into it; blank is no
+    /// capture. The declaration is left in place when a group is unbound or renamed - the body
+    /// may read it - and the messages say so if nothing does.
     public void onGroupName(final int index, final String typed) {
         final Template template = host.template(templateId);
         if (template == null || readOnly) {
@@ -290,7 +286,7 @@ public class RegexController
         view.setPatternMap(patternMap(inspected.getPattern(), groups));
     }
 
-    /** A capture's hue, shared by its chip, its row and its span in the map (design 18 §10). */
+    /// A capture's hue, shared by its chip, its row and its span in the map (design 18 §10).
     static String hue(final int index) {
         // floorMod, not %: a caller counting from zero would otherwise produce a negative hue,
         // which Colours.safe rejects and paints transparent — one capture silently uncoloured
@@ -298,10 +294,8 @@ public class RegexController
         return "hsl(" + Math.floorMod((index - 1) * 47, 360) + ", 62%, 58%)";
     }
 
-    /**
-     * The pattern with each character coloured by its innermost capture group, regex101's
-     * inner-and-outer reading; a click on a span selects its group.
-     */
+    /// The pattern with each character coloured by its innermost capture group, regex101's
+    /// inner-and-outer reading; a click on a span selects its group.
     private SafeHtml patternMap(final String pattern, final List<Group> groups) {
         final SafeHtmlBuilder sb = new SafeHtmlBuilder();
         int runGroup = 0;

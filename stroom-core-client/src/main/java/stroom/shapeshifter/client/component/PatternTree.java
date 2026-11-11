@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -82,10 +82,8 @@ public class PatternTree extends Component {
         return buttonPanel;
     }
 
-    /**
-     * The nodes in the order the presenter walked them, the root first: a parent is always laid
-     * out before the children that name it, so one pass builds the layout's tree.
-     */
+    /// The nodes in the order the presenter walked them, the root first: a parent is always laid
+    /// out before the children that name it, so one pass builds the layout's tree.
     public void setTree(final List<PatternItem> items, final String selected) {
         final DefaultTreeForTreeLayout<PatternItem> layout = items.isEmpty()
                 ? null

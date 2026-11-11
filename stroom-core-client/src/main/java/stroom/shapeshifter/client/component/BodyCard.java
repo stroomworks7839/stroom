@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,10 +39,8 @@ import com.google.gwt.user.client.ui.Widget;
 
 import java.util.List;
 
-/**
- * One card: kind · summary · actions, and for a holder its branches beneath — each a head
- * (then / when … / otherwise / case … / default), a nested card list, and an add line.
- */
+/// One card: kind · summary · actions, and for a holder its branches beneath — each a head
+/// (then / when … / otherwise / case … / default), a nested card list, and an add line.
 public class BodyCard extends Composite {
 
     private static final Binder BINDER = GWT.create(Binder.class);
@@ -75,12 +73,10 @@ public class BodyCard extends Composite {
 
     private final int[] path;
     private final Body.CardActions handlers;
-    /**
-     * The card being dragged, across every card on the page. The drag data would be the tidier
-     * home for it, but a drag within one page has one subject at a time and reading the data
-     * during dragover is not allowed by the browser — which is exactly when the drop indicator
-     * has to decide whether it may land here.
-     */
+    /// The card being dragged, across every card on the page. The drag data would be the tidier
+    /// home for it, but a drag within one page has one subject at a time and reading the data
+    /// during dragover is not allowed by the browser — which is exactly when the drop indicator
+    /// has to decide whether it may land here.
     private static BodyCard dragging;
 
     public BodyCard(final int[] listPath, final int index, final OutputNode node, final int count,
@@ -154,12 +150,10 @@ public class BodyCard extends Composite {
         }
     }
 
-    /**
-     * Dragging (design 44 §5o). The grip is what starts it — the card itself stays clickable to
-     * edit — and a card accepts a drop on its upper or lower half, landing the dragged card
-     * before or after it. A card refuses itself and its own descendants: a holder cannot be put
-     * inside what it contains, and the indicator says so by not appearing.
-     */
+    /// Dragging (design 44 §5o). The grip is what starts it — the card itself stays clickable to
+    /// edit — and a card accepts a drop on its upper or lower half, landing the dragged card
+    /// before or after it. A card refuses itself and its own descendants: a holder cannot be put
+    /// inside what it contains, and the indicator says so by not appearing.
     private void makeDraggable() {
         grip.addMouseDownHandler(e -> head.getElement().setDraggable(Element.DRAGGABLE_TRUE));
         grip.addMouseUpHandler(e -> head.getElement().setDraggable(Element.DRAGGABLE_FALSE));
@@ -201,12 +195,12 @@ public class BodyCard extends Composite {
         });
     }
 
-    /** Whether this card may take the drop: something is being dragged, and it is not this one. */
+    /// Whether this card may take the drop: something is being dragged, and it is not this one.
     private boolean accepts() {
         return dragging != null && dragging != this;
     }
 
-    /** Which half of the card the pointer is in, and so which side of it the card lands. */
+    /// Which half of the card the pointer is in, and so which side of it the card lands.
     private boolean after(final int clientY) {
         return clientY > head.getAbsoluteTop() + head.getOffsetHeight() / 2;
     }
@@ -241,7 +235,7 @@ public class BodyCard extends Composite {
         handlers.onRemove(Bodies.path(path));
     }
 
-    /** A holder's branch: its head line, the nested cards, the add line. */
+    /// A holder's branch: its head line, the nested cards, the add line.
     private final class Branch extends Composite {
 
         private Branch(final Holder holder, final int branch, final List<OutputNode> cards, final boolean enabled) {

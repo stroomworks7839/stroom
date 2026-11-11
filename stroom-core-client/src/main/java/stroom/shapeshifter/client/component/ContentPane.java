@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,10 +36,8 @@ import com.google.gwt.user.client.ui.Widget;
 import java.util.List;
 import java.util.function.Consumer;
 
-/**
- * The content as one Html block ({@link Marks}); a click anywhere finds the innermost match
- * span above it and descends.
- */
+/// The content as one Html block ([Marks]); a click anywhere finds the innermost match
+/// span above it and descends.
 public class ContentPane extends Component {
 
     private Consumer<Long> onDescend = frameId -> {

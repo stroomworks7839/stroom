@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,17 +21,15 @@ import stroom.shapeshifter.config.PatternNode;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * The tree editor's operations over an immutable {@link PatternNode}: a node is addressed by
- * its path — child indexes from the root — and every operation returns a new root. A labelled
- * node is transparent to paths (its children are its body's) and keeps its label through every
- * rewrite of what is beneath it. A single-body container (optional, repeat, peek, not) whose
- * body must become several nodes gets a sequence for a body; one whose body is removed gets
- * {@code any}, so that the tree is always a tree the reader accepts.
- */
+/// The tree editor's operations over an immutable [PatternNode]: a node is addressed by
+/// its path — child indexes from the root — and every operation returns a new root. A labelled
+/// node is transparent to paths (its children are its body's) and keeps its label through every
+/// rewrite of what is beneath it. A single-body container (optional, repeat, peek, not) whose
+/// body must become several nodes gets a sequence for a body; one whose body is removed gets
+/// `any`, so that the tree is always a tree the reader accepts.
 public final class PatternNodes {
 
-    /** The stand-in body for a container that has to hold something: matches one byte. */
+    /// The stand-in body for a container that has to hold something: matches one byte.
     public static final PatternNode PLACEHOLDER = new PatternNode.Take(1);
 
     private PatternNodes() {
@@ -73,20 +71,20 @@ public final class PatternNodes {
         return child;
     }
 
-    /** The node without its label, if it has one. */
+    /// The node without its label, if it has one.
     public static PatternNode bare(final PatternNode node) {
         return node instanceof PatternNode.Labelled labelled
                 ? labelled.body()
                 : node;
     }
 
-    /** Sequence or choice: holds any number of children. */
+    /// Sequence or choice: holds any number of children.
     public static boolean isList(final PatternNode node) {
         final PatternNode b = bare(node);
         return b instanceof PatternNode.Sequence || b instanceof PatternNode.Choice;
     }
 
-    /** Any node with children: a list, or a single-body optional, repeat, peek or not. */
+    /// Any node with children: a list, or a single-body optional, repeat, peek or not.
     public static boolean isContainer(final PatternNode node) {
         final PatternNode b = bare(node);
         return isList(node)
@@ -100,7 +98,7 @@ public final class PatternNodes {
         return Templates.children(node);
     }
 
-    /** The same node over new children; a leaf refuses. */
+    /// The same node over new children; a leaf refuses.
     public static PatternNode withChildren(final PatternNode node, final List<PatternNode> children) {
         if (node instanceof PatternNode.Labelled labelled) {
             return new PatternNode.Labelled(withChildren(labelled.body(), children), labelled.label(), labelled.as());
@@ -120,7 +118,7 @@ public final class PatternNodes {
         throw new IllegalArgumentException("A " + Templates.describe(node) + " has no children");
     }
 
-    /** One body from a child list: the child, a sequence of them, or the placeholder for none. */
+    /// One body from a child list: the child, a sequence of them, or the placeholder for none.
     private static PatternNode single(final List<PatternNode> children) {
         if (children.isEmpty()) {
             return PLACEHOLDER;
@@ -156,7 +154,7 @@ public final class PatternNodes {
         return withChildren(at, children);
     }
 
-    /** The tree without the node at the path; removing the root leaves nothing (null). */
+    /// The tree without the node at the path; removing the root leaves nothing (null).
     public static PatternNode remove(final PatternNode root, final int[] path) {
         if (path.length == 0) {
             return null;
@@ -168,7 +166,7 @@ public final class PatternNodes {
         return replace(root, parentPath, withChildren(parent, children));
     }
 
-    /** A node inserted among a container's children at an index; a leaf parent refuses. */
+    /// A node inserted among a container's children at an index; a leaf parent refuses.
     public static PatternNode insert(final PatternNode root, final int[] parentPath, final int index,
                                      final PatternNode node) {
         final PatternNode parent = get(root, parentPath);
@@ -181,7 +179,7 @@ public final class PatternNodes {
         return replace(root, parentPath, withChildren(parent, children));
     }
 
-    /** A node moved among its siblings by an offset; the root, or an offset out of range, is a no-op. */
+    /// A node moved among its siblings by an offset; the root, or an offset out of range, is a no-op.
     public static PatternNode move(final PatternNode root, final int[] path, final int by) {
         if (path.length == 0) {
             return root;
@@ -198,10 +196,8 @@ public final class PatternNodes {
         return replace(root, parentPath, withChildren(parent, children));
     }
 
-    /**
-     * A container replaced by what it holds: a single body, or a list's one item. A label on the
-     * container is dropped with the container. A leaf, or a list of several, cannot be unwrapped.
-     */
+    /// A container replaced by what it holds: a single body, or a list's one item. A label on the
+    /// container is dropped with the container. A leaf, or a list of several, cannot be unwrapped.
     public static PatternNode unwrap(final PatternNode root, final int[] path) {
         final PatternNode node = get(root, path);
         final List<PatternNode> children = children(node);

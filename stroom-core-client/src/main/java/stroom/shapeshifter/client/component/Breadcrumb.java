@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,11 +39,9 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.IntConsumer;
 
-/**
- * The crumb as the mockup draws it: name › name › name, each a click, the current one plain;
- * a within-parent stepper on every segment but the document's; the whole-input stepper at
- * the far end, labelled with the template so it cannot be read as another sibling stepper.
- */
+/// The crumb as the mockup draws it: name › name › name, each a click, the current one plain;
+/// a within-parent stepper on every segment but the document's; the whole-input stepper at
+/// the far end, labelled with the template so it cannot be read as another sibling stepper.
 public class Breadcrumb extends Component {
 
     private Consumer<Long> onSegment = frameId -> {

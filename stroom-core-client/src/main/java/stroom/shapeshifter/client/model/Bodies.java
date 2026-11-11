@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,14 +34,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-/**
- * The body editor's rewrites over an immutable body (design 43 §4.2). A card is addressed by a
- * <b>node path</b> — its index at the top level, then <i>(branch, index)</i> pairs into a
- * holder's {@code bodies()} — and a card list by a <b>list path</b>, the same with the final
- * index left off: {@code []} is the body itself, {@code [i, b]} the b-th body of the holder at
- * i. Every operation returns a new body; a holder keeps its head — its test, its name, its
- * branches' conditions and values — through every rewrite of what its branches hold.
- */
+/// The body editor's rewrites over an immutable body (design 43 §4.2). A card is addressed by a
+/// **node path** — its index at the top level, then *(branch, index)* pairs into a
+/// holder's `bodies()` — and a card list by a **list path**, the same with the final
+/// index left off: `[]` is the body itself, `[i, b]` the b-th body of the holder at
+/// i. Every operation returns a new body; a holder keeps its head — its test, its name, its
+/// branches' conditions and values — through every rewrite of what its branches hold.
 public final class Bodies {
 
     private Bodies() {
@@ -70,14 +68,14 @@ public final class Bodies {
         return path;
     }
 
-    /** The list path a node path sits in: everything but its last index. */
+    /// The list path a node path sits in: everything but its last index.
     public static int[] parent(final int[] nodePath) {
         final int[] parent = new int[nodePath.length - 1];
         System.arraycopy(nodePath, 0, parent, 0, parent.length);
         return parent;
     }
 
-    /** A list path extended into a branch of the node at an index: {@code list + [index, branch]}. */
+    /// A list path extended into a branch of the node at an index: `list + [index, branch]`.
     public static int[] branch(final int[] listPath, final int index, final int branch) {
         final int[] out = new int[listPath.length + 2];
         System.arraycopy(listPath, 0, out, 0, listPath.length);
@@ -86,7 +84,7 @@ public final class Bodies {
         return out;
     }
 
-    /** A list path extended to the node at an index. */
+    /// A list path extended to the node at an index.
     public static int[] child(final int[] listPath, final int index) {
         final int[] out = new int[listPath.length + 1];
         System.arraycopy(listPath, 0, out, 0, listPath.length);
@@ -94,7 +92,7 @@ public final class Bodies {
         return out;
     }
 
-    /** The card list at a list path, or null when the path no longer exists. */
+    /// The card list at a list path, or null when the path no longer exists.
     public static List<OutputNode> list(final List<OutputNode> body, final int[] listPath) {
         List<OutputNode> at = body;
         for (int i = 0; i + 1 < listPath.length; i += 2) {
@@ -123,7 +121,7 @@ public final class Bodies {
                 : list.get(index);
     }
 
-    /** The body with the list at a list path replaced. */
+    /// The body with the list at a list path replaced.
     public static List<OutputNode> replaceList(final List<OutputNode> body, final int[] listPath,
                                                final List<OutputNode> replacement) {
         return replaceList(body, listPath, 0, replacement);
@@ -165,7 +163,7 @@ public final class Bodies {
         return replaceList(body, listPath, list);
     }
 
-    /** A card moved among its siblings; out of range is a no-op returning the same body. */
+    /// A card moved among its siblings; out of range is a no-op returning the same body.
     public static List<OutputNode> move(final List<OutputNode> body, final int[] nodePath, final int by) {
         final int[] listPath = parent(nodePath);
         final List<OutputNode> list = new ArrayList<>(list(body, listPath));
@@ -178,16 +176,14 @@ public final class Bodies {
         return replaceList(body, listPath, list);
     }
 
-    /**
-     * A card dragged to a place: lifted from where it was and put down before {@code index} of
-     * the list at {@code toListPath}. Refused when the destination is inside the card itself —
-     * a holder cannot contain the thing it is being moved into, and the paths say so before any
-     * list is touched.
-     *
-     * <p>Lifting shifts what follows it in the same list, so an index after the old position is
-     * one too many once the card is out. Judged on the paths rather than by searching afterwards,
-     * because two sibling cards can be equal and the wrong one would be found.
-     */
+    /// A card dragged to a place: lifted from where it was and put down before `index` of
+    /// the list at `toListPath`. Refused when the destination is inside the card itself —
+    /// a holder cannot contain the thing it is being moved into, and the paths say so before any
+    /// list is touched.
+    ///
+    /// Lifting shifts what follows it in the same list, so an index after the old position is
+    /// one too many once the card is out. Judged on the paths rather than by searching afterwards,
+    /// because two sibling cards can be equal and the wrong one would be found.
     public static List<OutputNode> moveTo(final List<OutputNode> body, final int[] fromPath,
                                           final int[] toListPath, final int index) {
         if (isWithin(toListPath, fromPath)) {
@@ -213,10 +209,8 @@ public final class Bodies {
         return insert(lifted, to, at, node);
     }
 
-    /**
-     * A path as it reads once the node at {@code from} of {@code fromList} has been lifted out:
-     * a path that descends through that list past that position loses one.
-     */
+    /// A path as it reads once the node at `from` of `fromList` has been lifted out:
+    /// a path that descends through that list past that position loses one.
     private static int[] shiftForRemoval(final int[] path, final int[] fromList, final int from) {
         if (path.length <= fromList.length || !isWithin(path, fromList)) {
             return path;
@@ -229,7 +223,7 @@ public final class Bodies {
         return shifted;
     }
 
-    /** Whether a path runs through a node — its own path, or any list inside it. */
+    /// Whether a path runs through a node — its own path, or any list inside it.
     private static boolean isWithin(final int[] path, final int[] nodePath) {
         if (path.length < nodePath.length) {
             return false;
@@ -242,7 +236,7 @@ public final class Bodies {
         return true;
     }
 
-    /** The same holder over new branch bodies, in {@code bodies()} order; its head is kept. */
+    /// The same holder over new branch bodies, in `bodies()` order; its head is kept.
     public static OutputNode withBodies(final Holder holder, final List<List<OutputNode>> bodies) {
         if (holder instanceof If i) {
             return new If(i.test(), bodies.get(0));
@@ -272,7 +266,7 @@ public final class Bodies {
         throw new IllegalArgumentException("Unknown holder: " + holder);
     }
 
-    /** What heads a holder's branch — "then", "when …", "otherwise", "case …", "default" — or null. */
+    /// What heads a holder's branch — "then", "when …", "otherwise", "case …", "default" — or null.
     public static String branchLabel(final Holder holder, final int branch) {
         if (holder instanceof If) {
             return "then";
@@ -288,7 +282,7 @@ public final class Bodies {
         return null;
     }
 
-    /** Whether a branch has a head of its own to edit or remove: a when or a case, not otherwise or default. */
+    /// Whether a branch has a head of its own to edit or remove: a when or a case, not otherwise or default.
     public static boolean branchIsOwn(final Holder holder, final int branch) {
         return holder instanceof Choose c && branch < c.when().size()
                || holder instanceof Switch s && branch < s.cases().size();

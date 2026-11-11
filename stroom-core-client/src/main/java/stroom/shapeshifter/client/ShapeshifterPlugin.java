@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,11 +38,9 @@ import com.google.web.bindery.event.shared.EventBus;
 import java.util.function.Consumer;
 import javax.inject.Singleton;
 
-/**
- * The Shapeshifter document in the client: open, load, save and create through the resource.
- * Registering it is also what makes a Shapeshifter element steppable — stepping resolves an
- * element's document through the plugin registry by type (design 43 §1).
- */
+/// The Shapeshifter document in the client: open, load, save and create through the resource.
+/// Registering it is also what makes a Shapeshifter element steppable — stepping resolves an
+/// element's document through the plugin registry by type (design 43 §1).
 @Singleton
 public class ShapeshifterPlugin extends DocumentPlugin<ShapeshifterDoc> {
 

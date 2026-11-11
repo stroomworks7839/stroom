@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -48,23 +48,21 @@ import edu.ycp.cs.dh.acegwt.client.ace.AceEditorMode;
 
 import java.util.Objects;
 
-/**
- * Where the run's data comes from (design 18 Q2, §5.7; design 43's {@code SampleSourcePickerController}):
- * a record of a stream, or text pasted. The document never holds data, so this is the one door,
- * and behind the stream half of it is Stroom's own — the stepping stream list and the source
- * viewer beneath it, the same pair the stepping tab shows, because phase C mounts this navigator
- * inside stepping and the two should name a record the same way.
- *
- * <p>A page of the project rather than a dialog over it (design 44 §5a), reached from the panel,
- * committing as every other surface here does: <b>the record the viewer is showing is the
- * sample</b> — pick a stream, or step its parts and records, and that is the choice — and
- * leaving the paste box chooses what is in it. There is nothing to confirm.
- */
+/// Where the run's data comes from (design 18 Q2, §5.7; design 43's `SampleSourcePickerController`):
+/// a record of a stream, or text pasted. The document never holds data, so this is the one door,
+/// and behind the stream half of it is Stroom's own — the stepping stream list and the source
+/// viewer beneath it, the same pair the stepping tab shows, because phase C mounts this navigator
+/// inside stepping and the two should name a record the same way.
+///
+/// A page of the project rather than a dialog over it (design 44 §5a), reached from the panel,
+/// committing as every other surface here does: **the record the viewer is showing is the
+/// sample** — pick a stream, or step its parts and records, and that is the choice — and
+/// leaving the paste box chooses what is in it. There is nothing to confirm.
 public class SampleSourcePickerController extends Controller {
 
     private final SampleSourcePicker view;
 
-    /** Where the sample comes from: the two doors design 18 §5.7 describes. */
+    /// Where the sample comes from: the two doors design 18 §5.7 describes.
     public enum Kind {
         STREAM("a stream"),
         PASTED("pasted text");
@@ -131,7 +129,7 @@ public class SampleSourcePickerController extends Controller {
         this.host = host;
     }
 
-    /** Shown: read what the sample is into the page, and list the streams the first time. */
+    /// Shown: read what the sample is into the page, and list the streams the first time.
     public void refresh() {
         final SampleSource current = host == null
                 ? null
@@ -169,7 +167,7 @@ public class SampleSourcePickerController extends Controller {
         }
     }
 
-    /** A stream was chosen in the list: show its first record, which makes it the sample. */
+    /// A stream was chosen in the list: show its first record, which makes it the sample.
     private void chose() {
         final MetaRow row = metaList.getSelected();
         if (reading || row == null || row.getMeta() == null) {
@@ -179,7 +177,7 @@ public class SampleSourcePickerController extends Controller {
         source.setSourceLocation(SourceLocation.builder(meta.getId()).build());
     }
 
-    /** The viewer settled on a record: that record is the sample. */
+    /// The viewer settled on a record: that record is the sample.
     private void viewing(final SourceLocation location) {
         if (reading || host == null || location == null || view.getKind() != Kind.STREAM) {
             return;
@@ -237,7 +235,7 @@ public class SampleSourcePickerController extends Controller {
         host.setSampleSource(SampleSource.pasted(text));
     }
 
-    /** Narrow the stream list, as stepping narrows it: the same expression over the same fields. */
+    /// Narrow the stream list, as stepping narrows it: the same expression over the same fields.
     private void filter() {
         final ExpressionEditorController presenter = filterProvider.get()
                 .attach(new ExpressionEditor());

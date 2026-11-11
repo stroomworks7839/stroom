@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,74 +22,66 @@ import stroom.shapeshifter.config.Template;
 
 import java.util.List;
 
-/**
- * What every editing presenter in the Design tab sees of the document: the current project, and
- * one way to change it. Edits are replacements (design 43 §4) — the model is immutable records, so
- * an edit is a new {@link Project} handed back here, and the root keeps the previous one.
- */
+/// What every editing presenter in the Design tab sees of the document: the current project, and
+/// one way to change it. Edits are replacements (design 43 §4) — the model is immutable records, so
+/// an edit is a new [Project] handed back here, and the root keeps the previous one.
 public interface ProjectHost {
 
     Project getProject();
 
-    /** Hand back an edited project; the root re-renders every presenter and re-validates. */
+    /// Hand back an edited project; the root re-renders every presenter and re-validates.
     void replace(Project project);
 
 
-    /** A template's swatch colour: the author's override, or the palette by position (design 18 §5.6). */
+    /// A template's swatch colour: the author's override, or the palette by position (design 18 §5.6).
     String colour(String templateId);
 
-    /** Choose a template's colour, or null for the palette's; presentation, so the run is never stale for it. */
+    /// Choose a template's colour, or null for the palette's; presentation, so the run is never stale for it.
     void setColour(String templateId, String colour);
 
     // ---- modes (design 18 §5.6) ----
 
-    /**
-     * The project's modes, then those declared this session and not yet given to a template. A
-     * mode exists only through its templates and apply sites, so a declared mode is editor state:
-     * offered wherever a mode is picked, listed by the mode editor, gone once a template takes it
-     * or the author forgets it.
-     */
+    /// The project's modes, then those declared this session and not yet given to a template. A
+    /// mode exists only through its templates and apply sites, so a declared mode is editor state:
+    /// offered wherever a mode is picked, listed by the mode editor, gone once a template takes it
+    /// or the author forgets it.
     List<String> modes();
 
     void declareMode(String mode);
 
-    /** Forget a declared mode no template has taken; a mode the project holds is not the editor's to forget. */
+    /// Forget a declared mode no template has taken; a mode the project holds is not the editor's to forget.
     void forgetMode(String mode);
 
     // ---- the run and the trace (design 18 §5; phase B) ----
 
-    /**
-     * The sample's text where the editor holds it - a pasted one - or null: a sample read from a
-     * record is the server's to fetch, and the client sees it only as the trace's input.
-     */
+    /// The sample's text where the editor holds it - a pasted one - or null: a sample read from a
+    /// record is the server's to fetch, and the client sees it only as the trace's input.
     String getSample();
 
-    /**
-     * The pasted sample the project keeps, whichever kind is in use (design 44 §5s). A stream is
-     * often a temporary look at something else, so choosing one does not throw away what the
-     * author wrote; it is kept, saved and offered back when they return to the pasted kind.
-     */
+    /// The pasted sample the project keeps, whichever kind is in use (design 44 §5s). A stream is
+    /// often a temporary look at something else, so choosing one does not throw away what the
+    /// author wrote; it is kept, saved and offered back when they return to the pasted kind.
     String getKeptSampleText();
 
-    /** The stream the project keeps, whichever kind is in use; null where it has never had one. */
+    /// The stream the project keeps, whichever kind is in use; null where it has never had one.
     SourceLocation getKeptSampleLocation();
 
-    /** Where it came from - a record to read, or text pasted - or null for none (design 44 §5). */
+    /// Where it came from - a record to read, or text pasted - or null for none (design 44 §5).
     SampleSource getSampleSource();
 
-    /** Supply a sample and run. */
+    /// Supply a sample and run.
     void setSampleSource(SampleSource source);
 
-    /** Run the project over the sample now; the trace arrives asynchronously. */
+    /// Run the project over the sample now; the trace arrives asynchronously.
     void run();
 
-    /** The last run's trace, or null before the first run. */
+    /// The last run's trace, or null before the first run.
     TraceModel trace();
 
-    /** Whether the project has changed since the trace was made. */
+    /// Whether the project has changed since the trace was made.
     boolean isStale();
 
-    /** The selected frame — the cursor — as a frame id; {@link TraceModel#ROOT} for the document. */
+    /// The selected frame — the cursor — as a frame id; [TraceModel#ROOT] for the document.
     long cursor();
 
     void setCursor(long frameId);
@@ -104,10 +96,10 @@ public interface ProjectHost {
 
     void goForward();
 
-    /** Point at something, or at nothing for null: every surface lights what the request names (design 18 §5.5). */
+    /// Point at something, or at nothing for null: every surface lights what the request names (design 18 §5.5).
     void hover(Hot hot);
 
-    /** The template with this id in the current project, or null. */
+    /// The template with this id in the current project, or null.
     default Template template(final String id) {
         final Project project = getProject();
         if (project == null || id == null) {
@@ -121,7 +113,7 @@ public interface ProjectHost {
         return null;
     }
 
-    /** The current project with one template replaced by id. */
+    /// The current project with one template replaced by id.
     default Project withTemplate(final Template template) {
         return Templates.replace(getProject(), template);
     }

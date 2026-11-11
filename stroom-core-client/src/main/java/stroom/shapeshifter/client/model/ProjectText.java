@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,12 +24,10 @@ import stroom.shapeshifter.config.json.JsonText;
 import stroom.shapeshifter.config.json.ProjectJson;
 
 
-/**
- * The client's edge onto the project text: the config module's own parser and printer over its
- * own mapping, so that a document printed here reads exactly as one the engine prints (design 43
- * §5). Every parse throws {@link ConfigException} naming what is wrong, line and column included
- * for a syntax error.
- */
+/// The client's edge onto the project text: the config module's own parser and printer over its
+/// own mapping, so that a document printed here reads exactly as one the engine prints (design 43
+/// §5). Every parse throws [ConfigException] naming what is wrong, line and column included
+/// for a syntax error.
 public final class ProjectText {
 
     private static final char[] HEX = "0123456789abcdef".toCharArray();
@@ -37,19 +35,17 @@ public final class ProjectText {
     private ProjectText() {
     }
 
-    /** The format version a project written here is written to: the latest the engine reads. */
+    /// The format version a project written here is written to: the latest the engine reads.
     public static final int CURRENT_VERSION = 5;
 
     public static Project parse(final String text) {
         return ProjectJson.readProject(JsonText.parse(text));
     }
 
-    /**
-     * What a new document holds before anything is written to it: a named project with its
-     * document template and nothing else. Not quite empty, because a project without a document
-     * template cannot open a root element and so cannot emit a well-formed document, and nothing
-     * would have said so (design 44 §5m).
-     */
+    /// What a new document holds before anything is written to it: a named project with its
+    /// document template and nothing else. Not quite empty, because a project without a document
+    /// template cannot open a root element and so cannot emit a well-formed document, and nothing
+    /// would have said so (design 44 §5m).
     public static Project empty(final String name) {
         return Templates.ensureDocument(new Project(name == null
                 ? "project"
@@ -76,17 +72,15 @@ public final class ProjectText {
         return JsonText.printPretty(ProjectJson.writePatternNode(node));
     }
 
-    /** The project's pattern library as {@code print} wants it beside a tree, or null for none. */
+    /// The project's pattern library as `print` wants it beside a tree, or null for none.
     public static String printPatterns(final Project project) {
         return project == null || project.patterns().isEmpty()
                 ? null
                 : JsonText.printPretty(ProjectJson.writePatterns(project.patterns()));
     }
 
-    /**
-     * A fresh template id in the eight-four-four-four-twelve spelling the reader insists on. The
-     * client has no {@code UUID}; a random version-4 shape is what the engine's own ids are.
-     */
+    /// A fresh template id in the eight-four-four-four-twelve spelling the reader insists on. The
+    /// client has no `UUID`; a random version-4 shape is what the engine's own ids are.
     public static String newId() {
         final StringBuilder sb = new StringBuilder(36);
         for (int i = 0; i < 36; i++) {

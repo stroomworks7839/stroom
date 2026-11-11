@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,13 +36,11 @@ import com.google.web.bindery.event.shared.EventBus;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * The parts form (design 39): the match sequence as rows — pattern, take, seek, read — with a
- * toolbar acting on the selected row: add after, edit, remove, up, down; each a rewrite landing
- * on the host as a replacement match. Every kind of part is reachable from the rows, so there
- * is no wire form here either (design 44 §4): the Source tab is the document's. A sequence
- * needs at least one part, so the last cannot be removed.
- */
+/// The parts form (design 39): the match sequence as rows — pattern, take, seek, read — with a
+/// toolbar acting on the selected row: add after, edit, remove, up, down; each a rewrite landing
+/// on the host as a replacement match. Every kind of part is reachable from the rows, so there
+/// is no wire form here either (design 44 §4): the Source tab is the document's. A sequence
+/// needs at least one part, so the last cannot be removed.
 public class PartsController
         extends Controller
         implements MatchEditorController.MatchForm {

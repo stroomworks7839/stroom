@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -51,18 +51,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
-/**
- * The pattern tree form (design 18 §10, design 43 §4): a nested node editor over the design 38
- * vocabulary. The tree is rendered as nested rows — click selects, double-click edits — and
- * a toolbar over it acts on the selection: add a child, add after, wrap, edit, remove, unwrap,
- * up and down, and (design 44 §3) extract to the project's library and inline from it. Every
- * action is a rewrite through {@link PatternNodes} and lands on the host as a replacement of
- * the {@link Subject}: a template's match, or a part of the library. Beside the tree: the
- * regex the tree means, printed live by the engine ({@code print}), and what a {@code ref}
- * can name — the project's parts, then the standard library — read-only. Every node kind the
- * vocabulary has is reachable from the rows, so there is no wire form here: the Source tab is
- * the document's, and the tree is edited as a tree.
- */
+/// The pattern tree form (design 18 §10, design 43 §4): a nested node editor over the design 38
+/// vocabulary. The tree is rendered as nested rows — click selects, double-click edits — and
+/// a toolbar over it acts on the selection: add a child, add after, wrap, edit, remove, unwrap,
+/// up and down, and (design 44 §3) extract to the project's library and inline from it. Every
+/// action is a rewrite through [PatternNodes] and lands on the host as a replacement of
+/// the [Subject]: a template's match, or a part of the library. Beside the tree: the
+/// regex the tree means, printed live by the engine (`print`), and what a `ref`
+/// can name — the project's parts, then the standard library — read-only. Every node kind the
+/// vocabulary has is reachable from the rows, so there is no wire form here: the Source tab is
+/// the document's, and the tree is edited as a tree.
 public class PatternTreeController
         extends Controller
         implements MatchEditorController.MatchForm {
@@ -196,7 +194,7 @@ public class PatternTreeController
         this.host = host;
     }
 
-    /** Told the label of the node selected, or null: the sample isolates it (design 44 §2). */
+    /// Told the label of the node selected, or null: the sample isolates it (design 44 §2).
     public void setOnLabelSelect(final Consumer<String> onLabelSelect) {
         this.onLabelSelect = onLabelSelect;
     }
@@ -241,7 +239,7 @@ public class PatternTreeController
         });
     }
 
-    /** Edit a part of the project's library (design 44 §3). */
+    /// Edit a part of the project's library (design 44 §3).
     public void setPattern(final String name) {
         setSubject(new Subject() {
             @Override
@@ -274,7 +272,7 @@ public class PatternTreeController
         });
     }
 
-    /** The section heading over the tree, as the other forms of the workbench head theirs. */
+    /// The section heading over the tree, as the other forms of the workbench head theirs.
     private static SafeHtml headingOf(final String title, final String note) {
         return new SafeHtmlBuilder()
                 .appendEscaped(title)
@@ -480,7 +478,7 @@ public class PatternTreeController
         }
     }
 
-    /** Open the node dialog for a new node; a body pre-fills what a container will wrap. */
+    /// Open the node dialog for a new node; a body pre-fills what a container will wrap.
     private void newNode(final String caption, final PatternNode body,
                          final java.util.function.Consumer<PatternNode> then) {
         final PatternNodeEditController editor = nodeEditorProvider.get();
@@ -503,12 +501,12 @@ public class PatternTreeController
         });
     }
 
-    /** Hand a rewritten tree to the host and select a path in it. */
+    /// Hand a rewritten tree to the host and select a path in it.
     private void apply(final PatternNode next, final int[] select) {
         apply(host.getProject(), next, select);
     }
 
-    /** Hand a rewritten tree to the host, on a project rewritten with it, and select a path. */
+    /// Hand a rewritten tree to the host, on a project rewritten with it, and select a path.
     private void apply(final Project base, final PatternNode next, final int[] select) {
         if (subject == null || base == null) {
             return;
@@ -517,7 +515,7 @@ public class PatternTreeController
         host.replace(subject.with(base, next));
     }
 
-    /** The selected node becomes a part of the library, named here, and a ref to it stays in its place. */
+    /// The selected node becomes a part of the library, named here, and a ref to it stays in its place.
     private void onExtract() {
         final PatternNode node = PatternNodes.get(root, selected);
         final Project project = host.getProject();
@@ -540,7 +538,7 @@ public class PatternTreeController
                 Patterns.define(project, name, Patterns.part(node)), Patterns.extract(root, path, name), path));
     }
 
-    /** The part a ref names, in the ref's place. */
+    /// The part a ref names, in the ref's place.
     private void onInline() {
         final Project project = host.getProject();
         if (project == null || readOnly) {
@@ -561,7 +559,7 @@ public class PatternTreeController
         enableButtons();
     }
 
-    /** The tree flattened parents-first, which is the order the layout needs to build itself. */
+    /// The tree flattened parents-first, which is the order the layout needs to build itself.
     private void collect(final List<PatternItem> items,
                          final PatternNode node,
                          final int[] path,
@@ -599,7 +597,7 @@ public class PatternTreeController
                 .exec();
     }
 
-    /** What a ref may name: the project's own parts first (design 44 §3), then the standard entries. */
+    /// What a ref may name: the project's own parts first (design 44 §3), then the standard entries.
     private void showLibrary() {
         final SafeHtmlBuilder sb = new SafeHtmlBuilder();
         sb.appendHtmlConstant("<table class=\"pattern-tree__library\">");
@@ -643,25 +641,23 @@ public class PatternTreeController
                 .exec();
     }
 
-    /**
-     * What the tree edits (design 44 §3): a template's match, or a part of the project's
-     * library. Read live from the host, so every refresh sees the model; written as a rewrite
-     * of a project, so an edit that also touches the library is one replacement.
-     */
+    /// What the tree edits (design 44 §3): a template's match, or a part of the project's
+    /// library. Read live from the host, so every refresh sees the model; written as a rewrite
+    /// of a project, so an edit that also touches the library is one replacement.
     public interface Subject {
 
-        /** Distinct across subjects: a template's id, or a part's row id. */
+        /// Distinct across subjects: a template's id, or a part's row id.
         String key();
 
         String name();
 
-        /** The tree, or null when the subject no longer holds one. */
+        /// The tree, or null when the subject no longer holds one.
         PatternNode node();
 
-        /** The project with this subject's tree replaced. */
+        /// The project with this subject's tree replaced.
         Project with(Project project, PatternNode node);
 
-        /** What to say over the tree. */
+        /// What to say over the tree.
         SafeHtml heading();
     }
 

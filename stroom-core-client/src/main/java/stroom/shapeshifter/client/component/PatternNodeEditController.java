@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,17 +37,15 @@ import com.google.web.bindery.event.shared.EventBus;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * One node of a pattern tree (design 38's vocabulary): its kind and the fields that kind has,
- * a label and, on a labelled node, a binary cast. A node being edited keeps what it holds
- * across a change of kind wherever the new kind can hold it — a list's items, a container's
- * body — and is told when it cannot.
- */
+/// One node of a pattern tree (design 38's vocabulary): its kind and the fields that kind has,
+/// a label and, on a labelled node, a binary cast. A node being edited keeps what it holds
+/// across a change of kind wherever the new kind can hold it — a list's items, a container's
+/// body — and is told when it cannot.
 public class PatternNodeEditController extends Controller {
 
     private final PatternNodeEdit view;
 
-    /** The node kinds, spelt as the wire format spells them; a regex first, since a tree is mostly built of them. */
+    /// The node kinds, spelt as the wire format spells them; a regex first, since a tree is mostly built of them.
     public enum Kind {
         REGEX("regex"),
         REF("ref"),
@@ -96,7 +94,7 @@ public class PatternNodeEditController extends Controller {
         initWidget(view);
     }
 
-    /** What a ref may name: the project's parts first (design 44 §3), then the standard library. */
+    /// What a ref may name: the project's parts first (design 44 §3), then the standard library.
     public void setLibrary(final Project project, final ShapeshifterLibrary library) {
         final List<String> names = new ArrayList<>();
         if (project != null) {
@@ -110,7 +108,7 @@ public class PatternNodeEditController extends Controller {
         view.setLibrary(names);
     }
 
-    /** A node to edit, or null for a new one; {@code body} pre-fills what a new container wraps. */
+    /// A node to edit, or null for a new one; `body` pre-fills what a new container wraps.
     public void read(final PatternNode node, final PatternNode body) {
         final PatternNodeEdit v = view;
         v.setText("");
@@ -196,7 +194,7 @@ public class PatternNodeEditController extends Controller {
                 : String.valueOf(max);
     }
 
-    /** The edited node, or null after telling the user what is wrong. */
+    /// The edited node, or null after telling the user what is wrong.
     public PatternNode write() {
         final PatternNodeEdit v = view;
         try {

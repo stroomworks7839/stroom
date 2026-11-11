@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,9 +33,7 @@ import com.google.web.bindery.event.shared.EventBus;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * One declaration: name, type, and for a map its fixed entries, one {@code from = to} per line.
- */
+/// One declaration: name, type, and for a map its fixed entries, one `from = to` per line.
 public class DeclarationEditController extends Controller {
 
     private final DeclarationEdit view;
@@ -65,7 +63,7 @@ public class DeclarationEditController extends Controller {
         view.setEntries(sb.toString());
     }
 
-    /** The edited declaration, or null after telling the user what is wrong. */
+    /// The edited declaration, or null after telling the user what is wrong.
     public Declaration write() {
         try {
             final List<Entry> entries = new ArrayList<>();

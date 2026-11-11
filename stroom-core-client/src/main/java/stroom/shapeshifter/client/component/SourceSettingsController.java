@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,12 +30,10 @@ import com.google.inject.Inject;
 import com.google.web.bindery.event.shared.EventBus;
 
 
-/**
- * The source panel: what the {@code source} row of the template panel edits — the project's name
- * and version and its {@link SourceSettings}. Design 43 §3 Q5: there is no Settings tab; encoding,
- * buffer size and dispatch are part of the project and live here. Every field commits when it
- * changes, as everything in the editor does.
- */
+/// The source panel: what the `source` row of the template panel edits — the project's name
+/// and version and its [SourceSettings]. Design 43 §3 Q5: there is no Settings tab; encoding,
+/// buffer size and dispatch are part of the project and live here. Every field commits when it
+/// changes, as everything in the editor does.
 public class SourceSettingsController extends Controller {
 
     // From Contexts.READ_ONLY: true until the document says otherwise, so a

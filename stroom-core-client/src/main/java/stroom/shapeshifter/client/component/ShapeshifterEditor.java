@@ -146,12 +146,10 @@ public class ShapeshifterEditor extends DocumentEditor<ShapeshifterDoc> {
         }
     }
 
-    /**
-     * The document's text as read: parse it once, whichever tab asked. A text that parses is
-     * shown and kept as the printed project (design 43 §3) - the store's JSON column hands back
-     * what it was given re-spaced and with its keys reordered, and the engine's form is the one
-     * a reader should see; a text that does not parse is kept as it is, so it can be fixed.
-     */
+    /// The document's text as read: parse it once, whichever tab asked. A text that parses is
+    /// shown and kept as the printed project (design 43 §3) - the store's JSON column hands back
+    /// what it was given re-spaced and with its keys reordered, and the engine's form is the one
+    /// a reader should see; a text that does not parse is kept as it is, so it can be fixed.
     private void readText(final String data) {
         final String read = data == null
                 ? ""
@@ -219,12 +217,10 @@ public class ShapeshifterEditor extends DocumentEditor<ShapeshifterDoc> {
         }
     }
 
-    /**
-     * The Source tab's format action is canonicalise (design 43 §3): Ace has already re-indented
-     * the text; the engine's own pretty form replaces it when the text reads as a project, and
-     * what Ace made of it stands when it does not. The printer is the config module's, the same
-     * one the engine prints with, so this needs no round trip.
-     */
+    /// The Source tab's format action is canonicalise (design 43 §3): Ace has already re-indented
+    /// the text; the engine's own pretty form replaces it when the text reads as a project, and
+    /// what Ace made of it stands when it does not. The printer is the config module's, the same
+    /// one the engine prints with, so this needs no round trip.
     private void canonicalise() {
         onSourceEdit();
         parseSource.reset();

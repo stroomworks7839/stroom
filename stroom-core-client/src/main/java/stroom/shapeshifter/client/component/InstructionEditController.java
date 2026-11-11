@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -65,13 +65,11 @@ import com.google.web.bindery.event.shared.EventBus;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * One instruction (design 18 §5.6: "each kind gets an editor shaped like the instruction it
- * edits"): a kind and the fields that kind has, for the kinds an author writes constantly;
- * the wire form for the transforms and for any card whose reference is a path. A holder keeps
- * what its branches hold across an edit, and across a change of kind where the new kind has
- * a place for it. Conditions use the one clause editor.
- */
+/// One instruction (design 18 §5.6: "each kind gets an editor shaped like the instruction it
+/// edits"): a kind and the fields that kind has, for the kinds an author writes constantly;
+/// the wire form for the transforms and for any card whose reference is a path. A holder keeps
+/// what its branches hold across an edit, and across a change of kind where the new kind has
+/// a place for it. Conditions use the one clause editor.
 public class InstructionEditController extends Controller {
 
     private final InstructionEdit view;
@@ -143,7 +141,7 @@ public class InstructionEditController extends Controller {
         view.setOnKind(this::showKind);
     }
 
-    /** A node to edit, or null for a new one of the kind given. */
+    /// A node to edit, or null for a new one of the kind given.
     public void read(final OutputNode node, final String newKind, final List<String> names,
                      final List<String> modes) {
         original = node;
@@ -203,17 +201,15 @@ public class InstructionEditController extends Controller {
         conditionJson = null;
     }
 
-    /**
-     * An optional reference: shown where it is there and the form can spell it, and shown blank
-     * where the configuration leaves it out. {@code Put.key} is null for a set or a scalar and
-     * {@code ForEachGroup.groupBy} is null to group by the entry's own value, so treating an
-     * absent one as unshowable sent the ordinary case to the wire form.
-     */
+    /// An optional reference: shown where it is there and the form can spell it, and shown blank
+    /// where the configuration leaves it out. `Put.key` is null for a set or a scalar and
+    /// `ForEachGroup.groupBy` is null to group by the entry's own value, so treating an
+    /// absent one as unshowable sent the ordinary case to the wire form.
     private static boolean optional(final RefExpression ref) {
         return ref == null || Instructions.spell(ref) != null;
     }
 
-    /** Whether every sort key's expression has a field spelling; a for-each need not sort. */
+    /// Whether every sort key's expression has a field spelling; a for-each need not sort.
     private static boolean spellableKeys(final List<Sort> sort) {
         for (final Sort key : sort) {
             if (Instructions.spell(key.by()) == null) {
@@ -223,7 +219,7 @@ public class InstructionEditController extends Controller {
         return true;
     }
 
-    /** Whether every reference the form would show has a field spelling. */
+    /// Whether every reference the form would show has a field spelling.
     public static boolean spellable(final OutputNode node) {
         if (node instanceof ValueOf v) {
             return Instructions.spell(v.select()) != null;
@@ -265,7 +261,7 @@ public class InstructionEditController extends Controller {
         return true;
     }
 
-    /** The fields a kind has; labels say what each field is. */
+    /// The fields a kind has; labels say what each field is.
     private void showKind(final String kind) {
         final InstructionEdit v = view;
         for (int i = 0; i < 4; i++) {
@@ -495,7 +491,7 @@ public class InstructionEditController extends Controller {
         return sb.toString();
     }
 
-    /** Something to start from in the wire form: a transform's shape, or a text. */
+    /// Something to start from in the wire form: a transform's shape, or a text.
     private static String skeleton(final String kind) {
         if (WIRE.equals(kind)) {
             return "{\"text\": \"\"}";
@@ -504,7 +500,7 @@ public class InstructionEditController extends Controller {
                + " \"name\": \"result\"}}";
     }
 
-    /** The edited instruction, or null after telling the user what is wrong. */
+    /// The edited instruction, or null after telling the user what is wrong.
     public OutputNode write() {
         final InstructionEdit v = view;
         try {
@@ -612,7 +608,7 @@ public class InstructionEditController extends Controller {
         return condition;
     }
 
-    /** The branch body kept from the node being edited, or empty for a new one. */
+    /// The branch body kept from the node being edited, or empty for a new one.
     private List<OutputNode> body(final int branch) {
         return branch < bodies.size()
                 ? bodies.get(branch)
@@ -635,7 +631,7 @@ public class InstructionEditController extends Controller {
         return params;
     }
 
-    /** A reference, or null for blank — where the model has its own answer for an omission. */
+    /// A reference, or null for blank — where the model has its own answer for an omission.
     private static RefExpression refOrNull(final String text) {
         return text == null || text.trim().isEmpty()
                 ? null
@@ -646,10 +642,8 @@ public class InstructionEditController extends Controller {
         return Instructions.read(checked(required(text, message)));
     }
 
-    /**
-     * The text, or a refusal saying what the grammar could not finish reading. Saving half-read
-     * text would put it beyond the form, so the dialog stays open and says why (design 44 §5ad).
-     */
+    /// The text, or a refusal saying what the grammar could not finish reading. Saving half-read
+    /// text would put it beyond the form, so the dialog stays open and says why (design 44 §5ad).
     private static String checked(final String text) {
         final String fault = Instructions.fault(text);
         if (fault != null) {
@@ -658,7 +652,7 @@ public class InstructionEditController extends Controller {
         return text;
     }
 
-    /** The sort rows as the ordering they spell. A row left blank has nothing to sort by. */
+    /// The sort rows as the ordering they spell. A row left blank has nothing to sort by.
     private List<Sort> sort() {
         final List<Sort> keys = new ArrayList<>();
         for (final SortKey key : view.getSort().getKeys()) {
@@ -668,14 +662,14 @@ public class InstructionEditController extends Controller {
         return keys;
     }
 
-    /** A key or position the configuration may leave out: blank is absent, not an error. */
+    /// A key or position the configuration may leave out: blank is absent, not an error.
     private static RefExpression refOrTextOrNull(final String text) {
         return text == null || text.trim().isEmpty()
                 ? null
                 : refOrText(text, "");
     }
 
-    /** A key or position: a number or quoted text is the literal, else a reference. */
+    /// A key or position: a number or quoted text is the literal, else a reference.
     private static RefExpression refOrText(final String text, final String message) {
         final String t = required(text, message);
         if (t.matches("-?[0-9]+")) {
@@ -724,7 +718,7 @@ public class InstructionEditController extends Controller {
                 .fire();
     }
 
-    /** The kinds the dialog offers: the formed ones, the transforms, and the wire form. */
+    /// The kinds the dialog offers: the formed ones, the transforms, and the wire form.
     public static List<String> kinds() {
         final List<String> kinds = new ArrayList<>(Instructions.FORM_KINDS);
         kinds.addAll(Instructions.TRANSFORM_KINDS);

@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -44,13 +44,11 @@ import com.google.web.bindery.event.shared.EventBus;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * The mode editor (design 18 §5.6) as Stroom's item managers are: a grid with add, edit and
- * remove. A mode exists through its templates and apply-templates sites, so a new one is
- * declared with the host until a template takes it, and shows here as waiting. A rename moves
- * the mode's templates and every site naming it; removal is of empty modes only, with a
- * warning when sites still dispatch into it. Edits are live, like the rest of the editor.
- */
+/// The mode editor (design 18 §5.6) as Stroom's item managers are: a grid with add, edit and
+/// remove. A mode exists through its templates and apply-templates sites, so a new one is
+/// declared with the host until a template takes it, and shows here as waiting. A rename moves
+/// the mode's templates and every site naming it; removal is of empty modes only, with a
+/// warning when sites still dispatch into it. Edits are live, like the rest of the editor.
 public class ModeEditorController extends Controller {
 
     // From Contexts.READ_ONLY: true until the document says otherwise, so a

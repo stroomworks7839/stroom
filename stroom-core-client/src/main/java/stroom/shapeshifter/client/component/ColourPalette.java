@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,12 +29,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-/**
- * The editor's palette as swatches to pick from, behind an <i>auto</i> tick (design 18 §5.6:
- * colour is editor presentation, auto-assigned and user-overridable). Ticked, the swatches are
- * greyed and the one auto resolves to is marked; unticked, that colour is the choice until
- * another swatch is clicked, so unticking changes nothing until the author does.
- */
+/// The editor's palette as swatches to pick from, behind an *auto* tick (design 18 §5.6:
+/// colour is editor presentation, auto-assigned and user-overridable). Ticked, the swatches are
+/// greyed and the one auto resolves to is marked; unticked, that colour is the choice until
+/// another swatch is clicked, so unticking changes nothing until the author does.
 public class ColourPalette extends Composite {
 
     private final TickBox auto = new TickBox();
@@ -71,14 +69,14 @@ public class ColourPalette extends Composite {
         setValue(null, Templates.colour(0));
     }
 
-    /** The chosen colour, or null for auto. */
+    /// The chosen colour, or null for auto.
     public String getValue() {
         return auto.getValue()
                 ? null
                 : chosen;
     }
 
-    /** The author's colour or null for auto, and the colour auto resolves to. */
+    /// The author's colour or null for auto, and the colour auto resolves to.
     public void setValue(final String override, final String autoColour) {
         this.autoColour = autoColour;
         this.chosen = override == null

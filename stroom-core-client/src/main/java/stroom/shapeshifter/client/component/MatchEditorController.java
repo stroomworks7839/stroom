@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -43,15 +43,13 @@ import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.IntConsumer;
 
-/**
- * The match editor (design 44 §1): the match's <b>kind</b> as one choice, and beneath it the
- * form that kind has — regex, pattern tree, parts, delimiter — or, for source, all and named,
- * a sentence saying what the kind means, since they have nothing to set. The body always shows
- * the template's match as the model holds it; choosing another kind converts the match to that
- * kind where the engine can say what it means — a regex explodes into the tree ({@code explode}),
- * the tree prints back to a regex ({@code print}), either wraps into a one-part sequence, and
- * the plain kinds replace outright — and refuses where it cannot, the picker springing back.
- */
+/// The match editor (design 44 §1): the match's **kind** as one choice, and beneath it the
+/// form that kind has — regex, pattern tree, parts, delimiter — or, for source, all and named,
+/// a sentence saying what the kind means, since they have nothing to set. The body always shows
+/// the template's match as the model holds it; choosing another kind converts the match to that
+/// kind where the engine can say what it means — a regex explodes into the tree (`explode`),
+/// the tree prints back to a regex (`print`), either wraps into a one-part sequence, and
+/// the plain kinds replace outright — and refuses where it cannot, the picker springing back.
 public class MatchEditorController extends Controller {
 
     // From Contexts.READ_ONLY: true until the document says otherwise, so a
@@ -69,13 +67,11 @@ public class MatchEditorController extends Controller {
     private final DelimiterController delimiterForm;
 
     private ProjectHost host;
-    /**
-     * What each kind last held for this subject (design 44 §1): the picker is a choice among
-     * kinds, and moving through one to reach another - a regex to a source and back - should
-     * not cost the author what they had typed. Kept for the workbench session only: cleared
-     * when the workbench closes or retargets, since a kept regex is this template's, not the
-     * next one's. What the document holds is still only the current kind; the rest is a draft.
-     */
+    /// What each kind last held for this subject (design 44 §1): the picker is a choice among
+    /// kinds, and moving through one to reach another - a regex to a source and back - should
+    /// not cost the author what they had typed. Kept for the workbench session only: cleared
+    /// when the workbench closes or retargets, since a kept regex is this template's, not the
+    /// next one's. What the document holds is still only the current kind; the rest is a draft.
     private final EnumMap<MatchKind, MatchExpression> kept = new EnumMap<>(MatchKind.class);
 
     private String templateId;
@@ -102,12 +98,12 @@ public class MatchEditorController extends Controller {
         regexForm.setOnExplode(() -> convert(MatchKind.TREE));
     }
 
-    /** Told the group the regex map isolates, 0 for none. */
+    /// Told the group the regex map isolates, 0 for none.
     public void setOnGroupSelect(final IntConsumer onGroupSelect) {
         regexForm.setOnGroupSelect(onGroupSelect);
     }
 
-    /** Told the label of the tree node selected, null for an unlabelled one or none. */
+    /// Told the label of the tree node selected, null for an unlabelled one or none.
     public void setOnLabelSelect(final Consumer<String> onLabelSelect) {
         treeForm.setOnLabelSelect(onLabelSelect);
     }
@@ -120,7 +116,7 @@ public class MatchEditorController extends Controller {
         delimiterForm.setHost(host);
     }
 
-    /** A part of the library as the subject (design 44 §3): a tree, so the tree form and no kind to choose. */
+    /// A part of the library as the subject (design 44 §3): a tree, so the tree form and no kind to choose.
     public void setPattern(final String name) {
         this.templateId = null;
         shown = null;
@@ -161,7 +157,7 @@ public class MatchEditorController extends Controller {
         }
     }
 
-    /** The form a kind is edited in, or null for a kind with nothing to set. */
+    /// The form a kind is edited in, or null for a kind with nothing to set.
     private MatchForm form(final MatchKind kind) {
         switch (kind) {
             case REGEX:
@@ -211,14 +207,12 @@ public class MatchEditorController extends Controller {
         convert(kind);
     }
 
-    /**
-     * Re-express the template's match as a kind, through the engine where needed. A kind that
-     * holds no pattern — source, all, named, delimiter — arrives blank, in either direction:
-     * choosing a kind is saying what the match is, and what the old kind held is gone whichever
-     * way round the choice goes. The one refusal left is a match that does hold a pattern the
-     * new kind cannot carry: a sequence of several parts, whose framing verbs no single pattern
-     * expresses.
-     */
+    /// Re-express the template's match as a kind, through the engine where needed. A kind that
+    /// holds no pattern — source, all, named, delimiter — arrives blank, in either direction:
+    /// choosing a kind is saying what the match is, and what the old kind held is gone whichever
+    /// way round the choice goes. The one refusal left is a match that does hold a pattern the
+    /// new kind cannot carry: a sequence of several parts, whose framing verbs no single pattern
+    /// expresses.
     private void convert(final MatchKind kind) {
         final Template template = host.template(templateId);
         if (template == null || readOnly) {
@@ -272,7 +266,7 @@ public class MatchEditorController extends Controller {
                                   + "pattern part first, or edit it in the Source tab.", null);
     }
 
-    /** The engine would not convert: the match is as it was, so the picker says so again. */
+    /// The engine would not convert: the match is as it was, so the picker says so again.
     private void failed(final MatchKind kind, final MatchExpression match, final RestError error) {
         view.setKind(MatchKind.of(match));
         AlertEvent.fireError(this, "The " + Templates.kind(match) + " match could not be re-expressed as a "
@@ -303,12 +297,12 @@ public class MatchEditorController extends Controller {
                 .exec();
     }
 
-    /** The workbench closed: the drafts of the kinds not chosen go with it. */
+    /// The workbench closed: the drafts of the kinds not chosen go with it.
     public void forget() {
         kept.clear();
     }
 
-    /** One kind's form: shown for a template, refreshed after every edit of it. */
+    /// One kind's form: shown for a template, refreshed after every edit of it.
     interface MatchForm extends IsWidget {
 
         void setTemplate(String id);

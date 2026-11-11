@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -41,14 +41,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-/**
- * The template strip (design 18 §5.6): "what it is", beneath the panes that say what
- * happened. Its title line is the template's identity — swatch, name, mode, where it is
- * dispatched from, computed from the mode graph — and its body opens with the match as a
- * read-only chip that opens the pattern workbench, then guard and limits as a summary, then the
- * body as cards; the declarations and captures grids sit beneath.
- * For the project row the strip shows the document: its name and source settings.
- */
+/// The template strip (design 18 §5.6): "what it is", beneath the panes that say what
+/// happened. Its title line is the template's identity — swatch, name, mode, where it is
+/// dispatched from, computed from the mode graph — and its body opens with the match as a
+/// read-only chip that opens the pattern workbench, then guard and limits as a summary, then the
+/// body as cards; the declarations and captures grids sit beneath.
+/// For the project row the strip shows the document: its name and source settings.
 public class TemplateStripController extends Controller {
 
     // From Contexts.READ_ONLY: true until the document says otherwise, so a
@@ -99,7 +97,7 @@ public class TemplateStripController extends Controller {
         this.listener = listener;
     }
 
-    /** Show a template, or the project for null; called again after every edit, so it is also refresh. */
+    /// Show a template, or the project for null; called again after every edit, so it is also refresh.
     public void setTemplate(final String id) {
         this.templateId = id;
         final Project project = host.getProject();
@@ -136,7 +134,7 @@ public class TemplateStripController extends Controller {
         bodyPresenter.setHot(hot);
     }
 
-    /** After a run, what it made of this template: how many matches, or where it was tried for none. */
+    /// After a run, what it made of this template: how many matches, or where it was tried for none.
     private String runNote(final Template template) {
         final TraceModel trace = host.trace();
         final Timing timing = trace == null
@@ -164,12 +162,10 @@ public class TemplateStripController extends Controller {
         }
     }
 
-    /**
-     * What the picked role means, said beside the picker — {@link MatchRole#note()}, except where
-     * the role and the captures contradict each other. Captures are not merely ignored by an
-     * advance-only match but refused at compile time, so the author is told at the moment they
-     * cause it rather than at the next run.
-     */
+    /// What the picked role means, said beside the picker — [MatchRole#note()], except where
+    /// the role and the captures contradict each other. Captures are not merely ignored by an
+    /// advance-only match but refused at compile time, so the author is told at the moment they
+    /// cause it rather than at the next run.
     private String roleNote(final Template template) {
         final int captures = template.captures().size();
         if (template.consume() && captures > 0) {
@@ -181,11 +177,9 @@ public class TemplateStripController extends Controller {
         return MatchRole.of(template.consume()).note();
     }
 
-    /**
-     * The role is the one identity field the strip writes itself: it is a single bit, it changes
-     * whether this template records anything at all, and it is the answer when a template matches
-     * and the navigator shows nothing (design 44 §5d, §5f).
-     */
+    /// The role is the one identity field the strip writes itself: it is a single bit, it changes
+    /// whether this template records anything at all, and it is the answer when a template matches
+    /// and the navigator shows nothing (design 44 §5d, §5f).
     public void onRole(final MatchRole role) {
         final Template template = host.template(templateId);
         if (template == null || readOnly || template.consume() == role.consume()) {
@@ -200,10 +194,8 @@ public class TemplateStripController extends Controller {
         }
     }
 
-    /**
-     * The static complement to breadcrumb ancestry: the sites whose apply-templates dispatch
-     * into this template's mode — "record (body pos 3)" — or the document for the root.
-     */
+    /// The static complement to breadcrumb ancestry: the sites whose apply-templates dispatch
+    /// into this template's mode — "record (body pos 3)" — or the document for the root.
     static String dispatchedFrom(final Project project, final Template template) {
         final List<String> sites = new ArrayList<>();
         for (final Template t : project.templates()) {
@@ -239,10 +231,8 @@ public class TemplateStripController extends Controller {
         return false;
     }
 
-    /**
-     * The guard's verdicts from the run (design 18 §5.6): at the cursor, when the cursor's body
-     * dispatched to this template's mode; and over the run, how often it held and was refused.
-     */
+    /// The guard's verdicts from the run (design 18 §5.6): at the cursor, when the cursor's body
+    /// dispatched to this template's mode; and over the run, how often it held and was refused.
     private String guardVerdict(final Template template) {
         final TraceModel trace = host.trace();
         if (template.guard() == null || trace == null) {
@@ -287,7 +277,7 @@ public class TemplateStripController extends Controller {
                 : String.join(" · ", parts);
     }
 
-    /** What the strip asks of the root: the dialogs and the workbench are the root's to open. */
+    /// What the strip asks of the root: the dialogs and the workbench are the root's to open.
     public interface Listener {
 
         void editIdentity();

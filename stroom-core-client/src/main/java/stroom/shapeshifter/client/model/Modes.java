@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,22 +39,20 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 
-/**
- * Modes are not declared anywhere: a mode exists through the templates in it and the
- * apply-templates sites that dispatch into it (design 18 §5.6). So the mode editor's operations
- * are rewrites over both — a rename touches every template of the mode and every site naming
- * it, a removal is only of a mode with no templates — and this is where those rewrites live.
- */
+/// Modes are not declared anywhere: a mode exists through the templates in it and the
+/// apply-templates sites that dispatch into it (design 18 §5.6). So the mode editor's operations
+/// are rewrites over both — a rename touches every template of the mode and every site naming
+/// it, a removal is only of a mode with no templates — and this is where those rewrites live.
 public final class Modes {
 
-    /** What a mode's name means, beneath the field that asks for one. */
+    /// What a mode's name means, beneath the field that asks for one.
     public static final String HELP =
             "Templates in a mode are dispatched only by apply-templates sites naming it.";
 
     private Modes() {
     }
 
-    /** Whether any template is dispatched in a mode (null for the root). */
+    /// Whether any template is dispatched in a mode (null for the root).
     public static boolean hasTemplates(final Project project, final String mode) {
         if (project == null) {
             return false;
@@ -67,7 +65,7 @@ public final class Modes {
         return false;
     }
 
-    /** The modes the project has, templates' first then sites', in first-appearance order. */
+    /// The modes the project has, templates' first then sites', in first-appearance order.
     public static List<String> of(final Project project) {
         final Set<String> modes = new LinkedHashSet<>();
         for (final Template template : project.templates()) {
@@ -109,7 +107,7 @@ public final class Modes {
         return count[0];
     }
 
-    /** The project with a mode renamed: its templates move, and every site naming it follows. */
+    /// The project with a mode renamed: its templates move, and every site naming it follows.
     public static Project rename(final Project project, final String from, final String to) {
         final List<Template> templates = new ArrayList<>();
         for (final Template t : project.templates()) {
@@ -126,11 +124,9 @@ public final class Modes {
         return project.withTemplates(templates);
     }
 
-    /**
-     * The project without the sites that dispatch into a mode: what removing an empty mode
-     * means, since a mode with no templates lives on only in the sites naming it. The sites
-     * themselves become dispatches with no mode - into the root - which the messages will say.
-     */
+    /// The project without the sites that dispatch into a mode: what removing an empty mode
+    /// means, since a mode with no templates lives on only in the sites naming it. The sites
+    /// themselves become dispatches with no mode - into the root - which the messages will say.
     public static Project removeSites(final Project project, final String mode) {
         final List<Template> templates = new ArrayList<>();
         for (final Template t : project.templates()) {
@@ -145,11 +141,9 @@ public final class Modes {
         return project.withTemplates(templates);
     }
 
-    /**
-     * A body with every apply-templates directive mapped, into every branch of every holder.
-     * The one walk over the body vocabulary the editor needs; a holder it does not know is
-     * left as it is, which a new holder kind would make a compile error here, not a silent skip.
-     */
+    /// A body with every apply-templates directive mapped, into every branch of every holder.
+    /// The one walk over the body vocabulary the editor needs; a holder it does not know is
+    /// left as it is, which a new holder kind would make a compile error here, not a silent skip.
     static List<OutputNode> mapApply(final List<OutputNode> body, final Function<ApplyDirective, ApplyDirective> f) {
         final List<OutputNode> out = new ArrayList<>(body.size());
         for (final OutputNode node : body) {

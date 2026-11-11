@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,7 +37,7 @@ import com.google.gwt.user.client.ui.Widget;
 import java.util.List;
 import java.util.Locale;
 
-/** One guard clause: <i>and</i> · variable · operator · value · as · ✕. Commits when a field is left. */
+/// One guard clause: *and* · variable · operator · value · as · ✕. Commits when a field is left.
 public class GuardClauseRow extends Composite {
 
     private static final Binder BINDER = GWT.create(Binder.class);
@@ -129,7 +129,7 @@ public class GuardClauseRow extends Composite {
         listener.onClauseRemove(index);
     }
 
-    /** The row as it stands. */
+    /// The row as it stands.
     public GuardClause getClause() {
         // With text entry allowed the text is the value: a pick writes it, and typing replaces it.
         return new GuardClause(variable.getText(), op.getValue(), value.getText(), as.getValue());

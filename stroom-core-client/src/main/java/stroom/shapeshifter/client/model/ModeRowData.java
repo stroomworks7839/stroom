@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Crown Copyright
+ * Copyright 2026 Crown Copyright
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ package stroom.shapeshifter.client.model;
 
 import java.util.Objects;
 
-/** One row of the mode editor: a mode and what holds it in existence - or nothing yet, while it waits. */
+/// One row of the mode editor: a mode and what holds it in existence - or nothing yet, while it waits.
 public final class ModeRowData {
 
     private final String name;
@@ -43,7 +43,7 @@ public final class ModeRowData {
         return applySites;
     }
 
-    /** Declared this session and not yet given to a template: nothing in the project holds it. */
+    /// Declared this session and not yet given to a template: nothing in the project holds it.
     public boolean isWaiting() {
         return templates == 0 && applySites == 0;
     }
