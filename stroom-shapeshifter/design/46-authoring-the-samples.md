@@ -68,8 +68,8 @@ walkthrough fails for the right reason.
 
 ### 3.1 The comparison must be semantic, not textual
 
-Four traps, each of which would break a byte-for-byte comparison. The first three were
-found while reading the fixtures; the fourth while stepping rung 2 (§6.1):
+Three traps, each of which would break a byte-for-byte comparison, all found while reading the
+fixtures:
 
 - **Legacy spellings.** `"Store"` is the corpus's older spelling of `"capture"`, read for ever
   and never written (`ReferenceJson.java:163`). It appears in fifteen project fixtures,
@@ -83,10 +83,13 @@ found while reading the fixtures; the fourth while stepping rung 2 (§6.1):
 - **Version drift.** The fixtures carry `version` 1, 3, 4 and 5 — whatever was current when
   each was written. A new project built today gets today's version, and the version is not
   cosmetic: it picks the default dispatch (§3.3).
-- **Blank is not `$0`.** An `apply-templates` card with `Select` left blank builds a null ref
-  (`InstructionEditController.java:511`), where every fixture spells the same thing
-  `{"capture": {"group": 0}}`. Both mean *this match's whole content*. Found at §6.1 step 4,
-  and it bites every walkthrough that dispatches at all.
+A fourth was claimed here on 2026-11-12 and **withdrawn the same day**: that a blank `Select` on
+an `apply-templates` card builds a null ref where the fixtures spell `{"capture": {"group": 0}}`.
+It does build a null — and `ApplyDirective`'s own constructor turns it into exactly that ref,
+*"defaulted here rather than at any of the readers so there is one answer to what leaving it out
+means"*. Blank and `$0` are the same model, provably: writing the model the editor builds for a
+new document produces the fixtures' spelling verbatim. The lesson is the one §3 is built on —
+**check what the model does with a value before claiming the writers disagree.**
 
 So the comparison parses both sides with `ProjectJson` and compares the **models**. `OutputNode`
 and friends are records, so equality is structural and free.
@@ -355,12 +358,21 @@ built templates first would be testing a flow nobody uses.
 
 ### 5.3 Match the whole input — the root template
 
+**Rewritten 2026-11-12.** This stage used to have the author make the root template. They do not:
+it is there already, named `document`, with `match: source` and a body of one empty
+`apply-templates` (`Templates.document()`, design 44 §5m). What the author does is find it.
+
 | # | The author does | What should happen | Status |
 |---|---|---|---|
-| 6 | `Add template` in the panel toolbar | A template, selected, its strip shown | built (`TemplatePanelController.java:109`) |
-| 7 | Names it `source` | — | built (`TemplateEdit.ui.xml`) |
-| 8 | Sets its match kind to `source` | The match chip reads `source`; the kind's body is a sentence saying what it means | built (design 44 §1) |
-| 9 | Leaves its mode as the root | — | built |
+| 6 | Reads the panel's `Document` row | The template is already there, selected or selectable, its strip shown | built (`Templates.ensureDocument`, design 44 §5m) |
+| 7 | Opens it and sees `match: source` and one `apply-templates` card with nothing in it | The card says *"blank is this match's whole content"* | built (`InstructionEditController.java:294`) |
+| 8 | Renames it if they want to — the samples call it `source`, the editor calls it `document` | — | built (`TemplateEdit.ui.xml`) |
+
+**Finding — the undiscoverable step was already solved, and the walkthrough nearly missed it.**
+§5.1 called the root template *the one template an author cannot discover the need for*; design
+44 §5m had reached the same conclusion and pre-built it. Two consequences for the ladder: the
+author's first act is to *extend* a template rather than create one, and rungs 2, 3 and 5 lose
+their "add and name a `source` template" steps the same way.
 
 ### 5.4 Match one pair — the first real pattern
 
@@ -460,8 +472,8 @@ mode, `dispatch: "lexer"` at the one apply site.
 |---|---|---|---|
 | 1 | Settings: name `lexer_tokens`, encoding `utf-8`, buffer 20000, ignore errors off | — | built (`SourceSettings.ui.xml`) |
 | 2 | Data: pastes the token line | The input pane shows it | built (`SampleSourcePicker.ui.xml`) |
-| 3 | `Add template`, names it `source`, match kind `source` | — | built |
-| 4 | Body: adds `apply-templates`, leaves `Select` blank | The help reads *"blank is this match's whole content"* | built (`InstructionEditController.java:294`) |
+| 3 | Opens the `Document` row, already holding `match: source` and an empty `apply-templates` | Nothing to create (§5.3) | built (`Templates.ensureDocument`) |
+| 4 | Leaves that card's `Select` blank | The help reads *"blank is this match's whole content"*, and the model reads it as `$0` (§3.1) | built (`InstructionEditController.java:294`) |
 | 5 | `Mode` → `New…` `tokens` | Mode made and picked in one step | built (design 44 §5k) |
 | 6 | Sets `Dispatch` to `lexer` on the same card | — | built (`InstructionEdit.ui.xml:40`) |
 | 7 | Adds `assign`, mode `tokens`, regex `=`, body `text` `<op>=</op>` | — | built |
@@ -470,13 +482,6 @@ mode, `dispatch: "lexer"` at the one apply site.
 | 10 | Adds `number`, regex `[0-9]+`, body the same shape with `<n>` | — | built |
 | 11 | Adds `space`, regex ` +`, sets `match is` to the consuming role, leaves the body empty | The role note says what a consuming match is for | built (`TemplateStrip.ui.xml:40`) |
 | 12 | Runs | `=>` comes out as `<arrow/>`, not `<op>=</op>` followed by a stray `>` | built |
-
-**Finding — blank is not `$0`.** Step 4's blank `Select` builds `ApplyDirective` with a null
-ref (`InstructionEditController.java:511`, `refOrNull`), while the fixture spells it
-`{"capture": {"group": 0}}`. Both mean *this match's whole content* to the engine and they are
-different models, so this is a third entry for §3.1's normalisation list, alongside the legacy
-spellings and the explicit defaults. The keystone comparison must treat a null select and an
-explicit group 0 as equal, or every walkthrough that dispatches will fail on its first apply.
 
 **The question, sharpened.** `arrow` is listed *below* `assign` and still wins, because `lexer`
 takes the longest match and uses list order only to break ties. The same project under `strict`
@@ -496,8 +501,8 @@ templates, one mode, `dispatch: "classify"`.
 |---|---|---|---|
 | 1 | Settings as rung 2, name `classify_alerts` | — | built |
 | 2 | Data: pastes the three lines (`INFO started`, `ERROR connection lost code=57`, `WARN retrying code=98`) | — | built |
-| 3 | `Add template` `source`, match kind `source` | — | built |
-| 4 | Body: `text` `<flags>`, `apply-templates` (blank select) mode `New…` `flags`, `text` `</flags>\n` | — | built |
+| 3 | Opens the `Document` row (§5.3) | Nothing to create | built (`Templates.ensureDocument`) |
+| 4 | Body: a `text` `<flags>` before the card that is already there, mode `New…` `flags`, then `text` `</flags>\n` after it | — | built |
 | 5 | Sets `Dispatch` to `classify` | — | built |
 | 6 | Adds `has_error`, mode `flags`, regex `ERROR`, body `text` `<error/>` | — | built |
 | 7 | Adds `has_timeout`, regex `timed out`, body `text` `<timeout/>` | — | built |
@@ -533,15 +538,24 @@ The sample: one syslog-ish line per record, built from four named parts. **One t
 | 8 | Body: one `value-of` whose parts name the labels — `time`, `host`, `severity`, `pid`, `msg` — rather than group numbers | — | built |
 | 9 | Runs | One `<event …>` per line | built |
 
-**Finding — two of the six samples have no root `source` template.** §5.3 says every sample has
-one and it is the only template with `"match": "source"`. That is wrong: `library_parts` and
-`progressive_len_records` (rung 6) have a single template sitting in the root mode, which the
-root level dispatches directly. A `source` template is therefore a *choice* — you need it to
-wrap the output in an envelope or to dispatch into a named mode, and not otherwise. This makes
-§5.1's open question sharper rather than easier: a new document that arrives *with* a root
-template would be wrong for two of the six, and one that arrives empty leaves the author to
-discover a step the panel never mentions. Neither default is right for all six, which suggests
-the answer is something the editor says rather than something it pre-builds.
+**Finding — two of the six samples had no root `source` template; now they do. Ruled and done
+2026-11-12.** §5.3 said every sample has one. That was wrong: `library_parts` and
+`progressive_len_records` had a single template in the root mode, which the root level dispatches
+directly. The editor cannot build either, because `Templates.ensureDocument` inserts a document
+template into *any* project that lacks one, on load as well as on creation — so a UI round-trip
+of either came back with a template the fixture did not have, and the §3 keystone could not hold.
+
+**Both fixtures were re-baselined** with the document template the editor would insert, rather
+than the comparison being taught to ignore it: the keystone is worth more exact than convenient.
+The change is behaviour-neutral, and provably so rather than by assertion — `RootPlanner.plan`
+excludes the Source template from the root level and derives the mode, the dispatch and
+`ignoreErrors` identically whether the document template is present or absent, while its body
+contributes an empty prologue and an empty tail. `GoldenFixtureTest`: 75 tests, 0 failures, both
+fixtures exercised.
+
+What survives as the design point: **a root template is not something an author must know to
+want.** It is pre-built for design 44 §5m's reasons — a visible place for the input loop, and
+somewhere to declare a run-scoped name — which answers §5.1 in the affirmative.
 
 **Finding — a `ref` need not capture.** `ref FIELD` at step 7 carries no label, so it matches
 ` pid=` and contributes nothing to the output; `FIELD` exists to consume structure, not to
@@ -564,9 +578,9 @@ templates, four modes, and the only use of `match_index` in the corpus.
 |---|---|---|---|
 | 1 | Settings: name, encoding `auto`, ignore errors off | — | built |
 | 2 | Data: pastes the header row and two data rows | — | built |
-| 3 | `Add template` `source`, match kind `source` | — | built |
-| 4 | On `source`, declares `heading`, type `list` | The declarations grid beneath the strip | built (`DeclarationEdit.ui.xml`, `TemplateStrip.ui.xml` `declarations`) |
-| 5 | Body: `value-of` the XML prologue, `apply-templates` mode `New…` `root`, `value-of` `\n</records>\n` | — | built |
+| 3 | Opens the `Document` row (§5.3) | Nothing to create | built (`Templates.ensureDocument`) |
+| 4 | On it, declares `heading`, type `list` | The declarations grid beneath the strip — and design 44 §5m's second reason for pre-building the row: *"somewhere to declare a run-scoped name"* | built (`DeclarationEdit.ui.xml`, `TemplateStrip.ui.xml` `declarations`) |
+| 5 | Body: a `value-of` of the XML prologue before the existing `apply-templates`, its mode `New…` `root`, and a `value-of` `\n</records>\n` after | — | built |
 | 6 | Adds `header_record`, mode `root`, match `delimiter` `\|` | — | built (`Delimiter.ui.xml`) |
 | 7 | Sets its limits `max` to 1 | *"stop matching this template after N matches"* | built (`GuardAndLimits.ui.xml`) |
 | 8 | Body: `apply-templates` `$1`, mode `New…` `header_columns` | — | built |
@@ -629,6 +643,12 @@ harder dependency than any other rung has, and it is worth settling before the s
 verified rather than after: if a binary sample cannot reach the editor at all, the rest of the
 rung is untestable, and *that* is the finding.
 
+**Ruled 2026-11-12: the story gets a stream fixture.** The sample is served through the story's
+REST stub as a stream, the way the page's `STREAM` kind expects, rather than rung 6 being dropped
+or swapped for a text sample carrying a parts match. Only that answers the question the rung
+exists to ask, and it exercises the stream path, which today has one story row and a single meta
+row. Not built — rung 6 is not in the first automation slice (§9).
+
 The standing question — whether the marks, capture tints and preview mean anything over a
 binary sample — is downstream of it. Step 7 adds a second question now that the form is known:
 `Length` reads a label defined by an *earlier part of the same match*, so the parts list has
@@ -686,18 +706,22 @@ the forms are written, is unaffected by any of this.
 
 ## 9. What to do next
 
-1. ~~Write rungs 2 to 6 as step tables~~ — **done 2026-11-12**, §6. Written from the source,
-   so every row is *buildable as far as reading can tell*; none is verified in the browser.
-2. Walk the six against the running workbench, rung 1 first, and settle what only it can say:
-   what a new document contains (§5.1, §6.3), what the UI says about a mode with no dispatch
-   site (§5.4), whether a pattern part can be lifted out of a pattern already written (§6.3),
-   and whether a binary sample can reach the editor at all (§6.5 — this one decides whether
-   rung 6 exists).
-3. Re-baseline `library_parts`, `text_019_single_line_split` and `progressive_len_records` to
-   strict at the current version — §3.2 has measured that all three still match their goldens,
-   so this is recording a fact rather than taking a risk.
-4. Automate rung 1 only, as a proof of the §3 keystone, and decide the rest from what it costs.
-   §3.1's fourth trap has to be handled before it can pass.
+1. ~~Write rungs 2 to 6 as step tables~~ — **done 2026-11-12**, §6. Written from the source, so
+   every row is *buildable as far as reading can tell*; none is verified in the browser.
+2. ~~Re-baseline the three lax-by-version fixtures to strict~~ — **done 2026-11-12**, and not by
+   editing them: design 11 §10.3 took the version out of the dispatch default, so `library_parts`,
+   `text_019_single_line_split` and `progressive_len_records` say nothing and are therefore strict.
+   The two without a root template were re-baselined for a different reason (§6.3).
+3. **Automate rung 1 only** — ruled 2026-11-12 — as a proof of the §3 keystone: drive the UI,
+   capture the save POST, compare models with the fixture. Then decide the rest from what it
+   costs in story lines and run time rather than from a guess. The harness is known good on this
+   box: `App/Shapeshifter/ShapeshifterEditor` runs 29 stories in ~2 minutes, axe-core and the
+   browser self-test included, and `strict_kv` is already that title's own fixture.
+4. Walk the remaining five against the running workbench as their stories are written, settling
+   what only the browser can say: what the UI says about a mode with no dispatch site (§5.4),
+   whether a pattern part can be lifted out of a pattern already written (§6.3), and whether the
+   marks mean anything over a binary sample (§6.5, which also needs the stream fixture ruled
+   there). §5.1 and §6.3's first question are already answered from the source.
 5. Run the §7 probe on `apache_httpd` before building Q20's forms.
 
 **What stepping the five turned up, as design questions rather than steps.** Three are worth
@@ -717,5 +741,9 @@ it:
 
 - ~~Take the `Store` alias out~~ — **done 2026-11-12**, §3.3; §3.4 is the wider audit for the
   same class of artefact, and leaves one open decision: the version-5 substring base.
-- **Decide `xml_to_json`'s explicit `"dispatch": "lax"`** (§3.2): a version-5 configuration of
-  ours asking for the migration path. Either the reason is recorded or the line goes.
+- ~~Decide `xml_to_json`'s explicit `"dispatch": "lax"`~~ — **done 2026-11-12, the line went.**
+  It was measured rather than argued: removing it from the three `xml_to_json` fixtures and from
+  the `apache_httpd` pair showed that four of the five genuinely need lax and `xml_to_json` does
+  not — its goldens match byte for byte under strict. So the one version-5 configuration of ours
+  that asked for the migration path no longer does, and the four that need it keep it on
+  evidence. See design 11 §10.3, which this probe also corrected.
