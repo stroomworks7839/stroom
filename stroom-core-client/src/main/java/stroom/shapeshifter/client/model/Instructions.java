@@ -94,7 +94,10 @@ public final class Instructions {
     /// The transforms: edited as their wire form unless they are also in [#FORM_KINDS], and
     /// listed for the add menu.
     public static final List<String> TRANSFORM_KINDS = List.of(
-            "call", "translate", "string-join", "replace", "lower-case", "upper-case", "normalize-space", "trim",
+            // "translate" is not here: it has a form, so it is in FORM_KINDS, and the add menu
+            // is the two lists concatenated. Its category is still TRANSFORM, which category()
+            // gives by default, so it is grouped with the rest where the menu groups them.
+            "call", "string-join", "replace", "lower-case", "upper-case", "normalize-space", "trim",
             "substring", "tokenize", "number", "add", "subtract", "multiply", "divide", "mod", "round", "floor",
             "ceiling", "abs", "string-length", "substring-before", "substring-after", "starts-with", "ends-with",
             "contains", "format-number", "parse-date", "format-date", "decode");

@@ -960,6 +960,22 @@ remaining Q20 work, counted rather than guessed, and a ceiling that may fall and
 Pinned by a round-trip over 276 real translates: if the spelling did not come back exactly,
 pressing OK would rewrite every one of them.
 
+**And a review found the hole in exactly that test.** The first version trimmed each side of a
+replacement line, and `ControlEscapes` spells a tab, a newline and a return but not a *space* —
+so a value that was, or ended in, a space was deleted on the way back. The story's own fixture
+showed it: `\n` → `" "` rendered as `\n =  ` and read back as a deletion. The corpus cannot
+catch this, all 504 of its translates using the XML escaping set and not one of them edged with
+a space, and `replace "," with ", "` is the ordinary case that is. The lines are now parsed by
+taking back exactly the one space `replacements()` writes either side of the separator, and the
+case the corpus cannot supply is a test of its own.
+
+Two more from the same review, both the same shape — **a form promising what it could not
+keep**. `translate` was left in `TRANSFORM_KINDS` as well as `FORM_KINDS`, which the add menu
+concatenates, so it was offered twice; and `spellable` opened a form for a nameless translate,
+which is legal and means *write the result straight out*, while the form's Name is required — so
+the author's only way out of the dialog was to invent a name and silently turn a write into a
+binding. A translate the form cannot save now stays on the wire form.
+
 ## 9. What to do next
 
 1. ~~Write rungs 2 to 6 as step tables~~ — **done 2026-11-12**, §6. Written from the source, so

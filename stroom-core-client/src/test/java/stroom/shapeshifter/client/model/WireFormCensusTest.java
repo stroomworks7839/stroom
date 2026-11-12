@@ -23,6 +23,7 @@ import stroom.shapeshifter.config.Project;
 import stroom.shapeshifter.config.RefExpression;
 import stroom.shapeshifter.config.RefExpression.RefPart;
 import stroom.shapeshifter.config.Template;
+import stroom.shapeshifter.config.json.ProjectJson;
 
 import org.junit.jupiter.api.Test;
 
@@ -149,6 +150,38 @@ class WireFormCensusTest {
         // 276 over this test's own scope, which is narrower than the whole fixture tree: enough
         // that a translate going unchecked would show here rather than passing vacuously.
         assertThat(checked).as("the corpus's translates").isGreaterThan(250);
+    }
+
+    @Test
+    void aReplacementKeepsTheWhitespaceInItsValues() {
+        // The corpus cannot catch this: all 504 of its translates use the XML escaping set and
+        // not one has a value edged with a space. `replace "," with ", "` is the ordinary case
+        // that does, and trimming the lines would have deleted the space on the way back —
+        // changing what the configuration does rather than refusing to.
+        final OutputNode.Translate spaces = new OutputNode.Translate(
+                List.of(ProjectJson.readRefOrName("line")),
+                List.of(",", "\n", " x "),
+                List.of(", ", " ", "  "),
+                "spaced");
+        assertThat(InstructionEditController.spellable(spaces)).isTrue();
+        assertThat(InstructionEditController.readReplacements(
+                InstructionEditController.replacements(spaces)))
+                .isEqualTo(List.of(spaces.from(), spaces.to()));
+    }
+
+    @Test
+    void aTranslateTheFormCouldNotSaveStaysOnTheWireForm() {
+        // Both are legal in the model and run in the engine: a nameless transform writes its
+        // result straight out, and an empty from list passes the value through. The form says
+        // neither, so it must not offer itself — a dialog whose OK can never succeed leaves the
+        // author inventing a name, which turns a write into a binding.
+        final List<RefExpression> select = List.of(ProjectJson.readRefOrName("line"));
+        assertThat(InstructionEditController.spellable(new OutputNode.Translate(
+                select, List.of("a"), List.of("b"), null))).isFalse();
+        assertThat(InstructionEditController.spellable(new OutputNode.Translate(
+                select, List.of(), List.of(), "named"))).isFalse();
+        assertThat(InstructionEditController.spellable(new OutputNode.Translate(
+                select, List.of("a"), List.of("b"), "named"))).isTrue();
     }
 
     @Test

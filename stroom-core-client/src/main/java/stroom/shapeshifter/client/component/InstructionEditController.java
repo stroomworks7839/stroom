@@ -228,8 +228,14 @@ public class InstructionEditController extends Controller {
             // One select, spellable, and no replacement carrying the separator the form splits
             // on. The corpus has none — 504 translates and not one '=' in a from or a to — but a
             // configuration that did would be silently cut in half by the form.
+            // And only what the form can also write back: a nameless translate writes its
+            // result straight out, which the form has no way to say — its Name is required —
+            // and an empty from list is a pass-through the form would refuse to save. Both stay
+            // on the wire form rather than opening a dialog whose OK can never succeed.
             return t.select().size() == 1
                    && Instructions.spell(t.select().get(0)) != null
+                   && t.name() != null
+                   && !t.from().isEmpty()
                    && noSeparator(t.from())
                    && noSeparator(t.to());
         } else if (node instanceof Switch s) {
@@ -658,10 +664,12 @@ public class InstructionEditController extends Controller {
         return params;
     }
 
-    /// A reference, or null for blank — where the model has its own answer for an omission.
     /// The replacements as the form shows them: one `from = to` a line, control characters
     /// spelt as `\t`, `\n` and `\r` because a text area cannot hold them (ControlEscapes, the
     /// delimiter form's own answer to this).
+    ///
+    /// @param translate The translate.
+    /// @return The lines the form shows.
     public static String replacements(final Translate translate) {
         final StringBuilder out = new StringBuilder();
         for (int i = 0; i < translate.from().size(); i++) {
@@ -689,22 +697,40 @@ public class InstructionEditController extends Controller {
 
     private static void readReplacements(final String text, final List<String> from,
                                          final List<String> to) {
-        for (final String line : text.split("\n", -1)) {
-            if (line.trim().isEmpty()) {
+        for (final String raw : text.split("\r?\n", -1)) {
+            if (raw.trim().isEmpty()) {
                 continue;
             }
-            final int at = line.indexOf('=');
+            final int at = raw.indexOf('=');
             if (at < 0) {
-                throw new ConfigException("A replacement is 'from = to': " + line.trim());
+                throw new ConfigException("A replacement is 'from = to': " + raw.trim());
             }
-            from.add(ControlEscapes.unescape(line.substring(0, at).trim()));
-            to.add(ControlEscapes.unescape(line.substring(at + 1).trim()));
+            // Exactly the one space replacements() writes either side of the separator, and no
+            // more: a value that is a space, or ends in one, is a replacement like any other —
+            // `, ` for `,` is the ordinary case — and trimming would delete it silently.
+            from.add(ControlEscapes.unescape(dropOneSpaceBefore(raw.substring(0, at))));
+            to.add(ControlEscapes.unescape(dropOneSpaceAfter(raw.substring(at + 1))));
         }
         if (from.isEmpty()) {
             throw new ConfigException("A translate needs at least one replacement");
         }
     }
 
+    /// The text before the separator, less the single space the form writes there.
+    private static String dropOneSpaceBefore(final String text) {
+        return text.endsWith(" ")
+                ? text.substring(0, text.length() - 1)
+                : text;
+    }
+
+    /// The text after the separator, less the single space the form writes there.
+    private static String dropOneSpaceAfter(final String text) {
+        return text.startsWith(" ")
+                ? text.substring(1)
+                : text;
+    }
+
+    /// A reference, or null for blank — where the model has its own answer for an omission.
     private static RefExpression refOrNull(final String text) {
         return text == null || text.trim().isEmpty()
                 ? null
