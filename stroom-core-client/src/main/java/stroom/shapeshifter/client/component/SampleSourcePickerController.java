@@ -35,6 +35,7 @@ import stroom.shapeshifter.client.model.ProjectHost;
 import stroom.shapeshifter.client.model.SampleSource;
 import stroom.svg.shared.SvgImage;
 import stroom.widget.button.client.ToolbarButton;
+import stroom.widget.component.client.Contexts;
 import stroom.widget.component.client.Controller;
 import stroom.widget.component.client.ControllerDialog;
 import stroom.widget.popup.client.PopupSize;
@@ -88,6 +89,9 @@ public class SampleSourcePickerController extends Controller {
     private ProjectHost host;
     private boolean listed;
     private boolean reading;
+    // From Contexts.READ_ONLY: true until the document says otherwise, so a
+    // controller with no owner fails closed rather than editable.
+    private boolean readOnly = true;
 
     @Inject
     public SampleSourcePickerController(final EventBus eventBus,
@@ -120,7 +124,19 @@ public class SampleSourcePickerController extends Controller {
         // A blur is the commit, as it is for every field here; the editor has no other.
         own(pasted.addValueChangeHandler(event -> onPasted()));
         source.setOnLocationChange(this::viewing);
+        watch(Contexts.READ_ONLY, readOnly -> {
+            this.readOnly = readOnly;
+            applyReadOnly();
+        });
+    }
 
+    // One place that says what read-only means here, called when the context changes and when the
+    // page is filled, so a lock change alone reaches the page. The paste box is told through its
+    // own controller, which also puts Format and the completion options out of reach.
+    private void applyReadOnly() {
+        final boolean locked = readOnly || host == null || host.getProject() == null;
+        view.setReadOnly(locked);
+        pasted.setReadOnly(locked);
     }
 
 
@@ -164,6 +180,7 @@ public class SampleSourcePickerController extends Controller {
             // The unlocked streams, as stepping lists them; the filter narrows them.
             metaList.setExpression(ExpressionValidator.ALL_UNLOCKED_EXPRESSION, metaList::refresh);
         }
+        applyReadOnly();
     }
 
     /// A stream was chosen in the list: show its first record, which makes it the sample.

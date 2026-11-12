@@ -99,6 +99,14 @@ public class SampleSourcePicker extends Component {
     }
 
 
+    @Override
+    protected void onReadOnlyChange(final boolean readOnly) {
+        // Where the data comes from is the page's one edit; the paste box is its controller's,
+        // which has more to turn off than the text being read only.
+        kind.setEnabled(!readOnly);
+    }
+
+
     /// @param onKind Told when kind.
     public void setOnKind(final Consumer<Kind> onKind) {
         this.onKind = onKind;

@@ -9,7 +9,7 @@
                      addStyleNames="max default-min-sizes">
         <g:FlowPanel styleName="sample-source-picker__head">
             <t:Label styleName="edit-form__limit-label" text="Sample data from"/>
-            <l:SelectionBox ui:field="kind" addStyleNames="sample-source-picker__kind" title="Where the project's data comes from"/>
+            <l:SelectionBox ui:field="kind" ariaLabel="Sample data from" addStyleNames="sample-source-picker__kind" title="Where the project's data comes from"/>
             <!-- The two kinds are kept differently and travel differently, and the page is
                  where the author chooses between them, so it is where that is said
                  (design 44 §5q). -->

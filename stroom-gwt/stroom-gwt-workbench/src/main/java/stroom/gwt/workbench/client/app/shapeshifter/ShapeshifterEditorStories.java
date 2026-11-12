@@ -240,6 +240,18 @@ public final class ShapeshifterEditorStories {
                                                 + "  \"sampleKind\": \"PASTED\"\n"
                                                 + "}";
 
+    // MetaResource.findMetaRow(): the unlocked streams the sample page lists as the other place a
+    // sample can come from. One row is enough: the page is about choosing between the two kinds,
+    // not about the list, which is stepping's own and has its own stories.
+    private static final String META_ROWS = """
+            {
+              "values": [
+                {"meta": {"id": 42, "feedName": "TEST_FEED", "typeName": "Raw Events",
+                  "status": "UNLOCKED", "createMs": 1700000000000}}
+              ],
+              "pageResponse": {"offset": 0, "length": 1, "total": 1, "exact": true}
+            }""";
+
     private static final RestFixtures FIXTURES = TreeFixtures.explorerRoutes(
                     new ExplorerFixture(ExplorerFixture.folder("System",
                             ExplorerFixture.doc("Key Value Lines", ShapeshifterDoc.TYPE))))
@@ -251,6 +263,7 @@ public final class ShapeshifterEditorStories {
             .get("/shapeshifter/v1/library", RestReply.json(LIBRARY))
             .get("/shapeshifter/v1/encodings", RestReply.json(ENCODINGS))
             .post("/permission/doc/v1/fetchDocumentUserPermissions", RestReply.json(DOC_PERMISSIONS))
+            .post("/meta/v1/find", RestReply.json(META_ROWS))
             .build();
 
     private static final RestFixtures COMPOSITE_FIXTURES = TreeFixtures.explorerRoutes(
@@ -726,6 +739,40 @@ public final class ShapeshifterEditorStories {
                             .toBe(true);
                     play.expect(play.getByText("Read only", ".link-tab-panel__read-only-note")).toBeVisible();
                     expectNoProblems(play);
+                })
+
+                // The sample page, which the Data row opens in place of the navigator's rows
+                // (design 44 §5a). It had no story at all, which is how a SimpleLayoutPanel sat in
+                // it unseen after the rest of the tab had been found and fixed
+                .story("SamplePage", context -> render(context, false))
+                .withPlay(play -> {
+                    openSamplePage(play);
+                    // The page's own heading, and what it says about how this kind is kept
+                    play.expect(play.getByText("Sample data from")).toBeVisible();
+                    play.expect(play.getByText(TextMatch.containing("saved with the project")))
+                            .toBeVisible();
+                    // The kept text is in the paste box, which can be typed into. Asserted here
+                    // as well as in the locked story, so that neither passes by matching an
+                    // editor that is always one or the other
+                    play.expect(play.querySelector(ACE_INPUT)).not().toBeNull();
+                    play.expect(play.querySelector(ACE_INPUT)).not().toHaveAttribute("aria-readonly");
+                    play.expect(play.getByLabelText("Sample data from")).not().toBeDisabled();
+                    // The page replaces the navigator's rows, so no template strip is beside it
+                    play.expect(play.querySelector(MATCH_CHIP)).toBeNull();
+                    expectNoProblems(play);
+                })
+                // The same page with the document locked. Nothing here watched the read-only
+                // context before this story: the picker and the paste box stayed editable on a
+                // locked document, the one pane of the tab the earlier read-only work missed
+                .story("SamplePageReadOnly", context -> render(context, true))
+                .withPlay(play -> {
+                    openSamplePage(play);
+                    play.expect(play.getByText("Sample data from")).toBeVisible();
+                    // AceEditorPane marks a read-only editor on the text input, which is what the
+                    // keyboard reaches; the picker's own control is disabled outright
+                    play.expect(play.querySelector(ACE_INPUT)).toHaveAttribute("aria-readonly", "true");
+                    play.expect(play.getByLabelText("Sample data from")).toBeDisabled();
+                    expectNoProblems(play);
                 });
     }
 
@@ -735,13 +782,13 @@ public final class ShapeshifterEditorStories {
     // Ace marks a read-only editor on its root
     private static final String ACE_READ_ONLY = ".ace_editor.ace_read-only";
 
-// The strip labels each row with its key ("match", "match is", "guard", "body")
-    // A template's name in the panel's list
+    // A template's name in the panel's list, and the Data row's, which is a row too
     private static final String TEMPLATE_NAME = ".template-row__name";
 
     // The kind of instruction a body card holds ("text", "value-of", ...)
     private static final String CARD_KIND = ".body-card__kind";
 
+    // The strip labels each row with its key ("match", "match is", "guard", "body")
     private static final String STRIP_KEY = ".key-label";
 
     // The chip that carries a template's match, and opens the pattern workbench
@@ -749,8 +796,6 @@ public final class ShapeshifterEditorStories {
     // A part's kind in the framed sequence's list; clicking it selects the part
     private static final String PART_KIND = ".parts__kind";
 
-    // Picks a template in the panel, which is what fills the strip beside it. By the panel's
-    // row: once it is selected the strip shows the name too.
     // Selects a template and opens its match workbench, where the parts and the pattern tree live
     private static void openWorkbench(final Play play, final String name) {
         selectTemplate(play, name);
@@ -760,6 +805,15 @@ public final class ShapeshifterEditorStories {
                 TextMatch.regex("close the workbench", "i"))).toBeInTheDocument());
     }
 
+    // Opens the sample page: the Data row in the panel is a destination, not a frame, so
+    // choosing it puts the page where the navigator's rows were (design 44 §5a)
+    private static void openSamplePage(final Play play) {
+        play.waitFor(() -> play.expect(play.getByText("Data", TEMPLATE_NAME)).toBeInTheDocument());
+        play.click(play.getByText("Data", TEMPLATE_NAME));
+        play.waitFor(() -> play.expect(play.getByText("Sample data from")).toBeInTheDocument());
+    }
+
+    // Picks a template in the panel, which is what fills the strip beside it
     private static void selectTemplate(final Play play, final String name) {
         play.waitFor(() -> play.expect(play.getByText(name, TEMPLATE_NAME)).toBeInTheDocument());
         play.click(play.getByText(name, TEMPLATE_NAME));
