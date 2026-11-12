@@ -215,6 +215,13 @@ public class InstructionEditController extends Controller {
         return ref == null || Instructions.spell(ref) != null;
     }
 
+    /// Whether the form can say a kind's one word and its name: an empty word would come back
+    /// as a missing field, and a name that is present but empty would come back as no name,
+    /// turning a binding into a straight write.
+    private static boolean sayable(final String word, final String name) {
+        return word != null && !word.isEmpty() && !"".equals(name);
+    }
+
     /// Whether a transform reads exactly one thing, and the form can spell it: the shape the
     /// one-field forms take, and a node holding more selects than that would not compile.
     private static boolean oneSelect(final List<RefExpression> select) {
@@ -253,23 +260,28 @@ public class InstructionEditController extends Controller {
         } else if (node instanceof CallTemplate c) {
             return spellableParams(c.withParam());
         } else if (node instanceof StringJoin j) {
-            return oneSelect(j.select());
+            for (final RefExpression select : j.select()) {
+                if (Instructions.spell(select) == null) {
+                    return false;
+                }
+            }
+            return !j.select().isEmpty() && sayable(j.separator(), j.name());
         } else if (node instanceof Tokenize t) {
-            return oneSelect(t.select());
+            return oneSelect(t.select()) && sayable(t.delimiter(), t.name());
         } else if (node instanceof SubstringBefore b) {
-            return oneSelect(b.select());
+            return oneSelect(b.select()) && sayable(b.marker(), b.name());
         } else if (node instanceof SubstringAfter a) {
-            return oneSelect(a.select());
+            return oneSelect(a.select()) && sayable(a.marker(), a.name());
         } else if (node instanceof StartsWith w) {
-            return oneSelect(w.select());
+            return oneSelect(w.select()) && sayable(w.prefix(), w.name());
         } else if (node instanceof EndsWith w) {
-            return oneSelect(w.select());
+            return oneSelect(w.select()) && sayable(w.suffix(), w.name());
         } else if (node instanceof Contains c) {
-            return oneSelect(c.select());
+            return oneSelect(c.select()) && sayable(c.substring(), c.name());
         } else if (node instanceof FormatNumber f) {
-            return oneSelect(f.select());
+            return oneSelect(f.select()) && sayable(f.picture(), f.name());
         } else if (node instanceof Replace r) {
-            return oneSelect(r.select());
+            return oneSelect(r.select()) && sayable(r.pattern(), r.name());
         } else if (node instanceof Substring sub) {
             return oneSelect(sub.select());
         } else if (node instanceof FormatDate f) {
@@ -280,12 +292,14 @@ public class InstructionEditController extends Controller {
         } else if (node instanceof Decode d) {
             return oneSelect(d.select());
         } else if (node instanceof Call c) {
+            // A function of no arguments is legal — current-user takes none — so an empty list
+            // is a form to show, not a reason to refuse one.
             for (final RefExpression select : c.select()) {
                 if (Instructions.spell(select) == null) {
                     return false;
                 }
             }
-            return true;
+            return !"".equals(c.name());
         } else if (SimpleTransforms.isSimple(node)) {
             // Every select has to have a spelling, and there has to be one: the form writes the
             // selects a line at a time and refuses an empty list.
@@ -310,7 +324,12 @@ public class InstructionEditController extends Controller {
             return t.select().size() == 1
                    && Instructions.spell(t.select().get(0)) != null
                    && t.name() != null
+                   && !"".equals(t.name())
                    && !t.from().isEmpty()
+                   // A to list of a different length is meaning-preserving to the engine and
+                   // not to the form, which shows one line a pair: saving would rewrite the
+                   // stored lists rather than leave them be.
+                   && t.to().size() == t.from().size()
                    && noSeparator(t.from())
                    && noSeparator(t.to());
         } else if (node instanceof Switch s) {
@@ -348,8 +367,12 @@ public class InstructionEditController extends Controller {
     private void showKind(final String kind) {
         final InstructionEdit v = view;
         for (int i = 0; i < FIELDS; i++) {
-            v.setFieldVisible(i, false);
+            // Emptied, not merely hidden: the five fields mean different things to different
+            // kinds, and switching the kind box in an open dialog would otherwise carry a
+            // parse-date's pattern into a trim's Name and save it there.
+            v.setField(i, "", "", false);
         }
+        v.setMulti("", "", false);
         v.setChoiceVisible(false);
         v.setFlagVisible(0, false);
         v.setFlagVisible(1, false);
@@ -390,7 +413,14 @@ public class InstructionEditController extends Controller {
             case "divide":
             case "round":
             case "string-length":
-                // One form for eight kinds, shaped by how many selects the kind takes
+            case "number":
+            case "subtract":
+            case "multiply":
+            case "mod":
+            case "floor":
+            case "ceiling":
+            case "abs":
+                // One form for fifteen kinds, shaped by how many selects the kind takes
                 // (design/17 §5). Saving the wrong number builds a configuration that will not
                 // compile, so the form does not offer the wrong number: a kind that reads one
                 // thing gets one field, divide gets two, and only add's fold gets a list.
@@ -413,6 +443,15 @@ public class InstructionEditController extends Controller {
                 }
                 break;
             case "string-join":
+                // Several values and what goes between them: BodyCompiler compiles this one
+                // without single(), because joining one value with a separator says nothing.
+                // Emptying TRANSFORM_KINDS took away the wire form that was the only way to
+                // author a multi-value join, so the form has to offer it.
+                field(0, "Separator", "what goes between the values");
+                field(1, "Name", NAME_HELP);
+                v.setMultiVisible(true);
+                v.setMultiLabel("Values, one per line: joined in order");
+                break;
             case "tokenize":
             case "substring-before":
             case "substring-after":
@@ -454,9 +493,12 @@ public class InstructionEditController extends Controller {
                 field(4, "Name", NAME_HELP);
                 break;
             case "decode":
+                // The codec's picker renders between the first field and the second, so the
+                // form reads Select, Codec, Name — what is read, what is done, what it is
+                // called, which is the order every other form here asks in.
                 field(0, "Select", "a name, $1 for a capture group, or a function");
                 v.setChoice(CODECS, null, "Codec", true);
-                field(2, "Name", NAME_HELP);
+                field(1, "Name", NAME_HELP);
                 break;
             case "call":
                 field(0, "Function", "the function to call");
@@ -601,7 +643,16 @@ public class InstructionEditController extends Controller {
                     break;
             }
         } else if (node instanceof StringJoin j) {
-            one(j.select(), j.separator(), j.name());
+            v.setField(0, spellWord(j.separator()));
+            v.setField(1, text(j.name()));
+            final StringBuilder values = new StringBuilder();
+            for (final RefExpression select : j.select()) {
+                if (values.length() > 0) {
+                    values.append('\n');
+                }
+                values.append(Instructions.spell(select));
+            }
+            v.setMulti(values.toString());
         } else if (node instanceof Tokenize t) {
             one(t.select(), t.delimiter(), t.name());
         } else if (node instanceof SubstringBefore b) {
@@ -618,8 +669,8 @@ public class InstructionEditController extends Controller {
             one(f.select(), f.picture(), f.name());
         } else if (node instanceof Replace r) {
             v.setField(0, Instructions.spell(r.select().get(0)));
-            v.setField(1, r.pattern());
-            v.setField(2, r.replacement() == null ? "" : r.replacement());
+            v.setField(1, spellWord(r.pattern()));
+            v.setField(2, spellWord(r.replacement()));
             v.setField(3, text(r.name()));
             v.setFlag(0, r.isRegex());
         } else if (node instanceof Substring sub) {
@@ -629,19 +680,19 @@ public class InstructionEditController extends Controller {
             v.setField(3, text(sub.name()));
         } else if (node instanceof FormatDate f) {
             v.setField(0, Instructions.spell(f.select().get(0)));
-            v.setField(1, f.pattern());
+            v.setField(1, spellWord(f.pattern()));
             v.setField(2, text(f.timezone()));
             v.setField(3, text(f.name()));
         } else if (node instanceof ParseDate d) {
             v.setField(0, Instructions.spell(d.select().get(0)));
-            v.setField(1, d.pattern());
+            v.setField(1, spellWord(d.pattern()));
             v.setField(2, text(d.timezone()));
             v.setField(3, d.reference() == null ? "" : Instructions.spell(d.reference()));
             v.setField(4, text(d.name()));
         } else if (node instanceof Decode d) {
             v.setField(0, Instructions.spell(d.select().get(0)));
             v.setChoice(CODECS, d.codec().name().toLowerCase(Locale.ROOT), "Codec", true);
-            v.setField(2, text(d.name()));
+            v.setField(1, text(d.name()));
         } else if (node instanceof Call c) {
             v.setField(0, c.function());
             v.setField(1, text(c.name()));
@@ -784,6 +835,13 @@ public class InstructionEditController extends Controller {
                 case "divide":
                 case "round":
                 case "string-length":
+                case "number":
+                case "subtract":
+                case "multiply":
+                case "mod":
+                case "floor":
+                case "ceiling":
+                case "abs":
                     // Blank is a real answer for the name: a transform without one writes its
                     // result straight out, which 42 of the corpus's 55 trims do.
                     switch (SimpleTransforms.arity(kind)) {
@@ -801,33 +859,34 @@ public class InstructionEditController extends Controller {
                                     blankToNull(v.getField(0)));
                     }
                 case "string-join":
-                    return new StringJoin(selectOne(), required(v.getField(1),
-                            "A string-join needs a separator"), blankToNull(v.getField(2)));
+                    return new StringJoin(selects(v.getMulti()),
+                            word(v.getField(0), "A string-join needs a separator"),
+                            blankToNull(v.getField(1)));
                 case "tokenize":
-                    return new Tokenize(selectOne(), required(v.getField(1),
+                    return new Tokenize(selectOne(), word(v.getField(1),
                             "A tokenize needs a delimiter"), blankToNull(v.getField(2)));
                 case "substring-before":
-                    return new SubstringBefore(selectOne(), required(v.getField(1),
+                    return new SubstringBefore(selectOne(), word(v.getField(1),
                             "A substring-before needs a marker"), blankToNull(v.getField(2)));
                 case "substring-after":
-                    return new SubstringAfter(selectOne(), required(v.getField(1),
+                    return new SubstringAfter(selectOne(), word(v.getField(1),
                             "A substring-after needs a marker"), blankToNull(v.getField(2)));
                 case "starts-with":
-                    return new StartsWith(selectOne(), required(v.getField(1),
+                    return new StartsWith(selectOne(), word(v.getField(1),
                             "A starts-with needs a prefix"), blankToNull(v.getField(2)));
                 case "ends-with":
-                    return new EndsWith(selectOne(), required(v.getField(1),
+                    return new EndsWith(selectOne(), word(v.getField(1),
                             "An ends-with needs a suffix"), blankToNull(v.getField(2)));
                 case "contains":
-                    return new Contains(selectOne(), required(v.getField(1),
+                    return new Contains(selectOne(), word(v.getField(1),
                             "A contains needs a substring"), blankToNull(v.getField(2)));
                 case "format-number":
-                    return new FormatNumber(selectOne(), required(v.getField(1),
+                    return new FormatNumber(selectOne(), word(v.getField(1),
                             "A format-number needs a picture"), blankToNull(v.getField(2)));
                 case "replace":
                     return new Replace(selectOne(),
-                            required(v.getField(1), "A replace needs something to find"),
-                            v.getField(2), v.getFlag(0), blankToNull(v.getField(3)));
+                            word(v.getField(1), "A replace needs something to find"),
+                            ControlEscapes.unescape(v.getField(2)), v.getFlag(0), blankToNull(v.getField(3)));
                 case "substring":
                     return new Substring(selectOne(),
                             integerOrNull(v.getField(1), "start"),
@@ -835,16 +894,16 @@ public class InstructionEditController extends Controller {
                             blankToNull(v.getField(3)));
                 case "format-date":
                     return new FormatDate(selectOne(),
-                            required(v.getField(1), "A format-date needs a pattern"),
+                            word(v.getField(1), "A format-date needs a pattern"),
                             blankToNull(v.getField(2)), blankToNull(v.getField(3)));
                 case "parse-date":
                     return new ParseDate(selectOne(),
-                            required(v.getField(1), "A parse-date needs a pattern"),
+                            word(v.getField(1), "A parse-date needs a pattern"),
                             blankToNull(v.getField(2)), refOrNull(v.getField(3)),
                             blankToNull(v.getField(4)));
                 case "decode":
                     return new Decode(selectOne(), codec(v.getChoice()),
-                            blankToNull(v.getField(2)));
+                            blankToNull(v.getField(1)));
                 case "call":
                     return new Call(required(v.getField(0), "A call needs a function"),
                             selects(v.getMulti()), blankToNull(v.getField(1)));
@@ -1042,7 +1101,7 @@ public class InstructionEditController extends Controller {
     /// The three fields the eight one-word kinds share: what is read, the word, and the name.
     private void one(final List<RefExpression> select, final String word, final String name) {
         view.setField(0, Instructions.spell(select.get(0)));
-        view.setField(1, word == null ? "" : word);
+        view.setField(1, spellWord(word));
         view.setField(2, text(name));
     }
 
@@ -1178,6 +1237,26 @@ public class InstructionEditController extends Controller {
         // Quoting is the spelling's to read, not this method's: testing the first and last
         // character called `"a" "b"` one literal of `a" "b`, and it never unescaped anything.
         return Instructions.read(checked(t));
+    }
+
+    /// A value the form must keep exactly: a separator, a marker, a pattern. Only an empty
+    /// field is missing — a single space is a delimiter like any other, and `required` would
+    /// both refuse it and, for a value merely edged with spaces, quietly change it.
+    ///
+    /// <p>Control characters come back through [ControlEscapes], as a translate's replacements
+    /// do: a text box cannot hold a tab or a newline, so the form spells them.
+    private static String word(final String text, final String message) {
+        if (text == null || text.isEmpty()) {
+            throw new ConfigException(message);
+        }
+        return ControlEscapes.unescape(text);
+    }
+
+    /// A value the form shows exactly, control characters spelt.
+    private static String spellWord(final String value) {
+        return value == null
+                ? ""
+                : ControlEscapes.escape(value);
     }
 
     private static String required(final String text, final String message) {

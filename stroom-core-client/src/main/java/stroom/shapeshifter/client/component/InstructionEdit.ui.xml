@@ -19,6 +19,11 @@
             <form:FormGroup ui:field="field0Group" identity="ssInstrF0" label="">
                 <form:TextBox ui:field="field0" addStyleNames="w-100"/>
             </form:FormGroup>
+            <!-- One picker for any kind whose field is a closed set of words: decode's codec is
+                 the first, and the view stays one view for all of them. -->
+            <form:FormGroup ui:field="choiceGroup" identity="ssInstrChoice" label="">
+                <l:SelectionBox ui:field="choice" addStyleNames="w-100"/>
+            </form:FormGroup>
             <form:FormGroup ui:field="field1Group" identity="ssInstrF1" label="">
                 <form:TextBox ui:field="field1" addStyleNames="w-100"/>
             </form:FormGroup>
@@ -28,16 +33,11 @@
             <form:FormGroup ui:field="field3Group" identity="ssInstrF3" label="">
                 <form:TextBox ui:field="field3" addStyleNames="w-100"/>
             </form:FormGroup>
-            <!-- The mode a dispatch goes into is a choice among the project's modes, not free text
-                 (design 44 §5k): the same picker the template's own mode field uses. -->
             <form:FormGroup ui:field="field4Group" identity="ssInstrField4" label="">
                 <form:TextBox ui:field="field4" addStyleNames="w-100"/>
             </form:FormGroup>
-            <!-- One picker for any kind whose field is a closed set of words: decode's codec is
-                 the first, and the view stays one view for all of them. -->
-            <form:FormGroup ui:field="choiceGroup" identity="ssInstrChoice" label="">
-                <l:SelectionBox ui:field="choice" addStyleNames="w-100"/>
-            </form:FormGroup>
+            <!-- The mode a dispatch goes into is a choice among the project's modes, not free text
+                 (design 44 §5k): the same picker the template's own mode field uses. -->
             <form:FormGroup ui:field="modeGroup" identity="ssInstrMode" label="Mode"
                             helpText="The mode this dispatches into; the root is the templates the document itself dispatches to.">
                 <l:SelectionBox ui:field="mode" addStyleNames="w-100"/>

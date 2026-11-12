@@ -238,6 +238,40 @@ class WireFormCensusTest {
     }
 
     @Test
+    void aSeparatorThatIsWhitespaceSurvivesTheForm() {
+        // A tokenize that splits on a space, and a marker edged with one: the form used to trim
+        // every one of these, so the first could never be saved and the second was silently
+        // changed. The corpus holds neither, which is why only a written case catches it.
+        final List<RefExpression> one = List.of(ProjectJson.readRefOrName("a"));
+        assertThat(InstructionEditController.spellable(
+                new OutputNode.Tokenize(one, " ", "parts"))).isTrue();
+        assertThat(InstructionEditController.spellable(
+                new OutputNode.SubstringBefore(one, " (", "before"))).isTrue();
+        // And a word the form cannot say at all stays on the wire form
+        assertThat(InstructionEditController.spellable(
+                new OutputNode.Tokenize(one, "", "parts"))).isFalse();
+        assertThat(InstructionEditController.spellable(
+                new OutputNode.Tokenize(one, ",", ""))).isFalse();
+    }
+
+    @Test
+    void theFormsOfferThemselvesOnlyWhereOkCanSucceed() {
+        final List<RefExpression> one = List.of(ProjectJson.readRefOrName("a"));
+        // A function of no arguments is legal, so its form must open
+        assertThat(InstructionEditController.spellable(
+                new OutputNode.Call("current-user", List.of(), "user"))).isTrue();
+        // A string-join joins several values; one with a separator says nothing, but the form
+        // can show it, and an empty list cannot be saved
+        assertThat(InstructionEditController.spellable(
+                new OutputNode.StringJoin(List.of(), ",", "joined"))).isFalse();
+        // A translate whose lists are different lengths would be rewritten by saving
+        assertThat(InstructionEditController.spellable(new OutputNode.Translate(
+                one, List.of("a"), List.of("b", "c"), "t"))).isFalse();
+        assertThat(InstructionEditController.spellable(new OutputNode.Translate(
+                one, List.of("a"), List.of("b"), ""))).isFalse();
+    }
+
+    @Test
     void aReplacementKeepsTheWhitespaceInItsValues() {
         // The corpus cannot catch this: all 504 of its translates use the XML escaping set and
         // not one has a value edged with a space. `replace "," with ", "` is the ordinary case

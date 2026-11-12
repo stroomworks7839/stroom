@@ -1045,6 +1045,27 @@ because `decode`'s codec is a closed set and deserves a picker. The codec list i
 grows before the forms catch up, and `WireFormCensusTest`'s ceiling of zero is what says when
 that has happened.
 
+**A review found eleven things, and the pattern in them is worth more than the list.** Three
+were serious. **Seven kinds were listed as having forms and had none** — worse than leaving them
+off, because an unlisted kind at least gets a JSON skeleton while these opened an empty box that
+OK could not save; the census read zero only because no fixture uses any of the seven.
+**`required()` trimmed every significant value**, so a `tokenize` splitting on a space could
+never be saved and a marker of `" ("` was silently changed — the whitespace bug §8.1 records
+fixing for `translate`, standing in nine more places. And **emptying `TRANSFORM_KINDS` deleted a
+capability**: `string-join` takes several selects, the form offered one, and the wire form that
+had been the only route to a multi-value join was gone.
+
+The common thread is not carelessness about any one case but a habit: **a bug found in one place
+was fixed in that place and not swept for siblings.** Whitespace trimming, forms that promise
+what they cannot save, kinds listed in two places at once — each was found once, fixed once, and
+left standing elsewhere until the next review found the next instance.
+
+What changed as a result, beyond the eleven fixes: `EveryFormKindHasAFormTest` reads the
+`showKind` and `write()` switches and holds them against `FORM_KINDS`, so "every kind has a
+form" is checked rather than claimed; `BodiesTest` holds the two kind lists disjoint; and the
+values a form must keep exactly go through one pair of helpers rather than being trimmed by the
+one that was right for names.
+
 ## 9. What to do next
 
 1. ~~Write rungs 2 to 6 as step tables~~ — **done 2026-11-12**, §6. Written from the source, so
