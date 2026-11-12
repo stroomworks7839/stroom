@@ -78,3 +78,16 @@
     color: var(--ss-muted);
     font-size: 11.5px;
 }
+
+/* The instruction form is one view for every kind, and it renders its text fields before its
+   multi-line area. For a kind whose substance is a list — an add's inputs, a string-join's
+   values, a call's arguments — that asks what the result is called before saying what it
+   operates on, so the list can be asked to lead. The form is a flex column, so this is an
+   order rather than a rearrangement, and the kind picker stays above both. */
+.edit-form__group--first {
+    order: -2;
+}
+
+.edit-form__group--leads {
+    order: -1;
+}

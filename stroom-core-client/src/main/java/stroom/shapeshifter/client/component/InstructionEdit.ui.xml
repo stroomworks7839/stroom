@@ -9,7 +9,7 @@
              xmlns:ss="urn:import:stroom.shapeshifter.client.component">
     <lay:ScrollPane addStyleNames="max">
         <g:FlowPanel styleName="form-padding form">
-            <form:FormGroup identity="ssInstrKind" label="Instruction"
+            <form:FormGroup ui:field="kindGroup" identity="ssInstrKind" label="Instruction"
                             helpText="What the card does. Output writes; invoke dispatches or calls; control branches, loops and binds; a transform computes a named value; a collection op changes a list, map or set.">
                 <g:FlowPanel>
                     <l:SelectionBox ui:field="kind" addStyleNames="w-100"/>

@@ -50,6 +50,8 @@ public class InstructionEdit extends Component {
     @UiField
     Label note;
     @UiField
+    FormGroup kindGroup;
+    @UiField
     FormGroup field4Group;
     @UiField
     TextBox field4;
@@ -112,6 +114,9 @@ public class InstructionEdit extends Component {
 
     public InstructionEdit() {
         initWidget(BINDER.createAndBindUi(this));
+        // The kind picker leads whatever else is ordered: a list asked to come first comes
+        // after it, not above it.
+        kindGroup.addStyleName("edit-form__group--first");
         kind.addValueChangeHandler(event -> onKindChange(event));
         kind.addItems(InstructionEditController.kinds());
         severity.setDisplayValueFunction(s -> s.name().toLowerCase(Locale.ROOT));
@@ -202,6 +207,17 @@ public class InstructionEdit extends Component {
 
     public void setForced(final boolean forced) {
         kind.setEnabled(!forced);
+    }
+
+    /// Whether the multi-line area comes before the text fields rather than after them. A form
+    /// whose substance is a list — an add's inputs, a string-join's values, a call's arguments —
+    /// otherwise asks what the result is called before saying what it operates on, because the
+    /// one view renders its fields first. The form is a flex column, so this is an order and not
+    /// a rearrangement.
+    ///
+    /// @param first Whether the list leads.
+    public void setMultiFirst(final boolean first) {
+        multiGroup.setStyleName("edit-form__group--leads", first);
     }
 
     /// The choice box's items and value, for a field that is a closed set of words.

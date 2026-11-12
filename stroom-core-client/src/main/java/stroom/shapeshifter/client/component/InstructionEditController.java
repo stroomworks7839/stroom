@@ -373,6 +373,7 @@ public class InstructionEditController extends Controller {
             v.setField(i, "", "", false);
         }
         v.setMulti("", "", false);
+        v.setMultiFirst(false);
         v.setChoiceVisible(false);
         v.setFlagVisible(0, false);
         v.setFlagVisible(1, false);
@@ -438,6 +439,7 @@ public class InstructionEditController extends Controller {
                         v.setMultiVisible(true);
                         v.setMultiLabel("Inputs, one per line: the operation folds over them "
                                         + "in order");
+                        v.setMultiFirst(true);
                         field(0, "Name", NAME_HELP);
                         break;
                 }
@@ -451,6 +453,7 @@ public class InstructionEditController extends Controller {
                 field(1, "Name", NAME_HELP);
                 v.setMultiVisible(true);
                 v.setMultiLabel("Values, one per line: joined in order");
+                v.setMultiFirst(true);
                 break;
             case "tokenize":
             case "substring-before":
@@ -505,6 +508,7 @@ public class InstructionEditController extends Controller {
                 field(1, "Name", NAME_HELP);
                 v.setMultiVisible(true);
                 v.setMultiLabel("Arguments, one per line");
+                v.setMultiFirst(true);
                 break;
             case "element":
                 field(0, "Name", null);
