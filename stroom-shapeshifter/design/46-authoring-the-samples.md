@@ -1003,6 +1003,21 @@ instruction each.
 | after `translate` (§8.1) | 84 |
 | after the eight (§8.2) | **20** |
 
+**A review found that "one shape" was one shape too few.** The eight share their *fields* and not
+their *arity*, and `BodyCompiler` enforces the difference: six read exactly one thing, `divide`
+reads exactly two — `a / b` — and only `add` folds. The first version called `divide` a fold,
+against the section it cited, and put no limit on the list at all, so a `trim` could be given a
+second select, saved, and refuse to compile the next time the project was read. The form is now
+shaped **by** the arity — one field for the six, `Left` and `Right` for `divide`, a list only for
+`add` — which incidentally fixed a second complaint, that the form asked what the result was
+called before asking what it read.
+
+The same review found the round-trip test was not testing the form: it fed the model's own
+selects and name straight back into `build()`, never through the text the form holds, which is
+the only part that can go wrong. It goes through the text now, `refsOf` was extended so the
+file's central invariant stops skipping the eight, and the dialog has an OK story rather than a
+Cancel-only one.
+
 ## 9. What to do next
 
 1. ~~Write rungs 2 to 6 as step tables~~ — **done 2026-11-12**, §6. Written from the source, so

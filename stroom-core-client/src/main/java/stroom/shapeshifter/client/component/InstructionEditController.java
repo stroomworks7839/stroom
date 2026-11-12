@@ -233,7 +233,11 @@ public class InstructionEditController extends Controller {
                     return false;
                 }
             }
-            return !SimpleTransforms.selectsOf(node).isEmpty();
+            // A node holding more selects than its kind takes will not compile, and the form
+            // has no way to show that it is wrong; and a name that is present but empty would
+            // come back as no name at all, turning a binding into a straight write.
+            return SimpleTransforms.arityHolds(node)
+                   && !"".equals(SimpleTransforms.nameOf(node));
         } else if (node instanceof Translate t) {
             // One select, spellable, and no replacement carrying the separator the form splits
             // on. The corpus has none — 504 translates and not one '=' in a from or a to — but a
@@ -324,14 +328,27 @@ public class InstructionEditController extends Controller {
             case "divide":
             case "round":
             case "string-length":
-                // One shape for eight kinds: what is read, and what the result is called. The
-                // arithmetic ones fold over their inputs, so the selects are a list rather than
-                // one field (design/17 §5).
-                v.setMultiVisible(true);
-                v.setMultiLabel(SimpleTransforms.folds(kind)
-                        ? "Inputs, one per line: the operation folds over them in order"
-                        : "Select, one per line: a name, $1 for a capture group, or a function");
-                field(0, "Name", "what the result is called; blank writes it straight out");
+                // One form for eight kinds, shaped by how many selects the kind takes
+                // (design/17 §5). Saving the wrong number builds a configuration that will not
+                // compile, so the form does not offer the wrong number: a kind that reads one
+                // thing gets one field, divide gets two, and only add's fold gets a list.
+                switch (SimpleTransforms.arity(kind)) {
+                    case ONE:
+                        field(0, "Select", "a name, $1 for a capture group, or a function");
+                        field(1, "Name", NAME_HELP);
+                        break;
+                    case TWO:
+                        field(0, "Left", "the left-hand input");
+                        field(1, "Right", "the right-hand input");
+                        field(2, "Name", NAME_HELP);
+                        break;
+                    default:
+                        v.setMultiVisible(true);
+                        v.setMultiLabel("Inputs, one per line: the operation folds over them "
+                                        + "in order");
+                        field(0, "Name", NAME_HELP);
+                        break;
+                }
                 break;
             case "element":
                 field(0, "Name", null);
@@ -443,17 +460,32 @@ public class InstructionEditController extends Controller {
         } else if (node instanceof ValueOf vo) {
             v.setField(0, Instructions.ref(vo.select()));
         } else if (SimpleTransforms.isSimple(node)) {
-            final StringBuilder lines = new StringBuilder();
-            for (final RefExpression select : SimpleTransforms.selectsOf(node)) {
-                if (lines.length() > 0) {
-                    lines.append('\n');
-                }
-                lines.append(Instructions.spell(select));
-            }
-            v.setMulti(lines.toString());
-            v.setField(0, SimpleTransforms.nameOf(node) == null
+            final List<RefExpression> reads = SimpleTransforms.selectsOf(node);
+            final String name = SimpleTransforms.nameOf(node) == null
                     ? ""
-                    : SimpleTransforms.nameOf(node));
+                    : SimpleTransforms.nameOf(node);
+            switch (SimpleTransforms.arity(Instructions.kind(node))) {
+                case ONE:
+                    v.setField(0, Instructions.spell(reads.get(0)));
+                    v.setField(1, name);
+                    break;
+                case TWO:
+                    v.setField(0, Instructions.spell(reads.get(0)));
+                    v.setField(1, Instructions.spell(reads.get(1)));
+                    v.setField(2, name);
+                    break;
+                default:
+                    final StringBuilder lines = new StringBuilder();
+                    for (final RefExpression select : reads) {
+                        if (lines.length() > 0) {
+                            lines.append('\n');
+                        }
+                        lines.append(Instructions.spell(select));
+                    }
+                    v.setMulti(lines.toString());
+                    v.setField(0, name);
+                    break;
+            }
         } else if (node instanceof Translate t) {
             v.setField(0, t.select().isEmpty()
                     ? ""
@@ -587,8 +619,20 @@ public class InstructionEditController extends Controller {
                 case "string-length":
                     // Blank is a real answer for the name: a transform without one writes its
                     // result straight out, which 42 of the corpus's 55 trims do.
-                    return SimpleTransforms.build(kind, selects(v.getMulti()),
-                            blankToNull(v.getField(0)));
+                    switch (SimpleTransforms.arity(kind)) {
+                        case ONE:
+                            return SimpleTransforms.build(kind,
+                                    List.of(ref(v.getField(0), kind + " needs something to read")),
+                                    blankToNull(v.getField(1)));
+                        case TWO:
+                            return SimpleTransforms.build(kind,
+                                    List.of(ref(v.getField(0), kind + " needs a left-hand input"),
+                                            ref(v.getField(1), kind + " needs a right-hand input")),
+                                    blankToNull(v.getField(2)));
+                        default:
+                            return SimpleTransforms.build(kind, selects(v.getMulti()),
+                                    blankToNull(v.getField(0)));
+                    }
                 case "translate": {
                     final List<String> from = new ArrayList<>();
                     final List<String> to = new ArrayList<>();
@@ -715,8 +759,12 @@ public class InstructionEditController extends Controller {
         return params;
     }
 
+    /// What the Name field says, for every kind that has one.
+    private static final String NAME_HELP =
+            "what the result is called; blank writes it straight out";
+
     /// The selects a transform reads, one a line, as the form shows them.
-    private static List<RefExpression> selects(final String text) {
+    public static List<RefExpression> selects(final String text) {
         final List<RefExpression> selects = new ArrayList<>();
         for (final String line : text.split("\r?\n", -1)) {
             if (!line.trim().isEmpty()) {

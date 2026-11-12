@@ -17,7 +17,6 @@
 package stroom.shapeshifter.client.model;
 
 import stroom.shapeshifter.client.component.InstructionEditController;
-import stroom.shapeshifter.client.model.SimpleTransforms;
 import stroom.shapeshifter.config.OutputNode;
 import stroom.shapeshifter.config.OutputNode.Holder;
 import stroom.shapeshifter.config.Project;
@@ -178,9 +177,24 @@ class WireFormCensusTest {
                         .isTrue();
                 final List<RefExpression> selects = SimpleTransforms.selectsOf(node);
                 final String name = SimpleTransforms.nameOf(node);
-                assertThat(SimpleTransforms.build(Instructions.kind(node), selects, name))
+                // Through the text the form holds, not straight back into build(): the spelling
+                // and the reading of it are the part that can go wrong, and feeding the model
+                // to itself would pass whatever they did.
+                final StringBuilder lines = new StringBuilder();
+                for (final RefExpression select : selects) {
+                    if (lines.length() > 0) {
+                        lines.append('\n');
+                    }
+                    lines.append(Instructions.spell(select));
+                }
+                assertThat(SimpleTransforms.build(Instructions.kind(node),
+                        InstructionEditController.selects(lines.toString()), name))
                         .as("%s in %s", Instructions.kind(node), config)
                         .isEqualTo(node);
+                assertThat(SimpleTransforms.arityHolds(node))
+                        .as("%s in %s takes %s selects", Instructions.kind(node), config,
+                                SimpleTransforms.arity(Instructions.kind(node)))
+                        .isTrue();
                 if (name == null) {
                     nameless++;
                 }
@@ -189,6 +203,33 @@ class WireFormCensusTest {
         }
         assertThat(checked).as("the corpus's one-shape transforms").isGreaterThan(50);
         assertThat(nameless).as("those that write their result straight out").isGreaterThan(30);
+    }
+
+    @Test
+    void aTransformTheFormWouldSaveWrongStaysOnTheWireForm() {
+        final List<RefExpression> one = List.of(ProjectJson.readRefOrName("a"));
+        final List<RefExpression> two = List.of(ProjectJson.readRefOrName("a"),
+                ProjectJson.readRefOrName("b"));
+        // The arities BodyCompiler enforces (design/17 §5): a trim reads one thing, a divide
+        // reads two, an add folds over one or more. A form that accepted the wrong number would
+        // write a configuration that fails to compile the next time it is read.
+        assertThat(SimpleTransforms.arity("trim")).isEqualTo(SimpleTransforms.Arity.ONE);
+        assertThat(SimpleTransforms.arity("divide")).isEqualTo(SimpleTransforms.Arity.TWO);
+        assertThat(SimpleTransforms.arity("add")).isEqualTo(SimpleTransforms.Arity.FOLD);
+        assertThat(InstructionEditController.spellable(
+                new OutputNode.Trim(two, "t"))).isFalse();
+        assertThat(InstructionEditController.spellable(
+                new OutputNode.Divide(one, "d"))).isFalse();
+        assertThat(InstructionEditController.spellable(
+                new OutputNode.Divide(two, "d"))).isTrue();
+        assertThat(InstructionEditController.spellable(
+                new OutputNode.Add(two, "a"))).isTrue();
+        // A name that is present but empty would come back as no name, turning a binding into a
+        // straight write — the inversion §8.1 refused for translate.
+        assertThat(InstructionEditController.spellable(
+                new OutputNode.Trim(one, ""))).isFalse();
+        assertThat(InstructionEditController.spellable(
+                new OutputNode.Trim(one, null))).isTrue();
     }
 
     @Test
@@ -283,6 +324,11 @@ class WireFormCensusTest {
 
     /** Every reference an instruction holds, in the order the form would show them. */
     private static List<RefExpression> refsOf(final OutputNode node) {
+        if (SimpleTransforms.isSimple(node)) {
+            // The eight the shared form offers: their selects are spellings the form shows, so
+            // they belong to the invariant this file exists for.
+            return SimpleTransforms.selectsOf(node);
+        }
         if (node instanceof final OutputNode.ValueOf value) {
             return refs(value.select());
         }

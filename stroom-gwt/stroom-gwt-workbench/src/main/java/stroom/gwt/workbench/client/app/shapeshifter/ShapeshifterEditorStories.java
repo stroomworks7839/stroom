@@ -826,6 +826,31 @@ public final class ShapeshifterEditorStories {
                     play.click(dialog.getByRole("button", StroomDom.button("Cancel")));
                     expectNoProblems(play);
                 })
+                // OK writes what the fields hold back into the project, which is the half a
+                // Cancel story never reaches (UI-GUIDE.md): the name is typed, kept, and read
+                // back when the card is opened again
+                .story("TransformDialogOk", ShapeshifterEditorStories::renderComposite)
+                .withPlay(play -> {
+                    selectTemplate(play, "branch");
+                    final Play screen = play.screen();
+                    play.waitFor(() -> play.expect(play.getByText("trim", CARD_KIND))
+                            .toBeInTheDocument());
+                    play.click(play.getByText("trim", CARD_KIND));
+                    final Play naming = dialogMatching(play, screen, "trim");
+                    play.waitFor(() -> play.expect(naming.getByLabelText("Name")).toBeVisible());
+                    play.type(naming.getByLabelText("Name"), "tidied");
+                    play.click(naming.getByRole("button", StroomDom.button("OK")));
+                    play.waitFor(() -> play.expect(screen.queryByText(
+                            TextMatch.regex("trim", "i"), StroomDom.DIALOG_TITLE)).toBeNull());
+                    // Opened again, the form holds what was saved — and the select with it
+                    play.click(play.getByText("trim", CARD_KIND));
+                    final Play again = dialogMatching(play, screen, "trim");
+                    play.waitFor(() -> play.expect(again.getByLabelText("Name"))
+                            .toHaveValue("tidied"));
+                    play.expect(again.getByLabelText("Select")).toHaveValue("escaped");
+                    play.click(again.getByRole("button", StroomDom.button("Cancel")));
+                    expectNoProblems(play);
+                })
                 // Cancel leaves the condition as it was
                 .story("ConditionDialogCancel", ShapeshifterEditorStories::renderComposite)
                 .withPlay(play -> {

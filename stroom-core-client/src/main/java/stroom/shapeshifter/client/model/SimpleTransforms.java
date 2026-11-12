@@ -138,12 +138,47 @@ public final class SimpleTransforms {
         }
     }
 
-    /// The kinds that fold over their inputs rather than reading one (design/17 §5), which is
-    /// what the form's label for the selects turns on.
+    /// How many selects a kind takes (design/17 §5, and the arities `BodyCompiler` enforces).
+    /// The form is shaped by this: a kind that reads one thing gets a field, a kind that reads
+    /// two gets two, and only a fold gets a list. Saving the wrong number is a configuration
+    /// that will not compile, so the form cannot offer it.
     ///
     /// @param kind The kind.
-    /// @return True where several inputs are folded.
-    public static boolean folds(final String kind) {
-        return "add".equals(kind) || "divide".equals(kind);
+    /// @return Its arity.
+    public static Arity arity(final String kind) {
+        switch (kind) {
+            case "add":
+                return Arity.FOLD;
+            case "divide":
+                return Arity.TWO;
+            default:
+                return Arity.ONE;
+        }
+    }
+
+    /// Whether a node holds as many selects as its kind takes.
+    ///
+    /// @param node One of the eight.
+    /// @return True where the engine would accept it.
+    public static boolean arityHolds(final OutputNode node) {
+        final int selects = selectsOf(node).size();
+        switch (arity(Instructions.kind(node))) {
+            case ONE:
+                return selects == 1;
+            case TWO:
+                return selects == 2;
+            default:
+                return selects >= 1;
+        }
+    }
+
+    /// How many selects a transform reads.
+    public enum Arity {
+        /// Exactly one, as `trim` and `round` do.
+        ONE,
+        /// Exactly two, `a op b`, as `divide` does.
+        TWO,
+        /// One or more, folded in order, as `add` does.
+        FOLD
     }
 }
