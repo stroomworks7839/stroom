@@ -10,7 +10,7 @@
         <g:FlowPanel styleName="workbench-form__right">
             <g:FlowPanel styleName="workbench-form__section">
                 <t:Label styleName="workbench-form__heading" text="Pattern"/>
-                <form:TextArea ui:field="pattern" styleName="workbench-form__pattern" visibleLines="2"/>
+                <form:TextArea ui:field="pattern" ariaLabel="Pattern" styleName="workbench-form__pattern" visibleLines="2"/>
                 <t:Html ui:field="patternMap" styleName="regex__pattern-map"
                         title="The pattern, group spans coloured — click a group to isolate it"/>
                 <t:Label ui:field="error" styleName="workbench-form__error"/>

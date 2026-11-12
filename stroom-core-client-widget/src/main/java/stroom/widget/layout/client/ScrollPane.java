@@ -137,7 +137,32 @@ public class ScrollPane extends ScrollPanel {
         }
     }
 
+    // Whether anything inside can actually be tabbed to. A pane whose content is hidden or
+    // disabled - a row the screen has turned off, a form a lock has disabled - still holds those
+    // elements, and counting them would leave the pane unreachable from the keyboard with nothing
+    // in it to tab to.
     private static native boolean holdsFocusable(final Element element, final String selector) /*-{
-        return element.querySelector(selector) !== null;
+        var candidates = element.querySelectorAll(selector);
+        for (var i = 0; i < candidates.length; i++) {
+            var candidate = candidates[i];
+            if (candidate.disabled) {
+                continue;
+            }
+            // Any negative tab index takes it out of the tab order, not just -1: a form group's
+            // help button uses -2, because FocusWidget.onAttach turns a -1 back into 0
+            if (candidate.tabIndex < 0) {
+                continue;
+            }
+            // No box at all: it or an ancestor is display: none, so it is not in the tab order
+            if (candidate.getClientRects().length === 0) {
+                continue;
+            }
+            var view = candidate.ownerDocument.defaultView;
+            if (view && view.getComputedStyle(candidate).visibility === "hidden") {
+                continue;
+            }
+            return true;
+        }
+        return false;
     }-*/;
 }

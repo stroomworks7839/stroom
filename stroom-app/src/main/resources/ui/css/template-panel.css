@@ -31,6 +31,13 @@
     padding-top: 6px;
 }
 
+/* A section that is a destination is a row too, so it can be the selected one. This sheet loads
+   after template-row.css and would otherwise keep the muted heading colour over the selection
+   band, which is too dark for it. Written as both classes, as the strip's title is. */
+.template-panel__section.template-row--selected {
+    color: var(--text-color--selected);
+}
+
 .template-panel__section--link {
     cursor: pointer;
     /* A row, so it has a hover and a selection band: give them something to fill. */

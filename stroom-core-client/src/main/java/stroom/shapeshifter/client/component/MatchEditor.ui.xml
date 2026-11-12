@@ -8,7 +8,7 @@
     <g:FlowPanel styleName="max dock-container-vertical">
         <g:FlowPanel ui:field="kindRow" styleName="dock-min match-editor__kind">
             <t:Label styleName="edit-form__limit-label" text="Match kind"/>
-            <l:SelectionBox ui:field="kind" addStyleNames="match-editor__select" title="How this template finds its matches. Regex, pattern tree and the framed sequence carry their pattern between them; the rest start blank and keep what they held for the session"/>
+            <l:SelectionBox ui:field="kind" ariaLabel="Match kind" addStyleNames="match-editor__select" title="How this template finds its matches. Regex, pattern tree and the framed sequence carry their pattern between them; the rest start blank and keep what they held for the session"/>
             <t:Label ui:field="note" styleName="edit-form__description"/>
         </g:FlowPanel>
         <g:SimplePanel ui:field="body" styleName="dock-max"/>

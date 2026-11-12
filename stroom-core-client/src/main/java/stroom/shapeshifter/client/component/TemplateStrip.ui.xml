@@ -19,7 +19,10 @@
             <t:Label ui:field="mode" styleName="template-strip__mode"/>
             <t:Label ui:field="note" styleName="template-strip__note"/>
         </g:FlowPanel>
-        <split:ScrollPane addStyleNames="max">
+        <!-- Named and marked as a region: with the document shown the match, role and guard rows
+             are hidden, so nothing in here takes the focus and the pane makes itself the tab stop
+             that scrolling it with the keys needs. -->
+        <split:ScrollPane addStyleNames="max scroll-region" role="region" ariaLabel="Template">
             <g:FlowPanel styleName="template-strip__body">
                 <g:FlowPanel ui:field="matchLine" styleName="template-strip__line">
                     <t:Label styleName="key-label" text="match"/>
@@ -36,7 +39,7 @@
                      is found either way, and skipping decides what becomes of it (design 44 §5d). -->
                 <g:FlowPanel ui:field="roleLine" styleName="template-strip__line">
                     <t:Label styleName="key-label" text="match is"/>
-                    <l:SelectionBox ui:field="role" addStyleNames="template-strip__role"
+                    <l:SelectionBox ui:field="role" ariaLabel="What the match is for" addStyleNames="template-strip__role"
                                     title="What this match is for. Both roles advance the cursor and run the body; only a record counts, captures and opens a frame to step."/>
                     <t:Label ui:field="roleNote" styleName="edit-form__description template-strip__role-note"/>
                 </g:FlowPanel>
