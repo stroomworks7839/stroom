@@ -20,6 +20,9 @@ import stroom.docref.DocRef;
 import stroom.document.client.editor.DocumentEditorHost;
 import stroom.document.client.event.OpenDocumentEvent;
 import stroom.gwt.workbench.client.app.gin.AppScreenGinjector;
+import stroom.gwt.workbench.client.app.rest.JsonValues;
+import stroom.gwt.workbench.client.app.rest.RecordedRequest;
+import stroom.gwt.workbench.client.app.rest.RequestMatcher;
 import stroom.gwt.workbench.client.app.rest.RestFixtures;
 import stroom.gwt.workbench.client.app.rest.RestReply;
 import stroom.gwt.workbench.client.app.screen.ScreenHarness;
@@ -28,6 +31,7 @@ import stroom.gwt.workbench.client.widgets.tree.ExplorerFixture;
 import stroom.gwt.workbench.client.widgets.tree.TreeFixtures;
 import stroom.gwt.workbench.framework.client.play.Play;
 import stroom.gwt.workbench.framework.client.play.Query;
+import stroom.gwt.workbench.framework.client.play.Spy;
 import stroom.gwt.workbench.framework.client.play.TextMatch;
 import stroom.gwt.workbench.framework.client.story.StoryContext;
 import stroom.gwt.workbench.framework.client.story.StoryLayout;
@@ -38,6 +42,8 @@ import stroom.shapeshifter.shared.ShapeshifterResource;
 
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.user.client.ui.Widget;
+
+import java.util.List;
 
 /// The `App/Shapeshifter/ShapeshifterEditor` stories, showing Stroom's real `ShapeshifterEditor`
 /// (a Shapeshifter document's editor: Design, Source, Documentation and Permissions, with Save,
@@ -83,7 +89,10 @@ public final class ShapeshifterEditorStories {
     // template that wraps the records, a pair template that matches key=value, and a junk_line
     // template that warns about anything else. Three templates, so the panel has rows to show
     // and the breadcrumb has somewhere to go.
-    private static final String PROJECT = """
+    // Package-private, not private, so TestShapeshifterStoryFixture can hold it against the
+    // engine's own copy: it is a text block, so the test inlines it at compile time and never
+    // loads this class (design 46 §3.5).
+    static final String PROJECT = """
             {
              "name": "strict_kv",
              "version": 4,
@@ -252,6 +261,42 @@ public final class ShapeshifterEditorStories {
               "pageResponse": {"offset": 0, "length": 1, "total": 1, "exact": true}
             }""";
 
+    // Design 46's rung 1 walkthrough starts from a document the author has just created, so the
+    // fixture is a document with no project in it at all. ShapeshifterEditor.parse() reads blank
+    // text as ProjectText.empty(), which is Templates.ensureDocument of a nameless project — so
+    // what arrives on screen is one template named "document", matching the source, with an
+    // apply-templates that selects nothing (design 44 §5m). The author extends that; they do not
+    // make it, which is the correction design 46 §5.3 records.
+    private static final DocRef BLANK_REF =
+            new DocRef(ShapeshifterDoc.TYPE, "ss-blank", "New Project");
+
+    private static final String BLANK_DOC = "{\n"
+                                            + "  \"type\": \"" + ShapeshifterDoc.TYPE + "\","
+                                            + " \"uuid\": \"ss-blank\", \"name\": \"New Project\",\n"
+                                            + "  \"description\": null,\n"
+                                            + "  \"data\": \"\",\n"
+                                            + "  \"sampleText\": null,\n"
+                                            + "  \"sampleKind\": \"PASTED\"\n"
+                                            + "}";
+
+    // What the editor should have built once the walkthrough has run: design 46 §5's rung 1, to
+    // the point the steps below reach. Compared with JsonValues.jsonEquals, so the comparison is
+    // over parsed JSON rather than text — §3.1's traps are all textual, and the editor is free to
+    // write an explicit default or a different key order without failing this.
+    private static final String AUTHORED_SO_FAR = """
+            {
+             "name": "New Project",
+             "version": 5,
+             "source": {"buffer_size": 20000, "ignore_errors": false, "encoding": "utf-8"},
+             "templates": [
+              {"id": "-", "name": "document", "match": "source",
+               "match_limits": {"min_match": 0, "max_match": -1},
+               "body": [
+                {"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
+                                     "max_depth": 64}}]}
+             ]
+            }""";
+
     private static final RestFixtures FIXTURES = TreeFixtures.explorerRoutes(
                     new ExplorerFixture(ExplorerFixture.folder("System",
                             ExplorerFixture.doc("Key Value Lines", ShapeshifterDoc.TYPE))))
@@ -277,6 +322,23 @@ public final class ShapeshifterEditorStories {
             .get("/shapeshifter/v1/library", RestReply.json(LIBRARY))
             .get("/shapeshifter/v1/encodings", RestReply.json(ENCODINGS))
             .post("/permission/doc/v1/fetchDocumentUserPermissions", RestReply.json(DOC_PERMISSIONS))
+            .build();
+
+    // The same routes as FIXTURES, over a document with no project in it. There is no PUT route:
+    // Save cannot be driven from a story (the AuthorRungOne story says why), so a route for it
+    // would be a fixture nothing ever reaches.
+    private static final RestFixtures BLANK_FIXTURES = TreeFixtures.explorerRoutes(
+                    new ExplorerFixture(ExplorerFixture.folder("System",
+                            ExplorerFixture.doc("New Project", ShapeshifterDoc.TYPE))))
+            .get("/shapeshifter/v1/ss-blank", RestReply.json(BLANK_DOC))
+            .post("/shapeshifter/v1/validate", RestReply.json(VALIDATION))
+            .post("/shapeshifter/v1/preview", RestReply.json(TRACE))
+            .post("/shapeshifter/v1/print", RestReply.json(PRINTED))
+            .post("/shapeshifter/v1/patternInfo", RestReply.json(PATTERN_INFO))
+            .get("/shapeshifter/v1/library", RestReply.json(LIBRARY))
+            .get("/shapeshifter/v1/encodings", RestReply.json(ENCODINGS))
+            .post("/permission/doc/v1/fetchDocumentUserPermissions", RestReply.json(DOC_PERMISSIONS))
+            .post("/meta/v1/find", RestReply.json(META_ROWS))
             .build();
 
     private ShapeshifterEditorStories() {
@@ -773,11 +835,68 @@ public final class ShapeshifterEditorStories {
                     play.expect(play.querySelector(ACE_INPUT)).toHaveAttribute("aria-readonly", "true");
                     play.expect(play.getByLabelText("Sample data from")).toBeDisabled();
                     expectNoProblems(play);
+                })
+
+                // Design 46 rung 1: a document created a moment ago, authored towards the
+                // strict_kv fixture, saved, and the saved project compared with what it should
+                // be. The keystone of design 46 §3 — a story's preview and validate replies are
+                // canned, so what a story can prove is that the UI *can build* a configuration,
+                // never that the configuration runs. The save request's body is the only thing
+                // on screen that came from the editor rather than from a fixture.
+                .story("AuthorRungOne", ShapeshifterEditorStories::renderBlank)
+                .withPlay(play -> {
+                    // §5.1 step 1, and §5.3's correction: the root template is already there,
+                    // named "document" in the panel whatever the template itself is called
+                    play.waitFor(() -> play.expect(play.getByText("document", TEMPLATE_NAME))
+                            .toBeInTheDocument());
+                    // Nothing has been edited, so there is nothing to save
+                    play.expect(play.getByRole("button", "Save"))
+                            .toHaveAttribute("aria-disabled", "true");
+
+                    // §5.1 steps 2 and 3: the project's settings, and the encoding
+                    play.click(play.getByText("Settings", TEMPLATE_NAME));
+                    play.waitFor(() -> play.expect(play.getByText("Source — the document"))
+                            .toBeVisible());
+                    // A Stroom SelectionBox, not a native select: click the box, then the item in
+                    // the popup it opens. The popup is a GWT PopupPanel on the document body, so
+                    // it is reached through play.screen() rather than the story's own root.
+                    play.click(play.getByLabelText("Encoding"));
+                    final Play screen = play.screen();
+                    play.click(screen.findByText("utf-8"));
+
+                    // That is an edit, so Save has work to do
+                    play.waitFor(() -> play.expect(play.getByRole("button", "Save"))
+                            .not().toHaveAttribute("aria-disabled", "true"));
+                    play.click(play.getByRole("button", "Save"));
+
+                    // The keystone: what the editor sent, compared with what the walkthrough says
+                    // it should have built. Both sides go through the same parse and print, so
+                    // the comparison is over the JSON rather than its formatting, and a failure
+                    // prints both projects rather than just "false".
+                    // The keystone (design 46 §3), read from validate rather than from the save.
+                    // Clicking Save sends nothing here: the harness mounts the editor host
+                    // directly, without the document plugin that performs a save, and no
+                    // document-editor story in the workbench asserts one. The editor knowing it
+                    // has something to save is what the step above proves; what it would save is
+                    // what validate carries, which is the project itself rather than the document
+                    // wrapping it.
+                    final Spy requests = play.spy(ScreenHarness.REQUEST_SPY);
+                    play.waitFor(() -> play.expect(requests).toHaveBeenCalledWith(
+                            RequestMatcher.post(VALIDATE_PATH).toSpyMatcher()));
+                    play.expect("the project the editor built",
+                                    () -> canonical(projectSent(requests)))
+                            .toEqual(canonical(AUTHORED_SO_FAR));
+                    expectNoProblems(play);
                 });
     }
 
     // Stroom's Ace editor's text area
     private static final String ACE_INPUT = ".ace_text-input";
+
+    // ShapeshifterResource.validate(): sent on every edit, carrying the project the editor is
+    // holding. This, not the save, is where a story can read what the UI built — see the
+    // AuthorRungOne story for why.
+    private static final String VALIDATE_PATH = "/shapeshifter/v1/validate";
 
     // Ace marks a read-only editor on its root
     private static final String ACE_READ_ONLY = ".ace_editor.ace_read-only";
@@ -872,6 +991,42 @@ public final class ShapeshifterEditorStories {
 
     private static Widget render(final StoryContext context, final boolean readOnly) {
         return render(context, readOnly, FIXTURES, DOC_REF);
+    }
+
+    /// The editor over a document with no project in it, as a new one arrives (design 46 §5.1).
+    private static Widget renderBlank(final StoryContext context) {
+        return render(context, false, BLANK_FIXTURES, BLANK_REF);
+    }
+
+    // The project the editor last sent for validation, which is the project it is holding.
+    // Template ids are generated, so they are taken out of the comparison rather than pinned —
+    // an id is the one part of a configuration no author chooses.
+    private static String projectSent(final Spy requests) {
+        final List<List<Object>> calls = requests.getCalls();
+        for (int i = calls.size() - 1; i >= 0; i--) {
+            final RecordedRequest request = RecordedRequest.parse(
+                    String.valueOf(calls.get(i).get(0)));
+            if ("POST".equals(request.getMethod()) && VALIDATE_PATH.equals(request.getPath())) {
+                return withoutIds(request.getBody());
+            }
+        }
+        return null;
+    }
+
+    // A project JSON printed from its parsed form, so two spellings of the same project are one
+    // string. JsonValues.jsonEquals would answer the same question with a less useful failure.
+    private static String canonical(final String projectJson) {
+        return projectJson == null
+                ? null
+                : JsonValues.toJson(JsonValues.parse(projectJson));
+    }
+
+    // Every template id replaced by a dash, so two projects differing only in generated ids
+    // compare equal.
+    private static String withoutIds(final String projectJson) {
+        return projectJson == null
+                ? null
+                : projectJson.replaceAll("\"id\"\\s*:\\s*\"[^\"]*\"", "\"id\": \"-\"");
     }
 
     /// The same screen over the composite fixture, whose templates reach the framed sequence, the

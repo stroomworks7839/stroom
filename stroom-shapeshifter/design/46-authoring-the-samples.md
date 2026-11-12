@@ -268,21 +268,47 @@ corpus. Removing it means one fixed base, arithmetic on every explicit start, an
 deleted. The goldens would gate it, but the decision is the owner's, because it changes the
 language rather than how it is spelt.
 
-### 3.5 Where the comparison runs — open
+### 3.5 Where the comparison runs — settled 2026-11-12
 
-The story runs in the browser; the fixture is a test resource on disk. Three ways, and I have
-not picked one:
+Three ways were open; the first was taken, and building it turned up a reason the others would
+not have worked either.
 
-- **Embed the fixture JSON as a story constant** (the stories already hold large JSON
-  constants) and add a small JVM test asserting the constant still equals the file. Cheapest,
-  and the drift is caught by the test rather than trusted not to happen.
-- **Serve the fixture through the story's REST stub** on a path of its own, so the story fetches
-  it. No duplication, slightly more machinery.
-- **Assert on the captured body in a JVM test** driven from the Gradle task. Keeps parsing out
-  of the browser entirely, but crosses a boundary the harness does not currently cross.
+**The fixture is embedded as a story constant.** It already was: `ShapeshifterEditorStories`
+holds `strict_kv` as `PROJECT`, because a story runs in a browser and cannot read another
+module's test resource. So the choice was really *where the drift guard lives*, and the answer
+was not where it looked.
 
-Recommendation: the first, because it is the only one that costs nothing to try and its one
-weakness is closed by a five-line test.
+**The guard cannot live beside the stories.** The workbench module has a JUnit source set, and
+`stroom-shapeshifter-config` is on its classpath, so a test there could compare the constant
+with the fixture directly and type-safely. It would also never run: the module disables its own
+test task —
+
+```groovy
+// The workbench's JUnit tests are for developing the workbench, not Stroom, so the build doesn't run
+// them. Run them on purpose with -PworkbenchUnitTests
+tasks.named('test') { enabled = project.hasProperty('workbenchUnitTests') }
+```
+
+I wrote that test, ran it, and got `test SKIPPED`. A guard that does not run is not a guard, so
+it was deleted and rewritten on the other side of the boundary.
+
+**The guard is `TestStoryFixtureCopy`, in the engine module**, which owns the fixture and whose
+tests run on every build. It is a tripwire rather than a second comparison: it hashes the
+fixture's **parsed and re-printed model**, so reformatting or reordering keys does not trip it
+and a change of substance does, and on tripping it prints the configuration to carry across to
+the constant. Verified by perturbing one field — `buffer_size` 20000 to 30000 — which failed it,
+and restoring it, which passed.
+
+What it cannot catch is an edit to the stories' constant alone; the modules cannot see each
+other, so each side guards what it owns, and the stories' own assertions are what hold their
+copy honest. That asymmetry is written into the test's javadoc rather than left for someone to
+discover.
+
+**The comparison itself needed nothing new.** `JsonValues` already has `parse`, `toJson` and
+`jsonEquals`, so the story compares the saved project with the expected one after both have been
+through the same parse and print — semantic, as §3.1 requires, and with a readable diff on
+failure. Template ids are generated, so they are replaced by a dash on both sides: an id is the
+one part of a configuration no author chooses.
 
 ## 4. The ladder
 
@@ -449,7 +475,59 @@ that *which* order rule applies is chosen elsewhere — see §6.1.
 
 | # | The author does | What should happen | Status |
 |---|---|---|---|
-| 27 | Saves | The save request's body parses to the same model as `strict_kv/project.json` | the keystone assertion, §3 |
+| 27 | Saves | `Save` is enabled, and the project the editor is holding is the same model as `strict_kv/project.json` | the keystone assertion, §3 — **but not read from the save**, see §5.9 |
+
+### 5.9 What the browser said — run 2026-11-12
+
+The first six steps are now driven by a kept story, `AuthorRungOne`, and the keystone works. Five
+runs were needed to get there, at about two and a quarter minutes each, and what the five
+failures were is the useful part: **three of them were my ignorance of the harness, not findings
+about the editor.**
+
+**Verified, rather than read from the source:**
+
+- A document with no project in it arrives with the `document` row in the panel. §5.3's rewrite
+  is now observed, not inferred.
+- `Save` is disabled on load and enabled by one edit, so the editor does know when it has
+  something to save.
+- The blank `Select` on the pre-made `apply-templates` really does reach the server as
+  `{"capture": {"group": 0}}`. §3.1's withdrawn fourth trap is now withdrawn on evidence.
+
+**Three harness lessons, which the remaining rungs will need:**
+
+1. A Stroom `SelectionBox` is not a native `<select>`, so `play.selectOptions` fails with *Value
+   "utf-8" not found in options*. Click the box, then the item.
+2. The list it opens is a GWT `PopupPanel` on the document body, outside the story's root, so it
+   is reached through `play.screen()` — which the framework documents for exactly this, *"popups,
+   menus and dialogs, which GWT attaches to the body rather than the story's root element"*.
+3. **The save cannot be driven at all.** Clicking `Save` sends no request: the harness mounts the
+   editor host directly, without the document plugin that performs a save, and no document-editor
+   story anywhere in the workbench asserts one — the PUTs that are asserted all belong to dialogs
+   that save themselves.
+
+**So the keystone reads the validate request instead**, which the editor sends on every edit and
+which carries the project itself rather than the document wrapping it. That is closer to what §3
+wanted than the save was: fewer layers between the author's actions and the thing compared. §3's
+wording — *"capture the POST body"* — stands; which POST it is has changed.
+
+The project the story compares, taken from a failing run before the comparison was wired to it:
+
+```json
+{"name": "New Project", "version": 5,
+ "source": {"buffer_size": 20000, "ignore_errors": false, "encoding": "utf-8"},
+ "templates": [{"id": "6036f248-…", "name": "document", "match": "source",
+   "match_limits": {"min_match": 0, "max_match": -1},
+   "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
+                                 "max_depth": 64}}]}]}
+```
+
+Generated ids are replaced by a dash on both sides of the comparison: an id is the one part of a
+configuration no author chooses.
+
+**What is not yet driven: steps 6 to 26** — the templates, the mode, the regex workbench and the
+body cards. The story proves the method, not yet the walkthrough. The cost signal the ruling
+asked for is above: six steps took five runs, and the three harness lessons are now paid for
+once rather than per rung, so the next steps should be cheaper than the first six were.
 
 ## 6. Rungs 2 to 6, step by step
 
@@ -712,11 +790,12 @@ the forms are written, is unaffected by any of this.
    editing them: design 11 §10.3 took the version out of the dispatch default, so `library_parts`,
    `text_019_single_line_split` and `progressive_len_records` say nothing and are therefore strict.
    The two without a root template were re-baselined for a different reason (§6.3).
-3. **Automate rung 1 only** — ruled 2026-11-12 — as a proof of the §3 keystone: drive the UI,
-   capture the save POST, compare models with the fixture. Then decide the rest from what it
-   costs in story lines and run time rather than from a guess. The harness is known good on this
-   box: `App/Shapeshifter/ShapeshifterEditor` runs 29 stories in ~2 minutes, axe-core and the
-   browser self-test included, and `strict_kv` is already that title's own fixture.
+3. **Automate rung 1 only** — ruled 2026-11-12, and **begun the same day**: `AuthorRungOne`
+   drives the first six steps and asserts the keystone, the title now runs 30 stories green, and
+   §5.9 records what the browser said and what it cost. What remains is steps 6 to 26 — the
+   templates, the mode, the regex workbench and the body cards — and the decision the ruling
+   reserved: whether that is worth driving, now that the method is proven and the three harness
+   lessons are paid for.
 4. Walk the remaining five against the running workbench as their stories are written, settling
    what only the browser can say: what the UI says about a mode with no dispatch site (§5.4),
    whether a pattern part can be lifted out of a pattern already written (§6.3), and whether the
