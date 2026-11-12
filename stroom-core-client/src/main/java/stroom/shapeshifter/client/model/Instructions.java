@@ -85,9 +85,14 @@ public final class Instructions {
             "text", "value-of", "element", "attribute", "namespace", "emit-error",
             "apply-templates", "call-template",
             "if", "choose", "switch", "variable", "for-each", "for-each-group",
-            "append", "insert", "put", "remove", "clear");
+            "append", "insert", "put", "remove", "clear",
+            // The one transform with a form of its own, and the reason is the corpus: 504 of the
+            // 690 transforms in it are a translate, and every one was edited as its wire form
+            // (design 46 §8).
+            "translate");
 
-    /// The transforms: edited as their wire form, listed for the add menu.
+    /// The transforms: edited as their wire form unless they are also in [#FORM_KINDS], and
+    /// listed for the add menu.
     public static final List<String> TRANSFORM_KINDS = List.of(
             "call", "translate", "string-join", "replace", "lower-case", "upper-case", "normalize-space", "trim",
             "substring", "tokenize", "number", "add", "subtract", "multiply", "divide", "mod", "round", "floor",

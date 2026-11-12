@@ -54,10 +54,17 @@ class WireFormCensusTest {
             "..", "stroom-shapeshifter", "stroom-shapeshifter-engine", "src", "test", "resources", "fixtures");
 
     /**
-     * Zero, and it stays there: every construct the fixtures hold is modelled. The wire form
-     * remains for what no fixture writes, and this says when something has slipped back.
+     * What still opens as JSON. It was 0 while 504 translates opened as the wire form, because
+     * this counted only whether the form could <i>spell</i> an instruction's references and
+     * never whether the form offers that kind at all: a transform is not in
+     * {@link Instructions#FORM_KINDS}, so `InstructionEditController` shows it as its wire form
+     * whatever its references say. Corrected 2026-11-12 to ask both questions, which is what the
+     * method's name always claimed.
+     *
+     * <p>It may go down and not up, so the remaining transforms are a count rather than an
+     * impression: this is design 18 Q20's work, measured.
      */
-    private static final int WIRE_FORM_CEILING = 0;
+    private static final int WIRE_FORM_CEILING = 84;
 
     @Test
     void everyInstructionOpensAsAFormRatherThanAsJson() throws IOException {
@@ -78,7 +85,10 @@ class WireFormCensusTest {
         final Map<String, Integer> whyByShape = new TreeMap<>();
         int spellable = 0;
         for (final OutputNode node : all) {
-            if (InstructionEditController.spellable(node)) {
+            // Both halves of "opens as a form": the kind has one, and the form can spell what
+            // the node holds.
+            if (Instructions.FORM_KINDS.contains(Instructions.kind(node))
+                && InstructionEditController.spellable(node)) {
                 spellable++;
             } else {
                 wireByKind.merge(Instructions.kind(node), 1, Integer::sum);
@@ -101,9 +111,44 @@ class WireFormCensusTest {
 
         assertThat(all).as("the fixtures should have been read").isNotEmpty();
         assertThat(wire)
-                .as("instructions falling to the wire form; every construct the fixtures hold "
-                    + "is modelled, so this is zero and a rise is a construct that has slipped")
+                .as("instructions that open as the wire form rather than a form. A rise is a "
+                    + "construct that has slipped; a fall is a form someone has written, and the "
+                    + "ceiling comes down with it")
                 .isLessThanOrEqualTo(WIRE_FORM_CEILING);
+    }
+
+    @Test
+    void aTranslateRoundTripsThroughItsForm() throws IOException {
+        // The one transform with a form (design 46 §8). Its replacements are two parallel lists
+        // shown as one line each, and the corpus's own values include a tab, a newline and a
+        // return — which a text area cannot hold, so they are spelt. If that spelling does not
+        // come back exactly, pressing OK rewrites 504 of the corpus's instructions.
+        int checked = 0;
+        for (final Path config : configs()) {
+            final Project project = read(config);
+            if (project == null) {
+                continue;
+            }
+            final List<OutputNode> all = new ArrayList<>();
+            for (final Template template : project.templates()) {
+                collect(template.body(), all);
+            }
+            for (final OutputNode node : all) {
+                if (node instanceof OutputNode.Translate translate) {
+                    assertThat(InstructionEditController.spellable(translate))
+                            .as("%s in %s should open as a form", translate.name(), config)
+                            .isTrue();
+                    assertThat(InstructionEditController.readReplacements(
+                            InstructionEditController.replacements(translate)))
+                            .as("the replacements of %s in %s", translate.name(), config)
+                            .isEqualTo(List.of(translate.from(), translate.to()));
+                    checked++;
+                }
+            }
+        }
+        // 276 over this test's own scope, which is narrower than the whole fixture tree: enough
+        // that a translate going unchecked would show here rather than passing vacuously.
+        assertThat(checked).as("the corpus's translates").isGreaterThan(250);
     }
 
     @Test

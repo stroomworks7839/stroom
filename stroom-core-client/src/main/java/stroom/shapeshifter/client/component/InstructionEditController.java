@@ -17,6 +17,7 @@
 package stroom.shapeshifter.client.component;
 
 import stroom.alert.client.event.AlertEvent;
+import stroom.shapeshifter.client.model.ControlEscapes;
 import stroom.shapeshifter.client.model.GuardClause;
 import stroom.shapeshifter.client.model.Instructions;
 import stroom.shapeshifter.client.model.SortKey;
@@ -46,6 +47,7 @@ import stroom.shapeshifter.config.OutputNode.Sort;
 import stroom.shapeshifter.config.OutputNode.Switch;
 import stroom.shapeshifter.config.OutputNode.SwitchCase;
 import stroom.shapeshifter.config.OutputNode.Text;
+import stroom.shapeshifter.config.OutputNode.Translate;
 import stroom.shapeshifter.config.OutputNode.ValueOf;
 import stroom.shapeshifter.config.OutputNode.Variable;
 import stroom.shapeshifter.config.RefExpression;
@@ -191,6 +193,16 @@ public class InstructionEditController extends Controller {
         return ref == null || Instructions.spell(ref) != null;
     }
 
+    /// Whether no value holds the `=` the replacement lines are split on.
+    private static boolean noSeparator(final List<String> values) {
+        for (final String value : values) {
+            if (value.indexOf('=') >= 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     /// Whether every sort key's expression has a field spelling; a for-each need not sort.
     private static boolean spellableKeys(final List<Sort> sort) {
         for (final Sort key : sort) {
@@ -212,6 +224,14 @@ public class InstructionEditController extends Controller {
                    && spellableParams(a.directive().withParam());
         } else if (node instanceof CallTemplate c) {
             return spellableParams(c.withParam());
+        } else if (node instanceof Translate t) {
+            // One select, spellable, and no replacement carrying the separator the form splits
+            // on. The corpus has none — 504 translates and not one '=' in a from or a to — but a
+            // configuration that did would be silently cut in half by the form.
+            return t.select().size() == 1
+                   && Instructions.spell(t.select().get(0)) != null
+                   && noSeparator(t.from())
+                   && noSeparator(t.to());
         } else if (node instanceof Switch s) {
             return Instructions.spell(s.select()) != null;
         } else if (node instanceof ForEach f) {
@@ -270,6 +290,15 @@ public class InstructionEditController extends Controller {
                                    + "or get(m, \"k\"), which may wear or \"-\" for a default or "
                                    + "as number for a cast; [i] or [matchCount()] after a name "
                                    + "says which match; several one after another are joined");
+                break;
+            case "translate":
+                field(0, "Select", "what is translated: a name, $1 for a capture group, or a "
+                                   + "function");
+                field(1, "Name", "the name the result is bound to");
+                v.setMultiVisible(true);
+                v.setMultiLabel("Replacements, one per line: from = to. Whole substrings, not "
+                                + "characters, applied in order; nothing after the = deletes the "
+                                + "substring. Write a tab, newline or return as \\t, \\n, \\r");
                 break;
             case "element":
                 field(0, "Name", null);
@@ -380,6 +409,14 @@ public class InstructionEditController extends Controller {
             v.setMulti(t.value());
         } else if (node instanceof ValueOf vo) {
             v.setField(0, Instructions.ref(vo.select()));
+        } else if (node instanceof Translate t) {
+            v.setField(0, t.select().isEmpty()
+                    ? ""
+                    : Instructions.ref(t.select().get(0)));
+            v.setField(1, t.name() == null
+                    ? ""
+                    : t.name());
+            v.setMulti(replacements(t));
         } else if (node instanceof Element e) {
             v.setField(0, e.name());
             v.setField(1, e.namespace() == null
@@ -495,6 +532,14 @@ public class InstructionEditController extends Controller {
                     return new Text(v.getMulti());
                 case "value-of":
                     return new ValueOf(ref(v.getField(0), "value-of needs a select"));
+                case "translate": {
+                    final List<String> from = new ArrayList<>();
+                    final List<String> to = new ArrayList<>();
+                    readReplacements(v.getMulti(), from, to);
+                    return new Translate(
+                            List.of(ref(v.getField(0), "A translate needs a select")),
+                            from, to, required(v.getField(1), "A translate needs a name"));
+                }
                 case "element":
                     return new Element(required(v.getField(0), "An element needs a name"),
                             blankToNull(v.getField(1)), v.getFlag(0), body(0));
@@ -614,6 +659,52 @@ public class InstructionEditController extends Controller {
     }
 
     /// A reference, or null for blank — where the model has its own answer for an omission.
+    /// The replacements as the form shows them: one `from = to` a line, control characters
+    /// spelt as `\t`, `\n` and `\r` because a text area cannot hold them (ControlEscapes, the
+    /// delimiter form's own answer to this).
+    public static String replacements(final Translate translate) {
+        final StringBuilder out = new StringBuilder();
+        for (int i = 0; i < translate.from().size(); i++) {
+            if (out.length() > 0) {
+                out.append('\n');
+            }
+            out.append(ControlEscapes.escape(translate.from().get(i)))
+                    .append(" = ")
+                    .append(i < translate.to().size()
+                            ? ControlEscapes.escape(translate.to().get(i))
+                            : "");
+        }
+        return out.toString();
+    }
+
+    /// The form's replacements as the model holds them: two parallel lists, as the engine reads
+    /// them. A line with nothing after the `=` deletes its substring, which is what an absent
+    /// `to` entry means.
+    public static List<List<String>> readReplacements(final String text) {
+        final List<String> from = new ArrayList<>();
+        final List<String> to = new ArrayList<>();
+        readReplacements(text, from, to);
+        return List.of(from, to);
+    }
+
+    private static void readReplacements(final String text, final List<String> from,
+                                         final List<String> to) {
+        for (final String line : text.split("\n", -1)) {
+            if (line.trim().isEmpty()) {
+                continue;
+            }
+            final int at = line.indexOf('=');
+            if (at < 0) {
+                throw new ConfigException("A replacement is 'from = to': " + line.trim());
+            }
+            from.add(ControlEscapes.unescape(line.substring(0, at).trim()));
+            to.add(ControlEscapes.unescape(line.substring(at + 1).trim()));
+        }
+        if (from.isEmpty()) {
+            throw new ConfigException("A translate needs at least one replacement");
+        }
+    }
+
     private static RefExpression refOrNull(final String text) {
         return text == null || text.trim().isEmpty()
                 ? null

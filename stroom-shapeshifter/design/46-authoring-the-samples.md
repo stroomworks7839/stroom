@@ -899,6 +899,23 @@ done in, though not the ruling:
 Five kinds are 96% of all transform use, and `translate` alone is 73%. Fourteen of the thirty do
 not appear in any sample at all.
 
+**Corrected 2026-11-12, by counting instructions rather than names.** The table above counts
+occurrences of each word, and two of them are not transforms where they appear: `contains` is a
+condition operator, and `substring` turns up outside transforms too. `WireFormCensusTest` counts
+the instructions themselves, which is what a form would serve, and the order is different:
+
+| Transform | Instructions still opening as the wire form |
+|---|---|
+| `trim` | 55 |
+| `replace` | 14 |
+| `add`, `string-length` | 3 each |
+| `decode`, `divide`, `format-date`, `format-number`, `parse-date`, `round`, `substring-after`, `tokenize`, `upper-case` | 1 each |
+
+`translate` is absent because it now has a form (§8.1). `contains` and `substring` are absent
+because, as instructions, the fixtures hold none. **So the next form by evidence is `trim`, not
+`substring` or `contains`** — which is what the recommendation said before the counting was
+done properly.
+
 Two consequences:
 
 1. **Build the five first**, and `translate` first of the five. The gain from a hand-written
@@ -918,6 +935,30 @@ the question is where a form buys the most, `translate` is first and the clause 
 
 The conformance test over `OutputNode`'s `permits` list, which Q20 records as owed whichever way
 the forms are written, is unaffected by any of this.
+
+### 8.1 `translate` has a form — done 2026-11-12
+
+The first of Q20's thirty, and the one the probe pointed at: 504 translates in the corpus, every
+one of them typed as JSON until now.
+
+**The corpus designed the form.** All 504 have exactly one select and a name, none has a short
+`to` list, and across every one of them there are only **14 distinct from/to values** — the XML
+escaping set. Three of those values are a literal tab, newline and return, which no text field
+can carry, so the replacements are spelt with `ControlEscapes`, the helper the delimiter form
+already uses for the same reason: one `from = to` a line, with `\t`, `\n` and `\r`.
+
+A translate whose values contain the `=` the lines are split on falls back to the wire form
+rather than being cut in half. The corpus has none; a configuration could.
+
+**The ratchet that should have caught this was measuring the wrong thing.** `WireFormCensusTest`
+asserted that instructions falling to the wire form stayed at zero, and it did read zero while
+504 translates opened as JSON: it asked only whether the form could *spell* an instruction's
+references, never whether the form offers that kind at all. Its own method is named
+`everyInstructionOpensAsAFormRatherThanAsJson`. It now asks both, and reports 84 — which is the
+remaining Q20 work, counted rather than guessed, and a ceiling that may fall and not rise.
+
+Pinned by a round-trip over 276 real translates: if the spelling did not come back exactly,
+pressing OK would rewrite every one of them.
 
 ## 9. What to do next
 

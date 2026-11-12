@@ -235,6 +235,8 @@ public final class ShapeshifterEditorStories {
                "body": [
                 {"variable": {"name": "line",
                   "body": [{"value-of": {"parts": [{"capture": {"group": 0}}]}}]}},
+                {"translate": {"select": [{"parts": [{"capture": {"var_id": "line", "group": 0}}]}],
+                  "from": ["&", "<", "\\n"], "to": ["&amp;", "&lt;", " "], "name": "escaped"}},
                 {"choose": {
                   "when": [
                    {"test": {"or": [
@@ -778,6 +780,27 @@ public final class ShapeshifterEditorStories {
                     pickFromBox(play, screen, dialog.getByLabelText("Holds when"), "all");
                     play.waitFor(() -> play.expect(dialog.getByText("and", ".edit-form__number"))
                             .toBeVisible());
+                    play.click(dialog.getByRole("button", StroomDom.button("Cancel")));
+                    expectNoProblems(play);
+                })
+                // The one transform with a form of its own (design 46 §8). Its replacements are
+                // two parallel lists in the model and one line each on screen, and the corpus's
+                // own values include a newline — which a text area cannot hold, so it is spelt
+                .story("TranslateDialog", ShapeshifterEditorStories::renderComposite)
+                .withPlay(play -> {
+                    selectTemplate(play, "branch");
+                    final Play screen = play.screen();
+                    play.waitFor(() -> play.expect(play.getByText("translate", CARD_KIND))
+                            .toBeInTheDocument());
+                    play.click(play.getByText("translate", CARD_KIND));
+                    final Play dialog = dialogMatching(play, screen, "translate");
+                    // A form, not the wire form it used to open as
+                    play.waitFor(() -> play.expect(dialog.getByLabelText("Select")).toBeVisible());
+                    play.expect(dialog.getByLabelText("Name")).toHaveValue("escaped");
+                    // One line per replacement, the newline written as \n because the field
+                    // cannot hold the character itself
+                    play.expect(dialog.getByLabelText(TextMatch.containing("Replacements")))
+                            .toHaveValue("& = &amp;\n< = &lt;\n\\n =  ");
                     play.click(dialog.getByRole("button", StroomDom.button("Cancel")));
                     expectNoProblems(play);
                 })
