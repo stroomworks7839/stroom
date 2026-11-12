@@ -242,6 +242,24 @@ public final class ShapeshifterEditorStories {
                   "pattern": " +", "replacement": " ", "is_regex": true, "name": "squashed"}},
                 {"decode": {"select": [{"parts": [{"capture": {"var_id": "line", "group": 0}}]}],
                   "codec": "base64", "name": "plain"}},
+                {"divide": {"select": [{"parts": [{"capture": {"var_id": "line", "group": 0}}]},
+                                       {"parts": [{"capture": {"var_id": "line", "group": 0}}]}],
+                  "name": "halved"}},
+                {"add": {"select": [{"parts": [{"capture": {"var_id": "line", "group": 0}}]},
+                                    {"parts": [{"capture": {"var_id": "line", "group": 0}}]}],
+                  "name": "total"}},
+                {"tokenize": {"select": [{"parts": [{"capture": {"var_id": "line", "group": 0}}]}],
+                  "delimiter": ",", "name": "parts"}},
+                {"substring": {"select": [{"parts": [{"capture": {"var_id": "line", "group": 0}}]}],
+                  "start": 1, "length": 4, "name": "head"}},
+                {"format-date": {"select": [{"parts": [{"capture": {"var_id": "line", "group": 0}}]}],
+                  "pattern": "HH:mm:ss", "timezone": "UTC", "name": "shown"}},
+                {"parse-date": {"select": [{"parts": [{"capture": {"var_id": "line", "group": 0}}]}],
+                  "pattern": "iso", "timezone": "UTC", "name": "when"}},
+                {"string-join": {"select": [{"parts": [{"capture": {"var_id": "line", "group": 0}}]},
+                                            {"parts": [{"capture": {"var_id": "escaped", "group": 0}}]}],
+                  "separator": ", ", "name": "joined"}},
+                {"call": {"function": "current-user", "select": [], "name": "who"}},
                 {"choose": {
                   "when": [
                    {"test": {"or": [
@@ -885,6 +903,109 @@ public final class ShapeshifterEditorStories {
                             .toHaveValue("base64"));
                     play.expect(decoding.getByText("Codec")).toBeVisible();
                     play.click(decoding.getByRole("button", StroomDom.button("Cancel")));
+                    expectNoProblems(play);
+                })
+                // divide: the two inputs of a / b, named rather than listed
+                .story("FormDivide", ShapeshifterEditorStories::renderComposite)
+                .withPlay(play -> {
+                    selectTemplate(play, "branch");
+                    final Play screen = play.screen();
+                    play.waitFor(() -> play.expect(play.getByText("divide", CARD_KIND))
+                            .toBeInTheDocument());
+                    play.click(play.getByText("divide", CARD_KIND));
+                    final Play dialog = dialogMatching(play, screen, "divide");
+                    play.waitFor(() -> play.expect(dialog.getByLabelText("Name")).toBeVisible());
+                    play.expect(dialog.getByLabelText("Left")).toBeVisible();
+                    expectNoProblems(play);
+                })
+                // add: a fold: its inputs are a list because there may be any number
+                .story("FormAdd", ShapeshifterEditorStories::renderComposite)
+                .withPlay(play -> {
+                    selectTemplate(play, "branch");
+                    final Play screen = play.screen();
+                    play.waitFor(() -> play.expect(play.getByText("add", CARD_KIND))
+                            .toBeInTheDocument());
+                    play.click(play.getByText("add", CARD_KIND));
+                    final Play dialog = dialogMatching(play, screen, "add");
+                    play.waitFor(() -> play.expect(dialog.getByLabelText("Name")).toBeVisible());
+                    expectNoProblems(play);
+                })
+                // tokenize: select, the one word the kind turns on, and a name
+                .story("FormTokenize", ShapeshifterEditorStories::renderComposite)
+                .withPlay(play -> {
+                    selectTemplate(play, "branch");
+                    final Play screen = play.screen();
+                    play.waitFor(() -> play.expect(play.getByText("tokenize", CARD_KIND))
+                            .toBeInTheDocument());
+                    play.click(play.getByText("tokenize", CARD_KIND));
+                    final Play dialog = dialogMatching(play, screen, "tokenize");
+                    play.waitFor(() -> play.expect(dialog.getByLabelText("Name")).toBeVisible());
+                    play.expect(dialog.getByLabelText("Delimiter")).toBeVisible();
+                    expectNoProblems(play);
+                })
+                // substring: a start and a length, either of which may be left out
+                .story("FormSubstring", ShapeshifterEditorStories::renderComposite)
+                .withPlay(play -> {
+                    selectTemplate(play, "branch");
+                    final Play screen = play.screen();
+                    play.waitFor(() -> play.expect(play.getByText("substring", CARD_KIND))
+                            .toBeInTheDocument());
+                    play.click(play.getByText("substring", CARD_KIND));
+                    final Play dialog = dialogMatching(play, screen, "substring");
+                    play.waitFor(() -> play.expect(dialog.getByLabelText("Name")).toBeVisible());
+                    play.expect(dialog.getByLabelText("Start")).toBeVisible();
+                    expectNoProblems(play);
+                })
+                // format-date: a pattern and a time zone
+                .story("FormFormatDate", ShapeshifterEditorStories::renderComposite)
+                .withPlay(play -> {
+                    selectTemplate(play, "branch");
+                    final Play screen = play.screen();
+                    play.waitFor(() -> play.expect(play.getByText("format-date", CARD_KIND))
+                            .toBeInTheDocument());
+                    play.click(play.getByText("format-date", CARD_KIND));
+                    final Play dialog = dialogMatching(play, screen, "format-date");
+                    play.waitFor(() -> play.expect(dialog.getByLabelText("Name")).toBeVisible());
+                    play.expect(dialog.getByLabelText("Pattern")).toBeVisible();
+                    expectNoProblems(play);
+                })
+                // parse-date: the only kind needing five fields, which is why there are five
+                .story("FormParseDate", ShapeshifterEditorStories::renderComposite)
+                .withPlay(play -> {
+                    selectTemplate(play, "branch");
+                    final Play screen = play.screen();
+                    play.waitFor(() -> play.expect(play.getByText("parse-date", CARD_KIND))
+                            .toBeInTheDocument());
+                    play.click(play.getByText("parse-date", CARD_KIND));
+                    final Play dialog = dialogMatching(play, screen, "parse-date");
+                    play.waitFor(() -> play.expect(dialog.getByLabelText("Name")).toBeVisible());
+                    play.expect(dialog.getByLabelText("Relative to")).toBeVisible();
+                    expectNoProblems(play);
+                })
+                // string-join: several values and what goes between them
+                .story("FormStringJoin", ShapeshifterEditorStories::renderComposite)
+                .withPlay(play -> {
+                    selectTemplate(play, "branch");
+                    final Play screen = play.screen();
+                    play.waitFor(() -> play.expect(play.getByText("string-join", CARD_KIND))
+                            .toBeInTheDocument());
+                    play.click(play.getByText("string-join", CARD_KIND));
+                    final Play dialog = dialogMatching(play, screen, "string-join");
+                    play.waitFor(() -> play.expect(dialog.getByLabelText("Name")).toBeVisible());
+                    play.expect(dialog.getByLabelText("Separator")).toBeVisible();
+                    expectNoProblems(play);
+                })
+                // call: a function and its arguments, of which there may be none
+                .story("FormCall", ShapeshifterEditorStories::renderComposite)
+                .withPlay(play -> {
+                    selectTemplate(play, "branch");
+                    final Play screen = play.screen();
+                    play.waitFor(() -> play.expect(play.getByText("call", CARD_KIND))
+                            .toBeInTheDocument());
+                    play.click(play.getByText("call", CARD_KIND));
+                    final Play dialog = dialogMatching(play, screen, "call");
+                    play.waitFor(() -> play.expect(dialog.getByLabelText("Name")).toBeVisible());
+                    play.expect(dialog.getByLabelText("Function")).toBeVisible();
                     expectNoProblems(play);
                 })
                 // Cancel leaves the condition as it was
