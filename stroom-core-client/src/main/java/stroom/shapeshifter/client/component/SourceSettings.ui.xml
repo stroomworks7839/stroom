@@ -17,7 +17,7 @@
                 <form:TextBox ui:field="name" addStyleNames="w-100"/>
             </form:FormGroup>
             <form:FormGroup identity="shapeshifterProjectVersion" label="Version"
-                            helpText="The format version the project is written to. Dispatch defaults to strict from version 4.">
+                            helpText="The format version the project is written to. From version 5 a substring start counts from 1.">
                 <form:TextBox ui:field="version"/>
             </form:FormGroup>
             <form:FormGroup identity="shapeshifterEncoding" label="Encoding"
@@ -25,7 +25,7 @@
                 <l:SelectionBox ui:field="encoding"/>
             </form:FormGroup>
             <form:FormGroup identity="shapeshifterDispatch" label="Dispatch"
-                            helpText="How templates are chosen among the candidates in a mode. Blank takes the version's default.">
+                            helpText="How templates are chosen among the candidates in a mode. Blank is strict.">
                 <l:SelectionBox ui:field="dispatch"/>
             </form:FormGroup>
             <form:FormGroup identity="shapeshifterBufferSize" label="Buffer size"
