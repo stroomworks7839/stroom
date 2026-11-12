@@ -8,6 +8,31 @@
  },
  "templates": [
   {
+   "id": "7c3a9e14-0b55-4c8e-9f21-5d6a8b0e4f32",
+   "name": "document",
+   "match": "source",
+   "match_limits": {
+    "min_match": 0,
+    "max_match": -1
+   },
+   "body": [
+    {
+     "apply-templates": {
+      "select": {
+       "parts": [
+        {
+         "capture": {
+          "group": 0
+         }
+        }
+       ]
+      },
+      "max_depth": 64
+     }
+    }
+   ]
+  },
+  {
    "id": "e97f0eba-5e1a-587e-a22e-a3d761377ea6",
    "name": "root",
    "match": {

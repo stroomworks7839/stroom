@@ -8,6 +8,31 @@
  },
  "templates": [
   {
+   "id": "00000000-0000-0000-0000-0000000000d0",
+   "name": "document",
+   "match": "source",
+   "match_limits": {
+    "min_match": 0,
+    "max_match": -1
+   },
+   "body": [
+    {
+     "apply-templates": {
+      "select": {
+       "parts": [
+        {
+         "capture": {
+          "group": 0
+         }
+        }
+       ]
+      },
+      "max_depth": 64
+     }
+    }
+   ]
+  },
+  {
    "id": "00000000-0000-0000-0000-000000000001",
    "name": "line",
    "match": {
