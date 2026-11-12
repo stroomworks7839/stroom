@@ -2,6 +2,7 @@
   "name": "win_sec_xml",
   "version": 3,
   "source": {
+    "dispatch": "lax",
     "buffer_size": 20000,
     "ignore_errors": true,
     "encoding": "auto"

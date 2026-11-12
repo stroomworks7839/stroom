@@ -34,9 +34,9 @@ import java.util.Map;
  *
  * @param name      a human-readable name for the configuration
  * @param version   the format version; 3 is the template format described here, and 4 is the
- *                  same format with the dispatch default flipped to strict (E20) — a
- *                  configuration that says nothing about dispatch runs lax at version 3 and
- *                  strict from version 4
+ *                  same format with the dispatch default flipped to strict (E20). The version
+ *                  no longer decides the dispatch: every configuration that is not strict says
+ *                  so (design/11 §10), and the version gates only the v5 substring base
  * @param source    settings for the input as a whole
  * @param templates the templates, in the order they are tried
  * @param patterns  the project's own library of pattern parts, by name, in the order defined
@@ -79,8 +79,9 @@ public record Project(String name,
      * @param ignoreErrors suppress the root level's skip and unmatched-content reports — DS3's
      *                     {@code ignoreErrors} on the {@code dataSplitter} element itself
      * @param encoding     the input encoding, or {@code auto} to detect it from a byte-order mark
-     * @param dispatch     the default dispatch mode for every level (D36), or null to let the
-     *                     configuration's version decide: strict from version 4, lax before
+     * @param dispatch     the default dispatch mode for every level (D36), or null for strict.
+     *                     A migrated DS3 configuration says {@code lax} here, written by
+     *                     {@code Ds3Migration} (design/11 §10)
      * @param strictValues warn when a non-numeric value reaches an arithmetic instruction
      *                     (design/17 §10) — off by default, because messy data is the normal
      *                     case; on when "why is this element empty" needs evidence

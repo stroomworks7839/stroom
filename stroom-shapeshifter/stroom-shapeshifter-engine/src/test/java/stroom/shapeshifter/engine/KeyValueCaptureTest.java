@@ -74,7 +74,7 @@ class KeyValueCaptureTest {
         return """
                 {
                   "name": "kv", "version": 3,
-                  "source": {"buffer_size": 2000, "ignore_errors": true, "encoding": "utf-8"},
+                  "source": {"dispatch": "lax", "buffer_size": 2000, "ignore_errors": true, "encoding": "utf-8"},
                   "templates": [
                     {"id": "00000000-0000-0000-0000-000000000001", "name": "source",
                      "match": "source",

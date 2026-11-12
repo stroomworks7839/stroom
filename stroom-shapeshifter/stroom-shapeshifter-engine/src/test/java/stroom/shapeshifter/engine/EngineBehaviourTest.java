@@ -675,7 +675,7 @@ class EngineBehaviourTest {
         final Run result = run("""
                 {
                   "name": "skip", "version": 3,
-                  "source": {"buffer_size": 2000, "ignore_errors": false, "encoding": "utf-8"},
+                  "source": {"dispatch": "lax", "buffer_size": 2000, "ignore_errors": false, "encoding": "utf-8"},
                   "templates": [
                     {"id": "00000000-0000-0000-0000-000000000001", "name": "source", "match": "source",
                      "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
@@ -734,7 +734,7 @@ class EngineBehaviourTest {
         final Run result = run("""
                 {
                   "name": "multiline", "version": 3,
-                  "source": {"buffer_size": 2000, "ignore_errors": false, "encoding": "utf-8"},
+                  "source": {"dispatch": "lax", "buffer_size": 2000, "ignore_errors": false, "encoding": "utf-8"},
                   "templates": [
                     {"id": "00000000-0000-0000-0000-000000000001", "name": "source", "match": "source",
                      "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},

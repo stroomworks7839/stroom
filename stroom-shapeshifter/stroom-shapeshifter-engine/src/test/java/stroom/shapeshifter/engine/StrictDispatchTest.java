@@ -87,13 +87,15 @@ class StrictDispatchTest {
     }
 
     // -----------------------------------------------------------------------------------
-    // The version gate and the strict rule
+    // The dispatch default and the strict rule
     // -----------------------------------------------------------------------------------
 
     @Test
-    void versionThreeStaysLaxAndSkipsWithAReport() {
-        // The migrated era: an unanchored match past the cursor consumes the skip, reported.
-        final Run result = run(project(3, null,
+    void laxSkipsWithAReport() {
+        // What a migrated DS3 configuration asks for by saying so: an unanchored match past the
+        // cursor consumes the skip, reported. It was the version that chose this until design/11
+        // §10; now only the word does, which is why this test says "lax" and not "version 3".
+        final Run result = run(project(4, "lax",
                 row("02", "field", "x=([0-9])", "", emit("X"))), "junk x=1");
         assertThat(result.output()).isEqualTo("[X:1]");
         assertThat(result.messages()).anyMatch(m ->
@@ -101,10 +103,22 @@ class StrictDispatchTest {
     }
 
     @Test
-    void versionFourIsStrictAndTheCursorNeverMovesImplicitly() {
-        // Same configuration, new era: nothing matches at the cursor, nothing moves, and the
-        // content is reported unmatched instead of silently searched.
+    void strictIsTheDefaultAndTheCursorNeverMovesImplicitly() {
+        // The same configuration saying nothing: nothing matches at the cursor, nothing moves,
+        // and the content is reported unmatched instead of silently searched. The version is
+        // immaterial to this now — a configuration that says nothing is strict at any version.
         final Run result = run(project(4, null,
+                row("02", "field", "x=([0-9])", "", emit("X"))), "junk x=1");
+        assertThat(result.output()).isEmpty();
+        assertThat(result.messages()).anyMatch(m ->
+                m.text().contains("failed to match all of the content"));
+    }
+
+    @Test
+    void aVersionThreeConfigurationSayingNothingIsStrictToo() {
+        // The regression the change could have left behind: before design/11 §10 this exact
+        // configuration ran lax because of its version alone, and silently searched.
+        final Run result = run(project(3, null,
                 row("02", "field", "x=([0-9])", "", emit("X"))), "junk x=1");
         assertThat(result.output()).isEmpty();
         assertThat(result.messages()).anyMatch(m ->

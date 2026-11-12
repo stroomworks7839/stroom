@@ -19,10 +19,13 @@ package stroom.shapeshifter.config;
 /**
  * How a level's templates are dispatched against its content — D36's named points in the
  * unbundled control-flow space (design/11-strict-dispatch.md). Chosen per apply site, with
- * a source-level default; when nothing says otherwise, a configuration's version decides:
- * version 4 and later default {@link #STRICT}, earlier versions — the migrated DS3 era —
- * default {@link #LAX}, which is how "migration marks migrated configurations lax" is spelt
- * without editing them.
+ * a source-level default; when nothing says otherwise the answer is {@link #STRICT}.
+ *
+ * <p>It was the configuration's version that decided, version 4 and later strict and earlier
+ * versions lax, which is how "migration marks migrated configurations lax" was spelt without
+ * editing them. That went in design/11 §10: a migrated configuration now says
+ * {@code "dispatch": "lax"} itself, written by {@code Ds3Migration}, so no configuration's
+ * semantics turn on a number it does not mention.
  */
 public enum Dispatch {
 
@@ -61,8 +64,10 @@ public enum Dispatch {
     LEXER;
 
     /**
-     * The dispatch in force at an apply site: the directive's, else the source's, else the
-     * version default — strict from version 4, lax before.
+     * The dispatch in force at an apply site: the directive's, else the source's, else
+     * {@link #STRICT}. A configuration that wants DS3's search-and-skip says so (design/11 §10).
+     *
+     * @param project the configuration, for its source-level default
      */
     public static Dispatch effective(final Dispatch declared, final Project project) {
         if (declared != null) {
@@ -71,6 +76,6 @@ public enum Dispatch {
         if (project.source().dispatch() != null) {
             return project.source().dispatch();
         }
-        return project.version() >= 4 ? STRICT : LAX;
+        return STRICT;
     }
 }

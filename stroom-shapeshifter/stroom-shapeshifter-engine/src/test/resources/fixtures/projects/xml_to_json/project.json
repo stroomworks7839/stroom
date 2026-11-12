@@ -2,7 +2,6 @@
   "name": "xml_to_json",
   "version": 5,
   "source": {
-    "dispatch": "lax",
     "buffer_size": 20000,
     "ignore_errors": true,
     "encoding": "auto"

@@ -22,6 +22,7 @@ import stroom.shapeshifter.config.Cast;
 import stroom.shapeshifter.config.Condition;
 import stroom.shapeshifter.config.ConfigException;
 import stroom.shapeshifter.config.Declaration;
+import stroom.shapeshifter.config.Dispatch;
 import stroom.shapeshifter.config.EngineVars;
 import stroom.shapeshifter.config.MatchExpression;
 import stroom.shapeshifter.config.OutputNode;
@@ -116,10 +117,14 @@ public final class Ds3Migration {
     }
 
     private Project run(final Ds3Config root) {
+        // Lax, said out loud: DS3's search-and-skip is what this configuration was written
+        // against, and a migrated configuration states its own dispatch rather than inheriting
+        // one from its version number (design/11 §10).
         final SourceConfig source = root instanceof Ds3Config.Root document
                 ? new SourceConfig(document.bufferSize(), document.ignoreErrors(), SourceConfig.AUTO,
-                        null, false, SourceConfig.DEFAULT_MAX_SEQUENCE_ENTRIES)
-                : SourceConfig.defaults();
+                        Dispatch.LAX, false, SourceConfig.DEFAULT_MAX_SEQUENCE_ENTRIES)
+                : new SourceConfig(SourceConfig.DEFAULT_BUFFER_SIZE, false, SourceConfig.AUTO,
+                        Dispatch.LAX, false, SourceConfig.DEFAULT_MAX_SEQUENCE_ENTRIES);
 
         collectVarReads(root);
 

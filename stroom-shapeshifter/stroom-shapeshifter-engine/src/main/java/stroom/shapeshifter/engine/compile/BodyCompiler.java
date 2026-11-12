@@ -214,7 +214,8 @@ final class BodyCompiler {
                     transform(single("trim", value.select()), value.name(), Transforms::trim);
                 case final OutputNode.Substring value -> {
                     // The version gate (design/17 §7, ruled): 1-based from version 5,
-                    // 0-based before — Dispatch.effective's precedent, applied to the base.
+                    // 0-based before. Dispatch had the same shape until design/11 §10 took the
+                    // version out of it; this is now the only thing a version decides.
                     // A version-5 start below 1 follows XPath's rule: the window is
                     // [start, start + length) intersected with the string, so the length
                     // shrinks by the part that fell before position 1 —

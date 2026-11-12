@@ -266,9 +266,15 @@ them. Eight regress:
 | `projects/win_sec`, `win_sec_xml`, `win_sec_strict` | tail extraction in a sub-parse level |
 | `projects/win_app`, `win_app_xml` | as above |
 
-A further five declare `"dispatch": "lax"` outright and were left alone: the `xml_to_json`
-trio and the `apache_httpd` pair. The trio are version 5 — our own configurations asking for
-the migration path — which wants a recorded reason or a conversion (design 46 §3.4).
+A further five declared `"dispatch": "lax"` outright and were left alone by that sweep: the
+`xml_to_json` trio and the `apache_httpd` pair. **Probed in turn 2026-11-12**, by removing the
+declaration from all five: four of them need it — `apache_httpd`, its `challenger-switch`,
+`xml_to_json_attrs` and `xml_to_json_unified` — and **`xml_to_json` does not**, its goldens
+matching byte for byte under strict. Its declaration has gone; the other four keep theirs on
+evidence. So the corpus now divides cleanly: **fifteen configurations say lax because they need
+it** — the `win_sec` family's six including `e17/win_sec-original`, the `win_app` pair, the
+`apache_httpd` pair, `json_to_xml`, the two `xml_to_json` variants, and `003_multiline_regex`
+with its text sibling — and every other one is strict and says nothing.
 
 ### 10.1 The three shapes, and whether each converts
 
@@ -310,15 +316,33 @@ the conversion was taken where the value was and stopped where it was fiddly. On
 two, `cn_extract`, is `^CN=([^,]+)`: already anchored, so it would convert for free. It is lax
 only because nothing ever said otherwise.
 
-### 10.3 Open — the version default
+### 10.3 The version default came out — ruled and done 2026-11-12
 
 `LAX` earns its place: eight fixtures depend on it and DS3 fidelity is an invariant. The
-**version-based default** is the part that reads as an artefact of the kind design 46 §3.4
-hunts — semantics decided silently by a number, with 45 configurations inheriting a mode 37 of
-them do not use, and one level (`cn_parse`) inheriting it against an already-anchored pattern.
+**version-based default** did not. It was an artefact of the kind design 46 §3.4 hunts —
+semantics decided silently by a number, with 45 configurations inheriting a mode 37 of them do
+not use, and one level (`cn_parse`) inheriting it against an already-anchored pattern.
 
-Proposal, for the owner's ruling: make `Dispatch.effective` return `STRICT` when nothing says
-otherwise, write `"dispatch": "lax"` explicitly into the eight that need it, and have
-`Ds3Migration` emit it so a migrated configuration states what it is. Nothing then changes
-semantics by version number, and the editor never has to offer lax to a new author. Not done;
-no ruling has been given.
+**Ruled:** the version no longer decides. `Dispatch.effective` returns `STRICT` when neither the
+apply site nor the source says otherwise; a configuration that wants DS3's search-and-skip says
+`"dispatch": "lax"`; and `Ds3Migration` writes that word into everything it migrates, so a
+migrated configuration states what it is instead of implying it. `version` now gates exactly one
+thing, the v5 substring base (§10.2's note, `BodyCompiler`).
+
+**What it took, which was more than the eight fixtures.** The first run of the engine suite after
+the default flipped gave **21 failures**, and they were worth reading rather than patching:
+
+| What failed | Why, and what it needed |
+|---|---|
+| `ConfigurationShapesTest` on `win_sec`'s two challenger variants, and `EngineBehaviourTest.theOriginalWinSecConfigurationStrandsLoudlyNow` | Three more lax-dependent fixtures than §10's measurement found — `challenger-perkey`, `challenger-switch` and `e17/win_sec-original`. The measurement had run `GoldenFixtureTest` only, which does not reach them. They now declare lax. |
+| 13 tests across `OnlyMatchTest`, `TrailingHoleReadTest`, `KeyValueCaptureTest`, `VariablePromotionTest`, `SpanGroupsTest`, `InstrumentTest` | Tests of *other* features whose inline configurations are written in the DS3 search idiom and said `"version": 3` to get it. Each now says `"dispatch": "lax"`, so what the test pins is unchanged and the reason is legible. |
+| `EngineBehaviourTest.passIsWonByListOrderAndTheSkipIsReported`, `.multilineAnchorsAreNotMistakenForStartAnchors` | Tests *of* lax semantics, which still exist. They say lax now. |
+| `StrictDispatchTest.versionThreeStaysLaxAndSkipsWithAReport` | A test of the removed behaviour. Rewritten as `laxSkipsWithAReport`, keeping the half that still holds, and joined by `aVersionThreeConfigurationSayingNothingIsStrictToo` — the regression this change could otherwise have left behind. |
+
+The lesson for the measurement, recorded because it nearly went unnoticed: **a corpus sweep that
+runs one test class measures one test class.** The inline configurations in the engine's own unit
+tests are part of the corpus too, and there were thirteen of them.
+
+**Gate:** engine 1,124 tests green (one more than before, the new regression test), config,
+pipeline, xmlbench, regex and `stroom-core-client` all green, checkstyle clean. The legacy family
+still migrates and matches Stroom's own DS3 output, which is the invariant that mattered.

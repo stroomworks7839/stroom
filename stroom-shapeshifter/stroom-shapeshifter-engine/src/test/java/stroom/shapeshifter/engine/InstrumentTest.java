@@ -442,7 +442,8 @@ class InstrumentTest {
                 Shapeshifter.compile(ProjectReader.read("""
                         {
                           "name": "nested", "version": 3,
-                          "source": {"buffer_size": 2000, "ignore_errors": true, "encoding": "utf-8"},
+                          "source": {"dispatch": "lax",
+                                     "buffer_size": 2000, "ignore_errors": true, "encoding": "utf-8"},
                           "templates": [
                             {"id": "00000000-0000-0000-0000-000000000001", "name": "source",
                              "match": "source",
@@ -475,7 +476,7 @@ class InstrumentTest {
     private static final String PLACED = """
             {
               "name": "placed", "version": 3,
-              "source": {"buffer_size": 2000, "ignore_errors": true, "encoding": "utf-8"},
+              "source": {"dispatch": "lax", "buffer_size": 2000, "ignore_errors": true, "encoding": "utf-8"},
               "templates": [
                 {"id": "00000000-0000-0000-0000-000000000001", "name": "row",
                  "match": {"regex": {"pattern": "(?<k>[a-z]+)=(?<v>[^\\n]*)\\n"}},
@@ -550,7 +551,8 @@ class InstrumentTest {
         Shapeshifter.runWhole(Shapeshifter.compile(ProjectReader.read("""
                         {
                           "name": "named", "version": 3,
-                          "source": {"buffer_size": 2000, "ignore_errors": true, "encoding": "utf-8"},
+                          "source": {"dispatch": "lax",
+                                     "buffer_size": 2000, "ignore_errors": true, "encoding": "utf-8"},
                           "templates": [
                             {"id": "00000000-0000-0000-0000-000000000001", "name": "tree",
                              "match": {"pattern": {"sequence": [
@@ -600,7 +602,8 @@ class InstrumentTest {
         Shapeshifter.runWhole(Shapeshifter.compile(ProjectReader.read("""
                         {
                           "name": "guarded", "version": 3,
-                          "source": {"buffer_size": 2000, "ignore_errors": true, "encoding": "utf-8"},
+                          "source": {"dispatch": "lax",
+                                     "buffer_size": 2000, "ignore_errors": true, "encoding": "utf-8"},
                           "templates": [
                             {"id": "00000000-0000-0000-0000-000000000001", "name": "source",
                              "match": "source",
@@ -656,7 +659,8 @@ class InstrumentTest {
         Shapeshifter.runWhole(Shapeshifter.compile(ProjectReader.read("""
                         {
                           "name": "said", "version": 3,
-                          "source": {"buffer_size": 2000, "ignore_errors": false, "encoding": "utf-8"},
+                          "source": {"dispatch": "lax",
+                                     "buffer_size": 2000, "ignore_errors": false, "encoding": "utf-8"},
                           "templates": [
                             {"id": "00000000-0000-0000-0000-000000000001", "name": "source",
                              "match": "source",
