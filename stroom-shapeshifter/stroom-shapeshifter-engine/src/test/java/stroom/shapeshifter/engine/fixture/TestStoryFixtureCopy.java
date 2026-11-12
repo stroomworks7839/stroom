@@ -61,7 +61,7 @@ class TestStoryFixtureCopy {
     private static final String FIXTURE = "projects/strict_kv/project.json";
 
     /// The canonical model of `strict_kv` as the stories were written against it.
-    private static final String EXPECTED_DIGEST = "6a18126ab02bd6c1";
+    private static final String EXPECTED_DIGEST = "65b0923f47e4c543";
 
     @Test
     void strictKvHasNotDriftedFromTheCopyTheWorkbenchStoriesHold() {

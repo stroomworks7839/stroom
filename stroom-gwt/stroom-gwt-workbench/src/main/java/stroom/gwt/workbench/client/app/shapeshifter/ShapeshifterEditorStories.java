@@ -95,7 +95,7 @@ public final class ShapeshifterEditorStories {
     static final String PROJECT = """
             {
              "name": "strict_kv",
-             "version": 4,
+             "version": 5,
              "source": {"buffer_size": 20000, "ignore_errors": false, "encoding": "utf-8"},
              "templates": [
               {"id": "00000000-0000-0000-0000-000000000001", "name": "source", "match": "source",
@@ -845,7 +845,9 @@ public final class ShapeshifterEditorStories {
                 // on screen that came from the editor rather than from a fixture.
                 .story("AuthorRungOne", ShapeshifterEditorStories::renderBlank)
                 .withPlay(play -> {
-                    // §5.1 step 1, and §5.3's correction: the root template is already there,
+                    final Play screen = play.screen();
+
+                    // §5.1 step 1, with §5.3's correction: the root template is already there,
                     // named "document" in the panel whatever the template itself is called
                     play.waitFor(() -> play.expect(play.getByText("document", TEMPLATE_NAME))
                             .toBeInTheDocument());
@@ -853,39 +855,142 @@ public final class ShapeshifterEditorStories {
                     play.expect(play.getByRole("button", "Save"))
                             .toHaveAttribute("aria-disabled", "true");
 
-                    // §5.1 steps 2 and 3: the project's settings, and the encoding
+                    // §5.1 steps 2 and 3: the project's own settings
                     play.click(play.getByText("Settings", TEMPLATE_NAME));
                     play.waitFor(() -> play.expect(play.getByText("Source — the document"))
                             .toBeVisible());
+                    play.clear(play.getByLabelText("Project name"));
+                    play.type(play.getByLabelText("Project name"), "strict_kv");
                     // A Stroom SelectionBox, not a native select: click the box, then the item in
                     // the popup it opens. The popup is a GWT PopupPanel on the document body, so
                     // it is reached through play.screen() rather than the story's own root.
-                    play.click(play.getByLabelText("Encoding"));
-                    final Play screen = play.screen();
-                    play.click(screen.findByText("utf-8"));
+                    pickFromBox(play, screen, play.getByLabelText("Encoding"), "utf-8");
 
                     // That is an edit, so Save has work to do
                     play.waitFor(() -> play.expect(play.getByRole("button", "Save"))
                             .not().toHaveAttribute("aria-disabled", "true"));
-                    play.click(play.getByRole("button", "Save"));
 
-                    // The keystone: what the editor sent, compared with what the walkthrough says
-                    // it should have built. Both sides go through the same parse and print, so
-                    // the comparison is over the JSON rather than its formatting, and a failure
-                    // prints both projects rather than just "false".
-                    // The keystone (design 46 §3), read from validate rather than from the save.
-                    // Clicking Save sends nothing here: the harness mounts the editor host
-                    // directly, without the document plugin that performs a save, and no
-                    // document-editor story in the workbench asserts one. The editor knowing it
-                    // has something to save is what the step above proves; what it would save is
-                    // what validate carries, which is the project itself rather than the document
-                    // wrapping it.
+                    // §5.3 step 8: the samples call the root template "source", and the editor
+                    // calls it "document". It cannot be removed or moved, but it can be renamed
+                    play.click(play.getByText("document", TEMPLATE_NAME));
+                    play.click(play.getByRole("button", "Edit template"));
+                    final Play renaming = dialogMatching(play, screen, "template");
+                    play.clear(renaming.getByLabelText("Name"));
+                    renaming.type(renaming.getByLabelText("Name"), "source");
+                    play.click(renaming.getByRole("button", StroomDom.button("OK")));
+                    // The strip carries the new name; the panel's row does not, and that is a
+                    // finding rather than a wait that needs fixing (design 46 §5.9): the document
+                    // row is labelled with the fixed word "document"
+                    // (TemplatePanelController.refresh), so the author sees no change there.
+                    play.waitFor(() -> play.expect(play.getByText("source", STRIP_NAME))
+                            .toBeInTheDocument());
+
+                    // §5.4 steps 10 and 12: the pair template, in a mode made as it is needed
+                    play.click(play.getByRole("button", "Add template"));
+                    final Play adding = dialogMatching(play, screen, "New Template");
+                    adding.type(adding.getByLabelText("Name"), "pair");
+                    play.click(adding.getByRole("button", "New..."));
+                    final Play naming = dialogMatching(play, screen, "mode");
+                    naming.type(naming.getByRole("textbox").first(), "kv");
+                    play.click(naming.getByRole("button", StroomDom.button("OK")));
+                    play.click(adding.getByRole("button", StroomDom.button("OK")));
+                    play.waitFor(() -> play.expect(play.getByText("pair", TEMPLATE_NAME))
+                            .toBeInTheDocument());
+
+                    // §5.4 step 11: the pattern, in the workbench the match chip opens. A new
+                    // template's match is already an empty regex (Templates.create), so the kind
+                    // needs no choosing — only the pattern needs typing
+                    play.click(play.querySelector(MATCH_CHIP));
+                    play.waitFor(() -> play.expect(play.getByLabelText("Pattern"))
+                            .toBeInTheDocument());
+                    // "[[" types a literal "[": play.type is userEvent.type, where "[" opens a
+                    // key descriptor, so an unescaped "([a-z]+)" arrives as "(+)" with the
+                    // character class silently eaten (design 46 §5.9)
+                    play.type(play.getByLabelText("Pattern"), "([[a-z]+)=([[^\\n]*)\\n");
+                    play.click(play.getByRole("button", TextMatch.regex("close the workbench", "i")));
+
+                    // §5.5 steps 13 to 15: the envelope, and the dispatch into the mode. The
+                    // apply-templates card is already there — it came with the document template
+                    // — so what the author adds is the text either side of it, and the mode on it
+                    // By "document", not by the name just given it: the panel's row for the
+                    // document template is labelled with that fixed word, so the rename of two
+                    // stages ago is invisible here (§5.9's finding, met for the second time)
+                    selectTemplate(play, "document");
+                    play.waitFor(() -> play.expect(play.getByText("+ instruction"))
+                            .toBeInTheDocument());
+                    addInstruction(play, screen, "text", "<records>\n");
+                    // It lands at the end, so the body is [apply-templates, text]: the second
+                    // card's Move up puts the envelope's opening before the dispatch
+                    play.click(play.getAllByTitle("Move up").nth(1));
+                    addInstruction(play, screen, "text", "</records>\n");
+
+                    // The dispatch itself: the card the document template arrived with, told
+                    // which mode to dispatch into
+                    play.click(play.getByText("apply-templates", CARD_KIND));
+                    final Play dispatching = dialogMatching(play, screen, "apply-templates");
+                    pickFromBox(play, screen, dispatching.getByLabelText("Mode"), "kv");
+                    play.click(dispatching.getByRole("button", StroomDom.button("OK")));
+
+                    // §5.6 steps 17 to 19: the pair's body, five cards for one line of output
+                    selectTemplate(play, "pair");
+                    addInstruction(play, screen, "text", " <pair key=\"");
+                    addInstruction(play, screen, "value-of", "$1");
+                    addInstruction(play, screen, "text", "\">");
+                    addInstruction(play, screen, "value-of", "$2");
+                    addInstruction(play, screen, "text", "</pair>\n");
+
+                    // §5.7 steps 21 to 25: the catch-all, below pair, consuming and warning
+                    play.click(play.getByRole("button", "Add template"));
+                    final Play junk = dialogMatching(play, screen, "New Template");
+                    junk.type(junk.getByLabelText("Name"), "junk_line");
+                    pickFromBox(play, screen, junk.getByLabelText("Mode"), "kv");
+                    play.click(junk.getByRole("button", StroomDom.button("OK")));
+                    play.click(play.querySelector(MATCH_CHIP));
+                    play.waitFor(() -> play.expect(play.getByLabelText("Pattern"))
+                            .toBeInTheDocument());
+                    play.type(play.getByLabelText("Pattern"), "[[^\\n]*\\n?");
+                    play.click(play.getByRole("button", TextMatch.regex("close the workbench", "i")));
+                    // The role that makes it an eater rather than a record. The config calls the
+                    // flag "consume"; the picker says "advance only", because MatchRole tried
+                    // "skip" and "eater" and found both misleading — nothing is discarded and
+                    // nothing stops. The step table's word is the model's, so this is where the
+                    // two vocabularies meet.
+                    pickFromBox(play, screen, play.getByLabelText("What the match is for"),
+                            "advance only");
+
+                    // §5.7 step 25: the warning, which is the authored replacement for DS3's
+                    // engine-generated skip reports (design 11 §4). Its message is a reference
+                    // expression of a literal and the whole match, written as the field's own
+                    // help describes: quoted text for a literal, $0 for the group, joined by
+                    // being written one after another.
+                    selectTemplate(play, "junk_line");
+                    play.click(play.getByText("+ instruction"));
+                    play.click(screen.findByText("emit-error", StroomDom.MENU_ITEM_TEXT));
+                    final Play warning = dialogMatching(play, screen, "emit-error");
+                    // Lowercase, as the picker lists them and as the wire spells them
+                    // (JsonFields.label); the default is "error", so this is a real choice
+                    pickFromBox(play, screen, warning.getByLabelText("Severity"), "warning");
+                    warning.type(warning.getByLabelText("Message"),
+                            "\"unrecognised line: \" $0");
+                    play.click(warning.getByRole("button", StroomDom.button("OK")));
+
+                    // §5.8 step 27, the keystone (design 46 §3), read from the validate request
+                    // rather than from the save: clicking Save sends nothing here, because the
+                    // harness mounts the editor host without the document plugin that performs a
+                    // save, and no document-editor story in the workbench asserts one. What the
+                    // editor would save is what validate carries, which is the project itself.
+                    //
+                    // Compared by containment, not equality: the editor writes defaults the
+                    // fixture leaves out (match_limits, max_depth), and containment tolerates
+                    // those while still requiring every array to be the same length — so a
+                    // missing template or a body card in the wrong place fails.
                     final Spy requests = play.spy(ScreenHarness.REQUEST_SPY);
                     play.waitFor(() -> play.expect(requests).toHaveBeenCalledWith(
                             RequestMatcher.post(VALIDATE_PATH).toSpyMatcher()));
-                    play.expect("the project the editor built",
-                                    () -> canonical(projectSent(requests)))
-                            .toEqual(canonical(AUTHORED_SO_FAR));
+                    play.waitFor(() -> play.expect("the project the editor built",
+                                    () -> JsonValues.jsonContains(
+                                            projectSent(requests), withoutIds(PROJECT)))
+                            .toEqual(true));
                     expectNoProblems(play);
                 });
     }
@@ -909,6 +1014,14 @@ public final class ShapeshifterEditorStories {
 
     // The strip labels each row with its key ("match", "match is", "guard", "body")
     private static final String STRIP_KEY = ".key-label";
+
+    // An item in the list a SelectionBox opens (selection-item-cell.css). The list is a GWT
+    // PopupPanel on the document body, so it is only reachable through play.screen().
+    private static final String SELECTION_ITEM = ".selection-item-cell__text";
+
+    // The selected template's name, in the strip's head. The panel's own row for the document
+    // template reads "document" whatever the template is called, so this is where a rename shows.
+    private static final String STRIP_NAME = ".template-strip__name";
 
     // The chip that carries a template's match, and opens the pattern workbench
     private static final String MATCH_CHIP = ".template-strip__match-chip";
@@ -991,6 +1104,36 @@ public final class ShapeshifterEditorStories {
 
     private static Widget render(final StoryContext context, final boolean readOnly) {
         return render(context, readOnly, FIXTURES, DOC_REF);
+    }
+
+    // A dialog by a word in its title, as a Play to scope queries to it: nested dialogs (the
+    // template dialog and the mode prompt it opens) each need their own OK.
+    private static Play dialogMatching(final Play play, final Play screen, final String title) {
+        // Case-insensitively: the dialogs title themselves "Edit Template" and "New text", so a
+        // caller naming the thing it is editing should not have to know which words are capital.
+        return play.within(screen.findByText(TextMatch.regex(title, "i"), StroomDom.DIALOG_TITLE)
+                .closest(StroomDom.DIALOG));
+    }
+
+    // A SelectionBox's value, chosen the way a person does: click the box, then the item in the
+    // popup it opens. Scoped to the item cells, because by the time a mode has templates in it
+    // its name is also a heading in the panel, and an unscoped search finds both.
+    private static void pickFromBox(final Play play, final Play screen,
+                                     final Query box, final String item) {
+        play.click(box);
+        play.click(screen.findByText(item, SELECTION_ITEM));
+    }
+
+    // One body instruction, added through the "+ instruction" line and its kind menu, with the
+    // one field the kinds used here need (design 46 §5.5-§5.7).
+    private static void addInstruction(final Play play, final Play screen,
+                                       final String kind, final String value) {
+        play.click(play.getByText("+ instruction"));
+        // The kinds are a menu on the page's body, not in the canvas
+        play.click(screen.findByText(kind, StroomDom.MENU_ITEM_TEXT));
+        final Play dialog = dialogMatching(play, screen, "New " + kind);
+        dialog.type(dialog.getByRole("textbox").first(), value);
+        play.click(dialog.getByRole("button", StroomDom.button("OK")));
     }
 
     /// The editor over a document with no project in it, as a new one arrives (design 46 §5.1).

@@ -477,57 +477,70 @@ that *which* order rule applies is chosen elsewhere — see §6.1.
 |---|---|---|---|
 | 27 | Saves | `Save` is enabled, and the project the editor is holding is the same model as `strict_kv/project.json` | the keystone assertion, §3 — **but not read from the save**, see §5.9 |
 
-### 5.9 What the browser said — run 2026-11-12
+### 5.9 What the browser said — walked 2026-11-12
 
-The first six steps are now driven by a kept story, `AuthorRungOne`, and the keystone works. Five
-runs were needed to get there, at about two and a quarter minutes each, and what the five
-failures were is the useful part: **three of them were my ignorance of the harness, not findings
-about the editor.**
+**Rung 1 is driven end to end by a kept story, `AuthorRungOne`, and the keystone holds.** The
+story creates the project from a document with nothing in it, walks all 27 steps, and compares
+the project the editor built with `strict_kv`. Sixteen runs at about two and a half minutes
+each; what the fifteen failures were is the useful part.
 
-**Verified, rather than read from the source:**
+**Three were findings about the editor**, and two of those are the same one twice:
 
-- A document with no project in it arrives with the `document` row in the panel. §5.3's rewrite
-  is now observed, not inferred.
-- `Save` is disabled on load and enabled by one edit, so the editor does know when it has
-  something to save.
-- The blank `Select` on the pre-made `apply-templates` really does reach the server as
-  `{"capture": {"group": 0}}`. §3.1's withdrawn fourth trap is now withdrawn on evidence.
+1. **The panel's document row is labelled with the fixed word `document`**, not the template's
+   name (`TemplatePanelController` passes the literal when it builds the row). The samples call
+   that template `source`, so the walkthrough renames it — and nothing in the panel changes. The
+   new name appears only in the strip's head. It bit twice: once asserting the rename, once
+   trying to select the row again afterwards. A rename that is both necessary and invisible where
+   the author is looking is worse than either alone.
+2. **The role is spelt differently from the model.** The configuration's flag is `consume`; the
+   picker says *advance only*, because `MatchRole` tried "skip" and "eater" and found both
+   misleading — *"nothing is discarded and nothing stops"*. Not a defect: an author never sees
+   the word `consume`, and the step table's word is the model's. Recorded because the two
+   vocabularies meet here and a walkthrough written from the fixtures will reach for the wrong
+   one.
+3. **Severity is a real choice with a wrong-ish default.** The picker lists `info`, `warning`,
+   `error`, `fatal` — lowercase, as the wire spells them — and a new `emit-error` starts at
+   `error`. The idiomatic eater warns rather than errors, so the author must notice and change it.
 
-**Three harness lessons, which the remaining rungs will need:**
+**Four were my ignorance of the harness**, and they are the ones that make the remaining rungs
+cheaper:
 
-1. A Stroom `SelectionBox` is not a native `<select>`, so `play.selectOptions` fails with *Value
-   "utf-8" not found in options*. Click the box, then the item.
-2. The list it opens is a GWT `PopupPanel` on the document body, outside the story's root, so it
-   is reached through `play.screen()` — which the framework documents for exactly this, *"popups,
-   menus and dialogs, which GWT attaches to the body rather than the story's root element"*.
-3. **The save cannot be driven at all.** Clicking `Save` sends no request: the harness mounts the
-   editor host directly, without the document plugin that performs a save, and no document-editor
-   story anywhere in the workbench asserts one — the PUTs that are asserted all belong to dialogs
-   that save themselves.
+| What failed | Why |
+|---|---|
+| `play.selectOptions` on the encoding picker | A Stroom `SelectionBox` is not a native `<select>`. Click the box, then the item. |
+| Finding the item | The list is a GWT `PopupPanel` on the document body, outside the story's root: reach it with `play.screen()`, which the framework documents for exactly this. |
+| Finding `kv` | Once a mode has templates, its name is also a heading in the panel. Scope item picks to `.selection-item-cell__text`. |
+| Matching a dialog by title | `TextMatch.containing` is case-sensitive and the dialogs are titled *Edit Template*, *New emit-error*. |
 
-**So the keystone reads the validate request instead**, which the editor sends on every edit and
-which carries the project itself rather than the document wrapping it. That is closer to what §3
-wanted than the save was: fewer layers between the author's actions and the thing compared. §3's
-wording — *"capture the POST body"* — stands; which POST it is has changed.
+All four now live in two helpers, `pickFromBox` and `dialogMatching`, so rungs 2 to 6 pay for
+them once.
 
-The project the story compares, taken from a failing run before the comparison was wired to it:
+**One was a trap worth the whole exercise.** `play.type` is `userEvent.type`, where `[` opens a
+key descriptor — so `([a-z]+)=([^\n]*)\n` arrived as `(+)=(*)\n`, with the character classes
+silently eaten. The result was a **valid regex that means something else**, and nothing on
+screen looked wrong: every on-screen assertion in the story passed. Only the model comparison
+caught it. If §3 needed a justification beyond authorability, this is it — a story that asserts
+what it can see would have shipped a walkthrough that builds the wrong configuration. Literal
+brackets are typed `[[`.
 
-```json
-{"name": "New Project", "version": 5,
- "source": {"buffer_size": 20000, "ignore_errors": false, "encoding": "utf-8"},
- "templates": [{"id": "6036f248-…", "name": "document", "match": "source",
-   "match_limits": {"min_match": 0, "max_match": -1},
-   "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
-                                 "max_depth": 64}}]}]}
-```
+**And one was the fixture, not the walkthrough.** The editor writes the current format version,
+5; `strict_kv` said 4. That is §3.1's third trap arriving in person. The fixture moved rather
+than the comparison bending: `strict_kv` uses no `substring`, so the version gates nothing for
+it, and its goldens pass unchanged. `TestStoryFixtureCopy` tripped on cue and its digest moved
+with it.
 
-Generated ids are replaced by a dash on both sides of the comparison: an id is the one part of a
-configuration no author chooses.
+**What the comparison tolerates, and why that is right.** The editor writes defaults the fixture
+omits — `match_limits`, `max_depth`, the regex `flags` and `advance: 0`. Containment
+(`JsonValues.jsonContains`, Jest's `toMatchObject`) accepts those while still requiring every
+array to be the same length, so a missing template, a missing body card or a card in the wrong
+place still fails. Generated ids are replaced by a dash on both sides.
 
-**What is not yet driven: steps 6 to 26** — the templates, the mode, the regex workbench and the
-body cards. The story proves the method, not yet the walkthrough. The cost signal the ruling
-asked for is above: six steps took five runs, and the three harness lessons are now paid for
-once rather than per rung, so the next steps should be cheaper than the first six were.
+**Still owed: the sample.** §5.2 puts *get a sample in front of the author* at steps 4 and 5,
+before any template, on the argument that an author wants the record visible while writing the
+pattern. The story does not do it — the panel's `Data` row reads `none` throughout — so the
+walkthrough builds the configuration without ever seeing it run. It does not affect the
+keystone, the sample being part of the document rather than the project, but it is the one step
+of the 27 that is asserted on paper and not in the browser.
 
 ## 6. Rungs 2 to 6, step by step
 
@@ -803,17 +816,18 @@ the forms are written, is unaffected by any of this.
    there). §5.1 and §6.3's first question are already answered from the source.
 5. Run the §7 probe on `apache_httpd` before building Q20's forms.
 
-**What stepping the five turned up, as design questions rather than steps.** Three are worth
-raising on their own, because none is about a missing form — every form the six samples need
-exists — and all three are about what the editor *tells* the author:
+**What the walkthroughs turned up, as design questions rather than steps** — ~~three~~ four,
+now that rung 1 has been driven. None is about a missing form; all are about what the editor
+*tells* the author. **Moved to [44-the-workbench-kind-sample-library.md §8](44-the-workbench-kind-sample-library.md)
+as Q11 to Q14, ruled 2026-11-12**, because design 44 owns the panel and the strip and is where
+the next change to either will be designed from. Summarised here only:
 
+- **The document row is labelled with a fixed word** (§5.9), so renaming that template — which
+  every sample requires — changes nothing the author can see. Found by driving it.
 - **Two templates with the same match are indistinguishable in the panel** (§6.4): rung 5's
-  `header_record` and `data_record` differ only in position and in a match limit, and getting
-  either wrong mis-parses the file silently.
-- **The panel's order means three different things** (§6.1, §6.2), chosen by a picker in
-  another pane: priority under `strict`, tie-break under `lexer`, nothing under `classify`.
-- **`heading[matchCount()]` is typed into a plain text field** (§6.4 step 16): the only way in
-  the editor to say *the nth of these goes with the nth of those*.
+  `header_record` and `data_record` differ only in position and in a match limit.
+- **The panel's order means three different things** (§6.1, §6.2), chosen elsewhere.
+- **`heading[matchCount()]` is typed into a plain text field** (§6.4 step 16).
 
 Two pieces of work this design turned up that are not the walkthrough and should not wait for
 it:
