@@ -746,21 +746,65 @@ binary sample — is downstream of it. Step 7 adds a second question now that th
 internal dependencies, and whether `PartEdit` offers `len` in that field or expects it typed is
 exactly the kind of thing only the browser will say.
 
-## 7. The large samples: a probe, not a test
+## 7. The large samples: a probe, not a test — run 2026-11-12
 
-Separately from the ladder, `apache_httpd` (428KB, 209 `translate` calls), `win_sec_xml` (164KB)
-and `win_app` (149KB) are worth building through the UI **once**, to find out whether it can be
-done at all.
+Separately from the ladder, `apache_httpd` (428KB, 8 templates, 361 body instructions) was
+worth putting through the question *can the UI express this at all* **once**, as a finding
+rather than a kept story: a 428KB configuration as a story would be slow and would break on any
+UI change for reasons that teach nobody anything.
 
-That is a different kind of exercise and it must not be kept as a story:
+**It was run as a structural probe, not by hand-driving 209 dialogs.** Driving them would have
+answered the same question far less reliably and at enormous cost; what the question actually
+asks is whether every construct the configuration uses has somewhere to be authored. So every
+construct in it was enumerated and held against what the editor offers.
 
-- it answers a one-off question — *can the UI express this* — rather than guarding an invariant;
-- a 428KB configuration as a story would be slow, and would break on any UI change for reasons
-  that teach nobody anything;
-- what is worth keeping is the **finding**, written into this design, not the script.
+### 7.1 Nothing is missing
 
-So: a scratch run, or a story deleted after it has reported, and a section added here. Recorded
-now so the distinction does not have to be remembered later.
+| Family | What `apache_httpd` uses | Offered by |
+|---|---|---|
+| Instructions | `value-of` 142, `choose` 19, `if` 15, `apply-templates` 7, `variable` 2, `put` 1 | `Instructions.FORM_KINDS`, each with a form |
+| Transforms | `translate` 173, `replace` 2 | `Instructions.TRANSFORM_KINDS`, edited as their wire form |
+| Matches | `regex` 6, `source` 1, `delimiter` 1 | `MatchKind`, all three |
+| Reference parts | `capture` 525, `text` 374, `get` 1 | the reference language (`$1`, `"quoted"`, `get(m, "k")`) |
+| Conditions | `not` 16, `or` 15, `and` 7, `contains` 7, `eq` 7, `matches` 1 | `GuardClause.Op` for the comparisons; `and` by listing rows |
+
+**So the answer to §7's question is yes** — the configuration is expressible, with no construct
+left without a home. That is worth having established, and it was not obvious beforehand.
+
+### 7.2 But about half of it would be typed as JSON
+
+Expressible is not the same as authorable, and the probe's real finding is the proportion:
+
+| Sample | Conditions | as rows | as wire form | Instructions | transforms |
+|---|---|---|---|---|---|
+| `apache_httpd` | 53 | 22 | **31** | 361 | **175 (48%)** |
+| `win_sec` | 39 | 36 | 3 | 90 | 14 (15%) |
+| `win_app_xml` | 15 | 14 | 1 | 33 | 4 (12%) |
+
+**206 of `apache_httpd`'s 414 editing acts are raw JSON.** Two separate causes:
+
+- **Transforms are edited as their wire form** by design — `TRANSFORM_KINDS` is documented as
+  *"edited as their wire form, listed for the add menu"*. 175 of them here.
+- **A condition that is not a clause, or an `and` of clauses, falls back to the wire form.**
+  `GuardClause.read` returns null for anything else — which is the panel's signal to show JSON —
+  so every `or` and every `not` is typed. Design 44 Q7 ruled the wire form in for exactly this
+  reason, *"only where the rows cannot say it"*; the probe measures what that costs on the
+  largest real configuration: 31 of 53 conditions, 58%.
+
+The second is concentrated: `win_sec` and `win_app_xml` are 92% row-authorable. It is
+`apache_httpd`'s branching that the clause rows cannot say.
+
+### 7.3 What this is evidence for
+
+Two pieces of work, with the probe's numbers attached:
+
+1. **Q20's transform forms** (§8), where 175 wire-form edits in this one sample become forms.
+2. **`or` and `not` in the clause rows**, which is not a design 18 question at all and has no
+   ticket: 31 wire-form conditions here, 4 across the two `win_*` samples. Worth raising beside
+   design 44 §8's Q11–Q14 if the clause editor is opened again.
+
+The probe is not kept. These numbers are the finding, and they are reproducible from the
+fixtures by the same enumeration whenever the corpus changes.
 
 ## 8. What this already says about design 18 Q20
 
@@ -792,6 +836,13 @@ Two consequences:
    `win_*` family, the `text_00*` family. So the §7 probe is not a curiosity — **it is where the
    Q20 evidence is**, and it should come before the thirty forms are built rather than after.
 
+**The probe has now run (§7), and it sharpens this rather than changing it.** `translate` is
+48% of `apache_httpd`'s body instructions on its own, and every one of them is typed as wire
+form today. It also found a second gap of the same shape that Q20 does not cover: 31 of that
+sample's 53 conditions are typed as JSON because the clause rows cannot say `or` or `not`. If
+the question is where a form buys the most, `translate` is first and the clause rows are second
+— and the second is cheaper, being one editor rather than thirty.
+
 The conformance test over `OutputNode`'s `permits` list, which Q20 records as owed whichever way
 the forms are written, is unaffected by any of this.
 
@@ -814,7 +865,9 @@ the forms are written, is unaffected by any of this.
    whether a pattern part can be lifted out of a pattern already written (§6.3), and whether the
    marks mean anything over a binary sample (§6.5, which also needs the stream fixture ruled
    there). §5.1 and §6.3's first question are already answered from the source.
-5. Run the §7 probe on `apache_httpd` before building Q20's forms.
+5. ~~Run the §7 probe on `apache_httpd` before building Q20's forms~~ — **done 2026-11-12**,
+   §7. The configuration is expressible; 206 of its 414 editing acts would be typed as JSON.
+   Q20's forms and the clause rows' missing `or`/`not` are what that is evidence for.
 
 **What the walkthroughs turned up, as design questions rather than steps** — ~~three~~ four,
 now that rung 1 has been driven. None is about a missing form; all are about what the editor
