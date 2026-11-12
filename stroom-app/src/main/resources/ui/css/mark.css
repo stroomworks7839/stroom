@@ -6,6 +6,12 @@
  * `--hue` is deliberately not `--mark__hue`: it is one inherited vocabulary meaning "the hue in
  * force here", written only by whatever has a colour of its own, and read by this sheet, sample,
  * regex, content-pane and highlight. Renaming it per block would turn inheritance into a fallback.
+ *
+ * `--mark__lightness` (theme-root.css, theme-dark.css) is the lightness of the hues the code
+ * generates for captures and regex groups. It belongs to the theme because a capture's hue is the
+ * text's own colour: 30% clears 4.5:1 on the light theme's control surface and 74% on the dark
+ * theme's, and no one number clears both. A hue a user chose for a template is not affected, as
+ * that colours a rule and a wash rather than text.
  */
 .mark {
     -webkit-box-decoration-break: clone;

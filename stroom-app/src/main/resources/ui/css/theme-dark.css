@@ -225,6 +225,11 @@
     --curve-tab__border-radius: .2rem;
 
     /* Controls */
+    /* The lightness of a generated mark hue (RegexController.hue): a capture's colour is its text,
+       so it has to clear 4.5:1 against the control surface below. 74% is the lowest step at which
+       every hue in the cycle does on this theme's surface; the light theme needs the opposite end. */
+    --mark__lightness: 74%;
+
     --control__background-color: #272b33;
     /* Barely lighter than the page, so a disabled field looks set back, not lighter (and so more
        prominent) than an enabled one */

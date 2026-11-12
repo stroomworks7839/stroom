@@ -254,6 +254,10 @@
     --curve-tab__border-radius: .2rem;
 
     /* Controls */
+    /* The lightness of a generated mark hue (RegexController.hue): 30% is the highest step at
+       which every hue in the cycle clears 4.5:1 against white (theme-dark.css takes the other end). */
+    --mark__lightness: 30%;
+
     --control__background-color: #fff;
     --control__background-color--disabled: rgba(0, 0, 0, 0.1);
     /* The lightest blue-grey that is 3:1 on everything a field sits on (white, the explorer and

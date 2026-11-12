@@ -32,6 +32,25 @@ class ColoursTest {
     }
 
     @Test
+    void theGeneratedHueKeepsItsThemeLightness() {
+        // A capture's hue is its text colour, so its lightness is a theme token rather than a
+        // number (Colours.HUE_LIGHTNESS): one number cannot clear 4.5:1 on both themes' surfaces.
+        // Written as RegexController.hue writes it, so the guard and the generator stay in step.
+        final String generated = "hsl(" + 47 + ", 62%, " + Colours.HUE_LIGHTNESS + ")";
+        assertThat(Colours.safe(generated)).isEqualTo(generated);
+        assertThat(Colours.safe("hsl(0, 62%, var(--mark__lightness))"))
+                .isEqualTo("hsl(0, 62%, var(--mark__lightness))");
+    }
+
+    @Test
+    void onlyThatOneTokenPasses() {
+        assertThat(Colours.safe("hsl(0, 62%, var(--anything-else))")).isEqualTo("transparent");
+        assertThat(Colours.safe("hsl(0, 62%, var(--mark__lightness)); background: url(x)"))
+                .isEqualTo("transparent");
+        assertThat(Colours.safe("hsl(0, 62%, var(--mark__lightness, 99%))")).isEqualTo("transparent");
+    }
+
+    @Test
     void anythingElseIsTransparent() {
         assertThat(Colours.safe(null)).isEqualTo("transparent");
         assertThat(Colours.safe("red\"; background: url(x)")).isEqualTo("transparent");

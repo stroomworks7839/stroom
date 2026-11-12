@@ -19,6 +19,11 @@ package stroom.shapeshifter.client.component;
 /// Colours reach inline styles; only a colour-shaped value may.
 final class Colours {
 
+    /// The lightness of a hue this code generates, as a theme token rather than a number: a
+    /// capture's hue is its text colour, and one lightness cannot clear 4.5:1 against both the
+    /// light theme's control surface and the dark theme's (see `theme-root.css`, `theme-dark.css`).
+    static final String HUE_LIGHTNESS = "var(--mark__lightness)";
+
     private Colours() {
     }
 
@@ -29,7 +34,11 @@ final class Colours {
             return "transparent";
         }
         if (colour.matches("#[0-9a-fA-F]{3,8}") || colour.matches("[a-zA-Z]{1,24}")
-            || colour.matches("hsl\\([0-9]{1,3}, [0-9]{1,3}%, [0-9]{1,3}%\\)")) {
+            || colour.matches("hsl\\([0-9]{1,3}, [0-9]{1,3}%, [0-9]{1,3}%\\)")
+            // The hue form this code generates, whose lightness is [#HUE_LIGHTNESS]. The token is
+            // spelled out rather than taken from a variable, so that nothing but that one token
+            // passes: the value is still only digits, a percent and a name this code chose.
+            || colour.matches("hsl\\([0-9]{1,3}, [0-9]{1,3}%, var\\(--mark__lightness\\)\\)")) {
             return colour;
         }
         return "transparent";
