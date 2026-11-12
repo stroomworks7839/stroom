@@ -229,12 +229,18 @@ public final class ShapeshifterEditorStories {
                "match": {"pattern": {"sequence": [{"tag": "<"}, {"take_until": ">"}]}},
                "body": [{"text": "<node/>\\n"}]},
               {"id": "00000000-0000-0000-0000-000000000014", "name": "branch", "mode": "frames",
+               "declarations": [{"name": "line", "type": "scalar"}],
                "match": {"regex": {"pattern": "[^\\\\n]*\\\\n"}},
                "body": [
+                {"variable": {"name": "line",
+                  "body": [{"value-of": {"parts": [{"capture": {"group": 0}}]}}]}},
                 {"choose": {
                   "when": [
-                   {"test": {"contains": {"select": {"parts": [{"capture": {"group": 0}}]},
-                                          "substring": "x"}},
+                   {"test": {"or": [
+                     {"contains": {"select": {"parts": [{"capture": {"var_id": "line", "group": 0}}]},
+                                   "substring": "x"}},
+                     {"not": {"contains": {"select": {"parts": [{"capture": {"var_id": "line", "group": 0}}]},
+                                           "substring": "y"}}}]},
                     "body": [{"text": "<x/>\\n"}]}],
                   "otherwise": [{"text": "<other/>\\n"}]}}]}
              ]
@@ -755,6 +761,32 @@ public final class ShapeshifterEditorStories {
                     play.click(dialog.getByRole("button", StroomDom.button("OK")));
                     play.waitFor(() -> play.expect(screen.queryByText("Edit when", StroomDom.DIALOG_TITLE))
                             .toBeNull());
+                    expectNoProblems(play);
+                })
+                // An or whose parts include a negation: rows, not the wire form. It is the shape
+                // apache_httpd uses thirty times, and until the rows learnt or and not it opened
+                // as JSON — along with 157 of the corpus's 476 conditions
+                .story("ConditionOrAndNot", ShapeshifterEditorStories::renderComposite)
+                .withPlay(play -> {
+                    selectTemplate(play, "branch");
+                    final Play screen = play.screen();
+                    play.waitFor(() -> play.expect(play.getByTitle(
+                            TextMatch.containing("Edit this branch's condition"))).toBeInTheDocument());
+                    play.click(play.getByTitle(TextMatch.containing("Edit this branch's condition")));
+                    final Play dialog = screen.within(screen.findByText("Edit when", StroomDom.DIALOG_TITLE)
+                            .closest(StroomDom.DIALOG));
+                    // Rows: two of them, joined by "any", the second negated
+                    play.waitFor(() -> play.expect(dialog.getByText("holds when")).toBeVisible());
+                    play.expect(dialog.getAllByText("contains", ".clause-row__operator *").count())
+                            .toSatisfy("a row per part", count -> ((Integer) count) == 2);
+                    play.expect(dialog.getByText("any", ".clause-list__join *")).toBeVisible();
+                    play.expect(dialog.getByText("not", ".clause-row__negated *")).toBeVisible();
+                    // And not the wire form, which is what this condition used to open as. The
+                    // lint stays in the DOM and is hidden, so this asks whether it is visible
+                    // rather than whether it is there.
+                    play.expect(dialog.getByText(TextMatch.containing("edited as its wire form")))
+                            .not().toBeVisible();
+                    play.click(dialog.getByRole("button", StroomDom.button("Cancel")));
                     expectNoProblems(play);
                 })
                 // Cancel leaves the condition as it was

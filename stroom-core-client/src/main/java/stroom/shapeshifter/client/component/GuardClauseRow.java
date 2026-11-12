@@ -17,6 +17,7 @@
 package stroom.shapeshifter.client.component;
 
 import stroom.shapeshifter.client.model.GuardClause;
+import stroom.shapeshifter.client.model.GuardClause.Join;
 import stroom.shapeshifter.client.model.GuardClause.Op;
 import stroom.shapeshifter.config.Cast;
 import stroom.widget.form.client.TextBox;
@@ -39,15 +40,21 @@ import java.util.Locale;
 import java.util.function.BiConsumer;
 import java.util.function.IntConsumer;
 
-/// One guard clause: *and* · variable · operator · value · as · ✕. Commits when a field is left.
+/// One guard clause: *and* · variable · *not* · operator · value · as · ✕. Commits when a field
+/// is left.
 public class GuardClauseRow extends Composite {
 
     private static final Binder BINDER = GWT.create(Binder.class);
+
+    /// The negation box's one item; blank is an ordinary row.
+    private static final String NOT = "not";
 
     @UiField
     Label joiner;
     @UiField
     SelectionBox<String> variable;
+    @UiField
+    SelectionBox<String> negated;
     @UiField
     SelectionBox<Op> op;
     @UiField
@@ -64,19 +71,23 @@ public class GuardClauseRow extends Composite {
     };
     private GuardClause committed;
 
-    public GuardClauseRow(final int index, final GuardClause clause, final List<String> names,
-                          final boolean enabled) {
+    public GuardClauseRow(final int index, final GuardClause clause, final Join join,
+                          final List<String> names, final boolean enabled) {
         this.index = index;
         initWidget(BINDER.createAndBindUi(this));
         variable.addValueChangeHandler(event -> onVariable(event));
+        negated.addValueChangeHandler(event -> onNegated(event));
         op.addValueChangeHandler(event -> onOp(event));
         value.addBlurHandler(event -> onValueBlur(event));
         value.addKeyDownHandler(event -> onValueKey(event));
         as.addValueChangeHandler(event -> onAs(event));
         remove.addClickHandler(event -> onRemoveClick(event));
+        // The word between the rows is the join they were given, not a choice of its own: the
+        // choice is made once, above them (design 46 §7.2 found that a condition is an and or an
+        // or, never a mixture).
         joiner.setText(index == 0
                 ? ""
-                : "and");
+                : (join == Join.ANY ? "or" : "and"));
         variable.setAllowTextEntry(true);
         variable.addItems(names);
         op.setDisplayValueFunction(Op::spelling);
@@ -84,13 +95,21 @@ public class GuardClauseRow extends Composite {
         as.setNonSelectString("as is");
         as.setDisplayValueFunction(c -> c.name().toLowerCase(Locale.ROOT));
         as.addItems(Cast.values());
+        // Blank for the ordinary row, so the negation reads as an absence rather than a word the
+        // author has to recognise as "off".
+        negated.setNonSelectString(" ");
+        negated.addItem(NOT);
         committed = clause;
         variable.setValue(clause.getVariable(), false);
+        negated.setValue(clause.isNegated()
+                ? NOT
+                : null, false);
         op.setValue(clause.getOp(), false);
         value.setText(clause.getValue());
         as.setValue(clause.getAs(), false);
         showOp(clause.getOp());
         variable.setEnabled(enabled);
+        negated.setEnabled(enabled);
         op.setEnabled(enabled);
         value.setEnabled(enabled);
         as.setEnabled(enabled);
@@ -106,6 +125,10 @@ public class GuardClauseRow extends Composite {
     }
 
     private void onVariable(final ValueChangeEvent<String> e) {
+        commit();
+    }
+
+    private void onNegated(final ValueChangeEvent<String> e) {
         commit();
     }
 
@@ -136,7 +159,8 @@ public class GuardClauseRow extends Composite {
     /// The row as it stands.
     public GuardClause getClause() {
         // With text entry allowed the text is the value: a pick writes it, and typing replaces it.
-        return new GuardClause(variable.getText(), op.getValue(), value.getText(), as.getValue());
+        return new GuardClause(variable.getText(), op.getValue(), value.getText(), as.getValue(),
+                NOT.equals(negated.getValue()));
     }
 
     private void commit() {

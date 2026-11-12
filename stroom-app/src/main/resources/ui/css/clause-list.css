@@ -1,0 +1,19 @@
+/*
+ * The condition editor's list of clause rows (ClauseListPanel): the join above them, which says
+ * whether all or any of the rows must hold. The rows themselves are clause-row.css's.
+ *
+ * One choice for the whole condition rather than a word between each pair, because a condition
+ * is an and or an or and never a mixture (design 46 §7.2), and per-row joiners would imply a
+ * precedence the model does not have.
+ */
+.clause-list__join {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 0 4px;
+}
+
+.clause-list__join-label {
+    color: var(--ss-muted);
+    font-size: 11px;
+}

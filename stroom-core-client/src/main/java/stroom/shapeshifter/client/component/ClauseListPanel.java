@@ -17,6 +17,8 @@
 package stroom.shapeshifter.client.component;
 
 import stroom.shapeshifter.client.model.GuardClause;
+import stroom.shapeshifter.client.model.GuardClause.Join;
+import stroom.widget.selection.client.SelectionBox;
 import stroom.widget.component.client.Component;
 import stroom.widget.form.client.TextArea;
 import stroom.widget.text.client.Label;
@@ -31,12 +33,18 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.IntConsumer;
 
-/// A condition as clause rows joined by *and*, with *+ clause*, or as its wire form
-/// when the rows cannot express it — the one condition editor, shared by the guard, `if`
-/// and `when` (design 43 §4.2).
+/// A condition as clause rows joined by *and* or by *or*, each row optionally negated, with
+/// *+ clause* — or as its wire form when the rows cannot express it: the one condition editor,
+/// shared by the guard, `if` and `when` (design 43 §4.2).
+///
+/// <p>The join is one choice above the rows rather than a word between each pair, because a
+/// condition in the corpus is an *and* or an *or* and never a mixture (design 46 §7.2). Mixing
+/// them per row would offer a precedence the model does not have.
 public class ClauseListPanel extends Component {
 
     private final FlowPanel rows = new FlowPanel();
+    private final FlowPanel joinPanel = new FlowPanel();
+    private final SelectionBox<Join> join = new SelectionBox<>();
     private final Label none = new Label();
     private final Label add = new Label("+ clause");
     private final FlowPanel jsonPanel = new FlowPanel();
@@ -55,6 +63,8 @@ public class ClauseListPanel extends Component {
     };
     private Consumer<String> onJson = json -> {
     };
+    private Consumer<Join> onJoin = j -> {
+    };
 
     public ClauseListPanel() {
         final FlowPanel panel = new FlowPanel();
@@ -65,8 +75,22 @@ public class ClauseListPanel extends Component {
                 onAdd.run();
             }
         });
-        final Label lint = new Label("This condition is more than clauses joined by and — an or, a not, a"
-                                     + " comparison of two references — so it is edited as its wire form.");
+        final Label joinLabel = new Label("holds when");
+        joinLabel.setStyleName("clause-list__join-label");
+        join.setDisplayValueFunction(Join::label);
+        join.addItems(Join.values());
+        join.setValue(Join.ALL, false);
+        join.addValueChangeHandler(event -> onJoin.accept(event.getValue()));
+        final Label joinSuffix = new Label("of these hold");
+        joinSuffix.setStyleName("clause-list__join-label");
+        joinPanel.setStyleName("clause-list__join");
+        joinPanel.add(joinLabel);
+        joinPanel.add(join);
+        joinPanel.add(joinSuffix);
+        joinPanel.setVisible(false);
+        final Label lint = new Label("This condition is more than rows joined one way — a comparison of two"
+                                     + " references, or a nesting deeper than a negated row — so it is"
+                                     + " edited as its wire form.");
         lint.setStyleName("workbench-form__lint");
         json.setStyleName("workbench-form__pattern");
         json.setVisibleLines(6);
@@ -83,6 +107,7 @@ public class ClauseListPanel extends Component {
         error.setStyleName("workbench-form__error");
         error.setVisible(false);
         panel.add(none);
+        panel.add(joinPanel);
         panel.add(rows);
         panel.add(add);
         panel.add(jsonPanel);
@@ -135,20 +160,41 @@ public class ClauseListPanel extends Component {
     }
 
     /// Show the condition as rows; the wire form goes.
-    public void setClauses(final List<GuardClause> list) {
+    public void setClauses(final List<GuardClause> list, final Join how) {
+        join.setValue(how == null
+                ? Join.ALL
+                : how, false);
+        join.setEnabled(enabled);
         rows.clear();
         rowWidgets.clear();
         for (int i = 0; i < list.size(); i++) {
-            final GuardClauseRow row = new GuardClauseRow(i, list.get(i), names, enabled);
+            final GuardClauseRow row = new GuardClauseRow(i, list.get(i), join.getValue(), names,
+                    enabled);
             row.setOnChange((at, clause) -> onChange.accept(at, clause));
             row.setOnRemove(at -> onRemove.accept(at));
             rowWidgets.add(row);
             rows.add(row);
         }
         none.setVisible(list.isEmpty());
+        // One row needs no joining word, and offering the choice would imply it changes something
+        joinPanel.setVisible(list.size() > 1);
         rows.setVisible(true);
         add.setVisible(true);
         jsonPanel.setVisible(false);
+    }
+
+    /// Told when the join changes.
+    ///
+    /// @param onJoin The handler.
+    public void setOnJoin(final Consumer<Join> onJoin) {
+        this.onJoin = onJoin;
+    }
+
+    /// @return How the rows are joined.
+    public Join getJoin() {
+        return join.getValue() == null
+                ? Join.ALL
+                : join.getValue();
     }
 
     /// The rows as they stand; empty when the wire form is showing.
@@ -170,6 +216,7 @@ public class ClauseListPanel extends Component {
         rowWidgets.clear();
         none.setVisible(false);
         rows.setVisible(false);
+        joinPanel.setVisible(false);
         add.setVisible(false);
         jsonPanel.setVisible(true);
         committedJson = text;

@@ -17,6 +17,7 @@
 package stroom.shapeshifter.client.component;
 
 import stroom.shapeshifter.client.model.GuardClause;
+import stroom.shapeshifter.client.model.GuardClause.Join;
 import stroom.widget.component.client.Component;
 import stroom.widget.form.client.TextBox;
 import stroom.widget.text.client.Label;
@@ -102,8 +103,17 @@ public class GuardAndLimits
         clauses.setNames(names);
     }
 
-    public void setClauses(final List<GuardClause> list) {
-        clauses.setClauses(list);
+    public void setClauses(final List<GuardClause> list, final Join join) {
+        clauses.setClauses(list, join);
+    }
+
+    public Join getJoin() {
+        return clauses.getJoin();
+    }
+
+    /// @param onJoin Told when the join changes.
+    public void setOnJoin(final java.util.function.Consumer<Join> onJoin) {
+        clauses.setOnJoin(onJoin);
     }
 
     public List<GuardClause> getClauses() {

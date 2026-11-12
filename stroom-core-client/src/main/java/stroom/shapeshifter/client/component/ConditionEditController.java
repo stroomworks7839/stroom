@@ -58,13 +58,13 @@ public class ConditionEditController extends Controller {
         view.getClauses().setOnRemove(index -> {
             if (index >= 0 && index < clauses.size()) {
                 clauses.remove(index);
-                view.getClauses().setClauses(clauses);
+                view.getClauses().setClauses(clauses, view.getClauses().getJoin());
             }
         });
         view.getClauses().setOnAdd(() -> {
             clauses = view.getClauses().getClauses();
             clauses.add(new GuardClause("", GuardClause.Op.EQ, "", null));
-            view.getClauses().setClauses(clauses);
+            view.getClauses().setClauses(clauses, view.getClauses().getJoin());
         });
         view.getClauses().setOnJson(text -> json = text);
     }
@@ -72,11 +72,11 @@ public class ConditionEditController extends Controller {
     public void read(final Condition condition, final List<String> names) {
         view.getClauses().setNames(names);
         view.getClauses().setError(null);
-        final List<GuardClause> rows = GuardClause.read(condition);
-        if (rows != null) {
-            clauses = new ArrayList<>(rows);
+        final GuardClause.Rows read = GuardClause.read(condition);
+        if (read != null) {
+            clauses = new ArrayList<>(read.rows());
             json = null;
-            view.getClauses().setClauses(clauses);
+            view.getClauses().setClauses(clauses, read.join());
         } else {
             clauses = new ArrayList<>();
             json = JsonText.printPretty(ProjectJson.writeCondition(condition));
@@ -97,7 +97,7 @@ public class ConditionEditController extends Controller {
                         filled.add(clause);
                     }
                 }
-                condition = GuardClause.write(filled);
+                condition = GuardClause.write(filled, view.getClauses().getJoin());
             }
             if (condition == null) {
                 throw new ConfigException("A branch needs a condition");

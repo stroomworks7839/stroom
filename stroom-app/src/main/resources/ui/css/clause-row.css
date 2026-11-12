@@ -17,3 +17,9 @@
 .clause-row__as {
     width: 100px;
 }
+
+/* Narrow: it holds one word, and a blank for the ordinary row. */
+.clause-row__negated {
+    width: 70px;
+    flex: none;
+}

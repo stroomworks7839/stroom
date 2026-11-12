@@ -276,6 +276,7 @@
 @import url("match-editor.css");
 @import url("regex.css");
 @import url("add-button.css");
+@import url("clause-list.css");
 @import url("clause-row.css");
 @import url("item-action.css");
 @import url("template-edit.css");

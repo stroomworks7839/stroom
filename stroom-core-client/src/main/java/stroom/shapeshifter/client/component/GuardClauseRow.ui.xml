@@ -7,6 +7,9 @@
     <g:FlowPanel styleName="edit-form__step-row">
         <t:Label ui:field="joiner" styleName="edit-form__number"/>
         <l:SelectionBox ui:field="variable" addStyleNames="clause-row__variable" title="A declared name, a param, or a function such as index()"/>
+        <!-- Negation is its own box rather than a second operator for every comparison: the row
+             reads "name not contains x", and the twelve operators stay twelve. -->
+        <l:SelectionBox ui:field="negated" addStyleNames="clause-row__negated" ariaLabel="Negated" title="Whether the row holds where its clause does not"/>
         <l:SelectionBox ui:field="op" addStyleNames="clause-row__operator"/>
         <form:TextBox ui:field="value" styleName="edit-form__input clause-row__value"
                    title="A number, true or false, or text - in quotes when it would otherwise read as a number"/>

@@ -30,11 +30,23 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 
-/// One row of the guard editor — *variable · operator · value* (design 18 §5.6) — and the
-/// reading of a [Condition] as rows joined by *and*. A guard the rows cannot express
-/// (an *or*, a *not*, a comparison between two references, a path reference) reads as
-/// null, and the editor shows its wire form instead: the model is the whole vocabulary, the rows
-/// are the common case.
+/// One row of the guard editor — *variable · operator · value*, optionally negated (design 18
+/// §5.6) — and the reading of a [Condition] as rows joined by *and* or by *or*. A guard the rows
+/// cannot express (a comparison between two references, a path reference, or any nesting deeper
+/// than one level) reads as null, and the editor shows its wire form instead: the model is the
+/// whole vocabulary, the rows are the common case.
+///
+/// <p>The rows express a clause, a negated clause, and an *and* or an *or* of those, because
+/// that is what configurations are made of: of the 476 conditions across every project fixture,
+/// 474 are one of those four shapes and none nests further (design 46 §7.3). A condition that
+/// does nest — `not(not(x))` is the only one in the corpus — stays on the wire form rather than
+/// being quietly rewritten into something simpler.
+///
+/// <p>The shape is not the only thing that decides: a clause's *select* must also read back as a
+/// name, which [stroom.shapeshifter.config.json.ReferenceJson] allows only for a bare declared
+/// name or a counter. A comparison of a bare group, a label, a path or an accessor is still the
+/// wire form's, whatever its shape, and that is now the commoner reason to see JSON: 77 of the
+/// 476 remain on it, where 234 did before the rows learnt *or* and *not*.
 public final class GuardClause {
 
     /// The operators a row offers, spelt as the wire format spells them.
@@ -83,8 +95,14 @@ public final class GuardClause {
     private final Op op;
     private final String value;
     private final Cast as;
+    private final boolean negated;
 
     public GuardClause(final String variable, final Op op, final String value, final Cast as) {
+        this(variable, op, value, as, false);
+    }
+
+    public GuardClause(final String variable, final Op op, final String value, final Cast as,
+                       final boolean negated) {
         this.variable = variable == null
                 ? ""
                 : variable;
@@ -93,6 +111,7 @@ public final class GuardClause {
                 ? ""
                 : value;
         this.as = as;
+        this.negated = negated;
     }
 
     public String getVariable() {
@@ -112,18 +131,32 @@ public final class GuardClause {
         return as;
     }
 
+    /// Whether the row holds where its clause does *not*: the clause wrapped in a [Condition.Not].
+    public boolean isNegated() {
+        return negated;
+    }
+
+    /// This row negated, or not.
+    ///
+    /// @param negate Whether it holds where the clause does not.
+    /// @return The row.
+    public GuardClause withNegated(final boolean negate) {
+        return new GuardClause(variable, op, value, as, negate);
+    }
+
     @Override
     public boolean equals(final Object other) {
         return other instanceof GuardClause that
                && variable.equals(that.variable)
                && op == that.op
                && value.equals(that.value)
-               && as == that.as;
+               && as == that.as
+               && negated == that.negated;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(variable, op, value, as);
+        return Objects.hash(variable, op, value, as, negated);
     }
 
     /// An untouched new row: an operator that wants a variable and a value, and neither given.
@@ -131,23 +164,41 @@ public final class GuardClause {
         return op != null && op.takesVariable() && variable.trim().isEmpty() && value.trim().isEmpty();
     }
 
-    /// The rows a guard reads as, or null when it is not rows joined by and.
-    public static List<GuardClause> read(final Condition guard) {
-        final List<GuardClause> clauses = new ArrayList<>();
+    /// The rows a guard reads as, or null when the rows cannot say it.
+    ///
+    /// @param guard The guard, or null for none.
+    /// @return Its rows and how they are joined, or null for a guard that must be edited as its
+    /// wire form.
+    public static Rows read(final Condition guard) {
         if (guard == null) {
-            return clauses;
+            return new Rows(new ArrayList<>(), Join.ALL);
         }
-        final List<Condition> parts = guard instanceof Condition.And and
-                ? and.conditions()
-                : List.of(guard);
+        final Join join = guard instanceof Condition.Or
+                ? Join.ANY
+                : Join.ALL;
+        final List<Condition> parts;
+        if (guard instanceof Condition.And and) {
+            parts = and.conditions();
+        } else if (guard instanceof Condition.Or or) {
+            parts = or.conditions();
+        } else {
+            parts = List.of(guard);
+        }
+        final List<GuardClause> clauses = new ArrayList<>();
         for (final Condition part : parts) {
-            final GuardClause clause = readOne(part);
+            // A part may be negated, and that is the only nesting the rows allow: a not of
+            // anything but a clause — not(not(x)), not(and(...)) — belongs to the wire form.
+            final boolean negated = part instanceof Condition.Not;
+            final Condition inner = negated
+                    ? ((Condition.Not) part).condition()
+                    : part;
+            final GuardClause clause = readOne(inner);
             if (clause == null) {
                 return null;
             }
-            clauses.add(clause);
+            clauses.add(clause.withNegated(negated));
         }
-        return clauses;
+        return new Rows(clauses, join);
     }
 
     private static GuardClause readOne(final Condition c) {
@@ -198,17 +249,27 @@ public final class GuardClause {
         return "";
     }
 
-    /// The guard the rows mean: null for none, the one clause for one, else *and*.
-    public static Condition write(final List<GuardClause> clauses) {
+    /// The guard the rows mean: null for none, the one clause for one, else joined.
+    ///
+    /// @param clauses The rows.
+    /// @param join    How they are joined, where there is more than one.
+    /// @return The condition, or null where there are no rows.
+    public static Condition write(final List<GuardClause> clauses, final Join join) {
         final List<Condition> conditions = new ArrayList<>();
         for (final GuardClause clause : clauses) {
-            conditions.add(clause.toCondition());
+            final Condition condition = clause.toCondition();
+            conditions.add(clause.isNegated()
+                    ? new Condition.Not(condition)
+                    : condition);
         }
         if (conditions.isEmpty()) {
             return null;
         }
-        return conditions.size() == 1
-                ? conditions.get(0)
+        if (conditions.size() == 1) {
+            return conditions.get(0);
+        }
+        return join == Join.ANY
+                ? new Condition.Or(conditions)
                 : new Condition.And(conditions);
     }
 
@@ -268,22 +329,32 @@ public final class GuardClause {
         return text.trim();
     }
 
-    /// One line for the strip: `status ge 400 and user exists`.
+    /// One line for the strip: `status ge 400 and user exists`, or `a not b` where a row is
+    /// negated, joined by the word the rows are joined with.
+    ///
+    /// @param guard The guard, or null for none.
+    /// @return The line.
     public static String describe(final Condition guard) {
-        final List<GuardClause> clauses = read(guard);
-        if (clauses == null) {
+        final Rows read = read(guard);
+        if (read == null) {
             return "guarded (see workbench)";
         }
-        if (clauses.isEmpty()) {
+        if (read.rows().isEmpty()) {
             return "no guard";
         }
+        final String joiner = read.join() == Join.ANY
+                ? " or "
+                : " and ";
         final StringBuilder sb = new StringBuilder();
-        for (final GuardClause clause : clauses) {
+        for (final GuardClause clause : read.rows()) {
             if (sb.length() > 0) {
-                sb.append(" and ");
+                sb.append(joiner);
             }
             if (clause.op.takesVariable()) {
                 sb.append(clause.variable).append(' ');
+            }
+            if (clause.negated) {
+                sb.append("not ");
             }
             sb.append(clause.op.spelling());
             if (clause.op.takesValue()) {
@@ -291,5 +362,32 @@ public final class GuardClause {
             }
         }
         return sb.toString();
+    }
+
+    /// How a condition's rows are joined: every one of them, or any one of them.
+    public enum Join {
+        /// Every row holds — an {@code and}.
+        ALL("all"),
+        /// At least one row holds — an {@code or}.
+        ANY("any");
+
+        private final String label;
+
+        Join(final String label) {
+            this.label = label;
+        }
+
+        /// @return The word the picker shows.
+        public String label() {
+            return label;
+        }
+    }
+
+    /// A condition as the editor holds it: its rows, and how they are joined.
+    ///
+    /// @param rows The rows, in order.
+    /// @param join How they are joined, where there is more than one.
+    public record Rows(List<GuardClause> rows, Join join) {
+
     }
 }

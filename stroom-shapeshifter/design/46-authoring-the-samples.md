@@ -806,6 +806,40 @@ Two pieces of work, with the probe's numbers attached:
 The probe is not kept. These numbers are the finding, and they are reproducible from the
 fixtures by the same enumeration whenever the corpus changes.
 
+### 7.4 The clause rows learnt *or* and *not* — done 2026-11-12
+
+The second of §7.3's two pieces was the cheaper one and was taken first: one editor rather than
+thirty forms.
+
+**What the rows say now.** A row can be negated, and the rows are joined by *all* or by *any* —
+`holds when [all] of these hold`, one choice above the rows rather than a word between each
+pair. The shape was chosen from the corpus rather than from first principles: of 476 conditions,
+229 are a bare clause, 115 a negated clause, 79 an *and*, 51 an *or*, and **none nests further**
+— no `and(or(…))` anywhere — so per-row joiners would have offered a precedence the model does
+not have.
+
+**What it is worth, measured honestly.** Wire-form conditions across the corpus fall **from 234
+to 77**. The first number I reported was 168 → 2, and it was wrong: it counted shapes while
+assuming every clause's *select* was row-expressible.
+
+**It is not, and that is now the commoner reason to see JSON.** A row's variable must read back
+as a name, which `ReferenceJson.writeRefOrName` allows only for a bare declared name or a
+counter. A comparison against a bare group (`$0`), a label, a path or an accessor goes to the
+wire form whatever its shape. That is what the remaining 77 are, and it is a smaller and
+sharper question than the one just answered — worth raising beside design 44 §8 if the clause
+editor is opened again.
+
+Two deliberate exclusions: `not(not(x))` stays on the wire form rather than being simplified to
+the clause it equals, because rewriting a configuration behind its author is worse than showing
+them JSON; and a negation of anything but a clause is wire form too, the rows having one level.
+
+Pinned by `GuardClauseTest` — three new cases for the shapes the rows learnt, and the case that
+used to assert *or* and *not* were out of reach rewritten to assert what still is — and by the
+`ConditionOrAndNot` story, which opens the composite fixture's condition and finds rows where it
+used to find JSON.
+
+
+
 ## 8. What this already says about design 18 Q20
 
 Q20 ruled thirty hand-written forms, one per transform kind, against the draft recommendation of

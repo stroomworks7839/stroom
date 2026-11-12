@@ -70,6 +70,8 @@ public class GuardAndLimitsController extends Controller {
         view.setOnClauseRemove(this::onClauseRemove);
         view.setOnClauseAdd(this::onClauseAdd);
         view.setOnGuardJson(this::onGuardJson);
+        // Changing all/any rewrites the guard exactly as editing a row does
+        view.setOnJoin(join -> commitClauses(view.getClauses()));
         view.setOnLimitsChange(this::onLimitsChange);
     }
 
@@ -86,14 +88,18 @@ public class GuardAndLimitsController extends Controller {
         }
         applyReadOnly();
         view.setNames(namesInScope(template));
-        final List<GuardClause> clauses = GuardClause.read(template.guard());
+        final GuardClause.Rows read = GuardClause.read(template.guard());
+        final List<GuardClause> clauses = read == null
+                ? null
+                : read.rows();
         if (clauses != null) {
             // The rows are rebuilt only when the model disagrees with them: a commit of the
             // rows' own state - the blur before a click on ✕, say - must not replace the widgets
             // under the pointer, and a row added and not yet filled is not in the model to
             // rebuild from.
-            if (!sameTemplate || view.isWireForm() || !clauses.equals(filled(view.getClauses()))) {
-                view.setClauses(clauses);
+            if (!sameTemplate || view.isWireForm() || !clauses.equals(filled(view.getClauses()))
+                || read.join() != view.getJoin()) {
+                view.setClauses(clauses, read.join());
             }
         } else {
             view.setGuardJson(JsonText.printPretty(ProjectJson.writeCondition(template.guard())));
@@ -154,7 +160,7 @@ public class GuardAndLimitsController extends Controller {
         }
         clauses.remove(index);
         // The row goes whether or not the guard changes: a row never filled was never in it.
-        view.setClauses(clauses);
+        view.setClauses(clauses, view.getJoin());
         commitClauses(clauses);
     }
 
@@ -162,7 +168,7 @@ public class GuardAndLimitsController extends Controller {
         final List<GuardClause> clauses = view.getClauses();
         clauses.add(new GuardClause("", GuardClause.Op.EQ, "", null));
         // An empty clause is not yet a condition: show the row, commit when it is filled in.
-        view.setClauses(clauses);
+        view.setClauses(clauses, view.getJoin());
     }
 
     private static List<GuardClause> filled(final List<GuardClause> clauses) {
@@ -185,7 +191,7 @@ public class GuardAndLimitsController extends Controller {
         final List<GuardClause> filled = filled(clauses);
         final Condition guard;
         try {
-            guard = GuardClause.write(filled);
+            guard = GuardClause.write(filled, view.getJoin());
         } catch (final ConfigException e) {
             view.setError(e.getMessage());
             return;
