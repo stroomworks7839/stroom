@@ -17,12 +17,19 @@
 package stroom.shapeshifter.client.model;
 
 import stroom.shapeshifter.config.OutputNode;
+import stroom.shapeshifter.config.OutputNode.Abs;
 import stroom.shapeshifter.config.OutputNode.Add;
+import stroom.shapeshifter.config.OutputNode.Ceiling;
 import stroom.shapeshifter.config.OutputNode.Divide;
+import stroom.shapeshifter.config.OutputNode.Floor;
 import stroom.shapeshifter.config.OutputNode.LowerCase;
+import stroom.shapeshifter.config.OutputNode.Mod;
+import stroom.shapeshifter.config.OutputNode.Multiply;
 import stroom.shapeshifter.config.OutputNode.NormalizeSpace;
+import stroom.shapeshifter.config.OutputNode.Number;
 import stroom.shapeshifter.config.OutputNode.Round;
 import stroom.shapeshifter.config.OutputNode.StringLength;
+import stroom.shapeshifter.config.OutputNode.Subtract;
 import stroom.shapeshifter.config.OutputNode.Trim;
 import stroom.shapeshifter.config.OutputNode.UpperCase;
 import stroom.shapeshifter.config.RefExpression;
@@ -55,7 +62,14 @@ public final class SimpleTransforms {
                || node instanceof Add
                || node instanceof Divide
                || node instanceof Round
-               || node instanceof StringLength;
+               || node instanceof StringLength
+               || node instanceof Number
+               || node instanceof Subtract
+               || node instanceof Multiply
+               || node instanceof Mod
+               || node instanceof Floor
+               || node instanceof Ceiling
+               || node instanceof Abs;
     }
 
     /// What the transform reads.
@@ -79,6 +93,20 @@ public final class SimpleTransforms {
             return r.select();
         } else if (node instanceof StringLength s) {
             return s.select();
+        } else if (node instanceof Number n) {
+            return n.select();
+        } else if (node instanceof Subtract sub) {
+            return sub.select();
+        } else if (node instanceof Multiply m) {
+            return m.select();
+        } else if (node instanceof Mod m) {
+            return m.select();
+        } else if (node instanceof Floor f) {
+            return f.select();
+        } else if (node instanceof Ceiling c) {
+            return c.select();
+        } else if (node instanceof Abs a) {
+            return a.select();
         }
         return List.of();
     }
@@ -104,6 +132,20 @@ public final class SimpleTransforms {
             return r.name();
         } else if (node instanceof StringLength s) {
             return s.name();
+        } else if (node instanceof Number n) {
+            return n.name();
+        } else if (node instanceof Subtract sub) {
+            return sub.name();
+        } else if (node instanceof Multiply m) {
+            return m.name();
+        } else if (node instanceof Mod m) {
+            return m.name();
+        } else if (node instanceof Floor f) {
+            return f.name();
+        } else if (node instanceof Ceiling c) {
+            return c.name();
+        } else if (node instanceof Abs a) {
+            return a.name();
         }
         return null;
     }
@@ -133,6 +175,20 @@ public final class SimpleTransforms {
                 return new Round(selects, name);
             case "string-length":
                 return new StringLength(selects, name);
+            case "number":
+                return new Number(selects, name);
+            case "subtract":
+                return new Subtract(selects, name);
+            case "multiply":
+                return new Multiply(selects, name);
+            case "mod":
+                return new Mod(selects, name);
+            case "floor":
+                return new Floor(selects, name);
+            case "ceiling":
+                return new Ceiling(selects, name);
+            case "abs":
+                return new Abs(selects, name);
             default:
                 throw new IllegalArgumentException("Not a one-shape transform: " + kind);
         }
@@ -148,8 +204,11 @@ public final class SimpleTransforms {
     public static Arity arity(final String kind) {
         switch (kind) {
             case "add":
+            case "multiply":
                 return Arity.FOLD;
             case "divide":
+            case "subtract":
+            case "mod":
                 return Arity.TWO;
             default:
                 return Arity.ONE;

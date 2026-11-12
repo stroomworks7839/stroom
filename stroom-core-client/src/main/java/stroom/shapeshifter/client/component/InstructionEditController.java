@@ -22,6 +22,7 @@ import stroom.shapeshifter.client.model.GuardClause;
 import stroom.shapeshifter.client.model.Instructions;
 import stroom.shapeshifter.client.model.SimpleTransforms;
 import stroom.shapeshifter.client.model.SortKey;
+import stroom.shapeshifter.config.Codec;
 import stroom.shapeshifter.config.Condition;
 import stroom.shapeshifter.config.ConfigException;
 import stroom.shapeshifter.config.OutputNode;
@@ -29,25 +30,39 @@ import stroom.shapeshifter.config.OutputNode.Append;
 import stroom.shapeshifter.config.OutputNode.ApplyDirective;
 import stroom.shapeshifter.config.OutputNode.ApplyTemplates;
 import stroom.shapeshifter.config.OutputNode.Attribute;
+import stroom.shapeshifter.config.OutputNode.Call;
 import stroom.shapeshifter.config.OutputNode.CallTemplate;
 import stroom.shapeshifter.config.OutputNode.Choose;
 import stroom.shapeshifter.config.OutputNode.Clear;
+import stroom.shapeshifter.config.OutputNode.Contains;
+import stroom.shapeshifter.config.OutputNode.Decode;
 import stroom.shapeshifter.config.OutputNode.Element;
 import stroom.shapeshifter.config.OutputNode.EmitError;
+import stroom.shapeshifter.config.OutputNode.EndsWith;
 import stroom.shapeshifter.config.OutputNode.ForEach;
 import stroom.shapeshifter.config.OutputNode.ForEachGroup;
+import stroom.shapeshifter.config.OutputNode.FormatDate;
+import stroom.shapeshifter.config.OutputNode.FormatNumber;
 import stroom.shapeshifter.config.OutputNode.Holder;
 import stroom.shapeshifter.config.OutputNode.If;
 import stroom.shapeshifter.config.OutputNode.Insert;
 import stroom.shapeshifter.config.OutputNode.Namespace;
 import stroom.shapeshifter.config.OutputNode.Order;
 import stroom.shapeshifter.config.OutputNode.Param;
+import stroom.shapeshifter.config.OutputNode.ParseDate;
 import stroom.shapeshifter.config.OutputNode.Put;
 import stroom.shapeshifter.config.OutputNode.Remove;
+import stroom.shapeshifter.config.OutputNode.Replace;
 import stroom.shapeshifter.config.OutputNode.Sort;
+import stroom.shapeshifter.config.OutputNode.StartsWith;
+import stroom.shapeshifter.config.OutputNode.StringJoin;
+import stroom.shapeshifter.config.OutputNode.Substring;
+import stroom.shapeshifter.config.OutputNode.SubstringAfter;
+import stroom.shapeshifter.config.OutputNode.SubstringBefore;
 import stroom.shapeshifter.config.OutputNode.Switch;
 import stroom.shapeshifter.config.OutputNode.SwitchCase;
 import stroom.shapeshifter.config.OutputNode.Text;
+import stroom.shapeshifter.config.OutputNode.Tokenize;
 import stroom.shapeshifter.config.OutputNode.Translate;
 import stroom.shapeshifter.config.OutputNode.ValueOf;
 import stroom.shapeshifter.config.OutputNode.Variable;
@@ -67,6 +82,8 @@ import com.google.web.bindery.event.shared.EventBus;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 
 /// One instruction (design 18 §5.6: "each kind gets an editor shaped like the instruction it
 /// edits"): a kind and the fields that kind has, for the kinds an author writes constantly;
@@ -165,11 +182,15 @@ public class InstructionEditController extends Controller {
 
     private static final List<String> FORMABLE = Instructions.FORM_KINDS;
 
+    /// The text fields the one view has; parse-date uses every one of them.
+    private static final int FIELDS = 5;
+
     private void clear() {
         final InstructionEdit v = view;
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < FIELDS; i++) {
             v.setField(i, "", "", false);
         }
+        v.setChoice(List.of(), null, "", false);
         v.setFlag(0, "", false, false);
         v.setFlag(1, "", false, false);
         v.setMulti("", "", false);
@@ -192,6 +213,12 @@ public class InstructionEditController extends Controller {
     /// absent one as unshowable sent the ordinary case to the wire form.
     private static boolean optional(final RefExpression ref) {
         return ref == null || Instructions.spell(ref) != null;
+    }
+
+    /// Whether a transform reads exactly one thing, and the form can spell it: the shape the
+    /// one-field forms take, and a node holding more selects than that would not compile.
+    private static boolean oneSelect(final List<RefExpression> select) {
+        return select.size() == 1 && Instructions.spell(select.get(0)) != null;
     }
 
     /// Whether no value holds the `=` the replacement lines are split on.
@@ -225,6 +252,40 @@ public class InstructionEditController extends Controller {
                    && spellableParams(a.directive().withParam());
         } else if (node instanceof CallTemplate c) {
             return spellableParams(c.withParam());
+        } else if (node instanceof StringJoin j) {
+            return oneSelect(j.select());
+        } else if (node instanceof Tokenize t) {
+            return oneSelect(t.select());
+        } else if (node instanceof SubstringBefore b) {
+            return oneSelect(b.select());
+        } else if (node instanceof SubstringAfter a) {
+            return oneSelect(a.select());
+        } else if (node instanceof StartsWith w) {
+            return oneSelect(w.select());
+        } else if (node instanceof EndsWith w) {
+            return oneSelect(w.select());
+        } else if (node instanceof Contains c) {
+            return oneSelect(c.select());
+        } else if (node instanceof FormatNumber f) {
+            return oneSelect(f.select());
+        } else if (node instanceof Replace r) {
+            return oneSelect(r.select());
+        } else if (node instanceof Substring sub) {
+            return oneSelect(sub.select());
+        } else if (node instanceof FormatDate f) {
+            return oneSelect(f.select());
+        } else if (node instanceof ParseDate d) {
+            return oneSelect(d.select())
+                   && (d.reference() == null || Instructions.spell(d.reference()) != null);
+        } else if (node instanceof Decode d) {
+            return oneSelect(d.select());
+        } else if (node instanceof Call c) {
+            for (final RefExpression select : c.select()) {
+                if (Instructions.spell(select) == null) {
+                    return false;
+                }
+            }
+            return true;
         } else if (SimpleTransforms.isSimple(node)) {
             // Every select has to have a spelling, and there has to be one: the form writes the
             // selects a line at a time and refuses an empty list.
@@ -286,9 +347,10 @@ public class InstructionEditController extends Controller {
     /// The fields a kind has; labels say what each field is.
     private void showKind(final String kind) {
         final InstructionEdit v = view;
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < FIELDS; i++) {
             v.setFieldVisible(i, false);
         }
+        v.setChoiceVisible(false);
         v.setFlagVisible(0, false);
         v.setFlagVisible(1, false);
         v.setMultiVisible(false);
@@ -349,6 +411,58 @@ public class InstructionEditController extends Controller {
                         field(0, "Name", NAME_HELP);
                         break;
                 }
+                break;
+            case "string-join":
+            case "tokenize":
+            case "substring-before":
+            case "substring-after":
+            case "starts-with":
+            case "ends-with":
+            case "contains":
+            case "format-number":
+                // Select, the one word the kind turns on, and the name: eight kinds, one shape.
+                field(0, "Select", "a name, $1 for a capture group, or a function");
+                field(1, WORD_OF.get(kind), WORD_HELP.get(kind));
+                field(2, "Name", NAME_HELP);
+                break;
+            case "replace":
+                field(0, "Select", "a name, $1 for a capture group, or a function");
+                field(1, "Find", "the text to look for, or a regular expression");
+                field(2, "Replace with", "what to put in its place; blank deletes it");
+                field(3, "Name", NAME_HELP);
+                flag(0, "Find is a regular expression");
+                break;
+            case "substring":
+                field(0, "Select", "a name, $1 for a capture group, or a function");
+                field(1, "Start", "where it starts, counting from 1 at version 5 and from 0 "
+                                  + "before (design/17 §7); blank starts at the beginning");
+                field(2, "Length", "how many characters; blank runs to the end");
+                field(3, "Name", NAME_HELP);
+                break;
+            case "format-date":
+                field(0, "Select", "a name, $1 for a capture group, or a function");
+                field(1, "Pattern", "how the date is written out");
+                field(2, "Time zone", "the zone it is written in; blank is UTC");
+                field(3, "Name", NAME_HELP);
+                break;
+            case "parse-date":
+                field(0, "Select", "a name, $1 for a capture group, or a function");
+                field(1, "Pattern", "how the date is written, or iso");
+                field(2, "Time zone", "the zone it is read in; blank is UTC");
+                field(3, "Relative to", "a date the year is taken from where the text has none; "
+                                        + "blank uses the stream's own time");
+                field(4, "Name", NAME_HELP);
+                break;
+            case "decode":
+                field(0, "Select", "a name, $1 for a capture group, or a function");
+                v.setChoice(CODECS, null, "Codec", true);
+                field(2, "Name", NAME_HELP);
+                break;
+            case "call":
+                field(0, "Function", "the function to call");
+                field(1, "Name", NAME_HELP);
+                v.setMultiVisible(true);
+                v.setMultiLabel("Arguments, one per line");
                 break;
             case "element":
                 field(0, "Name", null);
@@ -486,6 +600,59 @@ public class InstructionEditController extends Controller {
                     v.setField(0, name);
                     break;
             }
+        } else if (node instanceof StringJoin j) {
+            one(j.select(), j.separator(), j.name());
+        } else if (node instanceof Tokenize t) {
+            one(t.select(), t.delimiter(), t.name());
+        } else if (node instanceof SubstringBefore b) {
+            one(b.select(), b.marker(), b.name());
+        } else if (node instanceof SubstringAfter a) {
+            one(a.select(), a.marker(), a.name());
+        } else if (node instanceof StartsWith w) {
+            one(w.select(), w.prefix(), w.name());
+        } else if (node instanceof EndsWith w) {
+            one(w.select(), w.suffix(), w.name());
+        } else if (node instanceof Contains c) {
+            one(c.select(), c.substring(), c.name());
+        } else if (node instanceof FormatNumber f) {
+            one(f.select(), f.picture(), f.name());
+        } else if (node instanceof Replace r) {
+            v.setField(0, Instructions.spell(r.select().get(0)));
+            v.setField(1, r.pattern());
+            v.setField(2, r.replacement() == null ? "" : r.replacement());
+            v.setField(3, text(r.name()));
+            v.setFlag(0, r.isRegex());
+        } else if (node instanceof Substring sub) {
+            v.setField(0, Instructions.spell(sub.select().get(0)));
+            v.setField(1, sub.start() == null ? "" : String.valueOf(sub.start()));
+            v.setField(2, sub.length() == null ? "" : String.valueOf(sub.length()));
+            v.setField(3, text(sub.name()));
+        } else if (node instanceof FormatDate f) {
+            v.setField(0, Instructions.spell(f.select().get(0)));
+            v.setField(1, f.pattern());
+            v.setField(2, text(f.timezone()));
+            v.setField(3, text(f.name()));
+        } else if (node instanceof ParseDate d) {
+            v.setField(0, Instructions.spell(d.select().get(0)));
+            v.setField(1, d.pattern());
+            v.setField(2, text(d.timezone()));
+            v.setField(3, d.reference() == null ? "" : Instructions.spell(d.reference()));
+            v.setField(4, text(d.name()));
+        } else if (node instanceof Decode d) {
+            v.setField(0, Instructions.spell(d.select().get(0)));
+            v.setChoice(CODECS, d.codec().name().toLowerCase(Locale.ROOT), "Codec", true);
+            v.setField(2, text(d.name()));
+        } else if (node instanceof Call c) {
+            v.setField(0, c.function());
+            v.setField(1, text(c.name()));
+            final StringBuilder args = new StringBuilder();
+            for (final RefExpression select : c.select()) {
+                if (args.length() > 0) {
+                    args.append('\n');
+                }
+                args.append(Instructions.spell(select));
+            }
+            v.setMulti(args.toString());
         } else if (node instanceof Translate t) {
             v.setField(0, t.select().isEmpty()
                     ? ""
@@ -633,6 +800,54 @@ public class InstructionEditController extends Controller {
                             return SimpleTransforms.build(kind, selects(v.getMulti()),
                                     blankToNull(v.getField(0)));
                     }
+                case "string-join":
+                    return new StringJoin(selectOne(), required(v.getField(1),
+                            "A string-join needs a separator"), blankToNull(v.getField(2)));
+                case "tokenize":
+                    return new Tokenize(selectOne(), required(v.getField(1),
+                            "A tokenize needs a delimiter"), blankToNull(v.getField(2)));
+                case "substring-before":
+                    return new SubstringBefore(selectOne(), required(v.getField(1),
+                            "A substring-before needs a marker"), blankToNull(v.getField(2)));
+                case "substring-after":
+                    return new SubstringAfter(selectOne(), required(v.getField(1),
+                            "A substring-after needs a marker"), blankToNull(v.getField(2)));
+                case "starts-with":
+                    return new StartsWith(selectOne(), required(v.getField(1),
+                            "A starts-with needs a prefix"), blankToNull(v.getField(2)));
+                case "ends-with":
+                    return new EndsWith(selectOne(), required(v.getField(1),
+                            "An ends-with needs a suffix"), blankToNull(v.getField(2)));
+                case "contains":
+                    return new Contains(selectOne(), required(v.getField(1),
+                            "A contains needs a substring"), blankToNull(v.getField(2)));
+                case "format-number":
+                    return new FormatNumber(selectOne(), required(v.getField(1),
+                            "A format-number needs a picture"), blankToNull(v.getField(2)));
+                case "replace":
+                    return new Replace(selectOne(),
+                            required(v.getField(1), "A replace needs something to find"),
+                            v.getField(2), v.getFlag(0), blankToNull(v.getField(3)));
+                case "substring":
+                    return new Substring(selectOne(),
+                            integerOrNull(v.getField(1), "start"),
+                            integerOrNull(v.getField(2), "length"),
+                            blankToNull(v.getField(3)));
+                case "format-date":
+                    return new FormatDate(selectOne(),
+                            required(v.getField(1), "A format-date needs a pattern"),
+                            blankToNull(v.getField(2)), blankToNull(v.getField(3)));
+                case "parse-date":
+                    return new ParseDate(selectOne(),
+                            required(v.getField(1), "A parse-date needs a pattern"),
+                            blankToNull(v.getField(2)), refOrNull(v.getField(3)),
+                            blankToNull(v.getField(4)));
+                case "decode":
+                    return new Decode(selectOne(), codec(v.getChoice()),
+                            blankToNull(v.getField(2)));
+                case "call":
+                    return new Call(required(v.getField(0), "A call needs a function"),
+                            selects(v.getMulti()), blankToNull(v.getField(1)));
                 case "translate": {
                     final List<String> from = new ArrayList<>();
                     final List<String> to = new ArrayList<>();
@@ -759,9 +974,82 @@ public class InstructionEditController extends Controller {
         return params;
     }
 
+    /// The one word each of the eight kinds turns on, as the model names it.
+    private static final Map<String, String> WORD_OF = Map.of(
+            "string-join", "Separator",
+            "tokenize", "Delimiter",
+            "substring-before", "Marker",
+            "substring-after", "Marker",
+            "starts-with", "Prefix",
+            "ends-with", "Suffix",
+            "contains", "Substring",
+            "format-number", "Picture");
+
+    /// What that word is for.
+    private static final Map<String, String> WORD_HELP = Map.of(
+            "string-join", "what goes between the values",
+            "tokenize", "what separates one token from the next",
+            "substring-before", "the text to stop at",
+            "substring-after", "the text to start after",
+            "starts-with", "the text it must start with",
+            "ends-with", "the text it must end with",
+            "contains", "the text it must hold",
+            "format-number", "the picture the number is written to, as 0.0##");
+
+    /// The codecs decode offers, spelt as the wire spells them — which is the constant's own
+    /// name lowercased (`JsonFields.lowercase`), so the list is taken from the enum rather than
+    /// written out and left to drift from it.
+    private static final List<String> CODECS = codecs();
+
+    private static List<String> codecs() {
+        final List<String> codecs = new ArrayList<>();
+        for (final Codec codec : Codec.values()) {
+            codecs.add(codec.name().toLowerCase(Locale.ROOT));
+        }
+        return codecs;
+    }
+
     /// What the Name field says, for every kind that has one.
     private static final String NAME_HELP =
             "what the result is called; blank writes it straight out";
+
+    /// The one select a transform of this shape reads, from the first field.
+    private List<RefExpression> selectOne() {
+        return List.of(ref(view.getField(0), "a transform needs something to read"));
+    }
+
+    /// A whole number, or null for blank — a start or a length left out is "from the beginning"
+    /// or "to the end" rather than zero.
+    private static Integer integerOrNull(final String text, final String what) {
+        if (text == null || text.trim().isEmpty()) {
+            return null;
+        }
+        try {
+            return Integer.valueOf(text.trim());
+        } catch (final NumberFormatException e) {
+            throw new ConfigException("A " + what + " is a whole number: " + text.trim());
+        }
+    }
+
+    /// The codec a word names.
+    private static Codec codec(final String chosen) {
+        if (chosen == null || chosen.trim().isEmpty()) {
+            throw new ConfigException("A decode needs a codec");
+        }
+        return Codec.valueOf(chosen.trim().toUpperCase(Locale.ROOT));
+    }
+
+    /// The three fields the eight one-word kinds share: what is read, the word, and the name.
+    private void one(final List<RefExpression> select, final String word, final String name) {
+        view.setField(0, Instructions.spell(select.get(0)));
+        view.setField(1, word == null ? "" : word);
+        view.setField(2, text(name));
+    }
+
+    /// A model string as a field shows it: blank for absent.
+    private static String text(final String value) {
+        return value == null ? "" : value;
+    }
 
     /// The selects a transform reads, one a line, as the form shows them.
     public static List<RefExpression> selects(final String text) {

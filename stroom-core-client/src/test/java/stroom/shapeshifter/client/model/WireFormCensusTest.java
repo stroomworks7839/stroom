@@ -55,7 +55,12 @@ class WireFormCensusTest {
             "..", "stroom-shapeshifter", "stroom-shapeshifter-engine", "src", "test", "resources", "fixtures");
 
     /**
-     * What still opens as JSON. It was 0 while 504 translates opened as the wire form, because
+     * What still opens as JSON. **Zero since 2026-11-12**, when the last transform got a form
+     * (design 46 §8.3): the wire form is now the editor's escape for a construct the model
+     * grows and the forms have not caught up with, and not somewhere an author is sent for
+     * ordinary work.
+     *
+     * <p>What it was. It was 0 while 504 translates opened as the wire form, because
      * this counted only whether the form could <i>spell</i> an instruction's references and
      * never whether the form offers that kind at all: a transform is not in
      * {@link Instructions#FORM_KINDS}, so `InstructionEditController` shows it as its wire form
@@ -65,7 +70,7 @@ class WireFormCensusTest {
      * <p>It may go down and not up, so the remaining transforms are a count rather than an
      * impression: this is design 18 Q20's work, measured.
      */
-    private static final int WIRE_FORM_CEILING = 20;
+    private static final int WIRE_FORM_CEILING = 0;
 
     @Test
     void everyInstructionOpensAsAFormRatherThanAsJson() throws IOException {
@@ -324,6 +329,37 @@ class WireFormCensusTest {
 
     /** Every reference an instruction holds, in the order the form would show them. */
     private static List<RefExpression> refsOf(final OutputNode node) {
+        if (node instanceof OutputNode.StringJoin j) {
+            return j.select();
+        } else if (node instanceof OutputNode.Tokenize t) {
+            return t.select();
+        } else if (node instanceof OutputNode.SubstringBefore b) {
+            return b.select();
+        } else if (node instanceof OutputNode.SubstringAfter a) {
+            return a.select();
+        } else if (node instanceof OutputNode.StartsWith w) {
+            return w.select();
+        } else if (node instanceof OutputNode.EndsWith w) {
+            return w.select();
+        } else if (node instanceof OutputNode.Contains c) {
+            return c.select();
+        } else if (node instanceof OutputNode.FormatNumber f) {
+            return f.select();
+        } else if (node instanceof OutputNode.Replace r) {
+            return r.select();
+        } else if (node instanceof OutputNode.Substring sub) {
+            return sub.select();
+        } else if (node instanceof OutputNode.FormatDate f) {
+            return f.select();
+        } else if (node instanceof OutputNode.ParseDate d) {
+            return d.select();
+        } else if (node instanceof OutputNode.Decode d) {
+            return d.select();
+        } else if (node instanceof OutputNode.Call c) {
+            return c.select();
+        } else if (node instanceof OutputNode.Translate t) {
+            return t.select();
+        }
         if (SimpleTransforms.isSimple(node)) {
             // The eight the shared form offers: their selects are spellings the form shows, so
             // they belong to the invariant this file exists for.

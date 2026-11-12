@@ -1001,7 +1001,8 @@ instruction each.
 |---|---|
 | before any form | 1588 instructions, 84 as JSON |
 | after `translate` (§8.1) | 84 |
-| after the eight (§8.2) | **20** |
+| after the eight (§8.2) | 20 |
+| after the rest (§8.3) | **0** |
 
 **A review found that "one shape" was one shape too few.** The eight share their *fields* and not
 their *arity*, and `BodyCompiler` enforces the difference: six read exactly one thing, `divide`
@@ -1017,6 +1018,32 @@ selects and name straight back into `build()`, never through the text the form h
 the only part that can go wrong. It goes through the text now, `refsOf` was extended so the
 file's central invariant stops skipping the eight, and the dialog has an OK story rather than a
 Cancel-only one.
+
+### 8.3 All thirty — done 2026-11-12
+
+Ruled by the owner: forms for every transform, including the fourteen the fixtures use once or
+not at all. **`TRANSFORM_KINDS` is now empty and the census is zero**: all 1,588 instructions
+across the fixture projects open as a form.
+
+Thirty kinds turned out to be five shapes, which is why this was an afternoon rather than a
+project:
+
+| Shape | Kinds |
+|---|---|
+| selects and an optional name, shaped by arity | 15 |
+| select, one word, name | 8 — `string-join`, `tokenize`, `substring-before`, `substring-after`, `starts-with`, `ends-with`, `contains`, `format-number` |
+| replacement lists | `translate` |
+| a form each | `replace`, `substring`, `format-date`, `parse-date`, `decode`, `call` |
+
+Two things were extended rather than worked around. The generic instruction view grew a **fifth
+text field**, because `parse-date` genuinely has five (select, pattern, time zone, relative-to,
+name) and four was an accident of what had been needed so far; and it grew a **choice box**,
+because `decode`'s codec is a closed set and deserves a picker. The codec list is taken from
+`Codec.values()` lowercased — the wire spelling — so it cannot drift from the enum.
+
+**What the wire form is now for.** Not ordinary work: it is the escape for a construct the model
+grows before the forms catch up, and `WireFormCensusTest`'s ceiling of zero is what says when
+that has happened.
 
 ## 9. What to do next
 

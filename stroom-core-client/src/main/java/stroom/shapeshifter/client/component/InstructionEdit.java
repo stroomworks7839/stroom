@@ -50,6 +50,14 @@ public class InstructionEdit extends Component {
     @UiField
     Label note;
     @UiField
+    FormGroup field4Group;
+    @UiField
+    TextBox field4;
+    @UiField
+    FormGroup choiceGroup;
+    @UiField
+    SelectionBox<String> choice;
+    @UiField
     FormGroup field0Group;
     @UiField
     TextBox field0;
@@ -130,8 +138,10 @@ public class InstructionEdit extends Component {
                 return field1Group;
             case 2:
                 return field2Group;
-            default:
+            case 3:
                 return field3Group;
+            default:
+                return field4Group;
         }
     }
 
@@ -143,8 +153,10 @@ public class InstructionEdit extends Component {
                 return field1;
             case 2:
                 return field2;
-            default:
+            case 3:
                 return field3;
+            default:
+                return field4;
         }
     }
 
@@ -190,6 +202,31 @@ public class InstructionEdit extends Component {
 
     public void setForced(final boolean forced) {
         kind.setEnabled(!forced);
+    }
+
+    /// The choice box's items and value, for a field that is a closed set of words.
+    ///
+    /// @param items   The words to offer.
+    /// @param value   The one chosen, or null.
+    /// @param label   What the field is called.
+    /// @param visible Whether the kind has one.
+    public void setChoice(final List<String> items, final String value, final String label,
+                          final boolean visible) {
+        choice.clear();
+        choice.addItems(items);
+        choice.setValue(value, false);
+        choiceGroup.setLabel(label);
+        choiceGroup.setVisible(visible);
+    }
+
+    /// @return The word chosen, or null.
+    public String getChoice() {
+        return choice.getValue();
+    }
+
+    /// @param visible Whether the kind has a choice.
+    public void setChoiceVisible(final boolean visible) {
+        choiceGroup.setVisible(visible);
     }
 
     public String getField(final int index) {

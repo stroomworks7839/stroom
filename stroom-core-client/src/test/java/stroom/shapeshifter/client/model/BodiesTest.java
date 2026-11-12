@@ -39,6 +39,7 @@ import stroom.shapeshifter.config.json.ProjectJson;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -512,5 +513,11 @@ class BodiesTest {
         for (final String kind : Instructions.TRANSFORM_KINDS) {
             assertThat(Instructions.category(kind)).isEqualTo(Instructions.Category.TRANSFORM);
         }
+        // The add menu is the two lists concatenated, so a kind in both is offered twice — and
+        // a duplicate breaks any lookup by text, the stories' own included. Found once by
+        // review, guarded here so it cannot come back as the lists move.
+        final List<String> both = new ArrayList<>(Instructions.FORM_KINDS);
+        both.retainAll(Instructions.TRANSFORM_KINDS);
+        assertThat(both).as("kinds offered by both lists").isEmpty();
     }
 }

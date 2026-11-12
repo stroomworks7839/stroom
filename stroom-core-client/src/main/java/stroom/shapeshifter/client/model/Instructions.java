@@ -86,23 +86,26 @@ public final class Instructions {
             "apply-templates", "call-template",
             "if", "choose", "switch", "variable", "for-each", "for-each-group",
             "append", "insert", "put", "remove", "clear",
-            // The transforms with forms. `translate` has its own, for its replacement lists;
-            // the eight after it are one shape — selects and an optional name — and one form
-            // serves them all (design 46 §8.1, §8.2). The corpus is the reason: these are the
-            // transforms the fixtures hold, and every one was edited as its wire form.
+            // Every transform has a form (design 18 Q20, carried through 2026-11-12).
+            // `translate` has one of its own for its replacement lists; fifteen are one shape —
+            // selects and an optional name, shaped by the arity the kind takes; eight are a
+            // select, one word and a name; and the rest have a form each.
             "translate",
             "trim", "lower-case", "upper-case", "normalize-space",
-            "add", "divide", "round", "string-length");
+            "add", "divide", "round", "string-length",
+            "number", "subtract", "multiply", "mod", "floor", "ceiling", "abs",
+            "string-join", "tokenize", "substring-before", "substring-after",
+            "starts-with", "ends-with", "contains", "format-number",
+            "replace", "substring", "format-date", "parse-date", "decode", "call");
 
-    /// The transforms: edited as their wire form unless they are also in [#FORM_KINDS], and
-    /// listed for the add menu.
-    public static final List<String> TRANSFORM_KINDS = List.of(
-            // The transforms that have forms are not repeated here: the add menu is the two
-            // lists concatenated, so a kind in both is offered twice. Their category is still
-            // TRANSFORM, which category() gives by default, so the menu groups them together.
-            "call", "string-join", "replace", "substring", "tokenize", "number", "subtract", "multiply", "mod",
-            "floor", "ceiling", "abs", "substring-before", "substring-after", "starts-with", "ends-with", "contains",
-            "format-number", "parse-date", "format-date", "decode");
+    /// The transforms with no form of their own, edited as their wire form and listed for the
+    /// add menu. **Empty**, since 2026-11-12: every transform in the vocabulary has a form, so
+    /// the wire form is the editor's escape for a construct the model grows and the forms have
+    /// not caught up with, rather than somewhere an author is sent for ordinary work.
+    ///
+    /// <p>Nothing here may also be in [#FORM_KINDS]: the add menu is the two lists
+    /// concatenated, so a kind in both is offered twice. `BodiesTest` holds them disjoint.
+    public static final List<String> TRANSFORM_KINDS = List.of();
 
     private Instructions() {
     }

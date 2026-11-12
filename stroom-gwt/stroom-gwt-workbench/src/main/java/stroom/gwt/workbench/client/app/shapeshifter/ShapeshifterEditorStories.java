@@ -238,6 +238,10 @@ public final class ShapeshifterEditorStories {
                 {"translate": {"select": [{"parts": [{"capture": {"var_id": "line", "group": 0}}]}],
                   "from": ["&", "<", "\\n"], "to": ["&amp;", "&lt;", " "], "name": "escaped"}},
                 {"trim": {"select": [{"parts": [{"capture": {"var_id": "escaped", "group": 0}}]}]}},
+                {"replace": {"select": [{"parts": [{"capture": {"var_id": "line", "group": 0}}]}],
+                  "pattern": " +", "replacement": " ", "is_regex": true, "name": "squashed"}},
+                {"decode": {"select": [{"parts": [{"capture": {"var_id": "line", "group": 0}}]}],
+                  "codec": "base64", "name": "plain"}},
                 {"choose": {
                   "when": [
                    {"test": {"or": [
@@ -849,6 +853,38 @@ public final class ShapeshifterEditorStories {
                             .toHaveValue("tidied"));
                     play.expect(again.getByLabelText("Select")).toHaveValue("escaped");
                     play.click(again.getByRole("button", StroomDom.button("Cancel")));
+                    expectNoProblems(play);
+                })
+                // The kinds with a form of their own: replace, which has two words and a flag,
+                // and decode, whose codec is a closed set and so a picker rather than a field.
+                // With these two every transform in the vocabulary opens as a form (§8.3)
+                .story("TransformFormsOfTheirOwn", ShapeshifterEditorStories::renderComposite)
+                .withPlay(play -> {
+                    selectTemplate(play, "branch");
+                    final Play screen = play.screen();
+                    play.waitFor(() -> play.expect(play.getByText("replace", CARD_KIND))
+                            .toBeInTheDocument());
+                    play.click(play.getByText("replace", CARD_KIND));
+                    final Play replacing = dialogMatching(play, screen, "replace");
+                    play.waitFor(() -> play.expect(replacing.getByLabelText("Find"))
+                            .toHaveValue(" +"));
+                    play.expect(replacing.getByLabelText("Replace with")).toHaveValue(" ");
+                    play.expect(replacing.getByLabelText("Name")).toHaveValue("squashed");
+                    play.click(replacing.getByRole("button", StroomDom.button("Cancel")));
+                    // The next card is only safe to click once this dialog has gone: a click
+                    // that lands while it is closing opens nothing
+                    play.waitFor(() -> play.expect(screen.queryByText(
+                            TextMatch.regex("replace", "i"), StroomDom.DIALOG_TITLE)).toBeNull());
+
+                    play.click(play.getByText("decode", CARD_KIND));
+                    final Play decoding = dialogMatching(play, screen, "decode");
+                    // By value, not by visibility: a select-only SelectionBox carries its aria
+                    // label on an inner input the box itself covers, so the labelled element is
+                    // not the visible one even when the control plainly is
+                    play.waitFor(() -> play.expect(decoding.getByLabelText("Codec"))
+                            .toHaveValue("base64"));
+                    play.expect(decoding.getByText("Codec")).toBeVisible();
+                    play.click(decoding.getByRole("button", StroomDom.button("Cancel")));
                     expectNoProblems(play);
                 })
                 // Cancel leaves the condition as it was
