@@ -130,24 +130,9 @@ class CompareSpineTest {
         return project.templates().getFirst().guard();
     }
 
-    @Test
-    void legacyGreaterThanConstructsGtWithANumberCastOnTheLeft() {
-        final Condition condition = readGuard(
-                "{\"greater-than\": {\"select\": {\"parts\": []}, \"value\": 5}}");
-        assertThat(condition).isEqualTo(new Condition.Compare(Condition.Compare.Op.GT,
-                new Condition.Operand(readGuardRef(), null, Cast.NUMBER),
-                new Condition.Operand(null, new Condition.Literal.Fractional(5.0), null)));
-    }
-
-
-    private static stroom.shapeshifter.config.RefExpression readGuardRef() {
-        return new stroom.shapeshifter.config.RefExpression(java.util.List.of());
-    }
-
     // -----------------------------------------------------------------------------------
-    // The legacy absent rule, preserved through the aliases (the phase 3 audit's finding).
-    // The old evaluator read an absent side as the empty string; the strict rule says
-    // absent never compares. The aliases carry the difference so the corpus cannot notice.
+    // Absence. The old evaluator read an absent side as the empty string; the strict rule says
+    // absent never compares, and since the legacy aliases went there is only the strict rule.
     // -----------------------------------------------------------------------------------
 
     /**
@@ -198,7 +183,6 @@ class CompareSpineTest {
 
     @Test
     void theNewSpellingsKeepTheStrictRuleOnAbsence() {
-        // The aliases preserve the old world; the new vocabulary does not inherit it.
         final Condition condition = readGuard(
                 "{\"ne\": {\"left\": {\"ref\": " + MISSING_REF + "}, \"right\": {\"value\": \"x\"}}}");
         assertThat(evaluate(condition)).isFalse();

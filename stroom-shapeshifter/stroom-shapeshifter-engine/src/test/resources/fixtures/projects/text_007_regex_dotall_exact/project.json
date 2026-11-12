@@ -319,18 +319,23 @@
            "when": [
             {
              "test": {
-              "greater-than": {
-               "select": {
-                "parts": [
-                 {
-                  "capture": {
-                   "var_id": "levelWidth",
-                   "group": 0
+              "gt": {
+               "left": {
+                "ref": {
+                 "parts": [
+                  {
+                   "capture": {
+                    "var_id": "levelWidth",
+                    "group": 0
+                   }
                   }
-                 }
-                ]
+                 ]
+                },
+                "as": "number"
                },
-               "value": 80
+               "right": {
+                "value": 80.0
+               }
               }
              },
              "body": [
@@ -503,18 +508,23 @@
            "when": [
             {
              "test": {
-              "greater-than": {
-               "select": {
-                "parts": [
-                 {
-                  "capture": {
-                   "var_id": "loggerWidth",
-                   "group": 0
+              "gt": {
+               "left": {
+                "ref": {
+                 "parts": [
+                  {
+                   "capture": {
+                    "var_id": "loggerWidth",
+                    "group": 0
+                   }
                   }
-                 }
-                ]
+                 ]
+                },
+                "as": "number"
                },
-               "value": 80
+               "right": {
+                "value": 80.0
+               }
               }
              },
              "body": [
@@ -687,18 +697,23 @@
            "when": [
             {
              "test": {
-              "greater-than": {
-               "select": {
-                "parts": [
-                 {
-                  "capture": {
-                   "var_id": "messageWidth",
-                   "group": 0
+              "gt": {
+               "left": {
+                "ref": {
+                 "parts": [
+                  {
+                   "capture": {
+                    "var_id": "messageWidth",
+                    "group": 0
+                   }
                   }
-                 }
-                ]
+                 ]
+                },
+                "as": "number"
                },
-               "value": 80
+               "right": {
+                "value": 80.0
+               }
               }
              },
              "body": [

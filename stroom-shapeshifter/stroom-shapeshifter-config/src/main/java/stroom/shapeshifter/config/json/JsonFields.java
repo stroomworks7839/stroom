@@ -211,16 +211,6 @@ final class JsonFields {
         return whole(node, null, what);
     }
 
-    /** A required number field, whole or fractional. */
-    static double number(final JsonValue node, final String field, final String what) {
-        final JsonValue value = required(node, field, what);
-        if (!value.isNumber()) {
-            throw new ConfigException(
-                    "Expected a number for " + where(field, what) + ", but was " + shape(value));
-        }
-        return value.asDouble();
-    }
-
     private static String string(final JsonValue value, final String field, final String what) {
         if (!value.isString()) {
             throw new ConfigException(

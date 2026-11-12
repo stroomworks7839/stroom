@@ -208,7 +208,7 @@
             "select": {
               "parts": [
                 {
-                  "Store": {
+                  "capture": {
                     "var_id": null,
                     "group": 0,
                     "match_index": null
@@ -255,7 +255,7 @@
             "select": {
               "parts": [
                 {
-                  "Store": {
+                  "capture": {
                     "var_id": null,
                     "group": 1,
                     "match_index": null
@@ -272,7 +272,7 @@
             "select": {
               "parts": [
                 {
-                  "Store": {
+                  "capture": {
                     "var_id": "event_record",
                     "group": 0,
                     "match_index": null
@@ -289,7 +289,7 @@
             "select": {
               "parts": [
                 {
-                  "Store": {
+                  "capture": {
                     "var_id": "SystemTime",
                     "group": 0,
                     "match_index": null
@@ -306,7 +306,7 @@
             "select": {
               "parts": [
                 {
-                  "Store": {
+                  "capture": {
                     "var_id": "DataField_1",
                     "group": 0,
                     "match_index": null
@@ -323,7 +323,7 @@
             "select": {
               "parts": [
                 {
-                  "Store": {
+                  "capture": {
                     "var_id": "DataField_3",
                     "group": 0,
                     "match_index": null
@@ -340,7 +340,7 @@
             "select": {
               "parts": [
                 {
-                  "Store": {
+                  "capture": {
                     "var_id": "DataField_2",
                     "group": 0,
                     "match_index": null
@@ -357,7 +357,7 @@
             "select": {
               "parts": [
                 {
-                  "Store": {
+                  "capture": {
                     "var_id": "DataField_1",
                     "group": 0,
                     "match_index": null
@@ -375,7 +375,7 @@
               {
                 "parts": [
                   {
-                    "Store": {
+                    "capture": {
                       "var_id": "timestamp_truncate",
                       "group": 0,
                       "match_index": null
@@ -409,7 +409,7 @@
               {
                 "parts": [
                   {
-                    "Store": {
+                    "capture": {
                       "var_id": "ProviderName",
                       "group": 0,
                       "match_index": null
@@ -443,7 +443,7 @@
               {
                 "parts": [
                   {
-                    "Store": {
+                    "capture": {
                       "var_id": "Computer",
                       "group": 0,
                       "match_index": null
@@ -519,7 +519,7 @@
                           "ref": {
                             "parts": [
                               {
-                                "Store": {
+                                "capture": {
                                   "var_id": "EventID",
                                   "group": 0,
                                   "match_index": null
@@ -541,7 +541,7 @@
                           "ref": {
                             "parts": [
                               {
-                                "Store": {
+                                "capture": {
                                   "var_id": "EventID",
                                   "group": 0,
                                   "match_index": null
@@ -567,7 +567,7 @@
                           "text": "\n      <User>\n        <Id>"
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "DataField_2",
                             "group": 0,
                             "match_index": null
@@ -577,7 +577,7 @@
                           "text": "</Id>\n        <UserDetails>\n          <Id>"
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "domain_user_split_2",
                             "group": 0,
                             "match_index": null
@@ -587,7 +587,7 @@
                           "text": "</Id>\n          <Domain>"
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "domain_user_split_1",
                             "group": 0,
                             "match_index": null
@@ -608,7 +608,7 @@
                       "ref": {
                         "parts": [
                           {
-                            "Store": {
+                            "capture": {
                               "var_id": "EventID",
                               "group": 0,
                               "match_index": null
@@ -632,7 +632,7 @@
                           "text": "\n      <User>\n        <Id>"
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "SecurityUserID",
                             "group": 0,
                             "match_index": null
@@ -655,7 +655,7 @@
               {
                 "parts": [
                   {
-                    "Store": {
+                    "capture": {
                       "var_id": "EventID",
                       "group": 0,
                       "match_index": null
@@ -711,7 +711,7 @@
                       "ref": {
                         "parts": [
                           {
-                            "Store": {
+                            "capture": {
                               "var_id": "EventID",
                               "group": 0,
                               "match_index": null
@@ -735,7 +735,7 @@
                           "text": "\n      <Description>Windows has started loading the local user profile</Description>\n      <Authenticate>\n        <Action>Logon</Action>\n        <User>\n          <Id>"
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "DataField_2",
                             "group": 0,
                             "match_index": null
@@ -745,7 +745,7 @@
                           "text": "</Id>\n          <UserDetails>\n            <Id>"
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "domain_user_split_2",
                             "group": 0,
                             "match_index": null
@@ -755,7 +755,7 @@
                           "text": "</Id>\n            <Domain>"
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "domain_user_split_1",
                             "group": 0,
                             "match_index": null
@@ -765,7 +765,7 @@
                           "text": "</Domain>\n          </UserDetails>\n        </User>\n        <Outcome>\n          <Success>true</Success>\n        </Outcome>\n        <Data Name=\"EventRecordID\" Value=\""
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "EventRecordID",
                             "group": 0,
                             "match_index": null
@@ -786,7 +786,7 @@
                       "ref": {
                         "parts": [
                           {
-                            "Store": {
+                            "capture": {
                               "var_id": "EventID",
                               "group": 0,
                               "match_index": null
@@ -810,7 +810,7 @@
                           "text": "\n      <Description>Windows has finished loading the local user profile ("
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "DataField_1",
                             "group": 0,
                             "match_index": null
@@ -820,7 +820,7 @@
                           "text": ")</Description>\n      <Authenticate>\n        <Action>Logon</Action>\n        <User>\n          <Id>"
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "DataField_2",
                             "group": 0,
                             "match_index": null
@@ -830,7 +830,7 @@
                           "text": "</Id>\n          <UserDetails>\n            <Id>"
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "domain_user_split_2",
                             "group": 0,
                             "match_index": null
@@ -840,7 +840,7 @@
                           "text": "</Id>\n            <Domain>"
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "domain_user_split_1",
                             "group": 0,
                             "match_index": null
@@ -850,7 +850,7 @@
                           "text": "</Domain>\n          </UserDetails>\n        </User>\n        <Outcome>\n          <Success>true</Success>\n        </Outcome>\n        <Data Name=\"EventRecordID\" Value=\""
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "EventRecordID",
                             "group": 0,
                             "match_index": null
@@ -871,7 +871,7 @@
                       "ref": {
                         "parts": [
                           {
-                            "Store": {
+                            "capture": {
                               "var_id": "EventID",
                               "group": 0,
                               "match_index": null
@@ -895,7 +895,7 @@
                           "text": "\n      <Description>"
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "DataField_1",
                             "group": 0,
                             "match_index": null
@@ -905,7 +905,7 @@
                           "text": " "
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "DataField_2",
                             "group": 0,
                             "match_index": null
@@ -915,7 +915,7 @@
                           "text": " started</Description>\n      <Create>\n        <Object>\n          <Type>Process</Type>\n          <Name>"
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "DataField_1",
                             "group": 0,
                             "match_index": null
@@ -925,7 +925,7 @@
                           "text": "</Name>\n          <Description>Version "
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "DataField_2",
                             "group": 0,
                             "match_index": null
@@ -935,7 +935,7 @@
                           "text": ", Build "
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "DataField_3",
                             "group": 0,
                             "match_index": null
@@ -945,7 +945,7 @@
                           "text": "</Description>\n        </Object>\n        <Outcome>\n          <Success>true</Success>\n        </Outcome>\n        <Data Name=\"EventRecordID\" Value=\""
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "EventRecordID",
                             "group": 0,
                             "match_index": null
@@ -966,7 +966,7 @@
                       "ref": {
                         "parts": [
                           {
-                            "Store": {
+                            "capture": {
                               "var_id": "EventID",
                               "group": 0,
                               "match_index": null
@@ -990,7 +990,7 @@
                           "text": "\n      <Description>Faulting application "
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "DataField_1",
                             "group": 0,
                             "match_index": null
@@ -1000,7 +1000,7 @@
                           "text": " crashed with access violation</Description>\n      <Alert>\n        <Type>Error</Type>\n        <Severity>High</Severity>\n        <Description>"
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "DataField_1",
                             "group": 0,
                             "match_index": null
@@ -1010,7 +1010,7 @@
                           "text": " "
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "DataField_2",
                             "group": 0,
                             "match_index": null
@@ -1020,7 +1020,7 @@
                           "text": " crashed. Exception code: 0x"
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "DataField_7",
                             "group": 0,
                             "match_index": null
@@ -1030,7 +1030,7 @@
                           "text": " (Access Violation) in "
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "DataField_4",
                             "group": 0,
                             "match_index": null
@@ -1040,7 +1040,7 @@
                           "text": " at offset 0x"
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "DataField_8",
                             "group": 0,
                             "match_index": null
@@ -1050,7 +1050,7 @@
                           "text": "</Description>\n        <Data Name=\"FaultingApplication\" Value=\""
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "DataField_1",
                             "group": 0,
                             "match_index": null
@@ -1060,7 +1060,7 @@
                           "text": "\"/>\n        <Data Name=\"FaultingApplicationVersion\" Value=\""
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "DataField_2",
                             "group": 0,
                             "match_index": null
@@ -1070,7 +1070,7 @@
                           "text": "\"/>\n        <Data Name=\"FaultingModule\" Value=\""
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "DataField_4",
                             "group": 0,
                             "match_index": null
@@ -1080,7 +1080,7 @@
                           "text": "\"/>\n        <Data Name=\"FaultingModuleVersion\" Value=\""
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "DataField_5",
                             "group": 0,
                             "match_index": null
@@ -1090,7 +1090,7 @@
                           "text": "\"/>\n        <Data Name=\"ExceptionCode\" Value=\""
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "DataField_7",
                             "group": 0,
                             "match_index": null
@@ -1100,7 +1100,7 @@
                           "text": "\"/>\n        <Data Name=\"FaultOffset\" Value=\""
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "DataField_8",
                             "group": 0,
                             "match_index": null
@@ -1110,7 +1110,7 @@
                           "text": "\"/>\n        <Data Name=\"FaultingProcessId\" Value=\""
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "DataField_9",
                             "group": 0,
                             "match_index": null
@@ -1120,7 +1120,7 @@
                           "text": "\"/>\n        <Data Name=\"FaultingApplicationPath\" Value=\""
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "DataField_11",
                             "group": 0,
                             "match_index": null
@@ -1130,7 +1130,7 @@
                           "text": "\"/>\n        <Data Name=\"FaultingModulePath\" Value=\""
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "DataField_12",
                             "group": 0,
                             "match_index": null
@@ -1140,7 +1140,7 @@
                           "text": "\"/>\n        <Data Name=\"ReportId\" Value=\""
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "DataField_13",
                             "group": 0,
                             "match_index": null
@@ -1150,7 +1150,7 @@
                           "text": "\"/>\n        <Data Name=\"EventRecordID\" Value=\""
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "EventRecordID",
                             "group": 0,
                             "match_index": null
@@ -1171,7 +1171,7 @@
                       "ref": {
                         "parts": [
                           {
-                            "Store": {
+                            "capture": {
                               "var_id": "EventID",
                               "group": 0,
                               "match_index": null
@@ -1195,7 +1195,7 @@
                           "text": "\n      <Description>Windows Error Reporting: "
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "DataField_3",
                             "group": 0,
                             "match_index": null
@@ -1205,7 +1205,7 @@
                           "text": " for "
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "DataField_6",
                             "group": 0,
                             "match_index": null
@@ -1215,7 +1215,7 @@
                           "text": "</Description>\n      <Alert>\n        <Type>Error</Type>\n        <Severity>High</Severity>\n        <Description>Fault bucket "
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "DataField_1",
                             "group": 0,
                             "match_index": null
@@ -1225,7 +1225,7 @@
                           "text": " - "
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "DataField_3",
                             "group": 0,
                             "match_index": null
@@ -1235,7 +1235,7 @@
                           "text": " in "
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "DataField_6",
                             "group": 0,
                             "match_index": null
@@ -1245,7 +1245,7 @@
                           "text": " "
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "DataField_7",
                             "group": 0,
                             "match_index": null
@@ -1255,7 +1255,7 @@
                           "text": " due to exception "
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "DataField_12",
                             "group": 0,
                             "match_index": null
@@ -1265,7 +1265,7 @@
                           "text": " in "
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "DataField_9",
                             "group": 0,
                             "match_index": null
@@ -1275,7 +1275,7 @@
                           "text": "</Description>\n        <Data Name=\"FaultBucket\" Value=\""
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "DataField_1",
                             "group": 0,
                             "match_index": null
@@ -1285,7 +1285,7 @@
                           "text": "\"/>\n        <Data Name=\"EventName\" Value=\""
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "DataField_3",
                             "group": 0,
                             "match_index": null
@@ -1295,7 +1295,7 @@
                           "text": "\"/>\n        <Data Name=\"P1_Application\" Value=\""
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "DataField_6",
                             "group": 0,
                             "match_index": null
@@ -1305,7 +1305,7 @@
                           "text": "\"/>\n        <Data Name=\"P2_AppVersion\" Value=\""
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "DataField_7",
                             "group": 0,
                             "match_index": null
@@ -1315,7 +1315,7 @@
                           "text": "\"/>\n        <Data Name=\"P4_FaultingModule\" Value=\""
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "DataField_9",
                             "group": 0,
                             "match_index": null
@@ -1325,7 +1325,7 @@
                           "text": "\"/>\n        <Data Name=\"P7_ExceptionCode\" Value=\""
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "DataField_12",
                             "group": 0,
                             "match_index": null
@@ -1335,7 +1335,7 @@
                           "text": "\"/>\n        <Data Name=\"P8_FaultOffset\" Value=\""
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "DataField_13",
                             "group": 0,
                             "match_index": null
@@ -1345,7 +1345,7 @@
                           "text": "\"/>\n        <Data Name=\"EventRecordID\" Value=\""
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "EventRecordID",
                             "group": 0,
                             "match_index": null
@@ -1366,7 +1366,7 @@
                       "ref": {
                         "parts": [
                           {
-                            "Store": {
+                            "capture": {
                               "var_id": "EventID",
                               "group": 0,
                               "match_index": null
@@ -1390,7 +1390,7 @@
                           "text": "\n      <Description>Windows Installer installed product: "
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "DataField_1",
                             "group": 0,
                             "match_index": null
@@ -1400,7 +1400,7 @@
                           "text": "</Description>\n      <Install>\n        <Object>\n          <Type>Software</Type>\n          <Name>"
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "DataField_1",
                             "group": 0,
                             "match_index": null
@@ -1410,7 +1410,7 @@
                           "text": "</Name>\n          <Description>Version "
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "DataField_2",
                             "group": 0,
                             "match_index": null
@@ -1420,7 +1420,7 @@
                           "text": ", Language "
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "DataField_3",
                             "group": 0,
                             "match_index": null
@@ -1430,7 +1430,7 @@
                           "text": ", Manufacturer "
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "DataField_4",
                             "group": 0,
                             "match_index": null
@@ -1440,7 +1440,7 @@
                           "text": "</Description>\n        </Object>\n        <Outcome>\n          <Success>true</Success>\n        </Outcome>\n        <Data Name=\"ProductName\" Value=\""
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "DataField_1",
                             "group": 0,
                             "match_index": null
@@ -1450,7 +1450,7 @@
                           "text": "\"/>\n        <Data Name=\"ProductVersion\" Value=\""
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "DataField_2",
                             "group": 0,
                             "match_index": null
@@ -1460,7 +1460,7 @@
                           "text": "\"/>\n        <Data Name=\"ProductLanguage\" Value=\""
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "DataField_3",
                             "group": 0,
                             "match_index": null
@@ -1470,7 +1470,7 @@
                           "text": "\"/>\n        <Data Name=\"Manufacturer\" Value=\""
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "DataField_4",
                             "group": 0,
                             "match_index": null
@@ -1480,7 +1480,7 @@
                           "text": "\"/>\n        <Data Name=\"InstallStatus\" Value=\""
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "DataField_5",
                             "group": 0,
                             "match_index": null
@@ -1490,7 +1490,7 @@
                           "text": "\"/>\n        <Data Name=\"EventRecordID\" Value=\""
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "EventRecordID",
                             "group": 0,
                             "match_index": null
@@ -1511,7 +1511,7 @@
                       "ref": {
                         "parts": [
                           {
-                            "Store": {
+                            "capture": {
                               "var_id": "EventID",
                               "group": 0,
                               "match_index": null
@@ -1535,7 +1535,7 @@
                           "text": "\n      <Description>SQL Server is ready for client connections</Description>\n      <Process>\n        <Action>Start</Action>\n        <Type>Application</Type>\n        <Command>"
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "ProviderName",
                             "group": 0,
                             "match_index": null
@@ -1545,7 +1545,7 @@
                           "text": "</Command>\n        <Outcome>\n          <Success>true</Success>\n        </Outcome>\n        <Data Name=\"EventRecordID\" Value=\""
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "EventRecordID",
                             "group": 0,
                             "match_index": null
@@ -1566,7 +1566,7 @@
                       "ref": {
                         "parts": [
                           {
-                            "Store": {
+                            "capture": {
                               "var_id": "EventID",
                               "group": 0,
                               "match_index": null
@@ -1590,7 +1590,7 @@
                           "text": "\n      <Description>SQL Server login failed for user \\x27"
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "DataField_1",
                             "group": 0,
                             "match_index": null
@@ -1600,7 +1600,7 @@
                           "text": "\\x27</Description>\n      <Authenticate>\n        <Action>Logon</Action>\n        <User>\n          <Id>"
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "DataField_1",
                             "group": 0,
                             "match_index": null
@@ -1610,7 +1610,7 @@
                           "text": "</Id>\n        </User>\n        <Outcome>\n          <Success>false</Success>\n          <Description>"
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "reason_extract",
                             "group": 0,
                             "match_index": null
@@ -1620,7 +1620,7 @@
                           "text": "</Description>\n        </Outcome>\n        <Data Name=\"ClientAddress\" Value=\""
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "client_address",
                             "group": 0,
                             "match_index": null
@@ -1630,7 +1630,7 @@
                           "text": "\"/>\n        <Data Name=\"EventRecordID\" Value=\""
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "EventRecordID",
                             "group": 0,
                             "match_index": null
@@ -1651,7 +1651,7 @@
                       "ref": {
                         "parts": [
                           {
-                            "Store": {
+                            "capture": {
                               "var_id": "EventID",
                               "group": 0,
                               "match_index": null
@@ -1675,7 +1675,7 @@
                           "text": "\n      <Description>SQL Server login succeeded for user \\x27"
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "DataField_1",
                             "group": 0,
                             "match_index": null
@@ -1685,7 +1685,7 @@
                           "text": "\\x27</Description>\n      <Authenticate>\n        <Action>Logon</Action>\n        <User>\n          <Id>"
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "DataField_1",
                             "group": 0,
                             "match_index": null
@@ -1695,7 +1695,7 @@
                           "text": "</Id>\n        </User>\n        <Outcome>\n          <Success>true</Success>\n        </Outcome>\n        <Data Name=\"AuthMethod\" Value=\""
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "connection_method",
                             "group": 0,
                             "match_index": null
@@ -1705,7 +1705,7 @@
                           "text": "\"/>\n        <Data Name=\"ClientAddress\" Value=\""
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "client_address",
                             "group": 0,
                             "match_index": null
@@ -1715,7 +1715,7 @@
                           "text": "\"/>\n        <Data Name=\"EventRecordID\" Value=\""
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "EventRecordID",
                             "group": 0,
                             "match_index": null
@@ -1736,7 +1736,7 @@
                       "ref": {
                         "parts": [
                           {
-                            "Store": {
+                            "capture": {
                               "var_id": "EventID",
                               "group": 0,
                               "match_index": null
@@ -1760,7 +1760,7 @@
                           "text": "\n      <Description>Volume Shadow Copy Service error: "
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "DataField_1",
                             "group": 0,
                             "match_index": null
@@ -1770,7 +1770,7 @@
                           "text": " failed</Description>\n      <Alert>\n        <Type>Error</Type>\n        <Severity>High</Severity>\n        <Description>Unexpected error calling routine "
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "DataField_1",
                             "group": 0,
                             "match_index": null
@@ -1780,7 +1780,7 @@
                           "text": ". hr = "
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "DataField_2",
                             "group": 0,
                             "match_index": null
@@ -1790,7 +1790,7 @@
                           "text": ", "
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "DataField_3",
                             "group": 0,
                             "match_index": null
@@ -1800,7 +1800,7 @@
                           "text": "</Description>\n        <Data Name=\"Routine\" Value=\""
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "DataField_1",
                             "group": 0,
                             "match_index": null
@@ -1810,7 +1810,7 @@
                           "text": "\"/>\n        <Data Name=\"HRESULT\" Value=\""
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "DataField_2",
                             "group": 0,
                             "match_index": null
@@ -1820,7 +1820,7 @@
                           "text": "\"/>\n        <Data Name=\"ErrorMessage\" Value=\""
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "DataField_3",
                             "group": 0,
                             "match_index": null
@@ -1830,7 +1830,7 @@
                           "text": "\"/>\n        <Data Name=\"EventRecordID\" Value=\""
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "EventRecordID",
                             "group": 0,
                             "match_index": null
@@ -1851,7 +1851,7 @@
                       "ref": {
                         "parts": [
                           {
-                            "Store": {
+                            "capture": {
                               "var_id": "EventID",
                               "group": 0,
                               "match_index": null
@@ -1875,7 +1875,7 @@
                           "text": "\n      <Description>Licensing status check completed: Licensed</Description>\n      <Authorise>\n        <Object>\n          <Type>License</Type>\n          <Name>Windows(R), Professional edition</Name>\n          <Description>VOLUME_KMSCLIENT channel</Description>\n        </Object>\n        <Action>Request</Action>\n        <Outcome>\n          <Success>true</Success>\n        </Outcome>\n        <Data Name=\"LicenseStatus\" Value=\"Licensed\"/>\n        <Data Name=\"GraceTimeDays\" Value=\"0\"/>\n        <Data Name=\"RemainingRearmCount\" Value=\"1001\"/>\n        <Data Name=\"EventRecordID\" Value=\""
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "EventRecordID",
                             "group": 0,
                             "match_index": null
@@ -1896,7 +1896,7 @@
                       "ref": {
                         "parts": [
                           {
-                            "Store": {
+                            "capture": {
                               "var_id": "EventID",
                               "group": 0,
                               "match_index": null
@@ -1920,7 +1920,7 @@
                           "text": "\n      <Description>"
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "application_name",
                             "group": 0,
                             "match_index": null
@@ -1930,7 +1930,7 @@
                           "text": " terminated due to unhandled "
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "exception_info",
                             "group": 0,
                             "match_index": null
@@ -1940,7 +1940,7 @@
                           "text": "</Description>\n      <Alert>\n        <Type>Error</Type>\n        <Severity>High</Severity>\n        <Description>The process "
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "application_name",
                             "group": 0,
                             "match_index": null
@@ -1950,7 +1950,7 @@
                           "text": " was terminated due to an unhandled "
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "exception_info",
                             "group": 0,
                             "match_index": null
@@ -1960,7 +1960,7 @@
                           "text": " in UpdateStock method</Description>\n        <Data Name=\"Application\" Value=\""
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "application_name",
                             "group": 0,
                             "match_index": null
@@ -1970,7 +1970,7 @@
                           "text": "\"/>\n        <Data Name=\"FrameworkVersion\" Value=\""
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "framework_version",
                             "group": 0,
                             "match_index": null
@@ -1980,7 +1980,7 @@
                           "text": "\"/>\n        <Data Name=\"ExceptionType\" Value=\""
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "exception_info",
                             "group": 0,
                             "match_index": null
@@ -1990,7 +1990,7 @@
                           "text": "\"/>\n        <Data Name=\"StackTrace\" Value=\"at SqlConnection.OnError > TdsParser.ThrowExceptionAndWarning > TdsParser.TryRun > SqlCommand.RunExecuteNonQueryTds > SqlCommand.ExecuteNonQuery > DataAccess.UpdateStock > StockUpdateHandler.Handle > Program.Main\"/>\n        <Data Name=\"EventRecordID\" Value=\""
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "EventRecordID",
                             "group": 0,
                             "match_index": null
@@ -2011,7 +2011,7 @@
                       "ref": {
                         "parts": [
                           {
-                            "Store": {
+                            "capture": {
                               "var_id": "EventID",
                               "group": 0,
                               "match_index": null
@@ -2035,7 +2035,7 @@
                           "text": "\n      <Description>RestartManager session started for "
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "RestartedApplication",
                             "group": 0,
                             "match_index": null
@@ -2045,7 +2045,7 @@
                           "text": " update</Description>\n      <Update>\n        <Object>\n          <Type>Software</Type>\n          <Name>"
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "RestartedApplication",
                             "group": 0,
                             "match_index": null
@@ -2055,7 +2055,7 @@
                           "text": "</Name>\n        </Object>\n        <Outcome>\n          <Success>true</Success>\n        </Outcome>\n        <Data Name=\"RmSessionId\" Value=\""
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "RmSessionId",
                             "group": 0,
                             "match_index": null
@@ -2065,7 +2065,7 @@
                           "text": "\"/>\n        <Data Name=\"OwnerProcess\" Value=\""
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "OwnerProcess",
                             "group": 0,
                             "match_index": null
@@ -2075,7 +2075,7 @@
                           "text": "\"/>\n        <Data Name=\"OwnerPID\" Value=\""
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "OwnerPID",
                             "group": 0,
                             "match_index": null
@@ -2085,7 +2085,7 @@
                           "text": "\"/>\n        <Data Name=\"RestartedApplication\" Value=\""
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "RestartedApplication",
                             "group": 0,
                             "match_index": null
@@ -2095,7 +2095,7 @@
                           "text": "\"/>\n        <Data Name=\"RestartedPID\" Value=\""
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "RestartedPID",
                             "group": 0,
                             "match_index": null
@@ -2105,7 +2105,7 @@
                           "text": "\"/>\n        <Data Name=\"EventRecordID\" Value=\""
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "EventRecordID",
                             "group": 0,
                             "match_index": null
@@ -2128,7 +2128,7 @@
                       "text": "\n      <Description>Event "
                     },
                     {
-                      "Store": {
+                      "capture": {
                         "var_id": "EventID",
                         "group": 0,
                         "match_index": null
@@ -2138,7 +2138,7 @@
                       "text": "</Description>\n      <View>\n        <Data Name=\"EventRecordID\" Value=\""
                     },
                     {
-                      "Store": {
+                      "capture": {
                         "var_id": "EventRecordID",
                         "group": 0,
                         "match_index": null
@@ -2190,7 +2190,7 @@
             "select": {
               "parts": [
                 {
-                  "Store": {
+                  "capture": {
                     "var_id": null,
                     "group": 1,
                     "match_index": null
@@ -2228,7 +2228,7 @@
             "select": {
               "parts": [
                 {
-                  "Store": {
+                  "capture": {
                     "var_id": null,
                     "group": 1,
                     "match_index": null
@@ -2266,7 +2266,7 @@
             "select": {
               "parts": [
                 {
-                  "Store": {
+                  "capture": {
                     "var_id": null,
                     "group": 1,
                     "match_index": null
@@ -2304,7 +2304,7 @@
             "select": {
               "parts": [
                 {
-                  "Store": {
+                  "capture": {
                     "var_id": null,
                     "group": 1,
                     "match_index": null
@@ -2342,7 +2342,7 @@
             "select": {
               "parts": [
                 {
-                  "Store": {
+                  "capture": {
                     "var_id": null,
                     "group": 1,
                     "match_index": null
@@ -2380,7 +2380,7 @@
             "select": {
               "parts": [
                 {
-                  "Store": {
+                  "capture": {
                     "var_id": null,
                     "group": 1,
                     "match_index": null
@@ -2418,7 +2418,7 @@
             "select": {
               "parts": [
                 {
-                  "Store": {
+                  "capture": {
                     "var_id": null,
                     "group": 1,
                     "match_index": null
@@ -2456,7 +2456,7 @@
             "select": {
               "parts": [
                 {
-                  "Store": {
+                  "capture": {
                     "var_id": null,
                     "group": 1,
                     "match_index": null
@@ -2494,7 +2494,7 @@
             "select": {
               "parts": [
                 {
-                  "Store": {
+                  "capture": {
                     "var_id": null,
                     "group": 1,
                     "match_index": null
@@ -2532,7 +2532,7 @@
             "select": {
               "parts": [
                 {
-                  "Store": {
+                  "capture": {
                     "var_id": null,
                     "group": 1,
                     "match_index": null
@@ -2570,7 +2570,7 @@
             "select": {
               "parts": [
                 {
-                  "Store": {
+                  "capture": {
                     "var_id": null,
                     "group": 1,
                     "match_index": null
@@ -2608,7 +2608,7 @@
             "select": {
               "parts": [
                 {
-                  "Store": {
+                  "capture": {
                     "var_id": null,
                     "group": 1,
                     "match_index": null
@@ -2646,7 +2646,7 @@
             "select": {
               "parts": [
                 {
-                  "Store": {
+                  "capture": {
                     "var_id": null,
                     "group": 1,
                     "match_index": null
@@ -2684,7 +2684,7 @@
             "select": {
               "parts": [
                 {
-                  "Store": {
+                  "capture": {
                     "var_id": null,
                     "group": 1,
                     "match_index": null
@@ -2722,7 +2722,7 @@
             "select": {
               "parts": [
                 {
-                  "Store": {
+                  "capture": {
                     "var_id": null,
                     "group": 1,
                     "match_index": null
@@ -2760,7 +2760,7 @@
             "select": {
               "parts": [
                 {
-                  "Store": {
+                  "capture": {
                     "var_id": null,
                     "group": 1,
                     "match_index": null
@@ -2798,7 +2798,7 @@
             "select": {
               "parts": [
                 {
-                  "Store": {
+                  "capture": {
                     "var_id": null,
                     "group": 1,
                     "match_index": null
@@ -2836,7 +2836,7 @@
             "select": {
               "parts": [
                 {
-                  "Store": {
+                  "capture": {
                     "var_id": null,
                     "group": 1,
                     "match_index": null
@@ -2874,7 +2874,7 @@
             "select": {
               "parts": [
                 {
-                  "Store": {
+                  "capture": {
                     "var_id": null,
                     "group": 1,
                     "match_index": null
@@ -2912,7 +2912,7 @@
             "select": {
               "parts": [
                 {
-                  "Store": {
+                  "capture": {
                     "var_id": null,
                     "group": 1,
                     "match_index": null
@@ -2950,7 +2950,7 @@
             "select": {
               "parts": [
                 {
-                  "Store": {
+                  "capture": {
                     "var_id": null,
                     "group": 1,
                     "match_index": null
@@ -2988,7 +2988,7 @@
             "select": {
               "parts": [
                 {
-                  "Store": {
+                  "capture": {
                     "var_id": null,
                     "group": 1,
                     "match_index": null
@@ -3026,7 +3026,7 @@
             "select": {
               "parts": [
                 {
-                  "Store": {
+                  "capture": {
                     "var_id": null,
                     "group": 1,
                     "match_index": null
@@ -3064,7 +3064,7 @@
             "select": {
               "parts": [
                 {
-                  "Store": {
+                  "capture": {
                     "var_id": null,
                     "group": 1,
                     "match_index": null
@@ -3102,7 +3102,7 @@
             "select": {
               "parts": [
                 {
-                  "Store": {
+                  "capture": {
                     "var_id": null,
                     "group": 1,
                     "match_index": null
@@ -3140,7 +3140,7 @@
             "select": {
               "parts": [
                 {
-                  "Store": {
+                  "capture": {
                     "var_id": null,
                     "group": 1,
                     "match_index": null
@@ -3178,7 +3178,7 @@
             "select": {
               "parts": [
                 {
-                  "Store": {
+                  "capture": {
                     "var_id": null,
                     "group": 1,
                     "match_index": null
@@ -3216,7 +3216,7 @@
             "select": {
               "parts": [
                 {
-                  "Store": {
+                  "capture": {
                     "var_id": null,
                     "group": 1,
                     "match_index": null
@@ -3254,7 +3254,7 @@
             "select": {
               "parts": [
                 {
-                  "Store": {
+                  "capture": {
                     "var_id": null,
                     "group": 1,
                     "match_index": null
@@ -3292,7 +3292,7 @@
             "select": {
               "parts": [
                 {
-                  "Store": {
+                  "capture": {
                     "var_id": null,
                     "group": 1,
                     "match_index": null
@@ -3330,7 +3330,7 @@
             "select": {
               "parts": [
                 {
-                  "Store": {
+                  "capture": {
                     "var_id": null,
                     "group": 1,
                     "match_index": null
@@ -3368,7 +3368,7 @@
             "select": {
               "parts": [
                 {
-                  "Store": {
+                  "capture": {
                     "var_id": null,
                     "group": 1,
                     "match_index": null
@@ -3384,7 +3384,7 @@
             "select": {
               "parts": [
                 {
-                  "Store": {
+                  "capture": {
                     "var_id": null,
                     "group": 2,
                     "match_index": null
@@ -3422,7 +3422,7 @@
             "select": {
               "parts": [
                 {
-                  "Store": {
+                  "capture": {
                     "var_id": null,
                     "group": 1,
                     "match_index": null
@@ -3460,7 +3460,7 @@
             "select": {
               "parts": [
                 {
-                  "Store": {
+                  "capture": {
                     "var_id": null,
                     "group": 1,
                     "match_index": null
@@ -3498,7 +3498,7 @@
             "select": {
               "parts": [
                 {
-                  "Store": {
+                  "capture": {
                     "var_id": null,
                     "group": 1,
                     "match_index": null
@@ -3536,7 +3536,7 @@
             "select": {
               "parts": [
                 {
-                  "Store": {
+                  "capture": {
                     "var_id": null,
                     "group": 1,
                     "match_index": null
@@ -3574,7 +3574,7 @@
             "select": {
               "parts": [
                 {
-                  "Store": {
+                  "capture": {
                     "var_id": null,
                     "group": 1,
                     "match_index": null
@@ -3612,7 +3612,7 @@
             "select": {
               "parts": [
                 {
-                  "Store": {
+                  "capture": {
                     "var_id": null,
                     "group": 1,
                     "match_index": null

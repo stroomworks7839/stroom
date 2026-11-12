@@ -30,7 +30,7 @@
             "select": {
               "parts": [
                 {
-                  "Store": {
+                  "capture": {
                     "var_id": null,
                     "group": 0,
                     "match_index": null
@@ -81,7 +81,7 @@
             "select": {
               "parts": [
                 {
-                  "Store": {
+                  "capture": {
                     "var_id": null,
                     "group": 0,
                     "match_index": null

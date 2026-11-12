@@ -192,7 +192,7 @@
       "select": {
        "parts": [
         {
-         "Store": {
+         "capture": {
           "var_id": null,
           "group": 0,
           "match_index": null
@@ -569,7 +569,7 @@
       "select": {
        "parts": [
         {
-         "Store": {
+         "capture": {
           "var_id": null,
           "group": 1,
           "match_index": null
@@ -586,7 +586,7 @@
       "select": {
        "parts": [
         {
-         "Store": {
+         "capture": {
           "var_id": "record",
           "group": 0,
           "match_index": null
@@ -611,7 +611,7 @@
              "ref": {
               "parts": [
                {
-                "Store": {
+                "capture": {
                  "var_id": "meridiem",
                  "group": 0,
                  "match_index": null
@@ -633,7 +633,7 @@
              "ref": {
               "parts": [
                {
-                "Store": {
+                "capture": {
                  "var_id": "hour12",
                  "group": 0,
                  "match_index": null
@@ -677,7 +677,7 @@
            "ref": {
             "parts": [
              {
-              "Store": {
+              "capture": {
                "var_id": "meridiem",
                "group": 0,
                "match_index": null
@@ -702,7 +702,7 @@
              "value-of": {
               "parts": [
                {
-                "Store": {
+                "capture": {
                  "var_id": "hour12",
                  "group": 0,
                  "match_index": null
@@ -725,7 +725,7 @@
              "ref": {
               "parts": [
                {
-                "Store": {
+                "capture": {
                  "var_id": "meridiem",
                  "group": 0,
                  "match_index": null
@@ -747,7 +747,7 @@
              "ref": {
               "parts": [
                {
-                "Store": {
+                "capture": {
                  "var_id": "hour12",
                  "group": 0,
                  "match_index": null
@@ -793,7 +793,7 @@
              "ref": {
               "parts": [
                {
-                "Store": {
+                "capture": {
                  "var_id": "meridiem",
                  "group": 0,
                  "match_index": null
@@ -815,7 +815,7 @@
              "ref": {
               "parts": [
                {
-                "Store": {
+                "capture": {
                  "var_id": "hour12",
                  "group": 0,
                  "match_index": null
@@ -861,7 +861,7 @@
              "ref": {
               "parts": [
                {
-                "Store": {
+                "capture": {
                  "var_id": "meridiem",
                  "group": 0,
                  "match_index": null
@@ -883,7 +883,7 @@
              "ref": {
               "parts": [
                {
-                "Store": {
+                "capture": {
                  "var_id": "hour12",
                  "group": 0,
                  "match_index": null
@@ -929,7 +929,7 @@
              "ref": {
               "parts": [
                {
-                "Store": {
+                "capture": {
                  "var_id": "meridiem",
                  "group": 0,
                  "match_index": null
@@ -951,7 +951,7 @@
              "ref": {
               "parts": [
                {
-                "Store": {
+                "capture": {
                  "var_id": "hour12",
                  "group": 0,
                  "match_index": null
@@ -997,7 +997,7 @@
              "ref": {
               "parts": [
                {
-                "Store": {
+                "capture": {
                  "var_id": "meridiem",
                  "group": 0,
                  "match_index": null
@@ -1019,7 +1019,7 @@
              "ref": {
               "parts": [
                {
-                "Store": {
+                "capture": {
                  "var_id": "hour12",
                  "group": 0,
                  "match_index": null
@@ -1065,7 +1065,7 @@
              "ref": {
               "parts": [
                {
-                "Store": {
+                "capture": {
                  "var_id": "meridiem",
                  "group": 0,
                  "match_index": null
@@ -1087,7 +1087,7 @@
              "ref": {
               "parts": [
                {
-                "Store": {
+                "capture": {
                  "var_id": "hour12",
                  "group": 0,
                  "match_index": null
@@ -1133,7 +1133,7 @@
              "ref": {
               "parts": [
                {
-                "Store": {
+                "capture": {
                  "var_id": "meridiem",
                  "group": 0,
                  "match_index": null
@@ -1155,7 +1155,7 @@
              "ref": {
               "parts": [
                {
-                "Store": {
+                "capture": {
                  "var_id": "hour12",
                  "group": 0,
                  "match_index": null
@@ -1201,7 +1201,7 @@
              "ref": {
               "parts": [
                {
-                "Store": {
+                "capture": {
                  "var_id": "meridiem",
                  "group": 0,
                  "match_index": null
@@ -1223,7 +1223,7 @@
              "ref": {
               "parts": [
                {
-                "Store": {
+                "capture": {
                  "var_id": "hour12",
                  "group": 0,
                  "match_index": null
@@ -1269,7 +1269,7 @@
              "ref": {
               "parts": [
                {
-                "Store": {
+                "capture": {
                  "var_id": "meridiem",
                  "group": 0,
                  "match_index": null
@@ -1291,7 +1291,7 @@
              "ref": {
               "parts": [
                {
-                "Store": {
+                "capture": {
                  "var_id": "hour12",
                  "group": 0,
                  "match_index": null
@@ -1337,7 +1337,7 @@
              "ref": {
               "parts": [
                {
-                "Store": {
+                "capture": {
                  "var_id": "meridiem",
                  "group": 0,
                  "match_index": null
@@ -1359,7 +1359,7 @@
              "ref": {
               "parts": [
                {
-                "Store": {
+                "capture": {
                  "var_id": "hour12",
                  "group": 0,
                  "match_index": null
@@ -1405,7 +1405,7 @@
              "ref": {
               "parts": [
                {
-                "Store": {
+                "capture": {
                  "var_id": "meridiem",
                  "group": 0,
                  "match_index": null
@@ -1427,7 +1427,7 @@
              "ref": {
               "parts": [
                {
-                "Store": {
+                "capture": {
                  "var_id": "hour12",
                  "group": 0,
                  "match_index": null
@@ -1473,7 +1473,7 @@
              "ref": {
               "parts": [
                {
-                "Store": {
+                "capture": {
                  "var_id": "meridiem",
                  "group": 0,
                  "match_index": null
@@ -1495,7 +1495,7 @@
              "ref": {
               "parts": [
                {
-                "Store": {
+                "capture": {
                  "var_id": "hour12",
                  "group": 0,
                  "match_index": null
@@ -1542,7 +1542,7 @@
            "value-of": {
             "parts": [
              {
-              "Store": {
+              "capture": {
                "var_id": "hour12",
                "group": 0,
                "match_index": null
@@ -1565,7 +1565,7 @@
         "value-of": {
          "parts": [
           {
-           "Store": {
+           "capture": {
             "var_id": "privileges",
             "group": 0,
             "match_index": null
@@ -1583,7 +1583,7 @@
        {
         "parts": [
          {
-          "Store": {
+          "capture": {
            "var_id": "privilegesText",
            "group": 0,
            "match_index": null
@@ -1603,7 +1603,7 @@
        {
         "parts": [
          {
-          "Store": {
+          "capture": {
            "var_id": "privilegesText",
            "group": 0,
            "match_index": null
@@ -1625,7 +1625,7 @@
         "value-of": {
          "parts": [
           {
-           "Store": {
+           "capture": {
             "var_id": "accesses",
             "group": 0,
             "match_index": null
@@ -1643,7 +1643,7 @@
        {
         "parts": [
          {
-          "Store": {
+          "capture": {
            "var_id": "accessesText",
            "group": 0,
            "match_index": null
@@ -1663,7 +1663,7 @@
        {
         "parts": [
          {
-          "Store": {
+          "capture": {
            "var_id": "accessesText",
            "group": 0,
            "match_index": null
@@ -1682,7 +1682,7 @@
       "select": {
        "parts": [
         {
-         "Store": {
+         "capture": {
           "var_id": "fObjectName",
           "group": 0,
           "match_index": null
@@ -1699,7 +1699,7 @@
       "select": {
        "parts": [
         {
-         "Store": {
+         "capture": {
           "var_id": "memberAccount",
           "group": 0,
           "match_index": null
@@ -1717,7 +1717,7 @@
        {
         "parts": [
          {
-          "Store": {
+          "capture": {
            "var_id": "year",
            "group": 0,
            "match_index": null
@@ -1751,7 +1751,7 @@
        {
         "parts": [
          {
-          "Store": {
+          "capture": {
            "var_id": "month",
            "group": 0,
            "match_index": null
@@ -1785,7 +1785,7 @@
        {
         "parts": [
          {
-          "Store": {
+          "capture": {
            "var_id": "day",
            "group": 0,
            "match_index": null
@@ -1819,7 +1819,7 @@
        {
         "parts": [
          {
-          "Store": {
+          "capture": {
            "var_id": "hour24",
            "group": 0,
            "match_index": null
@@ -1853,7 +1853,7 @@
        {
         "parts": [
          {
-          "Store": {
+          "capture": {
            "var_id": "minute",
            "group": 0,
            "match_index": null
@@ -1887,7 +1887,7 @@
        {
         "parts": [
          {
-          "Store": {
+          "capture": {
            "var_id": "second",
            "group": 0,
            "match_index": null
@@ -1988,7 +1988,7 @@
         "text": "\n  <Event>\n    <EventTime>\n      <TimeCreated>"
        },
        {
-        "Store": {
+        "capture": {
          "var_id": "yearText",
          "group": 0,
          "match_index": null
@@ -1998,7 +1998,7 @@
         "text": "-"
        },
        {
-        "Store": {
+        "capture": {
          "var_id": "monthText",
          "group": 0,
          "match_index": null
@@ -2008,7 +2008,7 @@
         "text": "-"
        },
        {
-        "Store": {
+        "capture": {
          "var_id": "dayText",
          "group": 0,
          "match_index": null
@@ -2018,7 +2018,7 @@
         "text": "T"
        },
        {
-        "Store": {
+        "capture": {
          "var_id": "hourText",
          "group": 0,
          "match_index": null
@@ -2028,7 +2028,7 @@
         "text": ":"
        },
        {
-        "Store": {
+        "capture": {
          "var_id": "minuteText",
          "group": 0,
          "match_index": null
@@ -2038,7 +2038,7 @@
         "text": ":"
        },
        {
-        "Store": {
+        "capture": {
          "var_id": "secondText",
          "group": 0,
          "match_index": null
@@ -2048,7 +2048,7 @@
         "text": ".000Z</TimeCreated>\n    </EventTime>\n    <EventSource>\n      <System>\n        <Name>"
        },
        {
-        "Store": {
+        "capture": {
          "var_id": "sourceNameText",
          "group": 0,
          "match_index": null
@@ -2058,7 +2058,7 @@
         "text": "</Name>\n        <Environment>Windows</Environment>\n      </System>\n      <Generator>Windows Security Event Log</Generator>\n      <Device>\n        <HostName>"
        },
        {
-        "Store": {
+        "capture": {
          "var_id": "computerNameText",
          "group": 0,
          "match_index": null
@@ -2102,7 +2102,7 @@
             {
              "parts": [
               {
-               "Store": {
+               "capture": {
                 "var_id": "fSourceNetworkAddress",
                 "group": 0,
                 "match_index": null
@@ -2137,7 +2137,7 @@
              "text": "\n        <IPAddress>"
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "sourceNetworkAddressText",
               "group": 0,
               "match_index": null
@@ -2196,7 +2196,7 @@
              "text": "\n      <User>\n        <Id>"
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "newLogonSid",
               "group": 0,
               "match_index": null
@@ -2206,7 +2206,7 @@
              "text": "</Id>\n        <UserDetails>\n          <Id>"
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "newLogonAccount",
               "group": 0,
               "match_index": null
@@ -2216,7 +2216,7 @@
              "text": "</Id>\n          <Domain>"
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "newLogonDomain",
               "group": 0,
               "match_index": null
@@ -2348,7 +2348,7 @@
              "text": "\n      <User>\n        <Id>"
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fSecurityId",
               "group": 0,
               "match_index": null
@@ -2358,7 +2358,7 @@
              "text": "</Id>\n        <UserDetails>\n          <Id>"
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fAccountName",
               "group": 0,
               "match_index": null
@@ -2368,7 +2368,7 @@
              "text": "</Id>\n          <Domain>"
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fAccountDomain",
               "group": 0,
               "match_index": null
@@ -2461,7 +2461,7 @@
              "text": "\n      <User>\n        <Id>"
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fSecurityId",
               "group": 0,
               "match_index": null
@@ -2471,7 +2471,7 @@
              "text": "</Id>\n        <UserDetails>\n          <Id>"
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fAccountName",
               "group": 0,
               "match_index": null
@@ -2481,7 +2481,7 @@
              "text": "</Id>\n          <Domain>"
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fAccountDomain",
               "group": 0,
               "match_index": null
@@ -2525,7 +2525,7 @@
              "text": "\n      <User>\n        <Id>"
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fSecurityId",
               "group": 0,
               "match_index": null
@@ -2535,7 +2535,7 @@
              "text": "</Id>\n        <UserDetails>\n          <Id>"
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fAccountName",
               "group": 0,
               "match_index": null
@@ -2545,7 +2545,7 @@
              "text": "</Id>\n          <Domain>"
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fAccountDomain",
               "group": 0,
               "match_index": null
@@ -2602,7 +2602,7 @@
         "text": "\n    </EventSource>\n    <EventDetail>\n      <TypeId>"
        },
        {
-        "Store": {
+        "capture": {
          "var_id": "eventCodeText",
          "group": 0,
          "match_index": null
@@ -2659,7 +2659,7 @@
                 "ref": {
                  "parts": [
                   {
-                   "Store": {
+                   "capture": {
                     "var_id": "fLogonType",
                     "group": 0,
                     "match_index": null
@@ -2694,7 +2694,7 @@
                 "ref": {
                  "parts": [
                   {
-                   "Store": {
+                   "capture": {
                     "var_id": "fLogonType",
                     "group": 0,
                     "match_index": null
@@ -2729,7 +2729,7 @@
                 "ref": {
                  "parts": [
                   {
-                   "Store": {
+                   "capture": {
                     "var_id": "fLogonType",
                     "group": 0,
                     "match_index": null
@@ -2764,7 +2764,7 @@
                 "ref": {
                  "parts": [
                   {
-                   "Store": {
+                   "capture": {
                     "var_id": "fLogonType",
                     "group": 0,
                     "match_index": null
@@ -2802,7 +2802,7 @@
              "text": "\n        <User>\n          <Id>"
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "newLogonSid",
               "group": 0,
               "match_index": null
@@ -2812,7 +2812,7 @@
              "text": "</Id>\n          <UserDetails>\n            <Id>"
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "newLogonAccount",
               "group": 0,
               "match_index": null
@@ -2822,7 +2822,7 @@
              "text": "</Id>\n            <Domain>"
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "newLogonDomain",
               "group": 0,
               "match_index": null
@@ -2832,7 +2832,7 @@
              "text": "</Domain>\n          </UserDetails>\n        </User>\n        <Outcome>\n          <Success>true</Success>\n        </Outcome>\n        <Data Name=\"LogonType\" Value=\""
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fLogonType",
               "group": 0,
               "match_index": null
@@ -2842,7 +2842,7 @@
              "text": "\"/>\n        <Data Name=\"LogonId\" Value=\""
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "newLogonId",
               "group": 0,
               "match_index": null
@@ -2852,7 +2852,7 @@
              "text": "\"/>\n        <Data Name=\"LogonProcess\" Value=\""
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fLogonProcess",
               "group": 0,
               "match_index": null
@@ -2862,7 +2862,7 @@
              "text": "\"/>\n        <Data Name=\"AuthenticationPackage\" Value=\""
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fAuthenticationPackage",
               "group": 0,
               "match_index": null
@@ -2872,7 +2872,7 @@
              "text": "\"/>\n        <Data Name=\"ElevatedToken\" Value=\""
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fElevatedToken",
               "group": 0,
               "match_index": null
@@ -2882,7 +2882,7 @@
              "text": "\"/>\n        <Data Name=\"WorkstationName\" Value=\""
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fWorkstationName",
               "group": 0,
               "match_index": null
@@ -2892,7 +2892,7 @@
              "text": "\"/>\n        <Data Name=\"SourceNetworkAddress\" Value=\""
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fSourceNetworkAddress",
               "group": 0,
               "match_index": null
@@ -2902,7 +2902,7 @@
              "text": "\"/>\n        <Data Name=\"ProcessName\" Value=\""
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fProcessName",
               "group": 0,
               "match_index": null
@@ -2912,7 +2912,7 @@
              "text": "\"/>\n        <Data Name=\"ProcessId\" Value=\""
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fProcessId",
               "group": 0,
               "match_index": null
@@ -2965,7 +2965,7 @@
              "text": "\n      <Description>Special privileges assigned to new logon</Description>\n      <Authorise>\n        <Object>\n          <Type>UserSession</Type>\n          <Id>"
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fLogonId",
               "group": 0,
               "match_index": null
@@ -2975,7 +2975,7 @@
              "text": "</Id>\n          <Name>"
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fAccountName",
               "group": 0,
               "match_index": null
@@ -2985,7 +2985,7 @@
              "text": "</Name>\n        </Object>\n        <Action>Request</Action>\n        <Outcome>\n          <Success>true</Success>\n        </Outcome>\n        <Data Name=\"LogonId\" Value=\""
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fLogonId",
               "group": 0,
               "match_index": null
@@ -2995,7 +2995,7 @@
              "text": "\"/>\n        <Data Name=\"Privileges\" Value=\""
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "privilegesText",
               "group": 0,
               "match_index": null
@@ -3048,7 +3048,7 @@
              "text": "\n      <Description>A new process has been created</Description>\n      <Create>\n        <Object>\n          <Type>Process</Type>\n          <Id>"
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fNewProcessId",
               "group": 0,
               "match_index": null
@@ -3058,7 +3058,7 @@
              "text": "</Id>\n          <Name>cmd.exe</Name>\n        </Object>\n        <Outcome>\n          <Success>true</Success>\n        </Outcome>\n        <Data Name=\"NewProcessId\" Value=\""
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fNewProcessId",
               "group": 0,
               "match_index": null
@@ -3068,7 +3068,7 @@
              "text": "\"/>\n        <Data Name=\"NewProcessName\" Value=\""
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fNewProcessName",
               "group": 0,
               "match_index": null
@@ -3078,7 +3078,7 @@
              "text": "\"/>\n        <Data Name=\"CommandLine\" Value=\""
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fProcessCommandLine",
               "group": 0,
               "match_index": null
@@ -3088,7 +3088,7 @@
              "text": "\"/>\n        <Data Name=\"CreatorProcessId\" Value=\""
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fCreatorProcessId",
               "group": 0,
               "match_index": null
@@ -3098,7 +3098,7 @@
              "text": "\"/>\n        <Data Name=\"CreatorProcessName\" Value=\""
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fCreatorProcessName",
               "group": 0,
               "match_index": null
@@ -3108,7 +3108,7 @@
              "text": "\"/>\n        <Data Name=\"TokenElevationType\" Value=\""
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fTokenElevationType",
               "group": 0,
               "match_index": null
@@ -3118,7 +3118,7 @@
              "text": "\"/>\n        <Data Name=\"MandatoryLabel\" Value=\""
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fMandatoryLabel",
               "group": 0,
               "match_index": null
@@ -3128,7 +3128,7 @@
              "text": "\"/>\n        <Data Name=\"LogonId\" Value=\""
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fLogonId",
               "group": 0,
               "match_index": null
@@ -3193,7 +3193,7 @@
                 "ref": {
                  "parts": [
                   {
-                   "Store": {
+                   "capture": {
                     "var_id": "fLogonType",
                     "group": 0,
                     "match_index": null
@@ -3228,7 +3228,7 @@
                 "ref": {
                  "parts": [
                   {
-                   "Store": {
+                   "capture": {
                     "var_id": "fLogonType",
                     "group": 0,
                     "match_index": null
@@ -3263,7 +3263,7 @@
                 "ref": {
                  "parts": [
                   {
-                   "Store": {
+                   "capture": {
                     "var_id": "fLogonType",
                     "group": 0,
                     "match_index": null
@@ -3298,7 +3298,7 @@
                 "ref": {
                  "parts": [
                   {
-                   "Store": {
+                   "capture": {
                     "var_id": "fLogonType",
                     "group": 0,
                     "match_index": null
@@ -3336,7 +3336,7 @@
              "text": "\n        <User>\n          <Id>"
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "failedAccount",
               "group": 0,
               "match_index": null
@@ -3346,7 +3346,7 @@
              "text": "</Id>\n          <UserDetails>\n            <Id>"
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "failedAccount",
               "group": 0,
               "match_index": null
@@ -3356,7 +3356,7 @@
              "text": "</Id>\n            <Domain>"
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "failedDomain",
               "group": 0,
               "match_index": null
@@ -3366,7 +3366,7 @@
              "text": "</Domain>\n          </UserDetails>\n        </User>\n        <Outcome>\n          <Success>false</Success>\n          <Description>Unknown user name or bad password ("
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fSubStatus",
               "group": 0,
               "match_index": null
@@ -3376,7 +3376,7 @@
              "text": ")</Description>\n        </Outcome>\n        <Data Name=\"LogonType\" Value=\""
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fLogonType",
               "group": 0,
               "match_index": null
@@ -3386,7 +3386,7 @@
              "text": "\"/>\n        <Data Name=\"FailureReason\" Value=\""
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fFailureReason",
               "group": 0,
               "match_index": null
@@ -3396,7 +3396,7 @@
              "text": "\"/>\n        <Data Name=\"Status\" Value=\""
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fStatus",
               "group": 0,
               "match_index": null
@@ -3406,7 +3406,7 @@
              "text": "\"/>\n        <Data Name=\"SubStatus\" Value=\""
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fSubStatus",
               "group": 0,
               "match_index": null
@@ -3416,7 +3416,7 @@
              "text": "\"/>\n        <Data Name=\"WorkstationName\" Value=\""
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fWorkstationName",
               "group": 0,
               "match_index": null
@@ -3426,7 +3426,7 @@
              "text": "\"/>\n        <Data Name=\"SourceNetworkAddress\" Value=\""
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fSourceNetworkAddress",
               "group": 0,
               "match_index": null
@@ -3436,7 +3436,7 @@
              "text": "\"/>\n        <Data Name=\"SourcePort\" Value=\""
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fSourcePort",
               "group": 0,
               "match_index": null
@@ -3446,7 +3446,7 @@
              "text": "\"/>\n        <Data Name=\"LogonProcess\" Value=\""
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fLogonProcess",
               "group": 0,
               "match_index": null
@@ -3456,7 +3456,7 @@
              "text": "\"/>\n        <Data Name=\"AuthenticationPackage\" Value=\""
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fAuthenticationPackage",
               "group": 0,
               "match_index": null
@@ -3509,7 +3509,7 @@
              "text": "\n      <Description>A user account was created</Description>\n      <Create>\n        <Object>\n          <Type>UserAccount</Type>\n          <Id>"
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "newAccountSid",
               "group": 0,
               "match_index": null
@@ -3519,7 +3519,7 @@
              "text": "</Id>\n          <Name>"
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "newAccountName",
               "group": 0,
               "match_index": null
@@ -3529,7 +3529,7 @@
              "text": "</Name>\n          <Description>"
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fDisplayName",
               "group": 0,
               "match_index": null
@@ -3539,7 +3539,7 @@
              "text": "</Description>\n        </Object>\n        <Outcome>\n          <Success>true</Success>\n        </Outcome>\n        <Data Name=\"SAMAccountName\" Value=\""
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fSamAccountName",
               "group": 0,
               "match_index": null
@@ -3549,7 +3549,7 @@
              "text": "\"/>\n        <Data Name=\"DisplayName\" Value=\""
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fDisplayName",
               "group": 0,
               "match_index": null
@@ -3559,7 +3559,7 @@
              "text": "\"/>\n        <Data Name=\"UserPrincipalName\" Value=\""
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fUserPrincipalName",
               "group": 0,
               "match_index": null
@@ -3569,7 +3569,7 @@
              "text": "\"/>\n        <Data Name=\"AccountDomain\" Value=\""
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "newAccountDomain",
               "group": 0,
               "match_index": null
@@ -3579,7 +3579,7 @@
              "text": "\"/>\n        <Data Name=\"PrimaryGroupId\" Value=\""
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fPrimaryGroupId",
               "group": 0,
               "match_index": null
@@ -3589,7 +3589,7 @@
              "text": "\"/>\n        <Data Name=\"NewUACValue\" Value=\""
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fNewUacValue",
               "group": 0,
               "match_index": null
@@ -3599,7 +3599,7 @@
              "text": "\"/>\n        <Data Name=\"PasswordLastSet\" Value=\""
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fPasswordLastSet",
               "group": 0,
               "match_index": null
@@ -3609,7 +3609,7 @@
              "text": "\"/>\n        <Data Name=\"AccountExpires\" Value=\""
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fAccountExpires",
               "group": 0,
               "match_index": null
@@ -3619,7 +3619,7 @@
              "text": "\"/>\n        <Data Name=\"SubjectLogonId\" Value=\""
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fLogonId",
               "group": 0,
               "match_index": null
@@ -3672,7 +3672,7 @@
              "text": "\n      <Description>A member was added to a security-enabled local group</Description>\n      <Authorise>\n        <Object>\n          <Type>UserAccount</Type>\n          <Id>"
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "memberSid",
               "group": 0,
               "match_index": null
@@ -3682,7 +3682,7 @@
              "text": "</Id>\n          <Name>"
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "memberCn",
               "group": 0,
               "match_index": null
@@ -3692,7 +3692,7 @@
              "text": "</Name>\n        </Object>\n        <Action>Modify</Action>\n        <AddGroups>\n          <Group>\n            <Id>"
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "groupSid",
               "group": 0,
               "match_index": null
@@ -3702,7 +3702,7 @@
              "text": "</Id>\n            <Name>"
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "groupName",
               "group": 0,
               "match_index": null
@@ -3712,7 +3712,7 @@
              "text": "</Name>\n          </Group>\n        </AddGroups>\n        <Outcome>\n          <Success>true</Success>\n        </Outcome>\n        <Data Name=\"MemberDN\" Value=\""
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "memberAccount",
               "group": 0,
               "match_index": null
@@ -3722,7 +3722,7 @@
              "text": "\"/>\n        <Data Name=\"GroupDomain\" Value=\""
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "groupDomain",
               "group": 0,
               "match_index": null
@@ -3732,7 +3732,7 @@
              "text": "\"/>\n        <Data Name=\"SubjectLogonId\" Value=\""
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fLogonId",
               "group": 0,
               "match_index": null
@@ -3785,7 +3785,7 @@
              "text": "\n      <Description>An attempt was made to access an object</Description>\n      <View>\n        <Object>\n          <Type>"
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fObjectType",
               "group": 0,
               "match_index": null
@@ -3795,7 +3795,7 @@
              "text": "</Type>\n          <Id>"
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fObjectName",
               "group": 0,
               "match_index": null
@@ -3805,7 +3805,7 @@
              "text": "</Id>\n          <Name>"
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "objectFileName",
               "group": 0,
               "match_index": null
@@ -3815,7 +3815,7 @@
              "text": "</Name>\n        </Object>\n        <Outcome>\n          <Success>true</Success>\n        </Outcome>\n        <Data Name=\"ObjectServer\" Value=\""
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fObjectServer",
               "group": 0,
               "match_index": null
@@ -3825,7 +3825,7 @@
              "text": "\"/>\n        <Data Name=\"ObjectType\" Value=\""
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fObjectType",
               "group": 0,
               "match_index": null
@@ -3835,7 +3835,7 @@
              "text": "\"/>\n        <Data Name=\"ObjectName\" Value=\""
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fObjectName",
               "group": 0,
               "match_index": null
@@ -3845,7 +3845,7 @@
              "text": "\"/>\n        <Data Name=\"HandleId\" Value=\""
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fHandleId",
               "group": 0,
               "match_index": null
@@ -3855,7 +3855,7 @@
              "text": "\"/>\n        <Data Name=\"Accesses\" Value=\""
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "accessesText",
               "group": 0,
               "match_index": null
@@ -3865,7 +3865,7 @@
              "text": "\"/>\n        <Data Name=\"AccessMask\" Value=\""
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fAccessMask",
               "group": 0,
               "match_index": null
@@ -3875,7 +3875,7 @@
              "text": "\"/>\n        <Data Name=\"LogonId\" Value=\""
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fLogonId",
               "group": 0,
               "match_index": null
@@ -3928,7 +3928,7 @@
              "text": "\n      <Description>A handle to an object was requested - access denied</Description>\n      <View>\n        <Object>\n          <Type>"
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fObjectType",
               "group": 0,
               "match_index": null
@@ -3938,7 +3938,7 @@
              "text": "</Type>\n          <Id>"
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fObjectName",
               "group": 0,
               "match_index": null
@@ -3948,7 +3948,7 @@
              "text": "</Id>\n          <Name>"
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "objectFileName",
               "group": 0,
               "match_index": null
@@ -3958,7 +3958,7 @@
              "text": "</Name>\n        </Object>\n        <Outcome>\n          <Success>false</Success>\n          <Permitted>false</Permitted>\n          <Description>Access denied to HR salary data</Description>\n        </Outcome>\n        <Data Name=\"ObjectServer\" Value=\""
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fObjectServer",
               "group": 0,
               "match_index": null
@@ -3968,7 +3968,7 @@
              "text": "\"/>\n        <Data Name=\"ObjectType\" Value=\""
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fObjectType",
               "group": 0,
               "match_index": null
@@ -3978,7 +3978,7 @@
              "text": "\"/>\n        <Data Name=\"ObjectName\" Value=\""
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fObjectName",
               "group": 0,
               "match_index": null
@@ -3988,7 +3988,7 @@
              "text": "\"/>\n        <Data Name=\"Accesses\" Value=\""
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "accessesText",
               "group": 0,
               "match_index": null
@@ -3998,7 +3998,7 @@
              "text": "\"/>\n        <Data Name=\"AccessMask\" Value=\""
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fAccessMask",
               "group": 0,
               "match_index": null
@@ -4008,7 +4008,7 @@
              "text": "\"/>\n        <Data Name=\"LogonId\" Value=\""
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fLogonId",
               "group": 0,
               "match_index": null
@@ -4061,7 +4061,7 @@
              "text": "\n      <Description>A logon was attempted using explicit credentials</Description>\n      <Authenticate>\n        <Action>Logon</Action>\n        <User>\n          <Id>"
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "credentialsAccount",
               "group": 0,
               "match_index": null
@@ -4071,7 +4071,7 @@
              "text": "</Id>\n          <UserDetails>\n            <Id>"
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "credentialsAccount",
               "group": 0,
               "match_index": null
@@ -4081,7 +4081,7 @@
              "text": "</Id>\n            <Domain>"
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "credentialsDomain",
               "group": 0,
               "match_index": null
@@ -4091,7 +4091,7 @@
              "text": "</Domain>\n          </UserDetails>\n        </User>\n        <Outcome>\n          <Success>true</Success>\n        </Outcome>\n        <Data Name=\"SubjectAccountName\" Value=\""
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fAccountName",
               "group": 0,
               "match_index": null
@@ -4101,7 +4101,7 @@
              "text": "\"/>\n        <Data Name=\"SubjectLogonId\" Value=\""
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fLogonId",
               "group": 0,
               "match_index": null
@@ -4111,7 +4111,7 @@
              "text": "\"/>\n        <Data Name=\"TargetAccountName\" Value=\""
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "credentialsAccount",
               "group": 0,
               "match_index": null
@@ -4121,7 +4121,7 @@
              "text": "\"/>\n        <Data Name=\"TargetAccountDomain\" Value=\""
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "credentialsDomain",
               "group": 0,
               "match_index": null
@@ -4131,7 +4131,7 @@
              "text": "\"/>\n        <Data Name=\"TargetServerName\" Value=\""
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fTargetServerName",
               "group": 0,
               "match_index": null
@@ -4141,7 +4141,7 @@
              "text": "\"/>\n        <Data Name=\"TargetInfo\" Value=\""
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fAdditionalInformation",
               "group": 0,
               "match_index": null
@@ -4151,7 +4151,7 @@
              "text": "\"/>\n        <Data Name=\"ProcessName\" Value=\""
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fProcessName",
               "group": 0,
               "match_index": null
@@ -4161,7 +4161,7 @@
              "text": "\"/>\n        <Data Name=\"ProcessId\" Value=\""
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fProcessId",
               "group": 0,
               "match_index": null
@@ -4171,7 +4171,7 @@
              "text": "\"/>\n        <Data Name=\"NetworkAddress\" Value=\""
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fNetworkAddress",
               "group": 0,
               "match_index": null
@@ -4181,7 +4181,7 @@
              "text": "\"/>\n        <Data Name=\"NetworkPort\" Value=\""
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fPort",
               "group": 0,
               "match_index": null
@@ -4191,7 +4191,7 @@
              "text": "\"/>\n        <Data Name=\"LogonGUID\" Value=\""
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "credentialsLogonGuid",
               "group": 0,
               "match_index": null
@@ -4244,7 +4244,7 @@
              "text": "\n      <Description>An account was logged off</Description>\n      <Authenticate>\n        <Action>Logoff</Action>\n        <User>\n          <Id>"
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fSecurityId",
               "group": 0,
               "match_index": null
@@ -4254,7 +4254,7 @@
              "text": "</Id>\n          <UserDetails>\n            <Id>"
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fAccountName",
               "group": 0,
               "match_index": null
@@ -4264,7 +4264,7 @@
              "text": "</Id>\n            <Domain>"
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fAccountDomain",
               "group": 0,
               "match_index": null
@@ -4274,7 +4274,7 @@
              "text": "</Domain>\n          </UserDetails>\n        </User>\n        <Outcome>\n          <Success>true</Success>\n        </Outcome>\n        <Data Name=\"LogonId\" Value=\""
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fLogonId",
               "group": 0,
               "match_index": null
@@ -4284,7 +4284,7 @@
              "text": "\"/>\n        <Data Name=\"LogonType\" Value=\""
             },
             {
-             "Store": {
+             "capture": {
               "var_id": "fLogonType",
               "group": 0,
               "match_index": null
@@ -4367,7 +4367,7 @@
       "select": {
        "parts": [
         {
-         "Store": {
+         "capture": {
           "var_id": null,
           "group": 1,
           "match_index": null
@@ -4383,7 +4383,7 @@
       "select": {
        "parts": [
         {
-         "Store": {
+         "capture": {
           "var_id": null,
           "group": 2,
           "match_index": null
@@ -4399,7 +4399,7 @@
       "select": {
        "parts": [
         {
-         "Store": {
+         "capture": {
           "var_id": null,
           "group": 3,
           "match_index": null
@@ -4415,7 +4415,7 @@
       "select": {
        "parts": [
         {
-         "Store": {
+         "capture": {
           "var_id": null,
           "group": 4,
           "match_index": null
@@ -4431,7 +4431,7 @@
       "select": {
        "parts": [
         {
-         "Store": {
+         "capture": {
           "var_id": null,
           "group": 5,
           "match_index": null
@@ -4447,7 +4447,7 @@
       "select": {
        "parts": [
         {
-         "Store": {
+         "capture": {
           "var_id": null,
           "group": 6,
           "match_index": null
@@ -4463,7 +4463,7 @@
       "select": {
        "parts": [
         {
-         "Store": {
+         "capture": {
           "var_id": null,
           "group": 7,
           "match_index": null
@@ -4501,7 +4501,7 @@
       "select": {
        "parts": [
         {
-         "Store": {
+         "capture": {
           "var_id": null,
           "group": 1,
           "match_index": null
@@ -4517,7 +4517,7 @@
       "select": {
        "parts": [
         {
-         "Store": {
+         "capture": {
           "var_id": null,
           "group": 2,
           "match_index": null
@@ -4533,7 +4533,7 @@
       "select": {
        "parts": [
         {
-         "Store": {
+         "capture": {
           "var_id": null,
           "group": 3,
           "match_index": null
@@ -4571,7 +4571,7 @@
       "select": {
        "parts": [
         {
-         "Store": {
+         "capture": {
           "var_id": null,
           "group": 1,
           "match_index": null
@@ -4587,7 +4587,7 @@
       "select": {
        "parts": [
         {
-         "Store": {
+         "capture": {
           "var_id": null,
           "group": 2,
           "match_index": null
@@ -4603,7 +4603,7 @@
       "select": {
        "parts": [
         {
-         "Store": {
+         "capture": {
           "var_id": null,
           "group": 3,
           "match_index": null
@@ -4619,7 +4619,7 @@
       "select": {
        "parts": [
         {
-         "Store": {
+         "capture": {
           "var_id": null,
           "group": 4,
           "match_index": null
@@ -4657,7 +4657,7 @@
       "select": {
        "parts": [
         {
-         "Store": {
+         "capture": {
           "var_id": null,
           "group": 1,
           "match_index": null
@@ -4673,7 +4673,7 @@
       "select": {
        "parts": [
         {
-         "Store": {
+         "capture": {
           "var_id": null,
           "group": 2,
           "match_index": null
@@ -4689,7 +4689,7 @@
       "select": {
        "parts": [
         {
-         "Store": {
+         "capture": {
           "var_id": null,
           "group": 3,
           "match_index": null
@@ -4727,7 +4727,7 @@
       "select": {
        "parts": [
         {
-         "Store": {
+         "capture": {
           "var_id": null,
           "group": 1,
           "match_index": null
@@ -4743,7 +4743,7 @@
       "select": {
        "parts": [
         {
-         "Store": {
+         "capture": {
           "var_id": null,
           "group": 2,
           "match_index": null
@@ -4759,7 +4759,7 @@
       "select": {
        "parts": [
         {
-         "Store": {
+         "capture": {
           "var_id": null,
           "group": 3,
           "match_index": null
@@ -4797,7 +4797,7 @@
       "select": {
        "parts": [
         {
-         "Store": {
+         "capture": {
           "var_id": null,
           "group": 1,
           "match_index": null
@@ -4813,7 +4813,7 @@
       "select": {
        "parts": [
         {
-         "Store": {
+         "capture": {
           "var_id": null,
           "group": 2,
           "match_index": null
@@ -4851,7 +4851,7 @@
       "select": {
        "parts": [
         {
-         "Store": {
+         "capture": {
           "var_id": null,
           "group": 1,
           "match_index": null
@@ -4867,7 +4867,7 @@
       "select": {
        "parts": [
         {
-         "Store": {
+         "capture": {
           "var_id": null,
           "group": 2,
           "match_index": null
@@ -4883,7 +4883,7 @@
       "select": {
        "parts": [
         {
-         "Store": {
+         "capture": {
           "var_id": null,
           "group": 3,
           "match_index": null
@@ -4921,7 +4921,7 @@
       "select": {
        "parts": [
         {
-         "Store": {
+         "capture": {
           "var_id": null,
           "group": 1,
           "match_index": null
@@ -4959,7 +4959,7 @@
       "select": {
        "parts": [
         {
-         "Store": {
+         "capture": {
           "var_id": null,
           "group": 1,
           "match_index": null
@@ -5101,7 +5101,7 @@
               "select": {
                "parts": [
                 {
-                 "Store": {
+                 "capture": {
                   "var_id": "sAccessMask",
                   "group": 0,
                   "match_index": null
@@ -5158,7 +5158,7 @@
               "select": {
                "parts": [
                 {
-                 "Store": {
+                 "capture": {
                   "var_id": "sAccountDomain",
                   "group": 0,
                   "match_index": null
@@ -5215,7 +5215,7 @@
               "select": {
                "parts": [
                 {
-                 "Store": {
+                 "capture": {
                   "var_id": "sAccountExpires",
                   "group": 0,
                   "match_index": null
@@ -5272,7 +5272,7 @@
               "select": {
                "parts": [
                 {
-                 "Store": {
+                 "capture": {
                   "var_id": "sAccountName",
                   "group": 0,
                   "match_index": null
@@ -5329,7 +5329,7 @@
               "select": {
                "parts": [
                 {
-                 "Store": {
+                 "capture": {
                   "var_id": "sAdditionalInformation",
                   "group": 0,
                   "match_index": null
@@ -5386,7 +5386,7 @@
               "select": {
                "parts": [
                 {
-                 "Store": {
+                 "capture": {
                   "var_id": "sAuthenticationPackage",
                   "group": 0,
                   "match_index": null
@@ -5443,7 +5443,7 @@
               "select": {
                "parts": [
                 {
-                 "Store": {
+                 "capture": {
                   "var_id": "sCreatorProcessId",
                   "group": 0,
                   "match_index": null
@@ -5500,7 +5500,7 @@
               "select": {
                "parts": [
                 {
-                 "Store": {
+                 "capture": {
                   "var_id": "sCreatorProcessName",
                   "group": 0,
                   "match_index": null
@@ -5557,7 +5557,7 @@
               "select": {
                "parts": [
                 {
-                 "Store": {
+                 "capture": {
                   "var_id": "sDisplayName",
                   "group": 0,
                   "match_index": null
@@ -5614,7 +5614,7 @@
               "select": {
                "parts": [
                 {
-                 "Store": {
+                 "capture": {
                   "var_id": "sElevatedToken",
                   "group": 0,
                   "match_index": null
@@ -5671,7 +5671,7 @@
               "select": {
                "parts": [
                 {
-                 "Store": {
+                 "capture": {
                   "var_id": "sFailureReason",
                   "group": 0,
                   "match_index": null
@@ -5728,7 +5728,7 @@
               "select": {
                "parts": [
                 {
-                 "Store": {
+                 "capture": {
                   "var_id": "sHandleId",
                   "group": 0,
                   "match_index": null
@@ -5785,7 +5785,7 @@
               "select": {
                "parts": [
                 {
-                 "Store": {
+                 "capture": {
                   "var_id": "sLogonId",
                   "group": 0,
                   "match_index": null
@@ -5842,7 +5842,7 @@
               "select": {
                "parts": [
                 {
-                 "Store": {
+                 "capture": {
                   "var_id": "sLogonProcess",
                   "group": 0,
                   "match_index": null
@@ -5899,7 +5899,7 @@
               "select": {
                "parts": [
                 {
-                 "Store": {
+                 "capture": {
                   "var_id": "sLogonType",
                   "group": 0,
                   "match_index": null
@@ -5956,7 +5956,7 @@
               "select": {
                "parts": [
                 {
-                 "Store": {
+                 "capture": {
                   "var_id": "sMandatoryLabel",
                   "group": 0,
                   "match_index": null
@@ -6013,7 +6013,7 @@
               "select": {
                "parts": [
                 {
-                 "Store": {
+                 "capture": {
                   "var_id": "sNetworkAddress",
                   "group": 0,
                   "match_index": null
@@ -6070,7 +6070,7 @@
               "select": {
                "parts": [
                 {
-                 "Store": {
+                 "capture": {
                   "var_id": "sNewProcessId",
                   "group": 0,
                   "match_index": null
@@ -6127,7 +6127,7 @@
               "select": {
                "parts": [
                 {
-                 "Store": {
+                 "capture": {
                   "var_id": "sNewProcessName",
                   "group": 0,
                   "match_index": null
@@ -6184,7 +6184,7 @@
               "select": {
                "parts": [
                 {
-                 "Store": {
+                 "capture": {
                   "var_id": "sNewUacValue",
                   "group": 0,
                   "match_index": null
@@ -6241,7 +6241,7 @@
               "select": {
                "parts": [
                 {
-                 "Store": {
+                 "capture": {
                   "var_id": "sObjectName",
                   "group": 0,
                   "match_index": null
@@ -6298,7 +6298,7 @@
               "select": {
                "parts": [
                 {
-                 "Store": {
+                 "capture": {
                   "var_id": "sObjectServer",
                   "group": 0,
                   "match_index": null
@@ -6355,7 +6355,7 @@
               "select": {
                "parts": [
                 {
-                 "Store": {
+                 "capture": {
                   "var_id": "sObjectType",
                   "group": 0,
                   "match_index": null
@@ -6412,7 +6412,7 @@
               "select": {
                "parts": [
                 {
-                 "Store": {
+                 "capture": {
                   "var_id": "sPasswordLastSet",
                   "group": 0,
                   "match_index": null
@@ -6469,7 +6469,7 @@
               "select": {
                "parts": [
                 {
-                 "Store": {
+                 "capture": {
                   "var_id": "sPort",
                   "group": 0,
                   "match_index": null
@@ -6526,7 +6526,7 @@
               "select": {
                "parts": [
                 {
-                 "Store": {
+                 "capture": {
                   "var_id": "sPrimaryGroupId",
                   "group": 0,
                   "match_index": null
@@ -6583,7 +6583,7 @@
               "select": {
                "parts": [
                 {
-                 "Store": {
+                 "capture": {
                   "var_id": "sProcessCommandLine",
                   "group": 0,
                   "match_index": null
@@ -6640,7 +6640,7 @@
               "select": {
                "parts": [
                 {
-                 "Store": {
+                 "capture": {
                   "var_id": "sProcessId",
                   "group": 0,
                   "match_index": null
@@ -6697,7 +6697,7 @@
               "select": {
                "parts": [
                 {
-                 "Store": {
+                 "capture": {
                   "var_id": "sProcessName",
                   "group": 0,
                   "match_index": null
@@ -6754,7 +6754,7 @@
               "select": {
                "parts": [
                 {
-                 "Store": {
+                 "capture": {
                   "var_id": "sSamAccountName",
                   "group": 0,
                   "match_index": null
@@ -6811,7 +6811,7 @@
               "select": {
                "parts": [
                 {
-                 "Store": {
+                 "capture": {
                   "var_id": "sSecurityId",
                   "group": 0,
                   "match_index": null
@@ -6868,7 +6868,7 @@
               "select": {
                "parts": [
                 {
-                 "Store": {
+                 "capture": {
                   "var_id": "sSourceNetworkAddress",
                   "group": 0,
                   "match_index": null
@@ -6925,7 +6925,7 @@
               "select": {
                "parts": [
                 {
-                 "Store": {
+                 "capture": {
                   "var_id": "sSourcePort",
                   "group": 0,
                   "match_index": null
@@ -6982,7 +6982,7 @@
               "select": {
                "parts": [
                 {
-                 "Store": {
+                 "capture": {
                   "var_id": "sStatus",
                   "group": 0,
                   "match_index": null
@@ -7039,7 +7039,7 @@
               "select": {
                "parts": [
                 {
-                 "Store": {
+                 "capture": {
                   "var_id": "sSubStatus",
                   "group": 0,
                   "match_index": null
@@ -7096,7 +7096,7 @@
               "select": {
                "parts": [
                 {
-                 "Store": {
+                 "capture": {
                   "var_id": "sTargetServerName",
                   "group": 0,
                   "match_index": null
@@ -7153,7 +7153,7 @@
               "select": {
                "parts": [
                 {
-                 "Store": {
+                 "capture": {
                   "var_id": "sTokenElevationType",
                   "group": 0,
                   "match_index": null
@@ -7210,7 +7210,7 @@
               "select": {
                "parts": [
                 {
-                 "Store": {
+                 "capture": {
                   "var_id": "sUserPrincipalName",
                   "group": 0,
                   "match_index": null
@@ -7267,7 +7267,7 @@
               "select": {
                "parts": [
                 {
-                 "Store": {
+                 "capture": {
                   "var_id": "sWorkstationName",
                   "group": 0,
                   "match_index": null
@@ -7361,7 +7361,7 @@
       "select": {
        "parts": [
         {
-         "Store": {
+         "capture": {
           "var_id": null,
           "group": 1,
           "match_index": null
@@ -7399,7 +7399,7 @@
       "select": {
        "parts": [
         {
-         "Store": {
+         "capture": {
           "var_id": null,
           "group": 1,
           "match_index": null

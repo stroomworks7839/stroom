@@ -163,17 +163,22 @@
       "when": [
        {
         "test": {
-         "greater-than": {
-          "select": {
-           "parts": [
-            {
-             "capture": {
-              "group": 3
+         "gt": {
+          "left": {
+           "ref": {
+            "parts": [
+             {
+              "capture": {
+               "group": 3
+              }
              }
-            }
-           ]
+            ]
+           },
+           "as": "number"
           },
-          "value": 100
+          "right": {
+           "value": 100.0
+          }
          }
         },
         "body": [

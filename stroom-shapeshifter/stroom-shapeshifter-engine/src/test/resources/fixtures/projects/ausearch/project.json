@@ -30,7 +30,7 @@
             "select": {
               "parts": [
                 {
-                  "Store": {
+                  "capture": {
                     "var_id": null,
                     "group": 0,
                     "match_index": null
@@ -85,7 +85,7 @@
             "select": {
               "parts": [
                 {
-                  "Store": {
+                  "capture": {
                     "var_id": null,
                     "group": 0,
                     "match_index": null
@@ -104,7 +104,7 @@
                 "text": "<Event><EventTime><TimeCreated>"
               },
               {
-                "Store": {
+                "capture": {
                   "var_id": "audit_record_1",
                   "group": 0,
                   "match_index": null
@@ -135,7 +135,7 @@
                       "ref": {
                         "parts": [
                           {
-                            "Store": {
+                            "capture": {
                               "var_id": "audit_record_2",
                               "group": 0,
                               "match_index": null
@@ -438,7 +438,7 @@
                           "ref": {
                             "parts": [
                               {
-                                "Store": {
+                                "capture": {
                                   "var_id": "audit_record_2",
                                   "group": 0,
                                   "match_index": null
@@ -460,7 +460,7 @@
                           "ref": {
                             "parts": [
                               {
-                                "Store": {
+                                "capture": {
                                   "var_id": "audit_record_2",
                                   "group": 0,
                                   "match_index": null
@@ -482,7 +482,7 @@
                           "ref": {
                             "parts": [
                               {
-                                "Store": {
+                                "capture": {
                                   "var_id": "audit_record_2",
                                   "group": 0,
                                   "match_index": null
@@ -508,7 +508,7 @@
                           "text": "<TypeId>"
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "audit_record_2",
                             "group": 0,
                             "match_index": null
@@ -538,7 +538,7 @@
                       "ref": {
                         "parts": [
                           {
-                            "Store": {
+                            "capture": {
                               "var_id": "audit_record_2",
                               "group": 0,
                               "match_index": null
@@ -584,7 +584,7 @@
                           "ref": {
                             "parts": [
                               {
-                                "Store": {
+                                "capture": {
                                   "var_id": "audit_record_2",
                                   "group": 0,
                                   "match_index": null
@@ -606,7 +606,7 @@
                           "ref": {
                             "parts": [
                               {
-                                "Store": {
+                                "capture": {
                                   "var_id": "audit_record_2",
                                   "group": 0,
                                   "match_index": null
@@ -632,7 +632,7 @@
                           "text": "<TypeId>"
                         },
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": "audit_record_2",
                             "group": 0,
                             "match_index": null
@@ -664,7 +664,7 @@
                       "text": "<TypeId>"
                     },
                     {
-                      "Store": {
+                      "capture": {
                         "var_id": "audit_record_2",
                         "group": 0,
                         "match_index": null
@@ -717,7 +717,7 @@
               "key_ref": {
                 "parts": [
                   {
-                    "Store": {
+                    "capture": {
                       "var_id": null,
                       "group": 1,
                       "match_index": null
@@ -728,21 +728,21 @@
               "value_ref": {
                 "parts": [
                   {
-                    "Store": {
+                    "capture": {
                       "var_id": null,
                       "group": 2,
                       "match_index": null
                     }
                   },
                   {
-                    "Store": {
+                    "capture": {
                       "var_id": null,
                       "group": 3,
                       "match_index": null
                     }
                   },
                   {
-                    "Store": {
+                    "capture": {
                       "var_id": null,
                       "group": 4,
                       "match_index": null
@@ -775,7 +775,7 @@
             "select": {
               "parts": [
                 {
-                  "Store": {
+                  "capture": {
                     "var_id": null,
                     "group": 0,
                     "match_index": null
@@ -815,7 +815,7 @@
               "key_ref": {
                 "parts": [
                   {
-                    "Store": {
+                    "capture": {
                       "var_id": null,
                       "group": 1,
                       "match_index": null
@@ -826,21 +826,21 @@
               "value_ref": {
                 "parts": [
                   {
-                    "Store": {
+                    "capture": {
                       "var_id": null,
                       "group": 2,
                       "match_index": null
                     }
                   },
                   {
-                    "Store": {
+                    "capture": {
                       "var_id": null,
                       "group": 3,
                       "match_index": null
                     }
                   },
                   {
-                    "Store": {
+                    "capture": {
                       "var_id": null,
                       "group": 4,
                       "match_index": null
@@ -873,7 +873,7 @@
             "select": {
               "parts": [
                 {
-                  "Store": {
+                  "capture": {
                     "var_id": null,
                     "group": 0,
                     "match_index": null
@@ -911,7 +911,7 @@
             "select": {
               "parts": [
                 {
-                  "Store": {
+                  "capture": {
                     "var_id": null,
                     "group": 3,
                     "match_index": null
@@ -944,7 +944,7 @@
             "select": {
               "parts": [
                 {
-                  "Store": {
+                  "capture": {
                     "var_id": null,
                     "group": 0,
                     "match_index": null
@@ -983,7 +983,7 @@
             "select": {
               "parts": [
                 {
-                  "Store": {
+                  "capture": {
                     "var_id": null,
                     "group": 1,
                     "match_index": null
@@ -999,7 +999,7 @@
             "select": {
               "parts": [
                 {
-                  "Store": {
+                  "capture": {
                     "var_id": null,
                     "group": 2,
                     "match_index": null
@@ -1016,7 +1016,7 @@
             "select": {
               "parts": [
                 {
-                  "Store": {
+                  "capture": {
                     "var_id": null,
                     "group": 3,
                     "match_index": null
@@ -1033,7 +1033,7 @@
             "select": {
               "parts": [
                 {
-                  "Store": {
+                  "capture": {
                     "var_id": null,
                     "group": 4,
                     "match_index": null

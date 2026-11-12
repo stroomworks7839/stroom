@@ -35,7 +35,7 @@
             "select": {
               "parts": [
                 {
-                  "Store": {
+                  "capture": {
                     "var_id": null,
                     "group": 0,
                     "match_index": null
@@ -82,7 +82,7 @@
             "select": {
               "parts": [
                 {
-                  "Store": {
+                  "capture": {
                     "var_id": null,
                     "group": 1,
                     "match_index": null
@@ -99,7 +99,7 @@
             "select": {
               "parts": [
                 {
-                  "Store": {
+                  "capture": {
                     "var_id": null,
                     "group": 2,
                     "match_index": null
@@ -135,17 +135,22 @@
         {
           "if": {
             "test": {
-              "greater-than": {
-                "select": {
-                  "parts": [
-                    {
-                      "function": {
-                        "name": "matchIndex"
+              "gt": {
+                "left": {
+                  "ref": {
+                    "parts": [
+                      {
+                        "function": {
+                          "name": "matchIndex"
+                        }
                       }
-                    }
-                  ]
+                    ]
+                  },
+                  "as": "number"
                 },
-                "value": 0.0
+                "right": {
+                  "value": 0.0
+                }
               }
             },
             "then": [
@@ -251,7 +256,7 @@
                     "select": {
                       "parts": [
                         {
-                          "Store": {
+                          "capture": {
                             "var_id": null,
                             "group": 3,
                             "match_index": null
@@ -298,7 +303,7 @@
                       "select": {
                         "parts": [
                           {
-                            "Store": {
+                            "capture": {
                               "var_id": null,
                               "group": 2,
                               "match_index": null
@@ -315,7 +320,7 @@
                       "select": {
                         "parts": [
                           {
-                            "Store": {
+                            "capture": {
                               "var_id": null,
                               "group": 3,
                               "match_index": null

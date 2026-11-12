@@ -160,9 +160,7 @@ final class ReferenceJson {
         final JsonFields.Tagged tagged = JsonFields.tag(node, "reference part");
         final JsonValue body = tagged.body();
         return switch (tagged.name()) {
-            // "Store" is the corpus's older spelling of "capture": read for ever, never written,
-            // because a thousand of the fixtures' parts still use it and they are the measure.
-            case "capture", "Store" -> {
+            case "capture" -> {
                 JsonFields.checkFields(body, "capture", "var_id", "group", "match_index", "label");
                 final JsonValue matchIndex = JsonFields.optional(body, "match_index");
                 final String label = JsonFields.optionalText(body, "label");

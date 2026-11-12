@@ -119,7 +119,7 @@ class ProjectReaderTest {
                       "captures": [
                         {"name": "key", "select": {"group": 1}},
                         {"name": "old", "select": {"select": {"parts": [
-                            {"Store": {"var_id": "prev", "group": 2}}]}}}
+                            {"capture": {"var_id": "prev", "group": 2}}]}}}
                       ],
                       "body": [
                         {"text": "<row>"},
@@ -143,7 +143,7 @@ class ProjectReaderTest {
                 new MatchExpression.Regex("^(\\w+)=(\\d+)$", new Template.RegexFlags(true, false), 1));
         assertThat(row.matchLimits().onlyMatch()).containsExactlyInAnyOrder(1, 3);
 
-        // "Store" is the old spelling of a capture reference and still has to read.
+        // A capture reference reading another template's variable rather than this match's group.
         assertThat(row.captures().get(1).select()).isEqualTo(new CaptureSource.Select(
                 new RefExpression(List.of(new RefPart.Capture("prev", 2, null)))));
     }

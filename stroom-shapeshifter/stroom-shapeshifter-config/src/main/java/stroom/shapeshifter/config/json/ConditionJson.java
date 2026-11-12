@@ -24,8 +24,8 @@ import stroom.shapeshifter.config.RefExpression;
 
 
 /**
- * The condition family of the wire format: conditions, the six comparisons and their five
- * legacy spellings, operands — read and written together.
+ * The condition family of the wire format: conditions, the six comparisons, operands — read
+ * and written together.
  */
 final class ConditionJson {
 
@@ -36,11 +36,7 @@ final class ConditionJson {
         final JsonFields.Tagged tagged = JsonFields.tag(node, "condition");
         final JsonValue body = tagged.body();
         return switch (tagged.name()) {
-            // The six comparisons, and beneath them the five legacy spellings, kept for
-            // ever as aliases. Each alias carries the cast its semantics always implied:
-            // as-string on both sides for the equality trio — the engine's counters are
-            // already typed Int, and legacy equality compares string forms — and as-number
-            // on the left for the ordered pair (design/17 §8).
+            // The six comparisons, spelt as the operator (design/17 §8).
             case "eq" -> readCompare(body, Condition.Compare.Op.EQ);
             case "ne" -> readCompare(body, Condition.Compare.Op.NE);
             case "lt" -> readCompare(body, Condition.Compare.Op.LT);
@@ -64,18 +60,6 @@ final class ConditionJson {
                 yield new Condition.StartsWith(
                         ReferenceJson.readRef(JsonFields.required(body, "select", "starts-with")),
                         JsonFields.text(body, "prefix", "starts-with"));
-            }
-            case "greater-than" -> {
-                JsonFields.checkFields(body, "greater-than", "select", "value");
-                yield numericOrdering(Condition.Compare.Op.GT,
-                        ReferenceJson.readRef(JsonFields.required(body, "select", "greater-than")),
-                        JsonFields.number(body, "value", "greater-than"));
-            }
-            case "less-than" -> {
-                JsonFields.checkFields(body, "less-than", "select", "value");
-                yield numericOrdering(Condition.Compare.Op.LT,
-                        ReferenceJson.readRef(JsonFields.required(body, "select", "less-than")),
-                        JsonFields.number(body, "value", "less-than"));
             }
             case "and" -> new Condition.And(JsonFields.list(body, "and", ConditionJson::readCondition));
             case "or" -> new Condition.Or(JsonFields.list(body, "or", ConditionJson::readCondition));
@@ -136,16 +120,6 @@ final class ConditionJson {
         return new Condition.Compare(op,
                 readOperand(JsonFields.required(body, "left", "comparison")),
                 readOperand(JsonFields.required(body, "right", "comparison")));
-    }
-
-
-    /** A legacy ordering: the numeric parse it always performed, made visible. */
-    private static Condition numericOrdering(final Condition.Compare.Op op,
-                                             final RefExpression select,
-                                             final double value) {
-        return new Condition.Compare(op,
-                new Condition.Operand(select, null, Cast.NUMBER),
-                new Condition.Operand(null, new Condition.Literal.Fractional(value), null));
     }
 
     private static Condition.Operand readOperand(final JsonValue node) {
