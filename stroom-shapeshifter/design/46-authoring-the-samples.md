@@ -144,6 +144,11 @@ keystone comparison is then against a strict fixture, which is what the walkthro
 The probe's edits were reverted and the suite re-run green; nothing in the corpus was left
 changed.
 
+The same probe was later run over the whole corpus rather than these three, and is recorded
+where dispatch belongs — [11-strict-dispatch.md §10](11-strict-dispatch.md): 37 of the 45
+fixtures that run lax only by version default are byte-identical under strict, 8 depend on it,
+and the version-based default is itself the artefact worth a ruling.
+
 ### 3.3 The `Store` alias came out — done 2026-11-12
 
 §3.1's first trap stops being a trap under the §3.2 ruling, because the alias stops being

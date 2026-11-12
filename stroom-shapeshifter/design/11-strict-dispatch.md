@@ -240,3 +240,85 @@ template); their bodies may still reference the match's own groups directly (an
 8. **Mode placement** (§8b): `dispatch` on the apply directive, source-level default —
    confirmed, together with §8b's refinement that consume-marked templates may not declare
    captures.
+
+## 10. How much lax is actually load-bearing — measured 2026-11-12
+
+Design 46 §3.2 ruled that the authoring walkthroughs teach **strict only**, lax being for
+migrated DS3 configurations. That raised the question §5 never had to answer: how much of the
+corpus actually depends on lax, as against merely inheriting it. The version default
+(`Dispatch.effective`: strict from version 4, lax before) means no configuration has to say,
+so the answer was not readable from the files.
+
+**Method.** Every fixture project that ran lax *only* by version default — 45 of them — had an
+explicit `"dispatch": "strict"` added to its `source`, and `GoldenFixtureTest` was run. The
+field was set rather than the version bumped, because `version` also gates the v5 substring
+base ([17-value-computation.md §7](17-value-computation.md)) and would confound the result.
+Reverted afterwards; this is a measurement, not a change.
+
+**Result: 37 of the 45 are byte-identical under strict.** The lax default is doing nothing for
+them. Eight regress:
+
+| Fixture | Shape |
+|---|---|
+| `native/003_multiline_regex` | field-finders in sequence |
+| `projects/text_003_multiline_regex` | its text-output sibling |
+| `projects/json_to_xml` | field-finders in sequence |
+| `projects/win_sec`, `win_sec_xml`, `win_sec_strict` | tail extraction in a sub-parse level |
+| `projects/win_app`, `win_app_xml` | as above |
+
+A further five declare `"dispatch": "lax"` outright and were left alone: the `xml_to_json`
+trio and the `apache_httpd` pair. The trio are version 5 — our own configurations asking for
+the migration path — which wants a recorded reason or a conversion (design 46 §3.4).
+
+### 10.1 The three shapes, and whether each converts
+
+**Field-finders in sequence.** `json_to_xml`'s extractor is `"(\w+)":"([^"]+)"` applied to a
+whole line; `003_multiline_regex`'s is `argc=(.+) a0=([^\s]+) (.+)`. Lax searches the line
+repeatedly, picking off each field; strict finds nothing, because the line does not start with
+one. **Converts idiomatically** — this is what §3's eater is for: a trailing `consume`
+template eating to the next plausible start, and the strict level walks the line. No pattern
+rewriting, no model change.
+
+**Tail extraction.** `win_sec_strict`'s `filename_extract` is `([^\\]+)$` applied to a whole
+path: the cursor is at the head, the wanted text at the end. **Converts by rewriting the
+pattern** to `(?:.*\\)([^\\]+)$` — group 1 keeps its number, the prefix being non-capturing,
+so bodies are untouched. But group 0 changes meaning, from the filename to the whole path,
+which matters wherever a body selects group 0 — and `apply-templates` selects it everywhere.
+
+**Template priority over position** (§5's subtlety). **Expressible, and not advisable.**
+Prefixing every pattern in the level with `(?:[\s\S]*?)` reproduces DS3's selection exactly:
+asked the anchored question, a lazy-prefix match succeeds iff its body matches anywhere ahead,
+and consumes prefix plus match, which is DS3's advance precisely. The costs are what rule it
+out: every `group: 0` reference in the level has to be rewritten; the skip reports vanish,
+the prefix now being inside a successful match, so they would have to be re-authored as
+`emit_error` guarded on a non-empty prefix; `[\s\S]` is needed rather than `.` because
+`dot_all` is pattern-wide; and `(?:[\s\S]*?)P` is the pathological shape — §8's lint flags
+exactly it, and it defeats the anchor gates and first-byte work that §1 credits for strict's
+1.36×. Converting this shape forfeits the reason to convert.
+
+### 10.2 What is not expressible, and what already converted
+
+`matchOrder="any"` cannot be expressed in any cursor-based mode — after the first excision the
+offsets stop corresponding to the input. It is not lax, though: it is `Dispatch.ANY`, and
+`Ds3Parser` refuses `matchOrder` by name, so no importable DS3 configuration reaches it.
+DS3's buffer-exhaustion `RECOVERY_MODE` (§1 item 2) was never ported, so it blocks nothing.
+
+`win_sec_strict` is the existing proof: a hand conversion of `win_sec` whose root level and
+58-template `event_fields` level both declare strict, byte-identical output, 1.36× faster
+(§1). Its two sub-parse levels, `filename_parse` and `cn_parse`, were left to inherit lax —
+the conversion was taken where the value was and stopped where it was fiddly. One of those
+two, `cn_extract`, is `^CN=([^,]+)`: already anchored, so it would convert for free. It is lax
+only because nothing ever said otherwise.
+
+### 10.3 Open — the version default
+
+`LAX` earns its place: eight fixtures depend on it and DS3 fidelity is an invariant. The
+**version-based default** is the part that reads as an artefact of the kind design 46 §3.4
+hunts — semantics decided silently by a number, with 45 configurations inheriting a mode 37 of
+them do not use, and one level (`cn_parse`) inheriting it against an already-anchored pattern.
+
+Proposal, for the owner's ruling: make `Dispatch.effective` return `STRICT` when nothing says
+otherwise, write `"dispatch": "lax"` explicitly into the eight that need it, and have
+`Ds3Migration` emit it so a migrated configuration states what it is. Nothing then changes
+semantics by version number, and the editor never has to offer lax to a new author. Not done;
+no ruling has been given.
