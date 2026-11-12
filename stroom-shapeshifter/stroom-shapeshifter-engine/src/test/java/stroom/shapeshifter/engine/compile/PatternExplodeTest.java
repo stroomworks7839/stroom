@@ -105,14 +105,14 @@ class PatternExplodeTest {
         }
         switch (value) {
             case final MatchExpression.Regex regex ->
-                    found.put(where + " match " + regex.pattern(),
-                            new Found(where, regex.pattern(), regex.flags(), encoding));
+                found.put(where + " match " + regex.pattern(),
+                        new Found(where, regex.pattern(), regex.flags(), encoding));
             case final PatternNode.Regex regex ->
-                    found.put(where + " leaf " + regex.pattern(), new Found(where, regex.pattern(),
-                            regex.flags() == null ? RegexFlags.none() : regex.flags(), encoding));
+                found.put(where + " leaf " + regex.pattern(), new Found(where, regex.pattern(),
+                        regex.flags() == null ? RegexFlags.none() : regex.flags(), encoding));
             case final Condition.Matches matches ->
-                    found.put(where + " matches " + matches.pattern(),
-                            new Found(where, matches.pattern(), RegexFlags.none(), Encoding.UTF_8));
+                found.put(where + " matches " + matches.pattern(),
+                        new Found(where, matches.pattern(), RegexFlags.none(), Encoding.UTF_8));
             case final OutputNode.Replace replace -> {
                 if (replace.isRegex()) {
                     found.put(where + " replace " + replace.pattern(),

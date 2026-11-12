@@ -142,7 +142,7 @@ final class PatternCompiler {
                 }
             }
             case final PatternNode.Sequence sequence ->
-                    sequence.items().forEach(item -> reach(item, patterns, reached));
+                sequence.items().forEach(item -> reach(item, patterns, reached));
             case final PatternNode.Choice choice -> choice.alternatives().forEach(a -> reach(a, patterns, reached));
             case final PatternNode.Optional optional -> reach(optional.body(), patterns, reached);
             case final PatternNode.Repeat repeat -> reach(repeat.body(), patterns, reached);

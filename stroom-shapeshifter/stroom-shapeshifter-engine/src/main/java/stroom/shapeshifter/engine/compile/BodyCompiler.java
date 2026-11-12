@@ -137,9 +137,9 @@ final class BodyCompiler {
         for (final OutputNode node : body) {
             final CompiledOp op = switch (node) {
                 case final OutputNode.Text text ->
-                        new CompiledOp.Text(TypedValue.of(text.value()));
+                    new CompiledOp.Text(TypedValue.of(text.value()));
                 case final OutputNode.ValueOf valueOf ->
-                        new CompiledOp.ValueOf(RefCompiler.compile(valueOf.select(), names));
+                    new CompiledOp.ValueOf(RefCompiler.compile(valueOf.select(), names));
                 case final OutputNode.Call value -> call(value);
                 case final OutputNode.If value -> new CompiledOp.If(
                         ConditionCompiler.compile(value.test(), patterns, names), compile(value.then()));
@@ -166,7 +166,7 @@ final class BodyCompiler {
                     yield applyOp;
                 }
                 case final OutputNode.EmitError value ->
-                        new CompiledOp.EmitError(value.severity(), RefCompiler.compile(value.message(), names));
+                    new CompiledOp.EmitError(value.severity(), RefCompiler.compile(value.message(), names));
                 case final OutputNode.CallTemplate value -> {
                     final CompiledOp.CallTemplate call = new CompiledOp.CallTemplate(
                             value.name(),
@@ -178,7 +178,7 @@ final class BodyCompiler {
                     yield call;
                 }
                 case final OutputNode.Variable value ->
-                        new CompiledOp.Variable(names.intern(value.name()), compile(value.body()));
+                    new CompiledOp.Variable(names.intern(value.name()), compile(value.body()));
                 case final OutputNode.Element value -> new CompiledOp.Element(
                         value.name(), value.namespace(), value.omitIfEmpty(),
                         compile(value.body()));
@@ -186,7 +186,7 @@ final class BodyCompiler {
                         value.name(), value.omitIfEmpty(),
                                 compile(value.body()));
                 case final OutputNode.Namespace value ->
-                        new CompiledOp.Namespace(value.prefix(), value.uri());
+                    new CompiledOp.Namespace(value.prefix(), value.uri());
                 case final OutputNode.Translate value -> transform(single("translate", value.select()),
                         value.name(), inputs ->
                                 Transforms.translate(inputs, value.from(), value.to()));
@@ -194,8 +194,8 @@ final class BodyCompiler {
                         inputs -> Transforms.stringJoin(inputs, value.separator()));
                 case final OutputNode.Replace value -> replace(value);
                 case final OutputNode.LowerCase value ->
-                        transform(single("lower-case", value.select()), value.name(),
-                                Transforms::lowerCase);
+                    transform(single("lower-case", value.select()), value.name(),
+                            Transforms::lowerCase);
                 case final OutputNode.Decode value -> {
                     final Codec codec = value.codec();
                     if (!Codecs.isSupported(codec)) {
@@ -205,13 +205,13 @@ final class BodyCompiler {
                             inputs -> Transforms.decode(inputs, codec));
                 }
                 case final OutputNode.UpperCase value ->
-                        transform(single("upper-case", value.select()), value.name(),
-                                Transforms::upperCase);
+                    transform(single("upper-case", value.select()), value.name(),
+                            Transforms::upperCase);
                 case final OutputNode.NormalizeSpace value -> transform(
                         single("normalize-space", value.select()), value.name(),
                                 Transforms::normalizeSpace);
                 case final OutputNode.Trim value ->
-                        transform(single("trim", value.select()), value.name(), Transforms::trim);
+                    transform(single("trim", value.select()), value.name(), Transforms::trim);
                 case final OutputNode.Substring value -> {
                     // The version gate (design/17 §7, ruled): 1-based from version 5,
                     // 0-based before — Dispatch.effective's precedent, applied to the base.
@@ -239,53 +239,53 @@ final class BodyCompiler {
                         RefCompiler.compile(single("tokenize", value.select()).getFirst(), names),
                         value.delimiter(), names.intern(value.name()));
                 case final OutputNode.Number value ->
-                        transform(single("number", value.select()), value.name(),
-                                Transforms::number);
+                    transform(single("number", value.select()), value.name(),
+                            Transforms::number);
                 case final OutputNode.Add value ->
-                        arithmetic("add", value.select(), value.name(), Arity.AT_LEAST, 1,
-                                Transforms::add);
+                    arithmetic("add", value.select(), value.name(), Arity.AT_LEAST, 1,
+                            Transforms::add);
                 case final OutputNode.Subtract value ->
-                        arithmetic("subtract", value.select(), value.name(), Arity.EXACTLY, 2,
-                                Transforms::subtract);
+                    arithmetic("subtract", value.select(), value.name(), Arity.EXACTLY, 2,
+                            Transforms::subtract);
                 case final OutputNode.Multiply value ->
-                        arithmetic("multiply", value.select(), value.name(), Arity.AT_LEAST, 1,
-                                Transforms::multiply);
+                    arithmetic("multiply", value.select(), value.name(), Arity.AT_LEAST, 1,
+                            Transforms::multiply);
                 case final OutputNode.Divide value ->
-                        arithmetic("divide", value.select(), value.name(), Arity.EXACTLY, 2,
-                                Transforms::divide);
+                    arithmetic("divide", value.select(), value.name(), Arity.EXACTLY, 2,
+                            Transforms::divide);
                 case final OutputNode.Mod value ->
-                        arithmetic("mod", value.select(), value.name(), Arity.EXACTLY, 2,
-                                Transforms::mod);
+                    arithmetic("mod", value.select(), value.name(), Arity.EXACTLY, 2,
+                            Transforms::mod);
                 case final OutputNode.Round value ->
-                        arithmetic("round", value.select(), value.name(), Arity.EXACTLY, 1,
-                                Transforms::round);
+                    arithmetic("round", value.select(), value.name(), Arity.EXACTLY, 1,
+                            Transforms::round);
                 case final OutputNode.Floor value ->
-                        arithmetic("floor", value.select(), value.name(), Arity.EXACTLY, 1,
-                                Transforms::floor);
+                    arithmetic("floor", value.select(), value.name(), Arity.EXACTLY, 1,
+                            Transforms::floor);
                 case final OutputNode.Ceiling value ->
-                        arithmetic("ceiling", value.select(), value.name(), Arity.EXACTLY, 1,
-                                Transforms::ceiling);
+                    arithmetic("ceiling", value.select(), value.name(), Arity.EXACTLY, 1,
+                            Transforms::ceiling);
                 case final OutputNode.Abs value ->
-                        arithmetic("abs", value.select(), value.name(), Arity.EXACTLY, 1,
-                                Transforms::abs);
+                    arithmetic("abs", value.select(), value.name(), Arity.EXACTLY, 1,
+                            Transforms::abs);
                 case final OutputNode.StringLength value ->
-                        transform(single("string-length", value.select()), value.name(),
-                                Transforms::stringLength);
+                    transform(single("string-length", value.select()), value.name(),
+                            Transforms::stringLength);
                 case final OutputNode.SubstringBefore value ->
-                        transform(single("substring-before", value.select()), value.name(),
-                                inputs -> Transforms.substringBefore(inputs, value.marker()));
+                    transform(single("substring-before", value.select()), value.name(),
+                            inputs -> Transforms.substringBefore(inputs, value.marker()));
                 case final OutputNode.SubstringAfter value ->
-                        transform(single("substring-after", value.select()), value.name(),
-                                inputs -> Transforms.substringAfter(inputs, value.marker()));
+                    transform(single("substring-after", value.select()), value.name(),
+                            inputs -> Transforms.substringAfter(inputs, value.marker()));
                 case final OutputNode.StartsWith value ->
-                        transform(single("starts-with", value.select()), value.name(),
-                                inputs -> Transforms.startsWith(inputs, value.prefix()));
+                    transform(single("starts-with", value.select()), value.name(),
+                            inputs -> Transforms.startsWith(inputs, value.prefix()));
                 case final OutputNode.EndsWith value ->
-                        transform(single("ends-with", value.select()), value.name(),
-                                inputs -> Transforms.endsWith(inputs, value.suffix()));
+                    transform(single("ends-with", value.select()), value.name(),
+                            inputs -> Transforms.endsWith(inputs, value.suffix()));
                 case final OutputNode.Contains value ->
-                        transform(single("contains", value.select()), value.name(),
-                                inputs -> Transforms.contains(inputs, value.substring()));
+                    transform(single("contains", value.select()), value.name(),
+                            inputs -> Transforms.contains(inputs, value.substring()));
                 case final OutputNode.FormatNumber value -> formatNumber(value);
                 case final OutputNode.ParseDate value -> {
                     final Dates.Parser parser = Dates.compileParser(

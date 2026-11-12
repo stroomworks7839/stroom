@@ -85,7 +85,7 @@ final class RefCompiler {
                     accessor.as());
             // A function is a compile-time pointer to the frame that answers it (design 35 §6).
             case final RefPart.Counter counter ->
-                    new CompiledRef.Context(counter.counter(), index(counter.matchIndex(), names));
+                new CompiledRef.Context(counter.counter(), index(counter.matchIndex(), names));
         };
     }
 

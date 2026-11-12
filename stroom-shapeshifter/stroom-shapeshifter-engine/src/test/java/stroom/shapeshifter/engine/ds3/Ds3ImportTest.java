@@ -362,10 +362,10 @@ class Ds3ImportTest {
             switch (node) {
                 case OutputNode.ValueOf valueOf -> parts.addAll(valueOf.select().parts());
                 case OutputNode.Translate translate ->
-                        translate.select().forEach(select -> parts.addAll(select.parts()));
+                    translate.select().forEach(select -> parts.addAll(select.parts()));
                 case OutputNode.Trim trim -> trim.select().forEach(select -> parts.addAll(select.parts()));
                 case OutputNode.ApplyTemplates apply ->
-                        parts.addAll(apply.directive().select().parts());
+                    parts.addAll(apply.directive().select().parts());
                 default -> {
                     // No expressions to collect.
                 }

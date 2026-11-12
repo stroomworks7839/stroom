@@ -25,8 +25,8 @@ import stroom.util.shared.ElementId;
 import stroom.util.shared.Severity;
 import stroom.util.shared.StoredError;
 
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.xml.sax.Attributes;
 import org.xml.sax.ContentHandler;
 import org.xml.sax.ErrorHandler;
@@ -43,9 +43,9 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -390,6 +390,7 @@ class FilterRunTest {
      * and the FATAL is what the pipeline hears.
      */
     @Test
+    @Timeout(value = 20, unit = TimeUnit.SECONDS, threadMode = Timeout.ThreadMode.SEPARATE_THREAD)
     void recordLargerThanTheWindowThroughThePipeIsFatalAndDoesNotHangTheWriter() throws Exception {
         final StringBuilder csv = new StringBuilder("dt,who,where,what\n");
         csv.append("2020-06-17T08:00:00.000Z,").append("x".repeat(2000)).append(",office,logon\n");
@@ -411,12 +412,10 @@ class FilterRunTest {
                 Ds3Oracle.errorHandler("ShapeshifterFilter", receiver));
         ds3.setContentHandler(run.input());
         ds3.setErrorHandler(Ds3Oracle.errorHandler("DS3Parser", new LoggingErrorReceiver()));
-        Assertions.assertTimeoutPreemptively(Duration.ofSeconds(20), () -> {
-            ds3.parse(new InputSource(new InputStreamReader(
-                    new ByteArrayInputStream(csv.toString().getBytes(StandardCharsets.UTF_8)),
-                    StandardCharsets.UTF_8)));
-            run.finish();
-        });
+        ds3.parse(new InputSource(new InputStreamReader(
+                new ByteArrayInputStream(csv.toString().getBytes(StandardCharsets.UTF_8)),
+                StandardCharsets.UTF_8)));
+        run.finish();
         assertThat(receiver.getTotal(Severity.FATAL_ERROR)).isEqualTo(1);
         assertThat(receiver.getIndicators(new ElementId("ShapeshifterFilter")).getErrorList().stream()
                 .map(StoredError::toString).toList())

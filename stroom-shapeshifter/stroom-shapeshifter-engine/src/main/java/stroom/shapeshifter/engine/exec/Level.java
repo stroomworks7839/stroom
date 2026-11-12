@@ -818,11 +818,11 @@ final class Level {
                     delimiter.containerStart(), delimiter.containerEnd(),
                     effective(compiledTemplate), source);
             case final CompiledMatch.Regex regex ->
-                    regexMatch(regex, data, from, to, atCursor, effective(compiledTemplate), source);
+                regexMatch(regex, data, from, to, atCursor, effective(compiledTemplate), source);
             case final CompiledMatch.Pattern pattern ->
-                    patternMatch(pattern, data, from, to, atCursor, effective(compiledTemplate), source, 0);
+                patternMatch(pattern, data, from, to, atCursor, effective(compiledTemplate), source, 0);
             case final CompiledMatch.Parts parts ->
-                    partsMatch(parts, data, from, to, effective(compiledTemplate), source);
+                partsMatch(parts, data, from, to, effective(compiledTemplate), source);
             case final CompiledMatch.All ignored -> new MatchResult(
                     new TypedValue[]{source.slice(from, to, effective(compiledTemplate))}, to - from, 0);
             case final CompiledMatch.Source ignored -> null;
@@ -925,16 +925,16 @@ final class Level {
             // is a small method that inlines into it where it is hot.
             cursor = switch (part) {
                 case final CompiledMatch.CompiledPart.Pattern pattern ->
-                        patternPart(pattern, data, cursor, from, to, groups, encoding, source);
+                    patternPart(pattern, data, cursor, from, to, groups, encoding, source);
                 case final CompiledMatch.CompiledPart.Take take -> take(take, groups, cursor, to, encoding, source);
                 case final CompiledMatch.CompiledPart.Seek seek -> seek(seek, groups, cursor, from, to);
                 // A literal at the cursor: the bytes compared where they lie (design 41 §6).
                 case final CompiledMatch.CompiledPart.Literal literal ->
-                        literal(literal, data, cursor, to, groups, encoding, source);
+                    literal(literal, data, cursor, to, groups, encoding, source);
                 // A value at the cursor, by the cast's own width, with no pattern run (design
                 // 39, D56): the bytes are read where they lie.
                 case final CompiledMatch.CompiledPart.Read read ->
-                        BinaryCasts.read(read.cast(), data, cursor, from, to, groups, read.group());
+                    BinaryCasts.read(read.cast(), data, cursor, from, to, groups, read.group());
             };
             if (cursor < 0) {
                 return null;

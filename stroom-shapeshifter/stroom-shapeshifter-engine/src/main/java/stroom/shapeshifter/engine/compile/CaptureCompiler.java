@@ -35,16 +35,16 @@ final class CaptureCompiler {
         for (final CaptureBinding capture : captures) {
             final CompiledCapture.Source source = switch (capture.select()) {
                 case final CaptureBinding.CaptureSource.Group group ->
-                        new CompiledCapture.Source.Group(group.group());
+                    new CompiledCapture.Source.Group(group.group());
                 case final CaptureBinding.CaptureSource.Label label ->
-                        new CompiledCapture.Source.Group(names.group(label.label()));
+                    new CompiledCapture.Source.Group(names.group(label.label()));
                 case final CaptureBinding.CaptureSource.Select select ->
-                        new CompiledCapture.Source.Select(
-                                RefCompiler.compile(select.select(), names));
+                    new CompiledCapture.Source.Select(
+                            RefCompiler.compile(select.select(), names));
                 case final CaptureBinding.CaptureSource.KeyValue keyValue ->
-                        new CompiledCapture.Source.KeyValue(
-                                RefCompiler.compile(keyValue.keyRef(), names),
-                                RefCompiler.compile(keyValue.valueRef(), names));
+                    new CompiledCapture.Source.KeyValue(
+                            RefCompiler.compile(keyValue.keyRef(), names),
+                            RefCompiler.compile(keyValue.valueRef(), names));
             };
             // A capture is a value source (design 35 §4): it assigns a declared scalar, appends
             // to a declared list — absence when it fails — or puts into a declared map. Which is

@@ -142,9 +142,9 @@ public final class Conditions {
             // so byte containment and character containment agree — and stricter for the rest;
             // E45 carries it as the follow-on rather than assuming it.
             case final CompiledCondition.Contains value ->
-                    text(value.select(), match, matchCount, vars).contains(value.substring());
+                text(value.select(), match, matchCount, vars).contains(value.substring());
             case final CompiledCondition.StartsWith value ->
-                    text(value.select(), match, matchCount, vars).startsWith(value.prefix());
+                text(value.select(), match, matchCount, vars).startsWith(value.prefix());
             // Set by the iteration (design/16 §4.3). Outside a
             // for-each nothing sets position(), so both read false — E21's hazard, which the
             // compiler now warns about rather than leaving to be discovered.

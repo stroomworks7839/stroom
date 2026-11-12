@@ -346,7 +346,7 @@ final class ReferenceCheck {
                 read(value.key());
             }
             case OutputNode.Clear value ->
-                    target(value.target(), "clears", Declaration.Type.LIST, Declaration.Type.MAP, Declaration.Type.SET);
+                target(value.target(), "clears", Declaration.Type.LIST, Declaration.Type.MAP, Declaration.Type.SET);
             case OutputNode.ForEachGroup value -> {
                 target(value.select(), "groups", Declaration.Type.LIST);
                 // index() is bound while the key is resolved, so the key counts as

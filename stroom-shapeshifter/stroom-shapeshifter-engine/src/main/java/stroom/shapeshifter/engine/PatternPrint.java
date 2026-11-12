@@ -105,10 +105,10 @@ public final class PatternPrint {
                     group(out, context == Context.QUANTIFIED && !atom, () -> out.append(quote(tag.text())));
                 }
                 case final PatternNode.TakeWhile take ->
-                        quantified(out, take.classExpression(), take.min(), take.max(), true);
+                    quantified(out, take.classExpression(), take.min(), take.max(), true);
                 case final PatternNode.TakeUntil until -> until(until, out, context);
                 case final PatternNode.Take take ->
-                        out.append("[\\s\\S]").append(count(take.count(), take.count()));
+                    out.append("[\\s\\S]").append(count(take.count(), take.count()));
                 case final PatternNode.Regex regex -> {
                     final RegexFlags flags = regex.flags() == null ? RegexFlags.none() : regex.flags();
                     final String on = (flags.caseInsensitive() && !outer.caseInsensitive() ? "i" : "")

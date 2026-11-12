@@ -75,13 +75,13 @@ final class ConditionCompiler {
             case final Condition.StartsWith value -> new CompiledCondition.StartsWith(
                     RefCompiler.compile(value.select(), names), value.prefix());
             case final Condition.And value ->
-                    new CompiledCondition.And(all(value.conditions(), patterns, names));
+                new CompiledCondition.And(all(value.conditions(), patterns, names));
             case final Condition.Or value ->
-                    new CompiledCondition.Or(all(value.conditions(), patterns, names));
+                new CompiledCondition.Or(all(value.conditions(), patterns, names));
             case final Condition.Not value ->
-                    new CompiledCondition.Not(compile(value.condition(), patterns, names));
+                new CompiledCondition.Not(compile(value.condition(), patterns, names));
             case final Condition.Exists value ->
-                    new CompiledCondition.Exists(RefCompiler.compile(value.select(), names));
+                new CompiledCondition.Exists(RefCompiler.compile(value.select(), names));
             case final Condition.IsFirst ignored -> new CompiledCondition.IsFirst();
             case final Condition.IsLast ignored -> new CompiledCondition.IsLast();
         };
@@ -113,7 +113,7 @@ final class ConditionCompiler {
             case final Condition.Literal.Text text -> TypedValue.of(text.value());
             case final Condition.Literal.Whole whole -> new TypedValue.Integer(whole.value());
             case final Condition.Literal.Fractional fraction ->
-                    new TypedValue.Double(fraction.value());
+                new TypedValue.Double(fraction.value());
             case final Condition.Literal.Truth truth -> new TypedValue.Bool(truth.value());
         };
         return new CompiledOperand(null, Comparisons.cast(value, operand.as()), null);

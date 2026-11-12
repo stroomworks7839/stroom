@@ -73,7 +73,7 @@ public final class PatternExplode {
                     ? new PatternNode.Optional(node(repeat.body()))
                     : new PatternNode.Repeat(node(repeat.body()), repeat.min(), bound(repeat.max()), repeat.greedy());
             case final Matcher.Labelled labelled ->
-                    new PatternNode.Labelled(node(labelled.body()), labelled.label(), null);
+                new PatternNode.Labelled(node(labelled.body()), labelled.label(), null);
             case final Matcher.Peek peek -> new PatternNode.Peek(node(peek.body()));
             case final Matcher.Not not -> new PatternNode.Not(node(not.body()));
         };

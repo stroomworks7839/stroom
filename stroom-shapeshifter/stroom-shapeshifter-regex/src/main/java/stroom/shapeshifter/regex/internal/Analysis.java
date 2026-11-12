@@ -131,10 +131,10 @@ public final class Analysis {
             case Hir.Assertion ignored -> {
             }
             case Hir.Backref ignored ->
-                    out.add(new Violation("backreference", "what it matches depends on what was "
-                            + "captured, which no forward-only scan can know"));
+                out.add(new Violation("backreference", "what it matches depends on what was "
+                        + "captured, which no forward-only scan can know"));
             case Hir.Look ignored ->
-                    out.add(new Violation("lookaround", "requires a nested match"));
+                out.add(new Violation("lookaround", "requires a nested match"));
             case Hir.Atomic atomic -> {
                 out.add(new Violation("atomic group", "backtracking control, and a scan plan "
                         + "does not backtrack"));
@@ -277,7 +277,7 @@ public final class Analysis {
         return switch (node) {
             case Hir.Assertion assertion -> switch (assertion.kind()) {
                 case WORD_BOUNDARY, NOT_WORD_BOUNDARY, WORD_BOUNDARY_ASCII, NOT_WORD_BOUNDARY_ASCII ->
-                        true;
+                    true;
                 default -> false;
             };
             case Hir.Group group -> isBoundary(group.body());
@@ -435,9 +435,9 @@ public final class Analysis {
             case Hir.Look look -> anchorsToSearchStart(look.body());
             case Hir.Repeat repeat -> anchorsToSearchStart(repeat.body());
             case Hir.Concat concat ->
-                    concat.items().stream().anyMatch(Analysis::anchorsToSearchStart);
+                concat.items().stream().anyMatch(Analysis::anchorsToSearchStart);
             case Hir.Alt alt ->
-                    alt.branches().stream().anyMatch(Analysis::anchorsToSearchStart);
+                alt.branches().stream().anyMatch(Analysis::anchorsToSearchStart);
             case Hir.Empty ignored -> false;
             case Hir.Bytes ignored -> false;
             case Hir.CharClass ignored -> false;
@@ -463,9 +463,9 @@ public final class Analysis {
     public static Hir.Kind trailingAnchor(final Hir node) {
         return switch (node) {
             case Hir.Assertion assertion ->
-                    assertion.kind() == Hir.Kind.END_INPUT || assertion.kind() == Hir.Kind.END_LINE
-                            ? assertion.kind()
-                            : null;
+                assertion.kind() == Hir.Kind.END_INPUT || assertion.kind() == Hir.Kind.END_LINE
+                        ? assertion.kind()
+                        : null;
             case Hir.Group group -> trailingAnchor(group.body());
             case Hir.Atomic atomic -> trailingAnchor(atomic.body());
             case Hir.Concat concat -> {

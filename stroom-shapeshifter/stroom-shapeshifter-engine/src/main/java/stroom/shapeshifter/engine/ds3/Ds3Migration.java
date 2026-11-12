@@ -335,7 +335,7 @@ public final class Ds3Migration {
                 case Ds3Config.Var var -> variable(var, captures, body);
                 case Ds3Config.Data data -> data(data, captures, body, childPath);
                 case Ds3Config.Group group ->
-                        group(group, captures, body, recordWrap, childPath);
+                    group(group, captures, body, recordWrap, childPath);
                 default -> {
                     if (child.isExpression()) {
                         expression(child, subMode, false, childPath);

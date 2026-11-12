@@ -188,10 +188,10 @@ final class Body {
             switch (op) {
                 case final CompiledOp.Text text -> out.write(text.value());
                 case final CompiledOp.ValueOf valueOf ->
-                        CompiledRefs.write(valueOf.ref(), match, matchCount, vars, out);
+                    CompiledRefs.write(valueOf.ref(), match, matchCount, vars, out);
                 case final CompiledOp.Apply apply ->
-                        apply(apply, match, matchCount, content, out, inputBase, ignoreErrors,
-                                depth);
+                    apply(apply, match, matchCount, content, out, inputBase, ignoreErrors,
+                            depth);
                 case final CompiledOp.If value -> {
                     if (test(value.test(), match, matchCount)) {
                         body(value.then(), match, matchCount, content, out,
@@ -199,15 +199,15 @@ final class Body {
                     }
                 }
                 case final CompiledOp.Choose value ->
-                        choose(value, match, matchCount, content, out, inputBase, ignoreErrors, depth);
+                    choose(value, match, matchCount, content, out, inputBase, ignoreErrors, depth);
                 case final CompiledOp.Variable value ->
-                        variable(value, match, matchCount, content, inputBase, ignoreErrors, depth);
+                    variable(value, match, matchCount, content, inputBase, ignoreErrors, depth);
                 case final CompiledOp.Element value ->
-                        element(value, match, matchCount, content, out, inputBase, ignoreErrors, depth);
+                    element(value, match, matchCount, content, out, inputBase, ignoreErrors, depth);
                 case final CompiledOp.Attribute value ->
-                        attribute(value, match, matchCount, content, out, inputBase, ignoreErrors, depth);
+                    attribute(value, match, matchCount, content, out, inputBase, ignoreErrors, depth);
                 case final CompiledOp.Transform value ->
-                        transform(value, match, matchCount, out);
+                    transform(value, match, matchCount, out);
                 case final CompiledOp.Put value -> put(value, match, matchCount);
                 default -> bodyRare(op, match, matchCount, content, out, inputBase, ignoreErrors, depth);
             }
@@ -298,11 +298,11 @@ final class Body {
                         out, inputBase, ignoreErrors, depth);
             }
             case final CompiledOp.Namespace value ->
-                    structure(() -> out.sink().namespace(value.prefix(), value.uri()),
-                            "namespace", value.prefix());
+                structure(() -> out.sink().namespace(value.prefix(), value.uri()),
+                        "namespace", value.prefix());
             case final CompiledOp.CallTemplate value ->
-                    callTemplate(value, match, matchCount, content, out, inputBase,
-                            ignoreErrors, depth);
+                callTemplate(value, match, matchCount, content, out, inputBase,
+                        ignoreErrors, depth);
             case final CompiledOp.Replace value -> {
                 final List<TypedValue> inputs = inputs(value.select(), match, matchCount);
                 emit(inputs.isEmpty()
@@ -312,7 +312,7 @@ final class Body {
                         value.name(), matchCount, out);
             }
             case final CompiledOp.CallFunction value ->
-                    callFunction(value, match, matchCount, out, inputBase);
+                callFunction(value, match, matchCount, out, inputBase);
             case final CompiledOp.Append value -> {
                 final TypedValue appended = CompiledRefs.resolveValue(
                         value.select(), match, matchCount, vars);
@@ -395,11 +395,11 @@ final class Body {
                 }
             }
             case final CompiledOp.ForEachGroup value ->
-                    forEachGroup(value, match, matchCount, content, out,
-                            inputBase, ignoreErrors, depth);
+                forEachGroup(value, match, matchCount, content, out,
+                        inputBase, ignoreErrors, depth);
             case final CompiledOp.ForEach value ->
-                    forEach(value, match, matchCount, content, out,
-                            inputBase, ignoreErrors, depth);
+                forEach(value, match, matchCount, content, out,
+                        inputBase, ignoreErrors, depth);
             case final CompiledOp.ParseDate value -> {
                 final TypedValue input = CompiledRefs.resolveValue(
                         value.select(), match, matchCount, vars);
