@@ -237,6 +237,7 @@ public final class ShapeshifterEditorStories {
                   "body": [{"value-of": {"parts": [{"capture": {"group": 0}}]}}]}},
                 {"translate": {"select": [{"parts": [{"capture": {"var_id": "line", "group": 0}}]}],
                   "from": ["&", "<", "\\n"], "to": ["&amp;", "&lt;", " "], "name": "escaped"}},
+                {"trim": {"select": [{"parts": [{"capture": {"var_id": "escaped", "group": 0}}]}]}},
                 {"choose": {
                   "when": [
                    {"test": {"or": [
@@ -801,6 +802,27 @@ public final class ShapeshifterEditorStories {
                     // cannot hold the character itself
                     play.expect(dialog.getByLabelText(TextMatch.containing("Replacements")))
                             .toHaveValue("& = &amp;\n< = &lt;\n\\n =  ");
+                    play.click(dialog.getByRole("button", StroomDom.button("Cancel")));
+                    expectNoProblems(play);
+                })
+                // The eight transforms that are one shape share one form (design 46 §8.2). This
+                // one has no name, which is the commonest case in the corpus — 42 of its 55
+                // trims — and means the result is written straight out rather than bound
+                .story("TransformDialog", ShapeshifterEditorStories::renderComposite)
+                .withPlay(play -> {
+                    selectTemplate(play, "branch");
+                    final Play screen = play.screen();
+                    play.waitFor(() -> play.expect(play.getByText("trim", CARD_KIND))
+                            .toBeInTheDocument());
+                    play.click(play.getByText("trim", CARD_KIND));
+                    final Play dialog = dialogMatching(play, screen, "trim");
+                    // A form, not the wire form it used to open as
+                    play.waitFor(() -> play.expect(
+                            dialog.getByLabelText(TextMatch.containing("Select"))).toBeVisible());
+                    play.expect(dialog.getByLabelText(TextMatch.containing("Select")))
+                            .toHaveValue("escaped");
+                    // Blank, and that is the configuration rather than something missing
+                    play.expect(dialog.getByLabelText("Name")).toHaveValue("");
                     play.click(dialog.getByRole("button", StroomDom.button("Cancel")));
                     expectNoProblems(play);
                 })

@@ -976,6 +976,33 @@ which is legal and means *write the result straight out*, while the form's Name 
 the author's only way out of the dialog was to invent a name and silently turn a write into a
 binding. A translate the form cannot save now stays on the wire form.
 
+### 8.2 Eight more, in one form — done 2026-11-12
+
+The next form by the census was `trim`, 55 instructions. Counting what `trim` actually *is*
+found something better: **eight kinds are one shape** — `trim`, `lower-case`, `upper-case`,
+`normalize-space`, `add`, `divide`, `round` and `string-length` are all `(selects, name)`, so
+they are one form rather than eight, and together they are 64 of the 84 rather than trim's 55.
+
+Two things the corpus settled that an assumption would have got wrong:
+
+- **The name is optional, and usually absent.** 42 of the 55 trims have none, because a
+  transform without a name writes its result straight out instead of binding it. Requiring one —
+  which is right for `translate`, all 504 of whose instances are named — would have left those 42
+  on the wire form, which is the opposite of the point. Blank is the configuration, not an
+  omission, and the round-trip test asserts the nameless case by name.
+- **`add` and `divide` fold over several inputs** (design/17 §5), so the selects are a list, one
+  a line, and the label says so for those two.
+
+The read-off and put-back live in `SimpleTransforms` rather than eight near-identical arms of the
+controller. **The census falls from 84 to 20:** `replace` at 14, then six kinds with one
+instruction each.
+
+| | wire-form instructions |
+|---|---|
+| before any form | 1588 instructions, 84 as JSON |
+| after `translate` (§8.1) | 84 |
+| after the eight (§8.2) | **20** |
+
 ## 9. What to do next
 
 1. ~~Write rungs 2 to 6 as step tables~~ — **done 2026-11-12**, §6. Written from the source, so

@@ -17,6 +17,7 @@
 package stroom.shapeshifter.client.model;
 
 import stroom.shapeshifter.client.component.InstructionEditController;
+import stroom.shapeshifter.client.model.SimpleTransforms;
 import stroom.shapeshifter.config.OutputNode;
 import stroom.shapeshifter.config.OutputNode.Holder;
 import stroom.shapeshifter.config.Project;
@@ -65,7 +66,7 @@ class WireFormCensusTest {
      * <p>It may go down and not up, so the remaining transforms are a count rather than an
      * impression: this is design 18 Q20's work, measured.
      */
-    private static final int WIRE_FORM_CEILING = 84;
+    private static final int WIRE_FORM_CEILING = 20;
 
     @Test
     void everyInstructionOpensAsAFormRatherThanAsJson() throws IOException {
@@ -150,6 +151,44 @@ class WireFormCensusTest {
         // 276 over this test's own scope, which is narrower than the whole fixture tree: enough
         // that a translate going unchecked would show here rather than passing vacuously.
         assertThat(checked).as("the corpus's translates").isGreaterThan(250);
+    }
+
+    @Test
+    void theOneShapeTransformsRoundTripThroughTheirForm() throws IOException {
+        // Eight kinds, one form (design 46 §8.2). What matters is the name: 42 of the corpus's
+        // 55 trims have none, because a transform without one writes its result straight out,
+        // and a form that lost that would turn every one of them into a binding.
+        int checked = 0;
+        int nameless = 0;
+        for (final Path config : configs()) {
+            final Project project = read(config);
+            if (project == null) {
+                continue;
+            }
+            final List<OutputNode> all = new ArrayList<>();
+            for (final Template template : project.templates()) {
+                collect(template.body(), all);
+            }
+            for (final OutputNode node : all) {
+                if (!SimpleTransforms.isSimple(node)) {
+                    continue;
+                }
+                assertThat(InstructionEditController.spellable(node))
+                        .as("%s in %s should open as a form", Instructions.kind(node), config)
+                        .isTrue();
+                final List<RefExpression> selects = SimpleTransforms.selectsOf(node);
+                final String name = SimpleTransforms.nameOf(node);
+                assertThat(SimpleTransforms.build(Instructions.kind(node), selects, name))
+                        .as("%s in %s", Instructions.kind(node), config)
+                        .isEqualTo(node);
+                if (name == null) {
+                    nameless++;
+                }
+                checked++;
+            }
+        }
+        assertThat(checked).as("the corpus's one-shape transforms").isGreaterThan(50);
+        assertThat(nameless).as("those that write their result straight out").isGreaterThan(30);
     }
 
     @Test

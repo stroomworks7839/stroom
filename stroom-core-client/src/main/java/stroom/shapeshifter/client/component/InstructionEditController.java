@@ -20,6 +20,7 @@ import stroom.alert.client.event.AlertEvent;
 import stroom.shapeshifter.client.model.ControlEscapes;
 import stroom.shapeshifter.client.model.GuardClause;
 import stroom.shapeshifter.client.model.Instructions;
+import stroom.shapeshifter.client.model.SimpleTransforms;
 import stroom.shapeshifter.client.model.SortKey;
 import stroom.shapeshifter.config.Condition;
 import stroom.shapeshifter.config.ConfigException;
@@ -224,6 +225,15 @@ public class InstructionEditController extends Controller {
                    && spellableParams(a.directive().withParam());
         } else if (node instanceof CallTemplate c) {
             return spellableParams(c.withParam());
+        } else if (SimpleTransforms.isSimple(node)) {
+            // Every select has to have a spelling, and there has to be one: the form writes the
+            // selects a line at a time and refuses an empty list.
+            for (final RefExpression select : SimpleTransforms.selectsOf(node)) {
+                if (Instructions.spell(select) == null) {
+                    return false;
+                }
+            }
+            return !SimpleTransforms.selectsOf(node).isEmpty();
         } else if (node instanceof Translate t) {
             // One select, spellable, and no replacement carrying the separator the form splits
             // on. The corpus has none — 504 translates and not one '=' in a from or a to — but a
@@ -305,6 +315,23 @@ public class InstructionEditController extends Controller {
                 v.setMultiLabel("Replacements, one per line: from = to. Whole substrings, not "
                                 + "characters, applied in order; nothing after the = deletes the "
                                 + "substring. Write a tab, newline or return as \\t, \\n, \\r");
+                break;
+            case "trim":
+            case "lower-case":
+            case "upper-case":
+            case "normalize-space":
+            case "add":
+            case "divide":
+            case "round":
+            case "string-length":
+                // One shape for eight kinds: what is read, and what the result is called. The
+                // arithmetic ones fold over their inputs, so the selects are a list rather than
+                // one field (design/17 §5).
+                v.setMultiVisible(true);
+                v.setMultiLabel(SimpleTransforms.folds(kind)
+                        ? "Inputs, one per line: the operation folds over them in order"
+                        : "Select, one per line: a name, $1 for a capture group, or a function");
+                field(0, "Name", "what the result is called; blank writes it straight out");
                 break;
             case "element":
                 field(0, "Name", null);
@@ -415,6 +442,18 @@ public class InstructionEditController extends Controller {
             v.setMulti(t.value());
         } else if (node instanceof ValueOf vo) {
             v.setField(0, Instructions.ref(vo.select()));
+        } else if (SimpleTransforms.isSimple(node)) {
+            final StringBuilder lines = new StringBuilder();
+            for (final RefExpression select : SimpleTransforms.selectsOf(node)) {
+                if (lines.length() > 0) {
+                    lines.append('\n');
+                }
+                lines.append(Instructions.spell(select));
+            }
+            v.setMulti(lines.toString());
+            v.setField(0, SimpleTransforms.nameOf(node) == null
+                    ? ""
+                    : SimpleTransforms.nameOf(node));
         } else if (node instanceof Translate t) {
             v.setField(0, t.select().isEmpty()
                     ? ""
@@ -538,6 +577,18 @@ public class InstructionEditController extends Controller {
                     return new Text(v.getMulti());
                 case "value-of":
                     return new ValueOf(ref(v.getField(0), "value-of needs a select"));
+                case "trim":
+                case "lower-case":
+                case "upper-case":
+                case "normalize-space":
+                case "add":
+                case "divide":
+                case "round":
+                case "string-length":
+                    // Blank is a real answer for the name: a transform without one writes its
+                    // result straight out, which 42 of the corpus's 55 trims do.
+                    return SimpleTransforms.build(kind, selects(v.getMulti()),
+                            blankToNull(v.getField(0)));
                 case "translate": {
                     final List<String> from = new ArrayList<>();
                     final List<String> to = new ArrayList<>();
@@ -662,6 +713,20 @@ public class InstructionEditController extends Controller {
                     ref(line.substring(eq + 1), "A param needs a value")));
         }
         return params;
+    }
+
+    /// The selects a transform reads, one a line, as the form shows them.
+    private static List<RefExpression> selects(final String text) {
+        final List<RefExpression> selects = new ArrayList<>();
+        for (final String line : text.split("\r?\n", -1)) {
+            if (!line.trim().isEmpty()) {
+                selects.add(ref(line, "a transform needs something to read"));
+            }
+        }
+        if (selects.isEmpty()) {
+            throw new ConfigException("A transform needs something to read");
+        }
+        return selects;
     }
 
     /// The replacements as the form shows them: one `from = to` a line, control characters
