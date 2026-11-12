@@ -97,8 +97,12 @@ public class GuardAndLimitsController extends Controller {
             // rows' own state - the blur before a click on ✕, say - must not replace the widgets
             // under the pointer, and a row added and not yet filled is not in the model to
             // rebuild from.
+            // The join only matters where there is more than one row to join: a guard that has
+            // just been cut back to a single clause reads as ALL whatever the picker held, and
+            // rebuilding on that would take the row out from under the pointer — which is what
+            // the note above forbids.
             if (!sameTemplate || view.isWireForm() || !clauses.equals(filled(view.getClauses()))
-                || read.join() != view.getJoin()) {
+                || (clauses.size() > 1 && read.join() != view.getJoin())) {
                 view.setClauses(clauses, read.join());
             }
         } else {

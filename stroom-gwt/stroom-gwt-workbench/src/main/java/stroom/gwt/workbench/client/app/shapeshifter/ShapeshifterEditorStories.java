@@ -786,6 +786,12 @@ public final class ShapeshifterEditorStories {
                     // rather than whether it is there.
                     play.expect(dialog.getByText(TextMatch.containing("edited as its wire form")))
                             .not().toBeVisible();
+                    // The word between the rows is the join: changing the picker changes it, so
+                    // the rows never contradict the choice above them
+                    play.expect(dialog.getByText("or", ".edit-form__number")).toBeVisible();
+                    pickFromBox(play, screen, dialog.getByLabelText("Holds when"), "all");
+                    play.waitFor(() -> play.expect(dialog.getByText("and", ".edit-form__number"))
+                            .toBeVisible());
                     play.click(dialog.getByRole("button", StroomDom.button("Cancel")));
                     expectNoProblems(play);
                 })

@@ -18,9 +18,9 @@ package stroom.shapeshifter.client.component;
 
 import stroom.shapeshifter.client.model.GuardClause;
 import stroom.shapeshifter.client.model.GuardClause.Join;
-import stroom.widget.selection.client.SelectionBox;
 import stroom.widget.component.client.Component;
 import stroom.widget.form.client.TextArea;
+import stroom.widget.selection.client.SelectionBox;
 import stroom.widget.text.client.Label;
 
 import com.google.gwt.event.dom.client.BlurEvent;
@@ -77,10 +77,17 @@ public class ClauseListPanel extends Component {
         });
         final Label joinLabel = new Label("holds when");
         joinLabel.setStyleName("clause-list__join-label");
+        join.setAriaLabel("Holds when");
         join.setDisplayValueFunction(Join::label);
         join.addItems(Join.values());
         join.setValue(Join.ALL, false);
-        join.addValueChangeHandler(event -> onJoin.accept(event.getValue()));
+        join.addValueChangeHandler(event -> {
+            // The word between the rows was baked in when they were built, so the rows are
+            // rebuilt before anyone is told: otherwise the picker reads "any" while the rows
+            // still say "and", and the guard the author sees is not the one being written.
+            setClauses(getClauses(), event.getValue());
+            onJoin.accept(event.getValue());
+        });
         final Label joinSuffix = new Label("of these hold");
         joinSuffix.setStyleName("clause-list__join-label");
         joinPanel.setStyleName("clause-list__join");
@@ -152,6 +159,7 @@ public class ClauseListPanel extends Component {
     protected void onReadOnlyChange(final boolean readOnly) {
         this.enabled = !readOnly;
         add.setStyleDependentName("disabled", !enabled);
+        join.setEnabled(enabled);
         json.setEnabled(enabled);
     }
 

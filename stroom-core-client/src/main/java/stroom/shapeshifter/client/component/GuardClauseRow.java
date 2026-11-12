@@ -165,18 +165,14 @@ public class GuardClauseRow extends Composite {
 
     private void commit() {
         final GuardClause now = getClause();
-        if (same(now, committed)) {
+        // GuardClause is a value and its equality is every field a row holds, the negation
+        // included. A second comparison here is how the negation came to be left out of one of
+        // them: the first version of this compared four fields of the five.
+        if (now.equals(committed)) {
             return;
         }
         committed = now;
         onChange.accept(index, now);
-    }
-
-    private static boolean same(final GuardClause a, final GuardClause b) {
-        return a.getVariable().equals(b.getVariable())
-               && a.getOp() == b.getOp()
-               && a.getValue().equals(b.getValue())
-               && a.getAs() == b.getAs();
     }
 
     /// Told when this row's clause changes, with the row's index and the clause it now holds.

@@ -835,8 +835,18 @@ them JSON; and a negation of anything but a clause is wire form too, the rows ha
 
 Pinned by `GuardClauseTest` — three new cases for the shapes the rows learnt, and the case that
 used to assert *or* and *not* were out of reach rewritten to assert what still is — and by the
-`ConditionOrAndNot` story, which opens the composite fixture's condition and finds rows where it
-used to find JSON.
+`ConditionOrAndNot` story, which opens the composite fixture's condition, finds rows where it
+used to find JSON, and changes the join to see the rows follow it.
+
+**A review caught two defects in the first version of this, both worth recording.** The row kept
+its own four-field comparison to decide whether a change was worth committing, and the negation
+was added to the clause without being added to that — so picking *not* and nothing else
+committed nothing, and the next refresh put the box back. The fix was to delete the duplicate
+rather than extend it: `GuardClause` is a value whose equality is already every field a row
+holds. And the word between the rows is fixed when they are built, so changing the join left
+them reading *and* under a picker saying *any* while an `Or` was written; the panel now rebuilds
+the rows before telling anyone. Neither showed up in the story until it was asked to change the
+join — an editor whose two halves disagree looks right in a screenshot.
 
 
 

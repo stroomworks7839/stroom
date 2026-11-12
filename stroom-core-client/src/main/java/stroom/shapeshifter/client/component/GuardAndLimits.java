@@ -112,7 +112,7 @@ public class GuardAndLimits
     }
 
     /// @param onJoin Told when the join changes.
-    public void setOnJoin(final java.util.function.Consumer<Join> onJoin) {
+    public void setOnJoin(final Consumer<Join> onJoin) {
         clauses.setOnJoin(onJoin);
     }
 
