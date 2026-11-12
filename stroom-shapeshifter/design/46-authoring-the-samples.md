@@ -91,6 +91,21 @@ means"*. Blank and `$0` are the same model, provably: writing the model the edit
 new document produces the fixtures' spelling verbatim. The lesson is the one §3 is built on —
 **check what the model does with a value before claiming the writers disagree.**
 
+**And a copy the audit never looked at.** `shapeshifter-demos.zip` is a git-tracked built
+artefact holding all 72 fixture projects, and taking `Store` and `greater-than` out of the
+readers rewrote the fixtures but not the pack: 12 of its projects stopped parsing — 11 with
+*Unknown reference part: Store*, one with *Unknown condition: greater-than* — which is every
+importer of the demo pack, its whole purpose. Found by a review, not by §3.4's audit, and the
+audit's claim to be exhaustive is what made it invisible: `JsonFields.checkFields` does bound
+where dead *vocabulary* can hide, and says nothing about where *copies* of a fixture can. A zip
+is not compiled, not tested and not read by `checkFields`.
+
+Rebuilt from the corrected fixtures, 72 of 72 parse, and the packed projects pick up the
+explicit `"dispatch": "lax"` at the same time. **Open for the owner:** the `contentPack` task
+writes the zip beside the checkout and says in its own comment that it is *"not something to
+commit"*, yet a copy is tracked at the repository root. A tracked build artefact that nothing
+rebuilds is how this happened, and untracking it is the fix that stops it recurring.
+
 So the comparison parses both sides with `ProjectJson` and compares the **models**. `OutputNode`
 and friends are records, so equality is structural and free.
 

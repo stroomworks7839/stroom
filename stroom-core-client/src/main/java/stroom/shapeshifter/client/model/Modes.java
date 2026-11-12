@@ -33,6 +33,7 @@ import stroom.shapeshifter.config.Project;
 import stroom.shapeshifter.config.Template;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
@@ -94,6 +95,21 @@ public final class Modes {
         return count;
     }
 
+    /// Every mode something dispatches into, in one walk of the project.
+    ///
+    /// @param project The project.
+    /// @return The modes named by an apply-templates anywhere in it; the root is null.
+    public static Set<String> dispatchedModes(final Project project) {
+        final Set<String> modes = new HashSet<>();
+        for (final Template template : project.templates()) {
+            mapApply(template.body(), directive -> {
+                modes.add(directive.mode());
+                return directive;
+            });
+        }
+        return modes;
+    }
+
     public static int applySiteCount(final Project project, final String mode) {
         final int[] count = {0};
         for (final Template template : project.templates()) {
@@ -145,11 +161,23 @@ public final class Modes {
     /// The one walk over the body vocabulary the editor needs; a holder it does not know is
     /// left as it is, which a new holder kind would make a compile error here, not a silent skip.
     static List<OutputNode> mapApply(final List<OutputNode> body, final Function<ApplyDirective, ApplyDirective> f) {
-        final List<OutputNode> out = new ArrayList<>(body.size());
-        for (final OutputNode node : body) {
-            out.add(mapApply(node, f));
+        List<OutputNode> out = null;
+        for (int i = 0; i < body.size(); i++) {
+            final OutputNode node = body.get(i);
+            final OutputNode mapped = mapApply(node, f);
+            // Nothing is copied until something changes: a walk that only reads — counting the
+            // sites of a mode, which the panel does on every refresh — then allocates nothing
+            // and leaves the project's own nodes in place.
+            if (mapped != node && out == null) {
+                out = new ArrayList<>(body.subList(0, i));
+            }
+            if (out != null) {
+                out.add(mapped);
+            }
         }
-        return out;
+        return out == null
+                ? body
+                : out;
     }
 
     private static OutputNode mapApply(final OutputNode node, final Function<ApplyDirective, ApplyDirective> f) {
@@ -159,29 +187,63 @@ public final class Modes {
                     ? apply
                     : new ApplyTemplates(mapped);
         } else if (node instanceof If i) {
-            return new If(i.test(), mapApply(i.then(), f));
+            final List<OutputNode> then = mapApply(i.then(), f);
+            return then == i.then()
+                    ? i
+                    : new If(i.test(), then);
         } else if (node instanceof Choose choose) {
             final List<WhenBranch> when = new ArrayList<>();
+            boolean changed = false;
             for (final WhenBranch branch : choose.when()) {
-                when.add(new WhenBranch(branch.test(), mapApply(branch.body(), f)));
+                final List<OutputNode> body = mapApply(branch.body(), f);
+                changed |= body != branch.body();
+                when.add(body == branch.body()
+                        ? branch
+                        : new WhenBranch(branch.test(), body));
             }
-            return new Choose(when, mapApply(choose.otherwise(), f));
+            final List<OutputNode> otherwise = mapApply(choose.otherwise(), f);
+            return !changed && otherwise == choose.otherwise()
+                    ? choose
+                    : new Choose(when, otherwise);
         } else if (node instanceof Switch s) {
             final List<SwitchCase> cases = new ArrayList<>();
+            boolean changed = false;
             for (final SwitchCase c : s.cases()) {
-                cases.add(new SwitchCase(c.value(), mapApply(c.body(), f)));
+                final List<OutputNode> body = mapApply(c.body(), f);
+                changed |= body != c.body();
+                cases.add(body == c.body()
+                        ? c
+                        : new SwitchCase(c.value(), body));
             }
-            return new Switch(s.select(), cases, mapApply(s.defaultBody(), f));
+            final List<OutputNode> defaultBody = mapApply(s.defaultBody(), f);
+            return !changed && defaultBody == s.defaultBody()
+                    ? s
+                    : new Switch(s.select(), cases, defaultBody);
         } else if (node instanceof Variable v) {
-            return new Variable(v.name(), mapApply(v.body(), f));
+            final List<OutputNode> body = mapApply(v.body(), f);
+            return body == v.body()
+                    ? v
+                    : new Variable(v.name(), body);
         } else if (node instanceof Element e) {
-            return new Element(e.name(), e.namespace(), e.omitIfEmpty(), mapApply(e.body(), f));
+            final List<OutputNode> body = mapApply(e.body(), f);
+            return body == e.body()
+                    ? e
+                    : new Element(e.name(), e.namespace(), e.omitIfEmpty(), body);
         } else if (node instanceof Attribute a) {
-            return new Attribute(a.name(), a.omitIfEmpty(), mapApply(a.body(), f));
+            final List<OutputNode> body = mapApply(a.body(), f);
+            return body == a.body()
+                    ? a
+                    : new Attribute(a.name(), a.omitIfEmpty(), body);
         } else if (node instanceof ForEach fe) {
-            return new ForEach(fe.select(), fe.as(), fe.asKey(), fe.sort(), mapApply(fe.body(), f));
+            final List<OutputNode> body = mapApply(fe.body(), f);
+            return body == fe.body()
+                    ? fe
+                    : new ForEach(fe.select(), fe.as(), fe.asKey(), fe.sort(), body);
         } else if (node instanceof ForEachGroup fg) {
-            return new ForEachGroup(fg.select(), fg.groupBy(), mapApply(fg.body(), f));
+            final List<OutputNode> body = mapApply(fg.body(), f);
+            return body == fg.body()
+                    ? fg
+                    : new ForEachGroup(fg.select(), fg.groupBy(), body);
         }
         return node;
     }

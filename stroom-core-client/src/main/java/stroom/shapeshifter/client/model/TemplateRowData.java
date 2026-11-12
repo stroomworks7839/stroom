@@ -49,11 +49,12 @@ public final class TemplateRowData {
         return sectionNote;
     }
 
-    /// Says something about the mode this row heads.
+    /// Says something about the mode this row heads. Named for what it does: it sets the note
+    /// on this row rather than returning a copy, which a `with` would promise.
     ///
     /// @param sectionNote The note.
     /// @return This, so it can be set where the row is made.
-    public TemplateRowData withSectionNote(final String sectionNote) {
+    public TemplateRowData setSectionNote(final String sectionNote) {
         this.sectionNote = sectionNote;
         return this;
     }

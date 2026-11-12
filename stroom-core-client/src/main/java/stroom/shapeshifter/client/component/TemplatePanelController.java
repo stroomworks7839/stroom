@@ -47,6 +47,7 @@ import com.google.web.bindery.event.shared.HandlerRegistration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Consumer;
 
 /// The project panel (design 18 §5.6, 43 §4.1): the sample the project runs over at the head —
@@ -244,6 +245,9 @@ public class TemplatePanelController extends Controller {
                 }
             }
             final TraceModel trace = host.trace();
+            // One walk of the project for every mode, rather than one per mode: refresh runs on
+            // every committed edit and again after every run.
+            final Set<String> dispatched = Modes.dispatchedModes(project);
             for (final String mode : modes) {
                 // The root group is structural, not a named mode; it is headed once, unnamed.
                 final String section = mode == null
@@ -274,7 +278,7 @@ public class TemplatePanelController extends Controller {
                 // match nothing and the preview is empty, and the author has done nothing wrong
                 // — they are halfway through a two-part edit (design 46 §5.4, ruled). The root
                 // group is always dispatched, by the document template itself.
-                final String note = mode != null && Modes.applySiteCount(project, mode) == 0
+                final String note = mode != null && !dispatched.contains(mode)
                         ? "nothing dispatches into this"
                         : null;
                 boolean firstOfMode = true;
@@ -293,7 +297,7 @@ public class TemplatePanelController extends Controller {
                         // The heading is drawn from the first row of the mode, so the note rides
                         // on that row.
                         rows.add(firstOfMode
-                                ? row.withSectionNote(note)
+                                ? row.setSectionNote(note)
                                 : row);
                         firstOfMode = false;
                         survives |= template.id().equals(selected);

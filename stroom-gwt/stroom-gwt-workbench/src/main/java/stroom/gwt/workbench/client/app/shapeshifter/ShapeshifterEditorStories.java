@@ -89,9 +89,10 @@ public final class ShapeshifterEditorStories {
     // template that wraps the records, a pair template that matches key=value, and a junk_line
     // template that warns about anything else. Three templates, so the panel has rows to show
     // and the breadcrumb has somewhere to go.
-    // Package-private, not private, so TestShapeshifterStoryFixture can hold it against the
-    // engine's own copy: it is a text block, so the test inlines it at compile time and never
-    // loads this class (design 46 §3.5).
+    // The keystone compares what the editor built with this (design 46 §3). The engine's own
+    // copy of the same configuration is guarded against drift from the other side of the module
+    // boundary, by TestStoryFixtureCopy, which hashes the fixture and names this constant when
+    // it trips — the two modules cannot see each other, so each guards what it owns (§3.5).
     static final String PROJECT = """
             {
              "name": "strict_kv",
@@ -285,24 +286,6 @@ public final class ShapeshifterEditorStories {
                                             + "  \"sampleKind\": \"PASTED\"\n"
                                             + "}";
 
-    // What the editor should have built once the walkthrough has run: design 46 §5's rung 1, to
-    // the point the steps below reach. Compared with JsonValues.jsonEquals, so the comparison is
-    // over parsed JSON rather than text — §3.1's traps are all textual, and the editor is free to
-    // write an explicit default or a different key order without failing this.
-    private static final String AUTHORED_SO_FAR = """
-            {
-             "name": "New Project",
-             "version": 5,
-             "source": {"buffer_size": 20000, "ignore_errors": false, "encoding": "utf-8"},
-             "templates": [
-              {"id": "-", "name": "document", "match": "source",
-               "match_limits": {"min_match": 0, "max_match": -1},
-               "body": [
-                {"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]},
-                                     "max_depth": 64}}]}
-             ]
-            }""";
-
     private static final RestFixtures FIXTURES = TreeFixtures.explorerRoutes(
                     new ExplorerFixture(ExplorerFixture.folder("System",
                             ExplorerFixture.doc("Key Value Lines", ShapeshifterDoc.TYPE))))
@@ -329,6 +312,9 @@ public final class ShapeshifterEditorStories {
             .get("/shapeshifter/v1/encodings", RestReply.json(ENCODINGS))
             .post("/permission/doc/v1/fetchDocumentUserPermissions", RestReply.json(DOC_PERMISSIONS))
             .build();
+
+    // The same routes as FIXTURES, over a document with no project in it. There is no PUT route:
+    // Save cannot be driven from a story (the AuthorRungOne story says why), so a route for it
 
     // The same routes as FIXTURES, over a document with no project in it. There is no PUT route:
     // Save cannot be driven from a story (the AuthorRungOne story says why), so a route for it
@@ -1204,14 +1190,6 @@ public final class ShapeshifterEditorStories {
             }
         }
         return null;
-    }
-
-    // A project JSON printed from its parsed form, so two spellings of the same project are one
-    // string. JsonValues.jsonEquals would answer the same question with a less useful failure.
-    private static String canonical(final String projectJson) {
-        return projectJson == null
-                ? null
-                : JsonValues.toJson(JsonValues.parse(projectJson));
     }
 
     // Every template id replaced by a dash, so two projects differing only in generated ids

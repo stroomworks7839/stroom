@@ -127,9 +127,15 @@ public class ScrollPane extends ScrollPanel {
         final Element element = getElement();
         final boolean overflows = element.getScrollHeight() > element.getClientHeight()
                 || element.getScrollWidth() > element.getClientWidth();
+        // Only asked where the answer is used: a pane told what it is returns that, and this
+        // runs from a resize observer — two per pane — so a scan of every focusable candidate,
+        // each with its own getClientRects and getComputedStyle, would be for nothing.
+        final boolean holdsFocusable = chosenTabStop == null
+                && overflows
+                && holdsFocusable(element, FOCUSABLE);
         final boolean tabStop = ScrollPaneTabStop.isTabStop(chosenTabStop,
                 overflows,
-                holdsFocusable(element, FOCUSABLE));
+                holdsFocusable);
         if (tabStop) {
             element.setTabIndex(0);
         } else {
