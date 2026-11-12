@@ -47,3 +47,18 @@
 .template-panel__section--link:hover {
     color: var(--text-color);
 }
+
+/* A mode's heading, when it carries a note: the name, then what is true of the mode. The head
+   itself is already a flex row, so the two sit on one line. */
+.template-panel__mode-name {
+    flex: none;
+}
+
+/* Quieter than the heading it follows, and italic so it reads as a remark rather than a name. */
+.template-panel__mode-note {
+    font-style: italic;
+    opacity: .75;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}

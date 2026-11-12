@@ -35,10 +35,27 @@ public final class TemplateRowData {
     /// heading rather than a heading that happens to be clickable: selection, hover and the
     /// keyboard then work on it exactly as they do on everything else in the list.
     private final boolean panelSection;
+    /// What is worth saying about the mode this row heads, or null. Carried by the first row of
+    /// a mode because the heading is drawn from that row rather than being a row of its own.
+    private String sectionNote;
 
     public TemplateRowData(final String id, final String name, final String section, final String colour,
                            final String count, final boolean zero) {
         this(id, name, section, colour, count, zero, 0, 0, null, 0);
+    }
+
+    /// @return What is worth saying about the mode this row heads, or null.
+    public String getSectionNote() {
+        return sectionNote;
+    }
+
+    /// Says something about the mode this row heads.
+    ///
+    /// @param sectionNote The note.
+    /// @return This, so it can be set where the row is made.
+    public TemplateRowData withSectionNote(final String sectionNote) {
+        this.sectionNote = sectionNote;
+        return this;
     }
 
     /// A panel section: uppercase, a destination when it carries an id, and what it holds.

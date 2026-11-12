@@ -59,6 +59,23 @@ class ModesTest {
             template("r", "route", List.of())), null);
 
     @Test
+    void aModeWithTemplatesAndNoSiteIsTheHalfFinishedEdit() {
+        // The panel says "nothing dispatches into this" on exactly this predicate (design 46
+        // §5.4, ruled): a mode holding templates that nothing dispatches into never runs, and
+        // the author is halfway through a two-part edit rather than mistaken.
+        final Project halfway = new Project("p", 5, null, List.of(
+                template("root", null, List.of()),
+                template("pair", "kv", List.of())), null);
+        assertThat(Modes.templateCount(halfway, "kv")).isEqualTo(1);
+        assertThat(Modes.applySiteCount(halfway, "kv")).isZero();
+        // And finishing the edit settles it
+        final Project dispatched = new Project("p", 5, null, List.of(
+                template("root", null, List.of(apply("kv"))),
+                template("pair", "kv", List.of())), null);
+        assertThat(Modes.applySiteCount(dispatched, "kv")).isEqualTo(1);
+    }
+
+    @Test
     void modesAreTheTemplatesAndTheSitesInFirstAppearanceOrder() {
         assertThat(Modes.of(PROJECT)).containsExactly("fields", "route");
         assertThat(Modes.templateCount(PROJECT, "fields")).isEqualTo(1);

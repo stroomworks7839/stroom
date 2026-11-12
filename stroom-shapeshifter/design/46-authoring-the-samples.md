@@ -408,6 +408,20 @@ their "add and name a `source` template" steps the same way.
 | 11 | Opens the match workbench from the chip, picks `regex`, types `([a-z]+)=([^\n]*)\n` | The pattern's groups listed; the input pane marks each match, the two groups tinted by capture | built (`Regex.ui.xml`, `ContentPaneController`) |
 | 12 | Puts it in a new mode `kv` — `Mode` → `New…` | The mode is made and picked in one step | built (`TemplateEdit.ui.xml`, design 44 §5k) |
 
+**Answered 2026-11-12: the panel says so.** A mode heading nothing dispatches into now carries
+*"nothing dispatches into this"* beside its name, quieter and italic, on the predicate
+`Modes.applySiteCount(project, mode) == 0` — which already existed. The root group is exempt: it
+is dispatched by the document template itself. The note goes as soon as an `apply-templates`
+names the mode, because one that lingered after the edit was finished would be worse than no
+note at all.
+
+It is guarded where it was found rather than in a story of its own: `AuthorRungOne` passes
+through this exact window — `pair` is made in mode `kv` two stages before anything dispatches
+into it — so the walkthrough asserts the note appears there and is gone after the dispatch.
+`ModesTest` pins the predicate.
+
+**The finding that prompted it, kept because the reasoning is the ruling's justification:**
+
 **Finding — the order is inverted here, and it is the central one.** The author's instinct is
 *match a pair, then say where pairs are dispatched from*. But a template with a mode is
 unreachable until something dispatches into that mode, so between steps 12 and 13 the project is

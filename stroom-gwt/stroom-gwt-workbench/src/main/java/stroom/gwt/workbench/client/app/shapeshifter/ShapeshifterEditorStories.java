@@ -935,6 +935,14 @@ public final class ShapeshifterEditorStories {
                     play.waitFor(() -> play.expect(play.getByText("pair", TEMPLATE_NAME))
                             .toBeInTheDocument());
 
+                    // §5.4's finding, and the answer to it: between making a template in a new
+                    // mode and dispatching into that mode, the project is in a state where the
+                    // template matches nothing and the preview is empty. The author has done
+                    // nothing wrong — they are halfway through a two-part edit — so the panel
+                    // says so on the mode rather than leaving them to wonder.
+                    play.waitFor(() -> play.expect(play.getByText("nothing dispatches into this",
+                            ".template-panel__mode-note")).toBeVisible());
+
                     // §5.4 step 11: the pattern, in the workbench the match chip opens. A new
                     // template's match is already an empty regex (Templates.create), so the kind
                     // needs no choosing — only the pattern needs typing
@@ -968,6 +976,10 @@ public final class ShapeshifterEditorStories {
                     final Play dispatching = dialogMatching(play, screen, "apply-templates");
                     pickFromBox(play, screen, dispatching.getByLabelText("Mode"), "kv");
                     play.click(dispatching.getByRole("button", StroomDom.button("OK")));
+                    // And the note goes: the two-part edit is finished, and nothing is wrong any
+                    // more. A note that stayed would be worse than no note at all.
+                    play.waitFor(() -> play.expect(play.queryByText("nothing dispatches into this",
+                            ".template-panel__mode-note")).toBeNull());
 
                     // §5.6 steps 17 to 19: the pair's body, five cards for one line of output
                     selectTemplate(play, "pair");

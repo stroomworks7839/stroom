@@ -270,18 +270,32 @@ public class TemplatePanelController extends Controller {
                     // declaring a name on the document threw the author back to the settings.
                     survives |= document.id().equals(selected);
                 }
+                // A mode nothing dispatches into is a mode that never runs: its templates
+                // match nothing and the preview is empty, and the author has done nothing wrong
+                // — they are halfway through a two-part edit (design 46 §5.4, ruled). The root
+                // group is always dispatched, by the document template itself.
+                final String note = mode != null && Modes.applySiteCount(project, mode) == 0
+                        ? "nothing dispatches into this"
+                        : null;
+                boolean firstOfMode = true;
                 for (final Template template : project.templates()) {
                     if (Objects.equals(template.mode(), mode) && !isDocument(template)) {
                         // The profile is a run's reading (design 18 §5.8): before one, the row has a
                         // kind and no heat.
-                        rows.add(trace == null
+                        final TemplateRowData row = trace == null
                                 ? new TemplateRowData(template.id(), template.name(), section,
                                         host.colour(template.id()), count(null, template), false)
                                 : new TemplateRowData(template.id(), template.name(), section,
                                         host.colour(template.id()), count(trace, template), zero(trace, template),
                                         Profile.share(trace, template.id()), Profile.cost(trace, template.id()),
                                         Profile.describe(trace, template.id()),
-                                        trace.worstOfTemplate(template.id())));
+                                        trace.worstOfTemplate(template.id()));
+                        // The heading is drawn from the first row of the mode, so the note rides
+                        // on that row.
+                        rows.add(firstOfMode
+                                ? row.withSectionNote(note)
+                                : row);
+                        firstOfMode = false;
                         survives |= template.id().equals(selected);
                     }
                 }

@@ -86,7 +86,21 @@ public class TemplatePanel
                 section = row.getSection();
                 final Label head = new Label(section);
                 head.setStyleName("template-panel__mode-head");
-                list.add(head);
+                if (row.getSectionNote() == null) {
+                    list.add(head);
+                } else {
+                    // The heading says what the mode is; the note says what is true of it, in
+                    // the same line and quieter. A mode nothing dispatches into is the case
+                    // this was built for (design 46 §5.4).
+                    final FlowPanel headLine = new FlowPanel();
+                    headLine.setStyleName("template-panel__mode-head");
+                    head.setStyleName("template-panel__mode-name");
+                    final Label note = new Label(row.getSectionNote());
+                    note.setStyleName("template-panel__mode-note");
+                    headLine.add(head);
+                    headLine.add(note);
+                    list.add(headLine);
+                }
             }
             final TemplateRow widget = newRow(row);
             rows.add(widget);
