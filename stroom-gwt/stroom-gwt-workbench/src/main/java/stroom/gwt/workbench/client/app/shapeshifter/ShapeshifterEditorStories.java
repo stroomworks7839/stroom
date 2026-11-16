@@ -151,7 +151,14 @@ public final class ShapeshifterEditorStories {
             {"valid": true, "messages": [], "canonical": null}""";
 
     // ShapeshifterResource.preview(): one run over the sample. Two pairs matched and written, and
-    // the comment line warned about, as the fixture's junk_line template says
+    // the comment line warned about, as the fixture's junk_line template says.
+    //
+    // Every number here agrees with the input above, which until 2026-11-16 it did not: the
+    // source frame claimed 56 characters of a 60-character input, junk_line claimed 35 of its own
+    // 38, and the third line had no frame at all though the output says it was written. A trace
+    // that disagrees with itself is worse than a short one — it makes the panes look broken when
+    // they are drawing exactly what they were handed, which is how a screenshot of this fixture
+    // was nearly misread.
     private static final String TRACE = """
     {
       "compiled": true, "sampleRead": true,
@@ -160,19 +167,25 @@ public final class ShapeshifterEditorStories {
       "frames": [
         {"id": 1, "parentId": 0, "templateId": "00000000-0000-0000-0000-000000000001",
          "templateName": "source", "matchIndex": 0, "depth": 0,
-         "inputOffset": 0, "inputLength": 56, "contentOffset": 0, "contentLength": 56},
+         "inputOffset": 0, "inputLength": 60, "contentOffset": 0, "contentLength": 60},
         {"id": 2, "parentId": 1, "templateId": "00000000-0000-0000-0000-000000000002",
          "templateName": "pair", "matchIndex": 0, "depth": 1,
          "inputOffset": 0, "inputLength": 11, "contentOffset": 0, "contentLength": 11,
          "content": "host=web01\\n"},
         {"id": 3, "parentId": 1, "templateId": "00000000-0000-0000-0000-000000000003",
          "templateName": "junk_line", "matchIndex": 0, "depth": 1,
-         "inputOffset": 11, "inputLength": 35, "contentOffset": 11, "contentLength": 35,
-         "content": "# a comment the grammar never claimed\\n"}
+         "inputOffset": 11, "inputLength": 38, "contentOffset": 11, "contentLength": 38,
+         "content": "# a comment the grammar never claimed\\n"},
+        {"id": 4, "parentId": 1, "templateId": "00000000-0000-0000-0000-000000000002",
+         "templateName": "pair", "matchIndex": 1, "depth": 1,
+         "inputOffset": 49, "inputLength": 11, "contentOffset": 49, "contentLength": 11,
+         "content": "level=warn\\n"}
       ],
       "captures": [
-        {"frameId": 2, "index": 1, "name": "key", "contentOffset": 0, "contentLength": 4},
-        {"frameId": 2, "index": 2, "name": "value", "contentOffset": 5, "contentLength": 5}
+        {"frameId": 2, "name": "key", "value": "host", "contentOffset": 0, "contentLength": 4},
+        {"frameId": 2, "name": "value", "value": "web01", "contentOffset": 5, "contentLength": 5},
+        {"frameId": 4, "name": "key", "value": "level", "contentOffset": 0, "contentLength": 5},
+        {"frameId": 4, "name": "value", "value": "warn", "contentOffset": 6, "contentLength": 4}
       ],
       "groups": [], "outputs": [], "attempts": [], "guards": [],
       "instructions": [], "attemptsSeen": 3, "timings": [],
