@@ -1253,10 +1253,22 @@ public final class ShapeshifterEditorStories {
                     play.expect(key).not().toHaveClass("mark--ruled");
                     play.expect(key.computedStyle("border-bottom-style")).toEqual("none");
                     play.expect(key.computedStyle("opacity")).toEqual("1");
-                    // Pointing at a ruled capture thickens its rule. The rule carries the hover
-                    // because the rule is the channel the pointer is asking about; the variables
-                    // pane's row lights at the same time, which is the `highlight` vocabulary and
-                    // has no pane to light here.
+                })
+
+                // Pointing at a ruled capture thickens its rule. The rule carries the hover
+                // because the rule is the channel the pointer is asking about; the variables
+                // pane's row lights at the same time, which is the `highlight` vocabulary and has
+                // no pane to light here.
+                //
+                // A story of its own rather than the tail of the one above, because the
+                // screenshot is taken once the play has ended and a hover is still in force then:
+                // asserting rest and then hover in one story leaves no picture of the pane at
+                // rest, which is the state it spends its life in.
+                .story("InputPaneRulePointedAt", context -> renderPaneOnly(context, 2))
+                .withPlay(play -> {
+                    play.waitFor(() -> play.expect(play.querySelector(CAPTURE_RULED)).not().toBeNull());
+                    final Query line = play.querySelector(CAPTURE_LINE);
+                    play.expect(line.computedStyle("border-bottom-width")).toEqual("1px");
                     play.hover(line);
                     play.waitFor(() -> play.expect(line.computedStyle("border-bottom-width"))
                             .toEqual("2px"));
