@@ -289,21 +289,11 @@ public class RegexController
             final CaptureBinding capture = captureOf(template, group.getIndex());
             rows.add(new GroupRowData(group.getIndex(), capture == null
                     ? null
-                    : capture.name(), group.getName(), hue(group.getIndex()), group.getIndex() == selectedGroup));
+                    : capture.name(), group.getName(), Colours.hue(group.getIndex()),
+                    group.getIndex() == selectedGroup));
         }
         view.setGroups(rows);
         view.setPatternMap(patternMap(inspected.getPattern(), groups));
-    }
-
-    /// A capture's hue, shared by its chip, its row and its span in the map (design 18 §10). Its
-    /// lightness comes from the theme ([Colours#HUE_LIGHTNESS]) rather than being a number here:
-    /// the hue is the text's own colour, and one lightness cannot clear 4.5:1 against both the
-    /// light theme's control surface and the dark theme's.
-    static String hue(final int index) {
-        // floorMod, not %: a caller counting from zero would otherwise produce a negative hue,
-        // which Colours.safe rejects and paints transparent — one capture silently uncoloured
-        // rather than a visibly wrong colour, which is the hardest kind of bug to notice.
-        return "hsl(" + Math.floorMod((index - 1) * 47, 360) + ", 62%, " + Colours.HUE_LIGHTNESS + ")";
     }
 
     /// The pattern with each character coloured by its innermost capture group, regex101's
@@ -345,7 +335,7 @@ public class RegexController
         }
         sb.appendHtmlConstant("<span class=\"regex__group" + (group == selectedGroup
                 ? " regex__group--selected"
-                : "") + "\" data-group=\"" + group + "\" style=\"--hue:" + hue(group)
+                : "") + "\" data-group=\"" + group + "\" style=\"--hue:" + Colours.hue(group)
                               + "\" title=\"group $" + group + "\">")
                 .appendEscaped(text)
                 .appendHtmlConstant("</span>");

@@ -308,14 +308,16 @@ public class SampleController extends Controller {
                         : null;
                 if (group.getIndex() > 0) {
                     cells.add(new Sample.Cell(group.getIndex(), group.getName(), value,
-                            RegexController.hue(group.getIndex()), isolated(group)));
+                            Colours.hue(group.getIndex()), isolated(group)));
                 }
                 if (placed && group.getIndex() > 0 && (nothingIsolated() || isolated(group))) {
+                    // Ruled, because in this pane every capture is the current level's: there is
+                    // one pattern and no hierarchy to be below (design 18 §5.11.2).
                     marks.add(new Mark(Mark.Kind.CAPTURE, frame.getId(), group.getIndex(), null, start,
-                            start + group.getContentLength(), RegexController.hue(group.getIndex()),
+                            start + group.getContentLength(), Colours.hue(group.getIndex()),
                             group.getName() == null
                                     ? "$" + group.getIndex()
-                                    : group.getName()));
+                                    : group.getName(), true));
                 }
             }
             rows.add(new Sample.Row(frame.getMatchIndex(), from, frame.getContentLength(), cells));

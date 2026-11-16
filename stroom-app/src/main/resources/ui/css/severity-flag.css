@@ -1,18 +1,20 @@
 /*
- * A message's severity on what it was said in (design 18 §5.8): a match span in the
- * content (Marks), a template's row (TemplateRow) — as stepping colours its pipeline tree.
- * Set by both, so it belongs to neither.
+ * A message's severity on what it was said in (design 18 §5.8): a template's row
+ * (TemplateRow) — as stepping colours its pipeline tree.
+ *
+ * A match carries no severity colour of its own (design 18 Q19, 2026-11-12). It used to
+ * recolour the template's hue on the same bottom border and switch that border to double, so
+ * extent and severity overwrote each other on one edge — and Q17 has since removed the border
+ * they fought over, which would have left these rules styling nothing. The content pane went on
+ * emitting the classes for two more rounds of work; it stopped on 2026-11-16, since markup that
+ * styles nothing reads as a channel that exists.
+ *
+ * Severity is still said in three places: the messages pane, the template's row below, and the
+ * title of the match itself. The fourth is ruled and not yet built — a marker in the gutter
+ * beside the line, placed from measured geometry because the pane has no element per line
+ * (design 18 §5.11.4, §5.11.8) — and it will key by line rather than by mark, which is why the
+ * mark no longer carries a flag at all.
  */
-.mark.severity-flag--warning {
-    border-bottom-color: #ffb300;
-    border-bottom-style: double;
-}
-
-.mark.severity-flag--error,
-.mark.severity-flag--fatal {
-    border-bottom-color: #e53935;
-    border-bottom-style: double;
-}
 
 .template-row__flag.severity-flag--warning {
     color: #ffb300;

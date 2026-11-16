@@ -203,7 +203,7 @@ public class BodyController extends Controller {
 
     /// The hue a top-level card's output is painted in, by its position - the same rule the output pane uses.
     public static String cardHue(final int index) {
-        return RegexController.hue(index);
+        return Colours.hue(index);
     }
 
     private void apply(final List<OutputNode> next) {

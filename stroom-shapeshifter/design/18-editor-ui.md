@@ -305,6 +305,10 @@ focus when clicked so that they have somewhere to come from.*
 
 ### 5.4 The content renderer — highlights live inside a variable
 
+> **§5.11 restates this section's marks** (restated 2026-11-13, ruled 2026-11-16). Read it
+> first: it separates the tint and the underline by what each is for, and in doing so
+> repeals the depth channel that §5.4 and Q18 both tried to draw.
+
 The old "data pane" survives as something better-founded: **the expanded value renderer
 for any variable whose value is text/bytes** — most prominently the frame's content
 variable. It renders the value with this frame's child matches highlighted inside it in
@@ -1080,6 +1084,267 @@ variable (§5.4) rather than as a privileged pane. Kept here because the failure
 reintroducing a global source pane "for convenience" — will recur and should be
 recognised when it does.
 
+### 5.11 The content pane's channels, separated by what they are for
+
+*Restated 2026-11-13, ruled 2026-11-16 in seven parts (§5.11.6). The owner's restatement,
+after a run of changes that each answered the change before it rather than the question
+underneath.*
+
+The pane's marks have been cut and re-cut: four permanent channels reduced to one (Q15,
+built as Q17), then depth added back onto the tint as weight (Q18), then depth moved off
+weight onto the rule's texture when weight turned out to cost contrast, then the rule
+restricted to one per character with three tiers when two textures on one baseline turned
+out not to read as two. Every step was a correct answer. The sequence still produced a
+pane whose two marks were both trying to say *where in the hierarchy this came from*, and
+competing to say it.
+
+The restatement below fixes that by asking what each channel is *for* first. Depth stops
+being a thing either channel draws, which is what makes the question go away rather than
+move.
+
+**Colour says "this is a capture". The underline says "this one is yours."** Those are
+different questions, they belong to different channels, and neither of them is "how deep".
+
+#### 5.11.1 Text colour — which bytes became a variable
+
+The tint identifies **captures**, so that an IP address, a user name or a timestamp is
+visibly a distinct, matched piece of text rather than a run of characters. That is its
+whole job.
+
+- **No level-based indication of any kind.** Not weight, not texture, not hue. A capture
+  from below the current level is tinted exactly as one at the current level is. This
+  repeals Q18 and everything built on it.
+- **Depth is limited, not graded.** Tint the captures of the current level's matches, and
+  of one level of matches below those — **two generations of matches, and no more**. The
+  frames may nest deeper; what is capped is how many generations contribute a tint.
+- The cap exists because the alternative is nonsense: an IP address bound as a capture,
+  with each octet bound by a template beneath it, would be coloured as an address and then
+  immediately recoloured as four numbers. The second colouring tells the reader nothing
+  the first did not, and costs the first its meaning.
+- **The two generations are counted from the cursor, and re-base as you walk** (ruled
+  2026-11-16). At whatever frame the cursor sits on you get that frame's captures and its
+  child matches', so there are always two levels of look-ahead wherever you stand. The
+  accepted consequence is that a given byte can change colour as you descend; the
+  alternative — counting from the document root — leaves you with no tint at all once you
+  are past level two, which is precisely where the detail being inspected lives.
+- **A generation is a frame that binds something the pane can draw** (settled while
+  building, 2026-11-16, corrected the same day after review). A capture whose bytes are not
+  a slice of its frame's content — one read from a variable, or **a key-value pair**, which
+  the engine reports with no offset (`Instrument.NOT_A_SLICE`) — is a row in the variables
+  pane and nothing in the text. A frame of nothing but those draws no ranges, so counting it
+  as a generation would spend one on an invisible level *and* prune the frames below it from
+  the tint. Key-value pairs are ordinary, not exotic, so this was a live defect rather than a
+  theoretical one.
+- **A generation is a frame that binds**, not a frame (settled while building, 2026-11-16,
+  and the one decision here the ruling did not cover). The document frame and a `source`
+  template that takes the whole input and dispatches bind nothing at all, and were they
+  counted, the lines beneath them would be the second generation and the keys and values
+  inside those lines the third — so the pane would show one lot of ranges where the ruling
+  asks for two. The cap is on how many lots of ranges are coloured at once, and a frame
+  that shows the reader nothing should not spend one. This is the same observation that
+  made the superseded `ruled()` count by containment rather than by depth; it is the part
+  of that work worth keeping.
+- **Below the cap a capture draws nothing at all** — no tint, no rule (ruled 2026-11-16).
+  Where such a capture is made only of whitespace it therefore carries no mark of any
+  kind. That is the cap doing its job, not an oversight: an exception for whitespace would
+  put marks back at unbounded depth, for a reason the reader cannot see (that the bytes
+  happen to be spaces). It is invisible until you descend to it, which is what descending
+  is for.
+
+#### 5.11.2 Underline — which captures are yours, at this level
+
+The underline marks the captures of the **current level only**. Nothing below it is
+underlined, however deep the tint reaches.
+
+- **"The current level's matches" means the current frame's own captures** — exactly the
+  rows the variables pane lists (ruled 2026-11-16). Not the child matches in their
+  templates' hues: that is the match underline Q17 deleted, and its colours would come
+  from the templates strip rather than from the pane the underline is meant to agree with.
+  The price, accepted, is that the underline says nothing about which child template will
+  claim a run; that is what hovering and clicking are for.
+- Its colour is **the variables pane's colour for that variable**, so a run of text and a
+  row in the pane are the same colour because they are the same thing. **One colour per
+  capture, and the pane owns it** (ruled 2026-11-16): the tint and the rule are the same
+  hue, drawn from the pane's row, because the pane is the only place a capture's colour
+  appears twice. A capture wearing one colour in the text and another in the list is the
+  confusion this whole restatement exists to end.
+- **The hue is allocated in order down the visible list** (ruled 2026-11-16): captures are
+  numbered cumulatively over everything in scope at the cursor, innermost frame first, as
+  the pane already orders them, and that running index feeds `hue()`. **A colour belongs to
+  a variable, not to an occurrence of one** — a departure from the literal reading of the
+  ruling, settled under review on 2026-11-16. One colour per capture *bound* means a sample
+  of four hundred lines binds `$line` four hundred times and gets four hundred colours: a
+  rainbow down the pane, identifying nothing, which is the opposite of what the tint is for.
+  Every binding of the same variable by the same template therefore takes the same hue and
+  the numbering counts distinct variables. That also keeps the generator honest — it steps
+  47°, coprime with 360, so a repeat needs 360 distinct *variables*, where 360 occurrences
+  is an ordinary sample. Collisions become
+  impossible by construction, and since the generator steps 47° — coprime with 360 — the
+  hues stay distinct far past the number of rows a pane will show. This finally fixes
+  Q18's original complaint: `hue()` was fed the capture's index *within its own frame*, so
+  index 0 was the same pink at every depth, and with the tint now reaching two generations
+  and the pane listing every frame on the path, two such captures sit on screen together.
+  Here too a variable's colour moves as you walk, consistent with the tint's own cap.
+- **On hover the underline thickens, and the variable's row in the variables pane
+  highlights.** The existing `highlight` vocabulary already carries the second half.
+
+The two channels are therefore allowed to disagree over one run of text, and that
+disagreement is the information: tinted but not underlined means *a capture, but not one
+of yours* — which is exactly what a reader at a frame wants to know, and what three tiers
+of rule were failing to say.
+
+#### 5.11.3 Navigation — one level per click
+
+Unchanged from §5.4 and restated for completeness: a click descends **one level at a
+time** into the match under the pointer, and Ctrl/⌘-click still jumps to the deepest.
+
+Added: the click also **moves the template selection** to the template associated with
+that match, so the strip is showing the template that did the work the reader has just
+stepped into, rather than staying where it was.
+
+Already satisfied, checked 2026-11-16: `ProjectHost.setCursor` selects the cursor frame's
+template (`ShapeshifterDesignController`), which §5.1 asked for and every route to the
+cursor goes through. So this subsection needed no work — the only part of §5.11 still
+unbuilt is the gutter in §5.11.4.
+
+#### 5.11.4 Errors — a gutter, and a mode
+
+Errors appear **in the gutter beside the text, as data stepping shows them**, rather than
+on the text. This is Q19's ruling, with its implementation named.
+
+New, and the part that matters most: **pointing at an error marker highlights the text
+ranges that have errors, and temporarily hides the other highlighting.** That makes the
+error view a *mode* rather than a fourth channel competing with the three above — the one
+time the pane stops answering "what was captured here" and answers "what went wrong here"
+instead, with the screen to itself while it does.
+
+**The markers are placed from measured geometry, as `OverviewBar` does** (ruled
+2026-11-16). `.content-box` is `white-space: pre-wrap` with `word-break: break-all` and
+has no element per line, so one logical line can occupy several visual rows and a marker
+has nothing to align to. The rejected alternative was to render each line as an element:
+marks cross newlines freely today — a capture may span one — so every straddling mark
+would have to be split, which is a change to the heart of `Marks.render` made for the
+gutter's convenience. Measuring instead leaves the mark rendering untouched, at the cost
+of re-measuring on resize and on re-render.
+
+#### 5.11.5 What this supersedes
+
+- **Q18** in full: depth on the tint, in any form.
+- The three rule tiers, the `mark--deep` / `mark--unruled` vocabulary, and the
+  cutting-back of an outer capture's rule to its uncovered runs — all of it was answering
+  "how deep", which neither channel now draws.
+- §5.4's "descendants nested (direct children prominent, deeper levels visible but
+  quieter)", which is the same idea in its original form and has now failed twice.
+
+Kept: Q15/Q17 (a match draws no permanent mark of its own), the hover outline and the
+four-way lighting between pane, template row, dispatch row and output.
+
+**Built 2026-11-16**, in the vocabulary the ruling implies rather than the one it replaced:
+`CaptureHues` allocates a colour per capture over everything in scope and both panes read
+it; `Mark.isRuled()` is the one bit the rule needs, where `Mark.getNesting()` was a level;
+`mark--ruled` is the one class, where `mark--deep` and `mark--unruled` were tiers; and
+`ContentPaneController.place(...)` walks the cap, where `ruled(...)` worked nesting out from
+the ranges and cut marks into segments. `Colours.hue(int)` moved off `RegexController` so
+that the allocation is reachable from a plain JUnit test — a controller's static initialiser
+calls `GWT.create`, which such a test cannot. Covered by `CaptureHuesTest` and by the
+`InputPaneTintAlone` and `InputPaneRuleAlone` stories, which show the pane with no editor
+around it at a cursor that binds nothing and at one that does. Reviewed the same day, which
+corrected the generation count and the colour's key and raised the three questions §5.11.7
+settles.
+
+Not built, and named in §5.11.4: the error gutter. Its ruling settles how markers are
+placed, not that they exist yet.
+
+#### 5.11.6 Rulings, 2026-11-16
+
+The seven questions §5.11 left open, settled in one pass. Each is written into the
+subsection it governs; collected here so the shape of the decision is readable in one
+place.
+
+1. **The underline marks the current frame's own captures**, not its child matches
+   (§5.11.2).
+2. **One colour per capture, sourced from the variables pane**, used for the tint and the
+   rule alike (§5.11.2).
+3. **Hues are allocated in order down the visible list**, numbered cumulatively over
+   everything in scope at the cursor, innermost frame first — which is what finally fixes
+   the per-frame index collision Q18 complained about (§5.11.2).
+4. **The two tint generations are counted from the cursor** and re-base as you walk, so a
+   byte may change colour as you descend (§5.11.1).
+5. **Below the cap a capture draws nothing**, whitespace-only ones included (§5.11.1).
+6. **Error markers are placed from measured geometry**, as `OverviewBar` does, rather than
+   by giving the pane an element per line (§5.11.4, §5.11.8).
+7. **The superseded implementation is not reverted separately**; the three rule tiers, the
+   `mark--deep` / `mark--unruled` vocabulary and `ruled()`'s segmentation come out as part
+   of building §5.11, so there is one pass through the files rather than two. The
+   `PaneOnlyHost` story harness, the nested trace fixture and the contrast measurements all
+   survive the change of direction.
+
+#### 5.11.7 Settled after the build, 2026-11-16
+
+Three things the ruling did not reach, found by reviewing the built code and ruled the same
+day.
+
+1. **A whitespace-only capture inside the cap but not at the cursor's level carries no mark
+   at rest, and that is accepted.** `color` paints nothing on a run of spaces and the rule is
+   now the current level's alone, so such a capture is unmarked until it is pointed at —
+   whereupon it still outlines in its hue and shows its title, because the span occupies
+   width and `.mark--capture:hover` was already wired. Unannounced rather than unreachable,
+   which is what makes it acceptable. The reasoning against a whitespace exception below the
+   cap (§5.11.6 item 5) half-applies here: a mark at this depth would be bounded, so it would
+   not put marks back at unbounded depth, but it would still appear for a reason the reader
+   cannot see from the screen. The rejected alternatives were a mark for a blank unruled
+   capture, and a wash on every unruled capture — the latter being a fourth permanent channel
+   of the kind Q15/Q17 spent two rounds removing.
+2. **The pattern workbench and the panes colour a capture differently, and they are allowed
+   to.** §5.11.2 reasoned that the variables pane should own the colour because it is "the one
+   with a second place to appear"; that was wrong — a capture appears in a third place, where
+   the chip, the group row and the pattern map all colour by the group's number within its
+   pattern. So `$key` can be one colour beside its pattern and another in the content pane.
+   They are accepted as two vocabularies rather than reconciled, because the workbench is
+   editing a pattern with **no run behind it**: there, a group's number *is* its identity, and
+   the colours relate a span in the pattern to a row beneath it — a closed world. The panes
+   are reading a trace, where a variable's identity is the fact and the number is an artefact
+   of the walk. The only thing that would genuinely reconcile all three is deriving the hue
+   from `templateId + name` with no trace and no order, which is the name-hashing already
+   ruled against (§5.11.6 item 3).
+3. **A mark carries no severity flag at all.** The content pane went on emitting
+   `severity-flag--{warning,error,fatal}` on its match marks for two rounds after the rules
+   behind them were deleted with the border they shared (2026-11-12), so a run carrying an
+   error was pixel-identical to a clean one while the markup said otherwise. The emission is
+   gone, and with it `Mark`'s `flag` field, since nothing else wrote one: markup that styles
+   nothing reads as a channel that exists. `Mark.flagOf(int)` stays, because a template's row
+   still carries a flag and still paints by it. The gutter will key markers by line rather
+   than by mark, so if a per-mark severity is ever wanted again it comes back deliberately.
+
+#### 5.11.8 The stepper's gutter: what ports, and what does not
+
+Checked 2026-11-13. Stepping has *two* marker strips and they are not the same kind of
+thing.
+
+- The **left gutter**, beside the line numbers, is **purely Ace**. The only route to it is
+  `editor.getSession().setAnnotations(...)` (`AceEditor.setAnnotations`), the DOM nodes are
+  made by Ace's own gutter layer, and even the hover tooltip is Ace's (`GutterTooltip` in
+  `ace.js`). Stroom contributes a class name and an icon and nothing else, deliberately, so
+  that `ace.js` needs no patching. None of it is available to a pane Stroom renders itself.
+  `CodeEditorController.setIndicators` also force-enables line numbers, because Ace's
+  gutter only exists when the gutter is on.
+- The **right-hand overview bar** *is* Stroom's own: `OverviewBar` emits one
+  absolutely-positioned `div` per marked line with its own hover popup and click-to-go.
+  That pattern ports, and §5.11.4's ruling takes it. It is currently coupled to
+  `AceEditorPane` for line count, goto and scrollbar geometry, so reuse means either an
+  interface over those three or copying the marker layout.
+
+Reusable as-is, with no Ace dependency at all: `Indicators`, `IndicatorLines`, `Indicator`,
+`StoredError`, `Severity`, `ErrorType`, and the severity colour tokens
+(`--code-editor__background-color--{info,warning,error,fatal}`) with the
+`code-editor__marker--{info,warning,error,fatal}` classes. The content-pane gutter speaks
+that vocabulary rather than inventing a second one, which is also what Q19 asked for.
+
+(Noted while reading: `Indicator.addAll` builds a fresh `messages` set and never puts it
+back into `errorMap`, so copying an `Indicator` whose severity key is absent drops the
+entries. Nothing on the stepping path calls it — `IndicatorLines` builds through `add` —
+so this is a latent bug, not a live one, but anything leaning on these classes should know.)
+
 ## 6. Where it lives in Stroom
 
 Three phases, each independently shippable:
@@ -1273,7 +1538,7 @@ recommendation (Q20).
 | # | Question | Ruling |
 |---|---|---|
 | Q17 | Q15 was ruled but never built: the content pane still gives every direct child match a translucent fill and a 2px solid underline, so the pane has four permanent channels where §5.4 says one. Build Q15 as written, keep one permanent match line, or harmonise the four? | **Build Q15 as written.** `.mark` loses its `background-color` and its `border-bottom`; a match's extent is revealed by pointing at it, or at the template, dispatch row or output that owns it. The capture tint and the dotted rule that carries it over whitespace are the only permanent marks left in the pane. |
-| Q18 | A capture's hue is its index within its own frame (`hue(i + 1)`), and `captureMarks` recurses through every descendant — so the same colour means a different capture at every depth, and depth is on no channel at all. | **Depth reads as weight**: the cursor's own captures at full strength, each level below quieter. Hue goes on meaning "which capture of its match", so one channel never has to say two things. This puts Q8's "deeper levels quieter" on the tint, not on match lines — depth-graded *match* lines are what Q15 rejected, and they stay rejected. |
+| Q18 | A capture's hue is its index within its own frame (`hue(i + 1)`), and `captureMarks` recurses through every descendant — so the same colour means a different capture at every depth, and depth is on no channel at all. | **Depth reads as weight**: the cursor's own captures at full strength, each level below quieter. Hue goes on meaning "which capture of its match", so one channel never has to say two things. This puts Q8's "deeper levels quieter" on the tint, not on match lines — depth-graded *match* lines are what Q15 rejected, and they stay rejected. **Revised 2026-11-13 (the owner): weight was the wrong instrument — depth reads as the rule's texture instead**, solid under the cursor's own captures and dotted under anything beneath them. Opacity fades the glyphs along with the rule, and a capture's hue *is* its text colour, so the three steps undid the exact calibration `--mark__lightness` exists to make: measured over the eight generated hues, the weakest goes from 5.05:1 to 3.32:1 at the first step on the light theme — already under AA — and to 1.89:1 at the third, under even the 3:1 large-text floor. Fading only the rule was considered and rejected for the same reason one level down: where a capture is made of whitespace the rule is the whole mark, so a faded rule fails WCAG 1.4.11 on precisely the captures that have nothing else. Texture costs no contrast at all. The cost is that depth is now one bit rather than a gradient — "mine" or "beneath me" — which is the question a frame actually poses; how far beneath is answered by descending. Two measurements fell out of the same sweep: the capture rule went from 50% of the hue to 75%, because at 50% it is 2.05:1 against the light theme's surface and so cannot carry a whitespace capture on its own; and `.mark--dim`, which fades the output pane's text outside what the cursor wrote, went from `.45` to `.67`, the lowest value that still clears 4.5:1 on every surface either theme puts that text on. |
 | Q19 | A warning or error on a match replaces the template's hue on the same bottom border with a hard-coded amber or red and switches the border style to double, so extent and severity overwrite each other on one edge. | **Severity moves to the margin** — a flag in the gutter beside the line, in the severity colours the messages pane and the template rows already use. Nothing drawn on the text carries a colour from outside the hue vocabulary. |
 | Q20 | Thirty of the engine's forty-nine body kinds — every transform — are authored as wire-format JSON (`TRANSFORM_KINDS`, "edited as their wire form"). Fifteen need no field beyond inputs and a name, and three fields and one flag is the worst case in the set. Descriptor table, a form per kind, or a better JSON editor? | **A hand-written form per kind**, for the per-kind wording and layout a shared table cannot give. Against the draft recommendation of descriptors plus a conformance test. The drift that recommendation guarded against is real either way — a transform added to the engine and not to the editor is silent — so a test over `OutputNode`'s `permits` list is owed whichever way the forms are written. The wire form stays as the escape hatch for references with no field spelling (§5.6). |
 

@@ -36,13 +36,27 @@ import stroom.gwt.workbench.framework.client.play.TextMatch;
 import stroom.gwt.workbench.framework.client.story.StoryContext;
 import stroom.gwt.workbench.framework.client.story.StoryLayout;
 import stroom.gwt.workbench.framework.client.story.StoryRegistry;
+import stroom.pipeline.shared.SourceLocation;
 import stroom.security.shared.DocumentPermission;
+import stroom.shapeshifter.client.component.ContentPane;
+import stroom.shapeshifter.client.component.ContentPaneController;
+import stroom.shapeshifter.client.model.Hot;
+import stroom.shapeshifter.client.model.ProjectHost;
+import stroom.shapeshifter.client.model.SampleSource;
+import stroom.shapeshifter.client.model.TraceModel;
+import stroom.shapeshifter.config.Project;
 import stroom.shapeshifter.shared.ShapeshifterDoc;
 import stroom.shapeshifter.shared.ShapeshifterResource;
+import stroom.shapeshifter.shared.ShapeshifterTrace;
+import stroom.shapeshifter.shared.ShapeshifterTrace.Capture;
+import stroom.shapeshifter.shared.ShapeshifterTrace.Frame;
 
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.user.client.ui.Widget;
+import com.google.web.bindery.event.shared.SimpleEventBus;
 
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 /// The `App/Shapeshifter/ShapeshifterEditor` stories, showing Stroom's real `ShapeshifterEditor`
@@ -1088,6 +1102,166 @@ public final class ShapeshifterEditorStories {
                     expectNoProblems(play);
                 })
 
+                // The content pane's marks, one story per state, because what this pane does is
+                // visual and a passing assertion says nothing about whether it reads (design 18
+                // §5.4, Q17-Q19). At rest the capture tint is the only permanent mark: a match
+                // draws nothing until it is pointed at
+                .story("InputPaneAtRest", context -> render(context, false))
+                .withPlay(play -> {
+                    selectTemplate(play, "pair");
+                    play.click(runButton(play));
+                    play.waitFor(() -> play.expect(play.querySelector(MARK_CAPTURE))
+                            .not().toBeNull());
+                    // The cursor is the document and the document binds nothing, so every
+                    // capture in view came from beneath it: tinted, and none of them ruled. The
+                    // rule means "this capture is one of the current level's" and at this level
+                    // there are none (design 18 §5.11.2, ruled 2026-11-16).
+                    play.expect(play.querySelector(MARK_CAPTURE)).not().toHaveClass("mark--ruled");
+                    play.expect(play.querySelector(MARK_CAPTURE).computedStyle("border-bottom-style"))
+                            .toEqual("none");
+                    // The tint is there regardless of depth, which is the half of this that a
+                    // reader needs at any level: these bytes became a variable.
+                    play.expect(play.querySelector(MARK_CAPTURE).computedStyle("--hue"))
+                            .not().toEqual("");
+                    expectNoProblems(play);
+                })
+                // Pointing at a match outlines it in its template's hue — the bounding box that
+                // used to be drawn permanently, now shown only where it is asked for
+                .story("InputPaneMatchPointedAt", context -> render(context, false))
+                .withPlay(play -> {
+                    selectTemplate(play, "pair");
+                    play.click(runButton(play));
+                    play.waitFor(() -> play.expect(play.querySelector(MARK_DOCUMENT))
+                            .not().toBeNull());
+                    play.hover(play.querySelector(MARK_DOCUMENT));
+                    play.waitFor(() -> play.expect(play.querySelector(MARK_DOCUMENT))
+                            .toHaveClass("highlight"));
+                    expectNoProblems(play);
+                })
+                // Descended into the document, the pane draws a mark per template that matched
+                // beneath it — which is where "the immediate child template's colour" (§5.4)
+                // becomes visible, and where one match is told from its neighbour
+                .story("InputPaneDescended", context -> render(context, false))
+                .withPlay(play -> {
+                    selectTemplate(play, "pair");
+                    play.click(runButton(play));
+                    play.waitFor(() -> play.expect(play.querySelector(MARK_DOCUMENT))
+                            .not().toBeNull());
+                    play.click(play.querySelector(MARK_DOCUMENT));
+                    play.waitFor(() -> play.expect(play.querySelector(MARK_PAIR)).not().toBeNull());
+                    play.expect(play.querySelector(MARK_JUNK)).not().toBeNull();
+                    expectNoProblems(play);
+                })
+                // And a capture the same way, from its own end
+                .story("InputPaneCapturePointedAt", context -> render(context, false))
+                .withPlay(play -> {
+                    selectTemplate(play, "pair");
+                    play.click(runButton(play));
+                    play.waitFor(() -> play.expect(play.querySelector(MARK_CAPTURE))
+                            .not().toBeNull());
+                    play.hover(play.querySelector(MARK_CAPTURE));
+                    play.waitFor(() -> play.expect(play.querySelector(MARK_CAPTURE))
+                            .toHaveClass("highlight"));
+                    expectNoProblems(play);
+                })
+                // The same outline, asked for from the other end: pointing at the template's row
+                // in the panel marks what it matched in the pane (design 18 §5.5)
+                .story("InputPaneFromTheTemplateRow", context -> render(context, false))
+                .withPlay(play -> {
+                    selectTemplate(play, "pair");
+                    play.click(runButton(play));
+                    play.waitFor(() -> play.expect(play.querySelector(MARK_DOCUMENT))
+                            .not().toBeNull());
+                    play.click(play.querySelector(MARK_DOCUMENT));
+                    play.waitFor(() -> play.expect(play.querySelector(MARK_PAIR)).not().toBeNull());
+                    play.hover(play.getByText("pair", TEMPLATE_NAME));
+                    play.waitFor(() -> play.expect(play.querySelector(MARK_PAIR))
+                            .toHaveClass("highlight"));
+                    // The class is not the point — the outline is. Q17 took away every
+                    // permanent mark on a match, so if this does not draw, a match has no way
+                    // to be seen at all and the ruling has nothing to stand on.
+                    play.expect(play.querySelector(MARK_PAIR).computedStyle("outline-color"))
+                            .not().toEqual("rgba(0, 0, 0, 0)");
+                    play.expect(play.querySelector(MARK_PAIR).computedStyle("outline-style"))
+                            .toEqual("solid");
+                    // And only that template's match: junk_line's is left alone, or "mark the
+                    // one you are pointing at" would pass just as well if everything lit up
+                    play.expect(play.querySelector(MARK_JUNK)).not().toHaveClass("highlight");
+                    expectNoProblems(play);
+                })
+                // The pane on its own, over a sample bound three generations deep: a line taken
+                // whole by the template that matched it, the key and value taken inside it by the
+                // pairs beneath, and a short host name taken inside one of those. These are the
+                // only stories with no editor around them — a ContentPane and a host of its own —
+                // because what the pane does is meant to be looked at, and in a screenshot of the
+                // whole tab it is a corner (design 18 §5.11, ruled 2026-11-16).
+                //
+                // At the document, which binds nothing: the tint and only the tint.
+                .story("InputPaneTintAlone", ShapeshifterEditorStories::renderPaneOnly)
+                .withPlay(play -> {
+                    play.waitFor(() -> play.expect(play.querySelector(MARK_CAPTURE)).not().toBeNull());
+                    // The tint identifies captures and says nothing about depth, so a capture
+                    // from one generation down and one from two look alike: same opacity, same
+                    // kind of mark, no rule on either. That is the assertion three steps of
+                    // opacity would have failed — opacity takes the glyphs along with the mark,
+                    // and on the light theme the first step alone drops the weakest of the eight
+                    // generated hues from 5.05:1 to 3.32:1, under AA, on text whose lightness the
+                    // theme sets for no other purpose than to clear it.
+                    play.expect(play.querySelector(CAPTURE_LINE).computedStyle("opacity")).toEqual("1");
+                    play.expect(play.querySelector(CAPTURE_KEY).computedStyle("opacity")).toEqual("1");
+                    play.expect(play.querySelector(CAPTURE_RULED)).toBeNull();
+                    play.expect(play.querySelector(CAPTURE_LINE).computedStyle("border-bottom-style"))
+                            .toEqual("none");
+                    // Two captures bound by different frames are different colours. They were the
+                    // same colour until 2026-11-16, because the hue was the capture's index
+                    // *within its own frame* and both of these are index 0 — survivable while one
+                    // frame's captures were tinted, not survivable now the tint reaches two
+                    // generations and the variables pane lists every frame at once.
+                    // Read inside the predicate, because a query only resolves while a step runs.
+                    play.expect(play.querySelector(CAPTURE_LINE).computedStyle("--hue"))
+                            .toSatisfy("a colour of its own, not the key capture's",
+                                    hue -> !hue.equals(
+                                            play.querySelector(CAPTURE_KEY).computedStyle("--hue").get()));
+                    // Three binding generations down is past the cap, so it is drawn nothing at
+                    // all — not a fainter tint, nothing. Colouring an IP address and then
+                    // recolouring each of its octets costs the first colouring its meaning, and
+                    // the cap is what stops that; this capture becoming invisible until the reader
+                    // descends to it is the accepted price (design 18 §5.11.1).
+                    play.expect(play.querySelector(CAPTURE_PAST_CAP)).toBeNull();
+                })
+
+                // With the cursor on a line, the second channel appears: that line's own captures
+                // are ruled, and the captures beneath it keep the tint and lose the rule. The two
+                // channels disagreeing over a run of text *is* the information — tinted but not
+                // ruled means "a capture, but not one of yours" (design 18 §5.11.2).
+                .story("InputPaneRuleAlone", context -> renderPaneOnly(context, 2))
+                .withPlay(play -> {
+                    play.waitFor(() -> play.expect(play.querySelector(CAPTURE_RULED)).not().toBeNull());
+                    final Query line = play.querySelector(CAPTURE_LINE);
+                    play.expect(line).toHaveClass("mark--ruled");
+                    play.expect(line.computedStyle("border-bottom-style")).toEqual("solid");
+                    play.expect(line.computedStyle("border-bottom-width")).toEqual("1px");
+                    // Drawn in the capture's own hue rather than left transparent: where a capture
+                    // is made only of whitespace the rule is the entire mark, so it has to clear
+                    // WCAG 1.4.11's 3:1 on its own. At 50% of the hue it did not — 2.05:1 on the
+                    // weakest generated hue against the light theme's control surface — which is
+                    // why it is drawn at 75%.
+                    play.expect(line.computedStyle("border-bottom-color"))
+                            .not().toEqual("rgba(0, 0, 0, 0)");
+                    // A capture from the pair beneath: tinted, unruled, and not faded for it
+                    final Query key = play.querySelector(CAPTURE_KEY);
+                    play.expect(key).not().toHaveClass("mark--ruled");
+                    play.expect(key.computedStyle("border-bottom-style")).toEqual("none");
+                    play.expect(key.computedStyle("opacity")).toEqual("1");
+                    // Pointing at a ruled capture thickens its rule. The rule carries the hover
+                    // because the rule is the channel the pointer is asking about; the variables
+                    // pane's row lights at the same time, which is the `highlight` vocabulary and
+                    // has no pane to light here.
+                    play.hover(line);
+                    play.waitFor(() -> play.expect(line.computedStyle("border-bottom-width"))
+                            .toEqual("2px"));
+                })
+
                 // Design 46 rung 1: a document created a moment ago, authored towards the
                 // strict_kv fixture, saved, and the saved project compared with what it should
                 // be. The keystone of design 46 §3 — a story's preview and validate replies are
@@ -1286,6 +1460,44 @@ public final class ShapeshifterEditorStories {
     // template reads "document" whatever the template is called, so this is where a rename shows.
     private static final String STRIP_NAME = ".template-strip__name";
 
+    // A match in the content pane, and a capture within one (Marks).
+    // A match by the template that made it. The pane draws a mark for the cursor's immediate
+    // children only (ContentPaneController: trace.children(cursor)), so at the top these are
+    // the document's; pair's and junk_line's appear after descending into it.
+    private static final String MARK_DOCUMENT =
+            ".mark[data-tpl='00000000-0000-0000-0000-000000000001']";
+
+    private static final String MARK_PAIR =
+            ".mark[data-tpl='00000000-0000-0000-0000-000000000002']";
+
+    private static final String MARK_JUNK =
+            ".mark[data-tpl='00000000-0000-0000-0000-000000000003']";
+
+    private static final String MARK_CAPTURE = ".mark--capture";
+
+    // A capture of the current level, which carries the rule; one from beneath it carries only
+    // the tint and so has no class of its own (design 18 §5.11, ruled 2026-11-16). One class
+    // rather than a tier per level, because the marks no longer say how deep anything is.
+    private static final String CAPTURE_RULED = ".mark--capture.mark--ruled";
+
+    // Captures of the pane-only fixture by the frame that bound them: the line taken whole, a key
+    // one frame below it, and the short host name three binding generations down.
+    private static final String CAPTURE_LINE = ".mark--capture[data-cap='2:0']";
+
+    private static final String CAPTURE_KEY = ".mark--capture[data-cap='4:0']";
+
+    private static final String CAPTURE_PAST_CAP = ".mark--capture[data-cap='8:0']";
+
+    // The templates of the pane-only fixture. Kept apart from the strict_kv ids above so that a
+    // selector written for one fixture cannot quietly match the other.
+    private static final String SOURCE_ID = "00000000-0000-0000-0000-000000000021";
+
+    private static final String LINE_ID = "00000000-0000-0000-0000-000000000022";
+
+    private static final String PAIR_ID = "00000000-0000-0000-0000-000000000023";
+
+    private static final String HOST_ID = "00000000-0000-0000-0000-000000000024";
+
     // The chip that carries a template's match, and opens the pattern workbench
     private static final String MATCH_CHIP = ".template-strip__match-chip";
     // A part's kind in the framed sequence's list; clicking it selects the part
@@ -1452,6 +1664,90 @@ public final class ShapeshifterEditorStories {
         return harness.asWidget();
     }
 
+    /// The content pane by itself, over [#nestedTrace()]: no editor, no tabs, no panel — the one
+    /// thing the pane's marks are for is being looked at, and everything else in the tab is in
+    /// the way of seeing them.
+    ///
+    /// The pane is a controller with a host, so the story brings a host of its own rather than
+    /// the document's. It is small because the pane asks little of it: a trace, a cursor, a
+    /// sample source so the pane knows there is data, and a colour per template.
+    ///
+    /// @param context The story's context, which disposes the controller.
+    /// @return The pane.
+    private static Widget renderPaneOnly(final StoryContext context) {
+        return renderPaneOnly(context, TraceModel.ROOT);
+    }
+
+    /// The pane by itself with the cursor on a chosen frame, since which frame is selected is
+    /// what decides whether anything is ruled at all (design 18 §5.11.2).
+    private static Widget renderPaneOnly(final StoryContext context, final long cursor) {
+        final ContentPane pane = new ContentPane();
+        final ContentPaneController controller =
+                new ContentPaneController(new SimpleEventBus()).attach(pane);
+        context.addCleanUp(controller::dispose);
+        final PaneOnlyHost host = new PaneOnlyHost(new TraceModel(nestedTrace()), controller, cursor);
+        controller.setHost(host);
+        return controller.asWidget();
+    }
+
+    // Two lines, each taken whole by the template that matched it, each holding two pairs that
+    // take a key and a value out of it, and one of those values holding a short host name. Three
+    // binding generations is the point: with the cursor anywhere, two of them are tinted and the
+    // third is drawn nothing, and with the cursor on a line exactly one of them is ruled. Built
+    // in Java rather than as JSON because every offset here has to agree with every other, and a
+    // constructor says which number is which where a wall of JSON does not.
+    private static ShapeshifterTrace nestedTrace() {
+        final String input = "host=web01 port=8080\nlevel=warn id=42\n";
+        final List<Frame> frames = Arrays.asList(
+                frame(1, 0, SOURCE_ID, "source", 0, 0, 0, input.length()),
+                // "host=web01 port=8080\n" and "level=warn id=42\n"
+                frame(2, 1, LINE_ID, "line", 0, 1, 0, 21),
+                frame(3, 1, LINE_ID, "line", 1, 1, 21, 17),
+                // the pairs within the first line, then within the second
+                frame(4, 2, PAIR_ID, "pair", 0, 2, 0, 10),
+                frame(5, 2, PAIR_ID, "pair", 1, 2, 11, 9),
+                frame(6, 3, PAIR_ID, "pair", 0, 2, 0, 10),
+                frame(7, 3, PAIR_ID, "pair", 1, 2, 11, 5),
+                // and a template beneath the first pair that reads the host's short name out
+                // of its value, so the pane has a capture three deep to leave unruled
+                frame(8, 4, HOST_ID, "hostname", 0, 3, 5, 5));
+        final List<Capture> captures = Arrays.asList(
+                // Each line, taken whole: the first binding generation, since neither the
+                // document nor the source frame above them binds anything
+                capture(2, "line", "host=web01 port=8080", 0, 20),
+                capture(3, "line", "level=warn id=42", 0, 16),
+                // and the key and value inside each pair, one frame below
+                capture(4, "key", "host", 0, 4),
+                capture(4, "value", "web01", 5, 5),
+                capture(5, "key", "port", 0, 4),
+                capture(5, "value", "8080", 5, 4),
+                capture(6, "key", "level", 0, 5),
+                capture(6, "value", "warn", 6, 4),
+                capture(7, "key", "id", 0, 2),
+                capture(7, "value", "42", 3, 2),
+                // inside the value capture of pair #0, which is itself inside the line capture:
+                // the third binding generation, and so past the cap from any cursor above it
+                capture(8, "short", "web", 0, 3));
+        return new ShapeshifterTrace(true, true, input, "", frames, captures,
+                Collections.emptyList(), Collections.emptyList(), Collections.emptyList(),
+                Collections.emptyList(), Collections.emptyList(), 7L,
+                Collections.emptyList(), Collections.emptyList(), 412_000L);
+    }
+
+    private static Frame frame(final long id, final long parentId, final String templateId,
+                               final String templateName, final int matchIndex, final int depth,
+                               final int contentOffset, final int contentLength) {
+        // The content is left null so that TraceModel cuts it out of the parent's, which is the
+        // only way these offsets can be wrong in the fixture and right on the screen.
+        return new Frame(id, parentId, templateId, templateName, matchIndex, depth,
+                contentOffset, contentLength, contentOffset, contentLength, null);
+    }
+
+    private static Capture capture(final long frameId, final String name, final String value,
+                                   final int contentOffset, final int contentLength) {
+        return new Capture(frameId, name, value, "scalar", contentOffset, contentLength);
+    }
+
     private static void open(final ScreenHarness harness, final AppScreenGinjector injector,
                              final DocRef docRef) {
         final DocumentEditorHost<ShapeshifterDoc> controller = new DocumentEditorHost<>(
@@ -1472,5 +1768,148 @@ public final class ShapeshifterEditorStories {
                         controller))
                 .taskMonitorFactory(controller)
                 .exec();
+    }
+
+    /// What the content pane needs of a host, and nothing else (design 18 §5.1). The editor's own
+    /// host carries a project, a document, modes and a run; a pane shown by itself has none of
+    /// those and would gain nothing from a mock of them.
+    ///
+    /// The one method with a body worth reading is [#hover(Hot)]. In the editor, pointing at a
+    /// mark asks the host to light what the request names, and the host tells every surface;
+    /// here the only surface is the pane, so the request goes straight back to it. That is what
+    /// makes the outline reachable in a story at all — a real pointer's hover has lapsed by the
+    /// time a screenshot is taken.
+    private static final class PaneOnlyHost implements ProjectHost {
+
+        private final TraceModel trace;
+        private final ContentPaneController pane;
+        private long cursor;
+
+        private PaneOnlyHost(final TraceModel trace, final ContentPaneController pane, final long cursor) {
+            this.trace = trace;
+            this.pane = pane;
+            this.cursor = cursor;
+        }
+
+        @Override
+        public Project getProject() {
+            // The pane never asks: it draws a trace, and takes its colours from colour(String).
+            return null;
+        }
+
+        @Override
+        public void replace(final Project project) {
+            // Nothing here edits.
+        }
+
+        @Override
+        public String colour(final String templateId) {
+            // The palette by position, as the editor's host gives it, written out because
+            // Colours.hue is not this package's to call.
+            if (LINE_ID.equals(templateId)) {
+                return "hsl(47, 62%, var(--mark__lightness))";
+            }
+            if (PAIR_ID.equals(templateId)) {
+                return "hsl(94, 62%, var(--mark__lightness))";
+            }
+            return "hsl(0, 62%, var(--mark__lightness))";
+        }
+
+        @Override
+        public void setColour(final String templateId, final String colour) {
+            // Nothing here edits.
+        }
+
+        @Override
+        public List<String> modes() {
+            return Collections.emptyList();
+        }
+
+        @Override
+        public void declareMode(final String mode) {
+            // Nothing here edits.
+        }
+
+        @Override
+        public void forgetMode(final String mode) {
+            // Nothing here edits.
+        }
+
+        @Override
+        public String getSample() {
+            return trace.content(TraceModel.ROOT);
+        }
+
+        @Override
+        public String getKeptSampleText() {
+            return trace.content(TraceModel.ROOT);
+        }
+
+        @Override
+        public SourceLocation getKeptSampleLocation() {
+            return null;
+        }
+
+        @Override
+        public SampleSource getSampleSource() {
+            // Not null, or the pane shows its empty state instead of the trace.
+            return SampleSource.pasted(trace.content(TraceModel.ROOT));
+        }
+
+        @Override
+        public void setSampleSource(final SampleSource source) {
+            // The sample is the fixture's.
+        }
+
+        @Override
+        public void run() {
+            // The trace is the fixture's; there is nothing to run.
+        }
+
+        @Override
+        public TraceModel trace() {
+            return trace;
+        }
+
+        @Override
+        public boolean isStale() {
+            return false;
+        }
+
+        @Override
+        public long cursor() {
+            return cursor;
+        }
+
+        @Override
+        public void setCursor(final long frameId) {
+            cursor = frameId;
+            pane.refresh();
+        }
+
+        @Override
+        public boolean canGoBack() {
+            return false;
+        }
+
+        @Override
+        public boolean canGoForward() {
+            return false;
+        }
+
+        @Override
+        public void goBack() {
+            // There is nowhere to go back to.
+        }
+
+        @Override
+        public void goForward() {
+            // There is nowhere to go forward to.
+        }
+
+        @Override
+        public void hover(final Hot hot) {
+            pane.setHot(hot);
+        }
     }
 }

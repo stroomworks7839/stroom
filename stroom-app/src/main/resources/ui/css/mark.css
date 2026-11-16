@@ -13,6 +13,11 @@
  * theme's, and no one number clears both. A hue a user chose for a template is not affected, as
  * that colours a rule and a wash rather than text.
  */
+/* A match draws nothing of its own (design 18 Q15, built as Q17 2026-11-12). It had a
+   translucent fill and a 2px underline in its template's hue, which with the capture tint and
+   its dotted rule made four permanent channels answering two questions. Its extent is revealed
+   by pointing at it, or at the template, dispatch row or output that owns it — the `highlight`
+   vocabulary, which was already there. */
 .mark {
     -webkit-box-decoration-break: clone;
     box-decoration-break: clone;
@@ -21,8 +26,6 @@
     outline: 2px solid transparent;
     outline-offset: 1px;
     transition: outline-color .15s ease-out;
-    background-color: color-mix(in srgb, var(--hue) 14%, transparent);
-    border-bottom: 2px solid var(--hue);
 }
 
 .mark:hover {
@@ -39,22 +42,56 @@
     margin: 0 1px;
 }
 
-/* With a cursor below the document, only what it wrote is at full strength. */
+/* With a cursor below the document, only what it wrote is at full strength. .67 rather than
+   the .45 this was: the mark fades body text, and opacity fades contrast with it — .45 leaves
+   #151515 on the light theme's control surface at 2.52:1, where .67 is the lowest value that
+   still clears 4.5:1 on every surface either theme puts this text on. Quieter than its
+   surroundings is the whole requirement; illegible was never part of it. */
 .mark--dim {
-    opacity: .45;
+    opacity: .67;
 }
 
-/* The capture tint: the text itself in the capture's hue, a dotted rule under it for the
-   captures whitespace makes invisible (the mockup's one permanent mark). */
+/* Two channels over a capture, and each answers one question (design 18 §5.11, ruled
+   2026-11-16): the text's own colour says "this is a capture", and a rule under it says "this
+   capture is one of the current level's". Neither says how deep the bytes came from.
+
+   Three attempts came before this and all three were trying to draw depth. Opacity in three
+   steps (Q18) faded the glyphs along with the mark, undoing the exact calibration
+   `--mark__lightness` exists to make: measured over the eight generated hues the weakest went
+   from 5.05:1 to 3.32:1 at the first step on the light theme — already under AA — and to
+   1.89:1 at the third, under even the 3:1 large-text floor. Texture in two steps cost no
+   contrast but could not be read, because a dotted rule drawn over a solid one *is* a solid
+   rule: the gaps between the dots are filled in from underneath. Three tiers with the outer
+   capture's rule cut back to its uncovered runs could be read, and was still answering a
+   question neither channel is now asked. */
 .mark--capture {
     -webkit-box-decoration-break: clone;
     box-decoration-break: clone;
     color: var(--hue);
     border-radius: 2px;
-    border-bottom: 1px dotted color-mix(in srgb, var(--hue) 50%, transparent);
     outline: 2px solid transparent;
     outline-offset: 1px;
-    transition: outline-color .15s ease-out;
+    transition: outline-color .15s ease-out, border-bottom-width .1s ease-out;
+}
+
+/* A capture of the current level: the rule, in the same colour the variables pane gives its
+   row, because they are the same thing.
+
+   At 75% of the hue rather than the 50% it was: where a capture is all whitespace the rule is
+   the entire mark, so it has to clear WCAG 1.4.11's 3:1 for a graphic that carries meaning, and
+   50% does not — 2.05:1 against the light theme's control surface on the weakest of the eight
+   generated hues, where 75% gives 3.14:1 and clears on all three surfaces. */
+.mark--capture.mark--ruled {
+    border-bottom: 1px solid color-mix(in srgb, var(--hue) 75%, transparent);
+}
+
+/* Pointed at, from either end: the rule thickens and the variables pane's row lights, which is
+   the `highlight` vocabulary doing the second half. The rule carries the hover rather than only
+   the outline, because the rule is the channel the pointer is asking about. */
+.mark--capture.mark--ruled:hover,
+.mark--capture.mark--ruled.highlight {
+    border-bottom-width: 2px;
+    border-bottom-color: var(--hue);
 }
 
 .mark--capture:hover {

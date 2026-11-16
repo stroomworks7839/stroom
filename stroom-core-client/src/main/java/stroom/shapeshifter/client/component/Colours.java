@@ -27,6 +27,32 @@ final class Colours {
     private Colours() {
     }
 
+    /// A generated hue by position (design 18 §10): a capture group's chip, its row and its span
+    /// in the pattern map, and the numbering [CaptureHues] allocates from. Its lightness comes
+    /// from the theme ([#HUE_LIGHTNESS]) rather than being a number here: the hue is the text's
+    /// own colour, and one lightness cannot clear 4.5:1 against both the light theme's control
+    /// surface and the dark theme's.
+    ///
+    /// The index means different things to different callers, and they do not agree as a result:
+    /// the pattern workbench and the sample pane pass a group's number within its pattern, while
+    /// the content and variables panes pass a position in [CaptureHues]'s allocation over
+    /// everything in scope. So one capture can be one colour beside its pattern and another in
+    /// the panes. That follows from the ruling that the variables pane owns a capture's colour
+    /// (design 18 §5.11.2) and is not yet resolved — §5.11.2 reasoned about two places a colour
+    /// appears, and the pattern workbench is a third.
+    ///
+    /// It lives here rather than on a controller because [CaptureHues] has to be testable: a
+    /// controller's static initialiser calls `GWT.create`, which a plain JUnit test cannot.
+    ///
+    /// @param index The position being coloured, counted from one.
+    /// @return The colour.
+    static String hue(final int index) {
+        // floorMod, not %: a caller counting from zero would otherwise produce a negative hue,
+        // which Colours.safe rejects and paints transparent — one capture silently uncoloured
+        // rather than a visibly wrong colour, which is the hardest kind of bug to notice.
+        return "hsl(" + Math.floorMod((index - 1) * 47, 360) + ", 62%, " + HUE_LIGHTNESS + ")";
+    }
+
     /// The colour if it is a hex triplet/sextet, a word or the hue form `hsl(h, s%, l%)`;
     /// `transparent` otherwise.
     static String safe(final String colour) {

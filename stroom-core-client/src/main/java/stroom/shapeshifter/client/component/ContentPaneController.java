@@ -36,12 +36,17 @@ import java.util.NavigableSet;
 import java.util.Objects;
 import java.util.TreeSet;
 
-/// The content pane (design 18 §5.1, §5.3): the cursor frame's content, with the matches its
-/// body dispatched marked in their templates' colours — a click descends into the match under
-/// it — and every capture bound in it or beneath it tinted in its hue, at every depth, so an IP
-/// or a timestamp is coloured from the document frame down and the pane shows real work
-/// happening deeper. Content a match holds that is not a slice of this frame's — a value from a
-/// variable — is listed under the text, since it has no place in it.
+/// The content pane (design 18 §5.1, §5.3, §5.11): the cursor frame's content, with the matches
+/// its body dispatched marked in their templates' colours — a click descends into the match
+/// under it — and the captures tinted in their own colours so that an IP or a timestamp is
+/// visibly a matched piece of text rather than a run of characters. Content a match holds that
+/// is not a slice of this frame's — a value from a variable — is listed under the text, since it
+/// has no place in it.
+///
+/// Two channels, each answering one question (design 18 §5.11, ruled 2026-11-16): **the colour
+/// says "this is a capture", the rule says "this one is yours"**. Neither says how deep, which
+/// is what three attempts at drawing depth — weight, then texture, then tiers — each failed to
+/// do without taking the other channel's meaning with it.
 ///
 /// Without data the pane is an empty state pointing at the one door there is (design 18 §5.7,
 /// design 44 §5): the crumb's sample chooser, a stream or text pasted. The pane itself never
@@ -121,10 +126,10 @@ public class ContentPaneController extends Controller {
                 loose.add(new Loose(child.getId(), trace.label(child.getId()), colour, trace.content(child.getId())));
             } else {
                 marks.add(new Mark(Kind.MATCH, child.getId(), -1, child.getTemplateId(), child.getContentOffset(),
-                        child.getContentOffset() + child.getContentLength(), colour, title, Mark.flagOf(worst)));
+                        child.getContentOffset() + child.getContentLength(), colour, title));
             }
         }
-        captureMarks(trace, cursor, 0, marks);
+        marks.addAll(captureMarks(trace, cursor, CaptureHues.inScope(trace, cursor)));
         // Where the dispatch tried and nothing matched: the gaps, marked so an unmatched line is a
         // thing to see, not an absence to infer (design 18 §5.3). One mark per place, however
         // many templates were tried there, and none inside a match.
@@ -161,27 +166,56 @@ public class ContentPaneController extends Controller {
         return "a message beneath — descend to see it";
     }
 
-    /// The captures of a frame and of every frame beneath it that is a slice of it, placed in the
-    /// cursor's content: a frame's offset in the cursor is its parent's plus its own. A frame
-    /// whose content is no slice ends the descent, since nothing under it has a place here.
-    private void captureMarks(final TraceModel trace, final long frameId, final int base, final List<Mark> marks) {
-        final List<Capture> captures = trace.captures(frameId);
-        for (int i = 0; i < captures.size(); i++) {
-            final Capture capture = captures.get(i);
-            // One-based, as the sample pane's group numbers are: hue() counts from one.
-            final String colour = RegexController.hue(i + 1);
-            if (capture.getContentOffset() >= 0) {
-                final Frame frame = trace.frame(frameId);
-                marks.add(new Mark(Kind.CAPTURE, frameId, i, null, base + capture.getContentOffset(),
-                        base + capture.getContentOffset() + capture.getContentLength(), colour,
-                        "$" + capture.getName() + " = " + shortValue(capture.getValue()) + (frame == null
-                                ? ""
-                                : " — " + frame.getTemplateName() + " #" + frame.getMatchIndex())));
+    /// The captures the pane tints, placed in the cursor's content (design 18 §5.11.1, §5.11.2,
+    /// ruled 2026-11-16).
+    ///
+    /// **The tint identifies captures, and says nothing about depth.** A capture bound beneath
+    /// the cursor is coloured exactly as one bound at it; what stops the pane filling with
+    /// colour is a cap on how many generations contribute, not a fade applied to the deeper
+    /// ones. Without the cap an IP address bound as a capture, with each octet bound by a
+    /// template beneath it, would be coloured as an address and then immediately recoloured as
+    /// four numbers — which tells the reader nothing the first colouring did not, and costs the
+    /// first its meaning. [CaptureHues#reached] settles which frames are in reach.
+    ///
+    /// **The rule says which captures are the current level's**, so only the cursor's own are
+    /// ruled. That is the one place the two channels are allowed to disagree over a run of text,
+    /// and the disagreement is the information: tinted but not ruled means *a capture, but not
+    /// one of yours*.
+    ///
+    /// A frame's offset in the cursor's content is its parent's plus its own; a frame whose
+    /// content is no slice ends the descent, since nothing under it has a place here.
+    ///
+    /// @param trace The run.
+    /// @param cursor The selected frame.
+    /// @param hues The colour of each capture in scope, shared with the variables pane.
+    /// @return The marks to draw.
+    private static List<Mark> captureMarks(final TraceModel trace, final long cursor, final CaptureHues hues) {
+        final List<Mark> marks = new ArrayList<>();
+        place(trace, cursor, cursor, 0, hues, marks);
+        return marks;
+    }
+
+    private static void place(final TraceModel trace, final long cursor, final long frameId, final int base,
+                              final CaptureHues hues, final List<Mark> marks) {
+        if (hues.inReach(frameId)) {
+            final List<Capture> captures = trace.captures(frameId);
+            final Frame frame = trace.frame(frameId);
+            for (int i = 0; i < captures.size(); i++) {
+                final Capture capture = captures.get(i);
+                if (capture.getContentOffset() >= 0) {
+                    marks.add(new Mark(Kind.CAPTURE, frameId, i, null, base + capture.getContentOffset(),
+                            base + capture.getContentOffset() + capture.getContentLength(),
+                            hues.hue(frameId, i),
+                            "$" + capture.getName() + " = " + shortValue(capture.getValue()) + (frame == null
+                                    ? ""
+                                    : " — " + frame.getTemplateName() + " #" + frame.getMatchIndex()),
+                            frameId == cursor));
+                }
             }
         }
         for (final Frame child : trace.children(frameId)) {
             if (child.getContentOffset() >= 0) {
-                captureMarks(trace, child.getId(), base + child.getContentOffset(), marks);
+                place(trace, cursor, child.getId(), base + child.getContentOffset(), hues, marks);
             }
         }
     }

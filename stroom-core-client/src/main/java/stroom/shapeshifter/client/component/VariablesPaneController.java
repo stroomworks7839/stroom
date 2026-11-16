@@ -84,6 +84,15 @@ public class VariablesPaneController extends Controller {
             return;
         }
         final List<Section> sections = new ArrayList<>();
+        // The pane owns a capture's colour and the content pane reads it from here, so both build
+        // the same allocation rather than each generating one (design 18 §5.11.2, ruled
+        // 2026-11-16). It is numbered over everything in scope, not per frame, because this pane
+        // shows every frame on the path at once and a per-frame index gave two of them the same
+        // hue.
+        // onPath rather than inScope: this pane shows the path and nothing below it, and the path
+        // is numbered first, so the subtree walk would allocate the same colours for these rows
+        // and then be thrown away. With the cursor at the document that walk is the whole tree.
+        final CaptureHues hues = CaptureHues.onPath(trace, host.cursor());
         final List<Long> path = trace.path(host.cursor());
         for (int i = path.size() - 1; i >= 0; i--) {
             final long id = path.get(i);
@@ -93,7 +102,7 @@ public class VariablesPaneController extends Controller {
             for (int c = 0; c < captures.size(); c++) {
                 final Capture capture = captures.get(c);
                 rows.add(new Row(id, c, "$" + capture.getName(), capture.getType(), capture.getValue(),
-                        RegexController.hue(c + 1)));
+                        hues.hue(id, c)));
             }
             final boolean own = id == host.cursor();
             sections.add(new Section(id, own

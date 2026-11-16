@@ -202,8 +202,12 @@ public final class Marks {
             case INSTRUCTION -> tag.append("mark--instruction");
             case DIM -> tag.append("mark--dim");
         }
-        if (mark.getFlag() != null) {
-            tag.append(" severity-flag severity-flag--").append(mark.getFlag());
+        // The rule says "this capture is one of the current level's" and nothing else (design 18
+        // §5.11.2, ruled 2026-11-16). Depth is not drawn, here or by the tint, so there is one
+        // class rather than a tier per level: a capture from beneath the cursor is tinted the
+        // same and simply not ruled.
+        if (mark.isRuled()) {
+            tag.append(" mark--ruled");
         }
         tag.append('"');
         switch (mark.getKind()) {

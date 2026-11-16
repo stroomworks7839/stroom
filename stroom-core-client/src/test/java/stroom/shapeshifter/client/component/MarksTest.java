@@ -52,6 +52,17 @@ class MarksTest {
     }
 
     @Test
+    void aCaptureOfTheCurrentLevelIsRuledAndOneFromBelowIsNot() {
+        // The rule is the whole of the second channel (design 18 §5.11.2): the tint says "this is
+        // a capture" on both of these, and only the current level's carries a class for the rule.
+        assertThat(render("ab",
+                new Mark(Kind.CAPTURE, 1, 0, null, 0, 1, null, null, true),
+                new Mark(Kind.CAPTURE, 2, 0, null, 1, 2, null, null, false)))
+                .isEqualTo("<span class=\"mark--capture mark--ruled\" data-cap=\"1:0\">a</span>"
+                           + "<span class=\"mark--capture\" data-cap=\"2:0\">b</span>");
+    }
+
+    @Test
     void markStraddlingItsOutersEndIsClippedThere() {
         assertThat(render("abcdef",
                 new Mark(Kind.MATCH, 1, -1, "t", 0, 3, null, null),

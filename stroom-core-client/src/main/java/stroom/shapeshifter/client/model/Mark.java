@@ -63,15 +63,18 @@ public final class Mark {
     private final int end;
     private final String colour;
     private final String title;
-    private final String flag;
+    private final boolean ruled;
 
     public Mark(final Kind kind, final long frameId, final int index, final String templateId, final int start,
                 final int end, final String colour, final String title) {
-        this(kind, frameId, index, templateId, start, end, colour, title, null);
+        this(kind, frameId, index, templateId, start, end, colour, title, false);
     }
 
+    /// A mark that is ruled: a capture of the current level, underlined in its colour.
+    ///
+    /// @param ruled Whether to draw the rule.
     public Mark(final Kind kind, final long frameId, final int index, final String templateId, final int start,
-                final int end, final String colour, final String title, final String flag) {
+                final int end, final String colour, final String title, final boolean ruled) {
         this.kind = kind;
         this.frameId = frameId;
         this.index = index;
@@ -80,7 +83,20 @@ public final class Mark {
         this.end = end;
         this.colour = colour;
         this.title = title;
-        this.flag = flag;
+        this.ruled = ruled;
+    }
+
+    /// Whether the mark carries a rule under it (design 18 §5.11.2, ruled 2026-11-16).
+    ///
+    /// The rule answers one question only — *is this capture one of the current level's?* — and
+    /// so it is one bit. Nothing about depth is drawn by it, or by the tint: a capture from
+    /// below the cursor is tinted exactly as one at it, and simply not underlined. Three tiers
+    /// of rule came before this, and before them three steps of opacity, both of which were
+    /// trying to make a mark say where in the hierarchy its bytes came from (design 18 §5.11.5).
+    ///
+    /// @return Whether to draw the rule.
+    public boolean isRuled() {
+        return ruled;
     }
 
     public Kind getKind() {
@@ -118,13 +134,16 @@ public final class Mark {
         return title;
     }
 
-    /// A word the stylesheet paints the mark by — a severity: `warning`, `error`,
-    /// `fatal` — or null.
-    public String getFlag() {
-        return flag;
-    }
-
-    /// The flag for a severity rank, or null below warning.
+    /// A severity as a word the stylesheet paints by, or null below warning.
+    ///
+    /// A mark no longer carries one (design 18 §5.11.4, 2026-11-16): the rules that painted a
+    /// match by its severity were removed on 2026-11-12 with the border they shared, and the
+    /// gutter that replaces them keys markers by line rather than by mark, so the content pane
+    /// emitted classes that styled nothing. A template's row still carries a flag and still
+    /// paints by it, which is what this is for.
+    ///
+    /// @param rank The severity, as [stroom.shapeshifter.client.model.TraceModel#rank] ranks it.
+    /// @return The word, or null.
     public static String flagOf(final int rank) {
         switch (rank) {
             case 2:
