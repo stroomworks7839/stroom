@@ -1272,6 +1272,39 @@ public final class ShapeshifterEditorStories {
                     expectNoProblems(play);
                 })
 
+                // A pane that is redrawn under a stationary pointer is told again what is
+                // pointed at. Descending is the common way in: the click refreshes every pane
+                // with the pointer still on the mark it was clicking, the Html is replaced so
+                // the `highlight` on it is gone, and the browser fires no `mouseover` for a
+                // pointer standing still — so without the re-light the thing under the pointer
+                // goes dark and stays dark until the pointer finds a different mark.
+                //
+                // The `:hover` rules used to cover this for free. Removing them (design 18
+                // §5.12.3) left it to be done on purpose, and this is the regression test.
+                .story("InputPaneStaysLitAcrossADescend", context -> render(context, false))
+                .withPlay(play -> {
+                    selectTemplate(play, "pair");
+                    play.click(runButton(play));
+                    play.waitFor(() -> play.expect(play.querySelector(EDITOR_CAPTURE_KEY))
+                            .not().toBeNull());
+                    play.hover(play.querySelector(EDITOR_CAPTURE_KEY));
+                    play.waitFor(() -> play.expect(play.querySelector(EDITOR_CAPTURE_KEY))
+                            .toHaveClass("highlight"));
+                    // Clicking a capture descends into the match that holds it — the *source*
+                    // frame, not the pair that bound the capture, because the pane marks only
+                    // the cursor's direct children and the pair is a grandchild of the document.
+                    // One level per click (§5.12.4), so the capture is still a generation below
+                    // afterwards and still drawn, under the same key.
+                    play.click(play.querySelector(EDITOR_CAPTURE_KEY));
+                    play.waitFor(() -> play.expect(play.querySelector(OUTPUT_SOURCE_CARD))
+                            .toHaveClass("mark--ruled"));
+                    // ...and still lit, which is the whole point: the pane was redrawn under a
+                    // pointer that never moved.
+                    play.expect(play.querySelector(EDITOR_CAPTURE_KEY)).toHaveClass("highlight");
+                    play.expect(play.querySelector(EDITOR_CAPTURE_KEY)).not().toHaveClass("mark--ruled");
+                    expectNoProblems(play);
+                })
+
                 // Clicking output written by a card *below* the cursor descends — one level,
                 // to the frame whose body ran it, which is what the reader is asking to stand
                 // in (design 18 §5.13.3). The cursor is the document here and the clicked card
@@ -1597,6 +1630,10 @@ public final class ShapeshifterEditorStories {
 
     // A card of the current level, which carries the rule.
     private static final String OUTPUT_RULED = ".mark--instruction.mark--ruled";
+
+    // The key of the first pair in this fixture's content pane, which is drawn one generation
+    // below the document and is the cursor's own once the pane descends into that pair.
+    private static final String EDITOR_CAPTURE_KEY = ".mark--capture[data-cap='2:0']";
 
 
     // The chip that carries a template's match, and opens the pattern workbench

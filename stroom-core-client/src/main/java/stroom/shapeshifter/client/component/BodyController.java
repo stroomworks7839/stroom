@@ -244,11 +244,20 @@ public class BodyController extends Controller {
                 : Hot.instruction(frame, index));
     }
 
-    /// Bring a top-level card into view and light it.
+    /// Bring a top-level card of the cursor's own body into view.
+    ///
+    /// Guarded on the body on show being the cursor's, as [#setHot(Hot)] is. The strip's body
+    /// and the cursor can part company: selecting a template that matched nothing leaves the
+    /// cursor where it was (`ShapeshifterDesignController.goTo`) while the strip swaps to that
+    /// template, and selecting the document row leaves the body panel off screen entirely.
+    /// Scrolling to card *index* of whatever body happens to be there would be an answer to a
+    /// question nobody asked.
     ///
     /// @param index The card's position in the body.
     public void revealCard(final int index) {
-        view.reveal(index);
+        if (annotatedFrame() == host.cursor()) {
+            view.reveal(index);
+        }
     }
 
     /// An instruction of the annotated frame lights its card.

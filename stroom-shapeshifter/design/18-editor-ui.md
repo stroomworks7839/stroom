@@ -1492,6 +1492,14 @@ Two implementation notes that are really design constraints:
   it. So the block carries a class while anything is hot and the fade is `:not(.highlight)`
   beneath it. `Marks.light` already walks every span once per hover, so this costs nothing
   new.
+- **A redrawn pane has to be told again what is pointed at** (found by review, 2026-11-17).
+  Redrawing replaces the Html, so the marks carrying `highlight` are gone and `Marks.rest` has
+  cleared the block; the pointer has not moved, the browser fires no `mouseover` for a pointer
+  standing still, and `hover(Hot)` would discard it as a repeat if it did. The thing under the
+  pointer therefore goes dark and stays dark until the pointer finds a different mark. A click
+  that descends is the common way in — it refreshes every pane with the pointer still on the
+  mark it was clicking. This is the one thing the `:hover` rules did for free, and `:hover`
+  being gone makes it something to do on purpose: `refreshTrace` lights the panes again.
 - **The block's class goes on only when something actually lit.** The variables pane lists
   the captures of the cursor's *ancestors*, which are on the path but outside the cap and so
   have no mark in the text. Hovering such a row under a naive rule fades every rule and

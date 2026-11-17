@@ -817,6 +817,12 @@ public class ShapeshifterDesignController
             return;
         }
         this.hot = hot;
+        light();
+    }
+
+    /// Tell every surface what is pointed at. Apart from [#hover(Hot)] because a redrawn pane
+    /// has to be told again, and that is not a change of what is pointed at.
+    private void light() {
         templatePanel.setHot(hot);
         crumb.setHot(hot);
         input.setHot(hot);
@@ -833,6 +839,16 @@ public class ShapeshifterDesignController
         input.refresh();
         variables.refresh();
         output.refresh();
+        // Redrawing a pane throws away what was lit in it: the Html is replaced, so the marks
+        // carrying `highlight` are gone and `Marks.rest` has cleared the block. The pointer has
+        // not moved and the browser fires no `mouseover` for a pointer standing still — and if
+        // it did, hover(Hot) would discard it as a repeat — so without this the thing under the
+        // pointer goes dark and stays dark until the pointer finds a different mark.
+        //
+        // This is the one thing the `:hover` rules did for free, and removing them (design 18
+        // §5.12.3) left it to be done on purpose. A click that descends is the common way in:
+        // it refreshes every pane with the pointer still on the mark it was clicking.
+        light();
     }
 
     private void onSelect(final String rowId) {

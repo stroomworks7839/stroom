@@ -157,7 +157,7 @@ public class TemplateStripController extends Controller {
         bodyPresenter.setHot(hot);
     }
 
-    /// Bring a top-level card of the body on show into view and light it (design 18 §5.13.3).
+    /// Bring a top-level card of the body on show into view (design 18 §5.13.3).
     ///
     /// @param index The card's position in the body.
     public void revealCard(final int index) {
