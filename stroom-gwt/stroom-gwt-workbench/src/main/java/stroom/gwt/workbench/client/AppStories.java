@@ -143,6 +143,7 @@ import stroom.gwt.workbench.client.app.security.UserProfileScreenStories;
 import stroom.gwt.workbench.client.app.security.UserTabScreenStories;
 import stroom.gwt.workbench.client.app.security.UsersScreenStories;
 import stroom.gwt.workbench.client.app.shapeshifter.ShapeshifterEditorStories;
+import stroom.gwt.workbench.client.app.shapeshifter.ShapeshifterPaneStories;
 import stroom.gwt.workbench.client.app.vis.ChartVisStories;
 import stroom.gwt.workbench.client.app.vis.MapVisStories;
 import stroom.gwt.workbench.client.app.vis.NetworkVisStories;
@@ -407,6 +408,7 @@ public final class AppStories {
         DictionaryEditorStories.addTo(registry);
         // App/Shapeshifter/ShapeshifterEditor
         ShapeshifterEditorStories.addTo(registry);
+        ShapeshifterPaneStories.addTo(registry);
         // App/Security/DocumentPermissionsTab
         DocumentPermissionsTabStories.addTo(registry);
         // App/Index/ElasticIndexEditor
