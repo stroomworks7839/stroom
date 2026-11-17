@@ -1105,6 +1105,11 @@ move.
 **Colour says "this is a capture". The underline says "this one is yours."** Those are
 different questions, they belong to different channels, and neither of them is "how deep".
 
+*Generalised 2026-11-17: those turned out not to be the content pane's questions. The
+principles are now stated once, pane-independently, as §5.12, and applied to the output pane
+as §5.13. What stays here is the content pane's own record and the reasoning specific to
+captures — including the subsections below that §5.12 has since amended.*
+
 #### 5.11.1 Text colour — which bytes became a variable
 
 The tint identifies **captures**, so that an IP address, a user name or a timestamp is
@@ -1187,6 +1192,10 @@ underlined, however deep the tint reaches.
   Here too a variable's colour moves as you walk, consistent with the tint's own cap.
 - **On hover the underline thickens, and the variable's row in the variables pane
   highlights.** The existing `highlight` vocabulary already carries the second half.
+  *Amended 2026-11-17 (§5.12.3): it no longer thickens — it brightens. Every other rule in
+  the pane fades out while the pointer is on one, and a capture below the cursor's level,
+  which has no rule at rest, gains one while it is pointed at. Pointing says nothing but the
+  rule now; the outline this was built with is repealed, and the width step went with it.*
 
 The two channels are therefore allowed to disagree over one run of text, and that
 disagreement is the information: tinted but not underlined means *a capture, but not one
@@ -1207,6 +1216,10 @@ template (`ShapeshifterDesignController`), which §5.1 asked for and every route
 cursor goes through. So this subsection needed no work — the only part of §5.11 still
 unbuilt is the gutter in §5.11.4.
 
+*Generalised as §5.12.4 on 2026-11-17, with the reason the pane's click is not redundant
+now that selecting a template navigates: a template selection can only reach its first
+match, and pointing at text is the only route to the one under the pointer.*
+
 #### 5.11.4 Errors — a gutter, and a mode
 
 Errors appear **in the gutter beside the text, as data stepping shows them**, rather than
@@ -1217,6 +1230,15 @@ ranges that have errors, and temporarily hides the other highlighting.** That ma
 error view a *mode* rather than a fourth channel competing with the three above — the one
 time the pane stops answering "what was captured here" and answers "what went wrong here"
 instead, with the screen to itself while it does.
+
+**The gutter is a strip down the left, beside the text** (ruled 2026-11-16). Stepping has
+two marker strips and the ruling named neither: the left gutter beside the line numbers,
+which is where a stepper user looks for an error flag, and the right-hand overview bar,
+which is a scroll map. The content pane gets the left strip, because that is what "as data
+stepping shows them" trains the eye to expect. It cannot *be* Ace's gutter — that is Ace's
+own DOM (§5.11.8) — so it is Stroom's own strip built with `OverviewBar`'s technique. The
+cost, accepted: an error scrolled off-screen is not shown, which is the overview bar's one
+real advantage, and it can be added later without disturbing this.
 
 **The markers are placed from measured geometry, as `OverviewBar` does** (ruled
 2026-11-16). `.content-box` is `white-space: pre-wrap` with `word-break: break-all` and
@@ -1236,8 +1258,12 @@ of re-measuring on resize and on re-render.
 - §5.4's "descendants nested (direct children prominent, deeper levels visible but
   quieter)", which is the same idea in its original form and has now failed twice.
 
-Kept: Q15/Q17 (a match draws no permanent mark of its own), the hover outline and the
-four-way lighting between pane, template row, dispatch row and output.
+Kept: Q15/Q17 (a match draws no permanent mark of its own) and the four-way lighting
+between pane, template row, dispatch row and output. **The hover outline was kept here and
+is now repealed** (§5.12.3, 2026-11-17): it was drawn through the neighbouring line in the
+output pane, it broke into one closed box per line wherever a mark wrapped, and it was being
+drawn by two mechanisms at once — of which CSS `:hover`, the one the delegated handler had
+been written to replace, also outlined every ancestor of what the pointer was on.
 
 **Built 2026-11-16**, in the vocabulary the ruling implies rather than the one it replaced:
 `CaptureHues` allocates a colour per capture over everything in scope and both panes read
@@ -1281,14 +1307,16 @@ place.
 
 #### 5.11.7 Settled after the build, 2026-11-16
 
-Three things the ruling did not reach, found by reviewing the built code and ruled the same
-day.
+Four things the ruling did not reach, found by reviewing the built code and the screenshots
+of it, and ruled the same day.
 
 1. **A whitespace-only capture inside the cap but not at the cursor's level carries no mark
    at rest, and that is accepted.** `color` paints nothing on a run of spaces and the rule is
    now the current level's alone, so such a capture is unmarked until it is pointed at —
-   whereupon it still outlines in its hue and shows its title, because the span occupies
-   width and `.mark--capture:hover` was already wired. Unannounced rather than unreachable,
+   whereupon it still shows its title, and under §5.12.3 it gains a rule in its hue — which
+   is the one mark that works on a run of spaces, and why the rule's contrast was measured at
+   75% to begin with. (As first built it outlined instead, `.mark--capture:hover` being
+   already wired; the outline is repealed.) Unannounced rather than unreachable,
    which is what makes it acceptable. The reasoning against a whitespace exception below the
    cap (§5.11.6 item 5) half-applies here: a mark at this depth would be bounded, so it would
    not put marks back at unbounded depth, but it would still appear for a reason the reader
@@ -1307,7 +1335,18 @@ day.
    of the walk. The only thing that would genuinely reconcile all three is deriving the hue
    from `templateId + name` with no trace and no order, which is the name-hashing already
    ruled against (§5.11.6 item 3).
-3. **A mark carries no severity flag at all.** The content pane went on emitting
+3. **An outer capture's tint showing only where its children leave gaps is accepted** (ruled
+   2026-11-16, from the screenshots). Where `$line` encloses `$key` and `$value`, the line's
+   colour survives only on the `=` and the space between pairs, so the outermost capture
+   reads at a glance as "the punctuation is marked". It stays, because those characters
+   genuinely are in that capture and in no other, and one colour per character with the
+   innermost winning is what makes nesting legible at all. The connection is made in the
+   variables pane, which shows `$line` in the same colour, and by pointing at the run, which
+   reveals its full extent. The alternatives were to suppress an outer tint its children
+   cover — which would put a capture in reach that draws nothing, the blind spot accepted
+   only below the cap — and to give containment a channel of its own, which is what §5.11
+   exists to avoid.
+4. **A mark carries no severity flag at all.** The content pane went on emitting
    `severity-flag--{warning,error,fatal}` on its match marks for two rounds after the rules
    behind them were deleted with the border they shared (2026-11-12), so a run carrying an
    error was pixel-identical to a clean one while the markup said otherwise. The emission is
@@ -1344,6 +1383,321 @@ that vocabulary rather than inventing a second one, which is also what Q19 asked
 back into `errorMap`, so copying an `Indicator` whose severity key is absent drops the
 entries. Nothing on the stepping path calls it — `IndicatorLines` builds through `add` —
 so this is a latent bug, not a live one, but anything leaning on these classes should know.)
+
+### 5.12 What a pane's marks mean, in general
+
+*Ruled 2026-11-17. §5.11 settled the content pane by asking what each channel was **for**
+before asking what it should look like. The same questions were then put to the output
+pane and came back with the same answers — which is the sign that they were never the
+content pane's questions. They are collected here as law for any pane that marks text, so
+that the next pane applies them rather than re-deriving them. The re-derivation is exactly
+how §5.11 accumulated four superseded attempts.*
+
+A pane that marks text has **two permanent channels and one transient one**: the text's own
+colour, a rule under it, and whatever the pointer is doing. Six principles govern them.
+
+#### 5.12.1 One channel, one question — and depth is not one of the questions
+
+Each permanent channel answers exactly one question, and the two questions are fixed.
+
+- **Colour says what kind of thing this is.** In the content pane, "these bytes became a
+  variable"; in the output pane, "a card wrote these bytes". It is an identity channel.
+- **The rule says whose it is.** "This one belongs to the level you are standing on." One
+  bit, not a scale.
+
+**Nothing draws depth.** Not weight, not texture, not hue, not opacity. §5.11 reached this
+after three attempts to draw it — opacity in three steps, texture in two, then three tiers
+of rule — each a correct answer to the attempt before it, and none able to say "how deep"
+without taking an identity channel's meaning with it. Dropping the question makes it go
+away rather than move.
+
+The two channels are allowed to disagree over one run of text, and **the disagreement is
+the information**: marked but not ruled means *one of these, but not one of yours*.
+
+#### 5.12.2 Reach is capped, not graded
+
+A pane marks **two generations from the cursor** — the cursor's own, and one level below —
+and nothing beyond. The cap re-bases as the cursor walks, so there are always two levels of
+look-ahead wherever the reader stands.
+
+A **generation is a frame that produces something the pane can draw**, not a frame. A frame
+that draws nothing shows the reader nothing and must not spend one of the two, because
+spending it also prunes the frames below it. What counts as drawable is the pane's own
+business: for the content pane, a capture whose bytes are a slice of the frame's content
+(`Instrument.NOT_A_SLICE` excludes the rest); for the output pane, an instruction that wrote
+characters rather than events.
+
+The accepted consequence, in both panes: a byte can change colour as the reader descends.
+The alternative — counting from the document root — leaves the reader with no marks at all
+past level two, which is precisely where the detail being inspected lives.
+
+#### 5.12.3 One highlight mechanism, and it is the rule
+
+*Ruled 2026-11-17, repealing the hover outline §5.11.5 had kept.*
+
+**Pointing is said with underlines only: no outline, no border, no box**, in any pane.
+
+Three reasons, in increasing order of how hard they are to argue with.
+
+1. **The outline is drawn through the neighbouring line.** It was `2px` at
+   `outline-offset: 1px`, so 3px beyond the inline box on every side. `.content-box` is 13px
+   text at `line-height: 2.1` — about 6px of half-leading, which it just clears — but the
+   output pane is 13px at `1.7`, about 3.5px, so the box lands on the lines above and below.
+2. **It contradicts itself when a mark wraps.** All three mark kinds set
+   `box-decoration-break: clone`, so a mark crossing a line break draws a *closed box per
+   line*. An outline's whole statement is "this is one run", and clone makes it say "two".
+3. **There were two mechanisms, and the outline was the broken one.** CSS `:hover` and the
+   programmatic `highlight` class both drew it, and `:hover` matches an element *and all its
+   ancestors* — so pointing at a capture also outlined the match containing it and any
+   capture enclosing it, three boxes for one question, where `Marks.hotOf` deliberately names
+   the innermost element only. `ContentPane`'s own comment says why the delegated handler
+   exists at all: *"a wrapped span loses `:hover` in the leading between its lines"*. The
+   sheet was carrying the mechanism that had already been replaced, beside its replacement.
+
+So `highlight` is the single mechanism, and it keeps working from every end — text,
+variables row, template row, dispatch row, output — as it already did.
+
+**Pointing fades every rule but the hot one.** The thing under the pointer has its rule at
+full strength, and every other rule on screen fades out and fades back in when the pointer
+leaves. That is the whole hover vocabulary: one rule, and quiet.
+
+**One width, and one animated property** (ruled 2026-11-17). Every mark carries the same 2px
+rule at rest, transparent unless it is the current level's, which is drawn at 75% of its hue
+— the value measured so that a capture made only of whitespace, where the rule is the entire
+mark, clears WCAG 1.4.11's 3:1 on its own. Being pointed at brings that colour to full
+strength and takes every other rule's away. **Nothing changes a width**, so the pane animates
+exactly one property anywhere: a rule's colour.
+
+The rule used to sit at 1px and thicken to 2px when pointed at. That step was the outline's
+companion — it had to be loud, because the outline was carrying the hover beside it. With the
+outline gone the fade is the hover, and a width step on top of it is a second channel saying
+what the first has already said. The accepted cost: where the cursor's frame binds a single
+capture there is nothing to fade, so pointing at it is 75% to 100% on one rule and no more.
+That is a smaller change than a thickening would be, and it is the only case in which it is
+the whole signal.
+
+**Hover draws a rule on whatever is hot, whatever its level** (ruled 2026-11-17). Only the
+current level's things are ruled at rest, so a deeper one has nothing to thicken. "The rule
+means this one is yours" has to hold **at rest**; while the pointer is on something, the hot
+rule is the only rule on screen and plainly means "this one". The rejected alternative was a
+hover that draws nothing on the thing under the pointer, which reads as not having
+registered. A dashed or lighter rule for deeper things was rejected outright: that is
+texture as a channel, which §5.11 established cannot be read when two rules share a
+baseline.
+
+Two implementation notes that are really design constraints:
+
+- CSS cannot fade the rules that *are not* hot from the hot span — there is no selector for
+  it. So the block carries a class while anything is hot and the fade is `:not(.highlight)`
+  beneath it. `Marks.light` already walks every span once per hover, so this costs nothing
+  new.
+- **The block's class goes on only when something actually lit.** The variables pane lists
+  the captures of the cursor's *ancestors*, which are on the path but outside the cap and so
+  have no mark in the text. Hovering such a row under a naive rule fades every rule and
+  leaves none — a state that reads as the pane breaking. `light()` reports whether it lit
+  anything and the class follows that.
+
+#### 5.12.4 Navigation: one level per click, and the pane picks the instance
+
+A click descends one level into the thing under the pointer; Ctrl/⌘-click jumps to the
+deepest. The click also moves the template selection, so the strip shows the template that
+did the work the reader has just stepped into.
+
+The panes are not a redundant route to the template pane, which is the obvious objection now
+that selecting a template navigates — `onSelect` moves the cursor to the template's **first**
+match. Selecting a template can only ever reach match #1. **Pointing at text reaches the
+match under the pointer**, #237 of 400, and nothing else does. Both routes stay.
+
+#### 5.12.5 A colour is owned by wherever it appears twice, and that place is numbered first
+
+A mark's colour is never invented by the pane that draws it. It comes from whichever surface
+shows the same thing in a second place, because a thing wearing one colour in the text and
+another in a list beside it is the confusion this whole restatement exists to end:
+
+- a capture's colour comes from **its row in the variables pane** (§5.11.2);
+- an instruction's colour comes from **its body card in the template pane** (§5.13.4).
+
+Where several generations are on screen at once, **the surface whose colours are visible is
+numbered first** and the deeper generations are allocated after it. That is what keeps a
+pane's colours from depending on how much of the tree happens to be marked below it — and in
+the output pane it is what lets the cursor's own cards keep the hue the cards beside them are
+painted in.
+
+#### 5.12.6 A colour belongs to a thing, not to an occurrence of it
+
+Every binding of the same variable by the same template is one colour; every execution of the
+same card of the same template is one colour. The literal alternative — a colour per
+occurrence — makes a four-hundred-line sample four hundred colours, a rainbow that identifies
+nothing, which is the opposite of what an identity channel is for. It also keeps the
+generator honest: `Colours.hue` steps 47°, coprime with 360, so a repeat needs 360 distinct
+*things*, where 360 occurrences is an ordinary sample.
+
+The key is the thing's identity, not its position in a walk: `templateId + "/" + name` for a
+capture, `templateId + "#" + index` for an instruction.
+
+### 5.13 The output pane's channels
+
+*Ruled 2026-11-17. Nothing here is built except where it says otherwise.*
+
+**An instruction is to the output pane what a capture is to the content pane.** §5.12 applies
+unchanged under that one substitution, and what follows is only what the substitution does not
+settle.
+
+The data is already there. `Instrument.onInstruction`'s Javadoc says "only a watched run pays
+for it", which reads as though only the frame under inspection reports its instructions — but
+`Run` sets `watched = instrument != Instrument.NONE` and `Level` sends *every* frame of an
+instrumented run through `Body.watchedBody`. So `trace.instructions(frameId)` is already
+populated for the whole tree and the deeper generation is sitting in the trace unread. No
+engine work is needed to draw it.
+
+It is also arithmetically simpler than the content pane. Output offsets are absolute positions
+in the sink rather than offsets within the parent, so the recursive base accumulation
+`ContentPaneController.place` needs has no counterpart here: the walk collects, and the spans
+are already in the pane's own coordinates.
+
+#### 5.13.1 Text colour — which card wrote these bytes
+
+The tint identifies the **top-level instruction of a body** — a card — that wrote a run of
+output, in that card's own hue, so that a region of output is visibly the work of a particular
+card rather than a run of characters.
+
+Reach is §5.12.2's: the cursor's own cards, and the cards of the matches one generation below.
+`GENERATIONS` is the same constant for the same reason, and the two panes share it so that the
+reader learns the rule once.
+
+**A generation is a frame that wrote characters.** An instruction counted in events has no
+character span to tint — the pane already says so in a note when it meets one — and an
+instruction of zero length wrote nothing. Neither spends a generation. This is the exact
+counterpart of the content pane's `NOT_A_SLICE` test and it has the same failure mode if got
+wrong: a generation spent on an invisible level, and the frames below it pruned for ranges
+that were never drawn.
+
+Two consequences worth stating, because they look like faults and are not.
+
+- **An `apply-templates` card's colour will often be overwritten completely.** Its output span
+  covers everything its matches wrote, so the generation below subdivides all of it and the
+  parent card's hue survives nowhere. The channels being independent is what saves this: the
+  cursor's own cards are the ruled ones, so **the parent card's extent is still readable as
+  its underline** even where its colour is gone. Cards that write bytes themselves — a
+  literal, a `value-of`, a `copy-of` — are never subdivided and keep their colour outright.
+- **The tint never meets the dim.** A child's output lies inside its parent's span, so
+  everything the pane tints is inside the cursor's own undimmed extent, and `.mark--dim`'s
+  opacity and the tint do not interact at all. A child *match*'s mark does not compete either:
+  a match has drawn nothing at rest since Q17, in this pane as in the content pane.
+
+#### 5.13.2 Underline — which cards are yours
+
+The rule marks the **cursor frame's own instructions** — the cards the template pane is
+showing beside the pane — and nothing below, exactly as §5.11.2 does for captures.
+
+An instruction keeps its text colour *as well as* gaining the rule, and the two say different
+things here just as they do over a capture: the colour says *which card*, the rule says *one of
+yours*. Hovering is §5.12.3's, unchanged.
+
+#### 5.13.3 Navigation: a match descends, a card selects
+
+Two different things sit under an output mark, and a click on them cannot mean the same thing.
+
+- A **match** span is output written by a child frame. A click descends to that frame, as in
+  the content pane. Already built.
+- An **instruction** span is output written by a card of the cursor's *own* body. There is no
+  frame beneath it to descend to, so a click **selects and reveals the card that wrote it** in
+  the body panel; and where that card dispatched, it descends into the first match it
+  dispatched. `BodyController` already computes that frame as `CardNote.descendTo` — the first
+  child whose template matches the card's mode — so the descent has a definition already and
+  does not need inventing.
+
+#### 5.13.4 The hue anchor, and what it costs
+
+An instruction's colour is `Colours.hue(index)` — the card's position in the body, which is
+exactly what the body cards in the template pane are painted with (`BodyController.cardHue`).
+That agreement is the whole point of the colour, and it makes this pane's allocation differ
+from the content pane's in the one way that matters: **an instruction's colour has a visible
+external anchor where a capture's has none.**
+
+So instruction hues cannot simply be reallocated cumulatively, the way capture hues were. Nor
+can they stay `hue(index)` once two generations are on screen, because then instruction 0 of
+the cursor and instruction 0 of a child are the same colour — the precise defect that made
+`CaptureHues` necessary in the first place.
+
+The ruling is §5.12.5's, applied: **the cursor's own cards are numbered first and keep
+`hue(index)`; the generation below continues the count.** A cursor template with three cards
+takes `hue(0..2)` and the children's cards take `hue(3)`, `hue(4)` and so on, keyed by
+`templateId + "#" + index` so that four hundred matches of one template are one colour per
+card.
+
+The cost, accepted: **a deeper card's colour does not match the cards the reader would see on
+descending into it.** It cannot — those are painted by position in their own body, and their
+positions collide with the cursor's. This is the same price §5.11.1 already accepted for the
+capture tint ("a variable's colour still moves as the cursor walks"), paid for the same thing:
+no two colours on screen meaning different cards.
+
+The rejected alternatives were to reallocate every instruction hue, which breaks the agreement
+with the cards beside the pane and so spends the colour's only job; and to tint the cursor's
+own cards alone, which leaves attribution that is already in the trace unread.
+
+A smaller related gap, settled the same way. `TemplatePanelController.setHot` returns null for
+an instruction, so hovering one lights no template row. For the cursor's own that is right —
+the body card lights instead, and `BodyController.setHot` already guards on the frame, so a
+deeper frame's instruction cannot light the wrong card. But for a deeper instruction the body
+panel is showing the *cursor's* template, and then nothing on screen says whose card the
+reader is pointing at. **A deeper instruction lights the row of the template that wrote it.**
+The controller can read that template from `trace.frame(frameId)`, so `Hot` need not carry it.
+
+#### 5.13.5 The deferred start tag, and what it mis-attributes
+
+*Accepted as an artefact, 2026-11-17, with an engine ask recorded (§7 item 11).*
+
+`Instrument.onOutput`'s Javadoc records a consequence of the deferred start tag (design 21
+phase 2a): an enclosing element opened by a parent is written when the first child emits, so
+**the first child's span begins with the parent's start tag**. Instruction spans are measured
+the same way, from `sink().position()` either side of the instruction, so they carry the same
+skew.
+
+On an XML sink the first child's tint therefore starts one tag early and colours `<event>` —
+bytes the parent's element card actually wrote — in the child's colour. Today this is
+invisible, because only the cursor's own instructions are tinted and the parent's span covers
+those bytes correctly. Tinting a generation down makes it visible text.
+
+It cannot be trimmed from the client: the child *frame*'s own output span begins at the same
+wrong place for the same reason, and the trace does not record where the parent's tag ended.
+It is accepted — one tag at the head of a child's first card, and the frame spans already
+carry the identical skew — and §7 item 11 asks the engine for the position that would let a
+later build trim it. The rejected alternative was to tint the deeper generation only where
+output is plain bytes, which would make the pane mean one thing for XML and another for text:
+the kind of conditional rule §5.11 spent four attempts removing.
+
+#### 5.13.6 What the two panes share, and what they do not
+
+The walk is the same walk. `CaptureHues.reached` counts generations and prunes children; the
+output pane needs that identical traversal with two predicates swapped — what counts as a
+generation, and which children can be descended into. It is lifted into one helper
+parameterised by those two rather than copied, because the generation-counting error the
+review caught in `CaptureHues` is exactly the kind that gets fixed in one copy and left in
+the other.
+
+What is **not** shared is the allocation. The content pane's keys off variable identity and
+numbers the path first; the output pane's keys off card identity and numbers the cursor's own
+cards first. Same principles (§5.12.5, §5.12.6), different anchor — so two allocators reading
+one walk.
+
+#### 5.13.7 Rulings, 2026-11-17
+
+The four questions this pass put, collected so the shape of the decision is readable in one
+place. Each is written into the subsection it governs.
+
+1. **The principles are stated once, pane-independently** (§5.12), with the content pane
+   (§5.11) and the output pane (§5.13) as their two applications. The rejected alternative was
+   to fold the output pane into §5.11, whose text is written throughout as the content pane's
+   own history of four failed attempts — the general law would have stayed tangled in that
+   narrative.
+2. **Pointing is said with the rule alone, and hover draws a rule on whatever is hot**
+   (§5.12.3). The outline is repealed in every pane; one mechanism, `highlight`, and the
+   non-hot rules fade.
+3. **The cursor's own cards are numbered first and keep `hue(index)`; the generation below
+   continues the count** (§5.13.4), keyed by card identity.
+4. **The deferred start tag's mis-attribution is accepted and recorded as an engine ask**
+   (§5.13.5, §7 item 11), rather than conditioning the tint on the kind of sink.
 
 ## 6. Where it lives in Stroom
 
@@ -1445,6 +1799,14 @@ capture and the stepping mount will place all but the root's until the window is
    said — `onMessage(frameId, message)`, from the run's message log as each is added, the
    root frame outside any match. Frame granularity, not offset: the marks are on the frame's
    match span and its template's row. *Answered 2026-09-18.*
+11. Where a parent had written to before its first child emitted (§5.13.5): the deferred
+   start tag (design 21 phase 2a) means an enclosing element opened by a parent is written
+   when the first child emits, so the first child's `onOutput` and `onInstruction` spans
+   begin with the parent's start tag. The output pane tints two generations of cards, so that
+   skew becomes a visible mis-attribution — a child's colour over bytes the parent's element
+   card wrote. One position per frame, taken before its body dispatches, would let the pane
+   trim it; nothing else in the trace can, because the child frame's own span starts at the
+   same wrong place. Accepted as an artefact meanwhile.
 
 ## 8. Wireframes
 
