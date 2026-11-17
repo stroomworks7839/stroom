@@ -1271,6 +1271,59 @@ public final class ShapeshifterEditorStories {
                             .not().toHaveClass("highlight");
                     expectNoProblems(play);
                 })
+
+                // Clicking output written by a card *below* the cursor descends — one level,
+                // to the frame whose body ran it, which is what the reader is asking to stand
+                // in (design 18 §5.13.3). The cursor is the document here and the clicked card
+                // belongs to a pair two frames down, so this is also the test that the descent
+                // goes one level rather than jumping to the frame that was clicked.
+                .story("OutputPaneDeepCardClicked", context -> render(context, false))
+                .withPlay(play -> {
+                    selectTemplate(play, "pair");
+                    play.click(runButton(play));
+                    play.waitFor(() -> play.expect(play.querySelector(OUTPUT_PAIR_CARD))
+                            .not().toBeNull());
+                    // The document's own body writes nothing, so it spends no generation and
+                    // the cards in reach belong to its grandchildren.
+                    play.expect(play.querySelector(OUTPUT_RULED)).toBeNull();
+                    play.click(play.querySelector(OUTPUT_PAIR_CARD));
+                    // One level: the cursor is the source frame, whose three cards are now the
+                    // ruled ones — not the pair whose card was clicked.
+                    play.waitFor(() -> play.expect(play.querySelector(OUTPUT_SOURCE_CARD))
+                            .toHaveClass("mark--ruled"));
+                    play.expect(play.querySelector(OUTPUT_PAIR_CARD)).not().toHaveClass("mark--ruled");
+                    expectNoProblems(play);
+                })
+
+                // ...and clicking output written by one of the cursor's *own* cards does not
+                // descend, because there is no frame beneath a card to descend to (design 18
+                // §5.13.3). It brings that card into view in the body panel instead, which on a
+                // body of three cards is nothing at all — so what this story can prove is the
+                // half that is observable: the cursor stays where it is.
+                //
+                // That is worth a story even so. The obvious wiring is to send every click
+                // through `setCursor`, and under it this click would descend into whatever
+                // `Marks.frameOf` found above the card — the cursor itself, or worse, past it.
+                .story("OutputPaneOwnCardClicked", context -> render(context, false))
+                .withPlay(play -> {
+                    selectTemplate(play, "pair");
+                    play.click(runButton(play));
+                    play.waitFor(() -> play.expect(play.querySelector(MARK_DOCUMENT))
+                            .not().toBeNull());
+                    play.click(play.querySelector(MARK_DOCUMENT));
+                    play.waitFor(() -> play.expect(play.querySelector(OUTPUT_SOURCE_CARD))
+                            .toHaveClass("mark--ruled"));
+                    play.click(play.querySelector(OUTPUT_SOURCE_CARD));
+                    // Still the source's cards that are ruled, and still its body on show: a
+                    // card is not a level, so clicking one moves nothing.
+                    play.expect(play.querySelector(OUTPUT_SOURCE_CARD)).toHaveClass("mark--ruled");
+                    play.expect(play.querySelector(OUTPUT_PAIR_CARD)).not().toHaveClass("mark--ruled");
+                    // ...and the panel still has the source template selected, which it shows
+                    // as "document" because that template is the one matching the source.
+                    play.expect(play.getByText("document", TEMPLATE_NAME).closest(TEMPLATE_ROW))
+                            .toHaveClass("template-row--selected");
+                    expectNoProblems(play);
+                })
                 // And a capture the same way, from its own end
                 .story("InputPaneCapturePointedAt", context -> render(context, false))
                 .withPlay(play -> {
@@ -1544,6 +1597,7 @@ public final class ShapeshifterEditorStories {
 
     // A card of the current level, which carries the rule.
     private static final String OUTPUT_RULED = ".mark--instruction.mark--ruled";
+
 
     // The chip that carries a template's match, and opens the pattern workbench
     private static final String MATCH_CHIP = ".template-strip__match-chip";

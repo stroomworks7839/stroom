@@ -69,4 +69,13 @@ public class CardList extends Composite {
             cards.get(i).setHot(i == index);
         }
     }
+
+    /// Bring a card into view, if it is not there already (design 18 §5.13.3).
+    ///
+    /// @param index The card's position in this list.
+    public void reveal(final int index) {
+        if (index >= 0 && index < cards.size()) {
+            cards.get(index).getElement().scrollIntoView();
+        }
+    }
 }

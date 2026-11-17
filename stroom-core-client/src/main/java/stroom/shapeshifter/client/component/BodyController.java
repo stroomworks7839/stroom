@@ -244,6 +244,13 @@ public class BodyController extends Controller {
                 : Hot.instruction(frame, index));
     }
 
+    /// Bring a top-level card into view and light it.
+    ///
+    /// @param index The card's position in the body.
+    public void revealCard(final int index) {
+        view.reveal(index);
+    }
+
     /// An instruction of the annotated frame lights its card.
     public void setHot(final Hot hot) {
         final long frame = annotatedFrame();

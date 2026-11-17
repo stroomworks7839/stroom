@@ -72,7 +72,7 @@ public class OutputPaneController extends Controller {
     public OutputPaneController attach(final OutputPane view) {
         this.view = Objects.requireNonNull(view, "view");
         initWidget(view);
-        view.setOnDescend(this::onDescend);
+        view.setOnClick(this::onClick);
         view.setOnHover(this::onHover);
         return this;
     }
@@ -82,8 +82,57 @@ public class OutputPaneController extends Controller {
         refresh();
     }
 
-    public void onDescend(final long frameId) {
-        host.setCursor(frameId);
+    /// What a click on a mark means (design 18 §5.13.3, ruled 2026-11-17). Two different
+    /// things sit under a mark here, and they cannot mean the same thing.
+    ///
+    /// - A **match** is output written by a child frame, so a click descends to it, as in the
+    ///   content pane.
+    /// - A **card of the cursor's own body** has no frame beneath it to descend to, so a click
+    ///   brings that card into view in the body panel and lights it. Scrolling is the whole of
+    ///   what the click adds — pointing already lights the card, but only if it is on screen.
+    /// - A **card of a frame below the cursor** descends, like a match: it is the frame that
+    ///   ran it that the reader is asking to stand in, and once there the card is one of their
+    ///   own and clicking it reveals it.
+    ///
+    /// The descent is **one level**, as everywhere (§5.12.4). A clicked card can be more than
+    /// one frame down — from the document, whose own body writes nothing and so spends no
+    /// generation, the cards in reach belong to its grandchildren — so this descends to the
+    /// child of the cursor on the way to it rather than jumping to it.
+    ///
+    /// What §5.13.3 first ruled, and does not do: descend into the first match an
+    /// `apply-templates` card dispatched. It is self-defeating — descending changes the body
+    /// panel to the child's template, so the card just revealed is gone — and it was already
+    /// built, on the card's own note. It is also unreachable: such a card's span is covered
+    /// entirely by the spans of the cards its matches ran, so it has no pixels of its own left
+    /// to click.
+    ///
+    /// @param hot What was clicked, or null for unmarked text.
+    public void onClick(final Hot hot) {
+        if (hot == null) {
+            return;
+        }
+        final long cursor = host.cursor();
+        if (hot.getKind() == Hot.Kind.INSTRUCTION && hot.getFrameId() == cursor) {
+            host.revealCard(hot.getIndex());
+            return;
+        }
+        final long into = toward(host.trace(), cursor, hot.getFrameId());
+        if (into >= 0) {
+            host.setCursor(into);
+        }
+    }
+
+    /// The child of the cursor on the path to a frame, or -1 where there is none: the one level
+    /// a click descends, however far below the cursor the thing clicked turned out to be.
+    private static long toward(final TraceModel trace, final long cursor, final long frameId) {
+        if (trace == null || frameId == cursor) {
+            return -1;
+        }
+        final List<Long> path = trace.path(frameId);
+        final int at = path.indexOf(cursor);
+        return at < 0 || at + 1 >= path.size()
+                ? -1
+                : path.get(at + 1);
     }
 
     public void onHover(final Hot hot) {

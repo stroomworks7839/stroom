@@ -38,7 +38,7 @@ import java.util.function.Consumer;
 /// cursor's is marked dim, so the eye lands on what this frame wrote.
 public class OutputPane extends Component {
 
-    private Consumer<Long> onDescend = frameId -> {
+    private Consumer<Hot> onClick = hot -> {
     };
     private Consumer<Hot> onHover = hot -> {
     };
@@ -58,13 +58,15 @@ public class OutputPane extends Component {
     public OutputPane() {
         initWidget(BINDER.createAndBindUi(this));
         output.getElement().setTabIndex(-1);
+        // What was clicked, not where to descend to: two different things sit under a mark
+        // here and they cannot mean the same thing (design 18 §5.13.3). A match descends; a
+        // card of the cursor's own body reveals itself in the body panel, since there is no
+        // frame beneath it to descend to. The pane does not know which is which — it does not
+        // know the cursor — so it says what was clicked and the controller decides.
         output.addClickHandler(event -> {
             final EventTarget target = event.getNativeEvent().getEventTarget();
             if (Element.is(target)) {
-                final long frame = Marks.frameOf(output.getElement(), Element.as(target));
-                if (frame >= 0) {
-                    onDescend.accept(frame);
-                }
+                onClick.accept(Marks.hotOf(output.getElement(), Element.as(target)));
             }
         });
         output.addMouseOverHandler(event -> {
@@ -108,9 +110,9 @@ public class OutputPane extends Component {
     }
 
 
-    /// @param onDescend Told when descend.
-    public void setOnDescend(final Consumer<Long> onDescend) {
-        this.onDescend = onDescend;
+    /// @param onClick Told what was clicked, or null for unmarked text.
+    public void setOnClick(final Consumer<Hot> onClick) {
+        this.onClick = onClick;
     }
 
     /// @param onHover Told when hover.

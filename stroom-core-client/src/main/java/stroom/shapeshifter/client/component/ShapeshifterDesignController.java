@@ -807,6 +807,11 @@ public class ShapeshifterDesignController
     }
 
     @Override
+    public void revealCard(final int index) {
+        strip.revealCard(index);
+    }
+
+    @Override
     public void hover(final Hot hot) {
         if (Objects.equals(hot, this.hot)) {
             return;

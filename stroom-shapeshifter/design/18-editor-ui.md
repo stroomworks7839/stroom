@@ -1544,8 +1544,15 @@ colours, pinning the cursor's own cards to `BodyController.cardHue` and continui
 below; `OutputPaneController.place` marks them, ruling the cursor's own. Covered by
 `InstructionHuesTest` and by assertions in the `RunShowsOutput` and `InputPaneDescended`
 stories, whose fixture gained the output and instruction spans it had never carried — before
-this the output pane was unmarked in every story. **§5.13.3's click is not built**, and
-§5.13.5's artefact is recorded rather than fixed.*
+this the output pane was unmarked in every story. §5.13.5's artefact is recorded rather than
+fixed.*
+
+***§5.13.3's click built 2026-11-17**, with the amendment recorded there. `ProjectHost` gained
+`revealCard(int)`, which the design controller passes to the strip and the strip to the body;
+`OutputPane` now reports **what was clicked** rather than where to descend to, because two
+different things sit under a mark there and the pane does not know the cursor. Covered by
+`OutputPaneDeepCardClicked` and `OutputPaneOwnCardClicked`. All of §5.13 is now built except
+§5.13.5, which is an engine ask.*
 
 *Corrected by review the same day: §5.13.4's second half — a deeper card lighting the row of
 the template that wrote it — was ruled, written down, reported as built and not built. It was
@@ -1615,12 +1622,26 @@ Two different things sit under an output mark, and a click on them cannot mean t
 
 - A **match** span is output written by a child frame. A click descends to that frame, as in
   the content pane. Already built.
-- An **instruction** span is output written by a card of the cursor's *own* body. There is no
-  frame beneath it to descend to, so a click **selects and reveals the card that wrote it** in
-  the body panel; and where that card dispatched, it descends into the first match it
-  dispatched. `BodyController` already computes that frame as `CardNote.descendTo` — the first
-  child whose template matches the card's mode — so the descent has a definition already and
-  does not need inventing.
+- An **instruction** span of the cursor's *own* body has no frame beneath it to descend to, so
+  a click **brings that card into view in the body panel**. Scrolling is the whole of it: the
+  pointer already lights the card, and on a body short enough to be wholly on screen the click
+  therefore does nothing — which is the right amount, since the card is already in front of
+  the reader. What it reaches is a card hover cannot speak for, off the bottom of a long body.
+- An **instruction span of a frame below the cursor** descends, like a match: it is the frame
+  that ran the card that the reader is asking to stand in, and once there the card is one of
+  their own. **One level**, as everywhere (§5.12.4) — a clicked card can be more than one
+  frame down, because a cursor whose own body writes nothing spends no generation, so from the
+  document the cards in reach belong to its grandchildren.
+
+*Amended 2026-11-17, on building it.* This first ruled that a click on an `apply-templates`
+card's output should also **descend into the first match it dispatched**. Both halves of that
+were wrong. It is self-defeating: descending changes the body panel to the child's template,
+so the card just revealed is gone. And it is unreachable: once the pane marks two generations,
+such a card's span is covered entirely by the spans of the cards its matches ran — in the
+strict_kv fixture the source's card 1 is 10..72 and the two pairs' cards fill 10..41 and
+41..72 — so it has no pixels of its own left to click. The descent was also already built,
+on the card's own note ("Descend to the first match", from the `CardNote.descendTo` this
+ruling proposed to reuse), which is where it belongs: beside the card, not over the output.
 
 #### 5.13.4 The hue anchor, and what it costs
 

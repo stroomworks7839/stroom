@@ -156,6 +156,25 @@ public class Body extends Component {
         }
     }
 
+    /// Bring a top-level card into view: what clicking the output it wrote asks for (design 18
+    /// §5.13.3).
+    ///
+    /// **Scrolling is the whole of it.** Pointing at that output already lights the card
+    /// through the `highlight` vocabulary, and lighting it from here as well would be undone a
+    /// moment later: `highlight` is the pointer's channel, so the pointer leaving the output
+    /// clears it. What the click adds is reaching a card that hover cannot say anything about,
+    /// because it is off the bottom of a long body.
+    ///
+    /// On a body short enough to be wholly on screen the click therefore does nothing at all,
+    /// which is the right amount: the card is already in front of the reader and already lit.
+    ///
+    /// @param index The card's position in the body.
+    public void reveal(final int index) {
+        if (list != null) {
+            list.reveal(index);
+        }
+    }
+
     public void promptCase(final String current, final Consumer<String> then) {
         // A case is one value; the browser's prompt is the smallest honest dialog for it.
         then.accept(Window.prompt("Case value", current));

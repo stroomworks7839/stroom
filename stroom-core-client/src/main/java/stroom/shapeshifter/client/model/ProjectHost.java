@@ -99,6 +99,15 @@ public interface ProjectHost {
     /// Point at something, or at nothing for null: every surface lights what the request names (design 18 §5.5).
     void hover(Hot hot);
 
+    /// Bring a top-level card of the cursor's body into view and light it (design 18 §5.13.3).
+    ///
+    /// What clicking the output a card wrote asks for. Scrolling is the whole of what the click
+    /// adds: pointing at that output already lights the card, but only if it is on screen, and
+    /// on a long body it is the card you cannot see that you are asking about.
+    ///
+    /// @param index The card's position in the body.
+    void revealCard(int index);
+
     /// The template with this id in the current project, or null.
     default Template template(final String id) {
         final Project project = getProject();

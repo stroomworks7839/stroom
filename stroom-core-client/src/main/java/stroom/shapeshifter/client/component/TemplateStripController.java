@@ -157,6 +157,13 @@ public class TemplateStripController extends Controller {
         bodyPresenter.setHot(hot);
     }
 
+    /// Bring a top-level card of the body on show into view and light it (design 18 §5.13.3).
+    ///
+    /// @param index The card's position in the body.
+    public void revealCard(final int index) {
+        bodyPresenter.revealCard(index);
+    }
+
     /// After a run, what it made of this template: how many matches, or where it was tried for none.
     private String runNote(final Template template) {
         final TraceModel trace = host.trace();

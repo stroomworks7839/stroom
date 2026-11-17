@@ -501,5 +501,10 @@ public final class ShapeshifterPaneStories {
         public void hover(final Hot hot) {
             pane.setHot(hot);
         }
+
+        @Override
+        public void revealCard(final int index) {
+            // There is no body panel here, and nothing in these stories clicks output.
+        }
     }
 }
