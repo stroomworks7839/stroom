@@ -110,14 +110,25 @@ public class Breadcrumb extends Component {
             }
             final FlowPanel seg = new FlowPanel();
             seg.addStyleName("breadcrumb__segment");
+            // The template's colour, said with the swatch the body cards and the variables rows
+            // say it with (swatch.css), rather than with a line under the name: a line under a
+            // thing means "selected" one row up, on the tabs. Outside the name's own box, so it
+            // sits on the bar whether or not the crumb is the cursor's own and keeps its
+            // contrast either way. The document has no template, so it has no swatch.
+            if (segment.getColour() != null) {
+                final InlineLabel swatch = new InlineLabel();
+                swatch.addStyleName("swatch swatch--small");
+                CssProperties.set(swatch.getElement(), "--swatch__colour",
+                        Colours.safe(segment.getColour()));
+                seg.add(swatch);
+            }
             final LinkButton name = new LinkButton(segment.getLabel());
             name.addStyleName("breadcrumb__name");
-            if (segment.getColour() != null) {
-                CssProperties.set(name.getElement(), "--breadcrumb__segment-colour",
-                        segment.getColour());
-            }
             if (i == list.size() - 1) {
-                name.addStyleName("breadcrumb__name--current");
+                // Where the cursor is, said in ARIA rather than in a modifier class, so that the
+                // style and the screen reader read one attribute. The path bar on the stepping
+                // screen marks its current element the same way (PipelinePathBar).
+                name.getElement().setAttribute("aria-current", "true");
             }
             name.addClickHandler(event -> onSegment.accept(segment.getFrameId()));
             final Hot hot = Hot.frame(segment.getFrameId(), segment.getTemplateId());

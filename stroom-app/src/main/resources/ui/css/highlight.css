@@ -49,7 +49,7 @@
     border-color: var(--focus-border);
 }
 
-.breadcrumb__name.highlight {
-    background-color: var(--row__background-color--hovered);
-    outline-color: var(--blue-300);
-}
+/* A breadcrumb crumb's `highlight` lives in breadcrumb.css instead, beside its `:hover`: the two
+   are one state there, and the fill depends on whether the crumb is also the cursor's own
+   (`aria-current`), which is that block's business rather than this one's. It drew a blue 1px
+   ring here as well, which said "pointed at" in the vocabulary a focus ring uses. */

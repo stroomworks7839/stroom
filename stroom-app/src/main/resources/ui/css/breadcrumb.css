@@ -16,12 +16,20 @@
     white-space: nowrap;
 }
 
+/* Room for a crumb's focus ring, which reaches 5px beyond it (a 1px line and a 4px band, below).
+   This box hides its overflow so that a long trail is cut short rather than pushing the stepper
+   off the end, and `overflow` cannot be hidden on one axis and visible on the other -- so the
+   room is made as padding and taken straight back off the layout as a negative margin, which is
+   what the stepper's toolbar does further down. Without it this box's padding edge is exactly
+   the tallest crumb's border box, so every ring a crumb draws is cut off top and bottom. */
 .breadcrumb__segments {
     display: flex;
     align-items: center;
     gap: 4px;
     min-width: 0;
     overflow: hidden;
+    padding: 5px 0;
+    margin: -5px 0;
 }
 
 .breadcrumb__segment {
@@ -36,23 +44,73 @@
     text-decoration: none;
 }
 
+/* A crumb. Its states come from ARIA attributes and pseudo-classes rather than modifier classes,
+   as the stepping screen's path bar does (pipeline-path-bar.css): `aria-current` for the one the
+   cursor is on, `:hover` and `.highlight` for whatever is pointed at, `:focus-visible` for the
+   keyboard. Each answers a different question and each has a channel to itself (design 18
+   §5.12.1). The 1px blue ring this used to draw on hover answered the pointer's question in the
+   keyboard's vocabulary, and left the cursor's own crumb with no mark at all. */
 .breadcrumb__name {
+    position: relative;
     font-weight: 600;
     cursor: pointer;
     padding: 1px 6px;
     border-radius: 4px;
-    border-bottom: 2px solid var(--breadcrumb__segment-colour, transparent);
-    outline: 1px solid transparent;
-    transition: background-color .15s ease-out, outline-color .15s ease-out;
+    transition: background-color .15s ease-out;
 }
 
-.breadcrumb__name:hover {
+/* Pointed at, from either end: the hovered fill, and nothing else. `.highlight` is the same state
+   reached from another surface (Marks.HOT_CLASS, set when the pointer is on this frame's text or
+   its template row), so it is the same fill -- one highlight mechanism (§5.12.3). */
+.breadcrumb__name:hover,
+.breadcrumb__name.highlight {
     background-color: var(--row__background-color--hovered);
-    outline-color: var(--blue-300);
 }
 
-.breadcrumb__name--current {
+/* Where the cursor is, drawn as a selected row is -- the path bar's answer, and for a reason of
+   our own: a crumb is not on the bar's edge the way a tab is, so the tab bar's selected line
+   has nowhere to sit. A fill of its own, and a second fill for being both, so that hovering an
+   ancestor can never read as the selection moving.
+
+   The text colour comes with the fill, as it does for a selected row: the dark theme's selected
+   blue is strong enough that inherited text on it is not a given. Measured on the four
+   combinations, the worst is 6.1:1 (white on the dark theme's selected fill) -- AA with room,
+   which Q11's ruling requires of any colour used as text. */
+.breadcrumb__name[aria-current="true"] {
     cursor: default;
+    background-color: var(--row__background-color--selected);
+    color: var(--row__text-color--selected);
+}
+
+.breadcrumb__name[aria-current="true"]:hover,
+.breadcrumb__name[aria-current="true"].highlight {
+    background-color: var(--row__background-color--selected--hovered);
+}
+
+/* Keyboard focus (not a mouse click's): the tab bar's ring, from the same tokens and with the
+   same forced-colours fallback (tab-bar.css) -- two focus vocabularies on one screen is the
+   thing reusing it avoids. A LinkButton's own `--focus-shadow` ring is turned off rather than
+   left to sit beneath this one. Both selectors carry the block as well, so they outweigh
+   link-button.css whichever order the sheets load in. */
+.breadcrumb__crumb .breadcrumb__name:focus-visible {
+    outline: none;
+    box-shadow: none;
+}
+
+.breadcrumb__crumb .breadcrumb__name:focus-visible::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border: 1px solid var(--tab__focus-color);
+    box-shadow: 0 0 0 4px var(--tab__focus-band-color);
+    border-radius: 4px;
+    pointer-events: none;
+}
+
+@media (forced-colors: active) {
+    .breadcrumb__crumb .breadcrumb__name:focus-visible::after {
+        border-color: Highlight;
+    }
 }
 
 .breadcrumb__separator,

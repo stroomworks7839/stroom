@@ -1244,6 +1244,67 @@ public final class ShapeshifterEditorStories {
                     expectNoProblems(play);
                 })
 
+                // The crumb's states, which it used to answer with one blue ring apiece: hover
+                // drew the ring a focus ring draws, the cursor's own crumb had no mark at all,
+                // and the box that holds the crumbs cut every ring off at the top. Ruled
+                // 2026-11-17: ARIA and pseudo-classes, as the stepping screen's path bar has
+                // them (design 18 §5.12.1).
+                .story("BreadcrumbStates", context -> render(context, false))
+                .withPlay(play -> {
+                    selectTemplate(play, "pair");
+                    play.click(runButton(play));
+                    play.waitFor(() -> play.expect(play.querySelector(MARK_DOCUMENT))
+                            .not().toBeNull());
+                    play.click(play.querySelector(MARK_DOCUMENT));
+                    play.waitFor(() -> play.expect(play.querySelector(CRUMB_CURRENT))
+                            .not().toBeNull());
+                    // The box holding the crumbs hides its overflow, so it has to hand on the
+                    // room a crumb draws outside itself: a focus ring's 1px line and 4px band.
+                    // It used to be exactly the tallest crumb's border box, which is why the
+                    // ring was cut off flat along the top. Geometry rather than a class name,
+                    // because the clip was invisible to every assertion about classes.
+                    play.expect(play.querySelector(CRUMB_CURRENT).top())
+                            .toSatisfy("5px of room above and below the crumb", top -> {
+                                final double above = (Double) top
+                                        - play.querySelector(CRUMB_SEGMENTS).top().get();
+                                final double below =
+                                        play.querySelector(CRUMB_SEGMENTS).bottom().get()
+                                        - play.querySelector(CRUMB_CURRENT).bottom().get();
+                                return above >= 5 && below >= 5;
+                            });
+                    // Three fills, not one: where the cursor is, what is pointed at, and both.
+                    // An ancestor under the pointer must never read as the selection moving,
+                    // which is the whole reason the current crumb does not simply borrow the
+                    // hovered fill.
+                    play.expect(play.querySelector(CRUMB_CURRENT)
+                                    .computedStyle("background-color"))
+                            .toSatisfy("differs from an ancestor at rest", fill ->
+                                    !fill.equals(play.querySelector(CRUMB_OUTER)
+                                            .computedStyle("background-color").get()));
+                    play.hover(play.querySelector(CRUMB_OUTER));
+                    play.waitFor(() -> play.expect(play.querySelector(CRUMB_OUTER)
+                            .computedStyle("background-color"))
+                            .not().toEqual("rgba(0, 0, 0, 0)"));
+                    play.expect(play.querySelector(CRUMB_OUTER)
+                                    .computedStyle("background-color"))
+                            .toSatisfy("a hovered ancestor is still not the cursor's own", fill ->
+                                    !fill.equals(play.querySelector(CRUMB_CURRENT)
+                                            .computedStyle("background-color").get()));
+                    // ...and pointing draws no ring of its own. The outline was the channel the
+                    // keyboard needs; hover answers in a fill.
+                    play.expect(play.querySelector(CRUMB_OUTER).computedStyle("outline-style"))
+                            .toEqual("none");
+                    // A template's colour is a swatch beside the name, as it is on a body card
+                    // and a variables row, and not a line under it: a line under a thing means
+                    // "selected" on the tabs one row up, and the crumb drew one under every
+                    // crumb, always. The swatch sits outside the name's own box, so the fills
+                    // above never wash over it.
+                    play.expect(play.querySelector(CRUMB_SWATCH)).not().toBeNull();
+                    play.expect(play.querySelector(CRUMB_CURRENT)
+                            .computedStyle("border-bottom-width")).toEqual("0px");
+                    expectNoProblems(play);
+                })
+
                 // The variables pane says "nothing" once, not once a frame (ruled 2026-11-17).
                 // Descended into the source frame, the path is the document and the source, and
                 // neither binds a name: the pane used to print "this pattern bound nothing"
@@ -1614,6 +1675,11 @@ public final class ShapeshifterEditorStories {
     // The row the name sits in, which is what carries `highlight` when the template is lit
     private static final String TEMPLATE_ROW = ".template-row";
     private static final String VARIABLES_NAME = ".variables-pane__name";
+    private static final String CRUMB_SEGMENTS = ".breadcrumb__segments";
+    private static final String CRUMB_SWATCH = ".breadcrumb__segment .swatch";
+    private static final String CRUMB_CURRENT = ".breadcrumb__name[aria-current=\"true\"]";
+    private static final String CRUMB_OUTER =
+            ".breadcrumb__name:not([aria-current=\"true\"])";
     private static final String NOTHING_IN_SCOPE = "No name is in scope at the selected frame.";
 
     // The kind of instruction a body card holds ("text", "value-of", ...)

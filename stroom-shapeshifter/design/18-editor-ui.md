@@ -303,6 +303,58 @@ convention, which was the reason for choosing it — and within-parent stepping 
 are read at the tab's root from wherever in it focus is; the content and output blocks take
 focus when clicked so that they have somewhere to come from.*
 
+**A crumb's states, from the widgets that already have them** (ruled 2026-11-17). The
+breadcrumb was built before §5.12 and showed it: a crumb drew a 1px blue ring on hover — the
+pointer's question answered in the keyboard's vocabulary — the same ring again for the hot
+state, no mark at all for the crumb the cursor is actually on, and, for keyboard focus, a
+`--focus-shadow` ring that is a different focus look from every tab on the same screen. Four
+states, two of them sharing one channel and one of them with none.
+
+All four now come from widgets that had already settled them:
+
+- **Focus** is `tab-bar.css`'s ring, verbatim and from its tokens — a 1px line in
+  `--tab__focus-color` with a 4px band of `--tab__focus-band-color`, and its forced-colours
+  fallback. One focus look per screen was the point of reusing it rather than writing a third.
+- **Selection and hover** follow the stepping screen's path bar (`pipeline-path-bar.css`),
+  whose own note says its segments take their states from ARIA attributes "not modifiers":
+  `aria-current="true"` for the crumb the cursor is on, which also replaces the
+  `breadcrumb__name--current` class so that the style and a screen reader read one attribute.
+  The current crumb takes the selected-row fill and its paired text colour, a hovered one the
+  hovered fill, and a crumb that is both takes the selected-hovered fill — three fills, so
+  that pointing at an ancestor can never read as the selection moving. `aria-current` is the
+  breadcrumb's attribute where `aria-selected` is a tablist's, which is why the state
+  vocabulary comes from the path bar and only the ring comes from the tab bar.
+- **Hot** (`Marks.HOT_CLASS`, set when the pointer is on this frame's text elsewhere) is the
+  same state as hover reached from another surface, so it draws the same fill — §5.12.3's one
+  highlight mechanism, applied to a widget that is not a text pane.
+
+The visible symptom that started this was none of the above: the box holding the crumbs hides
+its overflow, and had no vertical padding, so its padding edge was *exactly* the tallest
+crumb's border box and every ring a crumb drew was cut off flat along the top. The room is
+made as padding and taken straight back off the layout as a negative margin — `overflow`
+cannot be hidden on one axis and visible on the other — which is what the stepper's own
+toolbar four rules below was already doing, for the same reason, in a comment that named the
+crumb as the thing doing the cutting. **A box that hides its overflow owes its children the
+room they draw outside themselves**, and the general form of that is worth stating once:
+`.breadcrumb__segments` is the third place in this file to need it.
+
+**And the border under a crumb goes** (ruled 2026-11-17, in the same pass). Every crumb carried
+`border-bottom: 2px` in its template's colour — which is the device the tabs one row up use for
+selection, and which no other widget on the screen uses for identity: a curved tab has no border
+at all and marks selection with a 3px line on the *bar's* edge, a link tab marks it with weight,
+and the path bar's border carries severity. A line under a thing therefore meant two opposite
+things on one screen, and the crumb drew its one under every crumb, always. That it survived the
+first pass is worth recording: it was not questioned, and it was then used as the argument for
+why the current crumb could not take the tab bar's selected line.
+
+The colour moves to a **swatch before the name**, which is how the body cards, the variables rows
+and the body panel's header already say exactly this — `swatch.css` opens with "A template's
+colour, shown small beside its name". It sits in the segment rather than inside the name's own
+box, so it keeps its contrast against the bar whether or not the crumb is the cursor's own:
+measured on the dark theme, `source`'s `#4e79a7` is 3.70:1 against the bar, where the border it
+replaces had fallen to 1.34:1 against the selected fill. The document has no template and so has
+no swatch, which is the correct reading of a crumb that is not a match.
+
 ### 5.4 The content renderer — highlights live inside a variable
 
 > **§5.11 restates this section's marks** (restated 2026-11-13, ruled 2026-11-16). Read it
