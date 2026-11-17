@@ -99,7 +99,7 @@ class InstructionHuesTest {
         // what keeps the frames below it in reach. Here it cannot happen: output spans nest, so
         // a frame whose own span is empty contains nothing that wrote either, and "wrote
         // nothing" and "has nothing below worth reaching" are the same fact.
-        assertThat(InstructionHues.reached(trace, 1L)).doesNotContain(3L);
+        assertThat(InstructionHues.inScope(trace, 1L).frames()).doesNotContain(3L);
         assertThat(InstructionHues.inScope(trace, 1L).hue(3, 0)).isNull();
     }
 
@@ -122,7 +122,7 @@ class InstructionHuesTest {
 
         // The event-counted frame ends the descent, because its span cannot be placed in the
         // text and so neither can anything inside it.
-        assertThat(InstructionHues.reached(model(frames, outputs, instructions), 1L))
+        assertThat(InstructionHues.inScope(model(frames, outputs, instructions), 1L).frames())
                 .contains(1L)
                 .doesNotContain(3L);
     }
@@ -133,7 +133,7 @@ class InstructionHuesTest {
 
         // From the source: its own cards are the first generation and the pairs' the second.
         // Frame 5, under the second pair, is the third and is out.
-        assertThat(InstructionHues.reached(trace, 1L))
+        assertThat(InstructionHues.inScope(trace, 1L).frames())
                 .contains(1L, 2L, 4L)
                 .doesNotContain(5L);
     }
@@ -144,7 +144,7 @@ class InstructionHuesTest {
 
         // What is out of reach from the source is in reach from a pair, so there are always two
         // levels of look-ahead wherever the cursor stands.
-        assertThat(InstructionHues.reached(trace, 4L)).contains(4L, 5L);
+        assertThat(InstructionHues.inScope(trace, 4L).frames()).contains(4L, 5L);
         assertThat(InstructionHues.inScope(trace, 4L).hue(5, 0)).isNotNull();
     }
 
@@ -153,7 +153,7 @@ class InstructionHuesTest {
         final InstructionHues hues = InstructionHues.inScope(trace(), 1L);
 
         assertThat(hues.hue(5, 0)).isNull();
-        assertThat(hues.inReach(5)).isFalse();
+        assertThat(hues.frames()).doesNotContain(5L);
     }
 
     private static List<String> coloursOf(final InstructionHues hues) {

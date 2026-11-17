@@ -31,6 +31,7 @@ import stroom.shapeshifter.config.MatchExpression;
 import stroom.shapeshifter.config.PatternNode;
 import stroom.shapeshifter.config.Project;
 import stroom.shapeshifter.config.Template;
+import stroom.shapeshifter.shared.ShapeshifterTrace.Frame;
 import stroom.shapeshifter.shared.ShapeshifterTrace.Timing;
 import stroom.svg.shared.SvgImage;
 import stroom.widget.button.client.ToolbarButton;
@@ -198,11 +199,40 @@ public class TemplatePanelController extends Controller {
         }
     }
 
-    /// A template, or a frame of one, lights its row.
+    /// A template, or a frame of one, lights its row — and so does a body card, through the
+    /// frame whose body ran it (design 18 §5.13.4, ruled 2026-11-17).
+    ///
+    /// The output pane marks the cards of frames *beneath* the cursor as well as the cursor's
+    /// own. For the cursor's own the body panel lights the card itself, which says everything;
+    /// for a deeper one the body panel is showing the *cursor's* template, so without this
+    /// nothing on screen would say whose card the reader is pointing at. Worse, it would be
+    /// inconsistent rather than merely silent: `BodyController.annotationFrame` falls back to a
+    /// template's first match, so pointing at the first match's card happened to light a card
+    /// and pointing at the second's did not.
+    ///
+    /// A capture still lights no row. Its row is the variables pane's, which lights it already.
+    ///
+    /// @param hot What is pointed at, or null.
     public void setHot(final Hot hot) {
-        view.setHot(hot == null || hot.getKind() == Hot.Kind.CAPTURE || hot.getKind() == Hot.Kind.INSTRUCTION
+        view.setHot(hot == null || hot.getKind() == Hot.Kind.CAPTURE
                 ? null
-                : hot.getTemplateId());
+                : hot.getKind() == Hot.Kind.INSTRUCTION
+                        ? templateOf(hot.getFrameId())
+                        : hot.getTemplateId());
+    }
+
+    /// The template a frame is an instance of, or null where the trace does not know it — the
+    /// document, which is no frame and has no template.
+    private String templateOf(final long frameId) {
+        final TraceModel trace = host == null
+                ? null
+                : host.trace();
+        final Frame frame = trace == null
+                ? null
+                : trace.frame(frameId);
+        return frame == null
+                ? null
+                : frame.getTemplateId();
     }
 
     /// Select a template, or the project for null, as if clicked: the root follows through the event.

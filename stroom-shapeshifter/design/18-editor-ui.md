@@ -1546,6 +1546,13 @@ stories, whose fixture gained the output and instruction spans it had never carr
 this the output pane was unmarked in every story. **§5.13.3's click is not built**, and
 §5.13.5's artefact is recorded rather than fixed.*
 
+*Corrected by review the same day: §5.13.4's second half — a deeper card lighting the row of
+the template that wrote it — was ruled, written down, reported as built and not built. It was
+not merely missing but inconsistent, because `BodyController.annotationFrame` falls back to a
+template's first match, so pointing at the first match's card lit a card and pointing at the
+second's lit nothing. `TemplatePanelController.setHot` now resolves an instruction's template
+through its frame, and `OutputPaneDeepCardPointedAt` holds it.*
+
 **An instruction is to the output pane what a capture is to the content pane.** §5.12 applies
 unchanged under that one substitution, and what follows is only what the substitution does not
 settle.
@@ -1709,6 +1716,15 @@ Nothing is done about it yet. Worth noting that the fix is not obviously "a bigg
 generator has to stay deterministic and order-free, and any fixed step has a wrap at which
 adjacent indices meet. The alternatives — a palette rather than a generator, or spacing by the
 count actually in scope — are both changes to a function four surfaces read.
+
+**Also open: how many spans the pane will draw.** The content pane stops at `RENDER_CAP`
+(200 000 characters) because "the sample is for looking at"; the output pane has never had a
+cap, which was survivable while it drew one mark per child match. Marking two generations of
+cards multiplies that: over a four-hundred-match sample the document cursor goes from roughly
+one span to roughly two thousand, and `Marks.light` walks every span in the block on each
+`mouseover`. Found by review 2026-11-17. The pane was already uncapped before this, so the
+change is a constant factor on a pre-existing exposure rather than a new one — but the two
+panes now differ for no stated reason, which is the part worth settling.
 
 #### 5.13.8 Rulings, 2026-11-17
 

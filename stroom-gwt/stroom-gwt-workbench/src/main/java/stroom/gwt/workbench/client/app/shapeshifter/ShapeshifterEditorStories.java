@@ -1243,6 +1243,34 @@ public final class ShapeshifterEditorStories {
                     play.expect(play.querySelector(OUTPUT_PAIR_CARD)).not().toHaveClass("mark--ruled");
                     expectNoProblems(play);
                 })
+
+                // Pointing at output written by a card *below* the cursor lights the row of the
+                // template that wrote it (design 18 §5.13.4). For the cursor's own cards the body
+                // panel lights the card itself and says everything; for a deeper one the body
+                // panel is showing the cursor's template, so without this nothing on screen would
+                // say whose card is under the pointer.
+                //
+                // A story of its own, because the screenshot is taken once the play has ended
+                // and a hover is still in force then.
+                .story("OutputPaneDeepCardPointedAt", context -> render(context, false))
+                .withPlay(play -> {
+                    selectTemplate(play, "pair");
+                    play.click(runButton(play));
+                    play.waitFor(() -> play.expect(play.querySelector(MARK_DOCUMENT))
+                            .not().toBeNull());
+                    play.click(play.querySelector(MARK_DOCUMENT));
+                    play.waitFor(() -> play.expect(play.querySelector(OUTPUT_PAIR_CARD))
+                            .not().toBeNull());
+                    play.expect(play.getByText("pair", TEMPLATE_NAME).closest(TEMPLATE_ROW))
+                            .not().toHaveClass("highlight");
+                    play.hover(play.querySelector(OUTPUT_PAIR_CARD));
+                    play.waitFor(() -> play.expect(play.getByText("pair", TEMPLATE_NAME)
+                            .closest(TEMPLATE_ROW)).toHaveClass("highlight"));
+                    // and not the template whose body is the one on screen
+                    play.expect(play.getByText("junk_line", TEMPLATE_NAME).closest(TEMPLATE_ROW))
+                            .not().toHaveClass("highlight");
+                    expectNoProblems(play);
+                })
                 // And a capture the same way, from its own end
                 .story("InputPaneCapturePointedAt", context -> render(context, false))
                 .withPlay(play -> {
@@ -1468,6 +1496,9 @@ public final class ShapeshifterEditorStories {
     // A template's name in the panel's list, and the Data row's, which is a row too
     private static final String TEMPLATE_NAME = ".template-row__name";
 
+    // The row the name sits in, which is what carries `highlight` when the template is lit
+    private static final String TEMPLATE_ROW = ".template-row";
+
     // The kind of instruction a body card holds ("text", "value-of", ...)
     private static final String CARD_KIND = ".body-card__kind";
 
@@ -1496,11 +1527,6 @@ public final class ShapeshifterEditorStories {
             ".mark[data-tpl='00000000-0000-0000-0000-000000000003']";
 
     private static final String MARK_CAPTURE = ".mark--capture";
-
-    // A capture of the current level, which carries the rule; one from beneath it carries only
-    // the tint and so has no class of its own (design 18 §5.11, ruled 2026-11-16). One class
-    // rather than a tier per level, because the marks no longer say how deep anything is.
-    private static final String CAPTURE_RULED = ".mark--capture.mark--ruled";
 
     // A capturing group in the pattern workbench's map of the pattern.
     private static final String REGEX_GROUP = ".regex__group";

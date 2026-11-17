@@ -106,7 +106,7 @@ public class OutputPaneController extends Controller {
         // instruction's output in its card's hue, for the cursor's own cards and the cards of
         // the matches one generation below it, and ruled where the card is one of the cursor's.
         final InstructionHues hues = InstructionHues.inScope(trace, cursor);
-        for (final Long frameId : InstructionHues.reached(trace, cursor)) {
+        for (final Long frameId : hues.frames()) {
             events |= place(trace, cursor, frameId, hues, marks);
         }
         for (final Frame child : trace.children(cursor)) {

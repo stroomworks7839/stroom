@@ -21,11 +21,10 @@ import stroom.shapeshifter.shared.ShapeshifterTrace.Frame;
 import stroom.shapeshifter.shared.ShapeshifterTrace.Instruction;
 import stroom.shapeshifter.shared.ShapeshifterTrace.OutputSpan;
 
+import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /// One colour per body card, allocated over everything the output pane marks (design 18 §5.13.4,
 /// ruled 2026-11-17). An instruction is to the output pane what a capture is to the content pane
@@ -92,7 +91,7 @@ public final class InstructionHues {
 
     private final Map<String, String> hues = new HashMap<>();
     private final Map<String, String> byCard = new HashMap<>();
-    private final Set<Long> reach = new HashSet<>();
+    private final List<Long> frames = new ArrayList<>();
     private int next;
 
     private InstructionHues() {
@@ -108,8 +107,8 @@ public final class InstructionHues {
     public static InstructionHues inScope(final TraceModel trace, final long cursor) {
         final InstructionHues allocated = new InstructionHues();
         allocated.own(trace, cursor);
-        for (final Long frameId : Reach.from(trace, cursor, WRITTEN)) {
-            allocated.reach.add(frameId);
+        allocated.frames.addAll(Reach.from(trace, cursor, WRITTEN));
+        for (final Long frameId : allocated.frames) {
             allocated.number(trace, frameId);
         }
         return allocated;
@@ -124,22 +123,17 @@ public final class InstructionHues {
         return hues.get(key(frameId, index));
     }
 
-    /// Whether a frame's cards are within the tint's reach beneath the cursor — the cursor's own
-    /// frame always is.
+    /// The frames whose output the pane marks, outermost first: the cursor and the frames
+    /// beneath it within reach.
     ///
-    /// @param frameId The frame.
-    /// @return Whether to tint what it wrote.
-    public boolean inReach(final long frameId) {
-        return reach.contains(frameId);
-    }
-
-    /// The frames whose output the pane tints, outermost first.
+    /// The walk this came from is the one the allocation was built on, handed back rather than
+    /// repeated. The content pane recurses a second time because it has to accumulate a base
+    /// offset down the tree; output offsets are absolute, so here there is nothing to accumulate
+    /// and a second walk would be the whole frame tree again on every refresh.
     ///
-    /// @param trace The run.
-    /// @param cursor The selected frame.
     /// @return The frame ids, in the order they were walked.
-    public static List<Long> reached(final TraceModel trace, final long cursor) {
-        return Reach.from(trace, cursor, WRITTEN);
+    public List<Long> frames() {
+        return frames;
     }
 
     /// Whether an instruction or a frame put characters in the output: an EVENTS span counts
