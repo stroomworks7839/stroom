@@ -42,6 +42,21 @@ public class OutputPaneController extends Controller {
 
     private OutputPane view;
 
+    /// How many cards the pane will mark before it stops marking the deeper ones (design 18
+    /// §5.13.8, ruled 2026-11-17).
+    ///
+    /// **The cap is on the marks, not on the text**: the whole output is always shown, and past
+    /// this the deeper generation simply stops being tinted. That is where this pane and the
+    /// content pane are allowed to differ, and the difference has a reason — the content pane's
+    /// `RENDER_CAP` withholds a sample that is still on disk and still reachable from the crumb,
+    /// where the output exists nowhere else. The tint is a reading aid and can be given up; the
+    /// bytes cannot.
+    ///
+    /// The number is where an ordinary large sample lands: a four-hundred-match run of a
+    /// five-card template is about two thousand spans, and `Marks.light` walks every span in
+    /// the block on each `mouseover`.
+    private static final int MARK_CAP = 2_000;
+
     private ProjectHost host;
 
     @Inject
@@ -106,7 +121,15 @@ public class OutputPaneController extends Controller {
         // instruction's output in its card's hue, for the cursor's own cards and the cards of
         // the matches one generation below it, and ruled where the card is one of the cursor's.
         final InstructionHues hues = InstructionHues.inScope(trace, cursor);
+        // The cursor's own cards first and always, whatever the cap: they are bounded by the
+        // size of one body, and they are the ones the rule is about. A pane that stopped ruling
+        // the current level would be answering a different question from the one it was asked.
+        boolean capped = false;
         for (final Long frameId : hues.frames()) {
+            if (frameId != cursor && marks.size() >= MARK_CAP) {
+                capped = true;
+                break;
+            }
             events |= place(trace, cursor, frameId, hues, marks);
         }
         for (final Frame child : trace.children(cursor)) {
@@ -123,9 +146,18 @@ public class OutputPaneController extends Controller {
                     child.getTemplateName() + " #" + child.getMatchIndex() + " — click to descend"));
         }
         marks.sort(Mark.OUTER_FIRST);
-        view.showOutput(output, marks, events
-                ? "this output is counted in events, so its spans cannot be marked"
-                : null);
+        view.showOutput(output, marks, note(events, capped));
+    }
+
+    /// What the pane says about what it could not mark. The whole output is shown either way.
+    private static String note(final boolean events, final boolean capped) {
+        if (events) {
+            return "this output is counted in events, so its spans cannot be marked";
+        }
+        return capped
+                ? "showing the first " + MARK_CAP + " marked cards; the rest of the output is "
+                  + "here but not tinted"
+                : null;
     }
 
     /// The cards of one frame, marked where they wrote characters (design 18 §5.13.1, §5.13.2).

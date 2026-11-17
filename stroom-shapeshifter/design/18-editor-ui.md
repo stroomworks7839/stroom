@@ -1181,11 +1181,12 @@ underlined, however deep the tint reaches.
   of four hundred lines binds `$line` four hundred times and gets four hundred colours: a
   rainbow down the pane, identifying nothing, which is the opposite of what the tint is for.
   Every binding of the same variable by the same template therefore takes the same hue and
-  the numbering counts distinct variables. That also keeps the generator honest — it steps
-  47°, coprime with 360, so a repeat needs 360 distinct *variables*, where 360 occurrences
-  is an ordinary sample. Collisions become
-  impossible by construction, and since the generator steps 47° — coprime with 360 — the
-  hues stay distinct far past the number of rows a pane will show. This finally fixes
+  the numbering counts distinct variables. That also keeps the generator honest — not because
+  a hue would otherwise *repeat*, which needs 360 of them whatever the step, but because the
+  hues crowd long before they repeat (§5.13.7, measured 2026-11-17: at twenty-four items the
+  closest pair is 11° apart, and under the 47° step this paragraph used to describe, 1°).
+  Counting variables rather than bindings is what keeps an ordinary sample well inside that,
+  where counting four hundred bindings would not. This finally fixes
   Q18's original complaint: `hue()` was fed the capture's index *within its own frame*, so
   index 0 was the same pink at every depth, and with the tint now reaching two generations
   and the pane listing every frame on the path, two such captures sit on screen together.
@@ -1528,9 +1529,9 @@ painted in.
 Every binding of the same variable by the same template is one colour; every execution of the
 same card of the same template is one colour. The literal alternative — a colour per
 occurrence — makes a four-hundred-line sample four hundred colours, a rainbow that identifies
-nothing, which is the opposite of what an identity channel is for. It also keeps the
-generator honest: `Colours.hue` steps 47°, coprime with 360, so a repeat needs 360 distinct
-*things*, where 360 occurrences is an ordinary sample.
+nothing, which is the opposite of what an identity channel is for. It also keeps the count
+down to where the generator can still tell things apart: hues crowd long before they repeat
+(§5.13.7), so the question is never how many fit but how many are on screen at once.
 
 The key is the thing's identity, not its position in a walk: `templateId + "/" + name` for a
 capture, `templateId + "#" + index` for an instruction.
@@ -1695,38 +1696,63 @@ numbers the path first; the output pane's keys off card identity and numbers the
 cards first. Same principles (§5.12.5, §5.12.6), different anchor — so two allocators reading
 one walk.
 
-#### 5.13.7 Open after the build: eight hues on one screen
+#### 5.13.7 The hue step, measured rather than asserted
 
-Found while looking at the built pane, 2026-11-17, and **not yet ruled**.
+*Found while looking at the built pane and ruled the same day, 2026-11-17.*
 
-`Colours.hue` steps 47°, which the design has twice described as keeping colours distinct
-because 47 is coprime with 360 and so 360 distinct things are needed before one repeats. That
-is true of exact repeats and oversells the separation. The step wraps: with the strict_kv
-fixture the source's three cards and a pair's five make eight on screen at once, at 313°, 0°,
-47°, 94°, 141°, 188°, 235° and 282° — and the closest pair, index 0 at 313° and index 7 at
-282°, is **31° apart**. In the built pane those two are `<records>` and `</pair>`, and they read
-as the same pink.
+The design twice said that `Colours.hue` keeps colours distinct because its 47° step is
+coprime with 360, so 360 distinct things are needed before one repeats. That is true of exact
+repeats and it is the wrong question. **Hues crowd long before they repeat**, and the step
+wraps: with the strict_kv fixture the source's three cards and a pair's five put eight on
+screen at once, at 313°, 0°, 47°, 94°, 141°, 188°, 235° and 282° — closest pair 31° apart, and
+in the built pane those two are `<records>` and `</pair>`, which read as the same pink.
 
-It is not new and not confined to this pane: captures, regex groups and body cards all come
-from the same generator, and the content pane would show it too given eight distinct variables
-in scope. The output pane makes it ordinary rather than rare, because a body of three cards
-dispatching into a body of five is an unremarkable configuration.
+Measuring the closest pair at each count, over every step coprime with 360:
 
-Nothing is done about it yet. Worth noting that the fix is not obviously "a bigger step": the
-generator has to stay deterministic and order-free, and any fixed step has a wrap at which
-adjacent indices meet. The alternatives — a palette rather than a generator, or spacing by the
-count actually in scope — are both changes to a function four surfaces read.
+| items | 4 | 8 | 12 | 24 | 48 |
+|---|---|---|---|---|---|
+| 47° (was) | 47° | 31° | 16° | **1°** | **1°** |
+| 137° (golden angle) | 51° | 35° | 16° | 3° | 3° |
+| 43° (is) | 43° | 43° | 16° | 11° | 5° |
 
-**Also open: how many spans the pane will draw.** The content pane stops at `RENDER_CAP`
-(200 000 characters) because "the sample is for looking at"; the output pane has never had a
-cap, which was survivable while it drew one mark per child match. Marking two generations of
-cards multiplies that: over a four-hundred-match sample the document cursor goes from roughly
-one span to roughly two thousand, and `Marks.light` walks every span in the block on each
-`mouseover`. Found by review 2026-11-17. The pane was already uncapped before this, so the
-change is a constant factor on a pre-existing exposure rather than a new one — but the two
-panes now differ for no stated reason, which is the part worth settling.
+**The step is now 43°.** The ruling asked for the golden angle, which is the textbook answer
+to exactly this problem; measured on a 360° wheel with an integer step it is beaten by moving
+four degrees from where we already were. 43° gives up 4° at four items, which nobody can see,
+and buys an order of magnitude at twenty-four, which anybody can. 47°'s real fault was never
+the 31° at eight items — eight hues round a wheel cannot do much better than 45°, and no
+sequential step will — it was the cliff at twenty-four, where two things on screen are 1°
+apart and the design called them distinct.
 
-#### 5.13.8 Rulings, 2026-11-17
+This is not confined to the output pane: captures, regex groups and body cards read the same
+generator, so all four surfaces move. The output pane only made it ordinary, because a body of
+three cards dispatching into a body of five is an unremarkable configuration.
+
+The rejected alternative was a second axis — varying lightness as well as hue — which is
+genuinely more separable than any step can be, and reopens `--mark__lightness`, the per-theme
+calibration that exists so a generated hue clears 4.5:1 as text.
+
+#### 5.13.8 How many marks the output pane will draw
+
+*Found by review and ruled 2026-11-17.*
+
+The content pane stops rendering at `RENDER_CAP` (200 000 characters) because "the sample is
+for looking at". The output pane has never had a cap, which was survivable while it drew one
+mark per child match. Marking two generations of cards multiplies that: over a four-hundred-
+match sample the document cursor goes from roughly one span to roughly two thousand, and
+`Marks.light` walks every span in the block on each `mouseover`.
+
+**The cap is on the marks, not on the text.** The whole output is always shown; past the cap
+the deeper generation stops being marked, and the pane says so. This is where the two panes
+are allowed to differ, and the difference has a reason: the content pane's cap withholds a
+sample that is still on disk and still reachable from the crumb, where the output exists
+nowhere else — truncating it would be the pane failing at the one thing it is for. The tint is
+a reading aid and can be given up; the bytes cannot.
+
+The cursor's own cards are always marked, however many there are. They are bounded by the size
+of one body, they are the ones the rule is about, and a pane that stopped ruling the current
+level would be answering a different question from the one it was asked.
+
+#### 5.13.9 Rulings, 2026-11-17
 
 The four questions this pass put, collected so the shape of the decision is readable in one
 place. Each is written into the subsection it governs.

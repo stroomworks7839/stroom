@@ -24,6 +24,28 @@ final class Colours {
     /// light theme's control surface and the dark theme's (see `theme-root.css`, `theme-dark.css`).
     static final String HUE_LIGHTNESS = "var(--mark__lightness)";
 
+    /// How far round the wheel each successive index steps (design 18 §5.13.7, measured
+    /// 2026-11-17).
+    ///
+    /// 43°, where this was 47° for most of the editor's life. Both are coprime with 360, so
+    /// both need 360 items before a hue *repeats* — which is what the design used to claim and
+    /// is the wrong question. What matters is how close two hues get, and 47° has a cliff: at
+    /// eight items on screen its closest pair is 31° apart, at twenty-four it is **1°**, which
+    /// is a repeat for a reader however distinct the numbers are. Measured over every step
+    /// coprime with 360, at 8 items and at 24, 43° is on the Pareto front and 47° is not:
+    ///
+    /// | items | 4 | 8 | 12 | 24 | 48 |
+    /// |---|---|---|---|---|---|
+    /// | 47° | 47° | 31° | 16° | 1° | 1° |
+    /// | 137° (golden angle) | 51° | 35° | 16° | 3° | 3° |
+    /// | 43° | 43° | 43° | 16° | 11° | 5° |
+    ///
+    /// The golden angle is the textbook answer and is beaten here by four degrees' difference
+    /// from where we started, because the wheel is 360 and an integer step's arithmetic matters
+    /// more than its irrational ideal. 43° gives up 4° at four items, which nobody can see, and
+    /// buys an order of magnitude at twenty-four, which anybody can.
+    private static final int STEP = 43;
+
     private Colours() {
     }
 
@@ -50,7 +72,7 @@ final class Colours {
         // floorMod, not %: a caller counting from zero would otherwise produce a negative hue,
         // which Colours.safe rejects and paints transparent — one capture silently uncoloured
         // rather than a visibly wrong colour, which is the hardest kind of bug to notice.
-        return "hsl(" + Math.floorMod((index - 1) * 47, 360) + ", 62%, " + HUE_LIGHTNESS + ")";
+        return "hsl(" + Math.floorMod((index - 1) * STEP, 360) + ", 62%, " + HUE_LIGHTNESS + ")";
     }
 
     /// The colour if it is a hex triplet/sextet, a word or the hue form `hsl(h, s%, l%)`;

@@ -43,9 +43,11 @@ import java.util.Set;
 /// down one pane is a rainbow that identifies nothing. The purpose of the tint is that an IP
 /// address, a user name or a timestamp is recognisable *as* one, so every binding of the same
 /// variable by the same template takes the same hue, and the numbering counts distinct
-/// variables. That also keeps the count small enough for the generator to stay honest: it steps
-/// 47°, coprime with 360, so 360 distinct variables would be needed before a hue repeated, where
-/// 360 *occurrences* is an ordinary sample.
+/// variables. That also keeps the count small enough for the generator to stay honest. Not
+/// because a hue would otherwise *repeat* — that needs 360 of them either way — but because the
+/// hues crowd long before they repeat: at twenty-four items the closest pair of generated hues
+/// is 11° apart and at forty-eight it is 5°, which a reader cannot tell apart (`Colours.STEP`).
+/// Counting variables rather than bindings is what keeps an ordinary sample well inside that.
 ///
 /// A variable's colour still moves as the cursor walks, which is the same price already accepted
 /// for the tint's reach, and for the same reason — the alternative is a colour that does not
