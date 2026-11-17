@@ -1537,7 +1537,14 @@ capture, `templateId + "#" + index` for an instruction.
 
 ### 5.13 The output pane's channels
 
-*Ruled 2026-11-17. Nothing here is built except where it says otherwise.*
+*Ruled 2026-11-17, and **§5.13.1, §5.13.2 and §5.13.4 built the same day**. `Reach` holds the
+walk both panes share, parameterised by what each can draw; `InstructionHues` allocates the
+colours, pinning the cursor's own cards to `BodyController.cardHue` and continuing the count
+below; `OutputPaneController.place` marks them, ruling the cursor's own. Covered by
+`InstructionHuesTest` and by assertions in the `RunShowsOutput` and `InputPaneDescended`
+stories, whose fixture gained the output and instruction spans it had never carried — before
+this the output pane was unmarked in every story. **§5.13.3's click is not built**, and
+§5.13.5's artefact is recorded rather than fixed.*
 
 **An instruction is to the output pane what a capture is to the content pane.** §5.12 applies
 unchanged under that one substitution, and what follows is only what the substitution does not
@@ -1681,7 +1688,29 @@ numbers the path first; the output pane's keys off card identity and numbers the
 cards first. Same principles (§5.12.5, §5.12.6), different anchor — so two allocators reading
 one walk.
 
-#### 5.13.7 Rulings, 2026-11-17
+#### 5.13.7 Open after the build: eight hues on one screen
+
+Found while looking at the built pane, 2026-11-17, and **not yet ruled**.
+
+`Colours.hue` steps 47°, which the design has twice described as keeping colours distinct
+because 47 is coprime with 360 and so 360 distinct things are needed before one repeats. That
+is true of exact repeats and oversells the separation. The step wraps: with the strict_kv
+fixture the source's three cards and a pair's five make eight on screen at once, at 313°, 0°,
+47°, 94°, 141°, 188°, 235° and 282° — and the closest pair, index 0 at 313° and index 7 at
+282°, is **31° apart**. In the built pane those two are `<records>` and `</pair>`, and they read
+as the same pink.
+
+It is not new and not confined to this pane: captures, regex groups and body cards all come
+from the same generator, and the content pane would show it too given eight distinct variables
+in scope. The output pane makes it ordinary rather than rare, because a body of three cards
+dispatching into a body of five is an unremarkable configuration.
+
+Nothing is done about it yet. Worth noting that the fix is not obviously "a bigger step": the
+generator has to stay deterministic and order-free, and any fixed step has a wrap at which
+adjacent indices meet. The alternatives — a palette rather than a generator, or spacing by the
+count actually in scope — are both changes to a function four surfaces read.
+
+#### 5.13.8 Rulings, 2026-11-17
 
 The four questions this pass put, collected so the shape of the decision is readable in one
 place. Each is written into the subsection it governs.

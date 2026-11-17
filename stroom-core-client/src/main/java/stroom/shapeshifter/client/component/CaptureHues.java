@@ -20,7 +20,6 @@ import stroom.shapeshifter.client.model.TraceModel;
 import stroom.shapeshifter.shared.ShapeshifterTrace.Capture;
 import stroom.shapeshifter.shared.ShapeshifterTrace.Frame;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -53,13 +52,31 @@ import java.util.Set;
 /// mean anything in particular.
 public final class CaptureHues {
 
-    /// How many generations of *binding* matches the content pane tints: the cursor's own
-    /// captures and one level of captures below them (design 18 §5.11.1).
+    /// What the content pane can draw, for [Reach]: a frame draws when it bound a capture whose
+    /// bytes are a slice of its content, and the descent ends where a frame's content is no
+    /// slice of its parent's.
     ///
-    /// Generations are counted by the frames that bind rather than by frames, because a frame
-    /// that binds nothing shows the reader nothing and so should not spend a generation. The cap
-    /// is on how many lots of ranges are coloured at once, not on how deep the tree goes.
-    public static final int GENERATIONS = 2;
+    /// A capture read from a variable, or a key-value pair — which the engine reports with no
+    /// offset (`Instrument.NOT_A_SLICE`) — is a row in the variables pane and nothing in the
+    /// text. A frame of nothing but those draws no ranges, so counting it as a generation would
+    /// spend one on an invisible level *and* prune the frames below it from the tint. It still
+    /// gets a colour, because the pane does list it.
+    private static final Reach TINTED = new Reach() {
+        @Override
+        public boolean draws(final TraceModel trace, final long frameId) {
+            for (final Capture capture : trace.captures(frameId)) {
+                if (capture.getContentOffset() >= 0) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        @Override
+        public boolean descends(final TraceModel trace, final Frame child) {
+            return child.getContentOffset() >= 0;
+        }
+    };
 
     private final Map<String, String> hues = new HashMap<>();
     private final Map<String, String> byVariable = new HashMap<>();
@@ -127,46 +144,13 @@ public final class CaptureHues {
     }
 
     /// The frames whose captures the content pane tints, outermost first: the cursor and the
-    /// frames beneath it that are within [#GENERATIONS] binding generations of it.
+    /// frames beneath it that are within [Reach#GENERATIONS] binding generations of it.
     ///
     /// @param trace The run.
     /// @param cursor The selected frame.
     /// @return The frame ids, in the order they were walked.
     public static List<Long> reached(final TraceModel trace, final long cursor) {
-        final List<Long> frames = new ArrayList<>();
-        walk(trace, cursor, 0, frames);
-        return frames;
-    }
-
-    private static void walk(final TraceModel trace, final long frameId, final int generation,
-                             final List<Long> frames) {
-        final int generations = binds(trace, frameId)
-                ? generation + 1
-                : generation;
-        if (generations > GENERATIONS) {
-            return;
-        }
-        frames.add(frameId);
-        for (final Frame child : trace.children(frameId)) {
-            if (child.getContentOffset() >= 0) {
-                walk(trace, child.getId(), generations, frames);
-            }
-        }
-    }
-
-    /// Whether a frame bound anything the pane can draw.
-    ///
-    /// A capture whose bytes are not a slice of the frame's content — one read from a variable, or
-    /// a key-value pair ([stroom.shapeshifter.engine.Instrument#NOT_A_SLICE]) — has nowhere in the
-    /// text to be tinted, so it is not a generation of ranges however many of them there are. It
-    /// still gets a colour, because the variables pane lists it.
-    private static boolean binds(final TraceModel trace, final long frameId) {
-        for (final Capture capture : trace.captures(frameId)) {
-            if (capture.getContentOffset() >= 0) {
-                return true;
-            }
-        }
-        return false;
+        return Reach.from(trace, cursor, TINTED);
     }
 
     /// Every capture of a frame takes the colour of the variable it bound, allocating a new one

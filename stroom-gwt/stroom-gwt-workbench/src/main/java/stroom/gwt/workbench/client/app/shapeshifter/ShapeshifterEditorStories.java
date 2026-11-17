@@ -159,6 +159,15 @@ public final class ShapeshifterEditorStories {
     // that disagrees with itself is worse than a short one — it makes the panes look broken when
     // they are drawing exactly what they were handed, which is how a screenshot of this fixture
     // was nearly misread.
+    // "outputs" and "instructions" say what each frame wrote and what each top-level card of
+    // its body wrote. They are measured on the sink's own position, so unlike a frame's content
+    // offsets — which are relative to its parent's content — these are absolute in "output".
+    // Spans nest: the source's covers both pairs', and each pair's covers its own five cards'.
+    //
+    // junk_line's single card is an emit-error and writes nothing, and it is here at length 0
+    // on purpose. A frame that wrote no characters must not spend one of the two generations
+    // the output pane tints (design 18 §5.13.1), and a fixture with nothing of the sort in it
+    // could not tell whether the pane gets that right.
     private static final String TRACE = """
     {
       "compiled": true, "sampleRead": true,
@@ -187,8 +196,30 @@ public final class ShapeshifterEditorStories {
         {"frameId": 4, "name": "key", "value": "level", "contentOffset": 0, "contentLength": 5},
         {"frameId": 4, "name": "value", "value": "warn", "contentOffset": 6, "contentLength": 4}
       ],
-      "groups": [], "outputs": [], "attempts": [], "guards": [],
-      "instructions": [], "attemptsSeen": 3, "timings": [],
+      "groups": [], "attempts": [], "guards": [],
+      "attemptsSeen": 3, "timings": [],
+      "outputs": [
+        {"frameId": 1, "offset": 0, "length": 83, "unit": "BYTES"},
+        {"frameId": 2, "offset": 10, "length": 31, "unit": "BYTES"},
+        {"frameId": 3, "offset": 41, "length": 0, "unit": "BYTES"},
+        {"frameId": 4, "offset": 41, "length": 31, "unit": "BYTES"}
+      ],
+      "instructions": [
+        {"frameId": 1, "index": 0, "offset": 0, "length": 10, "unit": "BYTES"},
+        {"frameId": 1, "index": 1, "offset": 10, "length": 62, "unit": "BYTES"},
+        {"frameId": 1, "index": 2, "offset": 72, "length": 11, "unit": "BYTES"},
+        {"frameId": 2, "index": 0, "offset": 10, "length": 12, "unit": "BYTES"},
+        {"frameId": 2, "index": 1, "offset": 22, "length": 4, "unit": "BYTES"},
+        {"frameId": 2, "index": 2, "offset": 26, "length": 2, "unit": "BYTES"},
+        {"frameId": 2, "index": 3, "offset": 28, "length": 5, "unit": "BYTES"},
+        {"frameId": 2, "index": 4, "offset": 33, "length": 8, "unit": "BYTES"},
+        {"frameId": 3, "index": 0, "offset": 41, "length": 0, "unit": "BYTES"},
+        {"frameId": 4, "index": 0, "offset": 41, "length": 12, "unit": "BYTES"},
+        {"frameId": 4, "index": 1, "offset": 53, "length": 5, "unit": "BYTES"},
+        {"frameId": 4, "index": 2, "offset": 58, "length": 2, "unit": "BYTES"},
+        {"frameId": 4, "index": 3, "offset": 60, "length": 4, "unit": "BYTES"},
+        {"frameId": 4, "index": 4, "offset": 64, "length": 8, "unit": "BYTES"}
+      ],
       "messages": [
         {"severity": "warning", "text": "unrecognised line: # a comment the grammar never claimed",
          "frameId": 3}
@@ -493,6 +524,21 @@ public final class ShapeshifterEditorStories {
                     // The run's output, from the preview fixture
                     play.waitFor(() -> play.expect(play.getAllByText(TextMatch.regex("web01")).count())
                             .toSatisfy("the sample's first value", count -> ((Integer) count) > 0));
+                    // Marked by the card that wrote it, two generations deep (design 18 §5.13.1):
+                    // the source's three cards, and the five cards of each pair inside the
+                    // second of them. The cursor is the document, which has no body of its own,
+                    // so nothing here is ruled — the rule says "this card is one of yours".
+                    play.waitFor(() -> play.expect(play.querySelector(OUTPUT_SOURCE_CARD))
+                            .not().toBeNull());
+                    play.expect(play.querySelector(OUTPUT_PAIR_CARD)).not().toBeNull();
+                    play.expect(play.querySelector(OUTPUT_RULED)).toBeNull();
+                    // Two cards of different templates are different colours. hue(index) for
+                    // both would have made the source's card 0 and a pair's card 0 one colour,
+                    // which is the defect CaptureHues was written to fix in the other pane.
+                    play.expect(play.querySelector(OUTPUT_SOURCE_CARD).computedStyle("--hue"))
+                            .toSatisfy("a colour of its own, not the pair's first card's",
+                                    hue -> !hue.equals(play.querySelector(OUTPUT_PAIR_CARD)
+                                            .computedStyle("--hue").get()));
                     expectNoProblems(play);
                 })
                 // A lock change on its own, with no re-read: the panes are told through the
@@ -1186,6 +1232,15 @@ public final class ShapeshifterEditorStories {
                     play.click(play.querySelector(MARK_DOCUMENT));
                     play.waitFor(() -> play.expect(play.querySelector(MARK_PAIR)).not().toBeNull());
                     play.expect(play.querySelector(MARK_JUNK)).not().toBeNull();
+                    // The output pane descended too, and now has a level to call its own: the
+                    // source's three cards are ruled and the pairs' cards beneath them are not
+                    // (design 18 §5.13.2). The apply-templates card is the one worth looking at
+                    // — its colour is overwritten everywhere by the cards of the matches it
+                    // dispatched, and its extent is still legible because the rule is a channel
+                    // of its own.
+                    play.waitFor(() -> play.expect(play.querySelector(OUTPUT_RULED)).not().toBeNull());
+                    play.expect(play.querySelector(OUTPUT_SOURCE_CARD)).toHaveClass("mark--ruled");
+                    play.expect(play.querySelector(OUTPUT_PAIR_CARD)).not().toHaveClass("mark--ruled");
                     expectNoProblems(play);
                 })
                 // And a capture the same way, from its own end
@@ -1454,6 +1509,15 @@ public final class ShapeshifterEditorStories {
     // content and output panes do. A match rather than a capture: the sample tints a capture
     // per regex group, and the canned preview declares no groups.
     private static final String SAMPLE_MARK = ".sample__matches .mark";
+
+    // Cards of the output, by the frame whose body ran them: the source's first card, which
+    // wrote "<records>", and the first card of the first pair it dispatched.
+    private static final String OUTPUT_SOURCE_CARD = ".mark--instruction[data-instr='1:0']";
+
+    private static final String OUTPUT_PAIR_CARD = ".mark--instruction[data-instr='2:0']";
+
+    // A card of the current level, which carries the rule.
+    private static final String OUTPUT_RULED = ".mark--instruction.mark--ruled";
 
     // The chip that carries a template's match, and opens the pattern workbench
     private static final String MATCH_CHIP = ".template-strip__match-chip";

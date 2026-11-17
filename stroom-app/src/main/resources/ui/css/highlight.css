@@ -25,7 +25,8 @@
 .mark.highlight,
 .mark--capture.highlight,
 .mark--instruction.highlight,
-.mark--capture.mark--ruled.highlight {
+.mark--capture.mark--ruled.highlight,
+.mark--instruction.mark--ruled.highlight {
     border-bottom-color: var(--hue);
 }
 

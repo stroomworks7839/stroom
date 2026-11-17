@@ -98,10 +98,21 @@
     border-bottom-color: color-mix(in srgb, var(--hue) 75%, transparent);
 }
 
+/* The output pane's two channels, the same pair the content pane draws over a capture and
+   answering the same two questions of a body card instead (design 18 §5.13): the colour says
+   which card wrote these bytes, and the rule says the card is one of the current level's. The
+   colour is the card's own, so that a run of output and the card in the template panel that
+   wrote it are the same colour. */
 .mark--instruction {
     -webkit-box-decoration-break: clone;
     box-decoration-break: clone;
     color: var(--hue);
     border-bottom: 2px solid transparent;
     transition: border-bottom-color .15s ease-out;
+}
+
+/* A card of the current level, at the same 75% the content pane's rule is drawn at and for the
+   same reason: where a card wrote nothing but whitespace the rule is the entire mark. */
+.mark--instruction.mark--ruled {
+    border-bottom-color: color-mix(in srgb, var(--hue) 75%, transparent);
 }

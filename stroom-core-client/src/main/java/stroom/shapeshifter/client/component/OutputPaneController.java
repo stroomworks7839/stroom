@@ -102,17 +102,12 @@ public class OutputPaneController extends Controller {
             marks.add(new Mark(Kind.DIM, cursor, -1, null, 0, from, null, null));
             marks.add(new Mark(Kind.DIM, cursor, -1, null, to, output.length(), null, null));
         }
-        // Coloured by the body card that wrote it (design 18 §5.5): each top-level instruction's
-        // output in its card's hue, the children's matches inside.
-        for (final Instruction instruction : trace.instructions(cursor)) {
-            if ("EVENTS".equals(instruction.getUnit())) {
-                events = true;
-                continue;
-            }
-            marks.add(new Mark(Kind.INSTRUCTION, cursor, instruction.getIndex(), null, (int) instruction.getOffset(),
-                    (int) (instruction.getOffset() + instruction.getLength()),
-                    BodyController.cardHue(instruction.getIndex()),
-                    "written by instruction " + (instruction.getIndex() + 1) + " of " + trace.label(cursor)));
+        // Coloured by the body card that wrote it (design 18 §5.5, §5.13.1): each top-level
+        // instruction's output in its card's hue, for the cursor's own cards and the cards of
+        // the matches one generation below it, and ruled where the card is one of the cursor's.
+        final InstructionHues hues = InstructionHues.inScope(trace, cursor);
+        for (final Long frameId : InstructionHues.reached(trace, cursor)) {
+            events |= place(trace, cursor, frameId, hues, marks);
         }
         for (final Frame child : trace.children(cursor)) {
             final OutputSpan span = trace.output(child.getId());
@@ -131,6 +126,52 @@ public class OutputPaneController extends Controller {
         view.showOutput(output, marks, events
                 ? "this output is counted in events, so its spans cannot be marked"
                 : null);
+    }
+
+    /// The cards of one frame, marked where they wrote characters (design 18 §5.13.1, §5.13.2).
+    ///
+    /// Output offsets are absolute positions in the sink rather than offsets within the parent,
+    /// so unlike the content pane there is no base to accumulate down the walk: a card's span is
+    /// already in the pane's own coordinates.
+    ///
+    /// **The colour says which card wrote these bytes; the rule says the card is one of yours.**
+    /// An `apply-templates` card's span covers everything its matches wrote, so the generation
+    /// below subdivides all of it and the parent card's colour often survives nowhere — but the
+    /// two channels are independent, so that card's extent is still readable as its underline.
+    /// Cards that write bytes themselves are never subdivided and keep their colour outright.
+    ///
+    /// A card that wrote nothing is not marked: an empty span would be a mark the reader cannot
+    /// see and cannot point at, and the card is already shown in the body panel.
+    ///
+    /// @param trace The run.
+    /// @param cursor The selected frame, whose own cards are the ruled ones.
+    /// @param frameId The frame whose body ran these cards.
+    /// @param hues The colour of each card in reach.
+    /// @param marks The marks to add to.
+    /// @return Whether a card of this frame was counted in events rather than characters, which
+    /// the pane says in a note because such a card has no span in the text to mark.
+    private static boolean place(final TraceModel trace, final long cursor, final long frameId,
+                                 final InstructionHues hues, final List<Mark> marks) {
+        boolean events = false;
+        final Frame frame = trace.frame(frameId);
+        for (final Instruction instruction : trace.instructions(frameId)) {
+            if ("EVENTS".equals(instruction.getUnit())) {
+                events = true;
+                continue;
+            }
+            if (instruction.getLength() == 0) {
+                continue;
+            }
+            marks.add(new Mark(Kind.INSTRUCTION, frameId, instruction.getIndex(), null,
+                    (int) instruction.getOffset(),
+                    (int) (instruction.getOffset() + instruction.getLength()),
+                    hues.hue(frameId, instruction.getIndex()),
+                    "written by instruction " + (instruction.getIndex() + 1) + " of " + (frame == null
+                            ? trace.label(frameId)
+                            : frame.getTemplateName() + " #" + frame.getMatchIndex()),
+                    frameId == cursor));
+        }
+        return events;
     }
 
 }
