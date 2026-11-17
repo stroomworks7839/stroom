@@ -979,6 +979,17 @@ Because nothing works without data, the empty states are designed, not accidenta
 - **Ran, template matched nothing**: selecting it shows the mode-graph strip ("nothing
   applies into mode `values`" vs "tried 212 times — nearest failed attempts here, here,
   here"), which is G3 earning its keep.
+- **Ran, nothing in scope at the cursor**: the variables pane says so **once, for the pane,
+  rather than once a frame** (ruled 2026-11-17). Each section already carries its own line —
+  "this pattern bound nothing", "the document binds nothing" — and that line is right when a
+  section beside it has rows, because it is then a fact about one scope among several. When no
+  frame on the path bound anything the lines stack, and two levels of nothing in a column read
+  as a pane that has failed rather than as a frame that genuinely binds nothing. So where every
+  section is empty the pane drops the sections and says "No name is in scope at the selected
+  frame." in the line it already keeps for having nothing to show — the same line it shows
+  before a run. The sections come back whole the moment any frame on the path binds one, so
+  this fires only in the case that misreads. The general form is §5.12.1's, applied to prose
+  instead of to a channel: one thing to say, said once.
 
 ### 5.8 Messages, and profiling that is always on
 

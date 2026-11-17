@@ -111,7 +111,30 @@ public class VariablesPaneController extends Controller {
                     ? "the document binds nothing"
                     : "this pattern bound nothing", !own));
         }
-        view.setSections(sections, null);
+        // Said once, not once a frame (ruled 2026-11-17). Every section carries its own "bound
+        // nothing" line, which is right when another section has rows beside it and wrong when
+        // none of them has: two levels of nothing stacked up read as a pane that has failed
+        // rather than as a frame that genuinely binds nothing. Where there is one thing to say,
+        // the pane says it once, in the line it already keeps for having nothing to show.
+        final boolean binds = binds(sections);
+        view.setSections(binds
+                        ? sections
+                        : List.of(),
+                binds
+                        ? null
+                        : "No name is in scope at the selected frame.");
+    }
+
+    /// Whether any frame on the path bound a name. Phrased over the sections rather than the
+    /// trace because it is the sections the reader sees: a frame with captures the pane did not
+    /// put in a row would not be nothing to show.
+    private static boolean binds(final List<Section> sections) {
+        for (final Section section : sections) {
+            if (!section.getRows().isEmpty()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public static final class Section {

@@ -1244,6 +1244,35 @@ public final class ShapeshifterEditorStories {
                     expectNoProblems(play);
                 })
 
+                // The variables pane says "nothing" once, not once a frame (ruled 2026-11-17).
+                // Descended into the source frame, the path is the document and the source, and
+                // neither binds a name: the pane used to print "this pattern bound nothing"
+                // above "the document binds nothing", two levels of nothing stacked up, which
+                // reads as a pane that has failed rather than as a frame that genuinely binds
+                // nothing.
+                .story("VariablesPaneWithNothingInScope", context -> render(context, false))
+                .withPlay(play -> {
+                    selectTemplate(play, "pair");
+                    play.click(runButton(play));
+                    play.waitFor(() -> play.expect(play.querySelector(MARK_DOCUMENT))
+                            .not().toBeNull());
+                    play.click(play.querySelector(MARK_DOCUMENT));
+                    play.waitFor(() -> play.expect(play.querySelector(MARK_PAIR)).not().toBeNull());
+                    play.expect(play.getByText(NOTHING_IN_SCOPE)).toBeVisible();
+                    play.expect(play.queryByText("the document binds nothing")).toBeNull();
+                    play.expect(play.queryByText("this pattern bound nothing")).toBeNull();
+                    // ...and the sections come back whole the moment any frame on the path binds
+                    // one. A section saying it bound nothing is right beside a section that
+                    // bound something — that is a fact about one scope among several — and
+                    // wrong only when it is the whole pane.
+                    play.click(play.querySelector(MARK_PAIR));
+                    play.waitFor(() -> play.expect(play.getByText("$key", VARIABLES_NAME))
+                            .toBeVisible());
+                    play.expect(play.queryByText(NOTHING_IN_SCOPE)).toBeNull();
+                    play.expect(play.getByText("the document binds nothing")).toBeVisible();
+                    expectNoProblems(play);
+                })
+
                 // Pointing at output written by a card *below* the cursor lights the row of the
                 // template that wrote it (design 18 §5.13.4). For the cursor's own cards the body
                 // panel lights the card itself and says everything; for a deeper one the body
@@ -1584,6 +1613,8 @@ public final class ShapeshifterEditorStories {
 
     // The row the name sits in, which is what carries `highlight` when the template is lit
     private static final String TEMPLATE_ROW = ".template-row";
+    private static final String VARIABLES_NAME = ".variables-pane__name";
+    private static final String NOTHING_IN_SCOPE = "No name is in scope at the selected frame.";
 
     // The kind of instruction a body card holds ("text", "value-of", ...)
     private static final String CARD_KIND = ".body-card__kind";
