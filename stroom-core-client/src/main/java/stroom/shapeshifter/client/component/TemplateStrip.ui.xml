@@ -6,9 +6,18 @@
              xmlns:split="urn:import:stroom.widget.layout.client"
              xmlns:l="urn:import:stroom.widget.selection.client">
     <!-- The heading, the template itself, and its declarations and captures below: what GWT's
-         docking panel did in one, a split pane does one axis at a time. -->
+         docking panel did in one, a split pane does one axis at a time.
+
+         The Template pane takes the rest, because the body grows with the cards in it. That also
+         makes it the pane that gives space up first (SplitPane), so it needs a floor: without one
+         it was squeezed to 5px in a 205px strip — the heading's 30 and the details' 170 are
+         fixed — and the body's cards, the surface an author spends most of their time in, were
+         clipped out of sight entirely while two often-empty grids kept their full height. The
+         floors say which pane matters when there is not enough room for all three: the body
+         first, then enough of the details to show their headers. -->
     <split:SplitPane ui:field="layout" vertical="true" thin="true"
-                     sizes="30px, *, 170px" names="Heading, Template, Details"
+                     sizes="30px, *, 170px" minSizes="30px, 110px, 44px"
+                     names="Heading, Template, Details"
                      addStyleNames="max default-min-sizes template-strip">
         <g:FlowPanel styleName="template-strip__head">
             <t:Label ui:field="title" styleName="design-panel__title template-strip__pattern-title"/>
