@@ -506,6 +506,72 @@ that *which* order rule applies is chosen elsewhere — see §6.1.
 |---|---|---|---|
 | 27 | Saves | `Save` is enabled, and the project the editor is holding is the same model as `strict_kv/project.json` | the keystone assertion, §3 — **but not read from the save**, see §5.9 |
 
+### 5.9a Automated a step at a time — done 2026-11-17
+
+`AuthorRungOne` is retired. The walkthrough is now **26 stories, one per step**, in
+`ShapeshifterAuthoringStories`, each replaying the steps before it and stopping at its own —
+because the test runner takes exactly one screenshot per story, after the play ends, so a
+screenshot per step means a story per step. Measured cost: ~5.4s of fixed setup per story and
+~17ms per replayed step, so about 175s for the rung. The steps are written once; a story runs
+the prefix up to its own.
+
+Story names carry this section's step numbers, so a screenshot's filename names the step it is
+evidence for (`…--kv-11-pattern.png` ↔ §5.4 step 11). Four things the automation settled that
+the step tables had not:
+
+- **There is no step 9.** The numbering here runs 1–8, 10–27; the gap appeared when §5.3 was
+  rewritten to say the root template arrives already made. 26 steps, not 27.
+- **Steps 10 and 12 are one action.** A template is given its mode in the dialog that makes it,
+  so `pair` and the `kv` mode arrive together and cannot be driven apart. The table's order is
+  the author's intent; the UI's is one dialog.
+- **Step 23 is already done by step 21.** A template added second *is* second, so the walkthrough
+  asserts the dispatch order rather than performing a move that would undo it.
+- **Steps 16, 20 and 26 — "Runs" — are asserted, not clicked**, and that is forced rather than
+  chosen. See below.
+
+**The sample goes in at step 5, and the panes stay empty until the end.** §5.2 puts the record in
+front of the author before any pattern is written, and that ordering is now driven. But
+`ShapeshifterDesignController.check()` runs the project over the sample on a debounce after
+*every* edit once a sample exists — and a story's preview reply is canned. Withholding the Run
+button changes nothing: the editor runs itself. So the walkthrough is served a trace that read
+the sample and matched nothing, until the last stage, which is served the real one.
+
+The panes therefore read *"ran, and nothing matched — no template applied to the document"* while
+the project is being written. For the stages before the dispatch is wired that is exactly true
+(§5.4); for the later ones it understates rather than overstates, which is the right way round.
+Showing true intermediate marks needs a live engine, which is §2's other side.
+
+One consequence worth recording: the keystone reads whichever endpoint last carried the project.
+An edit goes to `validate` while there is no sample and to `preview` once there is, and
+`preview`'s body carries the project as a field beside the sample. `AuthorRungOne` only ever read
+`validate` because it never pasted a sample.
+
+**Finding — the body's cards were not on screen at all, and are now — fixed 2026-11-17.** None
+of the 26 screenshots showed the card list, at any step, for any template; nor did any of the 58
+older shapeshifter stories, which use a fully built fixture. The cards were in the DOM and drove
+without trouble — the keystone proves all eleven reach the project — and `+ instruction` measured
+at (257, 392), inside the 1280×720 viewport, with `card-list` as its parent. Nothing of it was
+painted.
+
+The cause is in `TemplateStrip.ui.xml`. The strip is a vertical split of three:
+`sizes="30px, *, 170px"` — Heading, **Template**, Details. The Template pane holds the match,
+role and guard rows *and the body's cards*, and it takes the rest, because a body grows with the
+cards in it. But taking the rest also makes it **the pane that gives space up first**, and it had
+no floor. At 1280×720 the whole strip is about 205px, so 30 and 170 fixed left the body **5px**,
+and the cards were clipped out of sight while two grids that are usually empty — Declarations and
+Captures — kept their full height.
+
+The fix is the widget's own mechanism, which nothing had used here: `minSizes="30px, 110px, 44px"`.
+The floors say which pane matters when there is not enough room for all three — the body first,
+then enough of the details to show their headers — so the details give way instead. All 84
+shapeshifter stories pass with it, and the cards are in the screenshots from step 13 on.
+
+Worth recording for its own sake: **this was not found by three months of stories over a built
+fixture, and was found in a day by photographing an author's own sequence.** The older stories
+asserted classes and text, which were all present; only the camera showed that the surface an
+author spends most of rung 1 in had never been visible. That is the argument for the rest of the
+ladder.
+
 ### 5.9 What the browser said — walked 2026-11-12
 
 **Rung 1 is driven end to end by a kept story, `AuthorRungOne`, and the keystone holds.** The
@@ -612,6 +678,71 @@ the rule will try to fix a problem they do not have by moving `arrow` up, and no
 change — which is either reassuring or baffling depending on whether the screen has told them
 `lexer` is in force.
 
+### 6.1a Driven 2026-11-17 — twelve stories, and what the table had wrong
+
+`ShapeshifterLexerStories`, the same shape as rung 1 (§5.9a) on the shared mechanism in
+`Walkthrough`: twelve stories, a screenshot each, the last carrying the keystone. All green. Four
+things the browser said that reading the source had not.
+
+**The table has no rename, and every rung needs one.** §6.1 step 3 only *opens* the `Document`
+row. But the root arrives named `document` and every sample's root is called `source`, so without
+a rename the keystone cannot match. Rung 1 renames at its step 8; rung 2's table simply lost the
+step. Rungs 3 and 5 will want it too.
+
+**A mode cannot be made from the dispatch card — so the two-part edit has exactly one order.**
+§6.1 step 5 is `Mode` → `New…` `tokens` on the document's `apply-templates`. That button exists
+only on the template dialog (`TemplateEdit.ui.xml`); the card's Mode is a picker over modes that
+already exist (`InstructionEdit.ui.xml`), because a mode is a property of the templates in it.
+So the author cannot start from the dispatch side: the first token template has to be made first,
+which is what creates the mode, and only then can the card be pointed at it.
+
+This is §5.4's finding from the other end, and it sharpens it. §5.4 said the author's instinct
+(*match a pair, then say where pairs are dispatched from*) leaves the project briefly broken, and
+the panel's note answers that. What rung 2 adds is that **the opposite order is not available at
+all** — the editor allows one sequence and says nothing about which. The note tells you that you
+are halfway through; nothing tells you which half comes first.
+
+**The note does appear here, reached from that forced order** (stage `Lx06DeadMode`), which is
+worth having guarded in a second sample: the predicate is `Modes.applySiteCount == 0` and this is
+a different project shape reaching it.
+
+**An empty body is a spelling the engine's own writer would not use.** The keystone failed on one
+line: `space` has `"body": []` in the fixture and the editor omits it. The editor is right.
+`ProjectJson` writes a body only `if (!template.body().isEmpty())` and reads a missing one as
+empty — so round-tripping `lexer_tokens` through the config writer would drop that line too. This
+is §3.1's "explicit defaults" family found from the other end: not the UI writing a default it was
+never asked for, but a fixture spelling one its own writer does not. The expected project in the
+story drops it, with the reason recorded there.
+
+**Two notes on driving it, neither a defect.** The workbench commits a pattern on a debounce and
+closing it does not flush that, so a story has to wait for the model rather than the field — the
+strip's match chip is where it shows. And the keystone reads the project *after* clicking Run,
+because Run sends a preview of the project as it stands; reading whichever edit last happened to
+put something on the wire is not reliable.
+
+**One thing measured, chased, and explained — it is by design.** While building, the editor's
+preview requests alternate between the project and one holding a *single* template: the one being
+edited, stripped to its match, with the root and every sibling absent. That is
+`Templates.experiment` (design 44 §2): opening the pattern workbench runs the sample against the
+subject's match alone, so the sample pane can show what that pattern hits and nothing else.
+Nothing the author sees is wrong.
+
+**But it means the wire is not a record of what the editor holds.** The experiment goes to the
+same `/preview` endpoint as a real run, so anything reading requests — which is what §3's
+keystone does — must tell the two apart or it will read a half-built template on its own. It is
+what the keystone read here before this was understood, and the symptom was a comparison failing
+on a project with one template in it.
+
+`Walkthrough.projectBuilt` now skips experiments, on the one discriminator that is not a guess:
+`Templates.ensureDocument` means a real project always has a template whose match is the literal
+`source`, and an experiment never does, because the root is not the subject and is not carried
+into it. The last stage also clicks Run before reading, so what the keystone compares is the
+project at the moment the author would run it rather than whichever edit last touched the wire.
+
+Worth recording for §3.5's sake: **the keystone's premise — "what the editor sends is what the
+editor holds" — was not true, and nothing would have shown that except reading the wire by hand.**
+It held for rung 1 only because that walkthrough's last act happened to be an ordinary edit.
+
 ### 6.2 Rung 3 — `classify_alerts`
 
 The sample: three log lines in, one `<flags><error/><code>57</code></flags>` out. Four
@@ -640,6 +771,43 @@ this fixture is the right place to ask it because the difference is visible in f
 The standing question from the mode picker holds: under `classify` the panel's ordered list
 means nothing — no priority, no tie to break. With rungs 2 and 3 together, the same list in the
 same panel carries three meanings (priority, tie-break, nothing) chosen elsewhere.
+
+### 6.2a Driven 2026-11-17 — eleven stories, and the third rung confirms the second
+
+`ShapeshifterClassifyStories`, on the shared mechanism in `Walkthrough`: eleven stories, a
+screenshot each, the last carrying the keystone. All green.
+
+**Walked for a specific reason, not for completeness.** §10 W4's change had just taught the panel
+and the dispatch card to say which strategy is in force, and `CLASSIFY` was the one branch of it
+with no screenshot — it existed on a unit test and on reading. That is the exact shape of both
+findings this ladder has produced (§5.9a, §10 W4's slot), so the branch was driven before moving
+on. `mode: flags · dispatched with classify` is now photographed.
+
+**Three for three on rung 2's two order findings** (§6.1a). The root still has to be renamed and
+§6.2's table still does not have the step; the `flags` mode still has to be made by the first
+template that lives in it, because the dispatch card's Mode picks only modes that exist. Neither
+is a `lexer_tokens` quirk — they are the editor's shape, and rungs 4 to 6 should be written
+expecting both.
+
+**§6.2's lesson holds on screen.** The output is `<flags><error/><code>57</code></flags>`.
+`<timeout/>` is absent because nothing matched it; `code=98` is absent for a quite different
+reason — under `classify` each template runs **once, at its leftmost match**, so `first_code` is
+the *first* code and not each one. The story asserts the two absences separately, because they
+are exactly what the author §6.2 worries about would confuse: the one who reads `classify` as
+"every match" rather than "every template".
+
+**An assertion that passed while saying almost nothing.** `getByText` matches one element's text,
+and the output pane marks every instruction as a span of its own — so `<code>57</code>` is three
+spans and no element holds it. The naive form *passed* for `<error/>`, which is one instruction
+and therefore one span, so a less careful story would have looked right while checking a fraction
+of what it claimed. The stage reads the pane's whole text instead. A third entry in the same
+family as the body's cards and the ellipsised note: **what a query can see is not what is there.**
+
+**What it did not do.** Rung 3 does not advance §10 W1 to W3. `<code>`, `$1`, `</code>` is the
+same three-card shape for the third time, in a third sample sharing nothing else with the first
+two — which strengthens the evidence that the cost is the editor's and not a fixture's, without
+discriminating between the two candidate causes. Rung 5 remains the only rung that can, because
+its output is `variable` with nested bodies and `if`/`exists`, where `element` would not help.
 
 ### 6.3 Rung 4 — `library_parts`
 
@@ -1074,13 +1242,12 @@ one that was right for names.
    editing them: design 11 §10.3 took the version out of the dispatch default, so `library_parts`,
    `text_019_single_line_split` and `progressive_len_records` say nothing and are therefore strict.
    The two without a root template were re-baselined for a different reason (§6.3).
-3. **Automate rung 1 only** — ruled 2026-11-12, and **begun the same day**: `AuthorRungOne`
-   drives the first six steps and asserts the keystone, the title now runs 30 stories green, and
-   §5.9 records what the browser said and what it cost. What remains is steps 6 to 26 — the
-   templates, the mode, the regex workbench and the body cards — and the decision the ruling
-   reserved: whether that is worth driving, now that the method is proven and the three harness
-   lessons are paid for.
-4. Walk the remaining five against the running workbench as their stories are written, settling
+3. ~~**Automate rung 1 only**~~ — ruled 2026-11-12, **finished 2026-11-17**. All 26 steps are
+   driven, as 26 stories with a screenshot each (§5.9a), and the keystone holds. The reserved
+   decision — whether driving the rest was worth it — was answered by doing it: it turned up the
+   body-cards finding in §5.9a, which three months of stories over a built fixture had not.
+4. Walk the remaining five against the running workbench as their stories are written — **rungs
+   2 and 3 done 2026-11-17 (§6.1a, §6.2a); rungs 4 to 6 outstanding** — settling
    what only the browser can say: what the UI says about a mode with no dispatch site (§5.4),
    whether a pattern part can be lifted out of a pattern already written (§6.3), and whether the
    marks mean anything over a binary sample (§6.5, which also needs the stream fixture ruled
@@ -1113,3 +1280,127 @@ it:
   not — its goldens match byte for byte under strict. So the one version-5 configuration of ours
   that asked for the migration path no longer does, and the four that need it keep it on
   evidence. See design 11 §10.3, which this probe also corrected.
+
+## 10. What the walkthroughs cost the author — measured 2026-11-17
+
+Written after rung 1 was driven a step at a time (§5.9a). These are **costs and questions, not
+proposed fixes**: the form that worked last time was a question with evidence attached, which is
+what Q11 to Q14 became in design 44, and what kept those rulings honest. Each is marked with the
+design that owns the surface and would rule it.
+
+**The count.** Rung 1 takes **76 author actions** — clicks, typed values, picks from a box —
+counted off the stories that drive it, to produce three templates, one mode, two regexes and
+eleven body cards. That is the *simplest* of the six samples. Where they go:
+
+| | acts | |
+|---|---|---|
+| adding body cards | 28 | 7 cards × (`+ instruction`, pick the kind, type one value, OK) |
+| picking from a selection box | 10 | 5 × (open the box, choose) |
+| everything else | 38 | naming, renaming, the two patterns, the reorder, selecting templates |
+
+### W1 — every card is a modal round trip (design 18 §5.6)
+
+`+ instruction` → pick a kind from a menu → type one value in a dialog → OK. Four acts for a
+`text` card whose entire content is `">`. Seven cards is 28 of the 76, and the body is where an
+author spends most of a rung. The question is whether a card whose form is one short field needs
+a dialog at all, or whether the list could take the value in place.
+
+### W2 — five cards for one line, and nothing leads to `element` (design 18 §5.6, Q20)
+
+§5.6 and §5.7 both ask "whether the author is led there". Driven, the answer is no: steps 17 to
+19 build ` <pair key="`, `$1`, `">`, `$2`, `</pair>` as five separate cards, and the add menu
+lists kinds without hinting that `element` plus `attribute` says the same thing in one or two.
+The same shape recurs in rung 2 (`<w>`, `$0`, `</w>`, twice) and rung 3 (`<code>`, `$1`,
+`</code>`), so it is not a `strict_kv` accident.
+
+This is the largest single cost in the count, and it is the one place the editor lets an author
+build the laborious thing without mentioning the short one.
+
+**Corrected 2026-11-17 by design 47 §1.1 and §2: the short one is not `element`.** Counted, the
+pair line as `element` and `attribute` is 16 actions against 20, and it changes what is escaped.
+The short way is a single `value-of` whose Select joins literals and references — which rungs 4
+to 6 already use for every line they write, and which is available today behind a spelling that
+is hostile to markup. Design 47 proposes from there.
+
+### W3 — the envelope is ordered and kept in step by hand (design 18 §5.6)
+
+A card lands at the end of the body, so step 13's `<records>` has to be moved up past the
+dispatch it wraps. The opening and closing tags are then two independent `text` cards: rename one
+and nothing says the other is now wrong. `element` would close this too, which is why W2 and W3
+may be one question rather than two.
+
+### W4 — order is priority, and only a tooltip says so (design 44)
+
+**The one finding where a mistake produces silently wrong output rather than extra work.** Order
+within a mode is dispatch priority. Put `junk_line` above `pair` and it matches every line: the
+project emits nothing but warnings and no error is raised, because nothing is wrong — the author
+asked for exactly that. The panel shows the order and `Up`/`Down` change it, but only the move
+buttons' own tooltips name what the order *means*, and only on hover.
+
+With two templates an author works it out. Rung 2 has five in one mode and turns on `=` versus
+`=>` resolving correctly; rung 5 has two templates that differ only in position and a match
+limit (§6.4). And §6.1 and §6.2 sharpen it further: under `lexer` the order is only a tie-break,
+under `classify` it means nothing at all, and which rule is in force is chosen by a picker on a
+card in a different pane. **The same ordered list in the same panel carries three meanings.**
+
+**Ruled and built 2026-11-17 — and cut back the same day, because the finding as first written
+was half wrong.**
+
+What was claimed: that an author cannot tell the panel's order is priority order. That does not
+survive contact. An author writing a grammar knows a list of alternatives is ordered — anyone
+who has written a lexer, a firewall ruleset or a DS3 config does — and a panel explaining it is
+chrome. The evidence for the claim was thin: a scripted walkthrough never makes the mistake, so
+nobody was observed being confused, and the scenario used to justify it (`junk_line` dragged
+above `pair`) is contrived, since adding it second already puts it second. §5.7's own amendment
+had half-retracted the finding already by noting the move buttons name the order on hover.
+
+What survives is the half §6.1 actually sharpened: **the strategy is invisible.** Under `lexer`
+an author who knows order matters will move a template up to fix a problem they do not have, and
+nothing will change — reassuring or baffling depending on whether the screen said `lexer` was in
+force. It is chosen on an `apply-templates` card that may belong to another template, in another
+pane, and appeared nowhere else.
+
+So what was built says **the fact, not what it implies**, in two places:
+
+- **The mode's heading** — *dispatched with lexer* — in the slot that already carried "nothing
+  dispatches into this", so a heading still says at most one thing.
+- **The `apply-templates` card's note line**, beside the match count: *no matches · lexer*.
+  Visible in the strip without opening anything, and here the fact cannot be ambiguous — a site
+  has one strategy, where a mode could in principle be dispatched from several.
+
+**Only where it is not `STRICT`**, which is the reading everyone brings, so most projects show
+nothing at all; and nothing where sites disagree, because there is then no fact to state. The
+five explanatory sentences, the "dispatched more than one way" wording and the
+two-templates-or-more rule are all gone with the claim that motivated them.
+
+The fact is `Modes.dispatchOf`, resolved with `Dispatch.effective` — the engine's own answer,
+because a site naming no strategy takes the project's — and pinned by `ModesTest`. It was right
+either way and did not change. Rungs 1 and 2 are the `STRICT` and `LEXER` cases driven end to
+end: rung 1 asserts the panel stays *quiet*, rung 2 that it speaks.
+
+**And the slot it went in was never readable.** `.template-panel__mode-note` sat on one line with
+the mode's name and ellipsised: at the panel's own width *"nothing dispatches into this"* rendered
+as *"nothing dispatc…"*. That note was ruled in §5.4, is asserted by both walkthroughs, and had
+never been legible — the stories pass because a query reads the DOM and not the pixels, which is
+exactly the blindness that hid the body's cards (§5.9a). The heading now wraps and the note takes
+the width. **Twice in two days, something the screenshots show and the assertions cannot.**
+
+### W5 — the rename that nothing confirms
+
+Already raised and ruled as design 44 Q11 (§5.9); noted here only because driving it is what
+found it, and it recurs in every rung that renames the root.
+
+### Already fixed
+
+The body's cards were clipped to 5px at 1280×720 and had never appeared in a screenshot
+(§5.9a) — a one-attribute fix once seen. Recorded here because of how it was found: not by three
+months of stories asserting classes and text, all of which were present, but by photographing an
+author's own sequence once.
+
+### What is owed before these are designed from
+
+Rungs 2 and 3, for the reason §4 gives for keeping them apart: each carries a different wrong
+belief about what the panel's order means, and W1 to W3 are costs whose *cause* is still
+ambiguous. If the card treadmill hurts as much in rung 5, where the output is `variable` with
+nested bodies and `if`/`exists` and `element` would not help, then the answer is the editing
+surface rather than the menu. Designing from rung 1 alone would pick one without knowing which.

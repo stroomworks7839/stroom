@@ -382,6 +382,97 @@ public final class Instructions {
                 : "[" + index.index() + "]";
     }
 
+    /// A line typed into a card list, as the cards it describes (design 47 A, ruled 2026-11-17).
+    ///
+    /// Text is a `text` card and a capture reference — `$1`, `$label` — is a `value-of` card. A
+    /// line that mixes them is **split into the sequence**: `<pair key="$1">$2</pair>` is five
+    /// cards, text, value-of, text, value-of, text, exactly as if they had been added one at a
+    /// time. The templated line is a way of typing and nothing more. What is stored, shown and
+    /// traced is separate instructions, because the trace is per instruction: the output pane
+    /// colours each card's output in the card's own hue, and a line written by one card would be
+    /// one mark.
+    ///
+    /// The rules, all of them:
+    ///
+    /// - `$` and digits is a numbered group, `$` and a word is a labelled one, read by [#read]
+    ///   so that a reference means here what it means in a Select field.
+    /// - **Always a reference**, whether or not the template's match has that capture. The same
+    ///   line makes the same cards whatever the pattern holds at the time, including when the
+    ///   output is written before the pattern is.
+    /// - `$$` writes a dollar, and a `$` followed by neither a digit nor a letter is itself.
+    /// - A label here is letters, digits and underscores, and ends at the first character that
+    ///   is none of those — so `$key">` is the label `key` and then text. A label spelt with
+    ///   anything else is written through the Select field, whose grammar can hold it.
+    /// - **A bare word is text**, never a declared name. This field does not guess; names and
+    ///   functions go through the kind menu.
+    /// - Text keeps its spaces, and spells a line break `\n` ([ControlEscapes]), because Enter
+    ///   is what adds the card.
+    ///
+    /// @param line The line as typed.
+    /// @return The cards, in order; none for an empty line.
+    public static List<OutputNode> cards(final String line) {
+        final List<OutputNode> cards = new ArrayList<>();
+        if (line == null) {
+            return cards;
+        }
+        final StringBuilder text = new StringBuilder();
+        int at = 0;
+        while (at < line.length()) {
+            final char c = line.charAt(at);
+            if (c != '$') {
+                text.append(c);
+                at++;
+            } else if (at + 1 < line.length() && line.charAt(at + 1) == '$') {
+                text.append('$');
+                at += 2;
+            } else {
+                final int end = referenceEnd(line, at + 1);
+                final String token = line.substring(at, end);
+                if (isGroup(token) || isLabel(token)) {
+                    flushText(text, cards);
+                    cards.add(new ValueOf(read(token)));
+                    at = end;
+                } else {
+                    text.append('$');
+                    at++;
+                }
+            }
+        }
+        flushText(text, cards);
+        return cards;
+    }
+
+    // Where a reference that starts after a dollar ends: a run of digits, or a run of the
+    // characters a label typed inline may hold.
+    private static int referenceEnd(final String line, final int from) {
+        int end = from;
+        if (end < line.length() && isDigit(line.charAt(end))) {
+            while (end < line.length() && isDigit(line.charAt(end))) {
+                end++;
+            }
+        } else {
+            while (end < line.length() && isLabelChar(line.charAt(end))) {
+                end++;
+            }
+        }
+        return end;
+    }
+
+    private static boolean isDigit(final char c) {
+        return c >= '0' && c <= '9';
+    }
+
+    private static boolean isLabelChar(final char c) {
+        return c == '_' || isDigit(c) || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z';
+    }
+
+    private static void flushText(final StringBuilder text, final List<OutputNode> cards) {
+        if (text.length() > 0) {
+            cards.add(new Text(ControlEscapes.unescape(text.toString())));
+            text.setLength(0);
+        }
+    }
+
     /// A reference as the form writes it: a sequence of parts, juxtaposed (design 44 §5w).
     ///
     /// `"on " $1 " at " when` is four parts — a literal, this match's group 1, a literal,

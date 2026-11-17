@@ -28,7 +28,9 @@ import com.google.gwt.user.client.ui.FlowPanel;
 import com.google.gwt.user.client.ui.Widget;
 import com.google.inject.Inject;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.IntConsumer;
@@ -76,6 +78,16 @@ public class Body extends Component {
         }
 
         @Override
+        public void onEntry(final String listPath, final int index, final String line) {
+            Body.this.entryHandler.onEntry(listPath, index, line);
+        }
+
+        @Override
+        public void onEntryShown(final String listPath, final Entry entry) {
+            entries.put(listPath, entry);
+        }
+
+        @Override
         public void onEditBranch(final String path, final int branch) {
             Body.this.onEditBranch.accept(path, branch);
         }
@@ -105,6 +117,10 @@ public class Body extends Component {
     };
     private AddHandler addHandler = (listPath, index, x, y) -> {
     };
+    private EntryHandler entryHandler = (listPath, index, line) -> {
+    };
+    // Every list's entry field in the drawing on screen, by list path.
+    private final Map<String, Entry> entries = new HashMap<>();
     private BiConsumer<String, Integer> onEditBranch = (path, branch) -> {
     };
     private Consumer<String> onAddBranch = path -> {
@@ -144,10 +160,38 @@ public class Body extends Component {
 
     // The cards are built with read-only in force, so a change of it draws them again: the hook
     // only changing a flag would leave the last drawing in place, with the actions it had then.
+    //
+    // And a drawing is not only the author's own edits. A run's trace lands a moment after every
+    // edit and redraws the cards to say what each wrote — so without care, a line being typed
+    // into an entry field would be wiped, and the keyboard taken away, by the run of the card
+    // before it. What is typed and where the keyboard is are therefore carried across.
     private void draw() {
+        final Map<String, String> typed = new HashMap<>();
+        String focused = null;
+        for (final Map.Entry<String, Entry> shown : entries.entrySet()) {
+            if (!shown.getValue().getText().isEmpty()) {
+                typed.put(shown.getKey(), shown.getValue().getText());
+            }
+            if (shown.getValue().isFocused()) {
+                focused = shown.getKey();
+            }
+        }
+        entries.clear();
         cards.clear();
         list = new CardList(new int[0], body, notes, cardActions, enabled, false);
         cards.add(list);
+        for (final Map.Entry<String, String> kept : typed.entrySet()) {
+            final Entry entry = entries.get(kept.getKey());
+            if (entry != null) {
+                entry.setText(kept.getValue());
+            }
+        }
+        final Entry entry = focused == null
+                ? null
+                : entries.get(focused);
+        if (entry != null) {
+            entry.focus();
+        }
     }
 
     public void setHot(final int index) {
@@ -210,6 +254,11 @@ public class Body extends Component {
         this.dropHandler = dropHandler;
     }
 
+    /// @param entryHandler Told when a line is typed into a list.
+    public void setOnEntry(final EntryHandler entryHandler) {
+        this.entryHandler = entryHandler;
+    }
+
     /// @param addHandler Told when add.
     public void setOnAdd(final AddHandler addHandler) {
         this.addHandler = addHandler;
@@ -242,6 +291,32 @@ public class Body extends Component {
     }
 
     /// What [#setOnAdd] is given.
+    /// Told a line was typed into a list's entry field (design 47 A).
+    public interface EntryHandler {
+
+        /// @param listPath The list the line was typed into.
+        /// @param index Where in it the cards go.
+        /// @param line The line, as typed.
+        void onEntry(String listPath, int index, String line);
+    }
+
+    /// A list's entry field, as the body needs it: enough to carry what is being typed, and the
+    /// keyboard, from one drawing of the cards to the next.
+    public interface Entry {
+
+        /// @return What the field holds.
+        String getText();
+
+        /// @param text What the field is to hold.
+        void setText(String text);
+
+        /// @return Whether the keyboard is in the field.
+        boolean isFocused();
+
+        /// Puts the keyboard in the field.
+        void focus();
+    }
+
     public interface AddHandler {
 
         /// @param listPath The list path.
@@ -287,6 +362,15 @@ public class Body extends Component {
         /// @param toListPath The list it was dropped in.
         /// @param index      Where in that list.
         void onDrop(String fromPath, String toListPath, int index);
+
+        /// @param listPath The list a line was typed into.
+        /// @param index    Where in it the cards go.
+        /// @param line     The line, as typed.
+        void onEntry(String listPath, int index, String line);
+
+        /// @param listPath The list whose entry field has been drawn.
+        /// @param entry    The field.
+        void onEntryShown(String listPath, Entry entry);
 
         /// @param listPath The list to add to.
         /// @param index    Where in it.

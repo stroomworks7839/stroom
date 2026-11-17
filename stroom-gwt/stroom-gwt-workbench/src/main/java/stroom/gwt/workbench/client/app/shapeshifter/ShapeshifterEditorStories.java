@@ -52,6 +52,7 @@ import stroom.shapeshifter.shared.ShapeshifterTrace.Capture;
 import stroom.shapeshifter.shared.ShapeshifterTrace.Frame;
 
 import com.google.gwt.core.client.GWT;
+import com.google.gwt.dom.client.Element;
 import com.google.gwt.user.client.ui.Widget;
 import com.google.web.bindery.event.shared.SimpleEventBus;
 
@@ -147,7 +148,7 @@ public final class ShapeshifterEditorStories {
 
     // ShapeshifterResource.validate(): the project reads, so the Design tab shows it rather than
     // the banner
-    private static final String VALIDATION = """
+    static final String VALIDATION = """
             {"valid": true, "messages": [], "canonical": null}""";
 
     // ShapeshifterResource.preview(): one run over the sample. Two pairs matched and written, and
@@ -168,7 +169,7 @@ public final class ShapeshifterEditorStories {
     // on purpose. A frame that wrote no characters must not spend one of the two generations
     // the output pane tints (design 18 §5.13.1), and a fixture with nothing of the sort in it
     // could not tell whether the pane gets that right.
-    private static final String TRACE = """
+    static final String TRACE = """
     {
       "compiled": true, "sampleRead": true,
       "input": "host=web01\\n# a comment the grammar never claimed\\nlevel=warn\\n",
@@ -228,7 +229,7 @@ public final class ShapeshifterEditorStories {
     }""";
 
     // ShapeshifterResource.patternInfo(): the pair template's regex, its two groups
-    private static final String PATTERN_INFO = """
+    static final String PATTERN_INFO = """
             {
               "valid": true, "error": null,
               "groups": [
@@ -239,22 +240,22 @@ public final class ShapeshifterEditorStories {
             }""";
 
     // ShapeshifterResource.library(): what a pattern tree's ref may name
-    private static final String LIBRARY = """
+    static final String LIBRARY = """
             {"entries": [
               {"name": "ipv4", "regex": "(?:\\\\d{1,3}\\\\.){3}\\\\d{1,3}"},
               {"name": "iso8601", "regex": "\\\\d{4}-\\\\d{2}-\\\\d{2}T[\\\\d:.]+Z?"}
             ]}""";
 
     // ShapeshifterResource.encodings(): the canonical labels the source and template forms offer
-    private static final String ENCODINGS = """
+    static final String ENCODINGS = """
             ["utf-8", "utf-16", "iso-8859-1", "ascii"]""";
 
     // ShapeshifterResource.print(): a pattern tree as the regex it means
-    private static final String PRINTED = """
+    static final String PRINTED = """
             {"text": "([a-z]+)=([^\\\\n]*)\\\\n"}""";
 
     // DocPermissionResource.fetchDocumentUserPermissions(): an owner and a group that may view
-    private static final String DOC_PERMISSIONS = """
+    static final String DOC_PERMISSIONS = """
             {
               "values": [
                 {"userRef": {"uuid": "u-admin", "subjectId": "admin", "displayName": "admin", "group": false,
@@ -342,7 +343,7 @@ public final class ShapeshifterEditorStories {
     // MetaResource.findMetaRow(): the unlocked streams the sample page lists as the other place a
     // sample can come from. One row is enough: the page is about choosing between the two kinds,
     // not about the list, which is stepping's own and has its own stories.
-    private static final String META_ROWS = """
+    static final String META_ROWS = """
             {
               "values": [
                 {"meta": {"id": 42, "feedName": "TEST_FEED", "typeName": "Raw Events",
@@ -350,24 +351,6 @@ public final class ShapeshifterEditorStories {
               ],
               "pageResponse": {"offset": 0, "length": 1, "total": 1, "exact": true}
             }""";
-
-    // Design 46's rung 1 walkthrough starts from a document the author has just created, so the
-    // fixture is a document with no project in it at all. ShapeshifterEditor.parse() reads blank
-    // text as ProjectText.empty(), which is Templates.ensureDocument of a nameless project — so
-    // what arrives on screen is one template named "document", matching the source, with an
-    // apply-templates that selects nothing (design 44 §5m). The author extends that; they do not
-    // make it, which is the correction design 46 §5.3 records.
-    private static final DocRef BLANK_REF =
-            new DocRef(ShapeshifterDoc.TYPE, "ss-blank", "New Project");
-
-    private static final String BLANK_DOC = "{\n"
-                                            + "  \"type\": \"" + ShapeshifterDoc.TYPE + "\","
-                                            + " \"uuid\": \"ss-blank\", \"name\": \"New Project\",\n"
-                                            + "  \"description\": null,\n"
-                                            + "  \"data\": \"\",\n"
-                                            + "  \"sampleText\": null,\n"
-                                            + "  \"sampleKind\": \"PASTED\"\n"
-                                            + "}";
 
     private static final RestFixtures FIXTURES = TreeFixtures.explorerRoutes(
                     new ExplorerFixture(ExplorerFixture.folder("System",
@@ -394,26 +377,6 @@ public final class ShapeshifterEditorStories {
             .get("/shapeshifter/v1/library", RestReply.json(LIBRARY))
             .get("/shapeshifter/v1/encodings", RestReply.json(ENCODINGS))
             .post("/permission/doc/v1/fetchDocumentUserPermissions", RestReply.json(DOC_PERMISSIONS))
-            .build();
-
-    // The same routes as FIXTURES, over a document with no project in it. There is no PUT route:
-    // Save cannot be driven from a story (the AuthorRungOne story says why), so a route for it
-
-    // The same routes as FIXTURES, over a document with no project in it. There is no PUT route:
-    // Save cannot be driven from a story (the AuthorRungOne story says why), so a route for it
-    // would be a fixture nothing ever reaches.
-    private static final RestFixtures BLANK_FIXTURES = TreeFixtures.explorerRoutes(
-                    new ExplorerFixture(ExplorerFixture.folder("System",
-                            ExplorerFixture.doc("New Project", ShapeshifterDoc.TYPE))))
-            .get("/shapeshifter/v1/ss-blank", RestReply.json(BLANK_DOC))
-            .post("/shapeshifter/v1/validate", RestReply.json(VALIDATION))
-            .post("/shapeshifter/v1/preview", RestReply.json(TRACE))
-            .post("/shapeshifter/v1/print", RestReply.json(PRINTED))
-            .post("/shapeshifter/v1/patternInfo", RestReply.json(PATTERN_INFO))
-            .get("/shapeshifter/v1/library", RestReply.json(LIBRARY))
-            .get("/shapeshifter/v1/encodings", RestReply.json(ENCODINGS))
-            .post("/permission/doc/v1/fetchDocumentUserPermissions", RestReply.json(DOC_PERMISSIONS))
-            .post("/meta/v1/find", RestReply.json(META_ROWS))
             .build();
 
     private ShapeshifterEditorStories() {
@@ -467,14 +430,14 @@ public final class ShapeshifterEditorStories {
                     play.waitFor(() -> play.expect(play.getByText("pair", TEMPLATE_NAME)).toBeInTheDocument());
                     play.expect(play.getByRole("button", "Save")).toHaveAttribute("aria-disabled", "true");
 
-                    // A pane below follows too: the body offers no "+ instruction" read only
+                    // A pane below follows too: the body offers nowhere to add a card read only
                     selectTemplate(play, "pair");
-                    play.waitFor(() -> play.expect(play.getByText("+ instruction")).toBeInTheDocument());
+                    play.waitFor(() -> play.expect(addMenu(play)).toBeInTheDocument());
 
                     play.run("lock the document", () -> readAgain(true));
                     play.expect(play.findByRole("button", "Save (read only)")).toBeInTheDocument();
                     play.expect(play.getByText("Read only", ".link-tab-panel__read-only-note")).toBeVisible();
-                    play.waitFor(() -> play.expect(play.queryByText("+ instruction")).toBeNull());
+                    play.waitFor(() -> play.expect(play.queryByRole("button", ADD_MENU)).toBeNull());
                     // The panel is still drawn: locking narrows what may be changed, it doesn't
                     // empty the tab
                     play.expect(play.getByText("pair", TEMPLATE_NAME)).toBeInTheDocument();
@@ -482,7 +445,7 @@ public final class ShapeshifterEditorStories {
                     play.run("unlock the document", () -> readAgain(false));
                     play.expect(play.findByRole("button", "Save")).toBeInTheDocument();
                     play.expect(play.queryByText("Read only", ".link-tab-panel__read-only-note")).toBeNull();
-                    play.waitFor(() -> play.expect(play.getByText("+ instruction")).toBeInTheDocument());
+                    play.waitFor(() -> play.expect(addMenu(play)).toBeInTheDocument());
                     play.expect(play.getByText("pair", TEMPLATE_NAME)).toBeInTheDocument();
                     expectNoProblems(play);
                 })
@@ -547,14 +510,14 @@ public final class ShapeshifterEditorStories {
                 .story("LockChangeWithoutReread", context -> render(context, false))
                 .withPlay(play -> {
                     selectTemplate(play, "pair");
-                    play.waitFor(() -> play.expect(play.getByText("+ instruction")).toBeInTheDocument());
+                    play.waitFor(() -> play.expect(addMenu(play)).toBeInTheDocument());
                     play.run("lock the document, without reading it again", () ->
                             host().setReadOnly(true));
                     // The body pane below the document follows the lock on its own
-                    play.waitFor(() -> play.expect(play.queryByText("+ instruction")).toBeNull());
+                    play.waitFor(() -> play.expect(play.queryByRole("button", ADD_MENU)).toBeNull());
                     play.run("unlock the document, without reading it again", () ->
                             host().setReadOnly(false));
-                    play.waitFor(() -> play.expect(play.getByText("+ instruction")).toBeInTheDocument());
+                    play.waitFor(() -> play.expect(addMenu(play)).toBeInTheDocument());
                     expectNoProblems(play);
                 })
 
@@ -711,14 +674,62 @@ public final class ShapeshifterEditorStories {
                     expectNoProblems(play);
                 })
 
-                // The body's "+ instruction" line offers the kinds on a menu; picking one opens
+                // A line typed into the body's entry field adds the cards it describes (design
+                // 47 A): text is a text card, `$1` a value-of card, and a line that mixes them
+                // is split into the sequence. And the half of this that no assertion about cards
+                // can show: **a line being typed survives the body being drawn again.** A run's
+                // trace lands a moment after every edit and redraws the cards to say what each
+                // wrote, which replaces the field — so what is typed, and the keyboard, have to
+                // be carried into the new one or the run of the last card wipes the next.
+                .story("EntryFieldAddsCardsAndSurvivesARun", context -> render(context, false))
+                .withPlay(play -> {
+                    selectTemplate(play, "junk_line");
+                    play.waitFor(() -> play.expect(play.getByLabelText(Walkthrough.ENTRY))
+                            .toBeInTheDocument());
+                    // junk_line arrives with one card, its emit-error
+                    play.expect(play.querySelectorAll(CARD_KIND).count()).toEqual(1);
+
+                    // A templated line, split: text, value-of, text
+                    Walkthrough.enter(play, "<junk>$0</junk>");
+                    play.waitFor(() -> play.expect(play.querySelectorAll(CARD_KIND).textContents())
+                            .toEqual(Arrays.asList("emit-error", "text", "value-of", "text")));
+
+                    // Half a line, and then the run that edit set off lands. The field on screen
+                    // afterwards is a different element from the one typed into — which is what
+                    // proves the cards were drawn again — and it holds the same text and the
+                    // keyboard.
+                    final Spy requests = play.spy(ScreenHarness.REQUEST_SPY);
+                    final int[] runs = {0};
+                    final Element[] before = {null};
+                    play.keyboard("costs $$");
+                    play.run("note the field and the runs so far", () -> {
+                        before[0] = play.getByLabelText(Walkthrough.ENTRY).element().get();
+                        runs[0] = requests.getCalls().size();
+                    });
+                    play.waitFor(() -> play.expect("a run since the line was started",
+                            () -> requests.getCalls().size() > runs[0]).toEqual(true));
+                    play.waitFor(() -> play.expect("the field was drawn again",
+                            () -> play.getByLabelText(Walkthrough.ENTRY).element().get()
+                                  != before[0]).toEqual(true));
+                    play.expect(play.getByLabelText(Walkthrough.ENTRY).value()).toEqual("costs $$");
+                    play.expect(play.getByLabelText(Walkthrough.ENTRY)).toHaveFocus();
+
+                    // ...so the line can be finished where it was left. Two dollars write one,
+                    // and a line with no reference in it is one text card.
+                    play.keyboard("5{Enter}");
+                    play.waitFor(() -> play.expect(play.querySelectorAll(CARD_KIND).count())
+                            .toEqual(5));
+                    play.expect(play.getByText(TextMatch.containing("costs $5"))).toBeInTheDocument();
+                    expectNoProblems(play);
+                })
+                // The add line's button offers the kinds on a menu; picking one opens
                 // the instruction dialog for it
                 .story("InstructionDialogOk", context -> render(context, false))
                 .withPlay(play -> {
                     final Play screen = play.screen();
                     selectTemplate(play, "pair");
-                    play.waitFor(() -> play.expect(play.getByText("+ instruction")).toBeInTheDocument());
-                    play.click(play.getByText("+ instruction"));
+                    play.waitFor(() -> play.expect(addMenu(play)).toBeInTheDocument());
+                    play.click(addMenu(play));
                     // The kinds are a menu on the page's body, not in the canvas
                     play.click(screen.findByText("text", StroomDom.MENU_ITEM_TEXT));
                     final Play dialog = play.within(
@@ -737,8 +748,8 @@ public final class ShapeshifterEditorStories {
                 .withPlay(play -> {
                     final Play screen = play.screen();
                     selectTemplate(play, "pair");
-                    play.waitFor(() -> play.expect(play.getByText("+ instruction")).toBeInTheDocument());
-                    play.click(play.getByText("+ instruction"));
+                    play.waitFor(() -> play.expect(addMenu(play)).toBeInTheDocument());
+                    play.click(addMenu(play));
                     play.click(screen.findByText("text", StroomDom.MENU_ITEM_TEXT));
                     final Play dialog = play.within(
                             screen.findByText("New text", StroomDom.DIALOG_TITLE)
@@ -1486,191 +1497,23 @@ public final class ShapeshifterEditorStories {
                     // one you are pointing at" would pass just as well if everything lit up
                     play.expect(play.querySelector(MARK_JUNK)).not().toHaveClass("highlight");
                     expectNoProblems(play);
-                })
-
-                // Design 46 rung 1: a document created a moment ago, authored towards the
-                // strict_kv fixture, saved, and the saved project compared with what it should
-                // be. The keystone of design 46 §3 — a story's preview and validate replies are
-                // canned, so what a story can prove is that the UI *can build* a configuration,
-                // never that the configuration runs. The save request's body is the only thing
-                // on screen that came from the editor rather than from a fixture.
-                .story("AuthorRungOne", ShapeshifterEditorStories::renderBlank)
-                .withPlay(play -> {
-                    final Play screen = play.screen();
-
-                    // §5.1 step 1, with §5.3's correction: the root template is already there,
-                    // named "document" in the panel whatever the template itself is called
-                    play.waitFor(() -> play.expect(play.getByText("document", TEMPLATE_NAME))
-                            .toBeInTheDocument());
-                    // Nothing has been edited, so there is nothing to save
-                    play.expect(play.getByRole("button", "Save"))
-                            .toHaveAttribute("aria-disabled", "true");
-
-                    // §5.1 steps 2 and 3: the project's own settings
-                    play.click(play.getByText("Settings", TEMPLATE_NAME));
-                    play.waitFor(() -> play.expect(play.getByText("Source — the document"))
-                            .toBeVisible());
-                    play.clear(play.getByLabelText("Project name"));
-                    play.type(play.getByLabelText("Project name"), "strict_kv");
-                    // A Stroom SelectionBox, not a native select: click the box, then the item in
-                    // the popup it opens. The popup is a GWT PopupPanel on the document body, so
-                    // it is reached through play.screen() rather than the story's own root.
-                    pickFromBox(play, screen, play.getByLabelText("Encoding"), "utf-8");
-
-                    // That is an edit, so Save has work to do
-                    play.waitFor(() -> play.expect(play.getByRole("button", "Save"))
-                            .not().toHaveAttribute("aria-disabled", "true"));
-
-                    // §5.3 step 8: the samples call the root template "source", and the editor
-                    // calls it "document". It cannot be removed or moved, but it can be renamed
-                    play.click(play.getByText("document", TEMPLATE_NAME));
-                    play.click(play.getByRole("button", "Edit template"));
-                    final Play renaming = dialogMatching(play, screen, "template");
-                    play.clear(renaming.getByLabelText("Name"));
-                    renaming.type(renaming.getByLabelText("Name"), "source");
-                    play.click(renaming.getByRole("button", StroomDom.button("OK")));
-                    // The strip carries the new name; the panel's row does not, and that is a
-                    // finding rather than a wait that needs fixing (design 46 §5.9): the document
-                    // row is labelled with the fixed word "document"
-                    // (TemplatePanelController.refresh), so the author sees no change there.
-                    play.waitFor(() -> play.expect(play.getByText("source", STRIP_NAME))
-                            .toBeInTheDocument());
-
-                    // §5.4 steps 10 and 12: the pair template, in a mode made as it is needed
-                    play.click(play.getByRole("button", "Add template"));
-                    final Play adding = dialogMatching(play, screen, "New Template");
-                    adding.type(adding.getByLabelText("Name"), "pair");
-                    play.click(adding.getByRole("button", "New..."));
-                    final Play naming = dialogMatching(play, screen, "mode");
-                    naming.type(naming.getByRole("textbox").first(), "kv");
-                    play.click(naming.getByRole("button", StroomDom.button("OK")));
-                    play.click(adding.getByRole("button", StroomDom.button("OK")));
-                    play.waitFor(() -> play.expect(play.getByText("pair", TEMPLATE_NAME))
-                            .toBeInTheDocument());
-
-                    // §5.4's finding, and the answer to it: between making a template in a new
-                    // mode and dispatching into that mode, the project is in a state where the
-                    // template matches nothing and the preview is empty. The author has done
-                    // nothing wrong — they are halfway through a two-part edit — so the panel
-                    // says so on the mode rather than leaving them to wonder.
-                    play.waitFor(() -> play.expect(play.getByText("nothing dispatches into this",
-                            ".template-panel__mode-note")).toBeVisible());
-
-                    // §5.4 step 11: the pattern, in the workbench the match chip opens. A new
-                    // template's match is already an empty regex (Templates.create), so the kind
-                    // needs no choosing — only the pattern needs typing
-                    play.click(play.querySelector(MATCH_CHIP));
-                    play.waitFor(() -> play.expect(play.getByLabelText("Pattern"))
-                            .toBeInTheDocument());
-                    // "[[" types a literal "[": play.type is userEvent.type, where "[" opens a
-                    // key descriptor, so an unescaped "([a-z]+)" arrives as "(+)" with the
-                    // character class silently eaten (design 46 §5.9)
-                    play.type(play.getByLabelText("Pattern"), "([[a-z]+)=([[^\\n]*)\\n");
-                    play.click(play.getByRole("button", TextMatch.regex("close the workbench", "i")));
-
-                    // §5.5 steps 13 to 15: the envelope, and the dispatch into the mode. The
-                    // apply-templates card is already there — it came with the document template
-                    // — so what the author adds is the text either side of it, and the mode on it
-                    // By "document", not by the name just given it: the panel's row for the
-                    // document template is labelled with that fixed word, so the rename of two
-                    // stages ago is invisible here (§5.9's finding, met for the second time)
-                    selectTemplate(play, "document");
-                    play.waitFor(() -> play.expect(play.getByText("+ instruction"))
-                            .toBeInTheDocument());
-                    addInstruction(play, screen, "text", "<records>\n");
-                    // It lands at the end, so the body is [apply-templates, text]: the second
-                    // card's Move up puts the envelope's opening before the dispatch
-                    play.click(play.getAllByTitle("Move up").nth(1));
-                    addInstruction(play, screen, "text", "</records>\n");
-
-                    // The dispatch itself: the card the document template arrived with, told
-                    // which mode to dispatch into
-                    play.click(play.getByText("apply-templates", CARD_KIND));
-                    final Play dispatching = dialogMatching(play, screen, "apply-templates");
-                    pickFromBox(play, screen, dispatching.getByLabelText("Mode"), "kv");
-                    play.click(dispatching.getByRole("button", StroomDom.button("OK")));
-                    // And the note goes: the two-part edit is finished, and nothing is wrong any
-                    // more. A note that stayed would be worse than no note at all.
-                    play.waitFor(() -> play.expect(play.queryByText("nothing dispatches into this",
-                            ".template-panel__mode-note")).toBeNull());
-
-                    // §5.6 steps 17 to 19: the pair's body, five cards for one line of output
-                    selectTemplate(play, "pair");
-                    addInstruction(play, screen, "text", " <pair key=\"");
-                    addInstruction(play, screen, "value-of", "$1");
-                    addInstruction(play, screen, "text", "\">");
-                    addInstruction(play, screen, "value-of", "$2");
-                    addInstruction(play, screen, "text", "</pair>\n");
-
-                    // §5.7 steps 21 to 25: the catch-all, below pair, consuming and warning
-                    play.click(play.getByRole("button", "Add template"));
-                    final Play junk = dialogMatching(play, screen, "New Template");
-                    junk.type(junk.getByLabelText("Name"), "junk_line");
-                    pickFromBox(play, screen, junk.getByLabelText("Mode"), "kv");
-                    play.click(junk.getByRole("button", StroomDom.button("OK")));
-                    play.click(play.querySelector(MATCH_CHIP));
-                    play.waitFor(() -> play.expect(play.getByLabelText("Pattern"))
-                            .toBeInTheDocument());
-                    play.type(play.getByLabelText("Pattern"), "[[^\\n]*\\n?");
-                    play.click(play.getByRole("button", TextMatch.regex("close the workbench", "i")));
-                    // The role that makes it an eater rather than a record. The config calls the
-                    // flag "consume"; the picker says "advance only", because MatchRole tried
-                    // "skip" and "eater" and found both misleading — nothing is discarded and
-                    // nothing stops. The step table's word is the model's, so this is where the
-                    // two vocabularies meet.
-                    pickFromBox(play, screen, play.getByLabelText("What the match is for"),
-                            "advance only");
-
-                    // §5.7 step 25: the warning, which is the authored replacement for DS3's
-                    // engine-generated skip reports (design 11 §4). Its message is a reference
-                    // expression of a literal and the whole match, written as the field's own
-                    // help describes: quoted text for a literal, $0 for the group, joined by
-                    // being written one after another.
-                    selectTemplate(play, "junk_line");
-                    play.click(play.getByText("+ instruction"));
-                    play.click(screen.findByText("emit-error", StroomDom.MENU_ITEM_TEXT));
-                    final Play warning = dialogMatching(play, screen, "emit-error");
-                    // Lowercase, as the picker lists them and as the wire spells them
-                    // (JsonFields.label); the default is "error", so this is a real choice
-                    pickFromBox(play, screen, warning.getByLabelText("Severity"), "warning");
-                    warning.type(warning.getByLabelText("Message"),
-                            "\"unrecognised line: \" $0");
-                    play.click(warning.getByRole("button", StroomDom.button("OK")));
-
-                    // §5.8 step 27, the keystone (design 46 §3), read from the validate request
-                    // rather than from the save: clicking Save sends nothing here, because the
-                    // harness mounts the editor host without the document plugin that performs a
-                    // save, and no document-editor story in the workbench asserts one. What the
-                    // editor would save is what validate carries, which is the project itself.
-                    //
-                    // Compared by containment, not equality: the editor writes defaults the
-                    // fixture leaves out (match_limits, max_depth), and containment tolerates
-                    // those while still requiring every array to be the same length — so a
-                    // missing template or a body card in the wrong place fails.
-                    final Spy requests = play.spy(ScreenHarness.REQUEST_SPY);
-                    play.waitFor(() -> play.expect(requests).toHaveBeenCalledWith(
-                            RequestMatcher.post(VALIDATE_PATH).toSpyMatcher()));
-                    play.waitFor(() -> play.expect("the project the editor built",
-                                    () -> JsonValues.jsonContains(
-                                            projectSent(requests), withoutIds(PROJECT)))
-                            .toEqual(true));
-                    expectNoProblems(play);
                 });
     }
 
     // Stroom's Ace editor's text area
-    private static final String ACE_INPUT = ".ace_text-input";
+    static final String ACE_INPUT = ".ace_text-input";
 
-    // ShapeshifterResource.validate(): sent on every edit, carrying the project the editor is
-    // holding. This, not the save, is where a story can read what the UI built — see the
-    // AuthorRungOne story for why.
-    private static final String VALIDATE_PATH = "/shapeshifter/v1/validate";
+    // ShapeshifterResource.validate(): sent on every edit that has no sample to run over,
+    // carrying the project the editor is holding. This, not the save, is where a story can read
+    // what the UI built — see ShapeshifterAuthoringStories for why, and for what an edit sends
+    // once there *is* a sample.
+    static final String VALIDATE_PATH = "/shapeshifter/v1/validate";
 
     // Ace marks a read-only editor on its root
     private static final String ACE_READ_ONLY = ".ace_editor.ace_read-only";
 
     // A template's name in the panel's list, and the Data row's, which is a row too
-    private static final String TEMPLATE_NAME = ".template-row__name";
+    static final String TEMPLATE_NAME = ".template-row__name";
 
     // The row the name sits in, which is what carries `highlight` when the template is lit
     private static final String TEMPLATE_ROW = ".template-row";
@@ -1683,18 +1526,18 @@ public final class ShapeshifterEditorStories {
     private static final String NOTHING_IN_SCOPE = "No name is in scope at the selected frame.";
 
     // The kind of instruction a body card holds ("text", "value-of", ...)
-    private static final String CARD_KIND = ".body-card__kind";
+    static final String CARD_KIND = ".body-card__kind";
 
     // The strip labels each row with its key ("match", "match is", "guard", "body")
     private static final String STRIP_KEY = ".key-label";
 
     // An item in the list a SelectionBox opens (selection-item-cell.css). The list is a GWT
     // PopupPanel on the document body, so it is only reachable through play.screen().
-    private static final String SELECTION_ITEM = ".selection-item-cell__text";
+    static final String SELECTION_ITEM = ".selection-item-cell__text";
 
     // The selected template's name, in the strip's head. The panel's own row for the document
     // template reads "document" whatever the template is called, so this is where a rename shows.
-    private static final String STRIP_NAME = ".template-strip__name";
+    static final String STRIP_NAME = ".template-strip__name";
 
     // A match in the content pane, and a capture within one (Marks).
     // A match by the template that made it. The pane draws a mark for the cursor's immediate
@@ -1734,7 +1577,7 @@ public final class ShapeshifterEditorStories {
 
 
     // The chip that carries a template's match, and opens the pattern workbench
-    private static final String MATCH_CHIP = ".template-strip__match-chip";
+    static final String MATCH_CHIP = ".template-strip__match-chip";
     // A part's kind in the framed sequence's list; clicking it selects the part
     private static final String PART_KIND = ".parts__kind";
 
@@ -1749,14 +1592,14 @@ public final class ShapeshifterEditorStories {
 
     // Opens the sample page: the Data row in the panel is a destination, not a frame, so
     // choosing it puts the page where the navigator's rows were (design 44 §5a)
-    private static void openSamplePage(final Play play) {
+    static void openSamplePage(final Play play) {
         play.waitFor(() -> play.expect(play.getByText("Data", TEMPLATE_NAME)).toBeInTheDocument());
         play.click(play.getByText("Data", TEMPLATE_NAME));
         play.waitFor(() -> play.expect(play.getByText("Sample data from")).toBeInTheDocument());
     }
 
     // Picks a template in the panel, which is what fills the strip beside it
-    private static void selectTemplate(final Play play, final String name) {
+    static void selectTemplate(final Play play, final String name) {
         play.waitFor(() -> play.expect(play.getByText(name, TEMPLATE_NAME)).toBeInTheDocument());
         play.click(play.getByText(name, TEMPLATE_NAME));
     }
@@ -1773,8 +1616,16 @@ public final class ShapeshifterEditorStories {
         host.read(host.getDocRef(), host.getEntity());
     }
 
+    // The kind menu's button on the line that adds to a card list. The line itself is a field
+    // now (design 47 A); every kind a typed line cannot say is still added from here.
+    static final String ADD_MENU = "Add an instruction of any kind";
+
+    static Query addMenu(final Play play) {
+        return play.getByRole("button", ADD_MENU);
+    }
+
     // Run sits on the document's toolbar, beside Save, whichever tab is showing
-    private static Query runButton(final Play play) {
+    static Query runButton(final Play play) {
         return play.getByRole("button", "Run the project over the sample data");
     }
 
@@ -1790,14 +1641,14 @@ public final class ShapeshifterEditorStories {
         play.click(tab(play, label));
     }
 
-    private static void expectNoProblems(final Play play) {
+    static void expectNoProblems(final Play play) {
         play.expect(play.spy(ScreenHarness.ALERT_SPY)).not().toHaveBeenCalled();
         play.expect(play.spy(ScreenHarness.UNHANDLED_REQUEST_SPY)).not().toHaveBeenCalled();
     }
 
     // The project JSON goes into the document's JSON as a string, so it is quoted and escaped once
     // more. Done here rather than by hand, so the fixture above stays the engine's fixture
-    private static String asJsonString(final String text) {
+    static String asJsonString(final String text) {
         final StringBuilder json = new StringBuilder("\"");
         for (int i = 0; i < text.length(); i++) {
             final char c = text.charAt(i);
@@ -1818,7 +1669,7 @@ public final class ShapeshifterEditorStories {
 
     // A dialog by a word in its title, as a Play to scope queries to it: nested dialogs (the
     // template dialog and the mode prompt it opens) each need their own OK.
-    private static Play dialogMatching(final Play play, final Play screen, final String title) {
+    static Play dialogMatching(final Play play, final Play screen, final String title) {
         // Case-insensitively: the dialogs title themselves "Edit Template" and "New text", so a
         // caller naming the thing it is editing should not have to know which words are capital.
         return play.within(screen.findByText(TextMatch.regex(title, "i"), StroomDom.DIALOG_TITLE)
@@ -1828,27 +1679,22 @@ public final class ShapeshifterEditorStories {
     // A SelectionBox's value, chosen the way a person does: click the box, then the item in the
     // popup it opens. Scoped to the item cells, because by the time a mode has templates in it
     // its name is also a heading in the panel, and an unscoped search finds both.
-    private static void pickFromBox(final Play play, final Play screen,
+    static void pickFromBox(final Play play, final Play screen,
                                      final Query box, final String item) {
         play.click(box);
         play.click(screen.findByText(item, SELECTION_ITEM));
     }
 
-    // One body instruction, added through the "+ instruction" line and its kind menu, with the
+    // One body instruction, added through the add line's kind menu and its dialog, with the
     // one field the kinds used here need (design 46 §5.5-§5.7).
-    private static void addInstruction(final Play play, final Play screen,
+    static void addInstruction(final Play play, final Play screen,
                                        final String kind, final String value) {
-        play.click(play.getByText("+ instruction"));
+        play.click(addMenu(play));
         // The kinds are a menu on the page's body, not in the canvas
         play.click(screen.findByText(kind, StroomDom.MENU_ITEM_TEXT));
         final Play dialog = dialogMatching(play, screen, "New " + kind);
         dialog.type(dialog.getByRole("textbox").first(), value);
         play.click(dialog.getByRole("button", StroomDom.button("OK")));
-    }
-
-    /// The editor over a document with no project in it, as a new one arrives (design 46 §5.1).
-    private static Widget renderBlank(final StoryContext context) {
-        return render(context, false, BLANK_FIXTURES, BLANK_REF);
     }
 
     // The project the editor last sent for validation, which is the project it is holding.
@@ -1868,7 +1714,7 @@ public final class ShapeshifterEditorStories {
 
     // Every template id replaced by a dash, so two projects differing only in generated ids
     // compare equal.
-    private static String withoutIds(final String projectJson) {
+    static String withoutIds(final String projectJson) {
         return projectJson == null
                 ? null
                 : projectJson.replaceAll("\"id\"\\s*:\\s*\"[^\"]*\"", "\"id\": \"-\"");
@@ -1880,7 +1726,7 @@ public final class ShapeshifterEditorStories {
         return render(context, false, COMPOSITE_FIXTURES, COMPOSITE_REF);
     }
 
-    private static Widget render(final StoryContext context, final boolean readOnly,
+    static Widget render(final StoryContext context, final boolean readOnly,
                                  final RestFixtures fixtures, final DocRef docRef) {
         final AppScreenGinjector injector = GWT.create(AppScreenGinjector.class);
         final ScreenHarness harness = ScreenHarness.builder(context, fixtures)

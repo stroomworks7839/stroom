@@ -100,6 +100,7 @@ public class BodyController extends Controller {
         view.setOnMove(this::onMove);
         view.setOnDrop(this::onDrop);
         view.setOnAdd(this::onAdd);
+        view.setOnEntry(this::onEntry);
         view.setOnEditBranch(this::onEditBranch);
         view.setOnAddBranch(this::onAddBranch);
         view.setOnRemoveBranch(this::onRemoveBranch);
@@ -361,6 +362,29 @@ public class BodyController extends Controller {
         if (next != body) {
             apply(next);
         }
+    }
+
+    /// A line typed into a list, added as the cards it describes (design 47 A, ruled
+    /// 2026-11-17). One edit however many cards the line is, so a templated line that splits
+    /// into five arrives — and can be taken back — as one thing.
+    ///
+    /// @param listPath The list the line was typed into.
+    /// @param index Where in it the cards go.
+    /// @param line The line, as typed.
+    public void onEntry(final String listPath, final int index, final String line) {
+        if (readOnly) {
+            return;
+        }
+        final List<OutputNode> cards = Instructions.cards(line);
+        if (cards.isEmpty()) {
+            return;
+        }
+        final int[] list = Bodies.path(listPath);
+        List<OutputNode> next = body;
+        for (int i = 0; i < cards.size(); i++) {
+            next = Bodies.insert(next, list, index + i, cards.get(i));
+        }
+        apply(next);
     }
 
     /// The add menu, grouped by category, for a list path and an index in it.

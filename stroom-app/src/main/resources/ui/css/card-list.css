@@ -5,7 +5,27 @@
     padding: 0 0 0 10px;
 }
 
-.card-list__add-line {
-    display: inline-block;
-    padding: 2px 0 6px;
+/* The line that adds to a list (design 47 A): a field that takes a line and adds the cards it
+   describes, and the kind menu's button after it. The field takes the width; the button is a
+   24px target (WCAG 2.5.8) whatever its one character measures. */
+.card-list__add {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 0 6px;
+}
+
+.card-list__entry {
+    flex: 1;
+    min-width: 0;
+    font-family: var(--monospace-font-family);
+    font-size: 12.5px;
+}
+
+.card-list__add-menu {
+    flex: none;
+    min-width: 24px;
+    min-height: 24px;
+    font-size: 15px;
+    text-align: center;
 }
