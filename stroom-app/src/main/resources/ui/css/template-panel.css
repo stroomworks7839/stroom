@@ -49,16 +49,24 @@
 }
 
 /* A mode's heading, when it carries a note: the name, then what is true of the mode. The head
-   itself is already a flex row, so the two sit on one line. */
+   is a flex row that wraps, so a note that does not fit beside the name drops under it rather
+   than being cut short. It used to sit on one line and ellipsise, which meant the note design 46
+   §5.4 ruled — and that two walkthroughs assert — was never readable at the panel's own width:
+   `nothing dispatches into this` rendered as `nothing dispatc…`. The stories passed because a
+   query reads the DOM and not the pixels, which is the same blindness that hid the body's cards
+   (§5.9a). A note worth adding is worth being able to read. */
+.template-panel__mode-head {
+    flex-wrap: wrap;
+}
+
 .template-panel__mode-name {
     flex: none;
 }
 
-/* Quieter than the heading it follows, and italic so it reads as a remark rather than a name. */
+/* Quieter than the heading it follows, and italic so it reads as a remark rather than a name.
+   Given the whole width when it wraps, so the sentence arrives whole. */
 .template-panel__mode-note {
+    flex-basis: 100%;
     font-style: italic;
     opacity: .75;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
 }

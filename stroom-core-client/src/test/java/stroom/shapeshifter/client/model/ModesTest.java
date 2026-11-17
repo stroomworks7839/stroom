@@ -18,6 +18,7 @@ package stroom.shapeshifter.client.model;
 
 import stroom.shapeshifter.client.component.Regex;
 import stroom.shapeshifter.config.Condition;
+import stroom.shapeshifter.config.Dispatch;
 import stroom.shapeshifter.config.MatchExpression;
 import stroom.shapeshifter.config.OutputNode;
 import stroom.shapeshifter.config.OutputNode.ApplyDirective;
@@ -42,6 +43,11 @@ class ModesTest {
     private static ApplyTemplates apply(final String mode) {
         return new ApplyTemplates(new ApplyDirective(ProjectJson.readRefOrName("x"), mode, null,
                 ApplyDirective.DEFAULT_MAX_DEPTH, false, null));
+    }
+
+    private static ApplyTemplates apply(final String mode, final Dispatch dispatch) {
+        return new ApplyTemplates(new ApplyDirective(ProjectJson.readRefOrName("x"), mode, null,
+                ApplyDirective.DEFAULT_MAX_DEPTH, false, dispatch));
     }
 
     private static Template template(final String name, final String mode, final List<OutputNode> body) {
@@ -109,5 +115,69 @@ class ModesTest {
         assertThat(Modes.of(removed)).isEmpty();
         final If i = (If) removed.templates().get(0).body().get(0);
         assertThat(((ApplyTemplates) i.then().get(0)).directive().mode()).isNull();
+    }
+
+    @Test
+    void aModesOrderMeansWhateverItsDispatchSiteSays() {
+        // The one finding where a mistake is silent rather than laborious (design 46 §10 W4):
+        // the same ordered list means priority, a tie-break, or nothing, and the strategy that
+        // decides is a picker on a card in another pane. The panel says which, from this.
+        assertThat(Modes.dispatchOf(dispatching(Dispatch.STRICT), "kv")).isEqualTo(Dispatch.STRICT);
+        assertThat(Modes.dispatchOf(dispatching(Dispatch.LEXER), "kv")).isEqualTo(Dispatch.LEXER);
+        assertThat(Modes.dispatchOf(dispatching(Dispatch.CLASSIFY), "kv"))
+                .isEqualTo(Dispatch.CLASSIFY);
+    }
+
+    @Test
+    void aSiteThatNamesNoStrategyTakesTheProjects() {
+        // Blank means "the project's" (InstructionEdit's own help), so the panel must resolve it
+        // the way the engine does rather than reading the card alone.
+        final Project project = new Project("p", 5,
+                new Project.SourceConfig(20_000, false, "utf-8", Dispatch.LEXER, false, 100_000),
+                List.of(template("root", null, List.of(apply("kv", null))),
+                        template("pair", "kv", List.of())), null);
+        assertThat(Modes.dispatchOf(project, "kv")).isEqualTo(Dispatch.LEXER);
+    }
+
+    @Test
+    void aModeWithNoSiteHasNoStrategyToReport() {
+        final Project halfway = new Project("p", 5, null, List.of(
+                template("root", null, List.of()),
+                template("pair", "kv", List.of())), null);
+        // Null, and applySiteCount is what tells the caller why: the panel has its own note for
+        // this case and must not also claim the order means nothing.
+        assertThat(Modes.dispatchOf(halfway, "kv")).isNull();
+        assertThat(Modes.applySiteCount(halfway, "kv")).isZero();
+    }
+
+    @Test
+    void sitesThatDisagreeHaveNoOneAnswer() {
+        // No configuration in the corpus does this — of 80 modes with a site, six have more than
+        // one and none of those mixes strategies — but a sentence that is sometimes false is
+        // worse than none, so the panel is told there is no answer rather than given the first.
+        final Project mixed = new Project("p", 5, null, List.of(
+                template("root", null, List.of(apply("kv", Dispatch.STRICT))),
+                template("other", null, List.of(apply("kv", Dispatch.LEXER))),
+                template("pair", "kv", List.of())), null);
+        assertThat(Modes.applySiteCount(mixed, "kv")).isEqualTo(2);
+        assertThat(Modes.dispatchOf(mixed, "kv")).isNull();
+    }
+
+    @Test
+    void theRootLevelIsEnteredByTheRunWithTheProjectsOwnStrategy() {
+        // No card dispatches into the root group, so its strategy is the project's. It matters:
+        // library_parts and progressive_len_records have no source template at all and their
+        // root mode holds the templates the run enters directly (design 46 §6.3).
+        final Project project = new Project("p", 5,
+                new Project.SourceConfig(20_000, false, "utf-8", Dispatch.CLASSIFY, false, 100_000),
+                List.of(template("a", null, List.of()), template("b", null, List.of())), null);
+        assertThat(Modes.dispatchOf(project, null)).isEqualTo(Dispatch.CLASSIFY);
+    }
+
+    private static Project dispatching(final Dispatch dispatch) {
+        return new Project("p", 5, null, List.of(
+                template("root", null, List.of(apply("kv", dispatch))),
+                template("pair", "kv", List.of()),
+                template("junk", "kv", List.of())), null);
     }
 }

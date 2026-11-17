@@ -27,6 +27,7 @@ import stroom.shapeshifter.client.model.SampleSource;
 import stroom.shapeshifter.client.model.TemplateRowData;
 import stroom.shapeshifter.client.model.Templates;
 import stroom.shapeshifter.client.model.TraceModel;
+import stroom.shapeshifter.config.Dispatch;
 import stroom.shapeshifter.config.MatchExpression;
 import stroom.shapeshifter.config.PatternNode;
 import stroom.shapeshifter.config.Project;
@@ -47,6 +48,7 @@ import com.google.web.bindery.event.shared.HandlerRegistration;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Consumer;
@@ -310,7 +312,7 @@ public class TemplatePanelController extends Controller {
                 // group is always dispatched, by the document template itself.
                 final String note = mode != null && !dispatched.contains(mode)
                         ? "nothing dispatches into this"
-                        : null;
+                        : dispatchNote(project, mode);
                 boolean firstOfMode = true;
                 for (final Template template : project.templates()) {
                     if (Objects.equals(template.mode(), mode) && !isDocument(template)) {
@@ -478,6 +480,28 @@ public class TemplatePanelController extends Controller {
                 e.hide();
             }
         });
+    }
+
+    /// The dispatch strategy in force for a mode, where that is news (design 46 §10 W4).
+    ///
+    /// **The fact, not what it implies.** An earlier version of this said what the order *meant*
+    /// — "the first that matches wins", and so on. That was answering the wrong question: an
+    /// author writing a grammar knows a list of alternatives is ordered, and a panel explaining
+    /// it is chrome. What they cannot see is **which strategy is in force**, because it is chosen
+    /// on an `apply-templates` card that may belong to another template in another pane.
+    ///
+    /// That is the gap §6.1 names: under `lexer` an author who knows order matters will move a
+    /// template up to fix a problem they do not have, and nothing will change — reassuring or
+    /// baffling depending on whether the screen said `lexer` was in force.
+    ///
+    /// **Only where it is not `STRICT`**, which is the reading everyone brings; saying it would
+    /// be chrome on most projects. And nothing at all where the sites disagree
+    /// ([Modes#dispatchOf] returns null), because there is then no fact to state.
+    private static String dispatchNote(final Project project, final String mode) {
+        final Dispatch dispatch = Modes.dispatchOf(project, mode);
+        return dispatch == null || dispatch == Dispatch.STRICT
+                ? null
+                : "dispatched with " + dispatch.name().toLowerCase(Locale.ROOT);
     }
 
     /// The library part the selection is, or null.

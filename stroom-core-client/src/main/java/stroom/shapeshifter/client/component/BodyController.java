@@ -28,6 +28,7 @@ import stroom.shapeshifter.client.model.Templates;
 import stroom.shapeshifter.client.model.TraceModel;
 import stroom.shapeshifter.config.Condition;
 import stroom.shapeshifter.config.Declaration;
+import stroom.shapeshifter.config.Dispatch;
 import stroom.shapeshifter.config.EngineVars;
 import stroom.shapeshifter.config.MatchExpression;
 import stroom.shapeshifter.config.OutputNode;
@@ -55,6 +56,7 @@ import com.google.web.bindery.event.shared.EventBus;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
 
@@ -164,6 +166,18 @@ public class BodyController extends Controller {
                             : matches + (matches == 1
                                     ? " match"
                                     : " matches"));
+                }
+                // How this site chooses among the mode's candidates, where that is not the
+                // `strict` everyone assumes (design 46 §10 W4). Said here as well as on the mode
+                // because this is where it is chosen, and here it cannot be ambiguous: a site
+                // has one strategy, where a mode can in principle be dispatched from several.
+                final Dispatch dispatch = Dispatch.effective(apply.directive().dispatch(),
+                        host.getProject());
+                if (dispatch != Dispatch.STRICT) {
+                    if (text.length() > 0) {
+                        text.append(" · ");
+                    }
+                    text.append(dispatch.name().toLowerCase(Locale.ROOT));
                 }
             }
             for (final Instruction instruction : wrote) {

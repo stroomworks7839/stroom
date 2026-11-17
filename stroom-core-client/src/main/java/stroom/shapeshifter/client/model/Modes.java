@@ -16,6 +16,7 @@
 
 package stroom.shapeshifter.client.model;
 
+import stroom.shapeshifter.config.Dispatch;
 import stroom.shapeshifter.config.OutputNode;
 import stroom.shapeshifter.config.OutputNode.ApplyDirective;
 import stroom.shapeshifter.config.OutputNode.ApplyTemplates;
@@ -121,6 +122,45 @@ public final class Modes {
             });
         }
         return count[0];
+    }
+
+    /// How the templates in a mode are chosen at the sites that dispatch into it, or null where
+    /// that has no single answer (design 46 §10 W4).
+    ///
+    /// A mode's ordered list means three different things depending on the strategy at the site
+    /// that dispatches into it — priority under `STRICT`, `LAX` and `ANY`, a tie-break under
+    /// `LEXER`, and nothing at all under `CLASSIFY` — and the strategy is chosen on a card in
+    /// another pane. The panel says which, and this is the fact it says it from.
+    ///
+    /// Resolved with [Dispatch#effective(Dispatch, Project)], the engine's own answer, because a
+    /// site that names no strategy takes the project's and there should be one reading of that.
+    ///
+    /// Null has two causes and the caller can tell them apart with [#applySiteCount]: no site
+    /// dispatches into the mode at all, or several do and they disagree. The corpus has no
+    /// example of the second — of 80 modes with a site, six have more than one and none of those
+    /// mixes strategies — but a sentence that is sometimes false is worse than none.
+    ///
+    /// @param project The project.
+    /// @param mode The mode, or null for the root group.
+    /// @return The one strategy its sites use, or null.
+    public static Dispatch dispatchOf(final Project project, final String mode) {
+        if (mode == null) {
+            // The root level is not dispatched by a card: the run enters it, with the project's
+            // own setting.
+            return Dispatch.effective(null, project);
+        }
+        final Set<Dispatch> found = new HashSet<>();
+        for (final Template template : project.templates()) {
+            mapApply(template.body(), directive -> {
+                if (Objects.equals(directive.mode(), mode)) {
+                    found.add(Dispatch.effective(directive.dispatch(), project));
+                }
+                return directive;
+            });
+        }
+        return found.size() == 1
+                ? found.iterator().next()
+                : null;
     }
 
     /// The project with a mode renamed: its templates move, and every site naming it follows.
