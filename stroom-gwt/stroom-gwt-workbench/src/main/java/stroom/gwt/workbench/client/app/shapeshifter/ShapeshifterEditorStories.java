@@ -521,6 +521,26 @@ public final class ShapeshifterEditorStories {
                     // The workbench replaces the rows, with its own toolbar and the pattern
                     play.waitFor(() -> play.expect(play.getByRole("button",
                             TextMatch.regex("close the workbench", "i"))).toBeInTheDocument());
+                    // A group's rule stops square where its characters do, as every underline in
+                    // the editor does (design 18 §5.12.3). The radius this block keeps is for the
+                    // wash behind a selected or hovered group, which is why only the bottom
+                    // corners are squared rather than the whole thing.
+                    // Waited for: until the pattern inspection comes back, RegexController
+                    // holds a null info and paints the pattern as plain escaped text with no
+                    // group spans in it at all (RegexController.inspect).
+                    play.waitFor(() -> play.expect(play.querySelector(REGEX_GROUP)).not().toBeNull());
+                    final Query group = play.querySelector(REGEX_GROUP);
+                    play.expect(group.computedStyle("border-bottom-left-radius")).toEqual("0px");
+                    play.expect(group.computedStyle("border-top-left-radius")).toEqual("2px");
+                    // The matches pane answers the pointer too. It has no host and no cursor —
+                    // the workbench is editing a pattern with no run behind it — so it lights
+                    // itself, which is the whole of what pointing can mean here. Without this it
+                    // would be the one marked surface in the editor that says nothing at all,
+                    // while `.mark { cursor: pointer }` claims otherwise.
+                    play.waitFor(() -> play.expect(play.querySelector(SAMPLE_MARK)).not().toBeNull());
+                    final Query match = play.querySelector(SAMPLE_MARK);
+                    play.hover(match);
+                    play.waitFor(() -> play.expect(match).toHaveClass("highlight"));
                     expectNoProblems(play);
                 })
 
@@ -1130,15 +1150,18 @@ public final class ShapeshifterEditorStories {
                     // rule means "this capture is one of the current level's" and at this level
                     // there are none (design 18 §5.11.2, ruled 2026-11-16).
                     play.expect(play.querySelector(MARK_CAPTURE)).not().toHaveClass("mark--ruled");
-                    play.expect(play.querySelector(MARK_CAPTURE).computedStyle("border-bottom-style"))
-                            .toEqual("none");
+                    // Every mark carries a transparent rule at rest, so that pointing animates
+                    // its colour rather than its existence (§5.12.3): "no rule here" is a
+                    // colour, not a style.
+                    play.expect(play.querySelector(MARK_CAPTURE).computedStyle("border-bottom-color"))
+                            .toEqual("rgba(0, 0, 0, 0)");
                     // The tint is there regardless of depth, which is the half of this that a
                     // reader needs at any level: these bytes became a variable.
                     play.expect(play.querySelector(MARK_CAPTURE).computedStyle("--hue"))
                             .not().toEqual("");
                     expectNoProblems(play);
                 })
-                // Pointing at a match outlines it in its template's hue — the bounding box that
+                // Pointing at a match gives it a rule in its template's hue — the extent that
                 // used to be drawn permanently, now shown only where it is asked for
                 .story("InputPaneMatchPointedAt", context -> render(context, false))
                 .withPlay(play -> {
@@ -1177,7 +1200,7 @@ public final class ShapeshifterEditorStories {
                             .toHaveClass("highlight"));
                     expectNoProblems(play);
                 })
-                // The same outline, asked for from the other end: pointing at the template's row
+                // The same rule, asked for from the other end: pointing at the template's row
                 // in the panel marks what it matched in the pane (design 18 §5.5)
                 .story("InputPaneFromTheTemplateRow", context -> render(context, false))
                 .withPlay(play -> {
@@ -1190,13 +1213,16 @@ public final class ShapeshifterEditorStories {
                     play.hover(play.getByText("pair", TEMPLATE_NAME));
                     play.waitFor(() -> play.expect(play.querySelector(MARK_PAIR))
                             .toHaveClass("highlight"));
-                    // The class is not the point — the outline is. Q17 took away every
-                    // permanent mark on a match, so if this does not draw, a match has no way
-                    // to be seen at all and the ruling has nothing to stand on.
-                    play.expect(play.querySelector(MARK_PAIR).computedStyle("outline-color"))
-                            .not().toEqual("rgba(0, 0, 0, 0)");
-                    play.expect(play.querySelector(MARK_PAIR).computedStyle("outline-style"))
-                            .toEqual("solid");
+                    // The class is not the point — the mark is. Q17 took away every permanent
+                    // mark on a match, so if this does not draw, a match has no way to be seen
+                    // at all and the ruling has nothing to stand on. A rule rather than the
+                    // outline this first asserted: pointing is said with the rule alone
+                    // (§5.12.3, ruled 2026-11-17).
+                    play.waitFor(() -> play.expect(play.querySelector(MARK_PAIR)
+                                    .computedStyle("border-bottom-color"))
+                            .not().toEqual("rgba(0, 0, 0, 0)"));
+                    play.expect(play.querySelector(MARK_PAIR).computedStyle("border-bottom-width"))
+                            .toEqual("2px");
                     // And only that template's match: junk_line's is left alone, or "mark the
                     // one you are pointing at" would pass just as well if everything lit up
                     play.expect(play.querySelector(MARK_JUNK)).not().toHaveClass("highlight");
@@ -1223,8 +1249,11 @@ public final class ShapeshifterEditorStories {
                     play.expect(play.querySelector(CAPTURE_LINE).computedStyle("opacity")).toEqual("1");
                     play.expect(play.querySelector(CAPTURE_KEY).computedStyle("opacity")).toEqual("1");
                     play.expect(play.querySelector(CAPTURE_RULED)).toBeNull();
-                    play.expect(play.querySelector(CAPTURE_LINE).computedStyle("border-bottom-style"))
-                            .toEqual("none");
+                    // Drawn, not absent: every mark carries a transparent rule at rest so that
+                    // pointing animates its colour rather than its existence (§5.12.3). "No
+                    // rule here" is therefore a colour, not a style.
+                    play.expect(play.querySelector(CAPTURE_LINE).computedStyle("border-bottom-color"))
+                            .toEqual("rgba(0, 0, 0, 0)");
                     // Two captures bound by different frames are different colours. They were the
                     // same colour until 2026-11-16, because the hue was the capture's index
                     // *within its own frame* and both of these are index 0 — survivable while one
@@ -1253,7 +1282,9 @@ public final class ShapeshifterEditorStories {
                     final Query line = play.querySelector(CAPTURE_LINE);
                     play.expect(line).toHaveClass("mark--ruled");
                     play.expect(line.computedStyle("border-bottom-style")).toEqual("solid");
-                    play.expect(line.computedStyle("border-bottom-width")).toEqual("1px");
+                    // The width every mark carries, ruled or not: nothing in the pane changes a
+                    // rule's width, so the one property that animates is its colour.
+                    play.expect(line.computedStyle("border-bottom-width")).toEqual("2px");
                     // Drawn in the capture's own hue rather than left transparent: where a capture
                     // is made only of whitespace the rule is the entire mark, so it has to clear
                     // WCAG 1.4.11's 3:1 on its own. At 50% of the hue it did not — 2.05:1 on the
@@ -1261,11 +1292,17 @@ public final class ShapeshifterEditorStories {
                     // why it is drawn at 75%.
                     play.expect(line.computedStyle("border-bottom-color"))
                             .not().toEqual("rgba(0, 0, 0, 0)");
+                    // Square, not rounded: the 2px corner radius the mark carried was shaping a
+                    // fill and then an outline, and with neither left it only tapered the ends
+                    // of the rule — a mark trailing off rather than stopping where its bytes do.
+                    play.expect(line.computedStyle("border-bottom-left-radius")).toEqual("0px");
                     // A capture from the pair beneath: tinted, unruled, and not faded for it
                     final Query key = play.querySelector(CAPTURE_KEY);
                     play.expect(key).not().toHaveClass("mark--ruled");
-                    play.expect(key.computedStyle("border-bottom-style")).toEqual("none");
+                    play.expect(key.computedStyle("border-bottom-color")).toEqual("rgba(0, 0, 0, 0)");
                     play.expect(key.computedStyle("opacity")).toEqual("1");
+                    // Nothing is pointed at, so no rule is faded for anything.
+                    play.expect(play.querySelector(CONTENT_BLOCK)).not().toHaveClass("pointing");
                 })
 
                 // Pointing at a ruled capture thickens its rule. The rule carries the hover
@@ -1281,10 +1318,88 @@ public final class ShapeshifterEditorStories {
                 .withPlay(play -> {
                     play.waitFor(() -> play.expect(play.querySelector(CAPTURE_RULED)).not().toBeNull());
                     final Query line = play.querySelector(CAPTURE_LINE);
-                    play.expect(line.computedStyle("border-bottom-width")).toEqual("1px");
+                    // Drawn at 75% of its hue at rest, so that a whitespace-only capture's rule
+                    // clears WCAG 1.4.11 on its own; pointing at it brings it to full strength.
+                    // Kept rather than compared to a literal, because what the browser reports a
+                    // colour-mix as is the browser's business, not this story's.
+                    final String[] atRest = new String[1];
+                    play.expect(line.computedStyle("border-bottom-color"))
+                            .toSatisfy("drawn, at less than full strength", colour -> {
+                                atRest[0] = String.valueOf(colour);
+                                return !"rgba(0, 0, 0, 0)".equals(colour);
+                            });
                     play.hover(line);
-                    play.waitFor(() -> play.expect(line.computedStyle("border-bottom-width"))
-                            .toEqual("2px"));
+                    play.waitFor(() -> play.expect(line.computedStyle("border-bottom-color"))
+                            .toSatisfy("stronger than it was at rest",
+                                    colour -> !colour.equals(atRest[0])
+                                              && !"rgba(0, 0, 0, 0)".equals(colour)));
+                    play.expect(line.computedStyle("border-bottom-width")).toEqual("2px");
+                    // Said by the block as well as by the mark, because the other rules fade
+                    // and CSS cannot ask "is some other span hot" from a span (§5.12.3).
+                    play.expect(play.querySelector(CONTENT_BLOCK)).toHaveClass("pointing");
+                })
+
+                // One rule on screen at a time: with the cursor on a pair, its key and its value
+                // are both ruled, and pointing at the key fades the value's rule out. This is
+                // the whole hover vocabulary now — the outline every mark drew on hover is gone,
+                // because it reached 3px beyond the inline box, broke into a closed box per line
+                // wherever a mark wrapped, and was drawn by CSS `:hover` on every ancestor of
+                // the pointed-at element as well (design 18 §5.12.3, ruled 2026-11-17).
+                .story("InputPaneRuleFaded", context -> renderPaneOnly(context, 4))
+                .withPlay(play -> {
+                    play.waitFor(() -> play.expect(play.querySelector(CAPTURE_VALUE)).not().toBeNull());
+                    final Query key = play.querySelector(CAPTURE_KEY);
+                    final Query value = play.querySelector(CAPTURE_VALUE);
+                    play.expect(value).toHaveClass("mark--ruled");
+                    play.expect(value.computedStyle("border-bottom-color"))
+                            .not().toEqual("rgba(0, 0, 0, 0)");
+                    // Both are ruled at rest, so "the key has a colour" proves nothing here:
+                    // what pointing does is bring its rule to full strength and take the other's
+                    // away.
+                    final String[] keyAtRest = new String[1];
+                    play.expect(key.computedStyle("border-bottom-color"))
+                            .toSatisfy("ruled at rest", colour -> {
+                                keyAtRest[0] = String.valueOf(colour);
+                                return !"rgba(0, 0, 0, 0)".equals(colour);
+                            });
+                    play.hover(key);
+                    play.waitFor(() -> play.expect(key.computedStyle("border-bottom-color"))
+                            .toSatisfy("stronger than it was at rest",
+                                    colour -> !colour.equals(keyAtRest[0])
+                                              && !"rgba(0, 0, 0, 0)".equals(colour)));
+                    // Still the current level's — the rule's meaning is untouched, it is simply
+                    // not being drawn while another one is being asked about.
+                    play.expect(value).toHaveClass("mark--ruled");
+                    // Waited for, not read straight off: the fade is a .15s transition, so the
+                    // line after the hover catches it part-way down.
+                    play.waitFor(() -> play.expect(value.computedStyle("border-bottom-color"))
+                            .toEqual("rgba(0, 0, 0, 0)"));
+                })
+
+                // ...and a capture from below the cursor, which has no rule at rest, is given
+                // one while it is pointed at (ruled 2026-11-17). "The rule means this one is
+                // yours" has to hold at rest; while the pointer is on something, the hot rule is
+                // the only rule on screen and plainly means "this one". The alternative was a
+                // hover that draws nothing on the thing under the pointer, which reads as not
+                // having registered.
+                .story("InputPaneDeepCapturePointedAt", context -> renderPaneOnly(context, 4))
+                .withPlay(play -> {
+                    play.waitFor(() -> play.expect(play.querySelector(CAPTURE_PAST_CAP)).not().toBeNull());
+                    final Query deep = play.querySelector(CAPTURE_PAST_CAP);
+                    play.expect(deep).not().toHaveClass("mark--ruled");
+                    play.expect(deep.computedStyle("border-bottom-color")).toEqual("rgba(0, 0, 0, 0)");
+                    play.hover(deep);
+                    play.waitFor(() -> play.expect(deep.computedStyle("border-bottom-color"))
+                            .not().toEqual("rgba(0, 0, 0, 0)"));
+                    play.expect(deep.computedStyle("border-bottom-width")).toEqual("2px");
+                    // and the current level's two rules are the ones that have gone quiet,
+                    // once the .15s fade has run
+                    play.waitFor(() -> play.expect(
+                                    play.querySelector(CAPTURE_KEY).computedStyle("border-bottom-color"))
+                            .toEqual("rgba(0, 0, 0, 0)"));
+                    play.waitFor(() -> play.expect(
+                                    play.querySelector(CAPTURE_VALUE).computedStyle("border-bottom-color"))
+                            .toEqual("rgba(0, 0, 0, 0)"));
                 })
 
                 // Design 46 rung 1: a document created a moment ago, authored towards the
@@ -1511,7 +1626,27 @@ public final class ShapeshifterEditorStories {
 
     private static final String CAPTURE_KEY = ".mark--capture[data-cap='4:0']";
 
+    // Named for the cursor it was written against: three binding generations below the
+    // document, so past the cap from there — and one generation below a pair, so drawn when the
+    // cursor is on one. The cap re-bases as the cursor walks, which is the point of it.
     private static final String CAPTURE_PAST_CAP = ".mark--capture[data-cap='8:0']";
+
+    // The value of the first pair, ruled alongside its key when the cursor is on that pair:
+    // the second rule a story needs to show one fading while the other is pointed at.
+    private static final String CAPTURE_VALUE = ".mark--capture[data-cap='4:1']";
+
+    // The content pane's own block of marks, which carries `pointing` while one of them is
+    // lit. Scoped to the pane: `.content-box` is an app-wide class, and within Shapeshifter the
+    // pattern workbench's matches pane carries it as well.
+    private static final String CONTENT_BLOCK = ".content-pane .content-box";
+
+    // A capturing group in the pattern workbench's map of the pattern.
+    private static final String REGEX_GROUP = ".regex__group";
+
+    // A marked run in the pattern workbench's matches pane, which renders through Marks as the
+    // content and output panes do. A match rather than a capture: the sample tints a capture
+    // per regex group, and the canned preview declares no groups.
+    private static final String SAMPLE_MARK = ".sample__matches .mark";
 
     // The templates of the pane-only fixture. Kept apart from the strict_kv ids above so that a
     // selector written for one fixture cannot quietly match the other.
@@ -1802,7 +1937,7 @@ public final class ShapeshifterEditorStories {
     /// The one method with a body worth reading is [#hover(Hot)]. In the editor, pointing at a
     /// mark asks the host to light what the request names, and the host tells every surface;
     /// here the only surface is the pane, so the request goes straight back to it. That is what
-    /// makes the outline reachable in a story at all — a real pointer's hover has lapsed by the
+    /// makes the hover reachable in a story at all — a real pointer's hover has lapsed by the
     /// time a screenshot is taken.
     private static final class PaneOnlyHost implements ProjectHost {
 

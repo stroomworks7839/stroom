@@ -12,6 +12,19 @@
  * text's own colour: 30% clears 4.5:1 on the light theme's control surface and 74% on the dark
  * theme's, and no one number clears both. A hue a user chose for a template is not affected, as
  * that colours a rule and a wash rather than text.
+ *
+ * Every mark carries a transparent bottom border at rest, because pointing is said with the rule
+ * alone (design 18 §5.12.3, ruled 2026-11-17) and only its colour and width are animated. A
+ * border on an inline box does not enter the line box's height, so carrying one costs no layout.
+ * The 2px corner radius went with it: it was shaping a translucent fill (Q17) and then an
+ * outline, and with neither left it only tapered the ends of the rule, which reads as a mark
+ * trailing off rather than as a mark stopping where its bytes do.
+ * What pointing used to draw — a 2px outline at `outline-offset: 1px` — is gone from every kind:
+ * it reached 3px beyond the inline box, which the output pane's 3.5px of half-leading does not
+ * clear; `box-decoration-break: clone` turned it into one closed box per line wherever a mark
+ * wrapped, so the one thing an outline says it said twice; and CSS `:hover` drew it on every
+ * ancestor of the pointed-at element as well, where the delegated handler that replaced `:hover`
+ * names the innermost element only. The whole highlight state lives in highlight.css.
  */
 /* A match draws nothing of its own (design 18 Q15, built as Q17 2026-11-12). It had a
    translucent fill and a 2px underline in its template's hue, which with the capture tint and
@@ -21,15 +34,9 @@
 .mark {
     -webkit-box-decoration-break: clone;
     box-decoration-break: clone;
-    border-radius: 2px;
     cursor: pointer;
-    outline: 2px solid transparent;
-    outline-offset: 1px;
-    transition: outline-color .15s ease-out;
-}
-
-.mark:hover {
-    outline-color: var(--hue);
+    border-bottom: 2px solid transparent;
+    transition: border-bottom-color .15s ease-out;
 }
 
 .mark--gap {
@@ -68,10 +75,8 @@
     -webkit-box-decoration-break: clone;
     box-decoration-break: clone;
     color: var(--hue);
-    border-radius: 2px;
-    outline: 2px solid transparent;
-    outline-offset: 1px;
-    transition: outline-color .15s ease-out, border-bottom-width .1s ease-out;
+    border-bottom: 2px solid transparent;
+    transition: border-bottom-color .15s ease-out;
 }
 
 /* A capture of the current level: the rule, in the same colour the variables pane gives its
@@ -80,34 +85,23 @@
    At 75% of the hue rather than the 50% it was: where a capture is all whitespace the rule is
    the entire mark, so it has to clear WCAG 1.4.11's 3:1 for a graphic that carries meaning, and
    50% does not — 2.05:1 against the light theme's control surface on the weakest of the eight
-   generated hues, where 75% gives 3.14:1 and clears on all three surfaces. */
+   generated hues, where 75% gives 3.14:1 and clears on all three surfaces.
+
+   Colour alone, not the shorthand: the resting border is declared above at the width every
+   mark carries, and being ruled only tints it. **Nothing anywhere changes a rule's width** —
+   2px at rest, 2px when pointed at — so the pane animates exactly one property, the rule's
+   colour, and the pointer is answered by that colour coming up to full strength while every
+   other rule fades out. The 1px rest and the thickening on hover that came before this were
+   the outline's companions: with the outline gone the fade is the hover, and a width step on
+   top of it is a second channel saying what the first already said. */
 .mark--capture.mark--ruled {
-    border-bottom: 1px solid color-mix(in srgb, var(--hue) 75%, transparent);
-}
-
-/* Pointed at, from either end: the rule thickens and the variables pane's row lights, which is
-   the `highlight` vocabulary doing the second half. The rule carries the hover rather than only
-   the outline, because the rule is the channel the pointer is asking about. */
-.mark--capture.mark--ruled:hover,
-.mark--capture.mark--ruled.highlight {
-    border-bottom-width: 2px;
-    border-bottom-color: var(--hue);
-}
-
-.mark--capture:hover {
-    outline-color: var(--hue);
+    border-bottom-color: color-mix(in srgb, var(--hue) 75%, transparent);
 }
 
 .mark--instruction {
     -webkit-box-decoration-break: clone;
     box-decoration-break: clone;
-    border-radius: 2px;
     color: var(--hue);
-    outline: 2px solid transparent;
-    outline-offset: 1px;
-    transition: outline-color .15s ease-out;
-}
-
-.mark--instruction:hover {
-    outline-color: var(--hue);
+    border-bottom: 2px solid transparent;
+    transition: border-bottom-color .15s ease-out;
 }

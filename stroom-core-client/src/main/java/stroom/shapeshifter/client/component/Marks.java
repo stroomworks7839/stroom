@@ -42,6 +42,7 @@ public final class Marks {
     static final String CAPTURE_ATTR = "data-cap";
     static final String INSTRUCTION_ATTR = "data-instr";
     static final String HOT_CLASS = "highlight";
+    static final String POINTING_CLASS = "pointing";
 
     private Marks() {
     }
@@ -127,20 +128,48 @@ public final class Marks {
     /// Light the elements of a block a request names and unlight the rest: the attribute is the
     /// request's kind, the value its key. A block of many spans is walked once per request,
     /// which the pointer's pace can afford.
+    ///
+    /// The block itself is marked [#POINTING_CLASS] while something in it is lit, because the
+    /// other marks' rules fade while one is pointed at (design 18 §5.12.3) and CSS cannot ask
+    /// "is some other span hot" from a span. **Only while something actually lit**: the
+    /// variables pane lists the captures of the cursor's ancestors, which are on the path but
+    /// outside the tint's reach and so have no mark here, and fading every rule for a row that
+    /// lights nothing reads as the pane breaking rather than as a hover.
+    ///
+    /// @param block The block holding the marks.
+    /// @param hot What is pointed at, or null for nothing.
     static void light(final Element block, final Hot hot) {
         final String attr = hot == null
                 ? null
                 : attrOf(hot.getKind());
         final NodeList<Element> spans = block.getElementsByTagName("span");
+        boolean any = false;
         for (int i = 0; i < spans.getLength(); i++) {
             final Element span = spans.getItem(i);
             final boolean lit = attr != null && hot.key().equals(span.getAttribute(attr));
             if (lit) {
                 span.addClassName(HOT_CLASS);
+                any = true;
             } else if (span.hasClassName(HOT_CLASS)) {
                 span.removeClassName(HOT_CLASS);
             }
         }
+        if (any) {
+            block.addClassName(POINTING_CLASS);
+        } else {
+            block.removeClassName(POINTING_CLASS);
+        }
+    }
+
+    /// Put a block back to rest: nothing is pointed at, so no rule is faded.
+    ///
+    /// Called when a block's marks are replaced, because [#POINTING_CLASS] outlives the spans
+    /// it was set for — a re-render while the pointer is in the pane would otherwise leave
+    /// every rule faded with nothing lit to explain it.
+    ///
+    /// @param block The block holding the marks.
+    static void rest(final Element block) {
+        block.removeClassName(POINTING_CLASS);
     }
 
     /// Bring the first mark of a class into view, if it is not there already.

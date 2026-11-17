@@ -1,12 +1,42 @@
 /*
- * One highlight vocabulary (design 18 §5.5), set from Marks.HOT_CLASS: whatever is
- * pointed at, from whichever end, gets the same outline in its own hue; rows and cards get
- * the hovered background instead. A state over several blocks, so it is a block of its own.
+ * One highlight vocabulary (design 18 §5.5, §5.12.3), set from Marks.HOT_CLASS: whatever is
+ * pointed at, from whichever end, says so the same way; rows and cards get the hovered
+ * background instead. A state over several blocks, so it is a block of its own.
+ *
+ * Over text the state is **the rule, and only the rule** (ruled 2026-11-17). It replaces an
+ * outline in the same hue, for the three reasons mark.css records. One mechanism, too: the CSS
+ * `:hover` rules that drew the outline alongside this class are gone, because `:hover` matches
+ * every ancestor of the pointed-at element — three boxes for one question — and is lost in the
+ * leading between the lines of a wrapped span, which is why ContentPane delegates instead.
  */
+
+/* The hot mark gains a rule in its own hue, whatever its level. Only the current level's marks
+   are ruled at rest, so a capture or an instruction from beneath the cursor has nothing to
+   thicken: it is given one while it is pointed at. That does not blur what the rule means,
+   because "this one is the current level's" has to hold at rest, and while the pointer is on
+   something the hot rule is the only rule on screen.
+
+   The colour is the whole of it: every mark carries a 2px rule at rest, transparent unless it
+   is the current level's, so being pointed at never changes a width. One property animates in
+   the pane and this is it.
+
+   The last selector repeats the second with `mark--ruled` so that it outweighs that rule's
+   resting colour in mark.css rather than merely following it in load order. */
 .mark.highlight,
 .mark--capture.highlight,
-.mark--instruction.highlight {
-    outline-color: var(--hue);
+.mark--instruction.highlight,
+.mark--capture.mark--ruled.highlight {
+    border-bottom-color: var(--hue);
+}
+
+/* ...and every other rule in the block fades out while it is, so that one rule is on screen at
+   a time. CSS cannot ask "is some other span hot" from a span, so the block says it instead:
+   Marks.light sets POINTING_CLASS on the block while anything is lit, and only while something
+   actually is — a variables row for a capture outside the tint's reach lights no text, and
+   fading every rule for it would read as the pane breaking. Three classes, so this outweighs
+   the resting rule whichever order the sheets load in. */
+.pointing .mark--ruled:not(.highlight) {
+    border-bottom-color: transparent;
 }
 
 .variables-pane__row.highlight,

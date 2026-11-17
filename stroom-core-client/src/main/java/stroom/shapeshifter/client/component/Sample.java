@@ -23,6 +23,8 @@ import stroom.widget.text.client.Html;
 import stroom.widget.text.client.Label;
 
 import com.google.gwt.core.client.GWT;
+import com.google.gwt.dom.client.Element;
+import com.google.gwt.dom.client.EventTarget;
 import com.google.gwt.event.dom.client.KeyUpEvent;
 import com.google.gwt.event.logical.shared.ValueChangeEvent;
 import com.google.gwt.safehtml.shared.SafeHtmlBuilder;
@@ -55,6 +57,24 @@ public class Sample extends Component {
         initWidget(BINDER.createAndBindUi(this));
         sample.addKeyUpHandler(event -> onSampleKey(event));
         sample.addValueChangeHandler(event -> onSampleChange(event));
+        // Pointing at a match or a group lights it and quietens the rest, as it does in the
+        // panes (design 18 §5.12.3). Lit from here rather than from a host: the workbench is
+        // editing a pattern with no run behind it, so there is no cursor and no second surface
+        // to tell — the pane answers its own pointer, which is the whole of what it can mean
+        // here. A delegated handler rather than `:hover`, for the reasons mark.css records.
+        matches.addMouseOverHandler(event -> {
+            final EventTarget target = event.getNativeEvent().getEventTarget();
+            Marks.light(matches.getElement(), Element.is(target)
+                    ? Marks.hotOf(matches.getElement(), Element.as(target))
+                    : null);
+        });
+        matches.addMouseOutHandler(event -> {
+            // Leaving one span for another inside the block is not leaving the block.
+            final EventTarget to = event.getRelatedTarget();
+            if (to == null || !Element.is(to) || !matches.getElement().isOrHasChild(Element.as(to))) {
+                Marks.light(matches.getElement(), null);
+            }
+        });
         showNothing("");
     }
 
@@ -82,6 +102,7 @@ public class Sample extends Component {
     public void showMatches(final String text, final List<Mark> marks, final List<Row> rows, final String line) {
         summary.setText(line);
         matches.setHTML(Marks.render(text, marks));
+        Marks.rest(matches.getElement());
         final SafeHtmlBuilder html = new SafeHtmlBuilder();
         if (!rows.isEmpty()) {
             html.appendHtmlConstant("<table class=\"sample__table\">");

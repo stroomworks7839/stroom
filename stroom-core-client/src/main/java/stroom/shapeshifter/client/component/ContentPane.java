@@ -97,6 +97,7 @@ public class ContentPane extends Component {
     public void showContent(final String text, final List<Mark> marks, final List<Loose> looseMatches,
                             final String noteText) {
         content.setHTML(Marks.render(text, marks));
+        Marks.rest(content.getElement());
         loose.clear();
         for (final Loose match : looseMatches) {
             final FlowPanel row = new FlowPanel();

@@ -92,6 +92,7 @@ public class OutputPane extends Component {
 
     public void showOutput(final String text, final List<Mark> marks, final String noteText) {
         output.setHTML(Marks.render(text, marks));
+        Marks.rest(output.getElement());
         output.setVisible(true);
         empty.setVisible(false);
         note.setText(noteText == null

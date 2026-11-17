@@ -14,9 +14,13 @@
     min-height: 18px;
 }
 
+/* Rounded at the top and square at the bottom: the radius is there for the wash that
+   --selected and :hover put behind the group, and the rule is not part of that. An underline
+   stops where its characters do (design 18 §5.12.3) — tapered ends read as a mark trailing
+   off — and the wash sitting on a square-ended rule makes the rule its bottom edge. */
 .regex__group {
     cursor: pointer;
-    border-radius: 2px;
+    border-radius: 2px 2px 0 0;
     border-bottom: 2px solid var(--hue);
     color: var(--hue);
 }

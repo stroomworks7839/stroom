@@ -8,8 +8,9 @@
     flex: none;
 }
 
-/* The content pane: the value, marked. A match is a coloured underline and a faint wash of
-   its template's hue; pointing at it outlines it in the same hue (the mockup's one vocabulary). */
+/* The content pane: the value, marked. A match draws nothing at rest (design 18 Q17) — the
+   underline and the wash it had are gone — and pointing at it gives it a rule in its
+   template's hue, as pointing at anything marked does (design 18 §5.12.3, mark.css). */
 .content-pane__reader {
     display: flex;
     flex-direction: column;
