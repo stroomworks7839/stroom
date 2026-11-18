@@ -172,6 +172,12 @@ public class BaseSelectionBox<T, I extends SelectionItem>
         this.model = model;
     }
 
+    /// Opens the list, as a click on the box does, for a caller that has just put the box in
+    /// front of the user to choose from. Nothing happens if it is open, or cannot be changed.
+    public void open() {
+        openPopup(null);
+    }
+
     // Opens the list, or closes it if it is open (e.g. a second click on the box)
     private void togglePopup() {
         if (popup != null) {
