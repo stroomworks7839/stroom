@@ -278,6 +278,23 @@ public class SplitPane extends ComplexPanel implements RequiresResize, ProvidesR
         updateAria();
     }
 
+    /// The tracks are set before the panes' widgets are attached, and not only once they have
+    /// been ([#onLoad]): a widget may measure itself as it is attached and keep what it found — a
+    /// data grid works out its fill columns' widths once, from the width it first has, and never
+    /// narrows them — and until the tracks are set the panes are not the sizes they will be. A
+    /// grid in the second of two panes side by side was measured at more than its pane's width,
+    /// and its columns then ran off the edge.
+    @Override
+    protected void doAttachChildren() {
+        try {
+            layout();
+        } catch (final IllegalStateException e) {
+            // A pane with no size. That is said when the split pane is shown ([#onLoad]), as it
+            // always was: said from here, the panes' widgets would be left half attached.
+        }
+        super.doAttachChildren();
+    }
+
     @Override
     protected void onLoad() {
         super.onLoad();
