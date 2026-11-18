@@ -2,73 +2,80 @@
 <ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
              xmlns:t="urn:import:stroom.widget.text.client"
              xmlns:g="urn:import:com.google.gwt.user.client.ui"
-             xmlns:lay="urn:import:stroom.widget.layout.client"
+             xmlns:btn="urn:import:stroom.widget.button.client"
              xmlns:form="urn:import:stroom.widget.form.client"
              xmlns:tickbox="urn:import:stroom.widget.tickbox.client"
              xmlns:l="urn:import:stroom.widget.selection.client"
              xmlns:ss="urn:import:stroom.shapeshifter.client.component">
-    <lay:ScrollPane addStyleNames="max">
-        <g:FlowPanel styleName="form-padding form">
-            <form:FormGroup ui:field="kindGroup" identity="ssInstrKind" label="Instruction"
+    <g:FlowPanel ui:field="form" styleName="instruction-edit">
+        <g:FlowPanel styleName="instruction-edit__fields">
+            <form:FormGroup ui:field="kindGroup" addStyleNames="instruction-edit__group instruction-edit__group--kind" identity="ssInstrKind" label="Instruction"
                             helpText="What the card does. Output writes; invoke dispatches or calls; control branches, loops and binds; a transform computes a named value; a collection op changes a list, map or set.">
                 <g:FlowPanel>
                     <l:SelectionBox ui:field="kind" addStyleNames="w-100"/>
                     <t:Label ui:field="note" styleName="edit-form__hint"/>
                 </g:FlowPanel>
             </form:FormGroup>
-            <form:FormGroup ui:field="field0Group" identity="ssInstrF0" label="">
+            <form:FormGroup ui:field="field0Group" addStyleNames="instruction-edit__group" identity="ssInstrF0" label="">
                 <form:TextBox ui:field="field0" addStyleNames="w-100"/>
             </form:FormGroup>
             <!-- One picker for any kind whose field is a closed set of words: decode's codec is
                  the first, and the view stays one view for all of them. -->
-            <form:FormGroup ui:field="choiceGroup" identity="ssInstrChoice" label="">
+            <form:FormGroup ui:field="choiceGroup" addStyleNames="instruction-edit__group" identity="ssInstrChoice" label="">
                 <l:SelectionBox ui:field="choice" addStyleNames="w-100"/>
             </form:FormGroup>
-            <form:FormGroup ui:field="field1Group" identity="ssInstrF1" label="">
+            <form:FormGroup ui:field="field1Group" addStyleNames="instruction-edit__group" identity="ssInstrF1" label="">
                 <form:TextBox ui:field="field1" addStyleNames="w-100"/>
             </form:FormGroup>
-            <form:FormGroup ui:field="field2Group" identity="ssInstrF2" label="">
+            <form:FormGroup ui:field="field2Group" addStyleNames="instruction-edit__group" identity="ssInstrF2" label="">
                 <form:TextBox ui:field="field2" addStyleNames="w-100"/>
             </form:FormGroup>
-            <form:FormGroup ui:field="field3Group" identity="ssInstrF3" label="">
+            <form:FormGroup ui:field="field3Group" addStyleNames="instruction-edit__group" identity="ssInstrF3" label="">
                 <form:TextBox ui:field="field3" addStyleNames="w-100"/>
             </form:FormGroup>
-            <form:FormGroup ui:field="field4Group" identity="ssInstrField4" label="">
+            <form:FormGroup ui:field="field4Group" addStyleNames="instruction-edit__group" identity="ssInstrField4" label="">
                 <form:TextBox ui:field="field4" addStyleNames="w-100"/>
             </form:FormGroup>
             <!-- The mode a dispatch goes into is a choice among the project's modes, not free text
                  (design 44 §5k): the same picker the template's own mode field uses. -->
-            <form:FormGroup ui:field="modeGroup" identity="ssInstrMode" label="Mode"
+            <form:FormGroup ui:field="modeGroup" addStyleNames="instruction-edit__group" identity="ssInstrMode" label="Mode"
                             helpText="The mode this dispatches into; the root is the templates the document itself dispatches to.">
                 <l:SelectionBox ui:field="mode" addStyleNames="w-100"/>
             </form:FormGroup>
-            <form:FormGroup ui:field="severityGroup" identity="ssInstrSeverity" label="Severity">
+            <form:FormGroup ui:field="severityGroup" addStyleNames="instruction-edit__group" identity="ssInstrSeverity" label="Severity">
                 <l:SelectionBox ui:field="severity" addStyleNames="w-100"/>
             </form:FormGroup>
-            <form:FormGroup ui:field="dispatchGroup" identity="ssInstrDispatch" label="Dispatch"
+            <form:FormGroup ui:field="dispatchGroup" addStyleNames="instruction-edit__group" identity="ssInstrDispatch" label="Dispatch"
                             helpText="How candidates in the mode are chosen at this site; blank takes the project's.">
                 <l:SelectionBox ui:field="dispatch" addStyleNames="w-100"/>
             </form:FormGroup>
-            <form:FormGroup ui:field="flag0Group" identity="ssInstrFlag0" label="">
+            <form:FormGroup ui:field="flag0Group" addStyleNames="instruction-edit__group" identity="ssInstrFlag0" label="">
                 <tickbox:TickBox ui:field="flag0"/>
             </form:FormGroup>
-            <form:FormGroup ui:field="flag1Group" identity="ssInstrFlag1" label="">
+            <form:FormGroup ui:field="flag1Group" addStyleNames="instruction-edit__group" identity="ssInstrFlag1" label="">
                 <tickbox:TickBox ui:field="flag1"/>
             </form:FormGroup>
-            <form:FormGroup ui:field="multiGroup" identity="ssInstrMulti" label="">
-                <form:TextArea ui:field="multi" addStyleNames="w-100 edit-form__entries" visibleLines="5"/>
+            <form:FormGroup ui:field="multiGroup" addStyleNames="instruction-edit__group instruction-edit__group--wide" identity="ssInstrMulti" label="">
+                <form:TextArea ui:field="multi" addStyleNames="w-100 edit-form__entries" visibleLines="3"/>
             </form:FormGroup>
-            <form:FormGroup ui:field="conditionGroup" identity="ssInstrCondition" label="Test">
+            <form:FormGroup ui:field="conditionGroup" addStyleNames="instruction-edit__group instruction-edit__group--wide" identity="ssInstrCondition" label="Test">
                 <ss:ClauseListPanel ui:field="condition"/>
             </form:FormGroup>
-            <form:FormGroup ui:field="sortGroup" identity="ssInstrSort" label="Sort"
+            <form:FormGroup ui:field="sortGroup" addStyleNames="instruction-edit__group instruction-edit__group--wide" identity="ssInstrSort" label="Sort"
                             helpText="The order the entries are walked in. Each key is read with index() bound to the entry, and a key after the first only decides what the one before it left level.">
                 <ss:SortListPanel ui:field="sort"/>
             </form:FormGroup>
-            <form:FormGroup ui:field="wireGroup" identity="ssInstrWire" label="Wire form"
+            <form:FormGroup ui:field="wireGroup" addStyleNames="instruction-edit__group instruction-edit__group--wide" identity="ssInstrWire" label="Wire form"
                             helpText="The instruction as the document holds it.">
-                <form:TextArea ui:field="wire" addStyleNames="w-100 edit-form__entries" visibleLines="10"/>
+                <form:TextArea ui:field="wire" addStyleNames="w-100 edit-form__entries" visibleLines="8"/>
             </form:FormGroup>
+            <!-- Enter in a field takes the draft and Escape drops it; these are the same two
+                 for the pointer, and for the fields where Enter is a line break. Last in the
+                 row, so a kind with one or two settings is one line with its way out on it. -->
+            <g:FlowPanel styleName="instruction-edit__actions">
+                <btn:LinkButton ui:field="ok" addStyleNames="instruction-edit__action" text="OK" title="Take this instruction as it is written here (Enter)"/>
+                <btn:LinkButton ui:field="cancel" addStyleNames="instruction-edit__action" text="Cancel" title="Leave the instruction as it was (Escape)"/>
+            </g:FlowPanel>
         </g:FlowPanel>
-    </lay:ScrollPane>
+    </g:FlowPanel>
 </ui:UiBinder>

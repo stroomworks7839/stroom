@@ -130,6 +130,42 @@ class BodiesTest {
     }
 
     @Test
+    void aPathPastAnInsertionIsOneFurtherOn() {
+        // A new card is held as a draft and put in when it is taken (design 47 D), which moves
+        // whatever the author pointed at meanwhile if it is further down the same list.
+        final int[] top = new int[0];
+        // The card it went in before, and those after it
+        assertThat(Bodies.shiftForInsert(new int[]{2}, top, 2)).containsExactly(3);
+        assertThat(Bodies.shiftForInsert(new int[]{5}, top, 2)).containsExactly(6);
+        // Those before it stay where they are
+        assertThat(Bodies.shiftForInsert(new int[]{1}, top, 2)).containsExactly(1);
+        // A list inside a card that moved moves with it: [2, 0] is branch 0 of card 2
+        assertThat(Bodies.shiftForInsert(new int[]{2, 0}, top, 1)).containsExactly(3, 0);
+        assertThat(Bodies.shiftForInsert(new int[]{2, 0, 4}, top, 1)).containsExactly(3, 0, 4);
+        // An insertion into a nested list moves only what is in that list
+        final int[] branch = new int[]{2, 0};
+        assertThat(Bodies.shiftForInsert(new int[]{2, 0, 4}, branch, 1)).containsExactly(2, 0, 5);
+        assertThat(Bodies.shiftForInsert(new int[]{2, 1, 4}, branch, 1)).containsExactly(2, 1, 4);
+        assertThat(Bodies.shiftForInsert(new int[]{3}, branch, 0)).containsExactly(3);
+        // The list itself is not in itself
+        assertThat(Bodies.shiftForInsert(branch, branch, 0)).containsExactly(2, 0);
+        assertThat(Bodies.shiftForInsert(top, top, 0)).isEmpty();
+    }
+
+    @Test
+    void aCardHoldsWhatItsBranchesHoldBetweenThem() {
+        // What goes with a holder when it is removed, or changed to a kind with no place for it
+        assertThat(Bodies.held(new Text("x"))).isZero();
+        assertThat(Bodies.held(new If(new Condition.IsFirst(), List.of()))).isZero();
+        assertThat(Bodies.held(new If(new Condition.IsFirst(),
+                List.of(new Text("a"), new Text("b"))))).isEqualTo(2);
+        assertThat(Bodies.held(new Choose(
+                List.of(new WhenBranch(new Condition.IsFirst(), List.of(new Text("a")))),
+                List.of(new Text("b"), new Text("c"))))).isEqualTo(3);
+        assertThat(Bodies.held(null)).isZero();
+    }
+
+    @Test
     void captureGroupsAreSpeltAndReadBack() {
         // The case a migrated apply-templates always has, and the one that used to fall to raw
         // JSON: the wire has no short form for a numbered group, because group() is already a

@@ -192,8 +192,8 @@ public final class ShapeshifterAuthoringStories {
     /// §5.3 step 7. The `apply-templates` card it arrived with, selecting nothing — and the help
     /// that says what nothing means. Opened and dismissed: the author is reading, not editing.
     private static void blankSelect(final Play play, final Play screen) {
-        play.click(play.getByText("apply-templates", ShapeshifterEditorStories.CARD_KIND));
-        final Play card = ShapeshifterEditorStories.dialogMatching(play, screen, "apply-templates");
+        play.click(ShapeshifterEditorStories.cardLine(play, "apply-templates"));
+        final Play card = ShapeshifterEditorStories.cardEditor(play);
         // In the document rather than visible: Stroom keeps a field's help behind the form
         // group's own help button (`form-group__help`), so what step 7 can be held to is that
         // the Select field carries this help — not that the author is reading it unprompted.
@@ -263,17 +263,17 @@ public final class ShapeshifterAuthoringStories {
         ShapeshifterEditorStories.selectTemplate(play, "document");
         play.waitFor(() -> play.expect(play.getByLabelText(Walkthrough.ENTRY)).toBeInTheDocument());
         Walkthrough.enter(play, "<records>\\n");
-        // The body is [apply-templates, text]: the second card's Move up puts the opening before
-        // the dispatch
-        play.click(play.getAllByTitle("Move up").nth(1));
+        // The body is [apply-templates, text], and the row just added is the selected one: the
+        // toolbar's Move up puts the opening before the dispatch
+        play.click(play.getByRole("button", "Move the selected instruction up"));
     }
 
     /// §5.5 step 14. The dispatch itself — the card the document template arrived with, told
     /// which mode to dispatch into. The dead-mode note goes as the two-part edit completes.
     private static void dispatch(final Play play, final Play screen) {
-        play.click(play.getByText("apply-templates", ShapeshifterEditorStories.CARD_KIND));
+        play.click(ShapeshifterEditorStories.cardLine(play, "apply-templates"));
         final Play dispatching =
-                ShapeshifterEditorStories.dialogMatching(play, screen, "apply-templates");
+                ShapeshifterEditorStories.cardEditor(play);
         ShapeshifterEditorStories.pickFromBox(play, screen, dispatching.getByLabelText("Mode"), "kv");
         play.click(dispatching.getByRole("button", StroomDom.button("OK")));
         // A note that stayed after the edit was finished would be worse than no note at all
@@ -369,7 +369,7 @@ public final class ShapeshifterAuthoringStories {
         ShapeshifterEditorStories.selectTemplate(play, "junk_line");
         play.click(ShapeshifterEditorStories.addMenu(play));
         play.click(screen.findByText("emit-error", StroomDom.MENU_ITEM_TEXT));
-        final Play message = ShapeshifterEditorStories.dialogMatching(play, screen, "emit-error");
+        final Play message = ShapeshifterEditorStories.cardEditor(play);
         // Lowercase, as the picker lists them and as the wire spells them (JsonFields.label); the
         // default is "error", so this is a real choice
         ShapeshifterEditorStories.pickFromBox(play, screen,

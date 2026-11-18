@@ -1,0 +1,71 @@
+/*
+ * The names a template defines, as a section of it (DefinitionList): the declarations, and
+ * the captures. A heading with the way to add beside it, then a row per name.
+ */
+.definition-list {
+    padding: 2px 0;
+    font-size: 12.5px;
+}
+
+.definition-list__head {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    min-height: 22px;
+    padding: 0 12px;
+}
+
+/* A key label is a fixed column, for the rows that have a control beside it. These headings
+   are longer than the column and have nothing to line up with. */
+.definition-list__heading {
+    width: auto;
+}
+
+/* Rows of a list, as the body's are (body-card.css): the pane's width, with no gap between
+   them and no box round each. */
+.definition-list__row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 4px 12px;
+    cursor: pointer;
+}
+
+.definition-list__row:hover,
+.definition-list__row:focus-within {
+    background-color: var(--row__background-color--hovered);
+}
+
+.definition-list__name {
+    font-family: var(--monospace-font-family);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.definition-list__detail {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--ss-muted);
+}
+
+/* Shown with the row's hover or focus, as a card's actions are */
+.definition-list__remove {
+    opacity: 0;
+}
+
+.definition-list__row:hover .definition-list__remove,
+.definition-list__row:focus-within .definition-list__remove {
+    opacity: 1;
+}
+
+/* Read only: the rows are to be read, and offer nothing */
+.definition-list__rows--locked .definition-list__row {
+    cursor: default;
+}
+
+.definition-list__rows--locked .definition-list__remove {
+    display: none;
+}

@@ -18,6 +18,7 @@ package stroom.shapeshifter.client.component;
 
 import stroom.shapeshifter.config.Dispatch;
 import stroom.shapeshifter.config.Severity;
+import stroom.widget.button.client.LinkButton;
 import stroom.widget.component.client.Component;
 import stroom.widget.form.client.FormGroup;
 import stroom.widget.form.client.TextArea;
@@ -27,24 +28,42 @@ import stroom.widget.text.client.Label;
 import stroom.widget.tickbox.client.TickBox;
 
 import com.google.gwt.core.client.GWT;
+import com.google.gwt.event.dom.client.KeyCodes;
+import com.google.gwt.event.dom.client.KeyDownEvent;
 import com.google.gwt.event.logical.shared.ValueChangeEvent;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
+import com.google.gwt.user.client.ui.FlowPanel;
 import com.google.gwt.user.client.ui.Widget;
 
 import java.util.List;
 import java.util.Locale;
 import java.util.function.Consumer;
 
-/// The instruction dialog's fields, generic on purpose: four text fields, two flags, one
-/// multi-line, a severity, a dispatch, a condition and the wire form, each labelled and shown by
-/// the presenter per kind. One view for forty-six kinds beats forty-six views.
+/// One instruction's fields, generic on purpose: five text fields, two flags, one multi-line, a
+/// severity, a dispatch, a condition and the wire form, each labelled and shown by the
+/// controller per kind. One view for every kind beats a view each.
+///
+/// It is shown **in the card list, in place of the card it edits** (design 47 D), not in a
+/// dialog: the kind first, then the kind's fields beside it, wrapping as they need. What it
+/// holds is a draft until it is taken — Enter in a field, Ctrl+Enter in an area, or OK — and
+/// Escape or Cancel drops it.
 public class InstructionEdit extends Component {
 
     private static final Binder BINDER = GWT.create(Binder.class);
 
     private Consumer<String> onKind;
+    private Runnable onCommit = () -> {
+    };
+    private Runnable onCancel = () -> {
+    };
 
+    @UiField
+    FlowPanel form;
+    @UiField
+    LinkButton ok;
+    @UiField
+    LinkButton cancel;
     @UiField
     SelectionBox<String> kind;
     @UiField
@@ -126,6 +145,74 @@ public class InstructionEdit extends Component {
         dispatch.addItems(Dispatch.values());
         condition.setEmptyText("(no clauses yet)");
         sort.setEmptyText("(walked in the order the entries are in)");
+        ok.setOnClick(() -> onCommit.run());
+        cancel.setOnClick(() -> onCancel.run());
+        // Enter takes the draft from a one-line field. Only from those: Enter in a selection
+        // box opens its list, and in an area it is a line break, where Ctrl+Enter takes it.
+        for (int i = 0; i < FIELD_COUNT; i++) {
+            field(i).addKeyDownHandler(event -> {
+                if (event.getNativeKeyCode() == KeyCodes.KEY_ENTER) {
+                    event.preventDefault();
+                    onCommit.run();
+                }
+            });
+        }
+        multi.addKeyDownHandler(event -> onAreaKey(event));
+        wire.addKeyDownHandler(event -> onAreaKey(event));
+        // Escape from anywhere in the card. A list a selection box has open is not in the
+        // card, so the Escape that closes it never arrives here.
+        form.addDomHandler(event -> {
+            if (event.getNativeKeyCode() == KeyCodes.KEY_ESCAPE) {
+                event.preventDefault();
+                event.stopPropagation();
+                onCancel.run();
+            }
+        }, KeyDownEvent.getType());
+    }
+
+    private static final int FIELD_COUNT = 5;
+
+    private void onAreaKey(final KeyDownEvent event) {
+        if (event.getNativeKeyCode() == KeyCodes.KEY_ENTER
+            && (event.isControlKeyDown() || event.isMetaKeyDown())) {
+            event.preventDefault();
+            onCommit.run();
+        }
+    }
+
+    /// @param onCommit Told when the draft is to be taken: Enter in a field, or OK.
+    public void setOnCommit(final Runnable onCommit) {
+        this.onCommit = onCommit;
+    }
+
+    /// @param onCancel Told when the draft is to be dropped: Escape, or Cancel.
+    public void setOnCancel(final Runnable onCancel) {
+        this.onCancel = onCancel;
+    }
+
+    /// Puts the keyboard in the first field the kind has, which is what an author opening a
+    /// card has come to change; in the kind box when the kind has no field of that sort.
+    public void focusFirst() {
+        for (int i = 0; i < FIELD_COUNT; i++) {
+            if (fieldGroup(i).isVisible()) {
+                field(i).setFocus(true);
+                return;
+            }
+        }
+        if (multiGroup.isVisible()) {
+            multi.setFocus(true);
+        } else if (wireGroup.isVisible()) {
+            wire.setFocus(true);
+        } else {
+            kind.focus();
+        }
+    }
+
+    /// Puts the keyboard in the kind box and opens its list: what clicking a card's kind asks
+    /// for.
+    public void chooseKind() {
+        kind.focus();
+        kind.open();
     }
 
 

@@ -71,11 +71,6 @@ import stroom.shapeshifter.config.Severity;
 import stroom.shapeshifter.config.json.JsonText;
 import stroom.shapeshifter.config.json.ProjectJson;
 import stroom.widget.component.client.Controller;
-import stroom.widget.component.client.ControllerDialog;
-import stroom.widget.component.client.HasControllerNode;
-import stroom.widget.popup.client.PopupSize;
-import stroom.widget.popup.client.PopupType;
-import stroom.widget.popup.client.event.HidePopupRequestEvent;
 
 import com.google.inject.Inject;
 import com.google.web.bindery.event.shared.EventBus;
@@ -86,7 +81,8 @@ import java.util.Locale;
 import java.util.Map;
 
 /// One instruction (design 18 §5.6: "each kind gets an editor shaped like the instruction it
-/// edits"): a kind and the fields that kind has, for the kinds an author writes constantly;
+/// edits"), shown in the card list in place of the card (design 47 D) and holding a draft until
+/// it is taken: a kind and the fields that kind has, for the kinds an author writes constantly;
 /// the wire form for the transforms and for any card whose reference is a path. A holder keeps
 /// what its branches hold across an edit, and across a change of kind where the new kind has
 /// a place for it. Conditions use the one clause editor.
@@ -320,7 +316,7 @@ public class InstructionEditController extends Controller {
             // And only what the form can also write back: a nameless translate writes its
             // result straight out, which the form has no way to say — its Name is required —
             // and an empty from list is a pass-through the form would refuse to save. Both stay
-            // on the wire form rather than opening a dialog whose OK can never succeed.
+            // on the wire form rather than opening a form whose OK can never succeed.
             return t.select().size() == 1
                    && Instructions.spell(t.select().get(0)) != null
                    && t.name() != null
@@ -368,7 +364,7 @@ public class InstructionEditController extends Controller {
         final InstructionEdit v = view;
         for (int i = 0; i < FIELDS; i++) {
             // Emptied, not merely hidden: the five fields mean different things to different
-            // kinds, and switching the kind box in an open dialog would otherwise carry a
+            // kinds, and switching the kind box in an open card would otherwise carry a
             // parse-date's pattern into a trim's Name and save it there.
             v.setField(i, "", "", false);
         }
@@ -820,179 +816,220 @@ public class InstructionEditController extends Controller {
 
     /// The edited instruction, or null after telling the user what is wrong.
     public OutputNode write() {
-        final InstructionEdit v = view;
         try {
-            final String kind = v.getKind();
-            if (v.isWireVisible() || WIRE.equals(kind)) {
-                return ProjectJson.readOutput(JsonText.parse(v.getWire()));
-            }
-            switch (kind) {
-                case "text":
-                    return new Text(v.getMulti());
-                case "value-of":
-                    return new ValueOf(ref(v.getField(0), "value-of needs a select"));
-                case "trim":
-                case "lower-case":
-                case "upper-case":
-                case "normalize-space":
-                case "add":
-                case "divide":
-                case "round":
-                case "string-length":
-                case "number":
-                case "subtract":
-                case "multiply":
-                case "mod":
-                case "floor":
-                case "ceiling":
-                case "abs":
-                    // Blank is a real answer for the name: a transform without one writes its
-                    // result straight out, which 42 of the corpus's 55 trims do.
-                    switch (SimpleTransforms.arity(kind)) {
-                        case ONE:
-                            return SimpleTransforms.build(kind,
-                                    List.of(ref(v.getField(0), kind + " needs something to read")),
-                                    blankToNull(v.getField(1)));
-                        case TWO:
-                            return SimpleTransforms.build(kind,
-                                    List.of(ref(v.getField(0), kind + " needs a left-hand input"),
-                                            ref(v.getField(1), kind + " needs a right-hand input")),
-                                    blankToNull(v.getField(2)));
-                        default:
-                            return SimpleTransforms.build(kind, selects(v.getMulti()),
-                                    blankToNull(v.getField(0)));
-                    }
-                case "string-join":
-                    return new StringJoin(selects(v.getMulti()),
-                            word(v.getField(0), "A string-join needs a separator"),
-                            blankToNull(v.getField(1)));
-                case "tokenize":
-                    return new Tokenize(selectOne(), word(v.getField(1),
-                            "A tokenize needs a delimiter"), blankToNull(v.getField(2)));
-                case "substring-before":
-                    return new SubstringBefore(selectOne(), word(v.getField(1),
-                            "A substring-before needs a marker"), blankToNull(v.getField(2)));
-                case "substring-after":
-                    return new SubstringAfter(selectOne(), word(v.getField(1),
-                            "A substring-after needs a marker"), blankToNull(v.getField(2)));
-                case "starts-with":
-                    return new StartsWith(selectOne(), word(v.getField(1),
-                            "A starts-with needs a prefix"), blankToNull(v.getField(2)));
-                case "ends-with":
-                    return new EndsWith(selectOne(), word(v.getField(1),
-                            "An ends-with needs a suffix"), blankToNull(v.getField(2)));
-                case "contains":
-                    return new Contains(selectOne(), word(v.getField(1),
-                            "A contains needs a substring"), blankToNull(v.getField(2)));
-                case "format-number":
-                    return new FormatNumber(selectOne(), word(v.getField(1),
-                            "A format-number needs a picture"), blankToNull(v.getField(2)));
-                case "replace":
-                    return new Replace(selectOne(),
-                            word(v.getField(1), "A replace needs something to find"),
-                            ControlEscapes.unescape(v.getField(2)), v.getFlag(0), blankToNull(v.getField(3)));
-                case "substring":
-                    return new Substring(selectOne(),
-                            integerOrNull(v.getField(1), "start"),
-                            integerOrNull(v.getField(2), "length"),
-                            blankToNull(v.getField(3)));
-                case "format-date":
-                    return new FormatDate(selectOne(),
-                            word(v.getField(1), "A format-date needs a pattern"),
-                            blankToNull(v.getField(2)), blankToNull(v.getField(3)));
-                case "parse-date":
-                    return new ParseDate(selectOne(),
-                            word(v.getField(1), "A parse-date needs a pattern"),
-                            blankToNull(v.getField(2)), refOrNull(v.getField(3)),
-                            blankToNull(v.getField(4)));
-                case "decode":
-                    return new Decode(selectOne(), codec(v.getChoice()),
-                            blankToNull(v.getField(1)));
-                case "call":
-                    return new Call(required(v.getField(0), "A call needs a function"),
-                            selects(v.getMulti()), blankToNull(v.getField(1)));
-                case "translate": {
-                    final List<String> from = new ArrayList<>();
-                    final List<String> to = new ArrayList<>();
-                    readReplacements(v.getMulti(), from, to);
-                    return new Translate(
-                            List.of(ref(v.getField(0), "A translate needs a select")),
-                            from, to, required(v.getField(1), "A translate needs a name"));
-                }
-                case "element":
-                    return new Element(required(v.getField(0), "An element needs a name"),
-                            blankToNull(v.getField(1)), v.getFlag(0), body(0));
-                case "attribute":
-                    return new Attribute(required(v.getField(0), "An attribute needs a name"), v.getFlag(0),
-                            body(0));
-                case "namespace":
-                    return new Namespace(blankToNull(v.getField(0)), required(v.getField(1),
-                            "A namespace needs a URI"));
-                case "emit-error":
-                    return new EmitError(v.getSeverity(), ref(v.getField(0), "emit-error needs a message"));
-                case "apply-templates":
-                    return new ApplyTemplates(new ApplyDirective(
-                            refOrNull(v.getField(0)), blankToNull(v.getMode()),
-                            params(v.getMulti()), integer(v.getField(2), ApplyDirective.DEFAULT_MAX_DEPTH,
-                                    "max depth"), v.getFlag(0), v.getDispatch()));
-                case "call-template":
-                    return new CallTemplate(required(v.getField(0), "call-template needs a template name"),
-                            params(v.getMulti()));
-                case "if":
-                    return new If(condition(), body(0));
-                case "choose":
-                    return original instanceof Choose
-                            ? original
-                            : new Choose(List.of(), List.of());
-                case "switch": {
-                    final List<SwitchCase> cases = new ArrayList<>();
-                    int b = 0;
-                    for (final String line : v.getMulti().split("\n")) {
-                        if (!line.trim().isEmpty()) {
-                            cases.add(new SwitchCase(line.trim(), body(b++)));
-                        }
-                    }
-                    final Switch was = original instanceof Switch s
-                            ? s
-                            : null;
-                    return new Switch(ref(v.getField(0), "switch needs a select"), cases, was == null
-                            ? List.of()
-                            : was.defaultBody());
-                }
-                case "variable":
-                    return new Variable(required(v.getField(0), "A variable needs a name"), body(0));
-                case "for-each":
-                    return new ForEach(ref(v.getField(0), "for-each needs a select"),
-                            required(v.getField(1), "for-each needs a name to bind each entry to"),
-                            blankToNull(v.getField(2)), sort(), body(0));
-                case "for-each-group":
-                    // Blank groups by the entry's own value, which is what the model means
-                    // by a null group-by.
-                    return new ForEachGroup(ref(v.getField(0), "for-each-group needs a select"),
-                            refOrNull(v.getField(1)), body(0));
-                case "append":
-                    return new Append(ref(v.getField(0), "append needs a target"),
-                            ref(v.getField(1), "append needs a select"));
-                case "insert":
-                    return new Insert(ref(v.getField(0), "insert needs a target"),
-                            refOrText(v.getField(1), "insert needs a position"),
-                            ref(v.getField(2), "insert needs a select"));
-                case "put":
-                    // Blank is a set or a scalar, which take no key.
-                    return new Put(ref(v.getField(0), "put needs a target"),
-                            refOrTextOrNull(v.getField(1)),
-                            ref(v.getField(2), "put needs a select"));
-                case "remove":
-                    return new Remove(ref(v.getField(0), "remove needs a target"),
-                            refOrText(v.getField(1), "remove needs a key"));
-                case "clear":
-                    return new Clear(ref(v.getField(0), "clear needs a target"));
-                default:
-                    return ProjectJson.readOutput(JsonText.parse(v.getWire()));
-            }
+            return build();
         } catch (final ConfigException e) {
             AlertEvent.fireWarn(this, e.getMessage(), null);
             return null;
+        }
+    }
+
+    /// The edited instruction, or null when it cannot be written as it stands, said to nobody:
+    /// for a draft being left behind rather than taken, where there is no one to tell.
+    public OutputNode writeQuietly() {
+        try {
+            return build();
+        } catch (final ConfigException e) {
+            return null;
+        }
+    }
+
+    /// The node this was opened on, or null for a new one.
+    public OutputNode getOriginal() {
+        return original;
+    }
+
+    /// @param onCommit Told when the draft is to be taken.
+    public void setOnCommit(final Runnable onCommit) {
+        view.setOnCommit(onCommit);
+    }
+
+    /// @param onCancel Told when the draft is to be dropped.
+    public void setOnCancel(final Runnable onCancel) {
+        view.setOnCancel(onCancel);
+    }
+
+    /// Puts the keyboard in the card: in its first field, or in its kind with the kinds offered.
+    ///
+    /// @param kind Whether the author asked for the kind.
+    public void focus(final boolean kind) {
+        if (kind) {
+            view.chooseKind();
+        } else {
+            view.focusFirst();
+        }
+    }
+
+    // What the fields say, as an instruction; a ConfigException says why they do not make one.
+    private OutputNode build() {
+        final InstructionEdit v = view;
+        final String kind = v.getKind();
+        if (v.isWireVisible() || WIRE.equals(kind)) {
+            return ProjectJson.readOutput(JsonText.parse(v.getWire()));
+        }
+        switch (kind) {
+            case "text":
+                return new Text(v.getMulti());
+            case "value-of":
+                return new ValueOf(ref(v.getField(0), "value-of needs a select"));
+            case "trim":
+            case "lower-case":
+            case "upper-case":
+            case "normalize-space":
+            case "add":
+            case "divide":
+            case "round":
+            case "string-length":
+            case "number":
+            case "subtract":
+            case "multiply":
+            case "mod":
+            case "floor":
+            case "ceiling":
+            case "abs":
+                // Blank is a real answer for the name: a transform without one writes its
+                // result straight out, which 42 of the corpus's 55 trims do.
+                switch (SimpleTransforms.arity(kind)) {
+                    case ONE:
+                        return SimpleTransforms.build(kind,
+                                List.of(ref(v.getField(0), kind + " needs something to read")),
+                                blankToNull(v.getField(1)));
+                    case TWO:
+                        return SimpleTransforms.build(kind,
+                                List.of(ref(v.getField(0), kind + " needs a left-hand input"),
+                                        ref(v.getField(1), kind + " needs a right-hand input")),
+                                blankToNull(v.getField(2)));
+                    default:
+                        return SimpleTransforms.build(kind, selects(v.getMulti()),
+                                blankToNull(v.getField(0)));
+                }
+            case "string-join":
+                return new StringJoin(selects(v.getMulti()),
+                        word(v.getField(0), "A string-join needs a separator"),
+                        blankToNull(v.getField(1)));
+            case "tokenize":
+                return new Tokenize(selectOne(), word(v.getField(1),
+                        "A tokenize needs a delimiter"), blankToNull(v.getField(2)));
+            case "substring-before":
+                return new SubstringBefore(selectOne(), word(v.getField(1),
+                        "A substring-before needs a marker"), blankToNull(v.getField(2)));
+            case "substring-after":
+                return new SubstringAfter(selectOne(), word(v.getField(1),
+                        "A substring-after needs a marker"), blankToNull(v.getField(2)));
+            case "starts-with":
+                return new StartsWith(selectOne(), word(v.getField(1),
+                        "A starts-with needs a prefix"), blankToNull(v.getField(2)));
+            case "ends-with":
+                return new EndsWith(selectOne(), word(v.getField(1),
+                        "An ends-with needs a suffix"), blankToNull(v.getField(2)));
+            case "contains":
+                return new Contains(selectOne(), word(v.getField(1),
+                        "A contains needs a substring"), blankToNull(v.getField(2)));
+            case "format-number":
+                return new FormatNumber(selectOne(), word(v.getField(1),
+                        "A format-number needs a picture"), blankToNull(v.getField(2)));
+            case "replace":
+                return new Replace(selectOne(),
+                        word(v.getField(1), "A replace needs something to find"),
+                        ControlEscapes.unescape(v.getField(2)), v.getFlag(0), blankToNull(v.getField(3)));
+            case "substring":
+                return new Substring(selectOne(),
+                        integerOrNull(v.getField(1), "start"),
+                        integerOrNull(v.getField(2), "length"),
+                        blankToNull(v.getField(3)));
+            case "format-date":
+                return new FormatDate(selectOne(),
+                        word(v.getField(1), "A format-date needs a pattern"),
+                        blankToNull(v.getField(2)), blankToNull(v.getField(3)));
+            case "parse-date":
+                return new ParseDate(selectOne(),
+                        word(v.getField(1), "A parse-date needs a pattern"),
+                        blankToNull(v.getField(2)), refOrNull(v.getField(3)),
+                        blankToNull(v.getField(4)));
+            case "decode":
+                return new Decode(selectOne(), codec(v.getChoice()),
+                        blankToNull(v.getField(1)));
+            case "call":
+                return new Call(required(v.getField(0), "A call needs a function"),
+                        selects(v.getMulti()), blankToNull(v.getField(1)));
+            case "translate": {
+                final List<String> from = new ArrayList<>();
+                final List<String> to = new ArrayList<>();
+                readReplacements(v.getMulti(), from, to);
+                return new Translate(
+                        List.of(ref(v.getField(0), "A translate needs a select")),
+                        from, to, required(v.getField(1), "A translate needs a name"));
+            }
+            case "element":
+                return new Element(required(v.getField(0), "An element needs a name"),
+                        blankToNull(v.getField(1)), v.getFlag(0), body(0));
+            case "attribute":
+                return new Attribute(required(v.getField(0), "An attribute needs a name"), v.getFlag(0),
+                        body(0));
+            case "namespace":
+                return new Namespace(blankToNull(v.getField(0)), required(v.getField(1),
+                        "A namespace needs a URI"));
+            case "emit-error":
+                return new EmitError(v.getSeverity(), ref(v.getField(0), "emit-error needs a message"));
+            case "apply-templates":
+                return new ApplyTemplates(new ApplyDirective(
+                        refOrNull(v.getField(0)), blankToNull(v.getMode()),
+                        params(v.getMulti()), integer(v.getField(2), ApplyDirective.DEFAULT_MAX_DEPTH,
+                                "max depth"), v.getFlag(0), v.getDispatch()));
+            case "call-template":
+                return new CallTemplate(required(v.getField(0), "call-template needs a template name"),
+                        params(v.getMulti()));
+            case "if":
+                return new If(condition(), body(0));
+            case "choose":
+                return original instanceof Choose
+                        ? original
+                        : new Choose(List.of(), List.of());
+            case "switch": {
+                final List<SwitchCase> cases = new ArrayList<>();
+                int b = 0;
+                for (final String line : v.getMulti().split("\n")) {
+                    if (!line.trim().isEmpty()) {
+                        cases.add(new SwitchCase(line.trim(), body(b++)));
+                    }
+                }
+                final Switch was = original instanceof Switch s
+                        ? s
+                        : null;
+                return new Switch(ref(v.getField(0), "switch needs a select"), cases, was == null
+                        ? List.of()
+                        : was.defaultBody());
+            }
+            case "variable":
+                return new Variable(required(v.getField(0), "A variable needs a name"), body(0));
+            case "for-each":
+                return new ForEach(ref(v.getField(0), "for-each needs a select"),
+                        required(v.getField(1), "for-each needs a name to bind each entry to"),
+                        blankToNull(v.getField(2)), sort(), body(0));
+            case "for-each-group":
+                // Blank groups by the entry's own value, which is what the model means
+                // by a null group-by.
+                return new ForEachGroup(ref(v.getField(0), "for-each-group needs a select"),
+                        refOrNull(v.getField(1)), body(0));
+            case "append":
+                return new Append(ref(v.getField(0), "append needs a target"),
+                        ref(v.getField(1), "append needs a select"));
+            case "insert":
+                return new Insert(ref(v.getField(0), "insert needs a target"),
+                        refOrText(v.getField(1), "insert needs a position"),
+                        ref(v.getField(2), "insert needs a select"));
+            case "put":
+                // Blank is a set or a scalar, which take no key.
+                return new Put(ref(v.getField(0), "put needs a target"),
+                        refOrTextOrNull(v.getField(1)),
+                        ref(v.getField(2), "put needs a select"));
+            case "remove":
+                return new Remove(ref(v.getField(0), "remove needs a target"),
+                        refOrText(v.getField(1), "remove needs a key"));
+            case "clear":
+                return new Clear(ref(v.getField(0), "clear needs a target"));
+            default:
+                return ProjectJson.readOutput(JsonText.parse(v.getWire()));
         }
     }
 
@@ -1206,7 +1243,7 @@ public class InstructionEditController extends Controller {
     }
 
     /// The text, or a refusal saying what the grammar could not finish reading. Saving half-read
-    /// text would put it beyond the form, so the dialog stays open and says why (design 44 §5ad).
+    /// text would put it beyond the form, so the card stays open and says why (design 44 §5ad).
     private static String checked(final String text) {
         final String fault = Instructions.fault(text);
         if (fault != null) {
@@ -1287,21 +1324,7 @@ public class InstructionEditController extends Controller {
         }
     }
 
-    /// @param opener  What shows it, which owns it until it is hidden.
-    /// @param caption The dialog's caption.
-    /// @param handler Told when OK or Cancel is pressed.
-    public void show(final HasControllerNode opener,
-                     final String caption,
-                     final HidePopupRequestEvent.Handler handler) {
-        ControllerDialog.showOnce(opener, this)
-                .popupType(PopupType.OK_CANCEL_DIALOG)
-                .popupSize(PopupSize.resizable(640, 520))
-                .caption(caption)
-                .onHideRequest(handler)
-                .fire();
-    }
-
-    /// The kinds the dialog offers: the formed ones, the transforms, and the wire form.
+    /// The kinds a card can be: the formed ones, the transforms, and the wire form.
     public static List<String> kinds() {
         final List<String> kinds = new ArrayList<>(Instructions.FORM_KINDS);
         kinds.addAll(Instructions.TRANSFORM_KINDS);

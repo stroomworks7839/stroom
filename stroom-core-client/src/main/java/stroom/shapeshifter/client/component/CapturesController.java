@@ -17,22 +17,15 @@
 package stroom.shapeshifter.client.component;
 
 import stroom.alert.client.event.ConfirmEvent;
+import stroom.shapeshifter.client.component.DefinitionList.Row;
 import stroom.shapeshifter.client.model.ProjectHost;
 import stroom.shapeshifter.client.model.Templates;
 import stroom.shapeshifter.config.CaptureBinding;
 import stroom.shapeshifter.config.CaptureBinding.CaptureSource;
 import stroom.shapeshifter.config.Template;
-import stroom.svg.shared.SvgImage;
-import stroom.util.client.DataGridUtil;
-import stroom.widget.button.client.ToolbarButton;
 import stroom.widget.component.client.Contexts;
 import stroom.widget.component.client.Controller;
-import stroom.widget.datagrid.client.DataGrid;
-import stroom.widget.datagrid.client.PagerPanel;
-import stroom.widget.util.client.MouseUtil;
-import stroom.widget.util.client.MultiSelectionModelImpl;
 
-import com.google.gwt.user.cellview.client.Column;
 import com.google.inject.Inject;
 import com.google.inject.Provider;
 import com.google.web.bindery.event.shared.EventBus;
@@ -43,22 +36,17 @@ import java.util.Locale;
 import java.util.Objects;
 
 /// A template's captures: what binds a pattern's group or label — or a selection over the values
-/// in scope — into a declared name, with a cast. Add, edit and remove through
-/// [CaptureEditController].
+/// in scope — into a declared name, with a cast. Listed as a section of the template, each a
+/// row that is clicked to edit; add, edit and remove through [CaptureEditController].
 public class CapturesController extends Controller {
 
     // From Contexts.READ_ONLY: true until the document says otherwise, so a
     // controller with no owner fails closed rather than editable.
     private boolean readOnly = true;
 
-    private PagerPanel view;
+    private DefinitionList view;
 
-    private final DataGrid<CaptureBinding> dataGrid;
-    private final MultiSelectionModelImpl<CaptureBinding> selectionModel;
     private final Provider<CaptureEditController> editPresenterProvider;
-    private ToolbarButton addButton;
-    private ToolbarButton editButton;
-    private ToolbarButton removeButton;
 
     private ProjectHost host;
     private String templateId;
@@ -67,100 +55,49 @@ public class CapturesController extends Controller {
     public CapturesController(final EventBus eventBus,
                              final Provider<CaptureEditController> editPresenterProvider) {
         super(eventBus);
-        watch(Contexts.READ_ONLY, readOnly -> this.readOnly = readOnly);
+        watch(Contexts.READ_ONLY, readOnly -> {
+            this.readOnly = readOnly;
+            enable();
+        });
         this.editPresenterProvider = editPresenterProvider;
-        dataGrid = new DataGrid<>();
-        dataGrid.setTableName("Captures");
-        selectionModel = dataGrid.addDefaultSelectionModel(false);
     }
 
-    /// Attaches this to a pager, e.g. one a template declares, and adds its actions to the
-    /// pager's bar. The pager is then this controller's widget.
+    /// Attaches this to the section of the template that lists them, which is then this
+    /// controller's widget.
     ///
-    /// @param view The pager.
+    /// @param view The section.
     /// @return This, for its owner to keep.
-    public CapturesController attach(final PagerPanel view) {
+    public CapturesController attach(final DefinitionList view) {
         this.view = Objects.requireNonNull(view, "view");
         initWidget(view);
-        view.setDataWidget(dataGrid);
-        // Everything it holds is shown at once, so it pages nothing; its actions share
-        // the pager's bar, which stays (setPagerVisible would take the bar as well).
-        view.setPagingVisible(false);
-        addButton = view.getToolbar().button(SvgImage.ADD, "Add capture", () -> {
-        });
-        editButton = view.getToolbar().button(SvgImage.EDIT, "Edit capture", () -> {
-        });
-        removeButton = view.getToolbar().button(SvgImage.DELETE, "Remove capture", () -> {
-        });
-
-        final Column<CaptureBinding, String> name = DataGridUtil
-                .textColumnBuilder(CaptureBinding::name)
-                .build();
-        dataGrid.addResizableColumn(name, "Capture", 120);
-        final Column<CaptureBinding, String> source = DataGridUtil
-                .textColumnBuilder((CaptureBinding c) -> Templates.describe(c.select()))
-                .build();
-        dataGrid.addAutoResizableColumn(source, "From", 140);
-        final Column<CaptureBinding, String> cast = DataGridUtil
-                .textColumnBuilder((CaptureBinding c) -> c.as() == null
-                        ? ""
-                        : c.as().name().toLowerCase(Locale.ROOT))
-                .build();
-        dataGrid.addResizableColumn(cast, "As", 70);
-        enableButtons();
-        own(addButton.addClickHandler(event -> {
-            if (MouseUtil.isPrimary(event)) {
-                onAdd();
-            }
-        }));
-        own(editButton.addClickHandler(event -> {
-            if (MouseUtil.isPrimary(event)) {
-                onEdit();
-            }
-        }));
-        own(removeButton.addClickHandler(event -> {
-            if (MouseUtil.isPrimary(event)) {
-                onRemove();
-            }
-        }));
-        own(selectionModel.addSelectionHandler(event -> {
-            enableButtons();
-            if (event.getSelectionType().isDoubleSelect()) {
-                onEdit();
-            }
-        }));
+        view.setOnAdd(this::onAdd);
+        view.setOnEdit(this::onEdit);
+        view.setOnRemove(this::onRemove);
+        enable();
         return this;
-
     }
 
     public void setHost(final ProjectHost host) {
         this.host = host;
     }
 
-
     public void setTemplate(final String id) {
         this.templateId = id;
         final Template template = host.template(id);
-        final List<CaptureBinding> rows = template == null
-                ? List.of()
-                : template.captures();
-        dataGrid.setRowData(0, rows);
-        dataGrid.setRowCount(rows.size(), true);
-        // Rows are values: an edit replaces the selected one, so a selection the new rows do not
-        // hold is stale and must not be edited or removed again.
-        final CaptureBinding selected = selectionModel.getSelected();
-        if (selected != null && !rows.contains(selected)) {
-            selectionModel.clear(false);
+        final List<Row> rows = new ArrayList<>();
+        if (template != null) {
+            for (final CaptureBinding capture : template.captures()) {
+                rows.add(new Row(capture.name(), describe(capture)));
+            }
         }
-        enableButtons();
+        view.setRows(rows);
+        enable();
     }
 
-    private void enableButtons() {
-        final boolean editable = host != null && !readOnly && templateId != null;
-        final boolean selected = selectionModel.getSelected() != null;
-        addButton.setEnabled(editable);
-        editButton.setEnabled(editable && selected);
-        removeButton.setEnabled(editable && selected);
+    private void enable() {
+        if (view != null) {
+            view.setEnabled(host != null && !readOnly && templateId != null);
+        }
     }
 
     private void onAdd() {
@@ -177,7 +114,6 @@ public class CapturesController extends Controller {
                     final List<CaptureBinding> captures = new ArrayList<>(template.captures());
                     captures.add(capture);
                     host.replace(host.withTemplate(Templates.withCaptures(template, captures)));
-                    selectionModel.setSelected(capture);
                     e.hide();
                 } else {
                     // Nothing was written, so the dialog stays open — and its OK button has to come back
@@ -190,12 +126,12 @@ public class CapturesController extends Controller {
         });
     }
 
-    private void onEdit() {
+    private void onEdit(final int index) {
         final Template template = host.template(templateId);
-        final CaptureBinding existing = selectionModel.getSelected();
-        if (template == null || existing == null || readOnly) {
+        if (template == null || readOnly || index >= template.captures().size()) {
             return;
         }
+        final CaptureBinding existing = template.captures().get(index);
         final CaptureEditController editor = editPresenterProvider.get();
         editor.read(template, existing);
         editor.show(this, "Edit Capture", e -> {
@@ -203,9 +139,8 @@ public class CapturesController extends Controller {
                 final CaptureBinding capture = editor.write();
                 if (capture != null) {
                     final List<CaptureBinding> captures = new ArrayList<>(template.captures());
-                    captures.set(captures.indexOf(existing), capture);
+                    captures.set(index, capture);
                     host.replace(host.withTemplate(Templates.withCaptures(template, captures)));
-                    selectionModel.setSelected(capture);
                     e.hide();
                 } else {
                     // Nothing was written, so the dialog stays open — and its OK button has to come back
@@ -218,19 +153,27 @@ public class CapturesController extends Controller {
         });
     }
 
-    private void onRemove() {
+    private void onRemove(final int index) {
         final Template template = host.template(templateId);
-        final CaptureBinding existing = selectionModel.getSelected();
-        if (template == null || existing == null || readOnly) {
+        if (template == null || readOnly || index >= template.captures().size()) {
             return;
         }
-        ConfirmEvent.fire(this, "Remove capture '" + existing.name() + "'?", ok -> {
+        final CaptureBinding existing = template.captures().get(index);
+        final String message = "Remove capture '" + existing.name() + "'?";
+        ConfirmEvent.fire(this, message, ok -> {
             if (ok) {
                 final List<CaptureBinding> captures = new ArrayList<>(template.captures());
-                captures.remove(existing);
-                selectionModel.clear(false);
+                captures.remove(index);
                 host.replace(host.withTemplate(Templates.withCaptures(template, captures)));
             }
         });
+    }
+
+    // What a capture is, beside its name: where the value comes from, and what it is cast to.
+    private static String describe(final CaptureBinding capture) {
+        final String from = "← " + Templates.describe(capture.select());
+        return capture.as() == null
+                ? from
+                : from + " as " + capture.as().name().toLowerCase(Locale.ROOT);
     }
 }

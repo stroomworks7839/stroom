@@ -251,8 +251,8 @@ public final class ShapeshifterLexerStories {
     /// help saying what nothing means. The model reads blank as `$0`, which is why the fixture's
     /// spelling and a blank field are the same project (§3.1's withdrawn fourth trap).
     private static void blankSelect(final Play play, final Play screen) {
-        play.click(play.getByText("apply-templates", ShapeshifterEditorStories.CARD_KIND));
-        final Play card = ShapeshifterEditorStories.dialogMatching(play, screen, "apply-templates");
+        play.click(ShapeshifterEditorStories.cardLine(play, "apply-templates"));
+        final Play card = ShapeshifterEditorStories.cardEditor(play);
         play.expect(card.getByText(TextMatch.containing("this match's whole content")))
                 .toBeInTheDocument();
         play.click(card.getByRole("button", StroomDom.button("Cancel")));
@@ -280,8 +280,8 @@ public final class ShapeshifterLexerStories {
     /// longest match wins, and the panel's order is only a tie-break.
     private static void dispatch(final Play play, final Play screen) {
         ShapeshifterEditorStories.selectTemplate(play, "document");
-        play.click(play.getByText("apply-templates", ShapeshifterEditorStories.CARD_KIND));
-        final Play card = ShapeshifterEditorStories.dialogMatching(play, screen, "apply-templates");
+        play.click(ShapeshifterEditorStories.cardLine(play, "apply-templates"));
+        final Play card = ShapeshifterEditorStories.cardEditor(play);
         ShapeshifterEditorStories.pickFromBox(play, screen, card.getByLabelText("Mode"), "tokens");
         ShapeshifterEditorStories.pickFromBox(play, screen,
                 card.getByLabelText("Dispatch"), "lexer");

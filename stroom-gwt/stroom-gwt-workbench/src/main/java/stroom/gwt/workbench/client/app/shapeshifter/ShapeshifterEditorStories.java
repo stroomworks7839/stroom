@@ -463,8 +463,9 @@ public final class ShapeshifterEditorStories {
                     play.expect(play.getByText("guard", STRIP_KEY)).toBeInTheDocument();
                     // The match chip carries the pattern, and opens the workbench
                     play.expect(play.querySelector(MATCH_CHIP)).not().toBeNull();
-                    // Declarations and captures sit under the template
-                    play.expect(play.getByText("Declaration")).toBeInTheDocument();
+                    // Declarations and captures are sections of the template, above its body
+                    play.expect(play.getByText("declarations", STRIP_KEY)).toBeInTheDocument();
+                    play.expect(play.getByText("captures", STRIP_KEY)).toBeInTheDocument();
                     expectNoProblems(play);
                 })
                 // The body of the chosen template: one card per instruction, as the project says
@@ -591,12 +592,12 @@ public final class ShapeshifterEditorStories {
                 })
 
                 // A capture binds a group of the match to a name the body can read. Its dialog
-                // is opened from the captures pane under the chosen template
+                // is opened from the captures section of the chosen template
                 .story("CaptureDialogOk", context -> render(context, false))
                 .withPlay(play -> {
                     final Play screen = play.screen();
                     selectTemplate(play, "pair");
-                    play.click(play.findByRole("button", "Add capture"));
+                    play.click(play.findByRole("button", "+ capture"));
                     final Play dialog = play.within(
                             screen.findByText("New Capture", StroomDom.DIALOG_TITLE)
                                     .closest(StroomDom.DIALOG));
@@ -612,7 +613,7 @@ public final class ShapeshifterEditorStories {
                 .withPlay(play -> {
                     final Play screen = play.screen();
                     selectTemplate(play, "pair");
-                    play.click(play.findByRole("button", "Add capture"));
+                    play.click(play.findByRole("button", "+ capture"));
                     final Play dialog = play.within(
                             screen.findByText("New Capture", StroomDom.DIALOG_TITLE)
                                     .closest(StroomDom.DIALOG));
@@ -629,7 +630,7 @@ public final class ShapeshifterEditorStories {
                 .withPlay(play -> {
                     final Play screen = play.screen();
                     selectTemplate(play, "pair");
-                    play.click(play.findByRole("button", "Add declaration"));
+                    play.click(play.findByRole("button", "+ declaration"));
                     final Play dialog = play.within(
                             screen.findByText("New Declaration", StroomDom.DIALOG_TITLE)
                                     .closest(StroomDom.DIALOG));
@@ -645,7 +646,7 @@ public final class ShapeshifterEditorStories {
                 .withPlay(play -> {
                     final Play screen = play.screen();
                     selectTemplate(play, "pair");
-                    play.click(play.findByRole("button", "Add declaration"));
+                    play.click(play.findByRole("button", "+ declaration"));
                     final Play dialog = play.within(
                             screen.findByText("New Declaration", StroomDom.DIALOG_TITLE)
                                     .closest(StroomDom.DIALOG));
@@ -673,7 +674,99 @@ public final class ShapeshifterEditorStories {
                     play.click(screen.getByRole("button", StroomDom.button("Close")));
                     expectNoProblems(play);
                 })
+                // The input, the variables and the output are each under a title bar that folds
+                // the pane away (design 47 E). A folded pane is its bar, and the room it had goes
+                // to the panes that are open: to the input while it is, then to the output
+                .story("DataPanesFoldAway", context -> render(context, false))
+                .withPlay(play -> {
+                    selectTemplate(play, "pair");
+                    final Query input = play.getByRole("button", StroomDom.button("Input"));
+                    final Query variables = play.getByRole("button", StroomDom.button("Variables"));
+                    final Query output = play.getByRole("button", StroomDom.button("Output"));
+                    play.waitFor(() -> play.expect(input).toHaveAttribute("aria-expanded", "true"));
+                    play.expect(play.querySelector(".content-pane")).toBeVisible();
+                    final int[] before = {0, 0};
+                    play.run("measure the input and the output", () -> {
+                        before[0] = play.querySelector(".content-pane").element().get().getOffsetHeight();
+                        before[1] = play.querySelector(".output-pane").element().get().getOffsetHeight();
+                    });
 
+                    // The variables folded: the input, which takes the rest, has their room
+                    play.click(variables);
+                    play.expect(variables).toHaveAttribute("aria-expanded", "false");
+                    play.expect(play.querySelector(".variables-pane")).not().toBeVisible();
+                    play.waitFor(() -> play.expect("the input has the variables' room",
+                            () -> play.querySelector(".content-pane").element().get().getOffsetHeight()
+                                  > before[0]).toEqual(true));
+
+                    // The input folded too: now it is the output that takes the rest
+                    play.click(input);
+                    play.expect(input).toHaveAttribute("aria-expanded", "false");
+                    play.expect(play.querySelector(".content-pane")).not().toBeVisible();
+                    play.waitFor(() -> play.expect("the output has the input's room",
+                            () -> play.querySelector(".output-pane").element().get().getOffsetHeight()
+                                  > before[1]).toEqual(true));
+
+                    // All three: three bars, and nothing lost when they are opened again
+                    play.click(output);
+                    play.expect(play.querySelector(".output-pane")).not().toBeVisible();
+                    play.click(input);
+                    play.click(variables);
+                    play.click(output);
+                    play.waitFor(() -> play.expect(play.querySelector(".content-pane")).toBeVisible());
+                    play.expect(play.querySelector(".variables-pane")).toBeVisible();
+                    play.expect(play.querySelector(".output-pane")).toBeVisible();
+                    play.waitFor(() -> play.expect("the output is the size it was",
+                            () -> Math.abs(play.querySelector(".output-pane").element().get()
+                                    .getOffsetHeight() - before[1]) <= 1).toEqual(true));
+                    play.expect(play.getByRole("button", "Save")).toHaveAttribute("aria-disabled", "true");
+                    expectNoProblems(play);
+                })
+                // The messages are under the work, not under the panel, and fold away under a
+                // title bar as the data panes do. The bar says how many there are, so it still
+                // says there is something to read when they are folded
+                .story("MessagesFoldAway", context -> render(context, false))
+                .withPlay(play -> {
+                    selectTemplate(play, "pair");
+                    final Query bar = play.getByRole("button", StroomDom.button("Messages · 1"));
+                    play.waitFor(() -> play.expect(bar).toHaveAttribute("aria-expanded", "true"));
+                    final Query message = play.getByText(TextMatch.containing("unrecognised line"));
+                    play.expect(message).toBeVisible();
+                    final int[] before = {0};
+                    play.run("measure the template", () -> before[0] =
+                            play.querySelector(".template-strip").element().get().getOffsetHeight());
+                    play.click(bar);
+                    play.expect(bar).toHaveAttribute("aria-expanded", "false");
+                    play.expect(message).not().toBeVisible();
+                    play.waitFor(() -> play.expect("the work has the messages' room",
+                            () -> play.querySelector(".template-strip").element().get().getOffsetHeight()
+                                  > before[0]).toEqual(true));
+                    play.click(bar);
+                    play.waitFor(() -> play.expect(message).toBeVisible());
+                    expectNoProblems(play);
+                })
+                // Two of the three folded, and left so: the input with the whole column but two
+                // bars, which is what a long sample is read in
+                .story("DataPanesFolded", context -> render(context, false))
+                .withPlay(play -> {
+                    selectTemplate(play, "pair");
+                    final Query variables = play.getByRole("button", StroomDom.button("Variables"));
+                    final Query output = play.getByRole("button", StroomDom.button("Output"));
+                    play.waitFor(() -> play.expect(variables).toHaveAttribute("aria-expanded", "true"));
+                    final int[] before = {0};
+                    play.run("measure the input", () -> before[0] =
+                            play.querySelector(".content-pane").element().get().getOffsetHeight());
+                    play.click(variables);
+                    play.click(output);
+                    play.expect(play.querySelector(".variables-pane")).not().toBeVisible();
+                    play.expect(play.querySelector(".output-pane")).not().toBeVisible();
+                    play.expect(play.querySelector(".content-pane")).toBeVisible();
+                    // Everything the other two had, less their bars
+                    play.waitFor(() -> play.expect("the input has the room of both",
+                            () -> play.querySelector(".content-pane").element().get().getOffsetHeight()
+                                  > before[0] + 150).toEqual(true));
+                    expectNoProblems(play);
+                })
                 // A line typed into the body's entry field adds the cards it describes (design
                 // 47 A): text is a text card, `$1` a value-of card, and a line that mixes them
                 // is split into the sequence. And the half of this that no assertion about cards
@@ -722,9 +815,9 @@ public final class ShapeshifterEditorStories {
                     play.expect(play.getByText(TextMatch.containing("costs $5"))).toBeInTheDocument();
                     expectNoProblems(play);
                 })
-                // The add line's button offers the kinds on a menu; picking one opens
-                // the instruction dialog for it
-                .story("InstructionDialogOk", context -> render(context, false))
+                // The add line's kind offers the kinds on a menu; picking one turns the line into
+                // that kind's editor, in place (design 47 D), and OK takes it
+                .story("NewCardOk", context -> render(context, false))
                 .withPlay(play -> {
                     final Play screen = play.screen();
                     selectTemplate(play, "pair");
@@ -732,36 +825,42 @@ public final class ShapeshifterEditorStories {
                     play.click(addMenu(play));
                     // The kinds are a menu on the page's body, not in the canvas
                     play.click(screen.findByText("text", StroomDom.MENU_ITEM_TEXT));
-                    final Play dialog = play.within(
-                            screen.findByText("New text", StroomDom.DIALOG_TITLE)
-                                    .closest(StroomDom.DIALOG));
-                    dialog.type(dialog.getByRole("textbox").first(), "hello");
-                    play.click(screen.getByRole("button", StroomDom.button("OK")));
+                    final Play card = cardEditor(play);
+                    // In the list, where the card will be, and not over it: there is no dialog
+                    play.expect(screen.queryByText(TextMatch.regex("text", "i"), StroomDom.DIALOG_TITLE))
+                            .toBeNull();
+                    // The line it was started from has given way to it
+                    play.expect(play.queryByLabelText(Walkthrough.ENTRY)).toBeNull();
+                    card.type(card.getByRole("textbox").first(), "hello");
+                    // Nothing has reached the project yet: what the card holds is a draft
+                    play.expect(play.getByRole("button", "Save")).toHaveAttribute("aria-disabled", "true");
+                    play.click(card.getByRole("button", StroomDom.button("OK")));
+                    expectNoCardOpen(play);
                     // A card for it joins the body, and the document has work to save
                     play.waitFor(() -> play.expect(play.getAllByText("text", CARD_KIND).count())
                             .toSatisfy("a fourth text card", count -> ((Integer) count) == 4));
                     play.expect(play.getByRole("button", "Save")).not().toHaveAttribute("aria-disabled");
+                    // and the line is back, with the keyboard, for the next card
+                    play.waitFor(() -> play.expect(play.getByLabelText(Walkthrough.ENTRY)).toHaveFocus());
                     expectNoProblems(play);
                 })
                 // Cancel adds no card and leaves the document clean
-                .story("InstructionDialogCancel", context -> render(context, false))
+                .story("NewCardCancel", context -> render(context, false))
                 .withPlay(play -> {
                     final Play screen = play.screen();
                     selectTemplate(play, "pair");
                     play.waitFor(() -> play.expect(addMenu(play)).toBeInTheDocument());
                     play.click(addMenu(play));
                     play.click(screen.findByText("text", StroomDom.MENU_ITEM_TEXT));
-                    final Play dialog = play.within(
-                            screen.findByText("New text", StroomDom.DIALOG_TITLE)
-                                    .closest(StroomDom.DIALOG));
-                    dialog.type(dialog.getByRole("textbox").first(), "hello");
-                    play.click(screen.getByRole("button", StroomDom.button("Cancel")));
-                    play.waitFor(() -> play.expect(screen.queryByText("New text",
-                            StroomDom.DIALOG_TITLE)).toBeNull());
+                    final Play card = cardEditor(play);
+                    card.type(card.getByRole("textbox").first(), "hello");
+                    play.click(card.getByRole("button", StroomDom.button("Cancel")));
+                    expectNoCardOpen(play);
                     // The pair template's three text cards, as the fixture has them
                     play.expect(play.getAllByText("text", CARD_KIND).count())
                             .toSatisfy("still three text cards", count -> ((Integer) count) == 3);
                     play.expect(play.getByRole("button", "Save")).toHaveAttribute("aria-disabled", "true");
+                    play.waitFor(() -> play.expect(play.getByLabelText(Walkthrough.ENTRY)).toHaveFocus());
                     expectNoProblems(play);
                 })
                 // Adding a pattern part asks for its name first: the name prompt, which several
@@ -913,64 +1012,63 @@ public final class ShapeshifterEditorStories {
                 // The one transform with a form of its own (design 46 §8). Its replacements are
                 // two parallel lists in the model and one line each on screen, and the corpus's
                 // own values include a newline — which a text area cannot hold, so it is spelt
-                .story("TranslateDialog", ShapeshifterEditorStories::renderComposite)
+                .story("TranslateCard", ShapeshifterEditorStories::renderComposite)
                 .withPlay(play -> {
                     selectTemplate(play, "branch");
                     final Play screen = play.screen();
                     play.waitFor(() -> play.expect(play.getByText("translate", CARD_KIND))
                             .toBeInTheDocument());
-                    play.click(play.getByText("translate", CARD_KIND));
-                    final Play dialog = dialogMatching(play, screen, "translate");
+                    play.click(cardLine(play, "translate"));
+                    final Play card = cardEditor(play);
                     // A form, not the wire form it used to open as
-                    play.waitFor(() -> play.expect(dialog.getByLabelText("Select")).toBeVisible());
-                    play.expect(dialog.getByLabelText("Name")).toHaveValue("escaped");
+                    play.waitFor(() -> play.expect(card.getByLabelText("Select")).toBeVisible());
+                    play.expect(card.getByLabelText("Name")).toHaveValue("escaped");
                     // One line per replacement, the newline written as \n because the field
                     // cannot hold the character itself
-                    play.expect(dialog.getByLabelText(TextMatch.containing("Replacements")))
+                    play.expect(card.getByLabelText(TextMatch.containing("Replacements")))
                             .toHaveValue("& = &amp;\n< = &lt;\n\\n =  ");
-                    play.click(dialog.getByRole("button", StroomDom.button("Cancel")));
+                    play.click(card.getByRole("button", StroomDom.button("Cancel")));
                     expectNoProblems(play);
                 })
                 // The eight transforms that are one shape share one form (design 46 §8.2). This
                 // one has no name, which is the commonest case in the corpus — 42 of its 55
                 // trims — and means the result is written straight out rather than bound
-                .story("TransformDialog", ShapeshifterEditorStories::renderComposite)
+                .story("TransformCard", ShapeshifterEditorStories::renderComposite)
                 .withPlay(play -> {
                     selectTemplate(play, "branch");
                     final Play screen = play.screen();
                     play.waitFor(() -> play.expect(play.getByText("trim", CARD_KIND))
                             .toBeInTheDocument());
-                    play.click(play.getByText("trim", CARD_KIND));
-                    final Play dialog = dialogMatching(play, screen, "trim");
+                    play.click(cardLine(play, "trim"));
+                    final Play card = cardEditor(play);
                     // A form, not the wire form it used to open as
                     play.waitFor(() -> play.expect(
-                            dialog.getByLabelText(TextMatch.containing("Select"))).toBeVisible());
-                    play.expect(dialog.getByLabelText(TextMatch.containing("Select")))
+                            card.getByLabelText(TextMatch.containing("Select"))).toBeVisible());
+                    play.expect(card.getByLabelText(TextMatch.containing("Select")))
                             .toHaveValue("escaped");
                     // Blank, and that is the configuration rather than something missing
-                    play.expect(dialog.getByLabelText("Name")).toHaveValue("");
-                    play.click(dialog.getByRole("button", StroomDom.button("Cancel")));
+                    play.expect(card.getByLabelText("Name")).toHaveValue("");
+                    play.click(card.getByRole("button", StroomDom.button("Cancel")));
                     expectNoProblems(play);
                 })
                 // OK writes what the fields hold back into the project, which is the half a
                 // Cancel story never reaches (UI-GUIDE.md): the name is typed, kept, and read
                 // back when the card is opened again
-                .story("TransformDialogOk", ShapeshifterEditorStories::renderComposite)
+                .story("TransformCardOk", ShapeshifterEditorStories::renderComposite)
                 .withPlay(play -> {
                     selectTemplate(play, "branch");
                     final Play screen = play.screen();
                     play.waitFor(() -> play.expect(play.getByText("trim", CARD_KIND))
                             .toBeInTheDocument());
-                    play.click(play.getByText("trim", CARD_KIND));
-                    final Play naming = dialogMatching(play, screen, "trim");
+                    play.click(cardLine(play, "trim"));
+                    final Play naming = cardEditor(play);
                     play.waitFor(() -> play.expect(naming.getByLabelText("Name")).toBeVisible());
                     play.type(naming.getByLabelText("Name"), "tidied");
                     play.click(naming.getByRole("button", StroomDom.button("OK")));
-                    play.waitFor(() -> play.expect(screen.queryByText(
-                            TextMatch.regex("trim", "i"), StroomDom.DIALOG_TITLE)).toBeNull());
+                    expectNoCardOpen(play);
                     // Opened again, the form holds what was saved — and the select with it
-                    play.click(play.getByText("trim", CARD_KIND));
-                    final Play again = dialogMatching(play, screen, "trim");
+                    play.click(cardLine(play, "trim"));
+                    final Play again = cardEditor(play);
                     play.waitFor(() -> play.expect(again.getByLabelText("Name"))
                             .toHaveValue("tidied"));
                     play.expect(again.getByLabelText("Select")).toHaveValue("escaped");
@@ -986,20 +1084,19 @@ public final class ShapeshifterEditorStories {
                     final Play screen = play.screen();
                     play.waitFor(() -> play.expect(play.getByText("replace", CARD_KIND))
                             .toBeInTheDocument());
-                    play.click(play.getByText("replace", CARD_KIND));
-                    final Play replacing = dialogMatching(play, screen, "replace");
+                    play.click(cardLine(play, "replace"));
+                    final Play replacing = cardEditor(play);
                     play.waitFor(() -> play.expect(replacing.getByLabelText("Find"))
                             .toHaveValue(" +"));
                     play.expect(replacing.getByLabelText("Replace with")).toHaveValue(" ");
                     play.expect(replacing.getByLabelText("Name")).toHaveValue("squashed");
                     play.click(replacing.getByRole("button", StroomDom.button("Cancel")));
-                    // The next card is only safe to click once this dialog has gone: a click
-                    // that lands while it is closing opens nothing
-                    play.waitFor(() -> play.expect(screen.queryByText(
-                            TextMatch.regex("replace", "i"), StroomDom.DIALOG_TITLE)).toBeNull());
+                    // The next card is opened once this one has closed, so that what is read
+                    // next is the card asked for and not the one being put away
+                    expectNoCardOpen(play);
 
-                    play.click(play.getByText("decode", CARD_KIND));
-                    final Play decoding = dialogMatching(play, screen, "decode");
+                    play.click(cardLine(play, "decode"));
+                    final Play decoding = cardEditor(play);
                     // By value, not by visibility: a select-only SelectionBox carries its aria
                     // label on an inner input the box itself covers, so the labelled element is
                     // not the visible one even when the control plainly is
@@ -1016,10 +1113,10 @@ public final class ShapeshifterEditorStories {
                     final Play screen = play.screen();
                     play.waitFor(() -> play.expect(play.getByText("divide", CARD_KIND))
                             .toBeInTheDocument());
-                    play.click(play.getByText("divide", CARD_KIND));
-                    final Play dialog = dialogMatching(play, screen, "divide");
-                    play.waitFor(() -> play.expect(dialog.getByLabelText("Name")).toBeVisible());
-                    play.expect(dialog.getByLabelText("Left")).toBeVisible();
+                    play.click(cardLine(play, "divide"));
+                    final Play card = cardEditor(play);
+                    play.waitFor(() -> play.expect(card.getByLabelText("Name")).toBeVisible());
+                    play.expect(card.getByLabelText("Left")).toBeVisible();
                     expectNoProblems(play);
                 })
                 // add: a fold: its inputs are a list because there may be any number
@@ -1029,9 +1126,9 @@ public final class ShapeshifterEditorStories {
                     final Play screen = play.screen();
                     play.waitFor(() -> play.expect(play.getByText("add", CARD_KIND))
                             .toBeInTheDocument());
-                    play.click(play.getByText("add", CARD_KIND));
-                    final Play dialog = dialogMatching(play, screen, "add");
-                    play.waitFor(() -> play.expect(dialog.getByLabelText("Name")).toBeVisible());
+                    play.click(cardLine(play, "add"));
+                    final Play card = cardEditor(play);
+                    play.waitFor(() -> play.expect(card.getByLabelText("Name")).toBeVisible());
                     expectNoProblems(play);
                 })
                 // tokenize: select, the one word the kind turns on, and a name
@@ -1041,10 +1138,10 @@ public final class ShapeshifterEditorStories {
                     final Play screen = play.screen();
                     play.waitFor(() -> play.expect(play.getByText("tokenize", CARD_KIND))
                             .toBeInTheDocument());
-                    play.click(play.getByText("tokenize", CARD_KIND));
-                    final Play dialog = dialogMatching(play, screen, "tokenize");
-                    play.waitFor(() -> play.expect(dialog.getByLabelText("Name")).toBeVisible());
-                    play.expect(dialog.getByLabelText("Delimiter")).toBeVisible();
+                    play.click(cardLine(play, "tokenize"));
+                    final Play card = cardEditor(play);
+                    play.waitFor(() -> play.expect(card.getByLabelText("Name")).toBeVisible());
+                    play.expect(card.getByLabelText("Delimiter")).toBeVisible();
                     expectNoProblems(play);
                 })
                 // substring: a start and a length, either of which may be left out
@@ -1054,10 +1151,10 @@ public final class ShapeshifterEditorStories {
                     final Play screen = play.screen();
                     play.waitFor(() -> play.expect(play.getByText("substring", CARD_KIND))
                             .toBeInTheDocument());
-                    play.click(play.getByText("substring", CARD_KIND));
-                    final Play dialog = dialogMatching(play, screen, "substring");
-                    play.waitFor(() -> play.expect(dialog.getByLabelText("Name")).toBeVisible());
-                    play.expect(dialog.getByLabelText("Start")).toBeVisible();
+                    play.click(cardLine(play, "substring"));
+                    final Play card = cardEditor(play);
+                    play.waitFor(() -> play.expect(card.getByLabelText("Name")).toBeVisible());
+                    play.expect(card.getByLabelText("Start")).toBeVisible();
                     expectNoProblems(play);
                 })
                 // format-date: a pattern and a time zone
@@ -1067,10 +1164,10 @@ public final class ShapeshifterEditorStories {
                     final Play screen = play.screen();
                     play.waitFor(() -> play.expect(play.getByText("format-date", CARD_KIND))
                             .toBeInTheDocument());
-                    play.click(play.getByText("format-date", CARD_KIND));
-                    final Play dialog = dialogMatching(play, screen, "format-date");
-                    play.waitFor(() -> play.expect(dialog.getByLabelText("Name")).toBeVisible());
-                    play.expect(dialog.getByLabelText("Pattern")).toBeVisible();
+                    play.click(cardLine(play, "format-date"));
+                    final Play card = cardEditor(play);
+                    play.waitFor(() -> play.expect(card.getByLabelText("Name")).toBeVisible());
+                    play.expect(card.getByLabelText("Pattern")).toBeVisible();
                     expectNoProblems(play);
                 })
                 // parse-date: the only kind needing five fields, which is why there are five
@@ -1080,10 +1177,10 @@ public final class ShapeshifterEditorStories {
                     final Play screen = play.screen();
                     play.waitFor(() -> play.expect(play.getByText("parse-date", CARD_KIND))
                             .toBeInTheDocument());
-                    play.click(play.getByText("parse-date", CARD_KIND));
-                    final Play dialog = dialogMatching(play, screen, "parse-date");
-                    play.waitFor(() -> play.expect(dialog.getByLabelText("Name")).toBeVisible());
-                    play.expect(dialog.getByLabelText("Relative to")).toBeVisible();
+                    play.click(cardLine(play, "parse-date"));
+                    final Play card = cardEditor(play);
+                    play.waitFor(() -> play.expect(card.getByLabelText("Name")).toBeVisible());
+                    play.expect(card.getByLabelText("Relative to")).toBeVisible();
                     expectNoProblems(play);
                 })
                 // string-join: several values and what goes between them
@@ -1093,10 +1190,10 @@ public final class ShapeshifterEditorStories {
                     final Play screen = play.screen();
                     play.waitFor(() -> play.expect(play.getByText("string-join", CARD_KIND))
                             .toBeInTheDocument());
-                    play.click(play.getByText("string-join", CARD_KIND));
-                    final Play dialog = dialogMatching(play, screen, "string-join");
-                    play.waitFor(() -> play.expect(dialog.getByLabelText("Name")).toBeVisible());
-                    play.expect(dialog.getByLabelText("Separator")).toBeVisible();
+                    play.click(cardLine(play, "string-join"));
+                    final Play card = cardEditor(play);
+                    play.waitFor(() -> play.expect(card.getByLabelText("Name")).toBeVisible());
+                    play.expect(card.getByLabelText("Separator")).toBeVisible();
                     expectNoProblems(play);
                 })
                 // call: a function and its arguments, of which there may be none
@@ -1106,10 +1203,10 @@ public final class ShapeshifterEditorStories {
                     final Play screen = play.screen();
                     play.waitFor(() -> play.expect(play.getByText("call", CARD_KIND))
                             .toBeInTheDocument());
-                    play.click(play.getByText("call", CARD_KIND));
-                    final Play dialog = dialogMatching(play, screen, "call");
-                    play.waitFor(() -> play.expect(dialog.getByLabelText("Name")).toBeVisible());
-                    play.expect(dialog.getByLabelText("Function")).toBeVisible();
+                    play.click(cardLine(play, "call"));
+                    final Play card = cardEditor(play);
+                    play.waitFor(() -> play.expect(card.getByLabelText("Name")).toBeVisible());
+                    play.expect(card.getByLabelText("Function")).toBeVisible();
                     expectNoProblems(play);
                 })
                 // Cancel leaves the condition as it was
@@ -1616,9 +1713,27 @@ public final class ShapeshifterEditorStories {
         host.read(host.getDocRef(), host.getEntity());
     }
 
-    // The kind menu's button on the line that adds to a card list. The line itself is a field
-    // now (design 47 A); every kind a typed line cannot say is still added from here.
-    static final String ADD_MENU = "Add an instruction of any kind";
+    // The kind on the line that adds to a card list: it reads `new`, and its menu makes the line
+    // any kind's editor, in place (design 47 D). The line's field is design 47 A's.
+    static final String ADD_MENU = "New instruction of any kind";
+
+    // A card's line, by its kind. Clicking the line opens the card where it is; clicking the
+    // kind itself opens it with the kinds offered, which a story opening a card to read or
+    // change its fields does not want in the way.
+    static Query cardLine(final Play play, final String kind) {
+        return play.getByText(kind, CARD_KIND).closest(".body-card__card");
+    }
+
+    // The card that is open, as a Play to scope queries to it. One is open at a time, and its
+    // kind box is the one thing labelled Instruction.
+    static Play cardEditor(final Play play) {
+        return play.within(play.findByLabelText("Instruction").closest(".instruction-edit"));
+    }
+
+    // No card is open: the draft was taken, or dropped.
+    static void expectNoCardOpen(final Play play) {
+        play.waitFor(() -> play.expect(play.queryByLabelText("Instruction")).toBeNull());
+    }
 
     static Query addMenu(final Play play) {
         return play.getByRole("button", ADD_MENU);
@@ -1663,14 +1778,14 @@ public final class ShapeshifterEditorStories {
         return json.append('"').toString();
     }
 
-    private static Widget render(final StoryContext context, final boolean readOnly) {
+    static Widget render(final StoryContext context, final boolean readOnly) {
         return render(context, readOnly, FIXTURES, DOC_REF);
     }
 
     // A dialog by a word in its title, as a Play to scope queries to it: nested dialogs (the
     // template dialog and the mode prompt it opens) each need their own OK.
     static Play dialogMatching(final Play play, final Play screen, final String title) {
-        // Case-insensitively: the dialogs title themselves "Edit Template" and "New text", so a
+        // Case-insensitively: the dialogs title themselves "Edit Template" and "New Capture", so a
         // caller naming the thing it is editing should not have to know which words are capital.
         return play.within(screen.findByText(TextMatch.regex(title, "i"), StroomDom.DIALOG_TITLE)
                 .closest(StroomDom.DIALOG));
@@ -1685,16 +1800,17 @@ public final class ShapeshifterEditorStories {
         play.click(screen.findByText(item, SELECTION_ITEM));
     }
 
-    // One body instruction, added through the add line's kind menu and its dialog, with the
+    // One body instruction, added from the add line's kind menu and taken with OK, with the
     // one field the kinds used here need (design 46 §5.5-§5.7).
     static void addInstruction(final Play play, final Play screen,
                                        final String kind, final String value) {
         play.click(addMenu(play));
         // The kinds are a menu on the page's body, not in the canvas
         play.click(screen.findByText(kind, StroomDom.MENU_ITEM_TEXT));
-        final Play dialog = dialogMatching(play, screen, "New " + kind);
-        dialog.type(dialog.getByRole("textbox").first(), value);
-        play.click(dialog.getByRole("button", StroomDom.button("OK")));
+        final Play card = cardEditor(play);
+        card.type(card.getByRole("textbox").first(), value);
+        play.click(card.getByRole("button", StroomDom.button("OK")));
+        expectNoCardOpen(play);
     }
 
     // The project the editor last sent for validation, which is the project it is holding.
@@ -1722,7 +1838,7 @@ public final class ShapeshifterEditorStories {
 
     /// The same screen over the composite fixture, whose templates reach the framed sequence, the
     /// pattern tree and a choose.
-    private static Widget renderComposite(final StoryContext context) {
+    static Widget renderComposite(final StoryContext context) {
         return render(context, false, COMPOSITE_FIXTURES, COMPOSITE_REF);
     }
 

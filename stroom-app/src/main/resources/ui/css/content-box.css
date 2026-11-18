@@ -9,3 +9,9 @@
     line-height: 2.1;
     font-size: 13px;
 }
+
+/* In the input pane the box sits under the pane's title bar, which is all the room it needs
+   above it; the 8px it has elsewhere was a second margin (the owner, 2026-11-18). */
+.content-pane .content-box {
+    padding: 0 10px 6px;
+}

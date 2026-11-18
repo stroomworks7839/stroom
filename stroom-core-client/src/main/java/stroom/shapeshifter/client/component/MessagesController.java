@@ -30,6 +30,7 @@ import com.google.web.bindery.event.shared.EventBus;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.IntConsumer;
 import java.util.function.LongConsumer;
 
 /// Design 18 §5.8: the engine's messages about the project as it stands, fed by `validate`
@@ -42,6 +43,8 @@ public class MessagesController extends Controller {
     private final DataGrid<ShapeshifterMessage> dataGrid;
     private final MultiSelectionModelImpl<ShapeshifterMessage> selectionModel;
     private LongConsumer onGoTo;
+    private IntConsumer onCount = count -> {
+    };
 
     @Inject
     public MessagesController(final EventBus eventBus) {
@@ -100,5 +103,11 @@ public class MessagesController extends Controller {
         }
         dataGrid.setRowData(0, rows);
         dataGrid.setRowCount(rows.size(), true);
+        onCount.accept(rows.size());
+    }
+
+    /// @param onCount Told how many messages there are, whenever they change.
+    public void setOnCount(final IntConsumer onCount) {
+        this.onCount = onCount;
     }
 }

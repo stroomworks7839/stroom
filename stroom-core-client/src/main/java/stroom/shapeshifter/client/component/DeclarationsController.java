@@ -17,21 +17,14 @@
 package stroom.shapeshifter.client.component;
 
 import stroom.alert.client.event.ConfirmEvent;
+import stroom.shapeshifter.client.component.DefinitionList.Row;
 import stroom.shapeshifter.client.model.ProjectHost;
 import stroom.shapeshifter.client.model.Templates;
 import stroom.shapeshifter.config.Declaration;
 import stroom.shapeshifter.config.Template;
-import stroom.svg.shared.SvgImage;
-import stroom.util.client.DataGridUtil;
-import stroom.widget.button.client.ToolbarButton;
 import stroom.widget.component.client.Contexts;
 import stroom.widget.component.client.Controller;
-import stroom.widget.datagrid.client.DataGrid;
-import stroom.widget.datagrid.client.PagerPanel;
-import stroom.widget.util.client.MouseUtil;
-import stroom.widget.util.client.MultiSelectionModelImpl;
 
-import com.google.gwt.user.cellview.client.Column;
 import com.google.inject.Inject;
 import com.google.inject.Provider;
 import com.google.web.bindery.event.shared.EventBus;
@@ -42,7 +35,8 @@ import java.util.Locale;
 import java.util.Objects;
 
 /// A template's declarations (design 35): scalar, list, map or set, declared once, bound into by
-/// captures and read by the body; scope flows to child templates. Add, edit and remove through
+/// captures and read by the body; scope flows to child templates. Listed as a section of the
+/// template, each a row that is clicked to edit; add, edit and remove through
 /// [DeclarationEditController].
 public class DeclarationsController extends Controller {
 
@@ -50,116 +44,60 @@ public class DeclarationsController extends Controller {
     // controller with no owner fails closed rather than editable.
     private boolean readOnly = true;
 
-    private PagerPanel view;
+    private DefinitionList view;
 
-    private final DataGrid<Declaration> dataGrid;
-    private final MultiSelectionModelImpl<Declaration> selectionModel;
     private final Provider<DeclarationEditController> editPresenterProvider;
-    private ToolbarButton addButton;
-    private ToolbarButton editButton;
-    private ToolbarButton removeButton;
 
     private ProjectHost host;
     private String templateId;
 
     @Inject
     public DeclarationsController(final EventBus eventBus,
-                                 final Provider<DeclarationEditController> editPresenterProvider) {
+                             final Provider<DeclarationEditController> editPresenterProvider) {
         super(eventBus);
-        watch(Contexts.READ_ONLY, readOnly -> this.readOnly = readOnly);
+        watch(Contexts.READ_ONLY, readOnly -> {
+            this.readOnly = readOnly;
+            enable();
+        });
         this.editPresenterProvider = editPresenterProvider;
-        dataGrid = new DataGrid<>();
-        dataGrid.setTableName("Declarations");
-        selectionModel = dataGrid.addDefaultSelectionModel(false);
     }
 
-    /// Attaches this to a pager, e.g. one a template declares, and adds its actions to the
-    /// pager's bar. The pager is then this controller's widget.
+    /// Attaches this to the section of the template that lists them, which is then this
+    /// controller's widget.
     ///
-    /// @param view The pager.
+    /// @param view The section.
     /// @return This, for its owner to keep.
-    public DeclarationsController attach(final PagerPanel view) {
+    public DeclarationsController attach(final DefinitionList view) {
         this.view = Objects.requireNonNull(view, "view");
         initWidget(view);
-        view.setDataWidget(dataGrid);
-        // Everything it holds is shown at once, so it pages nothing; its actions share
-        // the pager's bar, which stays (setPagerVisible would take the bar as well).
-        view.setPagingVisible(false);
-        addButton = view.getToolbar().button(SvgImage.ADD, "Add declaration", () -> {
-        });
-        editButton = view.getToolbar().button(SvgImage.EDIT, "Edit declaration", () -> {
-        });
-        removeButton = view.getToolbar().button(SvgImage.DELETE, "Remove declaration", () -> {
-        });
-
-        final Column<Declaration, String> name = DataGridUtil
-                .textColumnBuilder(Declaration::name)
-                .build();
-        dataGrid.addAutoResizableColumn(name, "Declaration", 140);
-        final Column<Declaration, String> type = DataGridUtil
-                .textColumnBuilder((Declaration d) -> d.type().name().toLowerCase(Locale.ROOT))
-                .build();
-        dataGrid.addResizableColumn(type, "Type", 60);
-        final Column<Declaration, String> entries = DataGridUtil
-                .textColumnBuilder((Declaration d) -> d.type() == Declaration.Type.MAP
-                        ? d.entries().size() + " entries"
-                        : "")
-                .build();
-        dataGrid.addResizableColumn(entries, "Entries", 80);
-        enableButtons();
-        own(addButton.addClickHandler(event -> {
-            if (MouseUtil.isPrimary(event)) {
-                onAdd();
-            }
-        }));
-        own(editButton.addClickHandler(event -> {
-            if (MouseUtil.isPrimary(event)) {
-                onEdit();
-            }
-        }));
-        own(removeButton.addClickHandler(event -> {
-            if (MouseUtil.isPrimary(event)) {
-                onRemove();
-            }
-        }));
-        own(selectionModel.addSelectionHandler(event -> {
-            enableButtons();
-            if (event.getSelectionType().isDoubleSelect()) {
-                onEdit();
-            }
-        }));
+        view.setOnAdd(this::onAdd);
+        view.setOnEdit(this::onEdit);
+        view.setOnRemove(this::onRemove);
+        enable();
         return this;
-
     }
 
     public void setHost(final ProjectHost host) {
         this.host = host;
     }
 
-
     public void setTemplate(final String id) {
         this.templateId = id;
         final Template template = host.template(id);
-        final List<Declaration> rows = template == null
-                ? List.of()
-                : template.declarations();
-        dataGrid.setRowData(0, rows);
-        dataGrid.setRowCount(rows.size(), true);
-        // Rows are values: an edit replaces the selected one, so a selection the new rows do not
-        // hold is stale and must not be edited or removed again.
-        final Declaration selected = selectionModel.getSelected();
-        if (selected != null && !rows.contains(selected)) {
-            selectionModel.clear(false);
+        final List<Row> rows = new ArrayList<>();
+        if (template != null) {
+            for (final Declaration declaration : template.declarations()) {
+                rows.add(new Row(declaration.name(), describe(declaration)));
+            }
         }
-        enableButtons();
+        view.setRows(rows);
+        enable();
     }
 
-    private void enableButtons() {
-        final boolean editable = host != null && !readOnly && templateId != null;
-        final boolean selected = selectionModel.getSelected() != null;
-        addButton.setEnabled(editable);
-        editButton.setEnabled(editable && selected);
-        removeButton.setEnabled(editable && selected);
+    private void enable() {
+        if (view != null) {
+            view.setEnabled(host != null && !readOnly && templateId != null);
+        }
     }
 
     private void onAdd() {
@@ -176,7 +114,6 @@ public class DeclarationsController extends Controller {
                     final List<Declaration> declarations = new ArrayList<>(template.declarations());
                     declarations.add(declaration);
                     host.replace(host.withTemplate(Templates.withDeclarations(template, declarations)));
-                    selectionModel.setSelected(declaration);
                     e.hide();
                 } else {
                     // Nothing was written, so the dialog stays open — and its OK button has to come back
@@ -189,12 +126,12 @@ public class DeclarationsController extends Controller {
         });
     }
 
-    private void onEdit() {
+    private void onEdit(final int index) {
         final Template template = host.template(templateId);
-        final Declaration existing = selectionModel.getSelected();
-        if (template == null || existing == null || readOnly) {
+        if (template == null || readOnly || index >= template.declarations().size()) {
             return;
         }
+        final Declaration existing = template.declarations().get(index);
         final DeclarationEditController editor = editPresenterProvider.get();
         editor.read(existing);
         editor.show(this, "Edit Declaration", e -> {
@@ -202,9 +139,8 @@ public class DeclarationsController extends Controller {
                 final Declaration declaration = editor.write();
                 if (declaration != null) {
                     final List<Declaration> declarations = new ArrayList<>(template.declarations());
-                    declarations.set(declarations.indexOf(existing), declaration);
+                    declarations.set(index, declaration);
                     host.replace(host.withTemplate(Templates.withDeclarations(template, declarations)));
-                    selectionModel.setSelected(declaration);
                     e.hide();
                 } else {
                     // Nothing was written, so the dialog stays open — and its OK button has to come back
@@ -217,21 +153,28 @@ public class DeclarationsController extends Controller {
         });
     }
 
-    private void onRemove() {
+    private void onRemove(final int index) {
         final Template template = host.template(templateId);
-        final Declaration existing = selectionModel.getSelected();
-        if (template == null || existing == null || readOnly) {
+        if (template == null || readOnly || index >= template.declarations().size()) {
             return;
         }
+        final Declaration existing = template.declarations().get(index);
         final String message = "Remove declaration '" + existing.name() + "'? Captures and body references to"
                                + " it will no longer compile.";
         ConfirmEvent.fire(this, message, ok -> {
             if (ok) {
                 final List<Declaration> declarations = new ArrayList<>(template.declarations());
-                declarations.remove(existing);
-                selectionModel.clear(false);
+                declarations.remove(index);
                 host.replace(host.withTemplate(Templates.withDeclarations(template, declarations)));
             }
         });
+    }
+
+    // What a declaration is, beside its name: its type, and for a map how much it starts with.
+    private static String describe(final Declaration declaration) {
+        final String type = declaration.type().name().toLowerCase(Locale.ROOT);
+        return declaration.type() == Declaration.Type.MAP
+                ? type + " · " + declaration.entries().size() + " entries"
+                : type;
     }
 }

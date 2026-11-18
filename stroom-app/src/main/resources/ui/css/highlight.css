@@ -40,13 +40,12 @@
     border-bottom-color: transparent;
 }
 
+/* A body's row is a row like the other two since it lost its box (2026-11-18); it was lit by
+   its border while it had one. */
 .variables-pane__row.highlight,
-.template-row.highlight {
-    background-color: var(--row__background-color--hovered);
-}
-
+.template-row.highlight,
 .body-card__card.highlight {
-    border-color: var(--focus-border);
+    background-color: var(--row__background-color--hovered);
 }
 
 /* A breadcrumb crumb's `highlight` lives in breadcrumb.css instead, beside its `:hover`: the two

@@ -1,0 +1,58 @@
+/*
+ * One instruction, open in the card list in place of its card (InstructionEdit, design 47 D):
+ * the kind first, then the kind's fields beside it, wrapping as they need, and the two ways
+ * out. It is the row it stands in for, opened: the width of the list, as the rows are, on a
+ * control's surface and ruled above and below in the focus colour, so that which row is open
+ * is plain in a long body.
+ */
+.instruction-edit {
+    padding: 6px 12px;
+    background-color: var(--control__background-color);
+    border: solid var(--focus-border);
+    border-width: 1px 0;
+    font-size: 12.5px;
+}
+
+/* A row that wraps. The form groups are a label over a control; side by side, a kind with one
+   or two settings is one line, and a kind with six takes the lines it needs. */
+.instruction-edit__fields {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 6px 10px;
+}
+
+.instruction-edit .instruction-edit__group {
+    flex: 1 1 150px;
+    min-width: 0;
+    margin: 0;
+}
+
+/* What the card is: as wide as the longest kind's name, and no wider. */
+.instruction-edit .instruction-edit__group--kind {
+    flex: 0 1 170px;
+}
+
+/* An area, a list of clauses or of sort keys, the wire form: a line to itself. */
+.instruction-edit .instruction-edit__group--wide {
+    flex: 1 1 100%;
+}
+
+/* The two ways out, last in the row and on its bottom edge: level with the controls, not with
+   the labels over them. */
+.instruction-edit__actions {
+    display: flex;
+    flex: none;
+    order: 1;
+    align-self: flex-end;
+    gap: 14px;
+    margin-left: auto;
+    padding-bottom: 5px;
+}
+
+/* Words, not glyphs, and a 24px target each (WCAG 2.5.8): the tick and cross this editor's
+   first design carried were too small to be either (design 18 Q12). */
+.instruction-edit__action {
+    min-width: 24px;
+    min-height: 24px;
+}

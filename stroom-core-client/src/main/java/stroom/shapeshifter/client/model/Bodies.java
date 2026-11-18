@@ -223,6 +223,43 @@ public final class Bodies {
         return shifted;
     }
 
+    /// A path as it reads once a node has been put in at `index` of the list at `listPath`:
+    /// a path that descends through that list at or past that position gains one. The card
+    /// editor holds a new card as a draft (design 47 D), and taking the draft moves whatever
+    /// the author has just pointed at further down the same list.
+    ///
+    /// @param path A node path or a list path.
+    /// @param listPath The list the node went into.
+    /// @param index Where in it.
+    /// @return The path as it reads afterwards; the same array when it is not moved.
+    public static int[] shiftForInsert(final int[] path, final int[] listPath, final int index) {
+        if (path.length <= listPath.length || !isWithin(path, listPath)) {
+            return path;
+        }
+        if (path[listPath.length] < index) {
+            return path;
+        }
+        // Arrays.copyOf, not clone: GWT emulates the one and not the other.
+        final int[] shifted = Arrays.copyOf(path, path.length);
+        shifted[listPath.length]++;
+        return shifted;
+    }
+
+    /// How many instructions a card's branches hold between them: what goes with the card if
+    /// it is removed, or changed to a kind with no place for them.
+    ///
+    /// @param node The card.
+    /// @return The number its branches hold between them; 0 for a card that holds none.
+    public static int held(final OutputNode node) {
+        int held = 0;
+        if (node instanceof Holder holder) {
+            for (final List<OutputNode> branch : holder.bodies()) {
+                held += branch.size();
+            }
+        }
+        return held;
+    }
+
     /// Whether a path runs through a node — its own path, or any list inside it.
     private static boolean isWithin(final int[] path, final int[] nodePath) {
         if (path.length < nodePath.length) {

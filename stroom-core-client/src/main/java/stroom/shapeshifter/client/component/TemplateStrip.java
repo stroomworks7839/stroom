@@ -18,8 +18,6 @@ package stroom.shapeshifter.client.component;
 
 import stroom.shapeshifter.client.model.MatchRole;
 import stroom.widget.component.client.Component;
-import stroom.widget.datagrid.client.PagerPanel;
-import stroom.widget.layout.client.SplitPane;
 import stroom.widget.selection.client.SelectionBox;
 import stroom.widget.text.client.Label;
 import stroom.widget.util.client.CssProperties;
@@ -49,8 +47,6 @@ public class TemplateStrip extends Component {
     private static final Binder BINDER = GWT.create(Binder.class);
 
 
-    @UiField
-    SplitPane layout;
     @UiField
     Label title;
     @UiField
@@ -82,11 +78,9 @@ public class TemplateStrip extends Component {
     @UiField
     SimplePanel content;
     @UiField
-    SplitPane details;
+    DefinitionList declarations;
     @UiField
-    PagerPanel declarations;
-    @UiField
-    PagerPanel captures;
+    DefinitionList captures;
 
     public TemplateStrip() {
         initWidget(BINDER.createAndBindUi(this));
@@ -141,6 +135,9 @@ public class TemplateStrip extends Component {
         name.setStyleDependentName("editable", colour != null);
         mode.setText(modeText);
         note.setText(noteText);
+        // The note is the part of the heading that gives way when the strip is narrow, so what
+        // it says in full is on its tooltip
+        note.setTitle(noteText);
     }
 
     public void setRole(final boolean visible, final MatchRole value, final boolean enabled, final String note,
@@ -175,18 +172,20 @@ public class TemplateStrip extends Component {
         content.setVisible(view != null);
     }
 
-    /// @return The pager its declarations controller attaches to.
-    public PagerPanel getDeclarations() {
+    /// @return The section its declarations controller attaches to.
+    public DefinitionList getDeclarations() {
         return declarations;
     }
 
-    /// @return The pager its captures controller attaches to.
-    public PagerPanel getCaptures() {
+    /// @return The section its captures controller attaches to.
+    public DefinitionList getCaptures() {
         return captures;
     }
 
+    /// @param visible Whether there is a template to list the declarations and captures of.
     public void setDetailsVisible(final boolean visible) {
-        layout.setPaneHidden(details, !visible);
+        declarations.setVisible(visible);
+        captures.setVisible(visible);
     }
 
 

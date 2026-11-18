@@ -3,8 +3,9 @@
              xmlns:t="urn:import:stroom.widget.text.client"
              xmlns:g="urn:import:com.google.gwt.user.client.ui"
              xmlns:l="urn:import:stroom.widget.layout.client">
-    <g:FlowPanel styleName="max design-panel">
-        <t:Label styleName="design-panel__title" text="Variables"/>
+    <!-- No title of its own: the pane it is shown in names it, and folds it away
+         (CollapsiblePane, design 47 E). -->
+    <g:FlowPanel styleName="max design-panel variables-pane">
         <l:ScrollPane addStyleNames="design-panel__body">
             <g:FlowPanel>
                 <t:Label ui:field="empty" styleName="placeholder"/>

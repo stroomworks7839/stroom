@@ -11,7 +11,8 @@
     align-items: center;
     gap: 4px;
     padding: 0 6px 0 10px;
-    border-bottom: 1px solid var(--border-color);
+    /* No line of its own under it: the splitter between it and what is below is one, and the
+       two together were a line twice as thick as any other (the owner, 2026-11-18). */
     overflow: hidden;
     white-space: nowrap;
 }
@@ -160,9 +161,9 @@
     align-items: center;
     flex: none;
     gap: 6px;
+    /* Set apart from the crumbs by the space between them, not by a rule */
     padding-left: 10px;
     margin-left: 6px;
-    border-left: 1px solid var(--border-color);
 }
 
 /* The step buttons are a toolbar, so its 4px padding holds their focus rings, which the crumb

@@ -36,24 +36,39 @@
     box-shadow: inset 0 -2px 0 0 var(--focus-border);
 }
 
-.body-card__outer {
-    margin: 4px 0;
-}
-
+/* A row of one list, not a card among cards (the owner, 2026-11-18): no gap between rows, no
+   box round each, and nothing at the sides, so the body reads down as a table's rows do. What
+   is in a row steps in by how deep its list is (--card-list__depth, which CardList sets). */
 .body-card__card {
-    padding: 4px 8px;
-    background-color: var(--control__background-color);
-    border: 1px solid var(--border-color);
-    border-radius: 5px;
+    padding: 4px 12px 4px calc(12px + var(--card-list__depth, 0) * 16px);
     font-size: 12.5px;
     cursor: pointer;
     outline: none;
-    transition: border-color .15s ease-out;
 }
 
-.body-card__card:hover,
-.body-card__card:focus-visible {
-    border-color: var(--focus-border);
+/* Pointed at, and the selected row: the colours a row has everywhere in Stroom. One row is
+   selected at a time — the one last clicked or reached with the arrow keys — and it stays
+   selected while the keyboard is elsewhere, because it is what the toolbar over the rows acts
+   on. */
+.body-card__card:hover {
+    background-color: var(--row__background-color--hovered);
+}
+
+.body-card__card--selected {
+    background-color: var(--row__background-color--selected);
+    color: var(--row__text-color--selected);
+}
+
+.body-card__card--selected:hover {
+    background-color: var(--row__background-color--selected--hovered);
+}
+
+/* On the selected row everything is the row's own colour: the quiet greys the summary, the
+   run's note and the grip have elsewhere do not stand off the selection's fill. */
+.body-card__card--selected .body-card__literal,
+.body-card__card--selected .body-card__note,
+.body-card__card--selected .body-card__grip {
+    color: inherit;
 }
 
 .body-card__line {
@@ -68,6 +83,12 @@
     white-space: nowrap;
 }
 
+/* The kind is itself a way in: clicking it opens the card with the kinds offered
+   (design 47 D). Underlined on the card's hover, as the run's note is when it leads somewhere. */
+.body-card__card:hover .body-card__kind[title] {
+    text-decoration: underline dotted;
+}
+
 .body-card__literal {
     color: var(--ss-muted);
     overflow: hidden;
@@ -77,28 +98,12 @@
     min-width: 0;
 }
 
-.body-card__actions {
-    display: flex;
-    gap: 2px;
-    opacity: 0;
-    white-space: nowrap;
-}
-
-.body-card__card:hover .body-card__actions,
-.body-card__card:focus-within .body-card__actions {
-    opacity: 1;
-}
-
-.body-card__branch {
-    margin: 2px 0 0 10px;
-    border-left: 1px dashed var(--border-color);
-}
-
+/* A branch's head is one step in from the row that holds it, as the rows under it are */
 .body-card__branch-head {
     display: flex;
     gap: 8px;
     align-items: baseline;
-    padding: 2px 0 0 10px;
+    padding: 2px 12px 0 calc(12px + (var(--card-list__depth, 0) + 1) * 16px);
 }
 
 .body-card__branch-key {
@@ -110,7 +115,7 @@
 
 .body-card__add-branch {
     display: inline-block;
-    padding: 2px 0 4px 10px;
+    padding: 2px 12px 4px calc(12px + (var(--card-list__depth, 0) + 1) * 16px);
 }
 
 /* The run's word on a card (design 18 §5.6), and its output in the card's hue. */

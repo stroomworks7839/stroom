@@ -1,11 +1,24 @@
 /*
  * A template's output body (Body): the title above the cards, which are body-card.
  */
+/* No padding at the sides: the rows under the title run the width of the pane, so that a
+   row's hover and its selection do, and it is what is in them that is inset (body-card.css). */
 .body {
-    padding: 4px 12px 8px;
+    padding: 4px 0 8px;
+}
+
+/* The heading and, at the far end of its line, the toolbar for the selected row. The line is
+   as tall as the toolbar, which is a button and the room for its focus ring. */
+.body__head {
+    display: flex;
+    align-items: center;
+    padding: 0 8px 0 12px;
 }
 
 .body__title {
-    display: block;
-    padding: 2px 0;
+    flex: 1;
+}
+
+.body__actions {
+    flex: none;
 }

@@ -1,9 +1,22 @@
 <!DOCTYPE ui:UiBinder SYSTEM "http://dl.google.com/gwt/DTD/xhtml.ent">
 <ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
              xmlns:t="urn:import:stroom.widget.text.client"
-             xmlns:g="urn:import:com.google.gwt.user.client.ui">
+             xmlns:g="urn:import:com.google.gwt.user.client.ui"
+             xmlns:b="urn:import:stroom.widget.button.client">
     <g:FlowPanel styleName="body">
-        <t:Label styleName="key-label body__title" text="body"/>
+        <!-- The heading, and on its line what can be done to the selected row: one toolbar over
+             the rows, as a grid has and as the template panel has over its own list, rather
+             than five small glyphs on every row (the owner, 2026-11-18). -->
+        <g:FlowPanel styleName="body__head">
+            <t:Label styleName="key-label body__title" text="body"/>
+            <b:Toolbar ui:field="toolbar" name="Instruction actions" addStyleNames="body__actions">
+                <b:ToolbarButton ui:field="up"/>
+                <b:ToolbarButton ui:field="down"/>
+                <b:ToolbarButton ui:field="above"/>
+                <b:ToolbarButton ui:field="below"/>
+                <b:ToolbarButton ui:field="remove"/>
+            </b:Toolbar>
+        </g:FlowPanel>
         <g:FlowPanel ui:field="cards"/>
     </g:FlowPanel>
 </ui:UiBinder>

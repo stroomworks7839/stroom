@@ -1,23 +1,17 @@
 <!DOCTYPE ui:UiBinder SYSTEM "http://dl.google.com/gwt/DTD/xhtml.ent">
 <ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
              xmlns:g="urn:import:com.google.gwt.user.client.ui"
-             xmlns:dg="urn:import:stroom.widget.datagrid.client"
              xmlns:t="urn:import:stroom.widget.text.client"
              xmlns:split="urn:import:stroom.widget.layout.client"
-             xmlns:l="urn:import:stroom.widget.selection.client">
-    <!-- The heading, the template itself, and its declarations and captures below: what GWT's
-         docking panel did in one, a split pane does one axis at a time.
-
-         The Template pane takes the rest, because the body grows with the cards in it. That also
-         makes it the pane that gives space up first (SplitPane), so it needs a floor: without one
-         it was squeezed to 5px in a 205px strip — the heading's 30 and the details' 170 are
-         fixed — and the body's cards, the surface an author spends most of their time in, were
-         clipped out of sight entirely while two often-empty grids kept their full height. The
-         floors say which pane matters when there is not enough room for all three: the body
-         first, then enough of the details to show their headers. -->
-    <split:SplitPane ui:field="layout" vertical="true" thin="true"
-                     sizes="30px, *, 170px" minSizes="30px, 110px, 44px"
-                     names="Heading, Template, Details"
+             xmlns:l="urn:import:stroom.widget.selection.client"
+             xmlns:ss="urn:import:stroom.shapeshifter.client.component">
+    <!-- The heading, and the template itself under it: one scrolled area holding the match, the
+         guard, the names it defines and the body. The declarations and the captures were a
+         strip of two grids under this, 170px whether or not they held anything; they are
+         sections of the template now, a line each when empty (the owner, 2026-11-18). -->
+    <split:SplitPane vertical="true" thin="true"
+                     sizes="30px, *" minSizes="30px, 110px"
+                     names="Heading, Template"
                      addStyleNames="max default-min-sizes template-strip">
         <g:FlowPanel styleName="template-strip__head">
             <t:Label ui:field="title" styleName="design-panel__title template-strip__pattern-title"/>
@@ -59,14 +53,12 @@
                     <t:Label ui:field="guardLimits" styleName="placeholder template-strip--clickable"
                              title="Guard and limits — edited in the workbench"/>
                 </g:FlowPanel>
+                <!-- The names the template defines, before the body that uses them: what it
+                     declares, and what its match binds. -->
+                <ss:DefinitionList ui:field="declarations" heading="declarations" kind="declaration"/>
+                <ss:DefinitionList ui:field="captures" heading="captures" kind="capture"/>
                 <g:SimplePanel ui:field="content" styleName="template-strip__content"/>
             </g:FlowPanel>
         </split:ScrollPane>
-        <split:SplitPane ui:field="details" thin="true" sizes="360px, *"
-                         names="Declarations, Captures"
-                         addStyleNames="max default-min-sizes">
-            <dg:PagerPanel ui:field="declarations" addStyleNames="max"/>
-            <dg:PagerPanel ui:field="captures" addStyleNames="max"/>
-        </split:SplitPane>
     </split:SplitPane>
 </ui:UiBinder>

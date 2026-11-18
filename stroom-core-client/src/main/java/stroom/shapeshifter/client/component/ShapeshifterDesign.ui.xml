@@ -5,41 +5,62 @@
              xmlns:t="urn:import:stroom.widget.text.client"
              xmlns:split="urn:import:stroom.widget.layout.client"
              xmlns:ss="urn:import:stroom.shapeshifter.client.component">
-    <!-- Design 43 section 4.1: the mockup's quadrant - panel, then (crumb / input | variables)
-         over (strip | output) - as nested split panels. The workbench and the sample page each
-         replace the whole quadrant, leaving only the panel beside them (design 44 §5a, §5p).
-         One axis per split pane, so what GWT's docking panel did in one, this does in two. -->
-    <split:SplitPane ui:field="layout" vertical="true" thin="true" sizes="26px, *, 110px"
-                     names="Banner, Design, Messages"
+    <!-- The panel, then the crumb over the workspace: the template, at full height, beside the
+         input, the variables and the output, one under another (design 47 E, tried 2026-11-18;
+         it was the mockup's quadrant, design 43 section 4.1, with the template under the input).
+         The workbench and the sample page each replace the whole workspace, crumb and all,
+         leaving only the panel beside them (design 44 §5a, §5p). One axis per split pane. -->
+    <split:SplitPane ui:field="layout" vertical="true" thin="true" sizes="26px, *"
+                     names="Banner, Design"
                      addStyleNames="max default-min-sizes shapeshifter-design">
         <t:Label ui:field="banner" styleName="shapeshifter-design__banner"/>
         <split:SplitPane thin="true" sizes="220px, *" names="Templates, Design"
                          addStyleNames="max default-min-sizes">
             <ss:TemplatePanel ui:field="templatePanel"/>
-            <!-- Everything right of the panel: the navigator's rows, or what is shown in their
-                 place - the sample page, or the workbench (design 44 §5a, §5p). -->
-            <g:SimplePanel ui:field="centre" styleName="max">
-                <split:SplitPane ui:field="rows" vertical="true" thin="true" sizes="300px, *"
-                                 names="Input, Output" addStyleNames="max default-min-sizes">
+            <!-- Right of the panel: what is being worked on, and under it what the last run or
+                 check said about it. The messages are about the project, not about the list of
+                 its templates, so they are under the work and the panel has the whole height
+                 (the owner, 2026-11-18). They fold away under their title bar, as the data
+                 panes do, and cannot be dragged smaller than it. -->
+            <split:SplitPane ui:field="work" vertical="true" thin="true" sizes="*, 110px"
+                             minSizes="120px, 26px" names="Design, Messages"
+                             addStyleNames="max default-min-sizes">
+                <!-- The navigator's rows, or what is shown in their place - the sample page, or
+                     the workbench (design 44 §5a, §5p). -->
+                <g:SimplePanel ui:field="centre" styleName="max">
                     <!-- 32px: a toolbar button is 24px and its toolbar pads 4px either side for
                          the focus ring, and the crumb's stepper is a toolbar. -->
-                    <split:SplitPane vertical="true" thin="true" sizes="32px, *"
-                                     names="Crumb, Input" addStyleNames="max default-min-sizes">
+                    <split:SplitPane ui:field="workspace" vertical="true" thin="true" sizes="32px, *"
+                                     names="Crumb, Workspace" addStyleNames="max default-min-sizes">
                         <ss:Breadcrumb ui:field="crumb"/>
-                        <split:SplitPane thin="true" sizes="*, 320px" names="Input, Variables"
+                        <split:SplitPane thin="true" sizes="*, 50%" names="Template, Data"
                                          addStyleNames="max default-min-sizes">
-                            <ss:ContentPane ui:field="input"/>
-                            <ss:VariablesPane ui:field="variables"/>
+                            <ss:TemplateStrip ui:field="strip"/>
+                            <!-- Read downwards: the bytes, the names bound out of them, the bytes
+                                 written. Each is under a title bar that folds it away, so the
+                                 other two can have its room; the input takes what they leave. No
+                                 pane can be dragged smaller than its bar. -->
+                            <split:SplitPane ui:field="data" vertical="true" thin="true"
+                                             sizes="*, 22%, 33%" minSizes="26px, 26px, 26px"
+                                             names="Input, Variables, Output"
+                                             addStyleNames="max default-min-sizes">
+                                <ss:CollapsiblePane ui:field="inputPane" heading="Input">
+                                    <ss:ContentPane ui:field="input"/>
+                                </ss:CollapsiblePane>
+                                <ss:CollapsiblePane ui:field="variablesPane" heading="Variables">
+                                    <ss:VariablesPane ui:field="variables"/>
+                                </ss:CollapsiblePane>
+                                <ss:CollapsiblePane ui:field="outputPane" heading="Output">
+                                    <ss:OutputPane ui:field="output"/>
+                                </ss:CollapsiblePane>
+                            </split:SplitPane>
                         </split:SplitPane>
                     </split:SplitPane>
-                    <split:SplitPane thin="true" sizes="*, 320px"
-                                     names="Strip, Output" addStyleNames="max default-min-sizes">
-                        <ss:TemplateStrip ui:field="strip"/>
-                        <ss:OutputPane ui:field="output"/>
-                    </split:SplitPane>
-                </split:SplitPane>
-            </g:SimplePanel>
+                </g:SimplePanel>
+                <ss:CollapsiblePane ui:field="messagesPane" heading="Messages">
+                    <dg:PagerPanel ui:field="messages" addStyleNames="max"/>
+                </ss:CollapsiblePane>
+            </split:SplitPane>
         </split:SplitPane>
-        <dg:PagerPanel ui:field="messages" addStyleNames="max"/>
     </split:SplitPane>
 </ui:UiBinder>

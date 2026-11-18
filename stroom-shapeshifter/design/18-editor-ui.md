@@ -560,6 +560,11 @@ already does context-windowed fetching around a highlight; same idea, client-sid
        TEMPLATE           │       OUTPUT
 ```
 
+*2026-11-18: a different arrangement is being tried* — the template at full height on the
+left, and input, variables and output one under another on the right (design 47 E). It keeps
+what the rows below were arranged for: input and variables are still neighbours, and the
+output is still beside the template. Whether it stands is open in design 47 §5.
+
 **Each pane carries its name** (2026-08-28), in the quiet uppercase the variables pane
 already used. Titles had been removed from the two byte panes a few days earlier and that
 was right at the time — one pane labelled and its opposite number bare was the fault, not
@@ -875,6 +880,12 @@ strip), and the whole-input stepper (`match 6 of 12 · whole input ◀ ▶`). Tw
   the kind that happened to need it. A half-added branch is as revertible as a half-typed
   condition. The footer says so in words rather than glyphs: *applies as you type · Esc
   reverts · Enter closes*.
+
+  *2026-11-18: the editor as built does not do this.* A card opens in place again (design
+  47 D) — the dialogs the editors had come to be shown in are gone — but what it holds is a
+  **draft**, taken with Enter or OK and dropped with Escape, because several kinds cannot
+  exist half-filled in the real model and live commit would apply at some keystrokes and not
+  at others. Whether that stands, or this ruling does, is open in design 47 §5.
 
   **Instructions move.** Each card carries a **grip** at its head — the only part of it
   that starts a drag, so dragging never fights click-to-edit or click-to-follow — and can

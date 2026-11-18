@@ -1,0 +1,16 @@
+<!DOCTYPE ui:UiBinder SYSTEM "http://dl.google.com/gwt/DTD/xhtml.ent">
+<ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
+             xmlns:g="urn:import:com.google.gwt.user.client.ui"
+             xmlns:t="urn:import:stroom.widget.text.client"
+             xmlns:btn="urn:import:stroom.widget.button.client">
+    <g:FlowPanel styleName="definition-list">
+        <!-- One line when there is nothing to list: what the section is, and the way to add to
+             it. The rows come under it. -->
+        <g:FlowPanel styleName="definition-list__head">
+            <t:Label ui:field="heading" styleName="key-label definition-list__heading"/>
+            <btn:LinkButton ui:field="add" addStyleNames="add-button"/>
+            <t:Label ui:field="none" styleName="placeholder" text="none"/>
+        </g:FlowPanel>
+        <g:FlowPanel ui:field="rows"/>
+    </g:FlowPanel>
+</ui:UiBinder>

@@ -43,6 +43,18 @@
     text-overflow: ellipsis;
 }
 
+/* When the line is too long for the strip it is the note that gives way, not the mode: the
+   mode is two words that say where the template lives, and the note is a sentence that is
+   also the heading's tooltip. */
+.template-strip__mode {
+    flex: none;
+}
+
+.template-strip__note {
+    flex: 1;
+    min-width: 0;
+}
+
 .template-strip__body {
     padding: 6px 0 10px;
 }

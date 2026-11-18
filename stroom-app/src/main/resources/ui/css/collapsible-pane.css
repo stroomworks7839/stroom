@@ -1,0 +1,57 @@
+/*
+ * A pane under a title bar that folds it away (CollapsiblePane, design 47 E). The bar and what
+ * it holds are one surface, the page's, so three of them one above another read as three of a
+ * kind and as part of the page they are on.
+ */
+.collapsible-pane {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+    background-color: var(--page__background-color);
+}
+
+.collapsible-pane__head {
+    flex: none;
+    display: flex;
+    height: 26px;
+}
+
+/* The whole bar is the target. Its name is in the quiet capitals every pane's title has. */
+.collapsible-pane__toggle {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 10px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    text-align: left;
+    color: var(--ss-muted);
+}
+
+/* It is a title that can be pressed, not a link: it lifts, and is not underlined. */
+.collapsible-pane__toggle:hover {
+    color: var(--text-color);
+    text-decoration: none;
+}
+
+/* Which way it is: pointing down over what is shown, and along at what is folded away. */
+.collapsible-pane__toggle::before {
+    content: "\25BE";
+    display: inline-block;
+    width: 8px;
+    font-size: 12px;
+    letter-spacing: 0;
+}
+
+.collapsible-pane--collapsed .collapsible-pane__toggle::before {
+    content: "\25B8";
+}
+
+.collapsible-pane__content {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+}

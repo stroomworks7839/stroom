@@ -46,7 +46,7 @@ import java.util.function.Consumer;
 /// happened. Its title line is the template's identity — swatch, name, mode, where it is
 /// dispatched from, computed from the mode graph — and its body opens with the match as a
 /// read-only chip that opens the pattern workbench, then guard and limits as a summary, then the
-/// body as cards; the declarations and captures grids sit beneath.
+/// body as cards, with what it declares and captures listed above them.
 /// For the project row the strip shows the document: its name and source settings.
 public class TemplateStripController extends Controller {
 
@@ -122,6 +122,11 @@ public class TemplateStripController extends Controller {
 
     /// Show a template, or the project for null; called again after every edit, so it is also refresh.
     public void setTemplate(final String id) {
+        if (!Objects.equals(id, templateId)) {
+            // The body is about to show something else, or nothing: a card left open in it is
+            // taken or let go here, since the body is not told when it goes off screen.
+            bodyPresenter.leave();
+        }
         this.templateId = id;
         final Project project = host.getProject();
         final Template template = host.template(id);

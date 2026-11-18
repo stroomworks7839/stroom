@@ -208,7 +208,8 @@ public final class ShapeshifterClassifyStories {
         ShapeshifterEditorStories.selectTemplate(play, "document");
         play.waitFor(() -> play.expect(play.getByLabelText(Walkthrough.ENTRY)).toBeInTheDocument());
         Walkthrough.enter(play, "<flags>");
-        play.click(play.getAllByTitle("Move up").nth(1));
+        // The row just added is the selected one, and the toolbar acts on it
+        play.click(play.getByRole("button", "Move the selected instruction up"));
     }
 
     /// §6.2 steps 4 and 5: the mode, and **`classify`** — every matching template runs, nothing
@@ -217,8 +218,8 @@ public final class ShapeshifterClassifyStories {
     /// This is the stage the rung was walked for. The panel and the card both say the strategy
     /// now (§10 W4), and until this stage was driven that branch had never been on screen.
     private static void dispatch(final Play play, final Play screen) {
-        play.click(play.getByText("apply-templates", ShapeshifterEditorStories.CARD_KIND));
-        final Play card = ShapeshifterEditorStories.dialogMatching(play, screen, "apply-templates");
+        play.click(ShapeshifterEditorStories.cardLine(play, "apply-templates"));
+        final Play card = ShapeshifterEditorStories.cardEditor(play);
         ShapeshifterEditorStories.pickFromBox(play, screen, card.getByLabelText("Mode"), "flags");
         ShapeshifterEditorStories.pickFromBox(play, screen,
                 card.getByLabelText("Dispatch"), "classify");

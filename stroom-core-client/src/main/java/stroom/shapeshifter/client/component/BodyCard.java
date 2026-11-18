@@ -30,17 +30,25 @@ import com.google.gwt.core.client.GWT;
 import com.google.gwt.dom.client.DataTransfer;
 import com.google.gwt.dom.client.Element;
 import com.google.gwt.event.dom.client.ClickEvent;
+import com.google.gwt.event.dom.client.KeyCodes;
+import com.google.gwt.event.dom.client.KeyDownEvent;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
 import com.google.gwt.user.client.ui.Composite;
 import com.google.gwt.user.client.ui.FlowPanel;
 import com.google.gwt.user.client.ui.FocusPanel;
+import com.google.gwt.user.client.ui.SimplePanel;
 import com.google.gwt.user.client.ui.Widget;
 
 import java.util.List;
 
-/// One card: kind · summary · actions, and for a holder its branches beneath — each a head
-/// (then / when … / otherwise / case … / default), a nested card list, and an add line.
+/// One instruction, as a row of the body's list: kind · summary · the run's note, and for a holder its
+/// branches beneath — each a head (then / when … / otherwise / case … / default), a nested
+/// list, and an add line. The rows are one list with no gaps between them (the owner,
+/// 2026-11-18): the keyboard is on one of them at a time, and the arrow keys move it.
+///
+/// Clicked, or Enter pressed on it, the card opens: its line gives way to its editor, in place
+/// (design 47 D). Clicking its kind opens it with the kinds offered.
 public class BodyCard extends Composite {
 
     private static final Binder BINDER = GWT.create(Binder.class);
@@ -52,15 +60,7 @@ public class BodyCard extends Composite {
     @UiField
     Label summary;
     @UiField
-    FlowPanel actions;
-    @UiField
-    Label up;
-    @UiField
-    Label down;
-    @UiField
-    Label addAfter;
-    @UiField
-    Label remove;
+    SimplePanel editing;
     @UiField
     Label swatch;
     @UiField
@@ -86,10 +86,58 @@ public class BodyCard extends Composite {
         this.handlers = handlers;
         initWidget(BINDER.createAndBindUi(this));
         head.addClickHandler(event -> onHead(event));
-        up.addClickHandler(event -> onUp(event));
-        down.addClickHandler(event -> onDown(event));
-        addAfter.addClickHandler(event -> onAddAfter(event));
-        remove.addClickHandler(event -> onRemove(event));
+        head.addKeyDownHandler(event -> onKey(event));
+        final boolean[] focused = {false};
+        head.addFocusHandler(event -> {
+            focused[0] = true;
+            handlers.onCardFocused(Bodies.path(path));
+        });
+        head.addBlurHandler(event -> focused[0] = false);
+        kind.addClickHandler(event -> onKind(event));
+        handlers.onCardShown(Bodies.path(path), new Body.Row() {
+            @Override
+            public void focus() {
+                // The element's own focus, which is immediate. The panel's setFocus is put off
+                // to a timer in this browser, and would then take the keyboard back from
+                // whatever was given it next — an add line, a field of the row just opened.
+                head.getElement().focus();
+            }
+
+            @Override
+            public boolean isFocused() {
+                return focused[0];
+            }
+
+            @Override
+            public void setTabStop(final boolean stop) {
+                head.setTabIndex(stop
+                        ? 0
+                        : -1);
+            }
+
+            @Override
+            public void setSelected(final boolean selected) {
+                head.setStyleName("body-card__card--selected", selected);
+            }
+
+            @Override
+            public boolean isFirst() {
+                return index == 0;
+            }
+
+            @Override
+            public boolean isLast() {
+                return index == count - 1;
+            }
+        });
+        final Widget editor = enabled
+                ? handlers.editorOf(Bodies.path(path))
+                : null;
+        head.setVisible(editor == null);
+        editing.setVisible(editor != null);
+        if (editor != null) {
+            editing.setWidget(editor);
+        }
         if (topLevel) {
             // A top-level card is what the run attributes output to (design 18 §5.5).
             head.addMouseOverHandler(event -> handlers.onHover(index));
@@ -100,7 +148,9 @@ public class BodyCard extends Composite {
         summary.setText(Instructions.describe(node));
         summary.setTitle(Instructions.describe(node));
         head.setTitle("Click to edit this " + kindName);
-        actions.setVisible(enabled);
+        if (enabled) {
+            kind.setTitle("Click to change what this " + kindName + " is");
+        }
         grip.setVisible(enabled);
         if (enabled) {
             makeDraggable();
@@ -124,8 +174,6 @@ public class BodyCard extends Composite {
                 });
             }
         }
-        up.setVisible(index > 0);
-        down.setVisible(index < count - 1);
         if (node instanceof Holder holder) {
             final List<List<OutputNode>> bodies = holder.bodies();
             for (int b = 0; b < bodies.size(); b++) {
@@ -214,25 +262,39 @@ public class BodyCard extends Composite {
         handlers.onEdit(Bodies.path(path));
     }
 
-    private void onUp(final ClickEvent e) {
-        e.stopPropagation();
-        handlers.onMove(Bodies.path(path), -1);
+    // The keys of a row in a list. The arrows, Home and End move among the rows; Enter opens
+    // the row; Delete removes it. Only when the row itself has the keyboard: a key pressed in a
+    // field of a row open below would otherwise act on this one. And only bare keys: Alt and
+    // an arrow walks the frames of the run, wherever in the tab the keyboard is
+    // (ShapeshifterDesignController), and a row does not take that for itself.
+    private void onKey(final KeyDownEvent event) {
+        if (!event.getNativeEvent().getEventTarget().equals(head.getElement())
+            || event.isAltKeyDown() || event.isControlKeyDown() || event.isMetaKeyDown()) {
+            return;
+        }
+        final int key = event.getNativeKeyCode();
+        final String at = Bodies.path(path);
+        if (key == KeyCodes.KEY_ENTER) {
+            handlers.onEdit(at);
+        } else if (key == KeyCodes.KEY_DELETE) {
+            handlers.onRemove(at);
+        } else if (key == KeyCodes.KEY_UP) {
+            handlers.onNavigate(at, Body.Step.PREVIOUS);
+        } else if (key == KeyCodes.KEY_DOWN) {
+            handlers.onNavigate(at, Body.Step.NEXT);
+        } else if (key == KeyCodes.KEY_HOME) {
+            handlers.onNavigate(at, Body.Step.FIRST);
+        } else if (key == KeyCodes.KEY_END) {
+            handlers.onNavigate(at, Body.Step.LAST);
+        } else {
+            return;
+        }
+        event.preventDefault();
     }
 
-    private void onDown(final ClickEvent e) {
+    private void onKind(final ClickEvent e) {
         e.stopPropagation();
-        handlers.onMove(Bodies.path(path), 1);
-    }
-
-    private void onAddAfter(final ClickEvent e) {
-        e.stopPropagation();
-        handlers.onAdd(Bodies.path(Bodies.parent(path)), path[path.length - 1] + 1, e.getClientX(),
-                e.getClientY());
-    }
-
-    private void onRemove(final ClickEvent e) {
-        e.stopPropagation();
-        handlers.onRemove(Bodies.path(path));
+        handlers.onEditKind(Bodies.path(path));
     }
 
     /// A holder's branch: its head line, the nested cards, the add line.
@@ -240,7 +302,6 @@ public class BodyCard extends Composite {
 
         private Branch(final Holder holder, final int branch, final List<OutputNode> cards, final boolean enabled) {
             final FlowPanel panel = new FlowPanel();
-            panel.setStyleName("body-card__branch");
             final String label = Bodies.branchLabel(holder, branch);
             if (label != null) {
                 final FlowPanel headLine = new FlowPanel();

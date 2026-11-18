@@ -183,6 +183,7 @@ public class ShapeshifterDesignController
         workbench.setOnClose(this::closeWorkbench);
         crumb.setHost(this);
         messages.setOnGoTo(this::setCursor);
+        messages.setOnCount(view::setMessageCount);
         input.setHost(this);
         variables.setHost(this);
         output.setHost(this);

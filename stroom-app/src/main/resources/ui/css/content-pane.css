@@ -16,12 +16,10 @@
     flex-direction: column;
 }
 
-/* The input and the output are data, and read as data: the surface a code editor has rather
-   than the page's (2026-09-22). The variables beside them are a reading of the data, not the
-   data, and keep the page's. */
-.content-pane {
-    background-color: var(--control__background-color);
-}
+/* The pane has the page's surface, as every design panel does (design-panel.css). For a while
+   the input and the output had a code editor's instead, to read as data (2026-09-22); with the
+   template beside them at full height and each under its own title bar, the lighter column
+   read as a different application (the owner, 2026-11-18). */
 
 .content-pane__loose-list {
     padding: 4px 12px 8px;
