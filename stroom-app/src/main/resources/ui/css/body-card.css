@@ -23,6 +23,12 @@
     cursor: grabbing;
 }
 
+/* On a list's New row, where there is nothing to drag: there, so that the row's kind stands
+   under the kinds above it, and never seen. */
+.body-card__grip--none {
+    visibility: hidden;
+}
+
 .body-card__card--dragging {
     opacity: .5;
 }
@@ -38,9 +44,10 @@
 
 /* A row of one list, not a card among cards (the owner, 2026-11-18): no gap between rows, no
    box round each, and nothing at the sides, so the body reads down as a table's rows do. What
-   is in a row steps in by how deep its list is (--card-list__depth, which CardList sets). */
+   is in a row steps in by how deep its list is (--body-card__depth, which CardList sets on
+   the list). */
 .body-card__card {
-    padding: 4px 12px 4px calc(12px + var(--card-list__depth, 0) * 16px);
+    padding: 4px 12px 4px calc(12px + var(--body-card__depth, 0) * 16px);
     font-size: 12.5px;
     cursor: pointer;
     outline: none;
@@ -103,7 +110,7 @@
     display: flex;
     gap: 8px;
     align-items: baseline;
-    padding: 2px 12px 0 calc(12px + (var(--card-list__depth, 0) + 1) * 16px);
+    padding: 2px 12px 0 calc(12px + (var(--body-card__depth, 0) + 1) * 16px);
 }
 
 .body-card__branch-key {
@@ -115,7 +122,7 @@
 
 .body-card__add-branch {
     display: inline-block;
-    padding: 2px 12px 4px calc(12px + (var(--card-list__depth, 0) + 1) * 16px);
+    padding: 2px 12px 4px calc(12px + (var(--body-card__depth, 0) + 1) * 16px);
 }
 
 /* The run's word on a card (design 18 §5.6), and its output in the card's hue. */

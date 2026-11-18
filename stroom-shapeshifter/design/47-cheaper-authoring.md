@@ -237,6 +237,9 @@ value-of if a reference is typed.* Nothing switches. The add line has no kind un
 which is when A's reading decides it; a card that exists is the kind it says, and in a `text`
 card `$1` is two characters.
 
+*The add line of these two bullets became the New row later the same day (§3 E, "The New row
+is a row"): the same things are true of it, said by a kind that reads `auto`.*
+
 **Changing the kind of a card that holds others.** A holder keeps its branches across a change
 to a kind that has a place for them, as the dialog already did. A change that has none — an
 `if` to a `text` — used to drop them without a word. It now asks first, as removing a holder
@@ -397,9 +400,8 @@ selected row, as the template panel's toolbar acts on the selected template and 
 its selected row. The rows have their whole width for what they say, and the actions are
 buttons the keyboard reaches, which the glyphs were not. That makes the selection a thing of
 its own rather than wherever the keyboard is: the row last clicked, reached with the arrows
-or opened, and it stays selected while the keyboard is in the add line or on the toolbar. **A
-row just added is the selected one**, as a grid selects the row it has been given, so
-"add it, then move it up" is still the line and one press — the rungs cost what they did.
+or opened, and it stays selected while the keyboard is on the toolbar. **A row just added is
+the selected one**, as a grid selects the row it has been given.
 Clicking a row still opens it; the toolbar acts on the open row too, taking its draft first.
 
 Two things that were found on the way. **Alt and an arrow is not a row's to take**: design 18
@@ -408,6 +410,45 @@ wherever the keyboard is, so a row leaves it alone and is moved by its buttons o
 And **a row's focus was put off to a timer**, which is how GWT focuses a panel in this
 browser, while a field's is immediate — so an add line opened from a row's own action was
 given the keyboard and then lost it to the row a moment later. A row is now focused directly.
+
+**The New row is a row** (the owner, 2026-11-18). The add line was a field at the end of
+every list: always in an edit state, though it was never the selected row, and drawn as
+nothing else in the list was. A list now ends with a row like the others — its kind reads
+`new` — which is walked to, selected and opened as they are, and is not a field until it is
+opened. Opened, it is a card's editor, the same one, whose kind reads **`auto`** until one is
+chosen: A's line, with what is typed deciding between text, value-of and the sequence of
+them. Choosing a kind changes the fields there and then, as it does for a card that exists,
+so the menu the add line's `new` opened has gone; clicking the row's kind opens it with the
+kinds offered. `auto` is offered only to a card that does not exist yet.
+
+What follows from it being the one editor:
+
+- **Insert above and below open the same card**, where it will go. There is no second kind of
+  add line among the cards, and the list still ends with its New row while one is open
+  elsewhere.
+- **Taking a new card opens another after it**, with the keyboard, so a body is still typed a
+  line and Enter at a time. **Enter on a line left empty, or Escape, is the author having
+  finished**: the keyboard goes to the row they started from, or to the row they added last.
+- **What is open is what is selected.** While a new card is open no row is the selected one
+  and the toolbar offers nothing; it used to act on the row just added while the keyboard
+  stayed in the line. So "add it, then move it up" is the line, Escape, and the press — one
+  key more than it was. **The walkthroughs no longer do that.** A card that belongs above
+  another is put there: the other row selected, insert above, and the line. Adding at the
+  end and moving up was only ever the way because there was nowhere else to add.
+- **The New row is not a card yet.** The toolbar on it offers only insert above, which opens
+  it; Delete on it removes nothing.
+
+**Measured.** The rungs cost what they did: 78 for rung 2 and 62 for rung 3, as before.
+Rungs 1 and 3 each put an opening tag above the dispatch it wraps, and insert above costs
+what add-then-move did — the row, the button, the line, where it was the field, the line, the
+button. Rung 1 counts 66 where it counted 70, and none of that is a saving: the four are
+clicks the walkthrough used to make on a field that already had the keyboard, which an
+author would not have made. The first line into a body costs what it did, a click and then
+the line: the click is on the New row where it was on the field.
+
+**Not done:** design 18 §5.6 has a card dropped on a list's add line land at its end, which
+is also how an empty branch gets its first card by dragging. The add line never took a drop
+and the New row does not yet either; a row that is like the others should.
 
 **What it costs, and what has not been looked at.** Three panes share the height one pane
 had: the input has about 210px at this size where it had 270, and it is narrower, which is

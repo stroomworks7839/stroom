@@ -137,7 +137,6 @@ public class InstructionEdit extends Component {
         // after it, not above it.
         kindGroup.addStyleName("edit-form__group--first");
         kind.addValueChangeHandler(event -> onKindChange(event));
-        kind.addItems(InstructionEditController.kinds());
         severity.setDisplayValueFunction(s -> s.name().toLowerCase(Locale.ROOT));
         severity.addItems(Severity.values());
         dispatch.setNonSelectString("project's");
@@ -256,6 +255,12 @@ public class InstructionEdit extends Component {
         return kind.getValue();
     }
 
+    /// @param kinds The kinds the card can be, in the order they are offered.
+    public void setKinds(final List<String> kinds) {
+        kind.clear();
+        kind.addItems(kinds);
+    }
+
     public void setKind(final String value) {
         kind.setValue(value, false);
     }
@@ -353,6 +358,12 @@ public class InstructionEdit extends Component {
 
     public void setFieldVisible(final int index, final boolean visible) {
         fieldGroup(index).setVisible(visible);
+    }
+
+    /// @param index Which field.
+    /// @param placeholder What the field says while it is empty, or an empty string for nothing.
+    public void setFieldPlaceholder(final int index, final String placeholder) {
+        field(index).setPlaceholder(placeholder);
     }
 
     public boolean getFlag(final int index) {

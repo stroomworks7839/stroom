@@ -257,15 +257,13 @@ public final class ShapeshifterAuthoringStories {
                 ".template-panel__mode-note")).toBeVisible());
     }
 
-    /// §5.5 step 13. The envelope's opening tag, moved above the dispatch it wraps: a card lands
-    /// at the end of the body, so the order is made by hand afterwards.
+    /// §5.5 step 13. The envelope's opening tag, put in above the dispatch it wraps: the
+    /// dispatch is the selected row, and the toolbar opens a new card above it. Nothing is
+    /// added at the end and moved up afterwards.
     private static void openTag(final Play play, final Play screen) {
         ShapeshifterEditorStories.selectTemplate(play, "document");
-        play.waitFor(() -> play.expect(play.getByLabelText(Walkthrough.ENTRY)).toBeInTheDocument());
-        Walkthrough.enter(play, "<records>\\n");
-        // The body is [apply-templates, text], and the row just added is the selected one: the
-        // toolbar's Move up puts the opening before the dispatch
-        play.click(play.getByRole("button", "Move the selected instruction up"));
+        play.waitFor(() -> play.expect(ShapeshifterEditorStories.newRow(play)).toBeInTheDocument());
+        Walkthrough.enterAbove(play, "apply-templates", "<records>\\n");
     }
 
     /// §5.5 step 14. The dispatch itself — the card the document template arrived with, told
@@ -298,20 +296,20 @@ public final class ShapeshifterAuthoringStories {
     /// the quality-of-life question this stage exists to show.
     private static void pairOpen(final Play play, final Play screen) {
         ShapeshifterEditorStories.selectTemplate(play, "pair");
-        play.waitFor(() -> play.expect(play.getByLabelText(Walkthrough.ENTRY)).toBeInTheDocument());
+        play.waitFor(() -> play.expect(ShapeshifterEditorStories.newRow(play)).toBeInTheDocument());
         Walkthrough.enter(play, " <pair key=\"");
     }
 
     /// §5.6 step 18. The first capture read back out.
     private static void valueOfKey(final Play play, final Play screen) {
-        Walkthrough.enter(play, "$1");
+        Walkthrough.enterNext(play, "$1");
     }
 
     /// §5.6 step 19. The rest of the line.
     private static void pairRest(final Play play, final Play screen) {
-        Walkthrough.enter(play, "\">");
-        Walkthrough.enter(play, "$2");
-        Walkthrough.enter(play, "</pair>\\n");
+        Walkthrough.enterNext(play, "\">");
+        Walkthrough.enterNext(play, "$2");
+        Walkthrough.enterNext(play, "</pair>\\n");
     }
 
     /// §5.7 step 21. The catch-all, in the mode it has to share with `pair`.
@@ -367,8 +365,7 @@ public final class ShapeshifterAuthoringStories {
     /// whole match, written as the field's own help describes.
     private static void warning(final Play play, final Play screen) {
         ShapeshifterEditorStories.selectTemplate(play, "junk_line");
-        play.click(ShapeshifterEditorStories.addMenu(play));
-        play.click(screen.findByText("emit-error", StroomDom.MENU_ITEM_TEXT));
+        ShapeshifterEditorStories.newCard(play, screen, "emit-error");
         final Play message = ShapeshifterEditorStories.cardEditor(play);
         // Lowercase, as the picker lists them and as the wire spells them (JsonFields.label); the
         // default is "error", so this is a real choice

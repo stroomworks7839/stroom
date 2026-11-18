@@ -834,7 +834,9 @@ strip), and the whole-input stepper (`match 6 of 12 · whole input ◀ ▶`). Tw
   inline editor, and a contextual **"+ instruction"** popup — grouped by category
   (output, invoke, control, transform), the prototype's Add-Child popup reborn — inserts a new
   card and opens it for editing. Container nodes (`if`/`choose`) hold **card lists of
-  their own**, rendered nested one level in, each branch with its own add line (revised
+  their own**, rendered nested one level in, each branch with its own add line — since
+  2026-11-18 a New row, a row like the others that opens into a new card (design 47 §3 E) —
+  (revised
   2026-08-28; the prototype drilled down into containers breadcrumb-style instead, which we
   looked at and did not take — a conditional here is usually two or three instructions,
   and nesting shows the shape of the whole body at once, where drilling down hides the

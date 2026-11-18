@@ -21,7 +21,6 @@ import stroom.shapeshifter.client.model.Bodies;
 import stroom.shapeshifter.client.model.CardNote;
 import stroom.shapeshifter.client.model.Hot;
 import stroom.shapeshifter.client.model.Instructions;
-import stroom.shapeshifter.client.model.Instructions.Category;
 import stroom.shapeshifter.client.model.Modes;
 import stroom.shapeshifter.client.model.ProjectHost;
 import stroom.shapeshifter.client.model.Templates;
@@ -42,14 +41,8 @@ import stroom.shapeshifter.shared.ShapeshifterTrace.Frame;
 import stroom.shapeshifter.shared.ShapeshifterTrace.Instruction;
 import stroom.widget.component.client.Contexts;
 import stroom.widget.component.client.Controller;
-import stroom.widget.menu.client.IconMenuItem;
-import stroom.widget.menu.client.InfoMenuItem;
-import stroom.widget.menu.client.Item;
-import stroom.widget.menu.client.ShowMenuEvent;
-import stroom.widget.popup.client.PopupPosition;
 
 import com.google.gwt.core.client.Scheduler;
-import com.google.gwt.safehtml.shared.SafeHtmlUtils;
 import com.google.inject.Inject;
 import com.google.inject.Provider;
 import com.google.web.bindery.event.shared.EventBus;
@@ -62,9 +55,10 @@ import java.util.Objects;
 import java.util.Set;
 
 /// The body as a card list (design 18 §5.6; 43 §4.2): each instruction a card with its kind and
-/// a summary, each holder's branches card lists of their own, nested one level in, each with its
-/// own add line. Click a card to edit it; the actions move it, delete it, or open an add line
-/// before or after it; a *when* or *case* head is edited and pruned on its own line. Every
+/// a summary, each holder's branches card lists of their own, nested one level in, each ending
+/// with the New row a card is added at. Click a row to open it; the toolbar moves the selected
+/// row, removes it, or opens a new card above or below it; a *when* or *case* head is edited
+/// and pruned on its own line. Every
 /// edit is a rewrite through [Bodies] landing on the host as the template's new body. What a
 /// card shows about the run — the output it wrote, the children it dispatched — is phase B.
 ///
@@ -93,9 +87,9 @@ public class BodyController extends Controller {
     private String editingPath;
     private String editingList;
     private int editingIndex;
-    // The add line opened among the cards, before insertIndex of the list at insertList.
-    private String insertList;
-    private int insertIndex;
+    // For a new card, the row the keyboard goes back to if it is dropped: the one the author
+    // was on when they asked for it.
+    private String editingFrom;
 
     @Inject
     public BodyController(final EventBus eventBus,
@@ -115,11 +109,8 @@ public class BodyController extends Controller {
         view.setOnRemove(this::onRemove);
         view.setOnMove(this::onMove);
         view.setOnDrop(this::onDrop);
-        view.setOnAdd(this::onAdd);
-        view.setOnEntry(this::onEntry);
         view.setOnEditKind(this::onEditKind);
-        view.setOnInsert(this::onInsert);
-        view.setOnInsertClosed(this::onInsertClosed);
+        view.setOnNew(this::onNew);
         view.setOnEditBranch(this::onEditBranch);
         view.setOnAddBranch(this::onAddBranch);
         view.setOnRemoveBranch(this::onRemoveBranch);
@@ -143,15 +134,9 @@ public class BodyController extends Controller {
             body = template.body();
         }
         // The same template again is a run's trace landing, or an edit made somewhere else. The
-        // draft and the add line stay only while what they were opened on is still there.
+        // draft stays only while what it was opened on is still there.
         if (editing != null && !draftFits()) {
             dropDraft();
-        }
-        if (insertList != null) {
-            final List<OutputNode> list = Bodies.list(body, Bodies.path(insertList));
-            if (list == null || insertIndex > list.size()) {
-                onInsertClosed();
-            }
         }
         applyReadOnly();
         view.setBody(body, notes(template));
@@ -361,7 +346,7 @@ public class BodyController extends Controller {
         }
         editing = make(instructionEditorProvider);
         editing.read(node, null, names(), Modes.of(host.getProject()));
-        editing.setOnCommit(this::settle);
+        editing.setOnCommit(this::commit);
         editing.setOnCancel(this::cancel);
         editingPath = at;
         editingList = null;
@@ -369,21 +354,73 @@ public class BodyController extends Controller {
         editing.focus(kind);
     }
 
-    // A new card of a kind, as a draft where it will go.
-    private void openNew(final String listPath, final int index, final String kind) {
+    /// A new card asked for: a list's New row opened, or the toolbar's insert above or below
+    /// the selected row. It is a draft where it will go, and its kind is `auto` — what is
+    /// typed says what it is — until one is chosen.
+    ///
+    /// @param listPath The list it is to go in.
+    /// @param index Where in it.
+    /// @param kind Whether the kinds are to be offered at once.
+    public void onNew(final String listPath, final int index, final boolean kind) {
+        if (readOnly) {
+            return;
+        }
+        // The row the author is on: the New row itself, or the row the toolbar was acting on
+        final String selected = view.getSelected();
         final Shift shift = settle();
         if (shift == null) {
             return;
         }
+        final String list = shift.path(listPath);
+        final int at = shift.index(listPath, index);
+        final List<OutputNode> cards = Bodies.list(body, Bodies.path(list));
+        if (cards == null || at > cards.size()) {
+            return;
+        }
+        openNew(list, at, kind, selected == null
+                ? Bodies.path(Bodies.child(Bodies.path(list), at))
+                : shift.path(selected));
+    }
+
+    // A new card, as a draft where it will go.
+    private void openNew(final String listPath, final int index, final boolean kind, final String from) {
         editing = make(instructionEditorProvider);
-        editing.read(null, kind, names(), Modes.of(host.getProject()));
-        editing.setOnCommit(this::settle);
+        editing.read(null, InstructionEditController.AUTO, names(), Modes.of(host.getProject()));
+        editing.setOnCommit(this::commit);
         editing.setOnCancel(this::cancel);
         editingPath = null;
-        editingList = shift.path(listPath);
-        editingIndex = shift.index(listPath, index);
-        view.setNewEditor(editingList, editingIndex, editing.asWidget());
-        editing.focus(false);
+        editingList = listPath;
+        editingIndex = index;
+        editingFrom = from;
+        view.setNewEditor(listPath, index, editing.asWidget());
+        editing.focus(kind);
+    }
+
+    // Enter, or OK. A card's own draft is taken, and the keyboard goes back to its row. A new
+    // card's is taken and another is opened after it, so that a body is typed a line after a
+    // line (design 47 A) — and a line left empty is the author having finished.
+    private void commit() {
+        if (editing == null) {
+            return;
+        }
+        if (editingPath != null) {
+            settle();
+            return;
+        }
+        if (editing.isAuto() && editing.getLine().isEmpty()) {
+            cancel();
+            return;
+        }
+        final String list = editingList;
+        final int index = editingIndex;
+        final Shift shift = settle();
+        if (shift == null) {
+            return;
+        }
+        // After what was put in. Dropped, the keyboard goes back to the last row that was: the
+        // author has finished adding, and what they added last is what is selected.
+        final int next = index + shift.count;
+        openNew(list, next, false, Bodies.path(Bodies.child(Bodies.path(list), next - 1)));
     }
 
     /// Takes the open draft, if there is one, before something else is done to the body.
@@ -393,6 +430,9 @@ public class BodyController extends Controller {
     private Shift settle() {
         if (editing == null) {
             return Shift.NONE;
+        }
+        if (editing.isAuto()) {
+            return takeLine();
         }
         final OutputNode written = editing.write();
         if (written == null) {
@@ -414,10 +454,32 @@ public class BodyController extends Controller {
             return null;
         }
         final Shift shift = editingPath == null
-                ? new Shift(Bodies.path(editingList), editingIndex)
+                ? new Shift(Bodies.path(editingList), editingIndex, 1)
                 : Shift.NONE;
         take(written, true);
         return shift;
+    }
+
+    // A new card whose kind was left to what was typed: the cards the line describes, put in
+    // as one edit however many they are, so that a templated line that splits into five
+    // arrives — and can be taken back — as one thing (design 47 A, ruled 2026-11-17). An empty
+    // line is no cards, and nothing to tell anyone about.
+    private Shift takeLine() {
+        final List<OutputNode> cards = Instructions.cards(editing.getLine());
+        final int[] list = Bodies.path(editingList);
+        final int index = editingIndex;
+        dropDraft();
+        if (cards.isEmpty()) {
+            return Shift.NONE;
+        }
+        List<OutputNode> next = body;
+        for (int i = 0; i < cards.size(); i++) {
+            next = Bodies.insert(next, list, index + i, cards.get(i));
+        }
+        apply(next);
+        // What was just added is the selected row, as a grid selects the row it has been given
+        view.focusCard(Bodies.path(Bodies.child(list, index + cards.size() - 1)));
+        return new Shift(list, index, cards.size());
     }
 
     // The draft, into the body. The editor goes first: the edit redraws the cards, and they
@@ -427,7 +489,6 @@ public class BodyController extends Controller {
         final String list = editingList;
         final int index = editingIndex;
         final OutputNode original = editing.getOriginal();
-        final boolean fromInsertion = path == null && list.equals(insertList) && index == insertIndex;
         dropDraft();
         if (path != null) {
             if (!written.equals(original)) {
@@ -438,44 +499,26 @@ public class BodyController extends Controller {
             }
             return;
         }
-        if (insertList != null) {
-            // The add line among the cards stays after what was put in, as it does for a line
-            final Shift shift = new Shift(Bodies.path(list), index);
-            final String movedList = shift.path(insertList);
-            insertIndex = shift.index(insertList, insertIndex);
-            insertList = movedList;
-        }
         apply(Bodies.insert(body, Bodies.path(list), index, written));
         // The new row is the selected one
-        view.select(Bodies.path(Bodies.child(Bodies.path(list), index)));
-        if (insertList != null) {
-            view.setInsertion(insertList, insertIndex);
-        }
+        final String added = Bodies.path(Bodies.child(Bodies.path(list), index));
+        view.select(added);
         if (refocus) {
-            view.focusEntry(fromInsertion
-                    ? Body.INSERT_KEY
-                    : list);
+            view.focusCard(added);
         }
     }
 
-    // Escape, or Cancel: the card as it was, or no new card, and the keyboard back where the
-    // author started from.
+    // Escape, or Cancel: the card as it was, or no new card, and the keyboard back on the row
+    // the author started from.
     private void cancel() {
         if (editing == null) {
             return;
         }
-        final String path = editingPath;
-        final String list = editingList;
-        final boolean fromInsertion = path == null && list.equals(insertList)
-                                      && editingIndex == insertIndex;
+        final String back = editingPath != null
+                ? editingPath
+                : editingFrom;
         dropDraft();
-        if (path != null) {
-            view.focusCard(path);
-        } else {
-            view.focusEntry(fromInsertion
-                    ? Body.INSERT_KEY
-                    : list);
-        }
+        view.focusCard(back);
     }
 
     // The draft let go, with nothing taken from it.
@@ -487,6 +530,7 @@ public class BodyController extends Controller {
         editing = null;
         editingPath = null;
         editingList = null;
+        editingFrom = null;
         view.clearEditor();
         release(editor);
     }
@@ -504,24 +548,12 @@ public class BodyController extends Controller {
     public void leave() {
         // The selection is a row of the body that is going
         view.select(null);
-        onInsertClosed();
         if (editing == null) {
             return;
         }
-        final OutputNode written = editing.writeQuietly();
-        final OutputNode original = editing.getOriginal();
         final String id = templateId;
         final List<OutputNode> was = body;
-        final List<OutputNode> next;
-        if (written == null || Bodies.held(written) < Bodies.held(original)) {
-            next = null;
-        } else if (editingPath != null) {
-            next = written.equals(original)
-                    ? null
-                    : Bodies.replace(body, Bodies.path(editingPath), written);
-        } else {
-            next = Bodies.insert(body, Bodies.path(editingList), editingIndex, written);
-        }
+        final List<OutputNode> next = left();
         dropDraft();
         if (next != null) {
             Scheduler.get().scheduleDeferred(() -> {
@@ -531,6 +563,33 @@ public class BodyController extends Controller {
                 }
             });
         }
+    }
+
+    // What the body would be with the draft taken as it stands, or null where it cannot be
+    // written, would drop what a holder holds, or changes nothing.
+    private List<OutputNode> left() {
+        if (editing.isAuto()) {
+            final List<OutputNode> cards = Instructions.cards(editing.getLine());
+            if (cards.isEmpty()) {
+                return null;
+            }
+            List<OutputNode> next = body;
+            for (int i = 0; i < cards.size(); i++) {
+                next = Bodies.insert(next, Bodies.path(editingList), editingIndex + i, cards.get(i));
+            }
+            return next;
+        }
+        final OutputNode written = editing.writeQuietly();
+        final OutputNode original = editing.getOriginal();
+        if (written == null || Bodies.held(written) < Bodies.held(original)) {
+            return null;
+        }
+        if (editingPath != null) {
+            return written.equals(original)
+                    ? null
+                    : Bodies.replace(body, Bodies.path(editingPath), written);
+        }
+        return Bodies.insert(body, Bodies.path(editingList), editingIndex, written);
     }
 
     // Removing the card that is open: there is nothing of its draft to keep.
@@ -548,52 +607,6 @@ public class BodyController extends Controller {
         return list != null && editingIndex <= list.size();
     }
 
-    // ---- the add line among the cards ----
-
-    /// A card asking for an add line before or after it.
-    ///
-    /// @param listPath The list the card is in.
-    /// @param index The position the line goes before.
-    public void onInsert(final String listPath, final int index) {
-        if (readOnly) {
-            return;
-        }
-        final Shift shift = settle();
-        if (shift == null) {
-            return;
-        }
-        final String list = shift.path(listPath);
-        final int at = shift.index(listPath, index);
-        final List<OutputNode> cards = Bodies.list(body, Bodies.path(list));
-        if (cards == null) {
-            return;
-        }
-        if (at >= cards.size()) {
-            // After the last card is where the list's own line already is
-            closeInsertion();
-            view.setInsertion(null, 0);
-            view.focusEntry(list);
-            return;
-        }
-        insertList = list;
-        insertIndex = at;
-        view.setInsertion(list, at);
-        view.focusEntry(Body.INSERT_KEY);
-    }
-
-    /// The add line among the cards, dismissed.
-    public void onInsertClosed() {
-        if (insertList != null) {
-            closeInsertion();
-            view.setInsertion(null, 0);
-        }
-    }
-
-    private void closeInsertion() {
-        insertList = null;
-        insertIndex = 0;
-    }
-
     public void onRemove(final String path) {
         if (readOnly) {
             return;
@@ -604,7 +617,6 @@ public class BodyController extends Controller {
         if (shift == null) {
             return;
         }
-        onInsertClosed();
         final int[] nodePath = Bodies.path(shift.path(path));
         final OutputNode node = Bodies.get(body, nodePath);
         if (node == null) {
@@ -626,7 +638,7 @@ public class BodyController extends Controller {
     }
 
     // A row taken out, and the keyboard left on the list: on the row that has come up into its
-    // place, or the one before it if it was the last, or the list's add line if it was the only.
+    // place, or the one before it if it was the last, or the list's New row if it was the only.
     private void remove(final int[] nodePath) {
         final int[] list = Bodies.parent(nodePath);
         final int index = nodePath[nodePath.length - 1];
@@ -635,11 +647,7 @@ public class BodyController extends Controller {
         if (left == null) {
             return;
         }
-        if (left.isEmpty()) {
-            view.focusEntry(Bodies.path(list));
-        } else {
-            view.focusCard(Bodies.path(Bodies.child(list, Math.min(index, left.size() - 1))));
-        }
+        view.focusCard(Bodies.path(Bodies.child(list, Math.min(index, Math.max(left.size() - 1, 0)))));
     }
 
     public void onMove(final String path, final int by) {
@@ -650,7 +658,6 @@ public class BodyController extends Controller {
         if (shift == null) {
             return;
         }
-        onInsertClosed();
         final int[] from = Bodies.path(shift.path(path));
         final List<OutputNode> next = Bodies.move(body, from, by);
         if (next != body) {
@@ -668,7 +675,6 @@ public class BodyController extends Controller {
         if (shift == null) {
             return;
         }
-        onInsertClosed();
         // A row dragged somewhere else: the selection is not followed there
         view.select(null);
         final List<OutputNode> next = Bodies.moveTo(body, Bodies.path(shift.path(fromPath)),
@@ -676,76 +682,6 @@ public class BodyController extends Controller {
         if (next != body) {
             apply(next);
         }
-    }
-
-    /// A line typed into a list, added as the cards it describes (design 47 A, ruled
-    /// 2026-11-17). One edit however many cards the line is, so a templated line that splits
-    /// into five arrives — and can be taken back — as one thing.
-    ///
-    /// @param listPath The list the line was typed into.
-    /// @param index Where in it the cards go.
-    /// @param line The line, as typed.
-    public void onEntry(final String listPath, final int index, final String line) {
-        if (readOnly) {
-            return;
-        }
-        final List<OutputNode> cards = Instructions.cards(line);
-        if (cards.isEmpty()) {
-            return;
-        }
-        final Shift shift = settle();
-        if (shift == null) {
-            return;
-        }
-        final String at = shift.path(listPath);
-        final int from = shift.index(listPath, index);
-        final int[] list = Bodies.path(at);
-        List<OutputNode> next = body;
-        for (int i = 0; i < cards.size(); i++) {
-            next = Bodies.insert(next, list, from + i, cards.get(i));
-        }
-        if (at.equals(insertList) && from <= insertIndex) {
-            // Typed into the line among the cards, or above it in the same list: the line
-            // stays after what was put in, ready for the next
-            insertIndex += cards.size();
-        }
-        apply(next);
-        // What was just added is the selected row, as a grid selects the row it has been given:
-        // the toolbar's next press is about it, though the keyboard stays in the line
-        view.select(Bodies.path(Bodies.child(list, from + cards.size() - 1)));
-        if (insertList != null) {
-            view.setInsertion(insertList, insertIndex);
-        }
-    }
-
-    /// The kinds a new card can be, grouped by category, for a list path and an index in it.
-    public void onAdd(final String listPath, final int index, final int x, final int y) {
-        if (readOnly) {
-            return;
-        }
-        final List<Item> items = new ArrayList<>();
-        int priority = 0;
-        Category group = null;
-        for (final String kind : InstructionEditController.kinds()) {
-            final Category category = kind.startsWith("(")
-                    ? null
-                    : Instructions.category(kind);
-            if (category != group) {
-                group = category;
-                items.add(InfoMenuItem.builder().text(SafeHtmlUtils.fromString(category == null
-                        ? "any"
-                        : category.label())).build());
-            }
-            items.add(new IconMenuItem.Builder()
-                    .priority(priority++)
-                    .text(kind)
-                    .command(() -> openNew(listPath, index, kind))
-                    .build());
-        }
-        ShowMenuEvent.builder()
-                .items(items)
-                .popupPosition(new PopupPosition(x, y))
-                .fire(this);
     }
 
     // ---- the branches ----
@@ -863,7 +799,6 @@ public class BodyController extends Controller {
         if (locked) {
             // Nothing can be taken into a body that cannot be changed
             dropDraft();
-            onInsertClosed();
         }
         view.setReadOnly(locked);
     }
@@ -873,27 +808,35 @@ public class BodyController extends Controller {
     /// clicked, the place they dropped something — is one further on than it was.
     private static final class Shift {
 
-        private static final Shift NONE = new Shift(null, 0);
+        private static final Shift NONE = new Shift(null, 0, 0);
 
         private final int[] list;
         private final int index;
+        // How many cards went in: one, or as many as a line described.
+        private final int count;
 
-        private Shift(final int[] list, final int index) {
+        private Shift(final int[] list, final int index, final int count) {
             this.list = list;
             this.index = index;
+            this.count = count;
         }
 
         // A node path or a list path, as it reads now.
         private String path(final String path) {
-            return list == null
-                    ? path
-                    : Bodies.path(Bodies.shiftForInsert(Bodies.path(path), list, index));
+            if (list == null) {
+                return path;
+            }
+            int[] moved = Bodies.path(path);
+            for (int i = 0; i < count; i++) {
+                moved = Bodies.shiftForInsert(moved, list, index);
+            }
+            return Bodies.path(moved);
         }
 
         // A position in a list, given the list's path as it read before.
         private int index(final String listPath, final int at) {
             return list != null && Bodies.path(list).equals(listPath) && at >= index
-                    ? at + 1
+                    ? at + count
                     : at;
         }
     }

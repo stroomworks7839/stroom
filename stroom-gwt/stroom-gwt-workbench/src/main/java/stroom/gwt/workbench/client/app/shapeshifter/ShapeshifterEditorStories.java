@@ -432,12 +432,12 @@ public final class ShapeshifterEditorStories {
 
                     // A pane below follows too: the body offers nowhere to add a card read only
                     selectTemplate(play, "pair");
-                    play.waitFor(() -> play.expect(addMenu(play)).toBeInTheDocument());
+                    play.waitFor(() -> play.expect(newRow(play)).toBeInTheDocument());
 
                     play.run("lock the document", () -> readAgain(true));
                     play.expect(play.findByRole("button", "Save (read only)")).toBeInTheDocument();
                     play.expect(play.getByText("Read only", ".link-tab-panel__read-only-note")).toBeVisible();
-                    play.waitFor(() -> play.expect(play.queryByRole("button", ADD_MENU)).toBeNull());
+                    play.waitFor(() -> play.expect(play.queryByText(NEW_ROW, CARD_KIND)).toBeNull());
                     // The panel is still drawn: locking narrows what may be changed, it doesn't
                     // empty the tab
                     play.expect(play.getByText("pair", TEMPLATE_NAME)).toBeInTheDocument();
@@ -445,7 +445,7 @@ public final class ShapeshifterEditorStories {
                     play.run("unlock the document", () -> readAgain(false));
                     play.expect(play.findByRole("button", "Save")).toBeInTheDocument();
                     play.expect(play.queryByText("Read only", ".link-tab-panel__read-only-note")).toBeNull();
-                    play.waitFor(() -> play.expect(addMenu(play)).toBeInTheDocument());
+                    play.waitFor(() -> play.expect(newRow(play)).toBeInTheDocument());
                     play.expect(play.getByText("pair", TEMPLATE_NAME)).toBeInTheDocument();
                     expectNoProblems(play);
                 })
@@ -511,14 +511,14 @@ public final class ShapeshifterEditorStories {
                 .story("LockChangeWithoutReread", context -> render(context, false))
                 .withPlay(play -> {
                     selectTemplate(play, "pair");
-                    play.waitFor(() -> play.expect(addMenu(play)).toBeInTheDocument());
+                    play.waitFor(() -> play.expect(newRow(play)).toBeInTheDocument());
                     play.run("lock the document, without reading it again", () ->
                             host().setReadOnly(true));
                     // The body pane below the document follows the lock on its own
-                    play.waitFor(() -> play.expect(play.queryByRole("button", ADD_MENU)).toBeNull());
+                    play.waitFor(() -> play.expect(play.queryByText(NEW_ROW, CARD_KIND)).toBeNull());
                     play.run("unlock the document, without reading it again", () ->
                             host().setReadOnly(false));
-                    play.waitFor(() -> play.expect(addMenu(play)).toBeInTheDocument());
+                    play.waitFor(() -> play.expect(newRow(play)).toBeInTheDocument());
                     expectNoProblems(play);
                 })
 
@@ -767,42 +767,43 @@ public final class ShapeshifterEditorStories {
                                   > before[0] + 150).toEqual(true));
                     expectNoProblems(play);
                 })
-                // A line typed into the body's entry field adds the cards it describes (design
+                // A line typed into the body's New row adds the cards it describes (design
                 // 47 A): text is a text card, `$1` a value-of card, and a line that mixes them
                 // is split into the sequence. And the half of this that no assertion about cards
                 // can show: **a line being typed survives the body being drawn again.** A run's
                 // trace lands a moment after every edit and redraws the cards to say what each
-                // wrote, which replaces the field — so what is typed, and the keyboard, have to
-                // be carried into the new one or the run of the last card wipes the next.
-                .story("EntryFieldAddsCardsAndSurvivesARun", context -> render(context, false))
+                // wrote — so what is typed, and the keyboard, have to be carried across or the
+                // run of the last card wipes the next.
+                .story("ALineAddsCardsAndSurvivesARun", context -> render(context, false))
                 .withPlay(play -> {
                     selectTemplate(play, "junk_line");
-                    play.waitFor(() -> play.expect(play.getByLabelText(Walkthrough.ENTRY))
-                            .toBeInTheDocument());
-                    // junk_line arrives with one card, its emit-error
-                    play.expect(play.querySelectorAll(CARD_KIND).count()).toEqual(1);
+                    play.waitFor(() -> play.expect(newRow(play)).toBeInTheDocument());
+                    // junk_line arrives with one card, its emit-error, and the list ends with
+                    // its New row
+                    play.expect(play.querySelectorAll(CARD_KIND).textContents())
+                            .toEqual(Arrays.asList("emit-error", NEW_ROW));
 
                     // A templated line, split: text, value-of, text
                     Walkthrough.enter(play, "<junk>$0</junk>");
                     play.waitFor(() -> play.expect(play.querySelectorAll(CARD_KIND).textContents())
                             .toEqual(Arrays.asList("emit-error", "text", "value-of", "text")));
 
-                    // Half a line, and then the run that edit set off lands. The field on screen
-                    // afterwards is a different element from the one typed into — which is what
-                    // proves the cards were drawn again — and it holds the same text and the
-                    // keyboard.
+                    // Half a line, into the card that opened after those, and then the run that
+                    // edit set off lands. The first row on screen afterwards is a different
+                    // element — which is what proves the cards were drawn again — and the line
+                    // holds the same text and the keyboard.
                     final Spy requests = play.spy(ScreenHarness.REQUEST_SPY);
                     final int[] runs = {0};
                     final Element[] before = {null};
                     play.keyboard("costs $$");
-                    play.run("note the field and the runs so far", () -> {
-                        before[0] = play.getByLabelText(Walkthrough.ENTRY).element().get();
+                    play.run("note the first row and the runs so far", () -> {
+                        before[0] = play.getByText("emit-error", CARD_KIND).element().get();
                         runs[0] = requests.getCalls().size();
                     });
                     play.waitFor(() -> play.expect("a run since the line was started",
                             () -> requests.getCalls().size() > runs[0]).toEqual(true));
-                    play.waitFor(() -> play.expect("the field was drawn again",
-                            () -> play.getByLabelText(Walkthrough.ENTRY).element().get()
+                    play.waitFor(() -> play.expect("the rows were drawn again",
+                            () -> play.getByText("emit-error", CARD_KIND).element().get()
                                   != before[0]).toEqual(true));
                     play.expect(play.getByLabelText(Walkthrough.ENTRY).value()).toEqual("costs $$");
                     play.expect(play.getByLabelText(Walkthrough.ENTRY)).toHaveFocus();
@@ -815,33 +816,33 @@ public final class ShapeshifterEditorStories {
                     play.expect(play.getByText(TextMatch.containing("costs $5"))).toBeInTheDocument();
                     expectNoProblems(play);
                 })
-                // The add line's kind offers the kinds on a menu; picking one turns the line into
-                // that kind's editor, in place (design 47 D), and OK takes it
+                // The New row's kind offers the kinds; choosing one makes the row that kind's
+                // editor, in place (design 47 D), and OK takes it
                 .story("NewCardOk", context -> render(context, false))
                 .withPlay(play -> {
                     final Play screen = play.screen();
                     selectTemplate(play, "pair");
-                    play.waitFor(() -> play.expect(addMenu(play)).toBeInTheDocument());
-                    play.click(addMenu(play));
-                    // The kinds are a menu on the page's body, not in the canvas
-                    play.click(screen.findByText("text", StroomDom.MENU_ITEM_TEXT));
+                    play.waitFor(() -> play.expect(newRow(play)).toBeInTheDocument());
+                    newCard(play, screen, "text");
                     final Play card = cardEditor(play);
                     // In the list, where the card will be, and not over it: there is no dialog
                     play.expect(screen.queryByText(TextMatch.regex("text", "i"), StroomDom.DIALOG_TITLE))
                             .toBeNull();
-                    // The line it was started from has given way to it
-                    play.expect(play.queryByLabelText(Walkthrough.ENTRY)).toBeNull();
-                    card.type(card.getByRole("textbox").first(), "hello");
+                    // The row it was opened from has given way to it
+                    play.expect(play.queryByText(NEW_ROW, CARD_KIND)).toBeNull();
+                    play.waitFor(() -> play.expect(card.getByLabelText("Text")).toBeVisible());
+                    card.type(card.getByLabelText("Text"), "hello");
                     // Nothing has reached the project yet: what the card holds is a draft
                     play.expect(play.getByRole("button", "Save")).toHaveAttribute("aria-disabled", "true");
                     play.click(card.getByRole("button", StroomDom.button("OK")));
-                    expectNoCardOpen(play);
                     // A card for it joins the body, and the document has work to save
                     play.waitFor(() -> play.expect(play.getAllByText("text", CARD_KIND).count())
                             .toSatisfy("a fourth text card", count -> ((Integer) count) == 4));
                     play.expect(play.getByRole("button", "Save")).not().toHaveAttribute("aria-disabled");
-                    // and the line is back, with the keyboard, for the next card
+                    // and another is open after it, its kind left to what is typed, with the
+                    // keyboard for the next
                     play.waitFor(() -> play.expect(play.getByLabelText(Walkthrough.ENTRY)).toHaveFocus());
+                    play.expect(play.getByLabelText("Instruction")).toHaveValue("auto");
                     expectNoProblems(play);
                 })
                 // Cancel adds no card and leaves the document clean
@@ -849,18 +850,19 @@ public final class ShapeshifterEditorStories {
                 .withPlay(play -> {
                     final Play screen = play.screen();
                     selectTemplate(play, "pair");
-                    play.waitFor(() -> play.expect(addMenu(play)).toBeInTheDocument());
-                    play.click(addMenu(play));
-                    play.click(screen.findByText("text", StroomDom.MENU_ITEM_TEXT));
+                    play.waitFor(() -> play.expect(newRow(play)).toBeInTheDocument());
+                    newCard(play, screen, "text");
                     final Play card = cardEditor(play);
-                    card.type(card.getByRole("textbox").first(), "hello");
+                    play.waitFor(() -> play.expect(card.getByLabelText("Text")).toBeVisible());
+                    card.type(card.getByLabelText("Text"), "hello");
                     play.click(card.getByRole("button", StroomDom.button("Cancel")));
                     expectNoCardOpen(play);
                     // The pair template's three text cards, as the fixture has them
                     play.expect(play.getAllByText("text", CARD_KIND).count())
                             .toSatisfy("still three text cards", count -> ((Integer) count) == 3);
                     play.expect(play.getByRole("button", "Save")).toHaveAttribute("aria-disabled", "true");
-                    play.waitFor(() -> play.expect(play.getByLabelText(Walkthrough.ENTRY)).toHaveFocus());
+                    // The New row is a row again, and the keyboard is on it
+                    play.waitFor(() -> play.expect(newRow(play)).toHaveFocus());
                     expectNoProblems(play);
                 })
                 // Adding a pattern part asks for its name first: the name prompt, which several
@@ -1713,9 +1715,10 @@ public final class ShapeshifterEditorStories {
         host.read(host.getDocRef(), host.getEntity());
     }
 
-    // The kind on the line that adds to a card list: it reads `new`, and its menu makes the line
-    // any kind's editor, in place (design 47 D). The line's field is design 47 A's.
-    static final String ADD_MENU = "New instruction of any kind";
+    // The kind of the row a card list ends with, where a card is added. It is a row like the
+    // others; opened, it is a card's editor whose kind is `auto` — what is typed says what it
+    // is (design 47 A) — until one is chosen (design 47 D).
+    static final String NEW_ROW = "new";
 
     // A card's line, by its kind. Clicking the line opens the card where it is; clicking the
     // kind itself opens it with the kinds offered, which a story opening a card to read or
@@ -1735,8 +1738,17 @@ public final class ShapeshifterEditorStories {
         play.waitFor(() -> play.expect(play.queryByLabelText("Instruction")).toBeNull());
     }
 
-    static Query addMenu(final Play play) {
-        return play.getByRole("button", ADD_MENU);
+    // The body's New row. A body whose cards hold lists of their own has one for each, and
+    // this is for the bodies that have the one.
+    static Query newRow(final Play play) {
+        return cardLine(play, NEW_ROW);
+    }
+
+    // A new card of a kind: the New row's kind clicked, which opens it with the kinds offered,
+    // and one chosen from them.
+    static void newCard(final Play play, final Play screen, final String kind) {
+        play.click(play.getByText(NEW_ROW, CARD_KIND));
+        play.click(screen.findByText(kind, SELECTION_ITEM));
     }
 
     // Run sits on the document's toolbar, beside Save, whichever tab is showing
@@ -1798,19 +1810,6 @@ public final class ShapeshifterEditorStories {
                                      final Query box, final String item) {
         play.click(box);
         play.click(screen.findByText(item, SELECTION_ITEM));
-    }
-
-    // One body instruction, added from the add line's kind menu and taken with OK, with the
-    // one field the kinds used here need (design 46 §5.5-§5.7).
-    static void addInstruction(final Play play, final Play screen,
-                                       final String kind, final String value) {
-        play.click(addMenu(play));
-        // The kinds are a menu on the page's body, not in the canvas
-        play.click(screen.findByText(kind, StroomDom.MENU_ITEM_TEXT));
-        final Play card = cardEditor(play);
-        card.type(card.getByRole("textbox").first(), value);
-        play.click(card.getByRole("button", StroomDom.button("OK")));
-        expectNoCardOpen(play);
     }
 
     // The project the editor last sent for validation, which is the project it is holding.

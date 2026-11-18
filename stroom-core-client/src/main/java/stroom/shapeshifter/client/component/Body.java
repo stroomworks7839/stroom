@@ -34,7 +34,6 @@ import com.google.gwt.user.client.ui.Widget;
 import com.google.inject.Inject;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -80,21 +79,6 @@ public class Body extends Component {
         }
 
         @Override
-        public void onAdd(final String listPath, final int index, final int x, final int y) {
-            Body.this.addHandler.onAdd(listPath, index, x, y);
-        }
-
-        @Override
-        public void onEntry(final String listPath, final int index, final String line) {
-            Body.this.entryHandler.onEntry(listPath, index, line);
-        }
-
-        @Override
-        public void onEntryShown(final String key, final Entry entry) {
-            entries.put(key, entry);
-        }
-
-        @Override
         public void onCardShown(final String path, final Row row) {
             shown.put(path, row);
         }
@@ -137,13 +121,8 @@ public class Body extends Component {
         }
 
         @Override
-        public void onInsert(final String listPath, final int index) {
-            Body.this.onInsert.accept(listPath, index);
-        }
-
-        @Override
-        public void onInsertClosed() {
-            Body.this.onInsertClosed.run();
+        public void onNew(final String listPath, final int index, final boolean kind) {
+            Body.this.newHandler.onNew(listPath, index, kind);
         }
 
         @Override
@@ -159,11 +138,6 @@ public class Body extends Component {
                    && index == editorIndex
                     ? editor
                     : null;
-        }
-
-        @Override
-        public boolean insertingAt(final String listPath, final int index) {
-            return listPath.equals(insertList) && index == insertIndex;
         }
 
         @Override
@@ -194,22 +168,14 @@ public class Body extends Component {
     };
     private DropHandler dropHandler = (fromPath, toListPath, index) -> {
     };
-    private AddHandler addHandler = (listPath, index, x, y) -> {
-    };
-    private EntryHandler entryHandler = (listPath, index, line) -> {
-    };
     private Consumer<String> onEditKind = path -> {
     };
-    private BiConsumer<String, Integer> onInsert = (listPath, index) -> {
+    private NewHandler newHandler = (listPath, index, kind) -> {
     };
-    private Runnable onInsertClosed = () -> {
-    };
-    // Every add line's entry field in the drawing on screen: a list's own by its list path, and
-    // the one opened among the cards by INSERT_KEY.
-    private final Map<String, Entry> entries = new HashMap<>();
     // Every row in the drawing on screen, by its path, in the order they are drawn: a holder's
     // rows come after it and before the row that follows it, which is the order the arrow keys
-    // walk them in.
+    // walk them in. A list's last row is its New row, which is where a card would go: it has
+    // the path the next card of the list will have.
     private final Map<String, Row> shown = new LinkedHashMap<>();
     // The selected row: the one the keyboard or the pointer was last on, or that is open. It is
     // what the toolbar acts on, and it is the rows' one tab stop between them (the first row,
@@ -217,22 +183,13 @@ public class Body extends Component {
     // selection has gone to ([#select]) or it would land on whatever came into its place.
     private String current;
 
-    /// The key the add line opened among the cards is kept under: there is one at a time, and
-    /// it moves, so it is not named after where it is.
-    public static final String INSERT_KEY = "+";
-
     // The open card's editor (design 47 D): in place of the card at editorPath, or, when that
     // is null, as a new card at editorIndex of the list at editorList.
     private Widget editor;
     private String editorPath;
     private String editorList;
     private int editorIndex;
-    // The add line opened among the cards, before insertIndex of the list at insertList.
-    private String insertList;
-    private int insertIndex;
-    // Where the keyboard goes once the cards are next drawn: an add line's key, or a card's
-    // path. What is asked for last wins.
-    private String focusEntryNext;
+    // The row the keyboard goes to once the cards are next drawn.
     private String focusCardNext;
     private BiConsumer<String, Integer> onEditBranch = (path, branch) -> {
     };
@@ -267,9 +224,9 @@ public class Body extends Component {
         action(up, SvgImage.UP, "Move the selected instruction up", () -> onMove.accept(current, -1));
         action(down, SvgImage.DOWN, "Move the selected instruction down", () -> onMove.accept(current, 1));
         action(above, SvgImage.ADD_ABOVE, "Insert an instruction above the selected one",
-                () -> onInsert.accept(listOf(current), indexOf(current)));
+                () -> newHandler.onNew(listOf(current), indexOf(current), false));
         action(below, SvgImage.ADD_BELOW, "Insert an instruction below the selected one",
-                () -> onInsert.accept(listOf(current), indexOf(current) + 1));
+                () -> newHandler.onNew(listOf(current), indexOf(current) + 1, false));
         action(remove, SvgImage.DELETE, "Remove the selected instruction", () -> onRemove.accept(current));
         enableActions();
     }
@@ -320,18 +277,21 @@ public class Body extends Component {
                 ? null
                 : shown.get(current);
         final boolean selected = enabled && row != null;
-        up.setEnabled(selected && !row.isFirst());
-        down.setEnabled(selected && !row.isLast());
+        // A list's New row is not a card yet: one can be put before it, which is to say in it,
+        // and there is nothing of it to move, to remove or to come after.
+        final boolean card = selected && row.isCard();
+        up.setEnabled(card && !row.isFirst());
+        down.setEnabled(card && !row.isLast());
         above.setEnabled(selected);
-        below.setEnabled(selected);
-        remove.setEnabled(selected);
+        below.setEnabled(card);
+        remove.setEnabled(card);
     }
 
 
     @Override
     protected void onReadOnlyChange(final boolean readOnly) {
         this.enabled = !readOnly;
-        draw();
+        draw(true);
     }
 
     public void setBody(final List<OutputNode> body, final List<CardNote> notes) {
@@ -341,7 +301,7 @@ public class Body extends Component {
         this.notes = notes == null
                 ? List.of()
                 : notes;
-        draw();
+        draw(true);
     }
 
     // The cards are built with read-only in force, so a change of it draws them again: the hook
@@ -349,12 +309,16 @@ public class Body extends Component {
     //
     // And a drawing is not only the author's own edits. A run's trace lands a moment after every
     // edit and redraws the cards to say what each wrote — so without care, a line being typed
-    // into an entry field would be wiped, and the keyboard taken away, by the run of the card
-    // before it. What is typed and where the keyboard is are therefore carried across.
+    // would be wiped, and the keyboard taken away, by the run of the card before it.
     //
-    // The open card's editor is carried too, as the widget it is: it is a draft, and drawing it
-    // afresh would lose what has been typed into it. If the keyboard was in it, it goes back.
-    private void draw() {
+    // The open card's editor is therefore carried across, as the widget it is: it is a draft,
+    // and drawing it afresh would lose what has been typed into it. If the keyboard was in it,
+    // it goes back.
+    //
+    // A row the keyboard was on gets it back as well, unless a card is being opened: the
+    // keyboard is then on its way into the card, and a row given it here would take the
+    // selection with it — a row says it is selected while the card that is open is another.
+    private void draw(final boolean keepRow) {
         final Element active = editor == null
                 ? null
                 : activeElement();
@@ -366,37 +330,15 @@ public class Body extends Component {
                 focusedRow = row.getKey();
             }
         }
-        final Map<String, String> typed = new HashMap<>();
-        String focused = null;
-        for (final Map.Entry<String, Entry> shown : entries.entrySet()) {
-            if (!shown.getValue().getText().isEmpty()) {
-                typed.put(shown.getKey(), shown.getValue().getText());
-            }
-            if (shown.getValue().isFocused()) {
-                focused = shown.getKey();
-            }
-        }
-        entries.clear();
         shown.clear();
         cards.clear();
         list = new CardList(new int[0], body, notes, cardActions, enabled, false);
         cards.add(list);
-        for (final Map.Entry<String, String> kept : typed.entrySet()) {
-            final Entry entry = entries.get(kept.getKey());
-            if (entry != null) {
-                entry.setText(kept.getValue());
-            }
-        }
-        final Entry entry = focused == null
-                ? null
-                : entries.get(focused);
         tabStops();
         enableActions();
         if (inEditor) {
             active.focus();
-        } else if (entry != null) {
-            entry.focus();
-        } else if (focusedRow != null && shown.containsKey(focusedRow)) {
+        } else if (keepRow && focusedRow != null && shown.containsKey(focusedRow)) {
             shown.get(focusedRow).focus();
         }
         focusPending();
@@ -418,10 +360,6 @@ public class Body extends Component {
 
     // The keyboard, put where it was last asked to go, if that is on screen yet.
     private void focusPending() {
-        if (focusEntryNext != null && entries.containsKey(focusEntryNext)) {
-            entries.get(focusEntryNext).focus();
-            focusEntryNext = null;
-        }
         if (focusCardNext != null && shown.containsKey(focusCardNext)) {
             shown.get(focusCardNext).focus();
             focusCardNext = null;
@@ -441,30 +379,32 @@ public class Body extends Component {
         current = path;
         this.editor = editor;
         // The keyboard is going into the editor, not wherever it was last asked to go
-        focusEntryNext = null;
         focusCardNext = null;
         this.editorPath = path;
         this.editorList = null;
-        draw();
+        draw(false);
         // All of it, and not only the field the keyboard is about to go into: the body is a
         // short pane, and the way out of the card is at its end
         editor.getElement().scrollIntoView();
     }
 
-    /// Shows an editor for a card that does not exist yet, where it will go.
+    /// Shows an editor for a card that does not exist yet, where it will go: among the cards,
+    /// or in place of the list's New row when that is where it goes.
     ///
     /// @param listPath The list it will go in.
     /// @param index Where in it.
     /// @param editor The editor.
     public void setNewEditor(final String listPath, final int index, final Widget editor) {
+        // What is open is what is selected, and this is not a row yet: no row says it is the
+        // selected one while the keyboard is in a card that is not it.
+        current = null;
         this.editor = editor;
         // The keyboard is going into the editor, not wherever it was last asked to go
-        focusEntryNext = null;
         focusCardNext = null;
         this.editorPath = null;
         this.editorList = listPath;
         this.editorIndex = index;
-        draw();
+        draw(false);
         // All of it, and not only the field the keyboard is about to go into: the body is a
         // short pane, and the way out of the card is at its end
         editor.getElement().scrollIntoView();
@@ -476,35 +416,16 @@ public class Body extends Component {
             editor = null;
             editorPath = null;
             editorList = null;
-            draw();
+            draw(true);
         }
     }
 
-    /// Opens an add line among the cards, or moves the one that is open.
+    /// Puts the keyboard on a row, now if it is on screen and otherwise when it next is.
     ///
-    /// @param listPath The list to add to, or null for none.
-    /// @param index The card it goes before.
-    public void setInsertion(final String listPath, final int index) {
-        insertList = listPath;
-        insertIndex = index;
-        draw();
-    }
-
-    /// Puts the keyboard in an add line, now if it is on screen and otherwise when it next is.
-    ///
-    /// @param key The list's path, or [#INSERT_KEY] for the line opened among the cards.
-    public void focusEntry(final String key) {
-        focusEntryNext = key;
-        focusCardNext = null;
-        focusPending();
-    }
-
-    /// Puts the keyboard on a card, now if it is on screen and otherwise when it next is.
-    ///
-    /// @param path The card's path.
+    /// @param path The row's path: a card's, or for a list's New row the path its next card
+    ///             will have.
     public void focusCard(final String path) {
         focusCardNext = path;
-        focusEntryNext = null;
         focusPending();
     }
 
@@ -568,29 +489,15 @@ public class Body extends Component {
         this.dropHandler = dropHandler;
     }
 
-    /// @param entryHandler Told when a line is typed into a list.
-    public void setOnEntry(final EntryHandler entryHandler) {
-        this.entryHandler = entryHandler;
-    }
-
-    /// @param addHandler Told when add.
-    public void setOnAdd(final AddHandler addHandler) {
-        this.addHandler = addHandler;
-    }
-
     /// @param onEditKind Told when a card's kind is clicked: open it, with the kinds offered.
     public void setOnEditKind(final Consumer<String> onEditKind) {
         this.onEditKind = onEditKind;
     }
 
-    /// @param onInsert Told when a card asks for an add line before or after it.
-    public void setOnInsert(final BiConsumer<String, Integer> onInsert) {
-        this.onInsert = onInsert;
-    }
-
-    /// @param onInsertClosed Told when the add line among the cards is dismissed.
-    public void setOnInsertClosed(final Runnable onInsertClosed) {
-        this.onInsertClosed = onInsertClosed;
+    /// @param newHandler Told when a new card is asked for: a list's New row opened, or the
+    ///                   toolbar's insert above or below the selected row.
+    public void setOnNew(final NewHandler newHandler) {
+        this.newHandler = newHandler;
     }
 
     /// @param onEditBranch Told when editbranch.
@@ -619,36 +526,21 @@ public class Body extends Component {
         void onDrop(final String fromPath, final String toListPath, final int index);
     }
 
-    /// What [#setOnAdd] is given.
-    /// Told a line was typed into a list's entry field (design 47 A).
-    public interface EntryHandler {
+    /// What [#setOnNew] is given.
+    public interface NewHandler {
 
-        /// @param listPath The list the line was typed into.
-        /// @param index Where in it the cards go.
-        /// @param line The line, as typed.
-        void onEntry(String listPath, int index, String line);
+        /// @param listPath The list the card is to go in.
+        /// @param index Where in it.
+        /// @param kind Whether the kinds are to be offered at once.
+        void onNew(String listPath, int index, boolean kind);
     }
 
-    /// A list's entry field, as the body needs it: enough to carry what is being typed, and the
-    /// keyboard, from one drawing of the cards to the next.
-    public interface Entry {
-
-        /// @return What the field holds.
-        String getText();
-
-        /// @param text What the field is to hold.
-        void setText(String text);
-
-        /// @return Whether the keyboard is in the field.
-        boolean isFocused();
-
-        /// Puts the keyboard in the field.
-        void focus();
-    }
-
-    /// A card's row, as the body needs it: enough to put the keyboard on it, to know it is
-    /// there, and to say whether Tab stops at it.
+    /// A row, as the body needs it: enough to put the keyboard on it, to know it is there, and
+    /// to say whether Tab stops at it. A card's, or a list's New row.
     public interface Row {
+
+        /// @return Whether the row is a card, rather than the New row a list ends with.
+        boolean isCard();
 
         /// Puts the keyboard on the row.
         void focus();
@@ -677,16 +569,6 @@ public class Body extends Component {
         LAST
     }
 
-    public interface AddHandler {
-
-        /// @param listPath The list path.
-        /// @param index The index.
-        /// @param x The x.
-        /// @param y The y.
-
-        void onAdd(final String listPath, final int index, final int x, final int y);
-    }
-
     /// What a card deep in the body tells the component, which passes it on to its controller
     /// through the callbacks above. The cards are nested, so this travels down the tree with them.
     public interface CardActions {
@@ -712,17 +594,9 @@ public class Body extends Component {
         /// @param index      Where in that list.
         void onDrop(String fromPath, String toListPath, int index);
 
-        /// @param listPath The list a line was typed into.
-        /// @param index    Where in it the cards go.
-        /// @param line     The line, as typed.
-        void onEntry(String listPath, int index, String line);
-
-        /// @param key   The list's path, or [Body#INSERT_KEY] for the line among the cards.
-        /// @param entry The field that has been drawn.
-        void onEntryShown(String key, Entry entry);
-
-        /// @param path The path of a card that has been drawn.
-        /// @param row  The card's row, as the body needs it.
+        /// @param path The path of a row that has been drawn: a card's, or for a list's New
+        ///             row the path its next card will have.
+        /// @param row  The row, as the body needs it.
         void onCardShown(String path, Row row);
 
         /// @param path The path of the card the keyboard has arrived on.
@@ -735,12 +609,10 @@ public class Body extends Component {
         /// @param path The node's path: open it, with the kinds offered.
         void onEditKind(String path);
 
-        /// @param listPath The list to open an add line in.
-        /// @param index    The card it goes before.
-        void onInsert(String listPath, int index);
-
-        /// The add line among the cards has been dismissed.
-        void onInsertClosed();
+        /// @param listPath The list a new card is asked for in.
+        /// @param index    Where in it.
+        /// @param kind     Whether the kinds are to be offered at once.
+        void onNew(String listPath, int index, boolean kind);
 
         /// @param path A card's path.
         /// @return The editor open in its place, or null.
@@ -750,17 +622,6 @@ public class Body extends Component {
         /// @param index    A position in it.
         /// @return The editor of a new card that will go there, or null.
         Widget newEditorAt(String listPath, int index);
-
-        /// @param listPath A list's path.
-        /// @param index    A position in it.
-        /// @return Whether an add line is open before that position.
-        boolean insertingAt(String listPath, int index);
-
-        /// @param listPath The list to add to.
-        /// @param index    Where in it.
-        /// @param x        Where the menu goes.
-        /// @param y        Where the menu goes.
-        void onAdd(String listPath, int index, int x, int y);
 
         /// @param path   The node's path.
         /// @param branch Which branch.

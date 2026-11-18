@@ -43,12 +43,17 @@ import com.google.gwt.user.client.ui.Widget;
 import java.util.List;
 
 /// One instruction, as a row of the body's list: kind · summary · the run's note, and for a holder its
-/// branches beneath — each a head (then / when … / otherwise / case … / default), a nested
-/// list, and an add line. The rows are one list with no gaps between them (the owner,
+/// branches beneath — each a head (then / when … / otherwise / case … / default) and a nested
+/// list. The rows are one list with no gaps between them (the owner,
 /// 2026-11-18): the keyboard is on one of them at a time, and the arrow keys move it.
 ///
 /// Clicked, or Enter pressed on it, the card opens: its line gives way to its editor, in place
 /// (design 47 D). Clicking its kind opens it with the kinds offered.
+///
+/// **A list ends with a New row** ([#newRow]), which is a row like the others and not a field
+/// waiting to be typed into (the owner, 2026-11-18): it is selected and walked to as they are,
+/// its kind reads `new`, and opened it is a card's editor whose kind is `auto` until one is
+/// chosen.
 public class BodyCard extends Composite {
 
     private static final Binder BINDER = GWT.create(Binder.class);
@@ -73,6 +78,8 @@ public class BodyCard extends Composite {
 
     private final int[] path;
     private final Body.CardActions handlers;
+    // Whether this is a list's New row rather than a card.
+    private final boolean fresh;
     /// The card being dragged, across every card on the page. The drag data would be the tidier
     /// home for it, but a drag within one page has one subject at a time and reading the data
     /// during dragover is not allowed by the browser — which is exactly when the drop indicator
@@ -84,52 +91,9 @@ public class BodyCard extends Composite {
                     final boolean topLevel) {
         this.path = Bodies.child(listPath, index);
         this.handlers = handlers;
+        this.fresh = false;
         initWidget(BINDER.createAndBindUi(this));
-        head.addClickHandler(event -> onHead(event));
-        head.addKeyDownHandler(event -> onKey(event));
-        final boolean[] focused = {false};
-        head.addFocusHandler(event -> {
-            focused[0] = true;
-            handlers.onCardFocused(Bodies.path(path));
-        });
-        head.addBlurHandler(event -> focused[0] = false);
-        kind.addClickHandler(event -> onKind(event));
-        handlers.onCardShown(Bodies.path(path), new Body.Row() {
-            @Override
-            public void focus() {
-                // The element's own focus, which is immediate. The panel's setFocus is put off
-                // to a timer in this browser, and would then take the keyboard back from
-                // whatever was given it next — an add line, a field of the row just opened.
-                head.getElement().focus();
-            }
-
-            @Override
-            public boolean isFocused() {
-                return focused[0];
-            }
-
-            @Override
-            public void setTabStop(final boolean stop) {
-                head.setTabIndex(stop
-                        ? 0
-                        : -1);
-            }
-
-            @Override
-            public void setSelected(final boolean selected) {
-                head.setStyleName("body-card__card--selected", selected);
-            }
-
-            @Override
-            public boolean isFirst() {
-                return index == 0;
-            }
-
-            @Override
-            public boolean isLast() {
-                return index == count - 1;
-            }
-        });
+        row(index, count);
         final Widget editor = enabled
                 ? handlers.editorOf(Bodies.path(path))
                 : null;
@@ -188,6 +152,89 @@ public class BodyCard extends Composite {
                 branches.add(addBranch);
             }
         }
+    }
+
+    // A list's New row: where its next card will go, so it has the path that card will have.
+    private BodyCard(final int[] listPath, final int index, final Body.CardActions handlers) {
+        this.path = Bodies.child(listPath, index);
+        this.handlers = handlers;
+        this.fresh = true;
+        initWidget(BINDER.createAndBindUi(this));
+        row(index, index + 1);
+        editing.setVisible(false);
+        kind.setText("new");
+        kind.setTitle("Click to choose what kind of instruction to add");
+        summary.setText("add an instruction");
+        head.setTitle("Click to add an instruction");
+        // There, so that the row's kind stands under the kinds above it, and not to be seen:
+        // there is nothing here to drag
+        grip.addStyleName("body-card__grip--none");
+        swatch.setVisible(false);
+        note.setVisible(false);
+    }
+
+    /// The row a list that can be changed ends with: where a card is added.
+    ///
+    /// @param listPath The list's path.
+    /// @param index How many cards the list has, which is where the next will go.
+    /// @param handlers What the row tells.
+    /// @return The row.
+    public static BodyCard newRow(final int[] listPath, final int index, final Body.CardActions handlers) {
+        return new BodyCard(listPath, index, handlers);
+    }
+
+    // What makes this a row of the list: the pointer and the keys, and what the body asks of it.
+    private void row(final int index, final int count) {
+        head.addClickHandler(event -> onHead(event));
+        head.addKeyDownHandler(event -> onKey(event));
+        final boolean[] focused = {false};
+        head.addFocusHandler(event -> {
+            focused[0] = true;
+            handlers.onCardFocused(Bodies.path(path));
+        });
+        head.addBlurHandler(event -> focused[0] = false);
+        kind.addClickHandler(event -> onKind(event));
+        handlers.onCardShown(Bodies.path(path), new Body.Row() {
+            @Override
+            public boolean isCard() {
+                return !fresh;
+            }
+
+            @Override
+            public void focus() {
+                // The element's own focus, which is immediate. The panel's setFocus is put off
+                // to a timer in this browser, and would then take the keyboard back from
+                // whatever was given it next — a field of the row just opened.
+                head.getElement().focus();
+            }
+
+            @Override
+            public boolean isFocused() {
+                return focused[0];
+            }
+
+            @Override
+            public void setTabStop(final boolean stop) {
+                head.setTabIndex(stop
+                        ? 0
+                        : -1);
+            }
+
+            @Override
+            public void setSelected(final boolean selected) {
+                head.setStyleName("body-card__card--selected", selected);
+            }
+
+            @Override
+            public boolean isFirst() {
+                return index == 0;
+            }
+
+            @Override
+            public boolean isLast() {
+                return index == count - 1;
+            }
+        });
     }
 
     public void setHot(final boolean hot) {
@@ -259,7 +306,18 @@ public class BodyCard extends Composite {
     }
 
     private void onHead(final ClickEvent e) {
-        handlers.onEdit(Bodies.path(path));
+        open(false);
+    }
+
+    // The row opened: a card's own editor in its place, or for the New row a new card's.
+    private void open(final boolean kinds) {
+        if (fresh) {
+            handlers.onNew(Bodies.path(Bodies.parent(path)), path[path.length - 1], kinds);
+        } else if (kinds) {
+            handlers.onEditKind(Bodies.path(path));
+        } else {
+            handlers.onEdit(Bodies.path(path));
+        }
     }
 
     // The keys of a row in a list. The arrows, Home and End move among the rows; Enter opens
@@ -275,8 +333,8 @@ public class BodyCard extends Composite {
         final int key = event.getNativeKeyCode();
         final String at = Bodies.path(path);
         if (key == KeyCodes.KEY_ENTER) {
-            handlers.onEdit(at);
-        } else if (key == KeyCodes.KEY_DELETE) {
+            open(false);
+        } else if (key == KeyCodes.KEY_DELETE && !fresh) {
             handlers.onRemove(at);
         } else if (key == KeyCodes.KEY_UP) {
             handlers.onNavigate(at, Body.Step.PREVIOUS);
@@ -294,10 +352,10 @@ public class BodyCard extends Composite {
 
     private void onKind(final ClickEvent e) {
         e.stopPropagation();
-        handlers.onEditKind(Bodies.path(path));
+        open(true);
     }
 
-    /// A holder's branch: its head line, the nested cards, the add line.
+    /// A holder's branch: its head line and the nested list.
     private final class Branch extends Composite {
 
         private Branch(final Holder holder, final int branch, final List<OutputNode> cards, final boolean enabled) {

@@ -92,6 +92,12 @@ public class InstructionEditController extends Controller {
 
     private static final String WIRE = "(wire form)";
 
+    /// The kind a new card has until one is chosen: what is typed says what it is (design 47
+    /// A). Text is a text card, `$1` a value-of card, and a line that mixes them is the cards
+    /// in the order it has them — so this is the one kind that can write more than one card,
+    /// and the one that is never a card's own kind.
+    public static final String AUTO = "auto";
+
     private List<List<OutputNode>> bodies = List.of();
     private OutputNode original;
     private List<GuardClause> clauses = new ArrayList<>();
@@ -149,6 +155,14 @@ public class InstructionEditController extends Controller {
         view.getCondition().setNames(names);
         view.setModes(modes);
         clear();
+        // A card that exists has a kind, and can be changed to another; only one that does
+        // not exist yet can be left to what is typed.
+        final List<String> offered = new ArrayList<>();
+        if (node == null) {
+            offered.add(AUTO);
+        }
+        offered.addAll(kinds());
+        view.setKinds(offered);
         final String kind = node == null
                 ? newKind
                 : Instructions.kind(node);
@@ -171,7 +185,7 @@ public class InstructionEditController extends Controller {
         showKind(kind);
         if (node != null) {
             fill(node);
-        } else if (!FORMABLE.contains(kind)) {
+        } else if (!AUTO.equals(kind) && !FORMABLE.contains(kind)) {
             view.setWire(skeleton(kind));
         }
     }
@@ -368,6 +382,7 @@ public class InstructionEditController extends Controller {
             // parse-date's pattern into a trim's Name and save it there.
             v.setField(i, "", "", false);
         }
+        v.setFieldPlaceholder(0, "");
         v.setMulti("", "", false);
         v.setMultiFirst(false);
         v.setChoiceVisible(false);
@@ -382,6 +397,13 @@ public class InstructionEditController extends Controller {
         v.setWireVisible(false);
         v.setNote(null);
         switch (kind) {
+            case AUTO:
+                field(0, "Line", "text, or $1 or $label for a capture group. A line that holds "
+                                 + "both is added as the instructions it describes, in order; "
+                                 + "\\n is a line break and $$ is a dollar. Choose a kind for "
+                                 + "anything else");
+                v.setFieldPlaceholder(0, "text, or $1 for a capture");
+                break;
             case "text":
                 v.setMultiVisible(true);
                 v.setMultiLabel("Text");
@@ -834,6 +856,17 @@ public class InstructionEditController extends Controller {
         }
     }
 
+    /// @return Whether the card's kind is left to what is typed: [#getLine()] is then what
+    ///         it holds, and there is no one instruction to write.
+    public boolean isAuto() {
+        return AUTO.equals(view.getKind());
+    }
+
+    /// @return The line typed, while the kind is left to it.
+    public String getLine() {
+        return view.getField(0);
+    }
+
     /// The node this was opened on, or null for a new one.
     public OutputNode getOriginal() {
         return original;
@@ -868,6 +901,10 @@ public class InstructionEditController extends Controller {
             return ProjectJson.readOutput(JsonText.parse(v.getWire()));
         }
         switch (kind) {
+            case AUTO:
+                // A line is the cards it describes, which is for whoever holds the list to
+                // add ([#getLine()]); asked for as one instruction, it is none.
+                throw new ConfigException("Type a line, or choose what kind of instruction this is");
             case "text":
                 return new Text(v.getMulti());
             case "value-of":

@@ -1325,7 +1325,9 @@ is hostile to markup. Design 47 proposes from there.
 ### W3 — the envelope is ordered and kept in step by hand (design 18 §5.6)
 
 A card lands at the end of the body, so step 13's `<records>` has to be moved up past the
-dispatch it wraps. The opening and closing tags are then two independent `text` cards: rename one
+dispatch it wraps. *(2026-11-18: no longer. The toolbar over the rows opens a new card above
+the selected one, so the opening tag is put in where it belongs and the walkthroughs do that
+— design 47 §3 E. The rest of this finding stands.)* The opening and closing tags are then two independent `text` cards: rename one
 and nothing says the other is now wrong. `element` would close this too, which is why W2 and W3
 may be one question rather than two.
 

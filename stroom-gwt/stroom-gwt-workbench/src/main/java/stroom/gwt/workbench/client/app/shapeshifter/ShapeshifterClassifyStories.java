@@ -203,13 +203,11 @@ public final class ShapeshifterClassifyStories {
                 ".template-panel__mode-note")).toBeVisible());
     }
 
-    /// §6.2 step 4's first half: the tag that opens the region, moved above the dispatch.
+    /// §6.2 step 4's first half: the tag that opens the region, put in above the dispatch.
     private static void openTag(final Play play, final Play screen) {
         ShapeshifterEditorStories.selectTemplate(play, "document");
-        play.waitFor(() -> play.expect(play.getByLabelText(Walkthrough.ENTRY)).toBeInTheDocument());
-        Walkthrough.enter(play, "<flags>");
-        // The row just added is the selected one, and the toolbar acts on it
-        play.click(play.getByRole("button", "Move the selected instruction up"));
+        play.waitFor(() -> play.expect(ShapeshifterEditorStories.newRow(play)).toBeInTheDocument());
+        Walkthrough.enterAbove(play, "apply-templates", "<flags>");
     }
 
     /// §6.2 steps 4 and 5: the mode, and **`classify`** — every matching template runs, nothing

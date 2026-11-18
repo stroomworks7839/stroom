@@ -198,27 +198,47 @@ final class Walkthrough {
         return null;
     }
 
-    /// The field that adds to the body's card list, by the name it gives a screen reader.
-    static final String ENTRY = "Add an instruction: text, or $1 for a capture";
+    /// The field of a new card whose kind is left to what is typed, by its label: what the
+    /// body's New row shows once it is opened.
+    static final String ENTRY = "Line";
 
-    /// A line typed into the body's entry field and added with Enter (design 47 A): text is a
-    /// text card, `$1` a value-of card, and a line that mixes them is split into the sequence.
-    ///
-    /// Typed at the keyboard rather than into the element. The body is drawn again when a run's
-    /// trace lands, a moment after every edit, and the editor carries what is being typed and
-    /// the keyboard into the new field — so keys sent to wherever the keyboard *is* follow it
-    /// there, as an author's do, where keys sent to the element found at the start would go to
-    /// one no longer on the page.
+    /// The body's New row opened, and a line typed into it and added with Enter (design 47 A):
+    /// text is a text card, `$1` a value-of card, and a line that mixes them is split into the
+    /// sequence.
     ///
     /// @param play The play.
     /// @param line The line, with a line break spelt `\n` as the field takes it.
     static void enter(final Play play, final String line) {
-        play.click(play.getByLabelText(ENTRY));
+        play.click(ShapeshifterEditorStories.newRow(play));
+        enterNext(play, line);
+    }
+
+    /// A line put in above a card of the body: the card is the selected row, the toolbar opens
+    /// a new card above it, and the line is typed there. It lands where it belongs, so there
+    /// is nothing to move afterwards.
+    ///
+    /// @param play The play.
+    /// @param kind The kind of the card it goes above, which the body has one of.
+    /// @param line The line, with a line break spelt `\n` as the field takes it.
+    static void enterAbove(final Play play, final String kind, final String line) {
+        play.click(ShapeshifterEditorStories.cardLine(play, kind));
+        play.click(play.getByRole("button", "Insert an instruction above the selected one"));
+        enterNext(play, line);
+    }
+
+    /// A line typed after another: a new card is open after the one before it, with the
+    /// keyboard in it, so there is nothing to open first.
+    ///
+    /// Typed at the keyboard rather than into the element, as an author does.
+    ///
+    /// @param play The play.
+    /// @param line The line, with a line break spelt `\n` as the field takes it.
+    static void enterNext(final Play play, final String line) {
         play.waitFor(() -> play.expect(play.getByLabelText(ENTRY)).toHaveFocus());
         play.keyboard(line + "{Enter}");
-        // The field empties as the line is taken, and keeps the keyboard for the next one
+        // The line is taken, and another is open after it with the keyboard for the next one
         play.waitFor(() -> play.expect(play.getByLabelText(ENTRY).value()).toEqual(""));
-        play.expect(play.getByLabelText(ENTRY)).toHaveFocus();
+        play.waitFor(() -> play.expect(play.getByLabelText(ENTRY)).toHaveFocus());
     }
 
     /// A template in a mode, with its regex. The dialog that makes a template is also the only
