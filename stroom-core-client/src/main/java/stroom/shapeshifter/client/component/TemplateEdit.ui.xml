@@ -17,7 +17,7 @@
             <ss:ColourPalette ui:field="colour"/>
         </form:FormGroup>
         <form:FormGroup addStyleNames="template-edit__group" identity="shapeshifterTemplateMode" label="Mode"
-                        helpText="The mode this template is dispatched in, or the root. Order within a mode is dispatch priority. A mode is added with + mode in the panel.">
+                        helpText="The mode this template is dispatched in; default is the templates with no mode, which the document itself dispatches to. Order within a mode is dispatch priority. A mode is added with + mode in the panel.">
             <l:SelectionBox ui:field="mode" addStyleNames="w-100"/>
         </form:FormGroup>
         <form:FormGroup addStyleNames="template-edit__group" identity="shapeshifterTemplateEncoding" label="Encoding"

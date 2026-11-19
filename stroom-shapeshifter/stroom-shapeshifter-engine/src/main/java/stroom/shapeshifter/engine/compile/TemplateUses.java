@@ -97,6 +97,30 @@ record TemplateUses(Template template, List<String> calls, List<OutputNode.Apply
         }
     }
 
+    /// Refuse a mode called [Template#DEFAULT_MODE], on a template or on a dispatch. It is what
+    /// the templates with no mode are called, so a mode of that name would be shown exactly as
+    /// having none is, and a dispatch into it would read as a dispatch into the default level.
+    ///
+    /// @param uses Every template's uses, one per template, as [#of] gives them.
+    /// @throws ConfigException Naming the first template that is in the mode or dispatches into it.
+    static void refuseReservedMode(final List<TemplateUses> uses) {
+        final String reserved = "a mode named '" + Template.DEFAULT_MODE + "', which is reserved: it is"
+                                + " what the templates with no mode are called. Leave the mode out to";
+        for (final TemplateUses use : uses) {
+            final String name = use.template().name();
+            if (Template.DEFAULT_MODE.equals(use.template().mode())) {
+                throw new ConfigException("Template '" + name + "' is in " + reserved
+                                          + " put the template there, or give the mode another name");
+            }
+            for (final OutputNode.ApplyDirective directive : use.applies()) {
+                if (Template.DEFAULT_MODE.equals(directive.mode())) {
+                    throw new ConfigException("Template '" + name + "' dispatches into " + reserved
+                                              + " dispatch there, or give the mode another name");
+                }
+            }
+        }
+    }
+
     /**
      * D36's dispatch lint: a line-anchored pattern in a strict or lexer level draws a warning —
      * the anchored question means it matches at the cursor only, and a line anchor does not

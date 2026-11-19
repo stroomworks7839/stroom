@@ -175,9 +175,7 @@ public class BodyController extends Controller {
                     }
                 }
                 if (!Modes.hasTemplates(host.getProject(), mode)) {
-                    text.append("nothing applies into mode ").append(mode == null
-                            ? "root"
-                            : mode);
+                    text.append("nothing applies into mode ").append(Modes.label(mode));
                 } else if (frame >= 0) {
                     text.append(matches == 0
                             ? "no matches"

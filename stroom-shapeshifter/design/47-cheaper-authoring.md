@@ -783,8 +783,8 @@ ruling. **Ruling** means there is a choice to make first.
 | 4 | A tall tree draws over the *As regex* and *Library* sections below it | 46 §6.3a, stage 14 | *Fixed* 2026-11-19 (§7.7) |
 | 5 | The capture dialog lists only the current template's declarations, not the document's run-scoped `heading` that it binds | 46 §6.4a | *Fixed* 2026-11-19 (§7.7) |
 | 6 | The `if` row: `+ clause` is a label the keyboard cannot reach, the clause's name box does not open its list when clicked, and the operator box has no accessible name | 46 §6.4a | *Fixed* 2026-11-19, but for the name box, which was a misreading (§7.7) |
-| 7 | A mode named `root` collides with the word for no mode in the panel, the strip, the Mode picker and the mode pane | 46 §6.4a | **Ruling** — §7.3 |
-| 8 | Two templates with the same match are identical in the panel. The limit that tells `header_record` from `data_record` is out of sight | 46 §6.4, 44 Q12 (open) | **Ruling** — §7.3 |
+| 7 | A mode named `root` collides with the word for no mode in the panel, the strip, the Mode picker and the mode pane | 46 §6.4a | *Fixed* 2026-11-19 (§7.9) |
+| 8 | Two templates with the same match are identical in the panel. The limit that tells `header_record` from `data_record` is out of sight | 46 §6.4, 44 Q12 (open) | *Fixed* 2026-11-19 (§7.9) |
 | 9 | Every literal in rungs 4 to 6 is a quoted `value-of`, where an author would make `text`. The strict keystone makes the walks build the fixture's spelling | 46 §6.4a | **Ruling** — proposal H |
 | 10 | `heading[matchCount()]` is typed into a plain field, and A's line cannot say it | 46 §6.4 (a), 44 Q14 (open) | **Ruling** — proposal H |
 | 11 | *Don't write an empty record* is three nested instructions and a declaration, 39 actions | 46 §6.4 (b) | **Ruling** — proposal J |
@@ -809,12 +809,20 @@ heading, the strip, the first entry of the Mode picker, and the mode pane's sent
 is then an ordinary name. Forbidding `root` as a name would also work, but it would refuse a
 fixture we already ship.
 
+**Ruled (the owner, 2026-11-19): the level reads `default`, and `default` is reserved.** Plain,
+not italic: the reservation is what makes it unambiguous. The editor and the engine's
+validation both refuse a mode called `default`. No fixture uses one; five use `root`
+(`win_sec` and two variants of it, `win_app`, `text_019_single_line_split`), which is why
+`root` could not be the reserved word. Authors coming from XSLT already know the default mode.
+
 **8 — the identical templates.** Design 44 Q12 asked whether the row should carry the limit or
 the panel should explain. *Recommended: the row carries it.* A template row's match summary
 gets a limit when the template has one, `delimiter | · first only` for `max 1`, and
 `· at most N` otherwise. That is a fact about the template rather than an explanation, which is
 the line W4 drew (design 46 §10). It costs nothing where there is no limit, so five of the six
 samples show no change.
+
+**Ruled (the owner, 2026-11-19): the row carries it, as recommended.**
 
 ### 7.4 Proposals F to J
 
@@ -883,12 +891,15 @@ H has two parts that only pay together.
   sequences A builds.** That is the shape §2 ruled to be the model, and the one the trace
   can show bytes for. The configuration changes and the output does not; `GoldenFixtureTest`
   is the proof, as it was for the document templates (design 46 §6.3).
+
 - **A's line reads `${…}` as a reference of any kind.** `${record_body}` and
   `${heading[matchCount()]}` become `value-of` cards, as `$1` does. This amends a ruling: A
   said "a bare word is text, never a declared name: the field must not guess". `${…}` is not
   a guess, because the author has said "reference". What goes inside the braces is read by
   the Select field's own grammar, through `Instructions`, the reader that already owns the
   spelling. `$$` still writes a dollar.
+
+**Ruled (the owner, 2026-11-19): both, together, as recommended.**
 
 With both:
 
@@ -969,15 +980,15 @@ hold, and the counts are taken again.
    clears, so that rung 4 counts 110. Then the Match line says when its regex does not
    compile, a pattern part is named in the workbench title as a template is, and a drop on
    `+ instruction` lands at the end of its list.
-2. **The two fixes that need a word: 7 and 8** (§7.3). Small, and decided as recommended
-   unless the owner says otherwise.
-3. **G — a delimiter on the Match line.** The firmest saving left, built the way B was. Rung
+2. ~~**The two fixes that needed a word: 7 and 8** (§7.3).~~ **Done 2026-11-19, §7.9.** Ruled 2026-11-19: the no-mode level
+   reads `default`, which is reserved; the row carries its limit.
+3. **G — a delimiter on the Match line**, then F, in this order (confirmed 2026-11-19). The firmest saving left, built the way B was. Rung
    5 is walked again.
 4. **F — measure first.** The walkthrough's explode stub returns what `PatternExplode` makes
    of rung 4's regex, computed by the engine in a test rather than written by hand. Then the
    walk goes regex-first. The result decides between a re-baseline and fix-ups, and whether
    the tree's own add line is wanted.
-5. **H — needs ruling.** The re-baseline of rungs 4 to 6's literals and the `${…}` amendment
+5. **H — ruled 2026-11-19: both parts go.** The re-baseline of rungs 4 to 6's literals and the `${…}` amendment
    to A go together, or neither goes.
 6. **I** — three defaults, no new surface.
 7. **J — needs ruling, and is decided after 5 and 6 have been walked**, against what the idiom
@@ -1054,3 +1065,51 @@ earlier. All 181 Shapeshifter stories pass with the leak and accessibility check
 owner to rename a mode (`setOnRenameMode`), and the workbench asks for a part
 (`setOnRenamePart`). Both used to rename it themselves and tell the owner afterwards, which
 was too late to keep the selection.
+
+### 7.9 Step 2, done — 2026-11-19
+
+Both fixes were built as ruled. All 182 Shapeshifter stories pass with the leak and
+accessibility checks, and the golden fixtures all compile.
+
+- **7 — the templates with no mode are called `default`, and `default` is reserved.** The
+  name is `Template.DEFAULT_MODE`, in the configuration model, so the editor and the engine
+  read one constant. The editor shows it through `Modes.label`, in the six places that said
+  `root`:
+  - the panel's heading, now `mode: default` like every other;
+  - the `+ template` link's title;
+  - the strip, now `mode default`;
+  - the Mode pickers in a template's settings and on an `apply-templates` card;
+  - a dispatch card's summary, now `in mode default` where it said `into the root`;
+  - the body's *nothing applies into mode* note.
+
+  Renaming a mode to `default` is refused with a warning (`Modes.whyNotName`). The compiler
+  refuses a template in a mode called `default`, and a dispatch into one wherever it sits
+  (`TemplateUses.refuseReservedMode`). The configuration package's *nothing in the language is
+  reserved* now names the exception. Rung 5's walk makes a mode called `root`, and its
+  last stage asserts `mode: root` and `mode: default` side by side.
+- **8 — a template's row says its limit**, after its count: `· first only` for at most one
+  match, `· at most N` otherwise (`Templates.limitNote`). It has its own cell, so the count
+  reads as it did, and the row's tooltip says the limit too. The fewest and the only matches
+  are left to the strip: they say what the matches mean, not how many there can be. Rung 5's
+  last stage asserts `header_record` says *first only* and `data_record` says nothing.
+
+Story: `TheTemplatesWithNoModeAreCalledDefault`. Unit tests: `ModesTest` for the label and
+the refusal, `TestTemplates` for the limit, and the engine's `TestTemplateUses` for the
+compile refusal.
+
+### 7.10 A second review's findings, fixed — 2026-11-19
+
+A review of step 2's working tree found ten faults, all in step 2's own work. All ten are
+fixed. Each of the first four has a unit test that fails without its fix.
+
+| # | Fault | Fix | Test |
+|---|---|---|---|
+| 1 | Removing a mode that dispatches still point at asked whether they should "become dispatches into the root", where `root` is now an ordinary mode name | The question is `Modes.removeQuestion`, and says *into mode default* | `ModesTest.removingAModeSaysItsDispatchesGoToTheDefaultMode` |
+| 2 | A template that eats its matches showed `· first only` if it kept a limit from before its role was switched, though the engine never applies a maximum to an eater (`Level`) | `Templates.limitNote` takes the template and says nothing for an eater | `TestTemplates.aTemplateThatEatsItsMatchesHasNoLimitToShow` |
+| 3 | A project written elsewhere with a mode named `default` showed it as the templates with no mode: the panel merged the two under one heading, and the pickers listed `default` twice | `Modes.label` calls it `default (reserved)`, and both Mode pickers show their items through it. Renaming it away is the remedy, and the compiler still refuses it | `ModesTest.aModeNamedDefaultIsNeverShownAsTheTemplatesWithNoMode` |
+| 4 | A limit of no matches read `· at most 0` | It reads `· never matches` | `TestTemplates.aRowWhoseLimitAllowsNoMatchSaysItNeverMatches` |
+| 5 | A comment still said the templates with no mode are headed unnamed | Says what the code does | — |
+| 6 | H's ruling sat between its two bullets, where Markdown reads it as the first one's | Below both | — |
+| 7 | `refuseReservedMode` walked the templates and then the uses, though each use carries its template | One walk over the uses | `TestTemplateUses` |
+| 8 | `Walkthrough.expectLimit` asserted at once, where the panel may still be redrawing after a run | It waits, as `expectTried` does | — |
+| 9, 10 | The engine's new method and test used `/** */` comments, where the guide asks `///` of new code | `///` with its parameter, and `//` on the test | — |

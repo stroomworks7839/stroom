@@ -1,6 +1,6 @@
 /*
- * One template in the panel (TemplateRow): its name, its match count, its severity flag,
- * and the heat bar beneath that says how much of the input it took.
+ * One template in the panel (TemplateRow): its name, its severity flag, its match count, its
+ * limit, and the heat bar beneath that says how much of the input it took.
  */
 .template-row {
     padding: 4px 10px 5px;
@@ -47,7 +47,16 @@
     font-size: 12px;
 }
 
-.template-row--selected .template-row__count {
+/* What the template's limit lets it match, after the count: what tells apart two templates
+   with one pattern, the first of which matches once and the other the rest (design 47 §7.3). */
+.template-row__limit {
+    color: var(--ss-muted);
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.template-row--selected .template-row__count,
+.template-row--selected .template-row__limit {
     color: inherit;
 }
 

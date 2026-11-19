@@ -400,6 +400,13 @@ public final class ShapeshifterSplitStories {
                 .toMatch("<data name=\"lorum\" value=\"alias modi et accusamus\"/>"));
         Walkthrough.expectTried(play, "header_record", "1");
         Walkthrough.expectTried(play, "data_record", "1");
+        // The two delimiter templates in mode root read the same but for the first one's limit,
+        // which its row says (design 47 §7.3, finding 8). And the templates with no mode are
+        // called default, so the mode called root is only that
+        Walkthrough.expectLimit(play, "header_record", "· first only");
+        Walkthrough.expectLimit(play, "data_record", null);
+        play.expect(play.getByText("mode: default")).toBeVisible();
+        play.expect(play.getByText("mode: root")).toBeVisible();
         play.waitFor(() -> play.expect("the project the editor built",
                         () -> JsonValues.jsonContains(Walkthrough.projectBuilt(requests),
                                 ShapeshifterEditorStories.withoutIds(PROJECT)))

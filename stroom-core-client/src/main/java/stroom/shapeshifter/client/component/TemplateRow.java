@@ -54,6 +54,8 @@ public class TemplateRow extends Composite {
     @UiField
     Label count;
     @UiField
+    Label limit;
+    @UiField
     FlowPanel heat;
     @UiField
     Label heatBar;
@@ -83,6 +85,10 @@ public class TemplateRow extends Composite {
         }
         name.setText(data.getName());
         count.setText(data.getCount());
+        limit.setText(data.getLimit() == null
+                ? ""
+                : "· " + data.getLimit());
+        limit.setVisible(data.getLimit() != null);
         if (data.isZero()) {
             row.addStyleName("template-row--zero");
         }
@@ -98,7 +104,9 @@ public class TemplateRow extends Composite {
         }
         row.setTitle(data.getId() == null
                 ? "The document: its name and source settings"
-                : data.getName() + " — " + (data.getProfile() == null
+                : data.getName() + (data.getLimit() == null
+                        ? ""
+                        : ", " + data.getLimit()) + " — " + (data.getProfile() == null
                         ? data.getCount()
                         : data.getProfile()));
         // The heat bar (design 18 §5.8): length is the share of the run, colour the cost per

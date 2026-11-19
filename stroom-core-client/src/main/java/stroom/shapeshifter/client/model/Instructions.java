@@ -173,9 +173,7 @@ public final class Instructions {
         } else if (node instanceof EmitError e) {
             return e.severity().name().toLowerCase(Locale.ROOT) + ": " + ref(e.message());
         } else if (node instanceof ApplyTemplates a) {
-            return "select " + ref(a.directive().select()) + (a.directive().mode() == null
-                    ? " into the root"
-                    : " in mode " + a.directive().mode());
+            return "select " + ref(a.directive().select()) + " in mode " + Modes.label(a.directive().mode());
         } else if (node instanceof CallTemplate c) {
             return c.name();
         } else if (node instanceof If i) {

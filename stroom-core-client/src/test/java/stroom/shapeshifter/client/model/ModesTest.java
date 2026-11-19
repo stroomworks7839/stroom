@@ -222,7 +222,7 @@ class ModesTest {
                 template("line", null, List.of()),
                 template("pair", "kv", List.of())), null);
         assertThat(Modes.dispatchState(rooted, "kv").offered()).isFalse();
-        assertThat(Modes.dispatchState(rooted, "kv").reason()).startsWith("the root has templates of its own");
+        assertThat(Modes.dispatchState(rooted, "kv").reason()).startsWith("the default mode has templates of its own");
         assertThat(Modes.dispatchFromDocument(rooted, "kv")).isSameAs(rooted);
 
         // Nothing to point: no dispatch at all, or more than one that names no mode
@@ -279,5 +279,40 @@ class ModesTest {
                 template("root", null, List.of(apply("kv", dispatch))),
                 template("pair", "kv", List.of()),
                 template("junk", "kv", List.of())), null);
+    }
+
+    @Test
+    void theTemplatesWithNoModeAreCalledDefault() {
+        // Design 47 §7.3, ruled 2026-11-19: never `root`, which is an ordinary name
+        assertThat(Modes.label(null)).isEqualTo("default");
+        assertThat(Modes.label("root")).isEqualTo("root");
+        assertThat(Modes.label("kv")).isEqualTo("kv");
+    }
+
+    @Test
+    void aModeCannotBeCalledDefaultOrNothing() {
+        assertThat(Modes.whyNotName("default")).contains("templates with no mode");
+        assertThat(Modes.whyNotName("")).isEqualTo("A mode needs a name");
+        assertThat(Modes.whyNotName("root")).isNull();
+        assertThat(Modes.whyNotName("Default")).isNull();
+    }
+
+    @Test
+    void aModeNamedDefaultIsNeverShownAsTheTemplatesWithNoMode() {
+        // A project written elsewhere can hold one; the panel headed both `mode: default` and
+        // merged them, and the pickers listed `default` twice
+        assertThat(Modes.label("default")).isEqualTo("default (reserved)");
+        assertThat(Modes.label("default")).isNotEqualTo(Modes.label(null));
+        assertThat(Modes.label("Default")).isEqualTo("Default");
+    }
+
+    @Test
+    void removingAModeSaysItsDispatchesGoToTheDefaultMode() {
+        // `root` is an ordinary mode name now: the question must not say the dispatches go there
+        assertThat(Modes.removeQuestion("kv", 1))
+                .isEqualTo("Remove mode 'kv'? 1 apply-templates site still dispatches into it; those"
+                           + " become dispatches into mode default, and the messages will say so.")
+                .doesNotContain("root");
+        assertThat(Modes.removeQuestion("kv", 2)).contains("2 apply-templates sites still dispatch into it");
     }
 }

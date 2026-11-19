@@ -47,6 +47,9 @@ public final class TemplateRowData {
     private boolean fresh;
     /// What the row says of itself on its tooltip, where that is not its name and its count.
     private String title;
+    /// What the template's limit lets it match — `first only`, `at most 3` — or null for no
+    /// limit on how many.
+    private String limit;
 
     public TemplateRowData(final String id, final String name, final String section, final String colour,
                            final String count, final boolean zero) {
@@ -95,6 +98,22 @@ public final class TemplateRowData {
         row.fresh = true;
         row.title = title;
         return row;
+    }
+
+    /// @return What the template's limit lets it match, or null for no limit on how many.
+    public String getLimit() {
+        return limit;
+    }
+
+    /// Says what the template's limit lets it match, after its count: two templates with one
+    /// pattern, one matching the first and the other the rest, otherwise read the same
+    /// (design 47 §7.3, ruled 2026-11-19).
+    ///
+    /// @param limit What it lets it match, or null for no limit on how many.
+    /// @return This, so it can be set where the row is made.
+    public TemplateRowData setLimit(final String limit) {
+        this.limit = limit;
+        return this;
     }
 
     /// @return Whether this is an add link rather than a template, a part or a section.

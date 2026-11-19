@@ -22,11 +22,13 @@ import stroom.shapeshifter.config.MatchExpression;
 import stroom.shapeshifter.config.OutputNode;
 import stroom.shapeshifter.config.Project;
 import stroom.shapeshifter.config.Template;
+import stroom.shapeshifter.config.Template.MatchLimits;
 import stroom.shapeshifter.config.Template.ParamDecl;
 
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -122,5 +124,35 @@ class TestTemplates {
         assertThat(Templates.nameTaken(project, "pairs", pair.id())).isFalse();
         assertThat(Templates.nameTaken(project, "pair", null)).isTrue();
         assertThat(Templates.nameTaken(null, "pair", null)).isFalse();
+    }
+
+    @Test
+    void aRowSaysHowManyMatchesItsLimitAllows() {
+        // Design 47 §7.3, ruled 2026-11-19: what tells apart two templates with one pattern
+        assertThat(Templates.limitNote(limited(new MatchLimits(0, 1, null)))).isEqualTo("first only");
+        assertThat(Templates.limitNote(limited(new MatchLimits(0, 3, null)))).isEqualTo("at most 3");
+        assertThat(Templates.limitNote(limited(MatchLimits.unlimited()))).isNull();
+        assertThat(Templates.limitNote(limited(null))).isNull();
+        // The fewest and the only matches are not how many: the strip says those
+        assertThat(Templates.limitNote(limited(new MatchLimits(2, MatchLimits.UNLIMITED, Set.of(1))))).isNull();
+    }
+
+    @Test
+    void aRowWhoseLimitAllowsNoMatchSaysItNeverMatches() {
+        assertThat(Templates.limitNote(limited(new MatchLimits(0, 0, null)))).isEqualTo("never matches");
+    }
+
+    @Test
+    void aTemplateThatEatsItsMatchesHasNoLimitToShow() {
+        // The engine never applies a maximum to an eater (Level), so its role switched keeps
+        // limits that say nothing about it
+        final Template eater = Templates.withRole(limited(new MatchLimits(0, 1, null)), true);
+        assertThat(eater.matchLimits().maxMatch()).isEqualTo(1);
+        assertThat(Templates.limitNote(eater)).isNull();
+    }
+
+    private static Template limited(final MatchLimits limits) {
+        return new Template(ProjectText.newId(), "t", null, false, null, null, List.of(),
+                new MatchExpression.Regex("a", null, 0), limits, null, List.of(), null, false);
     }
 }

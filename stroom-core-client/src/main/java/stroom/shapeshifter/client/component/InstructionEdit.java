@@ -16,8 +16,10 @@
 
 package stroom.shapeshifter.client.component;
 
+import stroom.shapeshifter.client.model.Modes;
 import stroom.shapeshifter.config.Dispatch;
 import stroom.shapeshifter.config.Severity;
+import stroom.shapeshifter.config.Template;
 import stroom.widget.button.client.LinkButton;
 import stroom.widget.component.client.Component;
 import stroom.widget.form.client.FormGroup;
@@ -133,6 +135,8 @@ public class InstructionEdit extends Component {
 
     public InstructionEdit() {
         initWidget(BINDER.createAndBindUi(this));
+        // A mode named `default` is not the templates with no mode, and must not read as them
+        mode.setDisplayValueFunction(Modes::label);
         // The kind picker leads whatever else is ordered: a list asked to come first comes
         // after it, not above it.
         kindGroup.addStyleName("edit-form__group--first");
@@ -275,7 +279,7 @@ public class InstructionEdit extends Component {
     public void setModes(final List<String> modes) {
         final String current = mode.getValue();
         mode.clear();
-        mode.setNonSelectString("root");
+        mode.setNonSelectString(Template.DEFAULT_MODE);
         mode.addItems(modes);
         mode.setValue(current, false);
     }

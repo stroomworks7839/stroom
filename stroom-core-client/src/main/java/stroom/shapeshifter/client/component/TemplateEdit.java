@@ -16,6 +16,8 @@
 
 package stroom.shapeshifter.client.component;
 
+import stroom.shapeshifter.client.model.Modes;
+import stroom.shapeshifter.config.Template;
 import stroom.widget.button.client.LinkButton;
 import stroom.widget.component.client.Component;
 import stroom.widget.form.client.TextArea;
@@ -60,7 +62,9 @@ public class TemplateEdit extends Component {
 
     public TemplateEdit() {
         initWidget(BINDER.createAndBindUi(this));
-        mode.setNonSelectString("root");
+        // A mode named `default` is not the templates with no mode, and must not read as them
+        mode.setDisplayValueFunction(Modes::label);
+        mode.setNonSelectString(Template.DEFAULT_MODE);
         encoding.setNonSelectString("inherit");
         ok.setOnClick(() -> onCommit.run());
         cancel.setOnClick(() -> onCancel.run());
@@ -91,7 +95,7 @@ public class TemplateEdit extends Component {
     public void setModes(final List<String> values) {
         final String current = mode.getValue();
         mode.clear();
-        mode.setNonSelectString("root");
+        mode.setNonSelectString(Template.DEFAULT_MODE);
         mode.addItems(values);
         mode.setValue(current, false);
     }

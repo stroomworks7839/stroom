@@ -39,7 +39,7 @@
             <!-- The mode a dispatch goes into is a choice among the project's modes, not free text
                  (design 44 §5k): the same picker the template's own mode field uses. -->
             <form:FormGroup ui:field="modeGroup" addStyleNames="instruction-edit__group" identity="ssInstrMode" label="Mode"
-                            helpText="The mode this dispatches into; the root is the templates the document itself dispatches to.">
+                            helpText="The mode this dispatches into; default is the templates with no mode, which the document itself dispatches to.">
                 <l:SelectionBox ui:field="mode" addStyleNames="w-100"/>
             </form:FormGroup>
             <form:FormGroup ui:field="severityGroup" addStyleNames="instruction-edit__group" identity="ssInstrSeverity" label="Severity">

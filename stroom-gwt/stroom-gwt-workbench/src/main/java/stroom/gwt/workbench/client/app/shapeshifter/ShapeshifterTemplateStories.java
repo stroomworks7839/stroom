@@ -193,9 +193,9 @@ public final class ShapeshifterTemplateStories {
                     ShapeshifterEditorStories.selectTemplate(play, "junk_line");
                     play.click(play.getByRole("button", ShapeshifterEditorStories.EDIT_TITLE));
                     play.waitFor(() -> play.expect(play.getByLabelText(NAME)).toHaveFocus());
-                    ShapeshifterEditorStories.pickFromBox(play, screen, play.getByLabelText("Mode"), "root");
+                    ShapeshifterEditorStories.pickFromBox(play, screen, play.getByLabelText("Mode"), "default");
                     play.click(play.getByRole("button", StroomDom.button("OK")));
-                    play.waitFor(() -> play.expect(play.getByText("root", ".template-strip__mode"))
+                    play.waitFor(() -> play.expect(play.getByText("mode default", ".template-strip__mode"))
                             .toBeInTheDocument());
                     ShapeshifterEditorStories.expectNoProblems(play);
                 })
@@ -608,6 +608,29 @@ public final class ShapeshifterTemplateStories {
                             .toBeVisible());
                     play.expect(play.queryByText("new mode", ShapeshifterEditorStories.STRIP_NAME)).toBeNull();
                     ShapeshifterEditorStories.expectNoProblems(play);
+                })
+                // The templates with no mode are called default, wherever a mode's name goes,
+                // and default is no mode's name: renaming one to it is refused (design 47 §7.3,
+                // ruled 2026-11-19). `root` was the word before, and is an ordinary name now:
+                // rung 5's walk makes a mode called root and shows it beside default
+                .story("TheTemplatesWithNoModeAreCalledDefault", context -> ShapeshifterEditorStories.render(context,
+                        false))
+                .withPlay(play -> {
+                    play.waitFor(() -> play.expect(play.getByText("mode: default")).toBeVisible());
+                    play.expect(play.getByTitle("Click to add a template to mode default")).toBeInTheDocument();
+                    ShapeshifterEditorStories.selectTemplate(play, "document");
+                    play.waitFor(() -> play.expect(play.getByText("mode default", ".template-strip__mode"))
+                            .toBeInTheDocument());
+                    play.click(play.getByText(KV_MODE));
+                    play.waitFor(() -> play.expect(play.getByText("kv", ShapeshifterEditorStories.STRIP_NAME))
+                            .toBeVisible());
+                    play.click(play.getByRole("button", EDIT_NAME));
+                    play.waitFor(() -> play.expect(play.getByLabelText(MODE)).toHaveFocus());
+                    play.keyboard("default{Enter}");
+                    play.waitFor(() -> play.expect(play.spy(ScreenHarness.ALERT_SPY)).toHaveBeenCalled());
+                    play.expect(play.getByLabelText(MODE)).toBeVisible();
+                    play.expect(play.getByText(KV_MODE)).toBeVisible();
+                    play.expect(play.getByRole("button", "Save")).toHaveAttribute("aria-disabled", "true");
                 });
     }
 

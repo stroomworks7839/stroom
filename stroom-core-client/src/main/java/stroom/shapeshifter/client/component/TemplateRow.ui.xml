@@ -9,6 +9,7 @@
                 <t:Label ui:field="name" styleName="template-row__name mono"/>
                 <t:Label ui:field="flag" styleName="template-row__flag"/>
                 <t:Label ui:field="count" styleName="template-row__count"/>
+                <t:Label ui:field="limit" styleName="template-row__limit"/>
             </g:FlowPanel>
             <g:FlowPanel ui:field="heat" styleName="template-row__heat">
                 <t:Label ui:field="heatBar" styleName="template-row__heat-bar"/>

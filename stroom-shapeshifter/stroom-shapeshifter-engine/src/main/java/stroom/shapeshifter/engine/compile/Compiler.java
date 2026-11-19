@@ -152,6 +152,7 @@ public final class Compiler {
         }
         final List<TemplateUses> uses = TemplateUses.of(project);
         TemplateUses.resolveNames(project, uses);
+        TemplateUses.refuseReservedMode(uses);
         TemplateUses.lintDispatch(project, templates, uses, warnings);
         final boolean structured = bodyChecks(project, warnings);
         // The bodies were compiled before the templates they name existed; now they do. This

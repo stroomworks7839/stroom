@@ -393,10 +393,8 @@ public class TemplatePanelController extends Controller {
             // every committed edit and again after every run.
             final Set<String> dispatched = Modes.dispatchedModes(project);
             for (final String mode : modes) {
-                // The root group is structural, not a named mode; it is headed once, unnamed.
-                final String section = mode == null
-                        ? "root"
-                        : "mode: " + mode;
+                // The templates with no mode are headed `mode: default`, as a named mode is
+                final String section = "mode: " + Modes.label(mode);
                 // A named mode's heading is the way to the mode itself
                 final String sectionId = mode == null
                         ? null
@@ -443,6 +441,7 @@ public class TemplatePanelController extends Controller {
                                         Profile.share(trace, template.id()), Profile.cost(trace, template.id()),
                                         Profile.describe(trace, template.id()),
                                         trace.worstOfTemplate(template.id()));
+                        row.setLimit(Templates.limitNote(template));
                         // The heading is drawn from the first row of the mode, so the note rides
                         // on that row.
                         rows.add(firstOfMode
@@ -456,9 +455,7 @@ public class TemplatePanelController extends Controller {
                     // The list ends with `+ template`, which is where a template is added to
                     // this mode
                     final TemplateRowData add = TemplateRowData.fresh(newTemplateRow(mode), "+ template",
-                            section, "Click to add a template to " + (mode == null
-                                    ? "the root"
-                                    : "mode " + mode));
+                            section, "Click to add a template to mode " + Modes.label(mode));
                     rows.add(firstOfMode
                             ? add.setSectionNote(note).setSectionId(sectionId)
                             : add);
@@ -702,7 +699,7 @@ public class TemplatePanelController extends Controller {
 
     // A mode with no templates in it, removed. One the project does not hold yet — named, and
     // nothing in it or pointing at it — is simply forgotten. One that dispatches still point
-    // at is asked about first: those become dispatches into the root.
+    // at is asked about first: those become dispatches into the default mode.
     private void removeMode(final String mode) {
         final Project project = host.getProject();
         if (project == null || readOnly || Modes.templateCount(project, mode) > 0) {
@@ -716,10 +713,7 @@ public class TemplatePanelController extends Controller {
             selectionListeners.fire(null);
             return;
         }
-        final String message = "Remove mode '" + mode + "'? " + sites + (sites == 1
-                ? " apply-templates site still dispatches"
-                : " apply-templates sites still dispatch") + " into it; those become dispatches into the"
-                               + " root, and the messages will say so.";
+        final String message = Modes.removeQuestion(mode, sites);
         ConfirmEvent.fire(this, message, ok -> {
             if (ok) {
                 selected = null;

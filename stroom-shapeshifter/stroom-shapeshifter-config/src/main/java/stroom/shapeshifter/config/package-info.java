@@ -22,7 +22,8 @@
  * Serialisation lives in the {@code json} subpackage; compilation and execution live above it.
  * Keeping the model inert is what lets the format be replaced without the engine noticing.
  * {@code EngineVars} names the engine's functions — {@code matchCount()}, {@code position()}
- * and the rest — which the compiler resolves to frame reads; nothing in the language is reserved.
+ * and the rest — which the compiler resolves to frame reads; nothing in the language is reserved
+ * but one mode name, {@link stroom.shapeshifter.config.Template#DEFAULT_MODE}.
  *
  * <p>This module is shared with the GWT client, which edits the same model the engine runs
  * (design 43): so it is JDK only and Java 17 — no switch patterns, no {@code UUID}, ids are

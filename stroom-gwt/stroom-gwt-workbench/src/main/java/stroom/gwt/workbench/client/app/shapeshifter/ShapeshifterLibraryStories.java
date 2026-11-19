@@ -205,11 +205,11 @@ public final class ShapeshifterLibraryStories {
                 .toMatch("severity=info"));
     }
 
-    /// §6.3 step 6. The one template, in the root with the document — no mode, so nothing to
+    /// §6.3 step 6. The one template, in the default mode with the document — no mode, so nothing to
     /// dispatch into. It arrives with its match line open for a regex; this match is not one,
     /// so Escape leaves it.
     private static void line(final Play play, final Play screen) {
-        play.click(play.getByTitle("Click to add a template to the root"));
+        play.click(play.getByTitle("Click to add a template to mode default"));
         Walkthrough.named(play, "line");
         play.waitFor(() -> play.expect(play.getByLabelText("Match pattern")).toHaveFocus());
         play.keyboard("{Escape}");

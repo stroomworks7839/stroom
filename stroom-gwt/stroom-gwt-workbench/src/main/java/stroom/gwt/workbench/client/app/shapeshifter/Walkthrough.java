@@ -388,6 +388,22 @@ final class Walkthrough {
         play.waitFor(() -> play.expect(row.textContent()).toEqual(count));
     }
 
+    /// The limit a template's row says it has, after its count, or that it says none.
+    ///
+    /// @param play The play.
+    /// @param template The template's name.
+    /// @param limit What the row says, or null for nothing.
+    static void expectLimit(final Play play, final String template, final String limit) {
+        final Query cell = play.within(play.getByText(template, ShapeshifterEditorStories.TEMPLATE_NAME)
+                .closest(".template-row")).querySelector(".template-row__limit");
+        // The panel is drawn again after a run, so the row may not be the final one yet
+        if (limit == null) {
+            play.waitFor(() -> play.expect(cell).not().toBeVisible());
+        } else {
+            play.waitFor(() -> play.expect(cell).toHaveTextContent(limit));
+        }
+    }
+
     /// The canned trace, its template ids made the walked project's. A trace names each
     /// template by id — its frames, and the timings the panel's rows read — and the fixture's
     /// ids are not the ones the walk generated, so served as it is the trace described

@@ -55,6 +55,52 @@ public final class Modes {
     private Modes() {
     }
 
+    /// A mode's name as the editor shows it: the name, or [Template#DEFAULT_MODE] for the
+    /// templates with no mode, which is reserved so that it means only that (design 47 §7.3,
+    /// ruled 2026-11-19). A mode that is nonetheless named `default` — the editor will not name
+    /// one so, but a project written elsewhere can hold one, and the engine refuses it — says
+    /// so, so that it is never shown as the templates with no mode.
+    ///
+    /// @param mode The mode, or null for none.
+    /// @return What to call it.
+    public static String label(final String mode) {
+        if (mode == null) {
+            return Template.DEFAULT_MODE;
+        }
+        return Template.DEFAULT_MODE.equals(mode)
+                ? mode + " (reserved)"
+                : mode;
+    }
+
+    /// What removing a mode that dispatches still point at asks first: the dispatches lose
+    /// their mode, so go to the templates with no mode.
+    ///
+    /// @param mode The mode.
+    /// @param sites How many apply-templates sites still dispatch into it.
+    /// @return The question.
+    public static String removeQuestion(final String mode, final int sites) {
+        return "Remove mode '" + mode + "'? " + sites + (sites == 1
+                ? " apply-templates site still dispatches"
+                : " apply-templates sites still dispatch")
+               + " into it; those become dispatches into mode " + label(null)
+               + ", and the messages will say so.";
+    }
+
+    /// Why a mode cannot be called a name, or null when it can: the reserved name is the
+    /// templates with no mode, and the engine refuses it as a mode.
+    ///
+    /// @param name The name, trimmed.
+    /// @return The reason, or null.
+    public static String whyNotName(final String name) {
+        if (name.isEmpty()) {
+            return "A mode needs a name";
+        }
+        if (Template.DEFAULT_MODE.equals(name)) {
+            return "'" + Template.DEFAULT_MODE + "' is what the templates with no mode are called";
+        }
+        return null;
+    }
+
     /// Whether any template is dispatched in a mode (null for the root).
     public static boolean hasTemplates(final Project project, final String mode) {
         if (project == null) {
@@ -233,7 +279,8 @@ public final class Modes {
         }
         for (final Template template : project.templates()) {
             if (template.mode() == null && template != document) {
-                return "the root has templates of its own, which the document's dispatch runs; " + next;
+                return "the " + Template.DEFAULT_MODE + " mode has templates of its own, which the document's"
+                       + " dispatch runs; " + next;
             }
         }
         return null;
@@ -308,7 +355,7 @@ public final class Modes {
 
     /// The project without the sites that dispatch into a mode: what removing an empty mode
     /// means, since a mode with no templates lives on only in the sites naming it. The sites
-    /// themselves become dispatches with no mode - into the root - which the messages will say.
+    /// themselves become dispatches with no mode - into mode default - which the messages will say.
     public static Project removeSites(final Project project, final String mode) {
         final List<Template> templates = new ArrayList<>();
         for (final Template t : project.templates()) {

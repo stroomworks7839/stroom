@@ -337,9 +337,7 @@ public class TemplateStripController extends Controller {
             // Read only now: the name being typed went with the field
             closeTitle();
         }
-        view.setHeader("template", host.colour(template.id()), template.name(), template.mode() == null
-                ? "root"
-                : "mode " + template.mode(),
+        view.setHeader("template", host.colour(template.id()), template.name(), "mode " + Modes.label(template.mode()),
                 "dispatched from " + dispatchedFrom(project, template) + runNote(template));
         view.setMatch(Templates.kind(template.match()), Templates.describe(template.match()),
                 guardSummary(template.guard()) + guardVerdict(template) + " · "
@@ -450,8 +448,9 @@ public class TemplateStripController extends Controller {
         if (mode != null) {
             final String from = mode;
             final String name = view.getNameText().trim();
-            if (name.isEmpty()) {
-                AlertEvent.fireWarn(this, "A mode needs a name", null);
+            final String whyNot = Modes.whyNotName(name);
+            if (whyNot != null) {
+                AlertEvent.fireWarn(this, whyNot, null);
                 return;
             }
             if (!name.equals(from) && host.modes().contains(name)) {
@@ -716,7 +715,7 @@ public class TemplateStripController extends Controller {
             sites.add(0, "the document");
         }
         return sites.isEmpty()
-                ? "nothing applies into mode " + template.mode()
+                ? "nothing applies into mode " + Modes.label(template.mode())
                 : String.join(", ", sites);
     }
 

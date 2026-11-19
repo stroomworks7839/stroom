@@ -156,6 +156,28 @@ public final class Templates {
         return false;
     }
 
+    /// What a template's limits let it match, said on its row in the panel: `first only` for at
+    /// most one match, `at most N` for at most N, `never matches` for none, or null where there
+    /// is no limit on how many (design 47 §7.3, ruled 2026-11-19). The fewest and the only
+    /// matches are the strip's to say: they decide what a template's matches mean, not how many
+    /// there can be. A template that eats its matches has no limit on how many, whatever it
+    /// holds: the engine never applies one to it, so it eats every line it matches.
+    ///
+    /// @param template The template.
+    /// @return What to say, or null.
+    public static String limitNote(final Template template) {
+        final MatchLimits limits = template.matchLimits();
+        if (template.consume() || limits == null || limits.maxMatch() == MatchLimits.UNLIMITED) {
+            return null;
+        }
+        if (limits.maxMatch() == 0) {
+            return "never matches";
+        }
+        return limits.maxMatch() == 1
+                ? "first only"
+                : "at most " + limits.maxMatch();
+    }
+
     /// What the template's matches are for: a record, or only the cursor's advance (§5f).
     public static Template withRole(final Template t, final boolean consume) {
         return new Template(t.id(), t.name(), t.mode(), consume, t.guard(), t.param(), t.declarations(),

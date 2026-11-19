@@ -63,6 +63,15 @@ public record Template(String id,
                        String encoding,
                        boolean ignoreErrors) {
 
+    /**
+     * The one name a mode may not have: it is what the templates with no mode are called, the
+     * level the document's own dispatch runs (design 47 §7.3, ruled 2026-11-19). The editor
+     * shows it wherever a mode's name would go, so a mode really called this could not be told
+     * apart from having none. {@code root} was the editor's word before, and is an ordinary name
+     * now, which configurations already use.
+     */
+    public static final String DEFAULT_MODE = "default";
+
     public Template {
         param = param == null ? List.of() : List.copyOf(param);
         declarations = declarations == null ? List.of() : List.copyOf(declarations);
