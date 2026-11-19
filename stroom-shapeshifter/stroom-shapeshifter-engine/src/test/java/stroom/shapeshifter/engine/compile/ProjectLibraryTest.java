@@ -22,6 +22,7 @@ import stroom.shapeshifter.config.Project;
 import stroom.shapeshifter.engine.PatternPrint;
 import stroom.shapeshifter.engine.ProjectReader;
 import stroom.shapeshifter.engine.Shapeshifter;
+import stroom.shapeshifter.engine.fixture.FixtureLedger;
 import stroom.shapeshifter.engine.output.XmlByteSink;
 
 import org.junit.jupiter.api.Test;
@@ -78,6 +79,36 @@ class ProjectLibraryTest {
                 """);
         assertThat(run(composed, "ab=12;cd=3;")).isEqualTo(run(inlined, "ab=12;cd=3;"))
                 .isEqualTo("<r k=\"ab\" v=\"12\"/><r k=\"cd\" v=\"3\"/>");
+    }
+
+    /// A part that is a regex, labelled where it is named rather than in itself: its own groups
+    /// are numbered after the line's, and the label is the whole of what it matched.
+    /// `library_parts` reached this with its timestamp until design 47 §7.13 put the fixture in
+    /// the explode's spelling, so it is held here instead.
+    @Test
+    void aRegexPartLabelledWhereItIsNamedCapturesWhatItMatched() {
+        final String composed = project("""
+                {"KEY": {"regex": "[a-z]+"},
+                 "NUMBER": {"regex": "(?<lead>[0-9])[0-9]*"}}
+                """, """
+                {"sequence": [{"ref": "KEY", "label": "k"}, {"tag": "="},
+                              {"ref": "NUMBER", "label": "v"}, {"tag": ";"}]}
+                """);
+        assertThat(run(composed, "ab=12;cd=3;")).isEqualTo("<r k=\"ab\" v=\"12\"/><r k=\"cd\" v=\"3\"/>");
+    }
+
+    /// `library_parts`, in the explode's spelling since design 47 §7.13, reads the lines its
+    /// take-until and take-through did: what follows the pid, and a CRLF, are the rest of the
+    /// line, and the message ends at the first field after it.
+    @Test
+    void libraryPartsReadsWhatFollowsThePidAsTheRestOfTheLine() {
+        final String fixture = new String(FixtureLedger.bytes("projects/library_parts/project.json"),
+                StandardCharsets.UTF_8);
+        final String stamp = "2026-09-09T10:15:32Z host=web01 severity=warn msg=";
+
+        assertThat(run(fixture, stamp + "old pid=3 died pid=5\n")).contains("pid=\"3\">old</event>");
+        assertThat(run(fixture, stamp + "full pid=4821 extra\n")).contains("pid=\"4821\">full</event>");
+        assertThat(run(fixture, stamp + "crlf pid=4821\r\n")).contains("pid=\"4821\">crlf</event>");
     }
 
     @Test

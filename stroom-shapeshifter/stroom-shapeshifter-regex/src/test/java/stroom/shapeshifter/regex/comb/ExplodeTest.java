@@ -57,7 +57,8 @@ class ExplodeTest {
             "^\\d{4}-\\d{2}-\\d{2}$", "a{1}b{2,}c{3,5}d?e*?f+?", "(?:ab)+c", "(?:failed|succeeded) for user '([^']+)'",
             "(?=ab)abc", "(?!zz)abc", "\\bword\\b", "(a)\\1", "x(?:(?!\\d{2}/)\\S)*",
             "(?s).*", ".*", "[\\s\\S]+", "(?i)abc", "(?i)[a-z]+", "é+", "a|", "()",
-            "(?>ab)c", "(?<=a)b", "\\B{FF}\\B{00}", "\\G\\d+", "(?m)^line$", "(?i)[:-;k]+", "(?i)(a)\\1"})
+            "(?>ab)c", "(?<=a)b", "\\B{FF}\\B{00}", "\\G\\d+", "(?m)^line$", "(?i)[:-;k]+", "(?i)(a)\\1",
+            "\\p{L}+=\\P{Nd}?", "(?i)\\p{Lu}+"})
     void anExplodeCompilesToTheIdenticalPlan(final String regex) {
         final BytePattern written = BytePattern.compile(regex);
         final BytePattern exploded = new MatcherLibrary().compile(explode(regex));
@@ -99,6 +100,16 @@ class ExplodeTest {
                 new Matcher.Peek(new Matcher.Tag("ab")), new Matcher.Not(new Matcher.Tag("c")), new Matcher.Tag("x"))));
         assertThat(explode("(ab)*?")).isEqualTo(new Matcher.Repeat(
                 new Matcher.Labelled(new Matcher.Tag("ab"), "_1"), 0, Matcher.Repeat.UNBOUNDED, false));
+    }
+
+    /// A Unicode property keeps the spelling it was written in. Its class was labelled `\p` alone,
+    /// which reads back as no class at all, so the explode wrote the set out instead: thousands of
+    /// ranges in place of `\p{L}` (design 47 §7.13).
+    @Test
+    void aPropertyClassKeepsItsSpelling() {
+        assertThat(explode("\\p{L}+")).isEqualTo(new Matcher.Characters("\\p{L}", 1, Matcher.Repeat.UNBOUNDED));
+        assertThat(explode("\\P{Nd}")).isEqualTo(new Matcher.Characters("\\P{Nd}", 1, 1));
+        assertThat(explode("\\pL*")).isEqualTo(new Matcher.Characters("\\pL", 0, Matcher.Repeat.UNBOUNDED));
     }
 
     /** The flags are absorbed: what they changed is written out as the set it became. */

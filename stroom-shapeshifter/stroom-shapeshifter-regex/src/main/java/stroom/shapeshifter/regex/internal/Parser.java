@@ -547,9 +547,12 @@ public final class Parser {
             }
             case 'p', 'P' -> {
                 final CodePointSet set = fold(parseUnicodeClass(start));
+                // Labelled with the whole escape, name and all: `\p` alone is not a class, so
+                // nothing reading the label back (an explode keeping the author's spelling)
+                // could tell `\p{L}` from `\p{Nd}`
                 return charClass(c == 'P'
                         ? set.negate()
-                        : set, "\\" + c);
+                        : set, pattern.substring(start, pos));
             }
             default -> {
                 if (c >= '1' && c <= '9') {

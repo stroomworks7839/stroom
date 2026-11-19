@@ -712,7 +712,7 @@ templated line is split into its sequence (2026-11-17, §3).
    reference of any kind — an amendment to A's "a bare word is text". *Recommended: both, or
    neither.*
 8. **F's outcome**, once measured: re-baseline `library_parts` to the explode's spelling, or
-   fix up by hand.
+   fix up by hand. **Ruled 2026-11-19: re-baseline**, as recommended (§7.13).
 9. **J**: a toolbar action that wraps rows in *only if it writes something*. *Recommended:
    decided after H and I are walked, against what the idiom then costs.*
 
@@ -861,6 +861,8 @@ The tree is still the way in for an author who does not write regexes. For one w
 which is everyone coming from DS3, the regex is the natural spelling, and the explode turns it
 into the tree.
 
+**Done 2026-11-19, §7.13.** Rung 4 walked regex-first at 41.
+
 *Later, if F is not enough:* the tree gets A's treatment. An add line under the selected node
 takes a regex fragment and explodes it into the nodes it is, about three actions a node
 against six. That only pays for building a tree a piece at a time, and nothing walked so far
@@ -963,6 +965,7 @@ H and I leave this idiom cheap enough without it.
 | as an author would drive it (no needless clears; no rename) | 110 | 154 |
 | with G | 110 | about 137 |
 | *with G, as driven 2026-11-19 (§7.11)* | *122* | *146* |
+| *with F, as driven 2026-11-19 (§7.13)* | *41* | *146* |
 | with F | about 42 | about 137 |
 | with H | about 39 | about 121 |
 | with I | about 39 | about 114 |
@@ -987,10 +990,11 @@ hold, and the counts are taken again.
    reads `default`, which is reserved; the row carries its limit.
 3. ~~**G — a delimiter on the Match line**, then F, in this order (confirmed 2026-11-19). The firmest saving left, built the way B was. Rung
    5 is walked again.~~ **Done 2026-11-19, §7.11.**
-4. **F — measure first.** The walkthrough's explode stub returns what `PatternExplode` makes
+4. ~~**F — measure first.** The walkthrough's explode stub returns what `PatternExplode` makes
    of rung 4's regex, computed by the engine in a test rather than written by hand. Then the
    walk goes regex-first. The result decides between a re-baseline and fix-ups, and whether
-   the tree's own add line is wanted.
+   the tree's own add line is wanted.~~ **Done 2026-11-19, §7.13**: re-baselined, 41, and no
+   add line.
 5. **H — ruled 2026-11-19: both parts go.** The re-baseline of rungs 4 to 6's literals and the `${…}` amendment
    to A go together, or neither goes.
 6. **I** — three defaults, no new surface.
@@ -1186,3 +1190,68 @@ has a story that fails without its fix, which was checked by taking the fixes ou
 OK while the strip shows another template, and an emptied kind box, cannot be reached from
 the screen as it is — the question is modal, and the box offers no empty choice — so 3's
 second half and 4 have no story.
+
+### 7.13 F, measured — 2026-11-19
+
+Rung 4 written as a regex, the way an author coming from DS3 writes it:
+
+```
+(?<time>[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z) host=(?<host>\S+)
+ severity=(?<severity>\p{L}+) msg=(?<msg>.*?)(?: [a-z]+=)(?<pid>\p{Nd}+)[^\n]*\n
+```
+
+on one line, with a named group for each field, a group round what will be `FIELD`, and the
+rest of the line.
+`PatternExplode` makes it into the fixture's tree but for three nodes:
+
+| | the explode | the fixture had |
+|---|---|---|
+| `TIMESTAMP` | a sequence of twelve: the runs of digits and the tags between them | one `regex` node |
+| `msg` | a lazy repeat of any character | `take_until " pid="` |
+| the line's end | a run of anything but a newline, then a tag, `\n` | `take_through "\n"` |
+
+The explode never makes a `take_until` or a `take_through`: no regex is one. The other seven
+land exactly, `FIELD` included — the non-capturing group stays a nested sequence, and `KEY`
+is the run inside it.
+
+**A fault found on the way, and fixed.** `\p{L}` and `\p{Nd}` exploded to classes written
+out in full, thousands of ranges each. The regex parser labelled a property class with `\p`
+alone, which reads back as no class, so the explode could not keep the author's spelling and
+rendered the set. The label is now the whole escape (`Parser`), and `ExplodeTest` holds a
+property class to its spelling. A label is only ever shown; what a pattern matches did not
+change.
+
+**Ruled 2026-11-19: re-baseline.** `library_parts` is now in the explode's spelling. Its output
+is unchanged — `GoldenFixtureTest` — and `PatternExplodeTest.libraryPartsIsTheExplodeOfOneRegex`
+holds the explode of the regex above to be the fixture's line with its parts written in place.
+The walk's explode route serves that tree. What the re-baseline costs and gains:
+
+- `msg` is a lazy run where it was a scan to ` pid=`, so it ends at the first ` key=digits`
+  rather than the first ` pid=`: `msg=a b=1 c pid=5` reads `a`, with `b=1` as the field.
+  The fixture's messages hold no `=`. What follows the pid, and a CRLF, are still the rest of
+  the line, as the take-through had them, and `msg=old pid=3 died pid=5` still reads `old`
+  and `3` (`ProjectLibraryTest.libraryPartsReadsWhatFollowsThePidAsTheRestOfTheLine`).
+- *Corrected 2026-11-19.* The re-baseline was first built with the line ending in `\n` alone,
+  and ruled on with its cost misstated as *"`msg` could end earlier"*. A review found the
+  opposite: no line with anything after the pid, or with a CRLF, matched at all, and `msg`
+  ran on to the last ` key=digits`. The regex gained `[^\n]*`, and the ruling was put again
+  with the cost as it is.
+- A regex part labelled where it is named — the old `TIMESTAMP` — was the only case of it in
+  the corpus, so `ProjectLibraryTest.aRegexPartLabelledWhereItIsNamedCapturesWhatItMatched`
+  holds it now.
+- The demo pack, `shapeshifter-demos.zip`, is rebuilt: one entry, `library_parts`, changes.
+- `take_until` and `take_through` are each still in one other fixture, and
+  `progressive_text_steps` — the same line, unfactored — keeps the regex node, the take-until
+  and the take-through it always had.
+- The line matches on tier 2 where it matched on tier 4. The take-until was followed by `FIELD`
+  rather than its own tag, so it lowered to a lookahead and the backtracker.
+
+**Rung 4, walked again: 41 actions as driven, where it was 122.** The 83 actions of the tree's
+nodes become the regex and its Enter, 2. The walk's explode route serves the tree for that one
+regex and refuses any other. That the story's regex and tree are the engine's `RUNG_FOUR` and
+its explode is kept by hand: the engine holds `RUNG_FOUR`'s explode to the fixture, and the
+keystone holds the lifts from the story's tree to it. Everything else is as it was: the template, the tree,
+the four lifts at four each, the body and the run.
+
+The tree's own add line (F's *later*) is not wanted: nothing walked builds a tree a node at a
+time any more.

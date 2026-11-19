@@ -43,6 +43,7 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -201,6 +202,48 @@ class PatternExplodeTest {
             assertThat(matcher.group("msg").toString()).isEqualTo("hello world");
             assertThat(matcher.group("pid").toString()).isEqualTo("42");
         }
+    }
+
+    /// Rung 4's line as an author writes it (design 47 F): one regex, a named group for each field,
+    /// a group round what will be `FIELD`, and the rest of the line. `ShapeshifterLibraryStories`
+    /// types the same regex, and its explode route answers that one regex with this test's tree.
+    static final String RUNG_FOUR = "(?<time>[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z)"
+                                    + " host=(?<host>\\S+) severity=(?<severity>\\p{L}+) msg=(?<msg>.*?)"
+                                    + "(?: [a-z]+=)(?<pid>\\p{Nd}+)[^\\n]*\\n";
+
+    /// `library_parts` is in the explode's spelling (design 47 §7.13): its line, with every part it
+    /// names written in place, is the tree rung 4's regex explodes to. So the walk that lifts the
+    /// parts out of that tree arrives at the fixture, and the output is the fixture's.
+    @Test
+    void libraryPartsIsTheExplodeOfOneRegex() {
+        final Project project = ProjectReader.read(FixtureLedger.bytes("projects/library_parts/project.json"));
+        final Template template = project.templates().stream()
+                .filter(t -> t.name().equals("line"))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("library_parts has no template called line"));
+        final PatternNode line = ((MatchExpression.Pattern) template.match()).node();
+
+        assertThat(PatternExplode.explode(RUNG_FOUR, RegexFlags.none())).isEqualTo(inline(line, project.patterns()));
+    }
+
+    // A tree with every ref replaced by the part it names, a label on the ref kept on the part
+    private static PatternNode inline(final PatternNode node, final Map<String, PatternNode> parts) {
+        return switch (node) {
+            case final PatternNode.Ref ref -> inline(Objects.requireNonNull(parts.get(ref.name()),
+                    () -> "no part called " + ref.name()), parts);
+            case final PatternNode.Sequence sequence -> new PatternNode.Sequence(
+                    sequence.items().stream().map(item -> inline(item, parts)).toList());
+            case final PatternNode.Choice choice -> new PatternNode.Choice(
+                    choice.alternatives().stream().map(item -> inline(item, parts)).toList());
+            case final PatternNode.Labelled labelled -> new PatternNode.Labelled(
+                    inline(labelled.body(), parts), labelled.label(), labelled.as());
+            case final PatternNode.Repeat repeat -> new PatternNode.Repeat(
+                    inline(repeat.body(), parts), repeat.min(), repeat.max(), repeat.greedy());
+            case final PatternNode.Optional optional -> new PatternNode.Optional(inline(optional.body(), parts));
+            case final PatternNode.Peek peek -> new PatternNode.Peek(inline(peek.body(), parts));
+            case final PatternNode.Not not -> new PatternNode.Not(inline(not.body(), parts));
+            default -> node;
+        };
     }
 
     /** The tree an explode makes is the tree the configuration stores: it survives the wire format. */

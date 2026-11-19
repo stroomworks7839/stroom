@@ -889,6 +889,11 @@ the kind box, the kind, its one text field, often a label, OK — six or seven a
 fourteen nodes. Lifting the four parts is four actions each. The body is one `value-of`, typed
 as one Select with the labels as `$time`, `$host` and so on.
 
+*Walked again 2026-11-19, regex-first (design 47 F): the line is one regex on the template's
+match line, the match is made a pattern tree, which explodes it, and the four parts are lifted
+from that. Ten stories, **41 actions**. The fixture is now in the explode's spelling, its output
+unchanged (design 47 §7.13).*
+
 ### 6.4 Rung 5 — `text_019_single_line_split`
 
 The sample: a `|`-separated file whose first record is a header row of column names and whose
