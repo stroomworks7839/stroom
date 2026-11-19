@@ -17,9 +17,12 @@
 package stroom.shapeshifter.client.component;
 
 import stroom.alert.client.event.AlertEvent;
+import stroom.alert.client.event.ConfirmEvent;
 import stroom.dispatch.client.RestFactory;
 import stroom.shapeshifter.client.model.GuardClause;
 import stroom.shapeshifter.client.model.Hot;
+import stroom.shapeshifter.client.model.MatchKind;
+import stroom.shapeshifter.client.model.MatchLine;
 import stroom.shapeshifter.client.model.MatchRole;
 import stroom.shapeshifter.client.model.Modes;
 import stroom.shapeshifter.client.model.Profile;
@@ -84,6 +87,9 @@ public class TemplateStripController extends Controller {
     // The pattern last sent to the engine from the open match field: an answer for any other
     // arrived late and is not shown (design 47 §7.2, finding 14).
     private ShapeshifterPatternRequest matchInspected;
+    // Whether the line's taking is being asked about: the question takes the keyboard from the
+    // line, and that is not a second taking.
+    private boolean asking;
     private final Timer matchTimer = new Timer() {
         @Override
         public void run() {
@@ -342,9 +348,9 @@ public class TemplateStripController extends Controller {
         view.setMatch(Templates.kind(template.match()), Templates.describe(template.match()),
                 guardSummary(template.guard()) + guardVerdict(template) + " · "
                 + limitsSummary(template.matchLimits()),
-                !readOnly && template.match() instanceof MatchExpression.Regex regex
-                        ? regex.pattern()
-                        : null);
+                readOnly
+                        ? null
+                        : MatchLine.of(template.match()));
         view.setRole(true, MatchRole.of(template.consume()), !readOnly, roleNote(template),
                 template.consume() && !template.captures().isEmpty());
         view.setMatchVisible(true);
@@ -543,16 +549,18 @@ public class TemplateStripController extends Controller {
         }
     }
 
-    // The strip is about to show something else. A pattern being typed in the match is taken
-    // for the template it was typed for, as a title is ([#leaveTitle()]). Leaving the field by
-    // the pointer takes it already; this is for what moves the selection without moving the
-    // keyboard — an Alt+arrow, a step back — which left it open over another template's match
-    // and then wrote it there (design 47 §7.8, finding 3).
+    // The strip is about to show something else. What is being typed on the match line is
+    // taken for the template it was typed for, as a title is ([#leaveTitle()]). Leaving the
+    // line by the pointer takes it already; this is for what moves the selection without moving
+    // the keyboard — an Alt+arrow, a step back — which left it open over another template's
+    // match and then wrote it there (design 47 §7.8, finding 3). Another kind chosen on the line
+    // is taken only where it throws nothing away: the template it would be asked about is no
+    // longer on screen.
     private void leaveMatch() {
         if (!view.isMatchOpen()) {
             return;
         }
-        final String pattern = view.getMatchText();
+        final MatchLine line = view.getMatchLine();
         view.closeMatch();
         matchTimer.cancel();
         matchInspected = null;
@@ -560,15 +568,17 @@ public class TemplateStripController extends Controller {
         final Template was = id == null
                 ? null
                 : host.template(id);
-        if (readOnly || was == null || !(was.match() instanceof MatchExpression.Regex regex)
-            || regex.pattern().equals(pattern)) {
+        if (readOnly || was == null || !MatchLine.spells(was.match()) || line.replacesWork(was.match())) {
+            return;
+        }
+        final MatchExpression match = line.toMatch(was.match());
+        if (match == null || match.equals(was.match())) {
             return;
         }
         Scheduler.get().scheduleDeferred(() -> {
             final Template now = host.template(id);
             if (now != null && !readOnly && now.match().equals(was.match())) {
-                host.replace(host.withTemplate(Templates.withMatch(now,
-                        new MatchExpression.Regex(pattern, regex.flags(), regex.advance()))));
+                host.replace(host.withTemplate(Templates.withMatch(now, match)));
             }
         });
     }
@@ -625,31 +635,80 @@ public class TemplateStripController extends Controller {
         view.editMatch();
     }
 
-    /// The match field taken (design 47 B, reassessed 2026-11-18): the regex's pattern is what
-    /// was typed, and its flags and advance are as they were — those are the workbench's.
+    /// The match line taken (design 47 B, reassessed 2026-11-18, and G): a regex's pattern is
+    /// what was typed, and its flags and advance are as they were; a delimiter's character and
+    /// container are, and its escape is as it was — those are the workbench's. Another kind
+    /// chosen on the line replaces the match, after asking where that throws away something the
+    /// author wrote.
     ///
     /// Taken with Enter in a template whose body is empty, the keyboard goes on into the body,
-    /// with a new card open: a template just made is a name, a pattern and then what it
-    /// writes, each with Enter. Otherwise it stays on the match.
+    /// with a new card open: a template just made is a name, a match and then what it writes,
+    /// each with Enter. Otherwise it stays on the match.
     ///
-    /// @param pattern What the field held.
+    /// @param line What the line held.
     /// @param entered Whether it was taken with Enter, rather than by the keyboard leaving it.
-    public void onMatch(final String pattern, final boolean entered) {
-        // The field has closed: an answer still on its way is for nothing on screen
+    public void onMatch(final MatchLine line, final boolean entered) {
+        if (asking) {
+            return;
+        }
+        // An answer still on its way is for a line about to close, or to be refused
         matchTimer.cancel();
         matchInspected = null;
         final Template template = host.template(templateId);
-        if (template == null || readOnly || !(template.match() instanceof MatchExpression.Regex regex)) {
+        if (template == null || readOnly || !MatchLine.spells(template.match())) {
+            view.closeMatch();
             return;
         }
-        if (!regex.pattern().equals(pattern)) {
-            host.replace(host.withTemplate(Templates.withMatch(template,
-                    new MatchExpression.Regex(pattern, regex.flags(), regex.advance()))));
-        }
-        if (!entered) {
+        final MatchExpression match = line.toMatch(template.match());
+        if (match == null) {
+            // Refused where it is, with what was typed still there to be put right
+            view.setMatchError(MatchLine.NO_DELIMITER);
             return;
         }
-        final Template now = host.template(templateId);
+        final String id = template.id();
+        if (!line.replacesWork(template.match())) {
+            view.closeMatch();
+            writeMatch(template, match);
+            afterMatch(id, entered);
+            return;
+        }
+        final String question = "Make the match a " + line.kind().label() + "? The "
+                                + Templates.kind(template.match()) + " it holds, "
+                                + Templates.describe(template.match()) + ", goes.";
+        asking = true;
+        ConfirmEvent.fire(this, question, ok -> {
+            asking = false;
+            // The line is still this template's only if nothing has moved the strip meanwhile
+            final boolean shown = id.equals(templateId) && view.isMatchOpen();
+            final Template now = host.template(id);
+            if (!ok || now == null || readOnly || !now.match().equals(template.match())) {
+                // Left as it was: open, with the keyboard back in it
+                if (shown) {
+                    view.focusOpenLine();
+                }
+                return;
+            }
+            if (shown) {
+                view.closeMatch();
+            }
+            writeMatch(now, match);
+            afterMatch(id, entered);
+        });
+    }
+
+    private void writeMatch(final Template template, final MatchExpression match) {
+        if (!match.equals(template.match())) {
+            host.replace(host.withTemplate(Templates.withMatch(template, match)));
+        }
+    }
+
+    // Where the keyboard goes once the match is taken with Enter: on into an empty body, or
+    // back to the match. Nowhere, if the strip is showing another template by then.
+    private void afterMatch(final String id, final boolean entered) {
+        if (!entered || !id.equals(templateId)) {
+            return;
+        }
+        final Template now = host.template(id);
         if (now != null && now.body().isEmpty()) {
             bodyPresenter.openNew();
         } else {
@@ -671,11 +730,14 @@ public class TemplateStripController extends Controller {
         final Template template = host == null
                 ? null
                 : host.template(templateId);
-        if (template == null || !view.isMatchOpen()
-            || !(template.match() instanceof MatchExpression.Regex regex)) {
+        final MatchLine line = view.getMatchLine();
+        if (template == null || !view.isMatchOpen() || line.kind() != MatchKind.REGEX) {
             return;
         }
-        final String pattern = view.getMatchText();
+        final String pattern = line.pattern();
+        final MatchExpression.Regex regex = template.match() instanceof MatchExpression.Regex was
+                ? was
+                : new MatchExpression.Regex(pattern, null, 0);
         if (pattern.isEmpty()) {
             matchInspected = null;
             view.setMatchError(null);
@@ -688,7 +750,9 @@ public class TemplateStripController extends Controller {
                 .create(RESOURCE)
                 .method(res -> res.patternInfo(request))
                 .onSuccess(info -> {
-                    if (request == matchInspected) {
+                    // Not if the line has been made a delimiter since: the answer is a regex's
+                    if (request == matchInspected && view.isMatchOpen()
+                        && view.getMatchLine().kind() == MatchKind.REGEX) {
                         view.setMatchError(info.isValid()
                                 ? null
                                 : info.getError());

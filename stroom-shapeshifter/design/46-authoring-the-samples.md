@@ -902,10 +902,10 @@ templates, four modes, and the only use of `match_index` in the corpus.
 | 3 | Opens the `Document` row (§5.3) | Nothing to create | built (`Templates.ensureDocument`) |
 | 4 | On it, declares `heading`, type `list` | The declarations grid beneath the strip — and design 44 §5m's second reason for pre-building the row: *"somewhere to declare a run-scoped name"* | built (`DeclarationEdit.ui.xml`, `TemplateStrip.ui.xml` `declarations`) |
 | 5 | Body: a `value-of` of the XML prologue before the existing `apply-templates`, its mode `New…` `root`, and a `value-of` `\n</records>\n` after | — | built |
-| 6 | Adds `header_record`, mode `root`, match `delimiter` `\|` | — | built (`Delimiter.ui.xml`) |
+| 6 | Adds `header_record`, mode `root`, match `delimiter` `\|` | — | built (`Delimiter.ui.xml`); on the match line since design 47 G |
 | 7 | Sets its limits `max` to 1 | *"stop matching this template after N matches"* | built (`GuardAndLimits.ui.xml`) |
 | 8 | Body: `apply-templates` `$1`, mode `New…` `header_columns` | — | built |
-| 9 | Adds `header_column`, mode `header_columns`, match `delimiter` `,` with container `"` to `"` | The container fields sit beside the delimiter | built (`Delimiter.ui.xml`) |
+| 9 | Adds `header_column`, mode `header_columns`, match `delimiter` `,` with container `"` to `"` | The container fields sit beside the delimiter | built (`Delimiter.ui.xml`); on the match line since design 47 G |
 | 10 | Captures `heading` ← `$1` on that template, body empty | The captures grid, offering the declared name | built (`CaptureEdit.ui.xml`, `declared` field) |
 | 11 | Adds `data_record`, mode `root`, match `delimiter` `\|`, below `header_record` | — | built |
 | 12 | Declares `record_body`, type `scalar`, on `data_record` | — | built |
@@ -980,6 +980,9 @@ kind, the delimiter, the container — because the match line opens in place onl
 Six `value-of` literals at four or five each. The `variable` and `if` that mean *don't write
 an empty record* are 39 between them (§6.4 question b). Declarations, the capture and three
 modes make most of the rest.
+
+*Walked again 2026-11-19, after design 47 G put the delimiter on the match line: 146 as
+driven. The four delimiters and the limit cost 31 where they cost 42 (design 47 §7.11).*
 
 *What these two rungs found, with every other open finding, is collected in design 47 §7,
 with the fixes and proposals that follow and the order to do them in.*

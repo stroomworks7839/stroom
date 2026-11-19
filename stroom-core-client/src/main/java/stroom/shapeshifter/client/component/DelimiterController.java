@@ -17,6 +17,7 @@
 package stroom.shapeshifter.client.component;
 
 import stroom.shapeshifter.client.model.ControlEscapes;
+import stroom.shapeshifter.client.model.MatchLine;
 import stroom.shapeshifter.client.model.ProjectHost;
 import stroom.shapeshifter.client.model.Templates;
 import stroom.shapeshifter.config.MatchExpression;
@@ -41,9 +42,6 @@ public class DelimiterController
     private boolean readOnly = true;
 
     private final Delimiter view;
-
-    /// What a template gets when its match becomes a delimiter: one field per line.
-    static final MatchExpression.Delimiter DEFAULT = new MatchExpression.Delimiter("\n", null, null, null);
 
     private ProjectHost host;
     private String templateId;
@@ -82,25 +80,16 @@ public class DelimiterController
         if (template == null || readOnly) {
             return;
         }
-        final String delimiter = ControlEscapes.unescape(view.getDelimiter());
-        if (delimiter.isEmpty()) {
-            view.setError("A delimiter match needs its delimiter");
+        final MatchExpression match = MatchLine.delimiter(view.getDelimiter(), view.getEscape(),
+                view.getContainerStart(), view.getContainerEnd());
+        if (match == null) {
+            view.setError(MatchLine.NO_DELIMITER);
             return;
         }
         view.setError(null);
-        final MatchExpression match = new MatchExpression.Delimiter(delimiter,
-                blankToNull(ControlEscapes.unescape(view.getEscape())),
-                blankToNull(ControlEscapes.unescape(view.getContainerStart())),
-                blankToNull(ControlEscapes.unescape(view.getContainerEnd())));
         if (!match.equals(template.match())) {
             host.replace(host.withTemplate(Templates.withMatch(template, match)));
         }
-    }
-
-    private static String blankToNull(final String text) {
-        return text.isEmpty()
-                ? null
-                : text;
     }
 
     // One place that says what read-only means here, called when the context changes and

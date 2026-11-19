@@ -23,6 +23,7 @@ import stroom.svg.shared.SvgImage;
 import stroom.widget.button.client.Toolbar;
 import stroom.widget.button.client.ToolbarButton;
 import stroom.widget.component.client.Component;
+import stroom.widget.util.client.ContentFocus;
 
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.dom.client.Element;
@@ -341,7 +342,7 @@ public class Body extends Component {
     private void draw(final boolean keepRow) {
         final Element active = editor == null
                 ? null
-                : activeElement();
+                : ContentFocus.activeElement();
         final boolean inEditor = active != null && editor.getElement().isOrHasChild(active);
         // ...and so is the row the keyboard is on, or a run landing would take it off the list
         String focusedRow = null;
@@ -389,10 +390,6 @@ public class Body extends Component {
             focusCardNext = null;
         }
     }
-
-    private static native Element activeElement() /*-{
-        return $doc.activeElement;
-    }-*/;
 
     /// Shows an editor in place of a card (design 47 D).
     ///

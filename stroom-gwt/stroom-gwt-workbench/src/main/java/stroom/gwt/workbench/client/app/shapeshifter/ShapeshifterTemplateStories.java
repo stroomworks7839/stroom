@@ -65,6 +65,11 @@ public final class ShapeshifterTemplateStories {
     private static final String PART_TITLE = ".pattern-workbench__title .name-edit__name";
     private static final String JUNK_PATTERN = "[^\\n]*\\n?";
     private static final String MATCH_PATTERN = ".template-strip__match-pattern";
+    private static final String KIND = "Kind of match";
+    private static final String SPLIT_ON = "Split on";
+    private static final String MAKE_DELIMITER = "Make the match a delimiter";
+    // Long enough for the line to be made a delimiter before the regex's answer arrives
+    private static final int LATE_ANSWER_MS = 1500;
 
     private ShapeshifterTemplateStories() {
         // Static utility
@@ -631,7 +636,154 @@ public final class ShapeshifterTemplateStories {
                     play.expect(play.getByLabelText(MODE)).toBeVisible();
                     play.expect(play.getByText(KV_MODE)).toBeVisible();
                     play.expect(play.getByRole("button", "Save")).toHaveAttribute("aria-disabled", "true");
+                })
+                // A delimiter is written on the match line, as a regex is (design 47 G): its
+                // kind, then its separator, which arrives as a new one does - a newline,
+                // selected, so typing replaces it - and the container either side. Tab moves
+                // between the fields without taking the line; Enter takes it, and goes on into
+                // the body, which is empty
+                .story("ADelimiterIsWrittenOnTheMatchLine", context -> ShapeshifterEditorStories.render(context,
+                        false))
+                .withPlay(play -> {
+                    final Play screen = play.screen();
+                    play.waitFor(() -> play.expect(play.getByTitle(KV_ROW)).toBeInTheDocument());
+                    play.click(play.getByTitle(KV_ROW));
+                    Walkthrough.named(play, "field");
+                    play.waitFor(() -> play.expect(play.getByLabelText(PATTERN)).toHaveFocus());
+                    ShapeshifterEditorStories.pickFromBox(play, screen, play.getByLabelText(KIND), "delimiter");
+                    play.waitFor(() -> play.expect(play.getByLabelText(SPLIT_ON)).toHaveFocus());
+                    play.expect(play.getByLabelText(SPLIT_ON)).toHaveValue("\\n");
+                    play.expect(play.getByLabelText(PATTERN)).not().toBeVisible();
+                    play.keyboard(",{Tab}\"{Tab}\"{Enter}");
+                    play.waitFor(() -> play.expect(play.getByLabelText(Walkthrough.ENTRY)).toHaveFocus());
+                    play.expect(play.getByText("split on \",\"", MATCH_PATTERN)).toBeVisible();
+                    play.expect(play.getByRole("button", "Save")).not().toHaveAttribute("aria-disabled");
+                    // Replacing a regex no one had written is not asked about
+                    play.expect(play.spy(ScreenHarness.CONFIRM_SPY)).not().toHaveBeenCalled();
+                    play.keyboard("{Escape}");
+                    // Opened again, it is the delimiter it was made
+                    play.click(matchOpen(play));
+                    play.waitFor(() -> play.expect(play.getByLabelText(SPLIT_ON)).toHaveFocus());
+                    play.expect(play.getByLabelText(KIND)).toHaveValue("delimiter");
+                    play.expect(play.getByLabelText(SPLIT_ON)).toHaveValue(",");
+                    play.expect(play.getByLabelText("Container start")).toHaveValue("\"");
+                    play.expect(play.getByLabelText("Container end")).toHaveValue("\"");
+                    play.keyboard("{Escape}");
+                    play.waitFor(() -> play.expect(matchOpen(play)).toHaveFocus());
+                    ShapeshifterEditorStories.expectNoProblems(play);
+                })
+                // Another kind chosen on the line, then Escape: the match is as it was, and
+                // opening it again opens what it is
+                .story("EscapePutsTheMatchsKindBack", context -> ShapeshifterEditorStories.render(context, false))
+                .withPlay(play -> {
+                    final Play screen = play.screen();
+                    ShapeshifterEditorStories.selectTemplate(play, "pair");
+                    play.waitFor(() -> play.expect(matchOpen(play)).toBeVisible());
+                    play.click(matchOpen(play));
+                    play.waitFor(() -> play.expect(play.getByLabelText(PATTERN)).toHaveFocus());
+                    ShapeshifterEditorStories.pickFromBox(play, screen, play.getByLabelText(KIND), "delimiter");
+                    play.waitFor(() -> play.expect(play.getByLabelText(SPLIT_ON)).toHaveFocus());
+                    play.keyboard("|{Escape}");
+                    play.waitFor(() -> play.expect(matchOpen(play)).toHaveFocus());
+                    play.expect(play.getByText(PAIR_PATTERN, MATCH_PATTERN)).toBeVisible();
+                    play.expect(play.getByRole("button", "Save")).toHaveAttribute("aria-disabled", "true");
+                    play.keyboard("{Enter}");
+                    play.waitFor(() -> play.expect(play.getByLabelText(PATTERN)).toHaveFocus());
+                    play.expect(play.getByLabelText(KIND)).toHaveValue("regex");
+                    play.expect(play.getByLabelText(PATTERN)).toHaveValue(PAIR_PATTERN);
+                    ShapeshifterEditorStories.expectNoProblems(play);
+                })
+                // A regex someone wrote, made a delimiter on the line: the regex would be lost,
+                // so it is asked about first. Cancel leaves the regex; OK makes the delimiter
+                .story("ARegexIsNotReplacedWithoutAsking", context -> ShapeshifterEditorStories.render(context,
+                        false))
+                .withPlay(play -> {
+                    final Play screen = play.screen();
+                    ShapeshifterEditorStories.selectTemplate(play, "pair");
+                    play.waitFor(() -> play.expect(matchOpen(play)).toBeVisible());
+                    toDelimiter(play, screen, "|");
+                    play.click(confirmation(play, screen).getByRole("button", StroomDom.button("Cancel")));
+                    play.waitFor(() -> play.expect(screen.queryByText(TextMatch.containing(MAKE_DELIMITER)))
+                            .toBeNull());
+                    // Cancelled, the line is as it was left, with the keyboard back in it;
+                    // Escape is the way back to the regex
+                    play.waitFor(() -> play.expect(play.getByLabelText(SPLIT_ON)).toHaveFocus());
+                    play.expect(play.getByLabelText(SPLIT_ON)).toHaveValue("|");
+                    play.keyboard("{Escape}");
+                    play.waitFor(() -> play.expect(play.getByText(PAIR_PATTERN, MATCH_PATTERN)).toBeVisible());
+                    play.expect(play.getByRole("button", "Save")).toHaveAttribute("aria-disabled", "true");
+                    toDelimiter(play, screen, "|");
+                    play.click(confirmation(play, screen).getByRole("button", StroomDom.button("OK")));
+                    play.waitFor(() -> play.expect(play.getByText("split on \"|\"", MATCH_PATTERN)).toBeVisible());
+                    play.expect(play.getByRole("button", "Save")).not().toHaveAttribute("aria-disabled");
+                    ShapeshifterEditorStories.expectNoProblems(play);
+                })
+                // A delimiter with nothing to split on means nothing, and is refused where it
+                // is: the line stays open, says why, and keeps what was typed on it
+                .story("ADelimiterNeedsSomethingToSplitOn", context -> ShapeshifterEditorStories.render(context,
+                        false))
+                .withPlay(play -> {
+                    final Play screen = play.screen();
+                    play.waitFor(() -> play.expect(play.getByTitle(KV_ROW)).toBeInTheDocument());
+                    play.click(play.getByTitle(KV_ROW));
+                    Walkthrough.named(play, "field");
+                    play.waitFor(() -> play.expect(play.getByLabelText(PATTERN)).toHaveFocus());
+                    ShapeshifterEditorStories.pickFromBox(play, screen, play.getByLabelText(KIND), "delimiter");
+                    play.waitFor(() -> play.expect(play.getByLabelText(SPLIT_ON)).toHaveFocus());
+                    play.keyboard("{Backspace}{Tab}\"{Tab}\"{Shift>}{Tab}{Tab}{/Shift}{Enter}");
+                    play.waitFor(() -> play.expect(play.querySelector(MATCH_ERROR))
+                            .toHaveTextContent("A delimiter match needs its delimiter"));
+                    play.expect(play.getByLabelText(SPLIT_ON)).toHaveFocus();
+                    play.expect(play.getByLabelText(SPLIT_ON)).toHaveAttribute("aria-invalid", "true");
+                    play.expect(play.getByLabelText("Container start")).toHaveValue("\"");
+                    play.expect(play.spy(ScreenHarness.ALERT_SPY)).not().toHaveBeenCalled();
+                    // Put right, it is taken
+                    play.keyboard(",{Enter}");
+                    play.waitFor(() -> play.expect(play.getByText("split on \",\"", MATCH_PATTERN)).toBeVisible());
+                    play.expect(play.querySelector(MATCH_ERROR)).not().toBeVisible();
+                })
+                // A regex's check still on its way when the line is made a delimiter is for
+                // nothing on screen: its answer, arriving later, says nothing
+                .story("ARegexAnswerIsNotShownOnADelimiter", context -> ShapeshifterEditorStories.render(context,
+                        RestFixtures.builder()
+                                .post("/shapeshifter/v1/patternInfo", request -> UNCLOSED.equals(patternOf(request))
+                                        ? RestReply.json(NOT_COMPILED).delayed(LATE_ANSWER_MS)
+                                        : RestReply.json(ShapeshifterEditorStories.PATTERN_INFO))
+                                .build()))
+                .withPlay(play -> {
+                    final Play screen = play.screen();
+                    ShapeshifterEditorStories.selectTemplate(play, "pair");
+                    play.waitFor(() -> play.expect(matchOpen(play)).toBeVisible());
+                    play.click(matchOpen(play));
+                    play.waitFor(() -> play.expect(play.getByLabelText(PATTERN)).toHaveFocus());
+                    final Spy requests = play.spy(ScreenHarness.REQUEST_SPY);
+                    play.clear(play.getByLabelText(PATTERN));
+                    play.keyboard(Walkthrough.typed(UNCLOSED));
+                    // Asked, and not yet answered
+                    play.waitFor(() -> play.expect("the engine asked about it",
+                            () -> String.valueOf(requests.getCalls()).contains(UNCLOSED)).toEqual(true));
+                    ShapeshifterEditorStories.pickFromBox(play, screen, play.getByLabelText(KIND), "delimiter");
+                    play.waitFor(() -> play.expect(play.getByLabelText(SPLIT_ON)).toHaveFocus());
+                    // The answer has come and gone
+                    play.sleep(LATE_ANSWER_MS + 500);
+                    play.expect(play.querySelector(MATCH_ERROR)).not().toBeVisible();
+                    play.expect(play.getByLabelText(SPLIT_ON)).not().toHaveAttribute("aria-invalid");
+                    play.expect(play.getByLabelText(PATTERN)).not().toHaveAttribute("aria-invalid");
                 });
+    }
+
+    // The open line's match made a delimiter on a separator, and taken with Enter
+    private static void toDelimiter(final Play play, final Play screen, final String delimiter) {
+        play.click(matchOpen(play));
+        play.waitFor(() -> play.expect(play.getByLabelText(PATTERN)).toHaveFocus());
+        ShapeshifterEditorStories.pickFromBox(play, screen, play.getByLabelText(KIND), "delimiter");
+        play.waitFor(() -> play.expect(play.getByLabelText(SPLIT_ON)).toHaveFocus());
+        play.keyboard(delimiter + "{Enter}");
+    }
+
+    // The question asked before a match is replaced
+    private static Play confirmation(final Play play, final Play screen) {
+        return play.within(screen.findByText(TextMatch.containing(MAKE_DELIMITER)).closest(StroomDom.DIALOG));
     }
 
     // The title's edit button, which opens a template's name and its settings

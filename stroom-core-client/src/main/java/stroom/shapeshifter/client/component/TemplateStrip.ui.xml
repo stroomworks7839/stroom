@@ -49,16 +49,39 @@
                 <g:FlowPanel ui:field="matchLine" styleName="template-strip__line">
                     <t:Label styleName="key-label" text="match"/>
                     <!-- What the template matches, in a box the size of a field. At rest it
-                         reads; clicked, a regex is a field in the same box, taken with Enter
-                         (design 47 B). The workbench is beside it for everything else, and is
-                         the way in for a match with no one-line spelling. -->
+                         reads; clicked, a regex or a delimiter is its kind and its fields in the
+                         same box, taken with Enter (design 47 B and G). The workbench is beside
+                         it for everything else, and is the way in for a match with no one-line
+                         spelling. -->
                     <g:FlowPanel styleName="template-strip__match-chip">
                         <t:Label ui:field="matchKind" styleName="template-strip__match-kind"/>
                         <g:FocusPanel ui:field="matchChip" styleName="template-strip__match-open">
                             <t:Label ui:field="matchSummary" styleName="template-strip__match-pattern"/>
                         </g:FocusPanel>
-                        <form:TextBox ui:field="matchField" addStyleNames="template-strip__match-field"
-                                      ariaLabel="Match pattern" visible="false"/>
+                        <!-- The match, open: its kind, then that kind's fields. Both kinds'
+                             fields are here, and the kind decides which are shown. -->
+                        <g:FlowPanel ui:field="matchEditor" styleName="template-strip__match-editor" visible="false">
+                            <l:SelectionBox ui:field="matchKindBox" ariaLabel="Kind of match"
+                                            addStyleNames="template-strip__match-kind-box"
+                                            title="A regex or a delimiter is written here; every other kind in the workbench"/>
+                            <form:TextBox ui:field="matchField" addStyleNames="template-strip__match-field"
+                                          ariaLabel="Match pattern"/>
+                            <g:FlowPanel ui:field="delimiterFields" styleName="template-strip__match-delimiter">
+                                <form:TextBox ui:field="delimiterField"
+                                              addStyleNames="template-strip__match-field template-strip__match-split"
+                                              ariaLabel="Split on"
+                                              title="The separator: \n \t \r and \\ spell the control characters"/>
+                                <t:Label styleName="template-strip__match-word" text="container"/>
+                                <form:TextBox ui:field="containerStartField"
+                                              addStyleNames="template-strip__match-field template-strip__match-container"
+                                              ariaLabel="Container start"
+                                              title="What opens a container, inside which the separator is literal"/>
+                                <t:Label styleName="template-strip__match-word" text="to"/>
+                                <form:TextBox ui:field="containerEndField"
+                                              addStyleNames="template-strip__match-field template-strip__match-container"
+                                              ariaLabel="Container end" title="What closes a container"/>
+                            </g:FlowPanel>
+                        </g:FlowPanel>
                         <btn:LinkButton ui:field="workbench" addStyleNames="template-strip__match-workbench"
                                         text="workbench"
                                         title="Open the pattern workbench — editing, validation, groups, the plan"/>

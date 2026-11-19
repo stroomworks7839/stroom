@@ -178,6 +178,14 @@ public class BaseSelectionBox<T, I extends SelectionItem>
         openPopup(null);
     }
 
+    /// Whether the list is open: while it is, the keyboard is in the list rather than the box,
+    /// and an owner watching where the keyboard goes can tell that from its leaving.
+    ///
+    /// @return Whether the list is showing.
+    public boolean isOpen() {
+        return popup != null;
+    }
+
     // Opens the list, or closes it if it is open (e.g. a second click on the box)
     private void togglePopup() {
         if (popup != null) {

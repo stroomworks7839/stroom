@@ -69,6 +69,12 @@ public final class ContentFocus {
         element.focus({preventScroll: true});
     }-*/;
 
+    /// @return The element the keyboard is in, the page's body when it is in nothing, or null
+    /// while the page has no body.
+    public static native Element activeElement() /*-{
+        return $doc.activeElement;
+    }-*/;
+
     /// @param container An element.
     /// @return The first element inside it that Tab stops at, or null if there is none: an element
     /// that can take the focus, without a negative `tabindex`, that isn't disabled, hidden or

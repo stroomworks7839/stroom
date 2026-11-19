@@ -883,6 +883,8 @@ the Escape out of it is no longer needed.
 A delimiter template's match drops from 8 or 12 actions to 4 or 7. **Rung 5: about 17 fewer,
 158 → 141.** Rungs 1 to 4 do not change.
 
+**Done 2026-11-19, §7.11.** Rung 5 walked again at 146, 12 fewer.
+
 #### H — Literals are text, and the line can name any reference
 
 H has two parts that only pay together.
@@ -960,6 +962,7 @@ H and I leave this idiom cheap enough without it.
 | as driven, 2026-11-18 | 122 | 158 |
 | as an author would drive it (no needless clears; no rename) | 110 | 154 |
 | with G | 110 | about 137 |
+| *with G, as driven 2026-11-19 (§7.11)* | *122* | *146* |
 | with F | about 42 | about 137 |
 | with H | about 39 | about 121 |
 | with I | about 39 | about 114 |
@@ -982,8 +985,8 @@ hold, and the counts are taken again.
    `+ instruction` lands at the end of its list.
 2. ~~**The two fixes that needed a word: 7 and 8** (§7.3).~~ **Done 2026-11-19, §7.9.** Ruled 2026-11-19: the no-mode level
    reads `default`, which is reserved; the row carries its limit.
-3. **G — a delimiter on the Match line**, then F, in this order (confirmed 2026-11-19). The firmest saving left, built the way B was. Rung
-   5 is walked again.
+3. ~~**G — a delimiter on the Match line**, then F, in this order (confirmed 2026-11-19). The firmest saving left, built the way B was. Rung
+   5 is walked again.~~ **Done 2026-11-19, §7.11.**
 4. **F — measure first.** The walkthrough's explode stub returns what `PatternExplode` makes
    of rung 4's regex, computed by the engine in a test rather than written by hand. Then the
    walk goes regex-first. The result decides between a re-baseline and fix-ups, and whether
@@ -1113,3 +1116,73 @@ fixed. Each of the first four has a unit test that fails without its fix.
 | 7 | `refuseReservedMode` walked the templates and then the uses, though each use carries its template | One walk over the uses | `TestTemplateUses` |
 | 8 | `Walkthrough.expectLimit` asserted at once, where the panel may still be redrawing after a run | It waits, as `expectTried` does | — |
 | 9, 10 | The engine's new method and test used `/** */` comments, where the guide asks `///` of new code | `///` with its parameter, and `//` on the test | — |
+
+### 7.11 G, done — 2026-11-19
+
+The Match line opens on a delimiter as it does on a regex. Opened, it is the kind box —
+*regex* or *delimiter* — and then that kind's fields: a regex's pattern, or a delimiter's
+separator and the container either side of it, spelt with `ControlEscapes`. Every other kind
+is still the workbench's. A delimiter chosen on the line arrives on a newline, selected, so
+typing replaces it. Tab moves between the fields without taking the line; Enter takes it,
+and for a template whose body is empty goes on into the body, so the chain from a new
+template's name serves a delimiter template too. Escape puts the match back as it was,
+kind and all.
+
+- **Choosing another kind asks first where it throws work away.** A template just made has an
+  empty regex, and a new delimiter splits on a newline; replacing either loses nothing and is
+  not asked about. Replacing a regex or a delimiter someone wrote is (*Make the match a
+  delimiter? The regex it holds, …, goes.*). The workbench does not ask, because a kind picked
+  there is converted where the engine can say what it means; the line only replaces. A kind
+  chosen and then left by moving to another template is taken only where it loses nothing,
+  since the template it would be asked about is no longer on screen.
+- **A delimiter with nothing to split on is refused where it is**: the line stays open, says
+  why under itself, and keeps what was typed on it, as the workbench's form does.
+- **What it keeps.** A regex keeps its flags and advance, and a delimiter its escape: those
+  are the workbench's to change.
+
+`MatchLine` is the line's reading and writing of a match, in the model, with its unit tests
+(`TestMatchLine`). It also builds a delimiter from its spelling for the workbench's delimiter
+form, so the two cannot come to disagree. The line takes itself when the keyboard leaves it — not when it moves
+between the line's own fields, or into the kind box's list. `BaseSelectionBox.isOpen` says
+which.
+
+Stories: `ADelimiterIsWrittenOnTheMatchLine`, `EscapePutsTheMatchsKindBack`,
+`ARegexIsNotReplacedWithoutAsking` and `ADelimiterNeedsSomethingToSplitOn`.
+
+**Rung 5, walked again: 146 as driven, where it was 158.** The four delimiters and the limit
+cost 31, where they cost 42:
+
+| | before | with G |
+|---|---|---|
+| `header_record`, `\|` | 7 | 5 |
+| the limit | 3 | 4 — the workbench is opened for it now, where before it was already open |
+| `header_column`, `,` in quotes | 12 | 9 |
+| `data_record`, `\|` | 8 | 5 |
+| `data_column`, `,` in quotes | 12 | 8 |
+
+`data_column`'s Enter opens the card the data line is written in, so the data line no longer
+clicks `+ instruction`: one more off. The other three delimiters each end with an Escape out
+of the card their Enter opened, which the walk uses to leave each stage tidy; whether an
+author needs it has not been checked. Without those three, and without the rename, rung 5
+is 139, against §7.5's estimate of about 137.
+
+### 7.12 A review of G, fixed — 2026-11-19
+
+A review of G's working tree found nine faults. All nine are fixed. Each of the first three
+has a story that fails without its fix, which was checked by taking the fixes out.
+
+| # | Fault | Fix | Story |
+|---|---|---|---|
+| 1 | A regex's check still on its way when the line was made a delimiter answered onto the delimiter's fields | An answer is shown only while the line is a regex | `ARegexAnswerIsNotShownOnADelimiter` |
+| 2 | A delimiter with nothing to split on closed the line, lost what was typed on it, and raised a warning dialog even when the line was only left | The line stays open until it is accepted, and a refusal is said under it | `ADelimiterNeedsSomethingToSplitOn` |
+| 3 | Cancel on the question left the keyboard on a hidden field and lost what was typed; OK moved the keyboard to whichever template was shown by then | Cancel leaves the line open with the keyboard back in it. OK writes the template asked about, and moves the keyboard only if that template is still shown. While the question is up, the line is not taken a second time | `ARegexIsNotReplacedWithoutAsking` |
+| 4 | A kind box emptied would have sent the controller a line with no kind | The box goes back to the line's kind, and a line with none is the kind it opened as (`MatchLine.withKind`) | unit test |
+| 5 | The strip and the body each had their own native call for the element with the keyboard | `ContentFocus.activeElement`, shared | — |
+| 6 | `MatchLine` copied the workbench form's delimiter rules | One builder, `MatchLine.delimiter`, for both; the form's unused default is gone | unit test |
+| 7 | A whole line was built only to ask whether the line could open on a match | `MatchLine.spells` | unit test |
+| 8 | `isOpen` sat between `togglePopup` and its comment | Moved | — |
+| 9 | The regex check read the line twice | Once | — |
+
+OK while the strip shows another template, and an emptied kind box, cannot be reached from
+the screen as it is — the question is modal, and the box offers no empty choice — so 3's
+second half and 4 have no story.

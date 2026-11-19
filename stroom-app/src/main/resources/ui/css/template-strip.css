@@ -113,7 +113,8 @@
 }
 
 /* With the keyboard in the field it holds, the box is lit as a field with the keyboard is. */
-.template-strip__match-chip:has(.template-strip__match-field:focus-visible) {
+.template-strip__match-chip:has(.template-strip__match-field:focus-visible),
+.template-strip__match-chip:has(.template-strip__match-kind-box :focus-visible) {
     box-shadow: var(--focus-shadow);
 }
 
@@ -161,6 +162,52 @@
 .template-strip__match-chip .template-strip__match-field:focus-visible {
     border: none !important;
     box-shadow: none;
+}
+
+/* The match, open (design 47 G): its kind, then that kind's fields, on the line where the match
+   read. */
+.template-strip__match-editor {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.template-strip__match-kind-box {
+    flex: none;
+    width: 100px;
+}
+
+/* A delimiter's fields: the separator, then the container either side of it. Each is a
+   character or two, so each is drawn as a short field of its own rather than the line's
+   borderless one, which would not say where one ends and the next begins. */
+.template-strip__match-delimiter {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.template-strip__match-chip .template-strip__match-split,
+.template-strip__match-chip .template-strip__match-container {
+    flex: none;
+    width: 2.5em;
+    border-bottom: solid 1px var(--control__border-color);
+}
+
+/* ...and the one with the keyboard keeps its line, lit, where a field's own focus border is
+   taken away above. */
+.template-strip__match-chip .template-strip__match-field.template-strip__match-split:focus-visible,
+.template-strip__match-chip .template-strip__match-field.template-strip__match-container:focus-visible {
+    border-bottom: solid 1px var(--focus-border) !important;
+}
+
+.template-strip__match-word {
+    color: var(--ss-muted);
+    font-size: 12px;
 }
 
 .template-strip__match-chip .template-strip__match-workbench {

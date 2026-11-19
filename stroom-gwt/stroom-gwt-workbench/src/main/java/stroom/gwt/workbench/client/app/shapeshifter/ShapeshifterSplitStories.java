@@ -42,9 +42,9 @@ import java.util.List;
 /// dispatches into — is dispatched from its own pane (design 47 C). The others are dispatched
 /// from cards in the templates that own them, which is a decision and is the author's.
 ///
-/// **The mode is called `root`**, which is the fixture's name for it and also the word the
-/// editor uses for having no mode at all. The panel heads them `root` and `mode: root`, and the
-/// stories tell the two `+ template` links apart only by their titles.
+/// **The mode is called `root`**, which is the fixture's name for it. The editor once used the
+/// same word for having no mode at all; it says `default` for that now (design 47 §7.3), and
+/// the panel heads the two `mode: default` and `mode: root`.
 ///
 /// **Every literal is a `value-of`**, as the fixture writes them, and not the `text` card a line
 /// typed as it looks would make (design 47 A). The keystone is strict (§3.2), so each is made
@@ -277,11 +277,14 @@ public final class ShapeshifterSplitStories {
     private static void headerRecord(final Play play, final Play screen) {
         addTemplate(play, "root", "header_record");
         delimiter(play, screen, "|", false);
+        play.keyboard("{Escape}");
     }
 
     /// §6.4 step 7. The limit that makes it the header and not every record: one match. Set in
     /// the workbench, which is where the limits are.
     private static void onlyTheFirst(final Play play, final Play screen) {
+        play.click(ShapeshifterEditorStories.workbenchButton(play));
+        play.waitFor(() -> play.expect(play.getByLabelText("Match at most")).toBeVisible());
         play.type(play.getByLabelText("Match at most"), "1");
         play.keyboard("{Tab}");
         closeWorkbench(play);
@@ -299,7 +302,7 @@ public final class ShapeshifterSplitStories {
     private static void headerColumn(final Play play, final Play screen) {
         addTemplate(play, "header_columns", "header_column");
         delimiter(play, screen, ",", true);
-        closeWorkbench(play);
+        play.keyboard("{Escape}");
     }
 
     /// §6.4 step 10. Each column's value added to the list the document declared. The body is
@@ -322,7 +325,7 @@ public final class ShapeshifterSplitStories {
     private static void dataRecord(final Play play, final Play screen) {
         addTemplate(play, "root", "data_record");
         delimiter(play, screen, "|", false);
-        closeWorkbench(play);
+        play.keyboard("{Escape}");
     }
 
     /// §6.4 step 12. Where a record's body goes before it is written.
@@ -375,18 +378,17 @@ public final class ShapeshifterSplitStories {
         play.keyboard("{Escape}");
     }
 
-    /// §6.4 step 15. A column of a data record, matched as the header's columns are.
+    /// §6.4 step 15. A column of a data record, matched as the header's columns are. Its match
+    /// taken, the keyboard is in the card its empty body has opened, which is the next step's.
     private static void dataColumn(final Play play, final Play screen) {
         addTemplate(play, "data_columns", "data_column");
         delimiter(play, screen, ",", true);
-        closeWorkbench(play);
     }
 
     /// §6.4 step 16. The value, named by the heading in the same position: `heading[matchCount()]`
     /// is the list's entry at this column's own count — the least discoverable thing in the six
     /// samples (§6.4 question a), typed into the Select as the field's help spells it.
     private static void dataLine(final Play play, final Play screen) {
-        play.click(ShapeshifterEditorStories.addLink(play));
         Walkthrough.valueOf(play, screen, quoted("\n      <data name=\"") + " heading[matchCount()] "
                                           + quoted("\" value=\"") + " $1 " + quoted("\"/>"));
         play.keyboard("{Escape}");
@@ -414,36 +416,31 @@ public final class ShapeshifterSplitStories {
     }
 
     // A template added to a mode with that mode's own link, named. It arrives with its match
-    // line open for a regex; none of these is one, so Escape leaves it.
+    // line open, the keyboard in a regex's pattern.
     private static void addTemplate(final Play play, final String mode, final String name) {
         play.click(play.getByTitle("Click to add a template to mode " + mode));
         Walkthrough.named(play, name);
         play.waitFor(() -> play.expect(play.getByLabelText("Match pattern")).toHaveFocus());
-        play.keyboard("{Escape}");
     }
 
-    // The selected template's match made a delimiter match, in the workbench, which is left
-    // open. A new delimiter match splits on a newline; that is cleared and the delimiter typed.
-    // Each field takes what it holds when it is left.
+    // The match of the template just made made a delimiter, on its match line (design 47 G):
+    // the kind, then the separator typed over the newline a delimiter starts as, and for quoted
+    // values the container either side. Enter takes it and goes on into the body, which is
+    // empty: the card that opens there is left open for the caller.
     private static void delimiter(final Play play, final Play screen, final String delimiter,
                                   final boolean quoted) {
-        play.click(ShapeshifterEditorStories.workbenchButton(play));
-        play.waitFor(() -> play.expect(play.getByLabelText("Match kind")).toBeInTheDocument());
-        ShapeshifterEditorStories.pickFromBox(play, screen, play.getByLabelText("Match kind"), "delimiter");
-        play.waitFor(() -> play.expect(play.getByLabelText("Delimiter")).toBeVisible());
-        play.clear(play.getByLabelText("Delimiter"));
-        play.type(play.getByLabelText("Delimiter"), delimiter);
-        play.keyboard("{Tab}");
+        ShapeshifterEditorStories.pickFromBox(play, screen, play.getByLabelText("Kind of match"), "delimiter");
+        play.waitFor(() -> play.expect(play.getByLabelText("Split on")).toHaveFocus());
+        play.keyboard(delimiter);
         if (quoted) {
-            play.type(play.getByTitle("Container start"), "\"");
-            play.keyboard("{Tab}");
-            play.type(play.getByTitle("Container end"), "\"");
-            play.keyboard("{Tab}");
+            play.keyboard("{Tab}\"{Tab}\"");
         }
+        play.keyboard("{Enter}");
+        play.waitFor(() -> play.expect(play.getByLabelText(Walkthrough.ENTRY)).toHaveFocus());
+        play.expect(play.querySelector(ShapeshifterEditorStories.MATCH_CHIP).textContent()).toMatch("split on");
     }
 
-    // The workbench closed, and the template's own match line saying what it now is: every
-    // template closed here has just been made a delimiter match.
+    // The workbench closed, and the template's own match line saying what it is.
     private static void closeWorkbench(final Play play) {
         play.click(play.getByRole("button", TextMatch.regex("close the workbench", "i")));
         play.waitFor(() -> play.expect(play.queryByRole("button",

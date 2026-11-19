@@ -16,6 +16,8 @@
 
 package stroom.shapeshifter.client.component;
 
+import stroom.shapeshifter.client.model.MatchKind;
+import stroom.shapeshifter.client.model.MatchLine;
 import stroom.shapeshifter.client.model.MatchRole;
 import stroom.shapeshifter.config.Dispatch;
 import stroom.widget.button.client.LinkButton;
@@ -23,11 +25,15 @@ import stroom.widget.component.client.Component;
 import stroom.widget.form.client.TextBox;
 import stroom.widget.selection.client.SelectionBox;
 import stroom.widget.text.client.Label;
+import stroom.widget.util.client.ContentFocus;
 import stroom.widget.util.client.CssProperties;
 
 import com.google.gwt.core.client.GWT;
+import com.google.gwt.core.client.Scheduler;
+import com.google.gwt.dom.client.Element;
 import com.google.gwt.event.dom.client.ClickEvent;
 import com.google.gwt.event.dom.client.KeyCodes;
+import com.google.gwt.event.dom.client.KeyDownEvent;
 import com.google.gwt.event.logical.shared.ValueChangeEvent;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
@@ -37,6 +43,7 @@ import com.google.gwt.user.client.ui.IsWidget;
 import com.google.gwt.user.client.ui.SimplePanel;
 import com.google.gwt.user.client.ui.Widget;
 
+import java.util.List;
 import java.util.Locale;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -57,13 +64,13 @@ public class TemplateStrip extends Component {
     };
     private Runnable onOpenWorkbench = () -> {
     };
-    private BiConsumer<String, Boolean> onMatch = (pattern, entered) -> {
+    private BiConsumer<MatchLine, Boolean> onMatch = (line, entered) -> {
     };
     private Consumer<String> onMatchTyped = pattern -> {
     };
-    // The pattern the match field would open on: null when the match is not a regex that can
-    // be changed here.
-    private String pattern;
+    // What the match line would open on: null when the match has no one-line spelling, or
+    // cannot be changed here.
+    private MatchLine line;
     private boolean matchOpen;
 
     private static final Binder BINDER = GWT.create(Binder.class);
@@ -106,7 +113,19 @@ public class TemplateStrip extends Component {
     @UiField
     Label matchKind;
     @UiField
+    FlowPanel matchEditor;
+    @UiField
+    SelectionBox<MatchKind> matchKindBox;
+    @UiField
     TextBox matchField;
+    @UiField
+    FlowPanel delimiterFields;
+    @UiField
+    TextBox delimiterField;
+    @UiField
+    TextBox containerStartField;
+    @UiField
+    TextBox containerEndField;
     @UiField
     Label matchError;
     @UiField
@@ -143,25 +162,36 @@ public class TemplateStrip extends Component {
             }
         });
         workbench.setOnClick(() -> openWorkbench());
-        matchField.addKeyDownHandler(event -> {
-            if (event.getNativeKeyCode() == KeyCodes.KEY_ENTER) {
-                event.preventDefault();
-                takeMatch(true);
-            } else if (event.getNativeKeyCode() == KeyCodes.KEY_ESCAPE) {
+        // Enter in any of the line's fields takes it, and Escape anywhere in it puts it back.
+        // The kind box's own Enter opens its list, so it is not one of the fields.
+        for (final TextBox field : List.of(matchField, delimiterField, containerStartField, containerEndField)) {
+            field.addKeyDownHandler(event -> {
+                if (event.getNativeKeyCode() == KeyCodes.KEY_ENTER) {
+                    event.preventDefault();
+                    takeMatch(true);
+                }
+            });
+        }
+        matchEditor.addDomHandler(event -> {
+            if (event.getNativeKeyCode() == KeyCodes.KEY_ESCAPE && matchOpen) {
                 event.preventDefault();
                 event.stopPropagation();
                 closeMatch();
                 matchChip.getElement().focus();
             }
-        });
+        }, KeyDownEvent.getType());
         matchField.addKeyUpHandler(event -> {
             if (matchOpen) {
                 onMatchTyped.accept(matchField.getText());
             }
         });
-        // Leaving the field takes what it holds, as doing anything else to a body takes the
-        // card that is open in it
-        matchField.addBlurHandler(event -> takeMatch(false));
+        matchKindBox.setDisplayValueFunction(MatchKind::label);
+        matchKindBox.addItems(MatchLine.KINDS);
+        matchKindBox.addValueChangeHandler(event -> onLineKind(event.getValue()));
+        // Leaving the line takes what it holds, as doing anything else to a body takes the
+        // card that is open in it. Moving between its own fields, or into the kind box's list,
+        // is not leaving it.
+        listenForLeaving(matchEditor.getElement());
         guardLimits.addClickHandler(event -> onGuardLimits(event));
         role.setDisplayValueFunction(MatchRole::label);
         role.addItems(MatchRole.values());
@@ -182,31 +212,109 @@ public class TemplateStrip extends Component {
         openMatch();
     }
 
-    // The match, opened: a regex that can be changed is a field where it stands, and anything
-    // else is the workbench's.
+    // The match, opened: a regex or a delimiter that can be changed is its fields where it
+    // stands, and anything else is the workbench's.
     private void openMatch() {
-        if (pattern == null) {
+        if (line == null) {
             openWorkbench();
         } else {
             editMatch();
         }
     }
 
-    /// Opens the match where it stands, with the keyboard in it, if it is a regex that can be
-    /// changed; otherwise does nothing.
+    /// Opens the match where it stands, with the keyboard in it, if it is a regex or a delimiter
+    /// that can be changed; otherwise does nothing.
     public void editMatch() {
-        if (pattern == null || matchOpen) {
+        if (line == null || matchOpen) {
             return;
         }
         matchOpen = true;
-        matchField.setText(pattern);
+        matchField.setText(line.pattern());
+        delimiterField.setText(line.delimiter());
+        containerStartField.setText(line.containerStart());
+        containerEndField.setText(line.containerEnd());
+        matchKindBox.setValue(line.kind(), false);
         matchChip.setVisible(false);
-        matchField.setVisible(true);
-        matchField.getElement().focus();
-        onMatchTyped.accept(pattern);
+        matchKind.setVisible(false);
+        matchEditor.setVisible(true);
+        showLineKind(line.kind());
+        if (line.kind() == MatchKind.REGEX) {
+            onMatchTyped.accept(line.pattern());
+        }
     }
 
-    /// @return Whether the match is open as a field.
+    // Another kind chosen on the open line: its fields, with the keyboard in the first. A
+    // delimiter's arrives selected, so typing replaces the newline it starts as. Put there once
+    // the list has closed, since closing it gives the keyboard back to the box.
+    private void onLineKind(final MatchKind kind) {
+        if (!matchOpen) {
+            return;
+        }
+        if (kind == null) {
+            // The box offers no "none": the line is still the kind it was
+            matchKindBox.setValue(line.kind(), false);
+            return;
+        }
+        showLineKind(kind);
+        setMatchError(null);
+        Scheduler.get().scheduleDeferred(() -> {
+            if (matchOpen) {
+                focusLine(kind);
+            }
+        });
+        if (kind == MatchKind.REGEX) {
+            onMatchTyped.accept(matchField.getText());
+        }
+    }
+
+    private void showLineKind(final MatchKind kind) {
+        matchField.setVisible(kind == MatchKind.REGEX);
+        delimiterFields.setVisible(kind == MatchKind.DELIMITER);
+        focusLine(kind);
+    }
+
+    private void focusLine(final MatchKind kind) {
+        if (kind == MatchKind.DELIMITER) {
+            delimiterField.setFocus(true);
+            delimiterField.selectAll();
+        } else {
+            matchField.setFocus(true);
+        }
+    }
+
+    /// @return What the open line holds: the kind chosen, and every field as it reads.
+    public MatchLine getMatchLine() {
+        final MatchKind opened = line == null
+                ? MatchKind.REGEX
+                : line.kind();
+        return new MatchLine(opened, matchField.getText(), delimiterField.getText(),
+                containerStartField.getText(), containerEndField.getText()).withKind(matchKindBox.getValue());
+    }
+
+    // Told by the browser when the keyboard leaves anything in the line, once the move is
+    // complete: where it went is known by then.
+    private void onFocusOut() {
+        if (!matchOpen || matchKindBox.isOpen()
+            || contains(matchEditor.getElement(), ContentFocus.activeElement())) {
+            return;
+        }
+        takeMatch(false);
+    }
+
+    private static boolean contains(final Element container, final Element element) {
+        return element != null && container.isOrHasChild(element);
+    }
+
+    private native void listenForLeaving(Element container) /*-{
+        var self = this;
+        container.addEventListener('focusout', function () {
+            Promise.resolve().then(function () {
+                self.@stroom.shapeshifter.client.component.TemplateStrip::onFocusOut()();
+            });
+        });
+    }-*/;
+
+    /// @return Whether the match is open as fields.
     public boolean isMatchOpen() {
         return matchOpen;
     }
@@ -216,44 +324,52 @@ public class TemplateStrip extends Component {
         matchChip.getElement().focus();
     }
 
-    /// Closes the match field, with no one told what it held: for its owner, which has taken
-    /// what it held itself. Closed before anything is told when the field is taken, too: hiding
-    /// it takes the keyboard from it, and that is a blur, which would take it a second time.
+    /// Closes the match line, with no one told what it held: for its owner, which has taken what
+    /// it held itself, or refused it. A line taken stays open until its owner says which, so a
+    /// match refused is still there to be put right. Hiding it takes the keyboard from it, which
+    /// would take it a second time, so it is closed before that.
     public void closeMatch() {
         matchOpen = false;
-        matchField.setVisible(false);
+        matchEditor.setVisible(false);
         matchChip.setVisible(true);
+        matchKind.setVisible(true);
         setMatchError(null);
     }
 
-    /// Says why the regex in the open match field does not compile, or that it does.
+    /// Says what is wrong with the open line — a regex that does not compile, a delimiter with
+    /// nothing to split on — or that nothing is. The field of the kind shown is the one marked.
     ///
-    /// @param error The engine's reason, or null when it compiles or nothing is open.
+    /// @param error The reason, or null when nothing is wrong or nothing is open.
     public void setMatchError(final String error) {
         final boolean invalid = error != null && matchOpen;
         matchError.setText(invalid
                 ? error
                 : "");
         matchError.setVisible(invalid);
-        if (invalid) {
-            matchField.getElement().setAttribute("aria-invalid", "true");
-        } else {
-            matchField.getElement().removeAttribute("aria-invalid");
+        final TextBox marked = getMatchLine().kind() == MatchKind.DELIMITER
+                ? delimiterField
+                : matchField;
+        for (final TextBox field : List.of(matchField, delimiterField)) {
+            if (invalid && field == marked) {
+                field.getElement().setAttribute("aria-invalid", "true");
+            } else {
+                field.getElement().removeAttribute("aria-invalid");
+            }
         }
     }
 
-    /// @return The text in the open match field.
-    public String getMatchText() {
-        return matchField.getText();
+    /// Puts the keyboard back in the open line, in the first field of the kind shown.
+    public void focusOpenLine() {
+        if (matchOpen) {
+            focusLine(getMatchLine().kind());
+        }
     }
 
     private void takeMatch(final boolean entered) {
         if (!matchOpen) {
             return;
         }
-        final String text = matchField.getText();
-        closeMatch();
-        onMatch.accept(text, entered);
+        onMatch.accept(getMatchLine(), entered);
     }
 
     private void onGuardLimits(final ClickEvent e) {
@@ -301,20 +417,20 @@ public class TemplateStrip extends Component {
     /// @param kind The kind of match.
     /// @param summary The match, described.
     /// @param guardAndLimits The guard and limits, described.
-    /// @param pattern The pattern, when the match is a regex that can be changed here, in
-    ///                place; null when it is not, and the workbench is the way in.
+    /// @param line What the line opens on, when the match is a regex or a delimiter that can be
+    ///             changed here, in place; null when it is not, and the workbench is the way in.
     public void setMatch(final String kind, final String summary, final String guardAndLimits,
-                         final String pattern) {
-        this.pattern = pattern;
+                         final MatchLine line) {
+        this.line = line;
         matchKind.setText(kind);
         matchSummary.setText(summary);
         matchSummary.setTitle(summary);
-        matchChip.setTitle(pattern == null
+        matchChip.setTitle(line == null
                 ? "Open the pattern workbench — editing, validation, groups, the plan"
-                : "Click to change the pattern");
+                : "Click to change the match");
         guardLimits.setText(guardAndLimits);
-        if (pattern == null && matchOpen) {
-            // Read only now, or no longer a regex: there is nothing here to take
+        if (line == null && matchOpen) {
+            // Read only now, or no longer a regex or a delimiter: there is nothing here to take
             closeMatch();
         }
     }
@@ -460,9 +576,9 @@ public class TemplateStrip extends Component {
         this.onRole = onRole;
     }
 
-    /// @param onMatch Told when the match field is taken, with the pattern and whether it was
+    /// @param onMatch Told when the match line is taken, with what it held and whether it was
     ///                taken with Enter rather than by the keyboard leaving it.
-    public void setOnMatch(final BiConsumer<String, Boolean> onMatch) {
+    public void setOnMatch(final BiConsumer<MatchLine, Boolean> onMatch) {
         this.onMatch = onMatch;
     }
 
