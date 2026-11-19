@@ -17,6 +17,7 @@
 package stroom.shapeshifter.client.model;
 
 import stroom.shapeshifter.config.Cast;
+import stroom.shapeshifter.config.ConfigException;
 import stroom.shapeshifter.config.EngineVars;
 import stroom.shapeshifter.config.OutputNode;
 import stroom.shapeshifter.config.OutputNode.ApplyTemplates;
@@ -394,10 +395,18 @@ public final class Instructions {
     ///
     /// - `$` and digits is a numbered group, `$` and a word is a labelled one, read by [#read]
     ///   so that a reference means here what it means in a Select field.
+    /// - `${…}` is a reference of any kind (design 47 H, ruled 2026-11-19): what is inside the
+    ///   braces is a Select field's spelling, read by [#read] — `${record_body}`, a declared
+    ///   name, or `${heading[matchCount()]}`. It is not a guess, because the author has said
+    ///   "reference". A spelling that is not one is refused, saying why: a modifier that did not
+    ///   bind, as the Select field refuses it, and a name no author could mean — one holding the
+    ///   grammar's own punctuation, `heading[matchCount()`, or only digits, `1`. A `}` inside a
+    ///   quoted literal does not end it.
     /// - **Always a reference**, whether or not the template's match has that capture. The same
     ///   line makes the same cards whatever the pattern holds at the time, including when the
     ///   output is written before the pattern is.
-    /// - `$$` writes a dollar, and a `$` followed by neither a digit nor a letter is itself.
+    /// - `$$` writes a dollar, so `$${HOME}` is the text `${HOME}`. Any other `$` followed by
+    ///   neither a digit, a letter nor `{` is itself.
     /// - A label here is letters, digits and underscores, and ends at the first character that
     ///   is none of those — so `$key">` is the label `key` and then text. A label spelt with
     ///   anything else is written through the Select field, whose grammar can hold it.
@@ -408,6 +417,7 @@ public final class Instructions {
     ///
     /// @param line The line as typed.
     /// @return The cards, in order; none for an empty line.
+    /// @throws ConfigException Saying why, where a `${…}` is unclosed, empty, or not a reference.
     public static List<OutputNode> cards(final String line) {
         final List<OutputNode> cards = new ArrayList<>();
         if (line == null) {
@@ -423,6 +433,13 @@ public final class Instructions {
             } else if (at + 1 < line.length() && line.charAt(at + 1) == '$') {
                 text.append('$');
                 at += 2;
+            } else if (at + 1 < line.length() && line.charAt(at + 1) == '{') {
+                final int close = closingBrace(line, at + 2);
+                flushText(text, cards);
+                cards.add(new ValueOf(braced(close < 0
+                        ? null
+                        : line.substring(at + 2, close))));
+                at = close + 1;
             } else {
                 final int end = referenceEnd(line, at + 1);
                 final String token = line.substring(at, end);
@@ -438,6 +455,67 @@ public final class Instructions {
         }
         flushText(text, cards);
         return cards;
+    }
+
+    // What is inside a ${…}, as the reference it spells: refused, saying why, where the braces
+    // are unclosed (null) or empty, or hold what a Select field would not take.
+    private static RefExpression braced(final String inner) {
+        if (inner == null) {
+            throw new ConfigException("A ${ needs its closing }. $$ writes a dollar.");
+        }
+        final String spelling = inner.trim();
+        if (spelling.isEmpty()) {
+            throw new ConfigException("${} needs a reference inside it, such as ${name}");
+        }
+        final RefExpression ref = readChecked(spelling);
+        // What the reader could make nothing of, it reads as one name, whole; a name holding
+        // the grammar's punctuation is a spelling that went wrong, not a name anyone declared
+        if (ref.parts().size() == 1 && ref.parts().get(0) instanceof final RefPart.Capture capture
+            && capture.varId() != null && capture.group() == 0 && capture.matchIndex() == null
+            && (!spellableName(capture.varId()) || isDigits(capture.varId()))) {
+            throw new ConfigException("${" + spelling + "} is not a reference: "
+                                      + (isDigits(capture.varId())
+                    ? "a capture group is $" + capture.varId()
+                    : "check its brackets and quotes"));
+        }
+        return ref;
+    }
+
+    /// A spelling as a reference, refused where the grammar could not finish reading it: a
+    /// modifier that did not bind is the one fault it can name (design 44 §5ad). For whatever
+    /// takes a reference typed by an author — a Select field, a `${…}` in a line.
+    ///
+    /// @param text The spelling.
+    /// @return The reference.
+    /// @throws ConfigException Saying what is wrong.
+    public static RefExpression readChecked(final String text) {
+        final RefExpression ref = read(text);
+        final String fault = fault(ref);
+        if (fault != null) {
+            throw new ConfigException(fault);
+        }
+        return ref;
+    }
+
+    // The } that closes a ${ whose spelling starts at from, or -1 for none. A quoted literal in
+    // the spelling may hold a }, and a \" inside one does not end it; a quote left open is
+    // refused as that, since the } the author typed is inside it.
+    private static int closingBrace(final String line, final int from) {
+        boolean quoted = false;
+        for (int i = from; i < line.length(); i++) {
+            final char c = line.charAt(i);
+            if (quoted && c == '\\') {
+                i++;
+            } else if (c == '"') {
+                quoted = !quoted;
+            } else if (c == '}' && !quoted) {
+                return i;
+            }
+        }
+        if (quoted) {
+            throw new ConfigException("A quote inside ${…} is not closed");
+        }
+        return -1;
     }
 
     // Where a reference that starts after a dollar ends: a run of digits, or a run of the
@@ -582,7 +660,12 @@ public final class Instructions {
     /// can name: it is a reserved word, so it is never the name it would otherwise be read as,
     /// and saying so beats saving a call and two undeclared reads (design 44 §5ad).
     public static String fault(final String text) {
-        for (final RefPart part : read(text).parts()) {
+        return fault(read(text));
+    }
+
+    // What is wrong with a reference already read, or null
+    private static String fault(final RefExpression ref) {
+        for (final RefPart part : ref.parts()) {
             if (part instanceof final RefPart.Capture capture && isModifier(capture.varId())) {
                 return CAST_KEYWORD.equals(capture.varId())
                         ? "'as' comes after min or max and takes a cast: " + casts()

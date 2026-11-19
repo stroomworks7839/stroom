@@ -89,10 +89,26 @@ class EveryFormKindHasAFormTest {
         final Matcher matcher = CASE.matcher(source);
         int depth = 0;
         final int at = from + marker.length();
-        // To the brace that closes the switch the marker opened.
+        // To the brace that closes the switch the marker opened. A brace inside a string, a
+        // character literal or a comment is text, not structure: the line's help shows `${…}`,
+        // and a comment's apostrophe is not a quote.
+        char quote = 0;
         for (int i = at; i < source.length(); i++) {
             final char c = source.charAt(i);
-            if (c == '{') {
+            if (quote == 0 && c == '/' && i + 1 < source.length() && source.charAt(i + 1) == '/') {
+                final int end = source.indexOf('\n', i);
+                i = end < 0
+                        ? source.length()
+                        : end;
+            } else if (quote != 0) {
+                if (c == '\\') {
+                    i++;
+                } else if (c == quote) {
+                    quote = 0;
+                }
+            } else if (c == '"' || c == '\'') {
+                quote = c;
+            } else if (c == '{') {
                 depth++;
             } else if (c == '}') {
                 if (depth == 0) {

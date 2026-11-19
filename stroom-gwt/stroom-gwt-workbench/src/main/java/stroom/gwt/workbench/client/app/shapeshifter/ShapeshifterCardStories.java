@@ -343,6 +343,23 @@ public final class ShapeshifterCardStories {
                     ShapeshifterEditorStories.expectNoCardOpen(play);
                     ShapeshifterEditorStories.expectNoProblems(play);
                 })
+                // A line left with a ${…} that is not a reference cannot be added and cannot stay
+                // open, since what is open is going: it is said that it was not added, rather
+                // than the line going without a word (design 47 §7.14)
+                .story("ALineThatCannotBeAddedIsSaidToBeLost",
+                        context -> ShapeshifterEditorStories.render(context, false))
+                .withPlay(play -> {
+                    ShapeshifterEditorStories.selectTemplate(play, "pair");
+                    play.waitFor(() -> play.expect(ShapeshifterEditorStories.addLink(play)).toBeVisible());
+                    play.click(ShapeshifterEditorStories.addLink(play));
+                    play.waitFor(() -> play.expect(play.getByLabelText(Walkthrough.ENTRY)).toHaveFocus());
+                    play.keyboard(Walkthrough.typed("<id>${id</id>"));
+                    final Spy alert = play.spy(ScreenHarness.ALERT_SPY);
+                    ShapeshifterEditorStories.selectTemplate(play, "junk_line");
+                    play.waitFor(() -> play.expect("told the line was not added",
+                            () -> String.valueOf(alert.getCalls()).contains("The line was not added")).toEqual(true));
+                    play.expect(play.getByRole("button", "Save")).toHaveAttribute("aria-disabled", "true");
+                })
                 // A title and a card left open together are both taken. The card is taken
                 // first, and the title used to be dropped without a word for finding the
                 // template changed by it (design 47 §7.8, finding 1)

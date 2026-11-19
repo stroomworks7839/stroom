@@ -46,9 +46,9 @@ import java.util.List;
 /// same word for having no mode at all; it says `default` for that now (design 47 §7.3), and
 /// the panel heads the two `mode: default` and `mode: root`.
 ///
-/// **Every literal is a `value-of`**, as the fixture writes them, and not the `text` card a line
-/// typed as it looks would make (design 47 A). The keystone is strict (§3.2), so each is made
-/// by choosing the kind and typing a quoted Select.
+/// **Every literal is a `text` card**, typed as a line as it looks (design 47 A), and a
+/// reference that is not a capture is written in the line as `${…}` (design 47 H). The fixture
+/// is in that spelling since H, so the keystone holds the lines' cards.
 public final class ShapeshifterSplitStories {
 
     private static final String TITLE = "App/Shapeshifter/ShapeshifterSplit";
@@ -92,11 +92,11 @@ public final class ShapeshifterSplitStories {
                  "declarations": [{"name": "heading", "type": "list"}],
                  "match": "source",
                  "body": [
-                   {"value-of": {"parts": [{"text": """
+                   {"text": """
                                           + ShapeshifterEditorStories.asJsonString(PROLOGUE) + """
-            }]}},
+            },
                    {"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]}, "mode": "root"}},
-                   {"value-of": {"parts": [{"text": "\\n</records>\\n"}]}}]},
+                   {"text": "\\n</records>\\n"}]},
                 {"id": "00000000-0000-0000-0000-000000000002", "name": "header_record", "mode": "root",
                  "match": {"delimiter": {"delimiter": "|"}},
                  "match_limits": {"max_match": 1},
@@ -117,18 +117,18 @@ public final class ShapeshifterSplitStories {
                    {"if": {"test": {"exists": {"select": {"parts": [
                              {"capture": {"var_id": "record_body", "group": 0}}]}}},
                            "then": [
-                             {"value-of": {"parts": [{"text": "\\n   <record>"}]}},
+                             {"text": "\\n   <record>"},
                              {"value-of": {"parts": [{"capture": {"var_id": "record_body", "group": 0}}]}},
-                             {"value-of": {"parts": [{"text": "\\n   </record>"}]}}]}}]},
+                             {"text": "\\n   </record>"}]}}]},
                 {"id": "00000000-0000-0000-0000-000000000005", "name": "data_column", "mode": "data_columns",
                  "match": {"delimiter": {"delimiter": ",", "container_start": "\\"", "container_end": "\\""}},
                  "body": [
+                   {"text": "\\n      <data name=\\""},
                    {"value-of": {"parts": [
-                     {"text": "\\n      <data name=\\""},
-                     {"capture": {"var_id": "heading", "group": 0, "match_index": {"function": "matchCount"}}},
-                     {"text": "\\" value=\\""},
-                     {"capture": {"group": 1}},
-                     {"text": "\\"/>"}]}}]}
+                     {"capture": {"var_id": "heading", "group": 0, "match_index": {"function": "matchCount"}}}]}},
+                   {"text": "\\" value=\\""},
+                   {"value-of": {"parts": [{"capture": {"group": 1}}]}},
+                   {"text": "\\"/>"}]}
               ]
             }""";
 
@@ -257,20 +257,18 @@ public final class ShapeshifterSplitStories {
     }
 
     /// §6.4 step 5's envelope: the prologue, which lands below the dispatch and is moved above
-    /// it, and the closing tag after it. Both are `value-of` cards with a quoted literal.
+    /// it, and the closing tag after it. Each is a line typed as it looks, a text card.
     private static void envelope(final Play play, final Play screen) {
         // The panel's row says `document` whatever the template is called (design 44 Q11)
         ShapeshifterEditorStories.selectTemplate(play, "document");
         play.waitFor(() -> play.expect(ShapeshifterEditorStories.addLink(play)).toBeVisible());
-        play.click(ShapeshifterEditorStories.addLink(play));
-        Walkthrough.valueOf(play, screen, quoted(PROLOGUE));
+        Walkthrough.enter(play, line(PROLOGUE));
         play.keyboard("{Escape}");
         play.click(play.getByRole("button", "Move the selected instruction up"));
-        play.click(ShapeshifterEditorStories.addLink(play));
-        Walkthrough.valueOf(play, screen, quoted(EPILOGUE));
+        Walkthrough.enter(play, line(EPILOGUE));
         play.keyboard("{Escape}");
         play.waitFor(() -> play.expect(play.querySelectorAll(ShapeshifterEditorStories.CARD_KIND)
-                .textContents()).toEqual(List.of("value-of", "apply-templates", "value-of")));
+                .textContents()).toEqual(List.of("text", "apply-templates", "text")));
     }
 
     /// §6.4 step 6. The header record: a delimiter match on `|`.
@@ -372,9 +370,7 @@ public final class ShapeshifterSplitStories {
         play.keyboard("{Escape}");
         // The if's own list: the second of three now — the variable's, the if's, the body's
         play.click(link(play, 1));
-        Walkthrough.valueOf(play, screen, quoted("\n   <record>"));
-        Walkthrough.valueOf(play, screen, "record_body");
-        Walkthrough.valueOf(play, screen, quoted("\n   </record>"));
+        Walkthrough.enterNext(play, Walkthrough.typed("\\n   <record>${record_body}\\n   </record>"));
         play.keyboard("{Escape}");
     }
 
@@ -387,10 +383,11 @@ public final class ShapeshifterSplitStories {
 
     /// §6.4 step 16. The value, named by the heading in the same position: `heading[matchCount()]`
     /// is the list's entry at this column's own count — the least discoverable thing in the six
-    /// samples (§6.4 question a), typed into the Select as the field's help spells it.
+    /// samples (§6.4 question a), written in the line inside `${…}` as the Select field's help
+    /// spells it (design 47 H). The card its match's Enter opened is where it is typed.
     private static void dataLine(final Play play, final Play screen) {
-        Walkthrough.valueOf(play, screen, quoted("\n      <data name=\"") + " heading[matchCount()] "
-                                          + quoted("\" value=\"") + " $1 " + quoted("\"/>"));
+        Walkthrough.enterNext(play, Walkthrough.typed(
+                "\\n      <data name=\"${heading[matchCount()]}\" value=\"$1\"/>"));
         play.keyboard("{Escape}");
     }
 
@@ -483,10 +480,10 @@ public final class ShapeshifterSplitStories {
         return play.getAllByTitle(ShapeshifterEditorStories.ADD_LINK).nth(n);
     }
 
-    // A literal as the Select spells it: in quotes, with a quote, a backslash and a newline
-    // escaped.
-    private static String quoted(final String value) {
-        return "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n") + "\"";
+    // Text as the line takes it: a backslash and a dollar doubled, and a line break spelt \n,
+    // since Enter is what adds the card; and as the keyboard types it.
+    private static String line(final String value) {
+        return Walkthrough.typed(value.replace("\\", "\\\\").replace("$", "$$").replace("\n", "\\n"));
     }
 
     // The fixture's output: the prologue, a record of eleven values, and the closing tag.

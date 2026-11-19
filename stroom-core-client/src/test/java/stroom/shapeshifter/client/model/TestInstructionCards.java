@@ -16,6 +16,7 @@
 
 package stroom.shapeshifter.client.model;
 
+import stroom.shapeshifter.config.ConfigException;
 import stroom.shapeshifter.config.OutputNode;
 import stroom.shapeshifter.config.OutputNode.Text;
 import stroom.shapeshifter.config.OutputNode.ValueOf;
@@ -27,6 +28,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /// A line typed into a card list, as the cards it describes (design 47 A): text is a text card,
 /// a capture reference is a value-of card, and a line that mixes them is split into the sequence.
@@ -128,6 +130,63 @@ class TestInstructionCards {
         // More digits than a group number can hold is not a group (Instructions.isGroup), so it
         // stays what was typed rather than overflowing
         assertThat(Instructions.cards("$1234567890")).isEqualTo(List.of(new Text("$1234567890")));
+    }
+
+    @Test
+    void aBracedReferenceIsAnyReferenceTheSelectFieldReads() {
+        // Design 47 H: a declared name, which a bare word never is, and a name at a match index
+        assertThat(Instructions.cards("${record_body}"))
+                .isEqualTo(List.of(new ValueOf(Instructions.read("record_body"))));
+        assertThat(Instructions.cards("\\n      <data name=\"${heading[matchCount()]}\" value=\"$1\"/>"))
+                .isEqualTo(List.of(new Text("\n      <data name=\""),
+                        new ValueOf(Instructions.read("heading[matchCount()]")),
+                        new Text("\" value=\""), group(1), new Text("\"/>")));
+        // Spaces inside the braces are not the reference's
+        assertThat(Instructions.cards("${ record_body }"))
+                .isEqualTo(List.of(new ValueOf(Instructions.read("record_body"))));
+        // A bare word is still text
+        assertThat(Instructions.cards("record_body")).isEqualTo(List.of(new Text("record_body")));
+    }
+
+    @Test
+    void aBraceInsideAQuotedLiteralDoesNotCloseTheReference() {
+        assertThat(Instructions.cards("${\"}\" $1}x"))
+                .isEqualTo(List.of(new ValueOf(Instructions.read("\"}\" $1")), new Text("x")));
+    }
+
+    @Test
+    void aDollarBeforeABraceIsWrittenDoubled() {
+        assertThat(Instructions.cards("$${HOME}")).isEqualTo(List.of(new Text("${HOME}")));
+    }
+
+    @Test
+    void aBracedReferenceThatIsNotOneIsRefusedSayingWhy() {
+        assertThatThrownBy(() -> Instructions.cards("a${record_body"))
+                .isInstanceOf(ConfigException.class).hasMessageContaining("closing }");
+        assertThatThrownBy(() -> Instructions.cards("${ }"))
+                .isInstanceOf(ConfigException.class).hasMessageContaining("needs a reference");
+        // A modifier that did not bind, as the Select field refuses it
+        assertThatThrownBy(() -> Instructions.cards("${x as}"))
+                .isInstanceOf(ConfigException.class).hasMessageContaining("'as' comes after");
+    }
+
+    @Test
+    void aSpellingTheReaderCouldNotFinishIsNotTakenForAName() {
+        // The reader makes one whole name of what it cannot read; braced, that is a typo
+        assertThatThrownBy(() -> Instructions.cards("${heading[matchCount()}"))
+                .isInstanceOf(ConfigException.class).hasMessageContaining("check its brackets");
+        assertThatThrownBy(() -> Instructions.cards("${size(xs}"))
+                .isInstanceOf(ConfigException.class).hasMessageContaining("check its brackets");
+        // and a group is written $1, not as a name of digits
+        assertThatThrownBy(() -> Instructions.cards("${1}"))
+                .isInstanceOf(ConfigException.class).hasMessageContaining("a capture group is $1");
+    }
+
+    @Test
+    void aQuoteLeftOpenInsideTheBracesIsWhatIsSaid() {
+        // The } was typed; it is inside the quote
+        assertThatThrownBy(() -> Instructions.cards("${\"abc}"))
+                .isInstanceOf(ConfigException.class).hasMessageContaining("quote inside ${…} is not closed");
     }
 
     private static OutputNode group(final int group) {

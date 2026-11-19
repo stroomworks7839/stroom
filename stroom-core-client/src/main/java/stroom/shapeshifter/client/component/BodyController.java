@@ -16,6 +16,7 @@
 
 package stroom.shapeshifter.client.component;
 
+import stroom.alert.client.event.AlertEvent;
 import stroom.alert.client.event.ConfirmEvent;
 import stroom.shapeshifter.client.model.Bodies;
 import stroom.shapeshifter.client.model.CardNote;
@@ -26,6 +27,7 @@ import stroom.shapeshifter.client.model.ProjectHost;
 import stroom.shapeshifter.client.model.Templates;
 import stroom.shapeshifter.client.model.TraceModel;
 import stroom.shapeshifter.config.Condition;
+import stroom.shapeshifter.config.ConfigException;
 import stroom.shapeshifter.config.Dispatch;
 import stroom.shapeshifter.config.EngineVars;
 import stroom.shapeshifter.config.MatchExpression;
@@ -467,7 +469,11 @@ public class BodyController extends Controller {
     // arrives — and can be taken back — as one thing (design 47 A, ruled 2026-11-17). An empty
     // line is no cards, and nothing to tell anyone about.
     private Shift takeLine() {
-        final List<OutputNode> cards = Instructions.cards(editing.getLine());
+        final List<OutputNode> cards = lineCards("");
+        if (cards == null) {
+            // The line stays open to be put right
+            return null;
+        }
         final int[] list = Bodies.path(editingList);
         final int index = editingIndex;
         dropDraft();
@@ -482,6 +488,17 @@ public class BodyController extends Controller {
         // What was just added is the selected row, as a grid selects the row it has been given
         view.focusCard(Bodies.path(Bodies.child(list, index + cards.size() - 1)));
         return new Shift(list, index, cards.size());
+    }
+
+    // The cards the open line describes, or null after saying why it describes none: a ${…}
+    // that is not a reference.
+    private List<OutputNode> lineCards(final String prefix) {
+        try {
+            return Instructions.cards(editing.getLine());
+        } catch (final ConfigException e) {
+            AlertEvent.fireWarn(this, prefix + e.getMessage(), null);
+            return null;
+        }
     }
 
     // The draft, into the body. The editor goes first: the edit redraws the cards, and they
@@ -571,8 +588,9 @@ public class BodyController extends Controller {
     // written, would drop what a holder holds, or changes nothing.
     private List<OutputNode> left() {
         if (editing.isAuto()) {
-            final List<OutputNode> cards = Instructions.cards(editing.getLine());
-            if (cards.isEmpty()) {
+            // Left rather than taken, it cannot stay open: it is said that it was not added
+            final List<OutputNode> cards = lineCards("The line was not added. ");
+            if (cards == null || cards.isEmpty()) {
                 return null;
             }
             List<OutputNode> next = body;

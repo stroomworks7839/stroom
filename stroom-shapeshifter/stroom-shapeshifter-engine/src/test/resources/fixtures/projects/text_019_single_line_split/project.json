@@ -19,13 +19,7 @@
       "match": "source",
       "body": [
         {
-          "value-of": {
-            "parts": [
-              {
-                "text": "<?xml version=\"1.1\" encoding=\"UTF-8\"?>\n<records xmlns=\"records:2\"\n         xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n         xsi:schemaLocation=\"records:2 file://records-v2.0.xsd\"\n         version=\"2.0\">"
-              }
-            ]
-          }
+          "text": "<?xml version=\"1.1\" encoding=\"UTF-8\"?>\n<records xmlns=\"records:2\"\n         xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n         xsi:schemaLocation=\"records:2 file://records-v2.0.xsd\"\n         version=\"2.0\">"
         },
         {
           "apply-templates": {
@@ -42,13 +36,7 @@
           }
         },
         {
-          "value-of": {
-            "parts": [
-              {
-                "text": "\n</records>\n"
-              }
-            ]
-          }
+          "text": "\n</records>\n"
         }
       ]
     },
@@ -157,13 +145,7 @@
             },
             "then": [
               {
-                "value-of": {
-                  "parts": [
-                    {
-                      "text": "\n   <record>"
-                    }
-                  ]
-                }
+                "text": "\n   <record>"
               },
               {
                 "value-of": {
@@ -178,13 +160,7 @@
                 }
               },
               {
-                "value-of": {
-                  "parts": [
-                    {
-                      "text": "\n   </record>"
-                    }
-                  ]
-                }
+                "text": "\n   </record>"
               }
             ]
           }
@@ -204,11 +180,11 @@
       },
       "body": [
         {
+          "text": "\n      <data name=\""
+        },
+        {
           "value-of": {
             "parts": [
-              {
-                "text": "\n      <data name=\""
-              },
               {
                 "capture": {
                   "var_id": "heading",
@@ -217,20 +193,26 @@
                     "function": "matchCount"
                   }
                 }
-              },
-              {
-                "text": "\" value=\""
-              },
+              }
+            ]
+          }
+        },
+        {
+          "text": "\" value=\""
+        },
+        {
+          "value-of": {
+            "parts": [
               {
                 "capture": {
                   "group": 1
                 }
-              },
-              {
-                "text": "\"/>"
               }
             ]
           }
+        },
+        {
+          "text": "\"/>"
         }
       ]
     }

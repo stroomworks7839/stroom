@@ -312,26 +312,6 @@ final class Walkthrough {
         }
     }
 
-    /// The card that is open made a `value-of`, its Select typed, and taken with Enter. The card
-    /// must be open already — from `+ instruction`, or as the card that opens after one taken.
-    /// A literal is in quotes with `\n` and `\"` inside it, and a capture is `$1` or `$label`.
-    ///
-    /// Typed with userEvent, where `[` and `{` open a key descriptor: they are doubled here, so
-    /// the caller writes the Select as the author would.
-    ///
-    /// @param play The play.
-    /// @param screen The screen, for the kind box's list.
-    /// @param select The Select, as the author types it.
-    static void valueOf(final Play play, final Play screen, final String select) {
-        final Play card = ShapeshifterEditorStories.cardEditor(play);
-        ShapeshifterEditorStories.pickFromBox(play, screen, card.getByLabelText("Instruction"), "value-of");
-        play.waitFor(() -> play.expect(card.getByLabelText("Select")).toBeVisible());
-        card.type(card.getByLabelText("Select"), typed(select));
-        play.keyboard("{Enter}");
-        // Taken: the next card is open, its kind left to what is typed
-        play.waitFor(() -> play.expect(card.queryByLabelText("Select")).toBeNull());
-    }
-
     /// Text as userEvent types it: `[` and `{` doubled, since each alone opens a key descriptor.
     ///
     /// @param text The text, as it is to arrive.

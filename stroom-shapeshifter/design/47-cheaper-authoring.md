@@ -114,7 +114,8 @@ Three details that follow:
 - **`$$` writes a dollar.** The only escape the field needs.
 - **Only `$`-references are recognised.** A bare word is text, never a declared name: the field
   must not guess, and a name or a function still goes through the menu, where the Select field's
-  own grammar reads it.
+  own grammar reads it. *Amended by H, 2026-11-19: `${…}` is a reference of any kind, read by
+  the Select field's grammar. A bare word is still text.*
 - **Recognising a reference belongs to the reader that already owns the spelling**, which is
   `Instructions` in the editor's model — it is what reads `$1` and `$label` in a Select field —
   and not, as this design first said, the configuration module. One source for what a spelling
@@ -920,6 +921,8 @@ the line's reach that pays.
 It does not answer design 44 Q14. `matchCount()` is still something an author has to know
 exists. It only makes it cheaper to type once they do.
 
+**Done 2026-11-19, §7.14.** Rung 4 at 39, rung 5 at 130.
+
 #### I — A default where there is one answer
 
 - **A new `apply-templates` card's Mode is the mode nothing dispatches into, when exactly one
@@ -966,6 +969,7 @@ H and I leave this idiom cheap enough without it.
 | with G | 110 | about 137 |
 | *with G, as driven 2026-11-19 (§7.11)* | *122* | *146* |
 | *with F, as driven 2026-11-19 (§7.13)* | *41* | *146* |
+| *with H, as driven 2026-11-19 (§7.14)* | *39* | *130* |
 | with F | about 42 | about 137 |
 | with H | about 39 | about 121 |
 | with I | about 39 | about 114 |
@@ -995,8 +999,8 @@ hold, and the counts are taken again.
    walk goes regex-first. The result decides between a re-baseline and fix-ups, and whether
    the tree's own add line is wanted.~~ **Done 2026-11-19, §7.13**: re-baselined, 41, and no
    add line.
-5. **H — ruled 2026-11-19: both parts go.** The re-baseline of rungs 4 to 6's literals and the `${…}` amendment
-   to A go together, or neither goes.
+5. ~~**H — ruled 2026-11-19: both parts go.** The re-baseline of rungs 4 to 6's literals and the `${…}` amendment
+   to A go together, or neither goes.~~ **Done 2026-11-19, §7.14.**
 6. **I** — three defaults, no new surface.
 7. **J — needs ruling, and is decided after 5 and 6 have been walked**, against what the idiom
    then costs.
@@ -1255,3 +1259,57 @@ the four lifts at four each, the body and the run.
 
 The tree's own add line (F's *later*) is not wanted: nothing walked builds a tree a node at a
 time any more.
+
+### 7.14 H, done — 2026-11-19
+
+Both parts, together, as ruled.
+
+**The re-baseline.** Every `value-of` in rungs 4 and 5's fixtures that mixed literals with
+references is now the sequence a typed line makes of it: each literal a `text` card, each
+reference its own `value-of`. A `value-of` that held only a literal is a `text` card. That is
+`library_parts`'s event, and `text_019_single_line_split`'s envelope, record and data line.
+The output is unchanged: `GoldenFixtureTest`, 75 with one skipped as before. The demo pack is
+rebuilt, and exactly those two entries change.
+
+**Rung 6 is not re-baselined yet.** `progressive_len_records` is also a row of
+`EngineBenchmark`, and splitting its one `value-of` into three cards changes the work that
+row measures, so runs either side of the change would be compared as like for like. **Ruled
+2026-11-19:** it stays as it is until rung 6 is walked, and is re-baselined then, with the
+benchmark break decided at the same time.
+
+**`${…}` on the line.** `Instructions.cards` reads what is inside the braces with the Select
+field's own reader, so `${record_body}` and `${heading[matchCount()]}` are `value-of` cards.
+A bare word is still text. A `}` inside a quoted literal does not close the braces, and `$$`
+still writes a dollar, so `$${HOME}` is the text `${HOME}`, and the line's help says so. These
+are refused, saying why, and the line stays open to be put right (`TestInstructionCards`):
+
+- a `${` with no `}`, an empty `${}`, and a quote inside the braces left open;
+- a modifier that did not bind, as the Select field refuses it (`Instructions.readChecked`,
+  which the Select field now uses too);
+- a spelling the reader could not finish. What it cannot read it reads as one whole name, so
+  `${heading[matchCount()}` was a name with brackets in it, writing nothing at run time. A
+  braced name holding the grammar's punctuation, or only digits, is refused. The Select field
+  still takes such a name; that is the reader's, and is not changed here.
+
+A line left — another template chosen — with a `${…}` that is refused cannot stay open, since
+what is open is going, and is said not to have been added (`ALineThatCannotBeAddedIsSaidToBeLost`).
+
+*Behaviour that changed with H:* a body that writes `${` as text, shell or a template
+language, now reads it as a reference. It is written `$${`.
+
+**The walks.** Rung 4's body is one typed line, `<event time="$time" …>$msg</event>\n`.
+Rung 5's envelope is two lines, its record is `\n   <record>${record_body}\n   </record>`,
+and its data line is `\n      <data name="${heading[matchCount()]}" value="$1"/>`. Both
+keystones hold the cards those lines make.
+
+| | before | with H |
+|---|---|---|
+| rung 4, the body | 7 | 5 |
+| rung 5, the envelope | 14 | 10 |
+| rung 5, what the `if` holds | 14 | 4 |
+| rung 5, the data line | 5 | 3 |
+| **rung 4** | **41** | **39** |
+| **rung 5** | **146** | **130** |
+
+Rung 5 saves the 16 the proposal estimated. Rung 4 saves 2 against an estimate of 3: the
+estimate did not count the Escape out of the card the line leaves open.

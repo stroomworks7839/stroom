@@ -892,7 +892,8 @@ as one Select with the labels as `$time`, `$host` and so on.
 *Walked again 2026-11-19, regex-first (design 47 F): the line is one regex on the template's
 match line, the match is made a pattern tree, which explodes it, and the four parts are lifted
 from that. Ten stories, **41 actions**. The fixture is now in the explode's spelling, its output
-unchanged (design 47 §7.13).*
+unchanged (design 47 §7.13). And again after design 47 H: the body is one typed line, and the
+fixture's literals are `text` cards. **39 actions** (design 47 §7.14).*
 
 ### 6.4 Rung 5 — `text_019_single_line_split`
 
@@ -987,7 +988,9 @@ an empty record* are 39 between them (§6.4 question b). Declarations, the captu
 modes make most of the rest.
 
 *Walked again 2026-11-19, after design 47 G put the delimiter on the match line: 146 as
-driven. The four delimiters and the limit cost 31 where they cost 42 (design 47 §7.11).*
+driven. The four delimiters and the limit cost 31 where they cost 42 (design 47 §7.11). And
+after H, which made the fixture's literals `text` cards and let a line hold `${…}`: 130
+(design 47 §7.14).*
 
 *What these two rungs found, with every other open finding, is collected in design 47 §7,
 with the fixes and proposals that follow and the order to do them in.*

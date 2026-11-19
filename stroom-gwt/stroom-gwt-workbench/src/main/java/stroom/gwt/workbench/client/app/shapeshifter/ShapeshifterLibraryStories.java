@@ -120,13 +120,13 @@ public final class ShapeshifterLibraryStories {
                  {"take_while": "[^\\\\n]", "min": 0},
                  {"tag": "\\n"}]}},
                "match_limits": {"min_match": 0, "max_match": -1},
-               "body": [{"value-of": {"parts": [
-                 {"text": "<event time=\\""}, {"capture": {"label": "time"}},
-                 {"text": "\\" host=\\""}, {"capture": {"label": "host"}},
-                 {"text": "\\" severity=\\""}, {"capture": {"label": "severity"}},
-                 {"text": "\\" pid=\\""}, {"capture": {"label": "pid"}},
-                 {"text": "\\">"}, {"capture": {"label": "msg"}},
-                 {"text": "</event>\\n"}]}}]}
+               "body": [
+                 {"text": "<event time=\\""}, {"value-of": {"parts": [{"capture": {"label": "time"}}]}},
+                 {"text": "\\" host=\\""}, {"value-of": {"parts": [{"capture": {"label": "host"}}]}},
+                 {"text": "\\" severity=\\""}, {"value-of": {"parts": [{"capture": {"label": "severity"}}]}},
+                 {"text": "\\" pid=\\""}, {"value-of": {"parts": [{"capture": {"label": "pid"}}]}},
+                 {"text": "\\">"}, {"value-of": {"parts": [{"capture": {"label": "msg"}}]}},
+                 {"text": "</event>\\n"}]}
              ],
              "patterns": {
               "TIMESTAMP": """ + TIMESTAMP + """
@@ -306,16 +306,19 @@ public final class ShapeshifterLibraryStories {
         play.expect(play.getByText("KEY", ShapeshifterEditorStories.TEMPLATE_NAME)).toBeInTheDocument();
     }
 
-    /// §6.3 step 8. One `value-of` whose captures are the labels, by name — `$time`, not a group
-    /// number. The workbench closed first: the body is the template's, beside the sample.
+    /// §6.3 step 8. The event, typed as it looks: one line, whose captures are the labels by
+    /// name — `$time`, not a group number — and which the field splits into the text and
+    /// value-of cards it describes (design 47 A and H). The workbench closed first: the body is
+    /// the template's, beside the sample.
     private static void body(final Play play, final Play screen) {
         play.click(play.getByRole("button", TextMatch.regex("close the workbench", "i")));
         play.waitFor(() -> play.expect(ShapeshifterEditorStories.addLink(play)).toBeVisible());
-        play.click(ShapeshifterEditorStories.addLink(play));
-        Walkthrough.valueOf(play, screen, "\"<event time=\\\"\" $time \"\\\" host=\\\"\" $host"
-                                          + " \"\\\" severity=\\\"\" $severity \"\\\" pid=\\\"\" $pid"
-                                          + " \"\\\">\" $msg \"</event>\\n\"");
+        Walkthrough.enter(play, "<event time=\"$time\" host=\"$host\" severity=\"$severity\" pid=\"$pid\">"
+                                + "$msg</event>\\n");
         play.keyboard("{Escape}");
+        play.waitFor(() -> play.expect(play.querySelectorAll(ShapeshifterEditorStories.CARD_KIND).textContents())
+                .toEqual(List.of("text", "value-of", "text", "value-of", "text", "value-of", "text", "value-of",
+                        "text", "value-of", "text")));
     }
 
     /// §6.3 step 9, and the keystone.

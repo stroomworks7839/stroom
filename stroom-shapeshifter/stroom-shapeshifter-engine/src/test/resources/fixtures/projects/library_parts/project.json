@@ -91,53 +91,77 @@
    },
    "body": [
     {
+     "text": "<event time=\""
+    },
+    {
      "value-of": {
       "parts": [
-       {
-        "text": "<event time=\""
-       },
        {
         "capture": {
          "label": "time"
         }
-       },
-       {
-        "text": "\" host=\""
-       },
+       }
+      ]
+     }
+    },
+    {
+     "text": "\" host=\""
+    },
+    {
+     "value-of": {
+      "parts": [
        {
         "capture": {
          "label": "host"
         }
-       },
-       {
-        "text": "\" severity=\""
-       },
+       }
+      ]
+     }
+    },
+    {
+     "text": "\" severity=\""
+    },
+    {
+     "value-of": {
+      "parts": [
        {
         "capture": {
          "label": "severity"
         }
-       },
-       {
-        "text": "\" pid=\""
-       },
+       }
+      ]
+     }
+    },
+    {
+     "text": "\" pid=\""
+    },
+    {
+     "value-of": {
+      "parts": [
        {
         "capture": {
          "label": "pid"
         }
-       },
-       {
-        "text": "\">"
-       },
+       }
+      ]
+     }
+    },
+    {
+     "text": "\">"
+    },
+    {
+     "value-of": {
+      "parts": [
        {
         "capture": {
          "label": "msg"
         }
-       },
-       {
-        "text": "</event>\n"
        }
       ]
      }
+    },
+    {
+     "text": "</event>\n"
     }
    ]
   }

@@ -398,9 +398,10 @@ public class InstructionEditController extends Controller {
         v.setNote(null);
         switch (kind) {
             case AUTO:
-                field(0, "Line", "text, or $1 or $label for a capture group. A line that holds "
-                                 + "both is added as the instructions it describes, in order; "
-                                 + "\\n is a line break and $$ is a dollar. Choose a kind for "
+                field(0, "Line", "text, or $1 or $label for a capture group, or ${…} for any "
+                                 + "reference, such as ${name}. A line that holds both is added as "
+                                 + "the instructions it describes, in order; \\n is a line break "
+                                 + "and $$ is a dollar, so $${ writes ${. Choose a kind for "
                                  + "anything else");
                 v.setFieldPlaceholder(0, "text, or $1 for a capture");
                 break;
@@ -1272,21 +1273,11 @@ public class InstructionEditController extends Controller {
     private static RefExpression refOrNull(final String text) {
         return text == null || text.trim().isEmpty()
                 ? null
-                : Instructions.read(checked(text));
+                : Instructions.readChecked(text);
     }
 
     private static RefExpression ref(final String text, final String message) {
-        return Instructions.read(checked(required(text, message)));
-    }
-
-    /// The text, or a refusal saying what the grammar could not finish reading. Saving half-read
-    /// text would put it beyond the form, so the card stays open and says why (design 44 §5ad).
-    private static String checked(final String text) {
-        final String fault = Instructions.fault(text);
-        if (fault != null) {
-            throw new ConfigException(fault);
-        }
-        return text;
+        return Instructions.readChecked(required(text, message));
     }
 
     /// The sort rows as the ordering they spell. A row left blank has nothing to sort by.
@@ -1314,7 +1305,7 @@ public class InstructionEditController extends Controller {
         }
         // Quoting is the spelling's to read, not this method's: testing the first and last
         // character called `"a" "b"` one literal of `a" "b`, and it never unescaped anything.
-        return Instructions.read(checked(t));
+        return Instructions.readChecked(t);
     }
 
     /// A value the form must keep exactly: a separator, a marker, a pattern. Only an empty
