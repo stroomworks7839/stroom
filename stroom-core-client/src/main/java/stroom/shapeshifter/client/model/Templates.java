@@ -83,6 +83,33 @@ public final class Templates {
         return new ArrayList<>(names);
     }
 
+    /// Whether a name a `variable` binds is one to offer to declare (design 47 I): a name a
+    /// person could declare — a letter or underscore, then letters, digits and underscores —
+    /// that no template declares and that is not a param or a function.
+    ///
+    /// @param known Every name the template may already read: declared, its params, the functions.
+    /// @param name The name, as typed.
+    /// @return Whether to offer to declare it.
+    public static boolean undeclared(final List<String> known, final String name) {
+        return Instructions.isPlainName(name) && !known.contains(name);
+    }
+
+    /// The template with a scalar declared on it, after what it declares already.
+    ///
+    /// @param t The template.
+    /// @param name The name.
+    /// @return The template, or itself where it declares the name already.
+    public static Template withScalar(final Template t, final String name) {
+        for (final Declaration declaration : t.declarations()) {
+            if (declaration.name().equals(name)) {
+                return t;
+            }
+        }
+        final List<Declaration> declarations = new ArrayList<>(t.declarations());
+        declarations.add(new Declaration(name, Declaration.Type.SCALAR));
+        return withDeclarations(t, declarations);
+    }
+
     public static Template withMatch(final Template t, final MatchExpression match) {
         return new Template(t.id(), t.name(), t.mode(), t.consume(), t.guard(), t.param(), t.declarations(),
                 match, t.matchLimits(), t.captures(), t.body(), t.encoding(), t.ignoreErrors());

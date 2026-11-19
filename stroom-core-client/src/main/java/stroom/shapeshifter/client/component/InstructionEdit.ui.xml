@@ -19,6 +19,10 @@
             <form:FormGroup ui:field="field0Group" addStyleNames="instruction-edit__group" identity="ssInstrF0" label="">
                 <form:TextBox ui:field="field0" addStyleNames="w-100"/>
             </form:FormGroup>
+            <!-- A variable naming what nothing declares yet: the way to declare it, on this
+                 template, as a scalar (design 47 I). A list's place is a decision, so a list
+                 is still declared with + declaration. -->
+            <btn:LinkButton ui:field="declare" addStyleNames="add-button instruction-edit__declare" visible="false"/>
             <!-- One picker for any kind whose field is a closed set of words: decode's codec is
                  the first, and the view stays one view for all of them. -->
             <form:FormGroup ui:field="choiceGroup" addStyleNames="instruction-edit__group" identity="ssInstrChoice" label="">

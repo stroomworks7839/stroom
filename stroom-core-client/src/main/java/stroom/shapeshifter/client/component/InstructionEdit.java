@@ -30,6 +30,7 @@ import stroom.widget.text.client.Label;
 import stroom.widget.tickbox.client.TickBox;
 
 import com.google.gwt.core.client.GWT;
+import com.google.gwt.dom.client.Element;
 import com.google.gwt.event.dom.client.KeyCodes;
 import com.google.gwt.event.dom.client.KeyDownEvent;
 import com.google.gwt.event.logical.shared.ValueChangeEvent;
@@ -59,9 +60,15 @@ public class InstructionEdit extends Component {
     };
     private Runnable onCancel = () -> {
     };
+    private Runnable onDeclare = () -> {
+    };
+    private Runnable onFieldTyped = () -> {
+    };
 
     @UiField
     FlowPanel form;
+    @UiField
+    LinkButton declare;
     @UiField
     LinkButton ok;
     @UiField
@@ -148,6 +155,7 @@ public class InstructionEdit extends Component {
         dispatch.addItems(Dispatch.values());
         condition.setEmptyText("(no clauses yet)");
         sort.setEmptyText("(walked in the order the entries are in)");
+        declare.setOnClick(() -> onDeclare.run());
         ok.setOnClick(() -> onCommit.run());
         cancel.setOnClick(() -> onCancel.run());
         // Enter takes the draft from a one-line field. Only from those: Enter in a selection
@@ -159,6 +167,9 @@ public class InstructionEdit extends Component {
                     onCommit.run();
                 }
             });
+            // Any change to what a field holds, typed or not: a paste with the pointer, a drop
+            // and an autofill change the text with no key pressed
+            listenForInput(field(i).getElement());
         }
         multi.addKeyDownHandler(event -> onAreaKey(event));
         wire.addKeyDownHandler(event -> onAreaKey(event));
@@ -175,12 +186,44 @@ public class InstructionEdit extends Component {
 
     private static final int FIELD_COUNT = 5;
 
+    private native void listenForInput(Element field) /*-{
+        var self = this;
+        field.addEventListener('input', function () {
+            self.@stroom.shapeshifter.client.component.InstructionEdit::onFieldInput()();
+        });
+    }-*/;
+
+    private void onFieldInput() {
+        onFieldTyped.run();
+    }
+
     private void onAreaKey(final KeyDownEvent event) {
         if (event.getNativeKeyCode() == KeyCodes.KEY_ENTER
             && (event.isControlKeyDown() || event.isMetaKeyDown())) {
             event.preventDefault();
             onCommit.run();
         }
+    }
+
+    /// Offers to declare the name a variable binds, or offers nothing.
+    ///
+    /// @param name The name to offer, or null for no offer.
+    public void setDeclare(final String name) {
+        declare.setVisible(name != null);
+        if (name != null) {
+            declare.setText("declare " + name + " here");
+            declare.setTitle("Declare " + name + " on this template, as a scalar");
+        }
+    }
+
+    /// @param onDeclare Told when the offer to declare is taken.
+    public void setOnDeclare(final Runnable onDeclare) {
+        this.onDeclare = onDeclare;
+    }
+
+    /// @param onFieldTyped Told whenever what one of the one-line fields holds changes.
+    public void setOnFieldTyped(final Runnable onFieldTyped) {
+        this.onFieldTyped = onFieldTyped;
     }
 
     /// @param onCommit Told when the draft is to be taken: Enter in a field, or OK.

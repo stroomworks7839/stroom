@@ -937,6 +937,8 @@ exists. It only makes it cheaper to type once they do.
 
 **Rung 5: about 7 fewer.**
 
+**Done 2026-11-19, §7.15.** Rung 5 at 121, 9 fewer.
+
 #### J — *Only if it writes something*
 
 Rung 5's idiom spends 39 actions on one intention: don't write the record's envelope around
@@ -970,6 +972,7 @@ H and I leave this idiom cheap enough without it.
 | *with G, as driven 2026-11-19 (§7.11)* | *122* | *146* |
 | *with F, as driven 2026-11-19 (§7.13)* | *41* | *146* |
 | *with H, as driven 2026-11-19 (§7.14)* | *39* | *130* |
+| *with I, as driven 2026-11-19 (§7.15)* | *39* | *121* |
 | with F | about 42 | about 137 |
 | with H | about 39 | about 121 |
 | with I | about 39 | about 114 |
@@ -1001,7 +1004,7 @@ hold, and the counts are taken again.
    add line.
 5. ~~**H — ruled 2026-11-19: both parts go.** The re-baseline of rungs 4 to 6's literals and the `${…}` amendment
    to A go together, or neither goes.~~ **Done 2026-11-19, §7.14.**
-6. **I** — three defaults, no new surface.
+6. ~~**I** — three defaults, no new surface.~~ **Done 2026-11-19, §7.15.**
 7. **J — needs ruling, and is decided after 5 and 6 have been walked**, against what the idiom
    then costs.
 8. **Rung 6**: the stream fixture as ruled in design 46 §6.5, then the walk. That is the last
@@ -1313,3 +1316,56 @@ keystones hold the cards those lines make.
 
 Rung 5 saves the 16 the proposal estimated. Rung 4 saves 2 against an estimate of 3: the
 estimate did not count the Escape out of the card the line leaves open.
+
+### 7.15 I, done — 2026-11-19
+
+All three defaults, as proposed.
+
+- **A new `apply-templates` card starts on the one mode nothing dispatches into**, where there
+  is exactly one (`Modes.onlyUndispatched`), never the mode of the template it is in. With two
+  waiting, or none, it starts on the default as before. A card that already exists keeps its
+  own mode, and a mode chosen on a new card stays chosen when its kind is changed and back.
+- **A `variable` naming what nothing declares offers *declare … here*.** The offer shows as
+  the name is typed: a name an author could declare, which no template declares and which is
+  not a param or a function (`Templates.undeclared`). One press declares it on the card's
+  template as a scalar (`Templates.withScalar`), and the card stays open with the keyboard
+  back in the name. A list is still declared with `+ declaration`, because where a list lives
+  is a decision.
+- **An `if` with no clause has one clause row**: a new one, and a card of another kind made
+  an `if`.
+
+Stories: `ANewIfHasItsFirstClause` and `AVariableOffersToDeclareItsName`, and
+`ACardCanDispatchIntoAModeWithNoTemplatesYet` now finds its mode chosen where it used to pick
+it. All three fail with the defaults taken out. Unit tests: `ModesTest` and `TestTemplates`.
+
+**Rung 5, walked again: 121, where it was 130.**
+
+| | before | with I |
+|---|---|---|
+| the two dispatch cards' modes | 4 | 0 |
+| `record_body`'s declaration | 5, the dialog | 1, the offer |
+| the `if`'s first clause | 1 | 0 |
+
+That is 9, against the estimate of about 7.
+
+### 7.16 A review of I, fixed — 2026-11-19
+
+A review of I's working tree found ten faults. All ten are fixed. Each of the first six that
+can be reached from the screen has a story or a unit test that fails without its fix.
+
+| # | Fault | Fix | Test |
+|---|---|---|---|
+| 1 | A new dispatch could start on the mode of the template it was in — a template in `data_columns` opened before anything dispatched into it — and a template dispatching into its own mode recurses until the engine calls it a runaway | `onlyUndispatched` leaves out the card's own template's mode | `ModesTest.aNewDispatchNeverGoesToItsOwnTemplatesMode` |
+| 2 | *Declare* marked the name declared before the body had declared it, so a body that could not — read only by then, or the template gone — left an offer that had vanished as if it had worked | The body answers whether it declared, and the offer is said again from what the project then holds | — |
+| 3 | The names the offer read were those the card opened with, so a name declared elsewhere meanwhile was still offered, and a second, scalar, declaration of it could be made | The card asks the body for the names as they are now, before offering and again before declaring | — |
+| 4 | The offer was said again only on a key, so a paste with the pointer, a drop or an autofill left it stale | It follows the fields' `input` event | `ANamePastedIsOfferedToo` |
+| 5 | A card of another kind made an `if` had no clause row; only a new card had one | Any `if` with no clause has one | `ACardMadeAnIfHasItsFirstClause` |
+| 6 | The mode a new dispatch starts on was set again whenever the kind was chosen, throwing away a mode the author had picked | Set once, when the card is new | `ANewDispatchKeepsTheModeChosen` |
+| 7 | The regex form had its own copy of *declare a scalar unless declared*, and the offer its own copy of what a name may be | `Templates.withScalar` and `Instructions.isPlainName`, each once | — |
+| 8 | Opening a card walked the project for its modes twice | Once | — |
+| 9 | `onlyUndispatched` allowed for a duplicate the list of modes never holds | Gone | — |
+| 10 | The view's new callbacks sat apart from the others | With them | — |
+
+2 and 3 cannot be reached from the screen as it is — the offer is pressed in the card, and
+nothing else can change the names or the lock between the offer being shown and pressed — so
+they have no story.

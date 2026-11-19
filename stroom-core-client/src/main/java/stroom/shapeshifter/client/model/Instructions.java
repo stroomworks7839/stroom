@@ -538,6 +538,23 @@ public final class Instructions {
         return c >= '0' && c <= '9';
     }
 
+    /// Whether a name is plain: a letter or underscore, then letters, digits and underscores —
+    /// what a label typed in a line may be, and what an author declares.
+    ///
+    /// @param name The name.
+    /// @return Whether it is plain.
+    public static boolean isPlainName(final String name) {
+        if (name == null || name.isEmpty() || isDigit(name.charAt(0))) {
+            return false;
+        }
+        for (int i = 0; i < name.length(); i++) {
+            if (!isLabelChar(name.charAt(i))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     private static boolean isLabelChar(final char c) {
         return c == '_' || isDigit(c) || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z';
     }

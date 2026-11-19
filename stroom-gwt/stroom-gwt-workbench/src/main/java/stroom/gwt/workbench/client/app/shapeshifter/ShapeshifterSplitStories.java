@@ -326,9 +326,10 @@ public final class ShapeshifterSplitStories {
         play.keyboard("{Escape}");
     }
 
-    /// §6.4 step 12. Where a record's body goes before it is written.
+    /// §6.4 step 12. The mode the record's columns are dispatched into. Where the record's body
+    /// goes, `record_body`, is declared at the next step, from the variable that binds it
+    /// (design 47 I).
     private static void recordBody(final Play play, final Play screen) {
-        declare(play, screen, "record_body", "scalar");
         Walkthrough.addMode(play, "data_columns");
     }
 
@@ -342,6 +343,10 @@ public final class ShapeshifterSplitStories {
         ShapeshifterEditorStories.pickFromBox(play, screen, card.getByLabelText("Instruction"), "variable");
         play.waitFor(() -> play.expect(card.getByLabelText("Name")).toBeVisible());
         card.type(card.getByLabelText("Name"), "record_body");
+        // Nothing declares it yet, so the card offers to, as a scalar on this template
+        play.click(card.getByRole("button", StroomDom.button("declare record_body here")));
+        play.waitFor(() -> play.expect(play.getByRole("button", StroomDom.button("record_body"))).toBeVisible());
+        play.waitFor(() -> play.expect(card.getByLabelText("Name")).toHaveFocus());
         play.keyboard("{Enter}");
         play.waitFor(() -> play.expect(card.queryByLabelText("Name")).toBeNull());
         play.keyboard("{Escape}");
@@ -356,10 +361,9 @@ public final class ShapeshifterSplitStories {
         play.click(link(play, 1));
         final Play card = ShapeshifterEditorStories.cardEditor(play);
         ShapeshifterEditorStories.pickFromBox(play, screen, card.getByLabelText("Instruction"), "if");
-        // + clause is a button and each of the row's boxes is named, so all of it is reachable
-        // and readable from the keyboard (design 47 §7.2, finding 6)
-        play.waitFor(() -> play.expect(card.getByRole("button", StroomDom.button("+ clause"))).toBeVisible());
-        play.click(card.getByRole("button", StroomDom.button("+ clause")));
+        // A new if arrives with its first clause row (design 47 I); each of the row's boxes is
+        // named, so all of it is reachable and readable from the keyboard (§7.2, finding 6)
+        play.waitFor(() -> play.expect(card.getByLabelText("Name")).toBeVisible());
         // The name is typed, as an editable box's is; its arrow is what opens the list
         card.type(card.getByLabelText("Name"), "record_body");
         play.keyboard("{Tab}");
@@ -467,7 +471,9 @@ public final class ShapeshifterSplitStories {
         final Play card = ShapeshifterEditorStories.cardEditor(play);
         ShapeshifterEditorStories.pickFromBox(play, screen, card.getByLabelText("Instruction"), "apply-templates");
         play.waitFor(() -> play.expect(card.getByLabelText("Select")).toBeVisible());
-        ShapeshifterEditorStories.pickFromBox(play, screen, card.getByLabelText("Mode"), mode);
+        // The mode just added is the one nothing dispatches into, so the card starts on it
+        // (design 47 I)
+        play.expect(card.getByLabelText("Mode")).toHaveValue(mode);
         card.type(card.getByLabelText("Select"), select);
         play.keyboard("{Enter}");
         play.waitFor(() -> play.expect(card.queryByLabelText("Select")).toBeNull());

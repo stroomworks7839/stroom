@@ -138,6 +138,31 @@ class TestTemplates {
     }
 
     @Test
+    void aNameNoTemplateDeclaresIsOfferedToBeDeclared() {
+        // Design 47 I: a variable naming record_body, which nothing declares yet
+        final List<String> known = List.of("heading", "index");
+        assertThat(Templates.undeclared(known, "record_body")).isTrue();
+        assertThat(Templates.undeclared(known, "_x1")).isTrue();
+        // Declared already, or a function: nothing to offer
+        assertThat(Templates.undeclared(known, "heading")).isFalse();
+        assertThat(Templates.undeclared(known, "index")).isFalse();
+        // Not a name anyone could declare
+        assertThat(Templates.undeclared(known, "")).isFalse();
+        assertThat(Templates.undeclared(known, "1x")).isFalse();
+        assertThat(Templates.undeclared(known, "a b")).isFalse();
+        assertThat(Templates.undeclared(known, "$1")).isFalse();
+    }
+
+    @Test
+    void declaringAScalarAddsItOnce() {
+        final Template plain = template("data_record", List.of());
+        final Template declared = Templates.withScalar(plain, "record_body");
+
+        assertThat(declared.declarations()).containsExactly(new Declaration("record_body", Type.SCALAR));
+        assertThat(Templates.withScalar(declared, "record_body")).isSameAs(declared);
+    }
+
+    @Test
     void aRowWhoseLimitAllowsNoMatchSaysItNeverMatches() {
         assertThat(Templates.limitNote(limited(new MatchLimits(0, 0, null)))).isEqualTo("never matches");
     }

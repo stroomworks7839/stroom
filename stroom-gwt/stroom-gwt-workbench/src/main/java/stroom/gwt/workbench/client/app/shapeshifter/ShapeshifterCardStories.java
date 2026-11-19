@@ -360,6 +360,86 @@ public final class ShapeshifterCardStories {
                             () -> String.valueOf(alert.getCalls()).contains("The line was not added")).toEqual(true));
                     play.expect(play.getByRole("button", "Save")).toHaveAttribute("aria-disabled", "true");
                 })
+                // A new if arrives with its first clause row open: an if with no clause is not
+                // an instruction (design 47 I)
+                .story("ANewIfHasItsFirstClause", context -> ShapeshifterEditorStories.render(context, false))
+                .withPlay(play -> {
+                    final Play screen = play.screen();
+                    ShapeshifterEditorStories.selectTemplate(play, "pair");
+                    play.waitFor(() -> play.expect(ShapeshifterEditorStories.addLink(play)).toBeVisible());
+                    ShapeshifterEditorStories.newCard(play, screen, "if");
+                    final Play card = ShapeshifterEditorStories.cardEditor(play);
+                    play.waitFor(() -> play.expect(card.getByLabelText("Name")).toBeVisible());
+                    play.expect(card.getAllByLabelText("Name").count()).toEqual(1);
+                    play.expect(card.getByText("(no clauses yet)")).not().toBeVisible();
+                })
+                // A card made an if from another kind gets its first clause too, as a new one
+                // does (design 47 §7.16)
+                .story("ACardMadeAnIfHasItsFirstClause", context -> ShapeshifterEditorStories.render(context, false))
+                .withPlay(play -> {
+                    final Play screen = play.screen();
+                    final Play card = open(play, "value-of", 0);
+                    ShapeshifterEditorStories.pickFromBox(play, screen, card.getByLabelText("Instruction"), "if");
+                    play.waitFor(() -> play.expect(card.getByLabelText("Name")).toBeVisible());
+                    play.expect(card.getAllByLabelText("Name").count()).toEqual(1);
+                })
+                // The mode a new dispatch starts on is a start: chosen otherwise, it stays chosen
+                // when the kind is changed and changed back (design 47 §7.16)
+                .story("ANewDispatchKeepsTheModeChosen", context -> ShapeshifterEditorStories.render(context, false))
+                .withPlay(play -> {
+                    final Play screen = play.screen();
+                    ShapeshifterEditorStories.selectTemplate(play, "pair");
+                    Walkthrough.addMode(play, "fields");
+                    ShapeshifterEditorStories.selectTemplate(play, "pair");
+                    play.waitFor(() -> play.expect(ShapeshifterEditorStories.addLink(play)).toBeVisible());
+                    ShapeshifterEditorStories.newCard(play, screen, "apply-templates");
+                    final Play card = ShapeshifterEditorStories.cardEditor(play);
+                    play.waitFor(() -> play.expect(card.getByLabelText("Mode")).toHaveValue("fields"));
+                    ShapeshifterEditorStories.pickFromBox(play, screen, card.getByLabelText("Mode"), "kv");
+                    ShapeshifterEditorStories.pickFromBox(play, screen, card.getByLabelText("Instruction"),
+                            "call-template");
+                    ShapeshifterEditorStories.pickFromBox(play, screen, card.getByLabelText("Instruction"),
+                            "apply-templates");
+                    play.waitFor(() -> play.expect(card.getByLabelText("Mode")).toHaveValue("kv"));
+                })
+                // The offer to declare follows what the Name holds however it got there: a
+                // paste with the pointer types nothing (design 47 §7.16)
+                .story("ANamePastedIsOfferedToo", context -> ShapeshifterEditorStories.render(context, false))
+                .withPlay(play -> {
+                    final Play screen = play.screen();
+                    ShapeshifterEditorStories.selectTemplate(play, "pair");
+                    play.waitFor(() -> play.expect(ShapeshifterEditorStories.addLink(play)).toBeVisible());
+                    ShapeshifterEditorStories.newCard(play, screen, "variable");
+                    final Play card = ShapeshifterEditorStories.cardEditor(play);
+                    play.waitFor(() -> play.expect(card.getByLabelText("Name")).toBeVisible());
+                    play.fireEvent().input(card.getByLabelText("Name"), "pasted_name");
+                    play.waitFor(() -> play.expect(card.getByRole("button",
+                            StroomDom.button("declare pasted_name here"))).toBeVisible());
+                })
+                // A variable naming what nothing declares offers to declare it, as a scalar on
+                // the template; one press, and the card is still open on the name (design 47 I)
+                .story("AVariableOffersToDeclareItsName", context -> ShapeshifterEditorStories.render(context, false))
+                .withPlay(play -> {
+                    final Play screen = play.screen();
+                    ShapeshifterEditorStories.selectTemplate(play, "pair");
+                    play.waitFor(() -> play.expect(ShapeshifterEditorStories.addLink(play)).toBeVisible());
+                    ShapeshifterEditorStories.newCard(play, screen, "variable");
+                    final Play card = ShapeshifterEditorStories.cardEditor(play);
+                    play.waitFor(() -> play.expect(card.getByLabelText("Name")).toBeVisible());
+                    // Nothing to offer before there is a name
+                    play.expect(card.queryByRole("button", TextMatch.containing("declare"))).toBeNull();
+                    card.type(card.getByLabelText("Name"), "body_text");
+                    play.waitFor(() -> play.expect(card.getByRole("button", StroomDom.button("declare body_text here")))
+                            .toBeVisible());
+                    play.click(card.getByRole("button", StroomDom.button("declare body_text here")));
+                    play.waitFor(() -> play.expect(play.getByRole("button", StroomDom.button("body_text")))
+                            .toBeVisible());
+                    // Declared, there is nothing left to offer, and the card is where it was
+                    play.expect(card.queryByRole("button", TextMatch.containing("declare"))).toBeNull();
+                    play.waitFor(() -> play.expect(card.getByLabelText("Name")).toHaveFocus());
+                    play.expect(card.getByLabelText("Name")).toHaveValue("body_text");
+                    play.expect(play.getByRole("button", "Save")).not().toHaveAttribute("aria-disabled");
+                })
                 // A title and a card left open together are both taken. The card is taken
                 // first, and the title used to be dropped without a word for finding the
                 // template changed by it (design 47 §7.8, finding 1)

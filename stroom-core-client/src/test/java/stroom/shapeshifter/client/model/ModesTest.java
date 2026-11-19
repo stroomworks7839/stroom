@@ -298,6 +298,34 @@ class ModesTest {
     }
 
     @Test
+    void aNewDispatchGoesToTheOneModeNothingDispatchesInto() {
+        // Design 47 I: rung 5 adds header_columns and goes straight to the card dispatching it
+        final Project project = new Project("p", 5, null, List.of(
+                template("pair", "kv", List.of()),
+                template("doc", null, List.of(apply("kv")))), null);
+
+        assertThat(Modes.onlyUndispatched(project, List.of("kv", "header_columns"), "kv"))
+                .isEqualTo("header_columns");
+        // Two waiting is no one answer, and none is none
+        assertThat(Modes.onlyUndispatched(project, List.of("kv", "a", "b"), null)).isNull();
+        assertThat(Modes.onlyUndispatched(project, List.of("kv"), null)).isNull();
+        assertThat(Modes.onlyUndispatched(null, List.of("a"), null)).isNull();
+    }
+
+    @Test
+    void aNewDispatchNeverGoesToItsOwnTemplatesMode() {
+        // A template in data_columns, opened before anything dispatches into its mode: a card
+        // there dispatching into data_columns would recurse until the engine stopped it
+        final Project project = new Project("p", 5, null, List.of(
+                template("data_column", "data_columns", List.of()),
+                template("doc", null, List.of(apply("kv")))), null);
+
+        assertThat(Modes.onlyUndispatched(project, List.of("kv", "data_columns"), "data_columns")).isNull();
+        // Another template's card may start there
+        assertThat(Modes.onlyUndispatched(project, List.of("kv", "data_columns"), "kv")).isEqualTo("data_columns");
+    }
+
+    @Test
     void aModeNamedDefaultIsNeverShownAsTheTemplatesWithNoMode() {
         // A project written elsewhere can hold one; the panel headed both `mode: default` and
         // merged them, and the pickers listed `default` twice

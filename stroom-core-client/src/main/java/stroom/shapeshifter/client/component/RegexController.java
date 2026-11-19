@@ -178,7 +178,7 @@ public class RegexController
                 ? ""
                 : typed.trim();
         final List<CaptureBinding> captures = new ArrayList<>(template.captures());
-        final List<Declaration> declarations = new ArrayList<>(template.declarations());
+        Template declared = template;
         final CaptureBinding existing = captureOf(template, index);
         if (name.isEmpty()) {
             if (existing == null) {
@@ -189,13 +189,7 @@ public class RegexController
             if (existing != null && name.equals(existing.name())) {
                 return;
             }
-            boolean declared = false;
-            for (final Declaration declaration : declarations) {
-                declared |= declaration.name().equals(name);
-            }
-            if (!declared) {
-                declarations.add(new Declaration(name, Declaration.Type.SCALAR));
-            }
+            declared = Templates.withScalar(template, name);
             final CaptureBinding bound = new CaptureBinding(name, new CaptureSource.Group(index), existing == null
                     ? null
                     : existing.as());
@@ -205,8 +199,7 @@ public class RegexController
                 captures.set(captures.indexOf(existing), bound);
             }
         }
-        host.replace(host.withTemplate(Templates.withCaptures(Templates.withDeclarations(template, declarations),
-                captures)));
+        host.replace(host.withTemplate(Templates.withCaptures(declared, captures)));
     }
 
     private static CaptureBinding captureOf(final Template template, final int group) {

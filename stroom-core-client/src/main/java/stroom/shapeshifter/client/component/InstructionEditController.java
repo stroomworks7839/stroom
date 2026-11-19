@@ -20,8 +20,10 @@ import stroom.alert.client.event.AlertEvent;
 import stroom.shapeshifter.client.model.ControlEscapes;
 import stroom.shapeshifter.client.model.GuardClause;
 import stroom.shapeshifter.client.model.Instructions;
+import stroom.shapeshifter.client.model.Modes;
 import stroom.shapeshifter.client.model.SimpleTransforms;
 import stroom.shapeshifter.client.model.SortKey;
+import stroom.shapeshifter.client.model.Templates;
 import stroom.shapeshifter.config.Codec;
 import stroom.shapeshifter.config.Condition;
 import stroom.shapeshifter.config.ConfigException;
@@ -79,6 +81,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.function.Consumer;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 /// One instruction (design 18 §5.6: "each kind gets an editor shaped like the instruction it
 /// edits"), shown in the card list in place of the card (design 47 D) and holding a draft until
@@ -103,6 +108,14 @@ public class InstructionEditController extends Controller {
     private List<GuardClause> clauses = new ArrayList<>();
     private List<SortKey> sortKeys = new ArrayList<>();
     private String conditionJson;
+    // The names the card's template may read as they are now, for the offer to declare one
+    private Supplier<List<String>> knownNames = List::of;
+    // What a new apply-templates dispatches into before the author says, or null (design 47 I),
+    // and whether it has been said: the default is a start, not a mode chosen again whenever the
+    // kind is
+    private String newMode;
+    private boolean modeOffered;
+    private Predicate<String> onDeclare = name -> false;
 
     @Inject
     public InstructionEditController(final EventBus eventBus, final InstructionEdit view) {
@@ -143,12 +156,23 @@ public class InstructionEditController extends Controller {
             view.getSort().setKeys(sortKeys);
         });
         view.setOnKind(this::showKind);
+        view.setOnFieldTyped(this::offerToDeclare);
+        view.setOnDeclare(this::declare);
     }
 
     /// A node to edit, or null for a new one of the kind given.
+    ///
+    /// @param node The node, or null for a new one.
+    /// @param newKind A new one's kind.
+    /// @param names The names the template may read: declared, its params, the functions.
+    /// @param modes Every mode, for the Mode picker.
+    /// @param newMode What a new `apply-templates` dispatches into before the author says: the one
+    ///                mode nothing dispatches into yet, or null ([Modes#onlyUndispatched]).
     public void read(final OutputNode node, final String newKind, final List<String> names,
-                     final List<String> modes) {
+                     final List<String> modes, final String newMode) {
         original = node;
+        this.newMode = newMode;
+        this.modeOffered = false;
         bodies = node instanceof Holder holder
                 ? holder.bodies()
                 : List.of();
@@ -188,6 +212,7 @@ public class InstructionEditController extends Controller {
         } else if (!AUTO.equals(kind) && !FORMABLE.contains(kind)) {
             view.setWire(skeleton(kind));
         }
+        offerToDeclare();
     }
 
     private static final List<String> FORMABLE = Instructions.FORM_KINDS;
@@ -396,6 +421,7 @@ public class InstructionEditController extends Controller {
         v.setSortVisible(false);
         v.setWireVisible(false);
         v.setNote(null);
+        v.setDeclare(null);
         switch (kind) {
             case AUTO:
                 field(0, "Line", "text, or $1 or $label for a capture group, or ${…} for any "
@@ -552,6 +578,11 @@ public class InstructionEditController extends Controller {
                 field(0, "Select", "what is dispatched: a declared name, $1 for a capture "
                                    + "group, or a function; blank is this match's whole content");
                 v.setModeVisible(true);
+                if (original == null && !modeOffered) {
+                    // A mode just added and dispatched from nowhere is what this is for
+                    v.setMode(newMode);
+                    modeOffered = true;
+                }
                 field(2, "Max depth", "how deep recursion goes before the engine calls it a runaway");
                 flag(0, "Ignore errors");
                 v.setDispatchVisible(true);
@@ -566,6 +597,13 @@ public class InstructionEditController extends Controller {
             case "if":
                 v.setConditionVisible(true);
                 v.setNote("What runs when the test holds is the card list beneath it.");
+                if (!(original instanceof If) && clauses.isEmpty()) {
+                    // An if with no clause is not an instruction, so its first is there already,
+                    // whether the card is new or is another kind made an if. An if read from the
+                    // project has its own clauses, and the form fills them
+                    clauses = new ArrayList<>(List.of(new GuardClause("", GuardClause.Op.EQ, "", null)));
+                    v.getCondition().setClauses(clauses, v.getCondition().getJoin());
+                }
                 break;
             case "choose":
                 v.setNote("A choose is its branches: add, edit and prune them on the card, each with its own"
@@ -826,6 +864,39 @@ public class InstructionEditController extends Controller {
             sb.append(param.name()).append(" = ").append(Instructions.ref(param.value())).append('\n');
         }
         return sb.toString();
+    }
+
+    // A variable naming what nothing declares is offered the way to declare it; anything else
+    // is offered nothing
+    private void offerToDeclare() {
+        final String name = view.getField(0).trim();
+        view.setDeclare("variable".equals(view.getKind()) && Templates.undeclared(knownNames.get(), name)
+                ? name
+                : null);
+    }
+
+    // The offer taken. Asked again first, since the names may have changed since it was made;
+    // and said again after, from what the project now holds, so that an offer the owner could
+    // not carry out is still there rather than gone as if it had been
+    private void declare() {
+        final String name = view.getField(0).trim();
+        if (Templates.undeclared(knownNames.get(), name)) {
+            onDeclare.test(name);
+        }
+        offerToDeclare();
+        view.focusFirst();
+    }
+
+    /// @param onDeclare Asked to declare a name on the card's template, as a scalar; answers
+    ///                  whether it did.
+    public void setOnDeclare(final Predicate<String> onDeclare) {
+        this.onDeclare = onDeclare;
+    }
+
+    /// @param knownNames The names the card's template may read as they are now: declared, its
+    ///                   params, the functions.
+    public void setKnownNames(final Supplier<List<String>> knownNames) {
+        this.knownNames = knownNames;
     }
 
     /// Something to start from in the wire form: a transform's shape, or a text.

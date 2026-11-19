@@ -56,3 +56,12 @@
     min-width: 24px;
     min-height: 24px;
 }
+
+/* The offer to declare a variable's name (design 47 I), beside the Name it is for and level
+   with its field. */
+.instruction-edit .instruction-edit__declare {
+    flex: none;
+    align-self: flex-end;
+    margin-bottom: 6px;
+    white-space: nowrap;
+}

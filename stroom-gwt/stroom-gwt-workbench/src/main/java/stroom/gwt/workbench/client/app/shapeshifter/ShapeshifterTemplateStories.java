@@ -361,7 +361,9 @@ public final class ShapeshifterTemplateStories {
                     play.waitFor(() -> play.expect(ShapeshifterEditorStories.addLink(play)).toBeInTheDocument());
                     ShapeshifterEditorStories.newCard(play, screen, "apply-templates");
                     final Play card = ShapeshifterEditorStories.cardEditor(play);
-                    ShapeshifterEditorStories.pickFromBox(play, screen, card.getByLabelText("Mode"), "fields");
+                    // The one mode nothing dispatches into is where a new dispatch starts
+                    // (design 47 I)
+                    play.waitFor(() -> play.expect(card.getByLabelText("Mode")).toHaveValue("fields"));
                     play.click(card.getByRole("button", StroomDom.button("OK")));
                     // The mode is dispatched now, and says so
                     play.waitFor(() -> play.expect(play.queryByText("nothing dispatches into this",

@@ -246,6 +246,18 @@ public class BodyController extends Controller {
         host.replace(host.withTemplate(Templates.withBody(template, next)));
     }
 
+    // A name a variable card binds, declared on this template as a scalar where the card asks
+    // (design 47 I), and whether it was. The card stays open: the template is still the one it
+    // was opened on.
+    private boolean declare(final String name) {
+        final Template template = host.template(templateId);
+        if (template == null || readOnly) {
+            return false;
+        }
+        host.replace(host.withTemplate(Templates.withScalar(template, name)));
+        return true;
+    }
+
     private List<String> names() {
         final Template template = host.template(templateId);
         final Set<String> names = new LinkedHashSet<>(Templates.declaredNames(host.getProject(), template));
@@ -343,7 +355,9 @@ public class BodyController extends Controller {
         editing = make(instructionEditorProvider);
         // Every mode the panel shows, one with no template yet included: a mode can be
         // dispatched into before anything is in it (design 47 C)
-        editing.read(node, null, names(), host.modes());
+        editing.setOnDeclare(this::declare);
+        editing.setKnownNames(this::names);
+        editing.read(node, null, names(), host.modes(), null);
         editing.setOnCommit(this::commit);
         editing.setOnCancel(this::cancel);
         editingPath = at;
@@ -389,7 +403,14 @@ public class BodyController extends Controller {
     // A new card, as a draft where it will go.
     private void openNew(final String listPath, final int index, final String from) {
         editing = make(instructionEditorProvider);
-        editing.read(null, InstructionEditController.AUTO, names(), host.modes());
+        editing.setOnDeclare(this::declare);
+        editing.setKnownNames(this::names);
+        final Template template = host.template(templateId);
+        final List<String> modes = host.modes();
+        editing.read(null, InstructionEditController.AUTO, names(), modes,
+                Modes.onlyUndispatched(host.getProject(), modes, template == null
+                        ? null
+                        : template.mode()));
         editing.setOnCommit(this::commit);
         editing.setOnCancel(this::cancel);
         editingPath = null;

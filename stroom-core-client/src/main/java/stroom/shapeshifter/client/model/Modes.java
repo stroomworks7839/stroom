@@ -143,6 +143,34 @@ public final class Modes {
         return count;
     }
 
+    /// The mode a new `apply-templates` dispatches into before the author says (design 47 I): the
+    /// one mode nothing dispatches into yet, where there is exactly one. A mode just added and not
+    /// yet dispatched is what the next dispatch is for; with two such, or none, there is no one
+    /// answer, and the card starts at the default. Never the mode of the template the card is
+    /// in: a template dispatching into its own mode recurses until the engine calls it a runaway.
+    ///
+    /// @param project The project, or null for none.
+    /// @param modes Every mode the editor knows, each once: the project's and those named with no
+    ///              template yet.
+    /// @param own The mode of the template the card is in, or null.
+    /// @return The mode, or null.
+    public static String onlyUndispatched(final Project project, final List<String> modes, final String own) {
+        if (project == null) {
+            return null;
+        }
+        final Set<String> dispatched = dispatchedModes(project);
+        String only = null;
+        for (final String mode : modes) {
+            if (mode != null && !mode.equals(own) && !dispatched.contains(mode)) {
+                if (only != null) {
+                    return null;
+                }
+                only = mode;
+            }
+        }
+        return only;
+    }
+
     /// Every mode something dispatches into, in one walk of the project.
     ///
     /// @param project The project.

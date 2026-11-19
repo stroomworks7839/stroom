@@ -990,7 +990,7 @@ modes make most of the rest.
 *Walked again 2026-11-19, after design 47 G put the delimiter on the match line: 146 as
 driven. The four delimiters and the limit cost 31 where they cost 42 (design 47 §7.11). And
 after H, which made the fixture's literals `text` cards and let a line hold `${…}`: 130
-(design 47 §7.14).*
+(design 47 §7.14). And after I's three defaults: 121 (design 47 §7.15).*
 
 *What these two rungs found, with every other open finding, is collected in design 47 §7,
 with the fixes and proposals that follow and the order to do them in.*
