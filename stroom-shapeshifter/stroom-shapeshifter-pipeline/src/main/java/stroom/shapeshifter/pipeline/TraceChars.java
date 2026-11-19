@@ -34,47 +34,47 @@ import java.util.Map;
  * reported — so it is the server that converts, once, and the wire carries characters.
  *
  * <p>Text is UTF-8 throughout the preview; a byte offset inside a multi-byte sequence rounds to
- * the character it is in.
+ * the character it is in. The exceptions are said by {@link ShownText}: an input is shown in
+ * the encoding its project declares where its characters can be counted, and input or output
+ * that is no text — a binary record (design 46 §6.5) — a byte to a character, so that every
+ * byte the engine counted is one the client can point at, and so is every slice of the input.
  */
 final class TraceChars {
 
     private final TraceRecorder recorder;
     private final byte[] input;
     private final byte[] output;
+    // How the input and the output are shown, and every slice of the input as the input is
+    private final ShownText inputShown;
+    private final ShownText outputShown;
     private final int[] inputChars;
     private final int[] outputChars;
     private final Map<Long, TraceRecorder.Frame> framesById = new HashMap<>();
     private final Map<Long, byte[]> contentBytes = new HashMap<>();
     private final Map<Long, int[]> contentChars = new HashMap<>();
 
-    TraceChars(final TraceRecorder recorder, final byte[] input, final byte[] output) {
+    TraceChars(final TraceRecorder recorder, final byte[] input, final ShownText inputShown, final byte[] output) {
         this.recorder = recorder;
         this.input = input;
         this.output = output;
-        this.inputChars = charIndex(input);
-        this.outputChars = charIndex(output);
+        this.inputShown = inputShown;
+        this.outputShown = ShownText.output(output);
+        this.inputChars = inputShown.index(input);
+        this.outputChars = outputShown.index(output);
         for (final TraceRecorder.Frame frame : recorder.frames()) {
             framesById.put(frame.id(), frame);
         }
     }
 
-    /** For each byte offset 0..n, the character offset it falls at. */
-    static int[] charIndex(final byte[] bytes) {
-        final int[] index = new int[bytes.length + 1];
-        int chars = 0;
-        for (int i = 0; i < bytes.length; i++) {
-            index[i] = chars;
-            final int b = bytes[i] & 0xff;
-            // A continuation byte (10xxxxxx) does not start a character; everything else does,
-            // and a UTF-16 surrogate pair - a 4-byte sequence - counts as two characters.
-            if ((b & 0xC0) != 0x80) {
-                chars += b >= 0xF0
-                        ? 2
-                        : 1;
-            }
-        }
-        index[bytes.length] = chars;
-        return index;
+    /// @return The input, as the client is shown it.
+    String input() {
+        return inputShown.text(input);
+    }
+
+    /// @return The output, as the client is shown it: invalid UTF-8 written raw is shown a byte
+    ///         to a character, as its offsets count it.
+    String output() {
+        return outputShown.text(output);
     }
 
     private static int at(final int[] index, final long byteOffset) {
@@ -108,7 +108,24 @@ final class TraceChars {
         if (frameId == Instrument.ROOT_FRAME) {
             return inputChars;
         }
-        return contentChars.computeIfAbsent(frameId, id -> charIndex(bytesOf(id)));
+        return contentChars.computeIfAbsent(frameId, id -> (ofTheInput(id)
+                ? inputShown
+                : ShownText.UTF_8).index(bytesOf(id)));
+    }
+
+    // Whether a frame's content is a slice of the input, through slices of slices: such content
+    // is shown as the input is. Content a frame reported of its own — decoded, say — is UTF-8.
+    private boolean ofTheInput(final long frameId) {
+        long id = frameId;
+        while (id != Instrument.ROOT_FRAME) {
+            final TraceRecorder.Frame frame = framesById.get(id);
+            if (frame == null || recorder.contents().get(id) != null
+                || frame.contentOffset() == Instrument.NOT_A_SLICE) {
+                return false;
+            }
+            id = frame.parentId();
+        }
+        return true;
     }
 
     List<ShapeshifterTrace.Frame> frames() {

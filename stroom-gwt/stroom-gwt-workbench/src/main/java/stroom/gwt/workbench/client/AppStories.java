@@ -146,6 +146,7 @@ import stroom.gwt.workbench.client.app.shapeshifter.ShapeshifterAuthoringStories
 import stroom.gwt.workbench.client.app.shapeshifter.ShapeshifterCardStories;
 import stroom.gwt.workbench.client.app.shapeshifter.ShapeshifterClassifyStories;
 import stroom.gwt.workbench.client.app.shapeshifter.ShapeshifterEditorStories;
+import stroom.gwt.workbench.client.app.shapeshifter.ShapeshifterLenRecordsStories;
 import stroom.gwt.workbench.client.app.shapeshifter.ShapeshifterLexerStories;
 import stroom.gwt.workbench.client.app.shapeshifter.ShapeshifterLibraryStories;
 import stroom.gwt.workbench.client.app.shapeshifter.ShapeshifterPaneStories;
@@ -420,6 +421,7 @@ public final class AppStories {
         ShapeshifterTemplateStories.addTo(registry);
         ShapeshifterLibraryStories.addTo(registry);
         ShapeshifterSplitStories.addTo(registry);
+        ShapeshifterLenRecordsStories.addTo(registry);
         ShapeshifterAuthoringStories.addTo(registry);
         ShapeshifterLexerStories.addTo(registry);
         ShapeshifterClassifyStories.addTo(registry);

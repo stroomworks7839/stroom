@@ -286,6 +286,25 @@ public final class TraceModel {
     }
 
     /// A frame's content as text; the document's is the input.
+    /// The charset a frame's content is shown in (design 46 §6.5): the input's, for the input
+    /// and every slice of it, and UTF-8 for content a frame reported of its own. Text taken from
+    /// a frame and tried again as a sample is encoded in it, to be the bytes it was shown from.
+    ///
+    /// @param id The frame.
+    /// @return The charset's name, or null for UTF-8.
+    public String encodingOf(final long id) {
+        long at = id;
+        while (at != ROOT) {
+            final Frame frame = byId.get(at);
+            if (frame == null || frame.getContent() != null
+                || frame.getContentOffset() == ShapeshifterTrace.NOT_A_SLICE) {
+                return null;
+            }
+            at = frame.getParentId();
+        }
+        return trace.getInputEncoding();
+    }
+
     public String content(final long id) {
         if (id == ROOT) {
             return trace.getInput() == null

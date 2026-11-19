@@ -16,6 +16,7 @@
 
 package stroom.shapeshifter.pipeline;
 
+import stroom.pipeline.shared.SourceLocation;
 import stroom.shapeshifter.engine.text.Encoding;
 import stroom.shapeshifter.shared.ShapeshifterLibrary;
 import stroom.shapeshifter.shared.ShapeshifterMessage;
@@ -28,11 +29,15 @@ import stroom.shapeshifter.shared.ShapeshifterValidation;
 
 import org.junit.jupiter.api.Test;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * The editor's four questions (design 43 §5), answered by the resource over the engine — with
@@ -178,6 +183,75 @@ class ShapeshifterResourceEndpointsTest {
         assertThat(trace.getFrames()).isEmpty();
         assertThat(trace.getMessages()).isNotEmpty();
         assertThat(trace.getInput()).isEqualTo("abc");
+    }
+
+    // Rung 6's project (fixtures/projects/progressive_len_records): a varint length and that many
+    // bytes, read raw
+    private static final String LEN_RECORDS = """
+            {"name": "len", "version": 5,
+             "source": {"buffer_size": 1000000, "ignore_errors": true, "encoding": "UTF-8"},
+             "templates": [
+              {"id": "00000000-0000-0000-0000-000000000001", "name": "document", "match": "source",
+               "body": [{"apply-templates": {"select": {"parts": [{"capture": {"group": 0}}]}}}]},
+              {"id": "00000000-0000-0000-0000-000000000002", "name": "root", "encoding": "raw",
+               "match": {"parts": [{"read": {"as": "varint", "label": "len"}},
+                                   {"take": {"length": {"label": "len"}, "label": "name"}}]},
+               "body": [{"text": "<rec/>"}]}]}
+            """;
+
+    @Test
+    void previewOfAStreamRunsItsBytesAndShowsThemAByteToACharacter() {
+        // "Alice", then a record of two bytes that are no text at all (design 46 §6.5). Shown as
+        // UTF-8, the 0x80 continuation byte would start no character and the second record
+        // would be one character long; it is three bytes, and three characters
+        final byte[] bytes = {5, 'A', 'l', 'i', 'c', 'e', 2, (byte) 0x80, (byte) 0xFF};
+        final ShapeshifterTrace trace = streaming(new StreamSamples.Sample(bytes, false))
+                .preview(new ShapeshifterPreviewRequest(LEN_RECORDS, null, SourceLocation.builder(42L).build()));
+
+        assertThat(trace.isCompiled()).as(trace.getMessages().toString()).isTrue();
+        assertThat(trace.getInput()).isEqualTo(new String(bytes, StandardCharsets.ISO_8859_1));
+        assertThat(trace.getOutput()).isEqualTo("<rec/><rec/>");
+        final ShapeshifterTrace.Frame second = trace.getFrames().get(1);
+        assertThat(second.getInputOffset()).isEqualTo(6);
+        assertThat(second.getInputLength()).isEqualTo(3);
+        // and its name is the two bytes after the length, at 1 in the record
+        final ShapeshifterTrace.Group name = trace.getGroups().stream()
+                .filter(group -> group.getFrameId() == second.getId() && "name".equals(group.getName()))
+                .findFirst()
+                .orElseThrow();
+        assertThat(name.getContentOffset()).isEqualTo(1);
+        assertThat(name.getContentLength()).isEqualTo(2);
+    }
+
+    @Test
+    void aBinarySampleSentBackAsItWasShownIsItsBytesAgain() {
+        // The workbench seeds its sample from the trace's input and sends it back: in the
+        // charset it was shown in, the engine meets the record's bytes, and the second record
+        // is three bytes as it was over the stream
+        final String shown = new String(new byte[]{5, 'A', 'l', 'i', 'c', 'e', 2, (byte) 0x80, (byte) 0xFF},
+                StandardCharsets.ISO_8859_1);
+        final ShapeshifterTrace trace = resource.preview(new ShapeshifterPreviewRequest(LEN_RECORDS, shown, null,
+                "ISO-8859-1"));
+
+        assertThat(trace.isCompiled()).as(trace.getMessages().toString()).isTrue();
+        assertThat(trace.getInputEncoding()).isEqualTo("ISO-8859-1");
+        assertThat(trace.getFrames().get(1).getInputLength()).isEqualTo(3);
+    }
+
+    @Test
+    void previewOfARecordCutShortSaysSo() {
+        final ShapeshifterTrace trace = streaming(new StreamSamples.Sample(new byte[]{5, 'A', 'l'}, true))
+                .preview(new ShapeshifterPreviewRequest(LEN_RECORDS, null, SourceLocation.builder(42L).build()));
+
+        assertThat(trace.getMessages()).extracting(ShapeshifterMessage::getText)
+                .anyMatch(text -> text.contains("first 3 bytes of the record"));
+    }
+
+    // The resource with a record store that answers every location with one sample
+    private static ShapeshifterResourceImpl streaming(final StreamSamples.Sample sample) {
+        final StreamSamples samples = mock(StreamSamples.class);
+        when(samples.read(any())).thenReturn(sample);
+        return new ShapeshifterResourceImpl(null, null, () -> new StroomFunctionLibrary(Set.of()), () -> samples);
     }
 
     @Test

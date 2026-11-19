@@ -1006,9 +1006,12 @@ hold, and the counts are taken again.
    to A go together, or neither goes.~~ **Done 2026-11-19, §7.14.**
 6. ~~**I** — three defaults, no new surface.~~ **Done 2026-11-19, §7.15.**
 7. **J — needs ruling, and is decided after 5 and 6 have been walked**, against what the idiom
-   then costs.
-8. **Rung 6**: the stream fixture as ruled in design 46 §6.5, then the walk. That is the last
-   rung, and the binary-sample questions only it can answer.
+   then costs. *Walked: with H and I in, the idiom is 28 of rung 5's 121, as the estimate
+   assumed, so J would make rung 5 about 108.* **Ruled 2026-11-19: rung 6 first; J stays
+   open**, to be decided once rung 6 and real DS3 configurations show how often the idiom is
+   needed and in what shape.
+8. ~~**Rung 6**: the stream fixture as ruled in design 46 §6.5, then the walk. That is the last
+   rung, and the binary-sample questions only it can answer.~~ **Done 2026-11-19, §7.17.**
 
 Items 16, 18, 19 and 21 are not scheduled. 16 is a nicety. 18 is a trial for the owner rather
 than work. 19 waits on design 18. 21 waits until everything above has been measured, because
@@ -1369,3 +1372,124 @@ can be reached from the screen has a story or a unit test that fails without its
 2 and 3 cannot be reached from the screen as it is — the offer is pressed in the card, and
 nothing else can change the names or the lock between the offer being shown and pressed — so
 they have no story.
+
+### 7.17 Rung 6, walked — 2026-11-19
+
+The last rung, `progressive_len_records`: a binary sample of length-prefixed records, chosen as
+a stream, matched by a framed sequence — a `read` of a varint labelled `len`, and a `take` as
+long as `len` — in a template that reads raw. Nine stories, **45 actions**, and the keystone
+holds. Design 46 §6.5a has the walk.
+
+**A binary sample did not reach the engine as itself. Ruled 2026-11-19: fixed here.** The
+preview read a stream sample with the stream viewer's text fetch — decoded in the feed's
+encoding, re-encoded as UTF-8 — so bytes from 0x80 up became other bytes before the engine saw
+them. Now:
+
+- `StreamSamples` reads the record's bytes as stored, as the viewer's fetch reads them: only by
+  a user with the View Data app permission, then through the store under their permissions on
+  the feed, inside `SecurityContext.useAsReadResult`. A record of a segmented stream keeps the
+  stream's header and footer, its index held within the stream; no more is read than the viewer
+  would fetch (`maxCharactersPerFetch`), cut where a UTF-8 character ends; a record cut short
+  says so, as a warning in the run's messages.
+- `ShownText` says how bytes are shown: the input in the encoding its project declares where
+  its characters can be counted (UTF-8, a single-byte encoding, UTF-16) and it is well formed
+  there, else as UTF-8 where it is UTF-8, else a byte to a character — and output as UTF-8 or a
+  byte to a character the same way. `TraceChars` shows every slice of the input as the input.
+- The trace says which charset its input is shown in, and the workbench sends text it took from
+  the input back in that charset, so the engine meets the bytes the text was shown from.
+  *(Corrected 2026-11-19, §7.18: as first built, the read skipped the View Data check, and the
+  workbench sent a binary sample back as UTF-8.)*
+
+Tests: `TestStreamSamples` — the bytes as stored, the segmented record, the limit — and
+`ShapeshifterResourceEndpointsTest.previewOfAStreamRunsItsBytesAndShowsThemAByteToACharacter`,
+over a record holding 0x80 and 0xFF, which fails without the byte-to-character reading. The
+pipeline module's 183 tests pass.
+
+**The re-baseline H left for this rung, and the benchmark. Ruled 2026-11-19: a frozen copy.**
+The fixture's line is a `text`, a `value-of` and a `text` now, and its encoding is spelt
+`utf-8`, as the editor writes it; the output is unchanged (`GoldenFixtureTest`). The
+`progressive` row of `EngineBenchmark` — retired from the default rows since D54, run by name —
+reads its own copy of the configuration as it was, `bench.project.json`, so it measures the same
+work across commits. The demo pack is rebuilt; one entry changes.
+
+**What the walk found besides.**
+
+- The parts editor's `Length` was two controls under one label. Named for themselves now,
+  `Length from` and `Length value`.
+- `len` is typed: nothing offers the labels an earlier part defined. Open.
+- The story harness wrote JSON strings without escaping control characters, which a binary
+  sample's length bytes are. Fixed.
+
+| | actions |
+|---|---|
+| settings | 9 |
+| the stream | 4 |
+| the template, named | 4 |
+| its encoding, raw | 4 |
+| the framed sequence | 3 |
+| the `read` | 8 |
+| the `take` | 7 |
+| the body, one line | 5 |
+| run | 1 |
+| **total** | **45** |
+
+### 7.18 A review of rung 6, fixed — 2026-11-19
+
+A review of rung 6's working tree found nine faults, all in the byte path. All nine are fixed,
+as ruled 2026-11-19. Each of the first five has a test that fails without its fix, which was
+checked by taking the fixes out.
+
+| # | Fault | Fix | Test |
+|---|---|---|---|
+| 1 | **The read skipped the View Data app permission** the viewer's fetch requires (`DataServiceImpl.fetch`), so a user with only Use on a feed could read its raw bytes through the preview | `secureResult(VIEW_DATA_PERMISSION)` round the read, as the fetch has it | `TestStreamSamples.aUserWhoMayNotViewDataReadsNothing` |
+| 2 | The workbench sent text it took from a binary sample back as a pasted sample, which was encoded as UTF-8: every byte from 0x80 up became two | The trace names its input's charset, and text taken from the input goes back in it (`TraceModel.encodingOf`, `sampleEncoding`) | `ShapeshifterResourceEndpointsTest.aBinarySampleSentBackAsItWasShownIsItsBytesAgain`, `TraceModelTest` |
+| 3 | The limit, a count of characters, cut bytes inside a UTF-8 character, and the whole text was then shown as no text | The cut ends where a character does | `TestStreamSamples.aRecordCutShortEndsWhereACharacterDoes` |
+| 4 | A record index past the last, or none yet, threw, where the viewer holds it within the stream | Held as the viewer holds it | `TestStreamSamples.aRecordPastTheLastIsTheLastAndNoneYetIsNothing` |
+| 5 | Output that is not UTF-8 was shown as UTF-8, while its offsets counted it otherwise | Output is shown by the same rule as input | `TestTraceChars` |
+| 6 | The display knew only UTF-8 or a byte to a character, so a UTF-16 feed showed a NUL between characters | The input is shown in the project's declared encoding where its characters can be counted (`ShownText`) | `TestShownText` |
+| 7 | The display rule was written twice | Once, `ShownText` | — |
+| 8 | The sample was decoded once to check it was UTF-8 and again to show it | A byte scan checks it | `TestShownText` |
+| 9 | Two new methods' comments were `/** */` | `///` | — |
+
+Number 5 was first tested through a preview whose output held a captured name of binary
+bytes. That test passed without the fix: a capture is written as characters, so the output was
+UTF-8 after all. The rule is held directly instead, on `TraceChars`.
+
+Other multi-byte encodings — Shift_JIS, GBK and their kind — are still shown as UTF-8 or a byte
+to a character: their characters cannot be counted from the bytes without decoding them, and
+nothing walked uses one.
+
+### 7.19 What is left — planned 2026-11-19
+
+Every rung is walked. What remains, in the order ruled 2026-11-19: the small fixes first, then
+what was ruled to build.
+
+**Closed without work.** H left a question: a `${…}` naming nothing declared — `${HOME}` in a
+line of shell — becomes a reference, and would anything say so? The engine does already:
+reading a name no declaration names is refused at compile (`ReferenceCheck.declared`, *"reads
+'HOME', which no declaration names"*), so the next validation says it.
+
+**Small fixes.**
+
+1. **`Length` offers the labels an earlier part defined** (§7.17, open). A `take` or `seek`
+   whose length is a label's value is offered the labels of the parts before it, as the
+   capture dialog is offered declared names. Rung 6 walked again with the label picked.
+2. **The mode pane lists the sites that dispatch into the mode** (§7.2, item 16).
+3. **A closing table** for this design: every rung, as first driven and as driven now.
+
+**Then what was ruled.**
+
+4. **Design 44 Q14 — ruled: suggest it in the Select.** Where a Select names a declared list,
+   what follows it — `[matchCount()]`, `[index()]` — is offered there, where the author is
+   looking when they need it.
+5. **The workbench leak check — ruled: retry before failing.** A story that fails only the leak
+   check is run again, alone, before it is reported; a real leak fails both times. It misread
+   more than thirty healthy stories this session whenever other work loaded the machine. It is
+   the shared test runner's, so it is its own change.
+
+**Left as they are.**
+
+- **J — ruled: keep waiting** for real DS3 configurations, which have not arrived, to say how
+  often the idiom is wanted and in what shape.
+- **18** is a trial for the owner; **19** waits on design 18; **21**, B′, is the largest and
+  least certain piece of new surface left, and waits until the rest is measured.

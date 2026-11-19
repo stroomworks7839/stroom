@@ -38,18 +38,26 @@ public class ShapeshifterPreviewRequest {
     private final String sample;
     @JsonProperty
     private final SourceLocation sourceLocation;
+    @JsonProperty
+    private final String sampleEncoding;
 
     public ShapeshifterPreviewRequest(final String project, final String sample) {
-        this(project, sample, null);
+        this(project, sample, null, null);
+    }
+
+    public ShapeshifterPreviewRequest(final String project, final String sample, final SourceLocation sourceLocation) {
+        this(project, sample, sourceLocation, null);
     }
 
     @JsonCreator
     public ShapeshifterPreviewRequest(@JsonProperty("project") final String project,
                                       @JsonProperty("sample") final String sample,
-                                      @JsonProperty("sourceLocation") final SourceLocation sourceLocation) {
+                                      @JsonProperty("sourceLocation") final SourceLocation sourceLocation,
+                                      @JsonProperty("sampleEncoding") final String sampleEncoding) {
         this.project = project;
         this.sample = sample;
         this.sourceLocation = sourceLocation;
+        this.sampleEncoding = sampleEncoding;
     }
 
     public String getProject() {
@@ -58,6 +66,14 @@ public class ShapeshifterPreviewRequest {
 
     public String getSample() {
         return sample;
+    }
+
+    /**
+     * The charset the sample text is to be encoded in, or null for UTF-8: a trace's input encoding
+     * where the text was taken from a trace, so it is the bytes it was shown from.
+     */
+    public String getSampleEncoding() {
+        return sampleEncoding;
     }
 
     /** The record the sample is read from, or null when the sample is the text above. */

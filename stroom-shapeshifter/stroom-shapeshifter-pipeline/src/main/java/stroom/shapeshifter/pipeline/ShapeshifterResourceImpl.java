@@ -16,14 +16,10 @@
 
 package stroom.shapeshifter.pipeline;
 
-import stroom.data.store.api.DataService;
 import stroom.docref.DocRef;
 import stroom.docstore.api.DocumentResourceHelper;
 import stroom.event.logging.rs.api.AutoLogged;
 import stroom.event.logging.rs.api.AutoLogged.OperationType;
-import stroom.pipeline.shared.AbstractFetchDataResult;
-import stroom.pipeline.shared.FetchDataRequest;
-import stroom.pipeline.shared.FetchDataResult;
 import stroom.shapeshifter.config.ConfigException;
 import stroom.shapeshifter.config.PatternNode;
 import stroom.shapeshifter.config.Project;
@@ -68,17 +64,17 @@ class ShapeshifterResourceImpl implements ShapeshifterResource {
     private final Provider<ShapeshifterStore> storeProvider;
     private final Provider<DocumentResourceHelper> documentResourceHelperProvider;
     private final Provider<StroomFunctionLibrary> functionLibraryProvider;
-    private final Provider<DataService> dataServiceProvider;
+    private final Provider<StreamSamples> streamSamplesProvider;
 
     @Inject
     ShapeshifterResourceImpl(final Provider<ShapeshifterStore> storeProvider,
                              final Provider<DocumentResourceHelper> documentResourceHelperProvider,
                              final Provider<StroomFunctionLibrary> functionLibraryProvider,
-                             final Provider<DataService> dataServiceProvider) {
+                             final Provider<StreamSamples> streamSamplesProvider) {
         this.storeProvider = storeProvider;
         this.documentResourceHelperProvider = documentResourceHelperProvider;
         this.functionLibraryProvider = functionLibraryProvider;
-        this.dataServiceProvider = dataServiceProvider;
+        this.streamSamplesProvider = streamSamplesProvider;
     }
 
     @Override
@@ -157,7 +153,7 @@ class ShapeshifterResourceImpl implements ShapeshifterResource {
     @Override
     public ShapeshifterTrace preview(final ShapeshifterPreviewRequest request) {
         final List<ShapeshifterMessage> messages = new ArrayList<>();
-        final String sample;
+        final StreamSamples.Sample sample;
         try {
             sample = sampleOf(request);
         } catch (final RuntimeException e) {
@@ -167,19 +163,32 @@ class ShapeshifterResourceImpl implements ShapeshifterResource {
                     List.of(), List.of(), 0, List.of(),
                     List.of(message(Severity.FATAL, "The sample could not be read: " + e.getMessage())), 0);
         }
-        final CompiledProject compiled;
+        final byte[] input = sample.bytes();
+        if (sample.truncated()) {
+            messages.add(message(Severity.WARNING, "The sample is the first " + input.length
+                                                   + " bytes of the record, which holds more"));
+        }
+        // Read first, so the input can be shown in the encoding the project declares for it
+        // whether or not it then compiles
+        Project project = null;
+        CompiledProject compiled = null;
         try {
-            final Project project = ProjectReader.read(request.getProject());
+            project = ProjectReader.read(request.getProject());
             // The compile's warnings are the run's first messages: the run says them again.
             compiled = Shapeshifter.compile(project, functionLibraryProvider.get().registry());
         } catch (final ConfigException e) {
             messages.add(message(Severity.FATAL, e.getMessage()));
-            return new ShapeshifterTrace(false, true, sample, null, List.of(), List.of(), List.of(), List.of(),
-                    List.of(), List.of(), List.of(), 0, List.of(), messages, 0);
+        }
+        final ShownText shown = ShownText.input(input, project == null || project.source() == null
+                ? null
+                : project.source().encoding());
+        if (compiled == null) {
+            return new ShapeshifterTrace(false, true, shown.text(input), null, List.of(), List.of(), List.of(),
+                    List.of(), List.of(), List.of(), List.of(), 0, List.of(), messages, 0,
+                    shown.charset().name());
         }
         final TraceRecorder recorder = new TraceRecorder();
         final ByteArrayOutputStream out = new ByteArrayOutputStream();
-        final byte[] input = sample.getBytes(StandardCharsets.UTF_8);
         final long started = System.nanoTime();
         Shapeshifter.runWhole(compiled, input, new XmlByteSink(out), recorder);
         final long runNanos = System.nanoTime() - started;
@@ -189,35 +198,33 @@ class ShapeshifterResourceImpl implements ShapeshifterResource {
                     said.frameId()));
         }
         // The client holds strings: every offset crosses the wire in characters (TraceChars).
-        final TraceChars chars = new TraceChars(recorder, input, out.toByteArray());
-        return new ShapeshifterTrace(true, true, sample, out.toString(StandardCharsets.UTF_8), chars.frames(),
+        final TraceChars chars = new TraceChars(recorder, input, shown, out.toByteArray());
+        return new ShapeshifterTrace(true, true, chars.input(), chars.output(),
+                chars.frames(),
                 chars.captures(), chars.groups(), chars.outputs(), chars.attempts(), chars.guards(),
                 chars.instructions(),
                 recorder.attemptsSeen(),
-                timings(recorder), messages, runNanos);
+                timings(recorder), messages, runNanos, shown.charset().name());
     }
 
     /**
-     * The text to run over: what the caller sent, or the record it named, read from the stream
-     * store under the caller's own permissions (design 18 Q2 - the document never holds data,
-     * so the editor asks for it by location every run).
+     * The bytes to run over: the text the caller sent, as UTF-8, or the record it named, read as
+     * it is stored, under the caller's own permissions (design 18 Q2 - the document never holds
+     * data, so the editor asks for it by location every run; design 46 §6.5 - a binary record
+     * reaches the engine as its bytes, not as text decoded and re-encoded).
      */
-    private String sampleOf(final ShapeshifterPreviewRequest request) {
+    private StreamSamples.Sample sampleOf(final ShapeshifterPreviewRequest request) {
         if (request.getSample() != null) {
-            return request.getSample();
+            // In the charset it was shown in, where it came from a trace: a binary record's text
+            // is its bytes a byte to a character, and encoded as UTF-8 would be other bytes
+            final String text = request.getSample();
+            return new StreamSamples.Sample(text.getBytes(ShownText.ofSample(request.getSampleEncoding(), text)),
+                    false);
         }
         if (request.getSourceLocation() == null) {
-            return "";
+            return new StreamSamples.Sample(new byte[0], false);
         }
-        final FetchDataRequest fetch = new FetchDataRequest(request.getSourceLocation());
-        fetch.setDisplayMode(FetchDataRequest.DisplayMode.TEXT);
-        final AbstractFetchDataResult result = dataServiceProvider.get().fetch(fetch);
-        if (result instanceof final FetchDataResult data) {
-            return data.getData() == null
-                    ? ""
-                    : data.getData();
-        }
-        throw new IllegalStateException("The record holds no text to run over");
+        return streamSamplesProvider.get().read(request.getSourceLocation());
     }
 
     private static List<ShapeshifterTrace.Timing> timings(final TraceRecorder recorder) {

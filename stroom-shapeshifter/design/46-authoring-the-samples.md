@@ -997,19 +997,20 @@ with the fixes and proposals that follow and the order to do them in.*
 
 ### 6.5 Rung 6 — `progressive_len_records`
 
-The sample: length-prefixed binary records — a varint length, then that many bytes of name. One
-template, no `source` template, `encoding: "raw"` on the template.
+The sample: length-prefixed binary records — a varint length, then that many bytes of name. The
+`document` template and one other, `root`, with `encoding: "raw"` on the template. *(This said
+"no `source` template"; the fixture has always had one. Corrected 2026-11-19.)*
 
 | # | The author does | What should happen | Status |
 |---|---|---|---|
 | 1 | Settings: name, buffer 1000000, encoding `UTF-8`, ignore errors on | — | built |
-| 2 | Gets `input.bin` in front of themselves | **cannot be pasted** — see the finding | blocked |
+| 2 | Gets `input.bin` in front of themselves | **cannot be pasted** — see the finding; chosen as a stream from the sample page's list | built 2026-11-19 |
 | 3 | `Add template`, names it `root`, leaves it in the root mode | — | built |
 | 4 | Sets the template's own encoding to `raw` | The per-template encoding field | built (`TemplateEdit.ui.xml` `encoding`) |
 | 5 | Match kind `parts` | The framed sequence's part list | built (`Parts.ui.xml`) |
 | 6 | Part 1: kind `read`, `As` `varint`, `Label` `len` | — | built (`PartEdit.ui.xml`) |
-| 7 | Part 2: kind `take`, `Length` from the label `len`, `Label` `name` | The length field takes a label, not just a number (`lengthKind`) | built (`PartEdit.ui.xml`) |
-| 8 | Body: `value-of` `<rec name="`, `name`, `"/>\n` | — | built |
+| 7 | Part 2: kind `take`, `Length` from the label `len`, `Label` `name` | The length field takes a label, not just a number (`lengthKind`) | built (`PartEdit.ui.xml`); `len` is typed — nothing offers it |
+| 8 | Body: `<rec name="$name"/>\n`, typed as one line: a `text`, a `value-of` and a `text` (design 47 H) | — | built |
 | 9 | Runs | One `<rec …>` per record | built |
 
 **Finding — rung 6 cannot be walked as written, and the blocker is step 2.** The sample page
@@ -1031,6 +1032,30 @@ binary sample — is downstream of it. Step 7 adds a second question now that th
 `Length` reads a label defined by an *earlier part of the same match*, so the parts list has
 internal dependencies, and whether `PartEdit` offers `len` in that field or expects it typed is
 exactly the kind of thing only the browser will say.
+
+### 6.5a Driven 2026-11-19 — nine stories, and a binary sample
+
+`ShapeshifterLenRecordsStories`, a story per stage, ending in the keystone: the project the
+editor sends is the fixture, version aside. **45 actions.** The step-2 blocker is gone: the
+story serves the sample page's list one stream and the stream viewer its record, and choosing
+the row makes it the sample, as an author would in Stroom.
+
+**The standing question had a worse answer than the marks.** A stream sample reached the engine
+as text: the preview fetched the record in the viewer's text mode, decoded in the feed's
+encoding, and re-encoded it as UTF-8, so every byte from 0x80 up arrived as something else, and
+a binary match counted and read the wrong bytes. `input.bin` happens to be all below 0x80, which
+is why nothing had shown it. The preview now reads the record's bytes as stored
+(`StreamSamples`), under the View Data permission and the caller's own permissions as the
+viewer reads it. The input is shown in the encoding the project declares, or as UTF-8, or a
+byte to a character where it is no text (`ShownText`), so the marks and offsets point at the
+bytes the engine counted; and text the workbench takes from it goes back as those bytes.
+Design 47 §7.17 and §7.18 have the detail.
+
+**The other two questions.** The marks over a binary sample mean what they say now; a length
+byte shows as a box before the name it measures. And `Length`'s label `len` is typed: nothing
+offers the labels an earlier part of the same match defined. The field's two controls also
+shared one label, so neither a screen reader nor the walk could tell them apart; they are
+`Length from` and `Length value` now.
 
 ## 7. The large samples: a probe, not a test — run 2026-11-12
 
@@ -1336,8 +1361,8 @@ one that was right for names.
    decision — whether driving the rest was worth it — was answered by doing it: it turned up the
    body-cards finding in §5.9a, which three months of stories over a built fixture had not.
 4. Walk the remaining five against the running workbench as their stories are written — **rungs
-   2 and 3 done 2026-11-17 (§6.1a, §6.2a), 4 and 5 done 2026-11-18 (§6.3a, §6.4a); rung 6
-   outstanding** — settling
+   2 and 3 done 2026-11-17 (§6.1a, §6.2a), 4 and 5 done 2026-11-18 (§6.3a, §6.4a), 6 done
+   2026-11-19 (§6.5a); every rung is walked** — settling
    what only the browser can say: what the UI says about a mode with no dispatch site (§5.4),
    whether a pattern part can be lifted out of a pattern already written (§6.3 — it can, §6.3a), and whether the
    marks mean anything over a binary sample (§6.5, which also needs the stream fixture ruled

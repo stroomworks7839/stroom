@@ -66,6 +66,11 @@ public class SampleController extends Controller {
     private Template experiment;
     private String colour;
     private String seed;
+    // The charset the seed was shown in, and so the one the box's text is sent back in: a binary
+    // record's text is its bytes a byte to a character (design 46 §6.5). Null is UTF-8.
+    private String seedEncoding;
+    // The charset of what seedText last chose
+    private String chosenEncoding;
     private String requested;
     private boolean running;
     private boolean runAgain;
@@ -120,6 +125,7 @@ public class SampleController extends Controller {
                 final String next = seedText(templateId);
                 if (!next.equals(current)) {
                     seed = next;
+                    seedEncoding = chosenEncoding;
                     view.setSample(next);
                 }
             }
@@ -161,6 +167,7 @@ public class SampleController extends Controller {
                 ? trace.content(frameId)
                 : null;
         if (content != null && !content.isEmpty()) {
+            chosenEncoding = trace.encodingOf(frameId);
             return content;
         }
         return otherwise == null
@@ -173,9 +180,11 @@ public class SampleController extends Controller {
         if (trace != null && trace.has(host.cursor())) {
             final String content = trace.content(host.cursor());
             if (content != null && !content.isEmpty()) {
+                chosenEncoding = trace.encodingOf(host.cursor());
                 return content;
             }
         }
+        chosenEncoding = null;
         return host.getSample() == null
                 ? ""
                 : host.getSample();
@@ -217,7 +226,7 @@ public class SampleController extends Controller {
         }
         final String sample = view.getSample();
         final String project = ProjectText.print(Templates.experiment(host.getProject(), template));
-        final String key = project + '\u0000' + sample;
+        final String key = project + '\u0000' + sample + '\u0000' + seedEncoding;
         if (running) {
             // One request in flight; the edit that arrived meanwhile runs when this one lands.
             runAgain = true;
@@ -232,7 +241,7 @@ public class SampleController extends Controller {
         running = true;
         restFactory
                 .create(RESOURCE)
-                .method(res -> res.preview(new ShapeshifterPreviewRequest(project, sample)))
+                .method(res -> res.preview(new ShapeshifterPreviewRequest(project, sample, null, seedEncoding)))
                 .onSuccess(result -> {
                     running = false;
                     trace = result;

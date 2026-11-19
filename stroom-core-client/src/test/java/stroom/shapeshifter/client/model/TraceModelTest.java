@@ -80,6 +80,24 @@ class TraceModelTest {
     }
 
     @Test
+    void theInputAndItsSlicesAreShownInTheInputsCharsetAndAFramesOwnInUtf8() {
+        // Design 46 §6.5: what the workbench sends back is encoded as it was shown
+        final List<Frame> frames = List.of(
+                new Frame(1, 0, "row", "row", 1, 1, 0, 4, 0, 4, null),
+                new Frame(2, 1, "field", "field", 1, 2, 2, 2, 2, 2, null),
+                new Frame(3, 1, "any", "any", 1, 2, 0, 0, ShapeshifterTrace.NOT_A_SLICE, 0, "own"));
+        final TraceModel model = new TraceModel(new ShapeshifterTrace(true, true, "abcd", "", frames, List.of(),
+                List.of(), List.of(), List.of(), List.of(), List.of(), 0, List.of(), List.of(), 0, "ISO-8859-1"));
+
+        assertThat(model.encodingOf(TraceModel.ROOT)).isEqualTo("ISO-8859-1");
+        assertThat(model.encodingOf(1)).isEqualTo("ISO-8859-1");
+        assertThat(model.encodingOf(2)).isEqualTo("ISO-8859-1");
+        assertThat(model.encodingOf(3)).isNull();
+        // A trace that says nothing is UTF-8
+        assertThat(model().encodingOf(2)).isNull();
+    }
+
+    @Test
     void contentSlicesTheParentAllTheWayUp() {
         final TraceModel model = model();
         assertThat(model.content(2)).isEqualTo("b=22\n");

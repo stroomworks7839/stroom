@@ -252,7 +252,7 @@ public final class ShapeshifterEditorStories {
 
     // ShapeshifterResource.encodings(): the canonical labels the source and template forms offer
     static final String ENCODINGS = """
-            ["utf-8", "utf-16", "iso-8859-1", "ascii"]""";
+            ["utf-8", "utf-16", "iso-8859-1", "ascii", "raw"]""";
 
     // ShapeshifterResource.print(): a pattern tree as the regex it means
     static final String PRINTED = """
@@ -1745,6 +1745,11 @@ public final class ShapeshifterEditorStories {
                 json.append('\\').append(c);
             } else if (c == '\n') {
                 json.append("\\n");
+            } else if (c < 0x20) {
+                // Any other control character, as JSON spells it: a binary sample's length
+                // bytes are these (rung 6)
+                final String hex = "0123456789abcdef";
+                json.append("\\u00").append(hex.charAt(c >> 4)).append(hex.charAt(c & 0xF));
             } else {
                 json.append(c);
             }

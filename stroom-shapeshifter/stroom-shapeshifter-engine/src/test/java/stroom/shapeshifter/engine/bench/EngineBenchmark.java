@@ -140,9 +140,12 @@ public class EngineBenchmark {
             case "win_sec_xml" -> streamed("projects/win_sec_xml/project.json",
                     FixtureLedger.bytes("projects/win_sec_xml/input.xml"));
             // Retired from the default rows (D54), runnable by name: the match sequence over
-            // the synthetic length-prefixed fixture the interpreter's row ran.
+            // the synthetic length-prefixed fixture the interpreter's row ran. Its own frozen copy
+            // of the configuration, so the row measures the same work across commits: the
+            // fixture's literals became text cards with rung 6's walk (design 47 §7.17), which
+            // changes the work, and this row is not the place to see that change.
             case "progressive" -> {
-                streamed("projects/progressive_len_records/project.json",
+                streamed("projects/progressive_len_records/bench.project.json",
                         FixtureLedger.bytes("projects/progressive_len_records/input.bin"));
                 // Binary inputs are addressed whole; the harness and the fixtures do the same.
                 wholeBuffer = true;

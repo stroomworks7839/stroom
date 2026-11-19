@@ -4,7 +4,7 @@
  "source": {
   "buffer_size": 1000000,
   "ignore_errors": true,
-  "encoding": "UTF-8"
+  "encoding": "utf-8"
  },
  "templates": [
   {
@@ -59,21 +59,21 @@
    },
    "body": [
     {
+     "text": "<rec name=\""
+    },
+    {
      "value-of": {
       "parts": [
-       {
-        "text": "<rec name=\""
-       },
        {
         "capture": {
          "label": "name"
         }
-       },
-       {
-        "text": "\"/>\n"
        }
       ]
      }
+    },
+    {
+     "text": "\"/>\n"
     }
    ],
    "encoding": "raw"

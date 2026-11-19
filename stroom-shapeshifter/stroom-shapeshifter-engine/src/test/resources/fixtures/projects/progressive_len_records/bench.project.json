@@ -1,0 +1,82 @@
+{
+ "name": "progressive_len_records",
+ "version": 1,
+ "source": {
+  "buffer_size": 1000000,
+  "ignore_errors": true,
+  "encoding": "UTF-8"
+ },
+ "templates": [
+  {
+   "id": "7c3a9e14-0b55-4c8e-9f21-5d6a8b0e4f32",
+   "name": "document",
+   "match": "source",
+   "match_limits": {
+    "min_match": 0,
+    "max_match": -1
+   },
+   "body": [
+    {
+     "apply-templates": {
+      "select": {
+       "parts": [
+        {
+         "capture": {
+          "group": 0
+         }
+        }
+       ]
+      },
+      "max_depth": 64
+     }
+    }
+   ]
+  },
+  {
+   "id": "e97f0eba-5e1a-587e-a22e-a3d761377ea6",
+   "name": "root",
+   "match": {
+    "parts": [
+     {
+      "read": {
+       "as": "varint",
+       "label": "len"
+      }
+     },
+     {
+      "take": {
+       "length": {
+        "label": "len"
+       },
+       "label": "name"
+      }
+     }
+    ]
+   },
+   "match_limits": {
+    "min_match": 0,
+    "max_match": -1
+   },
+   "body": [
+    {
+     "value-of": {
+      "parts": [
+       {
+        "text": "<rec name=\""
+       },
+       {
+        "capture": {
+         "label": "name"
+        }
+       },
+       {
+        "text": "\"/>\n"
+       }
+      ]
+     }
+    }
+   ],
+   "encoding": "raw"
+  }
+ ]
+}

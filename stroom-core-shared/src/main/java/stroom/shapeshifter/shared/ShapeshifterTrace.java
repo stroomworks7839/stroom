@@ -75,6 +75,28 @@ public class ShapeshifterTrace {
     private final List<ShapeshifterMessage> messages;
     @JsonProperty
     private final long runNanos;
+    @JsonProperty
+    private final String inputEncoding;
+
+    /** A trace whose input is shown as UTF-8. */
+    public ShapeshifterTrace(final boolean compiled,
+                             final boolean sampleRead,
+                             final String input,
+                             final String output,
+                             final List<Frame> frames,
+                             final List<Capture> captures,
+                             final List<Group> groups,
+                             final List<OutputSpan> outputs,
+                             final List<Attempt> attempts,
+                             final List<Guard> guards,
+                             final List<Instruction> instructions,
+                             final long attemptsSeen,
+                             final List<Timing> timings,
+                             final List<ShapeshifterMessage> messages,
+                             final long runNanos) {
+        this(compiled, sampleRead, input, output, frames, captures, groups, outputs, attempts, guards, instructions,
+                attemptsSeen, timings, messages, runNanos, null);
+    }
 
     @JsonCreator
     public ShapeshifterTrace(@JsonProperty("compiled") final boolean compiled,
@@ -91,7 +113,8 @@ public class ShapeshifterTrace {
                              @JsonProperty("attemptsSeen") final long attemptsSeen,
                              @JsonProperty("timings") final List<Timing> timings,
                              @JsonProperty("messages") final List<ShapeshifterMessage> messages,
-                             @JsonProperty("runNanos") final long runNanos) {
+                             @JsonProperty("runNanos") final long runNanos,
+                             @JsonProperty("inputEncoding") final String inputEncoding) {
         this.compiled = compiled;
         this.sampleRead = sampleRead;
         this.input = input;
@@ -107,6 +130,7 @@ public class ShapeshifterTrace {
         this.timings = timings;
         this.messages = messages;
         this.runNanos = runNanos;
+        this.inputEncoding = inputEncoding;
     }
 
     /** Whether the project compiled; when it did not, only the messages are meaningful. */
@@ -170,6 +194,15 @@ public class ShapeshifterTrace {
 
     public long getRunNanos() {
         return runNanos;
+    }
+
+    /**
+     * The charset the input is shown in (design 46 §6.5): the project's declared encoding, UTF-8,
+     * or ISO-8859-1 for a binary input shown a byte to a character. Text taken from the input and
+     * sent back as a sample is encoded in it, to be the bytes it was shown from. Null is UTF-8.
+     */
+    public String getInputEncoding() {
+        return inputEncoding;
     }
 
     /** A match: a frame, its parent by id (0 is the document), and where its content is. */
