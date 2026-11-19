@@ -3,7 +3,8 @@
 *Proposed 2026-11-17, from the owner's ask: "work on the design to make things easier for the
 user to construct configs. Walk through the rungs and figure out what we could do." Nothing here
 was ruled when it was written; **A was ruled the same day** (§3) and §5 lists what still needs
-ruling.*
+ruling. Rungs 4 and 5 were walked on 2026-11-18; §7 (2026-11-19) collects every open finding
+and sets out the plan from here.*
 
 Design 46 drove three of the engine's fixtures through the editor a step at a time and counted
 what it cost. This design reads those counts for where the cost is, and proposes what would
@@ -175,6 +176,140 @@ parts and the plan.
 | today, as driven | 17 | 41 | 25 |
 | with B, and no unnecessary picks | 11 | 25 | 17 |
 
+#### B, reassessed and built 2026-11-18 — in place, not in the dialog
+
+Written before D and E, B put a Pattern field in the New Template dialog. Since then the card
+dialogs have gone and the body has settled on one way of working: a list of rows, a New row
+at its end, a row opened where it is, a draft taken with Enter. A second field in a dialog
+is the one piece of B that goes the other way. The same way of working, applied to templates:
+
+- **Each mode's list in the panel ends with a New row**, as a card list does. It reads
+  `new template`, is walked to and selected as a template's row is, and opened it is a Name
+  field where the row was. Enter makes the template **in that mode** — the row's place says
+  which, so there is no mode to pick, and the picks the stories made without needing to
+  (§1.1) cannot be made. Escape, or Enter on an empty name, is no template.
+- **The panel ends with a `new mode` row.** Opened, it is a field for the mode's name; Enter
+  puts the mode in the panel as a heading, with its own New row open under it for its first
+  template, because a mode is only ever the mode of a template. *As built:* this was first
+  written as two fields in one row, on the belief that nothing could hold a mode with no
+  template in it. Something already did — the Modes dialog declares one, and the editor keeps
+  it until a template uses it — but the panel never showed it. It does now, which is also
+  where a mode made in that dialog has gone to all along. This replaces the template
+  dialog's `New…` as the way a mode is made while authoring (design 46 §6.1a).
+- **The Match line opens in place.** At rest it reads as it does now — `regex`, the pattern —
+  and clicked it is a field holding the pattern, taken with Enter and put back with Escape,
+  as a card is. `workbench` stays beside it, for groups, parts, flags and the plan, and is
+  the only way in for a match that is not a regex (a pattern tree, parts, a delimiter): those
+  have no one-line spelling. **A template just made arrives with its Match line open and the
+  keyboard in it**, so making one is the name, Enter, the pattern, Enter.
+- **The toolbar's Add opens the New row** of the selected template's mode. Nothing makes a
+  template through a dialog any more. The dialog stays as Edit Template — colour, mode,
+  params, encoding, ignore errors — which is where a template is moved to another mode.
+- **After the pattern, the body.** Enter in the match of a template whose body is empty goes
+  on into the body, with its New row open, so a one-line template is the name, the pattern
+  and the line, each with Enter, and one click in all. In a template that has a body the
+  keyboard stays on the match.
+- **The New rows read `+ template` and `+ mode`** (the owner, 2026-11-18, after seeing them
+  as rows): the same add link the declarations and the captures have, on a line of its own
+  where the row was. What they do is unchanged. Where this section says a New row of the
+  panel, that link is what is meant; the body's New row is still a row.
+- **Leaving the match field takes what it holds**, as doing anything else to a body takes
+  the card open in it; Escape puts it back. Read only, and for a match that is not a regex,
+  the match opens the workbench as it always did.
+
+**What it costs**, counted off the walks, with an Enter as an action:
+
+| templates | rung 1 | rung 2 | rung 3 |
+|---|---|---|---|
+| before, as driven | 17 | 41 | 25 |
+| B as first written (the dialog), estimated | 11 | 25 | 17 |
+| **B in place, measured** | **12** | **27** | **17** |
+| **whole rung, before** | **66** | **78** | **62** |
+| **whole rung, with B** | **60** | **60** | **51** |
+
+A template in a mode that exists is the row, the name, Enter, the pattern, Enter: five, where
+the dialog would have been four and the old way was eight as driven. One in a new mode is
+seven — the mode and its Enter, then the same five less the click — where it was nine. The
+rest of what the rungs lost is a click a template: the body is not clicked into, because the
+pattern's Enter goes there. Two things to read those figures with. The old walks picked the
+mode in the dialog for every template, and for one in the mode already selected they did not
+need to (§1.1; 2, 8 and 4 actions as the walks were driven at the end), so an author's own
+saving is smaller than the table's. And **it is not cheaper than the dialog would have
+been**, though it was said to be when it was first put to the owner; what it buys over that
+is not actions:
+
+- **One place a pattern is typed, used both ways.** The dialog's field would only ever be
+  used once per template, at its making; changing a pattern afterwards would still be the
+  chip, the workbench and its close. The Match line is the same three steps for a new pattern
+  and an old one.
+- **No dialog between the author and the sample.** The input stays on screen while the
+  pattern is typed, which is design 46 §5.2's point about the record being in front of the
+  author.
+- **The mode cannot be got wrong, or picked for nothing.**
+
+**What it does not fix.** Between the two Enters the template exists with an empty pattern,
+as it does today between the dialog's OK and the workbench. The dialog version made a
+template whole in one step, which is the reason D holds a card as a draft. The window is two
+keystrokes wide rather than three clicks, and nothing has been seen to go wrong in it across
+three rungs, but it is the one thing the dialog did better.
+
+**Not looked at:** what the Match line should do while a regex in it does not compile — today
+the messages say why once it has been taken. *(2026-11-19: it says so as it is typed, §7.7.)* The panel's 220px turned out to be enough for a
+name being typed.
+
+**The stories.** `ShapeshifterTemplateStories` holds the rows and the line: a template and a
+mode made in place, a name not taken, the match opened, taken and put back, the workbench
+for a match that is not a regex, and read only. The two stories of the New Template dialog
+went with it. The three walks make every template this way, and their keystones passed
+unchanged.
+
+#### Named where it is shown, not where it is listed — 2026-11-18, later
+
+The owner, having used the links: lose the Edit button and the name field from the list, and
+set names and settings in the main pane. Seven questions were put with a recommendation each
+and all seven were taken as recommended. What is built:
+
+- **Adding is immediate.** `+ template`, or the toolbar's Add, makes a template called
+  `new template` in that mode, selects it and shows it with **its name open in its own
+  title**, all of it selected, so that what is typed replaces it. `+ mode` makes a mode
+  called `new mode` the same way. A second is `new template 2`: a call names a template and
+  a dispatch names a mode, so two of a name could not be told apart. Nothing is named in the
+  list, and the field the links used to turn into has gone.
+- **Escape no longer means no template.** It was made when it was asked for; Escape leaves
+  it called what it arrived as, and Remove is how one that was not wanted goes.
+- **A title is edited where it reads.** An edit button stands beside the name; pressed, or
+  the name pressed, the name is a field. A template's other settings — colour, mode, params,
+  encoding, ignore errors — are under the title while it is open and not otherwise. Name and
+  settings are one draft, as a card is: Enter in the name, OK, or the edit button again takes
+  it; Escape or Cancel leaves the template as it was; going to another row takes it if it
+  can be written. The Edit Template dialog has gone, and with it the last dialog a template
+  could be made or changed in.
+- **The chain is kept.** Enter in a new template's name goes on to its match, and from there
+  into its body. In a template that was not just made the keyboard stays on the title.
+- **A mode has a pane.** A named mode's heading in the list selects it, and it is shown
+  where a template would be: its name, edited as a template's is, how many templates it has
+  and what dispatches into it, and its templates listed, each the way to that template, with
+  a `+ template` of its own. Renaming it there renames it on its templates and on every
+  dispatch that points at it. After a new mode is named the keyboard is on that
+  `+ template`; nothing is made that was not asked for. The root has no name and its heading
+  is only a heading.
+- **The Modes dialog and its button have gone.** A mode is added, renamed and removed as a
+  row of the list is; Remove takes one that has no templates. The panel's toolbar is Add,
+  Remove, Up, Down and the pattern parts' own add.
+- **A pattern part is renamed in the workbench's title**, which is where a part is shown. The
+  name prompt remains only for adding a part.
+
+**Measured.** The rungs are 61, 60 and 52, as they were. Renaming the root is one action
+fewer in each — the button, the name, Enter, where it was the button, clear, the name, OK —
+and a template in a new mode is one more: the Enter that presses the mode's `+ template`.
+
+**What this does to C.** The mode's pane is where *nothing dispatches into this* now reads in
+full, beside the mode it is about, and is the natural home for C's way out.
+
+**Not done.** A mode's own settings, of which it has none today. Adding a pattern part still
+asks for its name in a prompt, where a template and a mode no longer do. *(2026-11-19: no
+longer, §7.7.)*
+
 **B′, later: a template from the sample.** Select text in the input pane, *New template from
 selection*, and the pattern arrives as the selection, escaped. Four of the nine templates in
 rungs 2 and 3 match a literal that is sitting in the sample (`=`, `=>`, `ERROR`, `timed out`).
@@ -198,6 +333,49 @@ notices the half-finished state: *nothing dispatches into this*.
 
 Small in actions (6, 7, 8 → about 2, 5, 6; a non-`strict` strategy still has to be chosen on the
 card). Its worth is that it removes the one place every rung detours.
+
+#### C, reassessed and built 2026-11-18 — in the mode's pane
+
+Written before a mode was anything but a heading. Since B a mode is added first and has a
+pane of its own, which is where the author is at the moment the dispatch is missing; so the
+way out is there, and so — now that there is somewhere for it — is the strategy. Six
+questions were put with a recommendation each, and all six taken as recommended.
+
+- **The mode's pane has a dispatch line.** While nothing dispatches into the mode it says so,
+  and beside that is **`dispatch from the document`**: one press points the document's own
+  `apply-templates` at the mode. The author stays in the pane, with the keyboard on the
+  strategy. The note under the mode's heading in the list is still only a note.
+- **It is offered only when it is a completion.** The document has one `apply-templates` that
+  names no mode, and the root has no templates of its own — a dispatch that names no mode is
+  what runs those, and pointing it elsewhere would stop them. Otherwise nothing is offered
+  and **the pane says why**, and what to do instead: *the document dispatches into kv; add an
+  apply-templates where this mode is to be dispatched from*. This is ruling 4, as recommended.
+- **The strategy is set in the pane.** A picker holds the strategy the mode's dispatch sites
+  share — `project's` where they name none — and set there it is set on every one of them,
+  which is where a strategy lives; renaming a mode already writes to those sites from the
+  pane. It is disabled until something dispatches into the mode, and where the sites differ,
+  which the line then says: there is no one value to show, and nothing is overwritten. The
+  card keeps its own Dispatch field. This also answers design 46 §10 W4 from the other side:
+  the strategy was only ever chosen on a card of another template, in another pane.
+- **A card's Mode offers every mode the list shows**, one with no template yet included, so
+  a mode can be dispatched into before anything is in it. This is what C's `New…` on the
+  card was for; with `+ mode` in the list there is nothing to add to the card.
+
+**Measured.** The walks dispatch a mode where they make it — the link, and for rungs 2 and 3
+the picker and the strategy — and no longer go to the document for it:
+
+| | rung 1 | rung 2 | rung 3 |
+|---|---|---|---|
+| before C | 61 | 60 | 52 |
+| **with C** | **58** | **56** | **49** |
+
+Wiring the dispatch was 4, 7 and 6 actions and is 1, 3 and 3. The window design 46 §5.4 found —
+a mode with templates that nothing dispatches into — is no longer something the walks pass
+through: the stages that asserted its note now assert that it is not there.
+
+**Not done.** A second or nested mode is still dispatched by adding a card, which is right;
+the pane could list the sites that dispatch into a mode, each the way to its card, and does
+not.
 
 ### D — A card is edited where it is — ruled 2026-11-18
 
@@ -446,9 +624,30 @@ clicks the walkthrough used to make on a field that already had the keyboard, wh
 author would not have made. The first line into a body costs what it did, a click and then
 the line: the click is on the New row where it was on the field.
 
+**Add, remove, up, down — and `+ instruction`** (the owner, 2026-11-18, later the same day).
+The body's toolbar is the template panel's: add, remove, move up, move down, in that order.
+There is one way to add from it, and it is **below** — below the selected row, in the list
+that row is in, or at the end of the body when no row is selected, so Add is always there
+to press. Insert above has gone. And the New row has become what the panel's became: a
+`+ instruction` link under the rows of every list, the add link the declarations, the
+captures, the templates and the modes have. It is not a row — the arrows stop at the last
+card and Tab reaches it — and pressed it is the same card, kind `auto`, where it stood.
+
+What that changes in what was said above:
+
+- **The walks add and then move again.** With no way to add above the first row, an opening
+  tag is added at the end and moved up: the line, Escape, the press. Rungs 1 and 3 are one
+  action dearer for it, 61 and 52 where insert above had them at 60 and 51; rung 2 is 60.
+- **A card of another kind from the link is three presses, not two**: the link, the kind
+  box, the kind. The New row's own kind could be clicked to open it with the kinds offered;
+  a link has no kind to click.
+- **Dropped, a card goes back where it was asked for**: to the link, or to the row that was
+  selected when Add was pressed.
+
 **Not done:** design 18 §5.6 has a card dropped on a list's add line land at its end, which
 is also how an empty branch gets its first card by dragging. The add line never took a drop
-and the New row does not yet either; a row that is like the others should.
+and the New row does not yet either; a row that is like the others should. *(2026-11-19:
+`+ instruction` takes a drop, §7.7.)*
 
 **What it costs, and what has not been looked at.** Three panes share the height one pane
 had: the input has about 210px at this size where it had 270, and it is narrower, which is
@@ -462,10 +661,17 @@ workspace as before and are unchanged.
 | | rung 1 | rung 2 | rung 3 |
 |---|---|---|---|
 | as driven | 77 | 98 | 75 |
-| with A, B and C | about 49 | about 56 | about 47 |
+| with A, B and C, estimated | about 49 | about 56 | about 47 |
+| with A, D and B, measured 2026-11-18 | 60 | 60 | 51 |
+| **with A, D, B and C, and the changes between, measured 2026-11-18** | **58** | **56** | **49** |
 
 Roughly **a third to nearly a half** off each rung, and more off an author's own cost once §1.1's
-artefacts are out of both rows.
+artefacts are out of both rows. Measured, rung 2 is where it was estimated to be and rung 3
+is two off; rung 1 is furthest off because it was driven a card to a line (§3 A), which is
+the walk's choice and not the editor's — typed as three lines it would be 46.
+
+Rungs 4 and 5 were walked after all of this, at 122 and 158; §7.5 has what F to J would make of
+them.
 
 ## 4. How we would know
 
@@ -487,25 +693,364 @@ templated line is split into its sequence (2026-11-17, §3).
 2. **D: a draft, or live commit as design 18 Q12 has it.** Built as a draft, for the reason
    in §3 D. *Recommended: the draft, and Q12 amended to say so — live commit asks the author
    to know which keystrokes made an instruction.*
-3. **B: the dialog or the strip.** A Pattern field in New Template, or the match chip made
-   editable in place. *Recommended: the dialog — it is where the template is being described,
-   and it does not make a second editing surface for patterns.*
+3. **B: the dialog or in place.** A Pattern field in New Template, or a New row in the panel
+   and the Match line opened in place (§3 B, reassessed). **Built in place 2026-11-18, to be
+   looked at.** *It costs the same as the dialog would have, it is how cards now work, and
+   its one field serves a pattern being changed as well as one being made. The first
+   recommendation was the dialog, on the ground that it made no second editing surface for
+   patterns; it made one too, used once.* Within it, and built as recommended: the keyboard
+   goes on into the body's New row after the pattern of a template with an empty body.
 4. **C's action**, when the document's dispatch already names another mode: add a second
-   `apply-templates`, or offer nothing. *Recommended: offer nothing — a second dispatch site is
-   a decision, not a completion.*
+   `apply-templates`, or offer nothing. **Ruled 2026-11-18: offer nothing, and say why** — a
+   second dispatch site is a decision, not a completion (§3 C, reassessed).
 
-**Order:** A and D are built, and E is built to be looked at. B and C are reassessed after them.
+5. **The no-mode level's name** (§7.3, finding 7): shown as *no mode*, never as a name, or
+   `root` forbidden as a mode name. *Recommended: the first.*
+6. **The row carries its limit** (§7.3, finding 8; design 44 Q12). *Recommended: yes, as a
+   fact on the match summary, not an explanation.*
+7. **H**: re-baseline rungs 4 to 6's literals to `text`, and let A's line read `${…}` as a
+   reference of any kind — an amendment to A's "a bare word is text". *Recommended: both, or
+   neither.*
+8. **F's outcome**, once measured: re-baseline `library_parts` to the explode's spelling, or
+   fix up by hand.
+9. **J**: a toolbar action that wraps rows in *only if it writes something*. *Recommended:
+   decided after H and I are walked, against what the idiom then costs.*
+
+**Order:** A, D and C are built; E and B are built to be looked at. From here, §7.6.
 
 ## 6. What this does not cover
 
-- **The remaining forms.** Rungs 4 to 6 bring the pattern library, declarations, captures into
-  lists, `variable`, `if` and parts. Their step tables were written from the source and none has
-  been driven; rung 6 cannot be, because a binary sample cannot be pasted (design 46 §6.5).
-  Expect them to move the numbers and to add proposals of their own — design 46 §6.3 already
-  asks whether a pattern part can be lifted out of a pattern that has been written.
+- **Rung 6.** Rungs 4 and 5 have been walked (§7); rung 6 cannot be until the story can serve a
+  stream fixture (design 46 §6.5), and parts over a binary sample may add proposals of their
+  own.
 - **Helping with the reference expression itself** — completion of declared names, captures and
-  labels, colouring a reference in its capture's hue. Rungs 4 to 6 write lines through that
-  field and design 44 Q14 already flags it, so it will matter when they are walked; A does not
-  touch it.
+  labels, colouring a reference in its capture's hue. Rungs 4 and 5 wrote their lines through
+  that field and design 44 Q14 flags it; H's `${…}` makes a reference cheaper to type, not
+  easier to know of, so this stands.
 - **`element`.** Still the right answer when the output should be structured and escaped. It is
   no longer proposed as the cheap one.
+
+## 7. Rungs 4 and 5, every open finding, and the plan — 2026-11-19
+
+Design 46 §6.3a and §6.4a drove rungs 4 and 5 a stage at a time on 2026-11-18, the first rungs
+walked after A to E were built. This section collects what they found with everything earlier
+sections left open, sorts it into fixes and proposals, and sets the order of work. The counts
+come from the stories, as in §1.
+
+### 7.1 Where the actions go
+
+| | rung 4 `library_parts` | rung 5 `text_019_single_line_split` |
+|---|---|---|
+| settings and the sample | 8 | 6 |
+| renaming the root (§1.1: the fixture's, not the author's) | — | 4 |
+| templates made and named | 4 | 12 |
+| **the match** | **102** — the tree's 14 nodes 83, into the tree 3, lifting four parts 16 | **42** — four delimiters 39, the limit 3 |
+| modes, and the dispatch from the document | — | 10 |
+| declarations and the capture | — | 15 |
+| **body cards** | 7 | **68** — the envelope 14, two dispatch cards 17, `variable` 7, `if` and what it holds 24, the data line 6 |
+| run | 1 | 1 |
+| **total, as driven** | **122** | **158** |
+
+Read beside §1's table, three things:
+
+- **The match is where rung 4's cost is, and it is the node dialog.** Each node is the add
+  button, the kind box, the kind, its one field, often a label, and OK: five or six. Twelve
+  of the 83 are not the author's at all. The stories clear the node's text field before
+  typing, and a new node's field is already empty. As an author would drive it, rung 4 is
+  110.
+- **Rung 5 is the first rung whose cards cost more than its templates.** A's line makes text
+  and `value-of $…` cards. Rung 5's cards are something else: literals that the fixture
+  spells as quoted `value-of` Selects, two dispatches, a `variable`, an `if` and a reference
+  to a declared name. None of those can be typed on the line, so each is the kind box and its
+  fields again. At four or five actions a card, that is A's "before" cost.
+- **A delimiter goes through the workbench.** B opened the Match line in place for a regex
+  only. Every delimiter template costs Escape out of the line, the workbench, the kind, a
+  field that arrives holding a newline and has to be cleared, the delimiter, optionally its
+  containers, and Close. That is eight to twelve actions for what is one character and
+  sometimes a quote.
+
+### 7.2 Every open finding
+
+Gathered from design 46 §5.9 to §6.4a and from §3 above, with what each is now. *Fixed* means
+fixed and covered by a story. **Fix** means it is a defect and goes in the plan without a
+ruling. **Ruling** means there is a choice to make first.
+
+| # | Finding | Where found | Now |
+|---|---|---|---|
+| 1 | A tree node could not hold a newline (`take_through "\n"`) | 46 §6.3a | *Fixed* — tags and terminators read `ControlEscapes` |
+| 2 | The pattern tree's scroll area could not be reached from the keyboard | 46 §6.3a | *Fixed* — a focusable region |
+| 3 | The delimiter form's two fields had no names | 46 §6.4a | *Fixed* |
+| 4 | A tall tree draws over the *As regex* and *Library* sections below it | 46 §6.3a, stage 14 | *Fixed* 2026-11-19 (§7.7) |
+| 5 | The capture dialog lists only the current template's declarations, not the document's run-scoped `heading` that it binds | 46 §6.4a | *Fixed* 2026-11-19 (§7.7) |
+| 6 | The `if` row: `+ clause` is a label the keyboard cannot reach, the clause's name box does not open its list when clicked, and the operator box has no accessible name | 46 §6.4a | *Fixed* 2026-11-19, but for the name box, which was a misreading (§7.7) |
+| 7 | A mode named `root` collides with the word for no mode in the panel, the strip, the Mode picker and the mode pane | 46 §6.4a | **Ruling** — §7.3 |
+| 8 | Two templates with the same match are identical in the panel. The limit that tells `header_record` from `data_record` is out of sight | 46 §6.4, 44 Q12 (open) | **Ruling** — §7.3 |
+| 9 | Every literal in rungs 4 to 6 is a quoted `value-of`, where an author would make `text`. The strict keystone makes the walks build the fixture's spelling | 46 §6.4a | **Ruling** — proposal H |
+| 10 | `heading[matchCount()]` is typed into a plain field, and A's line cannot say it | 46 §6.4 (a), 44 Q14 (open) | **Ruling** — proposal H |
+| 11 | *Don't write an empty record* is three nested instructions and a declaration, 39 actions | 46 §6.4 (b) | **Ruling** — proposal J |
+| 12 | The walkthroughs' canned traces carry the fixtures' template ids, so a walked project's rows read *not tried* | 46 §6.3a | *Fixed* 2026-11-19, and half of it was the traces' (§7.7) |
+| 13 | The stories clear fields that are already empty: 12 actions in rung 4 that are not the author's | §7.1 | *Fixed* 2026-11-19 |
+| 14 | The Match line does nothing helpful while the regex in it does not compile. The messages only say why after it is taken | §3 B | *Fixed* 2026-11-19 (§7.7) |
+| 15 | A pattern part is still named in a prompt, both when it is added and when it is extracted, where a template and a mode are named in their titles | §3 B | *Fixed* 2026-11-19 for adding; extracting keeps its prompt, on purpose (§7.7) |
+| 16 | The mode pane does not list the sites that dispatch into the mode | §3 C | Proposal, small |
+| 17 | A card cannot be dropped on a list's `+ instruction` | §3 E | *Fixed* 2026-11-19 (§7.7) |
+| 18 | Nobody has debugged a long sample in E's layout | §3 E | To try, before E is ruled |
+| 19 | D's draft departs from design 18 Q12's live commit | §3 D | **Ruling**, §5 item 2 |
+| 20 | Rung 6 cannot be walked until the story can serve a stream fixture | 46 §6.5 | Ruled 2026-11-12, not built |
+| 21 | B′: a template from selected sample text | §3 B | Proposal, the largest and least certain |
+
+### 7.3 Two fixes that need a word first
+
+**7 — the mode called `root`.** The editor writes `root` for the level that has no mode, and
+`root` is a legal mode name. So `text_019_single_line_split`, a fixture we wrote ourselves,
+puts the same word on two different things on four surfaces. *Recommended: never show the
+no-mode level as a name.* It reads *no mode* in italics wherever a name would go: the panel's
+heading, the strip, the first entry of the Mode picker, and the mode pane's sentence. `root`
+is then an ordinary name. Forbidding `root` as a name would also work, but it would refuse a
+fixture we already ship.
+
+**8 — the identical templates.** Design 44 Q12 asked whether the row should carry the limit or
+the panel should explain. *Recommended: the row carries it.* A template row's match summary
+gets a limit when the template has one, `delimiter | · first only` for `max 1`, and
+`· at most N` otherwise. That is a fact about the template rather than an explanation, which is
+the line W4 drew (design 46 §10). It costs nothing where there is no limit, so five of the six
+samples show no change.
+
+### 7.4 Proposals F to J
+
+As in §3, these are entry affordances, not model changes. Each estimate is a count, to be
+confirmed by walking the rung again.
+
+#### F — A tree written as a regex, then factored
+
+**This one exists today and has never been measured.** A new template's Match line takes a
+regex in place (B). Switching the kind to *pattern tree* explodes the regex into the tree the
+engine says it is: `PatternExplode`, which keeps meaning but not text, and keeps named groups
+as labels. Rung 4 was walked node by node only because the story's explode stub returns an
+empty tree. Walked the other way, rung 4 is:
+
+- the template's name, Enter, and the whole line as one regex with a named group per field,
+  Enter;
+- the workbench, and the kind changed to *pattern tree*;
+- the four lifts, as now.
+
+That is **about 42 actions against 110**, before fix-ups. A fix-up is any node the explode
+spells differently from the fixture, and each one costs a node edit of about six actions. Two
+are likely:
+
+- `FIELD` is a nested sequence. A regex has no way to say "these three are one thing" except
+  a group, and an explode may flatten a non-capturing group.
+- A character class may come back spelt differently, for example `\S` as `[^\s]`.
+
+Whether the explode lands on the fixture's tree is the first thing to find out, as §6.3's
+question was for lifting. If it does not, the choice is between re-baselining
+`library_parts`'s configuration to the explode's spelling and fixing up by hand. Re-baselining
+is allowed, because the fixture's output is what is fixed and its configuration is not. Fixing
+up by hand is what the measurement would count.
+
+A count understates one thing here: a 120-character regex is one action but not an easy one.
+The tree is still the way in for an author who does not write regexes. For one who does,
+which is everyone coming from DS3, the regex is the natural spelling, and the explode turns it
+into the tree.
+
+*Later, if F is not enough:* the tree gets A's treatment. An add line under the selected node
+takes a regex fragment and explodes it into the nodes it is, about three actions a node
+against six. That only pays for building a tree a piece at a time, and nothing walked so far
+does that.
+
+#### G — A delimiter on the Match line
+
+B's Match line opens in place for a regex only. This proposal gives it a kind, the way an open
+card has a kind (D). Opened, the line is the kind box and then that kind's fields:
+
+- a regex is the pattern;
+- a delimiter is its character, spelt with `ControlEscapes`, and the container's start and
+  end;
+- every other kind is the `workbench` link, as now.
+
+A new delimiter's field arrives with its newline selected, so typing replaces it. A template
+just made arrives on this line, as now. The chain then serves a delimiter template too, and
+the Escape out of it is no longer needed.
+
+A delimiter template's match drops from 8 or 12 actions to 4 or 7. **Rung 5: about 17 fewer,
+158 → 141.** Rungs 1 to 4 do not change.
+
+#### H — Literals are text, and the line can name any reference
+
+H has two parts that only pay together.
+
+- **Re-baseline rungs 4 to 6 so their literals are `text`, and their joined lines are the
+  sequences A builds.** That is the shape §2 ruled to be the model, and the one the trace
+  can show bytes for. The configuration changes and the output does not; `GoldenFixtureTest`
+  is the proof, as it was for the document templates (design 46 §6.3).
+- **A's line reads `${…}` as a reference of any kind.** `${record_body}` and
+  `${heading[matchCount()]}` become `value-of` cards, as `$1` does. This amends a ruling: A
+  said "a bare word is text, never a declared name: the field must not guess". `${…}` is not
+  a guess, because the author has said "reference". What goes inside the braces is read by
+  the Select field's own grammar, through `Instructions`, the reader that already owns the
+  spelling. `$$` still writes a dollar.
+
+With both:
+
+- rung 5's `if` holds one typed line, `\n   <record>${record_body}\n   </record>`, where it
+  held 15 actions;
+- the data line is `\n      <data name="${heading[matchCount()]}" value="$1"/>`;
+- rung 4's body is `<event time="$time" …>$msg</event>\n`.
+
+**Rung 5: about 16 fewer. Rung 4: 3 fewer.** The re-baseline alone saves almost nothing. The
+data line is cheaper as one quoted `value-of` than as a sequence with one card for
+`heading[matchCount()]` picked from the menu, so without `${…}` the two roughly cancel. It is
+the line's reach that pays.
+
+It does not answer design 44 Q14. `matchCount()` is still something an author has to know
+exists. It only makes it cheaper to type once they do.
+
+#### I — A default where there is one answer
+
+- **A new `apply-templates` card's Mode is the mode nothing dispatches into, when exactly one
+  exists.** In rung 5 the author makes `header_columns` and then goes straight to the card
+  that dispatches into it, and the same for `data_columns`. That saves 2 each. C's pane covers
+  the document's dispatch; this covers the rest.
+- **A `variable` naming something undeclared offers *declare it here*.** One press makes the
+  scalar declaration on the template, where the declaration dialog costs five. List
+  declarations still go through the dialog, because a list's place is a decision.
+- **A new `if` arrives with one clause row open.** An `if` with no clause is not an
+  instruction, so the extra `+ clause` press is never wanted.
+
+**Rung 5: about 7 fewer.**
+
+#### J — *Only if it writes something*
+
+Rung 5's idiom spends 39 actions on one intention: don't write the record's envelope around
+nothing. The fixture's shape is:
+
+- a scalar declaration, `record_body`;
+- a `variable` holding the dispatch;
+- an `if` whose clause is `exists record_body`;
+- the envelope, with `record_body` between its two halves.
+
+The proposal is an action on the body's toolbar that wraps the selected rows in exactly that.
+The author writes the envelope and the dispatch as plain rows (`<record>`, the
+`apply-templates`, `</record>`), selects them, presses the action and names the variable. The
+editor finds the one row that dispatches, binds it to the variable and declares the name. It
+builds nothing the model does not already have, and the result is ordinary cards that can be
+edited one by one.
+
+**About 13 fewer once H and I are in, 28 → 15.** Its worth is more than the count. Design 46
+§6.4 calls this "the idiom every real configuration will need", and today an author has to
+assemble it from three instructions whose combination nothing suggests. This is the proposal
+most likely to be wrong in its details. It should be built after the walks have shown whether
+H and I leave this idiom cheap enough without it.
+
+### 7.5 What these would come to
+
+| | rung 4 | rung 5 |
+|---|---|---|
+| as driven, 2026-11-18 | 122 | 158 |
+| as an author would drive it (no needless clears; no rename) | 110 | 154 |
+| with G | 110 | about 137 |
+| with F | about 42 | about 137 |
+| with H | about 39 | about 121 |
+| with I | about 39 | about 114 |
+| **with J** | **about 39** | **about 101** |
+
+That is about two thirds off rung 4 and one third off rung 5. Rung 4's figure depends on F's
+explode landing close to the fixture's tree. Rung 5's depends most on G and H, which are the
+two firmest.
+
+### 7.6 The plan
+
+In order. Every phase ends by walking the rungs it touches again. All the keystones have to
+hold, and the counts are taken again.
+
+1. ~~**Fixes, with no ruling needed: 4, 5, 6, 12, 13, 14, 15, 17.**~~ **Done 2026-11-19, §7.7.** The tree is sized to its
+   boxes. The capture offers names in scope. The `if` row becomes keyboard-reachable and
+   named. Then the story artefacts: canned traces keyed by template name, and no needless
+   clears, so that rung 4 counts 110. Then the Match line says when its regex does not
+   compile, a pattern part is named in the workbench title as a template is, and a drop on
+   `+ instruction` lands at the end of its list.
+2. **The two fixes that need a word: 7 and 8** (§7.3). Small, and decided as recommended
+   unless the owner says otherwise.
+3. **G — a delimiter on the Match line.** The firmest saving left, built the way B was. Rung
+   5 is walked again.
+4. **F — measure first.** The walkthrough's explode stub returns what `PatternExplode` makes
+   of rung 4's regex, computed by the engine in a test rather than written by hand. Then the
+   walk goes regex-first. The result decides between a re-baseline and fix-ups, and whether
+   the tree's own add line is wanted.
+5. **H — needs ruling.** The re-baseline of rungs 4 to 6's literals and the `${…}` amendment
+   to A go together, or neither goes.
+6. **I** — three defaults, no new surface.
+7. **J — needs ruling, and is decided after 5 and 6 have been walked**, against what the idiom
+   then costs.
+8. **Rung 6**: the stream fixture as ruled in design 46 §6.5, then the walk. That is the last
+   rung, and the binary-sample questions only it can answer.
+
+Items 16, 18, 19 and 21 are not scheduled. 16 is a nicety. 18 is a trial for the owner rather
+than work. 19 waits on design 18. 21 waits until everything above has been measured, because
+it is the one large piece of new surface left.
+
+### 7.7 Step 1, done — 2026-11-19
+
+The eight fixes that needed no ruling, each with a story that would fail without it. All 175
+Shapeshifter stories pass with the leak and accessibility checks, and rungs 1 to 5 count 58,
+56, 49, 110 and 158.
+
+- **4 — the tree is the height of its boxes.** The canvas the connectors are drawn on was
+  absolutely positioned, and so were the boxes, so nothing in the flow had any height. The
+  canvas, which is sized to the layout, is now in the flow and the boxes are laid over it.
+- **5 — the capture offers every declared name.** The engine's rule (design 35, in its
+  reference check) is that a name is declared once, on the template it lives for, and bound
+  or read from anywhere. The dialog listed only its own template's names, and so did the
+  body's name hints. Both now list the template's own names first, then the rest of the
+  project's (`Templates.declaredNames`, with unit tests).
+- **6 — the condition row is reachable and named.** `+ clause` and a row's `✕` are buttons;
+  the name, operator, value and *read as* boxes have names. **The third part of the finding
+  was a misreading:** the name box is an editable selection box, which types where it is
+  clicked and opens its list from its arrow, as every editable box in Stroom does. Rung 5's
+  story drives the row by those names now.
+- **12 — the canned traces describe the walked project.** The preview stub rewrites the
+  fixture's template ids to the walked ones, matched by name. **That was half of it.** The
+  traces also had no timings at all, and timings are what a row's count is read from, so the
+  rows read *not tried* whatever the ids were. Rungs 1, 4 and 5's traces now carry timings
+  consistent with their frames, and each rung's last stage asserts the counts.
+- **13 — no needless clears.** Rung 4's node dialogs are typed into as they arrive, and the
+  story asserts the field is empty first. Rung 4 is 110 actions as driven.
+- **14 — the Match line says when its regex does not compile.** While the line is open, what
+  is typed is put to the engine (`patternInfo`, as the workbench's regex form does), and its
+  reason is shown under the line and marked on the field as invalid. Nothing is said of an
+  empty field, nor once the line is closed, when the messages take over.
+- **15 — a pattern part is named where it is shown.** The panel's add makes `new part` and
+  opens the workbench with its name open, as `+ template` and `+ mode` do. *Extract to
+  library* keeps its prompt, on purpose: the part it makes is not on screen at that moment, so
+  there is nowhere to name it in place. The name-prompt stories go through Extract now.
+- **17 — `+ instruction` takes a drop**, landing the card at the end of that list, which is
+  also how an empty branch gets its first card by dragging. A holder is refused a drop into
+  its own lists, as a card refuses one. The first story to drive a drag at all; it fires the
+  browser's drag events with one `DataTransfer` between them.
+
+
+### 7.8 A code review's findings, fixed — 2026-11-19
+
+A review of the working tree after step 1 found nine faults. None of them came from step 1:
+they were in the work it built on, mostly the in-place title, the mode's pane and the Match
+line. All nine are fixed. Each of the first six has a story that fails without its fix, which
+was checked by taking the fixes out and running the stories. Finding 5's story was also run
+against the old rename (re-select afterwards), to show it fails at the crumb rather than
+earlier. All 181 Shapeshifter stories pass with the leak and accessibility checks.
+
+| # | Fault | Fix | Story |
+|---|---|---|---|
+| 1 | A template's title and a body card left open together, then another template chosen: the card was taken first, and the title then found the template changed and was dropped without a word | The title's late write is refused only if the title's own fields have changed. It is written onto the template as it is by then (`Templates.sameIdentity`, `withIdentityOf`) | `LeavingTakesTheTitleAndTheCardTogether` |
+| 2 | A part's name, open, stayed open when another part was shown, and Enter renamed that one, along with every tree naming it | Showing another part lets the name go, as the strip lets a mode's go | `APartsNameGoesWithThePart` |
+| 3 | An open Match field stayed open when the template changed without the keyboard moving (Ctrl+Alt+→, a step back), and was then written as the next template's regex | Leaving a template takes the field for the template it was typed for, a moment later, as a title is | `AMatchBeingTypedStaysWithItsTemplate` |
+| 4 | A template could be renamed to a name another template had, and two of a name make `call-template` ambiguous | Refused, with a warning, as a mode's or a part's taken name is. Let go quietly when the title is left rather than taken | `ATemplateNameAlreadyTakenIsRefused` |
+| 5 | Renaming a mode or a part moved the cursor to the document: the selection was lost while the rows were redrawn, and found again afterwards | The root does the rename, and moves the selection to the new row first (`TemplatePanelController.follow`), so it is never lost | `RenamingAModeLeavesTheCursorWhereItWas` |
+| 6 | Locking the document with an empty mode shown dropped its row and left its pane showing, with controls that did nothing | A refresh that loses the selection says so, so the document is shown | `LockingWithAnEmptyModeShownShowsTheDocument` |
+| 7 | Every title that opened fetched the encodings again | The strip keeps one settings controller for its life | — |
+| 8 | `TemplatePanel` kept a map of its add links that nothing read | Removed | — |
+| 9 | `Modes.dispatchState` worked out the same reason twice | Once | — |
+
+`Templates.sameIdentity`, `withIdentityOf` and `nameTaken` have unit tests. The strip asks its
+owner to rename a mode (`setOnRenameMode`), and the workbench asks for a part
+(`setOnRenamePart`). Both used to rename it themselves and tell the owner afterwards, which
+was too late to keep the selection.

@@ -261,7 +261,11 @@ public final class Bodies {
     }
 
     /// Whether a path runs through a node — its own path, or any list inside it.
-    private static boolean isWithin(final int[] path, final int[] nodePath) {
+    ///
+    /// @param path A node path or a list path.
+    /// @param nodePath The node.
+    /// @return Whether `path` is the node or inside it.
+    public static boolean isWithin(final int[] path, final int[] nodePath) {
         if (path.length < nodePath.length) {
             return false;
         }

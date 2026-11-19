@@ -18,54 +18,42 @@ package stroom.shapeshifter.client.component;
 
 import stroom.alert.client.event.AlertEvent;
 import stroom.dispatch.client.RestFactory;
-import stroom.shapeshifter.client.model.Modes;
 import stroom.shapeshifter.client.model.ProjectHost;
 import stroom.shapeshifter.client.model.Templates;
 import stroom.shapeshifter.config.Template;
 import stroom.shapeshifter.config.Template.ParamDecl;
 import stroom.shapeshifter.shared.ShapeshifterResource;
 import stroom.widget.component.client.Controller;
-import stroom.widget.component.client.ControllerDialog;
-import stroom.widget.component.client.HasControllerNode;
-import stroom.widget.popup.client.PopupSize;
-import stroom.widget.popup.client.PopupType;
-import stroom.widget.popup.client.event.HidePopupRequestEvent;
 
 import com.google.gwt.core.client.GWT;
 import com.google.inject.Inject;
-import com.google.inject.Provider;
 import com.google.web.bindery.event.shared.EventBus;
 
 import java.util.ArrayList;
 import java.util.List;
 
-/// A template's identity — name, colour, mode, params, encoding — the same fields whether
-/// creating or editing (design 18 §5.6: mode has exactly one home). What the match is *for*
-/// is not identity and is not here: the strip owns it (design 44 §5f), and it is carried through
-/// untouched by an edit. Colour is presentation and
-/// lives beside the project in the document, not in it. A blank mode is the root: the templates
-/// the document itself dispatches to. The encodings offered are the engine's, fetched once.
+/// A template's identity other than its name — colour, mode, params, encoding — shown under
+/// its title while the title is being edited (the owner, 2026-11-18); the name is the title's
+/// own field, and is given to [#write]. What the match is *for* is not identity and is not
+/// here: the strip owns it (design 44 §5f), and it is carried through untouched by an edit.
+/// Colour is presentation and lives beside the project in the document, not in it. A blank
+/// mode is the root: the templates the document itself dispatches to. The encodings offered
+/// are the engine's, fetched once.
 public class TemplateEditController extends Controller {
 
     private final TemplateEdit view;
 
     private static final ShapeshifterResource RESOURCE = GWT.create(ShapeshifterResource.class);
 
-    private final Provider<NameEditorController> namePromptProvider;
-
     private ProjectHost host;
-    private Template template;
 
     @Inject
     public TemplateEditController(final EventBus eventBus,
                                  final TemplateEdit view,
-                                 final RestFactory restFactory,
-                                 final Provider<NameEditorController> namePromptProvider) {
+                                 final RestFactory restFactory) {
         super(eventBus);
         this.view = view;
         initWidget(view);
-        view.setOnNewMode(this::onNewMode);
-        this.namePromptProvider = namePromptProvider;
         restFactory
                 .create(RESOURCE)
                 .method(ShapeshifterResource::encodings)
@@ -77,10 +65,8 @@ public class TemplateEditController extends Controller {
     /// Show a template's fields; `override` is the author's colour, or null for the palette's.
     public void read(final ProjectHost host, final Template template, final String override) {
         this.host = host;
-        this.template = template;
         view.setColour(override, autoColour(template));
         view.setModes(host.modes());
-        view.setName(template.name());
         view.setMode(template.mode() == null
                 ? ""
                 : template.mode());
@@ -99,11 +85,25 @@ public class TemplateEditController extends Controller {
         view.setParams(params.toString());
     }
 
-    /// The edited template, or null after telling the user what is missing.
-    public Template write() {
-        final String name = view.getName().trim();
+    /// The template with the name given and the settings as they stand here.
+    ///
+    /// @param current The template as the project has it now. What is written is that template
+    ///                with its identity changed: anything else done to it since these settings
+    ///                were opened — a card added to its body — is kept.
+    /// @param typed The name, as the title's field holds it.
+    /// @param quiet Whether to say nothing when it cannot be written: for settings being left
+    ///              behind rather than taken, where there is no one to tell.
+    /// @return The edited template, or null when it cannot be written — it has no name, a name
+    ///         another template has, or a param that is not one — after telling the user why,
+    ///         unless quiet.
+    public Template write(final Template current, final String typed, final boolean quiet) {
+        final String name = typed.trim();
         if (name.isEmpty()) {
-            AlertEvent.fireWarn(this, "A template needs a name", null);
+            warn("A template needs a name", quiet);
+            return null;
+        }
+        if (Templates.nameTaken(host.getProject(), name, current.id())) {
+            warn("There is already a template named '" + name + "'", quiet);
             return null;
         }
         final String mode = view.getMode().trim();
@@ -117,7 +117,7 @@ public class TemplateEditController extends Controller {
                     ? line
                     : line.substring(0, eq)).trim();
             if (paramName.isEmpty()) {
-                AlertEvent.fireWarn(this, "A param is 'name' or 'name = default': " + line, null);
+                warn("A param is 'name' or 'name = default': " + line, quiet);
                 return null;
             }
             params.add(new ParamDecl(paramName, eq < 0
@@ -125,11 +125,27 @@ public class TemplateEditController extends Controller {
                     : line.substring(eq + 1).trim()));
         }
         final String encoding = view.getEncoding().trim();
-        return Templates.withIdentity(template, name, mode.isEmpty()
+        return Templates.withIdentity(current, name, mode.isEmpty()
                 ? null
-                : mode, template.consume(), params, encoding.isEmpty()
+                : mode, current.consume(), params, encoding.isEmpty()
                 ? null
                 : encoding, view.isIgnoreErrors());
+    }
+
+    private void warn(final String message, final boolean quiet) {
+        if (!quiet) {
+            AlertEvent.fireWarn(this, message, null);
+        }
+    }
+
+    /// @param onCommit Told when the settings are to be taken.
+    public void setOnCommit(final Runnable onCommit) {
+        view.setOnCommit(onCommit);
+    }
+
+    /// @param onCancel Told when the settings are to be dropped.
+    public void setOnCancel(final Runnable onCancel) {
+        view.setOnCancel(onCancel);
     }
 
     /// The colour chosen for the template, or null for the palette's.
@@ -146,30 +162,6 @@ public class TemplateEditController extends Controller {
             }
         }
         return Templates.colour(templates.size());
-    }
-
-    public void onNewMode() {
-        namePromptProvider.get().prompt(this,
-                "New Mode", "mode", Modes.HELP, "", host.modes(), name -> {
-                    host.declareMode(name);
-                    view.setModes(host.modes());
-                    view.setMode(name);
-                });
-    }
-
-    /// @param opener  What shows it, which owns it until it is hidden.
-    /// @param caption The dialog's caption.
-    /// @param handler Told when OK or Cancel is pressed.
-    public void show(final HasControllerNode opener,
-                     final String caption,
-                     final HidePopupRequestEvent.Handler handler) {
-        ControllerDialog.showOnce(opener, this)
-                .popupType(PopupType.OK_CANCEL_DIALOG)
-                .popupSize(PopupSize.resizable(600, 600))
-                .caption(caption)
-                .onShow(e -> view.focus())
-                .onHideRequest(handler)
-                .fire();
     }
 
 }

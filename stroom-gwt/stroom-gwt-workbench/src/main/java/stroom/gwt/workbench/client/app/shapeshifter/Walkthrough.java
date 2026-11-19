@@ -25,6 +25,7 @@ import stroom.gwt.workbench.client.app.screen.StroomDom;
 import stroom.gwt.workbench.client.widgets.tree.ExplorerFixture;
 import stroom.gwt.workbench.client.widgets.tree.TreeFixtures;
 import stroom.gwt.workbench.framework.client.play.Play;
+import stroom.gwt.workbench.framework.client.play.Query;
 import stroom.gwt.workbench.framework.client.play.Spy;
 import stroom.gwt.workbench.framework.client.play.TextMatch;
 import stroom.gwt.workbench.framework.client.story.ComponentStories;
@@ -32,6 +33,7 @@ import stroom.gwt.workbench.framework.client.story.StoryLayout;
 import stroom.gwt.workbench.framework.client.story.StoryRegistry;
 import stroom.shapeshifter.shared.ShapeshifterDoc;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiConsumer;
@@ -80,6 +82,12 @@ final class Walkthrough {
                                             + "  \"sampleKind\": \"PASTED\"\n"
                                             + "}";
 
+    // ShapeshifterResource.explode(), for a template's empty regex turned into a pattern tree:
+    // the engine's explosion of an empty pattern is an empty regex leaf, which is what the tree
+    // then starts from (MatchEditorController.convert).
+    private static final String EXPLODED_BLANK = """
+            {"text": "{\\"regex\\": \\"\\"}"}""";
+
     private Walkthrough() {
         // Static utility
     }
@@ -115,8 +123,9 @@ final class Walkthrough {
                 .get("/shapeshifter/v1/ss-blank", RestReply.json(BLANK_DOC))
                 .post(ShapeshifterEditorStories.VALIDATE_PATH,
                         RestReply.json(ShapeshifterEditorStories.VALIDATION))
-                .post(PREVIEW_PATH, RestReply.json(trace))
+                .post(PREVIEW_PATH, request -> RestReply.json(withWalkedIds(trace, request)))
                 .post("/shapeshifter/v1/print", RestReply.json(ShapeshifterEditorStories.PRINTED))
+                .post("/shapeshifter/v1/explode", RestReply.json(EXPLODED_BLANK))
                 .post("/shapeshifter/v1/patternInfo",
                         RestReply.json(ShapeshifterEditorStories.PATTERN_INFO))
                 .get("/shapeshifter/v1/library", RestReply.json(ShapeshifterEditorStories.LIBRARY))
@@ -199,30 +208,17 @@ final class Walkthrough {
     }
 
     /// The field of a new card whose kind is left to what is typed, by its label: what the
-    /// body's New row shows once it is opened.
+    /// body's add link opens.
     static final String ENTRY = "Line";
 
-    /// The body's New row opened, and a line typed into it and added with Enter (design 47 A):
+    /// The body's add link pressed, and a line typed and added with Enter (design 47 A):
     /// text is a text card, `$1` a value-of card, and a line that mixes them is split into the
     /// sequence.
     ///
     /// @param play The play.
     /// @param line The line, with a line break spelt `\n` as the field takes it.
     static void enter(final Play play, final String line) {
-        play.click(ShapeshifterEditorStories.newRow(play));
-        enterNext(play, line);
-    }
-
-    /// A line put in above a card of the body: the card is the selected row, the toolbar opens
-    /// a new card above it, and the line is typed there. It lands where it belongs, so there
-    /// is nothing to move afterwards.
-    ///
-    /// @param play The play.
-    /// @param kind The kind of the card it goes above, which the body has one of.
-    /// @param line The line, with a line break spelt `\n` as the field takes it.
-    static void enterAbove(final Play play, final String kind, final String line) {
-        play.click(ShapeshifterEditorStories.cardLine(play, kind));
-        play.click(play.getByRole("button", "Insert an instruction above the selected one"));
+        play.click(ShapeshifterEditorStories.addLink(play));
         enterNext(play, line);
     }
 
@@ -241,61 +237,224 @@ final class Walkthrough {
         play.waitFor(() -> play.expect(play.getByLabelText(ENTRY)).toHaveFocus());
     }
 
-    /// A template in a mode, with its regex. The dialog that makes a template is also the only
-    /// place a mode can be made — the dispatch card's Mode is a picker over modes that already
-    /// exist — so `newMode` is a parameter here rather than a step of its own, and a rung that
-    /// needs a new mode has to make its first template before anything can dispatch into it
-    /// (design 46 §6.1a).
+    /// A template in a mode, with its regex (design 47 B; the owner, 2026-11-18): the link the
+    /// mode's list ends with adds one, called `new template` and shown with its name open; the
+    /// name is typed over it, and then the pattern in the match line, which Enter in the name
+    /// opens. A mode that does not exist yet is added first, with the `+ mode` link the modes
+    /// end with: it too arrives with its name open, and Enter in it puts the keyboard on the
+    /// mode's own `+ template`. **A new mode is dispatched from the document there and then**
+    /// (design 47 C): the mode's pane says nothing dispatches into it and offers the way out,
+    /// and its strategy is set beside that, so the two-part edit is finished where it starts.
+    ///
+    /// It ends with the keyboard in the body, in a new card: Enter in the match of a template
+    /// whose body is empty goes on into it. A line for the body is [#enterNext].
     ///
     /// @param play The play.
-    /// @param screen The screen, for the popups a dialog opens on the document body.
+    /// @param screen The screen. Nothing here opens on the document body any more.
     /// @param name The template's name.
     /// @param mode The mode it goes in.
     /// @param newMode Whether that mode has to be made here.
+    /// @param dispatch For a mode made here, the strategy it is dispatched with, as the picker
+    ///                 lists it; null for the project's.
     /// @param pattern Its regex, with `[` doubled for userEvent.
     static void addTemplate(final Play play, final Play screen, final String name,
-                                    final String mode, final boolean newMode,
+                                    final String mode, final boolean newMode, final String dispatch,
                                     final String pattern) {
-        play.click(play.getByRole("button", "Add template"));
-        final Play adding = ShapeshifterEditorStories.dialogMatching(play, screen, "New Template");
-        adding.type(adding.getByLabelText("Name"), name);
         if (newMode) {
-            play.click(adding.getByRole("button", "New..."));
-            final Play naming = ShapeshifterEditorStories.dialogMatching(play, screen, "mode");
-            naming.type(naming.getByRole("textbox").first(), mode);
-            play.click(naming.getByRole("button", StroomDom.button("OK")));
+            addMode(play, mode);
+            dispatchFromDocument(play, screen, dispatch);
+            play.click(modeAddLink(play));
         } else {
-            ShapeshifterEditorStories.pickFromBox(play, screen,
-                    adding.getByLabelText("Mode"), mode);
+            play.click(play.getByTitle("Click to add a template to mode " + mode));
         }
-        play.click(adding.getByRole("button", StroomDom.button("OK")));
-        play.waitFor(() -> play.expect(play.getByText(name,
-                ShapeshifterEditorStories.TEMPLATE_NAME)).toBeInTheDocument());
-        play.click(play.querySelector(ShapeshifterEditorStories.MATCH_CHIP));
-        play.waitFor(() -> play.expect(play.getByLabelText("Pattern")).toBeInTheDocument());
-        play.type(play.getByLabelText("Pattern"), pattern);
-        // The workbench commits the pattern on a debounce (RegexController), and closing it does
-        // not flush that. Wait for the model to have it — the strip's match chip is where it
-        // shows — rather than for the field to show it, which it does immediately either way.
-        play.click(play.getByRole("button", TextMatch.regex("close the workbench", "i")));
-        play.waitFor(() -> play.expect(play.querySelector(ShapeshifterEditorStories.MATCH_CHIP)
-                .textContent()).toMatch(pattern.replace("[[", "[")));
+        named(play, name);
+        matching(play, pattern);
+        play.expect(play.querySelector(ShapeshifterEditorStories.MATCH_CHIP).textContent())
+                .toMatch(pattern.replace("[[", "["));
     }
 
-    /// Whether a preview is the pattern workbench's experiment rather than the author's project.
+    /// The `+ mode` link the modes end with, by its title.
+    static final String ADD_MODE = "Click to add a mode, and its first template";
+
+    /// A mode, added and named: it arrives called `new mode`, shown with its name open, and
+    /// what is typed replaces that. Ends with the keyboard on the mode's own `+ template`.
     ///
-    /// Opening the workbench runs the sample against **one template alone**, stripped to its
-    /// match (`Templates.experiment`, design 44 §2), so that the sample pane can show what that
-    /// pattern hits and nothing else. It goes to the same endpoint as a real run, so the wire is
-    /// not by itself a record of what the editor is holding — read naively, the last preview
-    /// before a run is often a half-built template on its own.
+    /// @param play The play.
+    /// @param mode The mode's name.
+    static void addMode(final Play play, final String mode) {
+        play.click(play.getByTitle(ADD_MODE));
+        play.waitFor(() -> play.expect(play.getByLabelText("Mode name")).toHaveFocus());
+        play.keyboard(mode + "{Enter}");
+        play.waitFor(() -> play.expect(play.getByText(mode, ShapeshifterEditorStories.STRIP_NAME))
+                .toBeVisible());
+        play.waitFor(() -> play.expect(modeAddLink(play)).toHaveFocus());
+    }
+
+    /// The mode that is shown, dispatched from the document (design 47 C): the link in its
+    /// pane, beside the note that nothing dispatches into it, and then, where the strategy is
+    /// not the project's, the strategy in the picker the link stands beside. The document's
+    /// card is never opened.
     ///
-    /// The discriminator is the root: `Templates.ensureDocument` means a real project always has
-    /// a template whose match is the literal `source`, and an experiment never does, because the
-    /// root is not the subject and is not carried into it.
+    /// @param play The play.
+    /// @param screen The screen, for the picker's list.
+    /// @param dispatch The strategy, as the picker lists it; null for the project's.
+    static void dispatchFromDocument(final Play play, final Play screen, final String dispatch) {
+        play.waitFor(() -> play.expect(play.getByText("nothing dispatches into this",
+                ".template-strip__role-note")).toBeVisible());
+        play.click(play.getByRole("button", StroomDom.button("dispatch from the document")));
+        play.waitFor(() -> play.expect(play.getByText("dispatched from 1 site",
+                ".template-strip__role-note")).toBeVisible());
+        if (dispatch != null) {
+            ShapeshifterEditorStories.pickFromBox(play, screen, play.getByLabelText(MODE_DISPATCH), dispatch);
+            // The mode says how it is dispatched, in the list as well as in its pane
+            play.waitFor(() -> play.expect(play.getByText("dispatched with " + dispatch,
+                    ".template-panel__mode-note")).toBeVisible());
+        }
+    }
+
+    /// The card that is open made a `value-of`, its Select typed, and taken with Enter. The card
+    /// must be open already — from `+ instruction`, or as the card that opens after one taken.
+    /// A literal is in quotes with `\n` and `\"` inside it, and a capture is `$1` or `$label`.
     ///
-    /// @param project The project a preview carried.
-    /// @return Whether it is an experiment.
+    /// Typed with userEvent, where `[` and `{` open a key descriptor: they are doubled here, so
+    /// the caller writes the Select as the author would.
+    ///
+    /// @param play The play.
+    /// @param screen The screen, for the kind box's list.
+    /// @param select The Select, as the author types it.
+    static void valueOf(final Play play, final Play screen, final String select) {
+        final Play card = ShapeshifterEditorStories.cardEditor(play);
+        ShapeshifterEditorStories.pickFromBox(play, screen, card.getByLabelText("Instruction"), "value-of");
+        play.waitFor(() -> play.expect(card.getByLabelText("Select")).toBeVisible());
+        card.type(card.getByLabelText("Select"), typed(select));
+        play.keyboard("{Enter}");
+        // Taken: the next card is open, its kind left to what is typed
+        play.waitFor(() -> play.expect(card.queryByLabelText("Select")).toBeNull());
+    }
+
+    /// Text as userEvent types it: `[` and `{` doubled, since each alone opens a key descriptor.
+    ///
+    /// @param text The text, as it is to arrive.
+    /// @return It, as it is to be typed.
+    static String typed(final String text) {
+        return text.replace("[", "[[").replace("{", "{{");
+    }
+
+    /// The strategy picker of the mode that is shown, by the name it gives a screen reader.
+    static final String MODE_DISPATCH = "How the mode is dispatched";
+
+    /// The `+ template` link of the mode that is shown, in its own list of templates.
+    ///
+    /// @param play The play.
+    /// @return The link.
+    static Query modeAddLink(final Play play) {
+        return play.within(play.querySelector(".template-strip")).getByText("+ template");
+    }
+
+    /// The name of a template just added, typed over the one it arrived with: its title is
+    /// open, with the keyboard in it and all of it selected.
+    ///
+    /// @param play The play.
+    /// @param name The template's name.
+    static void named(final Play play, final String name) {
+        play.waitFor(() -> play.expect(play.getByLabelText("Template name")).toHaveFocus());
+        play.keyboard(name + "{Enter}");
+        play.waitFor(() -> play.expect(play.getByText(name,
+                ShapeshifterEditorStories.TEMPLATE_NAME)).toBeInTheDocument());
+    }
+
+    /// The pattern of a template just made, typed into its match line, which is open with the
+    /// keyboard in it.
+    ///
+    /// @param play The play.
+    /// @param pattern Its regex, with `[` doubled for userEvent.
+    static void matching(final Play play, final String pattern) {
+        play.waitFor(() -> play.expect(play.getByLabelText("Match pattern")).toHaveFocus());
+        play.keyboard(pattern + "{Enter}");
+        // and on into the body, which has nothing in it yet but the card that has opened
+        play.waitFor(() -> play.expect(play.getByLabelText(ENTRY)).toHaveFocus());
+    }
+
+    /// After a run, a template's row in the panel reads what the trace says of it rather than
+    /// *not tried*: the trace reached the walked project's own templates (design 47 §7.2,
+    /// finding 12).
+    ///
+    /// @param play The play.
+    /// @param template The template's name, as the panel shows it.
+    /// @param count What its row should read: the trace's match count for it.
+    static void expectTried(final Play play, final String template, final String count) {
+        final Query row = play.within(play.getByText(template, ShapeshifterEditorStories.TEMPLATE_NAME)
+                .closest(".template-row")).querySelector(".template-row__count");
+        play.waitFor(() -> play.expect(row.textContent()).toEqual(count));
+    }
+
+    /// The canned trace, its template ids made the walked project's. A trace names each
+    /// template by id — its frames, and the timings the panel's rows read — and the fixture's
+    /// ids are not the ones the walk generated, so served as it is the trace described
+    /// templates the walked project does not have (design 47 §7.2, finding 12).
+    /// Each frame carries the template's name beside its id, and the walk ends with the
+    /// fixture's names, so the name is what is matched on.
+    ///
+    /// @param trace The trace, as the fixture holds it.
+    /// @param request The preview request, whose body carries the project being run.
+    /// @return The trace, with every fixture id whose name the project has replaced by its id.
+    static String withWalkedIds(final String trace, final RecordedRequest request) {
+        final Map<String, String> walkedIds = templateIds(request.getBody());
+        final Map<String, String> fixtureNames = new LinkedHashMap<>();
+        collectTemplateNames(JsonValues.parse(trace), fixtureNames);
+        String result = trace;
+        for (final Map.Entry<String, String> fixture : fixtureNames.entrySet()) {
+            final String walked = walkedIds.get(fixture.getValue());
+            if (walked != null) {
+                result = result.replace("\"" + fixture.getKey() + "\"", "\"" + walked + "\"");
+            }
+        }
+        return result;
+    }
+
+    // Name to id, for the templates of the project a preview request is running.
+    private static Map<String, String> templateIds(final String previewBody) {
+        final Map<String, String> ids = new LinkedHashMap<>();
+        final Object body = JsonValues.parse(previewBody);
+        final Object project = body instanceof Map
+                ? ((Map<?, ?>) body).get("project")
+                : null;
+        final Object parsed = project instanceof String
+                ? JsonValues.parse((String) project)
+                : project;
+        final Object templates = parsed instanceof Map
+                ? ((Map<?, ?>) parsed).get("templates")
+                : null;
+        if (templates instanceof List) {
+            for (final Object template : (List<?>) templates) {
+                if (template instanceof Map) {
+                    final Map<?, ?> fields = (Map<?, ?>) template;
+                    ids.put(String.valueOf(fields.get("name")), String.valueOf(fields.get("id")));
+                }
+            }
+        }
+        return ids;
+    }
+
+    // Id to name, from every object in a trace that carries both.
+    private static void collectTemplateNames(final Object value, final Map<String, String> names) {
+        if (value instanceof Map) {
+            final Map<?, ?> fields = (Map<?, ?>) value;
+            final Object id = fields.get("templateId");
+            final Object name = fields.get("templateName");
+            if (id instanceof String && name instanceof String) {
+                names.put((String) id, (String) name);
+            }
+            for (final Object child : fields.values()) {
+                collectTemplateNames(child, names);
+            }
+        } else if (value instanceof List) {
+            for (final Object child : (List<?>) value) {
+                collectTemplateNames(child, names);
+            }
+        }
+    }
+
     private static boolean isExperiment(final String project) {
         return !project.contains("\"match\": \"source\"");
     }

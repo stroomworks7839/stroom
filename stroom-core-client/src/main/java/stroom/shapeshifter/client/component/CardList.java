@@ -19,6 +19,7 @@ package stroom.shapeshifter.client.component;
 import stroom.shapeshifter.client.model.Bodies;
 import stroom.shapeshifter.client.model.CardNote;
 import stroom.shapeshifter.config.OutputNode;
+import stroom.widget.button.client.LinkButton;
 import stroom.widget.text.client.Label;
 import stroom.widget.util.client.CssProperties;
 
@@ -29,7 +30,7 @@ import com.google.gwt.user.client.ui.Widget;
 import java.util.ArrayList;
 import java.util.List;
 
-/// A card list at a list path — the body, or a branch — ending with the New row that adds to it.
+/// A card list at a list path — the body, or a branch — ending with the link that adds to it.
 public class CardList extends Composite {
 
     private final List<BodyCard> cards = new ArrayList<>();
@@ -44,8 +45,8 @@ public class CardList extends Composite {
         CssProperties.set(panel.getElement(), "--body-card__depth", String.valueOf(listPath.length / 2));
         final String list = Bodies.path(listPath);
         for (int i = 0; i < cards.size(); i++) {
-            // A new card asked for among the cards (the toolbar's insert above or below) is
-            // open where it will go, before the card it will come before.
+            // A new card asked for among the cards (the toolbar's Add, below the selected row)
+            // is open where it will go, before the card it will come before.
             final Widget editor = enabled
                     ? handlers.newEditorAt(list, i)
                     : null;
@@ -59,18 +60,34 @@ public class CardList extends Composite {
             panel.add(card);
         }
         if (enabled) {
-            // The list ends with its New row, which is where a card is added. A new card's
-            // editor takes its place while one is open there.
+            // The list ends with `+ instruction`, which is where a card is added to it. A new
+            // card's editor takes its place while one is open there.
             final Widget editor = handlers.newEditorAt(list, cards.size());
             panel.add(editor != null
                     ? editor
-                    : BodyCard.newRow(listPath, cards.size(), handlers));
+                    : addLink(listPath, cards.size(), handlers));
         } else if (cards.isEmpty()) {
             final Label none = new Label("(no instructions)");
             none.setStyleName("placeholder");
             panel.add(none);
         }
         initWidget(panel);
+    }
+
+    // The link a list ends with: the same add link the declarations and the captures have,
+    // and the template panel's lists (the owner, 2026-11-18), on a line of its own under the
+    // rows and stepped in as they are.
+    private static FlowPanel addLink(final int[] listPath, final int count, final Body.CardActions handlers) {
+        final LinkButton add = new LinkButton("+ instruction");
+        add.addStyleName("add-button");
+        add.setTitle("Click to add an instruction");
+        add.setOnClick(() -> handlers.onNew(Bodies.path(listPath), count));
+        handlers.onAddShown(Bodies.path(Bodies.child(listPath, count)), () -> add.getElement().focus());
+        final FlowPanel line = new FlowPanel();
+        line.setStyleName("body-card__add");
+        line.add(add);
+        BodyCard.acceptDropsAtEnd(line, listPath, count, handlers);
+        return line;
     }
 
     /// Light the top-level card at an index, or none for -1.

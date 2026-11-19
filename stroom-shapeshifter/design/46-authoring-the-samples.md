@@ -856,6 +856,39 @@ line, then lift `TIMESTAMP` out of it once it repeats. Lifting after the fact is
 factors. Whether the editor allows it, or whether a part must exist before a `ref` can name it,
 is the thing to try first.
 
+### 6.3a Driven 2026-11-18 — sixteen stories, in the order a person factors
+
+`ShapeshifterLibraryStories`, a story per stage as the other rungs have, ending in the keystone:
+the project the editor sends is the fixture, version aside. **122 actions.**
+
+**The question §6.3 left is answered: yes.** The walk writes the line in full first — the
+timestamp as a labelled regex, the host and the key as `take_while`s, ` pid=` as an inline
+sequence — and then lifts the parts out of it with the tree's *Extract to library*. The node
+becomes a `ref`, the part gets the node, and **the label stays on the ref and off the part**,
+which is exactly the fixture's shape. `KEY` is lifted out of the inline sequence before the
+sequence itself becomes `FIELD`, so a part built from a part is arrived at by factoring twice.
+The table's order (parts first) still works; this one is the one people use.
+
+**A newline could not be typed into a tree node — fixed.** The last node is `take_through "\n"`,
+and the node form took its text raw, so a terminator or a tag could not hold a newline at all
+— a text box drops one. The delimiter form and the cards already spell control characters as
+`\n`, `\t`, `\\` (`ControlEscapes`); a tag and a terminator now do too. A regex and a
+character class keep their own backslashes, which mean something else.
+
+**The tree's scroll area was not reachable from the keyboard — fixed.** Once the tree is wider
+than its pane the area scrolls, and the boxes it is drawn with are not tab stops, so nothing
+could scroll it without a mouse. The accessibility check failed on stages 6 to 10 until it was
+made a focusable region, as the regex form's already is.
+
+**Not fixed: a tall tree draws over what is under it.** Past about a dozen nodes the tree's
+boxes overlap the *As regex* and *Library* sections beneath it (stage 14's screen). The tree's
+section is not sized to its boxes.
+
+**Where the 122 go.** The tree is about 90 of them: every node is the add button and a dialog —
+the kind box, the kind, its one text field, often a label, OK — six or seven actions a node,
+fourteen nodes. Lifting the four parts is four actions each. The body is one `value-of`, typed
+as one Select with the labels as `$time`, `$host` and so on.
+
 ### 6.4 Rung 5 — `text_019_single_line_split`
 
 The sample: a `|`-separated file whose first record is a header row of column names and whose
@@ -905,6 +938,51 @@ discoverable thing in any of the six samples — a function call typed into a te
 *the nth of these goes with the nth of those*, with no form field anywhere for `match_index`;
 (b) steps 13–14 are three nested instructions (`variable`, `if`, `exists`) for the single
 intention *don't write an empty record*, and it is the idiom every real configuration will need.
+
+### 6.4a Driven 2026-11-18 — eighteen stories, and a mode called `root`
+
+`ShapeshifterSplitStories`, ending in the keystone: the project the editor sends is the fixture,
+its version and one empty body aside. **158 actions.** The sample is the fixture's, emoji
+included — the table's "header row and two data rows" is one data row in the fixture.
+
+**Driven mode first** (design 47 B and C). Each mode is added with `+ mode` before anything
+dispatches into it; the one the document dispatches into is dispatched from its own pane, and
+the other two from cards in the templates that own them, which is a decision and the author's.
+The table's `New…` on the card never existed (§6.1a); it is no longer needed.
+
+**The fixture's mode is called `root`, and so is having no mode.** The panel heads the two
+`root` and `mode: root`; the strip says `root` and `mode root`; a template's Mode picker offers
+`root` for no mode and `root` for the mode, one above the other; and the pane of a second mode
+says *the document dispatches into root*. Nothing is wrong and every one of those is
+ambiguous. The stories tell the two `+ template` links apart only by their titles.
+
+**Every literal is a `value-of`, because the fixture writes them that way.** A line typed as it
+looks makes `text` cards (design 47 A), and the keystone is strict (§3.2), so each of the six
+literals is made by choosing the kind and typing a quoted Select — the prologue is five lines
+in one quoted string. Whether the fixture should be re-baselined to `text`, which is what an
+author would build, is a question for the keystone and not the editor.
+
+**The capture does not offer the name it binds.** `heading` is declared on the document and
+bound in `header_column`; the capture dialog's hint lists the declarations of the template it
+is in, which has none, so the name is typed from memory. §6.4 expected the dialog to offer it.
+
+**The two identical templates are identical on screen.** `header_record` and `data_record` are
+two rows of `mode: root` with the same match, and the limit of 1 that makes one of them the
+header is in the workbench, which is not open when the panel is read. §6.4's sharpest finding
+stands, now with a screen (stage 15).
+
+**The test row is awkward to drive.** The `if`'s `+ clause` is a label rather than a button, so
+the keyboard cannot reach it; the row's variable box takes typed text and does not open its
+list when clicked; and its operator box has no name a screen reader could read.
+
+**Where the 158 go.** Four delimiter matches at about ten actions each — the workbench, the
+kind, the delimiter, the container — because the match line opens in place only for a regex.
+Six `value-of` literals at four or five each. The `variable` and `if` that mean *don't write
+an empty record* are 39 between them (§6.4 question b). Declarations, the capture and three
+modes make most of the rest.
+
+*What these two rungs found, with every other open finding, is collected in design 47 §7,
+with the fixes and proposals that follow and the order to do them in.*
 
 ### 6.5 Rung 6 — `progressive_len_records`
 
@@ -1247,9 +1325,10 @@ one that was right for names.
    decision — whether driving the rest was worth it — was answered by doing it: it turned up the
    body-cards finding in §5.9a, which three months of stories over a built fixture had not.
 4. Walk the remaining five against the running workbench as their stories are written — **rungs
-   2 and 3 done 2026-11-17 (§6.1a, §6.2a); rungs 4 to 6 outstanding** — settling
+   2 and 3 done 2026-11-17 (§6.1a, §6.2a), 4 and 5 done 2026-11-18 (§6.3a, §6.4a); rung 6
+   outstanding** — settling
    what only the browser can say: what the UI says about a mode with no dispatch site (§5.4),
-   whether a pattern part can be lifted out of a pattern already written (§6.3), and whether the
+   whether a pattern part can be lifted out of a pattern already written (§6.3 — it can, §6.3a), and whether the
    marks mean anything over a binary sample (§6.5, which also needs the stream fixture ruled
    there). §5.1 and §6.3's first question are already answered from the source.
 5. ~~Run the §7 probe on `apache_httpd` before building Q20's forms~~ — **done 2026-11-12**,

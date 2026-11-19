@@ -99,7 +99,7 @@ public class CaptureEdit extends Component {
 
     public void setDeclared(final List<String> names) {
         declared.setText(names.isEmpty()
-                ? "The template declares nothing yet."
+                ? "Nothing is declared yet: declare the name, with its type, on the template it lives for."
                 : "Declared: " + String.join(", ", names));
     }
 

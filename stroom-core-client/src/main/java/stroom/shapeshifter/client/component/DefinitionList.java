@@ -57,6 +57,7 @@ public class DefinitionList extends Composite {
 
     private String kind = "";
     private boolean enabled;
+    private boolean removable = true;
     private int count;
     private Runnable onAdd = () -> {
     };
@@ -99,6 +100,17 @@ public class DefinitionList extends Composite {
         show();
     }
 
+    /// @param removable Whether a row carries its own remove. A mode's templates do not: a
+    ///                  template is removed from the panel that lists them all.
+    public void setRemovable(final boolean removable) {
+        this.removable = removable;
+    }
+
+    /// Puts the keyboard on the add link.
+    public void focusAdd() {
+        add.getElement().focus();
+    }
+
     /// @param onAdd Told when the add link is pressed.
     public void setOnAdd(final Runnable onAdd) {
         this.onAdd = onAdd;
@@ -138,6 +150,9 @@ public class DefinitionList extends Composite {
         final InlineLabel detail = new InlineLabel(row.detail());
         detail.setStyleName("definition-list__detail");
         panel.add(detail);
+        if (!removable) {
+            return panel;
+        }
         final LinkButton remove = new LinkButton("✕");
         remove.addStyleName("item-action item-action--delete definition-list__remove");
         remove.setTitle("Remove this " + kind);

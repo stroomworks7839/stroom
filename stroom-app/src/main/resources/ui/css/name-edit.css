@@ -1,0 +1,34 @@
+/*
+ * A name in a title that is edited where it reads (NameEdit): the name, the field it becomes,
+ * and the edit button beside it.
+ */
+.name-edit {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    flex: none;
+}
+
+.name-edit__name {
+    font-family: var(--monospace-font-family);
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.name-edit__name--editable {
+    cursor: pointer;
+}
+
+/* The field the name becomes: its own font, and no taller than the title line it stands in. */
+.name-edit .name-edit__field {
+    width: 18ch;
+    padding-top: 1px;
+    padding-bottom: 1px;
+    font-family: var(--monospace-font-family);
+    font-weight: 700;
+}
+
+.name-edit__actions {
+    flex: none;
+}

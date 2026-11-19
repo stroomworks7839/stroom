@@ -3,13 +3,17 @@
              xmlns:g="urn:import:com.google.gwt.user.client.ui"
              xmlns:t="urn:import:stroom.widget.text.client"
              xmlns:split="urn:import:stroom.widget.layout.client"
+             xmlns:ss="urn:import:stroom.shapeshifter.client.component"
              xmlns:b="urn:import:stroom.widget.button.client">
     <split:SplitPane ui:field="layout" vertical="true" thin="true" sizes="34px, *, 210px"
                      names="Title, Workbench, Guard and limits"
                      addStyleNames="max default-min-sizes">
         <g:FlowPanel styleName="pattern-workbench__title">
             <t:Label text="Pattern workbench —"/>
-            <t:Label ui:field="subject" styleName="mono"/>
+            <t:Label ui:field="kind"/>
+            <!-- What is being worked on. A part's name is edited here, where it reads (the
+                 owner, 2026-11-18); a template's is edited in its own title. -->
+            <ss:NameEdit ui:field="subject"/>
             <t:Label styleName="pattern-workbench__spacer"/>
             <b:Toolbar name="Actions" ui:field="buttons"/>
         </g:FlowPanel>

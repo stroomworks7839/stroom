@@ -38,6 +38,15 @@ public final class TemplateRowData {
     /// What is worth saying about the mode this row heads, or null. Carried by the first row of
     /// a mode because the heading is drawn from that row rather than being a row of its own.
     private String sectionNote;
+    /// The id selecting this row's heading selects, or null for a heading that is only a
+    /// heading. A mode's heading is the way to the mode's own pane; the root's is not, since
+    /// the root has no name to edit. Carried by the first row of the mode, as the note is.
+    private String sectionId;
+    /// Not a row but the way to add one: the link a mode's list ends with, or the one the
+    /// modes end with.
+    private boolean fresh;
+    /// What the row says of itself on its tooltip, where that is not its name and its count.
+    private String title;
 
     public TemplateRowData(final String id, final String name, final String section, final String colour,
                            final String count, final boolean zero) {
@@ -57,6 +66,45 @@ public final class TemplateRowData {
     public TemplateRowData setSectionNote(final String sectionNote) {
         this.sectionNote = sectionNote;
         return this;
+    }
+
+    /// @return The id selecting this row's heading selects, or null.
+    public String getSectionId() {
+        return sectionId;
+    }
+
+    /// Says what selecting the heading of the mode this row heads selects.
+    ///
+    /// @param sectionId The id.
+    /// @return This, so it can be set where the row is made.
+    public TemplateRowData setSectionId(final String sectionId) {
+        this.sectionId = sectionId;
+        return this;
+    }
+
+    /// An add link: where a template is added to a mode, or a mode to the project.
+    ///
+    /// @param id The link's id, which is no template's.
+    /// @param name What the link reads.
+    /// @param section The heading it sits under, or null.
+    /// @param title What it says of itself.
+    /// @return The row.
+    public static TemplateRowData fresh(final String id, final String name, final String section,
+                                        final String title) {
+        final TemplateRowData row = new TemplateRowData(id, name, section, null, "", false);
+        row.fresh = true;
+        row.title = title;
+        return row;
+    }
+
+    /// @return Whether this is an add link rather than a template, a part or a section.
+    public boolean isFresh() {
+        return fresh;
+    }
+
+    /// @return What the row says of itself on its tooltip, or null for its name and count.
+    public String getTitle() {
+        return title;
     }
 
     /// A panel section: uppercase, a destination when it carries an id, and what it holds.

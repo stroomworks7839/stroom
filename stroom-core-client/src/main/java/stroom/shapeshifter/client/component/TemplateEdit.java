@@ -16,35 +16,39 @@
 
 package stroom.shapeshifter.client.component;
 
-import stroom.widget.button.client.Button;
+import stroom.widget.button.client.LinkButton;
 import stroom.widget.component.client.Component;
 import stroom.widget.form.client.TextArea;
-import stroom.widget.form.client.TextBox;
 import stroom.widget.selection.client.SelectionBox;
 import stroom.widget.tickbox.client.TickBox;
 
 import com.google.gwt.core.client.GWT;
-import com.google.gwt.event.dom.client.ClickEvent;
+import com.google.gwt.event.dom.client.KeyCodes;
+import com.google.gwt.event.dom.client.KeyDownEvent;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
+import com.google.gwt.user.client.ui.FlowPanel;
 import com.google.gwt.user.client.ui.Widget;
 
 import java.util.List;
 
 public class TemplateEdit extends Component {
 
-    private Runnable onNewMode = () -> {
+    private Runnable onCommit = () -> {
+    };
+    private Runnable onCancel = () -> {
     };
 
     private static final Binder BINDER = GWT.create(Binder.class);
 
-
     @UiField
-    TextBox name;
+    FlowPanel form;
     @UiField
     SelectionBox<String> mode;
     @UiField
-    Button newMode;
+    LinkButton ok;
+    @UiField
+    LinkButton cancel;
     @UiField
     ColourPalette colour;
     @UiField
@@ -56,26 +60,19 @@ public class TemplateEdit extends Component {
 
     public TemplateEdit() {
         initWidget(BINDER.createAndBindUi(this));
-        newMode.addClickHandler(event -> onNewMode(event));
         mode.setNonSelectString("root");
         encoding.setNonSelectString("inherit");
-    }
-
-    private void onNewMode(final ClickEvent e) {
-        onNewMode.run();
-    }
-
-
-    public void focus() {
-        name.setFocus(true);
-    }
-
-    public String getName() {
-        return name.getText();
-    }
-
-    public void setName(final String value) {
-        name.setText(value);
+        ok.setOnClick(() -> onCommit.run());
+        cancel.setOnClick(() -> onCancel.run());
+        // Escape from anywhere in the settings. A list a selection box has open is not in
+        // them, so the Escape that closes it never arrives here.
+        form.addDomHandler(event -> {
+            if (event.getNativeKeyCode() == KeyCodes.KEY_ESCAPE) {
+                event.preventDefault();
+                event.stopPropagation();
+                onCancel.run();
+            }
+        }, KeyDownEvent.getType());
     }
 
     public String getMode() {
@@ -145,9 +142,14 @@ public class TemplateEdit extends Component {
     }
 
 
-    /// @param onNewMode Told when newmode.
-    public void setOnNewMode(final Runnable onNewMode) {
-        this.onNewMode = onNewMode;
+    /// @param onCommit Told when the settings are to be taken: OK.
+    public void setOnCommit(final Runnable onCommit) {
+        this.onCommit = onCommit;
+    }
+
+    /// @param onCancel Told when they are to be dropped: Cancel, or Escape.
+    public void setOnCancel(final Runnable onCancel) {
+        this.onCancel = onCancel;
     }
 
     interface Binder extends UiBinder<Widget, TemplateEdit> {

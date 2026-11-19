@@ -2,7 +2,6 @@
  * The chosen template's strip (TemplateStrip): what it matches, the mode and role it runs
  * under, and its body.
  */
-.template-strip__name,
 .template-strip__match-pattern {
     font-family: var(--monospace-font-family);
 }
@@ -18,9 +17,11 @@
 
 .template-strip__head {
     display: flex;
-    align-items: baseline;
+    /* Centred, not on the baseline: the name is a field while it is being edited, and its edit
+       button stands beside it */
+    align-items: center;
     gap: 10px;
-    padding: 7px 12px 5px;
+    padding: 2px 12px;
     white-space: nowrap;
     overflow: hidden;
 }
@@ -29,10 +30,6 @@
    panel's. Written as both classes rather than relying on which sheet loads last. */
 .design-panel__title.template-strip__pattern-title {
     padding: 0;
-}
-
-.template-strip__name {
-    font-weight: 700;
 }
 
 .template-strip__mode,
@@ -84,30 +81,40 @@
     min-height: 0;
 }
 
+/* Why the regex being typed does not compile (design 47 §7.2, finding 14), under the match
+   line it is about and in the engine's own words; shown only while the line is open. */
+.template-strip__match-error {
+    color: var(--bootstrap-error);
+    font-size: 12.5px;
+    padding: 0 12px 4px;
+    white-space: pre-wrap;
+}
+
 /* A text input's dimensions exactly — Stroom's control tokens, not numbers of our own — and
-   the row's full width, since a pattern is the longest thing on the strip. */
+   the row's full width, since a pattern is the longest thing on the strip. It is a box that
+   reads at rest and holds a field when the match is opened (design 47 B), so it is the box
+   that says where the keyboard is, and not the field inside it. */
 .template-strip__match-chip {
     border: solid 1px var(--control__border-color);
     border-radius: .25rem;
     background-color: var(--control__background-color);
     padding: var(--input__padding--vertical) var(--input__padding--horizontal);
-    cursor: pointer;
     flex: 1;
     min-width: 0;
     overflow: hidden;
-    outline: none;
-}
-
-.template-strip__match-chip:hover,
-.template-strip__match-chip:focus-visible {
-    border-color: var(--focus-border);
-}
-
-.template-strip__match-chip-inner {
     display: flex;
     align-items: center;
     gap: 10px;
-    min-width: 0;
+}
+
+.template-strip__match-chip:hover,
+.template-strip__match-chip:focus-within {
+    border-color: var(--focus-border);
+}
+
+/* With the keyboard in the field it holds, the box is lit as a field with the keyboard is. */
+.template-strip__match-chip:has(.template-strip__match-field:focus-visible) {
+    box-shadow: var(--focus-shadow);
 }
 
 .template-strip__match-kind {
@@ -116,19 +123,63 @@
     font-size: 12px;
 }
 
+/* The match as it reads at rest: the part that is clicked to open it. */
+.template-strip__match-open {
+    flex: 1;
+    min-width: 0;
+    cursor: pointer;
+    outline: none;
+}
+
 .template-strip__match-pattern {
     font-size: 12.5px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    flex: 1;
-    min-width: 0;
 }
 
-.template-strip__match-workbench {
+/* The match, open. The box round it is already a field's, so this has none of its own: the
+   pattern stays exactly where it read. */
+.template-strip__match-chip .template-strip__match-field {
+    flex: 1;
+    min-width: 0;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+    outline: none;
+    height: auto;
+    min-height: 0;
+    font-family: var(--monospace-font-family);
+    font-size: 12.5px;
+    color: inherit;
+}
+
+/* ...and no ring of its own inside that box. A text field's focus border is !important, so
+   this has to be too. */
+.template-strip__match-chip .template-strip__match-field:focus-visible {
+    border: none !important;
+    box-shadow: none;
+}
+
+.template-strip__match-chip .template-strip__match-workbench {
+    flex: none;
     color: var(--link__text-color);
     font-size: 12px;
     white-space: nowrap;
+}
+
+/* The way out of a mode nothing dispatches into (design 47 C), beside the note that says so:
+   on one line, so that it is the note that gives way and not the thing to press. */
+.template-strip__dispatch-link {
+    flex: none;
+    white-space: nowrap;
+}
+
+/* A template's settings, while its title is being edited: under the title, over the match. */
+.template-strip__settings {
+    margin-bottom: 4px;
 }
 
 .template-strip__content {

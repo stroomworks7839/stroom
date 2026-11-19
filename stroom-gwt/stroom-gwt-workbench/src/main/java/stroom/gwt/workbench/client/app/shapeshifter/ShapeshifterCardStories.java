@@ -44,7 +44,7 @@ public final class ShapeshifterCardStories {
     private static final String SUMMARY = ".body-card__literal";
 
     // The toolbar over the rows, which acts on the selected one.
-    private static final String ABOVE = "Insert an instruction above the selected one";
+    private static final String ADD = "Add an instruction below the selected one, or at the end";
     private static final String UP = "Move the selected instruction up";
     private static final String DOWN = "Move the selected instruction down";
     private static final String REMOVE = "Remove the selected instruction";
@@ -138,48 +138,48 @@ public final class ShapeshifterCardStories {
                     ShapeshifterEditorStories.expectNoCardOpen(play);
                     play.waitFor(() -> play.expect(play.querySelectorAll(
                             ShapeshifterEditorStories.CARD_KIND).textContents()).toEqual(
-                            // An element holds a list of its own, which ends with a New
-                            // row as the body does
-                            Arrays.asList("text", "value-of", "element", ShapeshifterEditorStories.NEW_ROW,
-                                    "value-of", "text", ShapeshifterEditorStories.NEW_ROW)));
+                            Arrays.asList("text", "value-of", "element", "value-of", "text")));
                     ShapeshifterEditorStories.expectNoProblems(play);
                 })
-                // A list ends with its New row, which is a row like the others and not a field
-                // waiting to be typed into: it opens as they do, into a card whose kind is
-                // `auto` — what is typed says what it is — until one is chosen
-                .story("TheNewRowOpensLikeAnyOther", context -> ShapeshifterEditorStories.render(context, false))
+                // A list ends with `+ instruction`, the add link the declarations and the
+                // captures have. Pressed, it gives way to a card whose kind is `auto` — what is
+                // typed says what it is — until one is chosen
+                .story("TheAddLinkOpensACard", context -> ShapeshifterEditorStories.render(context, false))
                 .withPlay(play -> {
                     final Play screen = play.screen();
                     ShapeshifterEditorStories.selectTemplate(play, "pair");
-                    play.waitFor(() -> play.expect(ShapeshifterEditorStories.newRow(play))
+                    play.waitFor(() -> play.expect(ShapeshifterEditorStories.addLink(play))
                             .toBeInTheDocument());
-                    // At rest there is nothing in the list to type into
+                    play.expect(ShapeshifterEditorStories.addLink(play)).toHaveTextContent("+ instruction");
+                    // At rest there is nothing in the list to type into, and the link is not a row
                     play.expect(play.queryByLabelText(Walkthrough.ENTRY)).toBeNull();
                     play.expect(play.queryByLabelText("Instruction")).toBeNull();
-                    play.click(ShapeshifterEditorStories.newRow(play));
+                    play.expect(play.querySelectorAll(ShapeshifterEditorStories.CARD_KIND).count())
+                            .toEqual(5);
+                    play.click(ShapeshifterEditorStories.addLink(play));
                     final Play card = ShapeshifterEditorStories.cardEditor(play);
                     play.expect(card.getByLabelText("Instruction")).toHaveValue("auto");
                     play.waitFor(() -> play.expect(card.getByLabelText(Walkthrough.ENTRY)).toHaveFocus());
-                    // It has taken the row's place, and opening it is not an edit
-                    play.expect(play.queryByText(ShapeshifterEditorStories.NEW_ROW,
-                            ShapeshifterEditorStories.CARD_KIND)).toBeNull();
+                    // It has taken the link's place, and opening it is not an edit
+                    play.expect(play.queryByTitle(ShapeshifterEditorStories.ADD_LINK)).toBeNull();
                     play.expect(play.getByRole("button", "Save")).toHaveAttribute("aria-disabled", "true");
                     // Enter on a line left empty is the author having finished: no card, and
-                    // the keyboard back on the row
+                    // the keyboard back on the link
                     play.keyboard("{Enter}");
                     ShapeshifterEditorStories.expectNoCardOpen(play);
-                    play.waitFor(() -> play.expect(ShapeshifterEditorStories.newRow(play)).toHaveFocus());
+                    play.waitFor(() -> play.expect(ShapeshifterEditorStories.addLink(play)).toHaveFocus());
                     play.expect(play.querySelectorAll(ShapeshifterEditorStories.CARD_KIND).count())
-                            .toEqual(6);
-                    // Its kind, clicked, opens it with the kinds offered, and choosing one
-                    // changes the fields there and then
-                    ShapeshifterEditorStories.newCard(play, screen, "value-of");
+                            .toEqual(5);
+                    // Enter on the link presses it. A kind chosen changes the fields there and
+                    // then, and Escape puts the link back
+                    play.keyboard("{Enter}");
                     final Play chosen = ShapeshifterEditorStories.cardEditor(play);
+                    ShapeshifterEditorStories.pickFromBox(play, screen,
+                            chosen.getByLabelText("Instruction"), "value-of");
                     play.waitFor(() -> play.expect(chosen.getByLabelText("Select")).toBeVisible());
-                    play.expect(chosen.getByLabelText("Instruction")).toHaveValue("value-of");
                     play.expect(chosen.queryByLabelText(Walkthrough.ENTRY)).toBeNull();
                     play.keyboard("{Escape}");
-                    play.waitFor(() -> play.expect(ShapeshifterEditorStories.newRow(play)).toHaveFocus());
+                    play.waitFor(() -> play.expect(ShapeshifterEditorStories.addLink(play)).toHaveFocus());
                     play.expect(play.getByRole("button", "Save")).toHaveAttribute("aria-disabled", "true");
                     ShapeshifterEditorStories.expectNoProblems(play);
                 })
@@ -210,7 +210,7 @@ public final class ShapeshifterCardStories {
                 .story("AnOpenCardSurvivesARun", context -> ShapeshifterEditorStories.render(context, false))
                 .withPlay(play -> {
                     ShapeshifterEditorStories.selectTemplate(play, "pair");
-                    play.waitFor(() -> play.expect(ShapeshifterEditorStories.newRow(play))
+                    play.waitFor(() -> play.expect(ShapeshifterEditorStories.addLink(play))
                             .toBeInTheDocument());
                     final Spy requests = play.spy(ScreenHarness.REQUEST_SPY);
                     final int[] runs = {0};
@@ -222,14 +222,14 @@ public final class ShapeshifterCardStories {
                     final Play card = ShapeshifterEditorStories.cardEditor(play);
                     play.waitFor(() -> play.expect(card.getByLabelText("Select")).toHaveFocus());
                     play.keyboard("abc");
-                    play.run("note the New row and the runs so far", () -> {
-                        before[0] = ShapeshifterEditorStories.newRow(play).element().get();
+                    play.run("note the add link and the runs so far", () -> {
+                        before[0] = ShapeshifterEditorStories.addLink(play).element().get();
                         runs[0] = requests.getCalls().size();
                     });
                     play.waitFor(() -> play.expect("a run since the card was opened",
                             () -> requests.getCalls().size() > runs[0]).toEqual(true));
                     play.waitFor(() -> play.expect("the cards were drawn again",
-                            () -> ShapeshifterEditorStories.newRow(play).element().get()
+                            () -> ShapeshifterEditorStories.addLink(play).element().get()
                                   != before[0]).toEqual(true));
                     play.expect(play.getByLabelText("Select")).toHaveValue("$1abc");
                     play.expect(play.getByLabelText("Select")).toHaveFocus();
@@ -252,23 +252,22 @@ public final class ShapeshifterCardStories {
                     play.keyboard("{Escape}");
                     ShapeshifterEditorStories.expectNoProblems(play);
                 })
-                // The toolbar opens a new card above the selected row or below it: the same card
-                // the New row opens, where it will go. It takes lines until Escape, each going
-                // in where the last left off
-                .story("InsertBeforeACard", context -> ShapeshifterEditorStories.render(context, false))
+                // The toolbar's Add opens a new card below the selected row: the same card the
+                // add link opens, where it will go. It takes lines until Escape, each going in
+                // where the last left off
+                .story("AddBelowTheSelectedRow", context -> ShapeshifterEditorStories.render(context, false))
                 .withPlay(play -> {
-                    // The second row selected — the first value-of — and a card asked for above it
-                    open(play, "value-of", 0);
-                    play.click(play.getByRole("button", ABOVE));
+                    // The first row selected, and a card asked for below it
+                    open(play, "text", 0);
+                    play.click(play.getByRole("button", ADD));
                     play.waitFor(() -> play.expect(play.getByLabelText(Walkthrough.ENTRY)).toHaveFocus());
                     play.expect(play.getByLabelText("Instruction")).toHaveValue("auto");
-                    // The list still ends with its New row: this is not it
-                    play.expect(ShapeshifterEditorStories.newRow(play)).toBeInTheDocument();
+                    // The list still ends with its add link: this is not it
+                    play.expect(ShapeshifterEditorStories.addLink(play)).toBeInTheDocument();
                     play.keyboard("A{Enter}");
                     play.waitFor(() -> play.expect(play.querySelectorAll(
                             ShapeshifterEditorStories.CARD_KIND).textContents()).toEqual(
-                            Arrays.asList("text", "text", "value-of", "text", "value-of", "text",
-                                    ShapeshifterEditorStories.NEW_ROW)));
+                            Arrays.asList("text", "text", "value-of", "text", "value-of", "text")));
                     // Another is open after what was put in, with the keyboard
                     play.waitFor(() -> play.expect(play.getByLabelText(Walkthrough.ENTRY)).toHaveFocus());
                     play.keyboard("$3{Enter}");
@@ -280,13 +279,14 @@ public final class ShapeshifterCardStories {
                     play.keyboard("{Escape}");
                     ShapeshifterEditorStories.expectNoCardOpen(play);
                     play.waitFor(() -> play.expect(line(play, "value-of", 0)).toHaveFocus());
-                    // Below the last row — the seventh, now — is the New row's own place
+                    // Below the last row — the seventh, now — is the add link's own place
                     play.click(line(play, "text", 3));
-                    play.click(play.getByRole("button", "Insert an instruction below the selected one"));
+                    play.click(play.getByRole("button", ADD));
                     play.waitFor(() -> play.expect(play.getByLabelText(Walkthrough.ENTRY)).toHaveFocus());
-                    play.expect(play.queryByText(ShapeshifterEditorStories.NEW_ROW,
-                            ShapeshifterEditorStories.CARD_KIND)).toBeNull();
+                    play.expect(play.queryByTitle(ShapeshifterEditorStories.ADD_LINK)).toBeNull();
+                    // Dropped, the keyboard goes back to the row it was asked for from
                     play.keyboard("{Escape}");
+                    play.waitFor(() -> play.expect(line(play, "text", 3)).toHaveFocus());
                     ShapeshifterEditorStories.expectNoProblems(play);
                 })
                 // A new card of another kind, started from the one opened among the cards, is a draft
@@ -297,8 +297,9 @@ public final class ShapeshifterCardStories {
                         context -> ShapeshifterEditorStories.render(context, false))
                 .withPlay(play -> {
                     final Play screen = play.screen();
-                    open(play, "value-of", 0);
-                    play.click(play.getByRole("button", ABOVE));
+                    // Below the first row, which is above the first value-of
+                    open(play, "text", 0);
+                    play.click(play.getByRole("button", ADD));
                     play.waitFor(() -> play.expect(play.getByLabelText(Walkthrough.ENTRY)).toHaveFocus());
                     // Its kind chosen, where it is
                     final Play draft = ShapeshifterEditorStories.cardEditor(play);
@@ -312,10 +313,7 @@ public final class ShapeshifterCardStories {
                     play.click(line(play, "value-of", 0));
                     play.waitFor(() -> play.expect(play.querySelectorAll(
                             ShapeshifterEditorStories.CARD_KIND).textContents()).toEqual(
-                            // The element's own list ends with a New row, as the body does
-                            Arrays.asList("text", "element", ShapeshifterEditorStories.NEW_ROW,
-                                    "value-of", "text", "value-of", "text",
-                                    ShapeshifterEditorStories.NEW_ROW)));
+                            Arrays.asList("text", "element", "value-of", "text", "value-of", "text")));
                     play.waitFor(() -> play.expect(play.getByLabelText("Instruction"))
                             .toHaveValue("value-of"));
                     play.expect(play.getByLabelText("Select")).toHaveValue("$1");
@@ -345,6 +343,29 @@ public final class ShapeshifterCardStories {
                     ShapeshifterEditorStories.expectNoCardOpen(play);
                     ShapeshifterEditorStories.expectNoProblems(play);
                 })
+                // A title and a card left open together are both taken. The card is taken
+                // first, and the title used to be dropped without a word for finding the
+                // template changed by it (design 47 §7.8, finding 1)
+                .story("LeavingTakesTheTitleAndTheCardTogether",
+                        context -> ShapeshifterEditorStories.render(context, false))
+                .withPlay(play -> {
+                    ShapeshifterEditorStories.selectTemplate(play, "pair");
+                    play.waitFor(() -> play.expect(play.getByRole("button", ShapeshifterEditorStories.EDIT_TITLE))
+                            .toBeVisible());
+                    play.click(play.getByRole("button", ShapeshifterEditorStories.EDIT_TITLE));
+                    play.waitFor(() -> play.expect(play.getByLabelText("Template name")).toHaveFocus());
+                    play.keyboard("pairs");
+                    final Play kept = open(play, "value-of", 0);
+                    play.clear(kept.getByLabelText("Select"));
+                    kept.type(kept.getByLabelText("Select"), "$7");
+                    ShapeshifterEditorStories.selectTemplate(play, "junk_line");
+                    play.waitFor(() -> play.expect(play.getByText("pairs", ShapeshifterEditorStories.TEMPLATE_NAME))
+                            .toBeInTheDocument());
+                    ShapeshifterEditorStories.selectTemplate(play, "pairs");
+                    play.waitFor(() -> play.expect(play.getByText("$7", SUMMARY)).toBeInTheDocument());
+                    ShapeshifterEditorStories.expectNoCardOpen(play);
+                    ShapeshifterEditorStories.expectNoProblems(play);
+                })
                 // The rows are one list, and the keyboard is on one of them at a time. The arrows
                 // move it, Enter opens the row it is on and Delete removes it. A run landing does
                 // not take the keyboard off the list
@@ -364,19 +385,11 @@ public final class ShapeshifterCardStories {
                     play.expect(line(play, "value-of", 1)).toHaveFocus();
                     play.keyboard("{Home}");
                     play.expect(line(play, "text", 0)).toHaveFocus();
-                    // The list's last row is its New row, walked to as the others are. Enter
-                    // opens it as it opens them, and Escape puts the keyboard back on it
+                    // End is the last row. The add link under the rows is not one of them: the
+                    // arrows do not reach it, and Tab does
                     play.keyboard("{End}");
-                    play.expect(ShapeshifterEditorStories.newRow(play)).toHaveFocus();
-                    play.keyboard("{Enter}");
-                    play.waitFor(() -> play.expect(play.getByLabelText(Walkthrough.ENTRY)).toHaveFocus());
-                    play.keyboard("{Escape}");
-                    play.waitFor(() -> play.expect(ShapeshifterEditorStories.newRow(play)).toHaveFocus());
-                    // and Delete, on a row that is not a card yet, removes nothing
-                    play.keyboard("{Delete}");
-                    play.expect(play.querySelectorAll(ShapeshifterEditorStories.CARD_KIND).count())
-                            .toEqual(6);
-                    play.keyboard("{ArrowUp}");
+                    play.expect(line(play, "text", 2)).toHaveFocus();
+                    play.keyboard("{ArrowDown}");
                     play.expect(line(play, "text", 2)).toHaveFocus();
                     play.keyboard("{ArrowUp}");
                     play.expect(line(play, "value-of", 1)).toHaveFocus();
@@ -393,8 +406,7 @@ public final class ShapeshifterCardStories {
                     play.keyboard("{Delete}");
                     play.waitFor(() -> play.expect(play.querySelectorAll(
                             ShapeshifterEditorStories.CARD_KIND).textContents()).toEqual(
-                            Arrays.asList("text", "value-of", "text", "text",
-                                    ShapeshifterEditorStories.NEW_ROW)));
+                            Arrays.asList("text", "value-of", "text", "text")));
                     play.waitFor(() -> play.expect(line(play, "text", 2)).toHaveFocus());
                     // The run that edit set off draws the rows again; the keyboard stays on its row
                     play.waitFor(() -> play.expect("a run since the row was removed",
@@ -405,17 +417,19 @@ public final class ShapeshifterCardStories {
                     ShapeshifterEditorStories.expectNoProblems(play);
                 })
                 // What is done to a row is done from one toolbar over the rows, to the selected
-                // row, and not from buttons on every row. With no row selected it offers nothing;
-                // it follows the row it moves; and a row just added is the selected one once
-                // the author has finished adding
+                // row, and not from buttons on every row: add, remove, up and down, as the
+                // template panel has them. With no row selected only Add is offered, and it adds
+                // at the end; it follows the row it moves; and a row just added is the selected
+                // one once the author has finished adding
                 .story("TheToolbarActsOnTheSelectedRow",
                         context -> ShapeshifterEditorStories.render(context, false))
                 .withPlay(play -> {
                     ShapeshifterEditorStories.selectTemplate(play, "pair");
-                    play.waitFor(() -> play.expect(ShapeshifterEditorStories.newRow(play))
+                    play.waitFor(() -> play.expect(ShapeshifterEditorStories.addLink(play))
                             .toBeInTheDocument());
                     play.expect(play.getByRole("button", UP)).toHaveAttribute("aria-disabled", "true");
                     play.expect(play.getByRole("button", REMOVE)).toHaveAttribute("aria-disabled", "true");
+                    play.expect(play.getByRole("button", ADD)).not().toHaveAttribute("aria-disabled", "true");
                     // The second row, selected by leaving it
                     open(play, "value-of", 0);
                     play.keyboard("{Escape}");
@@ -426,20 +440,20 @@ public final class ShapeshifterCardStories {
                     play.click(play.getByRole("button", UP));
                     play.waitFor(() -> play.expect(play.querySelectorAll(
                             ShapeshifterEditorStories.CARD_KIND).textContents()).toEqual(
-                            Arrays.asList("value-of", "text", "text", "value-of", "text",
-                                    ShapeshifterEditorStories.NEW_ROW)));
+                            Arrays.asList("value-of", "text", "text", "value-of", "text")));
                     play.waitFor(() -> play.expect(play.getByRole("button", UP))
                             .toHaveAttribute("aria-disabled", "true"));
                     play.click(play.getByRole("button", DOWN));
                     play.waitFor(() -> play.expect(play.querySelectorAll(
                             ShapeshifterEditorStories.CARD_KIND).textContents()).toEqual(
-                            Arrays.asList("text", "value-of", "text", "value-of", "text",
-                                    ShapeshifterEditorStories.NEW_ROW)));
-                    // A line typed into the New row. While the card that opened after it is
-                    // open no row is the selected one, and the toolbar offers nothing
+                            Arrays.asList("text", "value-of", "text", "value-of", "text")));
+                    // A line typed into the card the add link opens. While the card that opened
+                    // after it is open no row is the selected one: there is nothing to remove
+                    // or to move, and Add is still there
                     Walkthrough.enter(play, "tail");
                     play.expect(play.getByRole("button", UP)).toHaveAttribute("aria-disabled", "true");
                     play.expect(play.getByRole("button", REMOVE)).toHaveAttribute("aria-disabled", "true");
+                    play.expect(play.getByRole("button", ADD)).not().toHaveAttribute("aria-disabled", "true");
                     // Escape: the row just added is the selected one, and Up moves it, not the
                     // row that was selected before
                     play.keyboard("{Escape}");
@@ -453,16 +467,36 @@ public final class ShapeshifterCardStories {
                     play.click(play.getByRole("button", REMOVE));
                     play.waitFor(() -> play.expect(play.queryByText("\"tail\"", SUMMARY)).toBeNull());
                     play.expect(play.querySelectorAll(ShapeshifterEditorStories.CARD_KIND).count())
-                            .toEqual(6);
-                    // The New row is not a card yet. One can be put above it, which is to open
-                    // it, and there is nothing of it to move, to remove or to come after
-                    play.keyboard("{End}");
-                    play.waitFor(() -> play.expect(ShapeshifterEditorStories.newRow(play)).toHaveFocus());
-                    play.expect(play.getByRole("button", UP)).toHaveAttribute("aria-disabled", "true");
-                    play.expect(play.getByRole("button", REMOVE)).toHaveAttribute("aria-disabled", "true");
-                    play.expect(play.getByRole("button", "Insert an instruction below the selected one"))
-                            .toHaveAttribute("aria-disabled", "true");
-                    play.expect(play.getByRole("button", ABOVE)).not().toHaveAttribute("aria-disabled", "true");
+                            .toEqual(5);
+                    // With no row selected, Add is the end of the body: the add link's own place
+                    ShapeshifterEditorStories.selectTemplate(play, "junk_line");
+                    ShapeshifterEditorStories.selectTemplate(play, "pair");
+                    play.waitFor(() -> play.expect(play.getByRole("button", REMOVE))
+                            .toHaveAttribute("aria-disabled", "true"));
+                    play.click(play.getByRole("button", ADD));
+                    play.waitFor(() -> play.expect(play.getByLabelText(Walkthrough.ENTRY)).toHaveFocus());
+                    play.expect(play.queryByTitle(ShapeshifterEditorStories.ADD_LINK)).toBeNull();
+                    play.keyboard("{Escape}");
+                    play.waitFor(() -> play.expect(ShapeshifterEditorStories.addLink(play)).toHaveFocus());
+                    ShapeshifterEditorStories.expectNoProblems(play);
+                })
+                // A row dropped on a list's + instruction lands at the end of that list (design
+                // 18 §5.6; design 47 §7.2, finding 17): the pair's opening text moved last
+                .story("ADropOnTheAddLinkLandsAtTheEnd", context -> ShapeshifterEditorStories.render(context, false))
+                .withPlay(play -> {
+                    ShapeshifterEditorStories.selectTemplate(play, "pair");
+                    play.waitFor(() -> play.expect(play.getAllByText("text", ShapeshifterEditorStories.CARD_KIND)
+                            .first()).toBeInTheDocument());
+                    final Query first = play.querySelector(".body-card__card");
+                    final Query end = play.querySelector(".body-card__add");
+                    play.run("drag the first row onto + instruction", () ->
+                            dragAndDrop(first.element().get(), end.element().get()));
+                    play.waitFor(() -> play.expect(play.getAllByText(TextMatch.regex("^(text|value-of)$"),
+                            ShapeshifterEditorStories.CARD_KIND).first()).toHaveTextContent("value-of"));
+                    play.expect(play.getAllByText("text", ShapeshifterEditorStories.CARD_KIND).count()).toEqual(3);
+                    play.expect(play.getAllByText(TextMatch.regex("^(text|value-of)$"),
+                            ShapeshifterEditorStories.CARD_KIND).nth(4)).toHaveTextContent("text");
+                    play.expect(play.getByRole("button", "Save")).not().toHaveAttribute("aria-disabled");
                     ShapeshifterEditorStories.expectNoProblems(play);
                 })
                 // Read only, a card is something to read: it does not open, and offers no way
@@ -475,10 +509,9 @@ public final class ShapeshifterCardStories {
                     play.click(line(play, "value-of", 0));
                     play.click(play.getAllByText("value-of", ShapeshifterEditorStories.CARD_KIND).first());
                     play.expect(play.queryByLabelText("Instruction")).toBeNull();
-                    play.expect(play.queryByText(ShapeshifterEditorStories.NEW_ROW,
-                            ShapeshifterEditorStories.CARD_KIND)).toBeNull();
+                    play.expect(play.queryByTitle(ShapeshifterEditorStories.ADD_LINK)).toBeNull();
                     // and there is no toolbar over the rows
-                    play.expect(play.queryByRole("button", ABOVE)).toBeNull();
+                    play.expect(play.queryByRole("button", ADD)).toBeNull();
                     play.expect(play.queryByRole("button", "Remove the selected instruction")).toBeNull();
                     ShapeshifterEditorStories.expectNoProblems(play);
                 });
@@ -490,6 +523,26 @@ public final class ShapeshifterCardStories {
         return play.getAllByText(kind, ShapeshifterEditorStories.CARD_KIND).nth(n)
                 .closest(".body-card__card");
     }
+
+    // A drag from one element dropped on another, as the browser fires it: the events carry one
+    // DataTransfer between them and the point is the target's centre. Synthetic, because a
+    // story's user events have no drag and drop of their own.
+    private static native void dragAndDrop(Element source, Element target) /*-{
+        var view = source.ownerDocument.defaultView;
+        var transfer = new view.DataTransfer();
+        var box = target.getBoundingClientRect();
+        var fire = function (element, type) {
+            element.dispatchEvent(new view.DragEvent(type, {
+                bubbles: true, cancelable: true, dataTransfer: transfer,
+                clientX: box.left + box.width / 2, clientY: box.top + box.height / 2
+            }));
+        };
+        fire(source, "dragstart");
+        fire(target, "dragenter");
+        fire(target, "dragover");
+        fire(target, "drop");
+        fire(source, "dragend");
+    }-*/;
 
     // The pair template selected and one of its cards opened, as a Play scoped to the open card.
     private static Play open(final Play play, final String kind, final int n) {

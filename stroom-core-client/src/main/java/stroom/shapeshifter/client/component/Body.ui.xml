@@ -6,15 +6,15 @@
     <g:FlowPanel styleName="body">
         <!-- The heading, and on its line what can be done to the selected row: one toolbar over
              the rows, as a grid has and as the template panel has over its own list, rather
-             than five small glyphs on every row (the owner, 2026-11-18). -->
+             than five small glyphs on every row (the owner, 2026-11-18). Add, remove, up and
+             down, in the order the template panel's has them. -->
         <g:FlowPanel styleName="body__head">
             <t:Label styleName="key-label body__title" text="body"/>
             <b:Toolbar ui:field="toolbar" name="Instruction actions" addStyleNames="body__actions">
+                <b:ToolbarButton ui:field="add"/>
+                <b:ToolbarButton ui:field="remove"/>
                 <b:ToolbarButton ui:field="up"/>
                 <b:ToolbarButton ui:field="down"/>
-                <b:ToolbarButton ui:field="above"/>
-                <b:ToolbarButton ui:field="below"/>
-                <b:ToolbarButton ui:field="remove"/>
             </b:Toolbar>
         </g:FlowPanel>
         <g:FlowPanel ui:field="cards"/>

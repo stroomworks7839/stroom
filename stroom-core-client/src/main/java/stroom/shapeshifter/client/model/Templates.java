@@ -34,7 +34,9 @@ import stroom.shapeshifter.config.Template.MatchLimits;
 import stroom.shapeshifter.config.Template.ParamDecl;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 /// With-copies of [Template] and one-line descriptions of its parts. The model is records
 /// without withers (it is shared with the engine and stays plain), so the editor's copies live here.
@@ -54,6 +56,31 @@ public final class Templates {
 
     public static int paletteSize() {
         return PALETTE.length;
+    }
+
+    /// Every name a template may bind or read, as the engine's reference check sees them
+    /// (design 35): a name is declared once, on the template whose executions it lives for, and
+    /// may be bound or read from any other. The template's own come first, then the rest in the
+    /// project's order, each once.
+    ///
+    /// @param project The project, or null for none.
+    /// @param template The template the names are offered in, or null.
+    /// @return The declared names.
+    public static List<String> declaredNames(final Project project, final Template template) {
+        final Set<String> names = new LinkedHashSet<>();
+        if (template != null) {
+            for (final Declaration declaration : template.declarations()) {
+                names.add(declaration.name());
+            }
+        }
+        if (project != null) {
+            for (final Template other : project.templates()) {
+                for (final Declaration declaration : other.declarations()) {
+                    names.add(declaration.name());
+                }
+            }
+        }
+        return new ArrayList<>(names);
     }
 
     public static Template withMatch(final Template t, final MatchExpression match) {
@@ -86,6 +113,47 @@ public final class Templates {
                                         final boolean ignoreErrors) {
         return new Template(t.id(), name, mode, consume, t.guard(), params, t.declarations(),
                 t.match(), t.matchLimits(), t.captures(), t.body(), encoding, ignoreErrors);
+    }
+
+    /// The template with the identity another has: its name, mode, params, encoding and whether
+    /// it ignores errors. Its role, match, guard, limits, captures, declarations and body are its
+    /// own. For a title taken a moment after it was left, onto the template as it is by then.
+    ///
+    /// @param t The template.
+    /// @param from The template whose identity it takes.
+    /// @return The template with that identity.
+    public static Template withIdentityOf(final Template t, final Template from) {
+        return withIdentity(t, from.name(), from.mode(), t.consume(), from.param(), from.encoding(),
+                from.ignoreErrors());
+    }
+
+    /// Whether two templates have one identity: the name, mode, params, encoding and whether
+    /// errors are ignored, which a title edits ([#withIdentityOf]).
+    ///
+    /// @param a A template.
+    /// @param b Another.
+    /// @return Whether those are the same in both.
+    public static boolean sameIdentity(final Template a, final Template b) {
+        return withIdentityOf(a, b).equals(a);
+    }
+
+    /// Whether a template other than the one given is called the name given. A call names a
+    /// template, so two of a name would be two things a call cannot tell apart.
+    ///
+    /// @param project The project.
+    /// @param name The name.
+    /// @param id The template that may have it, or null for none.
+    /// @return Whether another template has it.
+    public static boolean nameTaken(final Project project, final String name, final String id) {
+        if (project == null) {
+            return false;
+        }
+        for (final Template template : project.templates()) {
+            if (template.name().equals(name) && !template.id().equals(id)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /// What the template's matches are for: a record, or only the cursor's advance (§5f).

@@ -198,7 +198,11 @@ public final class ShapeshifterEditorStories {
         {"frameId": 4, "name": "value", "value": "warn", "contentOffset": 6, "contentLength": 4}
       ],
       "groups": [], "attempts": [], "guards": [],
-      "attemptsSeen": 3, "timings": [],
+      "attemptsSeen": 3,
+      "timings": [
+        {"templateId": "00000000-0000-0000-0000-000000000002", "attempts": 3, "matched": 2, "nanos": 0},
+        {"templateId": "00000000-0000-0000-0000-000000000003", "attempts": 1, "matched": 1, "nanos": 0}
+      ],
       "outputs": [
         {"frameId": 1, "offset": 0, "length": 83, "unit": "BYTES"},
         {"frameId": 2, "offset": 10, "length": 31, "unit": "BYTES"},
@@ -432,12 +436,12 @@ public final class ShapeshifterEditorStories {
 
                     // A pane below follows too: the body offers nowhere to add a card read only
                     selectTemplate(play, "pair");
-                    play.waitFor(() -> play.expect(newRow(play)).toBeInTheDocument());
+                    play.waitFor(() -> play.expect(addLink(play)).toBeInTheDocument());
 
                     play.run("lock the document", () -> readAgain(true));
                     play.expect(play.findByRole("button", "Save (read only)")).toBeInTheDocument();
                     play.expect(play.getByText("Read only", ".link-tab-panel__read-only-note")).toBeVisible();
-                    play.waitFor(() -> play.expect(play.queryByText(NEW_ROW, CARD_KIND)).toBeNull());
+                    play.waitFor(() -> play.expect(play.queryByTitle(ADD_LINK)).toBeNull());
                     // The panel is still drawn: locking narrows what may be changed, it doesn't
                     // empty the tab
                     play.expect(play.getByText("pair", TEMPLATE_NAME)).toBeInTheDocument();
@@ -445,7 +449,7 @@ public final class ShapeshifterEditorStories {
                     play.run("unlock the document", () -> readAgain(false));
                     play.expect(play.findByRole("button", "Save")).toBeInTheDocument();
                     play.expect(play.queryByText("Read only", ".link-tab-panel__read-only-note")).toBeNull();
-                    play.waitFor(() -> play.expect(newRow(play)).toBeInTheDocument());
+                    play.waitFor(() -> play.expect(addLink(play)).toBeInTheDocument());
                     play.expect(play.getByText("pair", TEMPLATE_NAME)).toBeInTheDocument();
                     expectNoProblems(play);
                 })
@@ -511,23 +515,23 @@ public final class ShapeshifterEditorStories {
                 .story("LockChangeWithoutReread", context -> render(context, false))
                 .withPlay(play -> {
                     selectTemplate(play, "pair");
-                    play.waitFor(() -> play.expect(newRow(play)).toBeInTheDocument());
+                    play.waitFor(() -> play.expect(addLink(play)).toBeInTheDocument());
                     play.run("lock the document, without reading it again", () ->
                             host().setReadOnly(true));
                     // The body pane below the document follows the lock on its own
-                    play.waitFor(() -> play.expect(play.queryByText(NEW_ROW, CARD_KIND)).toBeNull());
+                    play.waitFor(() -> play.expect(play.queryByTitle(ADD_LINK)).toBeNull());
                     play.run("unlock the document, without reading it again", () ->
                             host().setReadOnly(false));
-                    play.waitFor(() -> play.expect(newRow(play)).toBeInTheDocument());
+                    play.waitFor(() -> play.expect(addLink(play)).toBeInTheDocument());
                     expectNoProblems(play);
                 })
 
-                // The match chip opens the pattern workbench over the navigator's rows
+                // The match line's workbench opens the pattern workbench over the navigator's rows
                 .story("PatternWorkbench", context -> render(context, false))
                 .withPlay(play -> {
                     selectTemplate(play, "pair");
                     play.waitFor(() -> play.expect(play.querySelector(MATCH_CHIP)).not().toBeNull());
-                    play.click(play.querySelector(MATCH_CHIP));
+                    play.click(workbenchButton(play));
                     // The workbench replaces the rows, with its own toolbar and the pattern
                     play.waitFor(() -> play.expect(play.getByRole("button",
                             TextMatch.regex("close the workbench", "i"))).toBeInTheDocument());
@@ -551,43 +555,6 @@ public final class ShapeshifterEditorStories {
                     final Query match = play.querySelector(SAMPLE_MARK);
                     play.hover(match);
                     play.waitFor(() -> play.expect(match).toHaveClass("highlight"));
-                    expectNoProblems(play);
-                })
-
-                // Add Template opens the template dialog; OK adds it to the project, so the
-                // panel gains a row and the document goes dirty
-                .story("TemplateDialogOk", context -> render(context, false))
-                .withPlay(play -> {
-                    final Play screen = play.screen();
-                    play.waitFor(() -> play.expect(play.getByText("pair", TEMPLATE_NAME)).toBeInTheDocument());
-                    play.click(play.getByRole("button", "Add template"));
-                    final Play dialog = play.within(
-                            screen.findByText("New Template", StroomDom.DIALOG_TITLE)
-                                    .closest(StroomDom.DIALOG));
-                    dialog.type(dialog.getByRole("textbox").first(), "line");
-                    play.click(screen.getByRole("button", StroomDom.button("OK")));
-                    // The new template is in the panel (and, because adding selects it,
-                    // in the strip beside it), and Save has work to do
-                    play.waitFor(() -> play.expect(play.getByText("line", TEMPLATE_NAME))
-                            .toBeInTheDocument());
-                    play.expect(play.getByRole("button", "Save")).not().toHaveAttribute("aria-disabled");
-                    expectNoProblems(play);
-                })
-                // Cancel leaves the project alone: no row, and the document stays clean
-                .story("TemplateDialogCancel", context -> render(context, false))
-                .withPlay(play -> {
-                    final Play screen = play.screen();
-                    play.waitFor(() -> play.expect(play.getByText("pair", TEMPLATE_NAME)).toBeInTheDocument());
-                    play.click(play.getByRole("button", "Add template"));
-                    final Play dialog = play.within(
-                            screen.findByText("New Template", StroomDom.DIALOG_TITLE)
-                                    .closest(StroomDom.DIALOG));
-                    dialog.type(dialog.getByRole("textbox").first(), "line");
-                    play.click(screen.getByRole("button", StroomDom.button("Cancel")));
-                    play.waitFor(() -> play.expect(screen.queryByText("New Template",
-                            StroomDom.DIALOG_TITLE)).toBeNull());
-                    play.expect(play.queryByText("line", TEMPLATE_NAME)).toBeNull();
-                    play.expect(play.getByRole("button", "Save")).toHaveAttribute("aria-disabled", "true");
                     expectNoProblems(play);
                 })
 
@@ -656,22 +623,6 @@ public final class ShapeshifterEditorStories {
                             StroomDom.DIALOG_TITLE)).toBeNull());
                     play.expect(play.queryByText("seen")).toBeNull();
                     play.expect(play.getByRole("button", "Save")).toHaveAttribute("aria-disabled", "true");
-                    expectNoProblems(play);
-                })
-                // The modes dialog lists the project's modes and is closed, not confirmed. It is
-                // also the one the audit found was given its host on a different instance
-                .story("ModesDialog", context -> render(context, false))
-                .withPlay(play -> {
-                    final Play screen = play.screen();
-                    play.waitFor(() -> play.expect(play.getByText("pair", TEMPLATE_NAME)).toBeInTheDocument());
-                    play.click(play.getByRole("button", TextMatch.regex("^Modes", "i")));
-                    final Play dialog = play.within(
-                            screen.findByText(TextMatch.regex("mode", "i"), StroomDom.DIALOG_TITLE)
-                                    .closest(StroomDom.DIALOG));
-                    // The project's one declared mode is listed, which needs the host
-                    play.waitFor(() -> play.expect(dialog.getAllByText("kv").count())
-                            .toSatisfy("the kv mode", count -> ((Integer) count) > 0));
-                    play.click(screen.getByRole("button", StroomDom.button("Close")));
                     expectNoProblems(play);
                 })
                 // The input, the variables and the output are each under a title bar that folds
@@ -767,7 +718,7 @@ public final class ShapeshifterEditorStories {
                                   > before[0] + 150).toEqual(true));
                     expectNoProblems(play);
                 })
-                // A line typed into the body's New row adds the cards it describes (design
+                // A line typed into the card the body's add link opens adds the cards it describes (design
                 // 47 A): text is a text card, `$1` a value-of card, and a line that mixes them
                 // is split into the sequence. And the half of this that no assertion about cards
                 // can show: **a line being typed survives the body being drawn again.** A run's
@@ -777,11 +728,10 @@ public final class ShapeshifterEditorStories {
                 .story("ALineAddsCardsAndSurvivesARun", context -> render(context, false))
                 .withPlay(play -> {
                     selectTemplate(play, "junk_line");
-                    play.waitFor(() -> play.expect(newRow(play)).toBeInTheDocument());
-                    // junk_line arrives with one card, its emit-error, and the list ends with
-                    // its New row
+                    play.waitFor(() -> play.expect(addLink(play)).toBeInTheDocument());
+                    // junk_line arrives with one card, its emit-error
                     play.expect(play.querySelectorAll(CARD_KIND).textContents())
-                            .toEqual(Arrays.asList("emit-error", NEW_ROW));
+                            .toEqual(Arrays.asList("emit-error"));
 
                     // A templated line, split: text, value-of, text
                     Walkthrough.enter(play, "<junk>$0</junk>");
@@ -816,20 +766,20 @@ public final class ShapeshifterEditorStories {
                     play.expect(play.getByText(TextMatch.containing("costs $5"))).toBeInTheDocument();
                     expectNoProblems(play);
                 })
-                // The New row's kind offers the kinds; choosing one makes the row that kind's
-                // editor, in place (design 47 D), and OK takes it
+                // The add link opens a card whose kind is left to what is typed; choosing a kind
+                // makes it that kind's editor, in place (design 47 D), and OK takes it
                 .story("NewCardOk", context -> render(context, false))
                 .withPlay(play -> {
                     final Play screen = play.screen();
                     selectTemplate(play, "pair");
-                    play.waitFor(() -> play.expect(newRow(play)).toBeInTheDocument());
+                    play.waitFor(() -> play.expect(addLink(play)).toBeInTheDocument());
                     newCard(play, screen, "text");
                     final Play card = cardEditor(play);
                     // In the list, where the card will be, and not over it: there is no dialog
                     play.expect(screen.queryByText(TextMatch.regex("text", "i"), StroomDom.DIALOG_TITLE))
                             .toBeNull();
-                    // The row it was opened from has given way to it
-                    play.expect(play.queryByText(NEW_ROW, CARD_KIND)).toBeNull();
+                    // The link it was opened from has given way to it
+                    play.expect(play.queryByTitle(ADD_LINK)).toBeNull();
                     play.waitFor(() -> play.expect(card.getByLabelText("Text")).toBeVisible());
                     card.type(card.getByLabelText("Text"), "hello");
                     // Nothing has reached the project yet: what the card holds is a draft
@@ -850,7 +800,7 @@ public final class ShapeshifterEditorStories {
                 .withPlay(play -> {
                     final Play screen = play.screen();
                     selectTemplate(play, "pair");
-                    play.waitFor(() -> play.expect(newRow(play)).toBeInTheDocument());
+                    play.waitFor(() -> play.expect(addLink(play)).toBeInTheDocument());
                     newCard(play, screen, "text");
                     final Play card = cardEditor(play);
                     play.waitFor(() -> play.expect(card.getByLabelText("Text")).toBeVisible());
@@ -861,43 +811,33 @@ public final class ShapeshifterEditorStories {
                     play.expect(play.getAllByText("text", CARD_KIND).count())
                             .toSatisfy("still three text cards", count -> ((Integer) count) == 3);
                     play.expect(play.getByRole("button", "Save")).toHaveAttribute("aria-disabled", "true");
-                    // The New row is a row again, and the keyboard is on it
-                    play.waitFor(() -> play.expect(newRow(play)).toHaveFocus());
+                    // The link is back, and the keyboard is on it
+                    play.waitFor(() -> play.expect(addLink(play)).toHaveFocus());
                     expectNoProblems(play);
                 })
-                // Adding a pattern part asks for its name first: the name prompt, which several
-                // places share
-                .story("NamePromptOk", context -> render(context, false))
+                // Extracting a node to the library asks for the new part's name: the name
+                // prompt, which the tree's extract and wrap share. (Adding a part from the
+                // panel names it where it is shown, design 47 §7.2, finding 15.)
+                .story("NamePromptOk", ShapeshifterEditorStories::renderComposite)
                 .withPlay(play -> {
-                    final Play screen = play.screen();
-                    play.waitFor(() -> play.expect(play.getByText("pair", TEMPLATE_NAME))
-                            .toBeInTheDocument());
-                    play.click(play.getByRole("button", TextMatch.regex("^Add a pattern part")));
-                    final Play dialog = play.within(
-                            screen.findByText("New Pattern Part", StroomDom.DIALOG_TITLE)
-                                    .closest(StroomDom.DIALOG));
-                    dialog.type(dialog.getByRole("textbox").first(), "ipv4");
-                    play.click(screen.getByRole("button", StroomDom.button("OK")));
-                    // The part is in the panel's library section
-                    play.waitFor(() -> play.expect(play.getByText("ipv4", TEMPLATE_NAME))
+                    final Play dialog = extractTag(play);
+                    dialog.type(dialog.getByRole("textbox").first(), "OPEN");
+                    play.click(dialog.getByRole("button", StroomDom.button("OK")));
+                    // The part is in the panel's library section, and the node names it
+                    play.waitFor(() -> play.expect(play.getByText("OPEN", TEMPLATE_NAME))
                             .toBeInTheDocument());
                     expectNoProblems(play);
                 })
-                // Cancelling the prompt adds no part
-                .story("NamePromptCancel", context -> render(context, false))
+                // Cancelling the prompt makes no part
+                .story("NamePromptCancel", ShapeshifterEditorStories::renderComposite)
                 .withPlay(play -> {
                     final Play screen = play.screen();
-                    play.waitFor(() -> play.expect(play.getByText("pair", TEMPLATE_NAME))
-                            .toBeInTheDocument());
-                    play.click(play.getByRole("button", TextMatch.regex("^Add a pattern part")));
-                    final Play dialog = play.within(
-                            screen.findByText("New Pattern Part", StroomDom.DIALOG_TITLE)
-                                    .closest(StroomDom.DIALOG));
-                    dialog.type(dialog.getByRole("textbox").first(), "ipv4");
-                    play.click(screen.getByRole("button", StroomDom.button("Cancel")));
-                    play.waitFor(() -> play.expect(screen.queryByText("New Pattern Part",
+                    final Play dialog = extractTag(play);
+                    dialog.type(dialog.getByRole("textbox").first(), "OPEN");
+                    play.click(dialog.getByRole("button", StroomDom.button("Cancel")));
+                    play.waitFor(() -> play.expect(screen.queryByText(TextMatch.regex("Extract to Library", "i"),
                             StroomDom.DIALOG_TITLE)).toBeNull());
-                    play.expect(play.queryByText("ipv4", TEMPLATE_NAME)).toBeNull();
+                    play.expect(play.queryByText("OPEN", TEMPLATE_NAME)).toBeNull();
                     play.expect(play.getByRole("button", "Save")).toHaveAttribute("aria-disabled", "true");
                     expectNoProblems(play);
                 })
@@ -1619,7 +1559,7 @@ public final class ShapeshifterEditorStories {
     private static final String VARIABLES_NAME = ".variables-pane__name";
     private static final String CRUMB_SEGMENTS = ".breadcrumb__segments";
     private static final String CRUMB_SWATCH = ".breadcrumb__segment .swatch";
-    private static final String CRUMB_CURRENT = ".breadcrumb__name[aria-current=\"true\"]";
+    static final String CRUMB_CURRENT = ".breadcrumb__name[aria-current=\"true\"]";
     private static final String CRUMB_OUTER =
             ".breadcrumb__name:not([aria-current=\"true\"])";
     private static final String NOTHING_IN_SCOPE = "No name is in scope at the selected frame.";
@@ -1636,7 +1576,10 @@ public final class ShapeshifterEditorStories {
 
     // The selected template's name, in the strip's head. The panel's own row for the document
     // template reads "document" whatever the template is called, so this is where a rename shows.
-    static final String STRIP_NAME = ".template-strip__name";
+    static final String STRIP_NAME = ".template-strip__head .name-edit__name";
+
+    // The edit button in a template's title, which opens its name and its settings
+    static final String EDIT_TITLE = "Edit the name and settings";
 
     // A match in the content pane, and a capture within one (Marks).
     // A match by the template that made it. The pane draws a mark for the cursor's immediate
@@ -1675,16 +1618,35 @@ public final class ShapeshifterEditorStories {
     private static final String EDITOR_CAPTURE_KEY = ".mark--capture[data-cap='2:0']";
 
 
-    // The chip that carries a template's match, and opens the pattern workbench
+    // The box that carries a template's match: what it matches, which opens in place when it
+    // is a regex (design 47 B), and the way into the pattern workbench
     static final String MATCH_CHIP = ".template-strip__match-chip";
+
+    // The match as it reads at rest, which is what is clicked to open it
+    static final String MATCH_OPEN = ".template-strip__match-open";
+
     // A part's kind in the framed sequence's list; clicking it selects the part
     private static final String PART_KIND = ".parts__kind";
 
+    // The way into the pattern workbench, beside the match
+    static Query workbenchButton(final Play play) {
+        return play.getByRole("button", StroomDom.button("workbench"));
+    }
+
     // Selects a template and opens its match workbench, where the parts and the pattern tree live
+    // The composite fixture's tree template in the workbench, its first tag selected and
+    // Extract to the library pressed: the name prompt, as a Play scoped to it.
+    private static Play extractTag(final Play play) {
+        openWorkbench(play, "tree");
+        play.click(play.getAllByRole("treeitem", TextMatch.regex("^tag")).first());
+        play.click(play.getByRole("button", TextMatch.containing("Extract to the library")));
+        return dialogMatching(play, play.screen(), "Extract to Library");
+    }
+
     private static void openWorkbench(final Play play, final String name) {
         selectTemplate(play, name);
         play.waitFor(() -> play.expect(play.querySelector(MATCH_CHIP)).not().toBeNull());
-        play.click(play.querySelector(MATCH_CHIP));
+        play.click(workbenchButton(play));
         play.waitFor(() -> play.expect(play.getByRole("button",
                 TextMatch.regex("close the workbench", "i"))).toBeInTheDocument());
     }
@@ -1704,7 +1666,7 @@ public final class ShapeshifterEditorStories {
     }
 
     // The host the story shows, for plays that act as ShapeshifterPlugin does
-    private static DocumentEditorHost<ShapeshifterDoc> host() {
+    static DocumentEditorHost<ShapeshifterDoc> host() {
         return ScreenHarness.shownComponent();
     }
 
@@ -1715,10 +1677,10 @@ public final class ShapeshifterEditorStories {
         host.read(host.getDocRef(), host.getEntity());
     }
 
-    // The kind of the row a card list ends with, where a card is added. It is a row like the
-    // others; opened, it is a card's editor whose kind is `auto` — what is typed says what it
-    // is (design 47 A) — until one is chosen (design 47 D).
-    static final String NEW_ROW = "new";
+    // The link a card list ends with, `+ instruction`, by its title. Pressed, it gives way to
+    // a card whose kind is `auto` — what is typed says what it is (design 47 A) — until one is
+    // chosen (design 47 D).
+    static final String ADD_LINK = "Click to add an instruction";
 
     // A card's line, by its kind. Clicking the line opens the card where it is; clicking the
     // kind itself opens it with the kinds offered, which a story opening a card to read or
@@ -1738,17 +1700,17 @@ public final class ShapeshifterEditorStories {
         play.waitFor(() -> play.expect(play.queryByLabelText("Instruction")).toBeNull());
     }
 
-    // The body's New row. A body whose cards hold lists of their own has one for each, and
+    // The body's add link. A body whose cards hold lists of their own has one for each, and
     // this is for the bodies that have the one.
-    static Query newRow(final Play play) {
-        return cardLine(play, NEW_ROW);
+    static Query addLink(final Play play) {
+        return play.getByTitle(ADD_LINK);
     }
 
-    // A new card of a kind: the New row's kind clicked, which opens it with the kinds offered,
-    // and one chosen from them.
+    // A new card of a kind: the add link pressed, which opens a card whose kind is left to
+    // what is typed, and a kind chosen for it.
     static void newCard(final Play play, final Play screen, final String kind) {
-        play.click(play.getByText(NEW_ROW, CARD_KIND));
-        play.click(screen.findByText(kind, SELECTION_ITEM));
+        play.click(addLink(play));
+        pickFromBox(play, screen, cardEditor(play).getByLabelText("Instruction"), kind);
     }
 
     // Run sits on the document's toolbar, beside Save, whichever tab is showing
@@ -1792,6 +1754,15 @@ public final class ShapeshifterEditorStories {
 
     static Widget render(final StoryContext context, final boolean readOnly) {
         return render(context, readOnly, FIXTURES, DOC_REF);
+    }
+
+    /// The strict_kv document, with some of its routes answered otherwise.
+    ///
+    /// @param context The story's context.
+    /// @param overrides Routes that answer before the document's own.
+    /// @return The editor.
+    static Widget render(final StoryContext context, final RestFixtures overrides) {
+        return render(context, false, overrides.followedBy(FIXTURES), DOC_REF);
     }
 
     // A dialog by a word in its title, as a Play to scope queries to it: nested dialogs (the

@@ -17,6 +17,7 @@
 package stroom.shapeshifter.client.component;
 
 import stroom.alert.client.event.AlertEvent;
+import stroom.shapeshifter.client.model.ControlEscapes;
 import stroom.shapeshifter.client.model.PatternNodes;
 import stroom.shapeshifter.client.model.Templates;
 import stroom.shapeshifter.config.ConfigException;
@@ -141,7 +142,7 @@ public class PatternNodeEditController extends Controller {
         final PatternNode bare = PatternNodes.bare(node);
         if (bare instanceof PatternNode.Tag tag) {
             v.setKind(Kind.TAG);
-            v.setText(tag.text());
+            v.setText(ControlEscapes.escape(tag.text()));
         } else if (bare instanceof PatternNode.TakeWhile take) {
             v.setKind(Kind.TAKE_WHILE);
             v.setText(take.classExpression());
@@ -151,7 +152,7 @@ public class PatternNodeEditController extends Controller {
             v.setKind(until.inclusive()
                     ? Kind.TAKE_THROUGH
                     : Kind.TAKE_UNTIL);
-            v.setText(until.terminator());
+            v.setText(ControlEscapes.escape(until.terminator()));
         } else if (bare instanceof PatternNode.Take take) {
             v.setKind(take.count() == 1
                     ? Kind.ANY
@@ -201,18 +202,22 @@ public class PatternNodeEditController extends Controller {
             final Kind kind = v.getKind();
             final PatternNode bare;
             switch (kind) {
+                // A tag and a terminator are literal text, and the newline that ends a line is
+                // the commonest of them: a text box cannot hold one, so they are spelt as the
+                // delimiter form and the cards spell them, `\n` (ControlEscapes). A regex and a
+                // character class keep their own backslashes, which mean something else.
                 case TAG:
-                    bare = new PatternNode.Tag(required(v.getText(), "A tag needs its text"));
+                    bare = new PatternNode.Tag(literal(v.getText(), "A tag needs its text"));
                     break;
                 case TAKE_WHILE:
                     bare = new PatternNode.TakeWhile(required(v.getText(), "take_while needs a character class"),
                             integer(v.getMin(), 1, "min"), unbounded(v.getMax(), "max"));
                     break;
                 case TAKE_UNTIL:
-                    bare = new PatternNode.TakeUntil(required(v.getText(), "take_until needs a terminator"), false);
+                    bare = new PatternNode.TakeUntil(literal(v.getText(), "take_until needs a terminator"), false);
                     break;
                 case TAKE_THROUGH:
-                    bare = new PatternNode.TakeUntil(required(v.getText(), "take_through needs a terminator"), true);
+                    bare = new PatternNode.TakeUntil(literal(v.getText(), "take_through needs a terminator"), true);
                     break;
                 case TAKE:
                     bare = new PatternNode.Take(integer(v.getCount(), 1, "count"));
@@ -267,6 +272,11 @@ public class PatternNodeEditController extends Controller {
         return children.size() == 1
                 ? children.get(0)
                 : new PatternNode.Sequence(children);
+    }
+
+    // Literal text as the form spells it, read into what the model holds.
+    private static String literal(final String text, final String message) {
+        return required(ControlEscapes.unescape(text), message);
     }
 
     private static String required(final String text, final String message) {

@@ -23,10 +23,16 @@
     cursor: grabbing;
 }
 
-/* On a list's New row, where there is nothing to drag: there, so that the row's kind stands
-   under the kinds above it, and never seen. */
-.body-card__grip--none {
-    visibility: hidden;
+/* The link a list ends with, `+ instruction`, on a line of its own under the rows and stepped
+   in as they are. */
+.body-card__add {
+    padding: 3px 12px 4px calc(12px + var(--body-card__depth, 0) * 16px);
+    font-size: 12.5px;
+}
+
+/* A card dragged over a list's add line lands at the end of that list. */
+.body-card__add--drop {
+    box-shadow: inset 0 2px 0 0 var(--focus-border);
 }
 
 .body-card__card--dragging {

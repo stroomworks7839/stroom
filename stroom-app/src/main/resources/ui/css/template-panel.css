@@ -59,8 +59,11 @@
     flex-wrap: wrap;
 }
 
+/* The size the heading has always had, said on the name itself: the heading is a line now
+   whether or not it carries a note, and the name is a label in it. */
 .template-panel__mode-name {
     flex: none;
+    font-size: 11px;
 }
 
 /* Quieter than the heading it follows, and italic so it reads as a remark rather than a name.
@@ -69,4 +72,45 @@
     flex-basis: 100%;
     font-style: italic;
     opacity: .75;
+}
+
+/* The add links: `+ template` under a mode's templates and `+ mode` under the modes, each on a
+   line of its own, starting where the rows start. */
+.template-panel__add {
+    padding: 1px 10px 3px;
+}
+
+/* The modes' own, set off from the last mode's list above it. */
+.template-panel__add--mode {
+    padding-top: 9px;
+}
+
+/* A mode's heading, when it is the way to the mode: a row to press, and to be the selected
+   one. */
+.template-panel__mode-row {
+    cursor: pointer;
+    outline: none;
+}
+
+.template-panel__mode-row:hover {
+    background-color: var(--row__background-color--hovered);
+}
+
+.template-panel__mode-row:focus-visible {
+    box-shadow: inset 0 0 0 1px var(--focus-border);
+}
+
+.template-panel__mode-row--selected,
+.template-panel__mode-row--selected:hover {
+    background-color: var(--row__background-color--selected);
+}
+
+/* On the selection's fill the heading and its note are the selection's own colour, as a
+   row's count is. */
+.template-panel__mode-row--selected .template-panel__mode-head {
+    color: var(--text-color--selected);
+}
+
+.template-panel__mode-row--selected .template-panel__mode-note {
+    opacity: 1;
 }

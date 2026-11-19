@@ -42,7 +42,6 @@ import stroom.widget.component.client.Listeners;
 import stroom.widget.util.client.MouseUtil;
 
 import com.google.inject.Inject;
-import com.google.inject.Provider;
 import com.google.web.bindery.event.shared.EventBus;
 import com.google.web.bindery.event.shared.HandlerRegistration;
 
@@ -70,33 +69,42 @@ public class TemplatePanelController extends Controller {
 
     private TemplatePanel view;
 
-    private final Provider<TemplateEditController> editPresenterProvider;
-    private final Provider<ModeEditorController> modeEditorProvider;
-    private final Provider<NameEditorController> namePromptProvider;
     private ToolbarButton addButton;
-    private ToolbarButton editButton;
     private ToolbarButton removeButton;
     private ToolbarButton upButton;
     private ToolbarButton downButton;
-    private ToolbarButton modesButton;
     private ToolbarButton patternButton;
 
     private ProjectHost host;
 /// The panel's own rows, which are not templates and cannot collide with a template id.
     private static final String SETTINGS_ROW = "settings:";
+    // The add links (design 47 B): the one a mode's list ends with, by the mode's name after
+    // the prefix — nothing after it for the root — and the one the modes end with.
+    private static final String NEW_TEMPLATE_ROW = "new:template:";
+    private static final String NEW_MODE_ROW = "new:mode";
+    // A mode's heading, by the mode's name after the prefix: the way to the mode's own pane.
+    private static final String MODE_ROW = "mode:";
+    // What a template and a mode are called until they are named (the owner, 2026-11-18)
+    private static final String NEW_TEMPLATE = "new template";
+    private static final String NEW_MODE = "new mode";
+    private static final String NEW_PART = "new part";
 
     private String selected;
+    private Consumer<String> onCreated = id -> {
+    };
+    private Consumer<String> onOpened = id -> {
+    };
 
     @Inject
-    public TemplatePanelController(final EventBus eventBus,
-                                  final Provider<TemplateEditController> editPresenterProvider,
-                                  final Provider<ModeEditorController> modeEditorProvider,
-                                  final Provider<NameEditorController> namePromptProvider) {
+    public TemplatePanelController(final EventBus eventBus) {
         super(eventBus);
-        watch(Contexts.READ_ONLY, readOnly -> this.readOnly = readOnly);
-        this.editPresenterProvider = editPresenterProvider;
-        this.modeEditorProvider = modeEditorProvider;
-        this.namePromptProvider = namePromptProvider;
+        watch(Contexts.READ_ONLY, readOnly -> {
+            this.readOnly = readOnly;
+            // The add links are there only while the project can be added to
+            if (view != null && host != null) {
+                refresh();
+            }
+        });
     }
 
     /// Attaches this to a panel, e.g. one a template declares, and adds its actions to the panel's
@@ -110,17 +118,17 @@ public class TemplatePanelController extends Controller {
         view.setOnSelect(this::onSelect);
         view.setOnOpen(this::onOpen);
         view.setOnHover(this::onHover);
+        // Add, remove, up and down, and the pattern parts' own add. There is no Edit: what is
+        // selected is shown beside the list, and its name and settings are edited there. And
+        // no Modes: a mode is a row of the list like a template, added, renamed and removed as
+        // one is (the owner, 2026-11-18).
         addButton = view.getToolbar().button(SvgImage.ADD, "Add template", () -> {
-        });
-        editButton = view.getToolbar().button(SvgImage.EDIT, "Edit template", () -> {
         });
         removeButton = view.getToolbar().button(SvgImage.DELETE, "Remove template", () -> {
         });
         upButton = view.getToolbar().button(SvgImage.UP, "Move up: earlier in dispatch order", () -> {
         });
         downButton = view.getToolbar().button(SvgImage.DOWN, "Move down: later in dispatch order", () -> {
-        });
-        modesButton = view.getToolbar().button(SvgImage.TAGS, "Modes: add, rename or remove", () -> {
         });
         patternButton = view.getToolbar().button(SvgImage.LINK,
                 "Add a pattern part: a tree defined once, named with ref from any template",
@@ -130,11 +138,6 @@ public class TemplatePanelController extends Controller {
         own(addButton.addClickHandler(event -> {
             if (MouseUtil.isPrimary(event)) {
                 onAdd();
-            }
-        }));
-        own(editButton.addClickHandler(event -> {
-            if (MouseUtil.isPrimary(event)) {
-                editSelected();
             }
         }));
         own(removeButton.addClickHandler(event -> {
@@ -150,13 +153,6 @@ public class TemplatePanelController extends Controller {
         own(downButton.addClickHandler(event -> {
             if (MouseUtil.isPrimary(event)) {
                 onMove(1);
-            }
-        }));
-        own(modesButton.addClickHandler(event -> {
-            if (MouseUtil.isPrimary(event) && host.getProject() != null) {
-                final ModeEditorController modes = modeEditorProvider.get();
-                modes.setHost(host);
-                modes.show(this);
             }
         }));
         own(patternButton.addClickHandler(event -> {
@@ -185,12 +181,105 @@ public class TemplatePanelController extends Controller {
     }
 
     public void onSelect(final String id) {
-        select(id, true);
+        if (NEW_MODE_ROW.equals(id)) {
+            addMode();
+        } else if (id != null && id.startsWith(NEW_TEMPLATE_ROW)) {
+            final String mode = id.substring(NEW_TEMPLATE_ROW.length());
+            addTemplate(mode.isEmpty()
+                    ? null
+                    : mode);
+        } else {
+            select(id, true);
+        }
+    }
+
+    /// @param onCreated Told when a template, a mode or a pattern part has been made here, with its row's id,
+    ///                  once it is the selected one: naming it is the next thing to do.
+    public void setOnCreated(final Consumer<String> onCreated) {
+        this.onCreated = onCreated;
+    }
+
+    /// @param onOpened Told when a row is opened — double-clicked — with its id, once it is the
+    ///                 selected one: its name is what the author is after.
+    public void setOnOpened(final Consumer<String> onOpened) {
+        this.onOpened = onOpened;
+    }
+
+    /// The row that stands for a mode.
+    ///
+    /// @param mode The mode's name.
+    /// @return Its row's id.
+    public static String modeRowId(final String mode) {
+        return MODE_ROW + mode;
+    }
+
+    /// @param rowId A row's id.
+    /// @return The mode it stands for, or null when it is not a mode's row.
+    public static String modeOf(final String rowId) {
+        return rowId != null && rowId.startsWith(MODE_ROW)
+                ? rowId.substring(MODE_ROW.length())
+                : null;
+    }
+
+    private static String newTemplateRow(final String mode) {
+        return NEW_TEMPLATE_ROW + (mode == null
+                ? ""
+                : mode);
+    }
+
+    /// Adds a template to a mode, there and then (design 47 B; the owner, 2026-11-18): an
+    /// ordinary template, whose matches count, bind and write, with a regex for its match and
+    /// nothing in it yet, called `new template` until it is named. It is selected, and
+    /// whoever is told through [#setOnCreated] opens its name to be changed. Nothing is
+    /// named in this list, and there is no dialog.
+    ///
+    /// @param mode The mode it goes in, or null for the root.
+    public void addTemplate(final String mode) {
+        if (readOnly || host == null || host.getProject() == null) {
+            return;
+        }
+        final List<String> names = new ArrayList<>();
+        for (final Template template : host.getProject().templates()) {
+            names.add(template.name());
+        }
+        final Template template = Templates.create(unused(NEW_TEMPLATE, names), mode, false);
+        host.replace(host.withTemplate(template));
+        select(template.id(), true);
+        onCreated.accept(template.id());
+    }
+
+    // A mode, there and then: called `new mode` until it is named, and with no template in it
+    // yet, so it is the editor's to remember until one is.
+    private void addMode() {
+        if (readOnly || host == null || host.getProject() == null) {
+            return;
+        }
+        final String mode = unused(NEW_MODE, host.modes());
+        host.declareMode(mode);
+        refresh();
+        select(modeRowId(mode), true);
+        onCreated.accept(modeRowId(mode));
+    }
+
+    // A name nothing has yet: the name itself, or the name and the first number that makes it
+    // one. A call names a template and a dispatch names a mode, so two of a name would be two
+    // things that cannot be told apart.
+    private static String unused(final String name, final List<String> taken) {
+        if (!taken.contains(name)) {
+            return name;
+        }
+        int n = 2;
+        while (taken.contains(name + " " + n)) {
+            n++;
+        }
+        return name + " " + n;
     }
 
     public void onOpen(final String id) {
         select(id, true);
-        editSelected();
+        if (!readOnly) {
+            onOpened.accept(id);
+        }
     }
 
     public void onHover(final String id) {
@@ -252,7 +341,20 @@ public class TemplatePanelController extends Controller {
         }
     }
 
+    /// The selection becomes a row that is about to be there, with no one told: for a row being
+    /// renamed, so that the selection goes with it when the panel is next refreshed rather than
+    /// being lost and found again — losing it moves the cursor to the document (design 47 §7.8,
+    /// finding 5).
+    ///
+    /// @param id The row's id as it will be.
+    public void follow(final String id) {
+        selected = id;
+    }
+
     /// Re-read the rows from the host's project, keeping the selection by id where it survives.
+    /// Where it does not, nothing is selected, and that is said: what showed it — a mode's pane,
+    /// a part's workbench — would otherwise go on showing what is no longer in the list
+    /// (design 47 §7.8, finding 6).
     public void refresh() {
         final Project project = host.getProject();
         final List<TemplateRowData> rows = new ArrayList<>();
@@ -276,6 +378,16 @@ public class TemplatePanelController extends Controller {
                     modes.add(template.mode());
                 }
             }
+            // ...and then the modes that have been named and have no template yet. They used
+            // to be nowhere in the panel; each is now a heading over its `+ template`, which is
+            // where its first template is made.
+            if (!readOnly) {
+                for (final String mode : host.modes()) {
+                    if (!modes.contains(mode)) {
+                        modes.add(mode);
+                    }
+                }
+            }
             final TraceModel trace = host.trace();
             // One walk of the project for every mode, rather than one per mode: refresh runs on
             // every committed edit and again after every run.
@@ -285,6 +397,11 @@ public class TemplatePanelController extends Controller {
                 final String section = mode == null
                         ? "root"
                         : "mode: " + mode;
+                // A named mode's heading is the way to the mode itself
+                final String sectionId = mode == null
+                        ? null
+                        : modeRowId(mode);
+                survives |= sectionId != null && sectionId.equals(selected);
                 // The document template heads the root group and is fixed there: it is the
                 // outermost execution, and everything in that group is dispatched from its body.
                 final Template document = mode == null
@@ -329,12 +446,28 @@ public class TemplatePanelController extends Controller {
                         // The heading is drawn from the first row of the mode, so the note rides
                         // on that row.
                         rows.add(firstOfMode
-                                ? row.setSectionNote(note)
+                                ? row.setSectionNote(note).setSectionId(sectionId)
                                 : row);
                         firstOfMode = false;
                         survives |= template.id().equals(selected);
                     }
                 }
+                if (!readOnly) {
+                    // The list ends with `+ template`, which is where a template is added to
+                    // this mode
+                    final TemplateRowData add = TemplateRowData.fresh(newTemplateRow(mode), "+ template",
+                            section, "Click to add a template to " + (mode == null
+                                    ? "the root"
+                                    : "mode " + mode));
+                    rows.add(firstOfMode
+                            ? add.setSectionNote(note).setSectionId(sectionId)
+                            : add);
+                }
+            }
+            if (!readOnly) {
+                // ...and the modes end with theirs
+                rows.add(TemplateRowData.fresh(NEW_MODE_ROW, "+ mode", null,
+                        "Click to add a mode, and its first template"));
             }
             // The library's parts (design 44 §3): each with how many trees name it.
             for (final String name : project.patterns().keySet()) {
@@ -346,11 +479,15 @@ public class TemplatePanelController extends Controller {
             }
         }
         view.setRows(rows);
+        final boolean lost = !survives && selected != null;
         if (!survives) {
             selected = null;
         }
         view.setSelected(selected);
         enableButtons();
+        if (lost) {
+            selectionListeners.fire(null);
+        }
     }
 
     /// The row that stands for the project's settings.
@@ -419,10 +556,13 @@ public class TemplatePanelController extends Controller {
         // siblings, because every project has exactly one and it is always the head of the root.
         final boolean fixed = template && isDocument(host.template(selected));
         addButton.setEnabled(editable && !data);
-        modesButton.setEnabled(host != null && host.getProject() != null && !data);
         patternButton.setEnabled(editable && host.getProject() != null && !data);
-        editButton.setEnabled(editable && (template || pattern));
-        removeButton.setEnabled(editable && (template || pattern) && !fixed);
+        // A mode goes only when it has no templates: removing one with templates would be
+        // removing them, or leaving them nowhere.
+        final String mode = modeOf(selected);
+        final boolean emptyMode = mode != null && host != null && host.getProject() != null
+                                  && Modes.templateCount(host.getProject(), mode) == 0;
+        removeButton.setEnabled(editable && ((template || pattern) && !fixed || emptyMode));
         final int index = template && !fixed
                 ? indexOf(selected)
                 : -1;
@@ -452,34 +592,20 @@ public class TemplatePanelController extends Controller {
         return -1;
     }
 
+    // The toolbar's Add: a template in the mode the selected template is in, or the selected
+    // mode itself. The same thing its list's `+ template` does.
     private void onAdd() {
-        if (readOnly) {
+        final String mode = modeOf(selected);
+        if (mode != null) {
+            addTemplate(mode);
             return;
         }
-        final Template current = host.template(selected);
-        // Not a skipping template: an ordinary one, whose matches count, bind and write (D36's
-        // eater is a deliberate choice, made with the tick in the dialog).
-        final TemplateEditController editor = editPresenterProvider.get();
-        editor.read(host, Templates.create("", current == null
+        final Template current = host == null
                 ? null
-                : current.mode(), false), null);
-        editor.show(this, "New Template", e -> {
-            if (e.isOk()) {
-                final Template template = editor.write();
-                if (template != null) {
-                    host.replace(host.withTemplate(template));
-                    host.setColour(template.id(), editor.getColour());
-                    select(template.id(), true);
-                    e.hide();
-                } else {
-                    // Nothing was written, so the dialog stays open — and its OK button has to come back
-                    // out of its busy state, or the alert leaves it spinning for good.
-                    e.reset();
-                }
-            } else {
-                e.hide();
-            }
-        });
+                : host.template(selected);
+        addTemplate(current == null
+                ? null
+                : current.mode());
     }
 
     /// The dispatch strategy in force for a mode, where that is news (design 46 §10 W4).
@@ -520,21 +646,13 @@ public class TemplatePanelController extends Controller {
         if (project == null || readOnly) {
             return;
         }
-        namePromptProvider.get().prompt(this,
-                "New Pattern Part", "pattern part", Patterns.HELP, "", project.patterns().keySet(), name -> {
-                    host.replace(Patterns.define(project, name, new PatternNode.Regex("", null)));
-                    select(Patterns.rowId(name), true);
-                });
-    }
-
-    private void renamePattern(final String from) {
-        final Project project = host.getProject();
-        namePromptProvider.get().prompt(this,
-                "Rename Pattern Part", "pattern part", Patterns.HELP, from, project.patterns().keySet(),
-                name -> {
-                    host.replace(Patterns.rename(project, from, name));
-                    select(Patterns.rowId(name), true);
-                });
+        // There and then, called `new part` and shown with its name open, as a template and a
+        // mode are (design 47 §7.2, finding 15): a part is named where it is shown, which is
+        // the workbench. The prompt is left to Extract, where the part is not on screen.
+        final String name = unused(NEW_PART, new ArrayList<>(project.patterns().keySet()));
+        host.replace(Patterns.define(project, name, new PatternNode.Regex("", null)));
+        select(Patterns.rowId(name), true);
+        onCreated.accept(Patterns.rowId(name));
     }
 
     private void removePattern(final String name) {
@@ -554,54 +672,15 @@ public class TemplatePanelController extends Controller {
         });
     }
 
-    /// Open the selected template's name, mode and consume for editing; the strip's header calls this too.
-    public void editSelected() {
-        if (selectedPattern() != null) {
-            if (!readOnly) {
-                renamePattern(selectedPattern());
-            }
-            return;
-        }
-        final Template existing = host.template(selected);
-        if (existing == null || readOnly) {
-            return;
-        }
-        final TemplateEditController editor = editPresenterProvider.get();
-        editor.read(host, existing, overrideOf(existing.id()));
-        editor.show(this, "Edit Template", e -> {
-            if (e.isOk()) {
-                final Template template = editor.write();
-                if (template != null) {
-                    if (!template.equals(existing)) {
-                        host.replace(host.withTemplate(template));
-                    }
-                    host.setColour(template.id(), editor.getColour());
-                    e.hide();
-                } else {
-                    // Nothing was written, so the dialog stays open — and its OK button has to come back
-                    // out of its busy state, or the alert leaves it spinning for good.
-                    e.reset();
-                }
-            } else {
-                e.hide();
-            }
-        });
-    }
-
-    /// The colour the author chose for a template, or null when it wears the palette's.
-    private String overrideOf(final String id) {
-        final String colour = host.colour(id);
-        final int index = indexOf(id);
-        return index >= 0 && colour.equals(Templates.colour(index))
-                ? null
-                : colour;
-    }
-
     private void onRemove() {
         if (selectedPattern() != null) {
             if (!readOnly) {
                 removePattern(selectedPattern());
             }
+            return;
+        }
+        if (modeOf(selected) != null) {
+            removeMode(modeOf(selected));
             return;
         }
         final Template existing = host.template(selected);
@@ -617,6 +696,34 @@ public class TemplatePanelController extends Controller {
                 templates.removeIf(t -> t.id().equals(existing.id()));
                 selected = null;
                 host.replace(project.withTemplates(templates));
+            }
+        });
+    }
+
+    // A mode with no templates in it, removed. One the project does not hold yet — named, and
+    // nothing in it or pointing at it — is simply forgotten. One that dispatches still point
+    // at is asked about first: those become dispatches into the root.
+    private void removeMode(final String mode) {
+        final Project project = host.getProject();
+        if (project == null || readOnly || Modes.templateCount(project, mode) > 0) {
+            return;
+        }
+        final int sites = Modes.applySiteCount(project, mode);
+        if (sites == 0) {
+            host.forgetMode(mode);
+            selected = null;
+            refresh();
+            selectionListeners.fire(null);
+            return;
+        }
+        final String message = "Remove mode '" + mode + "'? " + sites + (sites == 1
+                ? " apply-templates site still dispatches"
+                : " apply-templates sites still dispatch") + " into it; those become dispatches into the"
+                               + " root, and the messages will say so.";
+        ConfirmEvent.fire(this, message, ok -> {
+            if (ok) {
+                selected = null;
+                host.replace(Modes.removeSites(project, mode));
             }
         });
     }

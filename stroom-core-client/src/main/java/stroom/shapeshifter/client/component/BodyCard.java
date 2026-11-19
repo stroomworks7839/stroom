@@ -30,6 +30,9 @@ import com.google.gwt.core.client.GWT;
 import com.google.gwt.dom.client.DataTransfer;
 import com.google.gwt.dom.client.Element;
 import com.google.gwt.event.dom.client.ClickEvent;
+import com.google.gwt.event.dom.client.DragLeaveEvent;
+import com.google.gwt.event.dom.client.DragOverEvent;
+import com.google.gwt.event.dom.client.DropEvent;
 import com.google.gwt.event.dom.client.KeyCodes;
 import com.google.gwt.event.dom.client.KeyDownEvent;
 import com.google.gwt.uibinder.client.UiBinder;
@@ -49,11 +52,6 @@ import java.util.List;
 ///
 /// Clicked, or Enter pressed on it, the card opens: its line gives way to its editor, in place
 /// (design 47 D). Clicking its kind opens it with the kinds offered.
-///
-/// **A list ends with a New row** ([#newRow]), which is a row like the others and not a field
-/// waiting to be typed into (the owner, 2026-11-18): it is selected and walked to as they are,
-/// its kind reads `new`, and opened it is a card's editor whose kind is `auto` until one is
-/// chosen.
 public class BodyCard extends Composite {
 
     private static final Binder BINDER = GWT.create(Binder.class);
@@ -78,20 +76,20 @@ public class BodyCard extends Composite {
 
     private final int[] path;
     private final Body.CardActions handlers;
-    // Whether this is a list's New row rather than a card.
-    private final boolean fresh;
     /// The card being dragged, across every card on the page. The drag data would be the tidier
     /// home for it, but a drag within one page has one subject at a time and reading the data
     /// during dragover is not allowed by the browser — which is exactly when the drop indicator
     /// has to decide whether it may land here.
     private static BodyCard dragging;
 
+    // The add line a dragged card would land at the end of, marked as a card's half is.
+    private static final String DROP_AT_END = "body-card__add--drop";
+
     public BodyCard(final int[] listPath, final int index, final OutputNode node, final int count,
                     final CardNote runNote, final Body.CardActions handlers, final boolean enabled,
                     final boolean topLevel) {
         this.path = Bodies.child(listPath, index);
         this.handlers = handlers;
-        this.fresh = false;
         initWidget(BINDER.createAndBindUi(this));
         row(index, count);
         final Widget editor = enabled
@@ -154,35 +152,6 @@ public class BodyCard extends Composite {
         }
     }
 
-    // A list's New row: where its next card will go, so it has the path that card will have.
-    private BodyCard(final int[] listPath, final int index, final Body.CardActions handlers) {
-        this.path = Bodies.child(listPath, index);
-        this.handlers = handlers;
-        this.fresh = true;
-        initWidget(BINDER.createAndBindUi(this));
-        row(index, index + 1);
-        editing.setVisible(false);
-        kind.setText("new");
-        kind.setTitle("Click to choose what kind of instruction to add");
-        summary.setText("add an instruction");
-        head.setTitle("Click to add an instruction");
-        // There, so that the row's kind stands under the kinds above it, and not to be seen:
-        // there is nothing here to drag
-        grip.addStyleName("body-card__grip--none");
-        swatch.setVisible(false);
-        note.setVisible(false);
-    }
-
-    /// The row a list that can be changed ends with: where a card is added.
-    ///
-    /// @param listPath The list's path.
-    /// @param index How many cards the list has, which is where the next will go.
-    /// @param handlers What the row tells.
-    /// @return The row.
-    public static BodyCard newRow(final int[] listPath, final int index, final Body.CardActions handlers) {
-        return new BodyCard(listPath, index, handlers);
-    }
-
     // What makes this a row of the list: the pointer and the keys, and what the body asks of it.
     private void row(final int index, final int count) {
         head.addClickHandler(event -> onHead(event));
@@ -195,11 +164,6 @@ public class BodyCard extends Composite {
         head.addBlurHandler(event -> focused[0] = false);
         kind.addClickHandler(event -> onKind(event));
         handlers.onCardShown(Bodies.path(path), new Body.Row() {
-            @Override
-            public boolean isCard() {
-                return !fresh;
-            }
-
             @Override
             public void focus() {
                 // The element's own focus, which is immediate. The panel's setFocus is put off
@@ -290,6 +254,32 @@ public class BodyCard extends Composite {
         });
     }
 
+    /// Makes a list's add line take a dropped card, which lands at the end of that list (design
+    /// 18 §5.6) — also how an empty branch gets its first card by dragging (design 47 §7.2,
+    /// finding 17). A holder is refused a drop into its own lists, as a card refuses one.
+    ///
+    /// @param line The add line.
+    /// @param listPath The list it ends.
+    /// @param count How many cards the list holds: where a dropped card goes.
+    /// @param handlers Told of the drop.
+    static void acceptDropsAtEnd(final Widget line, final int[] listPath, final int count,
+                                 final Body.CardActions handlers) {
+        line.addDomHandler(e -> {
+            if (dragging != null && !Bodies.isWithin(listPath, dragging.path)) {
+                e.preventDefault();
+                line.addStyleName(DROP_AT_END);
+            }
+        }, DragOverEvent.getType());
+        line.addDomHandler(e -> line.removeStyleName(DROP_AT_END), DragLeaveEvent.getType());
+        line.addDomHandler(e -> {
+            e.preventDefault();
+            line.removeStyleName(DROP_AT_END);
+            if (dragging != null && !Bodies.isWithin(listPath, dragging.path)) {
+                handlers.onDrop(Bodies.path(dragging.path), Bodies.path(listPath), count);
+            }
+        }, DropEvent.getType());
+    }
+
     /// Whether this card may take the drop: something is being dragged, and it is not this one.
     private boolean accepts() {
         return dragging != null && dragging != this;
@@ -306,18 +296,7 @@ public class BodyCard extends Composite {
     }
 
     private void onHead(final ClickEvent e) {
-        open(false);
-    }
-
-    // The row opened: a card's own editor in its place, or for the New row a new card's.
-    private void open(final boolean kinds) {
-        if (fresh) {
-            handlers.onNew(Bodies.path(Bodies.parent(path)), path[path.length - 1], kinds);
-        } else if (kinds) {
-            handlers.onEditKind(Bodies.path(path));
-        } else {
-            handlers.onEdit(Bodies.path(path));
-        }
+        handlers.onEdit(Bodies.path(path));
     }
 
     // The keys of a row in a list. The arrows, Home and End move among the rows; Enter opens
@@ -333,8 +312,8 @@ public class BodyCard extends Composite {
         final int key = event.getNativeKeyCode();
         final String at = Bodies.path(path);
         if (key == KeyCodes.KEY_ENTER) {
-            open(false);
-        } else if (key == KeyCodes.KEY_DELETE && !fresh) {
+            handlers.onEdit(at);
+        } else if (key == KeyCodes.KEY_DELETE) {
             handlers.onRemove(at);
         } else if (key == KeyCodes.KEY_UP) {
             handlers.onNavigate(at, Body.Step.PREVIOUS);
@@ -352,7 +331,7 @@ public class BodyCard extends Composite {
 
     private void onKind(final ClickEvent e) {
         e.stopPropagation();
-        open(true);
+        handlers.onEditKind(Bodies.path(path));
     }
 
     /// A holder's branch: its head line and the nested list.

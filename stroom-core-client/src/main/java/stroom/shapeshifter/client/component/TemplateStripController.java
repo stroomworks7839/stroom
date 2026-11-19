@@ -16,30 +16,41 @@
 
 package stroom.shapeshifter.client.component;
 
+import stroom.alert.client.event.AlertEvent;
+import stroom.dispatch.client.RestFactory;
 import stroom.shapeshifter.client.model.GuardClause;
 import stroom.shapeshifter.client.model.Hot;
 import stroom.shapeshifter.client.model.MatchRole;
+import stroom.shapeshifter.client.model.Modes;
 import stroom.shapeshifter.client.model.Profile;
 import stroom.shapeshifter.client.model.ProjectHost;
 import stroom.shapeshifter.client.model.Templates;
 import stroom.shapeshifter.client.model.TraceModel;
 import stroom.shapeshifter.config.Condition;
+import stroom.shapeshifter.config.Dispatch;
+import stroom.shapeshifter.config.MatchExpression;
 import stroom.shapeshifter.config.OutputNode;
 import stroom.shapeshifter.config.OutputNode.ApplyTemplates;
 import stroom.shapeshifter.config.OutputNode.Holder;
 import stroom.shapeshifter.config.Project;
 import stroom.shapeshifter.config.Template;
 import stroom.shapeshifter.config.Template.MatchLimits;
+import stroom.shapeshifter.shared.ShapeshifterPatternRequest;
+import stroom.shapeshifter.shared.ShapeshifterResource;
 import stroom.shapeshifter.shared.ShapeshifterTrace.Timing;
 import stroom.widget.component.client.Contexts;
 import stroom.widget.component.client.Controller;
 
+import com.google.gwt.core.client.GWT;
+import com.google.gwt.core.client.Scheduler;
+import com.google.gwt.user.client.Timer;
 import com.google.inject.Inject;
 import com.google.web.bindery.event.shared.EventBus;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 /// The template strip (design 18 §5.6): "what it is", beneath the panes that say what
@@ -49,6 +60,11 @@ import java.util.function.Consumer;
 /// body as cards, with what it declares and captures listed above them.
 /// For the project row the strip shows the document: its name and source settings.
 public class TemplateStripController extends Controller {
+
+    private static final ShapeshifterResource RESOURCE = GWT.create(ShapeshifterResource.class);
+    // Long enough that a pattern typed at speed is asked about once, short enough to read as
+    // an answer to what was typed.
+    private static final int MATCH_INSPECT_DELAY_MS = 250;
 
     // From Contexts.READ_ONLY: true until the document says otherwise, so a
     // controller with no owner fails closed rather than editable.
@@ -60,26 +76,60 @@ public class TemplateStripController extends Controller {
     private final BodyController bodyPresenter;
     private final DeclarationsController declarations;
     private final CapturesController captures;
+    // A template's settings, open under its name while its title is (the owner, 2026-11-18).
+    // One for the strip's life, read afresh each time it opens, so the encodings it offers are
+    // fetched once rather than each time a title opens (design 47 §7.8, finding 7).
+    private final TemplateEditController settings;
+    private final RestFactory restFactory;
+    // The pattern last sent to the engine from the open match field: an answer for any other
+    // arrived late and is not shown (design 47 §7.2, finding 14).
+    private ShapeshifterPatternRequest matchInspected;
+    private final Timer matchTimer = new Timer() {
+        @Override
+        public void run() {
+            inspectMatch();
+        }
+    };
 
     private ProjectHost host;
-    private Runnable onEditIdentity = () -> {
-    };
     private Consumer<String> onOpenWorkbench = templateId -> {
     };
+    private Consumer<String> onSelectTemplate = id -> {
+    };
+    private Consumer<String> onAddTemplate = mode -> {
+    };
+    private BiConsumer<String, String> onRenameMode = (from, to) -> {
+    };
+    // What is shown: a template, or a mode, or neither — the project. Never both.
     private String templateId;
+    private String mode;
+    // The mode's templates, by their place in its list
+    private List<String> modeTemplates = List.of();
+    // Whether a template's title is open, with its settings under its name: what they and the
+    // name hold is a draft. A mode has a name and no settings.
+    private boolean settingsOpen;
+    // Whether what is being named was only just made: taking its name with Enter then goes on
+    // to the next thing to say about it.
+    private boolean fresh;
 
     @Inject
     public TemplateStripController(final EventBus eventBus,
                                   final SourceSettingsController sourceConfig,
                                   final BodyController bodyPresenter,
                                   final DeclarationsController declarations,
-                                  final CapturesController captures) {
+                                  final CapturesController captures,
+                                  final TemplateEditController settings,
+                                  final RestFactory restFactory) {
         super(eventBus);
+        this.restFactory = restFactory;
         watch(Contexts.READ_ONLY, readOnly -> this.readOnly = readOnly);
         this.sourceConfig = own(sourceConfig);
         this.bodyPresenter = own(bodyPresenter);
         this.declarations = own(declarations);
         this.captures = own(captures);
+        this.settings = own(settings);
+        settings.setOnCommit(() -> takeTitle(false));
+        settings.setOnCancel(this::dropTitle);
     }
 
     /// Attaches this to a strip, e.g. one a template declares, and its declarations and captures
@@ -91,8 +141,24 @@ public class TemplateStripController extends Controller {
         this.view = Objects.requireNonNull(view, "view");
         initWidget(view);
         view.setOnEditIdentity(this::onEditIdentity);
+        view.setOnNameEnter(() -> takeTitle(true));
+        view.setOnNameCancel(this::dropTitle);
+        view.getTemplates().setOnEdit(index -> {
+            if (index >= 0 && index < modeTemplates.size()) {
+                onSelectTemplate.accept(modeTemplates.get(index));
+            }
+        });
+        view.getTemplates().setOnAdd(() -> {
+            if (mode != null) {
+                onAddTemplate.accept(mode);
+            }
+        });
+        view.setOnDispatchLink(this::onDispatchFromDocument);
+        view.setOnModeDispatch(this::onModeDispatch);
         view.setOnRole(this::onRole);
         view.setOnOpenWorkbench(this::onOpenWorkbench);
+        view.setOnMatch(this::onMatch);
+        view.setOnMatchTyped(pattern -> matchTimer.schedule(MATCH_INSPECT_DELAY_MS));
         declarations.attach(view.getDeclarations());
         captures.attach(view.getCaptures());
         return this;
@@ -106,11 +172,130 @@ public class TemplateStripController extends Controller {
         captures.setHost(host);
     }
 
-    /// Told when the template's identity is to be edited.
+    /// @param onSelectTemplate Told when one of a mode's templates is pressed in the mode's
+    ///                         own list, with its id.
+    public void setOnSelectTemplate(final Consumer<String> onSelectTemplate) {
+        this.onSelectTemplate = onSelectTemplate;
+    }
+
+    /// @param onAddTemplate Told when a template is asked for from a mode's own list, with the
+    ///                      mode.
+    public void setOnAddTemplate(final Consumer<String> onAddTemplate) {
+        this.onAddTemplate = onAddTemplate;
+    }
+
+    /// @param onRenameMode Asked to rename the mode shown, with its name and the name it is to
+    ///                     have, once the name is known to be free. The owner renames it, so
+    ///                     that what is selected — the row that stands for it — goes with the
+    ///                     name rather than being lost and found again, which moved the cursor
+    ///                     (design 47 §7.8, finding 5).
+    public void setOnRenameMode(final BiConsumer<String, String> onRenameMode) {
+        this.onRenameMode = onRenameMode;
+    }
+
+    /// Shows again what is shown, as the project has it now.
+    public void refresh() {
+        if (mode != null) {
+            setMode(mode);
+        } else {
+            setTemplate(templateId);
+        }
+    }
+
+    /// Show a mode: its name, which is edited there, and the templates in it (the owner,
+    /// 2026-11-18). A mode is a name its templates share and its dispatches point at, so this
+    /// is all there is of one; renaming it here renames it on both.
     ///
-    /// @param onEditIdentity The handler.
-    public void setOnEditIdentity(final Runnable onEditIdentity) {
-        this.onEditIdentity = onEditIdentity;
+    /// @param mode The mode.
+    public void setMode(final String mode) {
+        if (templateId != null || !Objects.equals(mode, this.mode)) {
+            bodyPresenter.leave();
+            leaveTitle();
+            leaveMatch();
+        }
+        this.templateId = null;
+        this.mode = mode;
+        final Project project = host.getProject();
+        final List<DefinitionList.Row> rows = new ArrayList<>();
+        final List<String> ids = new ArrayList<>();
+        if (project != null) {
+            for (final Template template : project.templates()) {
+                if (mode.equals(template.mode())) {
+                    rows.add(new DefinitionList.Row(template.name(),
+                            Templates.kind(template.match()) + " " + Templates.describe(template.match())));
+                    ids.add(template.id());
+                }
+            }
+        }
+        modeTemplates = ids;
+        view.setHeader("mode", null, mode, rows.size() == 1
+                ? "1 template"
+                : rows.size() + " templates", "");
+        final Modes.DispatchState state = project == null
+                ? new Modes.DispatchState(0, true, null, false, null)
+                : Modes.dispatchState(project, mode);
+        view.setModeDispatch(state.dispatch(), !readOnly && state.sites() > 0 && state.agreed(),
+                dispatchNote(state), !readOnly && state.offered());
+        view.setNameEditable(!readOnly, "Edit the name", "Mode name");
+        view.setRole(false, MatchRole.RECORD, false, "", false);
+        view.setMatchVisible(false);
+        view.setDetailsVisible(false);
+        view.setContent(null);
+        view.getTemplates().setRows(rows);
+        view.getTemplates().setEnabled(!readOnly);
+        view.setTemplatesVisible(true);
+        if (!view.isNameOpen()) {
+            // Read only now: the name being typed went with the field
+            closeTitle();
+        }
+    }
+
+    // What is true of a mode's dispatch, said beside its picker: that nothing dispatches into
+    // it — the half of the two-part edit still to do (design 46 §5.4) — and, where the
+    // document cannot simply be pointed at it, why not and what to do instead; or how many
+    // sites do; or that they differ, which is why the picker sets nothing.
+    private static String dispatchNote(final Modes.DispatchState state) {
+        if (state.sites() == 0) {
+            return "nothing dispatches into this" + (state.reason() == null
+                    ? ""
+                    : " — " + state.reason());
+        }
+        final String sites = "dispatched from " + state.sites() + (state.sites() == 1
+                ? " site"
+                : " sites");
+        return state.agreed()
+                ? sites
+                : sites + ", which differ: set it on their cards";
+    }
+
+    /// The mode's own way out of the two-part edit (design 47 C): the document's
+    /// `apply-templates` is pointed at it. The author stays where they are, with the keyboard
+    /// on the strategy, which is the next thing there is to say about the dispatch.
+    private void onDispatchFromDocument() {
+        final Project project = host.getProject();
+        if (mode == null || readOnly || project == null) {
+            return;
+        }
+        final Project dispatched = Modes.dispatchFromDocument(project, mode);
+        if (dispatched != project) {
+            host.replace(dispatched);
+            view.focusModeDispatch();
+        }
+    }
+
+    /// The mode's strategy chosen in its pane: set on every site that dispatches into it,
+    /// which is where a strategy lives. Offered only where those sites agree.
+    ///
+    /// @param dispatch The strategy, or null for the project's.
+    private void onModeDispatch(final Dispatch dispatch) {
+        final Project project = host.getProject();
+        if (mode == null || readOnly || project == null) {
+            return;
+        }
+        final Modes.DispatchState state = Modes.dispatchState(project, mode);
+        if (state.sites() > 0 && state.agreed() && state.dispatch() != dispatch) {
+            host.replace(Modes.withDispatch(project, mode, dispatch));
+        }
     }
 
     /// Told when the match workbench is to be opened, with the template's id.
@@ -122,18 +307,24 @@ public class TemplateStripController extends Controller {
 
     /// Show a template, or the project for null; called again after every edit, so it is also refresh.
     public void setTemplate(final String id) {
-        if (!Objects.equals(id, templateId)) {
+        if (!Objects.equals(id, templateId) || mode != null) {
             // The body is about to show something else, or nothing: a card left open in it is
-            // taken or let go here, since the body is not told when it goes off screen.
+            // taken or let go here, since the body is not told when it goes off screen. And so
+            // is a title being edited.
             bodyPresenter.leave();
+            leaveTitle();
+            leaveMatch();
         }
+        this.mode = null;
         this.templateId = id;
+        view.setTemplatesVisible(false);
         final Project project = host.getProject();
         final Template template = host.template(id);
         if (template == null) {
             view.setHeader("document", null, project == null
                     ? ""
                     : project.name(), "", "the root frame: every template descends from here");
+            view.setNameEditable(false, "", "");
             view.setRole(false, MatchRole.RECORD, false, "", false);
             view.setMatchVisible(false);
             view.setDetailsVisible(false);
@@ -141,13 +332,21 @@ public class TemplateStripController extends Controller {
             view.setContent(sourceConfig);
             return;
         }
+        view.setNameEditable(!readOnly, "Edit the name and settings", "Template name");
+        if (!view.isNameOpen()) {
+            // Read only now: the name being typed went with the field
+            closeTitle();
+        }
         view.setHeader("template", host.colour(template.id()), template.name(), template.mode() == null
                 ? "root"
                 : "mode " + template.mode(),
                 "dispatched from " + dispatchedFrom(project, template) + runNote(template));
         view.setMatch(Templates.kind(template.match()), Templates.describe(template.match()),
                 guardSummary(template.guard()) + guardVerdict(template) + " · "
-                + limitsSummary(template.matchLimits()));
+                + limitsSummary(template.matchLimits()),
+                !readOnly && template.match() instanceof MatchExpression.Regex regex
+                        ? regex.pattern()
+                        : null);
         view.setRole(true, MatchRole.of(template.consume()), !readOnly, roleNote(template),
                 template.consume() && !template.captures().isEmpty());
         view.setMatchVisible(true);
@@ -191,10 +390,202 @@ public class TemplateStripController extends Controller {
         return templateId;
     }
 
+    /// The title's edit button, its name or its chip pressed: the title opens, or, open, is
+    /// taken.
     public void onEditIdentity() {
-        if (templateId != null) {
-            onEditIdentity.run();
+        if (view.isNameOpen()) {
+            takeTitle(false);
+        } else {
+            openTitle(false);
         }
+    }
+
+    /// Opens the title of what has just been made, for it to be named: a template arrives
+    /// called `new template` and a mode `new mode`, and naming it is the first thing to do
+    /// (the owner, 2026-11-18).
+    public void editTitle() {
+        openTitle(true);
+    }
+
+    /// Puts the keyboard on the add link of the mode's own list of templates.
+    public void focusAddTemplate() {
+        view.getTemplates().focusAdd();
+    }
+
+    private void openTitle(final boolean made) {
+        if (readOnly || view.isNameOpen()) {
+            return;
+        }
+        if (mode == null) {
+            final Template template = host.template(templateId);
+            if (template == null) {
+                return;
+            }
+            settings.read(host, template, overrideOf(template.id()));
+            settingsOpen = true;
+            view.setSettings(settings);
+        }
+        fresh = made;
+        view.openName();
+    }
+
+    /// The title, taken: Enter in the name, OK, or the edit button pressed again.
+    ///
+    /// **A template's** is its name and its settings, written onto the template as the project
+    /// has it now, so anything done to its body while the title was open is kept. Taken with
+    /// Enter for a template just made, the keyboard goes on to its match, which opens: a
+    /// template is a name, a pattern and then what it writes, each with Enter.
+    ///
+    /// **A mode's** is its name: renamed on the templates in it and on every dispatch that
+    /// points at it, or, for a mode nothing uses yet, simply called something else. For a mode
+    /// just made the keyboard goes on to the add link of its list, since a mode is only ever
+    /// the mode of a template.
+    ///
+    /// @param entered Whether it was taken with Enter in the name.
+    private void takeTitle(final boolean entered) {
+        if (!view.isNameOpen() || readOnly) {
+            return;
+        }
+        final boolean chain = entered && fresh;
+        if (mode != null) {
+            final String from = mode;
+            final String name = view.getNameText().trim();
+            if (name.isEmpty()) {
+                AlertEvent.fireWarn(this, "A mode needs a name", null);
+                return;
+            }
+            if (!name.equals(from) && host.modes().contains(name)) {
+                AlertEvent.fireWarn(this, "There is already a mode named '" + name + "'", null);
+                return;
+            }
+            closeTitle();
+            if (!name.equals(from)) {
+                onRenameMode.accept(from, name);
+            }
+            if (chain) {
+                view.getTemplates().focusAdd();
+            } else {
+                view.focusName();
+            }
+            return;
+        }
+        final Template current = host.template(templateId);
+        if (current == null || !settingsOpen) {
+            closeTitle();
+            return;
+        }
+        final Template written = settings.write(current, view.getNameText(), false);
+        if (written == null) {
+            return;
+        }
+        final String colour = settings.getColour();
+        closeTitle();
+        if (!written.equals(current)) {
+            host.replace(host.withTemplate(written));
+        }
+        host.setColour(written.id(), colour);
+        if (chain) {
+            view.editMatch();
+        } else {
+            view.focusName();
+        }
+    }
+
+    // Escape, or Cancel: what is named is as it was — which, for one just made, is the name it
+    // arrived with.
+    private void dropTitle() {
+        if (view.isNameOpen()) {
+            closeTitle();
+            view.focusName();
+        }
+    }
+
+    private void closeTitle() {
+        view.closeName();
+        view.setSettings(null);
+        settingsOpen = false;
+        fresh = false;
+    }
+
+    // The strip is about to show something else. A template's title is taken if it can be
+    // written as it stands and let go if it cannot, with nobody asked — a moment later and
+    // not now, for the reason a card's draft is ([BodyController#leave()]). A mode's name is
+    // let go: taking it would move the selection that is just being changed.
+    private void leaveTitle() {
+        if (!view.isNameOpen()) {
+            closeTitle();
+            return;
+        }
+        final String id = templateId;
+        final Template was = id == null
+                ? null
+                : host.template(id);
+        final Template written = was == null || !settingsOpen
+                ? null
+                : settings.write(was, view.getNameText(), true);
+        final String colour = settingsOpen
+                ? settings.getColour()
+                : null;
+        closeTitle();
+        if (written != null && !readOnly) {
+            Scheduler.get().scheduleDeferred(() -> {
+                // Written onto the template as it is by then, and not refused for having changed:
+                // a card left open in its body is taken in the same moment, and is taken first
+                // (design 47 §7.8, finding 1). Only the title's own fields have to be as they were.
+                final Template now = host.template(id);
+                if (now != null && !readOnly && Templates.sameIdentity(now, was)) {
+                    final Template next = Templates.withIdentityOf(now, written);
+                    if (!next.equals(now)) {
+                        host.replace(host.withTemplate(next));
+                    }
+                    host.setColour(id, colour);
+                }
+            });
+        }
+    }
+
+    // The strip is about to show something else. A pattern being typed in the match is taken
+    // for the template it was typed for, as a title is ([#leaveTitle()]). Leaving the field by
+    // the pointer takes it already; this is for what moves the selection without moving the
+    // keyboard — an Alt+arrow, a step back — which left it open over another template's match
+    // and then wrote it there (design 47 §7.8, finding 3).
+    private void leaveMatch() {
+        if (!view.isMatchOpen()) {
+            return;
+        }
+        final String pattern = view.getMatchText();
+        view.closeMatch();
+        matchTimer.cancel();
+        matchInspected = null;
+        final String id = templateId;
+        final Template was = id == null
+                ? null
+                : host.template(id);
+        if (readOnly || was == null || !(was.match() instanceof MatchExpression.Regex regex)
+            || regex.pattern().equals(pattern)) {
+            return;
+        }
+        Scheduler.get().scheduleDeferred(() -> {
+            final Template now = host.template(id);
+            if (now != null && !readOnly && now.match().equals(was.match())) {
+                host.replace(host.withTemplate(Templates.withMatch(now,
+                        new MatchExpression.Regex(pattern, regex.flags(), regex.advance()))));
+            }
+        });
+    }
+
+    // The colour the author chose for a template, or null when it wears the palette's.
+    private String overrideOf(final String id) {
+        final String colour = host.colour(id);
+        final List<Template> templates = host.getProject().templates();
+        for (int i = 0; i < templates.size(); i++) {
+            if (templates.get(i).id().equals(id)) {
+                return colour.equals(Templates.colour(i))
+                        ? null
+                        : colour;
+            }
+        }
+        return colour;
     }
 
     /// What the picked role means, said beside the picker — [MatchRole#note()], except where
@@ -227,6 +618,85 @@ public class TemplateStripController extends Controller {
         if (templateId != null) {
             onOpenWorkbench.accept(templateId);
         }
+    }
+
+    /// Opens the match where it stands, for a template just made: what it matches is the next
+    /// thing to say about it (design 47 B).
+    public void editMatch() {
+        view.editMatch();
+    }
+
+    /// The match field taken (design 47 B, reassessed 2026-11-18): the regex's pattern is what
+    /// was typed, and its flags and advance are as they were — those are the workbench's.
+    ///
+    /// Taken with Enter in a template whose body is empty, the keyboard goes on into the body,
+    /// with a new card open: a template just made is a name, a pattern and then what it
+    /// writes, each with Enter. Otherwise it stays on the match.
+    ///
+    /// @param pattern What the field held.
+    /// @param entered Whether it was taken with Enter, rather than by the keyboard leaving it.
+    public void onMatch(final String pattern, final boolean entered) {
+        // The field has closed: an answer still on its way is for nothing on screen
+        matchTimer.cancel();
+        matchInspected = null;
+        final Template template = host.template(templateId);
+        if (template == null || readOnly || !(template.match() instanceof MatchExpression.Regex regex)) {
+            return;
+        }
+        if (!regex.pattern().equals(pattern)) {
+            host.replace(host.withTemplate(Templates.withMatch(template,
+                    new MatchExpression.Regex(pattern, regex.flags(), regex.advance()))));
+        }
+        if (!entered) {
+            return;
+        }
+        final Template now = host.template(templateId);
+        if (now != null && now.body().isEmpty()) {
+            bodyPresenter.openNew();
+        } else {
+            view.focusMatch();
+        }
+    }
+
+    @Override
+    protected void onDetach() {
+        // Nothing is open to answer for once the strip has left the page
+        matchTimer.cancel();
+        matchInspected = null;
+    }
+
+    // Whether the regex in the open match field compiles, asked of the engine, which owns every
+    // fact about a pattern (as the workbench's regex form asks it). Nothing is said of an empty
+    // field: a template just made opens its match empty, and is not yet wrong.
+    private void inspectMatch() {
+        final Template template = host == null
+                ? null
+                : host.template(templateId);
+        if (template == null || !view.isMatchOpen()
+            || !(template.match() instanceof MatchExpression.Regex regex)) {
+            return;
+        }
+        final String pattern = view.getMatchText();
+        if (pattern.isEmpty()) {
+            matchInspected = null;
+            view.setMatchError(null);
+            return;
+        }
+        final ShapeshifterPatternRequest request = new ShapeshifterPatternRequest(pattern,
+                regex.flags().caseInsensitive(), regex.flags().dotAll());
+        matchInspected = request;
+        restFactory
+                .create(RESOURCE)
+                .method(res -> res.patternInfo(request))
+                .onSuccess(info -> {
+                    if (request == matchInspected) {
+                        view.setMatchError(info.isValid()
+                                ? null
+                                : info.getError());
+                    }
+                })
+                .owner(this)
+                .exec();
     }
 
     /// The static complement to breadcrumb ancestry: the sites whose apply-templates dispatch

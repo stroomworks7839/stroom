@@ -17,11 +17,12 @@
 package stroom.shapeshifter.client.component;
 
 import stroom.alert.client.event.AlertEvent;
+import stroom.shapeshifter.client.model.Templates;
 import stroom.shapeshifter.config.CaptureBinding;
 import stroom.shapeshifter.config.CaptureBinding.CaptureSource;
 import stroom.shapeshifter.config.Cast;
 import stroom.shapeshifter.config.ConfigException;
-import stroom.shapeshifter.config.Declaration;
+import stroom.shapeshifter.config.Project;
 import stroom.shapeshifter.config.Template;
 import stroom.shapeshifter.config.json.JsonNumber;
 import stroom.shapeshifter.config.json.JsonObject;
@@ -39,7 +40,6 @@ import stroom.widget.popup.client.event.HidePopupRequestEvent;
 import com.google.inject.Inject;
 import com.google.web.bindery.event.shared.EventBus;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -74,12 +74,14 @@ public class CaptureEditController extends Controller {
         initWidget(view);
     }
 
-    public void read(final Template template, final CaptureBinding capture) {
-        final List<String> declared = new ArrayList<>();
-        for (final Declaration declaration : template.declarations()) {
-            declared.add(declaration.name());
-        }
-        view.setDeclared(declared);
+    /// Fills the form from a capture.
+    ///
+    /// @param project The project, whose declarations are all offered: a capture binds a name
+    ///                declared on whichever template it lives for, often not its own.
+    /// @param template The template the capture is on.
+    /// @param capture The capture.
+    public void read(final Project project, final Template template, final CaptureBinding capture) {
+        view.setDeclared(Templates.declaredNames(project, template));
         view.setName(capture.name());
         view.setCast(capture.as());
         final CaptureSource source = capture.select();

@@ -20,13 +20,13 @@ import stroom.shapeshifter.client.model.GuardClause;
 import stroom.shapeshifter.client.model.GuardClause.Join;
 import stroom.shapeshifter.client.model.GuardClause.Op;
 import stroom.shapeshifter.config.Cast;
+import stroom.widget.button.client.LinkButton;
 import stroom.widget.form.client.TextBox;
 import stroom.widget.selection.client.SelectionBox;
 import stroom.widget.text.client.Label;
 
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.event.dom.client.BlurEvent;
-import com.google.gwt.event.dom.client.ClickEvent;
 import com.google.gwt.event.dom.client.KeyCodes;
 import com.google.gwt.event.dom.client.KeyDownEvent;
 import com.google.gwt.event.logical.shared.ValueChangeEvent;
@@ -62,7 +62,7 @@ public class GuardClauseRow extends Composite {
     @UiField
     SelectionBox<Cast> as;
     @UiField
-    Label remove;
+    LinkButton remove;
 
     private final int index;
     private BiConsumer<Integer, GuardClause> onChange = (at, clause) -> {
@@ -81,7 +81,7 @@ public class GuardClauseRow extends Composite {
         value.addBlurHandler(event -> onValueBlur(event));
         value.addKeyDownHandler(event -> onValueKey(event));
         as.addValueChangeHandler(event -> onAs(event));
-        remove.addClickHandler(event -> onRemoveClick(event));
+        remove.setOnClick(this::onRemoveClick);
         // The word between the rows is the join they were given, not a choice of its own: the
         // choice is made once, above them (design 46 §7.2 found that a condition is an and or an
         // or, never a mixture).
@@ -152,7 +152,7 @@ public class GuardClauseRow extends Composite {
         commit();
     }
 
-    private void onRemoveClick(final ClickEvent e) {
+    private void onRemoveClick() {
         onRemove.accept(index);
     }
 

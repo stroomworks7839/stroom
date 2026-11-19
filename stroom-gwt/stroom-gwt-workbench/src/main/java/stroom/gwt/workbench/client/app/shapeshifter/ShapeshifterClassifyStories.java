@@ -181,11 +181,9 @@ public final class ShapeshifterClassifyStories {
     /// §6.2 step 3, and the step its table does not have — the third rung to need it (§6.1a).
     private static void rootRenamed(final Play play, final Play screen) {
         ShapeshifterEditorStories.selectTemplate(play, "document");
-        play.click(play.getByRole("button", "Edit template"));
-        final Play renaming = ShapeshifterEditorStories.dialogMatching(play, screen, "template");
-        play.clear(renaming.getByLabelText("Name"));
-        renaming.type(renaming.getByLabelText("Name"), "source");
-        play.click(renaming.getByRole("button", StroomDom.button("OK")));
+        play.click(play.getByRole("button", ShapeshifterEditorStories.EDIT_TITLE));
+        play.waitFor(() -> play.expect(play.getByLabelText("Template name")).toHaveFocus());
+        play.keyboard("source{Enter}");
         play.waitFor(() -> play.expect(play.getByText("source",
                 ShapeshifterEditorStories.STRIP_NAME)).toBeInTheDocument());
     }
@@ -193,21 +191,28 @@ public final class ShapeshifterClassifyStories {
     /// §6.2 step 6, ahead of steps 4 and 5: the `flags` mode has to exist before the card can be
     /// pointed at it, and a template's own dialog is the only place a mode is made.
     private static void hasError(final Play play, final Play screen) {
-        Walkthrough.addTemplate(play, screen, "has_error", "flags", true, "ERROR");
-        Walkthrough.enter(play, "<error/>");
+        Walkthrough.addTemplate(play, screen, "has_error", "flags", true, "classify", "ERROR");
+        Walkthrough.enterNext(play, "<error/>");
     }
 
     /// The window between the halves of the two-part edit, met for the third time.
     private static void deadMode(final Play play, final Play screen) {
-        play.waitFor(() -> play.expect(play.getByText("nothing dispatches into this",
-                ".template-panel__mode-note")).toBeVisible());
+        // There is no such window any more (design 47 C): the mode was dispatched from the
+        // document, with `classify`, where it was made
+        play.expect(play.queryByText("nothing dispatches into this",
+                ".template-panel__mode-note")).toBeNull();
+        play.expect(play.getByText("dispatched with classify", ".template-panel__mode-note")).toBeVisible();
     }
 
-    /// §6.2 step 4's first half: the tag that opens the region, put in above the dispatch.
+    /// §6.2 step 4's first half: the tag that opens the region, moved above the dispatch.
     private static void openTag(final Play play, final Play screen) {
         ShapeshifterEditorStories.selectTemplate(play, "document");
-        play.waitFor(() -> play.expect(ShapeshifterEditorStories.newRow(play)).toBeInTheDocument());
-        Walkthrough.enterAbove(play, "apply-templates", "<flags>");
+        play.waitFor(() -> play.expect(ShapeshifterEditorStories.addLink(play)).toBeInTheDocument());
+        Walkthrough.enter(play, "<flags>");
+        // A new card is open after it for the next line. Escape says there is none, and the
+        // row just added is the selected one, which the toolbar acts on
+        play.keyboard("{Escape}");
+        play.click(play.getByRole("button", "Move the selected instruction up"));
     }
 
     /// §6.2 steps 4 and 5: the mode, and **`classify`** — every matching template runs, nothing
@@ -216,14 +221,7 @@ public final class ShapeshifterClassifyStories {
     /// This is the stage the rung was walked for. The panel and the card both say the strategy
     /// now (§10 W4), and until this stage was driven that branch had never been on screen.
     private static void dispatch(final Play play, final Play screen) {
-        play.click(ShapeshifterEditorStories.cardLine(play, "apply-templates"));
-        final Play card = ShapeshifterEditorStories.cardEditor(play);
-        ShapeshifterEditorStories.pickFromBox(play, screen, card.getByLabelText("Mode"), "flags");
-        ShapeshifterEditorStories.pickFromBox(play, screen,
-                card.getByLabelText("Dispatch"), "classify");
-        play.click(card.getByRole("button", StroomDom.button("OK")));
-        play.waitFor(() -> play.expect(play.queryByText("nothing dispatches into this",
-                ".template-panel__mode-note")).toBeNull());
+        // Done already, from the mode's own pane (design 47 C): the card is not opened.
         // The mode says how it is dispatched, and the card that chose it says so too. Under
         // `classify` the panel's ordered list means nothing at all — no priority, no tie to
         // break — so there is no order for an author to reason about, and the one thing worth
@@ -242,15 +240,15 @@ public final class ShapeshifterClassifyStories {
     /// §6.2 step 7. A template that will match nothing in this sample — and under `classify`
     /// that costs nothing, because templates do not compete.
     private static void hasTimeout(final Play play, final Play screen) {
-        Walkthrough.addTemplate(play, screen, "has_timeout", "flags", false, "timed out");
-        Walkthrough.enter(play, "<timeout/>");
+        Walkthrough.addTemplate(play, screen, "has_timeout", "flags", false, null, "timed out");
+        Walkthrough.enterNext(play, "<timeout/>");
     }
 
     /// §6.2 step 8. Three cards again — `<code>`, the capture, `</code>` — the shape §10 W2
     /// counts, in a third sample that shares nothing else with the first two.
     private static void firstCode(final Play play, final Play screen) {
-        Walkthrough.addTemplate(play, screen, "first_code", "flags", false, "code=([[0-9]+)");
-        Walkthrough.enter(play, "<code>$1</code>");
+        Walkthrough.addTemplate(play, screen, "first_code", "flags", false, null, "code=([[0-9]+)");
+        Walkthrough.enterNext(play, "<code>$1</code>");
     }
 
     /// §6.2 step 9, and the keystone — **and the output is the lesson** (§6.2's own finding).

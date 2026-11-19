@@ -34,7 +34,9 @@ public class PatternWorkbench extends Component {
 
 
     @UiField
-    Label subject;
+    Label kind;
+    @UiField
+    NameEdit subject;
     @UiField
     Toolbar buttons;
     @UiField
@@ -56,8 +58,20 @@ public class PatternWorkbench extends Component {
         return buttons;
     }
 
-    public void setSubject(final String name) {
-        subject.setText(name);
+    /// @param kindText What the subject is, when that needs saying: `part`, or nothing for a
+    ///                 template.
+    /// @param name Its name.
+    /// @param editable Whether the name is changed here: a part's is.
+    public void setSubject(final String kindText, final String name, final boolean editable) {
+        kind.setText(kindText);
+        kind.setVisible(!kindText.isEmpty());
+        subject.setName(name);
+        subject.setEditable(editable, "Edit the name", "Pattern part name");
+    }
+
+    /// @return The subject's name, which for a part is edited where it reads.
+    public NameEdit getSubject() {
+        return subject;
     }
 
     public void setSample(final IsWidget view) {

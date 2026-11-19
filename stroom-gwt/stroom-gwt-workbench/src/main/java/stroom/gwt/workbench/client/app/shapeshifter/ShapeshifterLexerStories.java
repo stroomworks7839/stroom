@@ -238,11 +238,9 @@ public final class ShapeshifterLexerStories {
     /// afterwards (design 44 Q11), so the author sees no confirmation where they are looking.
     private static void rootRenamed(final Play play, final Play screen) {
         ShapeshifterEditorStories.selectTemplate(play, "document");
-        play.click(play.getByRole("button", "Edit template"));
-        final Play renaming = ShapeshifterEditorStories.dialogMatching(play, screen, "template");
-        play.clear(renaming.getByLabelText("Name"));
-        renaming.type(renaming.getByLabelText("Name"), "source");
-        play.click(renaming.getByRole("button", StroomDom.button("OK")));
+        play.click(play.getByRole("button", ShapeshifterEditorStories.EDIT_TITLE));
+        play.waitFor(() -> play.expect(play.getByLabelText("Template name")).toHaveFocus());
+        play.keyboard("source{Enter}");
         play.waitFor(() -> play.expect(play.getByText("source",
                 ShapeshifterEditorStories.STRIP_NAME)).toBeInTheDocument());
     }
@@ -263,36 +261,31 @@ public final class ShapeshifterLexerStories {
     /// dialog — the dispatch card's Mode is a picker over modes that already exist. So the first
     /// token template is what creates the mode, and the table's order cannot be driven.
     private static void assign(final Play play, final Play screen) {
-        Walkthrough.addTemplate(play, screen, "assign", "tokens", true, "=");
-        Walkthrough.enter(play, "<op>=</op>");
+        Walkthrough.addTemplate(play, screen, "assign", "tokens", true, "lexer", "=");
+        Walkthrough.enterNext(play, "<op>=</op>");
     }
 
     /// The same window rung 1 meets at its step 12, reached from the other side: a mode exists
     /// with a template in it and nothing dispatches into it yet. Here the author arrived at it
     /// because the editor gave them no other order to work in.
     private static void deadMode(final Play play, final Play screen) {
-        play.waitFor(() -> play.expect(play.getByText("nothing dispatches into this",
-                ".template-panel__mode-note")).toBeVisible());
+        // There is no such window any more (design 47 C): the mode was dispatched from the
+        // document, with `lexer`, where it was made
+        play.expect(play.queryByText("nothing dispatches into this",
+                ".template-panel__mode-note")).toBeNull();
+        play.expect(play.getByText("dispatched with lexer", ".template-panel__mode-note")).toBeVisible();
     }
 
     /// §6.1 steps 5 and 6, now that the mode exists: the document's card told which mode to
     /// dispatch into, and **how candidates in it are chosen**. `lexer` is what rung 2 is for —
     /// longest match wins, and the panel's order is only a tie-break.
     private static void dispatch(final Play play, final Play screen) {
-        ShapeshifterEditorStories.selectTemplate(play, "document");
-        play.click(ShapeshifterEditorStories.cardLine(play, "apply-templates"));
-        final Play card = ShapeshifterEditorStories.cardEditor(play);
-        ShapeshifterEditorStories.pickFromBox(play, screen, card.getByLabelText("Mode"), "tokens");
-        ShapeshifterEditorStories.pickFromBox(play, screen,
-                card.getByLabelText("Dispatch"), "lexer");
-        play.click(card.getByRole("button", StroomDom.button("OK")));
-        play.waitFor(() -> play.expect(play.queryByText("nothing dispatches into this",
-                ".template-panel__mode-note")).toBeNull());
-        // The card that chose it says so too, on the note line it already had. Here the fact
-        // cannot be ambiguous: a site has one strategy, where a mode could in principle be
-        // dispatched from several.
-        play.waitFor(() -> play.expect(play.getByText(TextMatch.containing("lexer"),
-                ".body-card__note")).toBeVisible());
+        // Done already, from the mode's own pane (design 47 C), mode and strategy both: the
+        // document is not gone to and its card is not opened. The mode says how it is
+        // dispatched, which is the fact an author could not otherwise see from here.
+        play.expect(play.queryByText("nothing dispatches into this",
+                ".template-panel__mode-note")).toBeNull();
+        play.expect(play.getByText("dispatched with lexer", ".template-panel__mode-note")).toBeVisible();
     }
 
     /// §6.1 step 8. **The template this rung exists for.** `arrow` is added after `assign`, so it
@@ -300,8 +293,8 @@ public final class ShapeshifterLexerStories {
     /// match and reads the order only to break ties. Under `strict` the same project would give
     /// `assign` the `=` and then fail on the `>`.
     private static void arrow(final Play play, final Play screen) {
-        Walkthrough.addTemplate(play, screen, "arrow", "tokens", false, "=>");
-        Walkthrough.enter(play, "<arrow/>");
+        Walkthrough.addTemplate(play, screen, "arrow", "tokens", false, null, "=>");
+        Walkthrough.enterNext(play, "<arrow/>");
         // Below assign, which is the whole point of the next run
         play.expect(play.getAllByText(TextMatch.regex("^(assign|arrow)$"),
                         ShapeshifterEditorStories.TEMPLATE_NAME).textContents())
@@ -317,22 +310,22 @@ public final class ShapeshifterLexerStories {
     /// §6.1 step 9. Three cards for one token — the shape design 46 §10 W2 counts, met again in
     /// a sample that has nothing to do with `strict_kv`.
     private static void word(final Play play, final Play screen) {
-        Walkthrough.addTemplate(play, screen, "word", "tokens", false, "[[a-z]+");
+        Walkthrough.addTemplate(play, screen, "word", "tokens", false, null, "[[a-z]+");
         // One line, typed as it looks, and split into the three cards it describes
-        Walkthrough.enter(play, "<w>$0</w>");
+        Walkthrough.enterNext(play, "<w>$0</w>");
     }
 
     /// §6.1 step 10. The same shape again, which is the point: four of the eleven cards in this
     /// rung are an opening tag, a `value-of` and a closing tag.
     private static void number(final Play play, final Play screen) {
-        Walkthrough.addTemplate(play, screen, "number", "tokens", false, "[[0-9]+");
-        Walkthrough.enter(play, "<n>$0</n>");
+        Walkthrough.addTemplate(play, screen, "number", "tokens", false, null, "[[0-9]+");
+        Walkthrough.enterNext(play, "<n>$0</n>");
     }
 
     /// §6.1 step 11. A template with **no body at all**, whose whole purpose is to advance the
     /// cursor past the spaces. The role picker is what makes it that; its body is left empty.
     private static void space(final Play play, final Play screen) {
-        Walkthrough.addTemplate(play, screen, "space", "tokens", false, " +");
+        Walkthrough.addTemplate(play, screen, "space", "tokens", false, null, " +");
         ShapeshifterEditorStories.pickFromBox(play, screen,
                 play.getByLabelText("What the match is for"), "advance only");
     }

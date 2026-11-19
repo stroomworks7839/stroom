@@ -106,7 +106,7 @@ public class CapturesController extends Controller {
             return;
         }
         final CaptureEditController editor = editPresenterProvider.get();
-        editor.read(template, new CaptureBinding("", new CaptureSource.Group(1), null));
+        editor.read(host.getProject(), template, new CaptureBinding("", new CaptureSource.Group(1), null));
         editor.show(this, "New Capture", e -> {
             if (e.isOk()) {
                 final CaptureBinding capture = editor.write();
@@ -133,7 +133,7 @@ public class CapturesController extends Controller {
         }
         final CaptureBinding existing = template.captures().get(index);
         final CaptureEditController editor = editPresenterProvider.get();
-        editor.read(template, existing);
+        editor.read(host.getProject(), template, existing);
         editor.show(this, "Edit Capture", e -> {
             if (e.isOk()) {
                 final CaptureBinding capture = editor.write();

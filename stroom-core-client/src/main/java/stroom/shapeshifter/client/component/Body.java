@@ -34,6 +34,7 @@ import com.google.gwt.user.client.ui.Widget;
 import com.google.inject.Inject;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -121,8 +122,14 @@ public class Body extends Component {
         }
 
         @Override
-        public void onNew(final String listPath, final int index, final boolean kind) {
-            Body.this.newHandler.onNew(listPath, index, kind);
+        public void onNew(final String listPath, final int index) {
+            // From a list's own add link: the keyboard goes back to the link if it is dropped
+            Body.this.newHandler.onNew(listPath, index, null);
+        }
+
+        @Override
+        public void onAddShown(final String path, final Runnable focus) {
+            links.put(path, focus);
         }
 
         @Override
@@ -170,13 +177,16 @@ public class Body extends Component {
     };
     private Consumer<String> onEditKind = path -> {
     };
-    private NewHandler newHandler = (listPath, index, kind) -> {
+    private NewHandler newHandler = (listPath, index, from) -> {
     };
     // Every row in the drawing on screen, by its path, in the order they are drawn: a holder's
     // rows come after it and before the row that follows it, which is the order the arrow keys
-    // walk them in. A list's last row is its New row, which is where a card would go: it has
-    // the path the next card of the list will have.
+    // walk them in.
     private final Map<String, Row> shown = new LinkedHashMap<>();
+    // Every list's add link in the drawing on screen, by the path the list's next card will
+    // have, as what puts the keyboard on it. A link is not a row: it is not walked to with the
+    // arrows and is never the selected one.
+    private final Map<String, Runnable> links = new HashMap<>();
     // The selected row: the one the keyboard or the pointer was last on, or that is open. It is
     // what the toolbar acts on, and it is the rows' one tab stop between them (the first row,
     // until one has been selected). Kept as a path, so whoever changes the body says where the
@@ -203,15 +213,13 @@ public class Body extends Component {
     @UiField
     Toolbar toolbar;
     @UiField
+    ToolbarButton add;
+    @UiField
+    ToolbarButton remove;
+    @UiField
     ToolbarButton up;
     @UiField
     ToolbarButton down;
-    @UiField
-    ToolbarButton above;
-    @UiField
-    ToolbarButton below;
-    @UiField
-    ToolbarButton remove;
 
     private List<OutputNode> body = List.of();
     private List<CardNote> notes = List.of();
@@ -221,23 +229,39 @@ public class Body extends Component {
     @Inject
     public Body() {
         initWidget(BINDER.createAndBindUi(this));
+        // Add, remove, up, down: the template panel's order (the owner, 2026-11-18). There is
+        // one way to add from here and it is below — below the selected row, in the list it is
+        // in, or at the end of the body when no row is selected — so Add is always there to
+        // press, as the template panel's is.
+        button(add, SvgImage.ADD, "Add an instruction below the selected one, or at the end");
+        add.setOnClick(() -> {
+            if (!enabled) {
+                return;
+            }
+            if (current != null && shown.containsKey(current)) {
+                newHandler.onNew(listOf(current), indexOf(current) + 1, current);
+            } else {
+                newHandler.onNew(Bodies.path(new int[0]), body.size(), null);
+            }
+        });
+        action(remove, SvgImage.DELETE, "Remove the selected instruction", () -> onRemove.accept(current));
         action(up, SvgImage.UP, "Move the selected instruction up", () -> onMove.accept(current, -1));
         action(down, SvgImage.DOWN, "Move the selected instruction down", () -> onMove.accept(current, 1));
-        action(above, SvgImage.ADD_ABOVE, "Insert an instruction above the selected one",
-                () -> newHandler.onNew(listOf(current), indexOf(current), false));
-        action(below, SvgImage.ADD_BELOW, "Insert an instruction below the selected one",
-                () -> newHandler.onNew(listOf(current), indexOf(current) + 1, false));
-        action(remove, SvgImage.DELETE, "Remove the selected instruction", () -> onRemove.accept(current));
         enableActions();
     }
 
-    // One of the toolbar's actions on the selected row. Pressing it does not take the keyboard
-    // off the row it is about to act on.
-    private void action(final ToolbarButton button, final SvgImage icon, final String title,
-                        final Runnable act) {
+    // One of the toolbar's buttons. Pressing it does not take the keyboard off the row it is
+    // about to act on.
+    private static void button(final ToolbarButton button, final SvgImage icon, final String title) {
         button.setSvg(icon);
         button.setTitle(title);
         button.setFocusOnMouseDown(false);
+    }
+
+    // One of the toolbar's actions on the selected row.
+    private void action(final ToolbarButton button, final SvgImage icon, final String title,
+                        final Runnable act) {
+        button(button, icon, title);
         button.setOnClick(() -> {
             if (enabled && current != null && shown.containsKey(current)) {
                 act.run();
@@ -277,14 +301,10 @@ public class Body extends Component {
                 ? null
                 : shown.get(current);
         final boolean selected = enabled && row != null;
-        // A list's New row is not a card yet: one can be put before it, which is to say in it,
-        // and there is nothing of it to move, to remove or to come after.
-        final boolean card = selected && row.isCard();
-        up.setEnabled(card && !row.isFirst());
-        down.setEnabled(card && !row.isLast());
-        above.setEnabled(selected);
-        below.setEnabled(card);
-        remove.setEnabled(card);
+        add.setEnabled(enabled);
+        remove.setEnabled(selected);
+        up.setEnabled(selected && !row.isFirst());
+        down.setEnabled(selected && !row.isLast());
     }
 
 
@@ -331,6 +351,7 @@ public class Body extends Component {
             }
         }
         shown.clear();
+        links.clear();
         cards.clear();
         list = new CardList(new int[0], body, notes, cardActions, enabled, false);
         cards.add(list);
@@ -363,6 +384,9 @@ public class Body extends Component {
         if (focusCardNext != null && shown.containsKey(focusCardNext)) {
             shown.get(focusCardNext).focus();
             focusCardNext = null;
+        } else if (focusCardNext != null && links.containsKey(focusCardNext)) {
+            links.get(focusCardNext).run();
+            focusCardNext = null;
         }
     }
 
@@ -389,7 +413,7 @@ public class Body extends Component {
     }
 
     /// Shows an editor for a card that does not exist yet, where it will go: among the cards,
-    /// or in place of the list's New row when that is where it goes.
+    /// or in place of the list's add link when that is where it goes.
     ///
     /// @param listPath The list it will go in.
     /// @param index Where in it.
@@ -422,7 +446,7 @@ public class Body extends Component {
 
     /// Puts the keyboard on a row, now if it is on screen and otherwise when it next is.
     ///
-    /// @param path The row's path: a card's, or for a list's New row the path its next card
+    /// @param path The row's path: a card's, or for a list's add link the path its next card
     ///             will have.
     public void focusCard(final String path) {
         focusCardNext = path;
@@ -494,8 +518,8 @@ public class Body extends Component {
         this.onEditKind = onEditKind;
     }
 
-    /// @param newHandler Told when a new card is asked for: a list's New row opened, or the
-    ///                   toolbar's insert above or below the selected row.
+    /// @param newHandler Told when a new card is asked for: a list's add link pressed, or the
+    ///                   toolbar's Add.
     public void setOnNew(final NewHandler newHandler) {
         this.newHandler = newHandler;
     }
@@ -531,16 +555,14 @@ public class Body extends Component {
 
         /// @param listPath The list the card is to go in.
         /// @param index Where in it.
-        /// @param kind Whether the kinds are to be offered at once.
-        void onNew(String listPath, int index, boolean kind);
+        /// @param from The row the author was on, to go back to if the card is dropped; null
+        ///             when it was asked for from the list's own add link.
+        void onNew(String listPath, int index, String from);
     }
 
-    /// A row, as the body needs it: enough to put the keyboard on it, to know it is there, and
-    /// to say whether Tab stops at it. A card's, or a list's New row.
+    /// A card's row, as the body needs it: enough to put the keyboard on it, to know it is
+    /// there, and to say whether Tab stops at it.
     public interface Row {
-
-        /// @return Whether the row is a card, rather than the New row a list ends with.
-        boolean isCard();
 
         /// Puts the keyboard on the row.
         void focus();
@@ -594,9 +616,8 @@ public class Body extends Component {
         /// @param index      Where in that list.
         void onDrop(String fromPath, String toListPath, int index);
 
-        /// @param path The path of a row that has been drawn: a card's, or for a list's New
-        ///             row the path its next card will have.
-        /// @param row  The row, as the body needs it.
+        /// @param path The path of a card that has been drawn.
+        /// @param row  The card's row, as the body needs it.
         void onCardShown(String path, Row row);
 
         /// @param path The path of the card the keyboard has arrived on.
@@ -609,10 +630,13 @@ public class Body extends Component {
         /// @param path The node's path: open it, with the kinds offered.
         void onEditKind(String path);
 
-        /// @param listPath The list a new card is asked for in.
-        /// @param index    Where in it.
-        /// @param kind     Whether the kinds are to be offered at once.
-        void onNew(String listPath, int index, boolean kind);
+        /// @param listPath The list whose add link was pressed.
+        /// @param index    How many cards it has, which is where the new one goes.
+        void onNew(String listPath, int index);
+
+        /// @param path  The path the next card of a list will have.
+        /// @param focus What puts the keyboard on that list's add link.
+        void onAddShown(String path, Runnable focus);
 
         /// @param path A card's path.
         /// @return The editor open in its place, or null.

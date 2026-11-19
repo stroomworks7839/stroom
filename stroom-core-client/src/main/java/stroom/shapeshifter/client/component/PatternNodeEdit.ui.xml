@@ -15,7 +15,8 @@
                     <t:Label ui:field="childrenNote" styleName="edit-form__hint"/>
                 </g:FlowPanel>
             </form:FormGroup>
-            <form:FormGroup ui:field="textGroup" identity="shapeshifterNodeText" label="Text">
+            <form:FormGroup ui:field="textGroup" identity="shapeshifterNodeText" label="Text"
+                            helpText="A tag's text and a terminator are literal: \n is a newline, \t a tab and \\ a backslash. A pattern and a character class are written as the regex engine reads them.">
                 <form:TextBox ui:field="text" addStyleNames="w-100 pattern-node-edit__pattern"/>
             </form:FormGroup>
             <form:FormGroup ui:field="countGroup" identity="shapeshifterNodeCount" label="Bytes">

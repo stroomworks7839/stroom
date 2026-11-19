@@ -17,21 +17,35 @@
 package stroom.shapeshifter.client.component;
 
 import stroom.shapeshifter.client.model.TemplateRowData;
+import stroom.widget.button.client.LinkButton;
 import stroom.widget.button.client.Toolbar;
 import stroom.widget.component.client.Component;
 import stroom.widget.text.client.Label;
 
 import com.google.gwt.core.client.GWT;
+import com.google.gwt.event.dom.client.KeyCodes;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
 import com.google.gwt.user.client.ui.FlowPanel;
+import com.google.gwt.user.client.ui.FocusPanel;
 import com.google.gwt.user.client.ui.Widget;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
 
+/// The panel's list: the project's sections, its templates under their modes, and its parts.
+///
+/// **A mode's list ends with `+ template`, and the modes end with `+ mode`** (design 47 B):
+/// the same add link the declarations and the captures have (the owner, 2026-11-18). Pressed,
+/// a link adds — a template called `new template`, a mode called `new mode` — and what was
+/// added is shown beside this list with its name open to be changed. Nothing is named here.
+///
+/// **A mode's heading selects the mode**, whose own pane is where it is named; the root's is
+/// only a heading.
 public class TemplatePanel
         extends Component {
 
@@ -45,6 +59,9 @@ public class TemplatePanel
     };
 
     private final List<TemplateRow> rows = new ArrayList<>();
+    // The add links on screen, by their ids
+    // The headings on screen that select a mode, by the ids they select
+    private final Map<String, FocusPanel> heads = new HashMap<>();
 
     @UiField
     Toolbar toolbar;
@@ -64,6 +81,7 @@ public class TemplatePanel
     public void setRows(final List<TemplateRowData> data) {
         list.clear();
         rows.clear();
+        heads.clear();
         String section = null;
         for (final TemplateRowData row : data) {
             if (row.isSection()) {
@@ -84,28 +102,63 @@ public class TemplatePanel
             }
             if (row.getSection() != null && !Objects.equals(section, row.getSection())) {
                 section = row.getSection();
-                final Label head = new Label(section);
-                head.setStyleName("template-panel__mode-head");
-                if (row.getSectionNote() == null) {
-                    list.add(head);
-                } else {
-                    // The heading says what the mode is; the note says what is true of it, in
-                    // the same line and quieter. A mode nothing dispatches into is the case
-                    // this was built for (design 46 §5.4).
-                    final FlowPanel headLine = new FlowPanel();
-                    headLine.setStyleName("template-panel__mode-head");
-                    head.setStyleName("template-panel__mode-name");
-                    final Label note = new Label(row.getSectionNote());
-                    note.setStyleName("template-panel__mode-note");
-                    headLine.add(head);
-                    headLine.add(note);
-                    list.add(headLine);
-                }
+                list.add(head(row));
+            }
+            if (row.isFresh()) {
+                list.add(addLink(row));
+                continue;
             }
             final TemplateRow widget = newRow(row);
             rows.add(widget);
             list.add(widget);
         }
+    }
+
+    // A mode's heading: what the mode is, and under it, quieter, what is true of it — a mode
+    // nothing dispatches into is the case the note was built for (design 46 §5.4). A named
+    // mode's heading is pressed to select the mode; the root's is only a heading.
+    private Widget head(final TemplateRowData row) {
+        final FlowPanel headLine = new FlowPanel();
+        headLine.setStyleName("template-panel__mode-head");
+        final Label name = new Label(row.getSection());
+        name.setStyleName("template-panel__mode-name");
+        headLine.add(name);
+        if (row.getSectionNote() != null) {
+            final Label note = new Label(row.getSectionNote());
+            note.setStyleName("template-panel__mode-note");
+            headLine.add(note);
+        }
+        final String id = row.getSectionId();
+        if (id == null) {
+            return headLine;
+        }
+        final FocusPanel head = new FocusPanel(headLine);
+        head.setStyleName("template-panel__mode-row");
+        head.setTitle("The mode: its name, and the templates in it");
+        head.addClickHandler(event -> onSelect.accept(id));
+        head.addKeyDownHandler(event -> {
+            if (event.getNativeKeyCode() == KeyCodes.KEY_ENTER || event.getNativeKeyCode() == ' ') {
+                event.preventDefault();
+                onSelect.accept(id);
+            }
+        });
+        heads.put(id, head);
+        return head;
+    }
+
+    // An add link, on a line of its own: `+ template` under a mode's templates, `+ mode` under
+    // the modes. The same link the declarations and the captures are added with.
+    private FlowPanel addLink(final TemplateRowData row) {
+        final LinkButton add = new LinkButton(row.getName());
+        add.addStyleName("add-button");
+        add.setTitle(row.getTitle());
+        add.setOnClick(() -> onSelect.accept(row.getId()));
+        final FlowPanel line = new FlowPanel();
+        line.setStyleName(row.getSection() != null
+                ? "template-panel__add"
+                : "template-panel__add template-panel__add--mode");
+        line.add(add);
+        return line;
     }
 
     public void setHot(final String id) {
@@ -117,6 +170,9 @@ public class TemplatePanel
     public void setSelected(final String id) {
         for (final TemplateRow row : rows) {
             row.setSelected(Objects.equals(row.getData().getId(), id));
+        }
+        for (final Map.Entry<String, FocusPanel> head : heads.entrySet()) {
+            head.getValue().setStyleName("template-panel__mode-row--selected", head.getKey().equals(id));
         }
     }
 

@@ -205,11 +205,11 @@ public final class ShapeshifterAuthoringStories {
     /// §5.3 step 8. The samples call the root template `source` and the editor calls it
     /// `document`; it cannot be removed or moved, but it can be renamed.
     private static void renamed(final Play play, final Play screen) {
-        play.click(play.getByRole("button", "Edit template"));
-        final Play renaming = ShapeshifterEditorStories.dialogMatching(play, screen, "template");
-        play.clear(renaming.getByLabelText("Name"));
-        renaming.type(renaming.getByLabelText("Name"), "source");
-        play.click(renaming.getByRole("button", StroomDom.button("OK")));
+        // In its own title, where it reads: the edit button, the name typed over the one that
+        // is there, Enter
+        play.click(play.getByRole("button", ShapeshifterEditorStories.EDIT_TITLE));
+        play.waitFor(() -> play.expect(play.getByLabelText("Template name")).toHaveFocus());
+        play.keyboard("source{Enter}");
         // The strip carries the new name; the panel's row does not, and that is a finding rather
         // than a wait that needs fixing (design 46 §5.9, design 44 Q11): the document row is
         // labelled with the fixed word "document", so the author sees no change there.
@@ -219,33 +219,27 @@ public final class ShapeshifterAuthoringStories {
                 .toBeInTheDocument();
     }
 
-    /// §5.4 steps 10 and 12, which are one action in the UI: a template is given its mode in the
-    /// dialog that makes it, so `pair` and the `kv` mode arrive together. Recorded as a
-    /// divergence from the step table rather than split into two stages that cannot be driven
-    /// apart.
+    /// §5.4 steps 10 and 12. The mode is added and named first, and `pair` in it: each
+    /// arrives with a name of its own and that name open to be typed over, in its own title.
+    /// Which list a template is added to says which mode (design 47 B).
     private static void pairTemplate(final Play play, final Play screen) {
-        play.click(play.getByRole("button", "Add template"));
-        final Play adding = ShapeshifterEditorStories.dialogMatching(play, screen, "New Template");
-        adding.type(adding.getByLabelText("Name"), "pair");
-        play.click(adding.getByRole("button", "New..."));
-        final Play naming = ShapeshifterEditorStories.dialogMatching(play, screen, "mode");
-        naming.type(naming.getByRole("textbox").first(), "kv");
-        play.click(naming.getByRole("button", StroomDom.button("OK")));
-        play.click(adding.getByRole("button", StroomDom.button("OK")));
-        play.waitFor(() -> play.expect(play.getByText("pair",
-                ShapeshifterEditorStories.TEMPLATE_NAME)).toBeInTheDocument());
+        Walkthrough.addMode(play, "kv");
+        // A mode nothing dispatches into never runs. It says so where it is shown, and the way
+        // out is beside the saying of it: the document's own dispatch, pointed here
+        // (design 47 C). The strategy is left as the project's.
+        Walkthrough.dispatchFromDocument(play, screen, null);
+        play.click(Walkthrough.modeAddLink(play));
+        Walkthrough.named(play, "pair");
     }
 
-    /// §5.4 step 11. The pattern, in the workbench the match chip opens. A new template's match
-    /// is already an empty regex (`Templates.create`), so the kind needs no choosing.
+    /// §5.4 step 11. The pattern, in the match line, which a template just made arrives with
+    /// open. A new template's match is already an empty regex (`Templates.create`), so the
+    /// kind needs no choosing, and the workbench is not opened at all.
     private static void pattern(final Play play, final Play screen) {
-        play.click(play.querySelector(ShapeshifterEditorStories.MATCH_CHIP));
-        play.waitFor(() -> play.expect(play.getByLabelText("Pattern")).toBeInTheDocument());
-        // "[[" types a literal "[": play.type is userEvent.type, where "[" opens a key
+        // "[[" types a literal "[": the keyboard is userEvent's, where "[" opens a key
         // descriptor, so an unescaped "([a-z]+)" arrives as "(+)" with the character class
         // silently eaten (design 46 §5.9)
-        play.type(play.getByLabelText("Pattern"), "([[a-z]+)=([[^\\n]*)\\n");
-        play.click(play.getByRole("button", TextMatch.regex("close the workbench", "i")));
+        Walkthrough.matching(play, "([[a-z]+)=([[^\\n]*)\\n");
     }
 
     /// §5.4's finding, and the answer to it. Between making a template in a new mode and
@@ -253,30 +247,33 @@ public final class ShapeshifterAuthoringStories {
     /// The author has done nothing wrong — they are halfway through a two-part edit — so the
     /// panel says so on the mode rather than leaving them to wonder.
     private static void deadMode(final Play play, final Play screen) {
-        play.waitFor(() -> play.expect(play.getByText("nothing dispatches into this",
-                ".template-panel__mode-note")).toBeVisible());
+        // There is no such state any more (design 47 C): the mode was dispatched from the
+        // document where it was made, before it had a template to strand
+        play.expect(play.queryByText("nothing dispatches into this",
+                ".template-panel__mode-note")).toBeNull();
     }
 
-    /// §5.5 step 13. The envelope's opening tag, put in above the dispatch it wraps: the
-    /// dispatch is the selected row, and the toolbar opens a new card above it. Nothing is
-    /// added at the end and moved up afterwards.
+    /// §5.5 step 13. The envelope's opening tag, moved above the dispatch it wraps: a card is
+    /// added below — at the end of the body, here — so the order is made by hand afterwards.
     private static void openTag(final Play play, final Play screen) {
         ShapeshifterEditorStories.selectTemplate(play, "document");
-        play.waitFor(() -> play.expect(ShapeshifterEditorStories.newRow(play)).toBeInTheDocument());
-        Walkthrough.enterAbove(play, "apply-templates", "<records>\\n");
+        play.waitFor(() -> play.expect(ShapeshifterEditorStories.addLink(play)).toBeInTheDocument());
+        Walkthrough.enter(play, "<records>\\n");
+        // The body is [apply-templates, text], with a new card open after them for the next
+        // line. Escape says there is none, and leaves the row just added the selected one: the
+        // toolbar's Move up puts the opening before the dispatch
+        play.keyboard("{Escape}");
+        play.click(play.getByRole("button", "Move the selected instruction up"));
     }
 
     /// §5.5 step 14. The dispatch itself — the card the document template arrived with, told
     /// which mode to dispatch into. The dead-mode note goes as the two-part edit completes.
     private static void dispatch(final Play play, final Play screen) {
-        play.click(ShapeshifterEditorStories.cardLine(play, "apply-templates"));
-        final Play dispatching =
-                ShapeshifterEditorStories.cardEditor(play);
-        ShapeshifterEditorStories.pickFromBox(play, screen, dispatching.getByLabelText("Mode"), "kv");
-        play.click(dispatching.getByRole("button", StroomDom.button("OK")));
-        // A note that stayed after the edit was finished would be worse than no note at all
-        play.waitFor(() -> play.expect(play.queryByText("nothing dispatches into this",
-                ".template-panel__mode-note")).toBeNull());
+        // Done already, from the mode (design 47 C). The card says where it dispatches, and
+        // is not opened
+        play.expect(play.getByText(TextMatch.containing("in mode kv"), ".body-card__literal")).toBeVisible();
+        play.expect(play.queryByText("nothing dispatches into this",
+                ".template-panel__mode-note")).toBeNull();
     }
 
     /// §5.5 step 15. The closing tag, which lands at the end where it belongs.
@@ -296,7 +293,7 @@ public final class ShapeshifterAuthoringStories {
     /// the quality-of-life question this stage exists to show.
     private static void pairOpen(final Play play, final Play screen) {
         ShapeshifterEditorStories.selectTemplate(play, "pair");
-        play.waitFor(() -> play.expect(ShapeshifterEditorStories.newRow(play)).toBeInTheDocument());
+        play.waitFor(() -> play.expect(ShapeshifterEditorStories.addLink(play)).toBeInTheDocument());
         Walkthrough.enter(play, " <pair key=\"");
     }
 
@@ -312,23 +309,16 @@ public final class ShapeshifterAuthoringStories {
         Walkthrough.enterNext(play, "</pair>\\n");
     }
 
-    /// §5.7 step 21. The catch-all, in the mode it has to share with `pair`.
+    /// §5.7 step 21. The catch-all, in the mode it has to share with `pair`: added with that
+    /// mode's own `+ template`, so there is no mode to pick.
     private static void junkTemplate(final Play play, final Play screen) {
-        play.click(play.getByRole("button", "Add template"));
-        final Play junk = ShapeshifterEditorStories.dialogMatching(play, screen, "New Template");
-        junk.type(junk.getByLabelText("Name"), "junk_line");
-        ShapeshifterEditorStories.pickFromBox(play, screen, junk.getByLabelText("Mode"), "kv");
-        play.click(junk.getByRole("button", StroomDom.button("OK")));
-        play.waitFor(() -> play.expect(play.getByText("junk_line",
-                ShapeshifterEditorStories.TEMPLATE_NAME)).toBeInTheDocument());
+        play.click(play.getByTitle("Click to add a template to mode kv"));
+        Walkthrough.named(play, "junk_line");
     }
 
     /// §5.7 step 22. A pattern that matches any line at all.
     private static void junkPattern(final Play play, final Play screen) {
-        play.click(play.querySelector(ShapeshifterEditorStories.MATCH_CHIP));
-        play.waitFor(() -> play.expect(play.getByLabelText("Pattern")).toBeInTheDocument());
-        play.type(play.getByLabelText("Pattern"), "[[^\\n]*\\n?");
-        play.click(play.getByRole("button", TextMatch.regex("close the workbench", "i")));
+        Walkthrough.matching(play, "[[^\\n]*\\n?");
     }
 
     /// §5.7 step 23. Order within a mode is dispatch priority, and this is the one place in the
@@ -364,9 +354,11 @@ public final class ShapeshifterAuthoringStories {
     /// skip reports (design 11 §4). Its message is a reference expression of a literal and the
     /// whole match, written as the field's own help describes.
     private static void warning(final Play play, final Play screen) {
-        ShapeshifterEditorStories.selectTemplate(play, "junk_line");
-        ShapeshifterEditorStories.newCard(play, screen, "emit-error");
+        // The template arrived with a new card open in its body, its kind left to what is
+        // typed. This one is not a line: its kind is chosen, where it is
         final Play message = ShapeshifterEditorStories.cardEditor(play);
+        ShapeshifterEditorStories.pickFromBox(play, screen,
+                message.getByLabelText("Instruction"), "emit-error");
         // Lowercase, as the picker lists them and as the wire spells them (JsonFields.label); the
         // default is "error", so this is a real choice
         ShapeshifterEditorStories.pickFromBox(play, screen,
@@ -396,6 +388,7 @@ public final class ShapeshifterAuthoringStories {
         play.click(ShapeshifterEditorStories.runButton(play));
         play.waitFor(() -> play.expect(play.getByText(TextMatch.containing("<records>")))
                 .toBeInTheDocument());
+        Walkthrough.expectTried(play, "pair", "2");
     }
 
 }

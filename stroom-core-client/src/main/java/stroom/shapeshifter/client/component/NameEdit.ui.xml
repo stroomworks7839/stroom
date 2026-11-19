@@ -1,0 +1,14 @@
+<!DOCTYPE ui:UiBinder SYSTEM "http://dl.google.com/gwt/DTD/xhtml.ent">
+<ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
+             xmlns:g="urn:import:com.google.gwt.user.client.ui"
+             xmlns:t="urn:import:stroom.widget.text.client"
+             xmlns:form="urn:import:stroom.widget.form.client"
+             xmlns:b="urn:import:stroom.widget.button.client">
+    <g:FlowPanel styleName="name-edit">
+        <t:Label ui:field="name" styleName="name-edit__name"/>
+        <form:TextBox ui:field="field" addStyleNames="name-edit__field" visible="false"/>
+        <b:Toolbar ui:field="actions" name="Name actions" addStyleNames="name-edit__actions">
+            <b:ToolbarButton ui:field="edit"/>
+        </b:Toolbar>
+    </g:FlowPanel>
+</ui:UiBinder>

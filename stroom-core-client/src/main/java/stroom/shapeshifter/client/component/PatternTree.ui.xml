@@ -6,7 +6,10 @@
              xmlns:b="urn:import:stroom.widget.button.client">
     <g:FlowPanel styleName="max dock-container-vertical">
         <b:Toolbar name="Actions" ui:field="buttonPanel" addStyleNames="dock-min workbench-form__toolbar"/>
-        <l:ScrollPane addStyleNames="dock-max">
+        <!-- A tab stop of its own, as the regex form's is: a tree of a dozen nodes is wider
+             than the pane, and the boxes it is drawn with are not themselves tab stops. -->
+        <l:ScrollPane addStyleNames="dock-max scroll-region"
+                      focusable="true" role="region" ariaLabel="Pattern tree">
             <g:FlowPanel styleName="workbench-form__right">
                 <g:FlowPanel styleName="workbench-form__section">
                     <t:Html ui:field="heading" styleName="workbench-form__heading"/>

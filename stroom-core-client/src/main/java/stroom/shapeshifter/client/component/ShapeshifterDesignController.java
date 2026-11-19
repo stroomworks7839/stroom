@@ -176,7 +176,10 @@ public class ShapeshifterDesignController
         onDispose(rerun::reset);
         templatePanel.setHost(this);
         strip.setHost(this);
-        strip.setOnEditIdentity(() -> templatePanel.editSelected());
+        // A mode's own list: its templates are gone to, and added, as the panel's are
+        strip.setOnSelectTemplate(id -> templatePanel.select(id));
+        strip.setOnAddTemplate(mode -> templatePanel.addTemplate(mode));
+        strip.setOnRenameMode(this::renameMode);
         strip.setOnOpenWorkbench(this::openWorkbench);
         workbench.setHost(this);
         samplePage.setHost(this);
@@ -193,6 +196,28 @@ public class ShapeshifterDesignController
             onSelect(id);
             record();
         }));
+        // A template or a mode just made in the panel is shown, called what a new one is
+        // called, and naming it is the first thing to do: its title opens to be changed (the
+        // owner, 2026-11-18). From a template's name Enter goes on to its match (design 47 B).
+        // A pattern part's is in the workbench, which is where a part is shown (design 47 §7.2,
+        // finding 15).
+        templatePanel.setOnCreated(id -> {
+            if (Patterns.nameOf(id) != null) {
+                workbench.editName();
+            } else {
+                strip.editTitle();
+            }
+        });
+        // A row double-clicked is opened to be renamed, where it is shown: a part's in the
+        // workbench, which is where a part is shown, and anything else's in the strip
+        templatePanel.setOnOpened(id -> {
+            if (Patterns.nameOf(id) != null) {
+                workbench.editName();
+            } else {
+                strip.onEditIdentity();
+            }
+        });
+        workbench.setOnRenamePart(this::renamePart);
         view.setKeyHandler(this::onKey);
         own(History.addValueChangeHandler(event -> onHistory(event.getValue())));
         // Read-only is the document's, pushed down as context rather than carried in read(): the
@@ -584,6 +609,32 @@ public class ShapeshifterDesignController
         check();
     }
 
+    // ---- renaming what is selected ----
+
+    // A mode renamed where it is shown. The selection is moved to the row it will have before
+    // the rows change, so it is never lost: losing it moved the cursor to the document
+    // (design 47 §7.8, finding 5). A mode nothing uses yet is only the editor's, and is simply
+    // called something else.
+    private void renameMode(final String from, final String to) {
+        templatePanel.follow(TemplatePanelController.modeRowId(to));
+        if (project != null && Modes.of(project).contains(from)) {
+            replace(Modes.rename(project, from, to));
+        } else {
+            forgetMode(from);
+            declareMode(to);
+            refresh();
+        }
+    }
+
+    // A part renamed where it is shown, the workbench: every tree that names it follows it, and
+    // so does the selection.
+    private void renamePart(final String from, final String to) {
+        if (project != null) {
+            templatePanel.follow(Patterns.rowId(to));
+            replace(Patterns.rename(project, from, to));
+        }
+    }
+
     // ---- modes ----
 
     @Override
@@ -835,7 +886,7 @@ public class ShapeshifterDesignController
     /// Everything that reads the trace or the cursor, after either changes.
     private void refreshTrace() {
         templatePanel.refresh();
-        strip.setTemplate(strip.getTemplateId());
+        strip.refresh();
         crumb.refresh();
         input.refresh();
         variables.refresh();
@@ -875,6 +926,15 @@ public class ShapeshifterDesignController
             workbenchOpen = true;
             workbench.setPattern(pattern);
             view.showWorkbench(true);
+            return;
+        }
+        final String mode = TemplatePanelController.modeOf(rowId);
+        if (mode != null && modes().contains(mode)) {
+            // A mode is not a frame either: selecting it shows the mode — its name, and the
+            // templates in it — where a template would be shown, and the cursor stays put.
+            closeWorkbench();
+            strip.setMode(mode);
+            crumb.setTemplate(null);
             return;
         }
         final String id = template(rowId) == null

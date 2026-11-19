@@ -26,7 +26,6 @@ import stroom.shapeshifter.client.model.ProjectHost;
 import stroom.shapeshifter.client.model.Templates;
 import stroom.shapeshifter.client.model.TraceModel;
 import stroom.shapeshifter.config.Condition;
-import stroom.shapeshifter.config.Declaration;
 import stroom.shapeshifter.config.Dispatch;
 import stroom.shapeshifter.config.EngineVars;
 import stroom.shapeshifter.config.MatchExpression;
@@ -56,8 +55,8 @@ import java.util.Set;
 
 /// The body as a card list (design 18 §5.6; 43 §4.2): each instruction a card with its kind and
 /// a summary, each holder's branches card lists of their own, nested one level in, each ending
-/// with the New row a card is added at. Click a row to open it; the toolbar moves the selected
-/// row, removes it, or opens a new card above or below it; a *when* or *case* head is edited
+/// with the link a card is added at. Click a row to open it; the toolbar adds a card below the
+/// selected row, removes that row or moves it; a *when* or *case* head is edited
 /// and pruned on its own line. Every
 /// edit is a rewrite through [Bodies] landing on the host as the template's new body. What a
 /// card shows about the run — the output it wrote, the children it dispatched — is phase B.
@@ -249,11 +248,8 @@ public class BodyController extends Controller {
 
     private List<String> names() {
         final Template template = host.template(templateId);
-        final Set<String> names = new LinkedHashSet<>();
+        final Set<String> names = new LinkedHashSet<>(Templates.declaredNames(host.getProject(), template));
         if (template != null) {
-            for (final Declaration declaration : template.declarations()) {
-                names.add(declaration.name());
-            }
             for (final ParamDecl param : template.param()) {
                 names.add(param.name());
             }
@@ -345,7 +341,9 @@ public class BodyController extends Controller {
             return;
         }
         editing = make(instructionEditorProvider);
-        editing.read(node, null, names(), Modes.of(host.getProject()));
+        // Every mode the panel shows, one with no template yet included: a mode can be
+        // dispatched into before anything is in it (design 47 C)
+        editing.read(node, null, names(), host.modes());
         editing.setOnCommit(this::commit);
         editing.setOnCancel(this::cancel);
         editingPath = at;
@@ -354,19 +352,19 @@ public class BodyController extends Controller {
         editing.focus(kind);
     }
 
-    /// A new card asked for: a list's New row opened, or the toolbar's insert above or below
+    /// A new card asked for: a list's add link pressed, or the toolbar's Add, which is below
     /// the selected row. It is a draft where it will go, and its kind is `auto` — what is
     /// typed says what it is — until one is chosen.
     ///
     /// @param listPath The list it is to go in.
     /// @param index Where in it.
-    /// @param kind Whether the kinds are to be offered at once.
-    public void onNew(final String listPath, final int index, final boolean kind) {
+    /// @param from The row the author was on, which the keyboard goes back to if the card is
+    ///             dropped; null when it was asked for from the list's own add link, which is
+    ///             then where it goes back to.
+    public void onNew(final String listPath, final int index, final String from) {
         if (readOnly) {
             return;
         }
-        // The row the author is on: the New row itself, or the row the toolbar was acting on
-        final String selected = view.getSelected();
         final Shift shift = settle();
         if (shift == null) {
             return;
@@ -377,15 +375,21 @@ public class BodyController extends Controller {
         if (cards == null || at > cards.size()) {
             return;
         }
-        openNew(list, at, kind, selected == null
-                ? Bodies.path(Bodies.child(Bodies.path(list), at))
-                : shift.path(selected));
+        openNew(list, at, from == null
+                ? Bodies.path(Bodies.child(Bodies.path(list), cards.size()))
+                : shift.path(from));
+    }
+
+    /// Opens a new card at the end of the body, with the keyboard in it: what the body's own
+    /// add link does.
+    public void openNew() {
+        onNew(Bodies.path(new int[0]), body.size(), null);
     }
 
     // A new card, as a draft where it will go.
-    private void openNew(final String listPath, final int index, final boolean kind, final String from) {
+    private void openNew(final String listPath, final int index, final String from) {
         editing = make(instructionEditorProvider);
-        editing.read(null, InstructionEditController.AUTO, names(), Modes.of(host.getProject()));
+        editing.read(null, InstructionEditController.AUTO, names(), host.modes());
         editing.setOnCommit(this::commit);
         editing.setOnCancel(this::cancel);
         editingPath = null;
@@ -393,7 +397,7 @@ public class BodyController extends Controller {
         editingIndex = index;
         editingFrom = from;
         view.setNewEditor(listPath, index, editing.asWidget());
-        editing.focus(kind);
+        editing.focus(false);
     }
 
     // Enter, or OK. A card's own draft is taken, and the keyboard goes back to its row. A new
@@ -420,7 +424,7 @@ public class BodyController extends Controller {
         // After what was put in. Dropped, the keyboard goes back to the last row that was: the
         // author has finished adding, and what they added last is what is selected.
         final int next = index + shift.count;
-        openNew(list, next, false, Bodies.path(Bodies.child(Bodies.path(list), next - 1)));
+        openNew(list, next, Bodies.path(Bodies.child(Bodies.path(list), next - 1)));
     }
 
     /// Takes the open draft, if there is one, before something else is done to the body.
@@ -638,7 +642,7 @@ public class BodyController extends Controller {
     }
 
     // A row taken out, and the keyboard left on the list: on the row that has come up into its
-    // place, or the one before it if it was the last, or the list's New row if it was the only.
+    // place, or the one before it if it was the last, or the list's add link if it was the only.
     private void remove(final int[] nodePath) {
         final int[] list = Bodies.parent(nodePath);
         final int index = nodePath[nodePath.length - 1];

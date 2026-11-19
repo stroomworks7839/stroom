@@ -17,6 +17,7 @@
 package stroom.shapeshifter.client.model;
 
 import stroom.shapeshifter.config.Dispatch;
+import stroom.shapeshifter.config.MatchExpression;
 import stroom.shapeshifter.config.OutputNode;
 import stroom.shapeshifter.config.OutputNode.ApplyDirective;
 import stroom.shapeshifter.config.OutputNode.ApplyTemplates;
@@ -163,6 +164,131 @@ public final class Modes {
                 : null;
     }
 
+    /// What a mode's own pane says about how the mode is dispatched, and what it offers to do
+    /// about it (design 47 C, ruled 2026-11-18).
+    ///
+    /// **Finishing the two-part edit where it is noticed.** A mode with templates and nothing
+    /// dispatching into it never runs, and in every rung walked the way out was the same: point
+    /// the document's own `apply-templates` at it. That is offered, as one action, exactly when
+    /// it is a completion and not a decision —
+    ///
+    /// - the document has one `apply-templates` that names no mode, so there is no question
+    ///   which is meant; and
+    /// - the root has no templates of its own, because a dispatch that names no mode is what
+    ///   runs those, and pointing it elsewhere would stop them.
+    ///
+    /// Anywhere else a second dispatch is wanted, which is for the author to place, and the
+    /// state says why nothing is offered rather than leaving them to wonder.
+    ///
+    /// **The strategy** is the one its sites share, as each site holds it — null for a site
+    /// that takes the project's. Sites that differ have no one value, and the pane sets none.
+    ///
+    /// @param project The project.
+    /// @param mode The mode.
+    /// @return The state.
+    public static DispatchState dispatchState(final Project project, final String mode) {
+        final List<Dispatch> held = new ArrayList<>();
+        for (final Template template : project.templates()) {
+            mapApply(template.body(), directive -> {
+                if (Objects.equals(directive.mode(), mode)) {
+                    held.add(directive.dispatch());
+                }
+                return directive;
+            });
+        }
+        if (!held.isEmpty()) {
+            final boolean agreed = new HashSet<>(held).size() == 1;
+            return new DispatchState(held.size(), agreed, agreed
+                    ? held.get(0)
+                    : null, false, null);
+        }
+        final String whyNot = whyNotFromDocument(project);
+        return new DispatchState(0, true, null, whyNot == null, whyNot);
+    }
+
+    // Why the document's own dispatch cannot simply be pointed at a mode, or null when it can.
+    private static String whyNotFromDocument(final Project project) {
+        final Template document = document(project);
+        if (document == null) {
+            return "there is no document template to dispatch from";
+        }
+        final List<String> into = new ArrayList<>();
+        final int[] blank = {0};
+        mapApply(document.body(), directive -> {
+            if (directive.mode() == null) {
+                blank[0]++;
+            } else if (!into.contains(directive.mode())) {
+                into.add(directive.mode());
+            }
+            return directive;
+        });
+        final String next = "add an apply-templates where this mode is to be dispatched from";
+        if (blank[0] == 0) {
+            return (into.isEmpty()
+                    ? "the document has no apply-templates"
+                    : "the document dispatches into " + String.join(", ", into)) + "; " + next;
+        }
+        if (blank[0] > 1) {
+            return "the document has " + blank[0] + " dispatches that name no mode; " + next;
+        }
+        for (final Template template : project.templates()) {
+            if (template.mode() == null && template != document) {
+                return "the root has templates of its own, which the document's dispatch runs; " + next;
+            }
+        }
+        return null;
+    }
+
+    private static Template document(final Project project) {
+        for (final Template template : project.templates()) {
+            if (template.match() instanceof MatchExpression.Source) {
+                return template;
+            }
+        }
+        return null;
+    }
+
+    /// The project with the document's own `apply-templates` pointed at a mode: the second
+    /// half of the two-part edit, done from the mode (design 47 C).
+    ///
+    /// @param project The project.
+    /// @param mode The mode.
+    /// @return The project as it is then, or the project given when that is not on offer
+    ///         ([#dispatchState]).
+    public static Project dispatchFromDocument(final Project project, final String mode) {
+        final Template document = document(project);
+        if (document == null || !dispatchState(project, mode).offered()) {
+            return project;
+        }
+        final List<OutputNode> body = mapApply(document.body(), directive -> directive.mode() == null
+                ? new ApplyDirective(directive.select(), mode, directive.withParam(), directive.maxDepth(),
+                directive.ignoreErrors(), directive.dispatch())
+                : directive);
+        return Templates.replace(project, Templates.withBody(document, body));
+    }
+
+    /// The project with every site that dispatches into a mode given a strategy: what the
+    /// mode's pane sets, where the sites agree.
+    ///
+    /// @param project The project.
+    /// @param mode The mode.
+    /// @param dispatch The strategy, or null for the project's.
+    /// @return The project as it is then.
+    public static Project withDispatch(final Project project, final String mode, final Dispatch dispatch) {
+        final List<Template> templates = new ArrayList<>();
+        for (final Template t : project.templates()) {
+            final List<OutputNode> body = mapApply(t.body(), directive -> Objects.equals(directive.mode(), mode)
+                                                                           && directive.dispatch() != dispatch
+                    ? new ApplyDirective(directive.select(), directive.mode(), directive.withParam(),
+                    directive.maxDepth(), directive.ignoreErrors(), dispatch)
+                    : directive);
+            templates.add(body == t.body()
+                    ? t
+                    : Templates.withBody(t, body));
+        }
+        return project.withTemplates(templates);
+    }
+
     /// The project with a mode renamed: its templates move, and every site naming it follows.
     public static Project rename(final Project project, final String from, final String to) {
         final List<Template> templates = new ArrayList<>();
@@ -286,5 +412,17 @@ public final class Modes {
                     : new ForEachGroup(fg.select(), fg.groupBy(), body);
         }
         return node;
+    }
+
+    /// How a mode is dispatched, as its own pane says it ([#dispatchState]).
+    ///
+    /// @param sites How many `apply-templates` dispatch into it.
+    /// @param agreed Whether those sites hold one strategy between them; true when there are
+    ///               none.
+    /// @param dispatch The strategy they hold, where they agree: null for the project's.
+    /// @param offered Whether pointing the document's own dispatch at the mode is on offer.
+    /// @param reason Why it is not, where nothing dispatches into the mode and it is not.
+    public record DispatchState(int sites, boolean agreed, Dispatch dispatch, boolean offered, String reason) {
+
     }
 }

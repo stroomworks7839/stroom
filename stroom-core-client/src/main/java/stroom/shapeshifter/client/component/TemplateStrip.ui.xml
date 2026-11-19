@@ -4,6 +4,8 @@
              xmlns:t="urn:import:stroom.widget.text.client"
              xmlns:split="urn:import:stroom.widget.layout.client"
              xmlns:l="urn:import:stroom.widget.selection.client"
+             xmlns:form="urn:import:stroom.widget.form.client"
+             xmlns:btn="urn:import:stroom.widget.button.client"
              xmlns:ss="urn:import:stroom.shapeshifter.client.component">
     <!-- The heading, and the template itself under it: one scrolled area holding the match, the
          guard, the names it defines and the body. The declarations and the captures were a
@@ -16,9 +18,10 @@
         <g:FlowPanel styleName="template-strip__head">
             <t:Label ui:field="title" styleName="design-panel__title template-strip__pattern-title"/>
             <t:Label ui:field="chip" styleName="chip chip--editable"
-                     title="Edit the template's name, colour, mode, params and encoding…"/>
-            <t:Label ui:field="name" styleName="template-strip__name"
-                     title="Edit the template's name, colour, mode, params and encoding…"/>
+                     title="Edit the name and settings"/>
+            <!-- The name, edited where it reads: a template's or a mode's (the owner,
+                 2026-11-18). There is no dialog for it and no field in the list. -->
+            <ss:NameEdit ui:field="name"/>
             <t:Label ui:field="mode" styleName="template-strip__mode"/>
             <t:Label ui:field="note" styleName="template-strip__note"/>
         </g:FlowPanel>
@@ -27,17 +30,43 @@
              that scrolling it with the keys needs. -->
         <split:ScrollPane addStyleNames="max scroll-region" role="region" ariaLabel="Template">
             <g:FlowPanel styleName="template-strip__body">
+                <!-- A template's settings other than its name, while its title is being
+                     edited. A slot: they are made when the title is opened. -->
+                <g:SimplePanel ui:field="settings" styleName="template-strip__settings" visible="false"/>
+                <!-- How a mode is dispatched, when it is a mode that is shown (design 47 C):
+                     the strategy its dispatch sites share, set here on all of them; and, while
+                     nothing dispatches into it, the way to make the document do so. -->
+                <g:FlowPanel ui:field="dispatchLine" styleName="template-strip__line" visible="false">
+                    <t:Label styleName="key-label" text="dispatch"/>
+                    <l:SelectionBox ui:field="dispatch" ariaLabel="How the mode is dispatched" addStyleNames="template-strip__role"
+                                    title="How templates in this mode are chosen where it is dispatched. Set here, it is set on every apply-templates that dispatches into the mode."/>
+                    <t:Label ui:field="dispatchNote" styleName="edit-form__description template-strip__role-note"/>
+                    <btn:LinkButton ui:field="dispatchLink" addStyleNames="add-button template-strip__dispatch-link" text="dispatch from the document"
+                                    title="Point the document's apply-templates at this mode"/>
+                </g:FlowPanel>
+                <!-- A mode's templates, when it is a mode that is shown. -->
+                <ss:DefinitionList ui:field="templates" heading="templates" kind="template" visible="false"/>
                 <g:FlowPanel ui:field="matchLine" styleName="template-strip__line">
                     <t:Label styleName="key-label" text="match"/>
-                    <g:FocusPanel ui:field="matchChip" styleName="template-strip__match-chip"
-                                  title="Open the pattern workbench — editing, validation, groups, the plan">
-                        <g:FlowPanel styleName="template-strip__match-chip-inner">
-                            <t:Label ui:field="matchKind" styleName="template-strip__match-kind"/>
+                    <!-- What the template matches, in a box the size of a field. At rest it
+                         reads; clicked, a regex is a field in the same box, taken with Enter
+                         (design 47 B). The workbench is beside it for everything else, and is
+                         the way in for a match with no one-line spelling. -->
+                    <g:FlowPanel styleName="template-strip__match-chip">
+                        <t:Label ui:field="matchKind" styleName="template-strip__match-kind"/>
+                        <g:FocusPanel ui:field="matchChip" styleName="template-strip__match-open">
                             <t:Label ui:field="matchSummary" styleName="template-strip__match-pattern"/>
-                            <t:Label styleName="template-strip__match-workbench" text="✎ workbench"/>
-                        </g:FlowPanel>
-                    </g:FocusPanel>
+                        </g:FocusPanel>
+                        <form:TextBox ui:field="matchField" addStyleNames="template-strip__match-field"
+                                      ariaLabel="Match pattern" visible="false"/>
+                        <btn:LinkButton ui:field="workbench" addStyleNames="template-strip__match-workbench"
+                                        text="workbench"
+                                        title="Open the pattern workbench — editing, validation, groups, the plan"/>
+                    </g:FlowPanel>
                 </g:FlowPanel>
+                <!-- Why the regex being typed does not compile, as the engine says it, while the
+                     line is open (design 47 §7.2, finding 14). -->
+                <t:Label ui:field="matchError" styleName="template-strip__match-error" visible="false"/>
                 <!-- Between the match and the body, because that is where it acts: the match
                      is found either way, and skipping decides what becomes of it (design 44 §5d). -->
                 <g:FlowPanel ui:field="roleLine" styleName="template-strip__line">

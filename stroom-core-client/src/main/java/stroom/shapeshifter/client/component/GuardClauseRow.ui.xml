@@ -3,17 +3,18 @@
              xmlns:form="urn:import:stroom.widget.form.client"
              xmlns:t="urn:import:stroom.widget.text.client"
              xmlns:g="urn:import:com.google.gwt.user.client.ui"
-             xmlns:l="urn:import:stroom.widget.selection.client">
+             xmlns:l="urn:import:stroom.widget.selection.client"
+             xmlns:b="urn:import:stroom.widget.button.client">
     <g:FlowPanel styleName="edit-form__step-row">
         <t:Label ui:field="joiner" styleName="edit-form__number"/>
-        <l:SelectionBox ui:field="variable" addStyleNames="clause-row__variable" title="A declared name, a param, or a function such as index()"/>
+        <l:SelectionBox ui:field="variable" addStyleNames="clause-row__variable" ariaLabel="Name" title="A declared name, a param, or a function such as index()"/>
         <!-- Negation is its own box rather than a second operator for every comparison: the row
              reads "name not contains x", and the twelve operators stay twelve. -->
         <l:SelectionBox ui:field="negated" addStyleNames="clause-row__negated" ariaLabel="Negated" title="Whether the row holds where its clause does not"/>
-        <l:SelectionBox ui:field="op" addStyleNames="clause-row__operator"/>
-        <form:TextBox ui:field="value" styleName="edit-form__input clause-row__value"
+        <l:SelectionBox ui:field="op" addStyleNames="clause-row__operator" ariaLabel="Operator" title="How the name is tested"/>
+        <form:TextBox ui:field="value" styleName="edit-form__input clause-row__value" ariaLabel="Value"
                    title="A number, true or false, or text - in quotes when it would otherwise read as a number"/>
-        <l:SelectionBox ui:field="as" addStyleNames="clause-row__as" title="How the variable is read before comparing"/>
-        <t:Label ui:field="remove" styleName="item-action item-action--delete" text="✕" title="Remove this clause"/>
+        <l:SelectionBox ui:field="as" addStyleNames="clause-row__as" ariaLabel="Read as" title="How the variable is read before comparing"/>
+        <b:LinkButton ui:field="remove" addStyleNames="item-action item-action--delete" text="✕" title="Remove this clause" ariaLabel="Remove this clause"/>
     </g:FlowPanel>
 </ui:UiBinder>

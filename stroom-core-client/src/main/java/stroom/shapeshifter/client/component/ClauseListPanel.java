@@ -18,13 +18,13 @@ package stroom.shapeshifter.client.component;
 
 import stroom.shapeshifter.client.model.GuardClause;
 import stroom.shapeshifter.client.model.GuardClause.Join;
+import stroom.widget.button.client.LinkButton;
 import stroom.widget.component.client.Component;
 import stroom.widget.form.client.TextArea;
 import stroom.widget.selection.client.SelectionBox;
 import stroom.widget.text.client.Label;
 
 import com.google.gwt.event.dom.client.BlurEvent;
-import com.google.gwt.event.dom.client.ClickEvent;
 import com.google.gwt.user.client.ui.FlowPanel;
 
 import java.util.ArrayList;
@@ -46,7 +46,9 @@ public class ClauseListPanel extends Component {
     private final FlowPanel joinPanel = new FlowPanel();
     private final SelectionBox<Join> join = new SelectionBox<>();
     private final Label none = new Label();
-    private final Label add = new Label("+ clause");
+    // A button, so the keyboard reaches it: it was a label, and an if could not be given its
+    // condition without a mouse (design 46 §6.4a).
+    private final LinkButton add = new LinkButton("+ clause");
     private final FlowPanel jsonPanel = new FlowPanel();
     private final TextArea json = new TextArea();
     private final Label error = new Label();
@@ -69,8 +71,9 @@ public class ClauseListPanel extends Component {
     public ClauseListPanel() {
         final FlowPanel panel = new FlowPanel();
         none.setStyleName("placeholder");
-        add.setStyleName("add-button");
-        add.addClickHandler((ClickEvent e) -> {
+        add.addStyleName("add-button");
+        add.setTitle("Click to add a clause");
+        add.setOnClick(() -> {
             if (enabled) {
                 onAdd.run();
             }
@@ -158,7 +161,7 @@ public class ClauseListPanel extends Component {
     @Override
     protected void onReadOnlyChange(final boolean readOnly) {
         this.enabled = !readOnly;
-        add.setStyleDependentName("disabled", !enabled);
+        add.setEnabled(enabled);
         join.setEnabled(enabled);
         json.setEnabled(enabled);
     }

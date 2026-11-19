@@ -1,12 +1,46 @@
 /*
- * The template dialog's field rows (TemplateEdit): a field with a button beside it.
+ * A template's settings (TemplateEdit), shown under its title while the title is being edited:
+ * the fields in a row that wraps, and the two ways out at its end.
  */
-.template-edit__field-row {
+.template-edit {
     display: flex;
-    gap: 6px;
-    align-items: center;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 6px 12px;
+    padding: 6px 12px 8px;
+    background-color: var(--control__background-color);
+    border: solid var(--focus-border);
+    border-width: 1px 0;
+    font-size: 12.5px;
 }
 
-.template-edit__field-row-main {
-    flex: 1 1 auto;
+.template-edit .template-edit__group {
+    flex: 1 1 150px;
+    min-width: 0;
+    margin: 0;
+}
+
+.template-edit .template-edit__group--wide {
+    flex: 1 1 100%;
+}
+
+/* Two lines of params on show, and more by scrolling: most templates have none. */
+.template-edit .template-edit__params {
+    min-height: 0;
+    height: 3.6em;
+}
+
+.template-edit__actions {
+    display: flex;
+    flex: none;
+    align-self: flex-end;
+    gap: 14px;
+    margin-left: auto;
+    padding-bottom: 5px;
+}
+
+/* A 24px target each (WCAG 2.5.8). */
+.template-edit__action {
+    min-width: 24px;
+    min-height: 24px;
 }

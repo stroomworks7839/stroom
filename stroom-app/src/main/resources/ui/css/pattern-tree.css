@@ -42,16 +42,17 @@
     min-height: 60px;
 }
 
+/* The canvas is in the flow and the boxes are laid over it: the canvas is sized to the layout
+   the boxes are placed by, so it is what gives the section its height. The other way round,
+   nothing in the flow had any, and a tall tree drew over the sections beneath it. */
 .pattern-tree__boxes {
-    position: relative;
+    position: absolute;
     top: 0;
     left: 0;
 }
 
 .pattern-tree__canvas {
-    position: absolute;
-    top: 0;
-    left: 0;
+    position: relative;
 }
 
 .pattern-tree__node-label {
