@@ -1,12 +1,12 @@
 /*
- * The match editor's kind row (MatchEditor): one choice above the kind's own form.
+ * The match editor's kind row (MatchEditor): one choice above the kind's own form, in the same
+ * pane, which scrolls as one.
  */
 .match-editor__kind {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 7px 14px 5px;
-    border-bottom: 1px solid var(--border-color);
+    padding: 8px 14px 0;
 }
 
 .match-editor__select {

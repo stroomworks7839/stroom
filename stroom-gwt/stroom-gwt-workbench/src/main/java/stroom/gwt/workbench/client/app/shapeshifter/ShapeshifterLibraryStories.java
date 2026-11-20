@@ -214,9 +214,23 @@ public final class ShapeshifterLibraryStories {
                         ? RestReply.json("{\"text\": " + ShapeshifterEditorStories.asJsonString(EXPLODED) + "}")
                         : RestReply.of(400, "text/plain", "Not the regex rung 4 types"))
                 .build();
-        Walkthrough.register(registry, TITLE, ShapeshifterLibraryStories.class, STAGES,
-                exploding.followedBy(Walkthrough.routes(Walkthrough.emptyTrace(SAMPLE_TEXT))),
+        final RestFixtures building = exploding.followedBy(Walkthrough.routes(Walkthrough.emptyTrace(SAMPLE_TEXT)));
+        Walkthrough.register(registry, TITLE, ShapeshifterLibraryStories.class, STAGES, building,
                 exploding.followedBy(Walkthrough.routes(TRACE)));
+        // Stage 4's other way to the tree: the regex's own link, where the stage picks the kind
+        Walkthrough.registerBeside(registry, TITLE, ShapeshifterLibraryStories.class, STAGES,
+                stageNamed("Lp03Line"),
+                "Lp04ExplodeIntoTheTree", ShapeshifterLibraryStories::explodeIntoTheTree, building);
+    }
+
+    // Where in the walkthrough a stage is, by its name
+    private static int stageNamed(final String name) {
+        for (int i = 0; i < STAGES.size(); i++) {
+            if (STAGES.get(i).getName().equals(name)) {
+                return i;
+            }
+        }
+        throw new IllegalArgumentException("No stage " + name);
     }
 
     // The pattern an explode request asks about
@@ -275,6 +289,30 @@ public final class ShapeshifterLibraryStories {
         play.waitFor(() -> play.expect(node(play, "→ time$")).toBeVisible());
         play.expect(node(play, "→ msg$")).toBeVisible();
         play.expect(node(play, "^sequence \\(3\\)$")).toBeVisible();
+        // The tree takes the room it is drawn in, so the sections under it start below its lowest
+        // node rather than under the nodes (design 47 §7.7 item 4): the canvas the nodes are laid
+        // over is sized to the layout
+        final Query nodes = play.getAllByRole("treeitem");
+        final Query asRegex = play.getByText(TextMatch.regex("^As regex"), ".workbench-form__heading");
+        play.expect("the lowest node's bottom less the top of the section under the tree", () -> {
+            double lowest = 0;
+            for (int i = 0; i < nodes.count().get(); i++) {
+                lowest = Math.max(lowest, nodes.nth(i).bottom().get());
+            }
+            return lowest - asRegex.top().get();
+        }).toBeLessThanOrEqual(0);
+    }
+
+    /// §6.3 step 7, the other way: the regex exploded from its own form, by the link after its
+    /// settings, rather than by choosing the kind. The same tree, from the same route.
+    private static void explodeIntoTheTree(final Play play, final Play screen) {
+        play.click(ShapeshifterEditorStories.workbenchButton(play));
+        play.waitFor(() -> play.expect(play.getByRole("button", "explode into the tree ›")).toBeVisible());
+        play.click(play.getByRole("button", "explode into the tree ›"));
+        play.waitFor(() -> play.expect(node(play, "→ time$")).toBeVisible());
+        play.expect(node(play, "→ msg$")).toBeVisible();
+        play.expect(node(play, "^sequence \\(3\\)$")).toBeVisible();
+        play.expect(play.getByLabelText("Match kind")).toHaveValue("pattern tree");
     }
 
     /// §6.3 step 3, in the order it comes to a person: the line is written, and the timestamp is

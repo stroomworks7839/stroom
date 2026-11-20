@@ -2,15 +2,20 @@
 <ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder"
              xmlns:g="urn:import:com.google.gwt.user.client.ui"
              xmlns:t="urn:import:stroom.widget.text.client"
-             xmlns:l="urn:import:stroom.widget.selection.client">
-    <!-- The kind row keeps its height and the body takes the rest, with no splitter between
-         them: a dock container, as the layout helpers do it. -->
-    <g:FlowPanel styleName="max dock-container-vertical">
-        <g:FlowPanel ui:field="kindRow" styleName="dock-min match-editor__kind">
-            <t:Label styleName="edit-form__limit-label" text="Match kind"/>
-            <l:SelectionBox ui:field="kind" ariaLabel="Match kind" addStyleNames="match-editor__select" title="How this template finds its matches. Regex, pattern tree and the framed sequence carry their pattern between them; the rest start blank and keep what they held for the session"/>
-            <t:Label ui:field="note" styleName="edit-form__description"/>
+             xmlns:l="urn:import:stroom.widget.selection.client"
+             xmlns:split="urn:import:stroom.widget.layout.client">
+    <!-- The kind and its form are one pane, scrolled as one, with no rule between them (ruled
+         2026-11-20): the kind is the first thing the form asks rather than a bar over it. A tab
+         stop of its own, so the keyboard can scroll it: a tree of a dozen nodes is wider than
+         the pane, and the boxes it is drawn with are not themselves tab stops. -->
+    <split:ScrollPane addStyleNames="max scroll-region" focusable="true" role="region" ariaLabel="Match">
+        <g:FlowPanel>
+            <g:FlowPanel ui:field="kindRow" styleName="match-editor__kind">
+                <t:Label styleName="edit-form__limit-label" text="Match kind"/>
+                <l:SelectionBox ui:field="kind" ariaLabel="Match kind" addStyleNames="match-editor__select" title="How this template finds its matches. Regex, pattern tree and the framed sequence carry their pattern between them; the rest start blank and keep what they held for the session"/>
+                <t:Label ui:field="note" styleName="edit-form__description"/>
+            </g:FlowPanel>
+            <g:SimplePanel ui:field="body"/>
         </g:FlowPanel>
-        <g:SimplePanel ui:field="body" styleName="dock-max"/>
-    </g:FlowPanel>
+    </split:ScrollPane>
 </ui:UiBinder>

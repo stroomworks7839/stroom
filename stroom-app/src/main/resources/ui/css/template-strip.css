@@ -84,7 +84,7 @@
 /* Why the regex being typed does not compile (design 47 §7.2, finding 14), under the match
    line it is about and in the engine's own words; shown only while the line is open. */
 .template-strip__match-error {
-    color: var(--bootstrap-error);
+    color: var(--text-color--red);
     font-size: var(--font-size-12);
     padding: 0 12px 4px;
     white-space: pre-wrap;

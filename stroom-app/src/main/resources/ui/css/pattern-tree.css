@@ -67,3 +67,36 @@
 .pattern-tree__node-label--container {
     font-family: inherit;
 }
+
+/* The node a tree that matched nowhere stopped at (design 44 §4a): the nodes before it matched
+   and it did not. The error's colour, and a rule under it so it is not colour alone. */
+.pattern-tree__node-label--stopped {
+    color: var(--text-color--red);
+    text-decoration: underline wavy var(--text-color--red);
+    text-underline-offset: 3px;
+}
+
+/* A node's text edited in place (PatternItemRenderer#edit): a field the size of the box's label,
+   in the label's font. */
+.pattern-tree__node-field {
+    box-sizing: border-box;
+    width: 100%;
+    height: 19px;
+    padding: 0 3px;
+    font-family: var(--monospace-font-family);
+    font-size: 12px;
+}
+
+/* The add line under the tree: a regex fragment, added after the selected node as its nodes. */
+.pattern-tree__add {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.pattern-tree__add-field {
+    flex: 1;
+    min-width: 0;
+    font-family: var(--monospace-font-family);
+}

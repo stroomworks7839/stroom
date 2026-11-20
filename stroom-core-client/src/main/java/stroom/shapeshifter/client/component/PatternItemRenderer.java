@@ -17,6 +17,7 @@
 package stroom.shapeshifter.client.component;
 
 import stroom.shapeshifter.client.model.PatternItem;
+import stroom.widget.form.client.TextBox;
 import stroom.widget.htree.client.CellRenderer;
 import stroom.widget.htree.client.treelayout.Bounds;
 import stroom.widget.htree.client.treelayout.Dimension;
@@ -24,12 +25,19 @@ import stroom.widget.htree.client.treelayout.NodeExtentProvider;
 import stroom.widget.htree.client.treelayout.TreeLayout;
 import stroom.widget.text.client.Label;
 
+import com.google.gwt.dom.client.Element;
+import com.google.gwt.dom.client.EventTarget;
 import com.google.gwt.dom.client.Style;
 import com.google.gwt.dom.client.Style.Unit;
+import com.google.gwt.event.dom.client.KeyCodes;
+import com.google.gwt.event.dom.client.MouseOutEvent;
+import com.google.gwt.event.dom.client.MouseOverEvent;
 import com.google.gwt.user.client.ui.FlowPanel;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 
 /// A pattern node drawn as a box the tree layout places (the expression editor's
@@ -53,7 +61,12 @@ public final class PatternItemRenderer implements CellRenderer<PatternItem>, Nod
     };
     private Consumer<String> onOpen = path -> {
     };
+    private Consumer<String> onPoint = path -> {
+    };
     private String selected;
+    private String stopped;
+    // Each box's label holder, by its node's path: where a field takes the label's place
+    private final Map<String, FlowPanel> labels = new HashMap<>();
 
     public PatternItemRenderer(final FlowPanel panel) {
         this.panel = panel;
@@ -77,6 +90,76 @@ public final class PatternItemRenderer implements CellRenderer<PatternItem>, Nod
         this.selected = path;
     }
 
+    /// Selects a box among those drawn, without drawing them again: a box redrawn under the
+    /// pointer between the two clicks of a double click never hears the double click.
+    ///
+    /// @param path The node's path.
+    public void select(final String path) {
+        this.selected = path;
+        for (final PatternItemBox box : boxes) {
+            box.setSelected(box.getItem().getPath().equals(path));
+        }
+    }
+
+    /// Told when the pointer comes onto a box, with its path, and when it leaves, with null.
+    ///
+    /// @param onPoint The handler.
+    public void setOnPoint(final Consumer<String> onPoint) {
+        this.onPoint = onPoint;
+    }
+
+    /// @param path The node a trial that matched nowhere stopped at, marked; null for none.
+    public void setStopped(final String path) {
+        this.stopped = path;
+    }
+
+    /// Edits a box's text in place: a field in its label's place, holding the text, with the
+    /// keyboard in it. Enter or leaving it takes it; Escape puts the label back, and goes no
+    /// further, as it would close the workbench.
+    ///
+    /// @param path The box's node.
+    /// @param text The text to start from.
+    /// @param onTake Given the text taken.
+    /// @param onCancel Told when it is put back.
+    /// @return Whether there was such a box to edit.
+    public boolean edit(final String path, final String text, final Consumer<String> onTake,
+                        final Runnable onCancel) {
+        final FlowPanel holder = labels.get(path);
+        if (holder == null) {
+            return false;
+        }
+        final TextBox field = new TextBox();
+        field.addStyleName("pattern-tree__node-field");
+        field.setText(text);
+        field.getElement().setAttribute("aria-label", "Node text");
+        final boolean[] done = {false};
+        field.addKeyDownHandler(event -> {
+            if (event.getNativeKeyCode() == KeyCodes.KEY_ENTER) {
+                event.preventDefault();
+                done[0] = true;
+                onTake.accept(field.getText());
+            } else if (event.getNativeKeyCode() == KeyCodes.KEY_ESCAPE) {
+                event.preventDefault();
+                event.stopPropagation();
+                done[0] = true;
+                onCancel.run();
+            }
+        });
+        field.addBlurHandler(event -> {
+            if (!done[0]) {
+                done[0] = true;
+                onTake.accept(field.getText());
+            }
+        });
+        // A click in the field is the field's, not the box's choice
+        field.addMouseDownHandler(event -> event.stopPropagation());
+        holder.clear();
+        holder.add(field);
+        field.setFocus(true);
+        field.selectAll();
+        return true;
+    }
+
     @Override
     public void render(final TreeLayout<PatternItem> treeLayout, final Bounds bounds, final PatternItem item) {
         final double x = bounds.getX();
@@ -92,11 +175,18 @@ public final class PatternItemRenderer implements CellRenderer<PatternItem>, Nod
         if (item.isContainer()) {
             label.addStyleName("pattern-tree__node-label--container");
         }
-        label.setTitle(item.getLabel());
+        final boolean stoppedHere = item.getPath().equals(stopped);
+        if (stoppedHere) {
+            label.addStyleName("pattern-tree__node-label--stopped");
+        }
+        label.setTitle(stoppedHere
+                ? item.getLabel() + " — matching stopped here: the nodes before it matched, this did not"
+                : item.getLabel());
 
         final FlowPanel inner = new FlowPanel();
         inner.setStyleName("expression-item__label");
         inner.add(label);
+        labels.put(item.getPath(), inner);
         final FlowPanel layout = new FlowPanel();
         layout.setStyleName("expression-item__row");
         layout.add(inner);
@@ -109,6 +199,14 @@ public final class PatternItemRenderer implements CellRenderer<PatternItem>, Nod
         box.addDomHandler(event -> {
             onOpen.accept(item.getPath());
         }, com.google.gwt.event.dom.client.DoubleClickEvent.getType());
+        // Pointing at a node marks what it matched in the sample (design 44 §4a)
+        box.addDomHandler(event -> onPoint.accept(item.getPath()), MouseOverEvent.getType());
+        box.addDomHandler(event -> {
+            final EventTarget to = event.getRelatedTarget();
+            if (to == null || !Element.is(to) || !box.getElement().isOrHasChild(Element.as(to))) {
+                onPoint.accept(null);
+            }
+        }, MouseOutEvent.getType());
 
         panel.add(box);
         boxes.add(box);
@@ -126,6 +224,7 @@ public final class PatternItemRenderer implements CellRenderer<PatternItem>, Nod
 
     public void clear() {
         boxes.clear();
+        labels.clear();
     }
 
     public List<PatternItemBox> getBoxes() {

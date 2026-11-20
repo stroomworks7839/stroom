@@ -20,6 +20,7 @@ import stroom.shapeshifter.config.Declaration;
 import stroom.shapeshifter.config.Declaration.Type;
 import stroom.shapeshifter.config.MatchExpression;
 import stroom.shapeshifter.config.OutputNode;
+import stroom.shapeshifter.config.PatternNode;
 import stroom.shapeshifter.config.Project;
 import stroom.shapeshifter.config.Template;
 import stroom.shapeshifter.config.Template.MatchLimits;
@@ -28,6 +29,7 @@ import stroom.shapeshifter.config.Template.ParamDecl;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -263,6 +265,38 @@ class TestTemplates {
         assertThat(Templates.describeLimits(MatchLimits.unlimited())).isEqualTo("no limits");
         assertThat(Templates.describeLimits(new MatchLimits(0, 1, null))).isEqualTo("max 1");
         assertThat(Templates.describeLimits(new MatchLimits(2, MatchLimits.UNLIMITED, Set.of()))).isEqualTo("min 2");
+    }
+
+    @Test
+    void aSequenceThatMatchedNowhereIsTriedAgainOneShorterAtATime() {
+        final PatternNode tree = new PatternNode.Sequence(List.of(new PatternNode.TakeWhile("[a-z]", 1, -1),
+                new PatternNode.Tag(":"), new PatternNode.TakeUntil("\n", false)));
+        final Template template = Templates.withMatch(limited(null), new MatchExpression.Pattern(tree));
+        final Project project = new Project("p", 5, null, List.of(template), Map.of());
+        final Project runs = Templates.prefixExperiment(project, template);
+        // Longest first, so the first to match anywhere is the furthest the sequence got there
+        assertThat(runs.templates()).extracting(Template::id)
+                .containsExactly(Templates.prefixId(template, 2), Templates.prefixId(template, 1));
+        final PatternNode two = ((MatchExpression.Pattern) runs.templates().get(0).match()).node();
+        assertThat(PatternNodes.children(two)).hasSize(2);
+        // Labelled as the whole tree is tried, so a node's stretch is under the same name
+        assertThat(PatternNodes.get(two, new int[]{1}))
+                .isEqualTo(new PatternNode.Labelled(new PatternNode.Tag(":"), PatternNodes.trialLabel(new int[]{1}),
+                        null));
+        // Only a sequence of two or more has anywhere to stop
+        final Template one = Templates.withMatch(limited(null), new MatchExpression.Pattern(new PatternNode.Tag("x")));
+        assertThat(Templates.prefixExperiment(project, one)).isNull();
+        assertThat(Templates.prefixExperiment(project, limited(null))).isNull();
+    }
+
+    @Test
+    void aTreeIsTriedWithEveryNodeLabelled() {
+        final PatternNode tree = new PatternNode.Sequence(List.of(new PatternNode.Tag("a"), new PatternNode.Tag("b")));
+        final Template template = Templates.withMatch(limited(null), new MatchExpression.Pattern(tree));
+        final Project tried = Templates.treeExperiment(new Project("p", 5, null, List.of(template), Map.of()),
+                template);
+        final PatternNode node = ((MatchExpression.Pattern) tried.templates().get(0).match()).node();
+        assertThat(node).isEqualTo(PatternNodes.labelEvery(tree));
     }
 
     private static Template limited(final MatchLimits limits) {

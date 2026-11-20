@@ -3,40 +3,39 @@
              xmlns:form="urn:import:stroom.widget.form.client"
              xmlns:t="urn:import:stroom.widget.text.client"
              xmlns:g="urn:import:com.google.gwt.user.client.ui"
-             xmlns:split="urn:import:stroom.widget.layout.client"
-             xmlns:tickbox="urn:import:stroom.widget.tickbox.client">
-    <split:ScrollPane addStyleNames="max scroll-region"
-                      focusable="true" role="region" ariaLabel="Regular expression">
-        <g:FlowPanel styleName="workbench-form__right">
-            <g:FlowPanel styleName="workbench-form__section">
-                <t:Label styleName="workbench-form__heading" text="Pattern"/>
-                <form:TextArea ui:field="pattern" ariaLabel="Pattern" styleName="workbench-form__pattern" visibleLines="2"/>
-                <t:Label ui:field="error" styleName="workbench-form__error"/>
-                <g:FlowPanel styleName="regex__row">
-                    <t:Label ui:field="explode" styleName="add-button" text="explode into the tree ›"
-                             title="Rewrite this regex as the pattern tree it is: meaning preserved, text not"/>
-                    <tickbox:TickBox ui:field="dotAll" label="dot-all"/>
-                    <tickbox:TickBox ui:field="caseInsensitive" label="case-insensitive"/>
-                    <t:Label styleName="edit-form__limit-label" text="Advance"/>
-                    <form:TextBox ui:field="advance" styleName="edit-form__input edit-form__limit-input"
-                               title="Bytes to step past after a match that consumed nothing; 0 lets the engine decide"/>
-                </g:FlowPanel>
-            </g:FlowPanel>
-            <g:FlowPanel styleName="workbench-form__section">
-                <t:Html styleName="workbench-form__heading">Groups <span class="workbench-form__heading-note">(a name beside a group declares it and captures the group into it; blank captures nothing)</span></t:Html>
-                <!-- The pattern once, every group underlined in its colour, $0 the whole of it: a
-                     character carries the rule of the innermost group it is in, and pointing at
-                     a group, here or in its row or in the sample, leaves its rule alone, its
-                     whole extent shown (ruled 2026-11-20). -->
-                <t:Html ui:field="patternMap" styleName="regex__pattern-map"
-                        title="The pattern, each group underlined in its colour: point at a group to show it alone, click to keep it"/>
-                <g:FlowPanel ui:field="groups" styleName="regex__groups"/>
-                <t:Label ui:field="noGroups" styleName="placeholder" text="(no capturing groups)"/>
-            </g:FlowPanel>
-            <g:FlowPanel styleName="workbench-form__section">
-                <t:Label styleName="workbench-form__heading" text="How it runs"/>
-                <t:Label ui:field="explain" styleName="workbench-form__lint workbench-form__explain"/>
+             xmlns:tickbox="urn:import:stroom.widget.tickbox.client"
+             xmlns:b="urn:import:stroom.widget.button.client">
+    <g:FlowPanel styleName="workbench-form__right">
+        <g:FlowPanel styleName="workbench-form__section">
+            <t:Label styleName="workbench-form__heading" text="Pattern"/>
+            <form:TextArea ui:field="pattern" ariaLabel="Pattern" styleName="workbench-form__pattern" visibleLines="2"/>
+            <t:Label ui:field="error" styleName="workbench-form__error"/>
+            <g:FlowPanel styleName="regex__row">
+                <tickbox:TickBox ui:field="dotAll" label="dot-all"/>
+                <tickbox:TickBox ui:field="caseInsensitive" label="case-insensitive"/>
+                <t:Label styleName="edit-form__limit-label" text="Advance"/>
+                <form:TextBox ui:field="advance" styleName="edit-form__input edit-form__limit-input"
+                           title="Bytes to step past after a match that consumed nothing; 0 lets the engine decide"/>
+                <!-- After the regex's own settings: it leaves the regex rather than setting it. A
+                     link button, so the keyboard reaches it as it does every other way out -->
+                <b:LinkButton ui:field="explode" addStyleNames="add-button" text="explode into the tree ›"
+                              title="Rewrite this regex as the pattern tree it is: meaning preserved, text not"/>
             </g:FlowPanel>
         </g:FlowPanel>
-    </split:ScrollPane>
+        <g:FlowPanel styleName="workbench-form__section">
+            <t:Html styleName="workbench-form__heading">Groups <span class="workbench-form__heading-note">(a name beside a group declares it and captures the group into it; blank captures nothing)</span></t:Html>
+            <!-- The pattern once, every group underlined in its colour, $0 the whole of it: a
+                 character carries the rule of the innermost group it is in, and pointing at
+                 a group, here or in its row or in the sample, leaves its rule alone, its
+                 whole extent shown (ruled 2026-11-20). -->
+            <t:Html ui:field="patternMap" styleName="regex__pattern-map"
+                    title="The pattern, each group underlined in its colour: point at a group to show it alone, click to keep it"/>
+            <g:FlowPanel ui:field="groups" styleName="regex__groups"/>
+            <t:Label ui:field="noGroups" styleName="placeholder" text="(no capturing groups)"/>
+        </g:FlowPanel>
+        <g:FlowPanel styleName="workbench-form__section">
+            <t:Label styleName="workbench-form__heading" text="How it runs"/>
+            <t:Label ui:field="explain" styleName="workbench-form__lint workbench-form__explain"/>
+        </g:FlowPanel>
+    </g:FlowPanel>
 </ui:UiBinder>

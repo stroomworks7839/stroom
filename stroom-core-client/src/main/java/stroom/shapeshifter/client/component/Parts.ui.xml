@@ -4,16 +4,15 @@
              xmlns:g="urn:import:com.google.gwt.user.client.ui"
              xmlns:l="urn:import:stroom.widget.layout.client"
              xmlns:b="urn:import:stroom.widget.button.client">
-    <g:FlowPanel styleName="max dock-container-vertical">
-        <b:Toolbar name="Actions" ui:field="buttonPanel" addStyleNames="dock-min workbench-form__toolbar"/>
-        <l:ScrollPane addStyleNames="dock-max">
-            <g:FlowPanel styleName="workbench-form__right">
-                <g:FlowPanel styleName="workbench-form__section">
-                    <t:Html styleName="workbench-form__heading">Framed sequence <span class="workbench-form__heading-note">(run in order, nothing backtracking across parts; a take or a seek may be as long as a label matched earlier says)</span></t:Html>
-                    <t:Html ui:field="parts"/>
-                    <t:Label ui:field="error" styleName="workbench-form__error"/>
-                </g:FlowPanel>
+    <!-- Scrolled with the kind above it, as one pane (MatchEditor) -->
+    <g:FlowPanel>
+        <b:Toolbar name="Actions" ui:field="buttonPanel" addStyleNames="workbench-form__toolbar"/>
+        <g:FlowPanel styleName="workbench-form__right">
+            <g:FlowPanel styleName="workbench-form__section">
+                <t:Html styleName="workbench-form__heading">Framed sequence <span class="workbench-form__heading-note">(run in order, nothing backtracking across parts; a take or a seek may be as long as a label matched earlier says)</span></t:Html>
+                <t:Html ui:field="parts"/>
+                <t:Label ui:field="error" styleName="workbench-form__error"/>
             </g:FlowPanel>
-        </l:ScrollPane>
+        </g:FlowPanel>
     </g:FlowPanel>
 </ui:UiBinder>

@@ -162,6 +162,30 @@ final class Walkthrough {
         }
     }
 
+    /// Adds a story beside a walkthrough: its stages up to and including one replayed, then a walk
+    /// of its own, for another way to the same place the next stage reaches — so that both ways
+    /// are driven, and the walkthrough itself still reads as one author's journey.
+    ///
+    /// @param registry The registry to add to.
+    /// @param title The walkthrough's title, under which the story sits beside its stages.
+    /// @param source The rung's own class, for the story source link.
+    /// @param stages The rung's steps, in the author's order.
+    /// @param after The last stage replayed.
+    /// @param name The story's name; named after the stage it follows, it sorts beside it.
+    /// @param walk What it does then.
+    /// @param fixtures Its routes.
+    static void registerBeside(final StoryRegistry registry, final String title, final Class<?> source,
+                               final List<Stage> stages, final int after, final String name,
+                               final BiConsumer<Play, Play> walk, final RestFixtures fixtures) {
+        registry.component(title, source).layout(StoryLayout.FULLSCREEN)
+                .story(name, context -> ShapeshifterEditorStories.render(context, false, fixtures, BLANK_REF))
+                .withPlay(play -> {
+                    walkTo(play, stages, after);
+                    walk.accept(play, play.screen());
+                    ShapeshifterEditorStories.expectNoProblems(play);
+                });
+    }
+
     // Every stage up to and including this story's own. The ones before it are replayed rather
     // than assumed: a story that started from a saved state would be testing the save.
     private static void walkTo(final Play play, final List<Stage> stages, final int upTo) {

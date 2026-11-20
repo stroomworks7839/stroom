@@ -43,6 +43,7 @@ class PatternNodesTest {
             A,
             new Labelled(new Optional(B), "opt", null),
             new Choice(List.of(C, new TakeUntil(" ", false)))));
+    private static final PatternNode ROOT_ITEM_1 = new Labelled(new Optional(B), "opt", null);
 
     @Test
     void pathsRoundTripAndAddress() {
@@ -114,5 +115,115 @@ class PatternNodesTest {
         assertThat(PatternNodes.isList(new Labelled(new Optional(A), "x", null))).isFalse();
         assertThat(PatternNodes.isContainer(A)).isFalse();
         assertThat(PatternNodes.bare(new Labelled(A, "x", null))).isEqualTo(A);
+    }
+
+    @Test
+    void everyNodeButTheRootIsLabelledForTheTrial() {
+        final PatternNode labelled = PatternNodes.labelEvery(ROOT);
+        // The root is the match itself, and a node the author labelled keeps that label
+        assertThat(labelled).isInstanceOf(Sequence.class);
+        assertThat(PatternNodes.get(labelled, new int[]{0}))
+                .isEqualTo(new Labelled(A, PatternNodes.trialLabel(new int[]{0}), null));
+        assertThat(((Labelled) PatternNodes.get(labelled, new int[]{1})).label()).isEqualTo("opt");
+        // ...and what it holds is labelled too, at its own path
+        assertThat(PatternNodes.get(labelled, new int[]{1, 0}))
+                .isEqualTo(new Labelled(B, PatternNodes.trialLabel(new int[]{1, 0}), null));
+        assertThat(PatternNodes.get(labelled, new int[]{2, 1}))
+                .isEqualTo(new Labelled(new TakeUntil(" ", false), PatternNodes.trialLabel(new int[]{2, 1}), null));
+        // Each node is reported under the label it was tried with
+        for (final int[] path : List.of(new int[]{0}, new int[]{1}, new int[]{1, 0}, new int[]{2},
+                new int[]{2, 0})) {
+            final PatternNode node = PatternNodes.get(labelled, path);
+            assertThat(PatternNodes.reportedLabel(ROOT, path, true)).isEqualTo(((Labelled) node).label());
+        }
+        assertThat(PatternNodes.reportedLabel(ROOT, new int[0], true)).isNull();
+    }
+
+    @Test
+    void trialLabelsAreDistinctNamesNoAuthorWrites() {
+        assertThat(PatternNodes.trialLabel(new int[]{1, 0})).isNotEqualTo(PatternNodes.trialLabel(new int[]{10}));
+        assertThat(PatternNodes.trialLabel(new int[]{2, 1})).matches("[a-z]+[0-9x]*");
+        assertThat(PatternNodes.isTrialLabel(PatternNodes.trialLabel(new int[]{3}))).isTrue();
+        assertThat(PatternNodes.isTrialLabel("opt")).isFalse();
+        assertThat(PatternNodes.isTrialLabel(null)).isFalse();
+        assertThat(PatternNodes.pathOfTrialLabel(PatternNodes.trialLabel(new int[]{2, 10, 0})))
+                .containsExactly(2, 10, 0);
+    }
+
+    @Test
+    void whatALookaroundHoldsIsNotLabelled() {
+        // A lookaround consumes nothing, so a group inside it would report nothing
+        final PatternNode root = new Sequence(List.of(new PatternNode.Not(A), new PatternNode.Peek(B), C));
+        final PatternNode labelled = PatternNodes.labelEvery(root);
+        assertThat(PatternNodes.bare(PatternNodes.get(labelled, new int[]{0}))).isEqualTo(new PatternNode.Not(A));
+        assertThat(PatternNodes.get(labelled, new int[]{0, 0})).isEqualTo(A);
+        assertThat(PatternNodes.reportedLabel(root, new int[]{0, 0}, true)).isNull();
+        assertThat(PatternNodes.reportedLabel(root, new int[]{1, 0}, true)).isNull();
+        assertThat(PatternNodes.reportedLabel(root, new int[]{2}, true))
+                .isEqualTo(PatternNodes.trialLabel(new int[]{2}));
+        // A path that is not there has nothing to report
+        assertThat(PatternNodes.reportedLabel(root, new int[]{7}, true)).isNull();
+    }
+
+    @Test
+    void aNodeWithOneTextIsEditedInPlaceAndKeepsTheRest() {
+        // A terminator's newline is spelt out, so it can be read and typed in a field
+        final PatternNode until = new Labelled(new TakeUntil("\n", true), "line", null);
+        assertThat(PatternNodes.inlineText(until)).isEqualTo("\\n");
+        assertThat(PatternNodes.withInlineText(until, "\\t"))
+                .isEqualTo(new Labelled(new TakeUntil("\t", true), "line", null));
+        assertThat(PatternNodes.withInlineText(new PatternNode.TakeWhile("[0-9]", 2, 4), "[a-f]"))
+                .isEqualTo(new PatternNode.TakeWhile("[a-f]", 2, 4));
+        assertThat(PatternNodes.inlineText(new PatternNode.Regex("a+", null))).isEqualTo("a+");
+        assertThat(PatternNodes.withInlineText(A, ":")).isEqualTo(new Tag(":"));
+        // A kind with more to say than one text is the dialog's
+        assertThat(PatternNodes.inlineText(new Repeat(A, 1, 3, true))).isNull();
+        assertThat(PatternNodes.inlineText(new PatternNode.Ref("WORD"))).isNull();
+        assertThat(PatternNodes.withInlineText(new PatternNode.Take(3), "x")).isEqualTo(new PatternNode.Take(3));
+    }
+
+    @Test
+    void theAddLinePutsWhatItAddsAfterTheSelectedNode() {
+        final PatternNode added = new Sequence(List.of(new Tag("x"), new Tag("y")));
+        // A sequence selected: at its end, its items one by one; the last is the next place
+        final PatternNodes.Placed atEnd = PatternNodes.addAfter(ROOT, new int[0], added);
+        assertThat(PatternNodes.children(atEnd.root())).hasSize(5);
+        assertThat(PatternNodes.get(atEnd.root(), new int[]{3})).isEqualTo(new Tag("x"));
+        assertThat(atEnd.last()).containsExactly(4);
+        // A node in a sequence selected: beside it
+        final PatternNodes.Placed beside = PatternNodes.addAfter(ROOT, new int[]{0}, C);
+        assertThat(PatternNodes.get(beside.root(), new int[]{1})).isEqualTo(C);
+        assertThat(PatternNodes.get(beside.root(), new int[]{2})).isEqualTo(ROOT_ITEM_1);
+        assertThat(beside.last()).containsExactly(1);
+        // In a choice there is no "after": the alternative and the added become one sequence
+        final PatternNodes.Placed inChoice = PatternNodes.addAfter(ROOT, new int[]{2, 0}, A);
+        assertThat(PatternNodes.get(inChoice.root(), new int[]{2, 0})).isEqualTo(new Sequence(List.of(C, A)));
+        assertThat(inChoice.last()).containsExactly(2, 0, 1);
+        // So does a leaf at the root
+        final PatternNodes.Placed leaf = PatternNodes.addAfter(A, new int[0], B);
+        assertThat(leaf.root()).isEqualTo(new Sequence(List.of(A, B)));
+        assertThat(leaf.last()).containsExactly(1);
+    }
+
+    @Test
+    void anAuthorsLabelIsTheAuthorsWhateverItLooksLikeAndWhereverItIs() {
+        // Only the stem and a path are a trial's label: "ssnodeId" is an author's
+        assertThat(PatternNodes.isTrialLabel("ssnodeId")).isFalse();
+        assertThat(PatternNodes.isTrialLabel("ssnode2x")).isFalse();
+        assertThat(PatternNodes.isTrialLabel("ssnode")).isTrue();
+        assertThat(PatternNodes.isTrialLabel("ssnode2x0x11")).isTrue();
+        // A label the author put inside a lookahead is still reported, an unlabelled node there not
+        final PatternNode root = new Sequence(List.of(new PatternNode.Peek(new Labelled(A, "ahead", null)),
+                new PatternNode.Peek(B)));
+        assertThat(PatternNodes.reportedLabel(root, new int[]{0, 0}, true)).isEqualTo("ahead");
+        assertThat(PatternNodes.reportedLabel(root, new int[]{1, 0}, true)).isNull();
+    }
+
+    @Test
+    void aLibraryPartsTreeReportsOnlyItsOwnLabels() {
+        // A part is tried through a ref to it, which the trial does not label inside: an
+        // unlabelled node of it has nothing to report, so choosing it isolates nothing
+        assertThat(PatternNodes.reportedLabel(ROOT, new int[]{0}, false)).isNull();
+        assertThat(PatternNodes.reportedLabel(ROOT, new int[]{1}, false)).isEqualTo("opt");
     }
 }

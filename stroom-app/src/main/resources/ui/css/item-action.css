@@ -14,5 +14,5 @@
 }
 
 .item-action--delete:hover {
-    color: var(--bootstrap-error);
+    color: var(--text-color--red);
 }

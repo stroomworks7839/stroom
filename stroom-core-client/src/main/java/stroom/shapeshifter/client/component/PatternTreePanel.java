@@ -73,7 +73,10 @@ public class PatternTreePanel extends TreePanel<PatternItem> {
             treeLayout = new CenteredParentTreeLayout<>(extentProvider, layoutConfig);
             renderer = new TreeRenderer<>(canvas, cellRenderer, connectorRenderer);
             renderer.setTreeLayout(treeLayout);
-            canvas.setStyleName("pattern-tree__canvas");
+            // Added to the canvas's own class, not in place of it: layered-canvas is what sizes it to
+            // the layout, and without it the canvas took no room and a tall tree drew over the
+            // sections beneath it (design 47 §7.7 item 4)
+            canvas.addStyleName("pattern-tree__canvas");
             panel.add(canvas);
         }
         panel.add(boxPanel);
@@ -100,6 +103,35 @@ public class PatternTreePanel extends TreePanel<PatternItem> {
     /// The selected node's path, so a redraw comes back to it.
     public void setSelected(final String path) {
         cellRenderer.setSelected(path);
+    }
+
+    /// Selects a node among those drawn, without drawing the tree again.
+    ///
+    /// @param path The node's path.
+    public void select(final String path) {
+        cellRenderer.select(path);
+    }
+
+    /// @param onPoint Told the path of the node the pointer comes onto, and null when it leaves.
+    public void setOnPoint(final Consumer<String> onPoint) {
+        cellRenderer.setOnPoint(onPoint);
+    }
+
+    /// @param path The node matching stopped at, marked at the next redraw; null for none.
+    public void setStopped(final String path) {
+        cellRenderer.setStopped(path);
+    }
+
+    /// Edits a node's text in place (PatternItemRenderer#edit).
+    ///
+    /// @param path The node.
+    /// @param text The text to start from.
+    /// @param onTake Given the text taken.
+    /// @param onCancel Told when it is put back.
+    /// @return Whether the node is drawn, and so could be edited.
+    public boolean edit(final String path, final String text, final Consumer<String> onTake,
+                        final Runnable onCancel) {
+        return cellRenderer.edit(path, text, onTake, onCancel);
     }
 
     @Override

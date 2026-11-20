@@ -3,28 +3,35 @@
              xmlns:t="urn:import:stroom.widget.text.client"
              xmlns:g="urn:import:com.google.gwt.user.client.ui"
              xmlns:l="urn:import:stroom.widget.layout.client"
-             xmlns:b="urn:import:stroom.widget.button.client">
-    <g:FlowPanel styleName="max dock-container-vertical">
-        <b:Toolbar name="Actions" ui:field="buttonPanel" addStyleNames="dock-min workbench-form__toolbar"/>
-        <!-- A tab stop of its own, as the regex form's is: a tree of a dozen nodes is wider
-             than the pane, and the boxes it is drawn with are not themselves tab stops. -->
-        <l:ScrollPane addStyleNames="dock-max scroll-region"
-                      focusable="true" role="region" ariaLabel="Pattern tree">
-            <g:FlowPanel styleName="workbench-form__right">
-                <g:FlowPanel styleName="workbench-form__section">
-                    <t:Html ui:field="heading" styleName="workbench-form__heading"/>
-                    <g:SimplePanel ui:field="tree"/>
-                    <t:Label ui:field="error" styleName="workbench-form__error"/>
+             xmlns:b="urn:import:stroom.widget.button.client"
+             xmlns:form="urn:import:stroom.widget.form.client">
+    <!-- Scrolled with the kind above it, as one pane (MatchEditor), which is the tab stop a
+         tree wider than the pane needs: the boxes it is drawn with are not themselves tab stops -->
+    <g:FlowPanel>
+        <b:Toolbar name="Actions" ui:field="buttonPanel" addStyleNames="workbench-form__toolbar"/>
+        <g:FlowPanel styleName="workbench-form__right">
+            <g:FlowPanel styleName="workbench-form__section">
+                <t:Html ui:field="heading" styleName="workbench-form__heading"/>
+                <g:SimplePanel ui:field="tree"/>
+                <!-- The add line (ruled 2026-11-20): a regex fragment, exploded into the nodes it
+                     is and added after the selected node, so a tree is built a piece at a time
+                     without a dialog a node -->
+                <g:FlowPanel styleName="pattern-tree__add">
+                    <t:Label styleName="edit-form__limit-label" text="Add after"/>
+                    <form:TextBox ui:field="addField" styleName="edit-form__input pattern-tree__add-field"
+                                  ariaLabel="Add after the selected node, as a regex"
+                                  title="A regex, exploded into the nodes it is and added after the selected node; Enter adds it"/>
                 </g:FlowPanel>
-                <g:FlowPanel styleName="workbench-form__section">
-                    <t:Html styleName="workbench-form__heading">As regex <span class="workbench-form__heading-note">(what the tree means, printed by the engine; a ref prints as its definition)</span></t:Html>
-                    <t:Label ui:field="regex" styleName="workbench-form__lint workbench-form__explain mono"/>
-                </g:FlowPanel>
-                <g:FlowPanel styleName="workbench-form__section">
-                    <t:Html styleName="workbench-form__heading">Library <span class="workbench-form__heading-note">(what a ref may name: the project&apos;s parts, then the standard entries)</span></t:Html>
-                    <t:Html ui:field="library"/>
-                </g:FlowPanel>
+                <t:Label ui:field="error" styleName="workbench-form__error"/>
             </g:FlowPanel>
-        </l:ScrollPane>
+            <g:FlowPanel styleName="workbench-form__section">
+                <t:Html styleName="workbench-form__heading">As regex <span class="workbench-form__heading-note">(what the tree means, printed by the engine; a ref prints as its definition)</span></t:Html>
+                <t:Label ui:field="regex" styleName="workbench-form__lint workbench-form__explain mono"/>
+            </g:FlowPanel>
+            <g:FlowPanel styleName="workbench-form__section">
+                <t:Html styleName="workbench-form__heading">Library <span class="workbench-form__heading-note">(what a ref may name: the project&apos;s parts, then the standard entries)</span></t:Html>
+                <t:Html ui:field="library"/>
+            </g:FlowPanel>
+        </g:FlowPanel>
     </g:FlowPanel>
 </ui:UiBinder>

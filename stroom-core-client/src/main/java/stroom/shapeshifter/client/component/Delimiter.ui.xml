@@ -4,26 +4,24 @@
              xmlns:t="urn:import:stroom.widget.text.client"
              xmlns:g="urn:import:com.google.gwt.user.client.ui"
              xmlns:l="urn:import:stroom.widget.layout.client">
-    <l:ScrollPane addStyleNames="max">
-        <g:FlowPanel styleName="workbench-form__right">
-            <g:FlowPanel styleName="workbench-form__section">
-                <t:Html styleName="workbench-form__heading">Delimiter <span class="workbench-form__heading-note">(each field between separators is a match; an escape makes the next character literal; inside a container the separator is literal; \n \t \r and \\ spell the control characters)</span></t:Html>
-                <g:FlowPanel styleName="edit-form__step-row">
-                    <t:Label styleName="edit-form__limit-label" text="Delimiter"/>
-                    <form:TextBox ui:field="delimiter" styleName="edit-form__input clause-row__value" ariaLabel="Delimiter"/>
-                </g:FlowPanel>
-                <g:FlowPanel styleName="edit-form__step-row">
-                    <t:Label styleName="edit-form__limit-label" text="Escape"/>
-                    <form:TextBox ui:field="escape" styleName="edit-form__input clause-row__value" ariaLabel="Escape"/>
-                </g:FlowPanel>
-                <g:FlowPanel styleName="edit-form__step-row">
-                    <t:Label styleName="edit-form__limit-label" text="Container"/>
-                    <form:TextBox ui:field="containerStart" styleName="edit-form__input edit-form__limit-input" title="Container start"/>
-                    <t:Label styleName="edit-form__description" text="to"/>
-                    <form:TextBox ui:field="containerEnd" styleName="edit-form__input edit-form__limit-input" title="Container end"/>
-                </g:FlowPanel>
-                <t:Label ui:field="error" styleName="workbench-form__error"/>
+    <g:FlowPanel styleName="workbench-form__right">
+        <g:FlowPanel styleName="workbench-form__section">
+            <t:Html styleName="workbench-form__heading">Delimiter <span class="workbench-form__heading-note">(each field between separators is a match; an escape makes the next character literal; inside a container the separator is literal; \n \t \r and \\ spell the control characters)</span></t:Html>
+            <g:FlowPanel styleName="edit-form__step-row">
+                <t:Label styleName="edit-form__limit-label" text="Delimiter"/>
+                <form:TextBox ui:field="delimiter" styleName="edit-form__input clause-row__value" ariaLabel="Delimiter"/>
             </g:FlowPanel>
+            <g:FlowPanel styleName="edit-form__step-row">
+                <t:Label styleName="edit-form__limit-label" text="Escape"/>
+                <form:TextBox ui:field="escape" styleName="edit-form__input clause-row__value" ariaLabel="Escape"/>
+            </g:FlowPanel>
+            <g:FlowPanel styleName="edit-form__step-row">
+                <t:Label styleName="edit-form__limit-label" text="Container"/>
+                <form:TextBox ui:field="containerStart" styleName="edit-form__input edit-form__limit-input" title="Container start"/>
+                <t:Label styleName="edit-form__description" text="to"/>
+                <form:TextBox ui:field="containerEnd" styleName="edit-form__input edit-form__limit-input" title="Container end"/>
+            </g:FlowPanel>
+            <t:Label ui:field="error" styleName="workbench-form__error"/>
         </g:FlowPanel>
-    </l:ScrollPane>
+    </g:FlowPanel>
 </ui:UiBinder>

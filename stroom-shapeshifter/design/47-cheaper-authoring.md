@@ -781,7 +781,7 @@ ruling. **Ruling** means there is a choice to make first.
 | 1 | A tree node could not hold a newline (`take_through "\n"`) | 46 §6.3a | *Fixed* — tags and terminators read `ControlEscapes` |
 | 2 | The pattern tree's scroll area could not be reached from the keyboard | 46 §6.3a | *Fixed* — a focusable region |
 | 3 | The delimiter form's two fields had no names | 46 §6.4a | *Fixed* |
-| 4 | A tall tree draws over the *As regex* and *Library* sections below it | 46 §6.3a, stage 14 | *Fixed* 2026-11-19 (§7.7) |
+| 4 | A tall tree draws over the *As regex* and *Library* sections below it | 46 §6.3a, stage 14 | *Fixed* 2026-11-20 (§7.7; the 2026-11-19 fix did not take) |
 | 5 | The capture dialog lists only the current template's declarations, not the document's run-scoped `heading` that it binds | 46 §6.4a | *Fixed* 2026-11-19 (§7.7) |
 | 6 | The `if` row: `+ clause` is a label the keyboard cannot reach, the clause's name box does not open its list when clicked, and the operator box has no accessible name | 46 §6.4a | *Fixed* 2026-11-19, but for the name box, which was a misreading (§7.7) |
 | 7 | A mode named `root` collides with the word for no mode in the panel, the strip, the Mode picker and the mode pane | 46 §6.4a | *Fixed* 2026-11-19 (§7.9) |
@@ -1026,6 +1026,10 @@ Shapeshifter stories pass with the leak and accessibility checks, and rungs 1 to
 - **4 — the tree is the height of its boxes.** The canvas the connectors are drawn on was
   absolutely positioned, and so were the boxes, so nothing in the flow had any height. The
   canvas, which is sized to the layout, is now in the flow and the boxes are laid over it.
+  *Not so until 2026-11-20:* the canvas was given its block class with `setStyleName`, which
+  took away the `layered-canvas` class that sizes it, so it still took no room and the tree
+  still drew over the sections beneath (528px of it in the library walkthrough's stage 4). It
+  is added now, and `Lp04Tree` holds the lowest node above the *As regex* heading.
 - **5 — the capture offers every declared name.** The engine's rule (design 35, in its
   reference check) is that a name is declared once, on the template it lives for, and bound
   or read from anywhere. The dialog listed only its own template's names, and so did the

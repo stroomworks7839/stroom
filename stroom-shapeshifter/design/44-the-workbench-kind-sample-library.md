@@ -218,6 +218,66 @@ convert there. The word "parts" read as "pieces of a pattern", which is exactly 
 `sequence` is, so the picker now says **framed sequence**, and every kind carries a line
 saying what it is beneath the picker (`MatchKind.note()`).
 
+## 4a. Reading and building a tree — ruled and built 2026-11-20
+
+Asked whether the tree was easy to create and edit, the answer was: easy to make from a regex,
+costly to build from nothing, and workable but hard to debug. A node cost six or seven actions,
+each through a modal dialog; a tree that matched nowhere said only *No matches*; only a labelled
+node marked the sample, so what an unlabelled one took could not be seen; and the toolbar was ten
+icons in a row. Four changes, each with its story in `ShapeshifterTreeStories`.
+
+**Every node marks what it matched** (`ANodeMarksWhatItMatched`). The workbench's trial of a tree
+labels every node below the root that has none (`PatternNodes.labelEvery`), with a name made of its
+path no author would choose (`ssnode2x0`), so the engine reports each node's stretch as a group —
+no engine change: a label is already a group. The labels are the trial's alone, never written into
+the project, and not in the match detail, which lists what the author named. At rest only the
+author's labels are drawn, as before; choosing a node, or pointing at one, draws its stretch in
+every match, alone. What sits in a peek or a not is left unlabelled: a lookaround consumes
+nothing, so its groups would say nothing. A library part's workbench marks its own labels only;
+a part's nodes are inside the ref the trial makes of it.
+
+**A sequence that matched nowhere says where it stopped**
+(`ASequenceThatMatchedNowhereSaysWhereItStopped`). When a tree whose root is a sequence of two or
+more matches nowhere, the sample asks once more: a project of its leading runs, its first n − 1
+items, then n − 2, down to one, longest first (`Templates.prefixExperiment`). Dispatch tries them
+in order, so at the first place any matched, the one that did is how far the sequence got. The
+sample draws that run's stretch and a stop where it ends, the bar says
+*No matches · stopped at tag ":", node 2 of 4*, and the tree marks that node in the error colour
+with a wavy rule. Only the root's sequence is read this way; a sequence inside a choice is not.
+One more request, made only when nothing matched.
+
+**A node's one text is edited where it is drawn** (`ANodesTextIsEditedInPlace`). A double click on
+a node that is one text — a tag, a take-until's terminator, a regex, a take-while's class — puts
+a field in its label's place; Enter or leaving takes it, Escape puts it back and goes no further.
+Control characters are spelt `\n` as they are in the delimiter's fields. Every other kind, and
+the Edit button for any, opens the dialog. Choosing a node no longer redraws the tree: a box
+redrawn between the two clicks of a double click never heard the double click, which is why a
+double click had only ever worked on a node already chosen.
+
+**The add line** (`TheAddLineAddsTheNodesARegexIs`). Under the tree, *Add after*: a regex
+fragment, exploded by the engine into the nodes it is and added after the chosen node — at the
+end of a chosen sequence, beside a node in one, and where there is no sequence to be in, the node
+and the added become one (`PatternNodes.addAfter`). A fragment of several nodes lands as several,
+the last chosen and the field emptied, so the next fragment follows it. This is design 47 F's
+*later*, ruled wanted: a tree built a piece at a time costs a line and Enter a piece.
+
+**The toolbar in four groups** (`TheTreeToolbarIsGrouped`): add, change, arrange, the library,
+with separators between, and each button a short label for where the user's toolbar preference
+shows text (*Add a child*, *Wrap*, *Unwrap*, *Extract to the library*).
+
+*Found on the way:* Shapeshifter's error colour, `--bootstrap-error`, was renamed
+`--status__color--danger` in Stroom's component migration (wave 32), and Shapeshifter's sheets were
+never moved: every error line of the editor — a match's, the workbench's, the settings' — had
+been drawn in the text colour. They are red again, in Stroom's red for text, `--text-color--red`:
+the status colour is for fills and icons, and as 12px text on the dark theme it fails contrast,
+which the story's accessibility check caught the moment the line turned red.
+
+*Recorded, not changed (code review, 2026-11-20):* the trial's labels stop the compiler fusing an
+exclusive multi-character `take_until` with the `tag` of its terminator (`PatternCompiler.lowerSequence`
+looks for a bare tag after it), so a trial of such a tree compiles to a lookahead, the backtracking
+tier, where the run uses the NFA. The matches are the same; only the trial's speed differs, on a
+large sample. Leaving that tag unlabelled would keep the fusion and lose the tag's mark.
+
 ## 5. The data has a door of its own — built 2026-09-22
 
 *From the owner: "It's a bit confusing — the project run, the paste a sample to run over
@@ -808,7 +868,7 @@ and most meant nothing. The tab now draws all its text in six styles:
 | Body | `--font-size-13`, 400 | rows, cards, values, and every name |
 | Meta | `--font-size-12`, 400, `--text-color--muted` | notes, counts, descriptions, hints, types, run state |
 | Code | `--monospace-font-family`, `--font-size-13` | pattern and data text as typed |
-| Error | `--font-size-12`, `--bootstrap-error` | a match's or a pattern's error |
+| Error | `--font-size-12`, `--text-color--red` | a match's or a pattern's error |
 
 - **Labels are Stroom's.** The tab's dialogs were already `FormGroup`s, so a dialog opened from the
   strip said "Name" one way and the strip behind it said "Match" another. Both are the form label
@@ -961,6 +1021,16 @@ Groups
 - **The pattern and the sample keep their font through their marks.** Stroom sets every span's
   font afresh (`base.css`), which drew a group's or a mark's text in the regular font in the
   middle of monospace. Said of the workbench alone; the Design tab's panes have the same split.
+
+**The kind and its form are one pane — ruled and built 2026-11-20.** The match kind sat in a bar
+ruled off from the form under it, and each kind's form scrolled on its own beneath the bar. The
+kind is the first thing the form asks, not a frame around it: the two are one pane now, scrolled
+as one, with no rule between them, and the tree's and the framed sequence's toolbars lost their
+rule too. `explode into the tree ›` moved after the regex's own settings, as it leaves the regex
+rather than setting it, and became a link button, which the keyboard reaches; it had been a
+label only a pointer could press. No story pressed it — the library walkthrough reaches the tree
+by choosing the kind — so `Lp04ExplodeIntoTheTree` sits beside stage 4: the walkthrough to the
+regex line, then the link, and the same tree.
 
 Stories: `PointingAtAGroupShowsItAlone`. The stories' stubbed pattern inspection had the groups
 one character short (`end` is just past the `)`, `PatternInfo.Group`), and the sample's trial was

@@ -33,6 +33,7 @@ import stroom.shapeshifter.shared.ShapeshifterLibrary;
 import stroom.shapeshifter.shared.ShapeshifterPatternRequest;
 import stroom.shapeshifter.shared.ShapeshifterResource;
 import stroom.svg.shared.SvgImage;
+import stroom.widget.button.client.Toolbar;
 import stroom.widget.button.client.ToolbarButton;
 import stroom.widget.component.client.Contexts;
 import stroom.widget.component.client.Controller;
@@ -49,6 +50,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Consumer;
 
 /// The pattern tree form (design 18 §10, design 43 §4): a nested node editor over the design 38
@@ -92,6 +94,12 @@ public class PatternTreeController
     private PatternNode root;
     private int[] selected = new int[0];
     private Consumer<String> onLabelSelect;
+    private Consumer<String> onLabelPoint = label -> {
+    };
+    // The node a trial that matched nowhere stopped at, or null
+    private String stopped;
+    // Whether a node's text is open in place
+    private boolean editing;
     private ShapeshifterLibrary library;
     private boolean libraryRequested;
     private String printed;
@@ -111,30 +119,41 @@ public class PatternTreeController
         this.restFactory = restFactory;
         this.nodeEditorProvider = nodeEditorProvider;
         this.namePromptProvider = namePromptProvider;
-        addChildButton = view.getToolbar().button(SvgImage.ADD, "Add a child to the selected node", () -> {
+        // Four groups, add, change, arrange and the library, each named shortly for where the
+        // user's toolbar preference shows text (ruled 2026-11-20)
+        final Toolbar toolbar = view.getToolbar();
+        addChildButton = toolbar.button(SvgImage.ADD, "Add a child to the selected node", "Add a child", () -> {
         });
-        addAfterButton = view.getToolbar().button(SvgImage.ADD_BELOW, "Add a node after the selected one", () -> {
+        addAfterButton = toolbar.button(SvgImage.ADD_BELOW, "Add after the selected node", "Add after", () -> {
         });
-        wrapButton = view.getToolbar().button(SvgImage.OPERATOR, "Wrap the selected node in a container", () -> {
+        wrapButton = toolbar.button(SvgImage.OPERATOR, "Wrap the selected node in a container", "Wrap", () -> {
         });
-        editButton = view.getToolbar().button(SvgImage.EDIT, "Edit the selected node", () -> {
+        toolbar.separator();
+        editButton = toolbar.button(SvgImage.EDIT, "Edit the selected node, all of it", "Edit", () -> {
         });
-        removeButton = view.getToolbar().button(SvgImage.DELETE, "Remove the selected node and what it holds", () -> {
-        });
-        unwrapButton = view.getToolbar().button(SvgImage.COLLAPSE_UP,
-                "Replace the selected container by what it holds",
+        removeButton = toolbar.button(SvgImage.DELETE, "Remove the selected node and what it holds", "Remove",
                 () -> {
                 });
-        upButton = view.getToolbar().button(SvgImage.UP, "Move up among its siblings", () -> {
+        unwrapButton = toolbar.button(SvgImage.COLLAPSE_UP,
+                "Unwrap: the selected container replaced by what it holds", "Unwrap", () -> {
+                });
+        toolbar.separator();
+        upButton = toolbar.button(SvgImage.UP, "Move up among its siblings", "Move up", () -> {
         });
-        downButton = view.getToolbar().button(SvgImage.DOWN, "Move down among its siblings", () -> {
+        downButton = toolbar.button(SvgImage.DOWN, "Move down among its siblings", "Move down", () -> {
         });
-        extractButton = view.getToolbar().button(SvgImage.LINK,
+        toolbar.separator();
+        extractButton = toolbar.button(SvgImage.LINK,
                 "Extract to the library: the node becomes a named part, and a ref to it stays here",
+                "Extract to the library", () -> {
+                });
+        inlineButton = toolbar.button(SvgImage.UNLINK, "Inline: the part the ref names, in its place", "Inline",
                 () -> {
                 });
-        inlineButton = view.getToolbar().button(SvgImage.UNLINK, "Inline: the part the ref names, in its place", () -> {
-        });
+        view.setOnPoint(path -> onLabelPoint.accept(path == null
+                ? null
+                : reportedLabel(PatternNodes.path(path))));
+        view.setOnAdd(this::onAdd);
         enableButtons();
         own(addChildButton.addClickHandler(e -> {
             if (MouseUtil.isPrimary(e)) {
@@ -269,6 +288,11 @@ public class PatternTreeController
                 return headingOf("Pattern part " + name, "defined once here; any template's tree names it with "
                                                        + "ref, and so may another part");
             }
+
+            @Override
+            public boolean triesEveryNode() {
+                return false;
+            }
         });
     }
 
@@ -285,6 +309,9 @@ public class PatternTreeController
     private void setSubject(final Subject next) {
         if (subject == null || !next.key().equals(subject.key())) {
             selected = new int[0];
+            // The mark was the last subject's; this one's trial says its own
+            stopped = null;
+            view.setStopped(null);
         }
         this.subject = next;
         final PatternNode node = next.node();
@@ -313,17 +340,116 @@ public class PatternTreeController
         if (node == null) {
             selected = new int[0];
         }
-        render();
+        // The boxes are left where they are: a double click's second click must land on the box
+        // its first did
+        view.select(PatternNodes.path(selected));
+        enableButtons();
         if (onLabelSelect != null) {
-            onLabelSelect.accept(node instanceof PatternNode.Labelled labelled
-                    ? labelled.label()
-                    : null);
+            // Any node, labelled or not, marks what it matched (design 44 §4a)
+            onLabelSelect.accept(reportedLabel(selected));
         }
     }
 
+    /// Opened, a double click: a node with one text is edited in place (ruled 2026-11-20), and
+    /// any other in the dialog.
     public void onOpen(final String path) {
         onSelect(path);
-        onEdit();
+        final PatternNode node = PatternNodes.get(root, selected);
+        final String text = node == null
+                ? null
+                : PatternNodes.inlineText(node);
+        if (text == null || readOnly) {
+            onEdit();
+            return;
+        }
+        final int[] at = selected;
+        editing = view.edit(PatternNodes.path(at), text, taken -> {
+            editing = false;
+            if (taken.isEmpty()) {
+                // As the dialog refuses it: a node of one text is nothing without it
+                view.setError("A " + Templates.describe(PatternNodes.bare(node)).split(" ")[0]
+                              + " needs its text; it is left as it was");
+                render();
+            } else if (taken.equals(text)) {
+                render();
+            } else {
+                view.setError(null);
+                apply(PatternNodes.replace(root, at, PatternNodes.withInlineText(node, taken)), at);
+            }
+        }, () -> {
+            editing = false;
+            render();
+        });
+    }
+
+    // What the node at a path is reported under in the sample's trial: a template's tree is
+    // tried with every node labelled, a library part's only with its own labels
+    private String reportedLabel(final int[] path) {
+        return root == null || subject == null
+                ? null
+                : PatternNodes.reportedLabel(root, path, subject.triesEveryNode());
+    }
+
+    /// Told the label of the node the pointer is on, or null when it leaves: the sample marks what
+    /// that node matched while it is there (design 44 §4a).
+    ///
+    /// @param onLabelPoint The handler.
+    public void setOnLabelPoint(final Consumer<String> onLabelPoint) {
+        this.onLabelPoint = onLabelPoint;
+    }
+
+    /// Marks the node matching stopped at, where the tree matched nowhere (design 44 §4a).
+    ///
+    /// @param path The node's path, or null for none.
+    public void markStopped(final String path) {
+        if (!Objects.equals(path, stopped)) {
+            stopped = path;
+            view.setStopped(path);
+            // Drawn now, unless a node's text is open in place: drawing would take the field
+            // from under the keyboard, so the mark waits for the redraw its taking makes
+            if (root != null && !editing) {
+                render();
+            }
+        }
+    }
+
+    // The add line: what was typed, a regex, exploded into the nodes it is and added after the
+    // selected node; the last of them is selected, so the next fragment follows it
+    private void onAdd(final String text) {
+        final PatternNode node = root == null
+                ? null
+                : PatternNodes.get(root, selected);
+        if (node == null || readOnly) {
+            return;
+        }
+        final int[] at = selected;
+        final PatternNode before = root;
+        final Subject on = subject;
+        restFactory
+                .create(RESOURCE)
+                .method(res -> res.explode(new ShapeshifterPatternRequest(text, false, false)))
+                .onSuccess(result -> {
+                    // Only onto the tree it was typed against: one edited, or another shown,
+                    // meanwhile is not where it was meant to go
+                    if (root != before || subject != on || readOnly) {
+                        view.setError("Not added: the tree changed while it was read; press Enter again");
+                        return;
+                    }
+                    final PatternNode added;
+                    try {
+                        added = ProjectText.parsePatternNode(result.getText());
+                    } catch (final RuntimeException e) {
+                        view.setError("Not added: " + e.getMessage());
+                        return;
+                    }
+                    final PatternNodes.Placed placed = PatternNodes.addAfter(root, at, added);
+                    view.setError(null);
+                    apply(placed.root(), placed.last());
+                    view.clearAdd();
+                })
+                .onFailure(error -> view.setError("Not added: " + error.getMessage()))
+                .owner(this)
+                .exec();
     }
 
     private void enableButtons() {
@@ -333,6 +459,7 @@ public class PatternTreeController
                 : PatternNodes.get(root, selected);
         final boolean container = node != null && PatternNodes.isContainer(node);
         final boolean hasParent = selected.length > 0;
+        view.setAddEnabled(editable && node != null);
         addChildButton.setEnabled(editable && container);
         addAfterButton.setEnabled(editable && node != null);
         wrapButton.setEnabled(editable && node != null);
@@ -658,6 +785,13 @@ public class PatternTreeController
 
         /// What to say over the tree.
         SafeHtml heading();
+
+        /// Whether the sample's trial labels every node of this tree (design 44 §4a): a
+        /// template's tree it does; a library part is tried through a ref to it, and reports
+        /// only the labels its author gave.
+        default boolean triesEveryNode() {
+            return true;
+        }
     }
 
 }

@@ -386,9 +386,72 @@ public final class Templates {
     public static Project experiment(final Project project, final Template template) {
         // Never a skipping template, whatever the subject is: skipped bytes open no frame (D36),
         // and the sample is nothing but the frames a match opens.
-        final Template bare = new Template(template.id(), template.name(), null, false, null, null,
-                null, template.match(), null, null, null, template.encoding(), template.ignoreErrors());
-        return project.withTemplates(List.of(bare));
+        return project.withTemplates(List.of(bare(template, template.id(), template.name(), template.match())));
+    }
+
+    // The subject as a trial runs it: its match and encoding at the root, with no guard, limits,
+    // declarations, captures or body, under an id and name of the trial's choosing
+    private static Template bare(final Template template, final String id, final String name,
+                                 final MatchExpression match) {
+        return new Template(id, name, null, false, null, null, null, match, null, null, null, template.encoding(),
+                template.ignoreErrors());
+    }
+
+    /// The project a workbench trial of a pattern tree is run with (design 44 §4a): as
+    /// [#experiment], with every node of the tree labelled ([PatternNodes#labelEvery]), so that
+    /// what each matched comes back as a group.
+    ///
+    /// @param project The project.
+    /// @param template The subject, whose match is a pattern tree.
+    /// @return The project to try.
+    public static Project treeExperiment(final Project project, final Template template) {
+        return template.match() instanceof MatchExpression.Pattern pattern
+                ? experiment(project, withMatch(template, new MatchExpression.Pattern(
+                PatternNodes.labelEvery(pattern.node()))))
+                : experiment(project, template);
+    }
+
+    /// The items of a tree that is a sequence at its root, or null: the sequence a failed match
+    /// can say how far it got along (design 44 §4a).
+    ///
+    /// @param node The tree.
+    /// @return Its items, or null when it is not a sequence of two or more.
+    public static List<PatternNode> sequenceItems(final PatternNode node) {
+        return PatternNodes.bare(node) instanceof PatternNode.Sequence sequence && sequence.items().size() > 1
+                ? sequence.items()
+                : null;
+    }
+
+    /// The project that says how far a sequence got where it matched nowhere (design 44 §4a): a
+    /// template for each of its leading runs, its first n - 1 items, then n - 2, down to its
+    /// first, in that order, each labelled as [#treeExperiment] labels the whole. Dispatch tries
+    /// them in order, so at any place the first to match is the furthest the sequence got there.
+    ///
+    /// @param project The project.
+    /// @param template The subject, whose match is a pattern tree with a sequence at its root.
+    /// @return The project, or null when the match is not such a tree.
+    public static Project prefixExperiment(final Project project, final Template template) {
+        if (!(template.match() instanceof MatchExpression.Pattern pattern)) {
+            return null;
+        }
+        final List<PatternNode> items = sequenceItems(PatternNodes.labelEvery(pattern.node()));
+        if (items == null) {
+            return null;
+        }
+        final List<Template> runs = new ArrayList<>();
+        for (int count = items.size() - 1; count > 0; count--) {
+            final PatternNode run = new PatternNode.Sequence(new ArrayList<>(items.subList(0, count)));
+            runs.add(bare(template, prefixId(template, count), template.name() + " to " + count,
+                    new MatchExpression.Pattern(run)));
+        }
+        return project.withTemplates(runs);
+    }
+
+    /// @param template The subject of a [#prefixExperiment].
+    /// @param count How many of its sequence's items a run holds.
+    /// @return The id of the run's template.
+    public static String prefixId(final Template template, final int count) {
+        return template.id() + "-to-" + count;
     }
 
     /// The match a kind starts as when there is nothing to carry into it (design 44 §1): the

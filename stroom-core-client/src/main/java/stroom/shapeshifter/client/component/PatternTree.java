@@ -19,11 +19,13 @@ package stroom.shapeshifter.client.component;
 import stroom.shapeshifter.client.model.PatternItem;
 import stroom.widget.button.client.Toolbar;
 import stroom.widget.component.client.Component;
+import stroom.widget.form.client.TextBox;
 import stroom.widget.htree.client.treelayout.util.DefaultTreeForTreeLayout;
 import stroom.widget.text.client.Html;
 import stroom.widget.text.client.Label;
 
 import com.google.gwt.core.client.GWT;
+import com.google.gwt.event.dom.client.KeyCodes;
 import com.google.gwt.safehtml.shared.SafeHtml;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
@@ -40,6 +42,10 @@ public class PatternTree extends Component {
     private Consumer<String> onSelect = path -> {
     };
     private Consumer<String> onOpen = path -> {
+    };
+    private Consumer<String> onPoint = path -> {
+    };
+    private Consumer<String> onAdd = text -> {
     };
 
     private static final Binder BINDER = GWT.create(Binder.class);
@@ -58,6 +64,8 @@ public class PatternTree extends Component {
     SimplePanel tree;
     @UiField
     Html library;
+    @UiField
+    TextBox addField;
 
     public PatternTree() {
         initWidget(BINDER.createAndBindUi(this));
@@ -65,6 +73,54 @@ public class PatternTree extends Component {
         tree.setWidget(treePanel);
         treePanel.setOnSelect(path -> onSelect.accept(path));
         treePanel.setOnOpen(path -> onOpen.accept(path));
+        treePanel.setOnPoint(path -> onPoint.accept(path));
+        addField.getElement().setPropertyString("placeholder", "a regex, e.g. [a-z]+= — Enter adds its nodes");
+        addField.addKeyDownHandler(event -> {
+            if (event.getNativeKeyCode() == KeyCodes.KEY_ENTER && !addField.getText().isEmpty()) {
+                event.preventDefault();
+                onAdd.accept(addField.getText());
+            }
+        });
+    }
+
+    /// Empties the add line, with the keyboard left in it for the next fragment.
+    public void clearAdd() {
+        addField.setText("");
+        addField.setFocus(true);
+    }
+
+    /// @param enabled Whether the add line can be typed in: not read only, and a node selected.
+    public void setAddEnabled(final boolean enabled) {
+        addField.setEnabled(enabled);
+    }
+
+    /// @param onAdd Given what was typed in the add line when Enter is pressed in it.
+    public void setOnAdd(final Consumer<String> onAdd) {
+        this.onAdd = onAdd;
+    }
+
+    /// Selects a node among those drawn, without drawing the tree again.
+    ///
+    /// @param path The node's path.
+    public void select(final String path) {
+        treePanel.select(path);
+    }
+
+    /// @param path The node matching stopped at, marked; null for none. Drawn at the next tree.
+    public void setStopped(final String path) {
+        treePanel.setStopped(path);
+    }
+
+    /// Edits a node's text in place, a field where its label was.
+    ///
+    /// @param path The node.
+    /// @param text The text to start from.
+    /// @param onTake Given the text taken.
+    /// @param onCancel Told when it is put back.
+    /// @return Whether the node is drawn, and so could be edited.
+    public boolean edit(final String path, final String text, final Consumer<String> onTake,
+                        final Runnable onCancel) {
+        return treePanel.edit(path, text, onTake, onCancel);
     }
 
 
@@ -124,6 +180,11 @@ public class PatternTree extends Component {
     /// @param onOpen Told when open.
     public void setOnOpen(final Consumer<String> onOpen) {
         this.onOpen = onOpen;
+    }
+
+    /// @param onPoint Told the path of the node the pointer comes onto, and null when it leaves.
+    public void setOnPoint(final Consumer<String> onPoint) {
+        this.onPoint = onPoint;
     }
 
     interface Binder extends UiBinder<Widget, PatternTree> {

@@ -119,9 +119,21 @@ public class MatchEditorController extends Controller {
         regexForm.pointGroup(group);
     }
 
-    /// Told the label of the tree node selected, null for an unlabelled one or none.
+    /// Told the label the tree node selected is reported under, null for none.
     public void setOnLabelSelect(final Consumer<String> onLabelSelect) {
         treeForm.setOnLabelSelect(onLabelSelect);
+    }
+
+    /// Told the label the tree node the pointer is on is reported under, null when it leaves.
+    public void setOnLabelPoint(final Consumer<String> onLabelPoint) {
+        treeForm.setOnLabelPoint(onLabelPoint);
+    }
+
+    /// Marks the tree node a trial that matched nowhere stopped at.
+    ///
+    /// @param path The node's path, or null for none.
+    public void markStopped(final String path) {
+        treeForm.markStopped(path);
     }
 
     public void setHost(final ProjectHost host) {

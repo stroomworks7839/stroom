@@ -18,6 +18,7 @@ package stroom.shapeshifter.client.component;
 
 import stroom.dispatch.client.RestFactory;
 import stroom.shapeshifter.client.model.Mark;
+import stroom.shapeshifter.client.model.PatternNodes;
 import stroom.shapeshifter.client.model.Patterns;
 import stroom.shapeshifter.client.model.ProjectHost;
 import stroom.shapeshifter.client.model.ProjectText;
@@ -43,6 +44,7 @@ import com.google.web.bindery.event.shared.EventBus;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Consumer;
 import java.util.function.IntConsumer;
 import java.util.function.Supplier;
 
@@ -80,6 +82,12 @@ public class SampleController extends Controller {
     private String isolatedLabel;
     private int pointedGroup = RegexController.NO_GROUP;
     private IntConsumer onGroupPoint = group -> {
+    };
+    // The label of a tree's node the pointer is on, shown alone while it is (design 44 §4a)
+    private String pointedLabel;
+    // Where a tree that matched nowhere got furthest: the prefix trial's answer to the trace held
+    private ShapeshifterTrace progress;
+    private Consumer<String> onStopped = path -> {
     };
 
     @Inject
@@ -123,6 +131,9 @@ public class SampleController extends Controller {
             subjectKey = key;
             isolatedGroup = RegexController.NO_GROUP;
             isolatedLabel = null;
+            pointedLabel = null;
+            progress = null;
+            onStopped.accept(null);
         }
         final String current = view.getSample();
         // A new subject is seeded from the run, and so is an empty box - the first run after the
@@ -244,6 +255,7 @@ public class SampleController extends Controller {
         if (template == null) {
             trace = null;
             requested = null;
+            onStopped.accept(null);
             view.showNothing("");
             return;
         }
@@ -252,11 +264,13 @@ public class SampleController extends Controller {
             && !(match instanceof MatchExpression.Parts) && !(match instanceof MatchExpression.Delimiter)) {
             trace = null;
             requested = null;
+            onStopped.accept(null);
             view.showNothing("A " + Templates.kind(match) + " match has no pattern to try against a sample.");
             return;
         }
         final String sample = view.getSample();
-        final String project = ProjectText.print(Templates.experiment(host.getProject(), template));
+        // A tree is tried with every node labelled, so each node's stretch comes back as a group
+        final String project = ProjectText.print(Templates.treeExperiment(host.getProject(), template));
         final String key = project + '\u0000' + sample + '\u0000' + seedEncoding;
         if (running) {
             // One request in flight; the edit that arrived meanwhile runs when this one lands.
@@ -276,6 +290,11 @@ public class SampleController extends Controller {
                 .onSuccess(result -> {
                     running = false;
                     trace = result;
+                    progress = null;
+                    if (!runAgain && matchedNowhere(result)) {
+                        askProgress(template, sample);
+                        return;
+                    }
                     if (runAgain) {
                         // Something moved meanwhile - the text, or the subject: the follow-up
                         // paints, so this answer is never shown under the wrong template.
@@ -293,6 +312,7 @@ public class SampleController extends Controller {
                         runAgain = false;
                         run();
                     } else {
+                        onStopped.accept(null);
                         view.showNothing("The sample could not be tried: " + error.getMessage());
                     }
                 })
@@ -312,6 +332,7 @@ public class SampleController extends Controller {
                         ? ""
                         : "; ").append(message.getText());
             }
+            onStopped.accept(null);
             view.showNothing("The match does not compile: " + why);
             return;
         }
@@ -341,34 +362,20 @@ public class SampleController extends Controller {
             marks.add(new Mark(Mark.Kind.MATCH, frame.getId(), -1, frame.getTemplateId(), from,
                     from + frame.getContentLength(), colour, "Match " + frame.getMatchIndex(), true));
             final List<Sample.Cell> cells = new ArrayList<>();
-            for (final Group group : groupsOf(frame.getId())) {
-                final boolean placed = group.getContentOffset() != ShapeshifterTrace.NOT_A_SLICE;
-                final int start = from + group.getContentOffset();
-                final String value = placed
-                        ? text.substring(Math.min(start, text.length()),
-                        Math.min(start + group.getContentLength(), text.length()))
-                        : null;
-                if (group.getIndex() > 0) {
-                    cells.add(new Sample.Cell(group.getIndex(), group.getName(), value,
-                            Colours.hue(group.getIndex()), isolated(group)));
-                }
-                // A regex's group is shown alone by lighting it (Sample#lightGroup), and every
-                // capture is drawn; a tree's label by drawing only its spans
-                if (placed && group.getIndex() > 0
-                    && (isolatedLabel == null || isolatedLabel.equals(group.getName()))) {
-                    // Ruled, because in this pane every capture is the current level's: there is
-                    // one pattern and no hierarchy to be below (design 18 §5.11.2).
-                    marks.add(new Mark(Mark.Kind.CAPTURE, frame.getId(), group.getIndex(), null, start,
-                            start + group.getContentLength(), Colours.hue(group.getIndex()),
-                            group.getName() == null
-                                    ? "$" + group.getIndex()
-                                    : group.getName(), true));
-                }
-            }
+            addGroups(marks, cells, text, frame, groupsOf(frame.getId()));
             rows.add(new Sample.Row(frame.getMatchIndex(), from, frame.getContentLength(), cells));
         }
+        final String got = matches == 0
+                ? addProgress(marks, text)
+                : null;
+        if (matches > 0) {
+            onStopped.accept(null);
+        }
         marks.sort(Mark.OUTER_FIRST);
-        view.showMatches(text, marks, rows, matches == 0
+        // Where a tree stopped says more than where it was tried, and the bar has room for one
+        view.showMatches(text, marks, rows, got != null
+                ? "No matches · " + got
+                : matches == 0
                 ? "No matches · tried at " + tried + (tried == 1
                         ? " place"
                         : " places")
@@ -378,6 +385,193 @@ public class SampleController extends Controller {
                         ? " place"
                         : " places"));
         light();
+    }
+
+    // A tree, with a sequence at its root, that compiled and matched nowhere: it can be asked how
+    // far it got
+    private boolean matchedNowhere(final ShapeshifterTrace result) {
+        if (!result.isCompiled() || experiment == null
+            || !(experiment.match() instanceof MatchExpression.Pattern pattern)
+            || Templates.sequenceItems(pattern.node()) == null) {
+            return false;
+        }
+        for (final Frame frame : result.getFrames()) {
+            if (frame.getParentId() == TraceModel.ROOT) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    // The sequence tried again one item shorter at a time (Templates.prefixExperiment), so the
+    // sample can say how far it got: still one request in flight, so the answer is the trace's
+    private void askProgress(final Template template, final String sample) {
+        final String project = ProjectText.print(Templates.prefixExperiment(host.getProject(), template));
+        running = true;
+        restFactory
+                .create(RESOURCE)
+                .method(res -> res.preview(new ShapeshifterPreviewRequest(project, sample, null, seedEncoding)))
+                .onSuccess(result -> {
+                    running = false;
+                    progress = result.isCompiled()
+                            ? result
+                            : null;
+                    settle();
+                })
+                .onFailure(error -> {
+                    running = false;
+                    progress = null;
+                    settle();
+                })
+                .owner(this)
+                .exec();
+    }
+
+    // The trace and its progress are in: paint them, or run again for what moved meanwhile
+    private void settle() {
+        if (runAgain) {
+            runAgain = false;
+            run();
+        } else {
+            paint();
+        }
+    }
+
+    /// Show a tree's node alone while the pointer is on it, or with null, the node selected, if
+    /// any (design 44 §4a).
+    ///
+    /// @param label The label the node's stretch is reported under ([PatternNodes#reportedLabel]).
+    public void pointLabel(final String label) {
+        if (!Objects.equals(label, pointedLabel)) {
+            pointedLabel = label;
+            paint();
+        }
+    }
+
+    /// @param onStopped Told the path of the node a tree that matched nowhere stopped at, after
+    ///                  every trial; null when it matched, or there is nothing to say.
+    public void setOnStopped(final Consumer<String> onStopped) {
+        this.onStopped = onStopped;
+    }
+
+    // The label shown alone: the node pointed at, else the node or label selected
+    private String shownLabel() {
+        return pointedLabel != null
+                ? pointedLabel
+                : isolatedLabel;
+    }
+
+    // A frame's groups as marks and, for the detail, cells: a trial label's only while its node
+    // is shown alone, and never in the detail, which lists what the author named
+    private void addGroups(final List<Mark> marks, final List<Sample.Cell> cells, final String text,
+                           final Frame frame, final List<Group> groups) {
+        final int from = frame.getContentOffset();
+        final String shown = shownLabel();
+        for (final Group group : groups) {
+            if (group.getIndex() <= 0) {
+                continue;
+            }
+            final boolean trial = PatternNodes.isTrialLabel(group.getName());
+            final boolean placed = group.getContentOffset() != ShapeshifterTrace.NOT_A_SLICE;
+            final int start = from + group.getContentOffset();
+            if (!trial && cells != null) {
+                final String value = placed
+                        ? text.substring(Math.min(start, text.length()),
+                        Math.min(start + group.getContentLength(), text.length()))
+                        : null;
+                cells.add(new Sample.Cell(group.getIndex(), group.getName(), value,
+                        Colours.hue(group.getIndex()), isolated(group)));
+            }
+            // A regex's group is shown alone by lighting it (Sample#lightGroup), and every
+            // capture is drawn; a tree's node by drawing only its spans
+            final boolean drawn = shown == null
+                    ? !trial
+                    : shown.equals(group.getName());
+            if (placed && drawn) {
+                // Ruled, because in this pane every capture is the current level's: there is
+                // one pattern and no hierarchy to be below (design 18 §5.11.2).
+                marks.add(new Mark(Mark.Kind.CAPTURE, frame.getId(), group.getIndex(), null, start,
+                        start + group.getContentLength(), Colours.hue(group.getIndex()),
+                        groupTitle(group), true));
+            }
+        }
+    }
+
+    // What a group is called on its mark: the author's name for it, the node a trial label was
+    // given to, or its number
+    private String groupTitle(final Group group) {
+        if (PatternNodes.isTrialLabel(group.getName())
+            && experiment != null && experiment.match() instanceof MatchExpression.Pattern pattern) {
+            final PatternNode node = PatternNodes.get(pattern.node(), PatternNodes.pathOfTrialLabel(group.getName()));
+            return node == null
+                    ? "a node"
+                    : Templates.describe(node);
+        }
+        return group.getName() == null
+                ? "$" + group.getIndex()
+                : group.getName();
+    }
+
+    // How far a tree that matched nowhere got, at the first place any of its leading runs matched:
+    // that run's stretch and its nodes' marked, and a stop where the next node failed. Null when
+    // there is nothing to say; else the line for the sample's bar.
+    private String addProgress(final List<Mark> marks, final String text) {
+        final List<PatternNode> items = experiment != null && experiment.match() instanceof MatchExpression.Pattern p
+                ? Templates.sequenceItems(p.node())
+                : null;
+        if (progress == null || items == null) {
+            onStopped.accept(null);
+            return null;
+        }
+        // The run that held the most of the sequence, anywhere; of two as long, the earlier
+        Frame furthest = null;
+        int count = 0;
+        for (final Frame frame : progress.getFrames()) {
+            if (frame.getParentId() != TraceModel.ROOT || frame.getContentOffset() == ShapeshifterTrace.NOT_A_SLICE) {
+                continue;
+            }
+            final int held = prefixCount(frame.getTemplateId());
+            if (held > count || (held == count && furthest != null
+                                 && frame.getContentOffset() < furthest.getContentOffset())) {
+                furthest = frame;
+                count = held;
+            }
+        }
+        if (count <= 0 || count >= items.size()) {
+            onStopped.accept(null);
+            return null;
+        }
+        final int from = furthest.getContentOffset();
+        final int to = from + furthest.getContentLength();
+        final String next = Templates.describe(items.get(count));
+        marks.add(new Mark(Mark.Kind.MATCH, furthest.getId(), -1, null, from, to, colour,
+                "Its first " + count + " of " + items.size() + " nodes matched here", true));
+        marks.add(new Mark(Mark.Kind.GAP, -1, -1, null, Math.min(to, text.length()), Math.min(to, text.length()),
+                null, "Stopped here: " + next + " did not match"));
+        final List<Group> groups = new ArrayList<>();
+        for (final Group group : progress.getGroups()) {
+            if (group.getFrameId() == furthest.getId()) {
+                groups.add(group);
+            }
+        }
+        addGroups(marks, null, text, furthest, groups);
+        onStopped.accept(PatternNodes.path(new int[]{count}));
+        return "stopped at " + next + ", node " + (count + 1) + " of " + items.size();
+    }
+
+    // How many of the sequence's items a run of the prefix trial held, from its template's id
+    // (Templates.prefixId); 0 for an id that is not one of the runs
+    private int prefixCount(final String templateId) {
+        final String stem = Templates.prefixId(experiment, 0);
+        final String prefix = stem.substring(0, stem.length() - 1);
+        if (templateId == null || !templateId.startsWith(prefix)) {
+            return 0;
+        }
+        try {
+            return Integer.parseInt(templateId.substring(prefix.length()));
+        } catch (final NumberFormatException e) {
+            return 0;
+        }
     }
 
     private List<Group> groupsOf(final long frameId) {

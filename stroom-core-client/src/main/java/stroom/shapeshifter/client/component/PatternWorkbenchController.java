@@ -78,6 +78,10 @@ public class PatternWorkbenchController extends Controller {
         // pointed at in the sample alone in the pattern and its row (ruled 2026-11-20)
         matchEditor.setOnGroupPoint(sample::pointGroup);
         sample.setOnGroupPoint(matchEditor::pointGroup);
+        // A tree's node pointed at marks what it matched in the sample, and a tree that matched
+        // nowhere marks the node it stopped at (design 44 §4a)
+        matchEditor.setOnLabelPoint(sample::pointLabel);
+        sample.setOnStopped(matchEditor::markStopped);
         matchEditor.setOnLabelSelect(sample::isolate);
         guardAndLimits.setOnChange(this::describeGuardAndLimits);
         watch(Contexts.READ_ONLY, locked -> {

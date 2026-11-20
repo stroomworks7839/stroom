@@ -13,7 +13,7 @@
  *   Meta     --font-size-12, 400, --text-color--muted: notes, counts, descriptions, hints.
  *            Italic only for a list or field with nothing in it (placeholder.css).
  *   Code     --monospace-font-family, --font-size-13: pattern and data text, as typed.
- *   Error    Meta's size in --bootstrap-error.
+ *   Error    Meta's size in --text-color--red.
  *
  * The pattern tree's boxes are laid out in pixels (PatternItemRenderer), so their words keep
  * a pixel size.

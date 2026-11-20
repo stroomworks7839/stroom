@@ -3,7 +3,7 @@
  */
 .source-settings__error {
     padding: 2px 4px;
-    color: var(--bootstrap-error);
+    color: var(--text-color--red);
     white-space: pre-wrap;
 }
 

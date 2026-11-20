@@ -17,6 +17,7 @@
 package stroom.shapeshifter.client.component;
 
 import stroom.shapeshifter.client.model.GroupRowData;
+import stroom.widget.button.client.LinkButton;
 import stroom.widget.component.client.Component;
 import stroom.widget.form.client.TextArea;
 import stroom.widget.form.client.TextBox;
@@ -75,7 +76,7 @@ public class Regex
     @UiField
     Label error;
     @UiField
-    Label explode;
+    LinkButton explode;
     @UiField
     TickBox dotAll;
     @UiField
@@ -96,7 +97,7 @@ public class Regex
         caseInsensitive.addValueChangeHandler(event -> onCaseInsensitive(event));
         dotAll.addValueChangeHandler(event -> onDotAll(event));
         advance.addValueChangeHandler(event -> onAdvance(event));
-        explode.addClickHandler(event -> onExplode(event));
+        explode.setOnClick(this::onExplode);
         setError(null);
         setExplain(null);
         patternMap.addDomHandler(event -> {
@@ -177,7 +178,7 @@ public class Regex
         changed();
     }
 
-    private void onExplode(final ClickEvent e) {
+    private void onExplode() {
         if (enabled) {
             onExplode.run();
         }
@@ -194,7 +195,7 @@ public class Regex
         caseInsensitive.setEnabled(!readOnly);
         dotAll.setEnabled(!readOnly);
         advance.setEnabled(!readOnly);
-        explode.setStyleDependentName("disabled", readOnly);
+        explode.setEnabled(!readOnly);
     }
 
     public String getPattern() {

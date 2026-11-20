@@ -3,9 +3,11 @@
  * PatternTree, Regex and the rest): headings and their notes, sections, errors, the lint
  * beneath a pattern, and the toolbar above them.
  */
-/* A form's toolbar sits above its sections rather than floating over the first one. */
+/* A form's toolbar sits above its sections, in the same pane as the kind above it and with no
+   rule of its own: the kind, the toolbar and the form are one pane (MatchEditor, ruled
+   2026-11-20). Inset as the sections are, so its first button stands over their text. */
 .workbench-form__toolbar {
-    border-bottom: 1px solid var(--border-color);
+    padding: 4px 10px 0;
 }
 
 /* The workbench's right column: sections with sentence-case headings, each a label (mockup #wbRight;
@@ -54,7 +56,7 @@
 }
 
 .workbench-form__error {
-    color: var(--bootstrap-error);
+    color: var(--text-color--red);
     font-size: var(--font-size-12);
     padding-top: 4px;
     min-height: 18px;
